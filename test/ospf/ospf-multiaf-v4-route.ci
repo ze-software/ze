@@ -43,8 +43,6 @@ ospf {
 		}
 	}
 	redistribute connected {
-		metric 20
-		metric-type type-2
 	}
 }
 EOF_CONF

@@ -10,14 +10,23 @@ import (
 	ospfiface "github.com/ze-software/ze/internal/plugins/ospf/iface"
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	ospfredistribute "github.com/ze-software/ze/internal/plugins/ospf/redistribute"
 	"github.com/ze-software/ze/internal/plugins/ospf/transport"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
 )
 
+// staticExternal is the External the `ospf filter export` chain hands the engine
+// for a static route in these tests: metric 33 and type 2, as the migrated
+// `redistribute static { metric 33; tag 77; }` entry set, with tag the route's
+// own tag, or 77 for an untagged route.
+func staticExternal(tag uint32) ospfredistribute.External {
+	return ospfredistribute.External{Metric: 33, Type2: true, Tag: tag}
+}
+
 func nssaImportEngine(t *testing.T, f nssaTestFamily) (*engine, *time.Time) {
 	t.Helper()
-	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.7.1","areas":{"area":{"0.0.0.7":{"area-id":"0.0.0.7","area-type":"nssa"}}},"redistribute":{"static":{"source":"static","nssa-propagate":true,"metric":"33","tag":"77"},"connected":{"source":"connected","nssa-propagate":false},"bgp":{"source":"bgp"}}}}`), nil)
+	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.7.1","areas":{"area":{"0.0.0.7":{"area-id":"0.0.0.7","area-type":"nssa"}}},"redistribute":{"static":{"source":"static","nssa-propagate":true},"connected":{"source":"connected","nssa-propagate":false},"bgp":{"source":"bgp"}}}}`), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +130,7 @@ func TestNSSAImportReoriginatesAfterForwardingInterfaceDown(t *testing.T) {
 		t.Run(f.name, func(t *testing.T) {
 			eng, now := nssaImportEngine(t, f)
 			prefix := nssaImportPrefix(f)
-			if err := eng.InjectExternal(prefix, "static", 91); err != nil {
+			if err := eng.InjectExternal(prefix, "static", staticExternal(91)); err != nil {
 				t.Fatal(err)
 			}
 			imported, exists := nssaImportedLSA(t, eng, f, prefix)
@@ -162,7 +171,7 @@ func TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent(t *testing.T) {
 		t.Run(f.name, func(t *testing.T) {
 			eng, now := nssaImportEngine(t, f)
 			prefix := nssaImportPrefix(f)
-			if err := eng.InjectExternal(prefix, "static", 0); err != nil {
+			if err := eng.InjectExternal(prefix, "static", staticExternal(77)); err != nil {
 				t.Fatal(err)
 			}
 			imported, _ := nssaImportedLSA(t, eng, f, prefix)
@@ -198,7 +207,7 @@ func TestNSSAPerSourcePropagationEnabled(t *testing.T) {
 			eng, _ := nssaImportEngine(t, f)
 			prefix, _ := eng.defaultRoute()
 			for _, route := range []netip.Prefix{nssaImportPrefix(f), prefix} {
-				if err := eng.InjectExternal(route, "static", 0); err != nil {
+				if err := eng.InjectExternal(route, "static", staticExternal(77)); err != nil {
 					t.Fatal(err)
 				}
 				imported, exists := nssaImportedLSA(t, eng, f, route)
@@ -223,7 +232,7 @@ func TestNSSAPerSourcePropagationDisabled(t *testing.T) {
 			for _, source := range []string{"connected", "bgp"} {
 				eng, _ := nssaImportEngine(t, f)
 				prefix := nssaImportPrefix(f)
-				if err := eng.InjectExternal(prefix, source, 0); err != nil {
+				if err := eng.InjectExternal(prefix, source, defaultExternal(0)); err != nil {
 					t.Fatal(err)
 				}
 				imported, exists := nssaImportedLSA(t, eng, f, prefix)
@@ -248,7 +257,7 @@ func TestNSSAPerSourcePropagationCannotOverrideType5(t *testing.T) {
 			eng.setConfig(cfg)
 			eng.running["backbone"] = interfaceConfig{Name: "backbone", AreaID: types.BackboneArea}
 			prefix := nssaImportPrefix(f)
-			if err := eng.InjectExternal(prefix, "static", 0); err != nil {
+			if err := eng.InjectExternal(prefix, "static", staticExternal(77)); err != nil {
 				t.Fatal(err)
 			}
 			imported, exists := nssaImportedLSA(t, eng, f, prefix)

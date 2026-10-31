@@ -262,9 +262,9 @@ func (a v6InjectorAF) Active() bool {
 	return ok
 }
 
-func (a v6InjectorAF) InjectExternal(prefix netip.Prefix, source string, routeTag uint32) error {
+func (a v6InjectorAF) InjectExternal(prefix netip.Prefix, source string, ext ospfredistribute.External) error {
 	if e, ok := a.set.engineFor(a.af); ok {
-		return e.InjectExternal(prefix, source, routeTag)
+		return e.InjectExternal(prefix, source, ext)
 	}
 	return nil
 }

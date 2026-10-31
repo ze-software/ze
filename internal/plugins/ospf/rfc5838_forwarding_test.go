@@ -46,7 +46,7 @@ func rfc5838InjectNSSA(t *testing.T, af addressFamily, ethAddr string) ospfv3pac
 	}
 
 	prefix := netip.MustParsePrefix("198.51.100.0/24")
-	if err := eng.InjectExternal(prefix, "connected", 0); err != nil {
+	if err := eng.InjectExternal(prefix, "connected", defaultExternal(0)); err != nil {
 		t.Fatalf("InjectExternal: %v", err)
 	}
 	lsid, ok := eng.redistV6[prefix.Masked()]

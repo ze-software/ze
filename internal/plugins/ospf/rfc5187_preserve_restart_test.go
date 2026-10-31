@@ -54,7 +54,7 @@ func rfc5187RestartPairOn(t *testing.T, iface string) (*engine, *fakeV6Backend, 
 	if err := before.openInterfaces(); err != nil {
 		t.Fatalf("first engine openInterfaces: %v", err)
 	}
-	if err := before.v6InjectExternal(prefix, "static", 0); err != nil {
+	if err := before.v6InjectExternal(prefix, "static", defaultExternal(0)); err != nil {
 		t.Fatalf("v6InjectExternal: %v", err)
 	}
 	before.mu.Lock()
@@ -101,7 +101,7 @@ func TestRFC5187LSAIDToPrefixPreservedAcrossRestart(t *testing.T) {
 	// to another prefix: a prefix first redistributed after the restart is refused the
 	// preserved LSA ID and gets a different one, and the preserved prefix keeps its own.
 	other := netip.MustParsePrefix("2001:db8:5188::/48")
-	if err := after.v6InjectExternal(other, "static", 0); err != nil {
+	if err := after.v6InjectExternal(other, "static", defaultExternal(0)); err != nil {
 		t.Fatalf("v6InjectExternal after restart: %v", err)
 	}
 	after.mu.Lock()

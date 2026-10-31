@@ -357,7 +357,7 @@ func TestOSPFConfigResolve(t *testing.T) {
 		`"maximum-paths":"16",` +
 		`"default-information":{"originate":"true","always":"true","metric":"7","metric-type":"type-1"},` +
 		`"timers":{"spf-delay-ms":"10","spf-hold-ms":"20","spf-max-hold-ms":"30","min-ls-interval-ms":"40","min-ls-arrival-ms":"50"},` +
-		`"redistribute":{"static":{"source":"static","metric":"33","metric-type":"type-2","tag":"99"}},` +
+		`"redistribute":{"static":{"source":"static"}},` +
 		`"areas":{"area":{"0.0.0.0":{"area-id":"0.0.0.0","area-type":"stub","no-summary":"true","default-cost":"3","authentication":{"key-chain":"area-key"},"ranges":{"range":{"10.0.0.0/16":{"prefix":"10.0.0.0/16","advertise":"not-advertise","cost":"11"}}}}}},` +
 		`"interfaces":{"interface":{"eth0":{"name":"eth0","area":"0.0.0.0","network-type":"point-to-point","cost":"100","hello-interval":"5","dead-interval":"20","priority":"0","passive":"false","mtu-ignore":"true","retransmit-interval":"6","transmit-delay":"2","authentication":{"mode":"md5","key-chain":"area-key"}}}},` +
 		`"key-chains":{"area-key":{"name":"area-key","key":{"1":{"key-id":"1","algorithm":"hmac-sha-256","secret":"s3cr3t","send-lifetime":{"start":"2026-01-01T00:00:00Z","end":"2027-01-01T00:00:00Z"}}}}}` +
@@ -381,7 +381,7 @@ func TestOSPFConfigResolve(t *testing.T) {
 	if cfg.Timers.SPFDelayMS != 10 || cfg.Timers.SPFHoldMS != 20 || cfg.Timers.SPFMaxHoldMS != 30 || cfg.Timers.MinLSIntervalMS != 40 || cfg.Timers.MinLSArrivalMS != 50 {
 		t.Errorf("timers = %+v", cfg.Timers)
 	}
-	if len(cfg.Redistribute) != 1 || cfg.Redistribute[0].Source != redistributeStatic || cfg.Redistribute[0].Metric != 33 || cfg.Redistribute[0].Tag != 99 {
+	if len(cfg.Redistribute) != 1 || cfg.Redistribute[0].Source != redistributeStatic {
 		t.Errorf("redistribute = %+v", cfg.Redistribute)
 	}
 	if len(cfg.Areas) != 1 {

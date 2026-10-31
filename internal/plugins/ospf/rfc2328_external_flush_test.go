@@ -30,7 +30,7 @@ func externalFlushEngine(t *testing.T) (*engine, *lsaSends) {
 	eng, _, sends, dispatch := activeNeighborEngine(t)
 	bringToExchange(t, eng, dispatch, packet.Header{RouterID: mustRouterID(t, "2.2.2.2"), AreaID: types.BackboneArea})
 	for _, prefix := range []string{"10.6.0.0/16", "10.8.0.0/16"} {
-		if err := eng.InjectExternal(netip.MustParsePrefix(prefix), "connected", 0); err != nil {
+		if err := eng.InjectExternal(netip.MustParsePrefix(prefix), "connected", defaultExternal(0)); err != nil {
 			t.Fatalf("InjectExternal %s: %v", prefix, err)
 		}
 		if sends.carried(externalFlushKey(prefix)) == 0 {

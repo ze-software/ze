@@ -28,7 +28,7 @@ type recordingInjector struct {
 	injected []netip.Prefix
 }
 
-func (r *recordingInjector) InjectExternal(p netip.Prefix, _ string, _ uint32) error {
+func (r *recordingInjector) InjectExternal(p netip.Prefix, _ string, _ ospfredistribute.External) error {
 	r.injected = append(r.injected, p)
 	return nil
 }
@@ -164,35 +164,41 @@ func TestExternalScopeSelectsDeterministicNonZeroNSSAFA(t *testing.T) {
 	assert.Equal(t, ip4Of("192.0.2.2"), live[0].fa, "down interface FA is not selected")
 }
 
-func TestEngineInjectExternalConfiguredParams(t *testing.T) {
-	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.0.1","redistribute":{"connected":{"source":"connected","metric":"33","metric-type":"type-1","tag":"7"}}}}`)
+// defaultExternal is the External the consumer hands the engine for a route no
+// export filter sets anything on: metric 20, type 2, and the route's own tag.
+func defaultExternal(tag uint32) ospfredistribute.External {
+	return ospfredistribute.External{Metric: ospfredistribute.DefaultExternalMetric, Type2: true, Tag: tag}
+}
 
-	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("10.5.0.0/24"), "connected", 0))
+func TestEngineInjectExternalConfiguredParams(t *testing.T) {
+	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.0.1","redistribute":{"connected":{"source":"connected"}}}}`)
+
+	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("10.5.0.0/24"), "connected", ospfredistribute.External{Metric: 33, Type2: false, Tag: 7}))
 	body, ok := externalBody(t, eng, rid, "10.5.0.0/24")
 	require.True(t, ok, "Type 5 originated for the injected prefix")
-	assert.Equal(t, uint32(33), body.Metric, "metric from cfg.Redistribute")
-	assert.False(t, body.ExternalType2, "metric-type type-1 -> E1 (ExternalType2 false)")
-	assert.Equal(t, uint32(7), body.ExternalRouteTag, "route tag from cfg.Redistribute")
+	assert.Equal(t, uint32(33), body.Metric, "metric the export chain set")
+	assert.False(t, body.ExternalType2, "metric-type type-1 the export chain set -> E1 (ExternalType2 false)")
+	assert.Equal(t, uint32(7), body.ExternalRouteTag, "route tag the export chain set")
 	assert.Equal(t, [4]byte{255, 255, 255, 0}, body.NetworkMask)
 }
 
 func TestEngineInjectExternalDefaultParams(t *testing.T) {
-	// "static" is not enrolled in cfg.Redistribute, so the engine falls back to the
-	// code default (metric 20, type-2).
+	// No export filter sets anything on the route, so the consumer hands the
+	// engine the default (metric 20, type-2).
 	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.0.1","redistribute":{"connected":{"source":"connected"}}}}`)
 
-	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("192.0.2.0/24"), "static", 0))
+	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("192.0.2.0/24"), "static", defaultExternal(0)))
 	body, ok := externalBody(t, eng, rid, "192.0.2.0/24")
 	require.True(t, ok)
-	assert.Equal(t, DefaultExternalMetric, body.Metric, "default external metric")
+	assert.Equal(t, ospfredistribute.DefaultExternalMetric, body.Metric, "default external metric")
 	assert.True(t, body.ExternalType2, "default metric-type type-2 -> E2")
 }
 
 func TestEngineInjectExternalMetricBoundary(t *testing.T) {
 	// The AS-External-LSA metric is a 24-bit field; the last valid value
 	// (0xFFFFFF = 16777215) is preserved, not truncated (AC-15 boundary).
-	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.0.1","redistribute":{"static":{"source":"static","metric":"16777215"}}}}`)
-	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("10.8.0.0/16"), "static", 0))
+	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.0.1","redistribute":{"static":{"source":"static"}}}}`)
+	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("10.8.0.0/16"), "static", ospfredistribute.External{Metric: 0xFFFFFF, Type2: true}))
 	body, ok := externalBody(t, eng, rid, "10.8.0.0/16")
 	require.True(t, ok)
 	assert.Equal(t, uint32(0xFFFFFF), body.Metric, "24-bit max metric preserved")
@@ -206,7 +212,7 @@ func TestEngineInjectExternalNSSAOnly(t *testing.T) {
 	nssa := types.AreaID{0, 0, 0, 5}
 	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: nssa}
 
-	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("10.9.0.0/24"), "connected", 0))
+	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("10.9.0.0/24"), "connected", defaultExternal(0)))
 	assert.Equal(t, 1, selfNSSACount(eng, nssa, rid), "Type 7 originated into the attached NSSA")
 	assert.Equal(t, 0, eng.lsdb.SelfExternalCount(rid), "an NSSA-only ASBR originates no Type 5")
 
@@ -224,7 +230,7 @@ func TestEngineInjectExternalNSSAandBackbone(t *testing.T) {
 	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: types.BackboneArea}
 	eng.running["eth1"] = interfaceConfig{Name: "eth1", AreaID: nssa}
 
-	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("10.9.0.0/24"), "connected", 0))
+	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("10.9.0.0/24"), "connected", defaultExternal(0)))
 	assert.Equal(t, 1, eng.lsdb.SelfExternalCount(rid), "Type 5 AS-wide (backbone attachment)")
 	assert.Equal(t, 1, selfNSSACount(eng, nssa, rid), "Type 7 into the NSSA")
 }
@@ -268,7 +274,7 @@ func TestEngineNSSAInternalDefaultRequiresForwardingAddress(t *testing.T) {
 func TestEngineWithdrawExternal(t *testing.T) {
 	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.0.1"}}`)
 
-	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("10.6.0.0/16"), "connected", 0))
+	require.NoError(t, eng.InjectExternal(netip.MustParsePrefix("10.6.0.0/16"), "connected", defaultExternal(0)))
 	require.Equal(t, 1, eng.lsdb.SelfExternalCount(rid))
 
 	removed, err := eng.WithdrawExternal(netip.MustParsePrefix("10.6.0.0/16"))

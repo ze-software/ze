@@ -8,8 +8,10 @@
 // (connected / static / BGP -- OSPF self-import is auto-rejected by the generic
 // loop-prevention evaluator because origin "ospf" == importing protocol "ospf").
 //
-// InjectRoute asks the engine to originate a Type 5 AS-External-LSA (RFC 2328 sec
-// 12.4.4) for the prefix in the AS-wide store, which makes the node an ASBR (Router-
+// InjectRoute runs the `ospf filter export` chain over the route (export.go). A
+// rejected route is withdrawn; an accepted one asks the engine to originate a
+// Type 5 AS-External-LSA (RFC 2328 sec 12.4.4) for the prefix in the AS-wide
+// store, at the metric, metric type and tag the chain set, which makes the node an ASBR (Router-
 // LSA E-bit) and floods the LSA AS-wide. WithdrawRoute MaxAge-purges it.
 
 package ospfredistribute
@@ -174,7 +176,7 @@ func (c *Consumer) injectorFor(fam family.Family) (ExternalInjector, bool) {
 	}
 }
 
-func (c *Consumer) InjectRoute(_ context.Context, fam family.Family, entry configredist.RouteEntry) {
+func (c *Consumer) InjectRoute(ctx context.Context, fam family.Family, entry configredist.RouteEntry) {
 	src := sourceLabel(entry.Source)
 	inj, want6 := c.injectorFor(fam)
 	if inj == nil {
@@ -191,7 +193,17 @@ func (c *Consumer) InjectRoute(_ context.Context, fam family.Family, entry confi
 	}
 	prefix = prefix.Masked()
 
-	if err := inj.InjectExternal(prefix, src, entry.Tag); err != nil {
+	// The export chain judges every route before it reaches the LSDB: a rejected
+	// route is not originated, and one this prefix originated before is withdrawn.
+	ext, accepted := exportVerdict(&entry)
+	if !accepted {
+		slog.Debug("ospf redist consumer: export chain rejected route",
+			"family", fam.String(), "prefix", entry.Prefix, "source", src)
+		c.WithdrawRoute(ctx, fam, entry.Prefix)
+		return
+	}
+	// RFC 2328 Section 12.4.4
+	if err := inj.InjectExternal(prefix, src, ext); err != nil {
 		// R-3: never swallow a failed AS-External origination -- log it.
 		slog.Warn("ospf redist consumer: AS-External origination failed after inject",
 			"prefix", prefix.String(), "source", src, "error", err)

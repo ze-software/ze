@@ -26,20 +26,37 @@ import "net/netip"
 // withdraw Type 5 AS-External-LSAs for redistributed routes. The OSPF engine
 // implements it (register.go wires the live engine; tests use a fake). It is
 // deliberately narrow: the redistribution code owns the per-prefix source
-// bookkeeping and only asks the engine to (a) originate a Type 5 for a prefix
-// learned from source, and (b) withdraw it. The engine owns the per-source
-// metric / metric-type / route-tag lookup (from the `ospf` container's
-// `redistribute` config), the ASBR E-bit, and the AS-wide flooding.
+// bookkeeping and the `ospf filter export` judgment, and only asks the engine to
+// (a) originate a Type 5 for a prefix learned from source, with the metric, the
+// metric type and the External Route Tag the export chain decided, and (b)
+// withdraw it. The engine owns the ASBR E-bit, the NSSA scope and the AS-wide
+// flooding.
 type ExternalInjector interface {
 	// InjectExternal originates (or replaces) a Type 5 AS-External-LSA for prefix,
-	// learned from source (connected/static/bgp). routeTag is the route's OWN
-	// external route tag, zero when it carries none; the engine decides how it
-	// combines with the per-source `tag` from configuration. It returns an error so
-	// the consumer can log a failed origination instead of swallowing it (R-3).
-	InjectExternal(prefix netip.Prefix, source string, routeTag uint32) error
+	// learned from source (connected/static/bgp), carrying ext as its metric, metric
+	// type and External Route Tag. It returns an error so the consumer can log a
+	// failed origination instead of swallowing it (R-3).
+	InjectExternal(prefix netip.Prefix, source string, ext External) error
 	// WithdrawExternal MaxAge-purges the Type 5 for prefix, reporting whether one
 	// existed. Returning false (never injected) is not an error.
 	WithdrawExternal(prefix netip.Prefix) (bool, error)
+}
+
+// DefaultExternalMetric is the AS-external metric of a redistributed route no
+// export filter sets a metric for.
+const DefaultExternalMetric = uint32(20)
+
+// External is the AS-external origination one redistributed route asks for:
+// the three fields of an AS-external LSA that the `ospf filter export` chain
+// decides (RFC 2328 Appendix A.4.5).
+type External struct {
+	// Metric is the 24-bit cost of the route.
+	Metric uint32
+	// Type2 sets the E-bit. RFC 2328 Appendix A.4.5: "If bit E is set, the metric
+	// specified is a Type 2 external metric."
+	Type2 bool
+	// Tag is the External Route Tag.
+	Tag uint32
 }
 
 // OptionalInjector is an ExternalInjector whose backing engine may be absent (e.g. an RFC

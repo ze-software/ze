@@ -34,7 +34,6 @@ const (
 	DefaultSPFMaxHoldMS       = uint32(5000)
 	DefaultMinLSIntervalMS    = uint32(5000)
 	DefaultMinLSArrivalMS     = uint32(1000)
-	DefaultExternalMetric     = uint32(20)
 	DefaultDefaultMetric      = uint32(1)
 	DefaultHelloInterval      = uint16(10)
 	DefaultDeadInterval       = uint16(40)
@@ -271,11 +270,11 @@ func (r routerInformationConfig) HasScope(s OpaqueScope) bool {
 	return slices.Contains(r.Scopes, s)
 }
 
+// redistributeConfig is one `ospf redistribute <source>` entry. The metric, the
+// metric type and the tag of a redistributed route are the `ospf filter export`
+// chain's to set (ospfredistribute.exportVerdict).
 type redistributeConfig struct {
 	Source        string
-	Metric        uint32
-	MetricType    string
-	Tag           uint32
 	NSSAPropagate bool
 }
 
@@ -1193,18 +1192,9 @@ func parseTimers(m map[string]any) timerConfig {
 }
 
 func parseRedistribute(entry listEntry) redistributeConfig {
-	r := redistributeConfig{Source: entry.key, Metric: DefaultExternalMetric, MetricType: metricType2}
+	r := redistributeConfig{Source: entry.key}
 	if s := configString(entry.data["source"]); s != "" {
 		r.Source = s
-	}
-	if v, ok := configUint32(entry.data["metric"]); ok {
-		r.Metric = v
-	}
-	if s := configString(entry.data["metric-type"]); s != "" {
-		r.MetricType = s
-	}
-	if v, ok := configUint32(entry.data["tag"]); ok {
-		r.Tag = v
 	}
 	// RFC 3101 Appendix D: "Without configuration, the default setting of the P-bit is clear."
 	r.NSSAPropagate = configBool(entry.data["nssa-propagate"], false)

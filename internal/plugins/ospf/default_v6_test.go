@@ -148,7 +148,7 @@ func TestOSPFv3DefaultInformationSharesItsLSAWithRedistribute(t *testing.T) {
 		t.Fatalf("`default-information originate always` originated no OSPFv3 default LSA")
 	}
 
-	if err := eng.InjectExternal(testDefaultRouteV6, "static", 0); err != nil {
+	if err := eng.InjectExternal(testDefaultRouteV6, "static", defaultExternal(0)); err != nil {
 		t.Fatalf("redistributing ::/0 into OSPFv3: %v", err)
 	}
 	fromRedist, ok := v6DefaultLSA(t, eng, router)

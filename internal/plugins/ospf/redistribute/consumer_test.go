@@ -16,11 +16,13 @@ import (
 
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/family"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
 type fakeInjector struct {
 	injected    map[netip.Prefix]string
 	tags        map[netip.Prefix]uint32
+	externals   map[netip.Prefix]External
 	withdrawn   map[netip.Prefix]bool
 	injectErr   error
 	withdrawErr error
@@ -30,16 +32,18 @@ func newFakeInjector() *fakeInjector {
 	return &fakeInjector{
 		injected:  map[netip.Prefix]string{},
 		tags:      map[netip.Prefix]uint32{},
+		externals: map[netip.Prefix]External{},
 		withdrawn: map[netip.Prefix]bool{},
 	}
 }
 
-func (f *fakeInjector) InjectExternal(p netip.Prefix, source string, routeTag uint32) error {
+func (f *fakeInjector) InjectExternal(p netip.Prefix, source string, ext External) error {
 	if f.injectErr != nil {
 		return f.injectErr
 	}
 	f.injected[p] = source
-	f.tags[p] = routeTag
+	f.tags[p] = ext.Tag
+	f.externals[p] = ext
 	return nil
 }
 
@@ -176,4 +180,75 @@ func TestOSPFRedistSelfImportRejected(t *testing.T) {
 	RegisterOSPFSources()
 	_, ok := configredist.LookupSource("ospf")
 	assert.True(t, ok, "source 'ospf' registered; matches consumer name so self-import is auto-rejected")
+}
+
+// staticTagChain is the export chain `filters [ static-e1 ]; final reject;`
+// compiles to when static-e1 is a modify instance matching tag 7 that sets
+// metric 50, metric-type type-1 and tag 900: it accepts only those routes,
+// with those sets.
+type staticTagChain struct{}
+
+func (staticTagChain) Evaluate(r ribpolicy.Route) ribpolicy.Verdict {
+	if r.Tag != 7 {
+		return ribpolicy.Verdict{Action: ribpolicy.ActionReject}
+	}
+	return ribpolicy.Verdict{Action: ribpolicy.ActionAccept, Sets: ribpolicy.Sets{
+		Metric: 50, HasMetric: true, MetricType: ribpolicy.ExternalMetricType1, Tag: 900, HasTag: true,
+	}}
+}
+
+// TestOSPFExportSetMetric proves AC-13 at the consumer: the `ospf filter
+// export` chain's set metric, metric-type and tag reach the AS-external LSA
+// the engine originates, a route the chain rejects is not originated, and a
+// route it originated before and now rejects is withdrawn. Method: a fake
+// injector records the External the consumer hands the engine.
+func TestOSPFExportSetMetric(t *testing.T) {
+	SetExportChain(staticTagChain{})
+	t.Cleanup(func() { SetExportChain(nil) })
+
+	f := newFakeInjector()
+	c := NewConsumer(f)
+	ctx := context.Background()
+	tagged := netip.MustParsePrefix("192.0.2.0/24")
+	untagged := netip.MustParsePrefix("198.51.100.0/24")
+	c.InjectRoute(ctx, family.IPv4Unicast, configredist.RouteEntry{
+		Prefix: tagged.String(), Source: "static", Tag: 7,
+		Route: ribpolicy.Route{Prefix: tagged, Tag: 7, HasTag: true},
+	})
+	c.InjectRoute(ctx, family.IPv4Unicast, configredist.RouteEntry{
+		Prefix: untagged.String(), Source: "static",
+		Route: ribpolicy.Route{Prefix: untagged, HasTag: true},
+	})
+
+	require.Contains(t, f.externals, tagged, "the accepted route is originated")
+	assert.Equal(t, External{Metric: 50, Type2: false, Tag: 900}, f.externals[tagged],
+		"the chain's metric 50, type-1 (E-bit clear) and tag 900 reach the LSA")
+	assert.NotContains(t, f.externals, untagged, "the rejected route is not originated")
+
+	// The chain narrows to reject everything: the originated route is withdrawn.
+	SetExportChain(rejectAllChain{})
+	c.InjectRoute(ctx, family.IPv4Unicast, configredist.RouteEntry{
+		Prefix: tagged.String(), Source: "static", Tag: 7,
+		Route: ribpolicy.Route{Prefix: tagged, Tag: 7, HasTag: true},
+	})
+	assert.NotContains(t, f.injected, tagged, "a route the chain now rejects is withdrawn")
+	assert.True(t, f.withdrawn[tagged])
+}
+
+// rejectAllChain is an export chain whose final rejects every route.
+type rejectAllChain struct{}
+
+func (rejectAllChain) Evaluate(ribpolicy.Route) ribpolicy.Verdict {
+	return ribpolicy.Verdict{Action: ribpolicy.ActionReject}
+}
+
+// TestOSPFExportNoChainDefaults proves the guard on the other side: with no
+// export chain every route is originated at metric 20, type 2, with its own tag.
+func TestOSPFExportNoChainDefaults(t *testing.T) {
+	SetExportChain(nil)
+	f := newFakeInjector()
+	c := NewConsumer(f)
+	p := netip.MustParsePrefix("203.0.113.0/24")
+	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Prefix: p.String(), Source: "static", Tag: 5})
+	assert.Equal(t, External{Metric: DefaultExternalMetric, Type2: true, Tag: 5}, f.externals[p])
 }

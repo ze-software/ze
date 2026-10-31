@@ -20,7 +20,7 @@ import (
 // The LSDB clock is the returned pointer, so a test can step past MinLSInterval.
 func reconcileEngine(t *testing.T, f nssaTestFamily) (*engine, *time.Time) {
 	t.Helper()
-	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.7.1","areas":{"area":{"0.0.0.0":{"area-id":"0.0.0.0","area-type":"normal"},"0.0.0.7":{"area-id":"0.0.0.7","area-type":"nssa"}}},"redistribute":{"static":{"source":"static","metric":"33","tag":"77"}}}}`), nil)
+	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.7.1","areas":{"area":{"0.0.0.0":{"area-id":"0.0.0.0","area-type":"normal"},"0.0.0.7":{"area-id":"0.0.0.7","area-type":"nssa"}}},"redistribute":{"static":{"source":"static"}}}}`), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestReconcileUnchangedImportOriginatesNothing(t *testing.T) {
 		t.Run(f.name, func(t *testing.T) {
 			eng, now := reconcileEngine(t, f)
 			prefix := nssaImportPrefix(f)
-			if err := eng.InjectExternal(prefix, "static", 0); err != nil {
+			if err := eng.InjectExternal(prefix, "static", staticExternal(77)); err != nil {
 				t.Fatal(err)
 			}
 			type5 := reconcileType5Header(t, eng, f, prefix)
@@ -107,7 +107,7 @@ func TestReconcileUnchangedImportOriginatesNothing(t *testing.T) {
 			// Positive control: a changed route tag through the same pass re-originates.
 			eng.nssaMu.Lock()
 			imported := eng.externalImports[prefix]
-			imported.tag = 91
+			imported.ext.Tag = 91
 			eng.externalImports[prefix] = imported
 			eng.nssaMu.Unlock()
 			*now = now.Add(6 * time.Second)

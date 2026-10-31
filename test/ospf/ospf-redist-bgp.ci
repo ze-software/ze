@@ -1,7 +1,8 @@
 # Test: OSPFv2 redistribution + default-information config surface (spec-ospf-10).
 #
 # VALIDATES: spec-ospf-10-as-external-asbr -- the `ospf` container's redistribution
-# enrolment leaves (`redistribute { <source> { metric/metric-type/tag } }` and
+# enrolment leaves (`redistribute { <source> { } }`, the `filter { export { ... } }`
+# chain whose modify instance sets the metric, metric-type and tag, and
 # `default-information { originate/always/metric/metric-type }`) validate; the generic
 # orchestrator config `redistribute { destination bgp { import ospf } destination ospf
 # { import connected/static/bgp } }` validates (ospf registered as both a source and a
@@ -20,6 +21,27 @@ bgp {
 	router-id 10.0.0.1
 }
 
+policy {
+	modify ospf-export-connected {
+		match {
+			protocol [ connected ];
+		}
+		set {
+			metric 30;
+			metric-type type-1;
+		}
+	}
+	modify ospf-export-connected-tag {
+		match {
+			protocol [ connected ];
+			tag [ 0 ];
+		}
+		set {
+			tag 7;
+		}
+	}
+}
+
 ospf {
 	router-id 10.0.0.1
 	default-information {
@@ -28,11 +50,14 @@ ospf {
 		metric 100
 		metric-type type-1
 	}
+	filter {
+		export {
+			filters [ ospf-export-connected ospf-export-connected-tag ];
+			final accept;
+		}
+	}
 	redistribute {
 		connected {
-			metric 30
-			metric-type type-1
-			tag 7
 		}
 		static {
 		}

@@ -15,6 +15,7 @@ import (
 
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	ospfredistribute "github.com/ze-software/ze/internal/plugins/ospf/redistribute"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
 	ospfv3types "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
@@ -32,7 +33,7 @@ var v6ExternalSelfTypes = map[types.LSType]struct{}{
 // prefix and re-originates the Router-LSA so its E-bit reflects ASBR status. The LSID is
 // assigned once per prefix and remembered for withdrawal.
 // The caller MUST hold nssaMu through origination and ownership recording.
-func (e *engine) v6InjectExternal(prefix netip.Prefix, source string, routeTag uint32) error {
+func (e *engine) v6InjectExternal(prefix netip.Prefix, source string, ext ospfredistribute.External) error {
 	e.mu.Lock()
 	cfg := e.cfg
 	db := e.lsdb
@@ -60,7 +61,7 @@ func (e *engine) v6InjectExternal(prefix netip.Prefix, source string, routeTag u
 	}
 	e.mu.Unlock()
 
-	type2, metric, tag := externalParams(cfg, source, routeTag)
+	type2, metric, tag := ext.Type2, ext.Metric, ext.Tag
 	nssas, canType5 := e.externalScopeV6()
 	areas := make([]types.AreaID, 0, len(nssas))
 	propagate := externalPropagate(cfg, source, canType5)
@@ -79,7 +80,7 @@ func (e *engine) v6InjectExternal(prefix netip.Prefix, source string, routeTag u
 			changed = true
 		}
 	}
-	if e.rememberExternalImport(prefix, source, routeTag, areas, v6NSSAKey(router, lsid)) {
+	if e.rememberExternalImport(prefix, source, ext, areas, v6NSSAKey(router, lsid)) {
 		changed = true
 	}
 	if changed {

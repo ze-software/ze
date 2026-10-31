@@ -493,7 +493,7 @@ section 3.4). An unset leaf advertises no TLV.";
     }
 
     container ospf {
-        uses policy:rib-import-filter;
+        uses policy:igp-filter;
         description "The presence of this container starts the OSPFv2 engine, which RFC 2328
 defines. The address-family container adds the OSPFv3 families of RFC 5340, and each one
 runs as a separate engine instance.";
@@ -846,9 +846,10 @@ when it installs a changed LSA that would flood to the restarting router.";
         list redistribute {
             key "source";
             description "This list starts no import. The generic redistribute container enables
-the import, with a rule of the shape destination ospf import <source>. A source with no
-entry here takes metric 20 and metric-type type-2.";
-            ze:help "Per-source metric, metric type and tag for redistribution into OSPF.";
+the import, with a rule of the shape destination ospf import <source>. The metric, the
+metric type and the tag of a redistributed route are set by a modify filter on the ospf
+filter export chain; a route no filter sets takes metric 20 and metric-type type-2.";
+            ze:help "Per-source NSSA propagation for redistribution into OSPF.";
             leaf source {
                 type enumeration {
                     enum connected { ze:help "Routes of the addresses configured on local interfaces."; }
@@ -861,24 +862,6 @@ entry here takes metric 20 and metric-type type-2.";
 originates the AS-external LSA for a route that carries this source label.";
                 ze:help "Route source this entry applies to.";
             }
-            leaf metric {
-                type uint32 { range "0..16777215"; }
-                default 20;
-                description "Ze writes the value into the metric field of the AS-external LSA,
-which is 24 bits wide. A source with no entry in this list takes 20.";
-                ze:help "Injected metric.";
-            }
-            leaf metric-type {
-                type enumeration {
-                    enum type-1 { ze:help "External metric in OSPF cost units, added to the internal distance."; }
-                    enum type-2 { ze:help "External metric larger than any internal path, compared alone."; }
-                }
-                default "type-2";
-                description "RFC 2328 section 2.3 states that a Type 1 external metric is in the
-same units as the OSPF cost. A Type 2 metric is an order of magnitude larger than any
-internal path. A Type 1 route always wins over a Type 2 route.";
-                ze:help "External metric type.";
-            }
             leaf nssa-propagate {
                 type boolean;
                 default false;
@@ -887,14 +870,6 @@ defaults the P-bit to clear. Set the P-bit for this source when the router canno
 a Type-5 directly. A P-set Type-7 requires a usable forwarding address in its NSSA;
 without one the LSA is withdrawn. A locally originated Type-5 always clears the P-bit.";
                 ze:help "Permit translation of this source's NSSA routes into Type-5 LSAs.";
-            }
-            leaf tag {
-                type uint32;
-                default 0;
-                description "RFC 2328 Appendix A.4.5 states that the External Route Tag is not
-used by the OSPF protocol itself. It carries information between AS boundary routers, and
-a policy on another router CAN match it.";
-                ze:help "External route tag.";
             }
         }
 

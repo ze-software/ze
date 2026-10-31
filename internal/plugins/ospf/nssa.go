@@ -152,7 +152,7 @@ func (e *engine) applyNSSADefaults() {
 		propagate := !isABR
 		if !isABR {
 			if hasImport {
-				type2, metric, tag = externalParams(cfg, imported.source, imported.tag)
+				type2, metric, tag = imported.ext.Type2, imported.ext.Metric, imported.ext.Tag
 				propagate = externalPropagate(cfg, imported.source, false)
 				wantType7 = !a.NoSummary
 				if propagate {

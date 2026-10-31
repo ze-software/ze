@@ -54,7 +54,7 @@ module ze-policy-conf {
 
     grouping igp-filter {
         description "The filter chains of a link-state IGP: the import chain into the Loc-RIB and the export
-                     chain over what the IGP advertises from redistribution. Used by isis.";
+                     chain over what the IGP advertises from redistribution. Used by isis and ospf.";
         container filter {
             description "A name references a filter instance defined under the top-level policy root. The
                          import chain judges routes as they enter the Loc-RIB, and the export chain judges
@@ -66,7 +66,7 @@ module ze-policy-conf {
                 presence "Configure the export policy over redistributed routes.";
                 description "Runs on every route the redistribute import rules hand this protocol, before it
                              enters the IGP database. A rejected route is not advertised; the sets of an
-                             accepting chain (the metric) shape what is.";
+                             accepting chain (the metric, and on ospf the metric type and tag) shape what is.";
                 ze:help "Export policy over redistributed routes";
                 leaf-list filters {
                     type string { length "1..max"; }

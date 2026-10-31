@@ -19,37 +19,39 @@ import (
 
 var errEngineNotReady = errors.New("ospf: engine not ready for external origination")
 
-// externalImport retains the source policy and originated NSSA scopes until
-// withdrawal. The redistribution table bounds this state. Guarded by nssaMu.
+// externalImport retains the source, the AS-external fields the export chain
+// decided, and the originated NSSA scopes until withdrawal, so a scope change
+// replays the same origination. The redistribution table bounds this state.
+// Guarded by nssaMu.
 type externalImport struct {
 	source string
-	tag    uint32
+	ext    ospfredistribute.External
 	areas  []types.AreaID
 }
 
 // InjectExternal implements ospfredistribute.ExternalInjector: it originates a Type
-// 5 AS-External-LSA for prefix learned from source, applying the per-source metric /
-// metric-type / route-tag from the `ospf` container's `redistribute` config (or the
-// code defaults), then re-originates the Router-LSA (E-bit) and re-floods.
-func (e *engine) InjectExternal(prefix netip.Prefix, source string, routeTag uint32) error {
+// 5 AS-External-LSA for prefix learned from source, carrying the metric, metric type
+// and External Route Tag the `ospf filter export` chain decided (ext), then
+// re-originates the Router-LSA (E-bit) and re-floods.
+func (e *engine) InjectExternal(prefix netip.Prefix, source string, ext ospfredistribute.External) error {
 	// The default route shares its one AS-External-LSA with `default-information originate`
 	// in BOTH address families, so it goes through the serialized default-route coordinator
 	// BEFORE the family split: a withdraw from one intent must never drop a default the
 	// other still wants, and the coordinator picks the LS Type the family needs (0x0005 for
 	// OSPFv2, 0x4005 for OSPFv3, RFC 5340 Section 4.4.3.6).
 	if prefix.IsValid() && prefix.Bits() == 0 {
-		return e.injectDefaultExternal(prefix, source, routeTag)
+		return e.injectDefaultExternal(prefix, source, ext)
 	}
 	e.nssaMu.Lock()
 	defer e.nssaMu.Unlock()
-	return e.injectExternalLocked(prefix, source, routeTag)
+	return e.injectExternalLocked(prefix, source, ext)
 }
 
 // injectExternalLocked MUST be called with nssaMu held, including replay after
 // an interface or source-policy change.
-func (e *engine) injectExternalLocked(prefix netip.Prefix, source string, routeTag uint32) error {
+func (e *engine) injectExternalLocked(prefix netip.Prefix, source string, ext ospfredistribute.External) error {
 	if e.dispatch != nil && e.dispatch.codec.IsV6() {
-		return e.v6InjectExternal(prefix, source, routeTag)
+		return e.v6InjectExternal(prefix, source, ext)
 	}
 	e.mu.Lock()
 	cfg := e.cfg
@@ -61,7 +63,7 @@ func (e *engine) injectExternalLocked(prefix netip.Prefix, source string, routeT
 	if !prefix.IsValid() || !prefix.Addr().Is4() {
 		return fmt.Errorf("ospf: external prefix %q is not IPv4", prefix)
 	}
-	type2, metric, tag := externalParams(cfg, source, routeTag)
+	type2, metric, tag := ext.Type2, ext.Metric, ext.Tag
 	prefix = prefix.Masked()
 	network := prefix.Addr().As4()
 	mask := maskBytes(prefix.Bits())
@@ -104,7 +106,7 @@ func (e *engine) injectExternalLocked(prefix netip.Prefix, source string, routeT
 		delete(e.redistExternals, network)
 	}
 	e.mu.Unlock()
-	if e.rememberExternalImport(prefix, source, routeTag, areas,
+	if e.rememberExternalImport(prefix, source, ext, areas,
 		types.LSAKey{Type: types.LSTypeNSSA, LinkStateID: types.LinkStateID(network), AdvertisingRouter: cfg.RouterID}) {
 		changed = true
 	}
@@ -167,7 +169,7 @@ func externalPropagate(cfg ospfConfig, source string, canType5 bool) bool {
 
 // rememberExternalImport MUST run under nssaMu. Its caller has originated the
 // current scopes; this removes copies in NSSAs no longer attached.
-func (e *engine) rememberExternalImport(prefix netip.Prefix, source string, tag uint32, areas []types.AreaID, key types.LSAKey) bool {
+func (e *engine) rememberExternalImport(prefix netip.Prefix, source string, ext ospfredistribute.External, areas []types.AreaID, key types.LSAKey) bool {
 	changed := false
 	for _, previous := range e.externalImports[prefix].areas {
 		found := slices.Contains(areas, previous)
@@ -180,7 +182,7 @@ func (e *engine) rememberExternalImport(prefix netip.Prefix, source string, tag 
 	if e.externalImports == nil {
 		e.externalImports = make(map[netip.Prefix]externalImport)
 	}
-	e.externalImports[prefix] = externalImport{source: source, tag: tag, areas: areas}
+	e.externalImports[prefix] = externalImport{source: source, ext: ext, areas: areas}
 	return changed
 }
 
@@ -192,7 +194,7 @@ func (e *engine) reconcileExternalImports() {
 		if prefix.Bits() == 0 {
 			continue // The default coordinator owns its Type-5 and Type-7 copies.
 		}
-		if err := e.injectExternalLocked(prefix, imported.source, imported.tag); err != nil {
+		if err := e.injectExternalLocked(prefix, imported.source, imported.ext); err != nil {
 			e.log.Warn("OSPF external re-origination failed", "prefix", prefix, "error", err)
 		}
 	}
@@ -292,45 +294,6 @@ func (e *engine) WithdrawExternal(prefix netip.Prefix) (bool, error) {
 		e.refreshExternalMetrics(db, cfg.RouterID)
 	}
 	return removed, nil
-}
-
-// externalParams resolves the metric type (E1/E2), 24-bit metric, and External Route
-// Tag for a redistributed route. The metric and the metric type come from the `ospf`
-// container's per-source `redistribute` entry, falling back to the code defaults
-// (metric 20, type-2) when the source is not enrolled. The tag is the route's own tag
-// when it carries one, and the per-source `tag` otherwise; externalRouteTag owns that
-// choice.
-func externalParams(cfg ospfConfig, source string, routeTag uint32) (type2 bool, metric, tag uint32) {
-	type2, metric, tag = true, DefaultExternalMetric, 0
-	for _, r := range cfg.Redistribute {
-		if r.Source == source {
-			type2, metric, tag = r.MetricType != metricType1, r.Metric, r.Tag
-			break
-		}
-	}
-	return type2, metric, externalRouteTag(routeTag, tag)
-}
-
-// externalRouteTag chooses the External Route Tag for a redistributed route: the
-// route's own tag when it carries one, and the per-source `tag` under
-// `ospf { redistribute { source <src> } }` otherwise. RFC 2328 Appendix A.4.5 defines
-// the field -- "A 32-bit field attached to each external route.  This is not used by
-// the OSPF protocol itself." -- so the RFC settles the encoding and leaves the
-// precedence to the implementation. Ze gives the more specific value the win: the
-// per-source tag names a whole source, and a tag on one route names that route
-// (owner decision, 2026-09-06; spec-static-route-tag-reaches-no-consumer D-2).
-//
-// A zero routeTag is a GUARD, not a value: it means the route carries no tag. Every
-// producer already reads the two as one thing -- an absent `tag` leaf parses to zero,
-// `show static route` omits a zero tag, and zero is the OSPF default external route
-// tag -- so a route that says nothing and a route that says zero ask for the same LSA.
-// The guard lives here, with a test on both sides of it, rather than inline at each
-// caller (ai/rules/principles.md).
-func externalRouteTag(routeTag, configured uint32) uint32 {
-	if routeTag != 0 {
-		return routeTag
-	}
-	return configured
 }
 
 // wireRedistProducer connects the redistribution producer Source to the SPF

@@ -481,10 +481,10 @@ ospf {
 <!-- source: internal/plugins/ospf/auth_keystore.go -- configure, decodeSecret -->
 
 Redistribution and default-route origination make the router an ASBR. The `ospf`
-container sets the per-source external metric, metric-type (`type-1`/`type-2`),
-and route tag, and configures `default-information originate`. A redistributed
-route that carries its own tag, such as a static route with a `tag` leaf,
-overrides the per-source tag; a route with no tag takes the per-source value. The shared
+container configures `default-information originate`, and its `filter export`
+chain judges every redistributed route: a `modify` instance there sets the
+external metric, the metric-type (`type-1`/`type-2`) and the route tag, and a
+route no filter sets takes metric 20, `type-2` and its own tag. The shared
 top-level `redistribute` block enrols the actual route flow: `destination ospf`
 imports routes as OSPFv2 Type 5 LSAs for IPv4, OSPFv3 AS-External-LSAs for
 normal IPv6 areas, or OSPFv3 NSSA-LSAs for attached IPv6 NSSA areas.
@@ -492,6 +492,19 @@ normal IPv6 areas, or OSPFv3 NSSA-LSAs for attached IPv6 NSSA areas.
 itself is a runtime no-op (loop prevention).
 
 ```
+policy {
+    modify ospf-export-connected {
+        match {
+            protocol [ connected ]
+        }
+        set {
+            metric 20
+            metric-type type-2
+            tag 100
+        }
+    }
+}
+
 ospf {
     router-id 10.0.0.1
 
@@ -502,11 +515,15 @@ ospf {
         metric-type type-2
     }
 
+    filter {
+        export {
+            filters [ ospf-export-connected ]
+            final accept
+        }
+    }
+
     redistribute {
         connected {
-            metric 20
-            metric-type type-2
-            tag 100
         }
         static {
         }

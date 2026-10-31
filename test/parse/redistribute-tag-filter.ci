@@ -24,9 +24,14 @@ static {
 
 ospf {
 	router-id 10.0.0.1
+	filter {
+		export {
+			filters [ ospf-export-static-tag ];
+			final accept;
+		}
+	}
 	redistribute {
 		static {
-			tag 7
 		}
 	}
 	areas {
@@ -43,6 +48,15 @@ ospf {
 policy {
 	match redistribute-ospf-static {
 		tag [ 4242 ];
+	}
+	modify ospf-export-static-tag {
+		match {
+			protocol [ static ];
+			tag [ 0 ];
+		}
+		set {
+			tag 7;
+		}
 	}
 }
 redistribute {

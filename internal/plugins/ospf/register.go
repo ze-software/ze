@@ -105,9 +105,12 @@ func registerOSPF() {
 		[]policy.Field{policy.FieldDistance, policy.FieldTag})
 	// The import chain is compiled into the Loc-RIB gate by the policy plugin.
 	policy.MustRegisterRIBImport(policy.RIBImport{Attachment: "ospf import", Root: Namespace, Scope: policy.RIBScopeSource, Protocol: Namespace, Floods: true})
-	policy.MustRegisterAttachment(Namespace, "ospf export",
+	policy.MustRegisterAttachment(Namespace, exportAttachment,
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag, policy.FieldRouteType, policy.FieldOriginAS},
 		[]policy.Field{policy.FieldTag, policy.FieldMetric, policy.FieldMetricType})
+	// `ospf filter export filters` declares ze:reference "policy-filter"; this
+	// tells that source the chain compiles at "ospf export".
+	policy.MustRegisterRouteChainPath(policy.ExportChainPath(Namespace), exportAttachment)
 
 	statestore.RegisterPluginKeys(Namespace, zefs.KeyOSPFAuthBootCount, zefs.KeyOSPFGRFact)
 	_ = events.RegisterNamespace(Namespace, EventNeighborUp, EventNeighborDown, EventSPFRun, EventLSDBChange, EventInterfaceState, EventDRChange, EventNeighborChange)
@@ -154,7 +157,8 @@ func registerOSPF() {
 		// absent or disabled (checkBFDOptIns). A read never auto-loads OSPF.
 		// The interface section is read so commit refuses OSPF on an unnumbered
 		// unit that is not point-to-point (checkUnnumberedNetworkTypes).
-		ConfigReads: []string{bfdapi.ConfigRoot, ifcomp.ConfigRoot},
+		// The export chain names filter instances under the policy root.
+		ConfigReads: []string{bfdapi.ConfigRoot, ifcomp.ConfigRoot, policy.RootName},
 		// policy is a hard dependency of every protocol with a filter attachment:
 		// the filter instances its chains name live under the policy root.
 		Dependencies:            []string{"interface", "fib-kernel", "sysctl", policy.PluginName},
@@ -453,10 +457,12 @@ func runOSPFEngine(conn net.Conn) int {
 	v6set.state = p
 
 	var (
-		cfgMu       sync.Mutex
-		activeCfg   ospfConfig
-		pendingCfg  ospfConfig
-		havePending bool
+		cfgMu      sync.Mutex
+		activeCfg  ospfConfig
+		pendingCfg ospfConfig
+		// pendingExport is the export chain of pendingCfg's commit.
+		pendingExport exportChainConfig
+		havePending   bool
 	)
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
@@ -478,8 +484,13 @@ func runOSPFEngine(conn net.Conn) int {
 		if err := validateSRConfig(sdkConfigSections(sections)); err != nil {
 			return err
 		}
+		export, err := parseExportChain(sdkConfigSections(sections))
+		if err != nil {
+			return err
+		}
 		cfgMu.Lock()
 		pendingCfg = cfg
+		pendingExport = export
 		havePending = true
 		cfgMu.Unlock()
 		return nil
@@ -498,6 +509,11 @@ func runOSPFEngine(conn net.Conn) int {
 		if err := checkBFDOptIns(cfg, sdkConfigSections(sections)); err != nil {
 			return err
 		}
+		export, err := parseExportChain(sdkConfigSections(sections))
+		if err != nil {
+			return err
+		}
+		export.install()
 		cfgMu.Lock()
 		activeCfg = cfg
 		cfgMu.Unlock()
@@ -513,6 +529,7 @@ func runOSPFEngine(conn net.Conn) int {
 		cfgMu.Lock()
 		if havePending {
 			activeCfg = pendingCfg
+			pendingExport.install()
 			havePending = false
 		}
 		cfg := activeCfg
@@ -791,7 +808,7 @@ func runOSPFEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, &sdk.Registration{
-		WantsConfig:  []string{Namespace},
+		WantsConfig:  []string{Namespace, policy.RootName},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),

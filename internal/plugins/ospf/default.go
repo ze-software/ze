@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	ospfredistribute "github.com/ze-software/ze/internal/plugins/ospf/redistribute"
 	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
@@ -84,7 +85,7 @@ func (e *engine) purgeDefaultExternal(router types.RouterID) bool {
 // injectDefaultExternal is the `redistribute` entry point for the default route, in either
 // address family. It validates the prefix against the engine's family and hands the
 // redistribution params to the serialized coordinator, which owns the shared default LSA.
-func (e *engine) injectDefaultExternal(prefix netip.Prefix, source string, routeTag uint32) error {
+func (e *engine) injectDefaultExternal(prefix netip.Prefix, source string, ext ospfredistribute.External) error {
 	if err := e.checkDefaultFamily(prefix); err != nil {
 		return err
 	}
@@ -95,7 +96,7 @@ func (e *engine) injectDefaultExternal(prefix netip.Prefix, source string, route
 	if db == nil || cfg.RouterID == (types.RouterID{}) {
 		return errEngineNotReady
 	}
-	e.injectRedistDefault(cfg.RouterID, source, routeTag)
+	e.injectRedistDefault(cfg.RouterID, source, ext)
 	return nil
 }
 
@@ -211,7 +212,7 @@ func (e *engine) applyDefaultInformation() {
 		e.nssaMu.Lock()
 		imported := e.externalImports[prefix]
 		e.nssaMu.Unlock()
-		type2, metric, tag := externalParams(cfg, imported.source, imported.tag)
+		type2, metric, tag := imported.ext.Type2, imported.ext.Metric, imported.ext.Tag
 		changed, err := e.originateDefaultExternal(cfg.RouterID, type2, metric, tag)
 		if err != nil {
 			slog.Warn("ospf redistributed default origination failed", "error", err)
@@ -246,7 +247,7 @@ func (e *engine) applyDefaultInformation() {
 // engine's address family. Serialized with applyDefaultInformation via defaultInfoMu so the
 // two default-route intents (default-information and redistribute) never race on the one
 // shared default LSA.
-func (e *engine) injectRedistDefault(router types.RouterID, source string, routeTag uint32) {
+func (e *engine) injectRedistDefault(router types.RouterID, source string, ext ospfredistribute.External) {
 	e.defaultInfoMu.Lock()
 	defer e.defaultInfoMu.Unlock()
 	prefix, _ := e.defaultRoute()
@@ -254,19 +255,17 @@ func (e *engine) injectRedistDefault(router types.RouterID, source string, route
 	if e.externalImports == nil {
 		e.externalImports = make(map[netip.Prefix]externalImport)
 	}
-	e.externalImports[prefix] = externalImport{source: source, tag: routeTag}
+	e.externalImports[prefix] = externalImport{source: source, ext: ext}
 	e.nssaMu.Unlock()
 	defer e.applyNSSADefaults()
 	e.mu.Lock()
 	db := e.lsdb
-	cfg := e.cfg
 	e.redistDefaultInjected = true
 	e.mu.Unlock()
 	if db == nil {
 		return
 	}
-	type2, metric, tag := externalParams(cfg, source, routeTag)
-	changed, err := e.originateDefaultExternal(router, type2, metric, tag)
+	changed, err := e.originateDefaultExternal(router, ext.Type2, ext.Metric, ext.Tag)
 	if err != nil {
 		slog.Warn("ospf default-information: redistributed default origination failed", "error", err)
 	}
