@@ -1,19 +1,19 @@
 {
-  "note": "Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 3.1: \"It MUST be ignored when received for other BGP AFI/SAFI combinations.\" The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frame (c) (10.0.3.0/24 IPv4 VPN, 6-octet Label-Index then a valid L3 Service TLV) still requires attribute 40 relayed octet-equal; the Go units are unchanged. Single-polarity annotation unchanged and still accurate. Ran green at HEAD. Verdict stands.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8669): \"It MUST be ignored when received for other BGP AFI/SAFI combinations.\" The only edit to test/plugin/prefixsid-malformed-receive.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "30f781814532f3d1",
   "tests": {
     "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexAnyLengthIgnoredOffLabeledUnicast": "1103eb5d26ca65ea",
     "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669LabelIndexIgnoredOnNonLabeledUnicastFamily": "880d4dcf544fb926",
     "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "274e120ed359a9db",
     "internal/core/bgp/attribute/rfc8669_prefixsid_family_test.go::TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength": "c1ece5c8f901efd5",
-    "test/plugin/prefixsid-malformed-receive.ci": "25f53a520a6edebb"
+    "test/plugin/prefixsid-malformed-receive.ci": "5a1c2913582d390e"
   },
   "units": {
     "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexAnyLengthIgnoredOffLabeledUnicast": "3c08825fe221779d",
     "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669LabelIndexIgnoredOnNonLabeledUnicastFamily": "8151d23cfc7d9244",
     "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "dff529a65e1207a3",
     "internal/core/bgp/attribute/rfc8669_prefixsid_family_test.go::TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength": "7ca27c75ad71e18b",
-    "test/plugin/prefixsid-malformed-receive.ci": "25f53a520a6edebb"
+    "test/plugin/prefixsid-malformed-receive.ci": "5a1c2913582d390e"
   },
   "verdict": "enforced"
 }

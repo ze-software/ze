@@ -1,19 +1,19 @@
 {
-  "note": "Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 3: \"For future extensibility, unknown TLVs MUST be ignored and propagated unmodified.\" The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b (relayed UPDATE leads with its MP attribute): each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frame (f) (10.0.7.0/24 IPv4 VPN, Label-Index with Reserved AA and Flags BBCC) still requires attribute 40 relayed octet-equal (C0280A010007AABBCC00000064), which is this row's functional cover; the Go units are unchanged. Ran green at HEAD: ./le test bgp plugin prefixsid-malformed-receive. Verdict stands.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8669): \"For future extensibility, unknown TLVs MUST be ignored and propagated unmodified.\" The only edit to test/plugin/prefixsid-malformed-receive.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "86075c5141e1f486",
   "tests": {
     "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "43a22ffce691e1e9",
     "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "274e120ed359a9db",
     "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "6adacdb5c2b444a1",
     "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "6adacdb5c2b444a1",
-    "test/plugin/prefixsid-malformed-receive.ci": "25f53a520a6edebb"
+    "test/plugin/prefixsid-malformed-receive.ci": "5a1c2913582d390e"
   },
   "units": {
     "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "7f0ca5f0dffb7627",
     "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "dff529a65e1207a3",
     "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "5ac8116748d03d10",
     "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "5ac8116748d03d10",
-    "test/plugin/prefixsid-malformed-receive.ci": "25f53a520a6edebb"
+    "test/plugin/prefixsid-malformed-receive.ci": "5a1c2913582d390e"
   },
   "verdict": "enforced"
 }
