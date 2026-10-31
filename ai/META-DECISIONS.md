@@ -70,6 +70,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   is put to him row by row.
 - A feature an earlier judge or agent declined, with no decision of Thomas's
   behind it, is a gap, not a declined feature.
+- A feature leaves the count as declined only when Thomas said Ze will never
+  implement it. A feature he left out of the current work, or out of the first
+  release, is wanted later: its rows stay gaps owed after the release, and no
+  page calls them out of scope.
 - A declined feature leaves the count only on the RFC's own words. Either a
   sentence makes the feature optional, or a sentence makes the obligation
   conditional on using the feature (as in "If the client uses a delegated
