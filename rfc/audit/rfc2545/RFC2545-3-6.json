@@ -1,9 +1,23 @@
 {
   "code": {
-    "internal/component/bgp/reactor/link_scope.go::classify": "47509c161b37778c",
-    "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop": "823cff0faf0abb0c"
+    "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop": "718ce0e9ffa4b22e",
+    "internal/component/bgp/reactor/link_scope.go::thirdPartyLinkLocal": "1e745f343aa2b660"
   },
-  "note": "Re-judged 2026-10-19 (independent auditor, after 990744517c). Section 3: \"The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" The only change to linkLocalNextHop is the per-family linkLocalCondition argument (RFC 4659 peer-only condition for VPN-IPv6, RFC 2545 joint condition otherwise); the switch on nextHopRouter still returns the zero address for nextHopRouterThirdParty and nextHopRouterUnspecified, and classify still names Speaker only for the connected endpoint, configured local address and held addresses. So a configured/static/API route or explicit rewrite naming another on-link router by its global still has no source for that router's link-local, and the speaker's own is correctly not substituted. Gap stands; {gap} annotation and Partial public support remain accurate.",
-  "requirement_sha": "2b40069283106c59",
-  "verdict": "unimplemented"
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of 8b062b45a8. RFC 2545 Section 3: \"The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" The earlier unimplemented verdict recorded no source for another router's link-local. 8b062b45a8 supplies one: linkLocalNextHop now returns thirdPartyLinkLocal(global) for nextHopRouterThirdParty under the joint condition, never the configured speaker address. Tags TestRFC2545ThirdPartyLinkLocalAnnounce and TestRFC2545ThirdPartyLinkLocalForward assert exact bytes: positive the router's fe80::9 after its global with length 0x20, negatives the global alone toward a peer off the subnet and a recipient whose subnet does not hold the global, each with the neighbor table still naming fe80::9, so the negatives isolate the subnet condition rather than a missing entry. Discrimination records for both polarities are current (e13004ac6e, 37a7e9b17d). Not whole: when the table does not name the router's link-local at advertisement (no entry, unresolved, ambiguous, unreadable) the field carries the global alone while the condition holds, and refreshPeerLinkScopes does not re-advertise when the table later names it. Moves from unimplemented to partial with {partial} replacing the removed {gap}. Tested: \"only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" Gap: \"The link-local address shall be included in the Next Hop field if\". Producer: internal/component/bgp/reactor/link_scope.go::thirdPartyLinkLocal, with linkLocalNextHop.",
+  "requirement_sha": "f6c24a2f6502c76e",
+  "tests": {
+    "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce": "28c7eea8398e7a6d",
+    "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce#2": "28c7eea8398e7a6d",
+    "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalForward": "28c7eea8398e7a6d",
+    "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalForward#2": "28c7eea8398e7a6d",
+    "internal/le/interoplab/bgp/check_rfc2545_third_party.go::checkRFC2545ThirdPartyLinkLocal": "2f1a4f7fb9b5f4d8"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce": "5637eed5c6f5701e",
+    "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce#2": "5637eed5c6f5701e",
+    "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalForward": "b401c46893e7e1c0",
+    "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalForward#2": "b401c46893e7e1c0",
+    "internal/le/interoplab/bgp/check_rfc2545_third_party.go::checkRFC2545ThirdPartyLinkLocal": "10bca5699d3729c7"
+  },
+  "verdict": "partial"
 }
