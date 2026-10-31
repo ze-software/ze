@@ -2124,8 +2124,9 @@ func TestTheComplianceIndexRowsCanBeFiltered(t *testing.T) {
 }
 
 // TestTheComplianceIndexShowsEachRFCsFigures proves an RFC a profile lists
-// shows, on the compliance index, the mandatory and optional figures its
-// profile page shows, carries them for the overview to sum, and that the
+// shows, on the compliance index, the MUST and overview bars its profile page
+// draws from its data/rfc/ file, carries its stem for the overview to sum,
+// that the overview's Total row holds the build's MUST total, and that the
 // table's short column names come with the legend that explains them.
 // Method: give the two-stem ledger a profile listing rfc9998 and render.
 func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
@@ -2133,6 +2134,7 @@ func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 	row := &rfc.TreeRow{Stem: "rfc9998", Summary: true, Walked: true, Mandatory: rfc.Figure{Proven: 3, Total: 4, Attainable: 4}, Optional: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}}
 	ledger.Profiles = []*rfc.TreeReport{{Profile: "widgets", Kind: "use-case",
 		Rollup: &rfc.ScopeRollup{RFCs: 1}, Rows: []*rfc.TreeRow{row}}}
+	ledger.Stems[0].Figures = row
 	paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), ledger)
 	if _, err := renderRFCCompliance(paths); err != nil {
 		t.Fatal(err)
@@ -2140,9 +2142,11 @@ func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 	page := readArtifact(t, paths.Output, rfcComplianceDest)
 	mirror := readArtifact(t, paths.Output, rfcComplianceDirectory+"/"+pageMirrorFile)
 	for _, want := range []string{
-		`<tr data-rfc="rfc9998" data-walked="1" data-mp="3" data-mt="4" data-op="1" data-ot="2" data-ma="4" data-oa="2" data-me="{}" data-oe="{}">`,
-		"3 of 4 (75.0%)", "1 of 2 (50.0%)",
-		"<th>" + rfcIndexGapsTested + "</th>", `<dl class="rfc-legend">`, "Every RFC shown with measured rows can reach 100% under current classifications.",
+		`<tr data-rfc="rfc9998">`,
+		`<div data-ze-rfc-bar="rfc9998:must">Ze proven 3, Ze correctness gap 1</div>`,
+		`<div data-ze-rfc-bar="rfc9998:overview">Ze MUST proven 3, SHOULD proven 1, SHOULD not decided 1, Ze correctness gap 1</div>`,
+		`<span data-ze-rfc="all:must.total">4</span>`,
+		"<th>" + rfcIndexGapsTested + "</th>", `<dl class="rfc-legend">`,
 		`id="rfc-overview"`, rfcListSlot, `<section id="` + rfcDeclinedAnchor + `">`,
 	} {
 		if !strings.Contains(page, want) {
@@ -2152,7 +2156,7 @@ func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 	if strings.Contains(page, "<th>"+rfcDemonstratedGapsLabel+"</th>") {
 		t.Error("the index table still carries the long gaps header")
 	}
-	for _, want := range []string{"| 3 of 4 (75.0%); ceiling 4 of 4 (100.0%) | 1 of 2 (50.0%); ceiling 2 of 2 (100.0%) |", "**" + rfcIndexGapsTested + "**", "Every RFC shown with measured rows can reach 100% under current classifications."} {
+	for _, want := range []string{"| Ze proven 3, Ze correctness gap 1 | Ze MUST proven 3, SHOULD proven 1, SHOULD not decided 1, Ze correctness gap 1 |", "**" + rfcIndexGapsTested + "**"} {
 		if !strings.Contains(mirror, want) {
 			t.Errorf("the index mirror carries no %s", want)
 		}

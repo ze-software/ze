@@ -367,7 +367,7 @@ func renderRFCCompliance(paths Paths) ([]string, error) {
 		Path:        rfcComplianceDest,
 		Sidebar:     pageSidebar(rfcComplianceRoot, rfcComplianceDest, links),
 	}
-	if err := writePublishedPage(paths.Output, rfcComplianceDest,
+	if err := writeRFCFigurePage(paths.Output, rfcComplianceDest, figures,
 		shell.render(rfcComplianceBody(&snapshot, ledger)),
 		rfcComplianceMirror(&snapshot, ledger)); err != nil {
 		return nil, err
@@ -715,7 +715,7 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 		html.EscapeString(rfcHeroLead)+" Source: <code>internal/le/rfc</code>, <code>rfc/short/*.md</code>, and "+
 			"<code>rfc/audit/*/*.json</code>.",
 		"Quality", ` id="rfc-compliance-title"`, heroClasses)).Byte('\n')
-	body.Str(rfcComplianceStyle).Str(rfcProfileStyle)
+	body.Str(rfcComplianceStyle)
 	body.Str(rfcListSlot)
 	body.Str(rfcReaderIntroHTML())
 	body.Str(rfcLeadHTML(rfcLeadVerdict))
@@ -740,10 +740,11 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 		Str("\n</section>\n")
 	body.Str("<section><h2>Check results</h2>\n").Str(rfcLeadHTML(rfcLeadChecks)).Str(rfcCheckHTML(snapshot.Gate)).Str("\n</section>\n")
 	body.Str(`<section id="`).Str(rfcListAnchor).Str(`"><h2>Enrolled RFCs</h2>`).Byte('\n').
-		Str(rfcLeadHTML(rfcLeadEnrolled)).Str(rfcFilterHTML).Str(rfcEnrolledIndexHTML(ledger)).Str("\n</section>\n")
+		Str(rfcLeadHTML(rfcLeadEnrolled)).Str(rfcListOverviewHTML()).Str(rfcFilterHTML).Str(rfcEnrolledIndexHTML(ledger)).Str("\n</section>\n")
 	body.Str(`<section id="`).Str(rfcDeclinedAnchor).Str(`"><h2>Summaries that are not enrolled</h2>`).Byte('\n').
 		Str(rfcLeadHTML(rfcLeadDeclined)).Str(rfcDeclinedIndexHTML(ledger)).Str("\n</section>\n")
 	body.Str(rfcFilterScript)
+	body.Str(rfcFiguresScriptHTML(rfcComplianceRoot))
 	body.Str("            </section>\n")
 	return body.String()
 }
@@ -1982,12 +1983,11 @@ func rfcEnrolledIndexHTML(ledger rfcLedger) string {
 	if len(rows) == 0 {
 		return "<p>No summary is enrolled.</p>"
 	}
-	figures := rfcStemRows(ledger)
 	var body textbuf.Buffer
 	for index := range rows {
 		entry := rows[index]
-		mandatory, optional := rfcFigureCells(figures[entry.Stem])
-		body.Str(rfcFigureRowCells(entry.Stem, figures[entry.Stem],
+		mandatory, optional := rfcFigureCells(entry.Stem)
+		body.Str(rfcFigureRowCells(entry.Stem,
 			"<a href=\""+html.EscapeString(rfcStemHref(entry.Stem))+"\"><code>"+
 				html.EscapeString(entry.Display)+"</code></a> "+html.EscapeString(entry.Title),
 			html.EscapeString(rfcIndexArea(entry)),
@@ -1997,7 +1997,7 @@ func rfcEnrolledIndexHTML(ledger rfcLedger) string {
 			strconv.Itoa(entry.Coverage.DemonstratedGaps),
 			strconv.Itoa(entry.Coverage.Missing)))
 	}
-	return rfcIndexLegendHTML(rfcIndexCeilingRows(ledger)) + rfcTableHTML(rfcHeadCells("RFC", rfcIndexAreaLabel,
+	return rfcIndexLegendHTML() + rfcTableHTML(rfcHeadCells("RFC", rfcIndexAreaLabel,
 		rfcIndexMandatoryLabel, rfcIndexOptionalLabel, rfcIndexMustsLabel, rfcIndexGapsLabel,
 		rfcIndexGapsTested, rfcIndexUntestedLabel), body.String())
 }
@@ -2013,12 +2013,11 @@ func rfcDeclinedIndexHTML(ledger rfcLedger) string {
 	if len(rows) == 0 {
 		return "<p>Every summary is enrolled.</p>"
 	}
-	figures := rfcStemRows(ledger)
 	var body textbuf.Buffer
 	for index := range rows {
 		entry := rows[index]
-		mandatory, optional := rfcFigureCells(figures[entry.Stem])
-		body.Str(rfcFigureRowCells(entry.Stem, figures[entry.Stem],
+		mandatory, optional := rfcFigureCells(entry.Stem)
+		body.Str(rfcFigureRowCells(entry.Stem,
 			"<a href=\""+html.EscapeString(rfcStemHref(entry.Stem))+"\"><code>"+
 				html.EscapeString(entry.Display)+"</code></a> "+html.EscapeString(entry.Title),
 			mandatory, optional,
@@ -2076,18 +2075,17 @@ func rfcDispositionLegendMirror(rows []*rfcLedgerStem) string {
 // rfcIndexMirror states both link tables in the Markdown sibling.
 func rfcIndexMirror(ledger rfcLedger) string {
 	var out textbuf.Buffer
-	figures := rfcStemRows(ledger)
-	out.Str("\n## Enrolled RFCs\n\n").Str(rfcLeadEnrolled).Str("\n\n")
+	out.Str("\n## Enrolled RFCs\n\n").Str(rfcLeadEnrolled).Str("\n\n").Str(rfcListOverviewMirror())
 	enrolled := rfcIndexRows(ledger, true)
 	if len(enrolled) == 0 {
 		out.Str("No summary is enrolled.\n")
 	} else {
-		out.Str(rfcIndexLegendMirror(rfcIndexCeilingRows(ledger)))
+		out.Str(rfcIndexLegendMirror())
 		out.Str(rfcMirrorHead("RFC", rfcIndexAreaLabel, rfcIndexMandatoryLabel, rfcIndexOptionalLabel,
 			rfcIndexMustsLabel, rfcIndexGapsLabel, rfcIndexGapsTested, rfcIndexUntestedLabel))
 		for index := range enrolled {
 			entry := enrolled[index]
-			mandatory, optional := rfcFigureMirrorCells(figures[entry.Stem])
+			mandatory, optional := rfcFigureMirrorCells(entry.Stem)
 			out.Str("| [`").Str(entry.Display).Str("`](").Str(rfcStemHref(entry.Stem)).
 				Str(pageMirrorFile).Str(") ").Str(rfc.TableCell(entry.Title)).Str(" | ").
 				Str(rfc.TableCell(rfcIndexArea(entry))).Str(" | ").
@@ -2108,7 +2106,7 @@ func rfcIndexMirror(ledger rfcLedger) string {
 	out.Str(rfcMirrorHead("RFC", rfcIndexMandatoryLabel, rfcIndexOptionalLabel, "Disposition", "Reason"))
 	for index := range declined {
 		entry := declined[index]
-		mandatory, optional := rfcFigureMirrorCells(figures[entry.Stem])
+		mandatory, optional := rfcFigureMirrorCells(entry.Stem)
 		out.Str("| [`").Str(entry.Display).Str("`](").Str(rfcStemHref(entry.Stem)).
 			Str(pageMirrorFile).Str(") ").Str(rfc.TableCell(entry.Title)).Str(" | ").
 			Str(mandatory).Str(" | ").Str(optional).Str(" | ").

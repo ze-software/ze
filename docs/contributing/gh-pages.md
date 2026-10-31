@@ -700,16 +700,16 @@ names any listed RFC with no summary, and offers a text filter by RFC number
 or title; without scripts every row stays visible. Such a link also moves both
 RFC tables to the top of the page, under its title, so the reader does not
 scroll past the gate cards to reach them. Above the rows, an overview
-sums the shown RFCs' mandatory and optional figures the way a profile rollup
-does (walked RFCs only, the rest counted apart), so a profile's link reads that
-profile's percentages. Every row of both tables carries the RFC's mandatory and
-optional proof bars, followed by attainable ceilings and per-kind exclusion
-counts and shares. These come from the corpus graph, including RFCs no profile
-lists. The enrolled table uses short column names; its legend states the
-computed ceiling over the RFCs shown. Linux limits, lower-layer behavior,
-not-applicable requirements and declined optional features stay in the proof
-denominator but are excluded from the attainable count. The statement names
-the lowest nonempty mandatory and optional RFC ceilings.
+carries the MUST bar and the overview bar over the subject `all`, then a Total
+row: each MUST bar section, the MUST rows not owed and the MUST total, with a
+check line that adds the first five to the sixth, and the count of RFCs and
+of those not walked. The filter script sets `data-ze-rfc-stems` on the
+overview to the stems of the rows it shows and asks `rfc-figures.js` to fill
+it again, so a profile's link reads that profile's own counts. Without
+scripts the overview holds the last build's totals over every RFC listed.
+Every row of both tables carries the RFC's MUST bar and overview bar, drawn
+from `data/rfc/<stem>.json` as on the profile pages. The enrolled table uses
+short column names, and its legend says what each counts.
 
 A profile page carries its required tier's MUST bar and overview bar, then a
 table of every count the RFC data holds for that tier: the RFCs, the
@@ -744,23 +744,13 @@ pairing is written once and the two directions cannot disagree. A link to a
 profile no file under `rfc/profiles/` declares refuses the build. The homepage
 regression-prevention block and the Examples menu both link to the profile
 index.
-<!-- source: internal/le/site/rfcprofiles.go -- renderRFCProfiles, rfcProfileGroups, rfcProfileTiersAgree, rfcProfileFigures, rfcProfileBarHTML, removeRetiredRFCProfilePages, rfcProfileUseCases, rfcProfileUseCasesKnown -->
+<!-- source: internal/le/site/rfcprofiles.go -- renderRFCProfiles, rfcProfileGroups, rfcProfileTiersAgree, rfcProfileFigures, removeRetiredRFCProfilePages, rfcProfileUseCases, rfcProfileUseCasesKnown -->
 <!-- source: internal/le/site/rfcfallback.go -- loadRFCFigureSet, fillHTML, fillMirror -->
-<!-- source: internal/le/site/rfcfilter.go -- rfcProfileListHref, rfcFilterHTML, rfcFilterScript, rfcStemRows, rfcIndexLegend, rfcCeilingStatement -->
+<!-- source: internal/le/site/rfcfilter.go -- rfcProfileListHref, rfcFilterHTML, rfcFilterScript, rfcIndexLegend -->
 
-Ceilings describe current classifications, not an immutable Linux maximum.
-Not-applicable and feature-declined classifications can be revisited. The
-browser reads `data-ma`/`data-oa` attainable counts and `data-me`/`data-oe`
-per-kind exclusion counts from each RFC row, plus registered reason labels.
-It sums only walked rows, as `rfc.CeilingOf` does, and compares exact count
-ratios to identify the lowest ceiling. Ties put numbered RFCs first in numeric
-order, then other stems by name, matching the Go model. Profile links and text
-filters update the same sums. Empty figures say `no rows`, never a percentage;
-an unwalked RFC has no published ceiling. The JSON ledger retains its proof fields and
-adds attainable and excluded counts to the graph, profiles and each stem's
-`figures` member. Profile pages and detail pages carry no ceiling: they read
-their figures from `data/rfc/`, as above.
-<!-- source: internal/le/site/rfcfilter.go -- rfcFigureRowCells, rfcCeilingStatement, rfcFilterScript -->
+No RFC page states a ceiling or a proven percentage: every page reads its
+figures from `data/rfc/`, as above.
+<!-- source: internal/le/site/rfcfilter.go -- rfcListOverviewHTML, rfcListTotalColumns, rfcFigureRowCells, rfcFilterScript -->
 <!-- source: internal/le/site/rfcledger.go -- rfcLedgerStem, requirementLedgerFrom -->
 <!-- source: internal/le/site/rfcprofiles.go -- rfcProfileBody, rfcProfileMirror -->
 <!-- source: internal/le/site/rfcdetail.go -- rfcDetailFiguresHTML, rfcDetailFiguresMirror -->

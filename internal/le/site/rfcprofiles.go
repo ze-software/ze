@@ -412,11 +412,23 @@ func rfcProfileFiguresProse() string {
 		"so its rows count in no figure. Every count is read from the RFC data files when the page loads."
 }
 
+// rfcBarsHTML renders a subject's MUST bar and overview bar, each under its
+// name.
+func rfcBarsHTML(subject string) string {
+	return "<p><strong>MUST bar</strong></p>\n" + rfcBarMarkHTML(subject, "must") + "\n" +
+		"<p><strong>Overview bar</strong></p>\n" + rfcBarMarkHTML(subject, "overview") + "\n"
+}
+
+// rfcBarsMirror states the same two bars in a mirror.
+func rfcBarsMirror(subject string) string {
+	return "- **MUST bar**: " + rfcBarMirror(subject, "must") + "\n" +
+		"- **Overview bar**: " + rfcBarMirror(subject, "overview") + "\n\n"
+}
+
 // rfcProfileTierHTML renders one tier's two bars and figure table.
 func rfcProfileTierHTML(subject string) string {
 	var out textbuf.Buffer
-	out.Str("<p><strong>MUST bar</strong></p>\n").Str(rfcBarMarkHTML(subject, "must")).Byte('\n')
-	out.Str("<p><strong>Overview bar</strong></p>\n").Str(rfcBarMarkHTML(subject, "overview")).Byte('\n')
+	out.Str(rfcBarsHTML(subject))
 	var rows textbuf.Buffer
 	for _, figure := range rfcProfileFigures() {
 		rows.Str(rfcRowCells(html.EscapeString(figure.Label), rfcValueHTML(subject, figure.Field)))
@@ -429,8 +441,7 @@ func rfcProfileTierHTML(subject string) string {
 // rfcProfileTierMirror states the same tier in the mirror.
 func rfcProfileTierMirror(subject string) string {
 	var out textbuf.Buffer
-	out.Str("- **MUST bar**: ").Str(rfcBarMirror(subject, "must")).Byte('\n')
-	out.Str("- **Overview bar**: ").Str(rfcBarMirror(subject, "overview")).Str("\n\n")
+	out.Str(rfcBarsMirror(subject))
 	out.Str(rfcMirrorHead("Figure", "Rows"))
 	for _, figure := range rfcProfileFigures() {
 		out.Str(rfcMirrorRow(rfcMirrorCell(figure.Label), rfcValueMirror(subject, figure.Field)))
@@ -644,39 +655,8 @@ func rfcProfileDisplay(stem string, display map[string]string) string {
 	return stem
 }
 
-// rfcProfileBarHTML renders one figure as a bar and its cell. An RFC whose
-// figure is not measured (not walked, no rows) carries an empty
-// bar marked unmeasured, so every RFC has its bar and none reads as a
-// measurement it is not.
-func rfcProfileBarHTML(row *rfc.TreeRow, cell string, proven, total int) string {
-	measured := false
-	width := "0"
-	if row.Walked && total > 0 {
-		measured = true
-		width = strconv.FormatFloat(rfcPercent(proven, total), 'f', 1, 64)
-	}
-	class := "rfc-bar"
-	if !measured {
-		class += " rfc-bar-unmeasured"
-	}
-	escaped := html.EscapeString(cell)
-	return `<div class="` + class + `" role="img" aria-label="` + escaped + `"><span style="width:` +
-		width + `%"></span></div><span class="rfc-bar-note">` + escaped + "</span>"
-}
-
 // rfcMirrorCell escapes one plain value for a Markdown table cell.
 func rfcMirrorCell(value string) string { return strings.ReplaceAll(value, "|", `\|`) }
-
-// rfcProfileStyle is the family's own stylesheet: the bar. It is inline for
-// the reason healthStyle is: these rules serve this family and nothing else.
-const rfcProfileStyle = `<style>
-.rfc-bar { display: block; width: 100%; min-width: 7rem; height: .7rem; margin: .2rem 0 .15rem; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); overflow: hidden; }
-.rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
-.rfc-bar-unmeasured { border-style: dashed; }
-.rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
-.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
-</style>
-`
 
 // rfcProfilesIndexBody renders the index: one table per group, each profile
 // with its required tier's two bars and counts as marked elements.
