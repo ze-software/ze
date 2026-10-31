@@ -26,7 +26,7 @@ func init() {
 	// The filter attachment points this plugin's config holds, with the route
 	// fields their routes carry and a filter there may set (the route field
 	// vocabulary, internal/component/policy/fields.go).
-	policy.MustRegisterAttachment(configRootRIB, "rib import",
+	policy.MustRegisterRouteAttachment(configRootRIB, "rib import",
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldInterface, policy.FieldMetric, policy.FieldTag, policy.FieldLevel, policy.FieldRouteType},
 		[]policy.Field{policy.FieldDistance, policy.FieldTag})
 	// The import chain is compiled into the Loc-RIB gate by the policy plugin.

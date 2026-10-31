@@ -15,6 +15,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
 // Field is one registered route field (prefix, tag, community, ...). Its zero
@@ -25,11 +27,27 @@ type Field struct{ name string }
 // String returns the field's config name, for messages.
 func (f Field) String() string { return f.name }
 
+// RouteView says how a field lives on the route view every engine-judged
+// chain evaluates (ribpolicy.Route in, ribpolicy.Sets out). It is declared at
+// the field's registration, so whether a route attachment can carry or set a
+// field is derived from the view itself and never from a second list.
+type RouteView struct {
+	// Read answers the field's value on r. Nil means a ribpolicy.Route does
+	// not carry the field, so no route attachment may declare it carried.
+	Read func(r *ribpolicy.Route) any
+	// Written answers whether s writes the field. Nil means ribpolicy.Sets
+	// cannot set it, so no route attachment may declare it settable.
+	Written func(s *ribpolicy.Sets) bool
+}
+
 // fieldUse is what a filter type or an attachment declares.
 type fieldUse struct {
 	owner  string  // an attachment: the plugin whose config holds the chain; a filter type: ""
 	first  []Field // a filter type: fields read; an attachment: fields carried
 	second []Field // a filter type: fields set; an attachment: fields settable
+	// routeView marks an attachment whose chain judges a ribpolicy.Route
+	// (MustRegisterRouteAttachment): only such a chain compiles as a RouteChain.
+	routeView bool
 }
 
 // vocabulary holds the registered fields, filter types and attachments. The
@@ -38,6 +56,7 @@ type fieldUse struct {
 type vocabulary struct {
 	mu          sync.RWMutex
 	fields      map[string]Field
+	views       map[string]RouteView
 	filterTypes map[string]fieldUse
 	attachments map[string]fieldUse
 	// perInstance holds, for a filter type whose instances each use a subset
@@ -49,6 +68,7 @@ type vocabulary struct {
 func newVocabulary() *vocabulary {
 	return &vocabulary{
 		fields:      make(map[string]Field),
+		views:       make(map[string]RouteView),
 		filterTypes: make(map[string]fieldUse),
 		attachments: make(map[string]fieldUse),
 		perInstance: make(map[string]InstanceFields),
@@ -58,10 +78,11 @@ func newVocabulary() *vocabulary {
 // vocab is the process vocabulary every registration writes to.
 var vocab = newVocabulary()
 
-// MustRegisterField registers a route field. A protocol or filter plugin that
-// needs a new field registers it here; nothing enumerates fields elsewhere.
-// A second registration of one name is a Ze defect and panics at init.
-func MustRegisterField(name string) Field { return vocab.mustRegisterField(name) }
+// MustRegisterField registers a route field and how the route view reads and
+// sets it. A protocol or filter plugin that needs a new field registers it
+// here; nothing enumerates fields elsewhere. A second registration of one name
+// is a Ze defect and panics at init.
+func MustRegisterField(name string, view RouteView) Field { return vocab.mustRegisterField(name, view) }
 
 // MustRegisterFilterType declares the fields a filter type reads and sets.
 func MustRegisterFilterType(typeName string, reads, sets []Field) {
@@ -89,7 +110,17 @@ func MustRegisterInstanceFields(typeName string, fields InstanceFields) {
 // Dependencies, which a test derives from AttachmentOwners. name is how the
 // operator reads the attachment in an error ("isis import", "rib import").
 func MustRegisterAttachment(owner, name string, carries, settable []Field) {
-	vocab.mustRegisterAttachment(owner, name, carries, settable)
+	vocab.mustRegisterAttachment(owner, name, carries, settable, false)
+}
+
+// MustRegisterRouteAttachment is MustRegisterAttachment for an attachment
+// whose chain judges a ribpolicy.Route through CompileRouteChain: a Loc-RIB
+// import, a redistribute import, an IGP export. Every carried field MUST have
+// a RouteView.Read and every settable one a RouteView.Written, or the
+// registration panics at init: a field the view cannot hold would make a
+// filter match a zero and reject every route.
+func MustRegisterRouteAttachment(owner, name string, carries, settable []Field) {
+	vocab.mustRegisterAttachment(owner, name, carries, settable, true)
 }
 
 // AttachmentOwners answers, sorted and once each, the plugins that registered
@@ -109,7 +140,7 @@ func CheckChain(attachment string, reg *Registry, names []string) error {
 	return vocab.checkChain(attachment, reg, names)
 }
 
-func (v *vocabulary) mustRegisterField(name string) Field {
+func (v *vocabulary) mustRegisterField(name string, view RouteView) Field {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if name == "" {
@@ -120,6 +151,7 @@ func (v *vocabulary) mustRegisterField(name string) Field {
 	}
 	f := Field{name: name}
 	v.fields[name] = f
+	v.views[name] = view
 	return f
 }
 
@@ -142,11 +174,37 @@ func (v *vocabulary) mustRegisterInstanceFields(typeName string, fields Instance
 	v.perInstance[typeName] = fields
 }
 
-func (v *vocabulary) mustRegisterAttachment(owner, name string, carries, settable []Field) {
+func (v *vocabulary) mustRegisterAttachment(owner, name string, carries, settable []Field, routeView bool) {
 	if owner == "" {
 		panic("BUG: policy: attachment " + name + " registered with no owner plugin")
 	}
 	v.mustRegisterUse(v.attachments, "attachment", owner, name, carries, settable)
+	if !routeView {
+		return
+	}
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	for _, f := range carries {
+		if v.views[f.name].Read == nil {
+			panic("BUG: policy: route attachment " + name + " carries " + f.name + ", which a ribpolicy.Route does not hold")
+		}
+	}
+	for _, f := range settable {
+		if v.views[f.name].Written == nil {
+			panic("BUG: policy: route attachment " + name + " lets a filter set " + f.name + ", which ribpolicy.Sets cannot write")
+		}
+	}
+	use := v.attachments[name]
+	use.routeView = true
+	v.attachments[name] = use
+}
+
+// isRouteAttachment reports whether name was registered with
+// MustRegisterRouteAttachment.
+func (v *vocabulary) isRouteAttachment(name string) bool {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	return v.attachments[name].routeView
 }
 
 func (v *vocabulary) attachmentOwners() []string {

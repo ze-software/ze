@@ -16,15 +16,15 @@ import (
 // vocabulary, then check one chain that fits and one that does not.
 func TestPolicyFieldMismatchRefused(t *testing.T) {
 	v := newVocabulary()
-	prefix := v.mustRegisterField("prefix")
-	family := v.mustRegisterField("family")
-	community := v.mustRegisterField("community")
-	tag := v.mustRegisterField("tag")
+	prefix := v.mustRegisterField("prefix", RouteView{})
+	family := v.mustRegisterField("family", RouteView{})
+	community := v.mustRegisterField("community", RouteView{})
+	tag := v.mustRegisterField("tag", RouteView{})
 
 	v.mustRegisterFilterType("community-match", []Field{community}, nil)
 	v.mustRegisterFilterType("prefix-list", []Field{prefix, family}, nil)
 	v.mustRegisterFilterType("tagger", nil, []Field{tag})
-	v.mustRegisterAttachment("isis", "isis import", []Field{prefix, family}, nil)
+	v.mustRegisterAttachment("isis", "isis import", []Field{prefix, family}, nil, false)
 
 	tree := config.NewTree()
 	tree.AddListEntry("prefix-list", "LOOPBACKS", config.NewTree())
@@ -57,6 +57,6 @@ func TestPolicyFieldMismatchRefused(t *testing.T) {
 // field is a Ze defect, refused at init.
 func TestPolicyFieldDuplicateRegistrationPanics(t *testing.T) {
 	v := newVocabulary()
-	v.mustRegisterField("prefix")
-	assert.Panics(t, func() { v.mustRegisterField("prefix") })
+	v.mustRegisterField("prefix", RouteView{})
+	assert.Panics(t, func() { v.mustRegisterField("prefix", RouteView{}) })
 }

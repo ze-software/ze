@@ -212,6 +212,10 @@ func readRIBChain(imp ribImport, rootCfg map[string]any, reg *Registry, policyCf
 // the engine never calls.
 func checkRouteChain(attachment string, refs []string, reg *Registry, policyCfg map[string]any) ([]ribInstanceConfig, error) {
 	context := attachment + " filter"
+	if !vocab.isRouteAttachment(attachment) {
+		return nil, fmt.Errorf("BUG: policy: %s is not registered with MustRegisterRouteAttachment, "+
+			"so its routes are not a ribpolicy.Route a chain can judge", attachment)
+	}
 	for _, name := range refs {
 		if strings.Contains(name, ":") {
 			return nil, fmt.Errorf("%s %q: a %s chain runs only filters defined under the policy root, "+

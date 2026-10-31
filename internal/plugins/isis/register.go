@@ -48,7 +48,7 @@ func init() {
 	// The filter attachment points this plugin's config holds, with the route
 	// fields their routes carry and a filter there may set (the route field
 	// vocabulary, internal/component/policy/fields.go).
-	policy.MustRegisterAttachment(componentName, "isis import",
+	policy.MustRegisterRouteAttachment(componentName, "isis import",
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldInterface, policy.FieldMetric, policy.FieldLevel},
 		[]policy.Field{policy.FieldDistance, policy.FieldTag})
 	// The import chain is compiled into the Loc-RIB gate by the policy plugin.
@@ -58,8 +58,8 @@ func init() {
 	// level, not a field the route arrives with, so the chain cannot match on
 	// it; and no filter sets a level the consumer could honour, so it is not
 	// settable either.
-	policy.MustRegisterAttachment(componentName, exportAttachment,
-		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldOriginAS},
+	policy.MustRegisterRouteAttachment(componentName, exportAttachment,
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag},
 		[]policy.Field{policy.FieldMetric})
 	// `isis filter export filters` declares ze:reference "policy-filter"; this
 	// tells that source the chain compiles at "isis export".

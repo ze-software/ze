@@ -25,8 +25,8 @@ func init() {
 	// The filter attachment points this plugin's config holds, with the route
 	// fields their routes carry and a filter there may set (the route field
 	// vocabulary, internal/component/policy/fields.go).
-	policy.MustRegisterAttachment(Name, chainAttachment,
-		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity},
+	policy.MustRegisterRouteAttachment(Name, chainAttachment,
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag},
 		[]policy.Field{policy.FieldTag, policy.FieldMetric})
 
 	reg := registry.Registration{

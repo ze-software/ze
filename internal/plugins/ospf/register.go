@@ -100,13 +100,13 @@ func registerOSPF() {
 	// The filter attachment points this plugin's config holds, with the route
 	// fields their routes carry and a filter there may set (the route field
 	// vocabulary, internal/component/policy/fields.go).
-	policy.MustRegisterAttachment(Namespace, "ospf import",
+	policy.MustRegisterRouteAttachment(Namespace, "ospf import",
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldInterface, policy.FieldMetric, policy.FieldTag, policy.FieldRouteType},
 		[]policy.Field{policy.FieldDistance, policy.FieldTag})
 	// The import chain is compiled into the Loc-RIB gate by the policy plugin.
 	policy.MustRegisterRIBImport(policy.RIBImport{Attachment: "ospf import", Root: Namespace, Scope: policy.RIBScopeSource, Protocol: Namespace, Floods: true})
-	policy.MustRegisterAttachment(Namespace, exportAttachment,
-		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag, policy.FieldRouteType, policy.FieldOriginAS},
+	policy.MustRegisterRouteAttachment(Namespace, exportAttachment,
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag},
 		[]policy.Field{policy.FieldTag, policy.FieldMetric, policy.FieldMetricType})
 	// `ospf filter export filters` declares ze:reference "policy-filter"; this
 	// tells that source the chain compiles at "ospf export".

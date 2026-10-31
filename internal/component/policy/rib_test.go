@@ -23,7 +23,7 @@ const (
 var testBogon = netip.MustParsePrefix("192.0.2.0/24")
 
 func init() {
-	MustRegisterAttachment(testRoot, testAttach,
+	MustRegisterRouteAttachment(testRoot, testAttach,
 		[]Field{FieldPrefix, FieldFamily, FieldTag}, []Field{FieldDistance, FieldTag})
 	MustRegisterRIBImport(RIBImport{Attachment: testAttach, Root: testRoot, Scope: RIBScopeSource, Protocol: testProtocol})
 	MustRegisterFilterType("test-bogon", []Field{FieldPrefix}, []Field{FieldTag})

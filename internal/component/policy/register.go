@@ -13,7 +13,9 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	policyyang "github.com/ze-software/ze/internal/component/policy/yang"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -28,27 +30,49 @@ var logger = slogutil.LazyLogger("policy")
 // (spec "Route Field Vocabulary"). Filter types and attachment points name
 // these values; a field nobody registered cannot be named.
 var (
-	FieldPrefix            = MustRegisterField("prefix")
-	FieldFamily            = MustRegisterField("family")
-	FieldProtocol          = MustRegisterField("protocol")
-	FieldNextHop           = MustRegisterField("next-hop")
-	FieldInterface         = MustRegisterField("interface")
-	FieldMetric            = MustRegisterField("metric")
-	FieldMetricType        = MustRegisterField("metric-type")
-	FieldTag               = MustRegisterField("tag")
-	FieldLevel             = MustRegisterField("level")
-	FieldRouteType         = MustRegisterField("route-type")
-	FieldDistance          = MustRegisterField("distance")
-	FieldOriginAS          = MustRegisterField("origin-as")
-	FieldCommunity         = MustRegisterField("community")
-	FieldLargeCommunity    = MustRegisterField("large-community")
-	FieldExtendedCommunity = MustRegisterField("extended-community")
-	FieldASPath            = MustRegisterField("as-path")
-	FieldLocalPreference   = MustRegisterField("local-preference")
-	FieldOrigin            = MustRegisterField("origin")
-	FieldAIGP              = MustRegisterField("aigp")
-	FieldMED               = MustRegisterField("med")
+	FieldPrefix    = MustRegisterField("prefix", RouteView{Read: func(r *ribpolicy.Route) any { return r.Prefix }})
+	FieldFamily    = MustRegisterField("family", RouteView{Read: func(r *ribpolicy.Route) any { return r.Family }})
+	FieldProtocol  = MustRegisterField("protocol", RouteView{Read: func(r *ribpolicy.Route) any { return routeProtocol{r.Source, r.IsBGP, r.IsEBGP} }})
+	FieldNextHop   = MustRegisterField("next-hop", RouteView{Read: func(r *ribpolicy.Route) any { return r.NextHop }})
+	FieldInterface = MustRegisterField("interface", RouteView{Read: func(r *ribpolicy.Route) any { return r.Interface }})
+	FieldMetric    = MustRegisterField("metric", RouteView{
+		Read:    func(r *ribpolicy.Route) any { return r.Metric },
+		Written: func(s *ribpolicy.Sets) bool { return s.HasMetric },
+	})
+	FieldMetricType = MustRegisterField("metric-type", RouteView{Written: func(s *ribpolicy.Sets) bool { return s.MetricType != ribpolicy.ExternalMetricTypeUnspecified }})
+	FieldTag        = MustRegisterField("tag", RouteView{
+		Read:    func(r *ribpolicy.Route) any { return routeTag{r.Tag, r.HasTag} },
+		Written: func(s *ribpolicy.Sets) bool { return s.HasTag },
+	})
+	FieldLevel     = MustRegisterField("level", RouteView{Read: func(r *ribpolicy.Route) any { return r.Level }})
+	FieldRouteType = MustRegisterField("route-type", RouteView{Read: func(r *ribpolicy.Route) any { return r.OSPFRouteType }})
+	FieldDistance  = MustRegisterField("distance", RouteView{Written: func(s *ribpolicy.Sets) bool { return s.HasDistance }})
+	// The BGP path fields: a ribpolicy.Route holds none of them, so only a BGP
+	// attachment carries them.
+	FieldOriginAS          = MustRegisterField("origin-as", RouteView{})
+	FieldCommunity         = MustRegisterField("community", RouteView{})
+	FieldLargeCommunity    = MustRegisterField("large-community", RouteView{})
+	FieldExtendedCommunity = MustRegisterField("extended-community", RouteView{})
+	FieldASPath            = MustRegisterField("as-path", RouteView{})
+	FieldLocalPreference   = MustRegisterField("local-preference", RouteView{})
+	FieldOrigin            = MustRegisterField("origin", RouteView{})
+	FieldAIGP              = MustRegisterField("aigp", RouteView{})
+	FieldMED               = MustRegisterField("med", RouteView{})
 )
+
+// routeProtocol is the protocol field's value on the route view: the source
+// protocol and the BGP class a `protocol [ ebgp ]` condition reads.
+type routeProtocol struct {
+	source      redistevents.ProtocolID
+	isBGP, eBGP bool
+}
+
+// routeTag is the tag field's value on the route view: 0 is a real tag, so
+// whether the route carries one is part of the value.
+type routeTag struct {
+	tag    uint32
+	hasTag bool
+}
 
 // relocatedFromBGP is the container the policy root was a child of before it
 // became top-level and shared by every protocol: `bgp { policy { ... } }` is

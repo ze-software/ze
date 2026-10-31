@@ -1,10 +1,12 @@
 package isis
 
 import (
+	"net/netip"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/policy"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
 // TestParseExportChain: `isis filter export` compiles from the delivered isis
@@ -57,5 +59,37 @@ func TestExportChainRefusesMatchLevel(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "level") {
 		t.Fatalf("refusal %q does not name the level field", err)
+	}
+}
+
+// TestExportChainMatchesTag: a redistributed route arrives with its own tag
+// (a static route's tag leaf), so `isis filter export` carries the tag field
+// and a match on it judges the route. Method: compile an export chain whose
+// match passes only tag 7, with final accept, then evaluate a route tagged 7, one
+// tagged 8 and an untagged one.
+func TestExportChainMatchesTag(t *testing.T) {
+	cfg, err := parseExportChain([]configSection{
+		{Root: configRoot, Data: `{"isis":{"filter":{"export":{"filters":["T7"],"final":"accept"}}}}`},
+		{Root: policy.RootName, Data: `{"policy":{"match":{"T7":{"tag":["7"]}}}}`},
+	})
+	if err != nil {
+		t.Fatalf("export chain matching tag: %v", err)
+	}
+	if cfg.chain == nil {
+		t.Fatal("export chain matching tag compiled to no chain")
+	}
+	prefix := netip.MustParsePrefix("192.0.2.1/32")
+	cases := []struct {
+		route ribpolicy.Route
+		want  ribpolicy.Action
+	}{
+		{ribpolicy.Route{Prefix: prefix, Tag: 7, HasTag: true}, ribpolicy.ActionAccept},
+		{ribpolicy.Route{Prefix: prefix, Tag: 8, HasTag: true}, ribpolicy.ActionReject},
+		{ribpolicy.Route{Prefix: prefix}, ribpolicy.ActionReject},
+	}
+	for _, c := range cases {
+		if got := cfg.chain.Evaluate(c.route).Action; got != c.want {
+			t.Errorf("route tag %d (has %v): action %v, want %v", c.route.Tag, c.route.HasTag, got, c.want)
+		}
 	}
 }

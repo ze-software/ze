@@ -22,7 +22,7 @@ const (
 )
 
 func init() {
-	MustRegisterAttachment(testFloodRoot, testFloodAttach, []Field{FieldPrefix, FieldFamily}, nil)
+	MustRegisterRouteAttachment(testFloodRoot, testFloodAttach, []Field{FieldPrefix, FieldFamily}, nil)
 	MustRegisterRIBImport(RIBImport{Attachment: testFloodAttach, Root: testFloodRoot, Scope: RIBScopeSource, Protocol: testFloodProtocol, Floods: true})
 }
 

@@ -98,9 +98,9 @@ is refused rather than matching nothing.
 | `ospf filter import` | prefix, family, protocol, next-hop, interface, metric, tag, route-type | distance, tag |
 | `isis filter import` | prefix, family, protocol, next-hop, interface, metric, level | distance, tag |
 | `rib filter import` | prefix, family, protocol, next-hop, interface, metric, tag, level, route-type | distance, tag |
-| `isis filter export` | prefix, family, protocol, next-hop, metric, level, origin-as | metric, level |
-| `ospf filter export` | prefix, family, protocol, next-hop, metric, tag, route-type, origin-as | tag, metric, metric-type |
-| `redistribute destination D import S` | prefix, family, protocol, next-hop, metric, tag, origin-as, community, large-community, extended-community | tag, metric |
+| `isis filter export` | prefix, family, protocol, next-hop, metric, tag | metric |
+| `ospf filter export` | prefix, family, protocol, next-hop, metric, tag | tag, metric, metric-type |
+| `redistribute destination D import S` | prefix, family, protocol, next-hop, metric, tag | tag, metric |
 <!-- source: internal/plugins/connected/register.go -- MustRegisterAttachment -->
 <!-- source: internal/plugins/static/register.go -- MustRegisterAttachment -->
 <!-- source: internal/plugins/ospf/register.go -- MustRegisterAttachment -->
