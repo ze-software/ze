@@ -412,6 +412,16 @@ func fetchKernelTarball(ctx context.Context, url, tarball string) error {
 	return nil
 }
 
+// buildVMCPUs answers the build VM's vCPU count: half the host's cores, at
+// least two. A guest that asks for every host core stalls in early kernel boot
+// when the host is saturated: on a 16-core Mac at load ~110 a 16-vCPU HVF guest
+// printed nothing after "Booting `Linux virt'" for five minutes, while an
+// 8-vCPU guest reached login in 50 seconds. The kernel make runs one job per
+// guest CPU (WorkerRequest.Jobs), so the cache key does not change.
+func buildVMCPUs(hostCPUs int) int {
+	return max(2, hostCPUs/2)
+}
+
 // qemuArgs builds the QEMU command line. accel is the hardware accelerator
 // hardwareAccelerator chose: owner decision 2026-10-09, no CPU emulation, so
 // tcg is never offered, even as a fallback.
@@ -424,7 +434,7 @@ func qemuArgs(req Request, iso, accel string, port, memory int, ccache, build st
 		}
 		args = append(args, "-machine", "virt,highmem=on", "-cpu", "max", "-bios", firmware)
 	}
-	args = append(args, "-accel", accel, "-smp", strconv.Itoa(max(2, runtime.NumCPU())), "-m", strconv.Itoa(memory), "-cdrom", iso, "-boot", "d", "-nographic", "-serial", "mon:stdio", "-netdev", fmt.Sprintf("user,id=net0,hostfwd=tcp::%d-:22", port), "-device", "virtio-net-pci,netdev=net0", "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=workspace,security_model=none,id=ws0,readonly=off", req.Root), "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=ccache,security_model=none,id=cc0,readonly=off", ccache), "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=builddir,security_model=none,id=bd0,readonly=off", build))
+	args = append(args, "-accel", accel, "-smp", strconv.Itoa(buildVMCPUs(runtime.NumCPU())), "-m", strconv.Itoa(memory), "-cdrom", iso, "-boot", "d", "-nographic", "-serial", "mon:stdio", "-netdev", fmt.Sprintf("user,id=net0,hostfwd=tcp::%d-:22", port), "-device", "virtio-net-pci,netdev=net0", "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=workspace,security_model=none,id=ws0,readonly=off", req.Root), "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=ccache,security_model=none,id=cc0,readonly=off", ccache), "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=builddir,security_model=none,id=bd0,readonly=off", build))
 	if filepath.IsAbs(req.OutputDir) {
 		args = append(args, "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=output,security_model=none,id=out0,readonly=off", req.OutputDir))
 	}

@@ -65,3 +65,14 @@ func TestTargetDecidesModules(t *testing.T) {
 		t.Fatalf("validateRequest(target bogus) = %v, want the target refusal", err)
 	}
 }
+
+// TestBuildVMCPUs proves the build VM never asks for every host core: on a
+// 16-core Mac at load ~110, a 16-vCPU HVF guest hung after "Booting `Linux
+// virt'" for five minutes while an 8-vCPU guest reached login in 50 seconds.
+func TestBuildVMCPUs(t *testing.T) {
+	for _, tc := range []struct{ host, want int }{{1, 2}, {2, 2}, {4, 2}, {8, 4}, {16, 8}, {32, 16}} {
+		if got := buildVMCPUs(tc.host); got != tc.want {
+			t.Errorf("buildVMCPUs(%d) = %d, want %d", tc.host, got, tc.want)
+		}
+	}
+}
