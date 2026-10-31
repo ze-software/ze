@@ -51,6 +51,13 @@ naming the author.
 | What a verification result should carry | A verdict that named the file set it covered, and the tree hash it read, would let a reader judge attribution instead of trusting it |
 | Whether read-only agents need it | They do not change files, so they cost nothing here. Only the editing fan-out creates the condition |
 
+## Owned journal rows
+<!-- Every open journal row this spec will fix, one line each; `./le commit create`
+     refuses an open row no spec lists (plan/journal/README.md, "Owned rows"). -->
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `editor-diagnostics-read-as-tree-state.md` | 2026-10-31 | LSP diagnostics over shared checkout |
+
 ## Notes
 
 Do not treat this as a rule-writing task. `ai/rules/evidence.md` already
