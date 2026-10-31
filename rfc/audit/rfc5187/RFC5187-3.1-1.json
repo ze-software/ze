@@ -1,13 +1,13 @@
 {
-  "note": "Re-judged 2026-10-21. The store round-trip tags are gone. TestRFC5187LSAIDToPrefixPreservedAcrossRestart: after a real restart the redistributed prefix maps to its pre-restart LSA ID, and a prefix first redistributed afterwards is refused that ID while the preserved one keeps it. Records on restorePrefixLSIDs.",
+  "note": "Re-judged after c356b97d17, whose only change to the unit is the v6InjectExternal argument (defaultExternal(0): metric 20, type 2, tag 0, what the retired externalParams resolved to). LSA ID allocation does not depend on metric or tag. TestRFC5187LSAIDToPrefixPreservedAcrossRestart: after a real restart the redistributed prefix maps to its pre-restart LSA ID, and a prefix first redistributed afterwards is refused that ID while the preserved one keeps it. Records on restorePrefixLSIDs.",
   "requirement_sha": "d1e577dcb3f1aabe",
   "tests": {
-    "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart": "62d65d9bff72dc5d",
-    "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart#2": "62d65d9bff72dc5d"
+    "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart": "4ea5c7fc591e8f58",
+    "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart#2": "4ea5c7fc591e8f58"
   },
   "units": {
-    "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart": "e65a927e097dfd87",
-    "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart#2": "e65a927e097dfd87"
+    "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart": "97fa72b3768fae4b",
+    "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart#2": "97fa72b3768fae4b"
   },
   "verdict": "enforced"
 }

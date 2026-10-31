@@ -1,15 +1,15 @@
 {
-  "note": "Forbidden: no configuration vehicle for the P-bit. nssa_import_lifecycle_test.go TestNSSAPerSourcePropagationEnabled parses nssa-propagate true and asserts P set on the imported route and default (line 204); TestNSSAPerSourcePropagationDisabled asserts P clear for explicit false and unconfigured sources (line 226); TestNSSAPerSourcePropagationCannotOverrideType5 asserts P clear with a Type-5 twin (line 251).",
+  "note": "Re-judged after c356b97d17. The P-bit vehicle is still config: externalPropagate (redist_wiring.go) reads the per-source nssa-propagate leaf (config.go, default false); External carries only metric, type and tag, never P. TestNSSAPerSourcePropagationEnabled parses nssa-propagate true for static and asserts P set on the imported route and the default, plus metric 33 and tag 77; TestNSSAPerSourcePropagationDisabled asserts P clear for explicit false (connected) and an unconfigured source (bgp), which is the RFC's P-clear default; TestNSSAPerSourcePropagationCannotOverrideType5 asserts P clear with a Type-5 twin.",
   "requirement_sha": "2b879ef85689ae6e",
   "tests": {
-    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationCannotOverrideType5": "98ecc3fedcb96b09",
-    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationDisabled": "98ecc3fedcb96b09",
-    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationEnabled": "98ecc3fedcb96b09"
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationCannotOverrideType5": "a32a41b81b45a922",
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationDisabled": "a32a41b81b45a922",
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationEnabled": "a32a41b81b45a922"
   },
   "units": {
-    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationCannotOverrideType5": "ef30e2634943bb4b",
-    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationDisabled": "375db7146acd698e",
-    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationEnabled": "66dbcc509ce9d80f"
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationCannotOverrideType5": "240968b895577281",
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationDisabled": "90c41f82faf5822f",
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationEnabled": "fe182387ee910dd3"
   },
   "verdict": "enforced"
 }

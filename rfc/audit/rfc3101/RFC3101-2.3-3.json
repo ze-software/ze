@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: keeping a Type-7 whose forwarding interface went Down. nssa_import_lifecycle_test.go TestNSSAImportReoriginatesAfterForwardingInterfaceDown asserts after onInterfaceDown the next forwarding address, Sequence.Next(), not MaxAge (line 138), and MaxAge when no address remains (line 145); TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent asserts an unrelated Down leaves sequence and address unchanged (line 170).",
+  "note": "Re-judged after c356b97d17, which moved metric and tag from the retired redistribute leaves to an External argument (staticExternal: metric 33, type 2, tag). Forbidden: keeping a Type-7 whose forwarding interface went Down. TestNSSAImportReoriginatesAfterForwardingInterfaceDown asserts after onInterfaceDown(a) a live Type-7 at Sequence.Next() with interface b's forwarding address, P still set, and metric 33 and tag 91 carried through the re-origination; when no address remains, MaxAge. TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent asserts an unrelated Down leaves sequence and address unchanged and a withdrawn import is not replayed. The External source changes no forwarding-address or re-origination assertion.",
   "requirement_sha": "360c6bc39ddddad9",
   "tests": {
-    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent": "98ecc3fedcb96b09",
-    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown": "98ecc3fedcb96b09"
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent": "a32a41b81b45a922",
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown": "a32a41b81b45a922"
   },
   "units": {
-    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent": "19e5f5f7b72be51b",
-    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown": "9695b633b187bbe8"
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent": "3f1543cb942cd5cf",
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown": "424ba71ea84dd1b3"
   },
   "verdict": "enforced"
 }
