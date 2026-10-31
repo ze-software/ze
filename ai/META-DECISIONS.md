@@ -345,6 +345,18 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   the tooling refuses the spec edit until it has, the same way it refuses a
   code edit. Recording a missed constraint in one spec does not fix the gate
   that let it be missed.
+- A design starts from the mechanisms Ze already has. Before proposing a
+  design, in a spec or in a reply to Thomas, the agent names the existing
+  mechanisms that already do part of the job (found from the doors, the
+  architecture pages and `plan/learned/DESIGN-HISTORY.md`) and says how the
+  design extends or replaces each. A design is never proposed from first
+  principles beside a mechanism that exists. Every spec carries that analysis
+  in its own section, and the spec tooling refuses a spec without it.
+- A design is never written into a spec by transcription. The main thread
+  does not hand an agent its own framing of a design as fixed requirements:
+  a brief carries Thomas's words and the existing mechanisms, and the agent
+  checks the framing against them and reports a conflict instead of recording
+  it as a constraint.
 - Run a formatter, codemod or rewrite tool only on the files you edited in this
   task, never on every dirty file, a directory glob or the whole tree.
 - Many sessions share one Docker daemon: never run a host-wide destructive
