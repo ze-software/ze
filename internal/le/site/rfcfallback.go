@@ -97,8 +97,8 @@ func readRFCDataFile(output, name string, target any) error {
 }
 
 // members answers the stems a subject names: one RFC stem, a profile tier
-// written profile/<name>/required or profile/<name>/optional, or all, every
-// RFC the index lists. In the browser a filter narrows all to the RFCs it
+// written profile/<name>/required or profile/<name>/optional, enrolled, every
+// RFC the index marks gated, or all, every RFC the index lists. In the browser a filter narrows all to the RFCs it
 // shows (data-ze-rfc-stems); the page is built with none filtered.
 func (set *rfcFigureSet) members(subject string) ([]string, error) {
 	if subject == rfcAllSubject {
@@ -141,7 +141,9 @@ func rfcSubjectRefusal(subject string) error {
 // sum answers the counts of a subject's members as rfc-figures.js sumStems
 // does: rfcs, walked and not-walked, requirements and implemented over every
 // member, then must and should summed over the walked members only, count by
-// count.
+// count. It refuses what sumStems refuses: a member the index does not list,
+// a file with no requirements count or implemented flag, and a walked file
+// with no must or should counts.
 func (set *rfcFigureSet) sum(subject string) (map[string]any, error) {
 	stems, err := set.members(subject)
 	if err != nil {
@@ -179,7 +181,14 @@ func (set *rfcFigureSet) sum(subject string) (map[string]any, error) {
 		}
 		walked++
 		for _, key := range []string{"must", "should"} {
-			counts, _ := data[key].(map[string]any)
+			counts, split := data[key].(map[string]any)
+			if !split {
+				// A walked RFC's file always carries both levels (rfcStemDataOf);
+				// one without them would add nothing and print a short sum.
+				var tb textbuf.Buffer
+				return nil, errors.New(tb.Str(rfcStemDataFile(stem)).Str(" is walked but holds no must or should counts, so ").
+					Str(subject).Str(" would leave its rows out; ").Str(rfcPublishMissing).String())
+			}
 			target, _ := out[key].(map[string]any)
 			if target == nil {
 				target = map[string]any{}

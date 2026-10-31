@@ -12,8 +12,9 @@
  *                                       being "must" or "overview"
  *
  * A subject is an RFC stem (rfc4271), a profile tier
- * (profile/<name>/required, profile/<name>/optional), or all: every RFC the
- * index lists, unless an ancestor of the element carries
+ * (profile/<name>/required, profile/<name>/optional), enrolled: every RFC
+ * the index marks gated, or all: every RFC the index lists, unless an
+ * ancestor of the element carries
  * data-ze-rfc-stems="<stem>,<stem>", the RFCs a filter shows. A field is a dotted path
  * of a per-RFC file (must.ze-proven, should.not-decided), or one of the set
  * counts rfcs, walked and not-walked, or register, the set's mandatory

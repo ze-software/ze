@@ -218,7 +218,8 @@ func TestRFCProfilePagesCarryTheMarkersAndTheLastBuildValues(t *testing.T) {
 // TestRFCFigureSetAnswersAsTheScriptDoes proves the fallback filler answers
 // each case the way rfc-figures.js fillValue and drawBar do.
 //
-// Method: one figure set, each answer named by its case.
+// Method: one figure set, each answer named by its case, then the refusals
+// sumStems gives, a walked file with no should counts among them.
 // PREVENTS: a fallback that differs from what the browser then writes.
 func TestRFCFigureSetAnswersAsTheScriptDoes(t *testing.T) {
 	output := publishRFCProfileFigures(t, rfcProfileFiguresLedger(), rfcProfileFiguresData())
@@ -279,6 +280,13 @@ func TestRFCFigureSetAnswersAsTheScriptDoes(t *testing.T) {
 	must["kept"] = float64(5)
 	if got, err := set.bar("rfc2", "must"); err == nil {
 		t.Errorf("a bar whose segments miss its total answered %q", got)
+	}
+	// sumStems refuses a walked file with no must or should counts rather
+	// than drawing a short sum, and so does the fallback.
+	delete(set.stems["rfc1"], "should")
+	got, err := set.value("rfc1", "must.ze-proven")
+	if err == nil || !strings.Contains(err.Error(), "is walked but holds no must or should counts") {
+		t.Errorf("a walked file with no should counts answered %q, %v, want the refusal sumStems gives", got, err)
 	}
 }
 

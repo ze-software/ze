@@ -257,10 +257,10 @@ func rfcGatedCardLabel(entry *rfcLedgerStem) string {
 func rfcGatedCardNote(entry *rfcLedgerStem) string {
 	if entry.Enrolled {
 		return "MUST-level requirements the gate HOLDS. A population, not a result: the " +
-			"ratios beside it are what says how Ze stands"
+			"counts beside it are what says how Ze stands"
 	}
 	return "MUST-level requirements this summary DECLARES. The gate holds none of them, " +
-		"because this RFC is not enrolled (" + entry.Disposition.Kind + "), so every ratio " +
+		"because this RFC is not enrolled (" + entry.Disposition.Kind + "), so every count " +
 		"below reads what the summary records rather than what the gate enforces"
 }
 

@@ -723,21 +723,22 @@ type rfcCard struct {
 	// declared beside the tone it explains, so the two cannot drift, and
 	// rfcToneLegendHTML is the only reader of it.
 	Rule string
-	// Overall says this card is the SCALE every ratio is taken over rather than
+	// Overall says this card is the SCALE every count is drawn from rather than
 	// a measure of its own. It is what puts the card in the first movement.
 	Overall bool
-	// Partition says this card's ratio is one PART of the binding population.
+	// Partition says this card's count is one PART of the binding population.
 	// The parts sum to the whole, which is what lets a reader add the cards up
-	// and land on 100%. The proof ratio is not one of them: its denominator is
-	// tagged units, a different population, and a card that let itself be added
-	// to the others would answer a number that means nothing.
+	// and land on the gated total. The proof card is not one of them: its
+	// denominator is tagged units, a different population, and a card that let
+	// itself be added to the others would answer a number that means nothing.
 	Partition bool
-	// Part is the numerator behind Value on a partition card, so the sum a
-	// reader is told to make is one the page can make first.
+	// Part is the count behind Value on a partition card, so the sum a reader
+	// is told to make is one the page can make first.
 	//
-	// Value is a percentage and Count is a sentence, and rfcPartitionNote read
-	// neither: it counted how many cards were MARKED as parts and said they add
-	// to 100% whatever they added to (independent review, 2026-09-02).
+	// Value is display text (groupThousands) and Count is a sentence, so
+	// rfcPartitionNote reads Part, never either of them: it once counted how
+	// many cards were MARKED as parts and said they added up whatever they
+	// added to (independent review, 2026-09-02).
 	Part int
 }
 
@@ -756,7 +757,7 @@ var rfcCardGroups = []struct {
 	Overall bool
 }{
 	{Heading: "Overall", Tone: rfcToneNeutral, Overall: true,
-		Lead: "the populations every ratio below is taken over"},
+		Lead: "the populations every count below is drawn from"},
 	{Heading: "Positive", Tone: rfcToneOK,
 		Lead: "what Ze has"},
 	{Heading: "Neutral", Tone: rfcToneNeutral,
@@ -984,12 +985,12 @@ func rfcTotalsOf(ledger rfcLedger) rfcLedgerTotals {
 	return totals
 }
 
-// rfcStanding groups the gated buckets into the ratios the cards publish.
+// rfcStanding groups the gated buckets into the counts the cards publish.
 //
 // EVERY bucket appears in exactly one group, including the not-applicable one.
-// That is what makes the ratios partition the denominator, so a reader who adds
-// the ratios lands on 100% rather than on 96.7% with nowhere to look for the
-// rest -- which is what the owner found on 2026-09-01.
+// That is what makes the counts partition the gated total, so a reader who
+// adds the cards lands on that total rather than short of it with nowhere to
+// look for the rest -- which is what the owner found on 2026-09-01.
 // TestTheRatioCardsPartitionTheirDenominator holds the property rather than
 // trusting this table. The one bucket in NO group is the Derived one: its rows
 // are outside the denominator, so a card showing them as a part of it would
@@ -1046,8 +1047,9 @@ var rfcStanding = []struct {
 	{Label: rfcLowerLayerLabel, Keys: []string{rfcLowerLayerBucket}, Tone: rfcToneNeutral,
 		Meaning: "a {lower-layer} annotation says a layer under Ze performs the behavior, on " +
 			"state Ze installs into that layer, and names the producer that installs it. The " +
-			"obligation binds Ze and is met; Ze proves none of it, because its own boundary " +
-			"carries no value the behavior reads",
+			"obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS " +
+			"verified once a tagged test checks that layer's behavior on the state Ze " +
+			"installs, with a recorded break, and an OS testing gap until then",
 		Rule: "no color: an obligation met below Ze is neither a test Ze wrote nor work Ze " +
 			"owes, and the two green counts above are what says how much Ze proves itself"},
 	{Label: rfcFeatureDeclinedLabel, Keys: []string{rfcFeatureDeclinedBucket}, Tone: rfcToneNeutral,
@@ -1060,8 +1062,12 @@ var rfcStanding = []struct {
 			"achievement nor a failure. The absent FEATURE is disclosed on the RFC's own " +
 			"status row, as an implementation gap a later scope decision can revisit"},
 	{Label: rfcLinuxLimitLabel, Keys: []string{rfcLinuxLimitBucket}, Tone: rfcToneNeutral,
-		Meaning: "Linux cannot provide the primitive this requirement needs. The obligation still binds " +
-			"Ze and remains unmet; it stays in every denominator and earns no proof credit",
+		Meaning: "Linux cannot provide the primitive this requirement needs. The obligation " +
+			"still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: " +
+			"once its limit entry is verified, the row is not owed (OS blocked) and is left " +
+			"out of the MUST bar; one whose entry fails stays owed, and the figures count it " +
+			"as a Ze gap. It is counted in the gated whole the cards add up to and earns no " +
+			"proof credit",
 		Rule: "neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption"},
 }
 
@@ -1135,15 +1141,10 @@ func rfcStandingCards(whole int, countOf func(string) int) []rfcCard {
 // rfcComplianceCards answers the index page's own headline numbers, each with
 // the rule that chose its tone.
 //
-// SCALE first, then STANDING. The grid opens with the population the gate holds
-// and the part of it that does not bind Ze, then the headline ratio, then the
-// five ratios that partition that same population, then the proof ratio over
-// its own denominator. The
-// population leads by owner amendment of 2026-09-01, which supersedes the
-// ratio-first order of the ruling earlier the same day; what has not changed is
-// WHY that rule existed, so `Gated MUSTs` is labeled as scale, carries the
-// neutral tone and the sentence saying a population is not a result, and the
-// coverage ratios sit in the same grid immediately after it.
+// The grid is the proof card over its own denominator (tagged units), the gate
+// verdict and the semantic verdicts. The standing counts are not here: each
+// RFC's page publishes them (rfcStandingCards), and the index publishes the
+// sectioned MUST and SHOULD bars instead.
 func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {
 	totals := rfcTotalsOf(ledger)
 	return []rfcCard{
