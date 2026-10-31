@@ -345,13 +345,18 @@ announces them: a route the new chain rejects is withdrawn, a route it now
 accepts is dispatched, and a route whose chain now sets a different tag or
 metric is sent again with the new value. The orchestrator withdraws first, then
 asks every producer to re-send its current set, which the new rules judge (the
-replay described under "Startup Order Does Not Decide the Outcome"). When
-another plugin refuses the same transaction and it rolls back, the previous
+replay described under "Startup Order Does Not Decide the Outcome"). Every
+producer answers: static, connected, L2TP, AS112, BGP, IS-IS and OSPF. Only
+what changed reaches the destination: a route it already holds, judged the same
+and carrying the same tag, metric, origin AS and communities, is not sent
+again, so a commit that leaves a route's verdict alone sends no UPDATE for it.
+When another plugin refuses the same transaction and it rolls back, the previous
 rules return and the same reconciliation puts back what the apply changed. A
 route that was being dispatched while the reload applied is judged again under
-the new rules before the destination keeps it.
+the new rules before the destination keeps it, and is withdrawn once if they
+reject it.
 <!-- source: internal/plugins/redistribute/config.go -- reconcileConsumers -->
-<!-- source: internal/plugins/redistribute/held.go -- withdrawRejectedHeld, heldRoutes.settleAdd -->
+<!-- source: internal/plugins/redistribute/held.go -- withdrawRejectedHeld, releaseRejected, heldRoutes.beginAdd, heldRoutes.settleAdd -->
 <!-- source: internal/plugins/redistribute/redistribute.go -- replayConsumers, settleDispatchedAdd -->
 
 ### Setting the metric
@@ -538,14 +543,20 @@ replay request, every producer re-emits its CURRENT set, and the answer is
 injected through that consumer alone.
 
 A replay reflects what the producer holds NOW rather than what it once sent. A
-route withdrawn before the consumer registered is therefore absent.
+route withdrawn before the consumer registered is therefore absent. A route the
+producer removes while its replay is under way is not revived either: the
+orchestrator drops a replayed route whose removal reached it after the request,
+whichever producer sent it. Static, connected, L2TP, AS112 and BGP also publish
+their replay under the lock that orders their own announcements, so the removal
+follows the replay.
 
 The same mechanism covers a BGP peer that establishes after an injection, where
 the replay reaches that one peer, and a reload of the import rules, where every
 consumer is replayed under the new rules.
 
-<!-- source: internal/plugins/redistribute/replay.go -- onPeerUp, onConsumerRegistered -->
+<!-- source: internal/plugins/redistribute/replay.go -- onPeerUp, onConsumerRegistered, noteIncremental, removedSince -->
 <!-- source: internal/plugins/redistribute/redistribute.go -- watchConsumers -->
+<!-- source: internal/plugins/static/inject.go -- reemitAll -->
 
 ### When Redistribution Cannot Work
 

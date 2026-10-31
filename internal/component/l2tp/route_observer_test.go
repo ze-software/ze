@@ -482,3 +482,46 @@ func TestObserver_OnSessionIPUp_NoFramedRoutes(t *testing.T) {
 	evts := bus.events()
 	require.Len(t, evts, 1, "only subscriber /32, no framed routes")
 }
+
+// lockProbeBus runs probe for every replay batch emitted on it, at the moment
+// of the emit, and records nothing else.
+type lockProbeBus struct {
+	probe func()
+}
+
+func (b *lockProbeBus) Emit(_, _ string, payload any) (int, error) {
+	if batch, ok := payload.(*redistevents.RouteChangeBatch); ok && batch != nil && batch.ReplayID != 0 {
+		b.probe()
+	}
+	return 0, nil
+}
+
+func (b *lockProbeBus) Subscribe(_, _ string, _ func(any)) func() { return func() {} }
+
+// TestRouteObserverReplayEmitsUnderEmitLock proves every replay emit holds
+// emitMu exclusive, so an incremental Remove of a snapshotted route waits
+// until the replay's Add is published.
+//
+// VALIDATES: reemitAll holds emitMu from its snapshot to its last emit; the
+// bus probes it with TryRLock at each replay emit.
+// PREVENTS: a replay Add reaching the orchestrator after the Remove of the
+// same subscriber route, which revives a torn-down session's route.
+func TestRouteObserverReplayEmitsUnderEmitLock(t *testing.T) {
+	bus := &lockProbeBus{}
+	o := newSubscriberRouteObserver(slog.Default(), bus)
+	unordered, replayed := 0, 0
+	bus.probe = func() {
+		replayed++
+		if o.emitMu.TryRLock() {
+			unordered++
+			o.emitMu.RUnlock()
+		}
+	}
+	o.OnSessionIPUp(1, 42, "alice", netip.MustParseAddr("192.0.2.7"))
+	o.OnSessionIPUp(1, 43, "bob", netip.MustParseAddr("2001:db8::1"))
+
+	o.reemitAll(6)
+
+	require.Equal(t, 2, replayed)
+	require.Zero(t, unordered, "an incremental emit could interleave with the replay")
+}

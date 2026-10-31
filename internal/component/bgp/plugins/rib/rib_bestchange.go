@@ -1693,6 +1693,8 @@ func (r *RIBManager) replayRedistribute(req *redistevents.ReplayRequest) {
 	if eb == nil || req == nil || req.ReplayID == 0 {
 		return
 	}
+	redistEmitMu.Lock()
+	defer redistEmitMu.Unlock()
 	for famName, changes := range r.collectBestPaths() {
 		bgpredist.EmitBestChange(eb, &bestChangeBatch{
 			Protocol: protocolNameBGP,
@@ -1829,6 +1831,16 @@ func (r *RIBManager) reconcileBestPathBulk(peers []netip.Addr) {
 	}
 }
 
+// redistEmitMu orders the redistribution replay against the incremental
+// redistribution emits. publishBestChanges holds it shared around its
+// redistribution emit, after the election changed the best path under the
+// shard lock; replayRedistribute holds it exclusive from its walk of the table
+// to its last emit. A withdraw elected after the walk is then published after
+// the replay's Add, never before it, so the replay cannot revive the route.
+// Only the redistribution hop takes it: the (bgp-rib, best-change) replay has
+// its own request and subscriber.
+var redistEmitMu sync.RWMutex
+
 func publishBestChanges(changes []bestChangeEntry, fam family.Family) {
 	eb := getEventBus()
 	if eb == nil {
@@ -1843,5 +1855,7 @@ func publishBestChanges(changes []bestChangeEntry, fam family.Family) {
 	if _, err := ribevents.BestChange.Emit(eb, batch); err != nil {
 		logger().Warn("best-change emit failed", "error", err)
 	}
+	redistEmitMu.RLock()
+	defer redistEmitMu.RUnlock()
 	bgpredist.EmitBestChange(eb, batch)
 }

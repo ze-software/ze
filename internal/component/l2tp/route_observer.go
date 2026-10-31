@@ -60,7 +60,13 @@ type subscriberRouteObserver struct {
 	logger *slog.Logger
 	bus    ze.EventBus
 
-	mu      sync.Mutex
+	mu sync.Mutex
+	// emitMu orders a replay against the incremental emits. Each incremental
+	// emit holds it shared, after its record changed under mu; reemitAll
+	// holds it exclusive from its snapshot to its last emit. A Remove whose
+	// record changed after the snapshot is then published after the replay's
+	// Add, never before it, so the replay cannot revive the route.
+	emitMu  sync.RWMutex
 	records map[uint16]*routeRecord
 
 	// injectedTotal and withdrawnTotal are monotonic counters the CLI
@@ -208,6 +214,12 @@ func (o *subscriberRouteObserver) emitEntries(replayID uint64, fam family.Family
 	if o.bus == nil || len(entries) == 0 {
 		return
 	}
+	// An incremental emit takes emitMu shared; a replay emit runs inside
+	// reemitAll, which holds it exclusive already.
+	if replayID == 0 {
+		o.emitMu.RLock()
+		defer o.emitMu.RUnlock()
+	}
 	b := redistevents.AcquireBatch()
 	defer redistevents.ReleaseBatch(b)
 	b.Protocol = l2tpevents.ProtocolID
@@ -232,6 +244,8 @@ func (o *subscriberRouteObserver) reemitAll(replayID uint64) {
 	}
 	var v4addrs, v6addrs []netip.Addr
 	var v4framed, v6framed []redistevents.RouteChangeEntry
+	o.emitMu.Lock()
+	defer o.emitMu.Unlock()
 	o.mu.Lock()
 	for _, r := range o.records {
 		if r.v4.IsValid() {

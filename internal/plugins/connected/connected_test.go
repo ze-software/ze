@@ -295,3 +295,46 @@ func TestConnectedNeverRedistributesUnroutablePrefixes(t *testing.T) {
 	obs.reemitAll(9)
 	require.Len(t, bus.events(), 2, "a routable prefix is emitted and replayed")
 }
+
+// lockProbeBus runs probe for every replay batch emitted on it, at the moment
+// of the emit, and records nothing else.
+type lockProbeBus struct {
+	probe func()
+}
+
+func (b *lockProbeBus) Emit(_, _ string, payload any) (int, error) {
+	if batch, ok := payload.(*redistevents.RouteChangeBatch); ok && batch != nil && batch.ReplayID != 0 {
+		b.probe()
+	}
+	return 0, nil
+}
+
+func (b *lockProbeBus) Subscribe(_, _ string, _ func(any)) func() { return func() {} }
+
+// TestConnectedReplayEmitsUnderEmitLock proves every replay emit holds emitMu
+// exclusive, so an incremental Remove of a snapshotted prefix waits until the
+// replay's Add is published.
+//
+// VALIDATES: reemitAll holds emitMu from its snapshot to its last emit; the
+// bus probes it with TryRLock at each replay emit.
+// PREVENTS: a replay Add reaching the orchestrator after the Remove of the
+// same prefix, which revives a removed connected route.
+func TestConnectedReplayEmitsUnderEmitLock(t *testing.T) {
+	bus := &lockProbeBus{}
+	obs := newRouteObserver(bus)
+	unordered, replayed := 0, 0
+	bus.probe = func() {
+		replayed++
+		if obs.emitMu.TryRLock() {
+			unordered++
+			obs.emitMu.RUnlock()
+		}
+	}
+	obs.handleAddrAdded(makePayload("10.0.0.1", 24))
+	obs.handleAddrAdded(makePayload("192.168.1.1", 16))
+
+	obs.reemitAll(5)
+
+	require.Equal(t, 2, replayed)
+	require.Zero(t, unordered, "an incremental emit could interleave with the replay")
+}

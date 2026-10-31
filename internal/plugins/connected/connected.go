@@ -47,7 +47,13 @@ type addrPayload struct {
 type routeObserver struct {
 	bus ze.EventBus
 
-	mu       sync.Mutex
+	mu sync.Mutex
+	// emitMu orders a replay against the incremental emits. Each incremental
+	// emit holds it shared, after its prefix count changed under mu; reemitAll
+	// holds it exclusive from its snapshot to its last emit. A Remove whose
+	// count dropped after the snapshot is then published after the replay's
+	// Add, never before it, so the replay cannot revive the prefix.
+	emitMu   sync.RWMutex
 	prefixes map[netip.Prefix]int
 
 	// loc and remote are where a connected prefix is published: the shared
@@ -143,6 +149,8 @@ func (o *routeObserver) toNetworkPrefix(p addrPayload) (netip.Prefix, bool) {
 }
 
 func (o *routeObserver) emit(action redistevents.RouteAction, prefix netip.Prefix) {
+	o.emitMu.RLock()
+	defer o.emitMu.RUnlock()
 	o.emitID(action, prefix, 0)
 }
 
@@ -224,6 +232,8 @@ func (o *routeObserver) reemitAll(replayID uint64) {
 	if o.bus == nil || replayID == 0 {
 		return
 	}
+	o.emitMu.Lock()
+	defer o.emitMu.Unlock()
 	o.mu.Lock()
 	prefixes := make([]netip.Prefix, 0, len(o.prefixes))
 	for p, count := range o.prefixes {

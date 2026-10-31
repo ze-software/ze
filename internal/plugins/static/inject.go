@@ -592,15 +592,15 @@ func (rm *routeManager) reemitAll(replayID uint64) {
 	if replayID == 0 {
 		return
 	}
+	// Emit under rm.mu, the lock every incremental emit runs under: released
+	// between the snapshot and the emit, a Remove of a snapshotted route could
+	// reach the orchestrator before this replay's Add of it, and the consumer
+	// would keep a route no longer configured.
 	rm.mu.Lock()
-	announced := make([]staticRoute, 0, len(rm.routes))
+	defer rm.mu.Unlock()
 	for _, rs := range rm.routes {
 		if rs.emitted {
-			announced = append(announced, rs.route)
+			rm.emitRouteChangeID(redistevents.ActionAdd, rs.route, replayID)
 		}
-	}
-	rm.mu.Unlock()
-	for i := range announced {
-		rm.emitRouteChangeID(redistevents.ActionAdd, announced[i], replayID)
 	}
 }

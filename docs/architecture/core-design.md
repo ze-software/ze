@@ -2368,9 +2368,15 @@ signal could not. The redistribute orchestrator subscribes to peer `state`
 events (like the watchdog). On a peer's down->up edge it allocates a monotonic
 `ReplayID`, records `ReplayID -> peer` in a bounded, TTL-evicted map, and emits
 `redistevents.ReplayRequest{ReplayID}` (only when an import feeds BGP). Each producer
-(static, connected, l2tp, as112) re-emits its current
+(static, connected, l2tp, as112, the BGP RIB, IS-IS, OSPF) re-emits its current
 route set as a `RouteChangeBatch` with `ReplayID` echoed -- the producer never learns
-the peer, so the batch stays peer-agnostic. The orchestrator maps the returning
+the peer, so the batch stays peer-agnostic. Static, as112, connected, l2tp and the
+BGP RIB emit their replay under the lock that orders their incremental emits (static's route lock, as112's producer lock,
+an `emitMu` read-write lock in connected, l2tp and the BGP RIB's redistribution
+hop), so a Remove of a snapshotted route is published after the replay's Add. The
+orchestrator also drops a replay Add for a route whose most recent incremental
+action, handled after the request was minted, was a Remove
+(`replayCoordinator.removedSince`), so no producer can revive a removed route. The orchestrator maps the returning
 `ReplayID` back to the one peer, applies the destination-scoped `Accept` filter, and
 injects to that single peer via `UpdateRoute(<peer>)`. Distinct `ReplayID`s per
 peer-up mean concurrent replays never cross-deliver; an unknown/expired `ReplayID` is

@@ -16,12 +16,17 @@ import (
 type staticRecordingBus struct {
 	mu    sync.Mutex
 	emits []*redistevents.RouteChangeBatch
+	// onEmit, when set, runs for each emitted batch before it is recorded.
+	onEmit func(*redistevents.RouteChangeBatch)
 }
 
 var _ ze.EventBus = (*staticRecordingBus)(nil)
 
 func (b *staticRecordingBus) Emit(_, _ string, payload any) (int, error) {
 	if batch, ok := payload.(*redistevents.RouteChangeBatch); ok && batch != nil {
+		if b.onEmit != nil {
+			b.onEmit(batch)
+		}
 		cp := *batch
 		cp.Entries = make([]redistevents.RouteChangeEntry, len(batch.Entries))
 		copy(cp.Entries, batch.Entries)
@@ -99,4 +104,37 @@ func TestStaticReemitsReplayID(t *testing.T) {
 	bus.reset()
 	rm.reemitAll(0)
 	require.Empty(t, bus.events(), "reemitAll(0) must be a no-op")
+}
+
+// TestStaticReplayEmitsUnderRouteLock proves the replay emits each route while
+// holding the route manager's lock, the one the incremental emits run under,
+// so a Remove of a route cannot reach the orchestrator between the snapshot
+// and the replay Add.
+//
+// VALIDATES: reemitAll holds the lock across every replay emit; the bus probes
+// it with TryLock at the moment of each emit.
+// PREVENTS: a replay reviving a static route a concurrent commit removed.
+func TestStaticReplayEmitsUnderRouteLock(t *testing.T) {
+	bus := &staticRecordingBus{}
+	setEventBus(bus)
+	t.Cleanup(func() { eventBusPtr.Store(nil) })
+
+	mgr := newTestRouteManager(&mockStaticBackend{})
+	require.NoError(t, mgr.applyRoutes([]staticRoute{
+		{Prefix: netip.MustParsePrefix("192.0.2.0/24"), Action: actionBlackhole},
+		{Prefix: netip.MustParsePrefix("198.51.100.0/24"), Action: actionBlackhole},
+	}))
+	bus.reset()
+	unlocked := 0
+	bus.onEmit = func(*redistevents.RouteChangeBatch) {
+		if mgr.mu.TryLock() {
+			unlocked++
+			mgr.mu.Unlock()
+		}
+	}
+
+	mgr.reemitAll(9)
+
+	require.Len(t, bus.events(), 2)
+	require.Zero(t, unlocked, "every replay emit holds the lock the incremental emits hold")
 }
