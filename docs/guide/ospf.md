@@ -255,7 +255,9 @@ ospf {
 ```
 
 The `ospf redistribute <source>` list keeps only `nssa-propagate`. Its `metric`, `metric-type` and `tag` leaves are retired: a config that still carries them is refused, and `ze config migrate` rewrites each entry into a `modify` instance matching `protocol [ <source> ]` on the export chain. The old per-source tag applied only to a route without one, so the migration writes it as a second instance that also matches `tag [ 0 ]`.
-<!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute, WithdrawRoute -->
+
+A reload that changes the export chain judges the routes OSPF already holds again: a route the new chain rejects has its AS-external LSA flushed, a route it now accepts is originated, and a changed metric, metric type or tag re-originates the LSA with them.
+<!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute, WithdrawRoute, Rejudge -->
 <!-- source: internal/plugins/ospf/redistribute/export.go -- exportVerdict, applyExportSets -->
 <!-- source: internal/plugins/ospf/export_chain.go -- parseExportChain -->
 <!-- source: internal/plugins/ospf/migrate.go -- migrateRedistributeLeaves -->

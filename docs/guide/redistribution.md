@@ -403,11 +403,13 @@ isis {
 }
 ```
 
-A reload that changes the export chain judges the routes IS-IS already holds
-again: a route the new chain rejects leaves the LSP, a route it now accepts is
-advertised, and a changed `set metric` replaces the advertised metric.
+A reload that changes the export chain judges the routes the IGP already holds
+again: a route the new chain rejects leaves the LSP or has its AS-external LSA
+flushed, a route it now accepts is advertised, and a changed set replaces what
+was advertised.
 <!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict -->
 <!-- source: internal/plugins/isis/redistribute/consumer.go -- Rejudge -->
+<!-- source: internal/plugins/ospf/redistribute/consumer.go -- Rejudge -->
 <!-- source: internal/plugins/isis/register.go -- init, MustRegisterAttachment exportAttachment -->
 
 That block is the whole configuration. It needs no `plugin` block and no

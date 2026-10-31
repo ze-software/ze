@@ -463,6 +463,10 @@ func runOSPFEngine(conn net.Conn) int {
 		// pendingExport is the export chain of pendingCfg's commit.
 		pendingExport exportChainConfig
 		havePending   bool
+		// redistConsumer is the redistribution consumer OnStarted registered,
+		// nil before it. A config apply that installs a new export chain
+		// re-judges the routes it already holds.
+		redistConsumer *ospfredistribute.Consumer
 	)
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
@@ -527,13 +531,20 @@ func runOSPFEngine(conn net.Conn) int {
 
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		cfgMu.Lock()
+		installed := havePending
 		if havePending {
 			activeCfg = pendingCfg
 			pendingExport.install()
 			havePending = false
 		}
 		cfg := activeCfg
+		consumer := redistConsumer
 		cfgMu.Unlock()
+		// A reload delivers no route again, so the routes already offered to
+		// OSPF are judged against the chain just installed.
+		if installed && consumer != nil {
+			consumer.Rejudge(context.Background())
+		}
 		if err := instances.reconcile(cfg); err != nil {
 			return err
 		}
@@ -588,6 +599,9 @@ func runOSPFEngine(conn net.Conn) int {
 		if replaced := configredist.ReregisterConsumer(consumer); replaced {
 			log.Info("ospf: rewired redistribution consumer for new engine instance")
 		}
+		cfgMu.Lock()
+		redistConsumer = consumer
+		cfgMu.Unlock()
 		eng.wireRedistProducer(ospfredistribute.NewSource(getEventBus()))
 
 		// Watch the Loc-RIB default route so a conditional `default-information

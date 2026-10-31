@@ -24,7 +24,8 @@ var exportChain atomic.Pointer[exportPolicy]
 
 // SetExportChain installs chain as the OSPF export chain. A nil chain clears
 // it. Safe for concurrent use with InjectRoute. An AS-external LSA already
-// originated is not judged again by this call.
+// originated is not judged again by this call: the config apply then calls
+// Consumer.Rejudge.
 func SetExportChain(chain ribpolicy.Chain) {
 	if chain == nil {
 		exportChain.Store(nil)

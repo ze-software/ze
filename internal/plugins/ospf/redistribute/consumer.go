@@ -61,6 +61,30 @@ type Consumer struct {
 	// remembers it at inject time and recovers it on withdraw. Without this the
 	// withdrawn metric would always be labeled source="unknown".
 	source map[netip.Prefix]string
+
+	// offerMu serializes judging a route and writing the verdict into the LSDB,
+	// so a re-judge after a reload and an inject or withdraw from the
+	// orchestrator never interleave. It guards offered and is taken before
+	// srcMu, never after.
+	offerMu sync.Mutex
+	// offered holds, per masked prefix, the latest route the orchestrator
+	// handed this consumer and has not withdrawn, whether or not the export
+	// chain accepted it. Rejudge reads it when a reload changes the chain: a
+	// route the old chain rejected is still offered, so a chain that widens
+	// originates it.
+	offered map[netip.Prefix]offer
+}
+
+// offer is one route the orchestrator handed the consumer: its family and
+// entry, judged again by Rejudge.
+type offer struct {
+	fam   family.Family
+	entry configredist.RouteEntry
+	// originated says an AS-external LSA for the route is in the LSDB, with
+	// ext. Rejudge compares a new verdict with it and leaves an unchanged
+	// route alone.
+	originated bool
+	ext        External
 }
 
 // NewConsumer constructs an OSPF redistribution consumer writing into inj. inj MUST
@@ -73,6 +97,7 @@ func NewConsumer(inj ExternalInjector) *Consumer {
 		mInjected:  nop.CounterVec("", "", nil),
 		mWithdrawn: nop.CounterVec("", "", nil),
 		source:     map[netip.Prefix]string{},
+		offered:    map[netip.Prefix]offer{},
 	}
 }
 
@@ -177,19 +202,55 @@ func (c *Consumer) injectorFor(fam family.Family) (ExternalInjector, bool) {
 }
 
 func (c *Consumer) InjectRoute(ctx context.Context, fam family.Family, entry configredist.RouteEntry) {
+	c.offerMu.Lock()
+	defer c.offerMu.Unlock()
+
+	prefix, ext, originated := c.judgeRoute(ctx, fam, entry)
+	if prefix.IsValid() {
+		c.offered[prefix] = offer{fam: fam, entry: entry, originated: originated, ext: ext}
+	}
+}
+
+// Rejudge judges every route the orchestrator offered again, against the
+// export chain installed now, and writes each new verdict into the LSDB: a
+// route the chain now rejects is withdrawn, one it now accepts is originated,
+// and a changed metric, metric type or tag re-originates the LSA with them.
+// The config apply MUST call it after SetExportChain, because a reload
+// delivers no route again. Safe for concurrent use with InjectRoute and
+// WithdrawRoute.
+func (c *Consumer) Rejudge(ctx context.Context) {
+	c.offerMu.Lock()
+	defer c.offerMu.Unlock()
+
+	for prefix, o := range c.offered {
+		ext, accepted := exportVerdict(&o.entry)
+		if accepted == o.originated && ext == o.ext {
+			continue // the verdict did not change: the LSDB already holds it
+		}
+		_, o.ext, o.originated = c.judgeRoute(ctx, o.fam, o.entry)
+		c.offered[prefix] = o
+	}
+}
+
+// judgeRoute is InjectRoute under offerMu: it judges entry against the export
+// chain and originates or withdraws its AS-external LSA. It answers the masked
+// prefix (invalid when the route cannot be carried at all), the AS-external
+// fields, and true when the LSA is now in the LSDB, false when the chain
+// rejected the route or its origination failed.
+func (c *Consumer) judgeRoute(ctx context.Context, fam family.Family, entry configredist.RouteEntry) (netip.Prefix, External, bool) {
 	src := sourceLabel(entry.Source)
 	inj, want6 := c.injectorFor(fam)
 	if inj == nil {
 		slog.Debug("ospf redist consumer: skipping unsupported/unwired AFI inject",
 			"family", fam.String(), "prefix", entry.Prefix, "source", src)
-		return
+		return netip.Prefix{}, External{}, false
 	}
 	prefix, err := netip.ParsePrefix(entry.Prefix)
 	prefix = unmap4in6Prefix(prefix)
 	if err != nil || !prefix.IsValid() || prefix.Addr().Is4() == want6 {
 		slog.Warn("ospf redist consumer: rejecting malformed prefix",
 			"family", fam.String(), "prefix", entry.Prefix, "source", src, "error", err)
-		return
+		return netip.Prefix{}, External{}, false
 	}
 	prefix = prefix.Masked()
 
@@ -199,25 +260,39 @@ func (c *Consumer) InjectRoute(ctx context.Context, fam family.Family, entry con
 	if !accepted {
 		slog.Debug("ospf redist consumer: export chain rejected route",
 			"family", fam.String(), "prefix", entry.Prefix, "source", src)
-		c.WithdrawRoute(ctx, fam, entry.Prefix)
-		return
+		c.removeRoute(ctx, fam, entry.Prefix)
+		return prefix, External{}, false
 	}
 	// RFC 2328 Section 12.4.4
 	if err := inj.InjectExternal(prefix, src, ext); err != nil {
 		// R-3: never swallow a failed AS-External origination -- log it.
 		slog.Warn("ospf redist consumer: AS-External origination failed after inject",
 			"prefix", prefix.String(), "source", src, "error", err)
-		return
+		return prefix, ext, false
 	}
 	c.rememberSource(prefix, src)
 	c.mInjected.With(src).Inc()
+	return prefix, ext, true
 }
 
 // WithdrawRoute MaxAge-purges the Type 5 AS-External-LSA for prefix and re-floods so
 // peers withdraw the external (AC-5). A prefix that was never injected is a no-op.
 // The generic WithdrawRoute carries no source, so the consumer recovers the source
 // label it recorded at inject time (forgetSource).
-func (c *Consumer) WithdrawRoute(_ context.Context, fam family.Family, prefixStr string) {
+func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, prefixStr string) {
+	c.offerMu.Lock()
+	defer c.offerMu.Unlock()
+
+	// The withdrawn route is no longer offered, so no reload re-originates it.
+	if prefix, err := netip.ParsePrefix(prefixStr); err == nil {
+		delete(c.offered, unmap4in6Prefix(prefix).Masked())
+	}
+	c.removeRoute(ctx, fam, prefixStr)
+}
+
+// removeRoute is WithdrawRoute under offerMu, also used when the export chain
+// rejects a route: it MaxAge-purges the prefix's AS-external LSA.
+func (c *Consumer) removeRoute(_ context.Context, fam family.Family, prefixStr string) {
 	inj, want6 := c.injectorFor(fam)
 	if inj == nil {
 		slog.Debug("ospf redist consumer: skipping unsupported/unwired AFI withdraw",

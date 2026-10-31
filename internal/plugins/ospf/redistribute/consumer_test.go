@@ -252,3 +252,57 @@ func TestOSPFExportNoChainDefaults(t *testing.T) {
 	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Prefix: p.String(), Source: "static", Tag: 5})
 	assert.Equal(t, External{Metric: DefaultExternalMetric, Type2: true, Tag: 5}, f.externals[p])
 }
+
+// TestOSPFExportReloadRejudges proves a reload re-judges the routes already
+// offered to OSPF. A reload delivers no route again, so without Rejudge a
+// chain that widens never originates what the old one rejected, and one that
+// narrows leaves a rejected LSA in the LSDB. Method: offer two routes under a
+// reject-all chain, then swap the chain and call Rejudge, checking the
+// AS-external fields after each swap, and that a withdrawn route stays gone.
+func TestOSPFExportReloadRejudges(t *testing.T) {
+	SetExportChain(rejectAllChain{})
+	t.Cleanup(func() { SetExportChain(nil) })
+
+	f := newFakeInjector()
+	c := NewConsumer(f)
+	ctx := context.Background()
+	tagged := netip.MustParsePrefix("192.0.2.0/24")
+	untagged := netip.MustParsePrefix("198.51.100.0/24")
+	c.InjectRoute(ctx, family.IPv4Unicast, configredist.RouteEntry{
+		Prefix: tagged.String(), Source: "static", Tag: 7,
+		Route: ribpolicy.Route{Prefix: tagged, Tag: 7, HasTag: true},
+	})
+	c.InjectRoute(ctx, family.IPv4Unicast, configredist.RouteEntry{
+		Prefix: untagged.String(), Source: "static",
+		Route: ribpolicy.Route{Prefix: untagged, HasTag: true},
+	})
+	require.Empty(t, f.injected, "the reject-all chain originates nothing")
+
+	// The chain widens to accept the tagged route: the reload originates it.
+	SetExportChain(staticTagChain{})
+	c.Rejudge(ctx)
+	require.Contains(t, f.externals, tagged, "a route the new chain accepts is originated on reload")
+	assert.Equal(t, External{Metric: 50, Type2: false, Tag: 900}, f.externals[tagged])
+	assert.NotContains(t, f.injected, untagged, "the route the new chain rejects stays out")
+
+	// No chain: both routes are originated at the defaults, the tagged one's
+	// set metric, type and tag replaced by metric 20, type 2 and its own tag.
+	SetExportChain(nil)
+	c.Rejudge(ctx)
+	assert.Equal(t, External{Metric: DefaultExternalMetric, Type2: true, Tag: 7}, f.externals[tagged],
+		"a changed set replaces the originated AS-external fields")
+	require.Contains(t, f.injected, untagged)
+	assert.Equal(t, External{Metric: DefaultExternalMetric, Type2: true, Tag: 0}, f.externals[untagged])
+
+	// A route the orchestrator withdrew is no longer offered: a reload that
+	// would accept it does not bring it back.
+	c.WithdrawRoute(ctx, family.IPv4Unicast, untagged.String())
+	require.NotContains(t, f.injected, untagged)
+	SetExportChain(rejectAllChain{})
+	c.Rejudge(ctx)
+	assert.NotContains(t, f.injected, tagged, "a route the new chain rejects is withdrawn on reload")
+	SetExportChain(nil)
+	c.Rejudge(ctx)
+	assert.Contains(t, f.injected, tagged, "a route rejected by the previous chain is still offered")
+	assert.NotContains(t, f.injected, untagged, "a withdrawn route is never re-originated by a reload")
+}
