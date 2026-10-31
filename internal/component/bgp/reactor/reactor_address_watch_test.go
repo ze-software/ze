@@ -211,3 +211,39 @@ func TestAddressWatchStartFailureRetries(t *testing.T) {
 	defer mu.Unlock()
 	assert.Equal(t, 3, waits, "each failed start waits, then starts again, until the wait reports the end")
 }
+
+// TestAddressWatchOutageAddressGetsListener proves an address that appears
+// while the watch could not open still gets its listener once a watch runs:
+// startAddressWatch records the table even when the first watch fails, so the
+// worker's first successful watch applies the change instead of recording it
+// as the starting table.
+//
+// MUTATION: record the table in startAddressWatch only when the first watch
+// opened: the address added during the outage is taken as the starting table
+// and gets no listener.
+func TestAddressWatchOutageAddressGetsListener(t *testing.T) {
+	table := &fakeAddressTable{startErr: network.ErrAddressWatchNotRegistered}
+	table.install(t)
+	local := netip.MustParseAddr("127.0.0.1")
+	saved := waitAddressWatch
+	waitAddressWatch = func(ctx context.Context, _ clock.Clock, _ time.Duration) bool {
+		// The outage ends, and the address appeared during it.
+		table.mu.Lock()
+		table.startErr = nil
+		table.prefixes = []netip.Prefix{netip.MustParsePrefix("127.0.0.1/8")}
+		table.mu.Unlock()
+		return ctx.Err() == nil
+	}
+	t.Cleanup(func() { waitAddressWatch = saved })
+
+	r := newIfaceTestReactor(t)
+	s := NewPeerSettings(netip.MustParseAddr("192.0.2.9"), 65000, 65001, 0x01010101)
+	s.LocalAddress = local
+	r.peers[s.PeerKey()] = NewPeer(s)
+
+	r.mu.Lock()
+	r.startAddressWatch()
+	r.mu.Unlock()
+	require.Eventually(t, func() bool { return listening(r, local) },
+		5*time.Second, time.Millisecond, "the address added during the outage got its listener")
+}

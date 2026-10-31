@@ -51,9 +51,10 @@ func (r *Reactor) startAddressWatch() {
 	ctx := r.ctx
 	changes, err := watchAddressTable(ctx)
 	table := &addressSync{r: r}
-	if err == nil {
-		table.apply()
-	}
+	// The table is recorded even when the watch could not open: the
+	// listeners are built against it, and the worker's first successful watch
+	// then applies what changed during the outage instead of recording it.
+	table.apply()
 	r.wg.Go(func() { r.addressWatchWorker(ctx, table, changes, err) })
 }
 
