@@ -95,7 +95,7 @@ func setMetricsRegistry(reg metrics.Registry) {
 		withdrawals:           reg.Counter("ze_bgp_redistribute_withdrawals", "Withdrawals dispatched to consumers: accepted remove entries, and held routes a rejected entry retires."),
 		filteredProtocolTotal: reg.Counter("ze_bgp_redistribute_filtered_protocol_total", "Batches filtered by the consumer-protocol skip."),
 		filteredRuleTotal:     reg.Counter("ze_bgp_redistribute_filtered_rule_total", "Entries rejected by the redistribute evaluator."),
-		replayTotal:           reg.CounterVec("ze_bgp_redistribute_replay_total", "Redistribute routes replayed to a newly-established peer, by source.", []string{"source"}),
+		replayTotal:           reg.CounterVec("ze_bgp_redistribute_replay_total", "Redistribute routes replayed to a BGP peer whose session just established or to a destination consumer that just registered, by source.", []string{"source"}),
 	}
 	metricsPtr.Store(m)
 }

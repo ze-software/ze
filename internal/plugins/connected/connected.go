@@ -148,7 +148,8 @@ func (o *routeObserver) emit(action redistevents.RouteAction, prefix netip.Prefi
 
 // emitID emits a single-prefix batch tagged with replayID (0 for the normal
 // incremental path; nonzero echoes a redistribute ReplayRequest so the
-// orchestrator can replay to a newly-established peer).
+// orchestrator can replay to a newly-established peer or to a destination
+// consumer that registered after this producer emitted).
 func (o *routeObserver) emitID(action redistevents.RouteAction, prefix netip.Prefix, replayID uint64) {
 	if o.bus == nil {
 		return

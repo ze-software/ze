@@ -293,20 +293,14 @@ registrations it already carries.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `ospfv3-redist-frr` | `test/interop/scenarios/` | FRR + GoBGP | AC-1: a BGP prefix reaches FRR as an OSPFv3 AS-External in a normal area | red at assertion 4 |
-| `ospfv3-nssa-redist-frr` | `test/interop/scenarios/` | FRR + GoBGP | AC-2: the same prefix reaches FRR as a Type-7 in an NSSA | red at assertion 4 |
-| `isis-redist-frr` | `test/interop/scenarios/` | FRR | AC-3: a static prefix reaches FRR through IS-IS | red at assertion 2 |
+| `ospfv3-redist-frr` | `test/interop/scenarios/` | FRR + GoBGP | AC-1: a BGP prefix reaches FRR as an OSPFv3 AS-External in a normal area | GREEN at `137c2dcfcf`, walked (Goal Validation) |
+| `ospfv3-nssa-redist-frr` | `test/interop/scenarios/` | FRR + GoBGP | AC-2: the same prefix reaches FRR as a Type-7 in an NSSA | GREEN at `137c2dcfcf`, walked (Goal Validation) |
+| `isis-redist-frr` | `test/interop/scenarios/` | FRR + GoBGP | AC-3: a static prefix reaches FRR through IS-IS | PENDING: the scenario is being rebuilt (`d5721a2b78`, `f17bea8930`); its result is recorded here once the rebuilt image runs |
 
-`ospfv3-nssa-redist-frr`'s absence proofs were repaired on 2026-09-03 in commit
-`666a43dff`, so its later assertions have never executed. A first green run for
-that scenario proves less than a first green run for the other two, and Phase 5
-records which assertion each run reaches.
-
-The three scenarios are already red, so the forced-RED walk
-(`ai/rules/interop-and-goal-validation.md`) starts from an observed red. The
-walk still runs in the other direction: after each scenario turns green, revert
-the phase that turned it green, rebuild the image, and confirm the scenario
-returns to red at the same assertion.
+The forced-RED walk (`ai/rules/interop-and-goal-validation.md`) runs each
+scenario green, breaks the producer it proves inside the rebuilt image, confirms
+red, restores, and confirms green again. The walks and their logs are in the
+Goal Validation table.
 
 ## Files to Modify
 - `internal/component/bgp/reactor/config.go` - add the Loc-RIB `ProcessBinding` when a redistribution rule names a BGP source and the peer names no binding for that process
@@ -358,17 +352,17 @@ would reasonably write, which the daemon must make work.
 | 2 | Config syntax changed? | Yes | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` - the `redistribute` root and its refusal behavior |
 | 3 | CLI command added/changed? | No | None added |
 | 4 | API/RPC added/changed? | No | None added |
-| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` - the `attach process` section states that one binding is now derived |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` - the `attach process` section states that one binding is now derived. DONE in `d58224423a` |
 | 6 | Has a user guide page? | Yes | `docs/guide/redistribution.md` (today it covers route filters only), `docs/guide/ospf.md`, `docs/guide/isis.md` |
 | 7 | Wire format changed? | No | No encoder changes. The LSAs and TLVs are unchanged; they are simply originated where they were not |
 | 8 | Plugin SDK/protocol changed? | No | No SDK surface changes; the consumer-registration signal is internal to `internal/component/config/redistribute` |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | No `rfc/short/` row changes. The origination code and its claims are untouched |
 | 10 | Test infrastructure changed? | No | No runner change. The three interop scenarios and their checkers are unchanged |
-| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` - the redistribution row, if it claims a behavior this spec makes true for the first time. Verify the row before editing |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` - the redistribution row, if it claims a behavior this spec makes true for the first time. Verify the row before editing. DONE in `d58224423a`: the row claimed the retired `IngressFilter`, and that claim is removed |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md`, `docs/architecture/api/architecture.md`, `docs/architecture/plugin/rib-storage-design.md` |
 | 13 | Route metadata keys added/changed? | No | No metadata key changes |
-| 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` - the replay counter's new case |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/guide/status.md` and `docs/features/plugins.md` if the doctor check adds a registered check name |
+| 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` - the replay counter's new case. VERIFIED: the page and `docs/guide/redistribution.md` already name both cases (new peer, late consumer). The metric's own HELP text in `internal/plugins/redistribute/redistribute.go` named only the peer case and is corrected |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | N-A | `docs/guide/status.md` and `docs/features/plugins.md` name no redistribute check. The doctor check's removal is under `ze-test-judge` review; neither outcome adds a registered name |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: run `./le spec citation anchors spec plan/release/fixes/spec-fixit-redistribution-chain-drops-silently.md` at implementation time. The four design owners the changed files declare are named above: `docs/architecture/core-design.md`, `docs/architecture/api/architecture.md`, `docs/architecture/config/syntax.md`, `docs/architecture/plugin/rib-storage-design.md` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/ospf.md` and `docs/guide/isis.md` each show a `redistribute` example that does not work today. Both are verified against the daemon after Phase 1 |
 
@@ -492,49 +486,37 @@ its `rfc/short/` rows are untouched.
 
 ### Goal Validation
 
-**Measured 2026-09-04, on a host whose root had been freed to 51G.** One of the
-three scenarios is green and the spec does NOT close on the other two.
+**Measured 2026-10-31 at `137c2dcfcf`, on the `claude` host.** Logs:
+`tmp/session/2026-10-29-b253ee28-af02-45d1-a862-79a55bdba37c/scratch/remote5/`.
 
-| Scenario | Result |
-|----------|--------|
-| `ospfv3-redist-frr` | GREEN. This is the defect's own proof: a BGP prefix reaches FRR as an OSPFv3 AS-External in a normal area, which no run had ever achieved before `1ec5b741f8` |
-| `ospfv3-nssa-redist-frr` | RED at assertion 5, `peer output is missing "NSSA"`. The route now ARRIVES, so the chain this spec repaired is working; what is missing is the Type-7 origination itself, which is the separate product gap recorded in `plan/journal/unwired-feature.md` on 2026-09-03. AC-2 is unmet and this spec cannot close until that gap is closed or AC-2 is rescoped by the owner |
-| `isis-redist-frr` | RED at assertion 3, `wait for frr output timed out before the peer became ready`. It fails BEFORE redistribution is reached, so it says nothing about this spec either way. Not diagnosed: it may be the IS-IS adjacency or it may be load on a saturated host |
+| Goal | AC | Evidence | Status |
+|------|----|----------|--------|
+| A BGP prefix reaches a neighbor as an OSPFv3 AS-External in a normal area | AC-1 | `ospfv3-redist-frr`: green (`ospfv3-redist-frr.log`); red with `canType5` disabled in the image, at assertion 4, the wait on FRR's `show ipv6 route ospf6` (`ospfv3-redist-frr-red.log`); green after restore (`ospfv3-redist-frr-restored.log`) | GREEN and walked; the red's cause is unconfirmed (below) |
+| The same prefix reaches a neighbor as a Type-7 in an NSSA | AC-2 | `ospfv3-nssa-redist-frr`: green (`ospfv3-nssa-redist-frr.log`); red with `v6OriginateNSSALSA` disabled, at assertion 4, the same FRR query (`ospfv3-nssa-redist-frr-red.log`); green after restore (`ospfv3-nssa-redist-frr-restored.log`) | GREEN and walked; the red's cause is unconfirmed (below) |
+| A static prefix reaches a neighbor through IS-IS | AC-3 | `isis-redist-frr`, after the scenario fix (`d5721a2b78`) and the IS-IS fix (`f17bea8930`) | PENDING: the scenario image is being rebuilt; the run and its walk are owed |
+| An explicit narrower grant is kept, and the disagreement reported | AC-4 | `test/plugin/redistribute-explicit-attach-kept.ci`, in "redistribute: prove a narrower operator Loc-RIB grant is kept, reported" (`d58224423a`). The reporter is `reconcileDelivery` (`internal/component/plugin/server/delivery_reconcile.go`), reason `reasonUngranted`. Red with the ungranted finding suppressed, green restored. Unit: `TestExplicitBindingWins`, `TestOperatorOrchestratorBindingWins` | PROVEN |
+| An unknown source or destination refuses the load | AC-5 | Source: `TestUnknownRedistributeSourceRefusesLoad`, `test/plugin/redistribute-unknown-source-refused.ci`. Destination: "redistribute: refuse a destination no protocol declares" (`82c2cb97a7`), `test/parse/redistribute-undeclared-destination-refused.ci`, red with the refusal removed (`seq 1: expected exit code 1, got 0`) | PROVEN |
+| The per-UPDATE cost of a daemon with no redistribution is unchanged | AC-6 | `TestNoRedistributeNoBinding`, `TestNonBGPRedistributeSourceAddsNoBinding`: no binding is derived without a rule | Unit PROVEN. The perf half is owed to Thomas, on his Mac: `./le perf run dut ze` in a checkout at `1ec5b741f8^` and again at HEAD, then `./le perf compare` over the two result files |
+| No startup `no peer attaches it` warning for the Loc-RIB process | AC-7 | The `reject` line in `test/plugin/redistribute-bgp-to-ospf-no-plumbing.ci` (stderr `no peer attaches it.*process=bgp-rib`), in `d58224423a`. Red under the derived-binding break, green restored. Unit: `TestDerivedBindingRaisesNoDeliveryDisagreement` | PROVEN |
+| A consumer that registers after a producer emitted holds that producer's set | AC-3 (chain half) | `test/plugin/redistribute-late-consumer.ci`, `TestLateConsumerReceivesProducerSet`, `TestConsumerAlreadyRegisteredIsSweptAtStartup`, `TestReplayFiresOncePerConsumer` | PROVEN |
 
-### Current diagnosis boundary (2026-09-19, source read only)
+| Earlier record | What it was |
+|----------------|-------------|
+| 2026-09-04 NSSA red at assertion 5, `peer output is missing "NSSA"` | An assertion on the text "NSSA" in FRR's output, not a missing Type-7. `238bdb62e9` fixed that assertion; the run above is green with it |
+| 2026-09-19 diagnosis boundary (source read only) | Superseded by the walk above: `v6OriginateNSSALSA` (`internal/plugins/ospf/origination_v6_nssa.go`) is the producer AC-2's scenario proves, and no missing prerequisite exists, so `Depends` stays empty |
+| Blast-radius `.ci` walk | With the retired filter restored, both blast-radius tests fail with `the peer announced 10.0.0.0/24 and the Adj-RIB-In never held it`, and pass with it gone. Unchanged |
 
-The September 4 failure remains the last recorded scenario result here. It
-does not establish that Ze has no Type-7 implementation:
-`engine.v6InjectExternal` in
-`internal/plugins/ospf/origination_v6_external.go` calls `externalScopeV6` and
-`v6OriginateNSSALSA` for each NSSA attachment. The latter, in
-`internal/plugins/ospf/origination_v6_nssa.go`, installs a `0x2007` LSA.
-The missing route in the recorded run therefore needs diagnosis through that
-existing producer before a new implementation prerequisite can be named.
-
-`plan/release/fixes/spec-ospf-nssa-single-abr-producer.md` owns default destinations
-and ABR consistency, not the ordinary redistributed prefix in AC-2. It is
-not a substitute owner for this failure. This spec retains AC-2, including
-any repair its goal requires, and AC-3's separate IS-IS readiness diagnosis.
-`Depends` stays empty because no distinct missing prerequisite has been
-established. No scenario was rerun for this reconciliation.
-
-The `.ci` evidence stands independently and was walked RED-then-GREEN: with the
-retired filter restored, both blast-radius tests fail with `the peer announced
-10.0.0.0/24 and the Adj-RIB-In never held it`, and both pass with it gone. That
-walk also showed the hardening working, because the restored filter now panics
-with a named message rather than dropping silently.
-
-**The original table, unchanged:**
-
-| Goal | Evidence | Status |
-|------|----------|--------|
-| A BGP prefix reaches a neighbor as an OSPFv3 AS-External in a normal area | `INTEROP_SCENARIO=ospfv3-redist-frr ./le test integration interop` green, with the forced-RED output recorded | Interop NOT RUN: the host root stood at 99% and every image build died on `input/output error`. Proven instead at the level below it, over the whole daemon chain: `test/plugin/redistribute-bgp-to-ospf-no-plumbing.ci` PASSES in the gating suite, with the orchestrator logging `dispatching to consumer consumer=fakedest entries=1` for the peer's prefix. The LSA-origination half is what the interop run still owes |
-| The same prefix reaches a neighbor as a Type-7 in an NSSA | `INTEROP_SCENARIO=ospfv3-nssa-redist-frr ./le test integration interop` green, with the forced-RED output recorded. Its absence proofs were repaired on 2026-09-03 in commit `666a43dff` and its later assertions have never executed, so this run is their first | NOT RUN. Its image build failed with `input/output error` inside the container while the host disk stood at 99% |
-| A static prefix reaches a neighbor through IS-IS | `INTEROP_SCENARIO=isis-redist-frr ./le test integration interop` green, with the forced-RED output recorded | NOT RUN, same image-build failure |
-| The operator is told when redistribution cannot work | `ze doctor` output on a config whose redistribution source has no producer, and the load failure on an unknown source name | The load failure is proven twice: `TestUnknownRedistributeSourceRefusesLoad` and the functional `test/plugin/redistribute-unknown-source-refused.ci`, which PASSES against a running daemon in the gating suite. The `ze doctor` half has unit coverage (`checks_redistribute_test.go`) and no functional run. It also had no CALLER until 3c71ff73eb: `checkRedistributeRules` landed with its five tests and no line in `runChecks`, so every one of them drove the helper and the check was dead. `TestRunChecksReachesTheRedistributeCheck` now drives the entry point |
-| A consumer that registers after a producer emitted holds that producer's set | `test/plugin/redistribute-late-consumer.ci` against a running daemon | PASSES, 2026-09-05, in the gating `./le test functional plugin` run. The scenario proves the dispatcher is live with an early `fakeprobe` consumer, emits two prefixes while no `fakedest` consumer exists, then registers one and reads both back |
-| The per-UPDATE cost of a daemon with no redistribution is unchanged | `le perf` UPDATE throughput before and after, both numbers recorded | not run. `TestNoRedistributeNoBinding` and `TestNonBGPRedistributeSourceAddsNoBinding` show no binding is derived without a rule, so no per-UPDATE delivery is added |
+**The two OSPFv3 reds do not yet show which way they went red.** Both read, at
+assertion 4: `wait for frr output never measured peer state: peer frr query
+returned no output; the final probe ... vtysh -c show ipv6 route ospf6 did not
+finish within 30s (exit 124)`. "Never measured" means no FRR answer was read at
+all, so the log alone cannot tell "the prefix is absent" from "FRR's vtysh
+stopped answering" (the vacuity trap of a red the break did not cause,
+`docs/architecture/testing/interop.md`). The greens before and after pass the
+same assertion, so the break is the likely cause, but AC-1 and AC-2 count as
+proven only once one red run shows FRR answering without the prefix. Owed: rerun
+each break and capture `show ipv6 route ospf6` (or `show ipv6 ospf6 database`)
+from FRR before the wait ends.
 
 ### TDD
 - [ ] Tests written

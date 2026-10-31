@@ -545,7 +545,8 @@ func (rm *routeManager) emitRouteChange(action redistevents.RouteAction, r stati
 
 // emitRouteChangeID emits a single-route batch tagged with replayID (0 for the
 // normal incremental path; nonzero echoes a redistribute ReplayRequest so the
-// orchestrator can replay to a newly-established peer). Only forward routes in
+// orchestrator can replay to a newly-established peer or to a destination
+// consumer that registered after this producer emitted). Only forward routes in
 // table 0 are redistribute sources; the guards match emitRouteChange.
 func (rm *routeManager) emitRouteChangeID(action redistevents.RouteAction, r staticRoute, replayID uint64) {
 	if r.Table != 0 {
