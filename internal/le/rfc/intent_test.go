@@ -225,7 +225,8 @@ func TestNotEverQuoteIsAWholeSentenceOfItsSection(t *testing.T) {
 // {feature-declined}, {linux-limit}), or on a row a proving record covers, is
 // refused with "remove the intent marker", while a marker on an owed,
 // unproven row, {gap} included, raises nothing. Method: one SHOULD row per
-// shape, each marked, through evaluateIntent with a proof set naming one.
+// shape, each marked, through evaluateIntent with a proof set naming one and
+// a judge that accepts every not-owed row's evidence.
 func TestIntentMarkerIsStaleOnAProvenOrExcludedRow(t *testing.T) {
 	notYet := &Intent{State: IntentNotYet}
 	row := func(rid, kind string) Requirement {
@@ -247,7 +248,7 @@ func TestIntentMarkerIsStaleOnAProvenOrExcludedRow(t *testing.T) {
 		row("RFC1-1-7", AnnotationGap),
 	}
 	proven := map[string]bool{"RFC1-1-5": true}
-	findings := evaluateIntent(append(append([]Requirement{}, stale...), owed...), proven)
+	findings := evaluateIntent(append(append([]Requirement{}, stale...), owed...), proven, acceptEveryExclusion{})
 	refused := map[string]bool{}
 	for _, finding := range findings {
 		refused[finding.RID] = true
@@ -270,6 +271,28 @@ func TestIntentMarkerIsStaleOnAProvenOrExcludedRow(t *testing.T) {
 	}
 }
 
+// TestIntentMarkerStandsOnANotOwedRowWhoseEvidenceFails checks the stale
+// check and the figures judge "not owed" by one rule. Goal: a SHOULD row
+// annotated {not-applicable} with a bare reason, which the production judge
+// refuses as evidence, stays owed in the figures, so its {intent} marker is
+// accepted rather than refused as stale. Method: the bare row through
+// evaluateIntent with (*evidenceReader).notOwedGap as the judge, and the same
+// row through figuresByStem, which must count it not yet.
+func TestIntentMarkerStandsOnANotOwedRowWhoseEvidenceFails(t *testing.T) {
+	bare := Requirement{RFC: "rfc1", RID: "RFC1-1-1", Level: levelShould, Section: "1",
+		Intent:     &Intent{State: IntentNotYet},
+		Annotation: &Annotation{Kind: AnnotationNotApplicable, Reason: "a bare reason"}}
+	reader := newEvidenceReader(t.TempDir())
+	if findings := evaluateIntent([]Requirement{bare}, map[string]bool{}, reader); len(findings) != 0 {
+		t.Errorf("the intent marker on a row whose not-owed evidence fails was refused: %+v", findings)
+	}
+	stems := map[string]bool{"rfc1": true}
+	figures := figuresByStem([]Requirement{bare}, stems, stems, map[string]bool{}, figureEvidence{exclusions: reader})["rfc1"]
+	if figures.NotYet != 1 {
+		t.Errorf("the figures count %d not yet, want 1: the row's evidence fails, so it stays owed", figures.NotYet)
+	}
+}
+
 // TestSelftestCoversIntentProperties checks the intent stage of `./le rfc
 // selftest`. Goal: each of its rows passes against the production parser and
 // stale-marker check, so a regression there fails the selftest. Method: run
@@ -279,8 +302,8 @@ func TestSelftestCoversIntentProperties(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the intent stage could not run: %v", err)
 	}
-	if len(rows) != 3 {
-		t.Fatalf("the intent stage answered %d rows, want 3", len(rows))
+	if len(rows) != 4 {
+		t.Fatalf("the intent stage answered %d rows, want 4", len(rows))
 	}
 	for _, row := range rows {
 		if !row.Passed {

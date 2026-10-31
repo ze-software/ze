@@ -67,7 +67,7 @@ func TestIntentMarkerOnALowerLayerRowSaysTheKernelPerformsIt(t *testing.T) {
 	lower.Intent = &Intent{State: IntentNotYet}
 	other := Requirement{RFC: "rfc1", RID: "RFC1-1-2", Level: levelShould, Intent: &Intent{State: IntentNotYet},
 		Annotation: &Annotation{Kind: AnnotationNotApplicable, Reason: "binds a relay"}}
-	findings := evaluateIntent([]Requirement{lower, other}, map[string]bool{})
+	findings := evaluateIntent([]Requirement{lower, other}, map[string]bool{}, acceptEveryExclusion{})
 	if len(findings) != 2 {
 		t.Fatalf("got %d findings, want one per marked row: %+v", len(findings), findings)
 	}

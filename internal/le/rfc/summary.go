@@ -428,10 +428,10 @@ func parseNotApplicable(body, where string) (*Annotation, error) {
 
 // featureDeclinedRE splits `"<quote>"; <why>`: a double-quoted span, then the
 // reason. {not-applicable}'s evidence form opens the same way, so
-// parseNotApplicable reads it with this expression too. The quote is read by its own quotation marks rather than by the `;`
-// {lower-layer} cuts on, because an RFC sentence carries semicolons of its own
-// and cutting on the first one would truncate the quote the gate goes and
-// checks.
+// parseNotApplicable reads it with this expression too. The quote is read by
+// its own quotation marks rather than by the `;` {lower-layer} cuts on,
+// because an RFC sentence carries semicolons of its own and cutting on the
+// first one would truncate the quote the gate goes and checks.
 var featureDeclinedRE = regexp.MustCompile(`^"([^"]+)"\s*;\s*(\S.*)$`)
 
 // featureDeclinedFormat is the one format sentence every {feature-declined}

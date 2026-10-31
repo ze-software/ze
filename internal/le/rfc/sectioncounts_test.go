@@ -8,6 +8,7 @@ package rfc
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -56,5 +57,56 @@ func TestSectionsOfRefusesAnUndeclaredKind(t *testing.T) {
 		Mandatory: Figure{Total: 1, Excluded: map[string]int{"no-such-kind": 1}}}
 	if _, err := SectionsOf("rfc9999", &figures); err == nil {
 		t.Fatal("SectionsOf split a row excluded under an undeclared kind")
+	}
+}
+
+// TestSectionsOfRefusesFiguresThatDoNotAddBack checks the contract that lets
+// rollupOf and treeRow call sectionsOf unchecked. Goal: SectionsOf refuses
+// every figure set whose sections do not add back to their own totals, each
+// with the refusal of the check that caught it, and accepts the same figures
+// once they do add back. Method: one figure set per refusal of
+// checkMustSections and checkShouldSections, each consistent but for the one
+// count it breaks, then a consistent set.
+func TestSectionsOfRefusesFiguresThatDoNotAddBack(t *testing.T) {
+	lowerLayer := func(rows int) map[string]int { return map[string]int{AnnotationLowerLayer: rows} }
+	for _, one := range []struct {
+		name    string
+		figures StemFigures
+		says    string
+	}{
+		{"MUST OS rows", StemFigures{Mandatory: Figure{Total: 2, Excluded: lowerLayer(2)}, OSVerified: 1},
+			"the OS verified and OS gap MUST rows (1) differ from the MUST rows a lower layer performs (2)"},
+		{"MUST proven above attainable", StemFigures{Mandatory: Figure{Total: 2, Attainable: 1, Proven: 2}},
+			"the Ze-proven MUST rows (2) exceed the MUST rows Ze's code owes (1)"},
+		{"MUST sections", StemFigures{Mandatory: Figure{Total: 5, Attainable: 2}},
+			"the MUST sections (2) differ from the MUST rows counted (5)"},
+		{"SHOULD OS rows", StemFigures{Optional: Figure{Total: 1, Excluded: lowerLayer(1)}},
+			"the OS verified and OS gap SHOULD rows (0) differ from the SHOULD rows a lower layer performs (1)"},
+		{"SHOULD intent", StemFigures{Optional: Figure{Total: 2, Attainable: 2}, NotYet: 1},
+			"the not ever, not yet and not decided SHOULD rows (1) differ from the open SHOULD rows (2)"},
+		{"SHOULD sections", StemFigures{Optional: Figure{Total: 5, Attainable: 2}, NotYet: 2},
+			"the SHOULD sections (2) differ from the SHOULD rows counted (5)"},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			figures := one.figures
+			figures.Stem, figures.Walked = "rfc9999", true
+			_, err := SectionsOf("rfc9999", &figures)
+			if err == nil {
+				t.Fatalf("SectionsOf split figures that do not add back: %+v", figures)
+			}
+			for _, says := range []string{"rfc9999", one.says} {
+				if !strings.Contains(err.Error(), says) {
+					t.Errorf("the refusal %q does not say %q", err, says)
+				}
+			}
+		})
+	}
+	consistent := StemFigures{Stem: "rfc9999", Walked: true,
+		Mandatory:  Figure{Total: 5, Attainable: 2, Proven: 1, Excluded: map[string]int{AnnotationLowerLayer: 2, AnnotationNotApplicable: 1}},
+		OSVerified: 1, OSGap: 1,
+		Optional:      Figure{Total: 3, Attainable: 2, Excluded: lowerLayer(1)},
+		OptionalOSGap: 1, NotYet: 1, NotDecided: 1}
+	if _, err := SectionsOf("rfc9999", &consistent); err != nil {
+		t.Errorf("SectionsOf refused figures that add back: %v", err)
 	}
 }

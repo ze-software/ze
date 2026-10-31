@@ -142,7 +142,7 @@ func (s StemFigures) cell(figure Figure) string {
 
 // StemFiguresOf answers both figures, the evidence kinds and the unmet ids of
 // every summary in one rendered corpus. It is the ONE derivation of per-RFC
-// proof: `./le rfc tree`, the published proof share and the pages each read
+// proof: `./le rfc tree`, the published sections and the pages each read
 // it, so no surface counts "proven" its own way.
 //
 // The population is every summary file and every declared Meta, so a Meta
@@ -260,7 +260,7 @@ func (e figureEvidence) unmet(requirement *Requirement) bool {
 }
 
 // excluded answers whether a row leaves the rows Ze's own code owes
-// (Attainable). A row whose annotation is no ceiling exclusion stays. A row a
+// (Attainable). A row whose annotation's traits do not leave stays. A row a
 // layer under Ze performs (osMet) leaves for the OS sections whatever its
 // evidence: those stay in the MUST bar, so the move can only lower the
 // Ze-proven share, never raise it. A row an annotation says is not owed leaves

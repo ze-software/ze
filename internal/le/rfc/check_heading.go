@@ -215,9 +215,9 @@ func declinedHeadingRefusal(req *Requirement, declined []DeclinedFeature, stem, 
 }
 
 // headingWordLongEnough answers whether the heading words hold a feature word
-// (featureWords) of at least minHeadingWords characters, or a shorter one that
-// is the whole of entry's words, compared lower case and singular
-// (headingTokens).
+// (featureWords) of at least minHeadingWords characters, or one exactly one
+// character shorter that is the whole of entry's words, compared lower case
+// and singular (headingTokens). A word shorter still never passes.
 func headingWordLongEnough(words string, entry DeclinedFeature) bool {
 	whole := strings.Join(headingTokens(entry.Words), " ")
 	for _, word := range featureWords(words) {

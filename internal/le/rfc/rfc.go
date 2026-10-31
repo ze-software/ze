@@ -256,10 +256,10 @@ func escapeReasonNames() []string { return sortedKeys(escapeReasons) }
 //
 // It is not a softer {not-applicable}. That one says the obligation never bound
 // Ze; this one says it binds, is met, and is not proven BY ZE -- so it stays
-// inside the gated denominator and out of the proven numerator
-// (provenshare.go), exactly where {gap} sits. What stops it becoming the next
-// blanket exemption is that its reason CLAIMS A FACT the gate checks: the layer
-// and, as `<path>.go::<Symbol>`, the producer that installs into it.
+// in the MUST bar's kept rows and out of Ze proven, in the OS verified or OS
+// testing gap section (sectionsOf, sectioncounts.go). What stops it becoming
+// the next blanket exemption is that its reason CLAIMS A FACT the gate checks:
+// the layer and, as `<path>.go::<Symbol>`, the producer that installs into it.
 //
 // AnnotationFeatureDeclined says the obligation is CONDITIONAL on a feature the
 // RFC makes optional, and Ze declined that feature, so the condition is false
@@ -331,8 +331,11 @@ type AnnotationTraits struct {
 	Bucket             string
 	AuditUnimplemented bool
 	AuditNotApplicable bool
-	CeilingExcluded    bool
-	CeilingLabel       string
+	// CeilingExcluded says the row leaves the rows Ze's own code owes
+	// (Attainable): to the OS sections when OSMet, otherwise as not owed once
+	// its evidence passes (figureEvidence.excluded). The name is older than
+	// that rule: it no longer sets any ceiling.
+	CeilingExcluded bool
 	// OSMet says a layer under Ze performs the row's behavior, so a tagged
 	// test checks that layer on the state Ze installs and its proving record
 	// makes the row OS verified rather than proven by Ze (osVerified).
@@ -349,7 +352,7 @@ var annotationKinds = map[string]struct {
 	AnnotationNotApplicable: {
 		traits: AnnotationTraits{Counts: true, BarsTests: true, RollupState: RollupMet,
 			Bucket: "not_applicable", AuditUnimplemented: true, AuditNotApplicable: true,
-			CeilingExcluded: true, CeilingLabel: "Not applicable (classification can be revisited)"},
+			CeilingExcluded: true},
 		parse: parseNotApplicable,
 	},
 	AnnotationGap: {
@@ -369,13 +372,13 @@ var annotationKinds = map[string]struct {
 	AnnotationLowerLayer: {
 		traits: AnnotationTraits{Counts: true, OSMet: true,
 			RollupState: RollupMet, Bucket: "lower_layer",
-			CeilingExcluded: true, CeilingLabel: "Met by a lower layer"},
+			CeilingExcluded: true},
 		parse: parseLowerLayer,
 	},
 	AnnotationFeatureDeclined: {
 		traits: AnnotationTraits{Counts: true, BarsTests: true, RollupState: RollupMet,
 			Bucket: "feature_declined", AuditNotApplicable: true,
-			CeilingExcluded: true, CeilingLabel: "Optional feature not offered (classification can be revisited)"},
+			CeilingExcluded: true},
 		parse: parseFeatureDeclined,
 	},
 	AnnotationRollup: {
@@ -386,7 +389,7 @@ var annotationKinds = map[string]struct {
 	AnnotationLinuxLimit: {
 		traits: AnnotationTraits{Counts: true, BarsTests: true, Unmet: true,
 			RollupState: RollupGap, Bucket: "linux_limit", AuditUnimplemented: true,
-			CeilingExcluded: true, CeilingLabel: "Linux cannot do this"},
+			CeilingExcluded: true},
 		parse:  parseLinuxLimit,
 		format: linuxLimitFormat,
 	},

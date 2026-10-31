@@ -1540,7 +1540,11 @@ with "remove the intent marker": on a row whose annotation leaves it out of the
 rows Ze owes (`{not-applicable}`, `{lower-layer}`, `{feature-declined}`,
 `{linux-limit}`), and on a row a proving record covers, since proven is
 computed (`evaluateIntent`, `TestIntentMarkerIsStaleOnAProvenOrExcludedRow`).
-A marker on a `{gap}` or `{partial}` row stays: that row is still owed.
+A marker on a `{gap}` or `{partial}` row stays: that row is still owed. "Leaves
+the rows Ze owes" is judged by the rule the figures use, so a `{not-applicable}`,
+`{feature-declined}` or `{linux-limit}` row whose evidence fails stays owed and
+its marker stands (`figureEvidence.excluded`,
+`TestIntentMarkerStandsOnANotOwedRowWhoseEvidenceFails`).
 <!-- source: internal/le/rfc/intent.go -- parseIntent, parseNotEver, intentOnGatedRow, evaluateIntent, intentQuoteGap -->
 
 `StemFigures` carries three counts per RFC, `NotYet`, `NotEver` and
