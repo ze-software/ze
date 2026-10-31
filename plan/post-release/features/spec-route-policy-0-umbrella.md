@@ -8,9 +8,9 @@
 | Release reason | New capability: a protocol-neutral route policy and a gate on every source entering the Loc-RIB. No shipped behavior is defective without it; the two defects it owns (journal rows below) are post-release quality, not release blockers. |
 | RFC gaps | - |
 | Depends | `spec-fixit-redistribution-chain-drops-silently` (closed 2026-10-31; phase 3 needs a working redistribution chain to prove anything); `plan/release/fixes/spec-single-owner-reload-reconcile.md` (its AC-9 tests the redistribute evaluator phase 3 replaces); phase 4 sequences with `plan/post-release/engineering/spec-filter-wire-0-umbrella.md` |
-| Phase | 3/4 (phases 1-2 landed; phase 3 waits on the two Depends redistribution specs, phase 4 on spec-filter-wire-0-umbrella) |
+| Phase | 4/4 (phases 1-3 landed and reviewed clean after three rounds; phase 4 waits on the filter-wire redesign, plan/post-release/engineering/spec-filter-wire-0-umbrella.md, which owes its /ze-spec design gates with the owner's two-path, parse-on-demand requirements) |
 | Handoff | - |
-| Updated | 2026-10-29 |
+| Updated | 2026-10-31 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -578,3 +578,14 @@ the encoding sites they change.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Phase 3 record
+
+| AC | Proving tests and scenarios | Red evidence |
+|----|-----------------------------|--------------|
+| AC-12 | Interop `isis-export-policy-frr`; `test/isis/isis-export-chain.ci` (7489fc84df); `test/parse/isis-export-filter-undefined.ci` (397e72b530); units `TestISISExportChain`, `TestISISExportReloadRejudges`, `TestExportChainRefusesMatchLevel` | Interop green at 697dc6a618, red with `exportVerdict` answering `(DefaultRedistMetric, true)` ("FRR's IS-IS route for 10.66.0.1/32 has metric 110, want 87"), green again once restored. `isis-export-chain.ci` red under an overlay ignoring the export verdict's reject. `TestISISExportChain` red under an overlay accepting a reject (198.51.100.0/24 reached the LSP). `TestISISExportReloadRejudges` red under an overlay emptying `Rejudge`. `TestExportChainRefusesMatchLevel` red before the registration change |
+| AC-13 | Interop `ospf-export-policy-frr` and `ospf-redist-static-tag-frr`; `test/parse/ospf-redistribute-retired-metric.ci`; units `TestOSPFExportSetMetric`, `TestOSPFExportNoChainDefaults`, `TestOSPFExportReloadRejudges`, `TestMigrateOSPFRedistributeToExportFilter`, `TestMigrateOSPFRedistributeRefusesNameClash`, `TestParseExportChain` | Interop green at 697dc6a618, red with `applyExportSets` returning the external unchanged ("FRR's AS-External-LSA for 10.67.1.0/24 has metric 20, want 50"), green again once restored; `ospf-redist-static-tag-frr` green. Export units red under an overlay ignoring the chain (rejected route originated at metric 20, E2); migration units red with no rewrite; `TestOSPFExportReloadRejudges` red under an overlay emptying `Rejudge`. `test/ospf/ospf-multiaf-v4-route.ci` is not green in the netns guest and is equally red at 397e72b530, before phase 3: the cause is the fixture connect-back delay in journal `test-gate-repeats-expensive-work.md`, owned by `plan/post-release/engineering/spec-fixit-netns-test-dut-tags.md` |
+| AC-14 | `test/plugin/redistribute-chain-static-ospf.ci` (real OSPF consumer, in the netns subset of `./le test qemu`); `test/plugin/redistribute-chain-narrow-reload.ci` (fakeredist); units `TestRedistributeChainAccept`, `TestRuleNarrowingWithdrawsHeldRoutes`, `TestHandleBatchSetMetricReachesConsumer` | `redistribute-chain-static-ospf.ci` PASS under Ze's kernel 7.3; red with the import verdict forced accepted ("the chain rejects 10.81.3.0 and OSPF originates it anyway"); red with the `withdrawRejectedHeld` dispatch removed ("the reload narrowed the chain and OSPF still advertises 10.81.2.0"); PASS once restored. `redistribute-chain-narrow-reload.ci` red both ways under an overlay. `TestRedistributeChainAccept` red under an overlay ignoring the verdict, `TestRuleNarrowingWithdrawsHeldRoutes` red with the withdraw removed, `TestHandleBatchSetMetricReachesConsumer` red under an overlay |
+| AC-15 | Units `TestRedistributeEBGPClass`, `TestBGPProducerBridgeCarriesPeerClass`, `TestReplayEBGPClass` (17a4d10511, 72ecbeef90) | `TestRedistributeEBGPClass` red before the fix (eBGP and iBGP routes both moved); `TestBGPProducerBridgeCarriesPeerClass` red under an overlay forcing the class to Unspecified; `TestReplayEBGPClass` red under an overlay on the replay path |
+
+Review rounds 1-3 ended with 0 BLOCKER and 0 ISSUE once the round 3 fixes landed in a5222773e4 and 8b458ffafe.
