@@ -236,9 +236,10 @@ func (r *Reactor) removeDynamicPeer(peer *Peer, subcode uint8) peerStop {
 // dynamicGroupsLoad is what one configuration load says about the dynamic
 // groups. A load that read them carries the set, an empty one included, and the
 // journaled dynamic step reconciles the population against it. A load that did
-// not read them (the tree route, which has no ReloadFunc) is
-// dynamicGroupsNotRead, and the step then leaves the group set and every dynamic
-// peer as they are.
+// not read them (the BGP plugin's section apply, ReconcilePeersWithJournal,
+// when loadPeersFullOrTree has no ReloadFunc or no config path and parses the
+// bgp block alone) is dynamicGroupsNotRead, and the step then leaves the group
+// set and every dynamic peer as they are.
 //
 // The zero value is dynamicGroupsNotRead on purpose, and that is a guard: it is
 // the one answer that changes nothing, so a caller that forgets to say what it

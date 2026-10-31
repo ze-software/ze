@@ -550,10 +550,28 @@ func TestReloadFuncAppliesNoDynamicGroups(t *testing.T) {
 	assert.False(t, kept, "the reload must remove the peer of the dropped group")
 }
 
+// dynamicGroupTree is a configuration root holding one dynamic group, "ix",
+// accepting 185.1.69.0/24, as the config transaction hands it to
+// ApplyConfigDiff.
+func dynamicGroupTree() map[string]any {
+	return map[string]any{"bgp": map[string]any{
+		"session":   map[string]any{"asn": map[string]any{"local": "65001"}},
+		"router-id": "10.0.0.1",
+		"group": map[string]any{"ix": map[string]any{
+			"session": map[string]any{"asn": map[string]any{"remote": "65010"}},
+			"connection": map[string]any{
+				"local":  map[string]any{"ip": "auto"},
+				"remote": map[string]any{"ip": "dynamic", "range": "185.1.69.0/24"},
+			},
+		}},
+	}}
+}
+
 // TestTreeRouteLeavesDynamicGroupsUnchanged proves the tree route (no
-// ReloadFunc) answers "groups not read": ApplyConfigDiff leaves the group set
-// and every dynamic peer as they are, rather than reading the absent groups as
-// an empty set and tearing every dynamic peer down.
+// ReloadFunc) answers "groups not read": ReconcilePeersWithJournal, the BGP
+// plugin's section apply, leaves the group set and every dynamic peer as they
+// are, rather than reading the absent groups as an empty set and tearing every
+// dynamic peer down.
 //
 // VALIDATES: dynamicGroupsNotRead leaves the population alone.
 // PREVENTS: a tree-route apply reading absent groups as none.
@@ -565,7 +583,7 @@ func TestTreeRouteLeavesDynamicGroupsUnchanged(t *testing.T) {
 	r.reloadFunc = nil
 	r.mu.Unlock()
 
-	require.NoError(t, (&reactorAPIAdapter{r: r}).ApplyConfigDiff(map[string]any{"bgp": map[string]any{}}))
+	require.NoError(t, r.ReconcilePeersWithJournal(map[string]any{}, &testJournal{}))
 
 	r.mu.RLock()
 	after := r.peers[netip.AddrPortFrom(addr, DefaultBGPPort)]
@@ -574,6 +592,86 @@ func TestTreeRouteLeavesDynamicGroupsUnchanged(t *testing.T) {
 	assert.True(t, after == peer, "the tree route must not remove a dynamic peer")
 	require.Len(t, groups, 1)
 	assert.True(t, groups[0] == group, "the tree route must not replace the group set")
+}
+
+// TestApplyConfigDiffKeepsDynamicPeersOfAKeptGroup proves ApplyConfigDiff leaves
+// the dynamic population alone when the applied tree still holds its group.
+//
+// GOAL: an apply whose tree keeps the dynamic group keeps every dynamic peer
+// of it on its running session, and installs the group the tree states.
+// METHOD: a reactor built with the testTreeReload pipeline stand-in, a dynamic
+// peer accepted under the group that pipeline read from the tree, then
+// ApplyConfigDiff of that same tree.
+//
+// VALIDATES: the peer and its session keep their identity, and the installed
+// group set is the tree's one group with its name, range and peer limit.
+// PREVENTS: an ApplyConfigDiff reading the groups as absent or as none and
+// tearing every dynamic peer down; the stand-in reads the tree's groups, so a
+// pipeline or an apply that dropped them removes the peer here.
+func TestApplyConfigDiffKeepsDynamicPeersOfAKeptGroup(t *testing.T) {
+	r := newDynamicPeerReactor(t, 65001, 0x0A000001)
+	tree := dynamicGroupTree()
+	_, _, groups, err := testTreeReload(t)(tree)
+	require.NoError(t, err)
+	require.Len(t, groups, 1, "the tree states one dynamic group")
+	addr := netip.MustParseAddr("185.1.69.42")
+
+	r.mu.Lock()
+	r.dynamicGroups = groups
+	peer, err := r.createDynamicPeer(groups[0], addr)
+	r.mu.Unlock()
+	require.NoError(t, err)
+	session := NewSession(peer.settings)
+	peer.mu.Lock()
+	peer.session = session
+	peer.mu.Unlock()
+	peer.state.Store(int32(PeerStateEstablished))
+
+	require.NoError(t, (&reactorAPIAdapter{r: r}).ApplyConfigDiff(dynamicGroupTree()))
+
+	r.mu.RLock()
+	after := r.peers[netip.AddrPortFrom(addr, DefaultBGPPort)]
+	installed := r.dynamicGroups
+	r.mu.RUnlock()
+	require.True(t, after == peer, "the apply must not remove a dynamic peer of a group the tree keeps")
+	assert.True(t, after.currentSession() == session, "the dynamic peer must keep its running session")
+	require.Len(t, installed, 1, "the apply must install the tree's group set")
+	assert.Equal(t, "ix", installed[0].GroupName)
+	assert.Equal(t, []netip.Prefix{netip.MustParsePrefix("185.1.69.0/24")}, installed[0].Ranges)
+	assert.Equal(t, groups[0].MaxPeers, installed[0].MaxPeers)
+}
+
+// TestApplyConfigDiffRefusesWithoutATreePipeline proves a reactor with no
+// TreeReloadFunc refuses the apply instead of guessing.
+//
+// GOAL: ApplyConfigDiff on a reactor CreateReactorFromTree did not build
+// answers errNoTreeReload and changes nothing.
+// METHOD: a reactor holding a dynamic group and an Established dynamic peer,
+// with no SetTreeReloadFunc, applies a tree with no groups.
+//
+// VALIDATES: the error is errNoTreeReload; the peer and the group set keep
+// their identity.
+// PREVENTS: a fallback that parses the bgp block alone, skipping the YANG
+// defaults and the dynamic groups, and so tears down every dynamic peer.
+func TestApplyConfigDiffRefusesWithoutATreePipeline(t *testing.T) {
+	addr := netip.MustParseAddr("185.1.69.42")
+	group := dynamicReloadGroup(t)
+	r, peer := newDynamicReloadReactor(t, group, addr, nil)
+	r.mu.RLock()
+	pipeline := r.treeReloadFunc
+	r.mu.RUnlock()
+	require.Nil(t, pipeline, "the reactor under test holds no tree pipeline")
+
+	err := (&reactorAPIAdapter{r: r}).ApplyConfigDiff(map[string]any{"bgp": map[string]any{}})
+	require.ErrorIs(t, err, errNoTreeReload)
+
+	r.mu.RLock()
+	after := r.peers[netip.AddrPortFrom(addr, DefaultBGPPort)]
+	installed := r.dynamicGroups
+	r.mu.RUnlock()
+	assert.True(t, after == peer, "a refused apply must not remove the dynamic peer")
+	require.Len(t, installed, 1)
+	assert.True(t, installed[0] == group, "a refused apply must not replace the group set")
 }
 
 // TestDynamicNonStrictBFDOptInSwaps proves AC-19 at the step: a group template
