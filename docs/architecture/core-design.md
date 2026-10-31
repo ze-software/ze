@@ -1359,7 +1359,7 @@ Egress filters write `AttrOp` entries via `mods.Op(code, action, buf)`:
 
 <!-- source: internal/component/bgp/filterapi/filterapi.go -- ModAccumulator.Reset, ModAccumulator.Op -->
 <!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure, recordModifyFailure, modifyFailureLogInterval -->
-<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateCore hoisted accumulator and per-destination Reset -->
+<!-- source: internal/component/bgp/reactor/forward_validation.go -- forwardUpdateCore hoisted accumulator and per-destination Reset -->
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS hoisted accumulator and per-destination Reset -->
 
 Multiple entries with the same code accumulate -- the handler receives all ops at once.
