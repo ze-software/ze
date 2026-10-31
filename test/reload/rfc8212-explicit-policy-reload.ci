@@ -23,8 +23,8 @@
 #   - reload adds `filter import { final accept; }`: Ze sends ONE ROUTE-REFRESH
 #     on the same session, the source re-sends, and the downstream gains
 #     10.72.1.0/24 with the source's attributes, selected best.
-# Track A (D-1 refresh on import relaxation) is NOT implemented yet: the import
-#   stage is red until it lands. The export stage runs first and is green now.
+# The import stage proves the D-1 refresh on import relaxation (e9385df360);
+#   the export stage runs first.
 # Discrimination of the export stage: an overlay mutant of
 #   reactor/peer_settings_apply.go with `finalChanged := false` turns it red.
 # RFC requirement: RFC8212-3-2 positive -- a reload that gives the Established

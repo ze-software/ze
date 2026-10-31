@@ -15,8 +15,8 @@
 #     socket, which answers with one mixed UPDATE (withdraw 10.72.1.0/24, add
 #     10.72.4.0/24): it is counted once and the add never reaches downstream;
 #   - every session keeps its ports and counters, no ROUTE-REFRESH was sent.
-# Track A (D-1 refusal) is NOT implemented yet: this test is red until it
-#   lands (today the reload answers `applied`).
+# This proves the D-1 refusal (e9385df360): without it the reload answers
+#   `applied`.
 option=timeout:value=150s
 option=storage:value=disk
 
