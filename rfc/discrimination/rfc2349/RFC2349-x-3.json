@@ -1,17 +1,6 @@
 [
   {
     "rid": "RFC2349-x-3",
-    "polarity": "negative",
-    "unit": "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientTsize",
-    "unit-sha": "cc92213a5252f3a8",
-    "claim-sha": "751dd3b70947dd13",
-    "route": "revert",
-    "producer": "internal/core/tftp/oack.go::grantTsize",
-    "producer-sha": "91861157beae04b4",
-    "break": "body of grantTsize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC2349-x-3",
     "polarity": "positive",
     "unit": "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientTsize",
     "unit-sha": "cc92213a5252f3a8",
@@ -20,5 +9,38 @@
     "producer": "internal/core/tftp/request.go::BuildRRQ",
     "producer-sha": "2bb1185baa156442",
     "break": "body of BuildRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2349-x-3",
+    "polarity": "negative",
+    "unit": "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientTsize",
+    "unit-sha": "cc92213a5252f3a8",
+    "claim-sha": "751dd3b70947dd13",
+    "route": "revert",
+    "producer": "internal/core/tftp/oack.go::grantTsize",
+    "producer-sha": "474948216aac8c37",
+    "break": "body of grantTsize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2349-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc2349_tsize_test.go::TestRFC2349TsizeRRQReturnsActualSize",
+    "unit-sha": "a1e98e2708a2ded9",
+    "claim-sha": "72c50f136b929449",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::sendOACKAndWait",
+    "producer-sha": "43374ffc3b553094",
+    "break": "body of sendOACKAndWait replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2349-x-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/rfc2349_tsize_test.go::TestRFC2349TsizeRRQReturnsActualSize",
+    "unit-sha": "a1e98e2708a2ded9",
+    "claim-sha": "88f6ab6988ad47dc",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
+    "producer-sha": "ec76bb3bdad9249a",
+    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

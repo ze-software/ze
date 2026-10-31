@@ -1,17 +1,18 @@
 // Design: docs/architecture/provisioning/tftp-server.md -- TFTP packet handling (RFC 1350, RFC 2347 option negotiation)
+// Related: window_send.go -- serveFile, the RFC 7440 data sender a transfer runs
 
 package tftpserver
 
 import (
 	"encoding/binary"
 	"errors"
-	"io"
 	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/taskguard"
@@ -23,14 +24,46 @@ import (
 // internal/core/tftp.
 
 const (
-	ackTimeout    = 5 * time.Second
+	// ackTimeout is the retransmission interval of a transfer whose client
+	// requested no RFC 2349 timeout, when no config sets one: the YANG
+	// default of the timeout leaf.
+	ackTimeout = defaultTimeoutSeconds * time.Second
+	// maxRetransmit bounds the resends of one window that the client does not
+	// acknowledge: it is sent at most maxRetransmit+1 times.
 	maxRetransmit = 3
 )
 
+// transferLimits is what the config sets for each transfer: the
+// retransmission interval when the client requests no timeout, and the
+// largest window granted. A request takes the values running when it
+// arrives, so a reload never changes a transfer in flight.
+type transferLimits struct {
+	timeout       time.Duration
+	windowsizeMax int
+}
+
+// defaultLimits answers a limits source holding the YANG defaults, for a
+// server that runs without config (ServeConn and the tests).
+func defaultLimits() *atomic.Pointer[transferLimits] {
+	var limits atomic.Pointer[transferLimits]
+	limits.Store(&transferLimits{timeout: ackTimeout, windowsizeMax: defaultMaxWindowsize})
+	return &limits
+}
+
+// rrqOptions is what a read request asked for. A numeric option is zero when
+// the request did not carry it or carried a value outside its RFC range, which
+// RFC 2347 treats alike: the option is not acknowledged. Zero is never a valid
+// value of any of them, so it names the absence.
 type rrqOptions struct {
-	blksize    int
-	tsize      bool
+	blksize int
+	// timeout is the requested retransmission interval, in seconds.
+	timeout int
+	tsize   bool
+	// windowsize records that the request named the windowsize option with a
+	// NUL-terminated value, whatever the value.
 	windowsize bool
+	// windowsizeBlocks is the requested window, in blocks.
+	windowsizeBlocks int
 }
 
 // RFC 2347: RRQ/WRQ with options appends NUL-terminated key/value pairs after mode.
@@ -95,19 +128,44 @@ func parseRRQ(pkt []byte) (filename, mode string, opts rrqOptions, err error) {
 		remaining = remaining[valEnd+1:]
 
 		switch strings.ToLower(optName) {
-		case "blksize":
-			n, parseErr := strconv.Atoi(optVal)
-			if parseErr == nil && n >= tftp.BlksizeMin && n <= tftp.BlksizeMax {
-				opts.blksize = n
-			}
-		case "tsize":
+		case tftp.OptionBlksize:
+			// RFC 2348 Blocksize Option Specification: "Valid values range
+			// between "8" and "65464" octets, inclusive."
+			opts.blksize = optionInRange(tftp.OptionBlksize, optVal, tftp.BlksizeMin, tftp.BlksizeMax)
+		case tftp.OptionTimeout:
+			// RFC 2349 Timeout Interval Option Specification: "Valid values
+			// range between "1" and "255" seconds, inclusive."
+			opts.timeout = optionInRange(tftp.OptionTimeout, optVal, tftp.TimeoutMin, tftp.TimeoutMax)
+		case tftp.OptionTsize:
 			opts.tsize = true
-		case "windowsize":
+		case tftp.OptionWindowsize:
 			opts.windowsize = true
+			// RFC 7440 Section 3: "The valid values range MUST be between 1
+			// and 65535 blocks, inclusive."
+			opts.windowsizeBlocks = optionInRange(tftp.OptionWindowsize, optVal, tftp.WindowsizeMin, tftp.WindowsizeMax)
 		}
 	}
 
 	return filename, mode, opts, nil
+}
+
+// optionInRange answers the value of option name when it is a plain decimal
+// number from low to high, and zero, which no option of an RRQ takes, when it
+// is not: RFC 2347 Negotiation Protocol, "An option not acknowledged by the
+// server must be ignored by the client and server as if it were never
+// requested."
+func optionInRange(name, value string, low, high int) int {
+	number, err := tftp.ParseDecimal(name, value)
+	if err != nil {
+		return 0
+	}
+	if number < int64(low) {
+		return 0
+	}
+	if number > int64(high) {
+		return 0
+	}
+	return int(number)
 }
 
 // RFC 2347: OACK packet is opcode (2) + option/value NUL-terminated pairs.
@@ -122,15 +180,6 @@ func buildOACK(opts []string) []byte {
 		pkt = append(pkt, o...)
 		pkt = append(pkt, 0)
 	}
-	return pkt
-}
-
-// RFC 1350 Section 2: DATA packet is opcode (2) + block# (2) + data (0-blksize).
-func buildData(block uint16, data []byte) []byte {
-	pkt := make([]byte, 4+len(data))
-	binary.BigEndian.PutUint16(pkt[0:2], tftp.OpDATA)
-	binary.BigEndian.PutUint16(pkt[2:4], block)
-	copy(pkt[4:], data)
 	return pkt
 }
 
@@ -170,13 +219,19 @@ func resolvePath(rootDir, filename string) (string, error) {
 	return resolved, nil
 }
 
-// serve answers the requests that reach conn until conn is closed. Every
-// transfer it starts joins generation, and runs until it ends or generation
-// ends.
+// serve answers the requests that reach conn until conn is closed, under the
+// YANG default limits (serveLimited).
 func serve(generation *transferGeneration, conn *net.UDPConn, rootDir string, sem chan struct{}, log *slog.Logger) {
+	serveLimited(generation, conn, rootDir, sem, defaultLimits(), log)
+}
+
+// serveLimited answers the requests that reach conn until conn is closed.
+// Every transfer it starts joins generation, takes the limits stored in limits
+// when its request arrives, and runs until it ends or generation ends.
+func serveLimited(generation *transferGeneration, conn *net.UDPConn, rootDir string, sem chan struct{}, limits *atomic.Pointer[transferLimits], log *slog.Logger) {
 	// RFC 2347: RRQ with options can be up to 512 octets.
 	buf := make([]byte, 516)
-	for serveRequests(generation, conn, rootDir, sem, buf, log) {
+	for serveRequests(generation, conn, rootDir, sem, limits, buf, log) {
 		// The pass ended on a contained panic; the next one reads on.
 	}
 }
@@ -184,7 +239,7 @@ func serve(generation *transferGeneration, conn *net.UDPConn, rootDir string, se
 // serveRequests is the request task: it answers requests until conn closes,
 // answering false, or until a panic ends the pass, answering true. The client
 // whose request was being handled is then sent an ERROR, RFC 1350 Section 2.
-func serveRequests(generation *transferGeneration, conn *net.UDPConn, rootDir string, sem chan struct{}, buf []byte, log *slog.Logger) (again bool) {
+func serveRequests(generation *transferGeneration, conn *net.UDPConn, rootDir string, sem chan struct{}, limits *atomic.Pointer[transferLimits], buf []byte, log *slog.Logger) (again bool) {
 	var clientAddr *net.UDPAddr // the sender of the request being handled
 	describe := func() taskguard.Context {
 		return taskguard.Context{Unit: "request from " + clientAddr.String()}
@@ -213,7 +268,7 @@ func serveRequests(generation *transferGeneration, conn *net.UDPConn, rootDir st
 		opcode := binary.BigEndian.Uint16(pkt[:2])
 		switch opcode {
 		case tftp.OpRRQ:
-			handleRRQ(generation, conn, pkt, clientAddr, rootDir, sem, log)
+			handleRRQ(generation, conn, pkt, clientAddr, rootDir, sem, limits.Load(), log)
 		case tftp.OpWRQ:
 			resp := tftp.BuildError(tftp.CodeIllegalOperation, "write not supported")
 			if _, wErr := conn.WriteToUDP(resp, clientAddr); wErr != nil {
@@ -223,10 +278,11 @@ func serveRequests(generation *transferGeneration, conn *net.UDPConn, rootDir st
 	}
 }
 
-// handleRRQ answers one read request. The transfer it starts joins
-// generation and is cut when generation ends: its socket is closed, so its
-// next read or write fails and the transfer ends.
-func handleRRQ(generation *transferGeneration, mainConn *net.UDPConn, pkt []byte, clientAddr *net.UDPAddr, rootDir string, sem chan struct{}, log *slog.Logger) {
+// handleRRQ answers one read request under limits, the values running when
+// it arrived. The transfer it starts joins generation and is cut when
+// generation ends: its socket is closed, so its next read or write fails and
+// the transfer ends.
+func handleRRQ(generation *transferGeneration, mainConn *net.UDPConn, pkt []byte, clientAddr *net.UDPAddr, rootDir string, sem chan struct{}, limits *transferLimits, log *slog.Logger) {
 	sendErr := func(code uint16, msg string) {
 		if _, wErr := mainConn.WriteToUDP(tftp.BuildError(code, msg), clientAddr); wErr != nil {
 			log.Debug("tftpserver: error response failed", "error", wErr)
@@ -267,11 +323,20 @@ func handleRRQ(generation *transferGeneration, mainConn *net.UDPConn, pkt []byte
 		negotiatedBlksize = max(negotiatedBlksize, tftp.BlksizeMin)
 	}
 
-	if opts.windowsize {
-		log.Debug("tftpserver: windowsize option not supported, falling back to lockstep")
+	// RFC 2349 Timeout Interval Option Specification: "The specified timeout
+	// value must match the value specified by the client." A timeout outside
+	// 1..255 was left unrequested by parseRRQ, so it is not acknowledged and
+	// the configured interval applies.
+	timeout := limits.timeout
+	if opts.timeout > 0 {
+		timeout = time.Duration(opts.timeout) * time.Second
 	}
+	// RFC 7440 Section 3
+	windowsize := grantWindowsize(opts.windowsizeBlocks, limits.windowsizeMax)
 
-	hasOptions := opts.blksize > 0 || opts.tsize
+	hasOptions := opts.blksize > 0 || opts.tsize || opts.timeout > 0 || windowsize > tftp.WindowsizeMin
+	log.Debug("tftpserver: options granted", "file", filename, "client", clientAddr.String(),
+		"blksize", negotiatedBlksize, "windowsize", windowsize, "timeout", timeout)
 
 	select {
 	case sem <- struct{}{}:
@@ -281,11 +346,29 @@ func handleRRQ(generation *transferGeneration, mainConn *net.UDPConn, pkt []byte
 			opts:       opts,
 			hasOptions: hasOptions,
 			blksize:    negotiatedBlksize,
+			timeout:    timeout,
+			windowsize: windowsize,
 		}
 		go runTransfer(generation, t, sem, log)
 	default:
 		sendErr(tftp.CodeNotDefined, "service unavailable")
 	}
+}
+
+// grantWindowsize answers the window a request for requested blocks is sent
+// with under the server maximum: the smaller of the two, or one block when
+// that is all the grant would be or no window was requested. A window of one
+// block is RFC 1350 lockstep and is not acknowledged in the OACK, so a
+// request for windowsize 1 alone is answered as one with no option.
+//
+// RFC 7440 Section 3: "The specified value MUST be less than or equal to the
+// value specified by the client."
+func grantWindowsize(requested, maximum int) int {
+	granted := min(requested, maximum)
+	if granted <= tftp.WindowsizeMin {
+		return tftp.WindowsizeMin
+	}
+	return granted
 }
 
 // transfer is one accepted read request: what runTransfer serves.
@@ -295,6 +378,12 @@ type transfer struct {
 	opts       rrqOptions
 	hasOptions bool
 	blksize    int // negotiated, within [tftp.BlksizeMin, tftp.BlksizeEthernet]
+	// timeout is the retransmission interval: the acknowledged RFC 2349
+	// timeout, else the configured one.
+	timeout time.Duration
+	// windowsize is the blocks sent before an ACK is awaited, from 1 to the
+	// configured maximum; above 1 it was acknowledged in the OACK.
+	windowsize int
 }
 
 // runTransfer serves one transfer on its own socket and frees its sem slot
@@ -332,25 +421,33 @@ func runTransfer(generation *transferGeneration, t *transfer, sem chan struct{},
 	defer transferTask.Contain(describe, func(*taskguard.Panic) { signalPanic(transferConn, nil) })
 
 	if t.hasOptions {
-		if !sendOACKAndWait(transferConn, t.path, t.opts, t.blksize, log) {
+		if !sendOACKAndWait(transferConn, t, log) {
 			return
 		}
 	}
 
-	serveFile(transferConn, t.path, t.blksize, log)
+	serveFile(transferConn, t, log)
 }
 
 // RFC 2347: send OACK, wait for ACK block 0.
-func sendOACKAndWait(conn *net.UDPConn, filePath string, opts rrqOptions, blksize int, log *slog.Logger) bool {
+func sendOACKAndWait(conn *net.UDPConn, t *transfer, log *slog.Logger) bool {
 	var oackOpts []string
 
-	if opts.blksize > 0 {
-		oackOpts = append(oackOpts, "blksize", strconv.Itoa(blksize))
+	if t.opts.blksize > 0 {
+		oackOpts = append(oackOpts, tftp.OptionBlksize, strconv.Itoa(t.blksize))
+	}
+
+	// RFC 2349 Timeout Interval Option Specification: "If the server is
+	// willing to accept the timeout option, it sends an Option Acknowledgment
+	// (OACK) to the client.  The specified timeout value must match the value
+	// specified by the client."
+	if t.opts.timeout > 0 {
+		oackOpts = append(oackOpts, tftp.OptionTimeout, strconv.Itoa(t.opts.timeout))
 	}
 
 	// RFC 2349: tsize in RRQ with value "0" is a query; respond with file size.
-	if opts.tsize {
-		info, err := os.Stat(filePath)
+	if t.opts.tsize {
+		info, err := os.Stat(t.path)
 		if err != nil {
 			if _, wErr := conn.Write(tftp.BuildError(tftp.CodeFileNotFound, "file not found")); wErr != nil {
 				log.Debug("tftpserver: error response failed", "error", wErr)
@@ -358,7 +455,15 @@ func sendOACKAndWait(conn *net.UDPConn, filePath string, opts rrqOptions, blksiz
 			return false
 		}
 		var buf [20]byte
-		oackOpts = append(oackOpts, "tsize", string(strconv.AppendInt(buf[:0], info.Size(), 10)))
+		oackOpts = append(oackOpts, tftp.OptionTsize, string(strconv.AppendInt(buf[:0], info.Size(), 10)))
+	}
+
+	// RFC 7440 Section 3: "If the server is willing to accept the windowsize
+	// option, it sends an Option Acknowledgment (OACK) to the client.  The
+	// specified value MUST be less than or equal to the value specified by
+	// the client." grantWindowsize made it so.
+	if t.windowsize > tftp.WindowsizeMin {
+		oackOpts = append(oackOpts, tftp.OptionWindowsize, strconv.Itoa(t.windowsize))
 	}
 
 	if len(oackOpts) == 0 {
@@ -371,60 +476,21 @@ func sendOACKAndWait(conn *net.UDPConn, filePath string, opts rrqOptions, blksiz
 	// RFC 2347 Negotiation Protocol: "an ACK (with the data block number
 	// set to 0) is sent by the client to confirm the values in the server's
 	// OACK packet."
-	return sendAndWaitACK(conn, oack, 0, ackBuf)
+	return sendAndWaitACK(conn, oack, 0, ackBuf, t.timeout)
 }
 
-// RFC 1350 Section 4: each transfer uses its own connection (TID pair).
-func serveFile(conn *net.UDPConn, filePath string, blksize int, log *slog.Logger) {
-	f, err := os.Open(filePath) //nolint:gosec // path validated by resolvePath
-	if err != nil {
-		if _, wErr := conn.Write(tftp.BuildError(tftp.CodeFileNotFound, "file not found")); wErr != nil {
-			log.Debug("tftpserver: error response failed", "error", wErr)
-		}
-		return
-	}
-	defer func() {
-		if cErr := f.Close(); cErr != nil {
-			log.Debug("tftpserver: file close failed", "error", cErr)
-		}
-	}()
-
-	readBuf := make([]byte, blksize)
-	ackBuf := make([]byte, 4)
-	block := uint16(1)
-
-	for {
-		n, readErr := f.Read(readBuf)
-		if readErr != nil && readErr != io.EOF {
-			if _, wErr := conn.Write(tftp.BuildError(tftp.CodeNotDefined, "read error")); wErr != nil {
-				log.Debug("tftpserver: error response failed", "error", wErr)
-			}
-			return
-		}
-
-		data := buildData(block, readBuf[:n])
-		if !sendAndWaitACK(conn, data, block, ackBuf) {
-			log.Debug("tftpserver: transfer timeout", "file", filePath, "block", block)
-			return
-		}
-
-		if n < blksize {
-			return
-		}
-		block++
-	}
-}
-
-// sendAndWaitACK sends data and waits for the ACK of block. It retransmits
-// only when ackTimeout expires, at most maxRetransmit times, and returns false
-// when the peer never acknowledges or the socket fails.
-func sendAndWaitACK(conn *net.UDPConn, data []byte, block uint16, ackBuf []byte) bool {
+// sendAndWaitACK sends data and waits for the ACK of block: the OACK and its
+// ACK 0, RFC 2347 Negotiation Protocol. It retransmits only when timeout
+// expires, at most maxRetransmit times, and returns false when the peer never
+// acknowledges or the socket fails.
+func sendAndWaitACK(conn *net.UDPConn, data []byte, block uint16, ackBuf []byte, timeout time.Duration) bool {
 	for attempt := 0; attempt <= maxRetransmit; attempt++ {
 		if _, err := conn.Write(data); err != nil {
 			return false
 		}
 
-		if err := conn.SetReadDeadline(time.Now().Add(ackTimeout)); err != nil {
+		// refuse-by-default: guards runTransfer -- false ends the transfer, the answer a failed socket gets
+		if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
 			return false
 		}
 

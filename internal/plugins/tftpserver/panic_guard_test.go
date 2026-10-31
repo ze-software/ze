@@ -76,7 +76,7 @@ func TestTFTPRequestPanicContained(t *testing.T) {
 // next transfer completes, and the panic is counted and crash-recorded.
 // METHOD: runTransfer is handed a negative block size, a state only a defect
 // produces since handleRRQ clamps it to [tftp.BlksizeMin, tftp.BlksizeEthernet];
-// serveFile's buffer allocation panics on it. The semaphore holds one slot,
+// windowSender.readBlock's slice of the packet buffer panics on it. The semaphore holds one slot,
 // so a read request served through the listener afterwards proves the
 // panicked transfer gave its slot back.
 // PREVENTS: a transfer-driven panic killing the daemon, or leaking the slot
@@ -98,7 +98,10 @@ func TestTFTPTransferPanicContained(t *testing.T) {
 	t.Cleanup(func() { closeUDP(t, client) })
 
 	sem <- struct{}{} // the slot handleRRQ takes before it starts a transfer
-	defective := &transfer{clientAddr: clientAddr, path: filepath.Join(root, "ipxe.efi"), blksize: -1}
+	defective := &transfer{
+		clientAddr: clientAddr, path: filepath.Join(root, "ipxe.efi"),
+		blksize: -1, timeout: ackTimeout, windowsize: 1,
+	}
 	runTransfer(generation, defective, sem, slogutil.DiscardLogger())
 	if code := readErrorCode(t, client); code != tftp.CodeNotDefined {
 		t.Fatalf("the panicked transfer was answered with ERROR code %d, want %d", code, tftp.CodeNotDefined)

@@ -910,6 +910,11 @@ func ValidateValue(typ ValueType, value string) error {
 // restrictions carried by the schema node.
 func ValidateLeafValue(node *LeafNode, value string) error {
 	if err := ValidateValue(node.Type, value); err != nil {
+		// A whole number too large for the type is outside every range the
+		// leaf declares, and the range is what the operator can write.
+		if len(node.Ranges) > 0 && allDigits(value) {
+			return outsideRange(value, node.Ranges)
+		}
 		return err
 	}
 	if len(node.Union) > 0 {
@@ -1039,7 +1044,30 @@ func validateNumericRanges(typ ValueType, value string, ranges []NumericRange) e
 			return nil
 		}
 	}
-	return fmt.Errorf("value %q outside range %s", value, formatNumericRanges(ranges))
+	return outsideRange(value, ranges)
+}
+
+// outsideRange is the refusal of value for a leaf whose ranges it is outside.
+// It names the ranges as the fix.
+func outsideRange(value string, ranges []NumericRange) error {
+	allowed := formatNumericRanges(ranges)
+	return fmt.Errorf("value %q outside range %s: set a value in %s", value, allowed, allowed)
+}
+
+// allDigits reports whether value is one or more ASCII decimal digits.
+func allDigits(value string) bool {
+	if value == "" {
+		return false
+	}
+	for i := range len(value) {
+		if value[i] < '0' {
+			return false
+		}
+		if value[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func parseNumericRangeValue(typ ValueType, value string) (*big.Int, error) {

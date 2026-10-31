@@ -20,5 +20,27 @@
     "producer": "internal/core/fetch/tftp.go::tftpTransfer.data",
     "producer-sha": "f40c89cede0f4f61",
     "break": "body of tftpTransfer.data replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7440-4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerWindowOneIsLockstep",
+    "unit-sha": "74ee59ca89519dc4",
+    "claim-sha": "bb75f7fc9d3b3e4c",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::grantWindowsize",
+    "producer-sha": "19c10a2bca24a6ae",
+    "break": "body of grantWindowsize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7440-4-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerWindowOneIsLockstep",
+    "unit-sha": "74ee59ca89519dc4",
+    "claim-sha": "56c657613aeea0c1",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/window_send.go::windowSender.sendWindow",
+    "producer-sha": "8b3659592f8ac01f",
+    "break": "body of windowSender.sendWindow replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

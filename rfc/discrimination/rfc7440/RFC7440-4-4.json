@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7440-4-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerTimeoutRestartsWindow",
+    "unit-sha": "b456134e9f004fed",
+    "claim-sha": "8be30f6e1cb19c3c",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/window_send.go::serveFile",
+    "producer-sha": "430e7f00660268f5",
+    "break": "body of serveFile replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7440-4-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerTimeoutRestartsWindow",
+    "unit-sha": "b456134e9f004fed",
+    "claim-sha": "119261458fd6e629",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/window_send.go::windowSender.awaitACK",
+    "producer-sha": "eff93503c6136d55",
+    "break": "body of windowSender.awaitACK replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

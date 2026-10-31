@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2349-x-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc2349_timeout_test.go::TestRFC2349ServerDeclinesTimeoutOutOfRange",
+    "unit-sha": "7576597563dceec9",
+    "claim-sha": "16245382fe9a3510",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
+    "producer-sha": "dfea8ae95f777e49",
+    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2349-x-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/rfc2349_timeout_test.go::TestRFC2349ServerDeclinesTimeoutOutOfRange",
+    "unit-sha": "7576597563dceec9",
+    "claim-sha": "732451bd9942fcd9",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::optionInRange",
+    "producer-sha": "b51524de4bff059f",
+    "break": "body of optionInRange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

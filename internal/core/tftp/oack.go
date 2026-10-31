@@ -107,7 +107,7 @@ func grantBlksize(granted *Negotiated, value string, req Request) error {
 	if req.Blksize == 0 {
 		return &OptionError{Reason: "option blksize was not requested"}
 	}
-	size, err := decimal(OptionBlksize, value)
+	size, err := ParseDecimal(OptionBlksize, value)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func grantTsize(granted *Negotiated, value string, req Request) error {
 	if !req.Tsize {
 		return &OptionError{Reason: "option tsize was not requested"}
 	}
-	size, err := decimal(OptionTsize, value)
+	size, err := ParseDecimal(OptionTsize, value)
 	if err != nil {
 		return err
 	}
@@ -150,7 +150,7 @@ func grantWindowsize(granted *Negotiated, value string, req Request) error {
 	if req.Windowsize == 0 {
 		return &OptionError{Reason: "option windowsize was not requested"}
 	}
-	blocks, err := decimal(OptionWindowsize, value)
+	blocks, err := ParseDecimal(OptionWindowsize, value)
 	if err != nil {
 		return err
 	}
@@ -168,8 +168,17 @@ func grantWindowsize(granted *Negotiated, value string, req Request) error {
 	return nil
 }
 
-// decimal reads an option value written as a plain decimal number.
-func decimal(name, value string) (int64, error) {
+// ParseDecimal reads the value of option name written as a plain decimal
+// number: one or more ASCII digits, no sign, no space. It refuses anything
+// else, and a number too large for int64, as an *OptionError. The client
+// reads an OACK value with it and the server an RRQ value, so the two sides
+// read numbers one way.
+//
+// RFC 2348 Blocksize Option Specification and RFC 2349 Timeout Interval
+// Option Specification give each value as a number "specified in ASCII";
+// RFC 7440 Section 3: "The base-10 ASCII string representation of the number
+// of blocks in a window."
+func ParseDecimal(name, value string) (int64, error) {
 	if value == "" {
 		return 0, &OptionError{Reason: "option " + name + " has an empty value"}
 	}

@@ -1,0 +1,13 @@
+{
+  "note": "RFC 7440 Section 4: 'The notified DSND SHOULD send a new data block window whose beginning MUST be set based on the ACK received out of sequence.' TestRFC7440ServerInWindowACKRestartsWindow, windowsize 4: blocks 1-4 sent, ACK 2 must draw exactly 3-6 before the 5 s timeout would (red on a restart from 1 or 5, or on waiting for the timeout); a repeated ACK 2 (the block before the window, a duplicate under RFC 1350 Section 5) and ACK 20 (never sent) draw no DATA; ACK 6 then draws 7-10. Producer serveFile first = acked + 1 with awaitACK's windowPosition.",
+  "requirement_sha": "84da6817e064b740",
+  "tests": {
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerInWindowACKRestartsWindow": "d646170c1035c01e",
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerInWindowACKRestartsWindow#2": "d646170c1035c01e"
+  },
+  "units": {
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerInWindowACKRestartsWindow": "6bbb19639a8dba1e",
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerInWindowACKRestartsWindow#2": "6bbb19639a8dba1e"
+  },
+  "verdict": "enforced"
+}

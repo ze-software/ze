@@ -127,3 +127,28 @@ func TestParseOACKNotAnOACK(t *testing.T) {
 		t.Fatalf("a DATA packet was reported as an option refusal: %v", err)
 	}
 }
+
+// TestParseDecimal reads option values the one way the client and the server
+// both read them: plain ASCII digits only.
+// VALIDATES: ParseDecimal accepts digits and refuses a sign, a space, an empty
+// value and a number too large for int64, each as an *OptionError.
+// PREVENTS: the server reading "+3" or " 4" as a number the client would refuse.
+func TestParseDecimal(t *testing.T) {
+	t.Parallel()
+
+	for value, want := range map[string]int64{"0": 0, "1": 1, "255": 255, "065535": 65535} {
+		got, err := ParseDecimal(OptionTimeout, value)
+		if err != nil {
+			t.Fatalf("ParseDecimal(%q): %v", value, err)
+		}
+		if got != want {
+			t.Fatalf("ParseDecimal(%q) = %d, want %d", value, got, want)
+		}
+	}
+	for _, value := range []string{"", "+3", "-1", " 4", "4 ", "0x10", "99999999999999999999"} {
+		_, err := ParseDecimal(OptionTimeout, value)
+		if _, ok := errors.AsType[*OptionError](err); !ok {
+			t.Fatalf("ParseDecimal(%q) = %v, want an *OptionError", value, err)
+		}
+	}
+}

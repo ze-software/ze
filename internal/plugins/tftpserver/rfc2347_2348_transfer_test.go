@@ -94,9 +94,10 @@ func requireSizes(t *testing.T, got []int, want ...int) {
 // RFC requirement: RFC2347-x-1 positive -- an option the client requested is acknowledged:
 // an RRQ asking only for tsize gets an OACK whose tsize is the file length.
 // RFC requirement: RFC2347-x-1 negative -- the server includes no option the client did not
-// request and never starts negotiation itself: the tsize-only OACK carries no blksize, and
-// an RRQ with no option, or with only the unsupported windowsize, is answered with DATA
-// block 1 and no OACK.
+// request and never starts negotiation itself: the tsize-only OACK carries tsize alone (no
+// blksize, timeout or windowsize), and
+// an RRQ with no option, or with only utimeout, an option Ze does not implement, is
+// answered with DATA block 1 and no OACK.
 func TestRFC2347OnlyTheClientInitiatesNegotiation(t *testing.T) {
 	t.Parallel()
 
@@ -111,11 +112,14 @@ func TestRFC2347OnlyTheClientInitiatesNegotiation(t *testing.T) {
 		if _, ok := opts["blksize"]; ok {
 			t.Fatalf("OACK carries blksize, which the client did not request: %v", opts)
 		}
+		if len(opts) != 1 {
+			t.Fatalf("OACK carries %d options for a request of tsize alone: %v", len(opts), opts)
+		}
 	})
 
 	for name, opts := range map[string][]string{
 		"no option":               nil,
-		"unsupported option only": {"windowsize", "4"},
+		"unsupported option only": {"utimeout", "1000000"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -127,19 +131,20 @@ func TestRFC2347OnlyTheClientInitiatesNegotiation(t *testing.T) {
 }
 
 // RFC requirement: RFC2347-x-3 positive -- an option the server did not acknowledge is
-// ignored as if never requested: windowsize 4, asked beside blksize, is absent from the
-// OACK and no second block arrives before ACK 1 (lockstep, not a window); a declined
+// ignored as if never requested: windowsize 0, outside the RFC 7440 range and asked beside
+// blksize, is absent from the OACK and no second block arrives before ACK 1 (lockstep, not
+// a window); a declined
 // blksize (7 or 65465, asked beside tsize) is absent from the OACK and block 1 carries the
 // default 512 octets.
 // RFC requirement: RFC2347-x-3 negative -- an acknowledged option is used: the blksize 1024
-// acknowledged beside windowsize makes block 1 carry 1024 octets.
+// acknowledged beside that windowsize makes block 1 carry 1024 octets.
 func TestRFC2347UnacknowledgedOptionIsNotUsed(t *testing.T) {
 	t.Parallel()
 
-	t.Run("windowsize beside blksize", func(t *testing.T) {
+	t.Run("out-of-range windowsize beside blksize", func(t *testing.T) {
 		t.Parallel()
 		c := newTransferClient(t, map[string][]byte{"w.bin": patterned(3000)})
-		c.sendRRQ("w.bin", "blksize", "1024", "windowsize", "4")
+		c.sendRRQ("w.bin", "blksize", "1024", "windowsize", "0")
 		opts, _ := c.expectOACK()
 		if _, ok := opts["windowsize"]; ok {
 			t.Fatalf("OACK acknowledges windowsize: %v", opts)
@@ -307,7 +312,7 @@ func TestRFC7440FieldsAreNULTerminatedASCIIStrings(t *testing.T) {
 		}
 		fields++
 	}
-	if pkt[len(pkt)-1] != 0 || fields != 4 {
-		t.Fatalf("OACK is not four NUL-terminated fields (blksize, 1024, tsize, 700): % x", pkt)
+	if pkt[len(pkt)-1] != 0 || fields != 6 {
+		t.Fatalf("OACK is not six NUL-terminated fields (blksize, 1024, tsize, 700, windowsize, 16): % x", pkt)
 	}
 }

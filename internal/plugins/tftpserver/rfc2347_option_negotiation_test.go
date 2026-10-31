@@ -83,7 +83,8 @@ func tftpOptionTestServer(t *testing.T) (*net.UDPAddr, *net.UDPConn) {
 // assembles oackOpts only from client-requested opts, internal/plugins/tftpserver/handler.go).
 // RFC requirement: RFC2347-x-1 negative -- the server MUST NOT include in the OACK
 // any option the client did NOT request: requesting only blksize yields an OACK
-// with no tsize, so the server never volunteers an unrequested option.
+// holding blksize alone (no tsize, timeout or windowsize), so the server never
+// volunteers an unrequested option.
 func TestRFC2347ServerOACKOnlyRequestedOptions(t *testing.T) {
 	t.Parallel()
 	srvAddr, client := tftpOptionTestServer(t)
@@ -100,13 +101,17 @@ func TestRFC2347ServerOACKOnlyRequestedOptions(t *testing.T) {
 	if _, ok := opts["tsize"]; ok {
 		t.Errorf("OACK includes tsize, which the client never requested: %v", opts)
 	}
+	if len(opts) != 1 {
+		t.Errorf("OACK carries %d options for a request of blksize alone: %v", len(opts), opts)
+	}
 }
 
 // RFC requirement: RFC2347-x-3 positive -- an option the server does not
-// acknowledge is ignored as if never requested: an RRQ requesting the unsupported
-// windowsize option beside the supported blksize is answered with an OACK, not
-// an ERROR, and that OACK omits windowsize entirely (producer sendOACKAndWait assembles oackOpts from blksize
-// and tsize only, internal/plugins/tftpserver/handler.go).
+// acknowledge is ignored as if never requested: an RRQ requesting utimeout, an
+// option no RFC defines and Ze does not implement, beside the supported blksize
+// is answered with an OACK, not an ERROR, and that OACK omits utimeout entirely
+// (producer sendOACKAndWait assembles oackOpts from the options Ze grants,
+// internal/plugins/tftpserver/handler.go).
 // RFC requirement: RFC2347-x-3 negative -- the ignore is specific to unacknowledged
 // options: a requested AND supported option (blksize) in the same RRQ IS
 // acknowledged in the OACK, so the server does not blanket-drop every option.
@@ -114,14 +119,14 @@ func TestRFC2347ServerIgnoresUnacknowledgedOption(t *testing.T) {
 	t.Parallel()
 	srvAddr, client := tftpOptionTestServer(t)
 
-	rrq := buildRRQPacketWithOptions("f.bin", "blksize", "1200", "windowsize", "4")
+	rrq := buildRRQPacketWithOptions("f.bin", "blksize", "1200", "utimeout", "1000000")
 	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
 		t.Fatal(err)
 	}
 
 	opts := readServerOACKOptions(t, client)
-	if _, ok := opts["windowsize"]; ok {
-		t.Errorf("OACK acknowledges windowsize, which the server does not support: %v", opts)
+	if _, ok := opts["utimeout"]; ok {
+		t.Errorf("OACK acknowledges utimeout, which the server does not support: %v", opts)
 	}
 	if _, ok := opts["blksize"]; !ok {
 		t.Errorf("OACK dropped the supported blksize option: %v", opts)

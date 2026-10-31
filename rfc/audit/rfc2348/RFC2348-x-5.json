@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-10-30: TestTFTPReadLargeFile changed only by identifier renames (tftp.OpRRQ, tftp.OpDATA, tftp.DefaultBlockSize), values identical, assertions unchanged. Sender-only row (Ze's client never sends DATA). TestRFC2348ZeroLengthBlockEndsAnExactMultiple at a negotiated 1024: 2048 must be [1024,1024,0], 1500 [1024,476], 512 [512], each followed by silence.",
+  "note": "Re-judged 2026-10-31: TestTFTPReadLargeFile and TestTFTPReadExact512 changed only in claim comments; assertions identical: 1500 bytes end on the short block with no extra empty one, 512 bytes end with a zero-length block 2 (readBlock gives an empty block past EOF). Sender-only row. TestRFC2348ZeroLengthBlockEndsAnExactMultiple at 1024: 2048 is [1024,1024,0], 1500 [1024,476], 512 [512], each followed by silence.",
   "requirement_sha": "d886c63462d6f09f",
   "tests": {
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "de0c0b43a90165f3",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "de0c0b43a90165f3",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple": "693976d3d27ffd85",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple#2": "693976d3d27ffd85"
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "beded9cdecae651c",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "beded9cdecae651c",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple": "308de1d07109d478",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple#2": "308de1d07109d478"
   },
   "units": {
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "9d857233194f5ab8",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "d23190128d10b928",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "dda88fc954355eb2",
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple": "7ac97cc460e5ff36",
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple#2": "7ac97cc460e5ff36"
   },

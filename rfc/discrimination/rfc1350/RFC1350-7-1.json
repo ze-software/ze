@@ -26,11 +26,11 @@
     "polarity": "positive",
     "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout",
     "unit-sha": "5940c9519e521e48",
-    "claim-sha": "b5587b07f04cc21e",
+    "claim-sha": "aa97b2a7c74feee7",
     "route": "revert",
-    "producer": "internal/plugins/tftpserver/handler.go::sendAndWaitACK",
-    "producer-sha": "815b4f92d7eacb96",
-    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/plugins/tftpserver/window_send.go::windowSender.awaitACK",
+    "producer-sha": "eff93503c6136d55",
+    "break": "body of windowSender.awaitACK replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1350-7-1",
@@ -39,9 +39,9 @@
     "unit-sha": "66494070c26c35bb",
     "claim-sha": "abf59b3dcd37b24b",
     "route": "revert",
-    "producer": "internal/plugins/tftpserver/handler.go::sendAndWaitACK",
-    "producer-sha": "815b4f92d7eacb96",
-    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/plugins/tftpserver/window_send.go::windowSender.awaitACK",
+    "producer-sha": "eff93503c6136d55",
+    "break": "body of windowSender.awaitACK replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1350-7-1",
@@ -50,8 +50,8 @@
     "unit-sha": "04b921b00fd05861",
     "claim-sha": "25fa884738417753",
     "route": "revert",
-    "producer": "internal/plugins/tftpserver/handler.go::sendAndWaitACK",
-    "producer-sha": "815b4f92d7eacb96",
-    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/plugins/tftpserver/window_send.go::windowSender.awaitACK",
+    "producer-sha": "eff93503c6136d55",
+    "break": "body of windowSender.awaitACK replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

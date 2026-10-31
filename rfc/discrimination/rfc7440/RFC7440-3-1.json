@@ -26,10 +26,10 @@
     "polarity": "positive",
     "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQ",
     "unit-sha": "0f2016420f805b4a",
-    "claim-sha": "c97eeecf12285d66",
+    "claim-sha": "1ba5086bb86cd2c4",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
-    "producer-sha": "9ae8389dc1e0052e",
+    "producer-sha": "dfea8ae95f777e49",
     "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -37,32 +37,32 @@
     "polarity": "negative",
     "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQInvalid",
     "unit-sha": "8ed17cffd8ade3cf",
-    "claim-sha": "b199df09c76c4f79",
+    "claim-sha": "c2a5ea64f29ed025",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
-    "producer-sha": "9ae8389dc1e0052e",
+    "producer-sha": "dfea8ae95f777e49",
     "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7440-3-1",
     "polarity": "positive",
     "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings",
-    "unit-sha": "ad9592a988cff74f",
+    "unit-sha": "d2829203a91cd4a5",
     "claim-sha": "d90299299571e2f4",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
-    "producer-sha": "9ae8389dc1e0052e",
+    "producer-sha": "dfea8ae95f777e49",
     "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7440-3-1",
     "polarity": "negative",
     "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings",
-    "unit-sha": "ad9592a988cff74f",
+    "unit-sha": "d2829203a91cd4a5",
     "claim-sha": "0385b5a09f961c14",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
-    "producer-sha": "9ae8389dc1e0052e",
+    "producer-sha": "dfea8ae95f777e49",
     "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

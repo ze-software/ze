@@ -7,7 +7,7 @@
     "claim-sha": "d79ec655a8d1e268",
     "route": "revert",
     "producer": "internal/core/tftp/oack.go::grantBlksize",
-    "producer-sha": "4cb164c9c909c0d5",
+    "producer-sha": "ffd59f04305b3326",
     "break": "body of grantBlksize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "73147ff89d695942",
     "route": "revert",
     "producer": "internal/core/tftp/oack.go::grantBlksize",
-    "producer-sha": "4cb164c9c909c0d5",
+    "producer-sha": "ffd59f04305b3326",
     "break": "body of grantBlksize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -29,7 +29,7 @@
     "claim-sha": "5f73f1aabb8ee394",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
-    "producer-sha": "9ae8389dc1e0052e",
+    "producer-sha": "dfea8ae95f777e49",
     "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "59ecf4536e8ec31c",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
-    "producer-sha": "9ae8389dc1e0052e",
+    "producer-sha": "dfea8ae95f777e49",
     "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -51,7 +51,7 @@
     "claim-sha": "c33ec0a48aa7208c",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
-    "producer-sha": "9ae8389dc1e0052e",
+    "producer-sha": "dfea8ae95f777e49",
     "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -59,10 +59,10 @@
     "polarity": "positive",
     "unit": "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced",
     "unit-sha": "c56ff2330db336b6",
-    "claim-sha": "cde719c923399fb4",
+    "claim-sha": "36056ae59c052089",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
-    "producer-sha": "9ae8389dc1e0052e",
+    "producer-sha": "dfea8ae95f777e49",
     "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

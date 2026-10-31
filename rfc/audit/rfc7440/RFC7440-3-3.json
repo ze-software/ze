@@ -1,0 +1,13 @@
+{
+  "note": "RFC 7440 Section 3: 'The specified value MUST be less than or equal to the value specified by the client.' TestRFC7440ServerAcknowledgesWindowsize asserts the exact grant: 8 gives 8 and 64 gives 64 (red if the server grants its maximum regardless), 1000 and 65535 give 64 (red if it echoes the request above its maximum), plus granted <= asked on every case; 0, 65536 and abc are not acknowledged beside blksize. Producer grantWindowsize min(requested, maximum) and sendOACKAndWait.",
+  "requirement_sha": "ec5bf109ae0ba458",
+  "tests": {
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerAcknowledgesWindowsize": "d646170c1035c01e",
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerAcknowledgesWindowsize#2": "d646170c1035c01e"
+  },
+  "units": {
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerAcknowledgesWindowsize": "a3d1411723532d79",
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerAcknowledgesWindowsize#2": "a3d1411723532d79"
+  },
+  "verdict": "enforced"
+}

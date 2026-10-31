@@ -1,17 +1,17 @@
 {
-  "note": "Client now tagged. TestRFC1350ClientTimeouts, tftpTimeout 200 ms: a lost first RRQ must be sent again after one timeout, and the transfer the second RRQ starts must complete with 'ok'. A server that never answers must fail the fetch with 'no answer' rather than wait forever (bounded by tftpRetransmitMax). Server half unchanged: TestRFC1350TimeoutEndsTheTransferOfAGonePeer and TestRFC1350TimeoutThenACKContinuesTheTransfer.",
+  "note": "Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. Client half unchanged: TestRFC1350ClientTimeouts (lost RRQ resent after one timeout; a silent server fails with 'no answer'). Server half: TestTFTPRetransmitOnTimeout observes the retransmission the awaitACK deadline triggers, with TestRFC1350TimeoutEndsTheTransferOfAGonePeer and TestRFC1350TimeoutThenACKContinuesTheTransfer.",
   "requirement_sha": "c8b39b85a1e38f5e",
   "tests": {
     "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientTimeouts": "f99149d1d6e6ec30",
     "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientTimeouts#2": "f99149d1d6e6ec30",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "de0c0b43a90165f3",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "beded9cdecae651c",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350TimeoutEndsTheTransferOfAGonePeer": "d286e01d267db4e3",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350TimeoutThenACKContinuesTheTransfer": "d286e01d267db4e3"
   },
   "units": {
     "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientTimeouts": "3990b5f8610458b9",
     "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientTimeouts#2": "3990b5f8610458b9",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "00a67f7c84d32428",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "f87ff9456499e0e8",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350TimeoutEndsTheTransferOfAGonePeer": "195bde41d8569195",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350TimeoutThenACKContinuesTheTransfer": "049c3baf802e9515"
   },

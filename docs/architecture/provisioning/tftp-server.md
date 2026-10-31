@@ -3,7 +3,8 @@
 A PXE ROM fetches the bootloader over TFTP before it switches to HTTP for the
 larger payloads. RFC 1350 is five opcodes, 512-byte blocks, and stop-and-wait,
 so an in-tree server costs less than an external dependency. RFC 2347 option
-negotiation is supported.
+negotiation is supported, with the blksize (RFC 2348), timeout and tsize
+(RFC 2349) and windowsize (RFC 7440) options.
 
 The wire facts the server shares with Ze's TFTP client (the tftp scheme of
 `ze init --from`): opcodes, error codes, the block sizes and the ERROR encoder
@@ -14,7 +15,8 @@ only it uses. The client is described in
 
 <!-- source: internal/core/tftp/tftp.go -- OpRRQ, CodeNotDefined, DefaultBlockSize, BlksizeEthernet, BuildError -->
 <!-- source: internal/plugins/tftpserver/register.go -- plugin registration and engine lifecycle -->
-<!-- source: internal/plugins/tftpserver/handler.go -- parseRRQ, resolvePath, serveFile, sendAndWaitACK -->
+<!-- source: internal/plugins/tftpserver/handler.go -- parseRRQ, handleRRQ, grantWindowsize, sendOACKAndWait, resolvePath, sendAndWaitACK -->
+<!-- source: internal/plugins/tftpserver/window_send.go -- serveFile, windowSender.sendWindow, windowSender.awaitACK, windowPosition -->
 <!-- source: internal/plugins/tftpserver/config.go -- config parsing and verification -->
 
 ## Decisions
@@ -27,10 +29,33 @@ only it uses. The client is described in
   write attack surface.
 - **One ephemeral port per transfer.** RFC 1350 section 4 pairs transfer IDs
   this way. It also keeps the port-69 listener free for new requests.
+- **A window, then a wait.** A transfer sends `windowsize` DATA blocks, then
+  waits for an ACK (RFC 7440 section 4). With no windowsize acknowledged the
+  window is one block, which is RFC 1350 lockstep: a request that names
+  neither option is sent exactly as before. A client's windowsize is granted
+  as the smaller of its request and `max-windowsize` (default 64), and a grant
+  of one block is not acknowledged, so `windowsize 1` alone draws no OACK
+  (tftp-hpa's `negotiate_windowsize` does the same).
+- **Where the next window starts.** An ACK of the window's last block starts
+  the next window after it. An ACK of an earlier block of the window starts a
+  full new window straight after that block, as the RFC 7440 section 4 figure
+  shows. A timeout sends the window again from the block after the last ACK
+  received. Each block is read from the file at its offset, so a window sent
+  again costs no buffer: the transfer holds one block whatever its window.
+  Block numbers wrap at 65535 on the wire, so an ACK is placed by its 16-bit
+  distance from the block before the window.
 - **Only the ACK timeout causes a retransmission.** A duplicate or stale ACK
   gets no DATA in answer (RFC 1350 section 5, the Sorcerer's Apprentice fix):
-  `sendAndWaitACK` keeps reading until the same deadline. After four sends
-  without the expected ACK the transfer ends and its slot is released.
+  the ACK of the block before the window and an ACK of a block not yet sent
+  are ignored, and the wait goes on until the same deadline. After four sends
+  of a window without progress the transfer ends and its slot is released.
+- **The timeout is the client's, or the config's.** A client's RFC 2349
+  timeout of 1 to 255 seconds is acknowledged with its own value and used for
+  the ACK 0 wait and every window. Any other value is not acknowledged (the
+  RFC lets a server decline, never counter-propose), and the transfer uses
+  the `timeout` leaf (default 5 seconds). tftp-hpa's `negotiate_timeout`
+  declines the same way; dnsmasq clamps to 255 instead, which Ze does not
+  copy.
 - **A channel semaphore bounds concurrency.** The `select` with a `default` arm
   rejects instantly instead of blocking, which a wait group or an atomic counter
   would not give.
@@ -41,6 +66,16 @@ only it uses. The client is described in
 <!-- source: internal/plugins/tftpserver/socket_other.go -- the non-Linux fallback -->
 
 ## Config reload
+
+A reload that changes only `timeout` or `max-windowsize`, while every
+`listen-interface` is bound, keeps the listeners, the semaphore and every
+transfer in flight. With an interface left unbound at boot it takes the full
+path below, which tries that interface again; while that interface is still
+missing the strict bind refuses the reload, the limits change included, and
+the running listeners and transfers go on. Each request takes the values
+running when it arrives, so a transfer keeps the timeout and window it
+started with, and the next request gets the new ones.
+<!-- source: internal/plugins/tftpserver/config_tx.go -- tftpServer.install, tftpServer.onlyLimitsChange, limitsOf -->
 
 A reload that changes nothing under `service tftp-server` leaves the server
 alone: `sdk.ConfigTx` finds the parsed config equal to the running one and
@@ -111,9 +146,10 @@ holds no lock.
 - **A file truncated mid-transfer produces either an error packet or a short
   data block**, depending on timing: a read can return zero bytes or an error.
   Both outcomes are correct and a test must accept both.
-- The retransmit tests wait for the real ACK timeout. The abort test takes
-  about 27 seconds of wall clock, four 5-second timeouts and a quiet window. Making the timeout configurable to shorten it would add an
-  option nothing else needs.
+- The RFC 1350 retransmit tests wait for the real five-second ACK timeout. The
+  abort test takes about 27 seconds of wall clock, four 5-second timeouts and
+  a quiet window. The window and timeout tests ask for the RFC 2349 `timeout 1`
+  instead, which keeps them to seconds.
 
 ## Related
 

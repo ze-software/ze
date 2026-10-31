@@ -2,21 +2,21 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Absent options of RFCs the TFTP server implements (RFC 2349 timeout, RFC 7440 windowsize as the sender). A missing RFC feature may wait until after the first release under the owner's release timing, so post-release; Thomas ordered every open item run now |
 | RFC gaps | RFC2349-x-1, RFC2349-x-2, RFC7440-3-3, RFC7440-4-1, RFC7440-4-4, RFC7440-4-5 |
 | Depends | - |
-| Phase | - |
+| Phase | 1/6 |
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Ownership: designed by a subagent of session `bc566aa5-3f69-415d-8c8b-c6f8cdf8adae`
-on 2026-10-31, at that session's order, without `./le spec claim` (the parent
-holds the session marker). The design stops at the approval gate: Thomas has
-not approved it, and the decisions only he can make are in "Owner decisions
-pending" below.
+Ownership: designed and implemented by a subagent of session
+`bc566aa5-3f69-415d-8c8b-c6f8cdf8adae`, claimed with `./le spec claim` on
+2026-10-31 once the TFTP client spec released the marker. Thomas answered the
+four owner decisions on 2026-10-31 (see "Owner decisions" below), which
+approved the design with a config surface added ("Config surface (D-4)").
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -191,12 +191,12 @@ release tag `tftp-hpa-7.2`), dnsmasq at `2463798e0322` (2026-10-26), curl
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No PXE ROM in use sends a timeout or windowsize option whose acknowledgement it then mishandles | iPXE and EDK2 PXE send blksize and tsize; UEFI HTTP boot takes over after the bootloader. No Ze test or doc shows a firmware sending either option | A firmware that requests windowsize but mishandles windows breaks its boot | The existing `test/install/pxe-chainload.ci` run, and a grep of the tftp captures in `test/install/` for the two option names | unvalidated |
-| A-2 | Reading a block by offset (`ReadAt`) gives the same bytes as today's sequential `Read` for a file that does not change during the transfer | `os.File.ReadAt` contract; Traps already accept either outcome for a truncated file | A resent block would differ from the first send | Unit test resends a window after a timeout and compares the bytes with the first send | unvalidated |
-| A-3 | The Ze client's windowsize 4 path (DRCV) is correct, so a failure of the e2e test points at the server | spec-tftp-client closed with `TestRFC7440ClientWindowsize`, `TestRFC7440ClientSequenceError` recorded | An e2e red is misattributed | The tftp-hpa client interop is a second, independent receiver | unvalidated |
-| A-4 | curl 8.23.0 accepts an OACK that acknowledges its timeout and keeps downloading | curl `lib/tftp.c` `tftp_parse_option_ack` ignores option names it does not check (it parses blksize and tsize only) | The timeout interop cannot use curl | The interop test itself | unvalidated |
-| A-5 | tftp-hpa 7.2's client builds from the release tarball on Ze's lab Docker host and requests windowsize 64 by default | tftp-hpa CHANGES (windowsize 64 default since 7.0); `test/interop-tftp/Dockerfile.dnsmasq` shows the source-build pattern | The windowsize interop needs another receiver (BusyBox does not implement windowsize) | Building `test/interop-tftp/Dockerfile.tftp-hpa` | unvalidated |
-| A-6 | Declining "+1200"-style blksize values breaks no client in use | RFC 2348 defines the value as ASCII decimal; Ze's client and every reference client write plain digits | A client that pads its value loses blksize and falls back to 512 | `rfc2348_blksize_test.go` cases, and the PXE `.ci` | unvalidated |
+| A-1 | No PXE ROM in use sends a timeout or windowsize option whose acknowledgement it then mishandles | iPXE and EDK2 PXE send blksize and tsize; UEFI HTTP boot takes over after the bootloader. No Ze test or doc shows a firmware sending either option | A firmware that requests windowsize but mishandles windows breaks its boot | The existing `test/install/pxe-chainload.ci` run, and a grep of the tftp captures in `test/install/` for the two option names | confirmed (2026-10-31): `test/install/` holds no TFTP capture and no `.ci` sends either option; a firmware that does request one now gets RFC 2349/7440 behaviour proven against tftp-hpa 7.2, curl 8.23.0 and Ze's client, and a request with neither keeps the unchanged lockstep path (every RFC 1350 test green with unchanged assertions) |
+| A-2 | Reading a block by offset (`ReadAt`) gives the same bytes as today's sequential `Read` for a file that does not change during the transfer | `os.File.ReadAt` contract; Traps already accept either outcome for a truncated file | A resent block would differ from the first send | Unit test resends a window after a timeout and compares the bytes with the first send | confirmed: `TestRFC7440ServerTimeoutRestartsWindow` and `TestRFC2349ServerAcknowledgesTimeout` compare the resent bytes; `TestTFTPWindowedTransferEdges` matches 65540 blocks byte for byte |
+| A-3 | The Ze client's windowsize 4 path (DRCV) is correct, so a failure of the e2e test points at the server | spec-tftp-client closed with `TestRFC7440ClientWindowsize`, `TestRFC7440ClientSequenceError` recorded | An e2e red is misattributed | The tftp-hpa client interop is a second, independent receiver | confirmed: `TestTFTPHPAWindowsizeInterop` passes with windowsize 64 granted and 64-block windows |
+| A-4 | curl 8.23.0 accepts an OACK that acknowledges its timeout and keeps downloading | curl `lib/tftp.c` `tftp_parse_option_ack` ignores option names it does not check (it parses blksize and tsize only) | The timeout interop cannot use curl | The interop test itself | confirmed: `TestTFTPCurlTimeoutInterop` passes, curl requested `timeout 5` and accepted the OACK echoing it |
+| A-5 | tftp-hpa 7.2's client builds from the release tarball on Ze's lab Docker host and requests windowsize 64 by default | tftp-hpa CHANGES (windowsize 64 default since 7.0); `test/interop-tftp/Dockerfile.dnsmasq` shows the source-build pattern | The windowsize interop needs another receiver (BusyBox does not implement windowsize) | Building `test/interop-tftp/Dockerfile.tftp-hpa` | broken in part, design unaffected: 7.2 has no release tarball (kernel.org lists none), so the Dockerfile clones tag `tftp-hpa-7.2` and refuses any commit but `af23362c585b`; it builds on the Colima `ze` VM and `tftp -V` answers `tftp-hpa 7.2`, which requests windowsize 64 by default |
+| A-6 | Declining "+1200"-style blksize values breaks no client in use | RFC 2348 defines the value as ASCII decimal; Ze's client and every reference client write plain digits | A client that pads its value loses blksize and falls back to 512 | `rfc2348_blksize_test.go` cases, and the PXE `.ci` | confirmed: every RFC 2348 test green unchanged; tftp-hpa 7.2, curl 8.23.0 and Ze's client write plain digits |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -320,13 +320,13 @@ release tag `tftp-hpa-7.2`), dnsmasq at `2463798e0322` (2026-10-26), curl
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | No | No config leaf, unless Thomas chooses one at D-4 |
-| YANG validation constraints | N-A | No leaf added |
-| YANG custom validators | N-A | No leaf added |
+| YANG schema (new RPCs/config) | Yes | `internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang`: `max-windowsize`, `timeout` (D-4) |
+| YANG validation constraints | Yes | `range "1..65535"` and `range "1..255"`, `units` on both |
+| YANG custom validators | N-A | Native range is sufficient |
 | CLI commands/flags | No | No command |
 | CLI grammar (keyword before value) | N-A | No command |
-| Editor autocomplete | N-A | No leaf |
-| Functional test for new RPC/API | N-A | No RPC; the wire path is covered by `init-from-tftp.ci` |
+| Editor autocomplete | N-A | Numeric leaves; YANG type drives the editor |
+| Functional test for new RPC/API | Yes | No RPC; the config leaves get `test/parse/tftp-server-window-timeout.ci`, the wire path `init-from-tftp.ci` |
 | Pipe completeness | N-A | No command output |
 | Env var registration | No | No env var |
 | Doctor check for runtime dependencies | No | No new file path, socket, port, module or binary: the same listener and transfer sockets |
@@ -337,7 +337,7 @@ release tag `tftp-hpa-7.2`), dnsmasq at `2463798e0322` (2026-10-26), curl
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/installation.md` (the tftpserver sentence) |
-| 2 | Config syntax changed? | No | No config change |
+| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md` (new TFTP server section with both leaves); `docs/architecture/config/syntax.md` carries no per-service leaves, unaffected |
 | 3 | CLI command added/changed? | No | No command |
 | 4 | API/RPC added/changed? | No | No RPC |
 | 5 | Plugin added/changed? | No | `docs/guide/plugins.md` lists tftpserver without option detail; nothing there becomes wrong |
@@ -443,7 +443,18 @@ the server maximum then only has to answer the network question (R-6).
 | One strict decimal reader for all numeric options, from `internal/core/tftp` | Keep `Atoi` for blksize | One declaration shared with the client (`ai/rules/principles.md`, declare once); the RFCs define the values as ASCII decimal |
 | Interop peers: curl 8.23.0 for timeout, tftp-hpa 7.2 built from source for windowsize | dnsmasq (a server, not a client); BusyBox tftp (no windowsize) | Each is a client sending the option under test; tftp-hpa 7.2 is its latest release (`ai/META-DECISIONS.md`, latest stable release in labs) |
 
-## Owner decisions pending
+## Owner decisions
+
+Thomas answered on 2026-10-31:
+
+| # | Answer |
+|---|--------|
+| D-1 | The server maximum windowsize is 64 |
+| D-2 | The timeout when the client requests none stays 5 s |
+| D-3 | A client timeout up to 255 s is accepted: the whole RFC 2349 range |
+| D-4 | ADD YANG leaves under `service tftp-server` for the window maximum and the default timeout, defaulting to 64 and 5 s |
+
+The table below is the question as it was put.
 
 | # | Decision | Options | Recommendation | Evidence | What each answer changes |
 |---|----------|---------|----------------|----------|--------------------------|
@@ -451,6 +462,51 @@ the server maximum then only has to answer the network question (R-6).
 | D-2 | Retransmission timeout when the client requests none | Keep 5 s (today), 1 s (tftp-hpa default, RFC 7440 Section 6 example), 2 s (dnsmasq) | Keep 5 s | PXE firmware and the curl duplicate-ACK interop are tuned to 5 s; changing it is a wire change to every PXE client (system-plugins door) | Only transfers without a timeout option; 5 s keeps them byte- and timing-identical |
 | D-3 | Highest client timeout the server accepts | 255 (the RFC range, tftp-hpa, dnsmasq), or a lower ceiling such as 30 above which the option is declined | 255 | RFC 2349 lets a server decline but not counter-propose; a slot is held at most 4 x 255 s = 17 min, and `max-transfers` (default 10) bounds how many | With 255 one client may hold a slot 17 min; with a ceiling, a client asking more falls back to 5 s |
 | D-4 | Make the maximum window or the default timeout configurable | No config (constants), or YANG leaves under `service tftp-server` | No config | No user has asked; the tftp-server page already rejects an option "nothing else needs"; a leaf adds YANG, docs and tests | With leaves the spec grows a config surface (Integration rows 1 to 3 become Yes) |
+
+## Config surface (D-4)
+
+Two leaves in `ze-tftp-server-conf.yang`, under `service tftp-server`, beside
+`max-transfers`, whose naming (`max-` prefix) and parse pattern they follow
+(`ai/rules/config.md`, `ai/patterns/config-option.md`). No env var: neither is
+a debug, bootstrap or safety knob, so no `env.MustRegister`.
+
+| Leaf | Type and range | Default | Units | `ze:help` | `description` (summary) |
+|------|----------------|---------|-------|-----------|-------------------------|
+| `max-windowsize` | `uint16`, `range "1..65535"` (RFC 7440 Section 3) | 64 | blocks (in the description; YANG `units "blocks"`) | Largest RFC 7440 window the server grants | A client's windowsize request is granted as the smaller of the request and this value; a grant of 1 is not acknowledged, so 1 turns windowed sending off |
+| `timeout` | `uint8`, `range "1..255"` (RFC 2349) | 5 | `units seconds` | Seconds to wait for an ACK before resending | Used when the client requests no RFC 2349 timeout; a client's own timeout of 1 to 255 seconds is acknowledged and replaces it for that transfer |
+
+| Behaviour | Design |
+|-----------|--------|
+| Commit-time refusal | YANG `range` refuses an out-of-range value at parse (`validateNumericRanges`, `internal/component/config/schema.go`). Its message today reads `value "0" outside range 1..255` and names no fix, which `ai/rules/user-facing-errors.md` forbids; it gains the fix, `set a value from 1..255`, for every range leaf. `parseConfig` refuses the same out-of-range value with the leaf and the fix in its text, for a delivery that did not pass the parser (pair the check) |
+| Grant | `handleRRQ` reads the running values when the RRQ arrives and stores them in the transfer; nothing in a transfer reads config after it starts |
+| Reload, only these two leaves change | `tftpServer.install` swaps the values the listeners read and keeps the listeners, the semaphore and the generation: no transfer is cut, an in-flight transfer keeps the values it started with, and the next RRQ gets the new ones. A rollback is the same swap |
+| Reload, any other leaf changes | Unchanged: listeners bound again, generation ended, in-flight transfers cut (tftp-server.md "Config reload") |
+| `ServeConn` (fixture, no config) | Uses the YANG defaults, 64 and 5 s, through the same Go constants `parseConfig` defaults to; a test pins the constants to the YANG defaults |
+
+Added acceptance criteria:
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-21 | `max-windowsize 8`, `timeout 2` in config, validated | `ze config validate` exits 0; the server grants at most 8 and resends after 2 s for a client that asks no timeout |
+| AC-22 | `max-windowsize 0`, `65536`; `timeout 0`, `256` | `ze config validate` exits 1, naming the leaf, the range and the fix |
+| AC-23 | Neither leaf set | Grant capped at 64; default timeout 5 s |
+| AC-24 | A reload that changes only `timeout` or `max-windowsize` while a transfer runs | The transfer completes on its starting values; the next RRQ uses the new values; no listener is rebound |
+| AC-25 | `test/parse/tftp-server-window-timeout.ci` | Covers AC-21 and AC-22 through `ze config validate` |
+
+Added tests:
+
+| Test | File | Validates |
+|------|------|-----------|
+| `TestParseConfigWindowAndTimeout` | `internal/plugins/tftpserver/config_test.go` | Defaults, boundaries, refusals with the fix text; the Go defaults equal the YANG defaults |
+| `TestReloadOfTransferValuesKeepsTransfers` | `internal/plugins/tftpserver/config_tx_test.go` | AC-24 |
+| `TestServerUsesConfiguredWindowAndTimeout` | `internal/plugins/tftpserver/rfc7440_window_send_test.go` | AC-21, AC-23 over the socket |
+| `tftp-server-window-timeout` | `test/parse/tftp-server-window-timeout.ci` | AC-25 |
+
+Added files: `internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang` (two
+leaves; the container description's "does not support the windowsize option"
+is corrected), `config.go`, `config_tx.go`, `serve_conn.go`,
+`internal/component/config/schema.go` (the range message),
+`docs/guide/configuration.md` (a TFTP server section), and the tftp-server page.
 
 ## Known Limitations
 - The PXE boot firmware that is Ze's server's main client cannot change, so lockstep without these options must stay byte-identical (AC-14)
@@ -504,3 +560,154 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/post-release/features/spec-tftp-server-timeout-and-windowsize.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- RFC 2349 timeout on the server: `parseRRQ` reads it through `optionInRange` (`tftp.ParseDecimal`, 1..255); `handleRRQ` takes it as the transfer's interval; `sendOACKAndWait` echoes the client's value (`internal/plugins/tftpserver/handler.go`).
+- RFC 7440 windowsize as the sender: `grantWindowsize` (min of request and `max-windowsize`, acknowledged only above 1); `serveFile`, `windowSender.sendWindow`, `readBlock`, `awaitACK`, `windowPosition` in the new `internal/plugins/tftpserver/window_send.go`. Offset reads into one reused packet buffer; `buildData` and the lockstep loop are deleted.
+- Config: YANG leaves `max-windowsize` (1..65535, 64) and `timeout` (1..255 s, 5) in `ze-tftp-server-conf.yang`; `parseConfig`/`rangedLeaf` (`config.go`); `transferLimits` in an `atomic.Pointer` read per request; `tftpServer.install` takes a limits-only path (`onlyLimitsChange`) that keeps listeners and transfers (`config_tx.go`).
+- Shared core: `tftp.OptionTimeout`, `TimeoutMin`/`TimeoutMax`, exported `tftp.ParseDecimal` (`internal/core/tftp`).
+- The generic config range refusal names the fix (`outsideRange`, `allDigits`, `ValidateLeafValue` in `internal/component/config/schema.go`), including a number too large for the type.
+
+### Bugs Found/Fixed
+- The config parser answered an out-of-range value with `value "0" outside range 1..255` and a uint16 overflow with `invalid uint16: "65536"`, neither naming a fix (`ai/rules/user-facing-errors.md`); both now end `set a value in <range>`, covered by `TestValidateLeafValueRangeNamesTheFix` and `test/parse/tftp-server-window-timeout.ci`.
+
+### Documentation Updates
+- `docs/architecture/provisioning/tftp-server.md`: window decisions, restart rules, timeout source, limits-only reload, Traps line; anchors to `window_send.go` and `config_tx.go`.
+- `docs/guide/configuration.md`: new "TFTP Server" section with both leaves and the reload rule.
+- `docs/architecture/testing/interop.md`: "Ze's TFTP server against tftp-hpa and curl options".
+- `features/installation.md`: the tftpserver sentence names RFC 2349 timeout and RFC 7440 windowsize as the sender and the two leaves.
+- `rfc/short/rfc2349.md`, `rfc/short/rfc7440.md`: owned `{gap}` annotations removed, Enrolment reason rewritten (the Support cells are derived since `697558b8ae`).
+
+### Deviations from Plan
+- A fourth RFC-tagged test changed: `TestRFC7440FieldsAreNULTerminatedASCIIStrings` now expects six OACK fields, because windowsize 16 is granted; approved by `ze-test-judge`.
+- `TestTFTPBuildDataPacket` was deleted with `buildData`; approved as a weakening (file unit `tftpserver.handler_test` too).
+- `TestTFTPTransferPanicContained`'s defective literal sets the two new fields so `blksize: -1` still reaches the panic; approved.
+- The `serve` signature is kept (YANG defaults) and `serveLimited` takes the limits source, so the many existing tests that call `serve` did not change.
+- The RFC1350-2-2 negative record on `TestTFTPConcurrentLimit` moved from a gomu mutant on `sendAndWaitACK` to a hand-written mutant on `windowSender.awaitACK`; the Linux-only `TestListenTFTPLoopbackRoundTrip` record moved from a mutant on `handleRRQ` to the revert route in the QEMU guest.
+- tftp-hpa 7.2 ships no tarball, so `Dockerfile.tftp-hpa` clones the tag and refuses any other commit (A-5).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The skeleton said the owned rows were `{not-applicable}` | `e624893a7e` had already made them `{gap}` | Reading `rfc/short/rfc2349.md` at research | Spec Task corrected |
+| assumption | Three RFC 2347 tests would need moving off windowsize | Four RFC-tagged units asserted the old behaviour (also RFC7440-3-1's field count) | First test run after the change | Fourth unit sent to the judge |
+| approach | Test claims cited `handler.go:<line>` and `sendAndWaitACK` for the DATA path | The sender moved to `window_send.go`; the claims went false | Recording `TestTFTPConcurrentLimit` stayed green under an `awaitACK` revert, which led to reading the claim | Claims corrected, judged, re-recorded |
+| assumption | The RFC 2347 x-1 tests still covered "no unrequested option" | With timeout and windowsize grantable, they checked only two of four options absent | The independent RFC audit judged RFC2347-x-1 weak | Both units now require exactly the requested options; judged, re-audited enforced, re-recorded |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Accept timeout 1..255, echo it, use it as the interval | Done | `handler.go` `parseRRQ`, `optionInRange`, `handleRRQ`, `sendOACKAndWait`; `window_send.go` `awaitACK` | |
+| Accept windowsize, answer it no larger than requested, send as DSND | Done | `handler.go` `grantWindowsize`, `sendOACKAndWait`; `window_send.go` `serveFile`, `windowSender` | |
+| Config leaves max-windowsize and timeout (D-4) | Done | `yang/ze-tftp-server-conf.yang`, `config.go` `rangedLeaf`, `config_tx.go` `onlyLimitsChange` | |
+| Refusal names the fix | Done | `schema.go` `outsideRange`, `ValidateLeafValue`; `config.go` `rangedLeaf` | |
+| Records for every owned row and the server RFC2349-x-3 tags | Done | `rfc/discrimination/rfc2349/`, `rfc/discrimination/rfc7440/` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1, AC-2 | Done | `TestRFC2349ServerAcknowledgesTimeout` | |
+| AC-3, AC-4 | Done | `TestRFC2349ServerDeclinesTimeoutOutOfRange` | |
+| AC-5 | Done | `TestRFC7440ServerSendsWindow` | |
+| AC-6, AC-7 | Done | `TestRFC7440ServerAcknowledgesWindowsize` | |
+| AC-8 | Done | `TestRFC7440ServerWindowOneIsLockstep` | |
+| AC-9, AC-12 | Done | `TestRFC7440ServerTimeoutRestartsWindow` | |
+| AC-10, AC-11 | Done | `TestRFC7440ServerInWindowACKRestartsWindow` | |
+| AC-13 | Done | `TestTFTPWindowedTransferEdges`, `TestWindowPositionAcrossTheWrap` | |
+| AC-14 | Done | every RFC 1350 / 2348 / curl duplicate-ACK test green with unchanged assertions | |
+| AC-15 | Done | judge approvals for the four RFC-tagged units | |
+| AC-16 | Done | `./le rfc tree`: rfc2349 3 of 4 (x-4 is the WRQ gap), rfc7440 9 of 9 | |
+| AC-17 | Done | `rfc/discrimination/rfc2349/RFC2349-x-3.json` server entries | |
+| AC-18 | Done | `TestTFTPClientFetchesFromZeServer` asserts `windowsize=4` per fetch; `init-from-tftp.ci` unchanged | |
+| AC-19 | Done | `TestTFTPCurlTimeoutInterop` | forced red recorded |
+| AC-20 | Done | `TestTFTPHPAWindowsizeInterop` | forced red recorded |
+| AC-21, AC-23 | Done | `TestServerUsesConfiguredWindowAndTimeout`, `TestParseConfigWindowAndTimeout` | |
+| AC-22, AC-25 | Done | `test/parse/tftp-server-window-timeout.ci`, `TestValidateLeafValueRangeNamesTheFix` | |
+| AC-24 | Done | `TestReloadOfTransferValuesKeepsTransfers` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| RFC 2349 server tests | Done | `rfc2349_timeout_test.go` | |
+| RFC 7440 server tests and edges | Done | `rfc7440_window_send_test.go` | |
+| Config and reload tests | Done | `config_test.go`, `config_tx_test.go` | |
+| `TestParseDecimal` | Done | `internal/core/tftp/oack_test.go` | |
+| Interop | Done | `tftp_hpa_docker_test.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Create | Done | plus `window_send.go`, `leaf_range_test.go`, `test/parse/tftp-server-window-timeout.ci` |
+
+### Audit Summary
+- **Total items:** 25 ACs, 5 requirements
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The server implements the RFC 2349 timeout | interop + unit | curl 8.23.0 sends `timeout 5`, OACK echoes `timeout 5` (`TestTFTPCurlTimeoutInterop`); red with the echo removed (`scratch/interop-red-timeout.log`) |
+| The server sends as the RFC 7440 DSND | interop + unit | tftp-hpa 7.2 downloads 300 blocks with windowsize 64 granted and 64-block runs (`TestTFTPHPAWindowsizeInterop`); red with `grantWindowsize` forced to 1 (`scratch/interop-red-window.log`) |
+| A request with neither option is unchanged | unit + interop | RFC 1350 suite and `TestTFTPCurlDuplicateACKInterop` green unchanged |
+| The ledger counts the server rows | gate | `./le rfc tree`: rfc7440 mandatory 9 of 9, rfc2349 3 of 4, rfc2347 3 of 3 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None in scope | RFC2349-x-4 (WRQ tsize) is a read-only-server gap outside this spec's owned rows | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/tftp-server-timeout-and-windowsize-bc566aa5-3f69-415d-8c8b-c6f8cdf8adae.md` (28 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 4 (round 1 the full diff; rounds 2 to 4 only the fixes) |
+| Reviewer lenses used | independent `ze-review` agent: logic, window arithmetic, concurrency, docs; independent `ze-test-judge`; independent `ze-rfc-audit` |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | File-level weakening finding for `handler_test.go` not approved | `handler_test.go` | Judge approved `tftpserver.handler_test` |
+| 2 | ISSUE | Enrolment reason named `handleRRQ` and old lines for the tsize producer | `rfc/short/rfc2349.md` | Names `sendOACKAndWait` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `window_send.go`, `rfc2349_timeout_test.go`, `rfc7440_window_send_test.go`, `tftp_hpa_docker_test.go`, `test/parse/tftp-server-window-timeout.ci`, `test/interop-tftp/Dockerfile.tftp-hpa` | yes | `git status` lists each as new |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-25 | scoped packages green | `go test -race` over tftpserver, core/tftp, core/fetch, component/config: all `ok` (`scratch/t4.log`); parse suite green but `iface-disable-flag-refuses-value` (not this change) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze init --from tftp://` | `test/plugin/init-from-tftp.ci` | unchanged file; its server path now grants windowsize 4, which `TestTFTPClientFetchesFromZeServer` asserts |
+| Config leaves | `test/parse/tftp-server-window-timeout.ci` | passes in the parse suite |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1..A-6 | confirmed (A-5 broken in part, design unaffected) | see the Assumptions table |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| tftp-server.md, configuration.md, interop.md, installation.md | reviewer rounds 2 and 3 checked them against `install`, `onlyLimitsChange`, `bindTFTP`, `restore` | yes; `./le doc check all` reports nothing on these pages |
+

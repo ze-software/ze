@@ -1,0 +1,97 @@
+# Test: tftp-server-window-timeout
+# VALIDATES: the service tftp-server leaves max-windowsize (RFC 7440, 1..65535)
+# and timeout (RFC 2349, 1..255 seconds) through `ze config validate`: the last
+# valid values load, and a value outside either range is refused with the leaf,
+# the range and the fix (spec-tftp-server-timeout-and-windowsize AC-21, AC-22,
+# AC-25).
+# PREVENTS: an out-of-range window or timeout accepted into the config, or a
+# refusal that names no fix.
+
+stdin=valid:terminator=EOF_VALID
+service {
+    tftp-server {
+        enabled true
+        listen-interface eth0
+        root-directory /var/lib/tftp
+        max-windowsize 65535
+        timeout 255
+    }
+}
+EOF_VALID
+
+stdin=lowest:terminator=EOF_LOWEST
+service {
+    tftp-server {
+        enabled true
+        listen-interface eth0
+        root-directory /var/lib/tftp
+        max-windowsize 1
+        timeout 1
+    }
+}
+EOF_LOWEST
+
+stdin=windowzero:terminator=EOF_WINDOWZERO
+service {
+    tftp-server {
+        enabled true
+        listen-interface eth0
+        root-directory /var/lib/tftp
+        max-windowsize 0
+    }
+}
+EOF_WINDOWZERO
+
+stdin=windowabove:terminator=EOF_WINDOWABOVE
+service {
+    tftp-server {
+        enabled true
+        listen-interface eth0
+        root-directory /var/lib/tftp
+        max-windowsize 65536
+    }
+}
+EOF_WINDOWABOVE
+
+stdin=timeoutzero:terminator=EOF_TIMEOUTZERO
+service {
+    tftp-server {
+        enabled true
+        listen-interface eth0
+        root-directory /var/lib/tftp
+        timeout 0
+    }
+}
+EOF_TIMEOUTZERO
+
+stdin=timeoutabove:terminator=EOF_TIMEOUTABOVE
+service {
+    tftp-server {
+        enabled true
+        listen-interface eth0
+        root-directory /var/lib/tftp
+        timeout 256
+    }
+}
+EOF_TIMEOUTABOVE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=valid
+expect=exit:code=0
+cmd=foreground:seq=2:exec=ze config validate -:stdin=lowest
+expect=exit:code=0
+cmd=foreground:seq=3:exec=ze config validate -:stdin=windowzero
+expect=exit:code=1
+expect=stdout:contains=invalid value for max-windowsize
+expect=stdout:contains=set a value in 1..65535
+cmd=foreground:seq=4:exec=ze config validate -:stdin=windowabove
+expect=exit:code=1
+expect=stdout:contains=invalid value for max-windowsize
+expect=stdout:contains=set a value in 1..65535
+cmd=foreground:seq=5:exec=ze config validate -:stdin=timeoutzero
+expect=exit:code=1
+expect=stdout:contains=invalid value for timeout
+expect=stdout:contains=set a value in 1..255
+cmd=foreground:seq=6:exec=ze config validate -:stdin=timeoutabove
+expect=exit:code=1
+expect=stdout:contains=invalid value for timeout
+expect=stdout:contains=set a value in 1..255

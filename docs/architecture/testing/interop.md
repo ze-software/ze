@@ -2424,6 +2424,31 @@ requests nor generates acknowledgments.
 The new carrier still owes green and forced-red execution evidence.
 <!-- source: internal/plugins/tftpserver/tftp_curl_docker_test.go -- TestTFTPCurlDuplicateACKInterop, curlTFTPRelay.transfer -->
 
+### Ze's TFTP server against tftp-hpa and curl options
+
+Two Linux, Docker-tagged tests in `tftp_hpa_docker_test.go` drive Ze's
+production TFTP handlers (`ServeConn`) with independent clients, through a
+relay that copies every datagram both ways and records the client's RRQ
+options, the server's OACK and the longest run of DATA blocks between two
+ACKs. The relay constructs nothing.
+
+- `TestTFTPHPAWindowsizeInterop` builds the tftp-hpa 7.2 client from its
+  release tag (`test/interop-tftp/Dockerfile.tftp-hpa`, which refuses any
+  other commit) and downloads a 300-block file twice: with the client's
+  default request (windowsize 64) and with `-W 1000`. Each must be granted
+  windowsize 64, be sent in windows (64 DATA blocks between ACKs), and match
+  the file's SHA-256. With `grantWindowsize` forced to one block the OACK
+  carries no windowsize and the test goes red.
+- `TestTFTPCurlTimeoutInterop` runs curl 8.23.0 with its default options,
+  whose RRQ carries `timeout 5` for `--max-time 25`. The OACK must echo that
+  timeout and curl must deliver the exact file. With the timeout left out of
+  the OACK the test goes red.
+
+Both run on a Mac the way the dnsmasq test below does: the test binary is
+cross-built with `-tags docker` and run in a `docker:cli` container on the
+`ze` Colima VM's host network.
+<!-- source: internal/plugins/tftpserver/tftp_hpa_docker_test.go -- TestTFTPHPAWindowsizeInterop, TestTFTPCurlTimeoutInterop, optionRelay -->
+
 ### Ze's TFTP client against dnsmasq
 
 The Linux, Docker-tagged `TestTFTPClientDnsmasqInterop` builds dnsmasq 2.91

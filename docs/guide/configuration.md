@@ -4167,6 +4167,48 @@ BIOS bootfile.
 <!-- source: internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang -- DHCP server config schema -->
 <!-- source: internal/plugins/dhcpserver/config.go -- parseConfig, parseRanges, parsePXEConfig -->
 
+### TFTP Server
+
+The TFTP server serves files read-only, for PXE boot and for
+`ze init --from tftp://`. It refuses every write request.
+
+```
+service {
+    tftp-server {
+        enabled true;
+        listen-interface eth0;
+        root-directory /var/lib/tftp;
+        max-transfers 10;
+        max-windowsize 64;
+        timeout 5;
+    }
+}
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `enabled` | boolean | `false` | Serve TFTP. `root-directory` is then required. |
+| `listen-interface` | list of interfaces | (none) | One UDP socket per interface, bound with `SO_BINDTODEVICE`. |
+| `root-directory` | string | (none) | The directory files are served from. A path that leaves it is refused. |
+| `max-transfers` | 1-1000 | `10` | Transfers at once, across every listener. Over the limit a request gets the error "service unavailable". |
+| `max-windowsize` | 1-65535 blocks | `64` | The largest RFC 7440 window granted. A client gets the smaller of its request and this value; `1` turns windowed sending off. |
+| `timeout` | 1-255 seconds | `5` | How long Ze waits for an ACK before it sends again, for a client that asks for no timeout. A client's own RFC 2349 timeout from 1 to 255 seconds is used instead. |
+
+A value outside its range is refused when the config is validated or
+committed, and the error names the range to use. A reload that changes only
+`max-windowsize` or `timeout` cuts no transfer: a transfer in flight keeps the
+values it started with, and the next request gets the new ones. A reload that
+changes any other leaf, or that finds an interface the server could not bind
+at boot, binds the listeners again and cuts the transfers in flight; the
+client fetches the file again. Such a reload binds every interface or none, so
+while an interface it names is still missing it is refused and rolled back, a
+`timeout` or `max-windowsize` change included, and the running server goes on
+as it was.
+
+<!-- source: internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang -- TFTP server config schema -->
+<!-- source: internal/plugins/tftpserver/config.go -- parseConfig, rangedLeaf -->
+<!-- source: internal/plugins/tftpserver/config_tx.go -- tftpServer.install, tftpServer.onlyLimitsChange -->
+
 ### Reactor Settings
 
 Configure reactor behavior under `environment { reactor { } }`:

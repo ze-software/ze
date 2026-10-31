@@ -1,13 +1,17 @@
 {
-  "note": "TestRFC7440ClientWindowOneIsLockstep now uses the shared shortenTFTP (tftpTimeout 1 s, expectACK waits 500 ms). With windowsize 1, every DATA must draw its own ACK within tftpTimeout/2, before the next DATA is sent, so lockstep timing is now bounded. Block 3, sent while block 2 is expected, must draw nothing for 300 ms and must not be written, and the file must hold each block once. Observed red under the overlay mutant that ignores the granted windowsize: 'client sent 00 04 00 01, want nothing'.",
+  "note": "Re-judged 2026-10-31: the server now sends windows and gained TestRFC7440ServerWindowOneIsLockstep: windowsize 1 alone draws DATA 1 with no OACK, then silence for 1 s before ACK 1, then block 2; beside blksize 1024, windowsize 1 is left out of the OACK and the transfer is still lockstep. A sender that streams a second block before the ACK is red. grantWindowsize returns 1 for a request of 1, so the transfer takes the same serveFile path as an RFC 1350 request. Client TestRFC7440ClientWindowOneIsLockstep unchanged (each DATA draws its ACK within tftpTimeout/2; an out-of-order block draws nothing).",
   "requirement_sha": "ccfcd419f85f9d9e",
   "tests": {
     "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowOneIsLockstep": "ba0487920fe3a0de",
-    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowOneIsLockstep#2": "ba0487920fe3a0de"
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowOneIsLockstep#2": "ba0487920fe3a0de",
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerWindowOneIsLockstep": "d646170c1035c01e",
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerWindowOneIsLockstep#2": "d646170c1035c01e"
   },
   "units": {
     "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowOneIsLockstep": "5233c47f7ba92d0d",
-    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowOneIsLockstep#2": "5233c47f7ba92d0d"
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowOneIsLockstep#2": "5233c47f7ba92d0d",
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerWindowOneIsLockstep": "15b0a76e600f3d1d",
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerWindowOneIsLockstep#2": "15b0a76e600f3d1d"
   },
   "verdict": "enforced"
 }

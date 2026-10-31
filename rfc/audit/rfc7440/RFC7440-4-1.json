@@ -1,0 +1,13 @@
+{
+  "note": "RFC 7440 Section 4: 'The DSND MUST cyclically send to the DRCV the agreed windowsize consecutive data blocks before normally stopping and waiting for the ACK of the transferred window.' TestRFC7440ServerSendsWindow, windowsize 4 over a 9-block file: blocks 1-4 in order, 1 s silence before ACK 4, blocks 5-8, silence before ACK 8, final short block 9, silence after its ACK, bytes equal the file. A sender that streams past the window, sends fewer than four, or keeps lockstep is red. Producer windowSender.sendWindow then awaitACK.",
+  "requirement_sha": "71ebe92784ea199f",
+  "tests": {
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerSendsWindow": "d646170c1035c01e",
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerSendsWindow#2": "d646170c1035c01e"
+  },
+  "units": {
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerSendsWindow": "f7f8e39d6322a21e",
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerSendsWindow#2": "f7f8e39d6322a21e"
+  },
+  "verdict": "enforced"
+}

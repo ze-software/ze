@@ -7,7 +7,7 @@
     "claim-sha": "88682a696ac12ceb",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-    "producer-sha": "235d333f3c69abf1",
+    "producer-sha": "ec76bb3bdad9249a",
     "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "588c58bb78dde23d",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-    "producer-sha": "235d333f3c69abf1",
+    "producer-sha": "ec76bb3bdad9249a",
     "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

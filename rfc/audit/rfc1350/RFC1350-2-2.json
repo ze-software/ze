@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-10-30 by an independent auditor: the handler_test units changed only by identifier renames to internal/core/tftp (opX->tftp.OpX, errX->tftp.CodeX, defaultBlockSize->tftp.DefaultBlockSize), constant values identical, assertions unchanged. The operative MUST is the sender waiting for the ACK: TestRFC1350LockstepWaitsForTheACK requires block 1 to be octets 0..511, silence for 1 s with block 1 unacked, then block 2 = octets 512..1023 after ACK 1. The receiver's duty to ACK every DATA is RFC1350-2-3's subject.",
+  "note": "Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. The operative MUST is the sender waiting for the ACK: TestRFC1350LockstepWaitsForTheACK requires silence for 1 s with block 1 unacked, then block 2 after ACK 1; TestTFTPConcurrentLimit holds an unacked transfer in awaitACK so the second request is refused.",
   "requirement_sha": "6e51c71ee33b5d30",
   "tests": {
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit": "de0c0b43a90165f3",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "de0c0b43a90165f3",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit": "beded9cdecae651c",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "beded9cdecae651c",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK": "d286e01d267db4e3",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK#2": "d286e01d267db4e3"
   },
   "units": {
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit": "b198b8ad7039604a",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "9d857233194f5ab8",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit": "91e662cd931c8555",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "dda88fc954355eb2",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK": "261ca4e70842cd88",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK#2": "261ca4e70842cd88"
   },

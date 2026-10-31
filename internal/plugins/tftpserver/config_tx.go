@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
+	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -54,7 +57,42 @@ type tftpServer struct {
 	// cuts every transfer started under the running config. It is nil until
 	// the first install, and endTransfers names that guard.
 	generation *transferGeneration
-	log        *slog.Logger
+	// limits holds the transfer limits of the running config, which each
+	// listener reads when a request arrives. An install that changes only
+	// them swaps this value and keeps the listeners and the transfers.
+	limits atomic.Pointer[transferLimits]
+	log    *slog.Logger
+}
+
+// limitsOf answers the transfer limits cfg sets.
+func limitsOf(cfg tftpConfig) *transferLimits {
+	return &transferLimits{
+		timeout:       time.Duration(cfg.Timeout) * time.Second,
+		windowsizeMax: cfg.MaxWindowsize,
+	}
+}
+
+// onlyLimitsChange reports whether cfg differs from the running config in the
+// transfer limits alone, while every interface of the running config is
+// served: the listeners, the root directory and the semaphore then stay.
+func (s *tftpServer) onlyLimitsChange(cfg tftpConfig) bool {
+	running := s.running
+	if !running.Enabled {
+		return false
+	}
+	if !cfg.Enabled {
+		return false
+	}
+	if len(s.listeners) != len(running.ListenInterfaces) {
+		return false
+	}
+	if running.RootDirectory != cfg.RootDirectory {
+		return false
+	}
+	if running.MaxTransfers != cfg.MaxTransfers {
+		return false
+	}
+	return slices.Equal(running.ListenInterfaces, cfg.ListenInterfaces)
 }
 
 // install makes cfg the running config, or returns an error and leaves the
@@ -71,14 +109,28 @@ type tftpServer struct {
 // bound either, the error wraps sdk.ErrRunningConfigLost (restore), so the
 // transaction's rollback installs the running config again or restarts the
 // plugin.
+//
+// An install that changes only the transfer limits (timeout, max-windowsize)
+// stores them and keeps the listeners, the semaphore and the generation: no
+// transfer is cut, a transfer in flight keeps the limits it started with, and
+// the next request takes the new ones.
 func (s *tftpServer) install(cfg tftpConfig) error {
+	if s.onlyLimitsChange(cfg) {
+		s.limits.Store(limitsOf(cfg))
+		s.running = cfg
+		s.log.Info("tftpserver: config applied",
+			"timeout", cfg.Timeout, "max-windowsize", cfg.MaxWindowsize)
+		return nil
+	}
 	served := s.listeners
 	s.closeListeners()
+	s.limits.Store(limitsOf(cfg))
 	generation := newTransferGeneration()
 	sem := make(chan struct{}, cfg.MaxTransfers)
-	listeners, err := bindTFTP(generation, cfg, sem, s.log, !s.boot)
+	listeners, err := bindTFTP(generation, cfg, sem, &s.limits, s.log, !s.boot)
 	if err != nil {
 		generation.end(s.log)
+		s.limits.Store(limitsOf(s.running))
 		return s.restore(served, err)
 	}
 	s.endTransfers()
@@ -117,7 +169,7 @@ func (s *tftpServer) restore(served []tftpListener, cause error) error {
 			continue
 		}
 		s.listeners = append(s.listeners, tftpListener{iface: previous.iface, conn: conn})
-		go serve(s.generation, conn, s.running.RootDirectory, s.sem, s.log)
+		go serveLimited(s.generation, conn, s.running.RootDirectory, s.sem, &s.limits, s.log)
 	}
 	if len(lost) == 0 {
 		return cause
@@ -161,7 +213,7 @@ func listenInterface(ifName string, log *slog.Logger) (*net.UDPConn, error) {
 // serve. A device ze's own `interface {}` config creates exists by then,
 // because the server starts after the interface plugin (StartAfter in init);
 // a device that appears later is served only after the next reload.
-func bindTFTP(generation *transferGeneration, cfg tftpConfig, sem chan struct{}, log *slog.Logger, strict bool) ([]tftpListener, error) {
+func bindTFTP(generation *transferGeneration, cfg tftpConfig, sem chan struct{}, limits *atomic.Pointer[transferLimits], log *slog.Logger, strict bool) ([]tftpListener, error) {
 	if !cfg.Enabled {
 		return nil, nil
 	}
@@ -189,13 +241,15 @@ func bindTFTP(generation *transferGeneration, cfg tftpConfig, sem chan struct{},
 		return nil, nil
 	}
 	for _, ln := range listeners {
-		go serve(generation, ln.conn, cfg.RootDirectory, sem, log)
+		go serveLimited(generation, ln.conn, cfg.RootDirectory, sem, limits, log)
 	}
 	log.Info("tftpserver: started",
 		"root-directory", cfg.RootDirectory,
 		"interfaces", cfg.ListenInterfaces,
 		"listeners", len(listeners),
-		"max-transfers", cfg.MaxTransfers)
+		"max-transfers", cfg.MaxTransfers,
+		"timeout", cfg.Timeout,
+		"max-windowsize", cfg.MaxWindowsize)
 	return listeners, nil
 }
 

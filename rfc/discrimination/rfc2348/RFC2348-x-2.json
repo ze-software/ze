@@ -7,7 +7,7 @@
     "claim-sha": "24faf97a8ec54538",
     "route": "revert",
     "producer": "internal/core/tftp/oack.go::grantBlksize",
-    "producer-sha": "4cb164c9c909c0d5",
+    "producer-sha": "ffd59f04305b3326",
     "break": "body of grantBlksize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "7cf5654921c61dae",
     "route": "revert",
     "producer": "internal/core/tftp/oack.go::grantBlksize",
-    "producer-sha": "4cb164c9c909c0d5",
+    "producer-sha": "ffd59f04305b3326",
     "break": "body of grantBlksize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

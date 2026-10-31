@@ -343,3 +343,63 @@ func TestConfigTxReloadThatLosesEveryRunningInterfaceRepairs(t *testing.T) {
 		t.Fatalf("after the re-commit %d listeners serve, want 1", len(srv.listeners))
 	}
 }
+
+// TestReloadOfTransferValuesKeepsTransfers proves AC-24: a reload that changes
+// only timeout and max-windowsize cuts no transfer and rebinds no listener. The
+// transfer in flight keeps the window it started with, and the next request
+// takes the new one.
+// Method: a client starts a transfer under max-windowsize 4 and reads its
+// first window; max-windowsize 2 and timeout 1 are applied; the client
+// acknowledges the window and gets a full window of 4 again, while a second
+// request is granted 2.
+// VALIDATES: the limits-only path of tftpServer.install.
+// PREVENTS: a timeout change cutting every PXE boot in flight, and a running
+// transfer whose window changes under it.
+func TestReloadOfTransferValuesKeepsTransfers(t *testing.T) {
+	tx, srv, _ := newTestTFTPConfigTx(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "boot.bin"), make([]byte, 12*512), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	sections := func(window, timeout string) []sdk.ConfigSection {
+		return []sdk.ConfigSection{{Root: configRootService, Data: `{"service":{"tftp-server":{"enabled":"true",` +
+			`"listen-interface":["eth0"],"root-directory":"` + root + `","max-transfers":"4",` +
+			`"max-windowsize":"` + window + `","timeout":"` + timeout + `"}}}`}}
+	}
+	if err := tx.Configure(sections("4", "5")); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	listener := srv.listeners[0].conn
+	server, ok := listener.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("listener address is %T", listener.LocalAddr())
+	}
+	running := newTransferClientFor(t, server)
+	running.sendRRQ("boot.bin", "windowsize", "8")
+	opts, _ := running.expectOACK()
+	if opts["windowsize"] != "4" {
+		t.Fatalf("OACK windowsize = %q, want the configured 4", opts["windowsize"])
+	}
+	running.ack(0)
+	running.expectWindow(1, 4)
+
+	if err := tx.Verify(sections("2", "1")); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if err := tx.Apply(); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if srv.listeners[0].conn != listener {
+		t.Fatal("a reload of timeout and max-windowsize bound the listener again")
+	}
+
+	running.ack(4)
+	running.expectWindow(5, 4)
+
+	next := newTransferClientFor(t, server)
+	next.sendRRQ("boot.bin", "windowsize", "8")
+	opts, _ = next.expectOACK()
+	if opts["windowsize"] != "2" {
+		t.Fatalf("OACK windowsize after the reload = %q, want the new 2", opts["windowsize"])
+	}
+}

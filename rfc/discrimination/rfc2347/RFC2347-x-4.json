@@ -1,17 +1,6 @@
 [
   {
     "rid": "RFC2347-x-4",
-    "polarity": "positive",
-    "unit": "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientUsesOnlyAcknowledgedOptions",
-    "unit-sha": "03b58ae10580cf1d",
-    "claim-sha": "d73549412b89d75a",
-    "route": "revert",
-    "producer": "internal/core/tftp/oack.go::grantBlksize",
-    "producer-sha": "4cb164c9c909c0d5",
-    "break": "body of grantBlksize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC2347-x-4",
     "polarity": "negative",
     "unit": "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientUsesOnlyAcknowledgedOptions",
     "unit-sha": "03b58ae10580cf1d",
@@ -20,5 +9,16 @@
     "producer": "internal/core/fetch/tftp.go::tftpTransfer.run",
     "producer-sha": "b956a32ad23febb5",
     "break": "body of tftpTransfer.run replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2347-x-4",
+    "polarity": "positive",
+    "unit": "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientUsesOnlyAcknowledgedOptions",
+    "unit-sha": "03b58ae10580cf1d",
+    "claim-sha": "d73549412b89d75a",
+    "route": "revert",
+    "producer": "internal/core/tftp/oack.go::grantBlksize",
+    "producer-sha": "ffd59f04305b3326",
+    "break": "body of grantBlksize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

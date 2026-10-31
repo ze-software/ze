@@ -1,22 +1,24 @@
 // VALIDATES: Ze's TFTP client (the tftp scheme of internal/core/fetch, the
 // path `ze init --from tftp://` takes) fetches files from Ze's TFTP server
-// byte for byte: blksize and tsize are negotiated, the unsupported windowsize
-// falls back to lockstep, a file that is an exact multiple of the block size
-// ends on its empty block, and the digest check passes.
+// byte for byte: blksize and tsize are negotiated, the client's windowsize 4 is
+// granted and the file is sent four blocks to a window (the server's Debug line
+// names the grant), a file that is an exact multiple of the block size ends on
+// its empty block, and the digest check passes.
 // PREVENTS: a client and server that each pass their own tests but disagree
 // on the wire.
 package tftpserver
 
 import (
 	"crypto/sha256"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/fetch"
-	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/core/tftp"
 )
@@ -27,7 +29,8 @@ func TestTFTPClientFetchesFromZeServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stop := ServeConn(conn, rootDir, 4, slogutil.DiscardLogger())
+	var serverLog syncBuf
+	stop := ServeConn(conn, rootDir, 4, slog.New(slog.NewTextHandler(&serverLog, &slog.HandlerOptions{Level: slog.LevelDebug})))
 	t.Cleanup(stop)
 	addr, ok := conn.LocalAddr().(*net.UDPAddr)
 	if !ok {
@@ -70,4 +73,9 @@ func TestTFTPClientFetchesFromZeServer(t *testing.T) {
 		})
 	}
 
+	// RFC 7440 Section 3: the client asked for windowsize 4, and the server
+	// granted all of it to every fetch.
+	if granted := strings.Count(serverLog.String(), "windowsize=4"); granted != len(sizes) {
+		t.Fatalf("the server granted windowsize 4 to %d of %d fetches:\n%s", granted, len(sizes), serverLog.String())
+	}
 }

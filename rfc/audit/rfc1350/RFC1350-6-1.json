@@ -1,13 +1,13 @@
 {
-  "note": "Re-judged 2026-10-30 by an independent auditor: the handler_test units changed only by identifier renames to internal/core/tftp (opX->tftp.OpX, errX->tftp.CodeX, defaultBlockSize->tftp.DefaultBlockSize), constant values identical, assertions unchanged. Sender-only row (the last DATA's sender; Ze's client never sends DATA). TestRFC1350LastDATARetransmittedUntilAcknowledged: the unacked last DATA is retransmitted byte for byte within ackTimeout+2 s, and after ACK 2 silence for ackTimeout+2 s.",
+  "note": "Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. TestRFC1350LastDATARetransmittedUntilAcknowledged and TestTFTPRetransmitOnTimeout: the unacked last DATA is resent byte for byte after the timeout (serveFile resends the window from first on errNoACK), and after its ACK silence follows.",
   "requirement_sha": "1e3573f72b4f1ee9",
   "tests": {
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "de0c0b43a90165f3",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "beded9cdecae651c",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LastDATARetransmittedUntilAcknowledged": "d286e01d267db4e3",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LastDATARetransmittedUntilAcknowledged#2": "d286e01d267db4e3"
   },
   "units": {
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "00a67f7c84d32428",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "f87ff9456499e0e8",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LastDATARetransmittedUntilAcknowledged": "aded57fd75b39894",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LastDATARetransmittedUntilAcknowledged#2": "aded57fd75b39894"
   },

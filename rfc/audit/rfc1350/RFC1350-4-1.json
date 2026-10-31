@@ -1,13 +1,13 @@
 {
-  "note": "Re-judged 2026-10-30 by an independent auditor: the handler_test units changed only by identifier renames to internal/core/tftp (opX->tftp.OpX, errX->tftp.CodeX, defaultBlockSize->tftp.DefaultBlockSize), constant values identical, assertions unchanged. The numbering is the sender's: TestTFTPReadRequest asserts block 1 first, TestTFTPReadLargeFile asserts 1,2,3. Single-polarity marker holds for the server.",
+  "note": "Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. Numbering is the sender's: TestTFTPReadRequest asserts block 1 first, TestTFTPReadLargeFile asserts 1,2,3 (serveFile starts first at 1, sendWindow writes first+sent). Single-polarity marker holds for the server.",
   "requirement_sha": "c3d583281c51b282",
   "tests": {
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "de0c0b43a90165f3",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "de0c0b43a90165f3"
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "beded9cdecae651c",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "beded9cdecae651c"
   },
   "units": {
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "9d857233194f5ab8",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "354ff030a5da75c3"
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "dda88fc954355eb2",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "af67f92e745fc573"
   },
   "verdict": "enforced"
 }

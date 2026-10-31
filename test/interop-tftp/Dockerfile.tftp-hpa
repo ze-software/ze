@@ -1,0 +1,22 @@
+# tftp-hpa client for internal/plugins/tftpserver/tftp_hpa_docker_test.go.
+# tftp-hpa 7.2 is the latest upstream release (tag tftp-hpa-7.2, commit
+# af23362c585b, published as a git tag with no release tarball), so the client
+# is built from that tag's source, and the build refuses any other commit. Its
+# client requests blksize, tsize and windowsize 64 by default and never the
+# timeout option, which makes it the independent RFC 7440 data receiver for
+# Ze's server. The test builds this image through labtest (Spec.Dockerfile),
+# runs it idle on the host network, and runs the client inside it.
+FROM alpine:3.22@sha256:2e0b81d60597f449baa56dc25d355367869d2dca4cd57e866f1e2b52af3eb55f AS build
+
+RUN apk add --no-cache build-base autoconf automake git linux-headers
+RUN git clone --branch tftp-hpa-7.2 --depth 1 https://git.kernel.org/pub/scm/network/tftp/tftp-hpa.git /src \
+    && test "$(git -C /src rev-parse HEAD)" = af23362c585b4904e51354d1e3faacc01ee85296 \
+    && cd /src \
+    && sh autogen.sh \
+    && ./configure --prefix=/usr \
+    && make
+
+FROM alpine:3.22@sha256:2e0b81d60597f449baa56dc25d355367869d2dca4cd57e866f1e2b52af3eb55f
+
+COPY --from=build /src/tftp/tftp /usr/bin/tftp
+CMD ["sleep", "3600"]

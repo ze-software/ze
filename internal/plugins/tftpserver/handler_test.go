@@ -99,9 +99,9 @@ func TestTFTPReadRequestLogged(t *testing.T) {
 // RFC requirement: RFC7440-3-1 positive -- a well-formed RRQ whose filename and mode
 // fields each end in a single-byte NUL parses into the correct filename and mode
 // (producer parseRRQ splits each field on its NUL terminator,
-// internal/plugins/tftpserver/handler.go:61,77,90). RFC 7440 restates the RFC 2347
-// wire format; this same NUL-terminated field discipline governs the windowsize
-// option field even though ze does not implement that option.
+// internal/plugins/tftpserver/handler.go). RFC 7440 restates the RFC 2347 wire
+// format; this same NUL-terminated field discipline governs the windowsize option
+// field.
 func TestTFTPParseRRQ(t *testing.T) {
 	t.Parallel()
 
@@ -128,7 +128,7 @@ func TestTFTPParseRRQ(t *testing.T) {
 // its single-byte NUL terminator is rejected: the "no filename NUL" and "no mode NUL"
 // cases carry an unterminated field and parseRRQ returns an error rather than
 // accepting it (producer parseRRQ returns "missing filename"/"missing mode" when no
-// NUL follows the field, internal/plugins/tftpserver/handler.go:74-75,87-88).
+// NUL follows the field, internal/plugins/tftpserver/handler.go).
 func TestTFTPParseRRQInvalid(t *testing.T) {
 	t.Parallel()
 
@@ -176,26 +176,6 @@ func TestTFTPParseRRQInvalid(t *testing.T) {
 				t.Error("expected error")
 			}
 		})
-	}
-}
-
-func TestTFTPBuildDataPacket(t *testing.T) {
-	t.Parallel()
-
-	data := []byte("hello")
-	pkt := buildData(1, data)
-
-	if len(pkt) != 4+len(data) {
-		t.Fatalf("packet length = %d, want %d", len(pkt), 4+len(data))
-	}
-	if binary.BigEndian.Uint16(pkt[0:2]) != tftp.OpDATA {
-		t.Errorf("opcode = %d, want %d", binary.BigEndian.Uint16(pkt[0:2]), tftp.OpDATA)
-	}
-	if binary.BigEndian.Uint16(pkt[2:4]) != 1 {
-		t.Errorf("block = %d, want 1", binary.BigEndian.Uint16(pkt[2:4]))
-	}
-	if string(pkt[4:]) != "hello" {
-		t.Errorf("data = %q, want hello", string(pkt[4:]))
 	}
 }
 
@@ -331,8 +311,8 @@ func startTestTFTPServer(t *testing.T, rootDir string, maxTransfers int) *net.UD
 }
 
 // RFC requirement: RFC1350-4-1 positive -- the first DATA block carries block number 1
-// (asserts buf[2:4] == 1; producer numbers from 1 at
-// internal/plugins/tftpserver/handler.go:362).
+// (asserts buf[2:4] == 1; producer serveFile counts blocks from 1,
+// internal/plugins/tftpserver/window_send.go).
 func TestTFTPReadRequest(t *testing.T) {
 	t.Parallel()
 
@@ -381,18 +361,19 @@ func TestTFTPReadRequest(t *testing.T) {
 // RFC requirement: RFC2348-x-4 positive -- a data block shorter than the negotiated
 // blocksize signals the end of the transfer: a 1500-byte file over the 512-byte
 // blocksize ends after exactly three blocks (512+512+476), the last one short
-// (RFC 2348; producer serveFile stops after n < blksize, internal/plugins/tftpserver/handler.go:379).
+// (RFC 2348; producer windowSender.sendWindow marks the block with n < blksize final,
+// internal/plugins/tftpserver/window_send.go).
 // RFC requirement: RFC2348-x-5 negative -- when the transfer size is NOT an exact
 // multiple of the blocksize (1500 vs 512), NO extra zero-length data packet is sent:
 // the short final block itself ends the transfer (only three blocks total).
 // RFC requirement: RFC1350-2-1 positive -- a 1500-byte octet file is framed in fixed
 // 512-byte blocks with a short final block ending the transfer (512+512+476); producer
-// internal/plugins/tftpserver/handler.go:360,373,379.
+// serveFile and windowSender.sendWindow, internal/plugins/tftpserver/window_send.go.
 // RFC requirement: RFC1350-2-2 positive -- lockstep: the client ACKs each DATA block before
 // the next is read, so the server advances only after the ACK
-// (internal/plugins/tftpserver/handler.go:374,382).
+// (windowSender.awaitACK, internal/plugins/tftpserver/window_send.go).
 // RFC requirement: RFC1350-4-1 positive -- block numbers are consecutive (1,2,3), asserted
-// gotBlock == block each iteration (internal/plugins/tftpserver/handler.go:362,382).
+// gotBlock == block each iteration (serveFile, internal/plugins/tftpserver/window_send.go).
 func TestTFTPReadLargeFile(t *testing.T) {
 	t.Parallel()
 
@@ -460,16 +441,17 @@ func TestTFTPReadLargeFile(t *testing.T) {
 // RFC requirement: RFC2348-x-5 positive -- when the transfer size is an exact multiple
 // of the blocksize (512 bytes over the 512-byte block), an extra zero-length data packet
 // is sent to end the transfer: block 1 carries 512 bytes and block 2 carries 0 bytes
-// (RFC 2348; producer serveFile keeps reading until a short/zero block, internal/plugins/tftpserver/handler.go:379).
+// (RFC 2348; producer windowSender.sendWindow keeps reading until a short/zero block,
+// internal/plugins/tftpserver/window_send.go).
 // RFC requirement: RFC2348-x-4 negative -- a FULL block (exactly the blocksize) does NOT
 // signal end of transfer: block 1 is 512 bytes and the transfer continues to block 2, so
 // only a shorter-than-blocksize block ends it.
 // RFC requirement: RFC1350-2-1 positive -- a full 512-byte block does not end the transfer:
 // block 1 carries 512 bytes and the transfer continues, only a short/zero block ends it
-// (internal/plugins/tftpserver/handler.go:379).
+// (windowSender.sendWindow, internal/plugins/tftpserver/window_send.go).
 // RFC requirement: RFC1350-5-3 positive -- a file that is an exact multiple of the block
 // size ends with a zero-length DATA block: a 512-byte file yields block 1 (512B) then
-// block 2 (0B) (internal/plugins/tftpserver/handler.go:364-383).
+// block 2 (0B) (windowSender.readBlock and sendWindow, internal/plugins/tftpserver/window_send.go).
 func TestTFTPReadExact512(t *testing.T) {
 	t.Parallel()
 
@@ -532,7 +514,7 @@ func TestTFTPReadExact512(t *testing.T) {
 
 // RFC requirement: RFC1350-5-3 positive -- an empty file (the zero-length exact-multiple
 // case) is served as a single zero-length DATA block 1 that ends the transfer
-// (internal/plugins/tftpserver/handler.go:364-383).
+// (windowSender.readBlock and sendWindow, internal/plugins/tftpserver/window_send.go).
 func TestTFTPReadEmptyFile(t *testing.T) {
 	t.Parallel()
 
@@ -720,8 +702,8 @@ func TestTFTPConcurrentLimit(t *testing.T) {
 		t.Fatalf("first transfer didn't start: %v", err)
 	}
 	// RFC requirement: RFC1350-2-2 negative -- the client receives DATA block 1 but sends no
-	// ACK, so the server does not advance to block 2: it stays blocked in sendAndWaitACK
-	// (internal/plugins/tftpserver/handler.go:386-413) holding the semaphore, which is what
+	// ACK, so the server does not advance to block 2: it stays blocked in windowSender.awaitACK
+	// (internal/plugins/tftpserver/window_send.go) holding the semaphore, which is what
 	// lets the second transfer below be rejected.
 	// Don't ACK - keeps the transfer alive and holding the semaphore
 
@@ -752,9 +734,9 @@ func TestTFTPConcurrentLimit(t *testing.T) {
 
 // RFC requirement: RFC1350-6-1 positive -- when the last DATA goes unacknowledged the server
 // retransmits the identical block after the ACK timeout (asserts the retransmit equals the
-// original; internal/plugins/tftpserver/handler.go:387-400).
+// original; serveFile, internal/plugins/tftpserver/window_send.go).
 // RFC requirement: RFC1350-7-1 positive -- the server uses a read timeout to detect the
-// missing ACK: the deadline expiry (internal/plugins/tftpserver/handler.go:392,398) is what
+// missing ACK: the deadline expiry (windowSender.awaitACK, internal/plugins/tftpserver/window_send.go) is what
 // triggers the retransmission this test observes.
 func TestTFTPRetransmitOnTimeout(t *testing.T) {
 	t.Parallel()

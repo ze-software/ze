@@ -1,22 +1,21 @@
 {
-  "note": "Re-judged after the timeout masking was fixed: shortenTFTP sets tftpTimeout 1 s and expectACK waits tftpTimeout/2, so a timeout-driven retransmitted ACK can no longer stand in for the immediate one. Client half, TestRFC2347ClientUsesOnlyAcknowledgedOptions: the unacknowledged windowsize must be ignored (ACK 1 within 500 ms after a 1024 or 512 block; observed red under the overlay mutant Unnegotiated() Windowsize 4) and the unacknowledged blksize 1468 must not be used (512 and 1024 blocks are not final, file exact). Server half unchanged: TestRFC2347ServerIgnoresUnacknowledgedOption and TestRFC2347UnacknowledgedOptionIsNotUsed (rename-only diffs).",
+  "note": "Re-judged 2026-10-31: windowsize is now supported, so the server half moved to an option it declines. TestRFC2347UnacknowledgedOptionIsNotUsed: windowsize 0 (outside RFC 7440's 1..65535) beside blksize 1024 is absent from the OACK and is not used (block 1 carries the acknowledged 1024, then 1 s silence before ACK 1, so no window is sent; grantWindowsize gives 1 for 0); blksize 7 or 65465 beside tsize is absent and block 1 carries the default 512. TestRFC2347ServerIgnoresUnacknowledgedOption: utimeout beside blksize draws an OACK without utimeout and with blksize. Negative: the acknowledged blksize 1024 is used. Client TestRFC2347ClientUsesOnlyAcknowledgedOptions unchanged. Changes approved by an independent ze-test-judge.",
   "requirement_sha": "e4b9f0ce82cbdb63",
   "tests": {
     "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientUsesOnlyAcknowledgedOptions": "8b33e89eba159f87",
     "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientUsesOnlyAcknowledgedOptions#2": "8b33e89eba159f87",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed": "693976d3d27ffd85",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed#2": "693976d3d27ffd85",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption": "e926e82740b44b39",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "e926e82740b44b39"
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed": "308de1d07109d478",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed#2": "308de1d07109d478",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption": "5d0db416bf67f561",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "5d0db416bf67f561"
   },
   "units": {
     "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientUsesOnlyAcknowledgedOptions": "1b282e356eaf1c36",
     "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientUsesOnlyAcknowledgedOptions#2": "1b282e356eaf1c36",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed": "3931a650250b7ded",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed#2": "3931a650250b7ded",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption": "86706d6754f730cf",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "86706d6754f730cf"
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed": "345093f4cda17d15",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed#2": "345093f4cda17d15",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption": "60263108eab96fb5",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "60263108eab96fb5"
   },
-  "upgrade_reason": "The tagged unit is byte-identical, but the helpers it calls changed: shortenTFTP (tftp_peer_test.go) now sets tftpTimeout to 1 s and expectACK waits tftpTimeout/2, so a timeout-driven retransmitted ACK can no longer satisfy the test. The earlier weak verdict rested on that masking. I re-ran the overlay mutant against the current tree and observed it red: M2 Unnegotiated() Windowsize 4 fails TestRFC2347ClientUsesOnlyAcknowledgedOptions.",
   "verdict": "enforced"
 }

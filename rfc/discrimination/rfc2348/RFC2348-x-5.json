@@ -4,10 +4,10 @@
     "polarity": "positive",
     "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512",
     "unit-sha": "987ab8ab67c44a6b",
-    "claim-sha": "ec0ec5fe4eecd6a5",
+    "claim-sha": "c88d734b5910bde6",
     "route": "revert",
-    "producer": "internal/plugins/tftpserver/handler.go::serveFile",
-    "producer-sha": "745fce3175a9b947",
+    "producer": "internal/plugins/tftpserver/window_send.go::serveFile",
+    "producer-sha": "430e7f00660268f5",
     "break": "body of serveFile replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -17,8 +17,8 @@
     "unit-sha": "f776bcb7134d41af",
     "claim-sha": "1c9bf0b83fb19a65",
     "route": "revert",
-    "producer": "internal/plugins/tftpserver/handler.go::serveFile",
-    "producer-sha": "745fce3175a9b947",
+    "producer": "internal/plugins/tftpserver/window_send.go::serveFile",
+    "producer-sha": "430e7f00660268f5",
     "break": "body of serveFile replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -28,8 +28,8 @@
     "unit-sha": "7e42e69e0a8b4ac8",
     "claim-sha": "f79feb84e8705e14",
     "route": "revert",
-    "producer": "internal/plugins/tftpserver/handler.go::serveFile",
-    "producer-sha": "745fce3175a9b947",
+    "producer": "internal/plugins/tftpserver/window_send.go::serveFile",
+    "producer-sha": "430e7f00660268f5",
     "break": "body of serveFile replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -39,8 +39,8 @@
     "unit-sha": "7e42e69e0a8b4ac8",
     "claim-sha": "ca674b7dc88205b3",
     "route": "revert",
-    "producer": "internal/plugins/tftpserver/handler.go::serveFile",
-    "producer-sha": "745fce3175a9b947",
+    "producer": "internal/plugins/tftpserver/window_send.go::serveFile",
+    "producer-sha": "430e7f00660268f5",
     "break": "body of serveFile replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

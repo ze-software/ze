@@ -1,0 +1,13 @@
+{
+  "note": "RFC 7440 Section 4: 'In the case of an expected ACK not timely reaching the DSND (timeout), the last received ACK SHALL set the beginning of the next windowsize data block window to be sent.' TestRFC7440ServerTimeoutRestartsWindow, windowsize 4 and timeout 1: after ACK 4, the unacked window 5-8 must come again as 5-8 with identical bytes (red on a restart from 1 or a skip to 9), then ACK 8 draws 9-12; a never-acknowledged window is sent four times then silence for 2 s. Producer serveFile keeps first on errNoACK.",
+  "requirement_sha": "fb3f479e448e1521",
+  "tests": {
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerTimeoutRestartsWindow": "d646170c1035c01e",
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerTimeoutRestartsWindow#2": "d646170c1035c01e"
+  },
+  "units": {
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerTimeoutRestartsWindow": "6dde9ad1ca7c4ea8",
+    "internal/plugins/tftpserver/rfc7440_window_send_test.go::TestRFC7440ServerTimeoutRestartsWindow#2": "6dde9ad1ca7c4ea8"
+  },
+  "verdict": "enforced"
+}

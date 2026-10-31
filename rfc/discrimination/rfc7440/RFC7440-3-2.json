@@ -7,7 +7,7 @@
     "claim-sha": "01491c1104872eab",
     "route": "revert",
     "producer": "internal/core/tftp/oack.go::grantWindowsize",
-    "producer-sha": "a7c72058b5956677",
+    "producer-sha": "daecf539cd38f834",
     "break": "body of grantWindowsize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "1503ecdb179710c6",
     "route": "revert",
     "producer": "internal/core/tftp/oack.go::grantWindowsize",
-    "producer-sha": "a7c72058b5956677",
+    "producer-sha": "daecf539cd38f834",
     "break": "body of grantWindowsize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

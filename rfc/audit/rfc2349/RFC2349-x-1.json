@@ -1,0 +1,13 @@
+{
+  "note": "RFC 2349 Timeout Interval: 'If the server is willing to accept the timeout option, it sends an Option Acknowledgment (OACK) to the client. The specified timeout value must match the value specified by the client.' TestRFC2349ServerAcknowledgesTimeout: timeout 1 and 255 must come back unchanged in the OACK (red on any counter-proposal or clamp, e.g. a cap below 255), and with timeout 1 an unacked DATA 1 must be resent within 3 s yet not before 0.8 s, against a 5 s default, so acknowledging a value and then using another is red. Producer: sendOACKAndWait echoes t.opts.timeout; handleRRQ sets the interval from it.",
+  "requirement_sha": "c003e6ed0e47eb8d",
+  "tests": {
+    "internal/plugins/tftpserver/rfc2349_timeout_test.go::TestRFC2349ServerAcknowledgesTimeout": "5f38d26caed312eb",
+    "internal/plugins/tftpserver/rfc2349_timeout_test.go::TestRFC2349ServerAcknowledgesTimeout#2": "5f38d26caed312eb"
+  },
+  "units": {
+    "internal/plugins/tftpserver/rfc2349_timeout_test.go::TestRFC2349ServerAcknowledgesTimeout": "67f2176dedd272e2",
+    "internal/plugins/tftpserver/rfc2349_timeout_test.go::TestRFC2349ServerAcknowledgesTimeout#2": "67f2176dedd272e2"
+  },
+  "verdict": "enforced"
+}

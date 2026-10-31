@@ -1,0 +1,13 @@
+{
+  "note": "RFC 2349: '#secs ... specified in ASCII. Valid values range between \"1\" and \"255\" seconds, inclusive.' TestRFC2349ServerDeclinesTimeoutOutOfRange: the bounds 1 and 255 are acknowledged beside tsize; 0, 256, abc, +3 and the empty value each draw an OACK with tsize 100 and no timeout (isolated: the OACK still exists, so the option alone was declined); declined 0 is not used as the interval (no resend within 2 s), and timeout 0 alone draws DATA 1 with no OACK. Off-by-one at either bound or accepting a signed or non-decimal value is red. Producer parseRRQ via optionInRange(TimeoutMin, TimeoutMax).",
+  "requirement_sha": "5250d88be6da9d66",
+  "tests": {
+    "internal/plugins/tftpserver/rfc2349_timeout_test.go::TestRFC2349ServerDeclinesTimeoutOutOfRange": "5f38d26caed312eb",
+    "internal/plugins/tftpserver/rfc2349_timeout_test.go::TestRFC2349ServerDeclinesTimeoutOutOfRange#2": "5f38d26caed312eb"
+  },
+  "units": {
+    "internal/plugins/tftpserver/rfc2349_timeout_test.go::TestRFC2349ServerDeclinesTimeoutOutOfRange": "c8bbb19a8c1c042f",
+    "internal/plugins/tftpserver/rfc2349_timeout_test.go::TestRFC2349ServerDeclinesTimeoutOutOfRange#2": "c8bbb19a8c1c042f"
+  },
+  "verdict": "enforced"
+}

@@ -62,6 +62,13 @@ const (
 	WindowsizeMax = 65535
 )
 
+// RFC 2349 Timeout Interval Option Specification: "Valid values range between
+// "1" and "255" seconds, inclusive."
+const (
+	TimeoutMin = 1
+	TimeoutMax = 255
+)
+
 // RequestOctetsMax bounds an RRQ. RFC 2347 Packet Formats: "The maximum size
 // of a request packet is 512 octets."
 const RequestOctetsMax = 512
@@ -70,6 +77,7 @@ const RequestOctetsMax = 512
 // Formats), so a reader compares them with strings.EqualFold.
 const (
 	OptionBlksize    = "blksize"
+	OptionTimeout    = "timeout"
 	OptionTsize      = "tsize"
 	OptionWindowsize = "windowsize"
 )

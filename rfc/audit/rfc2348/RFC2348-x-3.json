@@ -1,21 +1,21 @@
 {
-  "note": "Both roles are now tagged. Client: TestRFC2348ClientBlocksize carries x-3; a granted blksize of 8 (the lowest valid value) must be used (an 8-octet block is not final, file exact), and 7 must draw ERROR 8 with no ACK and a failed fetch, so dropping the lower-bound check in grantBlksize is red. The client can never accept above 65464 because it requests 1468 and refuses anything above the request. Server: TestRFC2348BlksizeBoundsAreInclusive and TestRFC2348BlksizeRangeEnforced, rename-only diffs, pin 8 and 65464 as accepted and 7 and 65465 as refused.",
+  "note": "Re-judged 2026-10-31: TestRFC2348BlksizeRangeEnforced changed only in its claim comment (producer is now parseRRQ through optionInRange with BlksizeMin/BlksizeMax, which the code confirms); assertions identical. Server: it and TestRFC2348BlksizeBoundsAreInclusive pin 8 and 65464 accepted, 5, 7, 65465 and 70000 absent from the OACK beside an acknowledged tsize. Client TestRFC2348ClientBlocksize unchanged: granted 8 used, 7 draws ERROR 8.",
   "requirement_sha": "b42e8a8edc2a6d51",
   "tests": {
     "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientBlocksize": "268e5c963774e9ce",
     "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientBlocksize#2": "268e5c963774e9ce",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive": "693976d3d27ffd85",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive#2": "693976d3d27ffd85",
-    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced": "cc627219434e5b11",
-    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced#2": "cc627219434e5b11"
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive": "308de1d07109d478",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive#2": "308de1d07109d478",
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced": "91e591443fa21e99",
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced#2": "91e591443fa21e99"
   },
   "units": {
     "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientBlocksize": "f1bbc03303e9101c",
     "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientBlocksize#2": "f1bbc03303e9101c",
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive": "37245ab869af6bca",
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive#2": "37245ab869af6bca",
-    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced": "61622c14f47925a6",
-    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced#2": "61622c14f47925a6"
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced": "6ff6297b746618b7",
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced#2": "6ff6297b746618b7"
   },
   "verdict": "enforced"
 }

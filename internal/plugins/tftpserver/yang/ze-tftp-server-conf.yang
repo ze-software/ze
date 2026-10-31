@@ -6,6 +6,10 @@ module ze-tftp-server-conf {
 
     description "TFTP server configuration for Ze (RFC 1350)";
 
+    revision 2026-10-31 {
+        description "Add max-windowsize (RFC 7440) and timeout (RFC 2349).";
+    }
+
     revision 2026-01-01 {
         description "Initial revision";
     }
@@ -20,8 +24,8 @@ module ze-tftp-server-conf {
             description "The server answers a read request on UDP port 69 and refuses every
                          write request, so no client can put a file on this host. Ze accepts
                          octet mode alone, and answers any other mode with an illegal operation
-                         error. Ze negotiates the blksize option of RFC 2348 and the tsize
-                         option of RFC 2349, and it does not support the windowsize option.";
+                         error. Ze negotiates the blksize option of RFC 2348, the timeout and
+                         tsize options of RFC 2349, and the windowsize option of RFC 7440.";
             ze:help "Read-only TFTP server (RFC 1350)";
 
             leaf enabled {
@@ -62,6 +66,37 @@ module ze-tftp-server-conf {
                              request with a TFTP error that carries the text service
                              unavailable, and the transfers already open keep running.";
                 ze:help "Maximum concurrent TFTP transfers";
+            }
+
+            leaf max-windowsize {
+                type uint16 {
+                    range "1..65535";
+                }
+                units "blocks";
+                default 64;
+                description "The default is 64 and the range is 1 to 65535, the range of RFC 7440. A
+                             client that asks for a windowsize gets the smaller of its request
+                             and this value, and Ze then sends that many DATA blocks before it
+                             waits for an ACK. A grant of one block is RFC 1350 lockstep and is
+                             not acknowledged, so the value 1 turns windowed sending off. A
+                             change applies to the next read request; a transfer already running
+                             keeps the window it started with.";
+                ze:help "Largest RFC 7440 window the server grants";
+            }
+
+            leaf timeout {
+                type uint8 {
+                    range "1..255";
+                }
+                units "seconds";
+                default 5;
+                description "The default is 5 and the range is 1 to 255, the range of RFC 2349. Ze
+                             waits this long for an ACK before it sends the DATA again, at most
+                             three times, then ends the transfer. A client that asks for its own
+                             RFC 2349 timeout from 1 to 255 seconds gets it acknowledged and used
+                             instead. A change applies to the next read request; a transfer
+                             already running keeps the timeout it started with.";
+                ze:help "Seconds to wait for an ACK before Ze sends again";
             }
         }
     }

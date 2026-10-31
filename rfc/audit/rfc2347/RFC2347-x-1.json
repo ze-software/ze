@@ -1,17 +1,17 @@
 {
-  "note": "TestRFC2347OnlyTheClientInitiatesNegotiation: a tsize-only RRQ gets an OACK with tsize=1500 and fails if blksize is present (the case the old verdict found missing); a plain RRQ and a windowsize-only RRQ must get DATA block 1 as the first reply (expectData fails on an OACK), so the server never initiates negotiation. With TestRFC2347ServerOACKOnlyRequestedOptions (blksize-only, no tsize) both emittable options are pinned absent when unrequested.",
+  "note": "Re-judged 2026-10-31 after the weak finding was fixed in the tagged units: the tsize-only OACK of TestRFC2347OnlyTheClientInitiatesNegotiation must hold tsize=1500 and exactly one option, and the blksize-only OACK of TestRFC2347ServerOACKOnlyRequestedOptions must hold blksize and exactly one option. Any unrequested blksize, timeout, tsize or windowsize that sendOACKAndWait appended is now red, covering all four options the server can emit. The no-option and utimeout-only RRQs must draw DATA 1 with no OACK, so the server never starts negotiation.",
   "requirement_sha": "6fc794781f7d1ec5",
   "tests": {
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation": "693976d3d27ffd85",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation#2": "693976d3d27ffd85",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions": "e926e82740b44b39",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions#2": "e926e82740b44b39"
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation": "308de1d07109d478",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation#2": "308de1d07109d478",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions": "5d0db416bf67f561",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions#2": "5d0db416bf67f561"
   },
   "units": {
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation": "6468196a176bd648",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation#2": "6468196a176bd648",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions": "0071a09f93f3c5db",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions#2": "0071a09f93f3c5db"
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation": "57789fb855f9a965",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation#2": "57789fb855f9a965",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions": "bf1a1802e6da55da",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions#2": "bf1a1802e6da55da"
   },
   "verdict": "enforced"
 }

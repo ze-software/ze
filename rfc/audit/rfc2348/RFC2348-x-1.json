@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-30 by an independent auditor: the unit changed only by identifier renames to internal/core/tftp (blksizeEthernet->tftp.BlksizeEthernet, opX->tftp.OpX), values identical; assertions unchanged. Server-side row: the 'above cap' subtest is red when the acked blksize exceeds the 60000 requested, and the within-cap subtest pins 1200 == requested 1200.",
   "requirement_sha": "c70ae9def504f6cb",
   "tests": {
-    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest": "cc627219434e5b11",
-    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest#2": "cc627219434e5b11"
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest": "91e591443fa21e99",
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest#2": "91e591443fa21e99"
   },
   "units": {
     "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest": "d937cdadf4e59bdb",

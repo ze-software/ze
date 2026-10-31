@@ -1,18 +1,18 @@
 {
-  "note": "Receiver half now tagged with both polarities. TestRFC1350ClientDataLengthEndsTheTransfer, no option acknowledged: a 511-octet block, an empty block after 512, and an empty first block must each end the file. A block sent after the end draws nothing for 300 ms and is not written, so the file must be exact. A 512-octet block must draw its ACK and the next block. Sender half unchanged: TestRFC1350DataFieldLengthEndsTheTransfer and the renamed-only handler_test units.",
+  "note": "Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. Sender half: TestTFTPReadExact512 (512-byte file gives 512 then 0) and TestTFTPReadEmptyFile (one zero-length block 1 ends it); readBlock returns an empty block past EOF and sendWindow marks n < blksize final. Receiver half unchanged: TestRFC1350ClientDataLengthEndsTheTransfer.",
   "requirement_sha": "e9541f5c732b1360",
   "tests": {
     "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDataLengthEndsTheTransfer": "f99149d1d6e6ec30",
     "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDataLengthEndsTheTransfer#2": "f99149d1d6e6ec30",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadEmptyFile": "de0c0b43a90165f3",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "de0c0b43a90165f3",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadEmptyFile": "beded9cdecae651c",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "beded9cdecae651c",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350DataFieldLengthEndsTheTransfer": "d286e01d267db4e3"
   },
   "units": {
     "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDataLengthEndsTheTransfer": "a780ec23c142b6cc",
     "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDataLengthEndsTheTransfer#2": "a780ec23c142b6cc",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadEmptyFile": "db04908cd4392cef",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadEmptyFile": "6f1f7a3e9db23f73",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "d23190128d10b928",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350DataFieldLengthEndsTheTransfer": "286bc3fb69d14cd9"
   },
   "verdict": "enforced"

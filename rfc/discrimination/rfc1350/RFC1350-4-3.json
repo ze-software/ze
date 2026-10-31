@@ -27,10 +27,10 @@
     "unit": "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip",
     "unit-sha": "4e7a34bbd2ae8a1d",
     "claim-sha": "2b69d08ef4563df9",
-    "route": "mutant",
+    "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-    "producer-sha": "235d333f3c69abf1",
-    "break": "line 285: \"go runTransfer(generation, t, sem, log)\" -\u003e \"if b, rErr := os.ReadFile(t.path); rErr == nil { _, _ = mainConn.WriteToUDP(buildData(1, b[:min(len(b), t.blksize)]), t.clientAddr) }; \u003c-sem\""
+    "producer-sha": "ec76bb3bdad9249a",
+    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1350-4-3",
@@ -40,7 +40,7 @@
     "claim-sha": "1c3350f5ca4f0de0",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-    "producer-sha": "235d333f3c69abf1",
+    "producer-sha": "ec76bb3bdad9249a",
     "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
