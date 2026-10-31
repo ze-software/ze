@@ -6,9 +6,9 @@
     "unit-sha": "c9ac68cdb99e2b81",
     "claim-sha": "7b6d2840ff7f563b",
     "route": "revert",
-    "producer": "internal/component/ike/engine/child.go::childPolicies",
-    "producer-sha": "9ec8a83798f6d2ca",
-    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
+    "producer-sha": "a9aea6ecf80d69d5",
+    "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-4.4.2-1",
@@ -18,7 +18,7 @@
     "claim-sha": "9ae058c0009e40cf",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::installChildSA",
-    "producer-sha": "fd3503e2bc6eaf36",
+    "producer-sha": "ec6448c16802f3e0",
     "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -29,19 +29,8 @@
     "claim-sha": "b4ed6047370c2f24",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::installChildSA",
-    "producer-sha": "fd3503e2bc6eaf36",
+    "producer-sha": "ec6448c16802f3e0",
     "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC4301-4.4.2-1",
-    "polarity": "positive",
-    "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy",
-    "unit-sha": "9d5b2939d7902708",
-    "claim-sha": "d809d645bf2b61d8",
-    "route": "revert",
-    "producer": "internal/component/ike/engine/child.go::childPolicies",
-    "producer-sha": "9ec8a83798f6d2ca",
-    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-4.4.2-1",
@@ -50,9 +39,20 @@
     "unit-sha": "9d5b2939d7902708",
     "claim-sha": "de4eb9518e2e918c",
     "route": "revert",
-    "producer": "internal/component/ike/engine/child.go::childPolicies",
-    "producer-sha": "9ec8a83798f6d2ca",
-    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
+    "producer-sha": "a9aea6ecf80d69d5",
+    "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy",
+    "unit-sha": "9d5b2939d7902708",
+    "claim-sha": "d809d645bf2b61d8",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
+    "producer-sha": "a9aea6ecf80d69d5",
+    "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-4.4.2-1",
@@ -62,7 +62,7 @@
     "claim-sha": "afa6c66f9f2f63ff",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::installChildSA",
-    "producer-sha": "fd3503e2bc6eaf36",
+    "producer-sha": "ec6448c16802f3e0",
     "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -72,8 +72,8 @@
     "unit-sha": "a08c98a91f733728",
     "claim-sha": "d4f315db8bb4a22f",
     "route": "revert",
-    "producer": "internal/component/ike/engine/child.go::childPolicies",
-    "producer-sha": "9ec8a83798f6d2ca",
-    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
+    "producer-sha": "a9aea6ecf80d69d5",
+    "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
