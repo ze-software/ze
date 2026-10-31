@@ -13,6 +13,7 @@ package static
 import (
 	"fmt"
 	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 
@@ -61,24 +62,30 @@ func (b *fakeIfaceBackend) GetLink(name string) (*iface.InterfaceInfo, error) {
 	return info, nil
 }
 
+// fakeKernelBackendName names the fake non-vpp iface backend. It is not
+// "netlink": resolve_integration_linux_test.go links the real netlink backend
+// into this test binary, and its init() already holds that name. Every non-vpp
+// name meets the same gate in iface.ResolveVPPIndex (backend != "vpp").
+const fakeKernelBackendName = "static-vpp-test-kernel"
+
 var (
-	fakeVPPBackend     = &fakeIfaceBackend{byName: map[string]int{}}
-	fakeNetlinkBackend = &fakeIfaceBackend{byName: map[string]int{}}
-	fakeIfaceRegOnce   sync.Once
+	fakeVPPBackend    = &fakeIfaceBackend{byName: map[string]int{}}
+	fakeKernelBackend = &fakeIfaceBackend{byName: map[string]int{}}
+	fakeIfaceRegOnce  sync.Once
 )
 
-// registerFakeIfaceBackends registers the "vpp" and "netlink" fake iface
-// backends exactly once per test binary (RegisterBackend rejects duplicates and
-// cannot unregister). Nothing in the static test binary registers these names,
-// so the fakes are the sole registrants.
+// registerFakeIfaceBackends registers the "vpp" fake and the fake non-vpp
+// iface backend exactly once per test binary (RegisterBackend rejects
+// duplicates and cannot unregister). No package this test binary links
+// registers "vpp", and fakeKernelBackendName belongs to this file alone.
 func registerFakeIfaceBackends(t *testing.T) {
 	t.Helper()
 	fakeIfaceRegOnce.Do(func() {
 		if err := iface.RegisterBackend("vpp", func() (iface.Backend, error) { return fakeVPPBackend, nil }); err != nil {
 			t.Fatalf("register fake vpp iface backend: %v", err)
 		}
-		if err := iface.RegisterBackend("netlink", func() (iface.Backend, error) { return fakeNetlinkBackend, nil }); err != nil {
-			t.Fatalf("register fake netlink iface backend: %v", err)
+		if err := iface.RegisterBackend(fakeKernelBackendName, func() (iface.Backend, error) { return fakeKernelBackend, nil }); err != nil {
+			t.Fatalf("register fake kernel iface backend: %v", err)
 		}
 	})
 }
@@ -164,12 +171,12 @@ func TestToVPPRouteInterfaceOnlyZeroIndexRejected(t *testing.T) {
 // emitting a kernel ifindex as a VPP sw_if_index.
 func TestToVPPRouteRefusesResolveWhenIfaceBackendNotVPP(t *testing.T) {
 	registerFakeIfaceBackends(t)
-	// Even if the fake netlink backend WOULD resolve the name, the gate must
+	// Even if the fake kernel backend WOULD resolve the name, the gate must
 	// fire first: give it an entry to prove resolution is refused, not merely
 	// failing for absence.
-	fakeNetlinkBackend.set(map[string]int{"vppnl0": 99})
-	if err := iface.LoadBackend("netlink"); err != nil {
-		t.Fatalf("load fake netlink iface backend: %v", err)
+	fakeKernelBackend.set(map[string]int{"vppnl0": 99})
+	if err := iface.LoadBackend(fakeKernelBackendName); err != nil {
+		t.Fatalf("load fake kernel iface backend: %v", err)
 	}
 	t.Cleanup(func() { _ = iface.CloseBackend() })
 
@@ -180,6 +187,9 @@ func TestToVPPRouteRefusesResolveWhenIfaceBackendNotVPP(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("toVPPRoute: want refusal under a non-vpp iface backend, got paths %+v", out.Paths)
+	}
+	if !strings.Contains(err.Error(), "needs the vpp iface backend") {
+		t.Fatalf("toVPPRoute: refused for another reason than the vpp backend gate: %v", err)
 	}
 	if len(out.Paths) != 0 {
 		t.Errorf("Paths: got %d, want 0 (kernel ifindex must not be emitted)", len(out.Paths))
