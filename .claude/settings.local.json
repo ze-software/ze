@@ -130,6 +130,18 @@
     ]
   },
   "enableAllProjectMcpServers": false,
+  "extraKnownMarketplaces": {
+    "ze-local": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/thomas/.claude/local-marketplaces/ze-local"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "ze-gopls@ze-local": true,
+    "gopls-lsp@claude-plugins-official": false
+  },
   "outputStyle": "Ze Style",
   "sandbox": {
     "enabled": false,
