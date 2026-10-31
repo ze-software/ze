@@ -51,8 +51,8 @@
     "claim-sha": "7a8a0b892c0bd702",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-    "producer-sha": "a8ad20e3f83f5503",
-    "break": "line 432: \"start := session.startDamped\" -\u003e \"start := session.startAutomatic\""
+    "producer-sha": "98cc2047f904279c",
+    "break": "line 439: \"session.startDamped\" -\u003e \"session.startAutomatic\""
   },
   {
     "rid": "RFC4271-8.2.2-20",
@@ -73,8 +73,8 @@
     "claim-sha": "2db8de6abba0e809",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-    "producer-sha": "a8ad20e3f83f5503",
-    "break": "line 435: \"start = session.startAutomatic\" -\u003e \"start = session.startDamped\""
+    "producer-sha": "98cc2047f904279c",
+    "break": "line 442: \"session.startAutomatic\" -\u003e \"session.startDamped\""
   },
   {
     "rid": "RFC4271-8.2.2-20",
@@ -84,7 +84,7 @@
     "claim-sha": "7166bb73daf1148a",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-    "producer-sha": "a8ad20e3f83f5503",
-    "break": "line 435: \"start = session.startAutomatic\" -\u003e \"start = session.startDamped\""
+    "producer-sha": "98cc2047f904279c",
+    "break": "line 442: \"session.startAutomatic\" -\u003e \"session.startDamped\""
   }
 ]

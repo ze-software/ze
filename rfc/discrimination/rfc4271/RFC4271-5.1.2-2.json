@@ -7,8 +7,8 @@
     "claim-sha": "f421bfecf1c7d4bd",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
-    "producer-sha": "23941d17235a16d8",
-    "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b23b1e7669e68bf3",
+    "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-5.1.2-2",
@@ -18,8 +18,8 @@
     "claim-sha": "8852d314d99ba33e",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
-    "producer-sha": "23941d17235a16d8",
-    "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b23b1e7669e68bf3",
+    "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-5.1.2-2",
@@ -29,7 +29,7 @@
     "claim-sha": "aad3b860673562c0",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-    "producer-sha": "679a7a9648446671",
+    "producer-sha": "2cbb75cfec855903",
     "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -51,7 +51,7 @@
     "claim-sha": "dbeb1b27ab055f3a",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-    "producer-sha": "679a7a9648446671",
+    "producer-sha": "2cbb75cfec855903",
     "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -62,7 +62,7 @@
     "claim-sha": "d4b1767cc7186788",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-    "producer-sha": "679a7a9648446671",
+    "producer-sha": "2cbb75cfec855903",
     "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

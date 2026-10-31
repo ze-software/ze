@@ -29,8 +29,8 @@
     "claim-sha": "365dcdddfa2cf2a0",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_commands.go::sendRoutes",
-    "producer-sha": "78e8daded65398f9",
-    "break": "body of sendRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "14f44ee159945932",
+    "break": "body of sendRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2918-4-3",
@@ -73,8 +73,8 @@
     "claim-sha": "def37428f24761e2",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleSentStructured",
-    "producer-sha": "b16ce5c5470e96a5",
-    "break": "body of handleSentStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "producer-sha": "fdc9b2b3e82ae894",
+    "break": "body of handleSentStructured replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801"
   }
 ]

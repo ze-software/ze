@@ -29,8 +29,8 @@
     "claim-sha": "232c798089a555b4",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::runIngressPolicyChain",
-    "producer-sha": "88a5a98d4b7260ad",
-    "break": "body of runIngressPolicyChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "47440ee2014d8690",
+    "break": "body of runIngressPolicyChain replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-9.2-4",
@@ -40,7 +40,7 @@
     "claim-sha": "603abba3fd4b331d",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-    "producer-sha": "592b84484b0d6b9b",
+    "producer-sha": "bfd2c3a92418d4c2",
     "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
