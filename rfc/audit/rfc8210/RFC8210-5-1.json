@@ -6,8 +6,8 @@
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_pdu_reserved_test.go::TestWriteResetQueryZeroesReservedOverGarbage": "6b6c9def9d15289a",
     "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteResetQuery": "c2034632b78db26e",
     "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteSerialQuery": "c2034632b78db26e",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "4e10ae83c412be49",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "4e10ae83c412be49"
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "4fd5a5f5494f7315",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "4fd5a5f5494f7315"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "72798b2cc2c5cc7d",

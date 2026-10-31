@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/plugins/rpki/rfc8210_roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource": "484aeab3bb29bf78",
     "internal/component/bgp/plugins/rpki/rfc8210_roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource#2": "484aeab3bb29bf78",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied": "4e10ae83c412be49",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied#2": "4e10ae83c412be49"
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied": "4fd5a5f5494f7315",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied#2": "4fd5a5f5494f7315"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rfc8210_roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource": "83417a4c14434387",

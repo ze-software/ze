@@ -4,11 +4,11 @@
   "tests": {
     "internal/component/bgp/plugins/rpki/rfc8210_resync_test.go::TestRFC8210ResetQueryFallback": "2d07978113bb370e",
     "internal/component/bgp/plugins/rpki/rfc8210_resync_test.go::TestRFC8210ResetQueryFallback#2": "2d07978113bb370e",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData": "4e10ae83c412be49",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#2": "4e10ae83c412be49",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#3": "4e10ae83c412be49",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#4": "4e10ae83c412be49",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#5": "4e10ae83c412be49"
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData": "4fd5a5f5494f7315",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#2": "4fd5a5f5494f7315",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#3": "4fd5a5f5494f7315",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#4": "4fd5a5f5494f7315",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#5": "4fd5a5f5494f7315"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rfc8210_resync_test.go::TestRFC8210ResetQueryFallback": "169bd3f47fd3330a",

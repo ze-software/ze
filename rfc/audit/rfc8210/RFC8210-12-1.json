@@ -3,8 +3,8 @@
   "requirement_sha": "d8dc4e038ef44ea3",
   "tests": {
     "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestIsFatalError": "c2034632b78db26e",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession": "4e10ae83c412be49",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession#2": "4e10ae83c412be49",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession": "4fd5a5f5494f7315",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession#2": "4fd5a5f5494f7315",
     "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestHandlePDUVersionDowngrade": "31df11c2e8885c70"
   },
   "units": {
