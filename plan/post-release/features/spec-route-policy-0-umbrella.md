@@ -285,10 +285,10 @@ import, and is refused on connected import because connected carries no tag.
 | AC-9 | A `modify` instance with `match { tag [ 100 ]; } set { distance 90; }` on `ospf filter import` | OSPF external routes tagged 100 rank at distance 90; others at the declared OSPF distance; removing the filter returns them to the declared distance. The same instance on `isis filter import` is refused at load (IS-IS carries no tag, A-8) |
 | AC-10 | A community-match filter referenced from `isis filter import` | load fails naming the filter, the field it reads (community), and that IS-IS routes do not carry it |
 | AC-11 | A static route with `tag 4242`, `rib filter import` with a `match { tag [ 4242 ]; }` reject | the static route is hidden, whether static runs in-process or forked |
-| AC-12 | `isis filter export` accepts only /32 loopbacks; IS-IS redistributes connected | the IS-IS LSP carries only the loopback /32s; an FRR neighbour installs those and nothing else |
-| AC-13 | `ospf filter export` sets metric 50 and metric-type 1 for static routes matching a tag | the OSPF AS-external LSA carries metric 50, E1; `ospf redistribute { metric ... }` no longer exists and is refused with the migrate command |
-| AC-14 | `redistribute { destination ospf { import bgp { filters [ P ]; final accept; } } }`, where `match` filter P rejects any route that misses its conditions (a filter's accept means "continue", so the chain's `final` decides only routes every filter passed; `final reject` would reject everything) | only prefixes P accepts move into OSPF; a route that was held and is now rejected after a reload is withdrawn |
-| AC-15 | `redistribute { destination ospf { import ebgp } }` | only eBGP-learned best paths move; iBGP-learned ones do not (fixes the journal row) |
+| AC-12 | `isis filter export` accepts only /32 loopbacks; IS-IS redistributes connected | the IS-IS LSP carries only the loopback /32s; an FRR neighbour installs those and nothing else. Status: Ze side landed (acd97e232f chain, 948f3d642a reload re-judge and no settable level, 397e72b530 parse refusals, 6934ae5bff attachment fields, 7489fc84df daemon `.ci`); the FRR half is interop `isis-export-policy-frr`, not yet written, owed in package 3c on Linux |
+| AC-13 | `ospf filter export` sets metric 50 and metric-type 1 for static routes matching a tag | the OSPF AS-external LSA carries metric 50, E1; `ospf redistribute { metric ... }` no longer exists and is refused with the migrate command. Status: landed in c356b97d17, reload re-judge in 50e1e87c4f, proofs re-recorded in 4ed13dbde3; the daemon `.ci` `test/ospf/ospf-multiaf-v4-route.ci` and the interop scenarios `ospf-redist-static-tag-frr`, `ospf-multiaf-v4-frr` (both exist, configs edited in c356b97d17) and `ospf-export-policy-frr` (not yet written) run in package 3c on Linux |
+| AC-14 | `redistribute { destination ospf { import bgp { filters [ P ]; final accept; } } }`, where `match` filter P rejects any route that misses its conditions (a filter's accept means "continue", so the chain's `final` decides only routes every filter passed; `final reject` would reject everything) | only prefixes P accepts move into OSPF; a route that was held and is now rejected after a reload is withdrawn. Status: landed through fakeredist (10715039f1, 2a4138f6ef); the static-into-OSPF test `test/plugin/redistribute-chain-static-ospf.ci` landed unrun in 06a2f8e130, and its green run and red proof are owed on Linux in package 3c. 51b38fde18 carries a chain's set metric to every consumer |
+| AC-15 | `redistribute { destination ospf { import ebgp } }` | only eBGP-learned best paths move; iBGP-learned ones do not (fixes the journal row). Status: landed in 17a4d10511 (incremental path, BGP producer class) and 72ecbeef90 (replay path) |
 | AC-16 | A source with no chain and no central chain configured | insert performs zero allocations and the gate is one pointer load (alloc test) |
 | AC-18 | A config with only a `policy {}` section; a config with only `isis {}` (no policy section); a build without the `policy` plugin and an `isis filter import` | the first auto-loads `policy`; the second loads `policy` as a dependency of `isis`; the third is refused at load and by `ze config validate` with the missing-dependency message naming `policy` and the rebuild fix. A registry-derived test asserts every plugin with a filter attachment lists `policy` in `Dependencies` |
 | AC-17 | Phase 4: BGP import and export chains compile from the shared registry | every existing BGP policy `.ci` and interop scenario passes unchanged in expectation |
@@ -320,10 +320,18 @@ import, and is refused on connected import because connected carries no tag.
 | `TestLocRIBInsertNoChainZeroAlloc` | `internal/core/rib/locrib/policy_test.go` | AC-16 | |
 | `TestLocRIBSnapshotRace` | `internal/core/rib/locrib/policy_test.go` | R-7 under `-race` | |
 | `TestRouteInstallTagReachesGate` | `internal/component/plugin/server/dispatch_route_test.go` | AC-11 forked | |
-| `TestRedistributeChainAccept` | `internal/component/config/redistribute/route_test.go` | AC-14 | |
-| `TestRedistributeEBGPClass` | `internal/plugins/redistribute/redistribute_bgpclass_test.go` (the orchestrator moved from `bgp/plugins/redistribute_egress`) | AC-15 | |
-| `TestOSPFExportSetMetric` | `internal/plugins/ospf/redistribute/consumer_test.go` | AC-13 | |
-| `TestISISExportChain` | `internal/plugins/isis/redistribute/consumer_test.go` | AC-12 unit | |
+| `TestRedistributeChainAccept` | `internal/component/config/redistribute/route_test.go` | AC-14 | landed 10715039f1, red under an overlay ignoring the verdict |
+| `TestRuleNarrowingWithdrawsHeldRoutes` | `internal/plugins/redistribute/config_test.go` | AC-14: a narrowing reload withdraws held routes | landed 10715039f1, red with the withdraw removed |
+| `TestHandleBatchSetMetricReachesConsumer` | `internal/plugins/redistribute/redistribute_metric_test.go` | a chain's set metric reaches the consumer | landed 51b38fde18, red under an overlay |
+| `TestBGPConsumerInjectRouteSetMetricIsMED` | `internal/component/bgp/redistribute/consumer_test.go` | a set metric becomes MED, and only when set | landed 51b38fde18, red first |
+| `TestRedistributeEBGPClass` | `internal/plugins/redistribute/redistribute_bgpclass_test.go` (the orchestrator moved from `bgp/plugins/redistribute_egress`) | AC-15 | landed 17a4d10511, red before (eBGP and iBGP both moved) |
+| `TestBGPProducerBridgeCarriesPeerClass` | `internal/component/bgp/redistribute/producer_test.go` | AC-15 producer class | landed 17a4d10511, red under an overlay forcing Unspecified |
+| `TestReplayEBGPClass` | `internal/plugins/redistribute/redistribute_bgpclass_test.go` | AC-15 replay path | landed 72ecbeef90, red under an overlay |
+| `TestOSPFExportSetMetric` | `internal/plugins/ospf/redistribute/consumer_test.go` | AC-13 | landed c356b97d17 |
+| `TestOSPFExportReloadRejudges` | `internal/plugins/ospf/redistribute/consumer_test.go` | AC-13 reload | landed 50e1e87c4f, red under an overlay emptying Rejudge |
+| `TestISISExportChain` | `internal/plugins/isis/redistribute/consumer_test.go` | AC-12 unit | landed acd97e232f |
+| `TestISISExportReloadRejudges` | `internal/plugins/isis/redistribute/consumer_test.go` | AC-12 reload | landed 948f3d642a, red under an overlay emptying Rejudge |
+| `TestExportChainRefusesMatchLevel` | `internal/plugins/isis/export_chain_test.go` | AC-12: the IS-IS export chain carries no level | landed 948f3d642a, red before the registration change |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -346,14 +354,19 @@ import, and is refused on connected import because connected carries no tag.
 | `rib-import-central-bogons` | `test/plugin/rib-import-central-bogons.ci` | AC-7 | |
 | `static-import-filter-distance` | `test/plugin/static-import-filter-distance.ci` | AC-6 | |
 | `redistribute-chain-narrow-reload` | `test/plugin/redistribute-chain-narrow-reload.ci` | AC-14 through fakeredist (accepted prefixes only; a narrowing reload withdraws) | landed, red both ways under an overlay |
-| `redistribute-chain-static-ospf` | `test/plugin/redistribute-chain-static-ospf.ci` | AC-14 with a real OSPF consumer; needs Linux, so it runs on `claude` in package 3c | |
+| `redistribute-chain-static-ospf` | `test/plugin/redistribute-chain-static-ospf.ci` | AC-14 with a real OSPF consumer; needs Linux, so it runs on `claude` in package 3c | written 06a2f8e130, skips on darwin; green run and red proof owed in 3c |
+| `isis-export-chain` | `test/isis/isis-export-chain.ci` | AC-12: the own LSP carries the accepted /32 and not the rejected /24 | landed 7489fc84df, red under an overlay ignoring the export verdict |
+| `isis-export-filter-undefined` | `test/parse/isis-export-filter-undefined.ci` | AC-12 refusals: an undefined filter name, `match level` | landed 397e72b530 |
+| `ospf-multiaf-v4-route` | `test/ospf/ospf-multiaf-v4-route.ci` | AC-13 config change (default metric leaves removed); needs Linux | edited c356b97d17, run owed in 3c |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `isis-import-policy-frr` | `test/interop/scenarios/` | FRR | AC-4: FRR's prefix is in Ze's LSDB, flooded on to a second FRR, and absent from Ze's FIB | green at f99da3eeef on `claude`; red at assertion 5 with `ribChain.Evaluate` reject disabled; green restored. Needed b77067bc31 (TLV 240 circuit-ID echo) |
-| `isis-export-policy-frr` | `test/interop/scenarios/` | FRR | AC-12 | |
-| `ospf-export-policy-frr` | `test/interop/scenarios/` | FRR | AC-13 | |
+| `isis-export-policy-frr` | `test/interop/scenarios/` | FRR | AC-12 | not yet written; owed in package 3c on Linux |
+| `ospf-export-policy-frr` | `test/interop/scenarios/` | FRR | AC-13 | not yet written; owed in package 3c on Linux |
+| `ospf-redist-static-tag-frr` | `test/interop/scenarios/` | FRR | AC-13: the export chain sets the tag | exists, config edited in c356b97d17; run owed in 3c |
+| `ospf-multiaf-v4-frr` | `test/interop/scenarios/` | FRR | AC-13 config change | exists, config edited in c356b97d17; run owed in 3c |
 | `ospf-import-policy-bird` | `test/interop/scenarios/` | BIRD 3 | AC-9 with tagged OSPF externals learned from BIRD: the tagged prefix is installed at the set distance and loses to a static route it would otherwise beat | green at 2e08f27eb5 on `claude`; red at assertion 2 with the Loc-RIB `admit` gate skipped; green restored |
 
 ## Files to Modify
