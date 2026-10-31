@@ -8,11 +8,15 @@
 # than a blanket strip: a suppression of attribute 4 on every external session would satisfy
 # that file and fail this one.
 #
-# The route is ORIGINATED here, so it takes the announce rail (writeAnnounceUpdate,
-# reactor/reactor_wire.go) rather than the forward transform. That is the point: the two rails
-# must disagree about a received metric and agree about an originated one, and no functional
-# test pinned the originated half toward an external peer. attributes.ci carries the same
-# announce over an INTERNAL session (local 1, remote 1), where Section 5.1.4 asks nothing.
+# The route is ORIGINATED here, so it is sent at session establishment by the queued
+# initial-send rail (Peer.sendInitialRoutes, reactor/peer_initial_sync.go, which builds it
+# with buildRIBRouteUpdate, reactor/peer_rib_routes.go) rather than by the forward transform.
+# That is the point: the forward transform and the originating rail must disagree about a
+# received metric and agree about an originated one, and no functional test pinned the
+# originated half toward an external peer. Only the initial-send rail is driven: an announce
+# to an already-Established peer (writeAnnounceUpdate, reactor/reactor_wire.go) is not.
+# attributes.ci carries the same announce over an INTERNAL session (local 1, remote 1),
+# where Section 5.1.4 asks nothing.
 #
 # No local-preference in the announce: this session is external and RFC 4271 Section 5.1.5 keeps
 # LOCAL_PREF off it, so asking for one would pin the sibling's behavior rather than this one's.
