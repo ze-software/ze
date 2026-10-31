@@ -690,6 +690,7 @@ cores and its SSH port. Two mechanisms close that:
 |------|-----------|
 | Linux | QEMU and every ssh client start with `Pdeathsig` SIGKILL (`childProcAttr`), so the kernel kills them when `le` dies |
 | Every host, and the only one on macOS | After QEMU starts, the run writes `tmp/qemu/vm-record-<qemu pid>.json`, staged under another name and renamed into place so no reap reads half of it, with the QEMU pid and start time and le's pid and start time, and removes it once the VM is stopped. Before it boots, every run reads the records and stops a QEMU only when the recorded `le` is gone (no process at its pid, or one that started at another time) AND the QEMU pid still names the process that started at the recorded time. A record whose `le` still runs is another session's live VM, and is left alone |
+| Any other host (FreeBSD, OpenBSD) | None: `le` has no process start-time reader there (`processStartTime`), so a run stops the QEMU it just started and fails, naming Linux or macOS as the hosts to run on, rather than leave a VM nothing would stop |
 
 The reap prints `stopped QEMU pid <pid>: le pid <pid>, which started it, is
 gone`. A record it cannot judge is kept and named. An unreadable record is
@@ -704,6 +705,7 @@ staged record a killed `le` left before its rename is removed by the reap once
 it is older than ten minutes. The VMs that `installer`, the hugepages proof,
 crash capture and the MPLS boot start outside `Run` carry neither mechanism.
 <!-- source: internal/le/test/qemu/vmrecord.go -- recordVM, reapOrphanVMs, reapOne, reapUnreadable, removeStaleStaged -->
+<!-- source: internal/le/test/qemu/vmrecord_other.go -- processStartTime -->
 <!-- source: internal/le/test/qemu/run.go -- terminalWriter, runHostCommand -->
 <!-- source: internal/le/test/qemu/run_procattr_linux.go -- childProcAttr -->
 <!-- test: internal/le/test/qemu/vmrecord_test.go TestReapStopsOnlyAQEMUWhoseLeIsGone, TestReapKeepsARecordItCannotJudge, TestReapKeepsAYoungUnreadableRecord, TestReapRemovesAnOldStagedRecord, TestRecordVMLeavesOnlyTheRecord, TestExecutePlanRecordsTheVMWhileItRuns -->
