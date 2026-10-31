@@ -640,9 +640,17 @@ callback drained on another goroutine still reads its own cause. `change` sets
 the entered-Established bit, under the same lock as the state write, before it
 queues the enter transition's callback.
 
+The drainer releases the FSM lock only around the callback itself
+(`runCallback`), and re-takes it on the way out, a panic included. A panicking
+callback therefore unwinds out of `Event` as an ordinary panic its caller can
+recover, the lock is free afterwards, and the drain flag is cleared, so the
+next transition drains whatever was still queued. Without that, `Event`'s
+deferred unlock would meet an unlocked mutex, a fatal runtime error no
+`recover` catches.
+
 <!-- source: internal/component/bgp/reactor/peer_run.go -- SetCallback on fsm -->
 <!-- source: internal/component/bgp/reactor/peer_close.go -- sessionCloseFor -->
-<!-- source: internal/component/bgp/fsm/fsm.go -- FSM.Event, FSM.change -->
+<!-- source: internal/component/bgp/fsm/fsm.go -- FSM.Event, FSM.change, FSM.runCallback -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyPeerEstablished, notifyPeerClosed -->
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- Peer.announceNegotiated, Peer.announceEstablished, Peer.announceClosed, Peer.announceDown -->
 <!-- source: internal/component/bgp/reactor/peer_session_end.go -- Peer.leaveSession, Peer.sessionDown, failReceivePublication -->

@@ -348,18 +348,31 @@ func (f *FSM) change(to State) {
 	}
 
 	f.draining = true
+	// Runs with f.mu held on both exits: runCallback re-locks before a panic
+	// leaves it. A panicking callback must not leave draining set, or every
+	// later transition would queue behind a drainer that is gone. The entries
+	// still queued stay in order for the next enqueuer to drain.
+	defer func() { f.draining = false }()
 	for len(f.pending) > 0 {
 		t := f.pending[0]
 		f.pending = f.pending[1:]
-		cb := f.callback
-		f.mu.Unlock()
-		if cb != nil {
-			cb(t.from, t.to, t.event)
-		}
-		f.mu.Lock()
+		f.runCallback(f.callback, t)
 	}
 	f.pending = nil // release the drained backing array
-	f.draining = false
+}
+
+// runCallback runs one queued transition's callback with f.mu released.
+// Called with f.mu held; returns with f.mu held, a panic in cb included: the
+// deferred Lock re-acquires it before the panic reaches change and Event,
+// whose deferred Unlock would otherwise unlock an unlocked mutex, a fatal
+// error no recover can catch, which would take the daemon down.
+func (f *FSM) runCallback(cb StateCallback, t transition) {
+	if cb == nil {
+		return
+	}
+	f.mu.Unlock()
+	defer f.mu.Lock()
+	cb(t.from, t.to, t.event)
 }
 
 // Event processes an FSM event and returns any error.
