@@ -18,7 +18,7 @@
     "claim-sha": "efc4f1d4936ac393",
     "route": "revert",
     "producer": "internal/component/bgp/fsm/timer.go::StartKeepaliveTimer",
-    "producer-sha": "d93ae479ecda9202",
-    "break": "body of StartKeepaliveTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a58c0cf48deaf681",
+    "break": "body of StartKeepaliveTimer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -7,7 +7,7 @@
     "claim-sha": "7b61153b4b297e5c",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
-    "producer-sha": "87e92b60ce318bb1",
+    "producer-sha": "57ed4e6b1eb7bc6b",
     "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "aaa49847b8d954b9",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
-    "producer-sha": "87e92b60ce318bb1",
+    "producer-sha": "57ed4e6b1eb7bc6b",
     "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
