@@ -35,12 +35,15 @@ func withRouteNetlink(t *testing.T, err error) *closedHandle {
 	return handle
 }
 
-// policyRouteTree builds the smallest config that installs one policy route.
+// policyRouteTree builds the smallest config that installs one policy route:
+// the route list under the shared policy container, the shape the config
+// parser builds for `policy { route pbr { ... } }`. configRoot is the path
+// "policy/route", not a container name, so it cannot build this tree.
 func policyRouteTree() *config.Tree {
 	tree := config.NewTree()
 	route := config.NewTree()
 	route.AddListEntry("rule", "r1", config.NewTree())
-	tree.GetOrCreateContainer(configRoot).AddListEntry("route", "pbr", route)
+	tree.GetOrCreateContainer(policyRoot).AddListEntry("route", "pbr", route)
 	return tree
 }
 
@@ -97,7 +100,7 @@ func TestCheckPolicyRouteNetlinkIsSilentWithoutRoutes(t *testing.T) {
 		t.Fatalf("no block: diagnostics = %d, want 0", len(diags))
 	}
 	empty := config.NewTree()
-	empty.GetOrCreateContainer(configRoot)
+	empty.GetOrCreateContainer(policyRoot)
 	if diags := checkPolicyRouteNetlink(diagnostic.DoctorCheckContext{Tree: empty}); len(diags) != 0 {
 		t.Fatalf("empty block: diagnostics = %d, want 0", len(diags))
 	}
