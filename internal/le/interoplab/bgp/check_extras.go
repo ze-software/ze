@@ -241,7 +241,11 @@ var scenarioExtras = map[string][]operation{
 	},
 	"isis-redist-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip route isis"}, contains: []string{peerPrefixFirst}, timeout: 60 * time.Second},
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast"}, contains: []string{peerPrefixFirst}, timeout: 60 * time.Second},
+		// IS-IS -> BGP: FRR's own IS-IS prefix, learned by Ze over the adjacency,
+		// reaches gobgp's RIB through `destination bgp { import isis }`. gobgp is
+		// a third router, so the route's next hop (FRR) is not the peer itself.
+		{kind: opGoBGPSession, argument: zeLabAddress},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4}, contains: []string{isisRedistFRRPrefix}, timeout: 90 * time.Second},
 	},
 	"ospf-ldp-sync-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf database router 172.30.0.2"}, contains: []string{frrLabAddress, "TOS 0 Metric: 65535"}, timeout: 45 * time.Second},

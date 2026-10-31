@@ -386,7 +386,10 @@ const (
 // Prefixes a peer daemon announces to Ze, and the prefixes the scenarios
 // derive from them.
 const (
-	peerPrefixFirst     = "10.99.0.0/24"
+	peerPrefixFirst = "10.99.0.0/24"
+	// isisRedistFRRPrefix is the loopback FRR advertises into IS-IS in
+	// isis-redist-frr, which Ze must redistribute into BGP toward gobgp.
+	isisRedistFRRPrefix = "10.98.0.1/32"
 	peerPrefixSecond    = "10.99.1.0/24"
 	flowspecMatchPrefix = "10.99.5.0/24"
 	flowspecOrOfAndRule = "[destination: 10.99.2.0/24][port: >80&<100 >443&<500]"

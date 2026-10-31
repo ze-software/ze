@@ -17,28 +17,34 @@ redistributes IS-IS routes out to BGP:
   via IS-IS and install it (`show isis route` / `show ip route isis`). The up/down
   bit is honoured (0 on a same-level advertisement; 1 only on a down-level leak,
   RFC 2966); TLV 135 carries no external bit (RFC 5305 sec 4).
-- **IS-IS -> BGP (producer, AC-1/AC-2/AC-7):** an IS-IS route Ze learns from FRR is
-  redistributed into BGP (`redistribute { destination bgp { import isis } }`) and
-  appears in a BGP peer's RIB; withdrawing the IS-IS route withdraws it from BGP.
+- **IS-IS -> BGP (producer, AC-1/AC-2/AC-7):** FRR advertises its own loopback
+  10.98.0.1/32 into IS-IS. Ze learns it over the adjacency, redistributes it into
+  BGP (`redistribute { destination bgp { import isis } }`), and gobgp, Ze's eBGP
+  peer, must hold it in its RIB. The BGP peer is a third router on purpose: the
+  route's IGP next hop is FRR, and RFC 4271 Section 5.1.3 withholds a route from
+  the peer that is its own next hop, so an FRR BGP peer could never receive it.
 
 ## Topology
 
 ```
-  FRR isisd  <--- IS-IS (L2, AF_PACKET) --->  Ze  <--- eBGP --->  BGP peer (FRR/gobgp)
-   (router isis, area 49.0001)                 (isis + redistribute)
+  FRR isisd  <--- IS-IS (L2, AF_PACKET) --->  Ze  <--- eBGP --->  gobgp
+   (router isis, area 49.0001,                 (isis + redistribute)  (AS 65002)
+    lo 10.98.0.1/32 passive)
 ```
 
 ## Files
 
 - `ze.conf`   -- Ze: `isis { ... }` over the L2 link to FRR, a connected/static
-  prefix, an eBGP peer, and `redistribute { destination bgp { import isis }
-  destination isis { import connected static bgp } }`.
+  prefix, an eBGP peer (gobgp, 172.30.0.5), and `redistribute { destination bgp
+  { import isis } destination isis { import connected static bgp } }`.
 - `frr.conf`  -- FRR: `router isis` on the shared link, same area, so it forms an
-  adjacency with Ze and learns the redistributed reachability.
+  adjacency with Ze and learns the redistributed reachability, and a passive
+  `lo` carrying 10.98.0.1/32 for Ze to learn.
+- `gobgp.toml` -- gobgp: the eBGP peer that receives the IS-IS route Ze exports.
 - `internal/le/interoplab/bgp/check_engine.go` `checkScenario` executes the
-  `scenarioOperations` and `scenarioExtras` registered for `isis-redist-frr`;
-  those assertions require FRR to install the redistributed prefixes and an
-  IS-IS route to reach the BGP peer.
+  `scenarioOperations` and `scenarioExtras` registered for `isis-redist-frr`:
+  the adjacency is up in FRR, FRR installs Ze's static 10.99.0.0/24 via IS-IS,
+  and gobgp's RIB holds FRR's 10.98.0.1/32.
 
 ## Status
 
