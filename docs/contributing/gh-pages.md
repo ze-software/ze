@@ -1123,7 +1123,7 @@ three of which were deleted with the interpreter, to claim an agent guard was
 ON. The page states the live verification wiring instead, read from the declared
 pre-commit stage population.
 <!-- source: internal/le/site/health.go -- renderHealth -->
-<!-- source: internal/le/site/rfccompliance.go -- collectRFCCompliance, rfcSatisfactionRows, rfcAccountedNote -->
+<!-- source: internal/le/site/rfccompliance.go -- collectRFCCompliance -->
 <!-- source: internal/le/site/rfcledger.go -- collectRequirementLedger -->
 <!-- source: internal/le/site/rfcdetail.go -- writeRFCDetailPage -->
 <!-- source: internal/le/site/rfcevidence.go -- rfcProofHTML -->

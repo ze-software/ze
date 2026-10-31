@@ -435,7 +435,7 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 		Int(int64(must.OSGap)).Str(" by the OS with no verified test yet, and ").
 		Int(int64(must.ZeGap)).Str(" are owed by ze and not proven. ").
 		Int(int64(must.NotOwed)).Str(" further MUST rows are not owed (not applicable, declined, OS blocked) " +
-		"and are in neither count. Until 2026-10-31 this figure was taken over every MUST row of those RFCs, " +
+		"and are in neither count. Until 2026-10-31 this figure was taken over every MUST row of those RFCs but rollups, " +
 		"annotated rows included, so a row that does not bind ze counted against it. ").
 		Int(int64(sections.NotWalked)).Str(" of the ").Int(int64(sections.RFCs)).
 		Str(" RFCs ze implements are not walked yet: their requirement lists are unbounded, so " +

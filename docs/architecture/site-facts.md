@@ -211,7 +211,8 @@ blocked). A SHOULD row a lower layer performs is split the same way, into
 overview bar the OS verified and OS gap segments sum MUST and SHOULD rows
 (`must.os-verified + should.os-verified`, `must.os-gap + should.os-gap`); the
 MUST bar counts MUST rows only.
-<!-- source: internal/le/site/rfcdata.go -- rfcShouldCountsOf, rfcBars -->
+<!-- source: internal/le/site/rfcdata.go -- rfcBars -->
+<!-- source: internal/le/rfc/sectioncounts.go -- SectionsOf -->
 
 A page marks a value with `data-ze-rfc="<subject>:<field>"` and a bar with
 `data-ze-rfc-bar="<subject>:<bar>"`, where the subject is a stem, a profile

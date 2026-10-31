@@ -1687,7 +1687,7 @@ node with its level, cycle and figures and every edge with its kind, and its
 per profile from them (`docs/contributing/gh-pages.md`, "Quality pages"). A row
 read back from that JSON renders its cells through `TreeRow.Cells`, the cells
 `./le rfc tree` prints.
-<!-- source: internal/le/rfc/priority.go -- useCaseScope, scope, path, loadPriorityCorpus, priorityCorpusOf -->
+<!-- source: internal/le/rfc/priority.go -- useCaseScopeOf, scope, path, loadPriorityCorpus, priorityCorpusOf -->
 <!-- source: internal/le/rfc/tree.go -- tree, treeRow, candidates, Cells, sectionsCell -->
 <!-- source: internal/le/rfc/priority_export.go -- PriorityOf -->
 <!-- source: internal/le/rfc/next.go -- next, gapCandidates, optionalGaps -->

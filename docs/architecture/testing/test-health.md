@@ -263,11 +263,12 @@ many of those RFCs are not walked and left out.
 <!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, Implements -->
 <!-- source: internal/le/rfc/rfc.go -- AnnotationTraitsOf -->
 
-Linux-limit annotations stay in that denominator and earn no proof credit.
-The density detail counts them separately as binding, unmet requirements
-blocked by a verified Linux kernel limitation. The annotation split discovers
-the kind from the same registry; it does not treat a Linux limit as a
-not-applicable requirement or as a proof.
+A Linux-limit annotation earns no proof credit. Once its register entry
+verifies, the row is not owed (OS blocked) and leaves that denominator, because
+the kernel, not Ze's code, is what blocks it. One whose entry does not verify
+stays owed as a Ze gap. The density detail counts the OS-blocked rows apart from
+the not-applicable and declined ones. The annotation split discovers the kind
+from the same registry; it never treats a Linux limit as a proof.
 <!-- source: internal/le/test/health/collect_rfc.go -- densityMetric, annotationCounts.total -->
 
 ### What is gated, and what is only published

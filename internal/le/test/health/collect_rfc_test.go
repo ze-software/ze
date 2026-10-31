@@ -219,7 +219,7 @@ func TestDensityDetailCountsAnExclusionNotOwedOnlyWithItsEvidence(t *testing.T) 
 		"counted not owed only once its evidence passes",
 		"counted not owed as OS blocked only once its register entry verifies",
 		"stays among the rows ze owes as a ze gap",
-		"Until 2026-10-31 this figure was taken over every MUST row of those RFCs, annotated rows included",
+		"Until 2026-10-31 this figure was taken over every MUST row of those RFCs but rollups, annotated rows included",
 	} {
 		if !strings.Contains(metric.Detail, want) {
 			t.Errorf("the detail lacks %q:\n%s", want, metric.Detail)
