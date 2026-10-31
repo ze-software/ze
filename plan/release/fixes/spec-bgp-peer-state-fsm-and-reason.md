@@ -5,7 +5,7 @@
 | Status | ready |
 | Scope | cli |
 | Priority | P1 |
-| Release reason | The peer state an operator reads today is Ze's lifecycle name, not the RFC 4271 FSM state, so a peer sitting in Idle between connect retries reads "connecting" and Ze's "active" means the opposite of the RFC's Active. Operators coming from FRR, BIRD or Cisco misread every down peer. |
+| Release reason | The peer state an operator reads today is Ze's lifecycle name, not the RFC 4271 FSM state, so a peer sitting in Idle between connect retries reads "connecting" and Ze's "active" means the opposite of the RFC's Active. Operators used to other BGP implementations, which show the RFC state, misread every down peer. |
 | RFC gaps | - |
 | Depends | - |
 | Phase | - |
@@ -38,7 +38,7 @@ Owner decisions, in his words and choices:
 Trigger: the website showcase recording of `monitor bgp` showed peer
 127.0.0.4 as "connecting" while no speaker listened there, so the FSM was
 cycling Connect to Idle (RFC 4271 Section 8.2.2, Connect state, Event 18:
-"changes its state to Idle"). The FRR peer later in the same recording showed
+"changes its state to Idle"). The lab peer at 172.29.0.2 later in the same recording showed
 `state connecting` beside `fsm-state IDLE`.
 
 ## Required Reading
@@ -179,7 +179,7 @@ The bridge must not invent DISABLED there.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | No plugin event serialises the lifecycle `PeerState`, so renaming the JSON key leaves the plugin event contract intact | Research: `appendPeerJSON` has no state key; state events carry `up`/`down` (`rpc.SessionState`) | A third-party plugin breaks silently | grep of `format/` and `pkg/plugin` for `PeerState` and the lifecycle names before implementation | unvalidated |
-| A-2 | Birdwatcher clients (Alice-LG) accept FSM-style values in `state` and free text in `info` | Upstream birdwatcher copies BIRD `show protocols`, where `info` carries "Established", "Active", "Connect" | Alice-LG shows peers wrongly | Read Alice-LG source for its `state`/`info` handling; record in `birdwatcher-compat.md` | unvalidated |
+| A-2 | Birdwatcher clients (Alice-LG) accept FSM-style values in `state` and free text in `info` | The upstream birdwatcher API relays its routing daemon's protocol listing, where `info` carries the FSM state name ("Established", "Active", "Connect") | Alice-LG shows peers wrongly | Read Alice-LG source for its `state`/`info` handling; record in `birdwatcher-compat.md` | unvalidated |
 | A-3 | gNMI, telemetry and doctor read no peer state value | Research grep found none | A collector silently changes meaning | grep `internal/component/{gnmi,telemetry,doctor}` for `State`, `PeerInfo`, lifecycle names | unvalidated |
 | A-4 | `net.OpError` from the dialer can be classified into refused, timeout, unreachable on both Linux and macOS | `Session.Connect` wraps with `%w` | Reason reads "other" on one platform | Unit test with `syscall.ECONNREFUSED`, `ETIMEDOUT`, `EHOSTUNREACH`, `ENETUNREACH` wrapped as the dialer returns them | unvalidated |
 | A-5 | A passive peer (connect false) waiting for inbound is in RFC Idle or Active depending on whether a session object exists | `Peer.SessionState` returns Idle without a session | The display contradicts the RFC for passive peers | Read `runOnce` passive path and `fsm` passive handling during DESIGN | unvalidated |
@@ -344,7 +344,7 @@ The bridge must not invent DISABLED there.
 | 8 | Plugin SDK/protocol changed? | No | Plugin events untouched (A-1); `docs/architecture/api/process-protocol.md` named in row 16 as unaffected once A-1 holds |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | Display only; state names quote RFC 4271 Section 8.2.2 and RFC 4273 `bgpPeerState` |
 | 10 | Test infrastructure changed? | No | Fixtures follow the key rename; no runner change |
-| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` if it compares peer state display with FRR/BIRD |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` if it compares peer state display with other implementations |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/behavior/peer-lifecycle.md`, `docs/architecture/behavior/fsm.md` |
 | 13 | Route metadata keys added/changed? | No | None |
 | 14 | Prometheus counters added/changed? | Yes | `docs/guide/monitoring.md` |
@@ -414,9 +414,9 @@ The bridge must not invent DISABLED there.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| `state` is the FSM state, lifecycle moves to `peer-state` (owner) | Keep `state` as lifecycle and add a column | Operators and scripts read `state` as the RFC state (FRR `state`, BIRD info column) |
-| Structured reason: `state-reason` code plus `reason-detail` and `next-retry` (owner chose A) | B: one BIRD-style free-text `info`; C: each view derives its own | Scripts match stable codes; one derivation; FRR `peerState` precedent |
-| Lifecycle `active` renamed `passive` (owner) | Keep `active` | Clashes with RFC Active; FRR and BIRD say Passive |
+| `state` is the FSM state, lifecycle moves to `peer-state` (owner) | Keep `state` as lifecycle and add a column | Operators and scripts read `state` as the RFC state, which is what other BGP implementations show under that name |
+| Structured reason: `state-reason` code plus `reason-detail` and `next-retry` (owner chose A) | B: one free-text `info` string combining state and last error; C: each view derives its own | Scripts match stable codes; one derivation; showing the FSM state beside a separate peer condition (admin down, prefix limit, passive) is the common practice |
+| Lifecycle `active` renamed `passive` (owner) | Keep `active` | Clashes with RFC Active; "passive" is the usual name for a peer that waits for the remote to connect |
 | New gauge `ze_peer_fsm_state` with RFC 4273 values (owner) | Keep metrics lifecycle only; switch the existing gauge | Lifecycle dashboards keep working; FSM visible to Prometheus with standard MIB numbering |
 | Connect error gets its own field, `last-error` unchanged | Reuse `last-error` | `last-error` is the NOTIFICATION under the normative LG contract |
 | Reason derived in the reactor, next to both states | Derive in `cmd/peer` | The reactor holds the Peer fields under `p.mu`; the answer must be a self-contained value |
