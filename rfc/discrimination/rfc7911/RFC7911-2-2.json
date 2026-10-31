@@ -194,8 +194,8 @@
     "claim-sha": "e8cb96f0555d772e",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_ownership.go::bindSourcePath",
-    "producer-sha": "0640775328f1e98b",
-    "break": "line 345: \"!\" -\u003e \"\"",
+    "producer-sha": "c8f26b1dd55b64df",
+    "break": "line 450: \"!staged\" -\u003e \"staged\"",
     "citation": "5"
   },
   {
