@@ -483,7 +483,7 @@ ze doctor
 | `ze_bgp_redistribute_announcements` | accepted add entries dispatched to a consumer |
 | `ze_bgp_redistribute_withdrawals` | withdrawals dispatched to a consumer: accepted remove entries, and held routes a rejected entry removes |
 | `ze_bgp_redistribute_filtered_protocol_total` | batches skipped by the loop guard |
-| `ze_bgp_redistribute_filtered_rule_total` | entries the evaluator rejected |
+| `ze_redistribute_chain_rejected_total{destination,source}` | routes an import rule covers whose `filters` chain rejected them, by destination and source protocol. A route no import rule names is not counted |
 | `ze_bgp_redistribute_replay_total{source}` | routes replayed, to a new peer or to a consumer that registered late |
 
 <!-- source: internal/plugins/redistribute/redistribute.go -- setMetricsRegistry -->

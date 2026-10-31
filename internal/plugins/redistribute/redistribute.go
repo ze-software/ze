@@ -83,7 +83,7 @@ type pluginMetrics struct {
 	announcements         metrics.Counter
 	withdrawals           metrics.Counter
 	filteredProtocolTotal metrics.Counter
-	filteredRuleTotal     metrics.Counter
+	chainRejectedTotal    metrics.CounterVec
 	replayTotal           metrics.CounterVec
 }
 
@@ -95,7 +95,7 @@ func setMetricsRegistry(reg metrics.Registry) {
 		announcements:         reg.Counter("ze_bgp_redistribute_announcements", "Accepted add entries dispatched to consumers as announcements."),
 		withdrawals:           reg.Counter("ze_bgp_redistribute_withdrawals", "Withdrawals dispatched to consumers: accepted remove entries, and held routes a rejected entry retires."),
 		filteredProtocolTotal: reg.Counter("ze_bgp_redistribute_filtered_protocol_total", "Batches filtered by the consumer-protocol skip."),
-		filteredRuleTotal:     reg.Counter("ze_bgp_redistribute_filtered_rule_total", "Entries rejected by the redistribute evaluator."),
+		chainRejectedTotal:    reg.CounterVec("ze_redistribute_chain_rejected_total", "Routes an import rule covers and its policy chain rejected, by destination and source protocol.", []string{"destination", "source"}),
 		replayTotal:           reg.CounterVec("ze_bgp_redistribute_replay_total", "Redistribute routes replayed to a BGP peer whose session just established or to a destination consumer that just registered, by source.", []string{"source"}),
 	}
 	metricsPtr.Store(m)
@@ -259,9 +259,7 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 			sets, accepted := ev.Accept(&route, cname)
 			if !accepted {
 				logger().Debug(Name+": evaluator rejected", "source", name, "consumer", cname, "origin", route.Origin, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)
-				if m := getMetrics(); m != nil {
-					m.filteredRuleTotal.Inc()
-				}
+				countChainRejected(ev, &route, cname, name)
 				removeReplacedRoute(ctx, consumer, key, entry.Action)
 				continue
 			}
@@ -271,6 +269,20 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 			recordDispatched(key, entry.Action, &route)
 		}
 	}
+}
+
+// countChainRejected counts a route the evaluator refused under the policy
+// chain of a rule that imports it. A route no rule imports into destination is
+// not a chain's verdict, so it is left out (configredist.Evaluator.Imports).
+func countChainRejected(ev *configredist.Evaluator, route *configredist.RedistRoute, destination, source string) {
+	m := getMetrics()
+	if m == nil {
+		return
+	}
+	if !ev.Imports(route, destination) {
+		return
+	}
+	m.chainRejectedTotal.With(destination, source).Inc()
 }
 
 // redistRoute builds the route an import rule judges for one entry: the

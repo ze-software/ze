@@ -96,3 +96,26 @@ func TestEvaluatorNilRules(t *testing.T) {
 	assert.False(t, accepts(ev, RedistRoute{Origin: "ospf", Source: "ospf", Route: ribpolicy.Route{Family: family.IPv4Unicast}}, "bgp"))
 	assert.Empty(t, ev.Rules())
 }
+
+// TestEvaluatorImports separates "no rule imports this route" from "a rule
+// imports it and its chain rejects it", the split the orchestrator's chain
+// rejection counter depends on. Method: one ebgp->ospf rule with an IPv4
+// chain; Imports answers true for an ebgp route into ospf whichever family the
+// chain then judges, and false for another destination or another source.
+//
+// VALIDATES: Imports reads the rule's destination and source and ignores its
+// chain.
+// PREVENTS: a route no rule covers counted as a chain rejection.
+func TestEvaluatorImports(t *testing.T) {
+	ev := NewEvaluator([]ImportRule{
+		{Source: "ebgp", Destination: "ospf", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
+	})
+	v6 := RedistRoute{Origin: "bgp", Source: "ebgp", Route: ribpolicy.Route{Family: family.IPv6Unicast}}
+
+	assert.False(t, accepts(ev, v6, "ospf"), "the chain rejects ipv6")
+	assert.True(t, ev.Imports(&v6, "ospf"), "a rule still imports ebgp into ospf")
+	assert.False(t, ev.Imports(&v6, "isis"), "no rule imports into isis")
+	ibgp := RedistRoute{Origin: "bgp", Source: "ibgp", Route: ribpolicy.Route{Family: family.IPv4Unicast}}
+	assert.False(t, ev.Imports(&ibgp, "ospf"), "no rule imports ibgp")
+	assert.Panics(t, func() { ev.Imports(&v6, "") }, "an unnamed importing protocol is a BUG")
+}

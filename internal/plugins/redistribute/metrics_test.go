@@ -2,6 +2,7 @@ package redistribute
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -44,9 +45,21 @@ func (r *recordingRegistry) Counter(name, _ string) metrics.Counter {
 }
 
 func (r *recordingRegistry) Gauge(string, string) metrics.Gauge { return nopGauge{} }
-func (r *recordingRegistry) CounterVec(string, string, []string) metrics.CounterVec {
-	return nopCounterVec{}
+func (r *recordingRegistry) CounterVec(name, _ string, _ []string) metrics.CounterVec {
+	return recordingCounterVec{registry: r, name: name}
 }
+
+// recordingCounterVec records each label set as its own counter, keyed
+// name{label,label} in the registry.
+type recordingCounterVec struct {
+	registry *recordingRegistry
+	name     string
+}
+
+func (v recordingCounterVec) With(labels ...string) metrics.Counter {
+	return v.registry.Counter(v.name+"{"+strings.Join(labels, ",")+"}", "")
+}
+func (recordingCounterVec) Delete(...string) bool                               { return false }
 func (r *recordingRegistry) GaugeVec(string, string, []string) metrics.GaugeVec { return nopGaugeVec{} }
 func (r *recordingRegistry) Histogram(string, string, []float64) metrics.Histogram {
 	return nopHistogram{}
@@ -110,8 +123,8 @@ func resetMetricsState(t *testing.T) {
 }
 
 // VALIDATES: AC-14 -- counters increment at the documented cadences for a known
-// event sequence (3 accepted adds, 1 accepted remove, 1 rule-rejected entry,
-// 1 consumer-protocol-skipped batch).
+// event sequence (3 accepted adds, 1 accepted remove, 1 chain-rejected entry,
+// 1 consumer-protocol-skipped batch, 1 entry no rule imports).
 // PREVENTS: Counter drift from reality.
 func TestMetricsCadence(t *testing.T) {
 	resetMetricsState(t)
@@ -141,12 +154,17 @@ func TestMetricsCadence(t *testing.T) {
 	handleBatch(context.Background(), skip, addBatch(id, afiIPv6, "2001:db8::1/128", ""))
 	// 1 batch with BGP protocol -- should be skipped at handler entry.
 	handleBatch(context.Background(), skip, addBatch(bgpID, afiIPv4, "10.0.0.99/32", ""))
+	// 1 batch from a source no rule imports: rejected, and no chain's verdict.
+	otherID := redistevents.RegisterProtocol("otherredist")
+	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "otherredist", Protocol: "otherredist"}))
+	handleBatch(context.Background(), skip, addBatch(otherID, afiIPv4, "10.0.0.98/32", ""))
 
-	assert.Equal(t, int64(6), rec.value("ze_bgp_redistribute_events_received"), "5 accepted batches + 1 skipped = 6 received")
+	assert.Equal(t, int64(7), rec.value("ze_bgp_redistribute_events_received"), "6 offered batches + 1 skipped = 7 received")
 	assert.Equal(t, int64(3), rec.value("ze_bgp_redistribute_announcements"))
 	assert.Equal(t, int64(1), rec.value("ze_bgp_redistribute_withdrawals"))
 	assert.Equal(t, int64(1), rec.value("ze_bgp_redistribute_filtered_protocol_total"))
-	assert.Equal(t, int64(1), rec.value("ze_bgp_redistribute_filtered_rule_total"), "ipv6/unicast batch had 1 entry")
+	assert.Equal(t, int64(1), rec.value("ze_redistribute_chain_rejected_total{bgp,fakeredist}"), "the chain rejected the 1 ipv6/unicast entry")
+	assert.Equal(t, int64(0), rec.value("ze_redistribute_chain_rejected_total{bgp,otherredist}"), "no rule imports otherredist, so no chain rejected it")
 
 	assert.Len(t, consumer.snapshotInjected(), 3)
 	assert.Len(t, consumer.snapshotWithdrawn(), 1)

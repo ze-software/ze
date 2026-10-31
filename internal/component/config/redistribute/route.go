@@ -93,12 +93,7 @@ func (r *ImportRule) Accept(route *RedistRoute, importingProtocol string) (ribpo
 	if redistevents.WouldLoop(route.Origin, importingProtocol) {
 		return ribpolicy.Sets{}, false
 	}
-	// Destination scoping (R-3): a rule parsed under `destination <proto>` is
-	// accepted only by that protocol.
-	if r.Destination != "" && r.Destination != importingProtocol {
-		return ribpolicy.Sets{}, false
-	}
-	if route.Source != r.Source && route.Origin != r.Source {
+	if !r.covers(route, importingProtocol) {
 		return ribpolicy.Sets{}, false
 	}
 	// refuse-by-default: guards ImportRule.Final -- a rule with no final has no chain, so every route of its source moves
@@ -110,6 +105,17 @@ func (r *ImportRule) Accept(route *RedistRoute, importingProtocol string) (ribpo
 	}
 	verdict := r.Chain.Evaluate(route.Route)
 	return verdict.Sets, verdict.Action == ribpolicy.ActionAccept
+}
+
+// covers answers whether the rule imports route's source into
+// importingProtocol, before its chain has a say.
+func (r *ImportRule) covers(route *RedistRoute, importingProtocol string) bool {
+	// Destination scoping (R-3): a rule parsed under `destination <proto>` is
+	// accepted only by that protocol.
+	if r.Destination != "" && r.Destination != importingProtocol {
+		return false
+	}
+	return route.Source == r.Source || route.Origin == r.Source
 }
 
 // evaluate checks a route against a set of import rules for a given importing

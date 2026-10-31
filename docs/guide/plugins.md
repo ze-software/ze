@@ -831,8 +831,9 @@ out-of-process producer re-emits asynchronously.
 | a destination protocol's consumer becoming registered | that ONE consumer, with the ordinary all-peers fan-out. Nothing orders the plugin startup tiers, so a producer can emit before the consumer exists |
 
 Counters: `ze_bgp_redistribute_events_received`, `_announcements`,
-`_withdrawals`, `_filtered_protocol_total`, `_filtered_rule_total`,
-`ze_bgp_redistribute_replay_total{source}` (routes replayed, to a newly
+`_withdrawals`, `_filtered_protocol_total`,
+`ze_redistribute_chain_rejected_total{destination,source}` (routes an import
+rule's chain rejected), `ze_bgp_redistribute_replay_total{source}` (routes replayed, to a newly
 established peer or to a consumer that registered late).
 
 <!-- source: internal/plugins/redistribute/redistribute.go -- consumer plugin, watchConsumers -->

@@ -385,6 +385,7 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		sets, accepted := ev.Accept(&route, destination)
 		if !accepted {
 			logger().Debug("redistribute-orchestrator: evaluator rejected replay entry", "source", name, "destination", destination, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)
+			countChainRejected(ev, &route, destination, name)
 			continue
 		}
 		adjusted := applySets(entry, sets)

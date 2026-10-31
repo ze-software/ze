@@ -61,6 +61,24 @@ func (e *Evaluator) Accept(route *RedistRoute, importingProtocol string) (ribpol
 	return evaluate(route, e.rules, importingProtocol)
 }
 
+// Imports answers whether some rule imports route's source into
+// importingProtocol, whatever its chain decides. A route Accept refuses while
+// Imports answers true is one a chain rejected; with no such rule nothing
+// imports the route at all, which is not a chain's verdict.
+//
+// importingProtocol MUST name a protocol. An empty name panics, as in Accept.
+func (e *Evaluator) Imports(route *RedistRoute, importingProtocol string) bool {
+	mustNameImportingProtocol(importingProtocol)
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	for i := range e.rules {
+		if e.rules[i].covers(route, importingProtocol) {
+			return true
+		}
+	}
+	return false
+}
+
 // Rules returns a copy of the current import rules (for diagnostics/CLI). A
 // compiled chain is immutable, so the copy shares it.
 func (e *Evaluator) Rules() []ImportRule {
