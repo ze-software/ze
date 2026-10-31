@@ -9,9 +9,41 @@
 | Depends | plan/release/fixes/spec-bgp-link-local-only-next-hop.md (its AC-17 designs the per-peer re-advertise this spec reuses) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-12 |
+| Updated | 2026-10-31 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Ownership and the removed attempt (2026-10-31)
+
+**Owner decision:** this spec owns the re-advertisement when a Link-Local
+answer changes, whether the RFC 2545 Section 3 condition flipped on an address
+change or the Link-Local the neighbor table names for another router on the
+shared subnet moved. It also owns the replay-ordering safeguard that pass
+needs: the receive cut taken from the sources (`Peer.receiveCut`,
+`receive_publication.go`), the drain of each source to its cut
+(`drainResendSources`, which no file holds yet), then
+`Process.DrainEventsApplied` (`internal/component/plugin/process/delivery.go`)
+before the relay starts. No other spec carries this work.
+
+**An earlier attempt was removed from the tree** because of two review
+blockers. Its patch and its two new files are kept as a starting point, not
+as a design to restore:
+
+| File | What it holds |
+|------|---------------|
+| `plan/records/rfc2545-readvertise-attempt/itemC.patch` | The diff over tracked files. It applies to HEAD's index as of 2026-10-31 (`git apply --check --cached`). It touches `docs/architecture/update-building.md`; `policy_reload.go`, which splits `Peer.resendAdvertised` out of `reconcileExportFinal`; `reactor.go`, with the `readvertise` queue field and `startReadvertise` in `StartWithContext`; `reactor_iface.go`, where `refreshPeerLinkScopes` queues a peer whose third-party Link-Local moved; `reactor_iface_test.go` (`TestBGPSharedListener`); and `internal/core/network/neighbors.go`, which adds `NeighborLinkLocals.Found` |
+| `plan/records/rfc2545-readvertise-attempt/reactor_readvertise.go.txt` | The new `reactor_readvertise.go`: `readvertiseQueue` (a set of peers with a capacity-one wake), `readvertiseWorker` (a long-lived worker on the reactor wait group), `Peer.readvertiseLinkLocalChange` (Established and RFC 8212 export-final gates, a 2-minute pass bound) and `thirdPartyLinkLocalsMoved` |
+| `plan/records/rfc2545-readvertise-attempt/rfc2545_third_party_readvertise_test.go.txt` | The new unit test file: a peer on 2001:db8:1::/64 with one static route via the third router, fake address and neighbor tables, asserting the re-sent UPDATE carries the moved Link-Local |
+
+The two `.go` files carry a `.txt` suffix so the module does not compile them.
+Rename them back when you restore them.
+
+| ID | Class | Finding | What the next attempt owes |
+|----|-------|---------|----------------------------|
+| B1 | BLOCKER | The replay through `resendAdvertised` skipped the ordering safeguard: no receive cut, no drain of each source, no `DrainEventsApplied`. A route withdrawn or replaced on the live rail during the pass could land at the peer after its live replacement, so the peer ends holding a stale or withdrawn route | The relay starts only after every source's publication reaches its cut and adj-rib-in's process applied every prior event, under the one per-peer hold, as Task describes. A test proves a withdrawal received during the pass is the last word on the wire |
+| B2 | BLOCKER | Only unit tests covered it. No daemon-level test drove an address or neighbor change through the real watch to an UPDATE on the wire, and no interop scenario showed FRR or BIRD resolving the new next hop | A `.ci` test through the daemon, and an interop scenario (extend `bgp-rfc2545-third-party-linklocal-frr` or add a named one) where the peer's RIB shows the new Link-Local after the change |
+| ISSUE 3 | ISSUE | Each pass re-sends the peer's whole table, and nothing debounces a burst of changes. The capacity-one wake collapses only changes that arrive while a pass is already queued, so a flapping link drives one whole-table re-send per flap | A bound on passes per peer per interval, or a settle delay before a pass, with a test that a burst gives one pass |
+| ISSUE 5 | ISSUE | The config-static re-send races `sendingConfigStatic` (`peer.go`). It is one per-peer atomic that `notifyMessageReceiver` reads for every sent event, to tag it config-static so the RIB skips storing it in ribOut. `sendInitialRoutes` raises it under `staticMu`, but it clears it after `staticMu` is released and after default-originate (`peer_initial_sync.go`). `restoreConfigured` `Swap`s it and restores the old value (`peer_static_restore.go`). A pass that raises it while another writer sends to the same peer tags that writer's plugin or forwarded routes config-static, and an initial sync that clears it during a pass untags the pass's static routes. (Mechanism read at the producers on 2026-10-31; the review's own wording is not in the tree) | The marker belongs to the send, not to the peer: carry it on the send itself, or serialise every writer that reads it. Add a race test (`-race -count=20`) of a pass overlapping initial sync and a plugin send |
 
 ## Task
 
@@ -125,7 +157,7 @@ in place on that path.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/component/bgp/reactor/reactor_iface.go` - `(*Reactor).refreshPeerLinkScopes` reads `network.ConnectedPrefixes()`, skips a peer whose stored `llScope.connected` equals it, and otherwise calls `peer.refreshForwardFactsIfLiveFrom`; it re-advertises nothing, and `handleAddrAddedPayload` is one of its callers
+- [ ] `internal/component/bgp/reactor/reactor_iface.go` - `(*Reactor).refreshPeerLinkScopes` reads `network.ConnectedPrefixes()`, skips a peer whose stored `llScope.connected` equals it, and otherwise calls `peer.refreshForwardFactsIfLiveFrom`; it re-advertises nothing. Its callers are the address watch (`addressSync.apply`, `reactor_address_watch.go`) and the neighbor watch (`reactor_iface.go`); `handleAddrAddedPayload` and the bus subscription were removed in 5682b2c17c
 - [ ] `rfc/full/rfc2545.txt` - Section 3, the shared-subnet condition itself
 
 **Behavior to preserve:** (unless the user explicitly said to change it)

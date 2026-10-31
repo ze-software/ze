@@ -1,0 +1,243 @@
+diff --git a/docs/architecture/update-building.md b/docs/architecture/update-building.md
+index 326f83316e..5fb9c0dd01 100644
+--- a/docs/architecture/update-building.md
++++ b/docs/architecture/update-building.md
+@@ -317,7 +317,15 @@ the build) the field stays 16 octets too, and the warning is given once per
+ peer, because the cause holds for every route until it is fixed; a later read
+ that succeeds re-arms it. `ze doctor` reports the same unreadable table before
+ the daemon starts (`bgp-neighbor-table`, code `doctor-bgp-neighbor-table`),
+-with the fix the warning names (`reactor.NeighborTableFix`). When
++with the fix the warning names (`reactor.NeighborTableFix`). When a refresh
++finds that the Link-Local written after another router's global on the
++subnet shared with a peer moved (changed, gained or lost), the reactor queues
++that peer, and a worker of its own re-sends every route advertised to it
++through the writers that sent it first (`Peer.resendAdvertised`: static
++routes, default-originate, plugin routes, forwarded routes replayed from
++`bgp-adj-rib-in`, FlowSpec), so each goes out with the router's current
++Link-Local. A change that only alters how a lookup missed sends the same bytes
++and queues nothing. When
+ no watch runs, the warning says the table it read is not watched and names
+ why, rather than blaming the next-hop router for an entry that appeared after
+ the read. The speaker's own Link-Local never substitutes for another router's.
+@@ -359,6 +367,8 @@ link-local in `LabeledUnicastParams.LinkLocalNextHop`, and
+ <!-- source: internal/component/bgp/reactor/link_scope.go -- linkScope.linkLocalNextHop, linkScope.thirdPartyLinkLocal -->
+ <!-- source: internal/component/bgp/reactor/link_scope_neighbors.go -- warnNeighborTableUnread, NeighborTableFix -->
+ <!-- source: internal/component/bgp/config/neighbor_table_doctor.go -- checkBGPNeighborTable -->
++<!-- source: internal/component/bgp/reactor/reactor_readvertise.go -- readvertiseWorker, thirdPartyLinkLocalsMoved -->
++<!-- source: internal/component/bgp/reactor/policy_reload.go -- resendAdvertised -->
+ <!-- source: internal/core/network/neighbors.go -- NewNeighborLinkLocals, ReadNeighbors -->
+ <!-- test: internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go TestRFC2545ThirdPartyLinkLocalAnnounce -->
+ <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop, precomputeVPNNextHop -->
+diff --git a/internal/component/bgp/reactor/policy_reload.go b/internal/component/bgp/reactor/policy_reload.go
+index 1a0db59020..023684e1e8 100644
+--- a/internal/component/bgp/reactor/policy_reload.go
++++ b/internal/component/bgp/reactor/policy_reload.go
+@@ -62,6 +62,26 @@ func (p *Peer) reconcileExportFinal() error {
+ 
+ 	// Only a denied-to-accepted transition reaches restoration. An initially
+ 	// denied static set may still have been recorded as delivered by its sender.
++	return p.resendAdvertised(ctx, session)
++}
++
++// resendAdvertised sends session's peer again every route Ze advertises to
++// it, through the same writers that sent it first: the configured static
++// routes (their recorded wire set cleared, so the delta is the whole set),
++// default-originate, the plugin routes, the forwarded routes replayed from the
++// receive store (bgp-adj-rib-in) and FlowSpec from its selecting RIB. Each
++// writer re-runs the egress decisions, the next-hop form included, so a
++// route goes out as the peer's current facts make it. A forwarded route needs
++// the receive store; without it the replay is refused with the fix, after the
++// other writers ran. Live forwards to the peer wait behind the replay hold
++// (beginPolicyReplay) until the pass is flushed.
++//
++// It runs with no peer or reactor lock held, for an export final that turned
++// accepting (reconcileExportFinal) and for a changed third-party Link-Local
++// (readvertiseWorker).
++func (p *Peer) resendAdvertised(ctx context.Context, session *Session) error {
++	r := p.reactor
++	adapter := &reactorAPIAdapter{r: r}
+ 	p.staticMu.Lock()
+ 	if p.staticWire.session == session {
+ 		p.staticWire.routes = nil
+@@ -90,21 +110,21 @@ func (p *Peer) reconcileExportFinal() error {
+ 	}
+ 	hasReceiveStore := r.api.Dispatcher().Registry().Lookup(ribevents.ReplayRoutesCommand) != nil
+ 	if ordinary && !hasReceiveStore {
+-		return errors.New("export final restoration of negotiated ordinary families needs the receive store: load bgp-adj-rib-in and attach it to route sources")
++		return errors.New("re-sending the forwarded routes of negotiated ordinary families needs the receive store: load bgp-adj-rib-in and attach it to route sources")
+ 	}
+ 	// This is a live session, unlike peer-up replay. Join every admitted writer
+ 	// while raising the existing live-order hold. Writers recheck it under the
+ 	// same lock, so even work queued before this transition rejoins overflow.
+ 	p.beginPolicyReplay(session)
+ 	defer p.endPolicyReplay()
+ 	dispatch := func(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
+ 		request := &pluginserver.CommandContext{Server: r.api, RequestContext: ctx, Sender: owner}
+ 		response, err := r.api.Dispatcher().ForwardToPlugin(request, command, args, "*")
+ 		if err != nil {
+ 			return "", nil, err
+ 		}
+ 		if response == nil {
+-			return "", nil, errors.New("export final replay returned no answer")
++			return "", nil, errors.New("the route replay returned no answer")
+ 		}
+ 		if response.Error != "" {
+ 			return "", nil, errors.New(response.Error)
+@@ -192,7 +212,7 @@ func (p *Peer) flushPolicyReplay(ctx context.Context, session *Session) error {
+ 	}
+ 	select {
+ 	case <-ctx.Done():
+-		return fmt.Errorf("export final replay drain: %w", ctx.Err())
++		return fmt.Errorf("route replay drain: %w", ctx.Err())
+ 	case <-done:
+ 	}
+ 	if p.currentSession() != session {
+diff --git a/internal/component/bgp/reactor/reactor.go b/internal/component/bgp/reactor/reactor.go
+index 150a32b1f5..7423197033 100644
+--- a/internal/component/bgp/reactor/reactor.go
++++ b/internal/component/bgp/reactor/reactor.go
+@@ -394,6 +394,11 @@ type Reactor struct {
+ 	// not started rather than as running.
+ 	neighborWatch atomic.Pointer[neighborWatchState]
+ 
++	// readvertise holds the peers refreshPeerLinkScopes found a moved
++	// third-party Link-Local for, which readvertiseWorker re-sends to
++	// (reactor_readvertise.go).
++	readvertise readvertiseQueue
++
+ 	// Peer filter chains: collected from plugin registry at startup.
+ 	// Egress: the in-process egress filter funcs, still consumed directly by the
+ 	// RS fast path (forward_rs.go) and the forwardFacts/build sites.
+@@ -1350,6 +1355,9 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
+ 	// RFC 2545 Section 3's third-party Link-Local must follow the table in a
+ 	// BGP-only config, where no interface monitor runs.
+ 	r.startNeighborWatch()
++	// A moved third-party Link-Local re-sends the peer's routes on a worker
++	// of its own, so a long pass never holds up either watch.
++	r.startReadvertise()
+ 
+ 	// Start global listener if ListenAddr is configured.
+ 	if r.config.ListenAddr != "" {
+diff --git a/internal/component/bgp/reactor/reactor_iface.go b/internal/component/bgp/reactor/reactor_iface.go
+index b92c0e1dff..7c8344e8ef 100644
+--- a/internal/component/bgp/reactor/reactor_iface.go
++++ b/internal/component/bgp/reactor/reactor_iface.go
+@@ -73,8 +73,8 @@ func (r *Reactor) startNeighborWatch() {
+ // watched.
+ //
+ // RFC 2545 Section 3 binds the form of each advertisement made after the
+-// change; it states no obligation to re-advertise a route already sent, so
+-// none is triggered here.
++// change. refreshPeerLinkScopes also queues a re-advertisement to a peer whose
++// third-party Link-Local answer moved (readvertiseWorker).
+ func (r *Reactor) neighborWatchWorker(ctx context.Context) {
+ 	// published is the last state this worker stored. A later StartWithContext
+ 	// starts a new worker: leave no state of this run behind for views built
+@@ -152,7 +152,11 @@ func (r *Reactor) neighborWatchState() neighborWatchState {
+ // This binds the FORM of every advertisement made after the change. Section 3
+ // constrains what a speaker "shall advertise ... in the Network Address of Next
+ // Hop field", which is the act of advertising; it states no obligation to
+-// re-advertise a route already sent, so no re-advertisement is triggered here.
++// re-advertise a route already sent. A peer whose third-party Link-Local
++// answer moved is still queued for a re-advertisement (readvertiseWorker): a
++// route sent with another router's old Link-Local sends the peer's traffic to
++// an address that router no longer holds, and the owner settled re-sending on
++// change after RFC 4271 Section 9.2 and FRR's per-peer re-announce.
+ //
+ // It runs on addressWatchWorker for an address change and on
+ // neighborWatchWorker for a neighbor change; refreshPeerLinkScopesMu serializes
+@@ -175,7 +179,7 @@ func (r *Reactor) refreshPeerLinkScopes() {
+ 		return
+ 	}
+ 
+-	addresses, err := network.InterfacePrefixes()
++	addresses, err := readAddressTable()
+ 	if err != nil {
+ 		reactorLogger().Error("refresh receive NEXT_HOP addresses", "error", err)
+ 	}
+@@ -218,10 +222,21 @@ func (r *Reactor) refreshPeerLinkScopes() {
+ 		// (peer_forward_facts.go). That function is also the settings-apply path
+ 		// (peer_settings_apply.go), which changes inputs the interface table says
+ 		// nothing about, and must rebuild every time.
+-		if scope := peer.llScope.Load(); scope != nil && slices.Equal(scope.connected, connected) && scope.neighbors.equal(neighbors) {
++		previous := peer.llScope.Load()
++		if previous != nil && slices.Equal(previous.connected, connected) && previous.neighbors.equal(neighbors) {
+ 			continue
+ 		}
+ 		peer.refreshForwardFactsIfLiveFrom(connected, neighbors)
++		// RFC 2545 Section 3: a route already sent names the router's old
++		// Link-Local, or none, until it is sent again. A down peer kept its
++		// scope (refreshForwardFactsIfLiveFrom stores none for it), so it
++		// compares equal and is not queued.
++		// A failed read is an unknown table, not a moved Link-Local: re-sending
++		// on it would strip every route to the global alone and put the
++		// Link-Local back on the next good read.
++		if err == nil && neighbors.err == nil && thirdPartyLinkLocalsMoved(previous, peer.llScope.Load()) {
++			r.readvertise.queue(peer)
++		}
+ 	}
+ }
+ 
+diff --git a/internal/component/bgp/reactor/reactor_iface_test.go b/internal/component/bgp/reactor/reactor_iface_test.go
+index 2ee427111a..deb3df10e2 100644
+--- a/internal/component/bgp/reactor/reactor_iface_test.go
++++ b/internal/component/bgp/reactor/reactor_iface_test.go
+@@ -141,13 +141,16 @@ func TestBGPSharedListener(t *testing.T) {
+ // PREVENTS: a surviving session keeping a stale answer, which appends a link-local
+ // Section 3 now forbids or omits one it now requires.
+ func TestInterfaceAddrEventRefreshesEveryPeerLinkScope(t *testing.T) {
++	// The refresh reads the same table the watch does, so the fake holds the
++	// loopback ::1/128 that puts the peer and its local address on one subnet.
++	loopback := netip.MustParsePrefix("::1/128")
+ 	other := netip.MustParsePrefix("192.168.1.1/24")
+ 	for _, tc := range []struct {
+ 		name          string
+ 		before, after []netip.Prefix
+ 	}{
+-		{"addr-added", nil, []netip.Prefix{other}},
+-		{"addr-removed", []netip.Prefix{other}, nil},
++		{"addr-added", []netip.Prefix{loopback}, []netip.Prefix{loopback, other}},
++		{"addr-removed", []netip.Prefix{loopback, other}, []netip.Prefix{loopback}},
+ 	} {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			table := &fakeAddressTable{prefixes: tc.before}
+diff --git a/internal/core/network/neighbors.go b/internal/core/network/neighbors.go
+index 1024ecf15b..e5d9e5a0c0 100644
+--- a/internal/core/network/neighbors.go
++++ b/internal/core/network/neighbors.go
+@@ -15,6 +15,7 @@ package network
+ import (
+ 	"context"
+ 	"errors"
++	"iter"
+ 	"net/netip"
+ 	"sync"
+ )
+@@ -261,6 +262,27 @@ func (n *NeighborLinkLocals) LinkLocalOf(global netip.Addr) (netip.Addr, LinkLoc
+ 	return answer.linkLocal, answer.outcome
+ }
+ 
++// Found yields each global the table pairs with one Link-Local, and that
++// Link-Local, in no set order. A global whose answer is a miss is not
++// yielded: the field such a global goes out in carries no Link-Local whatever
++// the miss was, so two reads that differ only in how they missed send the same
++// bytes (the reactor's re-advertise compares two reads this way).
++func (n *NeighborLinkLocals) Found() iter.Seq2[netip.Addr, netip.Addr] {
++	return func(yield func(global, linkLocal netip.Addr) bool) {
++		if n == nil {
++			return
++		}
++		for global, answer := range n.byGlobal {
++			if answer.outcome != LinkLocalFound {
++				continue
++			}
++			if !yield(global, answer.linkLocal) {
++				return
++			}
++		}
++	}
++}
++
+ // Equal reports whether two pairings answer every global the same way. Two nil
+ // pairings are equal; a nil and a built one are not.
+ func (n *NeighborLinkLocals) Equal(other *NeighborLinkLocals) bool {

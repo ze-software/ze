@@ -1,0 +1,159 @@
+package reactor
+
+import (
+	"bytes"
+	"context"
+	"net/netip"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/network"
+)
+
+// readvertisePeer is an established IPv6 peer on 2001:db8:1::/64, the subnet
+// the speaker shares with the third router N, holding one static route whose
+// next hop is N's global. The reactor's address and neighbor tables are the
+// fakes the test edits.
+func readvertisePeer(t *testing.T, neighbors *fakeNeighborTable) (*Reactor, *Peer, *recordingConn) {
+	t.Helper()
+	addresses := &fakeAddressTable{prefixes: []netip.Prefix{netip.MustParsePrefix("2001:db8:1::1/64")}}
+	addresses.install(t)
+	neighbors.install(t)
+
+	peer, conn := newInitialSyncPeer(t, true, family.IPv6Unicast)
+	peer.settings.Address = netip.MustParseAddr("2001:db8:1::2")
+	peer.settings.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
+	peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+	peer.settings.StaticRoutes = []StaticRoute{staticRouteAt("2001:db8:7::/48", thirdPartyGlobal)}
+
+	r := newIfaceTestReactor(t)
+	peer.SetReactor(r)
+	r.mu.Lock()
+	r.peers[peer.settings.PeerKey()] = peer
+	r.mu.Unlock()
+	peer.fwdFacts.Store(peer.buildForwardFacts())
+	// The first refresh builds the peer's scope from the fake tables. A peer
+	// with no scope before advertised nothing under one, so it queues nothing.
+	r.refreshPeerLinkScopes()
+	require.Empty(t, r.readvertise.take(), "the first scope is no move")
+	return r, peer, conn
+}
+
+// thirdPartyEntries is N's neighbor table: its global and the Link-Local
+// that shares its MAC.
+func thirdPartyEntries(linkLocal string) []network.Neighbor {
+	return []network.Neighbor{
+		{Address: netip.MustParseAddr(thirdPartyGlobal), LinkAddress: thirdPartyMAC, Device: thirdPartyDevice, Binding: network.NeighborBindingValid},
+		{Address: netip.MustParseAddr(linkLocal), LinkAddress: thirdPartyMAC, Device: thirdPartyDevice, Binding: network.NeighborBindingValid},
+	}
+}
+
+// setNeighbors replaces the fake table.
+func (f *fakeNeighborTable) setNeighbors(entries []network.Neighbor) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.entries = entries
+}
+
+// TestRFC2545NeighbourChangeReadvertises proves a change of the Link-Local the
+// neighbor table names for another router on the shared subnet re-sends the
+// routes already advertised to the peer with the new Link-Local, rather than
+// leaving them pointing at the old one until the next change of the route.
+// RFC 2545 Section 3 decides the form of each advertisement; the owner settled
+// re-advertisement on change (spec-bgp-unowned-rfc-rows, AC-5) after RFC 4271
+// Section 9.2 and FRR's per-peer re-announce.
+//
+// RFC 2545 Section 3: "The link-local address shall be included in the Next
+// Hop field if and only if the BGP speaker shares a common subnet with the
+// entity identified by the global IPv6 address carried in the Network Address
+// of Next Hop field and the peer the route is being advertised to."
+//
+// Method: advertise a static route whose next hop is N's global with N's
+// Link-Local fe80::9, move N's Link-Local to fe80::a, refresh as the neighbor
+// watch does, and run the re-advertise worker: the route goes out again with
+// fe80::a. A change to a router off the shared subnet, and a refresh over an
+// unchanged table, queue nothing.
+//
+// MUTATION: drop the queue call from refreshPeerLinkScopes: the route is never
+// re-sent and the peer keeps fe80::9.
+func TestRFC2545NeighbourChangeReadvertises(t *testing.T) {
+	neighbors := &fakeNeighborTable{entries: thirdPartyEntries(thirdPartyLinkLocal)}
+	r, peer, conn := readvertisePeer(t, neighbors)
+	nlri := []byte{0x30, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x07}
+
+	peer.sendInitialRoutes()
+	require.True(t, bytes.Contains(conn.written(), mpReachIPv6Attr(t, nlri, thirdPartyGlobal, thirdPartyLinkLocal)),
+		"prerequisite: the route went out with N's link-local fe80::9")
+
+	// A router off the shared subnet changes: no route to this peer can name
+	// it with a link-local, so nothing is queued.
+	neighbors.setNeighbors(append(thirdPartyEntries(thirdPartyLinkLocal),
+		network.Neighbor{Address: netip.MustParseAddr("2001:db8:99::5"), LinkAddress: "02:00:00:00:00:05", Device: thirdPartyDevice, Binding: network.NeighborBindingValid},
+		network.Neighbor{Address: netip.MustParseAddr("fe80::5"), LinkAddress: "02:00:00:00:00:05", Device: thirdPartyDevice, Binding: network.NeighborBindingValid}))
+	r.refreshPeerLinkScopes()
+	assert.Empty(t, r.readvertise.take(), "a router off the shared subnet moves no answer for this peer")
+
+	// N's Link-Local moves.
+	neighbors.setNeighbors(thirdPartyEntries("fe80::a"))
+	r.refreshPeerLinkScopes()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go runReadvertiseWorker(ctx, r, done)
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+	want := mpReachIPv6Attr(t, nlri, thirdPartyGlobal, "fe80::a")
+	require.Eventually(t, func() bool { return bytes.Contains(conn.written(), want) },
+		5*time.Second, time.Millisecond, "the route was re-sent with N's new link-local fe80::a")
+
+	// An unchanged table queues nothing.
+	r.refreshPeerLinkScopes()
+	assert.Empty(t, r.readvertise.take(), "an unchanged table moves no answer")
+}
+
+// TestThirdPartyLinkLocalsMoved pins the comparison the re-advertise turns on:
+// a gained, lost or changed Link-Local for a global on the shared subnet is a
+// move; a change between two misses, and a change for a global off the shared
+// subnet, are not, because the bytes sent are the same.
+func TestThirdPartyLinkLocalsMoved(t *testing.T) {
+	connected := []netip.Prefix{netip.MustParsePrefix("2001:db8:1::/64")}
+	peerAddr := netip.MustParseAddr("2001:db8:1::2")
+	scope := func(entries []network.Neighbor) *linkScope {
+		return newLinkScopeWith(connected, neighborView{links: network.NewNeighborLinkLocals(entries)}, peerAddr)
+	}
+	globalOnly := []network.Neighbor{thirdPartyEntries(thirdPartyLinkLocal)[0]}
+	unresolved := []network.Neighbor{{Address: netip.MustParseAddr(thirdPartyGlobal), Device: thirdPartyDevice, Binding: network.NeighborBindingInvalid}}
+	for _, tc := range []struct {
+		name           string
+		previous, next *linkScope
+		moved          bool
+	}{
+		{"changed", scope(thirdPartyEntries(thirdPartyLinkLocal)), scope(thirdPartyEntries("fe80::a")), true},
+		{"gained", scope(globalOnly), scope(thirdPartyEntries(thirdPartyLinkLocal)), true},
+		{"lost", scope(thirdPartyEntries(thirdPartyLinkLocal)), scope(globalOnly), true},
+		{"miss-to-miss", scope(globalOnly), scope(unresolved), false},
+		{"unchanged", scope(thirdPartyEntries(thirdPartyLinkLocal)), scope(thirdPartyEntries(thirdPartyLinkLocal)), false},
+		{"read-failed", scope(thirdPartyEntries(thirdPartyLinkLocal)), newLinkScopeWith(connected, neighborView{err: network.ErrNeighborTableNotRegistered}, peerAddr), true},
+		{"no-previous-scope", nil, scope(thirdPartyEntries(thirdPartyLinkLocal)), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.moved, thirdPartyLinkLocalsMoved(tc.previous, tc.next))
+		})
+	}
+	offLink := newLinkScopeWith(connected, neighborView{links: network.NewNeighborLinkLocals(thirdPartyEntries(thirdPartyLinkLocal))}, netip.MustParseAddr("2001:db8:2::2"))
+	offLinkNext := newLinkScopeWith(connected, neighborView{links: network.NewNeighborLinkLocals(thirdPartyEntries("fe80::a"))}, netip.MustParseAddr("2001:db8:2::2"))
+	assert.False(t, thirdPartyLinkLocalsMoved(offLink, offLinkNext), "a peer off the shared subnet gets no link-local either way")
+}
+
+// runReadvertiseWorker runs r's worker under ctx and closes done after it.
+func runReadvertiseWorker(ctx context.Context, r *Reactor, done chan<- struct{}) {
+	r.readvertiseWorker(ctx)
+	close(done)
+}

@@ -1,0 +1,179 @@
+// Design: docs/architecture/update-building.md -- the third-party Link-Local BGP takes from the neighbor table
+// RFC: rfc/short/rfc2545.md — Section 3, re-advertised when the router's Link-Local moves
+// Overview: reactor.go — Reactor struct and lifecycle
+// Related: reactor_iface.go — refreshPeerLinkScopes, which queues a peer here
+// Related: policy_reload.go — resendAdvertised, the pass a queued peer gets
+
+package reactor
+
+import (
+	"context"
+	"net/netip"
+	"sync"
+	"time"
+)
+
+// readvertiseTimeout bounds one re-advertisement pass to one peer, the bound
+// reconcileExportFinal gives the same pass.
+const readvertiseTimeout = 2 * time.Minute
+
+// readvertiseQueue holds the peers whose third-party Link-Local answer moved
+// and that readvertiseWorker has not re-sent to yet. A peer queued twice
+// before the worker reaches it is re-sent once: the pass re-sends every route
+// from the peer's current facts, so one pass covers any number of moves. The
+// set is bounded by the reactor's peers. Its zero value is ready, so a reactor
+// built as a literal (tests do) has one. Safe for concurrent use.
+type readvertiseQueue struct {
+	mu      sync.Mutex
+	pending map[*Peer]struct{}
+	// wake holds one pending signal for the worker; queue never blocks on it.
+	wake chan struct{}
+}
+
+// wakeChannel answers the channel queue signals, made on first use.
+func (q *readvertiseQueue) wakeChannel() chan struct{} {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.wake == nil {
+		q.wake = make(chan struct{}, 1)
+	}
+	return q.wake
+}
+
+// queue adds peer and wakes the worker. It never blocks.
+func (q *readvertiseQueue) queue(peer *Peer) {
+	q.mu.Lock()
+	if q.pending == nil {
+		q.pending = make(map[*Peer]struct{})
+	}
+	q.pending[peer] = struct{}{}
+	q.mu.Unlock()
+	select {
+	case q.wakeChannel() <- struct{}{}:
+	default:
+	}
+}
+
+// take answers every queued peer and empties the queue.
+func (q *readvertiseQueue) take() []*Peer {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	peers := make([]*Peer, 0, len(q.pending))
+	for peer := range q.pending {
+		peers = append(peers, peer)
+	}
+	clear(q.pending)
+	return peers
+}
+
+// startReadvertise starts readvertiseWorker on the reactor's wait group.
+// MUST be called after r.ctx is set, from StartWithContext.
+func (r *Reactor) startReadvertise() {
+	ctx := r.ctx
+	r.wg.Go(func() { r.readvertiseWorker(ctx) })
+}
+
+// readvertiseWorker is the long-lived worker that re-advertises to each peer
+// refreshPeerLinkScopes queued. It runs off the watch workers because a pass
+// can wait on the receive store's replay for up to readvertiseTimeout, and a
+// neighbor or address change behind it must still reach every peer's
+// snapshot. It ends with ctx, the reactor's run context; a peer still queued
+// then has no session left to re-send to.
+func (r *Reactor) readvertiseWorker(ctx context.Context) {
+	wake := r.readvertise.wakeChannel()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-wake:
+		}
+		for _, peer := range r.readvertise.take() {
+			if ctx.Err() != nil {
+				return
+			}
+			peer.readvertiseLinkLocalChange(ctx)
+		}
+	}
+}
+
+// readvertiseLinkLocalChange re-sends this peer every route Ze advertises to
+// it, after the Link-Local the neighbor table names for another router on the
+// shared subnet moved. RFC 2545 Section 3 decides the form of each
+// advertisement; a route already sent with the old Link-Local, or with none,
+// would keep sending the peer's traffic for that router to the wrong
+// address. The owner settled re-advertisement on change, after RFC 4271
+// Section 9.2 and FRR's per-peer re-announce (spec-bgp-unowned-rfc-rows,
+// AC-5). A peer whose export policy rejects at the end advertises nothing to
+// re-send (RFC 8212 Section 3).
+func (p *Peer) readvertiseLinkLocalChange(ctx context.Context) {
+	if p.State() != PeerStateEstablished {
+		return
+	}
+	if p.reactor == nil {
+		return
+	}
+	session := p.currentSession()
+	if session == nil {
+		return
+	}
+	p.mu.RLock()
+	// RFC 8212 Section 3.
+	accepts := p.settings.ExportPolicy.AcceptsAtEnd(p.settings.IsEBGP())
+	p.mu.RUnlock()
+	if !accepts {
+		return
+	}
+	passCtx, cancel := context.WithTimeout(ctx, readvertiseTimeout)
+	defer cancel()
+	if err := p.resendAdvertised(passCtx, session); err != nil {
+		reactorLogger().Warn("RFC 2545 re-advertisement after a router's link-local changed did not complete: some routes to this peer still carry the old next-hop link-local",
+			"peer", p.Settings().Address, "error", err,
+			"fix", "the error names the cause; a session reset re-sends every route: request peer <address> teardown 4")
+	}
+}
+
+// thirdPartyLinkLocalsMoved reports whether a next hop naming another router
+// on the subnet the speaker shares with the peer goes out with a different
+// Link-Local under next than under previous, or gains or loses one. It
+// compares the answer RFC 2545 Section 3 gives for every global either
+// neighbor table pairs: the joint-subnet condition (sharesNextHopSubnet) and
+// the pairing itself. A miss that only changes how it missed sends the same
+// bytes, so it is no move. A peer that had no scope yet advertised nothing
+// under one, so it has nothing to re-send.
+func thirdPartyLinkLocalsMoved(previous, next *linkScope) bool {
+	if previous == nil {
+		return false
+	}
+	if next == nil {
+		return false
+	}
+	for global := range previous.neighbors.links.Found() {
+		if previous.thirdPartyAnswer(global) != next.thirdPartyAnswer(global) {
+			return true
+		}
+	}
+	for global := range next.neighbors.links.Found() {
+		if previous.thirdPartyAnswer(global) != next.thirdPartyAnswer(global) {
+			return true
+		}
+	}
+	return false
+}
+
+// thirdPartyAnswer is the Link-Local this scope writes after global when
+// global is another router's, or the zero Addr when it writes none. It asks
+// what linkLocalNextHop asks, without the warning a miss logs on the send
+// path.
+func (ls *linkScope) thirdPartyAnswer(global netip.Addr) netip.Addr {
+	if !ls.peerOnLink {
+		return netip.Addr{}
+	}
+	if !ls.sharesNextHopSubnet(global) {
+		return netip.Addr{}
+	}
+	linkLocal, _, err := ls.neighbors.linkLocalOf(global)
+	if err != nil {
+		return netip.Addr{}
+	}
+	return linkLocal
+}
