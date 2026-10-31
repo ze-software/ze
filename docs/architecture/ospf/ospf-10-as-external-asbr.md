@@ -32,6 +32,14 @@ computation, bidirectional redistribution, and `default-information originate`.
   batch carrying the request's replay ID, emitted under the lock that orders the
   deltas, so a replay never revives a route a later delta removed.
   <!-- source: internal/plugins/ospf/redistribute/source.go -- Source.Replay, Source.recordAndSend -->
+- **An external origination MinLSInterval defers starts the maintenance
+  worker.** RFC 2328 Section 12.4 delays the next instance by up to
+  MinLSInterval, and the worker's tick generates it by replaying every retained
+  import. Interface enrolment is the other thing that starts the worker, so an
+  ASBR with no interface yet would otherwise keep a withdrawn and re-offered
+  route's LSA at MaxAge until an interface opened. OSPFv2 and OSPFv3 both do it.
+  <!-- source: internal/plugins/ospf/redist_wiring.go -- injectExternalLocked -->
+  <!-- source: internal/plugins/ospf/origination_v6_external.go -- v6InjectExternal -->
 - **`default-information originate` lives on the engine, not in the
   redistribution package**, because it reads engine and LSDB state. `always`
   originates unconditionally. The bare form originates only while a NON-OSPF
