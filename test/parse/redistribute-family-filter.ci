@@ -23,10 +23,16 @@ bgp {
 	}
 }
 
+policy {
+	match redistribute-bgp-ebgp {
+		family [ ipv4/unicast ipv4/mpls-vpn ];
+	}
+}
 redistribute {
 	destination bgp {
 		import ebgp {
-			family [ ipv4/unicast ipv4/mpls-vpn ];
+			filters [ redistribute-bgp-ebgp ];
+			final accept;
 		}
 		import ibgp;
 	}

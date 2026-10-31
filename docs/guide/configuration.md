@@ -1699,11 +1699,15 @@ dispatches accepted routes to the matching consumer.
 | `redistribute-orchestrator` plugin | Dispatches non-BGP route-change events to registered consumers (BGP, IS-IS). |
 
 ```
+policy {
+    match redistribute-bgp-ebgp { family [ ipv4/unicast ipv4/vpn ]; }
+    match redistribute-bgp-connected { family [ ipv4/unicast ]; }
+}
 redistribute {
     destination bgp {
-        import ebgp { family [ ipv4/unicast ipv4/vpn ]; }    # intra-BGP ACL
+        import ebgp { filters [ redistribute-bgp-ebgp ]; final accept; }    # intra-BGP ACL
         import l2tp;                                          # egress, all families
-        import connected { family [ ipv4/unicast ]; }         # egress, IPv4 unicast only
+        import connected { filters [ redistribute-bgp-connected ]; final accept; }         # egress, IPv4 unicast only
         import isis;                                          # IS-IS SPF routes into BGP
     }
     destination isis {

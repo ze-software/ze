@@ -538,10 +538,16 @@ plugin {
 	}
 }
 
+policy {
+	match redistribute-bgp-fakeredist {
+		family [ ipv4/unicast ];
+	}
+}
 redistribute {
 	destination bgp {
 		import fakeredist {
-			family [ ipv4/unicast ];
+			filters [ redistribute-bgp-fakeredist ];
+			final accept;
 		}
 	}
 }

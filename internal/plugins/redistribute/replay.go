@@ -366,7 +366,6 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		return
 	}
 	famVal := family.Family{AFI: family.AFI(b.AFI), SAFI: family.SAFI(b.SAFI)}
-	route := configredist.RedistRoute{Origin: name, Family: famVal}
 
 	consumer, ok := configredist.LookupConsumer(destination)
 	if !ok {
@@ -382,18 +381,19 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		// Destination-scoped, and decided for each route: only sources imported
 		// under this destination replay, and an import rule naming a tag or a
 		// BGP class replays only the routes carrying it. The incremental path decides the same way.
-		route.Tag = entry.Tag
-		route.Source = entrySource(name, entry)
-		if !ev.Accept(route, destination) {
+		route := redistRoute(name, b.Protocol, famVal, entry)
+		sets, accepted := ev.Accept(&route, destination)
+		if !accepted {
 			logger().Debug("redistribute-orchestrator: evaluator rejected replay entry", "source", name, "destination", destination, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)
 			continue
 		}
-		dispatchEntryToConsumer(ctx, consumer, famVal, name, peer, b.OriginASN, b.Community, entry)
+		adjusted := applySets(entry, sets)
+		dispatchEntryToConsumer(ctx, consumer, famVal, name, peer, b.OriginASN, b.Community, &adjusted)
 		// A consumer replay is what the newly registered consumer holds. A peer
 		// replay feeds one BGP peer a route the consumer already holds from the
 		// incremental path, so it changes nothing the held set records.
 		if target.kind == replayKindConsumer {
-			recordDispatched(heldKey{consumer: destination, source: name, family: famVal, prefix: entry.Prefix}, entry.Action)
+			recordDispatched(heldKey{consumer: destination, source: name, family: famVal, prefix: entry.Prefix}, entry.Action, &route)
 		}
 		if m := getMetrics(); m != nil && m.replayTotal != nil {
 			m.replayTotal.With(name).Inc()

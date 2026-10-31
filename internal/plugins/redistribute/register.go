@@ -25,7 +25,7 @@ func init() {
 	// The filter attachment points this plugin's config holds, with the route
 	// fields their routes carry and a filter there may set (the route field
 	// vocabulary, internal/component/policy/fields.go).
-	policy.MustRegisterAttachment(Name, "redistribute import",
+	policy.MustRegisterAttachment(Name, chainAttachment,
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity},
 		[]policy.Field{policy.FieldTag, policy.FieldMetric})
 
@@ -33,6 +33,9 @@ func init() {
 		Name:        Name,
 		Description: "Redistribute orchestrator: dispatches protocol route events to registered consumers",
 		ConfigRoots: []string{configRoot},
+		// policy: each import's chain names instances under the policy root,
+		// which this plugin compiles itself (compileRuleChains).
+		ConfigReads: []string{policy.RootName},
 		// policy: the redistribute import chains name filters under the policy root.
 		Dependencies: []string{policy.PluginName},
 		// bgp is order only. A destination such as BGP whose consumer a
@@ -140,7 +143,7 @@ func runPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, &sdk.Registration{WantsConfig: []string{configRoot}}); err != nil {
+	if err := p.Run(ctx, &sdk.Registration{WantsConfig: []string{configRoot, policy.RootName}}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
 		return 1
 	}

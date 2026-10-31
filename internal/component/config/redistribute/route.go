@@ -4,10 +4,8 @@
 package redistribute
 
 import (
-	"slices"
-
-	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
 // RedistRoute represents a route flowing through the redistribution engine.
@@ -15,14 +13,11 @@ import (
 // is never modified. This is the key to loop prevention: a route is never
 // redistributed back into its origin protocol.
 type RedistRoute struct {
-	Origin string        // Protocol that originated this route ("bgp", "ospf", "connected", ...)
-	Family family.Family // Address family (ipv4/unicast, ipv6/unicast, ...)
-	Source string        // Specific source name ("ibgp", "ebgp", "ospf", ...)
-	// Tag is the route's own opaque 32-bit tag, the value an operator wrote on the
-	// route in the producing protocol (the static plugin's `tag` leaf). An import
-	// rule matches on it. Zero means the route carries no tag, which is a value a
-	// rule can select: see ImportRule.MatchTag.
-	Tag uint32
+	Origin string // Protocol that originated this route ("bgp", "ospf", "connected", ...)
+	Source string // Specific source name ("ibgp", "ebgp", "ospf", ...)
+	// Route is the view an import rule's chain judges: family, prefix, next
+	// hop, metric, the route's own tag and its BGP class.
+	Route ribpolicy.Route
 }
 
 // ImportRule represents a parsed redistribution import entry from config.
@@ -33,21 +28,21 @@ type ImportRule struct {
 	// Destination is the protocol this import feeds ("bgp", "ospf", "isis"),
 	// taken from the enclosing `destination <proto>` block. An empty
 	// Destination is destination-agnostic: it accepts any importing protocol.
-	// Empty is the back-compat default for rules built without the field (unit
-	// tests, callers that pre-date destination scoping); the config loader
-	// always populates it from the `destination` key so production rules are
-	// scoped.
+	// The config loader always populates it from the `destination` key.
 	Destination string
-	Families    []family.Family // Allowed families (empty = all families accepted)
-	// Tag is the route tag this rule imports, read when MatchTag is set. A rule that
-	// names a tag imports only routes carrying exactly that value.
-	Tag uint32
-	// MatchTag reports whether the rule filters on Tag at all. It is a separate field
-	// because zero IS a tag an operator can select: a route with no `tag` leaf carries
-	// zero, so `import static { tag 0 }` means "only the untagged routes". Folding the
-	// two into one uint32 would make that rule indistinguishable from a rule with no
-	// tag filter, which accepts every route in the source (ai/rules/principles.md).
-	MatchTag bool
+	// Filters names the policy filter instances of the rule's chain, in order,
+	// as `filters [ ... ]` holds them.
+	Filters []string
+	// Final is the chain's decision after its last filter, "accept" or
+	// "reject" as `final` holds it. Empty means the rule has no chain: every
+	// route of the source moves.
+	Final string
+	// Chain is the compiled chain of Filters and Final, against the attachment
+	// "redistribute import". The config loader cannot compile it (the policy
+	// library imports this package), so the redistribute orchestrator does
+	// before it installs the rule. A rule with a Final and no Chain is a Ze
+	// defect, and Accept panics on it.
+	Chain ribpolicy.Chain
 }
 
 // mustNameImportingProtocol refuses an empty importing protocol.
@@ -80,49 +75,52 @@ func mustNameImportingProtocol(importingProtocol string) {
 	panic("BUG: redistribute: the importing protocol has no name, and an empty name is not a verdict")
 }
 
-// Accept checks whether a route should be accepted by this import rule.
+// Accept checks whether a route should be accepted by this import rule, and
+// answers the sets the rule's chain applied (a tag) when it is.
 // A route is rejected if:
 //   - its origin protocol matches the importing protocol (loop prevention)
 //   - the rule has a Destination that does not match the importing protocol
 //     (destination scoping: an import under `destination bgp` feeds only BGP)
 //   - neither its specific source nor umbrella origin matches the rule's source
-//   - its family is not in the allowed list (when families is non-empty)
-//   - the rule names a tag (MatchTag) and the route carries a different one
+//   - the rule's chain does not accept it
 //
 // importingProtocol MUST name a protocol. An empty name panics.
-func (r ImportRule) Accept(route RedistRoute, importingProtocol string) bool {
+func (r *ImportRule) Accept(route *RedistRoute, importingProtocol string) (ribpolicy.Sets, bool) {
 	mustNameImportingProtocol(importingProtocol)
+
 	// Loop prevention: one shared definition of the invariant (redistevents.WouldLoop),
 	// also enforced at the two runtime guards in the redistribute orchestrator.
 	if redistevents.WouldLoop(route.Origin, importingProtocol) {
-		return false
+		return ribpolicy.Sets{}, false
 	}
 	// Destination scoping (R-3): a rule parsed under `destination <proto>` is
-	// accepted only by that protocol. An empty Destination stays agnostic so
-	// rules built without the field behave as before this change.
+	// accepted only by that protocol.
 	if r.Destination != "" && r.Destination != importingProtocol {
-		return false
+		return ribpolicy.Sets{}, false
 	}
 	if route.Source != r.Source && route.Origin != r.Source {
-		return false
+		return ribpolicy.Sets{}, false
 	}
-	// Tag filter: a rule that names a tag imports only routes carrying exactly that
-	// value. MatchTag decides whether the comparison happens at all, so a rule naming
-	// tag 0 selects the untagged routes rather than every route in the source.
-	if r.MatchTag && route.Tag != r.Tag {
-		return false
+	// refuse-by-default: guards ImportRule.Final -- a rule with no final has no chain, so every route of its source moves
+	if r.Final == "" {
+		return ribpolicy.Sets{}, true
 	}
-	return len(r.Families) == 0 || slices.Contains(r.Families, route.Family)
+	if r.Chain == nil {
+		panic("BUG: redistribute: import " + r.Source + " has a final and no compiled chain")
+	}
+	verdict := r.Chain.Evaluate(route.Route)
+	return verdict.Sets, verdict.Action == ribpolicy.ActionAccept
 }
 
 // evaluate checks a route against a set of import rules for a given importing
-// protocol. Returns true if any rule accepts the route. Package-internal: the
+// protocol. Returns true if any rule accepts the route, with the sets of the
+// first rule that does. Package-internal: the
 // exported surface is Evaluator.Accept, which delegates here.
-func evaluate(route RedistRoute, rules []ImportRule, importingProtocol string) bool {
+func evaluate(route *RedistRoute, rules []ImportRule, importingProtocol string) (ribpolicy.Sets, bool) {
 	for i := range rules {
-		if rules[i].Accept(route, importingProtocol) {
-			return true
+		if sets, ok := rules[i].Accept(route, importingProtocol); ok {
+			return sets, true
 		}
 	}
-	return false
+	return ribpolicy.Sets{}, false
 }

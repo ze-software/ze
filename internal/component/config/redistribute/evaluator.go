@@ -8,6 +8,8 @@ import (
 	"slices"
 	"sync"
 	"sync/atomic"
+
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
 // global is the singleton evaluator, set by SetGlobal during startup.
@@ -45,10 +47,11 @@ func (e *Evaluator) Reload(rules []ImportRule) {
 }
 
 // Accept checks whether a route should be imported into the given protocol.
-// Returns true if any import rule accepts the route without creating a loop.
+// Returns true if any import rule accepts the route without creating a loop,
+// with the sets the accepting rule's chain applied.
 //
 // importingProtocol MUST name a protocol. An empty name panics.
-func (e *Evaluator) Accept(route RedistRoute, importingProtocol string) bool {
+func (e *Evaluator) Accept(route *RedistRoute, importingProtocol string) (ribpolicy.Sets, bool) {
 	// Guarded here as well as in ImportRule.Accept. An empty rule list never
 	// runs that loop, so the callee's guard alone would let a caller with no
 	// importing protocol read back a silent false.
@@ -58,7 +61,8 @@ func (e *Evaluator) Accept(route RedistRoute, importingProtocol string) bool {
 	return evaluate(route, e.rules, importingProtocol)
 }
 
-// Rules returns a deep copy of the current import rules (for diagnostics/CLI).
+// Rules returns a copy of the current import rules (for diagnostics/CLI). A
+// compiled chain is immutable, so the copy shares it.
 func (e *Evaluator) Rules() []ImportRule {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
@@ -67,9 +71,9 @@ func (e *Evaluator) Rules() []ImportRule {
 		out[i] = ImportRule{
 			Source:      r.Source,
 			Destination: r.Destination,
-			Families:    slices.Clone(r.Families),
-			Tag:         r.Tag,
-			MatchTag:    r.MatchTag,
+			Filters:     slices.Clone(r.Filters),
+			Final:       r.Final,
+			Chain:       r.Chain,
 		}
 	}
 	return out

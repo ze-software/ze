@@ -25,10 +25,16 @@ bgp {
 kernel {
 }
 
+policy {
+	match redistribute-bgp-kernel {
+		family [ ipv4/unicast ];
+	}
+}
 redistribute {
 	destination bgp {
 		import kernel {
-			family [ ipv4/unicast ];
+			filters [ redistribute-bgp-kernel ];
+			final accept;
 		}
 	}
 }

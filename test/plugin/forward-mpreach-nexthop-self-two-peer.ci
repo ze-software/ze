@@ -61,10 +61,16 @@ plugin {
 	}
 }
 
+policy {
+	match redistribute-bgp-l2tp {
+		family [ ipv4/multicast ];
+	}
+}
 redistribute {
 	destination bgp {
 		import l2tp {
-			family [ ipv4/multicast ];
+			filters [ redistribute-bgp-l2tp ];
+			final accept;
 		}
 	}
 }

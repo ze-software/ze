@@ -98,16 +98,19 @@ is refused rather than matching nothing.
 | `ospf filter import` | prefix, family, protocol, next-hop, interface, metric, tag, route-type | distance, tag |
 | `isis filter import` | prefix, family, protocol, next-hop, interface, metric, level | distance, tag |
 | `rib filter import` | prefix, family, protocol, next-hop, interface, metric, tag, level, route-type | distance, tag |
+| `redistribute destination D import S` | prefix, family, protocol, next-hop, metric, tag, origin-as, community, large-community, extended-community | tag, metric |
 <!-- source: internal/plugins/connected/register.go -- MustRegisterAttachment -->
 <!-- source: internal/plugins/static/register.go -- MustRegisterAttachment -->
 <!-- source: internal/plugins/ospf/register.go -- MustRegisterAttachment -->
 <!-- source: internal/plugins/isis/register.go -- MustRegisterAttachment -->
 <!-- source: internal/component/sysrib/register.go -- MustRegisterAttachment -->
+<!-- source: internal/plugins/redistribute/register.go -- MustRegisterAttachment -->
 
 IS-IS routes carry no tag, because Ze does not implement the IS-IS
 administrative tag (RFC 5130). A static route carries a tag only when its `tag`
 leaf is set, and `tag 0` is a real tag. An OSPF external route carries the tag
-of its LSA.
+of its LSA. A redistributed route always carries a tag, 0 when its source set
+none, so `tag [ 0 ]` on a redistribute import selects the untagged routes.
 
 ## Where you attach a chain
 
@@ -259,7 +262,10 @@ attachment, so `isis filter import filters [ ` offers a `prefix-list` and not a
 never offered. Commit asks the same question of every name, member by member,
 with the refusals in the table above, so a name the editor did not offer still
 commits when the attachment accepts it: a qualified `prefix-list:NAME`, or an
-external plugin's `<plugin>:<filter>` on a BGP chain.
+external plugin's `<plugin>:<filter>` on a BGP chain. A redistribute import chain is
+checked the same way, through the path its plugin registers
+(`policy.MustRegisterRouteChainPath`).
+<!-- source: internal/component/policy/route_chain_path.go -- MustRegisterRouteChainPath, routeChainMemberCheck -->
 <!-- source: internal/component/policy/reference_source.go -- filterReference, chainLeafAt, MustRegisterChainLeaf -->
 <!-- source: internal/component/bgp/config/register.go -- MustRegisterChainLeaf -->
 <!-- source: internal/component/cli/completer.go -- referenceCompletions -->

@@ -31,7 +31,7 @@ func TestOrchestratorSkipsReplayOnAttachedUp(t *testing.T) {
 			resetState(t)
 			require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 			configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-				{Source: "fakeredist", Destination: "bgp", Families: []family.Family{family.IPv4Unicast}},
+				{Source: "fakeredist", Destination: "bgp", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 			}))
 			bus := newTestBus()
 			var gotIDs []uint64

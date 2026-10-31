@@ -2,6 +2,7 @@ package redistribute
 
 import (
 	"context"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,7 +10,10 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -57,7 +61,8 @@ func TestConfigureInstallsTheRules(t *testing.T) {
 	ev := configredist.Global()
 	require.NotNil(t, ev, "configure installs an evaluator")
 	assert.True(t, ev.HasDestination("isis"))
-	assert.True(t, ev.Accept(configredist.RedistRoute{Origin: "fakeredist", Source: "fakeredist", Family: family.IPv4Unicast}, "isis"))
+	_, accepted := ev.Accept(&configredist.RedistRoute{Origin: "fakeredist", Source: "fakeredist", Route: ribpolicy.Route{Family: family.IPv4Unicast}}, "isis")
+	assert.True(t, accepted)
 }
 
 // TestConfigureRefusesAnUnknownSource proves a rule the parser refuses stops
@@ -170,4 +175,89 @@ func TestReloadThatDeletesTheRootInstallsAnEmptyEvaluator(t *testing.T) {
 	require.NotNil(t, ev)
 	assert.False(t, ev.HasDestination("ospf"), "the deleted rules are gone")
 	assert.Empty(t, ev.Rules())
+}
+
+// chainSections is the delivery for `redistribute { destination <dest> {
+// import fakeredist { filters [ T42 ]; final <final>; } } }` beside a policy
+// root defining `match T42 { tag [ 42 ]; }`. An empty final names no chain.
+func chainSections(t *testing.T, dest, final string) []sdk.ConfigSection {
+	t.Helper()
+	tree := config.NewTree()
+	redist := config.NewTree()
+	tree.SetContainer(configRoot, redist)
+	destTree := config.NewTree()
+	entry := config.NewTree()
+	if final != "" {
+		entry.SetSlice("filters", []string{"T42"})
+		entry.Set("final", final)
+	}
+	destTree.AddListEntry("import", "fakeredist", entry)
+	redist.AddListEntry("destination", dest, destTree)
+	sections, err := config.BuildPluginConfigSections(tree.ToPluginMap(), []string{configRoot})
+	require.NoError(t, err)
+	return append(sections, sdk.ConfigSection{Root: policy.RootName, Data: `{"policy":{"match":{"T42":{"tag":["42"]}}}}`})
+}
+
+// TestRuleChainCompilesFromPolicy is AC-14 at the orchestrator's config: an
+// import's `filters [ T42 ]; final accept;` compiles against the delivered
+// policy root, and the installed rule moves only the routes T42 passes. A name
+// the policy root does not define is refused at configure.
+//
+// VALIDATES: the redistribute import chain compiles through
+// policy.CompileRouteChain and decides acceptance.
+// PREVENTS: a chain parsed and never compiled, which Accept would hit as a
+// final with no chain.
+func TestRuleChainCompilesFromPolicy(t *testing.T) {
+	restoreGlobal(t)
+	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
+
+	require.NoError(t, (&ruleState{}).configure(chainSections(t, "isis", "accept")))
+	ev := configredist.Global()
+	require.NotNil(t, ev)
+	route := func(tag uint32) *configredist.RedistRoute {
+		return &configredist.RedistRoute{Origin: "fakeredist", Source: "fakeredist",
+			Route: ribpolicy.Route{Family: family.IPv4Unicast, Tag: tag, HasTag: tag != 0}}
+	}
+	_, accepted := ev.Accept(route(42), "isis")
+	assert.True(t, accepted, "a route T42 passes moves")
+	_, accepted = ev.Accept(route(7), "isis")
+	assert.False(t, accepted, "a route T42 rejects does not move")
+
+	sections := chainSections(t, "isis", "accept")
+	sections[len(sections)-1].Data = `{"policy":{}}`
+	err := (&ruleState{}).configure(sections)
+	require.Error(t, err, "a chain naming an undefined instance is refused")
+	assert.Contains(t, err.Error(), "T42")
+}
+
+// TestRuleNarrowingWithdrawsHeldRoutes is AC-14's reload clause: a reload that
+// narrows an import's chain withdraws, from the consumer, every held route the
+// new chain rejects, and keeps the ones it still accepts.
+//
+// VALIDATES: the held set keeps each route's view, and apply re-judges it.
+// PREVENTS: a narrowed chain that stops new routes but leaves the routes it now
+// rejects in the destination until their source next changes them.
+func TestRuleNarrowingWithdrawsHeldRoutes(t *testing.T) {
+	resetState(t)
+	id := redistevents.RegisterProtocol("fakeredist")
+	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
+	consumer := registerBGPConsumer(t)
+
+	state := &ruleState{}
+	require.NoError(t, state.configure(chainSections(t, "bgp", "")))
+	batch := &redistevents.RouteChangeBatch{Protocol: id, AFI: afiIPv4, SAFI: safiUnicst, Entries: []redistevents.RouteChangeEntry{
+		{Action: redistevents.ActionAdd, Prefix: netip.MustParsePrefix("10.0.0.42/32"), Tag: 42},
+		{Action: redistevents.ActionAdd, Prefix: netip.MustParsePrefix("10.0.0.7/32"), Tag: 7},
+	}}
+	handleBatch(context.Background(), skipIDs(), batch)
+	require.Len(t, consumer.snapshotInjected(), 2, "with no chain both routes move")
+	require.Empty(t, consumer.snapshotWithdrawn())
+
+	require.NoError(t, state.verify(chainSections(t, "bgp", "accept")))
+	require.NoError(t, state.apply())
+
+	withdrawn := consumer.snapshotWithdrawn()
+	require.Len(t, withdrawn, 1, "only the route the narrowed chain rejects is withdrawn")
+	assert.Equal(t, "10.0.0.7/32", withdrawn[0].prefix)
+	assert.Equal(t, family.IPv4Unicast, withdrawn[0].fam)
 }

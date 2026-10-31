@@ -1,7 +1,8 @@
 # Test: ze config validate with a redistribute import tag filter.
 #
 # VALIDATES: spec-static-route-tag-reaches-no-consumer AC-10 -- an operator writes
-# `import static { tag N }` beside a static route carrying the same tag, and the whole
+# `match T { tag [ N ]; }` named by `import static { filters [ T ]; final accept; }` beside a
+# static route carrying the same tag, and the whole
 # configuration validates, so the tag filter is reachable from the config file.
 # VALIDATES: spec-static-route-tag-reaches-no-consumer AC-11 -- a tag outside the
 # uint32 range is refused, and the message names the range.
@@ -39,10 +40,16 @@ ospf {
 	}
 }
 
+policy {
+	match redistribute-ospf-static {
+		tag [ 4242 ];
+	}
+}
 redistribute {
 	destination ospf {
 		import static {
-			tag 4242;
+			filters [ redistribute-ospf-static ];
+			final accept;
 		}
 	}
 }
@@ -66,10 +73,16 @@ ospf {
 	}
 }
 
+policy {
+	match redistribute-ospf-static {
+		tag [ 4294967295 ];
+	}
+}
 redistribute {
 	destination ospf {
 		import static {
-			tag 4294967295;
+			filters [ redistribute-ospf-static ];
+			final accept;
 		}
 	}
 }
@@ -88,10 +101,16 @@ ospf {
 	}
 }
 
+policy {
+	match redistribute-ospf-static {
+		tag [ 4294967296 ];
+	}
+}
 redistribute {
 	destination ospf {
 		import static {
-			tag 4294967296;
+			filters [ redistribute-ospf-static ];
+			final accept;
 		}
 	}
 }

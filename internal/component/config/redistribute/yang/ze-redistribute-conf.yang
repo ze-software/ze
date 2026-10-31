@@ -40,7 +40,7 @@ load, validate and commit.";
 
             list import {
                 key "source";
-                description "If the family leaf-list is empty, Ze imports every family.";
+                description "With no filters and no final, Ze imports every route of the source.";
                 ze:help "Import routes from a source into this destination.";
 
                 leaf source {
@@ -50,21 +50,25 @@ load, validate and commit.";
                     ze:help "Name of the route source this rule imports from.";
                 }
 
-                leaf-list family {
-                    type string;
-                    ze:validate "registered-address-family";
-                    description "An empty leaf-list imports every family.";
-                    ze:help "Address families Ze imports from this source.";
+                leaf-list filters {
+                    type string { length "1..max"; }
+                    ordered-by user;
+                    description "Run these filter instances, defined under the top-level policy root, in
+order. Each one passes the route on, with what it sets, or rejects it. A filter of a type with no route
+evaluator, or one reading a field a redistributed route does not carry, is refused. Select a family or a
+tag with a match filter: match V4 { family [ ipv4/unicast ]; }.";
+                    ze:help "Ordered filter instance references";
+                    ze:reference "policy-filter";
                 }
 
-                leaf tag {
-                    type uint32;
-                    description "The route tag is the value the source protocol attached to the route, for
-example the tag leaf of a static route. A rule that names a tag imports the routes carrying exactly that
-value and rejects the others. A rule with no tag leaf imports every route from the source, whatever tag
-it carries. The value 0 is a tag like any other: a route with no tag carries 0, so tag 0 imports the
-untagged routes alone.";
-                    ze:help "Import only the routes that carry this route tag.";
+                leaf final {
+                    type enumeration {
+                        enum accept { ze:help "Import a route that passes every filter"; }
+                        enum reject { ze:help "Do not import a route that passes every filter"; }
+                    }
+                    description "The decision after every filter passes. An import with filters must set it.
+An import with neither filters nor final imports every route from the source.";
+                    ze:help "Decision after every filter passes";
                 }
             }
         }

@@ -43,17 +43,27 @@ plugin {
 	}
 }
 
+policy {
+	match redistribute-fakeprobe-fakeredist {
+		family [ ipv4/unicast ];
+	}
+	match redistribute-fakedest-fakeredist {
+		family [ ipv4/unicast ];
+	}
+}
 redistribute {
 	# The probe: registered first, and the proof that the dispatcher is live.
 	destination fakeprobe {
 		import fakeredist {
-			family [ ipv4/unicast ];
+			filters [ redistribute-fakeprobe-fakeredist ];
+			final accept;
 		}
 	}
 	# The late consumer: registered after both emits.
 	destination fakedest {
 		import fakeredist {
-			family [ ipv4/unicast ];
+			filters [ redistribute-fakedest-fakeredist ];
+			final accept;
 		}
 	}
 }

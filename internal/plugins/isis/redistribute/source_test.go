@@ -19,6 +19,7 @@ import (
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
 	"github.com/ze-software/ze/internal/plugins/isis/spf"
 )
@@ -306,14 +307,14 @@ func TestISISRedistSelfImportRejected(t *testing.T) {
 	}
 	// An `import isis` rule on the isis consumer must reject an isis-origin route.
 	rule := configredist.ImportRule{Source: "isis"}
-	route := configredist.RedistRoute{Origin: "isis", Family: family.IPv4Unicast, Source: "isis"}
-	if rule.Accept(route, ConsumerName) {
+	route := configredist.RedistRoute{Origin: "isis", Source: "isis", Route: ribpolicy.Route{Family: family.IPv4Unicast}}
+	if _, accepted := rule.Accept(&route, ConsumerName); accepted {
 		t.Fatal("isis self-import accepted; loop-prevention must reject origin == importing protocol")
 	}
 	// Sanity: a connected-origin route IS accepted by `import connected` on isis.
 	connRule := configredist.ImportRule{Source: "connected"}
-	connRoute := configredist.RedistRoute{Origin: "connected", Family: family.IPv4Unicast, Source: "connected"}
-	if !connRule.Accept(connRoute, ConsumerName) {
+	connRoute := configredist.RedistRoute{Origin: "connected", Source: "connected", Route: ribpolicy.Route{Family: family.IPv4Unicast}}
+	if _, accepted := connRule.Accept(&connRoute, ConsumerName); !accepted {
 		t.Fatal("connected import into isis rejected; a non-self source must be accepted")
 	}
 }

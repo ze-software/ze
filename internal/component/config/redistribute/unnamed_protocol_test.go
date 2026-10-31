@@ -18,11 +18,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/family"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
 // unnamedProtocolRoute is the route the retired filter judged: a route a peer
 // announced, which has an origin and a source and no importing protocol at all.
-var unnamedProtocolRoute = RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ebgp"}
+var unnamedProtocolRoute = RedistRoute{Origin: "bgp", Source: "ebgp", Route: ribpolicy.Route{Family: family.IPv4Unicast}}
 
 // loaderShapedRules are the rules the config loader builds for
 // `redistribute { destination ospf { import bgp } }`. Destination is populated
@@ -40,12 +41,12 @@ func TestImportRuleAcceptRefusesAnUnnamedImportingProtocol(t *testing.T) {
 	rule := loaderShapedRules[0]
 
 	// The verdict for a real protocol name is unchanged, either way.
-	assert.True(t, rule.Accept(unnamedProtocolRoute, "ospf"))
-	assert.False(t, rule.Accept(unnamedProtocolRoute, "isis"))
+	assert.True(t, accepts(&rule, unnamedProtocolRoute, "ospf"))
+	assert.False(t, accepts(&rule, unnamedProtocolRoute, "isis"))
 
 	assert.PanicsWithValue(t,
 		"BUG: redistribute: the importing protocol has no name, and an empty name is not a verdict",
-		func() { rule.Accept(unnamedProtocolRoute, "") })
+		func() { accepts(&rule, unnamedProtocolRoute, "") })
 }
 
 // TestEvaluatorAcceptRefusesAnUnnamedImportingProtocol drives the exported
@@ -58,14 +59,14 @@ func TestImportRuleAcceptRefusesAnUnnamedImportingProtocol(t *testing.T) {
 // PREVENTS: the guard being deleted as a duplicate of the one below it.
 func TestEvaluatorAcceptRefusesAnUnnamedImportingProtocol(t *testing.T) {
 	withRules := NewEvaluator(loaderShapedRules)
-	assert.True(t, withRules.Accept(unnamedProtocolRoute, "ospf"))
+	assert.True(t, accepts(withRules, unnamedProtocolRoute, "ospf"))
 	assert.PanicsWithValue(t,
 		"BUG: redistribute: the importing protocol has no name, and an empty name is not a verdict",
-		func() { withRules.Accept(unnamedProtocolRoute, "") })
+		func() { accepts(withRules, unnamedProtocolRoute, "") })
 
 	noRules := NewEvaluator(nil)
-	assert.False(t, noRules.Accept(unnamedProtocolRoute, "ospf"))
-	assert.Panics(t, func() { noRules.Accept(unnamedProtocolRoute, "") })
+	assert.False(t, accepts(noRules, unnamedProtocolRoute, "ospf"))
+	assert.Panics(t, func() { accepts(noRules, unnamedProtocolRoute, "") })
 }
 
 // TestHasDestinationRefusesAnUnnamedDestination holds the sibling path to the
@@ -102,8 +103,8 @@ func TestUnnamedImportingProtocolIsRefusedForEveryRuleShape(t *testing.T) {
 	}
 	for name, rule := range shapes {
 		t.Run(name, func(t *testing.T) {
-			require.Panics(t, func() { rule.Accept(unnamedProtocolRoute, "") })
-			require.Panics(t, func() { NewEvaluator([]ImportRule{rule}).Accept(unnamedProtocolRoute, "") })
+			require.Panics(t, func() { accepts(&rule, unnamedProtocolRoute, "") })
+			require.Panics(t, func() { accepts(NewEvaluator([]ImportRule{rule}), unnamedProtocolRoute, "") })
 		})
 	}
 }

@@ -1152,10 +1152,16 @@ subscribes to its events, and dispatches the prefixes to registered consumers
 (BGP) when a matching import rule is configured:
 
 ```
+policy {
+    match redistribute-bgp-l2tp {
+        family [ ipv4/unicast ipv6/unicast ];
+    }
+}
 redistribute {
     destination bgp {
         import l2tp {
-            family [ ipv4/unicast ipv6/unicast ];
+            filters [ redistribute-bgp-l2tp ];
+            final accept;
         }
     }
 }

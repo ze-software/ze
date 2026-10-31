@@ -1,8 +1,9 @@
-// VALIDATES: spec-static-route-tag-reaches-no-consumer AC-9 -- the `tag` leaf under a
-// redistribute import entry becomes the rule's tag filter, an absent leaf leaves the
-// rule unfiltered, and a value the uint32 range does not hold is refused by name.
-// PREVENTS: a configured tag filter silently importing every route, and `tag 0` being
-// read as "no filter".
+// VALIDATES: spec-route-policy-0-umbrella AC-14 -- an import entry's `final` becomes the
+// rule's final decision, an entry with neither filters nor final moves every route, and
+// a final the enumeration does not hold is refused by name. (The `tag` leaf this file
+// tested is gone: a tag is now a match filter's condition, `match T { tag [ 42 ]; }`.)
+// PREVENTS: a configured chain silently importing every route, and an invalid final
+// read as no chain.
 package config
 
 import (
@@ -12,38 +13,38 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestExtractRedistributeRulesTagFilter(t *testing.T) {
+func TestExtractRedistributeRulesFinal(t *testing.T) {
 	registerRedistSources(t)
 
 	tree := NewTree()
 	redist := NewTree()
 	tree.SetContainer("redistribute", redist)
 	dest := NewTree()
-	tagged := NewTree()
-	tagged.Set("tag", "42")
-	dest.AddListEntry("import", "ebgp", tagged)
-	untagged := NewTree()
-	dest.AddListEntry("import", "ibgp", untagged)
-	zero := NewTree()
-	zero.Set("tag", "0")
-	dest.AddListEntry("import", "ospf", zero)
+	accepting := NewTree()
+	accepting.SetSlice("filters", []string{"T42"})
+	accepting.Set("final", "accept")
+	dest.AddListEntry("import", "ebgp", accepting)
+	unfiltered := NewTree()
+	dest.AddListEntry("import", "ibgp", unfiltered)
+	rejecting := NewTree()
+	rejecting.Set("final", "reject")
+	dest.AddListEntry("import", "ospf", rejecting)
 	redist.AddListEntry("destination", "bgp", dest)
 
 	rules, err := ExtractRedistributeRules(tree)
 	require.NoError(t, err)
 	require.Len(t, rules, 3)
 
-	assert.True(t, rules[0].MatchTag, "a named tag filters")
-	assert.Equal(t, uint32(42), rules[0].Tag)
+	assert.Equal(t, "accept", rules[0].Final, "a named final is the rule's decision")
+	assert.Equal(t, []string{"T42"}, rules[0].Filters)
 
-	assert.False(t, rules[1].MatchTag, "an absent tag leaf leaves the rule unfiltered")
-	assert.Equal(t, uint32(0), rules[1].Tag)
+	assert.Empty(t, rules[1].Final, "an entry with no chain leaves the rule unfiltered")
 
-	assert.True(t, rules[2].MatchTag, "tag 0 selects the untagged routes")
-	assert.Equal(t, uint32(0), rules[2].Tag)
+	assert.Equal(t, "reject", rules[2].Final, "final with no filters is a chain that decides alone")
+	assert.Empty(t, rules[2].Filters)
 }
 
-func TestExtractRedistributeRulesTagOutOfRange(t *testing.T) {
+func TestExtractRedistributeRulesInvalidFinal(t *testing.T) {
 	registerRedistSources(t)
 
 	tree := NewTree()
@@ -51,12 +52,12 @@ func TestExtractRedistributeRulesTagOutOfRange(t *testing.T) {
 	tree.SetContainer("redistribute", redist)
 	dest := NewTree()
 	entry := NewTree()
-	entry.Set("tag", "4294967296")
+	entry.Set("final", "maybe")
 	dest.AddListEntry("import", "ebgp", entry)
 	redist.AddListEntry("destination", "bgp", dest)
 
 	_, err := ExtractRedistributeRules(tree)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "4294967296")
+	assert.Contains(t, err.Error(), "maybe")
 	assert.Contains(t, err.Error(), "ebgp")
 }

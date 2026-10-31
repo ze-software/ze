@@ -22,7 +22,7 @@ func TestOrchestratorFiresReplayOnPeerUp(t *testing.T) {
 	resetState(t)
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Destination: "bgp", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "fakeredist", Destination: "bgp", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	}))
 
 	bus := newTestBus()
@@ -76,7 +76,7 @@ func TestOrchestratorTargetsNewPeerOnly(t *testing.T) {
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Destination: "bgp", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "fakeredist", Destination: "bgp", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	}))
 	consumer := registerBGPConsumer(t)
 
@@ -126,7 +126,7 @@ func TestOrchestratorReplaySkipsRemoveEntries(t *testing.T) {
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Destination: "bgp", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "fakeredist", Destination: "bgp", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	}))
 	consumer := registerBGPConsumer(t)
 
@@ -154,7 +154,7 @@ func TestOrchestratorIncrementalUnchangedByReplayID(t *testing.T) {
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Destination: "bgp", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "fakeredist", Destination: "bgp", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	}))
 	consumer := registerBGPConsumer(t)
 

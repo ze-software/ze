@@ -202,7 +202,7 @@ func TestHandleBatchAcceptedAddDispatches(t *testing.T) {
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "fakeredist", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	}))
 
 	consumer := registerBGPConsumer(t)
@@ -224,7 +224,7 @@ func TestHandleBatchAcceptedAddIPv6(t *testing.T) {
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []family.Family{family.IPv6Unicast}},
+		{Source: "fakeredist", Final: "accept", Chain: familyChain{family.IPv6Unicast}},
 	}))
 
 	consumer := registerBGPConsumer(t)
@@ -245,7 +245,7 @@ func TestHandleBatchExplicitNextHop(t *testing.T) {
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "fakeredist", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	}))
 
 	consumer := registerBGPConsumer(t)
@@ -265,7 +265,7 @@ func TestHandleBatchRejectedAddNoop(t *testing.T) {
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []family.Family{family.IPv6Unicast}},
+		{Source: "fakeredist", Final: "accept", Chain: familyChain{family.IPv6Unicast}},
 	}))
 
 	consumer := registerBGPConsumer(t)
@@ -283,7 +283,7 @@ func TestHandleBatchRemoveDispatches(t *testing.T) {
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "fakeredist", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	}))
 
 	consumer := registerBGPConsumer(t)
@@ -326,7 +326,7 @@ func TestHandleBatchReloadApplies(t *testing.T) {
 	assert.Empty(t, consumer.snapshotInjected(), "first call should be rejected by empty rules")
 
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "fakeredist", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	}))
 
 	handleBatch(context.Background(), skipIDs(bgpID), batch)
@@ -341,7 +341,7 @@ func TestHandleBatchConsumerSourceSkipped(t *testing.T) {
 	bgpID := redistevents.RegisterProtocol("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "fakeredist", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	}))
 
 	consumer := registerBGPConsumer(t)
@@ -355,7 +355,7 @@ func TestHandleBatchConsumerSourceDispatchesToOtherConsumers(t *testing.T) {
 
 	bgpID := redistevents.RegisterProtocol("bgp")
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "bgp", Families: []family.Family{family.IPv6Unicast}},
+		{Source: "bgp", Final: "accept", Chain: familyChain{family.IPv6Unicast}},
 	}))
 
 	bgpConsumer := registerBGPConsumer(t)
@@ -379,7 +379,7 @@ func TestHandleBatchUnknownProtocol(t *testing.T) {
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "fakeredist", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	}))
 
 	consumer := registerBGPConsumer(t)
@@ -400,7 +400,7 @@ func TestHandleBatchPrefersEntryOriginAS(t *testing.T) {
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "fakeredist", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	}))
 	consumer := registerBGPConsumer(t)
 
@@ -467,7 +467,7 @@ func TestSubscribeNonConsumerProducers(t *testing.T) {
 
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "fakeredist", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	}))
 
 	fakeID := redistevents.RegisterProtocol("fakeredist")

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/family"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,20 +17,20 @@ import (
 func TestEvaluatorAccept(t *testing.T) {
 	ev := NewEvaluator([]ImportRule{
 		{Source: "ospf"},
-		{Source: "ebgp", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "ebgp", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	})
 
 	// OSPF route accepted into BGP
-	assert.True(t, ev.Accept(RedistRoute{Origin: "ospf", Family: family.IPv4Unicast, Source: "ospf"}, "bgp"))
+	assert.True(t, accepts(ev, RedistRoute{Origin: "ospf", Source: "ospf", Route: ribpolicy.Route{Family: family.IPv4Unicast}}, "bgp"))
 
 	// eBGP route blocked from BGP (loop)
-	assert.False(t, ev.Accept(RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ebgp"}, "bgp"))
+	assert.False(t, accepts(ev, RedistRoute{Origin: "bgp", Source: "ebgp", Route: ribpolicy.Route{Family: family.IPv4Unicast}}, "bgp"))
 
 	// eBGP ipv6 blocked by family filter
-	assert.False(t, ev.Accept(RedistRoute{Origin: "bgp", Family: family.IPv6Unicast, Source: "ebgp"}, "ospf"))
+	assert.False(t, accepts(ev, RedistRoute{Origin: "bgp", Source: "ebgp", Route: ribpolicy.Route{Family: family.IPv6Unicast}}, "ospf"))
 
 	// eBGP ipv4 accepted into OSPF
-	assert.True(t, ev.Accept(RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ebgp"}, "ospf"))
+	assert.True(t, accepts(ev, RedistRoute{Origin: "bgp", Source: "ebgp", Route: ribpolicy.Route{Family: family.IPv4Unicast}}, "ospf"))
 }
 
 // TestEvaluatorReload verifies rules are replaced on reload.
@@ -41,19 +42,19 @@ func TestEvaluatorReload(t *testing.T) {
 		{Source: "ospf"},
 	})
 
-	route := RedistRoute{Origin: "ospf", Family: family.IPv4Unicast, Source: "ospf"}
-	assert.True(t, ev.Accept(route, "bgp"))
+	route := RedistRoute{Origin: "ospf", Source: "ospf", Route: ribpolicy.Route{Family: family.IPv4Unicast}}
+	assert.True(t, accepts(ev, route, "bgp"))
 
 	// Reload with no rules
 	ev.Reload(nil)
-	assert.False(t, ev.Accept(route, "bgp"))
+	assert.False(t, accepts(ev, route, "bgp"))
 
 	// Reload with different rules
 	ev.Reload([]ImportRule{
 		{Source: "connected"},
 	})
-	assert.False(t, ev.Accept(route, "bgp"))
-	assert.True(t, ev.Accept(RedistRoute{Origin: "connected", Family: family.IPv4Unicast, Source: "connected"}, "bgp"))
+	assert.False(t, accepts(ev, route, "bgp"))
+	assert.True(t, accepts(ev, RedistRoute{Origin: "connected", Source: "connected", Route: ribpolicy.Route{Family: family.IPv4Unicast}}, "bgp"))
 }
 
 // TestEvaluatorRules verifies Rules returns a copy.
@@ -75,14 +76,15 @@ func TestEvaluatorRules(t *testing.T) {
 	rules[0].Source = "modified"
 	assert.Equal(t, "ospf", ev.Rules()[0].Source)
 
-	// Mutating Families slice should not affect the evaluator
-	ipv4VPN := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
+	// Mutating the Filters slice should not affect the evaluator
 	ev2 := NewEvaluator([]ImportRule{
-		{Source: "ebgp", Families: []family.Family{family.IPv4Unicast, ipv4VPN}},
+		{Source: "ebgp", Filters: []string{"V4", "VPN"}, Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 	})
 	r2 := ev2.Rules()
-	r2[0].Families[0] = family.Family{}
-	assert.Equal(t, family.IPv4Unicast, ev2.Rules()[0].Families[0])
+	r2[0].Filters[0] = ""
+	assert.Equal(t, "V4", ev2.Rules()[0].Filters[0])
+	assert.Equal(t, "accept", ev2.Rules()[0].Final)
+	assert.NotNil(t, ev2.Rules()[0].Chain, "the copy keeps the compiled chain")
 }
 
 // TestEvaluatorNilRules verifies evaluator works with nil rules.
@@ -91,6 +93,6 @@ func TestEvaluatorRules(t *testing.T) {
 // PREVENTS: Nil pointer dereference on empty config.
 func TestEvaluatorNilRules(t *testing.T) {
 	ev := NewEvaluator(nil)
-	assert.False(t, ev.Accept(RedistRoute{Origin: "ospf", Family: family.IPv4Unicast, Source: "ospf"}, "bgp"))
+	assert.False(t, accepts(ev, RedistRoute{Origin: "ospf", Source: "ospf", Route: ribpolicy.Route{Family: family.IPv4Unicast}}, "bgp"))
 	assert.Empty(t, ev.Rules())
 }

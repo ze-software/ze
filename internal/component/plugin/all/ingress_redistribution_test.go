@@ -27,7 +27,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
-	"github.com/ze-software/ze/internal/core/family"
 )
 
 // receivedUpdateBody is the body of the UPDATE a peer sends for 10.0.0.0/24,
@@ -46,12 +45,11 @@ var receivedUpdateBody = []byte{
 
 func TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig(t *testing.T) {
 	// The rule the config loader builds for
-	// `redistribute { destination ospf { import bgp { family [ ipv4/unicast ] } } }`.
-	// Destination is populated for every rule a config produces.
+	// `redistribute { destination ospf { import bgp; } }`, which moves every
+	// route of the source. Destination is populated for every rule a config produces.
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{{
 		Source:      "bgp",
 		Destination: "ospf",
-		Families:    []family.Family{family.IPv4Unicast},
 	}}))
 	defer configredist.SetGlobal(nil)
 

@@ -772,11 +772,14 @@ future OSPF / ISIS) into destination protocols (BGP, future OSPF/ISIS).
 Config:
 
 ```
+policy {
+    match redistribute-bgp-l2tp { family [ ipv4/unicast ipv6/unicast ]; }
+}
 redistribute {
     destination bgp {
         import connected;
         import static;
-        import l2tp { family [ ipv4/unicast ipv6/unicast ]; }
+        import l2tp { filters [ redistribute-bgp-l2tp ]; final accept; }
     }
 }
 ```

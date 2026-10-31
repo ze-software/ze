@@ -257,10 +257,16 @@ The `redistribute` root is a separate config root from `bgp { filter }`, and
 nothing in this section changes what a BGP session accepts or advertises.
 
 ```
+policy {
+    match redistribute-ospf-bgp {
+        family [ ipv6/unicast ];
+    }
+}
 redistribute {
     destination ospf {
         import bgp {
-            family [ ipv6/unicast ];
+            filters [ redistribute-ospf-bgp ];
+            final accept;
         }
     }
     destination isis {
@@ -271,28 +277,51 @@ redistribute {
 ```
 
 A `destination <protocol>` block names the protocol that RECEIVES the routes.
-Each `import <source>` under it names where they come from. The optional
-`family` leaf-list narrows which address families that source contributes. An
-empty list imports every family.
+Each `import <source>` under it names where they come from. A rule with no
+`filters` imports every route the source holds. To narrow it, name filter
+instances from the top-level `policy` root in `filters [ ... ]` and end the chain
+with `final accept` or `final reject`: a route moves only when every filter
+passes it and the final decision accepts it. `filters` without a `final` is
+refused. The chain sits at the `redistribute import` attachment, so the editor
+completes the instances that fit it and `ze config validate` refuses a name the
+`policy` root does not define. The [route policy guide](route-policy.md) lists
+the filter types and the fields they read.
 
-The optional `tag` leaf narrows the same rule by route tag. The route tag is the
-value the source protocol attached to the route, for example the `tag` leaf of a
-static route. A rule that names a tag imports the routes carrying exactly that
-value and rejects the others. A rule with no `tag` leaf imports every route from
-the source, whatever tag it carries.
+A `match` instance narrows by address family (`family [ ... ]`) and by route tag
+(`tag [ ... ]`), among its other conditions. The route tag is the value the
+source protocol attached to the route, for example the `tag` leaf of a static
+route.
+<!-- source: internal/component/config/loader_redistribute.go -- importChain -->
+<!-- source: internal/plugins/redistribute/config.go -- compileRuleChains -->
+<!-- source: internal/plugins/redistribute/register_reference.go -- importFiltersPattern -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- redistRoute -->
+
+A file written before the chain, with `family [ ... ]` or `tag N` directly under
+`import`, no longer loads: the refusal names the fix,
+`ze config migrate -o <new-file> <file>`, which moves the two leaves into a
+`match redistribute-<destination>-<source>` instance named in the rule's
+`filters` with `final accept`. `tag 0` becomes `tag [ 0 ]` and keeps selecting
+the untagged routes.
+<!-- source: internal/plugins/redistribute/migrate.go -- migrateImportLeaves -->
 
 ```
+policy {
+    match redistribute-ospf-static {
+        tag [ 4242 ];
+    }
+}
 redistribute {
     destination ospf {
         import static {
-            tag 4242;
+            filters [ redistribute-ospf-static ];
+            final accept;
         }
     }
 }
 ```
 
-The value 0 is a tag like any other. A route with no tag carries 0, so `tag 0`
-imports the untagged routes alone. The filter runs for each route, not for each
+The value 0 is a tag like any other. A redistributed route with no tag carries
+0, so `tag [ 0 ]` selects the untagged routes alone. The filter runs for each route, not for each
 batch, so one source can feed two destinations with two different tag sets.
 
 Changing a static route's tag announces the route again with the new tag, and

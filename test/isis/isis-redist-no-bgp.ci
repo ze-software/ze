@@ -43,10 +43,16 @@ isis {
 	}
 }
 
+policy {
+	match redistribute-isis-fakeredist {
+		family [ ipv4/unicast ];
+	}
+}
 redistribute {
 	destination isis {
 		import fakeredist {
-			family [ ipv4/unicast ];
+			filters [ redistribute-isis-fakeredist ];
+			final accept;
 		}
 	}
 }

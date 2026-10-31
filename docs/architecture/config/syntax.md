@@ -84,7 +84,9 @@ A leaf a schema change retired is refused the same way. The package that owns
 the rewrite registers the leaf with `config.MustRegisterRetiredLeaf(path, name,
 node, replacement)`, both parsers answer `<name> is no longer a leaf of <path>:
 write <replacement> instead`, then the `ze config migrate` fix, and
-`MigrationSchema` grafts the old leaf back so the migration can read it.
+`MigrationSchema` grafts the old leaf back so the migration can read it. The
+redistribute import `family` and `tag` leaves are the two retired leaves today.
+<!-- source: internal/plugins/redistribute/register_migration.go -- init -->
 <!-- source: internal/component/config/retired_leaf.go -- MustRegisterRetiredLeaf, markRetiredLeaves, graftRetiredLeaves -->
 
 A feature package adds its own transformation with
@@ -942,6 +944,13 @@ bgp {
 - `template { bgp { peer <pattern> { inherit-name X; } } }` becomes `group X { }`
 - `inherit X` in peers moves the peer into `group X`
 - `neighbor` blocks become `peer` blocks inside groups
+- `redistribute destination D import S { family [ ... ]; tag N; }` becomes a
+  `policy { match redistribute-D-S { family [ ... ]; tag [ N ]; } }` instance,
+  named first in the rule's `filters`, and every import rule without a `final`
+  and without `filters` gets `final accept`. `tag 0` stays `tag [ 0 ]`, which
+  selects the untagged routes. A `match` instance already holding that name is
+  refused
+<!-- source: internal/plugins/redistribute/migrate.go -- migrateImportLeaves, migrateImportRule -->
 
 ### bgp
 

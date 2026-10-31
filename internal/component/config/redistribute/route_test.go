@@ -1,11 +1,14 @@
 package redistribute
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/family"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestAcceptLoopPrevention verifies routes are rejected when origin matches importing protocol.
@@ -14,13 +17,13 @@ import (
 // PREVENTS: Redistribution loops between protocols.
 func TestAcceptLoopPrevention(t *testing.T) {
 	rule := ImportRule{Source: "ospf"}
-	route := RedistRoute{Origin: "ospf", Family: family.IPv4Unicast, Source: "ospf"}
+	route := RedistRoute{Origin: "ospf", Source: "ospf", Route: ribpolicy.Route{Family: family.IPv4Unicast}}
 
 	// OSPF route should not be imported back into OSPF
-	assert.False(t, rule.Accept(route, "ospf"))
+	assert.False(t, accepts(&rule, route, "ospf"))
 
 	// OSPF route can be imported into BGP
-	assert.True(t, rule.Accept(route, "bgp"))
+	assert.True(t, accepts(&rule, route, "bgp"))
 }
 
 // TestAcceptLoopPreventionBGPSubSources verifies ibgp/ebgp routes are blocked
@@ -38,28 +41,28 @@ func TestAcceptLoopPreventionBGPSubSources(t *testing.T) {
 	}{
 		{
 			name:              "ibgp route blocked from bgp import",
-			route:             RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ibgp"},
+			route:             RedistRoute{Origin: "bgp", Source: "ibgp", Route: ribpolicy.Route{Family: family.IPv4Unicast}},
 			rule:              ImportRule{Source: "ibgp"},
 			importingProtocol: "bgp",
 			want:              false,
 		},
 		{
 			name:              "ebgp route blocked from bgp import",
-			route:             RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ebgp"},
+			route:             RedistRoute{Origin: "bgp", Source: "ebgp", Route: ribpolicy.Route{Family: family.IPv4Unicast}},
 			rule:              ImportRule{Source: "ebgp"},
 			importingProtocol: "bgp",
 			want:              false,
 		},
 		{
 			name:              "ospf route accepted into bgp",
-			route:             RedistRoute{Origin: "ospf", Family: family.IPv4Unicast, Source: "ospf"},
+			route:             RedistRoute{Origin: "ospf", Source: "ospf", Route: ribpolicy.Route{Family: family.IPv4Unicast}},
 			rule:              ImportRule{Source: "ospf"},
 			importingProtocol: "bgp",
 			want:              true,
 		},
 		{
 			name:              "connected route accepted into bgp",
-			route:             RedistRoute{Origin: "connected", Family: family.IPv4Unicast, Source: "connected"},
+			route:             RedistRoute{Origin: "connected", Source: "connected", Route: ribpolicy.Route{Family: family.IPv4Unicast}},
 			rule:              ImportRule{Source: "connected"},
 			importingProtocol: "bgp",
 			want:              true,
@@ -67,18 +70,18 @@ func TestAcceptLoopPreventionBGPSubSources(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.rule.Accept(tt.route, tt.importingProtocol))
+			assert.Equal(t, tt.want, accepts(&tt.rule, tt.route, tt.importingProtocol))
 		})
 	}
 }
 
 func TestAcceptUmbrellaOriginSource(t *testing.T) {
-	route := RedistRoute{Origin: "bgp", Family: family.IPv6Unicast, Source: "ebgp"}
+	route := RedistRoute{Origin: "bgp", Source: "ebgp", Route: ribpolicy.Route{Family: family.IPv6Unicast}}
 
-	assert.True(t, (ImportRule{Source: "bgp"}).Accept(route, "ospf"))
-	assert.True(t, (ImportRule{Source: "ebgp"}).Accept(route, "ospf"))
-	assert.False(t, (ImportRule{Source: "ibgp"}).Accept(route, "ospf"))
-	assert.False(t, (ImportRule{Source: "bgp"}).Accept(route, "bgp"))
+	assert.True(t, accepts(&ImportRule{Source: "bgp"}, route, "ospf"))
+	assert.True(t, accepts(&ImportRule{Source: "ebgp"}, route, "ospf"))
+	assert.False(t, accepts(&ImportRule{Source: "ibgp"}, route, "ospf"))
+	assert.False(t, accepts(&ImportRule{Source: "bgp"}, route, "bgp"))
 }
 
 // TestAcceptSourceMismatch verifies routes are rejected when source doesn't match the rule.
@@ -87,25 +90,25 @@ func TestAcceptUmbrellaOriginSource(t *testing.T) {
 // PREVENTS: Routes from wrong source leaking through.
 func TestAcceptSourceMismatch(t *testing.T) {
 	rule := ImportRule{Source: "ebgp"}
-	route := RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ibgp"}
+	route := RedistRoute{Origin: "bgp", Source: "ibgp", Route: ribpolicy.Route{Family: family.IPv4Unicast}}
 
 	// ibgp route should not match ebgp rule (even though both have origin "bgp")
 	// Loop prevention fires first here since origin matches importing protocol,
 	// but test the source check by using a different importing protocol.
-	assert.False(t, rule.Accept(route, "ospf"))
+	assert.False(t, accepts(&rule, route, "ospf"))
 }
 
 // TestAcceptFamilyFilter verifies the family restriction works.
 //
-// VALIDATES: Routes are filtered by address family when families list is non-empty.
+// VALIDATES: A rule's chain decides which families move (a family match).
 // PREVENTS: Unwanted families being redistributed.
 func TestAcceptFamilyFilter(t *testing.T) {
 	ipv4VPN := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
 	l2vpnEVPN := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
 
 	rule := ImportRule{
-		Source:   "ebgp",
-		Families: []family.Family{family.IPv4Unicast, ipv4VPN},
+		Source: "ebgp",
+		Final:  "accept", Chain: familyChain{family.IPv4Unicast, ipv4VPN},
 	}
 
 	tests := []struct {
@@ -120,15 +123,15 @@ func TestAcceptFamilyFilter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			route := RedistRoute{Origin: "bgp", Family: tt.family, Source: "ebgp"}
-			assert.Equal(t, tt.want, rule.Accept(route, "ospf"))
+			route := RedistRoute{Origin: "bgp", Source: "ebgp", Route: ribpolicy.Route{Family: tt.family}}
+			assert.Equal(t, tt.want, accepts(&rule, route, "ospf"))
 		})
 	}
 }
 
-// TestAcceptEmptyFamiliesAllowsAll verifies that omitting families accepts all.
+// TestAcceptEmptyFamiliesAllowsAll verifies that a rule with no chain accepts all.
 //
-// VALIDATES: Empty families list means all families are accepted.
+// VALIDATES: A rule with no chain accepts every family.
 // PREVENTS: Empty list accidentally rejecting everything.
 func TestAcceptEmptyFamiliesAllowsAll(t *testing.T) {
 	rule := ImportRule{Source: "ospf"}
@@ -140,8 +143,8 @@ func TestAcceptEmptyFamiliesAllowsAll(t *testing.T) {
 	}
 
 	for _, fam := range families {
-		route := RedistRoute{Origin: "ospf", Family: fam, Source: "ospf"}
-		assert.True(t, rule.Accept(route, "bgp"), "family %s should be accepted", fam)
+		route := RedistRoute{Origin: "ospf", Source: "ospf", Route: ribpolicy.Route{Family: fam}}
+		assert.True(t, accepts(&rule, route, "bgp"), "family %s should be accepted", fam)
 	}
 }
 
@@ -151,9 +154,9 @@ func TestAcceptEmptyFamiliesAllowsAll(t *testing.T) {
 // PREVENTS: First-match-only or all-must-match logic errors.
 func TestEvaluateMultipleRules(t *testing.T) {
 	rules := []ImportRule{
-		{Source: "ebgp", Families: []family.Family{family.IPv4Unicast}},
+		{Source: "ebgp", Final: "accept", Chain: familyChain{family.IPv4Unicast}},
 		{Source: "ospf"},
-		{Source: "connected", Families: []family.Family{family.IPv6Unicast}},
+		{Source: "connected", Final: "accept", Chain: familyChain{family.IPv6Unicast}},
 	}
 
 	tests := []struct {
@@ -164,50 +167,50 @@ func TestEvaluateMultipleRules(t *testing.T) {
 	}{
 		{
 			name:  "ebgp ipv4 accepted",
-			route: RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ebgp"},
+			route: RedistRoute{Origin: "bgp", Source: "ebgp", Route: ribpolicy.Route{Family: family.IPv4Unicast}},
 			proto: "ospf",
 			want:  true,
 		},
 		{
 			name:  "ebgp ipv6 rejected by family filter",
-			route: RedistRoute{Origin: "bgp", Family: family.IPv6Unicast, Source: "ebgp"},
+			route: RedistRoute{Origin: "bgp", Source: "ebgp", Route: ribpolicy.Route{Family: family.IPv6Unicast}},
 			proto: "ospf",
 			want:  false,
 		},
 		{
 			name:  "ospf any family accepted",
-			route: RedistRoute{Origin: "ospf", Family: family.IPv6Unicast, Source: "ospf"},
+			route: RedistRoute{Origin: "ospf", Source: "ospf", Route: ribpolicy.Route{Family: family.IPv6Unicast}},
 			proto: "bgp",
 			want:  true,
 		},
 		{
 			name:  "connected ipv6 accepted",
-			route: RedistRoute{Origin: "connected", Family: family.IPv6Unicast, Source: "connected"},
+			route: RedistRoute{Origin: "connected", Source: "connected", Route: ribpolicy.Route{Family: family.IPv6Unicast}},
 			proto: "bgp",
 			want:  true,
 		},
 		{
 			name:  "connected ipv4 rejected by family filter",
-			route: RedistRoute{Origin: "connected", Family: family.IPv4Unicast, Source: "connected"},
+			route: RedistRoute{Origin: "connected", Source: "connected", Route: ribpolicy.Route{Family: family.IPv4Unicast}},
 			proto: "bgp",
 			want:  false,
 		},
 		{
 			name:  "loop prevention across all rules",
-			route: RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ebgp"},
+			route: RedistRoute{Origin: "bgp", Source: "ebgp", Route: ribpolicy.Route{Family: family.IPv4Unicast}},
 			proto: "bgp",
 			want:  false,
 		},
 		{
 			name:  "unknown source rejected",
-			route: RedistRoute{Origin: "isis", Family: family.IPv4Unicast, Source: "isis"},
+			route: RedistRoute{Origin: "isis", Source: "isis", Route: ribpolicy.Route{Family: family.IPv4Unicast}},
 			proto: "bgp",
 			want:  false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, evaluate(tt.route, rules, tt.proto))
+			assert.Equal(t, tt.want, evaluates(tt.route, rules, tt.proto))
 		})
 	}
 }
@@ -217,9 +220,9 @@ func TestEvaluateMultipleRules(t *testing.T) {
 // VALIDATES: Empty rule set rejects all routes.
 // PREVENTS: Nil/empty rules accidentally accepting everything.
 func TestEvaluateEmptyRules(t *testing.T) {
-	route := RedistRoute{Origin: "ospf", Family: family.IPv4Unicast, Source: "ospf"}
-	assert.False(t, evaluate(route, nil, "bgp"))
-	assert.False(t, evaluate(route, []ImportRule{}, "bgp"))
+	route := RedistRoute{Origin: "ospf", Source: "ospf", Route: ribpolicy.Route{Family: family.IPv4Unicast}}
+	assert.False(t, evaluates(route, nil, "bgp"))
+	assert.False(t, evaluates(route, []ImportRule{}, "bgp"))
 }
 
 // TestImportRuleDestinationScoped verifies R-3: an ImportRule parsed under a
@@ -231,20 +234,20 @@ func TestEvaluateEmptyRules(t *testing.T) {
 // VALIDATES: AC-5 / R-3 destination scoping in both directions.
 // PREVENTS: cross-destination leak (an import meant for BGP reaching OSPF).
 func TestImportRuleDestinationScoped(t *testing.T) {
-	route := RedistRoute{Origin: "connected", Family: family.IPv4Unicast, Source: "connected"}
+	route := RedistRoute{Origin: "connected", Source: "connected", Route: ribpolicy.Route{Family: family.IPv4Unicast}}
 
 	bgpOnly := ImportRule{Source: "connected", Destination: "bgp"}
-	assert.True(t, bgpOnly.Accept(route, "bgp"), "import under destination bgp must feed bgp")
-	assert.False(t, bgpOnly.Accept(route, "ospf"), "import under destination bgp must NOT feed ospf")
+	assert.True(t, accepts(&bgpOnly, route, "bgp"), "import under destination bgp must feed bgp")
+	assert.False(t, accepts(&bgpOnly, route, "ospf"), "import under destination bgp must NOT feed ospf")
 
 	ospfOnly := ImportRule{Source: "connected", Destination: "ospf"}
-	assert.True(t, ospfOnly.Accept(route, "ospf"), "import under destination ospf must feed ospf")
-	assert.False(t, ospfOnly.Accept(route, "bgp"), "import under destination ospf must NOT feed bgp")
+	assert.True(t, accepts(&ospfOnly, route, "ospf"), "import under destination ospf must feed ospf")
+	assert.False(t, accepts(&ospfOnly, route, "bgp"), "import under destination ospf must NOT feed bgp")
 
 	// Empty Destination stays agnostic (back-compat).
 	agnostic := ImportRule{Source: "connected"}
-	assert.True(t, agnostic.Accept(route, "bgp"), "empty destination accepts any importer (bgp)")
-	assert.True(t, agnostic.Accept(route, "ospf"), "empty destination accepts any importer (ospf)")
+	assert.True(t, accepts(&agnostic, route, "bgp"), "empty destination accepts any importer (bgp)")
+	assert.True(t, accepts(&agnostic, route, "ospf"), "empty destination accepts any importer (ospf)")
 }
 
 // TestEvaluatorHasDestination verifies HasDestination reports whether any rule
@@ -263,4 +266,38 @@ func TestEvaluatorHasDestination(t *testing.T) {
 	evAgnostic := NewEvaluator([]ImportRule{{Source: "connected"}})
 	assert.True(t, evAgnostic.HasDestination("bgp"))
 	assert.True(t, evAgnostic.HasDestination("ospf"))
+}
+
+// TestRedistributeChainAccept is AC-14 at the rule: `import bgp { filters [ P ];
+// final reject; }` under `destination ospf` moves only the prefixes P accepts,
+// with the sets P applied, and a rule with no chain still moves every route.
+//
+// VALIDATES: Accept answers the chain's verdict and sets for each route.
+// PREVENTS: a chain that is compiled and never consulted, and the chain's sets
+// lost between the verdict and the dispatch.
+func TestRedistributeChainAccept(t *testing.T) {
+	accepted := netip.MustParsePrefix("203.0.113.0/24")
+	rejected := netip.MustParsePrefix("198.51.100.0/24")
+	rule := ImportRule{Source: "bgp", Destination: "ospf", Filters: []string{"P"}, Final: "reject",
+		Chain: prefixSetChain{accept: []netip.Prefix{accepted}, tag: 7}}
+	route := func(p netip.Prefix) *RedistRoute {
+		return &RedistRoute{Origin: "bgp", Source: "ebgp", Route: ribpolicy.Route{Family: family.IPv4Unicast, Prefix: p}}
+	}
+
+	sets, ok := rule.Accept(route(accepted), "ospf")
+	require.True(t, ok, "the prefix P accepts must move into OSPF")
+	assert.Equal(t, ribpolicy.Sets{Tag: 7, HasTag: true}, sets, "the chain's sets reach the caller")
+
+	_, ok = rule.Accept(route(rejected), "ospf")
+	assert.False(t, ok, "a prefix P rejects must not move")
+
+	sets, ok = NewEvaluator([]ImportRule{rule}).Accept(route(accepted), "ospf")
+	require.True(t, ok, "the evaluator answers the accepting rule's verdict")
+	assert.True(t, sets.HasTag, "the evaluator answers the accepting rule's sets")
+
+	unfiltered := ImportRule{Source: "bgp", Destination: "ospf"}
+	assert.True(t, accepts(&unfiltered, *route(rejected), "ospf"), "a rule with no chain moves every route")
+
+	noChain := ImportRule{Source: "bgp", Destination: "ospf", Final: "accept"}
+	assert.Panics(t, func() { noChain.Accept(route(accepted), "ospf") }, "a final with no compiled chain is a Ze defect")
 }

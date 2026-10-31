@@ -85,6 +85,9 @@ plugin {
     external rfc8212-policy { run "le test fixture plugin/rfc8212-ebgp-no-export-policy"; encoder json; }
 }
 policy {
+    match redistribute-bgp-fakeredist {
+        family [ ipv4/unicast ];
+    }
     # Named by the rs-client control below as inactive: never applied.
     reject-asn NO-TRANSIT { indirect [ 3356 ]; }
     # The echo returns Ze's own UPDATEs, whose AS_PATH holds 65000: the
@@ -95,7 +98,7 @@ policy {
 }
 redistribute {
     destination bgp {
-        import fakeredist { family [ ipv4/unicast ]; }
+        import fakeredist { filters [ redistribute-bgp-fakeredist ]; final accept; }
     }
 }
 bgp {

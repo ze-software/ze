@@ -6,11 +6,9 @@ package config
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
-	"github.com/ze-software/ze/internal/core/family"
 )
 
 // ExtractRedistributeRules extracts redistribution import rules from a config tree.
@@ -18,9 +16,8 @@ import (
 // and collects the "import" list under each destination protocol.
 //
 // Returns nil with no error when the redistribute container is absent or empty.
-// Returns an error when a source name is not in the registry or when a family
-// name is not registered (exact-or-reject: unknown families MUST NOT silently
-// be dropped or translated).
+// Returns an error when a source name is not in the registry, or when an
+// import names filters with no final (importChain).
 func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 	redist := tree.GetContainer("redistribute")
 	if redist == nil {
@@ -37,7 +34,7 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 		entries := dest.Value.GetListOrdered("import")
 		if len(entries) == 0 {
 			// Scalar fallback: "import ipsec;" stores as key-value, not list entry.
-			// Accepts all families (no family filter); use list form to restrict.
+			// It carries no chain, so every route moves; use the list form to filter.
 			if scalar, ok := dest.Value.Get("import"); ok && scalar != "" {
 				if _, ok := redistribute.LookupSource(scalar); !ok {
 					return nil, fmt.Errorf("redistribute: unknown source %q under destination %q", scalar, dest.Key)
@@ -58,34 +55,13 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 				return nil, fmt.Errorf("redistribute: unknown source %q under destination %q", source, dest.Key)
 			}
 
-			names := entry.Value.GetMultiValues("family")
-			var families []family.Family
-			if len(names) > 0 {
-				families = make([]family.Family, 0, len(names))
-				for _, name := range names {
-					fam, ok := family.LookupFamily(name)
-					if !ok {
-						return nil, fmt.Errorf("redistribute: unknown family %q under source %q", name, source)
-					}
-					families = append(families, fam)
-				}
-			}
-
-			tag, matchTag, err := importTag(entry.Value, source)
+			rule, err := importChain(entry.Value, source, dest.Key)
 			if err != nil {
 				return nil, err
 			}
-
-			rules = append(rules, redistribute.ImportRule{
-				Source:      source,
-				Destination: dest.Key,
-				Families:    families,
-				Tag:         tag,
-				MatchTag:    matchTag,
-			})
+			rules = append(rules, rule)
 		}
 	}
-
 	if len(rules) == 0 {
 		return nil, nil
 	}
@@ -177,22 +153,28 @@ func refuseAbsentRoot(tree *Tree, root, statement, remove string) error {
 		statement, root, root, root, root, root, remove)
 }
 
-// importTag reads the optional `tag` leaf of one import entry. It reports the value
-// and whether the leaf was written at all, because zero IS a selectable tag: a route
-// with no `tag` carries zero, so `import <source> { tag 0 }` names the untagged routes
-// and an entry with no `tag` leaf names every route in the source. Collapsing the two
-// into one uint32 would make the first rule import everything (ai/rules/principles.md).
-//
-// An out-of-range value is refused by name rather than clamped: a tag the operator
-// cannot express is a config error, and a clamped one silently imports the wrong set.
-func importTag(entry *Tree, source string) (tag uint32, matchTag bool, err error) {
-	raw, ok := entry.Get("tag")
+// importChain reads one import entry's chain: `filters [ ... ]` and `final`.
+// An entry with neither imports every route of the source. Filters with no
+// final are refused by name rather than given a default decision, the rule
+// every configured policy follows. The names are checked, and the chain
+// compiled, by the redistribute orchestrator against the policy root, which
+// this package cannot import.
+func importChain(entry *Tree, source, destination string) (redistribute.ImportRule, error) {
+	rule := redistribute.ImportRule{Source: source, Destination: destination, Filters: entry.GetMultiValues("filters")}
+	final, ok := entry.Get("final")
 	if !ok {
-		return 0, false, nil
+		if len(rule.Filters) > 0 {
+			return redistribute.ImportRule{}, fmt.Errorf("redistribute: import %q under destination %q names filters and no final; "+
+				"every configured policy requires a final decision; write import %s { filters [ NAME ]; final accept; } or final reject",
+				source, destination, source)
+		}
+		return rule, nil
 	}
-	value, parseErr := strconv.ParseUint(raw, 10, 32)
-	if parseErr != nil {
-		return 0, false, fmt.Errorf("redistribute: import %q has an invalid tag %q: a route tag is a number from 0 to 4294967295", source, raw)
+	switch final {
+	case "accept", "reject":
+		rule.Final = final
+		return rule, nil
 	}
-	return uint32(value), true, nil
+	return redistribute.ImportRule{}, fmt.Errorf("redistribute: import %q under destination %q has an invalid final %q; write final accept or final reject",
+		source, destination, final)
 }

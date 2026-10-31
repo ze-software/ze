@@ -43,18 +43,22 @@ type heldKey struct {
 // Bound: one entry for each accepted Add not yet withdrawn, so the set never
 // exceeds the routes the producers announce times the registered consumers.
 // Safe for concurrent use: every producer's batches arrive on its own bus handler.
+//
+// Each entry keeps the route view the import filter accepted, so a reload can
+// judge it again under the new rules (withdrawRejectedHeld).
 type heldRoutes struct {
 	mu  sync.Mutex
-	set map[heldKey]struct{}
+	set map[heldKey]configredist.RedistRoute
 }
 
 // consumerHeld is the orchestrator's one held set.
-var consumerHeld = &heldRoutes{set: make(map[heldKey]struct{})}
+var consumerHeld = &heldRoutes{set: make(map[heldKey]configredist.RedistRoute)}
 
 // recordDispatched updates the held set after an entry was dispatched to the
 // consumer named in key. An entry dispatchEntryToConsumer skipped for an invalid
-// prefix reached no consumer, so it changes nothing here either.
-func recordDispatched(key heldKey, action redistevents.RouteAction) {
+// prefix reached no consumer, so it changes nothing here either. route is the
+// view the import filter accepted, with the producer's original values.
+func recordDispatched(key heldKey, action redistevents.RouteAction, route *configredist.RedistRoute) {
 	if !key.prefix.IsValid() {
 		return
 	}
@@ -62,7 +66,7 @@ func recordDispatched(key heldKey, action redistevents.RouteAction) {
 	// orchestrator does not know was not dispatched and changes nothing.
 	switch action {
 	case redistevents.ActionAdd:
-		consumerHeld.hold(key)
+		consumerHeld.hold(key, route)
 	case redistevents.ActionRemove:
 		consumerHeld.release(key)
 	case redistevents.ActionUnspecified:
@@ -95,10 +99,42 @@ func removeReplacedRoute(ctx context.Context, consumer configredist.RedistConsum
 }
 
 // hold records that the consumer named in k now holds k's route.
-func (h *heldRoutes) hold(k heldKey) {
+func (h *heldRoutes) hold(k heldKey, route *configredist.RedistRoute) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.set[k] = struct{}{}
+	h.set[k] = *route
+}
+
+// rejected answers the held routes ev no longer accepts for their consumer.
+func (h *heldRoutes) rejected(ev *configredist.Evaluator) []heldKey {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var out []heldKey
+	for k, route := range h.set {
+		if _, ok := ev.Accept(&route, k.consumer); !ok {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+// withdrawRejectedHeld withdraws every held route the reloaded rules reject,
+// once, through the dispatch an accepted Remove takes. A consumer that is no
+// longer registered holds nothing to withdraw, so its routes are only
+// forgotten. Called with the lock released: a dispatch reaches the consumer.
+func withdrawRejectedHeld(ctx context.Context, ev *configredist.Evaluator) {
+	for _, key := range consumerHeld.rejected(ev) {
+		if !consumerHeld.release(key) {
+			continue
+		}
+		consumer, ok := configredist.LookupConsumer(key.consumer)
+		if !ok {
+			continue
+		}
+		logger().Debug(Name+": reloaded rules withdraw the held route", "source", key.source, "consumer", key.consumer, "family", key.family.String(), "prefix", key.prefix)
+		withdraw := redistevents.RouteChangeEntry{Action: redistevents.ActionRemove, Prefix: key.prefix}
+		dispatchEntryToConsumer(ctx, consumer, key.family, key.source, "", 0, nil, &withdraw)
+	}
 }
 
 // release forgets k's route and reports whether the consumer held it. A caller

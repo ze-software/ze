@@ -38,10 +38,16 @@ plugin {
 	}
 }
 
+policy {
+	match redistribute-bgp-as112 {
+		family [ ipv4/unicast ];
+	}
+}
 redistribute {
 	destination bgp {
 		import as112 {
-			family [ ipv4/unicast ];
+			filters [ redistribute-bgp-as112 ];
+			final accept;
 		}
 	}
 }

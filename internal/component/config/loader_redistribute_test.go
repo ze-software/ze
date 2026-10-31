@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
-	"github.com/ze-software/ze/internal/core/family"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,10 +18,10 @@ func registerRedistSources(t *testing.T) {
 	require.NoError(t, redistribute.RegisterSource(redistribute.RouteSource{Name: "connected", Protocol: "connected"}))
 }
 
-// TestExtractRedistributeRules_Basic verifies parsing of import rules with and without family filters.
+// TestExtractRedistributeRules_Basic verifies parsing of import rules with and without a chain.
 //
-// VALIDATES: Import rules are extracted from config tree with correct source and families.
-// PREVENTS: Wrong source names, missing families, or incorrect ordering.
+// VALIDATES: Import rules are extracted from config tree with correct source, filters and final.
+// PREVENTS: Wrong source names, missing or reordered filters, or a lost final.
 func TestExtractRedistributeRules_Basic(t *testing.T) {
 	registerRedistSources(t)
 
@@ -31,7 +30,8 @@ func TestExtractRedistributeRules_Basic(t *testing.T) {
 	tree.SetContainer("redistribute", redist)
 	dest := NewTree()
 	ebgpEntry := NewTree()
-	ebgpEntry.SetSlice("family", []string{"ipv4/unicast", "ipv4/mpls-vpn"})
+	ebgpEntry.SetSlice("filters", []string{"V4", "VPN"})
+	ebgpEntry.Set("final", "reject")
 	dest.AddListEntry("import", "ebgp", ebgpEntry)
 	ibgpEntry := NewTree()
 	dest.AddListEntry("import", "ibgp", ibgpEntry)
@@ -41,12 +41,14 @@ func TestExtractRedistributeRules_Basic(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rules, 2)
 
-	ipv4VPN := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
 	assert.Equal(t, "ebgp", rules[0].Source)
-	assert.Equal(t, []family.Family{family.IPv4Unicast, ipv4VPN}, rules[0].Families)
+	assert.Equal(t, []string{"V4", "VPN"}, rules[0].Filters)
+	assert.Equal(t, "reject", rules[0].Final)
+	assert.Nil(t, rules[0].Chain, "the loader names the chain; the orchestrator compiles it")
 
 	assert.Equal(t, "ibgp", rules[1].Source)
-	assert.Empty(t, rules[1].Families)
+	assert.Empty(t, rules[1].Filters)
+	assert.Empty(t, rules[1].Final, "an import with no chain moves every route")
 }
 
 // TestExtractRedistributeRules_NoRedistribute verifies nil return when container is absent.
@@ -92,11 +94,14 @@ func TestExtractRedistributeRules_UnknownSource(t *testing.T) {
 	assert.Contains(t, err.Error(), "rip")
 }
 
-// TestExtractRedistributeRules_UnknownFamily verifies error on unregistered family.
+// TestExtractRedistributeRules_FiltersWithoutFinal verifies an import naming
+// filters and no final is refused.
 //
-// VALIDATES: Unknown family name under a known source produces an error (exact-or-reject).
-// PREVENTS: Silent drop / mistranslation of operator-specified families.
-func TestExtractRedistributeRules_UnknownFamily(t *testing.T) {
+// VALIDATES: a chain with no final decision is refused by name, naming the source
+// and the fix (exact-or-reject).
+// PREVENTS: a chain silently given a default decision. A family the operator names
+// is now a match filter's condition, refused by the policy library when unknown.
+func TestExtractRedistributeRules_FiltersWithoutFinal(t *testing.T) {
 	registerRedistSources(t)
 
 	tree := NewTree()
@@ -104,14 +109,14 @@ func TestExtractRedistributeRules_UnknownFamily(t *testing.T) {
 	tree.SetContainer("redistribute", redist)
 	dest := NewTree()
 	entry := NewTree()
-	entry.SetSlice("family", []string{"ipv4/unicast", "ipv9/bogus"})
+	entry.SetSlice("filters", []string{"V4"})
 	dest.AddListEntry("import", "ebgp", entry)
 	redist.AddListEntry("destination", "bgp", dest)
 
 	_, err := ExtractRedistributeRules(tree)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown family")
-	assert.Contains(t, err.Error(), "ipv9/bogus")
+	assert.Contains(t, err.Error(), "no final")
+	assert.Contains(t, err.Error(), "final accept")
 	assert.Contains(t, err.Error(), "ebgp")
 }
 

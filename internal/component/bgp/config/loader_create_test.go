@@ -50,9 +50,10 @@ redistribute {
 	assert.Contains(t, err.Error(), `"bgp"`, "and the destination it sits under")
 }
 
-// TestUnknownRedistributeFamilyRefusesLoad is A-5: the family name is the other
-// way ExtractRedistributeRules errors, and the `redistribute-source` validator
-// does not cover it.
+// TestUnknownRedistributeFamilyRefusesLoad is A-5: an import naming filters
+// with no final is the other way ExtractRedistributeRules errors, and the
+// `redistribute-source` validator does not cover it. (The family leaf it once
+// tested is gone: a family is now a match filter's condition.)
 //
 // VALIDATES: A-5 -- making the error fatal has to be judged on both error
 // paths, not on the one the YANG validator already guards.
@@ -61,13 +62,13 @@ func TestUnknownRedistributeFamilyRefusesLoad(t *testing.T) {
 redistribute {
     destination bgp {
         import connected {
-            family [ ipv9/unicast ]
+            filters [ V4 ]
         }
     }
 }
 `))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "ipv9/unicast")
+	assert.Contains(t, err.Error(), "no final")
 }
 
 // TestValidRedistributeLoads is the positive that keeps the refusal honest: a

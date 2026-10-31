@@ -60,7 +60,7 @@ func TestHandleBatchFiltersEntriesByTag(t *testing.T) {
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "tagsource", Protocol: "tagsource"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "tagsource", Destination: "bgp", MatchTag: true, Tag: 42},
+		{Source: "tagsource", Destination: "bgp", Final: "accept", Chain: tagChain(42)},
 	}))
 
 	batch := &redistevents.RouteChangeBatch{
@@ -155,7 +155,7 @@ func TestHandleReplayBatchFiltersEntriesByTag(t *testing.T) {
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "tagsource", Protocol: "tagsource"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "tagsource", Destination: "bgp", MatchTag: true, Tag: 42},
+		{Source: "tagsource", Destination: "bgp", Final: "accept", Chain: tagChain(42)},
 	}))
 
 	batch := replayTaggedBatch(t, &redistevents.RouteChangeBatch{
@@ -195,7 +195,7 @@ func tagRules(t *testing.T, tags ...uint32) redistevents.ProtocolID {
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "tagsource", Protocol: "tagsource"}))
 	rules := make([]configredist.ImportRule, 0, len(tags))
 	for _, tag := range tags {
-		rules = append(rules, configredist.ImportRule{Source: "tagsource", Destination: "bgp", MatchTag: true, Tag: tag})
+		rules = append(rules, configredist.ImportRule{Source: "tagsource", Destination: "bgp", Final: "accept", Chain: tagChain(tag)})
 	}
 	configredist.SetGlobal(configredist.NewEvaluator(rules))
 	return id
@@ -297,7 +297,7 @@ func replayIntoISIS(t *testing.T, prefix string) (redistevents.ProtocolID, *stub
 	redistevents.RegisterProducer(fakeID)
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Destination: "isis", MatchTag: true, Tag: 0},
+		{Source: "fakeredist", Destination: "isis", Final: "accept", Chain: tagChain(0)},
 	}))
 
 	bus := newTestBus()
@@ -450,9 +450,9 @@ func TestHandleBatchHeldRouteIsPerConsumerAndSource(t *testing.T) {
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "tagsource", Protocol: "tagsource"}))
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "othersource", Protocol: "othersource"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "tagsource", Destination: "bgp", MatchTag: true, Tag: 42},
-		{Source: "othersource", Destination: "bgp", MatchTag: true, Tag: 42},
-		{Source: "tagsource", Destination: "isis", MatchTag: true, Tag: 43},
+		{Source: "tagsource", Destination: "bgp", Final: "accept", Chain: tagChain(42)},
+		{Source: "othersource", Destination: "bgp", Final: "accept", Chain: tagChain(42)},
+		{Source: "tagsource", Destination: "isis", Final: "accept", Chain: tagChain(43)},
 	}))
 	bgp := registerBGPConsumer(t)
 	isis := &stubConsumer{name: "isis"}

@@ -20,13 +20,23 @@ bgp {
 	}
 }
 
+policy {
+	match redistribute-bgp-kernel {
+		family [ ipv4/unicast ipv6/unicast ];
+	}
+	match redistribute-bgp-ebgp {
+		family [ ipv4/unicast ];
+	}
+}
 redistribute {
 	destination bgp {
 		import kernel {
-			family [ ipv4/unicast ipv6/unicast ]
+			filters [ redistribute-bgp-kernel ];
+			final accept;
 		}
 		import ebgp {
-			family [ ipv4/unicast ]
+			filters [ redistribute-bgp-ebgp ];
+			final accept;
 		}
 		import ibgp
 	}

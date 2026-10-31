@@ -36,6 +36,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
@@ -228,10 +229,6 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 	logger().Debug(Name+": processing batch", "source", name, "entries", len(b.Entries))
 
 	famVal := family.Family{AFI: family.AFI(b.AFI), SAFI: family.SAFI(b.SAFI)}
-	route := configredist.RedistRoute{
-		Origin: name,
-		Family: famVal,
-	}
 
 	consumers := configredist.ConsumerNames()
 	if len(consumers) == 0 {
@@ -256,12 +253,11 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 		for i := range b.Entries {
 			entry := &b.Entries[i]
 			// Acceptance is decided for each ROUTE, not for the batch: an import
-			// rule can name a tag, or a BGP class (ebgp, ibgp), and both belong
-			// to the entry. Origin and family are the same for the whole batch.
-			route.Tag = entry.Tag
-			route.Source = entrySource(name, entry)
+			// rule's chain reads the entry's prefix, tag and BGP class.
+			route := redistRoute(name, b.Protocol, famVal, entry)
 			key := heldKey{consumer: cname, source: name, family: famVal, prefix: entry.Prefix}
-			if !ev.Accept(route, cname) {
+			sets, accepted := ev.Accept(&route, cname)
+			if !accepted {
 				logger().Debug(Name+": evaluator rejected", "source", name, "consumer", cname, "origin", route.Origin, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)
 				if m := getMetrics(); m != nil {
 					m.filteredRuleTotal.Inc()
@@ -270,10 +266,47 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 				continue
 			}
 			// Empty peer selector: the incremental path fans out to all peers.
-			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry)
-			recordDispatched(key, entry.Action)
+			adjusted := applySets(entry, sets)
+			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, &adjusted)
+			recordDispatched(key, entry.Action, &route)
 		}
 	}
+}
+
+// redistRoute builds the route an import rule judges for one entry: the
+// protocol it came from, the source a rule names it by, and the view the
+// rule's chain reads, with the producer's original values.
+func redistRoute(protocol string, id redistevents.ProtocolID, fam family.Family, entry *redistevents.RouteChangeEntry) configredist.RedistRoute {
+	return configredist.RedistRoute{
+		Origin: protocol,
+		Source: entrySource(protocol, entry),
+		Route: ribpolicy.Route{
+			Family:  fam,
+			Prefix:  entry.Prefix,
+			Source:  id,
+			NextHop: entry.NextHop,
+			Metric:  entry.Metric,
+			Tag:     entry.Tag,
+			// Every redistributed route carries a tag: a producer writes zero
+			// for a route with no tag (RouteChangeEntry.Tag), and zero is a tag
+			// like any other, so `match tag [ 0 ]` selects the untagged routes.
+			// That keeps the retired `tag 0` leaf's meaning and agrees with
+			// FRR's route_match_tag, which compares an untagged route's tag 0.
+			HasTag: true,
+			IsBGP:  entry.BGPClass != redistevents.BGPClassUnspecified,
+			IsEBGP: entry.BGPClass == redistevents.BGPClassExternal,
+		},
+	}
+}
+
+// applySets answers the entry a consumer receives: the producer's entry with
+// the tag the accepting chain set, when it set one.
+func applySets(entry *redistevents.RouteChangeEntry, sets ribpolicy.Sets) redistevents.RouteChangeEntry {
+	adjusted := *entry
+	if sets.HasTag {
+		adjusted.Tag = sets.Tag
+	}
+	return adjusted
 }
 
 // entrySource answers the source a rule matches an entry under: the BGP class

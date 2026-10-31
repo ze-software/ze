@@ -47,10 +47,16 @@ plugin {
 	}
 }
 
+policy {
+	match redistribute-fakedest-bgp {
+		family [ ipv4/unicast ];
+	}
+}
 redistribute {
 	destination fakedest {
 		import bgp {
-			family [ ipv4/unicast ];
+			filters [ redistribute-fakedest-bgp ];
+			final accept;
 		}
 	}
 }
