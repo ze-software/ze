@@ -22,7 +22,7 @@ func rfc8212ReloadDriver(scenario func(context.Context, *sdk.Plugin, *rfc8212Rel
 		wire.snapshot = rfc8212DownstreamFile
 		return observeConfigured(ctx, "rfc8212-reload", &sdk.Registration{}, func(p *sdk.Plugin) error {
 			p.OnEvent(wire.receive)
-			p.SetStartupSubscriptions([]string{"update", "state"}, []string{"*"}, "full")
+			p.SetStartupSubscriptions([]string{eventUpdate, eventState}, []string{"*"}, "full")
 			return nil
 		}, func(ctx context.Context, p *sdk.Plugin) error {
 			data, err := os.ReadFile(fileBGPConf)
@@ -54,7 +54,7 @@ func rfc8212ReloadDriver(scenario func(context.Context, *sdk.Plugin, *rfc8212Rel
 }
 
 func rfc8212ReloadPolicy(tree *config.Tree, final string) error {
-	bgp := tree.GetContainer("bgp")
+	bgp := tree.GetContainer(rfc8212RootBGP)
 	if bgp == nil {
 		return errors.New("fixture omitted bgp")
 	}
@@ -66,13 +66,13 @@ func rfc8212ReloadPolicy(tree *config.Tree, final string) error {
 	if filter == nil {
 		return errors.New("fixture omitted source export policy")
 	}
-	if final == "absent" {
-		filter.RemoveContainer("import")
+	if final == rfc8212PolicyAbsent {
+		filter.RemoveContainer(rfc8212DirectionImport)
 		return nil
 	}
 	policy := config.NewTree()
 	policy.Set("final", final)
-	filter.SetContainer("import", policy)
+	filter.SetContainer(rfc8212DirectionImport, policy)
 	return nil
 }
 
@@ -81,7 +81,7 @@ func rfc8212ReloadTrigger(ctx context.Context, p *sdk.Plugin, peer, epoch string
 }
 
 func rfc8212ReloadSeed(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWire, accepted bool) error {
-	if err := rfc8212ReloadTrigger(ctx, p, "127.0.0.3", "1"); err != nil {
+	if err := rfc8212ReloadTrigger(ctx, p, addrLoopbackThird, "1"); err != nil {
 		return err
 	}
 	if err := wire.wait(ctx, "10.72.2.0/24", "10.72.3.0/24"); err != nil {
@@ -126,7 +126,7 @@ func rfc8212ReloadSeed(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWi
 // rfc8212ReloadExportPolicy sets or removes peer-1's export policy, creating
 // the filter container the fixture starts without.
 func rfc8212ReloadExportPolicy(tree *config.Tree, final string) error {
-	bgp := tree.GetContainer("bgp")
+	bgp := tree.GetContainer(rfc8212RootBGP)
 	if bgp == nil {
 		return errors.New("fixture omitted bgp")
 	}
@@ -135,11 +135,11 @@ func rfc8212ReloadExportPolicy(tree *config.Tree, final string) error {
 		return errors.New("fixture omitted peer-1")
 	}
 	filter := peer.GetContainer("filter")
-	if final == "absent" {
+	if final == rfc8212PolicyAbsent {
 		if filter == nil {
 			return errors.New("peer-1 has no filter, so there is no export policy to remove")
 		}
-		filter.RemoveContainer("export")
+		filter.RemoveContainer(directionExport)
 		return nil
 	}
 	if filter == nil {
@@ -148,7 +148,7 @@ func rfc8212ReloadExportPolicy(tree *config.Tree, final string) error {
 	}
 	policy := config.NewTree()
 	policy.Set("final", final)
-	filter.SetContainer("export", policy)
+	filter.SetContainer(directionExport, policy)
 	return nil
 }
 
@@ -176,7 +176,7 @@ func rfc8212ReloadExportStep(ctx context.Context, p *sdk.Plugin, tree *config.Tr
 		return fmt.Errorf("export %s reload: the source never wrote %s", final, marker)
 	}
 	effective := final
-	if final == "absent" {
+	if final == rfc8212PolicyAbsent {
 		effective = actionReject
 	}
 	if err := rfc8212ReloadFinal(ctx, p, "export-policy", effective); err != nil {
@@ -191,16 +191,16 @@ func rfc8212ReloadExportStep(ctx context.Context, p *sdk.Plugin, tree *config.Tr
 // withdraws it, and a second accept restores it for the import stage, all on
 // the source's original session.
 func rfc8212ReloadExport(ctx context.Context, p *sdk.Plugin, tree *config.Tree, schema *config.Schema) error {
-	if err := rfc8212ReloadFinal(ctx, p, "export-policy", "reject"); err != nil {
+	if err := rfc8212ReloadFinal(ctx, p, "export-policy", actionReject); err != nil {
 		return err
 	}
-	if err := rfc8212ReloadExportStep(ctx, p, tree, schema, "accept", "export.announced"); err != nil {
+	if err := rfc8212ReloadExportStep(ctx, p, tree, schema, actionAccept, "export.announced"); err != nil {
 		return err
 	}
-	if err := rfc8212ReloadExportStep(ctx, p, tree, schema, "absent", "export.withdrawn"); err != nil {
+	if err := rfc8212ReloadExportStep(ctx, p, tree, schema, rfc8212PolicyAbsent, "export.withdrawn"); err != nil {
 		return err
 	}
-	return rfc8212ReloadExportStep(ctx, p, tree, schema, "accept", "export.restored")
+	return rfc8212ReloadExportStep(ctx, p, tree, schema, actionAccept, "export.restored")
 }
 
 func rfc8212ReloadRecover(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWire, tree *config.Tree, schema *config.Schema) error {
@@ -214,7 +214,7 @@ func rfc8212ReloadRecover(ctx context.Context, p *sdk.Plugin, wire *rfc8212Reloa
 	if err != nil {
 		return err
 	}
-	if err := rfc8212ReloadPolicy(tree, "accept"); err != nil {
+	if err := rfc8212ReloadPolicy(tree, actionAccept); err != nil {
 		return err
 	}
 	if err := policyFinalReload(ctx, p, config.Serialize(tree, schema), "applied"); err != nil {
@@ -236,7 +236,7 @@ func rfc8212ReloadRecover(ctx context.Context, p *sdk.Plugin, wire *rfc8212Reloa
 	if err := rfc8212ReloadInputDelta(ctx, p, before, 2); err != nil {
 		return err
 	}
-	return rfc8212ReloadRunning(ctx, p, "accept")
+	return rfc8212ReloadRunning(ctx, p, actionAccept)
 }
 
 func rfc8212ReloadNoRefresh(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWire, tree *config.Tree, schema *config.Schema) error {
@@ -255,7 +255,7 @@ func rfc8212ReloadNoRefresh(ctx context.Context, p *sdk.Plugin, wire *rfc8212Rel
 	if err != nil {
 		return err
 	}
-	if err := rfc8212ReloadPolicy(tree, "accept"); err != nil {
+	if err := rfc8212ReloadPolicy(tree, actionAccept); err != nil {
 		return err
 	}
 	if err := policyFinalReload(ctx, p, config.Serialize(tree, schema), "failed"); err != nil {
@@ -277,7 +277,7 @@ func rfc8212ReloadNoRefresh(ctx context.Context, p *sdk.Plugin, wire *rfc8212Rel
 	if err := rfc8212ReloadDurable(active); err != nil {
 		return err
 	}
-	if err := rfc8212ReloadRunning(ctx, p, "reject"); err != nil {
+	if err := rfc8212ReloadRunning(ctx, p, actionReject); err != nil {
 		return err
 	}
 	if err := rfc8212ReloadTrigger(ctx, p, addrLoopback, "2"); err != nil {
@@ -303,7 +303,7 @@ func rfc8212ReloadNoRefresh(ctx context.Context, p *sdk.Plugin, wire *rfc8212Rel
 
 func rfc8212ReloadInvalidate(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWire, tree *config.Tree, schema *config.Schema) error {
 	return rfc8212ReloadInvalidateBy(ctx, p, wire, tree, schema, func(tree *config.Tree) error {
-		return rfc8212ReloadPolicy(tree, "absent")
+		return rfc8212ReloadPolicy(tree, rfc8212PolicyAbsent)
 	})
 }
 
@@ -341,7 +341,7 @@ func rfc8212ReloadInherited(ctx context.Context, p *sdk.Plugin, wire *rfc8212Rel
 // group MUST carry one and peer-1 MUST NOT, or the edit changes nothing peer-1
 // inherits and the scenario would test the wrong layer.
 func rfc8212ReloadGroupImportAbsent(tree *config.Tree) error {
-	bgp := tree.GetContainer("bgp")
+	bgp := tree.GetContainer(rfc8212RootBGP)
 	if bgp == nil {
 		return errors.New("fixture omitted bgp")
 	}
@@ -353,7 +353,7 @@ func rfc8212ReloadGroupImportAbsent(tree *config.Tree) error {
 	if filter == nil {
 		return errors.New("fixture omitted the group filter")
 	}
-	if filter.GetContainer("import") == nil {
+	if filter.GetContainer(rfc8212DirectionImport) == nil {
 		return errors.New("fixture omitted the group import policy")
 	}
 	peer := group.GetList("peer")["peer-1"]
@@ -361,11 +361,11 @@ func rfc8212ReloadGroupImportAbsent(tree *config.Tree) error {
 		return errors.New("fixture omitted peer-1 inside group sources")
 	}
 	if own := peer.GetContainer("filter"); own != nil {
-		if own.GetContainer("import") != nil {
+		if own.GetContainer(rfc8212DirectionImport) != nil {
 			return errors.New("peer-1 carries its own import policy, so the group edit is not inherited")
 		}
 	}
-	filter.RemoveContainer("import")
+	filter.RemoveContainer(rfc8212DirectionImport)
 	return nil
 }
 
@@ -393,7 +393,7 @@ func rfc8212ReloadInvalidateBy(ctx context.Context, p *sdk.Plugin, wire *rfc8212
 	if err := rfc8212ReloadBest(ctx, p, prefix72First, ""); err != nil {
 		return err
 	}
-	if err := rfc8212ReloadBest(ctx, p, "10.72.3.0/24", "127.0.0.3"); err != nil {
+	if err := rfc8212ReloadBest(ctx, p, "10.72.3.0/24", addrLoopbackThird); err != nil {
 		return err
 	}
 	if err := wire.path(ctx, "10.72.3.0/24", true); err != nil {
@@ -402,7 +402,7 @@ func rfc8212ReloadInvalidateBy(ctx context.Context, p *sdk.Plugin, wire *rfc8212
 	if err := wire.path(ctx, "10.72.2.0/24", true); err != nil {
 		return err
 	}
-	if err := rfc8212ReloadRunning(ctx, p, "reject"); err != nil {
+	if err := rfc8212ReloadRunning(ctx, p, actionReject); err != nil {
 		return err
 	}
 	// The script rejects withdrawal of the pre-existing export marker and

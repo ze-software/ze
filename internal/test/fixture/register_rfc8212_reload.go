@@ -27,7 +27,7 @@ func rfc8212SelectOwner(_ context.Context, args []string) error {
 	if len(args) != 1 {
 		return errors.New("rfc8212-select-owner needs unsupported, ack, deadline, death or finalize")
 	}
-	allowed := map[string]bool{"unsupported": true, "ack": true, "deadline": true, "death": true, "finalize": true}
+	allowed := map[string]bool{rfc8212FaultUnsupported: true, rfc8212FaultAck: true, rfc8212FaultDeadline: true, rfc8212FaultDeath: true, rfc8212FaultFinalize: true}
 	if !allowed[args[0]] {
 		return fmt.Errorf("unknown owner fault %q", args[0])
 	}

@@ -24,7 +24,7 @@ func rfc8212ReloadRollback(ctx context.Context, p *sdk.Plugin, wire *rfc8212Relo
 		return err
 	}
 	prefixes := []string{prefix72First, "10.72.2.0/24", "10.72.3.0/24"}
-	for index, mode := range []string{"apply", "commit", "outer"} {
+	for index, mode := range []string{rfc8212FaultApply, rfc8212FaultCommit, rfc8212FaultOuter} {
 		before, err := peerRows03(ctx, p, "*")
 		if err != nil {
 			return err
@@ -42,7 +42,7 @@ func rfc8212ReloadRollback(ctx context.Context, p *sdk.Plugin, wire *rfc8212Relo
 			return err
 		}
 		var occupied net.Listener
-		if mode == "outer" {
+		if mode == rfc8212FaultOuter {
 			server := candidate.GetContainerPath("environment/looking-glass").GetList("server")["main"]
 			if server == nil {
 				return errors.New("outer rejection fixture omitted looking-glass main")
@@ -51,12 +51,12 @@ func rfc8212ReloadRollback(ctx context.Context, p *sdk.Plugin, wire *rfc8212Relo
 			// peer binds it on $PORT); macOS aliases only 127.0.0.1-6 on lo0.
 			// The looking glass moves there on $PORT2, which this observer
 			// takes first, so the outer reload fails on a real bind collision.
-			server.Set("ip", "127.0.0.2")
+			server.Set("ip", addrLoopbackSecond)
 			port, present := server.Get("port")
 			if !present {
 				return errors.New("outer rejection fixture omitted looking-glass port")
 			}
-			occupied, err = (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort("127.0.0.2", port))
+			occupied, err = (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort(addrLoopbackSecond, port))
 			if err != nil {
 				return fmt.Errorf("reserve real listener collision: %w", err)
 			}
@@ -71,12 +71,12 @@ func rfc8212ReloadRollback(ctx context.Context, p *sdk.Plugin, wire *rfc8212Relo
 		if !waitForFile(ctx, "fault.injected-"+mode, 80, liveStagesPollDelay) {
 			return fmt.Errorf("%s never injected its fault after downstream settlement", mode)
 		}
-		if mode != "apply" {
+		if mode != rfc8212FaultApply {
 			if !waitForFile(ctx, "fault.commit-"+mode, 80, liveStagesPollDelay) {
 				return fmt.Errorf("%s never reached operation commit", mode)
 			}
 		}
-		if err := rfc8212ReloadRunning(ctx, p, "accept"); err != nil {
+		if err := rfc8212ReloadRunning(ctx, p, actionAccept); err != nil {
 			return err
 		}
 		current, err := done03(ctx, p, "show config running")
@@ -123,7 +123,7 @@ func rfc8212ReloadPrepare(tree *config.Tree, mode string) error {
 	if err := os.WriteFile("rfc8212.fault", []byte(mode), 0o600); err != nil {
 		return err
 	}
-	if err := rfc8212ReloadPolicy(tree, "reject"); err != nil {
+	if err := rfc8212ReloadPolicy(tree, actionReject); err != nil {
 		return err
 	}
 	format := tree.GetContainerPath("environment/cli/format")
@@ -149,7 +149,7 @@ func rfc8212ReloadOwner(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadW
 	}
 	// A received frame, not the last send action, must end each native
 	// connection script. Both peers then linger until this daemon closes them.
-	for _, peer := range []string{addrLoopback, "127.0.0.3"} {
+	for _, peer := range []string{addrLoopback, addrLoopbackThird} {
 		if err := rfc8212ReloadTrigger(ctx, p, peer, "9"); err != nil {
 			return err
 		}
@@ -172,24 +172,25 @@ func rfc8212ReloadOwner(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadW
 		return err
 	}
 	err = policyFinalReload(ctx, p, config.Serialize(candidate, schema), "failed")
-	if mode == "deadline" {
+	if mode == rfc8212FaultDeadline {
 		err = errors.Join(err, os.WriteFile("fault.release", []byte("reload completed"), 0o600))
 	}
 	if err != nil {
 		return fmt.Errorf("owner %s boundary: %w", mode, err)
 	}
-	if mode == "unsupported" {
+	switch mode {
+	case rfc8212FaultUnsupported:
 		if _, err := os.Stat("fault.reached-unsupported"); !errors.Is(err, os.ErrNotExist) {
 			if err == nil {
 				return errors.New("unsupported state owner reached mutation: fault.reached-unsupported exists")
 			}
 			return fmt.Errorf("unsupported state owner reached mutation: marker: %w", err)
 		}
-	} else if mode == "finalize" {
+	case rfc8212FaultFinalize:
 		if !waitForFile(ctx, "fault.finalize", 80, liveStagesPollDelay) {
 			return errors.New("finalization failure callback never ran")
 		}
-		if err := rfc8212ReloadRunning(ctx, p, "reject"); err != nil {
+		if err := rfc8212ReloadRunning(ctx, p, actionReject); err != nil {
 			return err
 		}
 		if err := wire.wait(ctx, "10.72.2.0/24", "10.72.3.0/24"); err != nil {
@@ -203,10 +204,12 @@ func rfc8212ReloadOwner(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadW
 			return errors.New("finalization failure pretended the accepted candidate was rolled back")
 		}
 		return rfc8212ReloadSessions(ctx, p, before, 0)
-	} else if !waitForFile(ctx, "fault.injected-"+mode, 80, liveStagesPollDelay) {
-		return fmt.Errorf("owner %s callback never reached", mode)
+	default:
+		if !waitForFile(ctx, "fault.injected-"+mode, 80, liveStagesPollDelay) {
+			return fmt.Errorf("owner %s callback never reached", mode)
+		}
 	}
-	if err := rfc8212ReloadRunning(ctx, p, "accept"); err != nil {
+	if err := rfc8212ReloadRunning(ctx, p, actionAccept); err != nil {
 		return err
 	}
 	if err := rfc8212ReloadDurable(active); err != nil {
@@ -218,7 +221,7 @@ func rfc8212ReloadOwner(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadW
 	if err := rfc8212ReloadSessions(ctx, p, before, 0); err != nil {
 		return err
 	}
-	if mode != "unsupported" {
+	if mode != rfc8212FaultUnsupported {
 		return nil
 	}
 	// The refused change left admission open: the source's next UPDATE

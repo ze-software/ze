@@ -116,31 +116,31 @@ func (s *rfc8212ReloadWire) receive(event string) error {
 	if e.BGP.State == "down" {
 		s.downs++
 	}
-	if e.BGP.Peer.Remote.Address != "127.0.0.2" {
+	if e.BGP.Peer.Remote.Address != addrLoopbackSecond {
 		return nil
 	}
-	if e.BGP.Message.Type != "update" {
+	if e.BGP.Message.Type != eventUpdate {
 		return nil
 	}
-	if e.BGP.Message.Direction != "received" {
+	if e.BGP.Message.Direction != directionReceived {
 		return nil
 	}
 	for family, operations := range e.BGP.Update.NLRI {
-		if family != "ipv4/unicast" {
+		if family != rfc8212FamilyIPv4Unicast {
 			s.failure = fmt.Errorf("unexpected echoed family %q", family)
 			return nil
 		}
 		for _, operation := range operations {
 			for _, prefix := range operation.NLRI {
 				switch operation.Action {
-				case "add":
+				case eventActionAdd:
 					if len(s.adds) == 256 {
 						s.failure = errors.New("RFC8212 wire observation limit exceeded")
 						return nil
 					}
 					s.routes[prefix] = e.BGP.Raw.Attributes
 					s.adds[prefix]++
-				case "del":
+				case eventActionDel:
 					delete(s.routes, prefix)
 				default:
 					s.failure = fmt.Errorf("unexpected echoed action %q", operation.Action)
@@ -239,7 +239,7 @@ func rfc8212ReloadSessions(ctx context.Context, p *sdk.Plugin, before map[string
 }
 
 func rfc8212ReloadInputDelta(ctx context.Context, p *sdk.Plugin, before map[string]map[string]any, delta int64) error {
-	prior, err := rfc8212ReloadCounter(before, "received", "updates")
+	prior, err := rfc8212ReloadCounter(before, directionReceived, "updates")
 	if err != nil {
 		return err
 	}
@@ -291,7 +291,7 @@ func rfc8212ReloadInput(ctx context.Context, p *sdk.Plugin) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return rfc8212ReloadCounter(rows, "received", "updates")
+	return rfc8212ReloadCounter(rows, directionReceived, "updates")
 }
 
 func rfc8212ReloadWaitInput(ctx context.Context, p *sdk.Plugin, prior, delta int64) error {

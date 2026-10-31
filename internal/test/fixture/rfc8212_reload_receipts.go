@@ -40,10 +40,10 @@ func (state *rfc8212ReloadFault) record(event string) error {
 	if bgp.Peer.Remote.Address != addrLoopback {
 		return nil
 	}
-	if bgp.Message.Type != "update" {
+	if bgp.Message.Type != eventUpdate {
 		return nil
 	}
-	if bgp.Message.Direction != "received" {
+	if bgp.Message.Direction != directionReceived {
 		return nil
 	}
 	state.mu.Lock()
@@ -55,10 +55,10 @@ func (state *rfc8212ReloadFault) record(event string) error {
 					return errors.New("source observation limit exceeded")
 				}
 				switch operation.Action {
-				case "add":
+				case eventActionAdd:
 					state.routes[prefix] = event
 					state.received[prefix]++
-				case "del":
+				case eventActionDel:
 					delete(state.routes, prefix)
 				default:
 					return fmt.Errorf("unexpected source event action %q", operation.Action)

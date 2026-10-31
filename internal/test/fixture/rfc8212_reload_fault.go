@@ -49,7 +49,7 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 		return err
 	}
 	p.OnEvent(state.record)
-	p.SetStartupSubscriptions([]string{"update", "state"}, []string{"*"}, "full")
+	p.SetStartupSubscriptions([]string{eventUpdate, eventState}, []string{"*"}, "full")
 	p.OnConfigApply(func([]sdk.ConfigDiffSection) error {
 		return errors.New("operation participant unexpectedly received coarse apply")
 	})
@@ -62,7 +62,7 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 		state.mode = strings.TrimSpace(string(mode))
 		state.mu.Unlock()
 		return &sdk.ConfigOperationDecomposeOutput{Status: rpc.StatusOK, Operations: []rpc.ConfigOperation{{
-			ID: "rfc8212-after-source", Root: "environment", Owner: "rfc8212-owner",
+			ID: "rfc8212-after-source", Root: rfc8212RootEnvironment, Owner: "rfc8212-owner",
 			Type: rfc8212FaultOperation, Verb: rpc.VerbModify,
 			Target:   rpc.ResourceRef{Kind: "rfc8212-fixture-record", Name: "candidate"},
 			Consumes: []rpc.ResourceRef{{Kind: rpc.ResourcePeer, Peer: "peer-1"}},
@@ -88,7 +88,7 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 		}
 		// The graph consumes the actual BGP modify's produced peer. Verify the
 		// runtime boundary too: a reordered test must fail, not test preflight.
-		if err := rfc8212ReloadRunning(ctx, p, "reject"); err != nil {
+		if err := rfc8212ReloadRunning(ctx, p, actionReject); err != nil {
 			return nil, fmt.Errorf("fault ran before import apply: %w", err)
 		}
 		if err := os.WriteFile("fault.reached-"+mode, []byte(input.TransactionID), 0o600); err != nil {
@@ -98,13 +98,13 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 		// event until it returns: the downstream is read from the reload
 		// observer's snapshot, and the source's admission from its engine
 		// UPDATE counter, never from this process's own deliveries.
-		if mode != "unsupported" {
+		if mode != rfc8212FaultUnsupported {
 			if err := rfc8212DownstreamSettled(ctx, "10.72.2.0/24", "10.72.3.0/24"); err != nil {
 				return nil, fmt.Errorf("source apply did not settle downstream before %s fault: %w", mode, err)
 			}
 		}
-		if mode == "apply" || mode == "commit" || mode == "outer" {
-			epoch := map[string]string{"apply": "2", "commit": "3", "outer": "4"}[mode]
+		if mode == rfc8212FaultApply || mode == rfc8212FaultCommit || mode == rfc8212FaultOuter {
+			epoch := map[string]string{rfc8212FaultApply: "2", rfc8212FaultCommit: "3", rfc8212FaultOuter: "4"}[mode]
 			prior, err := rfc8212ReloadInput(ctx, p)
 			if err != nil {
 				return nil, err
@@ -127,21 +127,21 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 			return nil, err
 		}
 		switch mode {
-		case "apply", "ack":
+		case rfc8212FaultApply, rfc8212FaultAck:
 			return nil, fmt.Errorf("rfc8212 deliberate %s refusal after source apply", mode)
-		case "death":
+		case rfc8212FaultDeath:
 			state.mu.Lock()
 			state.died = true
 			state.mu.Unlock()
 			return nil, p.Close()
-		case "deadline":
+		case rfc8212FaultDeadline:
 			// The reload must finish before this callback is released. This is
 			// a real missing RPC answer, not a fabricated timeout return.
 			if !waitForFile(ctx, "fault.release", 175, 200*time.Millisecond) {
 				return nil, errors.New("deadline fault was not released after reload completion")
 			}
 			return nil, errors.New("late callback after deadline")
-		case "commit", "outer", "finalize", "unsupported":
+		case rfc8212FaultCommit, rfc8212FaultOuter, rfc8212FaultFinalize, rfc8212FaultUnsupported:
 			state.mu.Lock()
 			state.previous = input.Operation.Params.OldValue
 			state.candidate = input.Operation.Params.Value
@@ -162,14 +162,14 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 		state.mu.Lock()
 		mode := state.mode
 		refused := state.fired["commit-receipt"]
-		if mode == "commit" {
+		if mode == rfc8212FaultCommit {
 			state.fired["commit-receipt"] = true
 		}
 		state.mu.Unlock()
 		if err := os.WriteFile("fault.commit-"+mode, []byte(input.TransactionID), 0o600); err != nil {
 			return err
 		}
-		if mode == "commit" {
+		if mode == rfc8212FaultCommit {
 			if !refused {
 				return errors.New("rfc8212 deliberate later operation commit refusal")
 			}
@@ -181,12 +181,12 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 		return err
 	}
 	err = p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{"environment"}, ApplyBudget: 5,
+		WantsConfig: []string{rfc8212RootEnvironment}, ApplyBudget: 5,
 		// The SDK derives SourcePolicy from a registered handler and this
 		// process registers none, so the declaration alone is what the
 		// preflight sees: retained source state it cannot invalidate.
 		SourcePolicyOwner: unsupported,
-		ConfigOperations:  []rpc.ConfigOperationDecl{{Root: "environment", Decompose: true, Operations: []rpc.ConfigOperationType{rfc8212FaultOperation}}},
+		ConfigOperations:  []rpc.ConfigOperationDecl{{Root: rfc8212RootEnvironment, Decompose: true, Operations: []rpc.ConfigOperationType{rfc8212FaultOperation}}},
 	})
 	state.mu.Lock()
 	died := state.died
@@ -213,7 +213,7 @@ func rfc8212ReloadFinalizer(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		if strings.TrimSpace(string(mode)) != "finalize" {
+		if strings.TrimSpace(string(mode)) != rfc8212FaultFinalize {
 			return nil
 		}
 		if err := os.WriteFile("fault.finalize", []byte(tx), 0o600); err != nil {
@@ -221,7 +221,7 @@ func rfc8212ReloadFinalizer(ctx context.Context, args []string) error {
 		}
 		return errors.New("rfc8212 deliberate finalization receipt failure")
 	})
-	return p.Run(ctx, &sdk.Registration{WantsConfig: []string{"bgp"}})
+	return p.Run(ctx, &sdk.Registration{WantsConfig: []string{rfc8212RootBGP}})
 }
 
 func rfc8212ReloadRefusalGuard(ctx context.Context, args []string) error {
@@ -236,7 +236,7 @@ func rfc8212ReloadRefusalGuard(ctx context.Context, args []string) error {
 	p.OnConfigApply(func([]sdk.ConfigDiffSection) error {
 		return os.WriteFile("refusal.applied", []byte("apply reached"), 0o600)
 	})
-	return p.Run(ctx, &sdk.Registration{WantsConfig: []string{"bgp"}})
+	return p.Run(ctx, &sdk.Registration{WantsConfig: []string{rfc8212RootBGP}})
 }
 
 // rfc8212ReloadUnsupportedOwner reports whether `reload/rfc8212-select-owner
@@ -251,5 +251,5 @@ func rfc8212ReloadUnsupportedOwner() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return strings.TrimSpace(string(mode)) == "unsupported", nil
+	return strings.TrimSpace(string(mode)) == rfc8212FaultUnsupported, nil
 }

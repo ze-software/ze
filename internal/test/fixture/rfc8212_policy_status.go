@@ -40,16 +40,16 @@ func rfc8212PolicyStatus(ctx context.Context, args []string) error {
 			return errors.New("dynamic accept did not publish the unresolved peer")
 		}
 		for _, row := range []struct{ peer, final, source, action string }{
-			{addrLoopback, "reject", "rfc8212", "reject"},
-			{"127.0.0.2", "accept", "", "accept"},
-			{"127.0.0.3", "reject", "", "reject"},
-			{"127.0.0.4", "", "", "accept"},
-			{"127.0.0.6", "undetermined", "", "undetermined"},
+			{addrLoopback, actionReject, "rfc8212", actionReject},
+			{addrLoopbackSecond, actionAccept, "", actionAccept},
+			{addrLoopbackThird, actionReject, "", actionReject},
+			{addrLoopbackFourth, "", "", actionAccept},
+			{"127.0.0.6", rfc8212VerdictUndetermined, "", rfc8212VerdictUndetermined},
 		} {
-			for _, direction := range []string{"import", "export"} {
+			for _, direction := range []string{rfc8212DirectionImport, directionExport} {
 				final := row.final
-				if row.peer == "127.0.0.6" && direction == "import" {
-					final = "accept"
+				if row.peer == "127.0.0.6" && direction == rfc8212DirectionImport {
+					final = actionAccept
 				}
 				if err := rfc8212PolicyStatusDirection(ctx, plugin, row.peer, direction, final, row.source, row.action); err != nil {
 					return err
@@ -96,13 +96,13 @@ func rfc8212PolicyStatusDirection(ctx context.Context, plugin *sdk.Plugin, peer,
 			return fmt.Errorf("%s chains=%v", command, chain.Chains)
 		}
 		policy := chain.Chains[0].Import
-		if direction == "export" {
+		if direction == directionExport {
 			policy = chain.Chains[0].Export
 		}
 		if err := rfc8212PolicyProjectionCheck(policy, final, source); err != nil {
 			return fmt.Errorf("%s: %w", command, err)
 		}
-		if direction == "import" {
+		if direction == rfc8212DirectionImport {
 			if policy == nil {
 				return fmt.Errorf("%s lost automatic loop filter", command)
 			}
@@ -129,7 +129,7 @@ func rfc8212PolicyStatusDirection(ctx context.Context, plugin *sdk.Plugin, peer,
 		return fmt.Errorf("detail omitted %s", peer)
 	}
 	policy := row.Import
-	if direction == "export" {
+	if direction == directionExport {
 		policy = row.Export
 	}
 	if err := rfc8212PolicyProjectionCheck(policy, final, source); err != nil {
@@ -137,15 +137,15 @@ func rfc8212PolicyStatusDirection(ctx context.Context, plugin *sdk.Plugin, peer,
 	}
 	for _, update := range []struct{ name, wire, action string }{
 		{"announce", "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9400304C0000201180A5201", action},
-		{"withdraw", "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A52C80000", "accept"},
-		{"mixed", "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0033020004180A52C800144001010040020602010000FDE9400304C0000201180A5201", "modify"},
+		{"withdraw", "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A52C80000", actionAccept},
+		{"mixed", "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0033020004180A52C800144001010040020602010000FDE9400304C0000201180A5201", rfc8212ActionModify},
 	} {
 		want := update.action
-		if action == "undetermined" {
+		if action == rfc8212VerdictUndetermined {
 			want = action
 		}
-		if update.name == "mixed" && action == "accept" {
-			want = "accept"
+		if update.name == "mixed" && action == actionAccept {
+			want = actionAccept
 		}
 		var result struct {
 			Action string                   `json:"action"`
@@ -167,7 +167,7 @@ func rfc8212PolicyStatusDirection(ctx context.Context, plugin *sdk.Plugin, peer,
 		if err := rfc8212PolicyProjectionCheck(result.Policy, final, source); err != nil {
 			return fmt.Errorf("dryrun %s %s: %w", peer, direction, err)
 		}
-		if want == "undetermined" {
+		if want == rfc8212VerdictUndetermined {
 			if len(result.Trace) != 0 {
 				return errors.New("unknown AS executed filters")
 			}
@@ -175,10 +175,10 @@ func rfc8212PolicyStatusDirection(ctx context.Context, plugin *sdk.Plugin, peer,
 				return errors.New("unknown AS fabricated a resulting route")
 			}
 		}
-		if want == "reject" && result.Text != "" {
+		if want == actionReject && result.Text != "" {
 			return fmt.Errorf("denied announcement survived: %s", result.Text)
 		}
-		if want == "modify" {
+		if want == rfc8212ActionModify {
 			if strings.Contains(result.Text, prefix82First) {
 				return fmt.Errorf("denied mixed announcement survived: %s", result.Text)
 			}
@@ -186,7 +186,7 @@ func rfc8212PolicyStatusDirection(ctx context.Context, plugin *sdk.Plugin, peer,
 				return fmt.Errorf("mixed withdrawal disappeared: %s", result.Text)
 			}
 		}
-		if update.name == "withdraw" && want == "accept" && !strings.Contains(result.Text, "10.82.200.0/24") {
+		if update.name == "withdraw" && want == actionAccept && !strings.Contains(result.Text, "10.82.200.0/24") {
 			return fmt.Errorf("explicit withdrawal disappeared: %s", result.Text)
 		}
 	}
