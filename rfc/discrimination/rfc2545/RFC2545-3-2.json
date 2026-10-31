@@ -262,8 +262,8 @@
     "claim-sha": "916f34de09c7b622",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_api_relay.go::buildRelayUpdate",
-    "producer-sha": "92e608b47c438c2b",
-    "break": "body of buildRelayUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "producer-sha": "24f3585f9b9147c0",
+    "break": "body of buildRelayUpdate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00570200000040800E2C0002012020010DB8000000000000000000000001FE800000000000000000000000000001003020010DB800014001010040020A02020000FDE80000FDE9"
   }
 ]
