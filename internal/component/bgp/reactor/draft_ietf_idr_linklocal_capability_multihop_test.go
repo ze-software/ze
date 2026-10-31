@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
@@ -70,6 +71,10 @@ func llnhExternalPeer(t *testing.T, addr string, connected []netip.Prefix, mode 
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
 		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		// The peer is EBGP, and RFC 8212 Section 3 rejects at an absent
+		// policy, so it carries explicit accepting import and export policies.
+		ImportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
+		ExportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))

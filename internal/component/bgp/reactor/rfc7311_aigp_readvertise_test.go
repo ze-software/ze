@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -50,6 +51,10 @@ func newAIGPReplayFixture(t *testing.T, before func([]fwdItem)) *aigpReplayFixtu
 		// rsRelaySendBinding is the route server's send grant: the RS fast
 		// path reaches no destination without it, as the cached rail does not.
 		peer.settings.ProcessBindings = []ProcessBinding{{PluginName: "aigp-forwarder", SendAll: true}, rsRelaySendBinding()}
+		// Both sessions are EBGP, and RFC 8212 Section 3 rejects at an absent
+		// policy, so each carries explicit accepting import and export policies.
+		peer.settings.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+		peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 		negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 		peer.sendCtx.Store(ctx)
 		peer.sendCtxID, peer.recvCtxID = ctxID, ctxID

@@ -41,7 +41,7 @@ type announcementLive struct {
 
 func announcementLiveRouter(t *testing.T, fastPath bool) *announcementLive {
 	t.Helper()
-	peers := lowLiveRouter(t, announcementSettings(fastPath, true)...)
+	peers := lowLiveRouter(t, acceptingPolicies(t, announcementSettings(fastPath, true)...)...)
 	return &announcementLive{a: peers[0], b: peers[1], e: peers[2], c: peers[3], peers: peers, client: peers[3].peer}
 }
 
@@ -50,7 +50,7 @@ func announcementLiveRouter(t *testing.T, fastPath bool) *announcementLive {
 // rs, bgp-rs is not loaded and bgp-adj-rib-in replays to C itself.
 func announcementLiveLate(t *testing.T, fastPath, rs bool, api func(*reactorAPIAdapter) plugin.ReactorLifecycle) *announcementLive {
 	t.Helper()
-	peers := lowLiveStart(t, lowLiveOptions{api: api, withoutRS: !rs}, announcementSettings(fastPath, rs)...)
+	peers := lowLiveStart(t, lowLiveOptions{api: api, withoutRS: !rs}, acceptingPolicies(t, announcementSettings(fastPath, rs)...)...)
 	run := &announcementLive{client: peers[3]}
 	for i, peer := range peers[:3] {
 		run.peers = append(run.peers, lowLiveConnect(t, peer, 0x0a000001+uint32(i)))
@@ -662,7 +662,9 @@ func TestRSAnnouncementAddPathClientGetsEveryPath(t *testing.T) {
 			settings[2].Capabilities = append(settings[2].Capabilities, &capability.AddPath{
 				Families: []capability.AddPathFamily{{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Mode: capability.AddPathSend}},
 			})
-			peers := addPathLiveRouter(t, settings...)
+			// Every peer is EBGP, and RFC 8212 Section 3 rejects at an absent
+			// policy, so each states the accepting policies the scenario relies on.
+			peers := addPathLiveRouter(t, acceptingPolicies(t, settings...)...)
 			a, b, c := peers[0], peers[1], peers[2]
 			order := []struct {
 				peer  *lowLivePeer

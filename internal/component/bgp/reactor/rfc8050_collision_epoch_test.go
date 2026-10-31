@@ -50,6 +50,9 @@ func TestMRTCollisionWinnerReservation(t *testing.T) {
 
 func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 	settings := NewPeerSettings(netip.MustParseAddr("127.0.0.1"), 65000, 65001, 0x0a000002)
+	// The peer is EBGP and the scenario records UPDATEs it sends and receives,
+	// so it states the accepting policies RFC 8212 Section 3 requires.
+	acceptingPolicies(t, settings)
 	settings.LocalAddress = netip.MustParseAddr("127.0.0.1")
 	settings.Connection = ConnectionPassive
 	settings.Capabilities = []capability.Capability{

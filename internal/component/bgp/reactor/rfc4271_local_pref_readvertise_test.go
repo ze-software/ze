@@ -25,6 +25,9 @@ func rfc4271ImportPolicyPayload(t *testing.T, policy bool) []byte {
 	t.Helper()
 	addr := netip.MustParseAddr("203.0.113.9")
 	settings := &PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001}
+	// RFC 8212 Section 3 makes an EBGP route with no explicit import policy
+	// ineligible, so the case without the modifying filter states an accepting one.
+	settings.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	if policy {
 		settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept)
 	}

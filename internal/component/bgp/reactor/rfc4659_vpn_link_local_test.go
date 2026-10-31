@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"testing"
 
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -42,6 +44,9 @@ func vpnLLPeer(t *testing.T, recipient string) *Peer {
 		PeerAS:        65002,
 		RouterID:      0x0a000001,
 		NextHopMode:   NextHopUnchanged,
+		// RFC 8212 Section 3 rejects at an absent export policy toward an
+		// EBGP recipient, so the recipient states an accepting one.
+		ExportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
 	})
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.sendCtx.Store(bgpctx.EncodingContextForASN4(true))

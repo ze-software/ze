@@ -220,11 +220,11 @@ func lowAssertAttribute(t *testing.T, attrs []byte, code attribute.AttributeCode
 // RFC requirement: RFC7705-3.3-2 positive -- a no-prepend external source's exact AS_PATH is installed in the live RIB and sent to an internal neighbor without adding the legacy ASN.
 // RFC requirement: RFC7705-3.3-2 negative -- an existing received legacy ASN remains exactly once in the installed and transmitted path; no-prepend neither inserts a duplicate nor strips the peer's path.
 func TestRFC7705NoPrependInstalledAndAdvertised(t *testing.T) {
-	source := lowLiveSettings("192.0.2.1", 65010, 65002)
+	source := acceptingLiveSettings(t, "192.0.2.1", 65010, 65002)
 	source.GlobalLocalAS = 65000
 	source.LocalASNoPrepend = true
 	source.LoopAllowOwnAS = 1
-	dest := lowLiveSettings("192.0.2.2", 65000, 65000)
+	dest := acceptingLiveSettings(t, "192.0.2.2", 65000, 65000)
 	peers := lowLiveRouter(t, source, dest)
 	for i, path := range [][]byte{{2, 1, 0, 0, 0xfd, 0xea}, {2, 2, 0, 0, 0xfd, 0xea, 0, 0, 0xfd, 0xf2}} {
 		prefix := []byte{24, 203, 0, byte(113 + i)}

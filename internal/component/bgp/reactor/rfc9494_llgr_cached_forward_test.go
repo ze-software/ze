@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -75,8 +77,11 @@ func receiveAndForward(t *testing.T, localLLGR, rs bool) llgrForwardRun {
 		LocalAS:       65000,
 		GlobalLocalAS: 65000,
 		PeerAS:        65001,
-		RouterID:      0xcb007147,
-		RSFastPath:    rs,
+		// RFC 8212 Section 3 rejects at an absent policy on an EBGP session.
+		ImportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
+		ExportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
+		RouterID:     0xcb007147,
+		RSFastPath:   rs,
 		// The route server's receive grant: the RS fast path relays only a
 		// source the route server's cached forward would relay.
 		ProcessBindings: []ProcessBinding{rsRelayReceiveBinding()},
@@ -95,7 +100,10 @@ func receiveAndForward(t *testing.T, localLLGR, rs bool) llgrForwardRun {
 		LocalAS:       65000,
 		GlobalLocalAS: 65000,
 		PeerAS:        65002,
-		RouterID:      0x0a000001,
+		// RFC 8212 Section 3 rejects at an absent policy on an EBGP session.
+		ImportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
+		ExportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
+		RouterID:     0x0a000001,
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
 		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},

@@ -19,6 +19,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
@@ -54,7 +55,16 @@ func prefixSIDBody() []byte {
 
 // prefixSIDPeer builds an established RS-fast-path peer whose local AS is 65000.
 func prefixSIDPeer(addr string, peerAS, routerID uint32, propagate, rsClient bool, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID) *Peer {
+	// An EBGP peer here is both a source and a destination, and RFC 8212
+	// Section 3 rejects at an absent policy, so it carries explicit accepting
+	// import and export policies.
+	accept, err := filterapi.NewPolicy(nil, routepolicy.FinalAccept)
+	if err != nil {
+		panic("BUG: an accepting policy with no filters must build: " + err.Error())
+	}
 	p := NewPeer(&PeerSettings{
+		ImportPolicy:           accept,
+		ExportPolicy:           accept,
 		Connection:             ConnectionBoth,
 		Address:                netip.MustParseAddr(addr),
 		LocalAS:                65000,

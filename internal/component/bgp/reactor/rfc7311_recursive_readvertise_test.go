@@ -108,8 +108,8 @@ func TestRFC7311ReceivedRecursiveAIGPChangeReachesWire(t *testing.T) {
 				}
 			})
 
-			source := lowLiveSettings("192.0.2.1", 65000, 65002)
-			destination := lowLiveSettings("192.0.2.2", 65000, 65003)
+			source := acceptingLiveSettings(t, "192.0.2.1", 65000, 65002)
+			destination := acceptingLiveSettings(t, "192.0.2.2", 65000, 65003)
 			localPort := uint16(freePort(t)) //nolint:gosec // Kernel-selected TCP port.
 			for _, settings := range []*PeerSettings{source, destination} {
 				settings.AIGPSession = new(true)

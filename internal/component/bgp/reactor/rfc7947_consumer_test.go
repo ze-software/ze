@@ -32,8 +32,8 @@ func lowRSAttributes() []byte {
 // RFC 7947 Section 2.2: "Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients."
 // RFC requirement: RFC7947-2.2-1 positive -- real ingress and recipient wire preserve ORIGIN, AS_PATH, NEXT_HOP, MED, community, unknown optional transitive and unknown optional non-transitive attributes, including their flags.
 func TestRFC7947AllAttributesReachClient(t *testing.T) {
-	source := lowLiveSettings("192.0.2.1", 65000, 65002)
-	dest := lowLiveSettings("192.0.2.2", 65000, 65003)
+	source := acceptingLiveSettings(t, "192.0.2.1", 65000, 65002)
+	dest := acceptingLiveSettings(t, "192.0.2.2", 65000, 65003)
 	source.RSClient, dest.RSClient = true, true
 	peers := lowLiveRouter(t, source, dest)
 	attrs := lowRSAttributes()
@@ -54,9 +54,9 @@ func TestRFC7947AllAttributesReachClient(t *testing.T) {
 // passed on to other route server clients."
 // RFC requirement: RFC7947-2.2-1 negative -- transparency is confined to route-server clients: the same ingress preserves optional attributes for a client but strips unknown non-transitive attributes and sets unknown-transitive Partial for an ordinary peer.
 func TestRouteServerTransparencyStopsAtOrdinaryPeer(t *testing.T) {
-	source := lowLiveSettings("192.0.2.1", 65000, 65002)
-	client := lowLiveSettings("192.0.2.2", 65000, 65003)
-	ordinary := lowLiveSettings("192.0.2.3", 65000, 65000)
+	source := acceptingLiveSettings(t, "192.0.2.1", 65000, 65002)
+	client := acceptingLiveSettings(t, "192.0.2.2", 65000, 65003)
+	ordinary := acceptingLiveSettings(t, "192.0.2.3", 65000, 65000)
 	source.RSClient, client.RSClient = true, true
 	peers := lowLiveRouter(t, source, client, ordinary)
 	attrs := lowRSAttributes()

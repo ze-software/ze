@@ -97,14 +97,19 @@ func TestExportFilterForBodyNoExportFiltersAccepts(t *testing.T) {
 // Fused-condition split: nil facts means the peer is not established
 // (peer_forward_facts.go:35). There is no session on which a route reaches the
 // wire, so this is an absent precondition, not a guard miss: accept, no warn.
+// The RFC 8212 default still applies before establishment: an EBGP peer with no
+// export policy suppresses, with no warn.
 func TestExportFilterForBodyNotEstablishedAccepts(t *testing.T) {
 	rec := captureWarnPeers(t)
 
 	r := &Reactor{}
+	// The peer is EBGP, and RFC 8212 Section 3 rejects at an absent export
+	// policy, so the accept case carries an explicit accepting one.
 	peer := NewPeer(&PeerSettings{
-		Address: netip.MustParseAddr("10.0.0.3"),
-		LocalAS: 65000,
-		PeerAS:  65001,
+		Address:      netip.MustParseAddr("10.0.0.3"),
+		LocalAS:      65000,
+		PeerAS:       65001,
+		ExportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
 	})
 	require.Nil(t, peer.forwardFacts(), "precondition: peer is not established (nil facts)")
 
@@ -115,4 +120,22 @@ func TestExportFilterForBodyNotEstablishedAccepts(t *testing.T) {
 	assert.Nil(t, override)
 	assert.NotContains(t, rec.warnedPeers(), "10.0.0.3",
 		"not established is not a guard miss -- it must not warn")
+
+	// RFC 8212 Section 3: "Routes SHALL NOT be added to an Adj-RIB-Out
+	// associated with an EBGP peer if no explicit Export Policy has been
+	// applied." Establishment does not lift that default.
+	absent := NewPeer(&PeerSettings{
+		Address: netip.MustParseAddr("10.0.0.8"),
+		LocalAS: 65000,
+		PeerAS:  65001,
+	})
+	require.Nil(t, absent.forwardFacts(), "precondition: peer is not established (nil facts)")
+
+	suppress, override = r.exportFilterForBody(absent, []byte{0x00})
+
+	assert.True(t, suppress,
+		"RFC 8212 Section 3: an EBGP peer with no export policy is not advertised the route")
+	assert.Nil(t, override, "a body with no withdrawals leaves nothing to send")
+	assert.NotContains(t, rec.warnedPeers(), "10.0.0.8",
+		"the RFC 8212 default is a policy outcome, not a guard miss -- it must not warn")
 }

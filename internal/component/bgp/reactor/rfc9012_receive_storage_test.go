@@ -154,7 +154,7 @@ func TestRFC9012EndpointAddressRegistryStorage(t *testing.T) {
 func tunnelStoragePeer(t *testing.T, fam family.Family) (*Peer, net.Conn) {
 	t.Helper()
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
-	settings := lowLiveSettings("192.0.2.1", 65000, 65002)
+	settings := acceptingLiveSettings(t, "192.0.2.1", 65000, 65002)
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65000},
 		&capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI},

@@ -34,7 +34,11 @@ import (
 // route arrives) from the external peer 203.0.113.9 (AS 65001) through
 // notifyMessageReceiver and answers the one UPDATE body dispatched to the RIB
 // plugin. With policy, the peer's import policy answers "local-preference 200"
-// (modifyingFilter); without, the peer has no import filter.
+// (modifyingFilter); without, the peer's import policy has no filter and an
+// accepting final. RFC 8212 Section 3 makes an EBGP route with no explicit
+// import policy ineligible, so both cases carry one: "Routes contained in an
+// Adj-RIB-In associated with an EBGP peer SHALL NOT be considered eligible in
+// the Decision Process if no explicit Import Policy has been applied."
 func receiveExternalRoute(t *testing.T, policy bool) []byte {
 	t.Helper()
 	addr := netip.MustParseAddr("203.0.113.9")
@@ -46,6 +50,7 @@ func receiveExternalRoute(t *testing.T, policy bool) []byte {
 		PeerAS:        65001,
 		RouterID:      0xcb007109,
 	}
+	settings.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	if policy {
 		settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept)
 	}
@@ -110,8 +115,8 @@ func TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers(t *t
 }
 
 // TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally
-// forces the input toward the violation: no configured policy and no received
-// LOCAL_PREF, so nothing on the route names a degree of preference.
+// forces the input toward the violation: an import policy with no filter and no
+// received LOCAL_PREF, so nothing on the route names a degree of preference.
 //
 // VALIDATES: the RIB is handed the route with no LOCAL_PREF (the policy
 // calculated none, so the RIB applies its configured default), and the internal
@@ -120,7 +125,7 @@ func TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers(t *t
 // PREVENTS: an internal advertisement that omits the degree of preference when
 // local policy set none, and a constant 200 standing in for the policy.
 //
-// RFC requirement: RFC4271-5.1.5-5 negative -- an external route received with no LOCAL_PREF and no import policy is dispatched to the RIB plugin with no LOCAL_PREF (never 200), and is still advertised to an internal peer with a LOCAL_PREF, the default 100: the internal advertisement never omits the degree of preference.
+// RFC requirement: RFC4271-5.1.5-5 negative -- an external route received with no LOCAL_PREF and an import policy that sets none is dispatched to the RIB plugin with no LOCAL_PREF (never 200), and is still advertised to an internal peer with a LOCAL_PREF, the default 100: the internal advertisement never omits the degree of preference.
 func TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally(t *testing.T) {
 	payload := receiveExternalRoute(t, false)
 	_, ok := bodyPathAttr(t, payload, 5)

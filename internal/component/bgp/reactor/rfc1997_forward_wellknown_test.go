@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
@@ -73,6 +74,11 @@ func wkPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingContex
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
 		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		// An EBGP fixture peer is both a source and a destination, and RFC 8212
+		// Section 3 rejects at an absent policy, so it carries explicit
+		// accepting import and export policies. An IBGP one is unaffected.
+		ImportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
+		ExportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
 	})
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.negotiated.Store(&NegotiatedCapabilities{
@@ -288,9 +294,10 @@ func TestForwardNoExportSubconfedSkipsExternalPeerOnly(t *testing.T) {
 
 // RFC requirement: RFC1997-Well-4 positive -- "their operations shall be implemented in
 // any community-attribute-aware BGP speaker" (RFC 1997, Well-known Communities). No
-// operator policy is configured in this reactor: no export filter chain, no
-// community-match rule, no in-process egress filter. The suppression comes from the wire
-// values alone, which is what "shall be implemented" asks for.
+// operator filter is configured in this reactor: the destination's export policy accepts
+// and names no filter, and there is no community-match rule and no in-process egress
+// filter. The suppression comes from the wire values alone, which is what "shall be
+// implemented" asks for.
 func TestForwardWellKnownNeedsNoOperatorPolicy(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)
@@ -298,7 +305,7 @@ func TestForwardWellKnownNeedsNoOperatorPolicy(t *testing.T) {
 
 	ebgp := wkPeer(t, wkEBGPAddr, 65002, ctx, ctxID)
 	require.Empty(t, ebgp.forwardFacts().exportPolicy.Filters(),
-		"precondition: the destination must carry NO operator export policy")
+		"precondition: the destination's export policy must name NO operator filter")
 
 	got := wkForward(t, wkTestPayload(attribute.CommunityNoExport), ebgp)
 	assert.Empty(t, got, "the operation must be applied without any operator configuration")

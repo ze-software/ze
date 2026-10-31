@@ -51,6 +51,9 @@ func TestRFC9687Event29ReleasesTheLivePeersRIB(t *testing.T) {
 	r.SetClock(clock)
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.Connection = ConnectionPassive
+	// RFC 8212 Section 3 rejects at an absent policy on an EBGP session, and
+	// the RIB must hold the received routes, so the peer states accepting ones.
+	acceptingPolicies(t, settings)
 	settings.ReceiveHoldTime = 90 * time.Second
 	settings.SendHoldTime = rfc9687SendHold
 	settings.Capabilities = []capability.Capability{

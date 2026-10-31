@@ -90,7 +90,7 @@ func replacementScenario(t *testing.T, rail replacementRail, addressA, addressB,
 		lowLiveSettings(addressB, 65000, 65003),
 		lowLiveSettings(addressC, 65000, 65004),
 	}
-	for _, setting := range settings {
+	for _, setting := range acceptingPolicies(t, settings...) {
 		setting.RSClient = true
 		setting.RSFastPath = rail == replacementRailFastPath
 	}
@@ -237,7 +237,7 @@ func TestRSOwnerWithdrawalSkipsDestinationOwnPath(t *testing.T) {
 		lowLiveSettings("192.0.2.2", 65000, 65003),
 		lowLiveSettings("192.0.2.3", 65000, 65004),
 	}
-	for _, setting := range settings {
+	for _, setting := range acceptingPolicies(t, settings...) {
 		setting.RSClient = true
 	}
 	peers := lowLiveRouter(t, settings...)
@@ -290,7 +290,7 @@ func TestRSOwnerWithdrawalLookupFailureRetiresDestination(t *testing.T) {
 		lowLiveSettings("192.0.2.2", 65000, 65003),
 		lowLiveSettings("192.0.2.3", 65000, 65004),
 	}
-	for _, setting := range settings {
+	for _, setting := range acceptingPolicies(t, settings...) {
 		setting.RSClient = true
 	}
 	peers := lowLiveRouter(t, settings...)
@@ -363,7 +363,7 @@ func departureWritesOnlyWhereSourceOwns(t *testing.T, sourceOwns, withE bool) {
 	if withE {
 		settings = append(settings, lowLiveSettings("192.0.2.5", 65000, 65006))
 	}
-	for _, setting := range settings {
+	for _, setting := range acceptingPolicies(t, settings...) {
 		setting.RSClient = true
 	}
 	peers := rsLiveRouter(t, settings...)
@@ -525,7 +525,7 @@ func policyDeniedSurvivors(t *testing.T, withE, denyE bool) {
 	if withE {
 		settings = append(settings, lowLiveSettings("192.0.2.5", 65000, 65006))
 	}
-	for _, setting := range settings {
+	for _, setting := range acceptingPolicies(t, settings...) {
 		setting.RSClient = true
 	}
 	settings[2].ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "test:deny"}}, routepolicy.FinalAccept)
@@ -544,9 +544,9 @@ func policyDeniedSurvivors(t *testing.T, withE, denyE bool) {
 	marker := netip.MustParsePrefix("10.9.255.0/24")
 
 	// Each source's UPDATE arrives on its own session, so the next source
-	// sends only once A, a client with no export policy, holds a marker sent
-	// after it: C's forward queue then keeps the order in which the sources'
-	// UPDATEs were processed. Without the wait, E's UPDATE could be processed
+	// sends only once A, a client whose export policy names no filter, holds a
+	// marker sent after it: C's forward queue then keeps the order in which the
+	// sources' UPDATEs were processed. Without the wait, E's UPDATE could be processed
 	// after A's. A holds B's route, the election's best of B and E, so E's
 	// own marker is the fence.
 	ownershipLiveSend(t, b, nil, attrsB, prefix) // RFC 4271 Section 4.3.
@@ -620,7 +620,7 @@ func TestRSOwnerWithdrawalDeniedCandidateReannounces(t *testing.T) {
 		lowLiveSettings("192.0.2.3", 65000, 65004),
 		lowLiveSettings("192.0.2.5", 65000, 65006),
 	}
-	for _, setting := range settings {
+	for _, setting := range acceptingPolicies(t, settings...) {
 		setting.RSClient = true
 	}
 	settings[2].ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "test:deny"}}, routepolicy.FinalAccept)
@@ -711,7 +711,7 @@ func synthesizedWithdrawalRecovers(t *testing.T, fastPath, nextHop bool) {
 		lowLiveSettings("192.0.2.2", 65000, 65003),
 		lowLiveSettings("192.0.2.3", 65000, 65004),
 	}
-	for _, setting := range settings {
+	for _, setting := range acceptingPolicies(t, settings...) {
 		setting.RSClient = true
 		setting.RSFastPath = fastPath
 	}
@@ -801,7 +801,7 @@ func TestRSOwnerWithdrawalLaterAnnouncementElected(t *testing.T) {
 				lowLiveSettings("192.0.2.12", 65000, 65003),
 				lowLiveSettings("192.0.2.3", 65000, 65100),
 			}
-			for _, setting := range settings {
+			for _, setting := range acceptingPolicies(t, settings...) {
 				setting.RSClient = true
 			}
 			peers := rsLiveRouter(t, settings...)

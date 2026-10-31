@@ -279,6 +279,9 @@ func newOrdinaryJointPeer(t *testing.T, recipient netip.Addr, source ordinaryJoi
 		PeerAS:       65001,
 		RouterID:     0x01020301,
 	}
+	// RFC 8212 Section 3 rejects at an absent export policy toward an EBGP
+	// recipient, so the source without a filter states an accepting one.
+	settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	if source == ordinaryJointPolicyPair {
 		settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "ordinary-joint:replace-next-hop"}}, routepolicy.FinalAccept)
 	}
