@@ -18,8 +18,8 @@
     "claim-sha": "bf42c255a642925a",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::run",
-    "producer-sha": "81d41b46bd2a232c",
-    "break": "body of run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "0c3270fcc69e9bd1",
+    "break": "body of run replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1661-5.8-2",

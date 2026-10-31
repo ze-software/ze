@@ -29,8 +29,8 @@
     "claim-sha": "024dcca280653fe1",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
-    "producer-sha": "812f0cf68b9c6738",
-    "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "81f70b91ee773ee3",
+    "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2516-7-3",
@@ -40,7 +40,7 @@
     "claim-sha": "ae425c3a25ba84f0",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/dialer.go::superviseNetworkPhase",
-    "producer-sha": "3a4e756a1319dbe2",
-    "break": "body of superviseNetworkPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "ce8b7747c15844e3",
+    "break": "body of superviseNetworkPhase replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

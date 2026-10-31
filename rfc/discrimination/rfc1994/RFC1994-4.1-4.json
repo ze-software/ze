@@ -7,7 +7,7 @@
     "claim-sha": "a2ae5ccffe5b0cb4",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateIPCP",
-    "producer-sha": "3fd24ad8d2c299b7",
+    "producer-sha": "069ba8863a71a9e3",
     "break": "body of negotiateIPCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "0e1ed14b5994b589",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateIPCP",
-    "producer-sha": "3fd24ad8d2c299b7",
+    "producer-sha": "069ba8863a71a9e3",
     "break": "body of negotiateIPCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -29,8 +29,8 @@
     "claim-sha": "84dc31bebe37648b",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
-    "producer-sha": "812f0cf68b9c6738",
-    "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "81f70b91ee773ee3",
+    "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1994-4.1-4",
@@ -40,8 +40,8 @@
     "claim-sha": "ee32617acc2345dd",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
-    "producer-sha": "812f0cf68b9c6738",
-    "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "81f70b91ee773ee3",
+    "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1994-4.1-4",
