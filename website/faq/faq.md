@@ -137,6 +137,14 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
           <p>Ze currently has no subscription, paid support tier, or separate commercial entity. The <a href="../contribute/">contribute page</a> explains how the project is maintained and how to help.</p>
         </div>
       </details>
+      <details class="faq-card cat-meta" id="ai-development">
+        <summary>How is AI used to develop Ze?</summary>
+        <div>
+          <p>Ze is written with AI coding agents, and the project uses them to reach quality. To get there, we built a framework that constrains and guides how an agent develops a feature: a spec is agreed before any code, tests are written before the implementation, a separate agent that did not write the change reviews it, and gates refuse a commit that breaks a rule. These rules live in the repository next to the code, so every agent session works under the same ones.</p>
+          <p>As with human development, the process is iterative, and the first version of something is often not fully correct. Proving a feature takes many passes and a lot of time and compute. For an RFC, every requirement has to be found, tested, and shown to fail when the code is broken, and that coverage keeps growing after the first implementation is published. The <a href="../quality/rfc-compliance/">RFC compliance pages</a> show what is proven and what is still missing.</p>
+          <p>The website is where this shows the most. An RFC defines behaviour in clear, strict terms, so a test can check that Ze follows it. The same can not be said of a web page: free text has no specification to test against, which is why the site is likely to carry more mistakes than the code. We revise it often, and between passes some pages will not be fully right. If you spot a mistake on the site or in Ze, please tell us on <a href="https://discord.gg/T8s7CjPDne">Discord</a> or the <a href="https://github.com/ze-software/ze/issues">issue tracker</a>.</p>
+        </div>
+      </details>
       <details class="faq-card cat-meta" id="help">
         <summary>How do I get help or report a security problem?</summary>
         <div>

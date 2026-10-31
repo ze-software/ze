@@ -273,6 +273,17 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   canonical `../gh-pages` checkout with `./le site build` and `./le site check`.
   A private preview is an intermediate review artifact. Local regeneration
   does not authorize a push or deployment.
+- When the website talks about how Ze is developed with AI, it presents AI as
+  a means to quality: the project built a framework that constrains and guides
+  how agents develop (specs agreed first, tests first, independent review,
+  commit gates). It also says plainly that the process is iterative, as human
+  development is: a first version is often not fully correct until every
+  check exists (for an RFC, every requirement's test), which takes time and
+  resources, so published code and the website itself can be imperfect, and
+  readers are invited to report what is wrong. It says why the website has
+  more mistakes than the code: whilst an RFC defines behaviour clearly and
+  strictly enough for tests to check it, the same can not be said of the
+  website's free text.
 - Website screenshots use WebP, alongside lightweight terminal-event playback
   for application demonstrations. Encoded video assets are not published on the
   website or stored in the repository, and CI/CD does not generate videos.
