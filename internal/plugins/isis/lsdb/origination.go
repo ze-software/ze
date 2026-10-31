@@ -666,10 +666,17 @@ func lspPDUType(level Level) packet.PDUType {
 // the non-pseudonode LSP (RFC 3787 sec 4: the OL bit lives in LSP number zero;
 // an overloaded node sets it there, not in every fragment). The P and ATT bits
 // are left zero by this spec (ATT is set by an L1L2 router in its L1 LSP, isis-9).
+//
+// The IS Type field takes two values only, and value 2 is unused (RFC 1142,
+// the IS Type field of the LSP: "x1 (i.e. bit 1 set) Level 1 Intermediate
+// system", "x2 Unused value", "x3 (i.e. bits 1 and 2 set) Level 2
+// Intermediate system."). Only a Level 2 IS originates a Level 2 LSP, so an L2
+// LSP carries both bits; the bare high bit is the unused value, which FRR logs
+// as "invalid LSP is type 0x2".
 func lspTypeBlock(level Level, overload, fragmentZero bool) uint8 {
 	var tb uint8
 	if level == Level2 {
-		tb |= packet.LSPFlagISTypeL2
+		tb |= packet.LSPFlagISTypeL1 | packet.LSPFlagISTypeL2
 	} else {
 		tb |= packet.LSPFlagISTypeL1
 	}
