@@ -55,10 +55,14 @@ There is no direct route push and no side channel.
 
 <!-- source: internal/plugins/isis/redistribute/consumer.go -- InjectRoute, WithdrawRoute, rememberSource, forgetSource -->
 <!-- source: internal/plugins/isis/redist_wiring.go -- the injector implementation, refreshConnectedPrefixes -->
+<!-- source: internal/plugins/isis/redistribute/source.go -- ConnectedPrefixInfos, unroutableIPv4 -->
 
 The node's own connected-prefix inputs are refreshed at startup and before
 origination after each configuration reconcile. Enabled interfaces contribute
-prefixes even when passive. The refresh replaces each configured level's IPv4
+prefixes even when passive. An address in the zero network 0/8, loopback 127/8
+or class D multicast, and the IPv6 loopback `::1`, is never advertised: a
+passive `lo` carries 127.0.0.1/8, and FRR's `isis_circuit_add_addr` drops the
+same set. The refresh replaces each configured level's IPv4
 and IPv6 sets using the current interface membership, address families and
 metrics, including when the first NET is added to an idle engine.
 

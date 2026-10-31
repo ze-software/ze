@@ -108,7 +108,7 @@ func (c *Consumer) withdrawRouteV6(_ context.Context, _ family.Family, prefixStr
 
 // ConnectedPrefixInfosV6 turns a list of NON-LINK-LOCAL IPv6 interface prefixes
 // into TLV 236 PrefixInfoV6 internal-reachability entries advertised at the
-// node's own metric (AC-6). The prefix is masked; the up/down and external bits
+// node's own metric (AC-6). The loopback ::1 is dropped. The prefix is masked; the up/down and external bits
 // are 0 (internal reachability, not leaked, not redistributed). The IPv6 twin of
 // ConnectedPrefixInfos. Link-local prefixes are dropped defensively (RFC 5308
 // sec 2), though the caller already excludes them.
@@ -120,6 +120,13 @@ func ConnectedPrefixInfosV6(prefixes []netip.Prefix, metric uint32) []lsdb.Prefi
 		}
 		if p.Addr().IsLinkLocalUnicast() {
 			continue // RFC 5308 sec 2
+		}
+		// FRR's isis_circuit_add_addr (isisd/isis_circuit.c) drops the loopback
+		// address before it lists a circuit's IPv6 prefixes:
+		// "if (IN6_IS_ADDR_LOOPBACK(&connected->address->u.prefix6)) return;".
+		// A passive `lo` carries ::1, which no neighbor can reach through Ze.
+		if p.Addr().IsLoopback() {
+			continue
 		}
 		out = append(out, lsdb.PrefixInfoV6{
 			Prefix: p.Masked(),

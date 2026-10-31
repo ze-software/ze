@@ -366,3 +366,32 @@ func TestISISUnsupportedRouteWithdrawsRedistribution(t *testing.T) {
 		t.Fatalf("consumer actions on capability transition = %v", actions)
 	}
 }
+
+// TestISISConnectedAdvertiseSkipsUnroutable verifies that an interface address in
+// the loopback, zero or multicast range never becomes TLV 135 or TLV 236
+// reachability. Method: feed the helpers the addresses a passive `lo` carries
+// (127.0.0.1/8, ::1/128) beside 0.0.0.0/8, class D and one routable prefix per
+// family, and require only the routable prefixes back. FRR's
+// isis_circuit_add_addr (isisd/isis_circuit.c) drops the same set, and FRR
+// installed Ze's 127.0.0.0/8 when Ze advertised it.
+func TestISISConnectedAdvertiseSkipsUnroutable(t *testing.T) {
+	v4 := ConnectedPrefixInfos([]netip.Prefix{
+		netip.MustParsePrefix("127.0.0.1/8"),
+		netip.MustParsePrefix("127.255.0.1/32"),
+		netip.MustParsePrefix("0.1.2.3/8"),
+		netip.MustParsePrefix("224.0.0.5/32"),
+		netip.MustParsePrefix("239.1.1.1/24"),
+		netip.MustParsePrefix("10.98.0.1/32"),
+	}, 10)
+	if len(v4) != 1 || v4[0].Prefix != netip.MustParsePrefix("10.98.0.1/32") {
+		t.Fatalf("IPv4 connected prefixes = %+v, want only 10.98.0.1/32", v4)
+	}
+
+	v6 := ConnectedPrefixInfosV6([]netip.Prefix{
+		netip.MustParsePrefix("::1/128"),
+		netip.MustParsePrefix("2001:db8::1/64"),
+	}, 10)
+	if len(v6) != 1 || v6[0].Prefix != netip.MustParsePrefix("2001:db8::/64") {
+		t.Fatalf("IPv6 connected prefixes = %+v, want only 2001:db8::/64", v6)
+	}
+}

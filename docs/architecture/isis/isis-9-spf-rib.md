@@ -134,6 +134,18 @@ leak; narrow L2 entries ignore that bit under RFC 2966 section 3.3.
 
 <!-- source: internal/plugins/isis/spf/leak.go -- LeakPrefixes -->
 
+## Decision: one level 2 entry per prefix
+
+RFC 1195 section 3.2 puts one entry for a prefix in the level 2 LSP, at the
+minimum metric, and counts the router's directly reachable prefixes the same as
+the ones learned from level 1 LSPs. The shared link subnet is the usual case:
+the router reaches it directly and also learns it from its level 1 neighbor's
+LSP. When the level 2 LSP is assembled, a connected prefix and the same prefix
+leaked up from level 1 become one entry. The lower metric wins, and on a tie the
+connected entry stays. IPv6 follows the same rule.
+
+<!-- source: internal/plugins/isis/lsdb_wiring.go -- levelState, level2Reachability -->
+
 ## Trap: next-hop resolution must read the locked snapshot
 
 The circuit goroutine is the single writer and mutates adjacency state and

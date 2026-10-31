@@ -519,25 +519,32 @@ func (e *engine) levelState(level lsdb.Level) lsdb.LevelState {
 	// the redistribution consumer, isis-11), and INTER-LEVEL LEAKED prefixes (the
 	// other level's reachability, RFC 2966, isis-9 AC-4/AC-5) all become TLV 135
 	// entries. The leaked entries carry the up/down bit (set for an L2->L1 down
-	// leak); the connected/redistributed ones carry it clear. A receiver arbitrates
-	// duplicates by the RFC 5308 sec 5 order (route.go preferenceRank), so a leaked
-	// copy of a connected prefix never wins over the connected one.
+	// leak); the connected/redistributed ones carry it clear. In the level 2 LSP a
+	// connected prefix and a prefix leaked up from level 1 share one entry at the
+	// lower metric (level2Reachability, RFC 1195 Section 3.2).
 	e.mu.Lock()
-	state.Prefixes = append(state.Prefixes, e.prefixes[level]...)
+	connected, leaked := e.prefixes[level], e.leakedPrefixes[level]
+	connectedV6, leakedV6 := e.prefixesV6[level], e.leakedPrefixesV6[level]
+	if level == lsdb.Level2 {
+		// RFC 1195 Section 3.2
+		connected, leaked = level2Reachability(connected, leaked, prefixInfoKey)
+		connectedV6, leakedV6 = level2Reachability(connectedV6, leakedV6, prefixInfoV6Key)
+	}
+	state.Prefixes = append(state.Prefixes, connected...)
 	for _, info := range e.redistPrefixes[level] {
 		state.Prefixes = append(state.Prefixes, info)
 	}
-	state.Prefixes = append(state.Prefixes, e.leakedPrefixes[level]...)
+	state.Prefixes = append(state.Prefixes, leaked...)
 	// IPv6 (isis-12): connected + redistributed + leaked IPv6 prefixes become TLV
 	// 236 entries. The link-local exclusion (RFC 5308 sec 2) is enforced at the
 	// source (interfaceIPv6Prefixes / the consumer), but filter again here as
 	// defense in depth so an unexpected link-local entry never reaches TLV 236.
-	v6 := make([]lsdb.PrefixInfoV6, 0, len(e.prefixesV6[level])+len(e.redistPrefixesV6[level])+len(e.leakedPrefixesV6[level]))
-	v6 = append(v6, e.prefixesV6[level]...)
+	v6 := make([]lsdb.PrefixInfoV6, 0, len(connectedV6)+len(e.redistPrefixesV6[level])+len(leakedV6))
+	v6 = append(v6, connectedV6...)
 	for _, info := range e.redistPrefixesV6[level] {
 		v6 = append(v6, info)
 	}
-	v6 = append(v6, e.leakedPrefixesV6[level]...)
+	v6 = append(v6, leakedV6...)
 	e.mu.Unlock()
 	state.PrefixesV6 = lsdb.NonLinkLocalV6Prefixes(v6)
 
@@ -967,4 +974,69 @@ func (e *engine) minCircuitMTU() int {
 		min -= authSize
 	}
 	return min
+}
+
+// level2Reachability selects the directly reachable and the leaked entries the
+// level 2 LSP carries: one entry for each prefix, the one with the lowest
+// metric, and the direct entry on a tie. key returns an entry's prefix and
+// metric, so the IPv4 (TLV 135) and IPv6 (TLV 236) entries share the rule (RFC
+// 5308 Section 5 leaks IPv6 by the IPv4 rules). Both kept slices keep their input
+// order, so the LSP bytes stay stable across runs.
+//
+// RFC 1195 Section 3.2: "In this case (assuming the entry is not superceded by a manually configured entry), then only one such entry shall be included in the level 2 LSP. The metric value(s) announced in level 2 LSPs correspond to the minimum of the metric value(s) that would be calculated for each of the level 1 LSP entries."
+// RFC 1195 Section 3.2: "For purposes of inclusion of IP reachable address information in level 2 LSPs, these "directly reachable" addresses are treated exactly the same as addresses received in level 1 LSPs."
+func level2Reachability[T any](direct, leaked []T, key func(T) (netip.Prefix, uint32)) (keptDirect, keptLeaked []T) {
+	if len(leaked) == 0 && len(direct) < 2 {
+		return direct, leaked
+	}
+	// best maps each prefix to the position of its winning entry in direct
+	// followed by leaked. A later entry wins only with a strictly lower metric.
+	best := make(map[netip.Prefix]int, len(direct)+len(leaked))
+	metricAt := func(position int) uint32 {
+		if position < len(direct) {
+			_, metric := key(direct[position])
+			return metric
+		}
+		_, metric := key(leaked[position-len(direct)])
+		return metric
+	}
+	consider := func(position int, entry T) {
+		prefix, metric := key(entry)
+		current, seen := best[prefix]
+		if seen && metricAt(current) <= metric {
+			return
+		}
+		best[prefix] = position
+	}
+	for i, entry := range direct {
+		consider(i, entry)
+	}
+	for i, entry := range leaked {
+		consider(len(direct)+i, entry)
+	}
+	keptDirect = make([]T, 0, len(direct))
+	for i, entry := range direct {
+		prefix, _ := key(entry)
+		if best[prefix] == i {
+			keptDirect = append(keptDirect, entry)
+		}
+	}
+	keptLeaked = make([]T, 0, len(leaked))
+	for i, entry := range leaked {
+		prefix, _ := key(entry)
+		if best[prefix] == len(direct)+i {
+			keptLeaked = append(keptLeaked, entry)
+		}
+	}
+	return keptDirect, keptLeaked
+}
+
+// prefixInfoKey is the level2Reachability key of a TLV 135 entry.
+func prefixInfoKey(info lsdb.PrefixInfo) (netip.Prefix, uint32) {
+	return info.Prefix.Masked(), info.Metric.Value()
+}
+
+// prefixInfoV6Key is the level2Reachability key of a TLV 236 entry.
+func prefixInfoV6Key(info lsdb.PrefixInfoV6) (netip.Prefix, uint32) {
+	return info.Prefix.Masked(), info.Metric.Value()
 }

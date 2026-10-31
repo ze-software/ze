@@ -384,7 +384,9 @@ plugins started first. See
 **Connected and passive interfaces.** IS-IS also advertises its own enabled and
 **passive** interface prefixes as internal reachability in its LSPs. A passive
 interface forms no adjacency but its prefix is still advertised, so loopbacks and
-edge networks are reachable without running the protocol on them.
+edge networks are reachable without running the protocol on them. Loopback
+(127.0.0.0/8, `::1`), zero-network (0.0.0.0/8) and multicast addresses are
+never advertised, so a passive `lo` contributes only the addresses you add to it.
 
 **Counters.** `ze_isis_redist_injected_total{source,afi}` and
 `ze_isis_redist_withdrawn_total{source,afi}` track imported routes;

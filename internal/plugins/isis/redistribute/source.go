@@ -145,7 +145,8 @@ func metricToUint32(m uint64) uint32 {
 // ConnectedPrefixInfos turns a list of interface prefixes into TLV 135 PrefixInfo
 // internal-reachability entries advertised at the node's own metric (AC-8). The
 // prefix is masked to its network; the up/down bit is 0 (internal reachability,
-// not leaked). This is the connected-prefix advertisement path: it writes the
+// not leaked). A zero-network, loopback or multicast address is dropped
+// (unroutableIPv4). This is the connected-prefix advertisement path: it writes the
 // node's own enabled/passive interface prefixes into its LSPs without an adjacency
 // (a passive interface forms no adjacency but is still advertised, RFC 1195). It is
 // a pure helper so the engine can build the set at circuit-up and the test can
@@ -156,6 +157,9 @@ func ConnectedPrefixInfos(prefixes []netip.Prefix, metric uint32) []lsdb.PrefixI
 		if !p.IsValid() {
 			continue
 		}
+		if unroutableIPv4(p.Addr()) {
+			continue
+		}
 		out = append(out, lsdb.PrefixInfo{
 			Prefix: p.Masked(),
 			Metric: types.NewPrefixMetric(metric),
@@ -163,4 +167,26 @@ func ConnectedPrefixInfos(prefixes []netip.Prefix, metric uint32) []lsdb.PrefixI
 		})
 	}
 	return out
+}
+
+// unroutableIPv4 reports whether an interface address is one IS-IS never
+// advertises: the zero network 0/8, loopback 127/8 or class D multicast 224/4.
+// A passive `lo` carries 127.0.0.1/8, and advertising it makes every neighbor
+// install a route to its own loopback range through this router. FRR refuses the
+// same set when it collects a circuit's addresses, isis_circuit_add_addr in
+// isisd/isis_circuit.c:
+//
+//	if (IPV4_NET0(addr) || IPV4_NET127(addr) || IN_CLASSD(addr))
+//		return;
+func unroutableIPv4(addr netip.Addr) bool {
+	if !addr.Is4() {
+		return false
+	}
+	if addr.As4()[0] == 0 {
+		return true
+	}
+	if addr.IsLoopback() {
+		return true
+	}
+	return addr.IsMulticast()
 }
