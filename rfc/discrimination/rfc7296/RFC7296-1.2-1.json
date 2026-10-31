@@ -18,8 +18,8 @@
     "claim-sha": "54bb41900443187b",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::verifyRemoteAuth",
-    "producer-sha": "bc69155dd02c8c3c",
-    "break": "body of verifyRemoteAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2e85d5d7ea885c5b",
+    "break": "body of verifyRemoteAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-1.2-1",
@@ -40,7 +40,7 @@
     "claim-sha": "16fe0ed3c26b5f28",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::verifyRemoteAuth",
-    "producer-sha": "bc69155dd02c8c3c",
-    "break": "body of verifyRemoteAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2e85d5d7ea885c5b",
+    "break": "body of verifyRemoteAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

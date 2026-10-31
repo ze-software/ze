@@ -18,8 +18,8 @@
     "claim-sha": "d4cb0ce66c40896d",
     "route": "revert",
     "producer": "internal/component/ike/engine/responder.go::buildSAInitResponse",
-    "producer-sha": "723ba633beb6bacb",
-    "break": "body of buildSAInitResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "da5b24160f00980b",
+    "break": "body of buildSAInitResponse replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-3.1-4",

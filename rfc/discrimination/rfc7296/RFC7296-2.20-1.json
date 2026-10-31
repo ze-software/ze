@@ -73,7 +73,7 @@
     "claim-sha": "b6f2d9cf285823c9",
     "route": "revert",
     "producer": "internal/component/ike/engine/responder.go::handleAuthRequest",
-    "producer-sha": "4a0d9550c310be22",
+    "producer-sha": "73ea3f13894f4e36",
     "break": "body of handleAuthRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

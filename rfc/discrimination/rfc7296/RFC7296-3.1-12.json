@@ -7,8 +7,8 @@
     "claim-sha": "2caae3d0a054229a",
     "route": "revert",
     "producer": "internal/component/ike/engine/responder.go::handleResponderInbound",
-    "producer-sha": "12d94c65a350be00",
-    "break": "body of handleResponderInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4ae635daeb3b20aa",
+    "break": "body of handleResponderInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-3.1-12",

@@ -7,8 +7,8 @@
     "claim-sha": "7ae60170be032e27",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::computePSKAuth",
-    "producer-sha": "a70e12a66ef54cf2",
-    "break": "body of computePSKAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3737933ca2ea816e",
+    "break": "body of computePSKAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-2.15-2",
@@ -18,8 +18,8 @@
     "claim-sha": "43d1fcca3e6d43e4",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::verifyPSKAuth",
-    "producer-sha": "787766f67c4b8934",
-    "break": "body of verifyPSKAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "73cfa37ffd11b4c1",
+    "break": "body of verifyPSKAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-2.15-2",
@@ -29,8 +29,8 @@
     "claim-sha": "e1c00db6c72f1754",
     "route": "revert",
     "producer": "internal/component/ike/ipsec/config.go::parseAuthConfig",
-    "producer-sha": "7d3b9464e36c0b06",
-    "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "659534c3d480d452",
+    "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-2.15-2",
@@ -40,7 +40,7 @@
     "claim-sha": "27ac8ca6ee2fff8b",
     "route": "revert",
     "producer": "internal/component/ike/ipsec/config.go::parseAuthConfig",
-    "producer-sha": "7d3b9464e36c0b06",
-    "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "659534c3d480d452",
+    "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

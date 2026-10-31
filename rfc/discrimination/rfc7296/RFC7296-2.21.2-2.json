@@ -7,8 +7,8 @@
     "claim-sha": "63d27907414471d3",
     "route": "revert",
     "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
-    "producer-sha": "838f19a0d283ae6c",
-    "break": "body of handleAuthResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "961814e9a681dfba",
+    "break": "body of handleAuthResponse replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-2.21.2-2",
@@ -18,7 +18,7 @@
     "claim-sha": "8b33b009030f1da1",
     "route": "revert",
     "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
-    "producer-sha": "838f19a0d283ae6c",
-    "break": "body of handleAuthResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "961814e9a681dfba",
+    "break": "body of handleAuthResponse replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

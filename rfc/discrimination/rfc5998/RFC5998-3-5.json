@@ -7,7 +7,7 @@
     "claim-sha": "0ccc27ae90cf6b9d",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::buildAuthRequest",
-    "producer-sha": "d27f7dbf21b2c24f",
+    "producer-sha": "8648d5c590235be7",
     "break": "body of buildAuthRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
