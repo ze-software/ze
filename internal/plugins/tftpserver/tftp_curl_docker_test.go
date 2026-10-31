@@ -2,7 +2,7 @@
 
 // Design: docs/architecture/testing/interop.md -- a package test's independent client container.
 // Related: docs/architecture/provisioning/tftp-server.md -- duplicate ACKs do not trigger DATA.
-// Related: handler.go -- serve, handleRRQ and sendAndWaitACK are the production path.
+// Related: handler.go -- serve and handleRRQ, then window_send.go serveFile, are the production path.
 //
 // The relay copies curl's packets; it never constructs an RRQ or an ACK. curl
 // owns the client state machine and reassembles the downloaded file itself.
@@ -45,8 +45,8 @@ const tftpCurlImage = "curlimages/curl:8.23.0@sha256:11e64e28c5f58c8d93ee95fcf22
 // termination are acknowledged unless a timeout occurs [4]."
 // RFC 1350 Section 5: "Sending a DATA packet is an acknowledgment for the first
 // ACK packet of the previous DATA packet."
-// MUTATION: In sendAndWaitACK, break out of the inner read loop after an ACK
-// that is not for the outstanding block, restoring send-on-duplicate behavior.
+// MUTATION: In windowSender.awaitACK, return on an ACK that is not for the
+// outstanding block (position 0), restoring send-on-duplicate behavior.
 // The relay must fail with "DATA in answer to duplicate ACK" before accepting
 // the recovered block; curl's successful download alone is not the verdict.
 func TestTFTPCurlDuplicateACKInterop(t *testing.T) {

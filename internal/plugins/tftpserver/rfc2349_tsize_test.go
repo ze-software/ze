@@ -31,8 +31,8 @@ func tftpServeFile(t *testing.T, name string, content []byte) (*net.UDPAddr, *ne
 
 // RFC requirement: RFC2349-x-3 positive -- when a client requests the tsize option
 // in an RRQ with the value "0" (a size query), the server returns the ACTUAL file
-// size in the OACK (RFC 2349 Transfer Size Option Specification; producer handleRRQ
-// os.Stat + oackOpts tsize, internal/plugins/tftpserver/handler.go:319-329). A
+// size in the OACK (RFC 2349 Transfer Size Option Specification; producer
+// sendOACKAndWait os.Stat + oackOpts tsize, internal/plugins/tftpserver/handler.go). A
 // 7-byte file yields tsize "7".
 // RFC requirement: RFC2349-x-3 negative -- the server does NOT echo the client's
 // placeholder "0": a different-sized (20-byte) file yields tsize "20", i.e. the

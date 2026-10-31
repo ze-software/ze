@@ -56,7 +56,7 @@ func TestRFC2348BlksizeAckNotAboveRequest(t *testing.T) {
 
 // RFC requirement: RFC2348-x-3 positive -- a blksize within the valid range 8..65464
 // is accepted and acknowledged: 512 is acknowledged in the OACK (RFC 2348; producer
-// parseRRQ n >= tftp.BlksizeMin && n <= tftp.BlksizeMax, handler.go:122-125).
+// parseRRQ through optionInRange with tftp.BlksizeMin and tftp.BlksizeMax, handler.go).
 // RFC requirement: RFC2348-x-3 negative -- a blksize OUTSIDE 8..65464 is rejected: a
 // too-small (5) or too-large (70000) value is ignored and does NOT appear in the OACK
 // (the tsize option, requested alongside it, is still acknowledged), so the transfer
