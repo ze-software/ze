@@ -18,7 +18,7 @@ func init() {
 			policy.FieldProtocol, policy.FieldTag, policy.FieldLevel, policy.FieldRouteType},
 		[]policy.Field{policy.FieldLocalPreference, policy.FieldMED, policy.FieldOrigin, policy.FieldNextHop, policy.FieldASPath,
 			policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldAIGP,
-			policy.FieldDistance, policy.FieldTag})
+			policy.FieldDistance, policy.FieldTag, policy.FieldMetric, policy.FieldMetricType})
 	// Each instance is checked against only what it names, so a BGP-only
 	// modifier and a Loc-RIB one share the type (rib_evaluator.go).
 	policy.MustRegisterInstanceFields(filterTypeName, modifyInstanceFields)
