@@ -1,4 +1,4 @@
-// Design: plan/release/fixes/spec-bgp-rfc8212-ebgp-default-reject.md -- D1 and D2 real-entry drafts.
+// Design: docs/functional-tests.md -- real-process RFC 8212 reload drivers (import relaxation and invalidation).
 // Related: policy_final.go -- the existing SIGHUP completion and original-session helpers.
 package fixture
 

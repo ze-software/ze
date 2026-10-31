@@ -2,7 +2,7 @@
 
 ## Handoff
 
-**Spec:** `plan/release/fixes/spec-bgp-rfc8212-ebgp-default-reject.md`
+**Spec:** `spec-bgp-rfc8212-ebgp-default-reject` (closed)
 **Branch:** `main`
 **Goal:** Finish the approved EBGP default-reject implementation, including reversible live policy removal without resetting the session or requiring an optional route store.
 **Pause:** Owner requested stop and handover on 2026-10-28. Development stopped. All implementation agents parked; no half-applied source edit was reported.

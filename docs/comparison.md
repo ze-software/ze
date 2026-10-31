@@ -209,6 +209,21 @@ filter {
 <!-- source: internal/component/bgp/plugins/filter_modify/ -- bgp-filter-modify cmd-7 -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/ -- bgp-filter-path-asn cmd-8 -->
 
+An EBGP session with no import policy at the bgp, group or peer level
+contributes no route to the Decision Process, and one with no export policy is
+sent no route from any source, as RFC 8212 Section 3 requires. IBGP sessions
+are unchanged. FRR applies the same default at run time
+(`bgp ebgp-requires-policy`, on by default, with a `no` form to turn it off),
+and BIRD refuses such a configuration at load ("EBGP requires explicit import
+policy"). Ze applies it at run time like FRR, logs one warning per closed
+direction when the session reaches Established with the exact `set` command
+that adds the policy, and offers no switch to turn it off: an explicit
+`final accept` is the operator's statement that a direction is open.
+`ze exabgp migrate` writes that explicit accept on every migrated peer.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
+<!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- warnRFC8212AbsentPolicy -->
+<!-- source: internal/exabgp/migration/migrate.go -- migrateSingleNeighbor -->
+
 Some community policy is config rather than a filter in a chain. The ingress
 community filter carries `scrub-own-ga` for the RFC 7454 Section 11
 own-Global-Administrator scrub, with a `scrub-keep-function` carve-out for the

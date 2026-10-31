@@ -8,9 +8,9 @@
 | Release reason | The route-server release profile requires RFC 8212. Today an EBGP session with no import or export policy accepts every route into the Decision Process and advertises every route, which is the route-leak default RFC 8212 exists to remove |
 | RFC gaps | RFC8212-3-1, RFC8212-3-2 |
 | Depends | - |
-| Phase | 4/7 |
+| Phase | 7/7 |
 | Handoff | - |
-| Updated | 2026-10-30 |
+| Updated | 2026-10-31 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -906,15 +906,32 @@ skill explicitly requires its empty record here. Do not duplicate it at closure.
 
 | Field | Value |
 |-------|-------|
-| Artifact | |
-| `./le spec review check` | |
-| Rounds | |
-| Reviewer lenses used | |
+| Artifact | `tmp/review/bgp-rfc8212-ebgp-default-reject-5f56b642-de2f-4884-a472-6af29586b920.md` (372 code files of every `Spec-work: bgp-rfc8212-ebgp-default-reject` commit) |
+| `./le spec review check` | clean: "OK (372 code files, clean, hashes match)" |
+| Rounds | 2 (closure gate); the D-1 pieces had three earlier independent reviews (cf1b408f1d, affa92003c, 16744a9e7e) |
+| Reviewer lenses used | verdict and every `AcceptsAtEnd` caller, fail-open windows (pre-snapshot, filter failure), route-server fast path both passes, warning and fix command, migration, documentation drift, weakened-test audit (`./le test weakened check base origin/main`: 0 findings in this spec's commits), `./le repo check`, `./le rfc check` |
 
 ### Findings fixed
 
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
+| 1 | ISSUE | Page cited `createdPeerSchemaDefaults`, removed by 79725715f4, and described two peer builders | `docs/architecture/config/transaction-protocol.md` | Repointed to `createdPeerFromRunning`, one-builder prose (commit A) |
+| 2 | ISSUE | Public comparison and feature declaration did not state the RFC 8212 default (Documentation checklist rows 1 and 11) | `docs/comparison.md`, `features/bgp-protocol.md` | Paragraph with FRR and BIRD behaviour; rfc8212, carriers and FRR scenario declared (commit A) |
+
+Run 2: both edits re-read against `createdPeerSettings`, `Policy.AcceptsAtEnd`,
+`warnRFC8212AbsentPolicy` and `migrateSingleNeighbor`; `./le doc check all` no
+longer reports the spec's anchor. 0 BLOCKER, 0 ISSUE.
+
+NOTEs (not this spec's diff, named for the record): `./le rfc check` reports
+stale audit verdicts RFC4271-5.1.4-1 (staled by 8f704db860, a comment-only
+header fix with no `Spec-work` line, made after this spec's re-audit
+245992d954) and RFC4271-8.2.2-13 (`fsm.go::handleActive`, last changed by
+c987777bb8, strict BFD DelayOpen). `./le repo check` reports numberparse
+allowlist and `ze-go-style.md` vendor anchors from other specs' commits. Two
+changed relax-test expectations of affa92003c were judged at closure and
+approved (`./le test weakened approve`, `TestRFC8212RelaxUndoApplyFailureKeepsRejection`
+under (b) `sourcepolicy Owner.ordered`, `TestRFC8212RelaxRefreshFailureOnDownSessionPurges`
+under (a)).
 
 ### Final surface audit
 
@@ -1104,8 +1121,10 @@ handoff. Record what was implemented, what actually ran, unresolved failures
 and the next action before continuing. The specification, not only transient
 session context, must identify where implementation resumes.
 
-Current phase: **4/7, reload and operations**. No whole-spec success, closure or
-RFC conformance claim is made. The approved acceptance criteria remain intact.
+Current phase: **7/7, closure** (2026-10-31). The checkpoints below are the
+history of the implementation; the closure sections at the end of this spec
+(Implementation Audit, Goal Validation, Pre-Commit Verification) are the
+verdict, and every red or owed item they name supersedes the lists here.
 
 Checkpoint 2026-10-30. Phase 3 (D-2, the reversible removal of an Established
 EBGP session's last accepting import policy) is implemented and landed with
@@ -1293,3 +1312,208 @@ Resume Phase3 from the current packages above; do not repeat already observed
 passing checks merely to confirm them. Run each failed regression after its
 producer repair, then the scoped targets reached by the coherent changes.
 No full verification or performance run is authorized on this Linux host.
+
+## Implementation Summary
+
+### What Was Implemented
+- Session-typed exhaustion verdict `filterapi.Policy.AcceptsAtEnd(external bool)`
+  (`internal/component/bgp/filterapi/policy.go`): an unconfigured direction
+  accepts only on IBGP. Every production caller passes the session type
+  (`git grep '\.AcceptsAtEnd('`: filter_ordered, filter_chain,
+  egress_inject_filter, forward_rs both passes, peer_run, peer_settings_apply,
+  policy_reload, policy_dryrun, reactor_api, source_policy_relax,
+  source_policy_reload).
+- Pre-snapshot export admission: `exportFilterForBody` and
+  `session.egressFinalAccepts` read policy and session type under the peer lock
+  when no forwarding snapshot exists (R-2 closed).
+- Reload: export restoration and withdrawal on an effective-verdict change;
+  D-2 reversible import invalidation (`source_policy_reload.go`) with owner
+  ledger, policy epochs and compensation; D-1 import relaxation
+  (`source_policy_relax.go`) refused without Route Refresh, refresh sent on the
+  same session, undo on rollback.
+- Status: peer detail, `show policy chain` and dry-run report the effective
+  final and `final-source rfc8212` (AC-8); establishment warning per closed
+  direction with the exact `set` command (`reactor/rfc8212_warning.go`, AC-9).
+- `ze exabgp migrate` writes `filter import/export { final accept; }` per peer
+  and warns why (`migrateSingleNeighbor`, AC-10).
+- Created peers (`create bgp peer`) are built through the reload pipeline, so
+  they inherit the bgp-level policy (`createdPeerFromRunning`).
+- Fixture migration (encode, plugin, reload, interop, Go-built, reactor) with
+  judge approvals for RFC-tagged and changed expectations; RFC 8212 rows 3-1
+  and 3-2 proven with discrimination records (5e5f540305).
+
+### Bugs Found/Fixed
+- Named automatic loop filter dispatched to a nonexistent external plugin
+  (A-10); covered by the native import carrier's automatic-only control.
+- Startup subscriptions kept only the first peer selector (A-11); covered by
+  the export carrier's accepted receipts.
+- D-1 review findings (cf1b408f1d, affa92003c, 16744a9e7e): undo left
+  never-applied owners eligible, expiry and receipt could both finalize,
+  untruthful undo reports; each with a test red on the prior code.
+- `test/reload/rfc8212-import-invalidate-refresh.ci` claimed Route Refresh
+  without enabling it (137c2dcfcf).
+
+### Documentation Updates
+- `docs/guide/bgp-policy.md` (Verify policy, warning lines), `docs/guide/config-reload.md`,
+  `docs/architecture/behavior/peer-lifecycle.md`, `docs/architecture/bgp/structural-forwarding.md`,
+  `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`,
+  `docs/architecture/core-design.md`, `docs/architecture/config/syntax.md`,
+  `docs/exabgp/exabgp-migration.md`, `docs/guide/redistribution.md`, `docs/guide/bgp-peering.md`,
+  `docs/architecture/bgp/on-demand-origination.md`, `docs/architecture/exabgp-bridge.md`:
+  landed with the implementation commits.
+- At closure: `docs/comparison.md` gains the RFC 8212 default and how FRR and
+  BIRD apply it (anchors `Policy.AcceptsAtEnd`, `warnRFC8212AbsentPolicy`,
+  `migrateSingleNeighbor`); `features/bgp-protocol.md` lists rfc8212, the four
+  carriers and the FRR scenario; `docs/architecture/config/transaction-protocol.md`
+  anchor repointed from the removed `createdPeerSchemaDefaults` to
+  `createdPeerFromRunning`, with the one-builder prose.
+- `./le doc check all`: the only anchor failure this spec caused
+  (`createdPeerSchemaDefaults`) is fixed; the ten remaining anchor claims
+  (interop.md `assignLinkLocal`, rfc-conformance-gates.md `useCaseScope`,
+  ipsec.md `creationReplayOps`, route-policy.md `MustRegisterAttachment` x6)
+  belong to other specs' commits (dfa96ffa2e, route-policy umbrella, and others).
+
+### Deviations from Plan
+- `TestRFC8212ReloadReevaluatesVerdict` (unit) was not written: AC-6/AC-7/R-3
+  are proven end to end by `test/reload/rfc8212-explicit-policy-reload.ci`,
+  red under a `finalChanged := false` mutant and a `reconcileExportFinal`
+  no-withdraw mutant (session 5f56b642 scratch `ci-epr-hb-final.log`,
+  `ci-epr-hb-withdraw.log`).
+- D-1 rise advances no policy epoch at rise; the undo's invalidation opens the
+  fresh epoch under pause, which is the fence (handoff 2026-10-31 05:45).
+- Reload carrier is not tagged RFC8212-3-1 positive: under the positive break its
+  export stage fails first, so a 3-1 record would be misattributed.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-10: named automatic loop filters reach their in-process executor | `PolicyFilterChain` treated the reference as an external plugin | Phase 1 native import draft (`unknown plugin "AUTO"`) | Fixed at the dispatch owner; journal row owned above |
+| assumption | A-11: startup subscriptions keep every selector | `registerSubscriptions` used `Peers[0]` only | Phase 1 export draft lost the accepted receipt | Fixed; journal row owned above |
+| assumption | A-6: a config-only fixture edit keeps RFC records valid | `behaviorBytes` hashes the stdin config, so records and audit verdicts staled | `./le rfc check` stale list | Re-recorded and re-judged per stem |
+| approach | Pages that described the created-peer builder and the public comparison were left for closure | `transaction-protocol.md` cited a removed symbol; `comparison.md` and the feature file did not state the RFC 8212 default | Closure documentation review and `./le doc check all` | Fixed in commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| RFC8212-3-1 absent EBGP import contributes no route | Done | `filterapi/policy.go` `AcceptsAtEnd`; `reactor/filter_ordered.go` `runIngressPolicyChain` | |
+| RFC8212-3-2 absent EBGP export sends no route from any egress path | Done | `egress_inject_filter.go` `exportFilterForBody`; `filter_ordered.go` `runEgressPolicyChain`; `forward_rs.go` both passes; `peer_run.go` `egressFinalAccepts` | |
+| IBGP unchanged | Done | `AcceptsAtEnd` returns `!external` when unconfigured | |
+| ExaBGP-migrated configs keep their behaviour by stating it | Done | `internal/exabgp/migration/migrate.go` `migrateSingleNeighbor` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/plugin/rfc8212-ebgp-no-import-policy.ci`; `TestRFC8212Section3AbsentImportRejectsOnEBGP`; interop assertion 7 | |
+| AC-2 | Done | `test/plugin/rfc8212-ebgp-no-export-policy.ci` (static, forwarded, API, ExaBGP bridge, redistribution); `TestRFC8212Section3AbsentExportRejectsOnEBGP`; `TestRFC8212NativeRSSkipsAbsentExport` | pre-snapshot window via `exportFilterForBody` lock path |
+| AC-3 | Done | interop `ze-reload.conf` bgp-level filter; `test/reload/rfc8212-import-inherited.ci`; bgp-level fixture migration (e.g. 9320450180) passing unchanged | |
+| AC-4 | Done | `test/plugin/rfc8212-ibgp-no-policy-unchanged.ci` (mutant red, 80/80 stress); `TestRFC8212AbsentPolicyAcceptsOnIBGP` | |
+| AC-5 | Done | import carrier automatic-only peer; `InternalPolicy` keeps absence | |
+| AC-6 | Done | `test/reload/rfc8212-explicit-policy-reload.ci`, `test/reload/rfc8212-import-no-refresh.ci`; interop reload with no FRR reset | |
+| AC-7 | Done | `test/reload/rfc8212-explicit-policy-reload.ci` export.withdrawn step | |
+| AC-8 | Done | `test/plugin/rfc8212-policy-status.ci`; `TestRFC8212PolicyInfoReportsDefault`; `TestRFC8212PolicyDryRunWiring` | |
+| AC-9 | Done | `reactor/rfc8212_warning_test.go`; stderr expects in both plugin carriers; `test/editor/workflow/rfc8212-warning-repair-command.et` | |
+| AC-10 | Done | `TestMigrateWritesExplicitRFC8212Policies`; `test/parse/cli-exabgp-migrate-rfc8212-policy.ci` | |
+| AC-11 | Done | `rfc/short/rfc8212.md` without `{gap}`; discrimination records for 3-1/3-2 positive and negative (5e5f540305) | |
+| AC-12 | Done | `test/reload/rfc8212-import-invalidate.ci`, `-invalidate-refresh.ci` | |
+| AC-13 | Done | `test/reload/rfc8212-import-rollback.ci`; `TestRFC8212ImportRollbackAcrossAcceptance` | |
+| AC-14 | Done | `TestRFC8212ImportEpochFences` | |
+| AC-15 | Done | `test/reload/rfc8212-import-owner-failure.ci`; `TestRFC8212ImportAdmissionDeadline` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRFC8212Section3AbsentImportRejectsOnEBGP` | Done | `reactor/rfc8212_default_reject_test.go` | tagged 3-1 negative |
+| `TestRFC8212Section3AbsentExportRejectsOnEBGP` | Done | same | tagged 3-2 negative |
+| `TestRFC8212AbsentPolicyAcceptsOnIBGP` | Done | same | |
+| `TestPolicyVerdictAtExhaustion` | Done | `filterapi/policy_test.go` | |
+| `TestRFC8212ReloadReevaluatesVerdict` | Changed | `test/reload/rfc8212-explicit-policy-reload.ci` | see Deviations |
+| `TestRFC8212PolicyInfoReportsDefault` | Done | `reactor/rfc8212_policy_status_test.go` | |
+| `TestMigrateWritesExplicitRFC8212Policies` | Done | `exabgp/migration/rfc8212_policy_test.go` | |
+| four `.ci` carriers and the FRR scenario | Done | `test/plugin/`, `test/reload/`, `test/interop/scenarios/bgp-rfc8212-default-reject-frr/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `filterapi/policy.go`, `filter_ordered.go`, `filter_chain.go`, `egress_inject_filter.go`, `forward_rs.go`, `peer_run.go`, `policy_reload.go`, `peer_settings_apply.go`, `policy_dryrun.go`, `reactor_api.go` | Done | session type at every verdict |
+| `plugin/types_bgp.go` | Done | `PolicyInfo` final source |
+| `exabgp/migration/migrate.go` | Done | |
+| `rfc/short/rfc8212.md` | Done | |
+| `rfc8212_default_reject_test.go`, carriers, interop scenario | Done | |
+
+### Audit Summary
+- **Total items:** 4 requirements, 15 ACs, 8 test rows, 5 file rows
+- **Done:** all but one test row
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (`TestRFC8212ReloadReevaluatesVerdict`, in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| EBGP with no import policy contributes no route to the Decision Process | interop + functional | `bgp-rfc8212-default-reject-frr` passes (1 passed, 25s, session 5f56b642 scratch `interop-rfc8212-rr.log`, 543a11b870); its assertion 7 goes red when the verdict is broken (record for RFC8212-3-1 negative, 5e5f540305). `test/plugin/rfc8212-ebgp-no-import-policy.ci` red under the absent-accepts break |
+| EBGP with no export policy is sent no route from every egress path | functional | `test/plugin/rfc8212-ebgp-no-export-policy.ci`: static, forwarded, API, ExaBGP bridge and redistribution announcements refused on the absent peer and delivered to the explicit-accept control; recorded red under both breaks (3-2 negative and positive) |
+| IBGP unchanged | functional | `test/plugin/rfc8212-ibgp-no-policy-unchanged.ci`, red under an absent-IBGP-rejects mutant, 80/80 under stress-repro (966cb6ee1f) |
+| Adding explicit policy by reload starts the exchange without a reset | interop + functional | FRR scenario second generation (`ze-reload.conf` bgp-level accept): FRR's route reaches Ze's RIB, Ze's reaches FRR, no session reset; `test/reload/rfc8212-explicit-policy-reload.ci` red under the `finalChanged` and no-withdraw mutants |
+| ExaBGP-migrated configurations keep their behaviour | functional | ExaBGP compatibility suites with ze as migrated DUT: old-4.2 22/22, old-5.0 47/47, api 2/2, encoding 1/1 (f7cae07d14, scratch `p6-exabgp-*.log`); `test/parse/cli-exabgp-migrate-rfc8212-policy.ci` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every acceptance criterion is met; confederation-member exemption is a Known Limitation of a feature Ze does not have, decided by the spec that adds confederations | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/reactor/rfc8212_default_reject_test.go` | Yes | `ls`: 54K, 2026-10-31 |
+| `test/plugin/rfc8212-ebgp-no-import-policy.ci`, `-no-export-policy.ci`, `rfc8212-ibgp-no-policy-unchanged.ci`, `rfc8212-policy-status.ci` | Yes | `ls test/plugin/rfc8212-*.ci` |
+| `test/reload/rfc8212-explicit-policy-reload.ci`, `-import-no-refresh.ci`, `-import-invalidate.ci`, `-import-invalidate-refresh.ci`, `-import-inherited.ci`, `-import-rollback.ci`, `-import-owner-failure.ci` | Yes | `ls test/reload/rfc8212-*.ci` |
+| `test/interop/scenarios/bgp-rfc8212-default-reject-frr/` | Yes | `git ls-files`: frr.conf, frr-sink.conf, ze.conf, ze-reload.conf |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-4, AC-5 | no session-less verdict | `git grep '\.AcceptsAtEnd('` (production): 26 calls, each passes `external`, `isEBGP`, `!destInternal` or `IsEBGP()` |
+| AC-2 | pre-snapshot window rejects | `exportFilterForBody` reads `peer.settings.IsEBGP()` under `peer.mu` when `forwardFacts()` is nil; `egressFinalAccepts` falls back the same way |
+| AC-9 | warning names peer, direction, RFC, fix | `rfc8212_warning.go` `warnRFC8212Direction` attrs peer/address/direction/fix/then |
+| AC-10 | migrate writes both finals | `migrate.go` `migrateSingleNeighbor` sets `filter import/export final accept` and appends the warning |
+| AC-11 | gaps closed, records verified | `./le rfc check` (2026-10-31, scratch `close-rfccheck.log`): no RFC 8212 finding |
+| AC-1..AC-15 | test functions present | `git grep 'func Test...('` for every named unit: all found except the Changed reload unit |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| EBGP peer, no import policy, sends UPDATE | `test/plugin/rfc8212-ebgp-no-import-policy.ci` | Read: 127.0.0.1 has no filter, bgp level carries none; `show` and stderr warning expects; RFC8212-3-1 tags |
+| EBGP peer, no export policy, config and forwarded route | `test/plugin/rfc8212-ebgp-no-export-policy.ci` | Read: `reject=bgp:conn=1:scope=announced` for each origin prefix on the absent peer |
+| IBGP peer, no policy | `test/plugin/rfc8212-ibgp-no-policy-unchanged.ci` | Read: best path polled, API routes reach both IBGP peers |
+| Reload adds `final accept` | `test/reload/rfc8212-explicit-policy-reload.ci` | Read: export.announced, export.withdrawn and ROUTE-REFRESH stages |
+| `ze exabgp migrate` | `test/parse/cli-exabgp-migrate-rfc8212-policy.ci` | Read via f7cae07d14: asserts both finals and the warning |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `git grep '\.AcceptsAtEnd('` lists every consumer with a session argument |
+| A-2 | confirmed as amended | ingress reject precedes cache/forward/delivery (`runIngressPolicyChain`, `notifyMessageReceiver`) |
+| A-3 | confirmed | `publishDynamicResolution` writes AS and policies under one lock; status reports an unresolved dynamic direction as undetermined (`rfc8212-policy-status.ci`) |
+| A-4 | confirmed as amended | explicit `final accept` is policy, no switch; `rfc/short/rfc8212.md` claims no 3-3 |
+| A-5 | confirmed | ExaBGP suites green with migrated configs (f7cae07d14) |
+| A-6 | broken | records and audit verdicts staled; re-recorded and re-judged (Mistake Log) |
+| A-7 | confirmed | D-1: `requestRouteRefreshAll(session) error`; FRR scenario reload installs FRR's route with no reset |
+| A-8 | confirmed | no RFC 7947 store dependency; ingress denial before retained-store delivery |
+| A-9 | confirmed | `Session.Pause` composed in the coordinator; owner-failure and rollback carriers pass |
+| A-10 | broken | Mistake Log; repaired |
+| A-11 | broken | Mistake Log; repaired |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| comparison.md RFC 8212 paragraph | `Policy.AcceptsAtEnd`, `warnRFC8212AbsentPolicy`, `migrateSingleNeighbor`; FRR/BIRD quotes from this spec's Interop evidence | Yes |
+| transaction-protocol.md created peer builder | `reactor_peers.go` `createdPeerSettings` builds through `createdPeerFromRunning` and refuses without a TreeReloadFunc | Yes |
+| features/bgp-protocol.md | `./le feature report` runs; level stays experimental | Yes |
+| bgp-policy.md warning lines | `rfc8212_warning.go` message text and `fix` attr | Yes |

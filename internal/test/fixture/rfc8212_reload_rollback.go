@@ -1,4 +1,4 @@
-// Design: plan/release/fixes/spec-bgp-rfc8212-ebgp-default-reject.md -- AC13/15 fault preparations.
+// Design: docs/functional-tests.md -- real-process RFC 8212 reload rollback and owner-fault preparations.
 // Related: rfc8212_reload_fault.go -- faults cross the existing SDK transaction protocol.
 package fixture
 

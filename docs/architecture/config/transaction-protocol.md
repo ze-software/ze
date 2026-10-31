@@ -715,12 +715,14 @@ it. The reconcile cannot rebuild it: the rejected tree declared its address, so
 the running tree recorded as the prior one never carried it (`ReloadRunning`).
 A prior tree that keeps a created peer's entry, because the rejected tree
 declared its name, has the reconcile compare that entry's pipeline-built
-settings with the running created peer. The two builders agree: `create bgp
-peer` applies the same YANG peer defaults the config pipeline applies, so a
+settings with the running created peer. There is one builder: `create bgp
+peer` adds its entry to a copy of the running configuration and builds it
+through the same pipeline a reload uses, so the created peer carries the YANG
+defaults and the inherited bgp-level policy a configured peer carries, and a
 created peer the rejected reload never touched is neither swapped nor
 restarted by the restore.
 <!-- source: internal/component/plugin/server/reload_compensation.go -- restoreReload -->
-<!-- source: internal/component/bgp/reactor/reactor_peers.go -- createdPeerSchemaDefaults -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- createdPeerFromRunning -->
 <!-- source: internal/component/bgp/reactor/reload_tree.go -- loadPeersFromConfig -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- RestoreCreatedPeers -->
 
