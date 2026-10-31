@@ -177,13 +177,13 @@ func rfcDetailLead(entry *rfcLedgerStem) string {
 		"This summary is " + state + "."
 }
 
-// rfcDetailEyebrow is the label above the heading: the public status this RFC
-// carries, or the fact that the public ledger carries no row for it.
+// rfcDetailEyebrow is the label above the heading: the area this RFC's public
+// row is filed under, or the fact that the public ledger carries no row for it.
 func rfcDetailEyebrow(entry *rfcLedgerStem) string {
-	if entry.PublicStatus == "" {
+	if entry.PublicArea == "" {
 		return rfcNoPublicRow
 	}
-	return entry.PublicStatus
+	return entry.PublicArea
 }
 
 // rfcDetailCards answers one summary's headline numbers, each with the tone
@@ -296,7 +296,7 @@ func rfcOverviewMirror(entry *rfcLedgerStem) string {
 // different facts about one summary (AC-9).
 func rfcGlanceFacts(entry *rfcLedgerStem) [][2]string {
 	return [][2]string{
-		{"Public status", html.EscapeString(rfcDetailEyebrow(entry))},
+		{"Public row", html.EscapeString(rfcDetailEyebrow(entry))},
 		{rfcEnrolmentLabel, html.EscapeString(rfcEnrolmentState(entry))},
 		{"Requirements", strconv.Itoa(entry.Coverage.Requirements)},
 		{"Gated MUST-level", strconv.Itoa(entry.Coverage.Gated)},
@@ -396,129 +396,41 @@ func rfcEnrolmentMirror(entry *rfcLedgerStem) string {
 	return rfcEnrolmentText(entry) + "\n"
 }
 
-// rfcPublicLedgerHTML renders what docs/features/rfc-status.md says about this
-// RFC: the status it publishes, what it says is covered, and what it says
-// remains.
-//
-// Three labeled facts rather than one paragraph. The cell was reproduced
-// verbatim and on RFC 4271 that is nine hundred words of editorial prose in
-// front of a reader who wanted the status (owner review, 2026-09-01). Nothing
-// is dropped: this is the disclosure, so the long halves are FOLDED behind a
-// disclosure and a reader who opens one reads the whole cell.
+// rfcPublicLedgerFacts answers the cells this RFC's row on
+// docs/features/rfc-status.md prints: its area, then its derived proof, the
+// evidence kinds behind it and its unmet requirement ids. One list, read by
+// the page and by the mirror, so the two cannot state different facts.
+func rfcPublicLedgerFacts(entry *rfcLedgerStem) [][2]string {
+	proof, evidence, unmet := rfcNoProfileCell, rfcNoProfileCell, rfcNoProfileCell
+	if entry.Figures != nil {
+		proof, evidence, unmet = entry.Figures.ProofCell(), entry.Figures.EvidenceCell(), entry.Figures.UnmetCell()
+	}
+	return [][2]string{{"Area", entry.PublicArea}, {"Proof", proof}, {"Evidence", evidence}, {"Unmet", unmet}}
+}
+
+// rfcPublicLedgerHTML states what the public ledger says about this RFC: its
+// row's area and derived proof, or that the ledger carries no row for it.
 func rfcPublicLedgerHTML(entry *rfcLedgerStem) string {
-	if entry.PublicStatus == "" {
+	if entry.PublicArea == "" {
 		return "<p>" + html.EscapeString(rfcNoPublicRow+rfcNoPublicRowWhy(entry)) + "</p>"
 	}
-	declared := rfcDeclaredIDs(entry)
-	return "<p><strong>Status:</strong> " + html.EscapeString(entry.PublicStatus) + "</p>\n" +
-		rfcClaimsHTML("What the ledger says is covered", rfcCoverageProse(entry), declared) +
-		"\n" +
-		rfcThemesHTML("What the ledger says remains", rfcRemainingText(entry), declared)
+	var out textbuf.Buffer
+	for _, fact := range rfcPublicLedgerFacts(entry) {
+		out.Str("<p><strong>").Str(fact[0]).Str(":</strong> ").Str(html.EscapeString(fact[1])).Str("</p>\n")
+	}
+	return out.String()
 }
 
-// rfcPublicLedgerMirror states the same three facts, and the same items.
+// rfcPublicLedgerMirror states the same facts.
 func rfcPublicLedgerMirror(entry *rfcLedgerStem) string {
-	if entry.PublicStatus == "" {
+	if entry.PublicArea == "" {
 		return rfcNoPublicRow + rfcNoPublicRowWhy(entry) + "\n"
 	}
-	declared := rfcDeclaredIDs(entry)
-	return "**Status:** " + entry.PublicStatus + "\n\n" +
-		rfcClaimsMirror("What the ledger says is covered", rfcCoverageProse(entry), declared) +
-		"\n" +
-		rfcThemesMirror("What the ledger says remains", rfcRemainingText(entry), declared)
-}
-
-// rfcDeclaredIDs answers the requirement ids this summary declares, which is
-// the set a mention in its prose can be linked to.
-func rfcDeclaredIDs(entry *rfcLedgerStem) map[string]bool {
-	declared := make(map[string]bool, len(entry.Requirements))
-	for index := range entry.Requirements {
-		declared[entry.Requirements[index].RID] = true
+	var out textbuf.Buffer
+	for _, fact := range rfcPublicLedgerFacts(entry) {
+		out.Str("**").Str(fact[0]).Str(":** ").Str(fact[1]).Str("\n\n")
 	}
-	return declared
-}
-
-// rfcClaimsHTML renders a Coverage cell as the list of claims it is.
-//
-// The cell is a semicolon-chained list and was published as one paragraph of
-// four thousand characters, which is unreadable and hides the structure the
-// author wrote (owner review, 2026-09-01). A cell with no top-level semicolon
-// answers one item and renders as the paragraph it is.
-func rfcClaimsHTML(label, prose string, declared map[string]bool) string {
-	items := rfcProseSplit(prose)
-	if len(items) < 2 {
-		return rfcFoldMarkupHTML(label, prose, rfcProseHTML(prose, declared))
-	}
-	var body textbuf.Buffer
-	body.Str("<ul class=\"rfc-prose\">\n")
-	for _, item := range items {
-		// An empty item is the trailing semicolon the split keeps so that
-		// rejoining reproduces the cell. It carries no claim, so it gets no
-		// bullet.
-		if strings.TrimSpace(item) == "" {
-			continue
-		}
-		body.Str("<li>").Str(rfcProseHTML(strings.TrimSpace(item), declared)).Str("</li>\n")
-	}
-	body.Str("</ul>")
-	return rfcFoldMarkupHTML(label, prose, body.String())
-}
-
-// rfcClaimsMirror states the same claims.
-func rfcClaimsMirror(label, prose string, declared map[string]bool) string {
-	items := rfcProseSplit(prose)
-	if len(items) < 2 {
-		return rfcFoldMarkupMirror(label, prose, rfcProseMirror(prose, declared))
-	}
-	var body textbuf.Buffer
-	for _, item := range items {
-		if strings.TrimSpace(item) == "" {
-			continue
-		}
-		body.Str("- ").Str(rfcProseMirror(strings.TrimSpace(item), declared)).Byte('\n')
-	}
-	return rfcFoldMarkupMirror(label, prose, body.String())
-}
-
-// rfcThemesHTML renders a Remaining cell as its lead and its themed groups.
-//
-// The author wrote "Header error reporting: ...", "Timers: ..." and so on, and
-// the renderer published them as one paragraph. A cell carrying no theme
-// answers one part and renders whole rather than gaining headings nobody wrote.
-func rfcThemesHTML(label, prose string, declared map[string]bool) string {
-	themes := rfcProseThemes(prose)
-	if len(themes) < 2 {
-		return rfcFoldMarkupHTML(label, prose, rfcProseHTML(prose, declared))
-	}
-	var body textbuf.Buffer
-	for _, theme := range themes {
-		if theme.Label == "" {
-			body.Str("<p>").Str(rfcProseHTML(strings.TrimSpace(theme.Body), declared)).
-				Str("</p>\n")
-			continue
-		}
-		body.Str("<p class=\"rfc-prose\"><strong>").Str(html.EscapeString(theme.Label)).
-			Str(":</strong> ").Str(rfcProseHTML(strings.TrimSpace(theme.Body), declared)).Str("</p>\n")
-	}
-	return rfcFoldMarkupHTML(label, prose, strings.TrimSuffix(body.String(), "\n"))
-}
-
-// rfcThemesMirror states the same lead and the same themes.
-func rfcThemesMirror(label, prose string, declared map[string]bool) string {
-	themes := rfcProseThemes(prose)
-	if len(themes) < 2 {
-		return rfcFoldMarkupMirror(label, prose, rfcProseMirror(prose, declared))
-	}
-	var body textbuf.Buffer
-	for _, theme := range themes {
-		if theme.Label == "" {
-			body.Str(rfcProseMirror(strings.TrimSpace(theme.Body), declared)).Str("\n\n")
-			continue
-		}
-		body.Str("- **").Str(theme.Label).Str(":** ").
-			Str(rfcProseMirror(strings.TrimSpace(theme.Body), declared)).Byte('\n')
-	}
-	return rfcFoldMarkupMirror(label, prose, strings.TrimSuffix(body.String(), "\n"))
+	return out.String()
 }
 
 // rfcNoPublicRowWhy says where the absence is DECLARED.
@@ -529,29 +441,6 @@ func rfcThemesMirror(label, prose string, declared map[string]bool) string {
 func rfcNoPublicRowWhy(entry *rfcLedgerStem) string {
 	return ", so its summary declares `| Support | - |` and docs/features/rfc-status.md " +
 		"carries no row for " + entry.Display + "."
-}
-
-// rfcCoverageProse answers the public ledger's Coverage cell, and says plainly
-// when the row states none.
-func rfcCoverageProse(entry *rfcLedgerStem) string {
-	prose := rfcAuthoringNotesRemoved(entry.PublicCoverage)
-	if prose == "" {
-		return "the public row declares no coverage prose"
-	}
-	return prose
-}
-
-// rfcRemainingText answers the public ledger's Remaining cell, or says the page
-// carries no row for this RFC.
-func rfcRemainingText(entry *rfcLedgerStem) string {
-	if entry.PublicStatus == "" {
-		return rfcNoPublicRow
-	}
-	prose := rfcAuthoringNotesRemoved(entry.PublicRemaining)
-	if prose == "" {
-		return "the public row declares no remainder"
-	}
-	return prose
 }
 
 // rfcCoverageBucket is one polarity bucket: what it counts, how many, and the

@@ -1,0 +1,6 @@
+# Test: a summary carrying the retired Support status cell is refused by le rfc check.
+# accept-only: registered fixture writes one summary with the retired cell into its own HEAD export and requires one refusal naming the summary, the label, that the cell is retired and proof derived, and the fix: delete the row.
+option=timeout:value=900s
+cmd=foreground:seq=1:exec=le test fixture ui/le-rfc-retired-support-cell
+expect=exit:code=0
+expect=stdout:contains=OK

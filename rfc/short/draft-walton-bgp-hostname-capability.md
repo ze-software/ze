@@ -15,9 +15,6 @@
 | Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | drafts |
 | Support area | BGP FQDN capability code 73 |
-| Support status | Supported |
-| Support coverage | The draft states no MUST-level obligation: its only RFC 2119 keyword outside the Section 2 key-words paragraph is one SHOULD in Section 4, which is why `rfc/extraction/draft-walton-bgp-hostname-capability.json` signs off under `manual-walk`. Capability code 73, decode support, and per-peer hostname and domain advertisement (`FQDN`, `internal/core/bgp/capability/capability.go`). Carried as `RFC 8516` in the table above until 2026-08-30; RFC 8516 is the CoAP "Too Many Requests" response code and has nothing to do with BGP. IANA names this draft as the reference for code 73, and the scoped config keys the capability emits had always spelled it. |
-| Support remaining | - |
 | Use cases | - |
 | Optional use cases | - |
 

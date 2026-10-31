@@ -134,7 +134,7 @@ func TestALowerLayerAnnotationCannotDisplaceAGap(t *testing.T) {
 // what would happen if the kind's declared traits let a verified record prove
 // it. The annotated corpus carries a record on that row to show it does not.
 func TestALowerLayerRequirementIsAnnotatedAndNotProven(t *testing.T) {
-	metas := map[string]Meta{"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Supported"}}
+	metas := map[string]Meta{"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true}}
 	tags := []Tag{
 		{RID: "RFC1-1-1", Polarity: PolarityPositive, File: "a_test.go"},
 		{RID: "RFC1-1-1", Polarity: PolarityNegative, File: "a_test.go"},

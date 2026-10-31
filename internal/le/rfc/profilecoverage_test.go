@@ -323,8 +323,8 @@ func TestTheRollupCeilingSumsWalkedMembersOnly(t *testing.T) {
 func TestCeilingMinimumHasNoInventedMeasurement(t *testing.T) {
 	rows := []*TreeRow{
 		{Stem: "rfc1", Summary: true, Walked: true},
-		{Stem: "rfc2", Summary: true, MandatoryTotal: 9},
-		{Stem: "rfc3", Walked: true, MandatoryTotal: 9},
+		{Stem: "rfc2", Summary: true, Mandatory: Figure{Total: 9}},
+		{Stem: "rfc3", Walked: true, Mandatory: Figure{Total: 9}},
 	}
 	summary := CeilingOf(rows)
 	if summary.LowestMandatory != nil || summary.LowestOptional != nil || summary.Mandatory.Total != 0 {
@@ -338,8 +338,8 @@ func TestCeilingMinimumHasNoInventedMeasurement(t *testing.T) {
 		t.Errorf("summary-less cells = %q, %q", mandatory, optional)
 	}
 	tied := CeilingOf([]*TreeRow{
-		{Stem: "rfc10", Summary: true, Walked: true, MandatoryTotal: 4, MandatoryAttainable: 2},
-		{Stem: "rfc2", Summary: true, Walked: true, MandatoryTotal: 2, MandatoryAttainable: 1},
+		{Stem: "rfc10", Summary: true, Walked: true, Mandatory: Figure{Total: 4, Attainable: 2}},
+		{Stem: "rfc2", Summary: true, Walked: true, Mandatory: Figure{Total: 2, Attainable: 1}},
 	})
 	if tied.LowestMandatory == nil || tied.LowestMandatory.Stem != "rfc2" {
 		t.Errorf("tie = %+v, want rfc2 in RFC-number order", tied.LowestMandatory)
@@ -374,9 +374,7 @@ func TestCeilingRenderingBoundaries(t *testing.T) {
 // TestCeilingTextSeparatesExclusions renders both text paths and ensures an
 // unwalked row's retained raw counts never escape as measurements.
 func TestCeilingTextSeparatesExclusions(t *testing.T) {
-	row := &TreeRow{Stem: "rfc1", Summary: true, Walked: true,
-		MandatoryTotal: 2, MandatoryAttainable: 1, MandatoryExcluded: map[string]int{AnnotationLinuxLimit: 1},
-		OptionalTotal: 3, OptionalAttainable: 1, OptionalExcluded: map[string]int{AnnotationLowerLayer: 2}}
+	row := &TreeRow{Stem: "rfc1", Summary: true, Walked: true, Mandatory: Figure{Total: 2, Attainable: 1, Excluded: map[string]int{AnnotationLinuxLimit: 1}}, Optional: Figure{Total: 3, Attainable: 1, Excluded: map[string]int{AnnotationLowerLayer: 2}}}
 	report := TreeReport{Rows: []*TreeRow{row}}
 	summary := CeilingOf(report.Rows)
 	for label, text := range map[string]string{"tree": report.Text(), "rollup": summary.Rollup.String()} {

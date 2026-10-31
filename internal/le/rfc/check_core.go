@@ -94,7 +94,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 			// A rollup raises no finding of its own: fill wrote its derived
 			// state and cause onto the row, and every state it can derive is
 			// already reported once under the target's own id, a {gap} by
-			// the Remaining cell and an unproven row by the arm below
+			// the derived Unmet cell and an unproven row by the arm below
 			// (owner decision, 2026-09-15).
 			continue
 		}

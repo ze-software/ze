@@ -77,14 +77,11 @@ const notEnrolledRel = "rfc/not-enrolled.txt"
 // statusRel is the generated public claim, repo-relative.
 const statusRel = "docs/features/rfc-status.md"
 
-// LedgerRow is one public page row, by the three cells the checks read. It is
-// derived from a summary's Meta table by rowsFrom, never parsed back off the
-// page the render writes.
-type LedgerRow struct {
-	Status    string `json:"status"`
-	Coverage  string `json:"coverage"`
-	Remaining string `json:"remaining"`
-}
+// LedgerRow marks one public page row. It holds no field: the row's only
+// authored cell is Meta.Area, and its proof cells are derived from
+// StemFigures, so presence in rowsFrom's map is the whole fact. It is derived
+// from a summary's Meta table, never parsed back off the page the render writes.
+type LedgerRow struct{}
 
 var (
 	// rfcRefRE reads an `RFC 1234` reference out of a Meta cell.

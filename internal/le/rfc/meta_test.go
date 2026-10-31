@@ -36,8 +36,7 @@ func TestSupportNamesAggregate(t *testing.T) {
 	}
 
 	unrowed := strings.NewReplacer("| Support | "+FixtureAggregate+" |", "| Support | - |\n| Aggregate | tunnels |",
-		"| Support area | Widgets |\n", "", "| Support status | Partial |\n", "",
-		"| Support coverage | unit tests |\n", "", "| Support remaining | Zero MUST gaps. |\n", "").
+		"| Support area | Widgets |\n", "").
 		Replace("# RFC 9999\n\n" + selftestMeta)
 	meta, err = ParseMeta(unrowed, "rfc9999", "")
 	if err != nil {
@@ -70,9 +69,10 @@ func TestSupportNamesAggregate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := checkAggregate(&brief, aggregates, "rfc9999", "rfc/short/rfc9999.md"); err == nil ||
-		!strings.Contains(err.Error(), "four columns") {
-		t.Errorf("a brief row with a Remaining cell is not refused: %v", err)
+	// A brief row authors only its Area: Proof and Unmet are derived, so the
+	// shape has no authored cell left to refuse.
+	if err := checkAggregate(&brief, aggregates, "rfc9999", "rfc/short/rfc9999.md"); err != nil {
+		t.Errorf("a brief row in the derived shape is refused: %v", err)
 	}
 }
 
@@ -86,8 +86,7 @@ func TestBaselineReadsTheRetiredSectionRank(t *testing.T) {
 		t.Fatalf("a retired row summary is not read by the baseline: %+v %v", meta, err)
 	}
 	unrowed := strings.NewReplacer("| Support | bgp-base 10 |", "| Support | - |",
-		"| Support area | Widgets |\n", "", "| Support status | Partial |\n", "",
-		"| Support coverage | unit tests |\n", "", "| Support remaining | Zero MUST gaps. |\n", "").Replace(rowed)
+		"| Support area | Widgets |\n", "").Replace(rowed)
 	meta, err = ParseMeta(retiredSectionRank(unrowed), "rfc9999", "")
 	if err != nil || meta.HasRow() || meta.Aggregate != retiredShapeAggregate {
 		t.Fatalf("a retired no-row summary is not read by the baseline: %+v %v", meta, err)
@@ -225,6 +224,45 @@ func TestBaselineReadsSummariesWithoutUseCaseRows(t *testing.T) {
 	}
 }
 
+// TestBaselineReadsSummariesWithRetiredSupportCells: a HEAD^ summary written
+// before the derived proof, still carrying the three authored support cells,
+// is read by the baseline with the same public row and area as the summary
+// without them, while the live reader refuses it. Method: the selftest table
+// with the three cells added below its `Support` row, also in the retired
+// `<section> <rank>` shape, parsed live and through retiredBaselineShapes.
+func TestBaselineReadsSummariesWithRetiredSupportCells(t *testing.T) {
+	current := "# RFC 9999\n\n" + selftestMeta
+	support := "| Support | " + FixtureAggregate + " |"
+	if !strings.Contains(current, support+"\n") {
+		t.Fatalf("the selftest table carries no %q row to put the retired cells under", support)
+	}
+	want, err := ParseMeta(current, "rfc9999", metaWhere)
+	if err != nil {
+		t.Fatalf("ParseMeta of the selftest table: %v", err)
+	}
+	cells := "| Support status | Partial |\n| Support coverage | widgets only |\n| Support remaining | RFC9999-2-1 |\n"
+	retired := strings.Replace(current, support+"\n", support+"\n"+cells, 1)
+	if _, err := ParseMeta(retired, "rfc9999", metaWhere); err == nil {
+		t.Fatal("the live reader accepts a summary that authors the retired support cells")
+	}
+	for label, text := range map[string]string{
+		"current Support": retired,
+		"retired rank":    strings.Replace(retired, support, "| Support | bgp 3 |", 1),
+	} {
+		meta, err := ParseMeta(retiredBaselineShapes(text), "rfc9999", metaWhere)
+		if err != nil {
+			t.Fatalf("%s: the baseline could not read it: %v", label, err)
+		}
+		if meta.HasRow() != want.HasRow() || meta.Area != want.Area {
+			t.Errorf("%s: the baseline read row %v area %q, want row %v area %q",
+				label, meta.HasRow(), meta.Area, want.HasRow(), want.Area)
+		}
+	}
+	if retiredBaselineShapes(current) != current {
+		t.Error("the baseline rewrite changed a summary that carries no retired support cell")
+	}
+}
+
 // TestAggregateTierOptional: a summary joins its aggregate's optional tier by
 // writing `| Aggregate tier | optional |` beside the `Support` or `Aggregate`
 // cell that names the aggregate, and its absence is the required tier.
@@ -251,8 +289,7 @@ func TestAggregateTierOptional(t *testing.T) {
 		t.Errorf("a rowed optional summary parsed as %+v", rowed)
 	}
 	unrowed := strings.NewReplacer(support, "| Support | - |\n| Aggregate | tunnels |\n| Aggregate tier | optional |",
-		"| Support area | Widgets |\n", "", "| Support status | Partial |\n", "",
-		"| Support coverage | unit tests |\n", "", "| Support remaining | Zero MUST gaps. |\n", "").
+		"| Support area | Widgets |\n", "").
 		Replace("# RFC 9999\n\n" + selftestMeta)
 	bare, err := ParseMeta(unrowed, "rfc9999", where)
 	if err != nil {
@@ -270,6 +307,42 @@ func TestAggregateTierOptional(t *testing.T) {
 			_, err := ParseMeta(aggregateMeta(support+"\n| Aggregate tier | "+value+" |"), "rfc9999", where)
 			if err == nil || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), where) {
 				t.Fatalf("want a refusal naming %q and the file, got %v", want, err)
+			}
+		})
+	}
+}
+
+// derivedShapeMeta is the selftest Meta table with every retired authored
+// support cell removed, which is the shape the derived ledger accepts.
+func derivedShapeMeta() string {
+	var kept []string
+	for line := range strings.SplitSeq(selftestMeta, "\n") {
+		if strings.HasPrefix(line, "| Support status |") ||
+			strings.HasPrefix(line, "| Support coverage |") ||
+			strings.HasPrefix(line, "| Support remaining |") {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	return "# RFC 9999\n\n" + strings.Join(kept, "\n")
+}
+
+// TestParseMetaRefusesRetiredSupportCells: AC-1. Each of the three authored
+// support cells is retired, because the ledger derives proof from verified
+// records; a summary still carrying one is refused naming the summary and the
+// label, saying the cell is retired and the proof derived, with the fix.
+// Method: the derived-shape table plus one row of each label in turn.
+func TestParseMetaRefusesRetiredSupportCells(t *testing.T) {
+	for _, label := range []string{"Support status", "Support coverage", "Support remaining"} {
+		t.Run(label, func(t *testing.T) {
+			_, err := ParseMeta(derivedShapeMeta()+"| "+label+" | Partial |\n", "rfc9999", metaWhere)
+			if err == nil {
+				t.Fatalf("a summary carrying `%s` parsed", label)
+			}
+			for _, want := range []string{metaWhere, "`" + label + "`", "retired", "derived", "delete the row"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal %q does not name %q", err, want)
+				}
 			}
 		})
 	}

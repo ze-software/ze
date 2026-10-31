@@ -8,7 +8,7 @@
 | Release reason | Truthful release support claims: the RFC ledger's hand-written Support status mixes availability with proof, so it under- and over-claims. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 1/6 |
+| Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-10-30 |
 

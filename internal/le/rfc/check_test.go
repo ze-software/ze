@@ -716,37 +716,15 @@ var Gating = []string{suiteParse, suiteUi}
 	}
 }
 
-// supportClaimSplit counts a set of Status cells by the three SHAPES a public support
-// promise takes: the bare word, the word with a scope after it, and the legacy `Yes`.
-//
-// It is a test-local census and never a second copy of statusPromisesSupport: the
-// producer answers one yes/no question, and this answers which of its three arms fired.
-// The tests below assert that the three arms sum to what the producer accepts, so a
-// shape that stopped being counted here cannot pass unnoticed.
-func supportClaimSplit(statuses []string) (exact, qualified, yes int) {
-	for _, status := range statuses {
-		status = strings.TrimSpace(status)
-		switch {
-		case status == "Supported":
-			exact++
-		case status == "Yes":
-			yes++
-		case strings.HasPrefix(status, "Supported "):
-			qualified++
-		}
-	}
-	return exact, qualified, yes
-}
-
 // signedExtractionFixture answers what evaluateExtractions returned over the smallest
 // checkout it will sign off: the selftest summary, the source text its requirements were
 // extracted from, and the artifact the selftest writer derives from that source.
 //
 // The map comes from the producer rather than being typed here, because the property
-// under test is that checkSupportedSignoff and the sign-off evaluator agree on what
-// "signed" means. When skeleton is true every site carries a null disposition, which is
-// the state `./le rfc extraction create` writes and the state R-1 predicts a session will
-// generate in bulk. The evaluator refuses it, so the stem is absent from the map.
+// under test is what the sign-off evaluator itself counts as "signed". When skeleton is
+// true every site carries a null disposition, which is the state
+// `./le rfc extraction create` writes and the state R-1 predicts a session will generate
+// in bulk. The evaluator refuses it, so the stem is absent from the map.
 func signedExtractionFixture(t *testing.T, skeleton bool) map[string]Extraction {
 	t.Helper()
 
@@ -797,91 +775,30 @@ func signedExtractionFixture(t *testing.T, skeleton bool) map[string]Extraction 
 	return signed
 }
 
-// VALIDATES: a row that promises support, over a stem with a summary and no valid
-// extraction sign-off, is refused, and the message names the stem, the Status cell
-// verbatim and the artifact path the reviewer must write.
-// PREVENTS: a public promise resting on a checklist nothing bounds. `./le rfc check`
-// proves every requirement a summary LISTS; an obligation nobody extracted is owed no
-// test, so the gate is green for it and stays green forever.
-//
-// The check is called leaf-directly with hand-built maps because it is not yet wired
-// into check(): the real tree carries 40-odd unsigned support claims, so calling it from
-// the driver would red the repository gate for every session sharing this checkout until
-// the spec's data phases land.
-func TestCheckSupportedSignoffRefusesUnsignedSupportedRow(t *testing.T) {
-	errs := checkSupportedSignoff(
-		map[string]LedgerRow{selftestStem: {Status: "Supported"}},
-		map[string]Extraction{})
-
-	if len(errs) != 1 {
-		t.Fatalf("an unsigned Supported row answered %d violation(s): %v", len(errs), errs)
-	}
-	for _, want := range []string{selftestStem, "'Supported'", "rfc/extraction/rfc9999.json",
-		"./le rfc extraction create stem rfc9999"} {
-		if !strings.Contains(errs[0], want) {
-			t.Errorf("the violation does not name %q:\n%s", want, errs[0])
+// VALIDATES: evaluateExtractions holds the artifact the selftest writer derives in its
+// signed set, and holds no stem whose artifact is an unclassified skeleton, whether the
+// skeleton is the writer's own document with every disposition nulled or one typed as
+// JSON. These are the halves of the retired support sign-off tests that judged the
+// evaluator rather than the retired Status cell.
+// PREVENTS: risk R-1, a session generating skeletons in bulk to show progress.
+// StemFiguresOf counts a stem walked exactly when evaluateExtractions holds it, so a
+// skeleton the evaluator accepted would publish a Proof figure over a requirement list
+// nobody bounded against the RFC's text, where the page must say "not walked".
+func TestEvaluateExtractionsSignsOnlyAClassifiedArtifact(t *testing.T) {
+	t.Run("the writer's artifact is signed", func(t *testing.T) {
+		if _, held := signedExtractionFixture(t, false)[selftestStem]; !held {
+			t.Fatal("the artifact the selftest writer derives earned no sign-off from evaluateExtractions")
 		}
-	}
-}
-
-// VALIDATES: the intended end state is clean -- every support-promising row whose stem
-// carries a summary and a valid sign-off passes, scope-qualified rows included.
-// PREVENTS: a check that refuses its whole population, which would be red for a reason
-// nobody could act on and would never go green however much work landed.
-func TestCheckSupportedSignoffPassesWhenEverySupportedRowIsSigned(t *testing.T) {
-	errs := checkSupportedSignoff(
-		map[string]LedgerRow{
-			"rfc1000": {Status: "Supported"},
-			"rfc1001": {Status: "Supported on Linux"},
-			"rfc1002": {Status: "Yes"},
-		},
-		map[string]Extraction{
-			"rfc1000": {Stem: "rfc1000", Register: registerRFC2119},
-			"rfc1001": {Stem: "rfc1001", Register: registerProse},
-			"rfc1002": {Stem: "rfc1002", Register: registerRFC2119},
-		})
-
-	if len(errs) != 0 {
-		t.Errorf("the intended end state answered %d violation(s): %v", len(errs), errs)
-	}
-}
-
-// VALIDATES: a status that does NOT promise conformance is outside the population, with
-// no summary and no sign-off: 'Unsupported', 'Future', 'Partial', 'Experimental' and the
-// page's one 'Not supported' cell.
-// PREVENTS: the wrong predicate. statusIsSupportClaim, the neighbor in check_status.go,
-// returns true for everything except the literals 'Unsupported' and 'Future', so it
-// accepts 'Partial' (66 rows on the page today), 'Experimental' (30) and 'Not supported'
-// (1). A test covering only the two literals would pass against it and the check would
-// demand a sign-off from 144 of 158 rows.
-func TestCheckSupportedSignoffIgnoresUnsupportedAndFuture(t *testing.T) {
-	rows := map[string]LedgerRow{
-		"rfc2000": {Status: "Unsupported"},
-		"rfc2001": {Status: "Future"},
-		"rfc2002": {Status: "Partial"},
-		"rfc2003": {Status: "Experimental"},
-		"rfc2004": {Status: "Not supported"},
-	}
-
-	errs := checkSupportedSignoff(
-		rows, map[string]Extraction{})
-
-	if len(errs) != 0 {
-		t.Errorf("a status that discloses rather than promises answered %d violation(s): %v",
-			len(errs), errs)
-	}
-}
-
-// VALIDATES: an artifact that EXISTS but is an unclassified skeleton does not satisfy the
-// check, because the population it reads is the set evaluateExtractions ACCEPTED.
-// PREVENTS: risk R-1 of the spec -- a session generating skeletons in bulk to show
-// progress. The skeleton is built through the real producer over a fixture tree rather
-// than by omitting a map key, so the test proves the two halves agree: what
-// evaluateExtractions refuses is what this check refuses to credit.
-func TestCheckSupportedSignoffRefusesSkeletonArtifact(t *testing.T) {
-	tree := fixtureTree(t, map[string]string{
-		"rfc/full/rfc9999.txt": derivedFixture,
-		"rfc/extraction/rfc9999.json": `{"schema-version": 1, "stem": "rfc9999",
+	})
+	t.Run("the generated skeleton is not signed", func(t *testing.T) {
+		if _, held := signedExtractionFixture(t, true)[selftestStem]; held {
+			t.Fatal("a skeleton artifact earned a sign-off from evaluateExtractions")
+		}
+	})
+	t.Run("a typed skeleton is not signed", func(t *testing.T) {
+		tree := fixtureTree(t, map[string]string{
+			"rfc/full/rfc9999.txt": derivedFixture,
+			"rfc/extraction/rfc9999.json": `{"schema-version": 1, "stem": "rfc9999",
  "register": "rfc2119", "source-path": "rfc/full/rfc9999.txt",
  "source-sha": "` + RequirementSHA(derivedFixture) + `",
  "signed-off": "", "reviewer": "",
@@ -889,85 +806,28 @@ func TestCheckSupportedSignoffRefusesSkeletonArtifact(t *testing.T) {
               {"id": "1", "sites": 0, "disposition": null},
               {"id": "2", "sites": 1, "disposition": null}],
  "sites": [{"id": "2:1", "quote": "A speaker MUST send the widget.", "disposition": null}]}`,
-	})
+		})
 
-	signed, extractionErrors, err := evaluateExtractions(NewDeriver(tree), nil)
-	if err != nil {
-		t.Fatalf("evaluate the fixture sign-off: %v", err)
-	}
-	if len(extractionErrors) == 0 {
-		t.Fatal("the skeleton produced no extraction violation, so this test would prove nothing")
-	}
-
-	errs := checkSupportedSignoff(
-		map[string]LedgerRow{selftestStem: {Status: "Supported"}},
-		signed)
-
-	if len(errs) != 1 {
-		t.Fatalf("a skeleton satisfied the check: %d violation(s): %v", len(errs), errs)
-	}
-	if !strings.Contains(errs[0], "rfc/extraction/rfc9999.json") {
-		t.Errorf("the violation does not name the artifact path:\n%s", errs[0])
-	}
-}
-
-// VALIDATES: a sign-off the evaluator itself produced is credited, so checkSupportedSignoff
-// and evaluateExtractions agree on what "signed" means, and a scope-qualified row is the
-// one it is asked about.
-// PREVENTS: a check that passes against a hand-built map while the real evaluator hands it
-// a shape it does not credit. The sibling test above states the same end state over the
-// three status shapes with typed Extraction values; this one derives its single value from
-// the producer.
-func TestCheckSupportedSignoffCreditsTheEvaluatorsOwnSignoff(t *testing.T) {
-	signed := signedExtractionFixture(t, false)
-	if _, held := signed[selftestStem]; !held {
-		t.Fatal("the fixture artifact earned no sign-off, so this test asserts nothing")
-	}
-
-	errs := checkSupportedSignoff(
-		map[string]LedgerRow{selftestStem: {Status: "Supported on Linux", Coverage: "the widget sender"}},
-		signed)
-
-	if len(errs) != 0 {
-		t.Fatalf("a signed support claim answered %d violation(s): %v", len(errs), errs)
-	}
-}
-
-// VALIDATES: the skeleton shape `./le rfc extraction create` writes, every site disposition
-// null, earns no credit when it is produced by the real artifact writer rather than typed
-// as JSON.
-// PREVENTS: risk R-1 reached by its second route. The sibling test above plants the null
-// dispositions as artifact text; this one strips them from the document the selftest writer
-// derives, so a generator that started emitting a creditable shape fails here.
-func TestCheckSupportedSignoffRefusesTheGeneratedSkeleton(t *testing.T) {
-	signed := signedExtractionFixture(t, true)
-	if _, held := signed[selftestStem]; held {
-		t.Fatal("a skeleton artifact earned a sign-off from evaluateExtractions")
-	}
-
-	errs := checkSupportedSignoff(
-		map[string]LedgerRow{selftestStem: {Status: "Supported"}},
-		signed)
-
-	if len(errs) != 1 {
-		t.Fatalf("a skeleton artifact answered %d violation(s): %v", len(errs), errs)
-	}
-	for _, want := range []string{selftestStem, "rfc/extraction/rfc9999.json"} {
-		if !strings.Contains(errs[0], want) {
-			t.Errorf("the violation does not name %q:\n%s", want, errs[0])
+		signed, extractionErrors, err := evaluateExtractions(NewDeriver(tree), nil)
+		if err != nil {
+			t.Fatalf("evaluate the fixture sign-off: %v", err)
 		}
-	}
+		if len(extractionErrors) == 0 {
+			t.Error("the skeleton produced no extraction violation")
+		}
+		if _, held := signed[selftestStem]; held {
+			t.Fatal("a typed skeleton artifact earned a sign-off from evaluateExtractions")
+		}
+	})
 }
 
-// VALIDATES: support scope is derived from today's declarations, not a historic
-// corpus size. Every declared row appears once in its section, and the support
-// promises partition into exact, qualified and legacy Yes shapes.
-// METHOD: compare row identities and sections with the rendered page.
-func TestSupportedRowsHaveDerivableScope(t *testing.T) {
-	root, err := lepath.Root()
-	if err != nil {
-		t.Fatalf("resolve checkout: %v", err)
-	}
+// VALIDATES: the public page renders every declared row exactly once, in the section of
+// the aggregate it declares, and renders no row nobody declared. Read over the real
+// corpus and the page `./le rfc update` writes from it.
+// METHOD: compare row identities (name and Area, the cells a summary declares) and
+// sections with the rendered page; the derived proof cells after them are not identity.
+func TestEveryPublicRowRendersOnceInItsSection(t *testing.T) {
+	files, metas, root := ledgerFixture(t)
 	profiles, profileProblems, err := LoadProfiles(root)
 	if err != nil {
 		t.Fatalf("read the profiles: %v", err)
@@ -975,52 +835,37 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	if len(profileProblems) > 0 {
 		t.Fatalf("the corpus holds unparsable profiles: %v", profileProblems)
 	}
-	metas, metaProblems, err := summaryMetas(root, nil, profiles)
-	if err != nil {
-		t.Fatalf("read the summaries: %v", err)
-	}
-	if len(metaProblems) > 0 {
-		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v", len(metaProblems), metaProblems)
-	}
-
-	levels, err := graph.Load(root)
-	if err != nil {
-		t.Fatalf("read the dependency graph: %v", err)
-	}
-	page, err := renderStatusPage(metas, profiles.Aggregates, levels, nil)
-	if err != nil {
-		t.Fatalf("render the public rows: %v", err)
-	}
-	if problems := supportedRowScopeProblems(metas, profiles.Aggregates, page); len(problems) != 0 {
+	if problems := publicRowPlacementProblems(metas, profiles.Aggregates, files[statusRel]); len(problems) != 0 {
 		t.Fatalf("public row accounting: %v", problems)
 	}
 }
 
-// supportedRowScopeProblems checks identities before counting: an omitted row
-// cannot be hidden by duplicating another, even within the same status shape.
-func supportedRowScopeProblems(metas map[string]Meta, aggregates map[string]Aggregate, page string) []string {
+// publicRowHeaders is the header line each table shape renders, so a section whose
+// table carries the other shape's header is refused rather than skipped.
+var publicRowHeaders = map[Shape]string{
+	ShapeWide:  "| RFC | Area | Proof | Evidence | Unmet |",
+	ShapeBrief: "| Standard | Area | Proof | Unmet |",
+}
+
+// publicRowPlacementProblems checks identities before counting: an omitted row cannot be
+// hidden by duplicating another. A row's identity is the prefix `| name | area | `,
+// which the summary declares; everything after it is derived proof.
+func publicRowPlacementProblems(metas map[string]Meta, aggregates map[string]Aggregate, page string) []string {
 	var problems []string
 	expected := map[string]string{}
-	var statuses, rfcStatuses, draftStatuses []string
 	for stem := range metas {
 		meta := metas[stem]
 		if !meta.HasRow() {
 			continue
 		}
-		prefix := "| " + publicRowName(stem, &meta) + " | " + meta.Area + " | " + meta.Status + " | "
+		prefix := "| " + publicRowName(stem, &meta) + " | " + meta.Area + " | "
 		if _, held := expected[prefix]; held {
 			problems = append(problems, "duplicate declared identity: "+stem)
 		}
 		expected[prefix] = meta.Aggregate
-		if !statusPromisesSupport(meta.Status) {
-			continue
-		}
-		statuses = append(statuses, meta.Status)
-		if aggregates[meta.Aggregate].Shape == ShapeBrief {
-			draftStatuses = append(draftStatuses, meta.Status)
-			continue
-		}
-		rfcStatuses = append(rfcStatuses, meta.Status)
+	}
+	if len(expected) == 0 {
+		return append(problems, "no summary declares a public row, so nothing was checked")
 	}
 	sections := map[string]string{}
 	for name, aggregate := range aggregates {
@@ -1036,10 +881,11 @@ func supportedRowScopeProblems(metas map[string]Meta, aggregates map[string]Aggr
 		if !strings.HasPrefix(line, "| ") {
 			continue
 		}
-		if strings.HasPrefix(line, "| RFC |") {
+		if line == publicRowHeaders[aggregates[section].Shape] {
 			continue
 		}
-		if strings.HasPrefix(line, "| Standard |") {
+		if strings.HasPrefix(line, "| RFC |") || strings.HasPrefix(line, "| Standard |") {
+			problems = append(problems, "header does not match the section's table shape: "+line)
 			continue
 		}
 		matched := false
@@ -1062,53 +908,37 @@ func supportedRowScopeProblems(metas map[string]Meta, aggregates map[string]Aggr
 			problems = append(problems, "row missing or duplicated: "+prefix)
 		}
 	}
-	for _, partition := range [][]string{statuses, rfcStatuses, draftStatuses} {
-		exact, qualified, yes := supportClaimSplit(partition)
-		if exact+qualified+yes != len(partition) {
-			problems = append(problems, "support promise outside the three status shapes")
-		}
-	}
-	if len(statuses) != len(rfcStatuses)+len(draftStatuses) {
-		problems = append(problems, "RFC and draft partitions do not cover support promises")
-	}
 	return problems
 }
 
-// TestSupportedRowScopeFixtures exercises each scope boundary and plants
-// balanced omission/duplication, which a total-only oracle would miss.
-func TestSupportedRowScopeFixtures(t *testing.T) {
+// TestPublicRowPlacementFixtures plants each way a rendered population can be broken:
+// an omission, a duplication, a balanced substitution (one row dropped, another stated
+// twice, so the total is unchanged) and a row under the wrong section, which a
+// total-only oracle would miss.
+func TestPublicRowPlacementFixtures(t *testing.T) {
 	metas := map[string]Meta{
-		"rfc1000":      {Aggregate: "bgp-core", Row: true, Status: "Supported"},
-		"rfc1001":      {Aggregate: "bgp-core", Row: true, Status: "Supported on Linux"},
-		"rfc1002":      {Aggregate: "bgp-core", Row: true, Status: "Yes"},
-		"rfc1003":      {Aggregate: "bgp-core", Row: true, Status: "Unsupported"},
-		"rfc1004":      {Aggregate: "bgp-core", Row: true, Status: "Partial"},
-		"draft-widget": {Aggregate: "drafts", Row: true, Status: "Supported"},
-		"rfc1005":      {Aggregate: "bgp-core", Status: "Supported"},
+		"rfc1000":      {Aggregate: "bgp-core", Row: true, Area: "Widgets"},
+		"rfc1001":      {Aggregate: "bgp-core", Row: true, Area: "Gadgets"},
+		"rfc1002":      {Aggregate: "bgp-core", Row: true, Area: "Sprockets"},
+		"draft-widget": {Aggregate: "drafts", Row: true, Area: "Draft widgets"},
+		"rfc1005":      {Aggregate: "bgp-core", Area: "Unrowed"},
 	}
 	aggregates := map[string]Aggregate{
 		"bgp-core": {Name: "bgp-core", Heading: "BGP core", Shape: ShapeWide},
 		"drafts":   {Name: "drafts", Heading: "Drafts", Shape: ShapeBrief},
 	}
-	page, err := renderStatusPage(metas, aggregates, graph.Build(nil), nil)
+	figures := map[string]StemFigures{
+		"rfc1000":      {Stem: "rfc1000", Walked: true, Mandatory: Figure{Proven: 1, Total: 2}},
+		"rfc1001":      {Stem: "rfc1001"},
+		"rfc1002":      {Stem: "rfc1002", Walked: true},
+		"draft-widget": {Stem: "draft-widget"},
+	}
+	page, err := renderStatusPage(metas, aggregates, graph.Build(nil), figures)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if problems := supportedRowScopeProblems(metas, aggregates, page); len(problems) != 0 {
+	if problems := publicRowPlacementProblems(metas, aggregates, page); len(problems) != 0 {
 		t.Fatalf("valid fixture: %v", problems)
-	}
-	var claims []string
-	for _, meta := range metas {
-		if !meta.HasRow() {
-			continue
-		}
-		if statusPromisesSupport(meta.Status) {
-			claims = append(claims, meta.Status)
-		}
-	}
-	exact, qualified, yes := supportClaimSplit(claims)
-	if exact != 2 || qualified != 1 || yes != 1 {
-		t.Fatalf("fixture support split = %d/%d/%d, want 2/1/1", exact, qualified, yes)
 	}
 	rfc1000, rfc1001 := metas["rfc1000"], metas["rfc1001"]
 	var rows []string
@@ -1123,15 +953,22 @@ func TestSupportedRowScopeFixtures(t *testing.T) {
 	if len(rows) != 2 {
 		t.Fatalf("fixture needs two distinct rendered RFC rows, got %v", rows)
 	}
-	for name, broken := range map[string]string{
-		"omission":              strings.Replace(page, rows[0]+"\n", "", 1),
-		"duplication":           page + rows[0] + "\n",
-		"balanced substitution": strings.Replace(page, rows[0], rows[1], 1),
-		"wrong section":         strings.Replace(page, "## "+aggregates["bgp-core"].Heading, "## Unknown", 1),
+	// Each broken page names the problem kind that must catch it, so a subtest cannot
+	// pass on a neighbouring problem: the wrong-section page also carries a header no
+	// declared section owns, and that alone must not satisfy it.
+	for name, broken := range map[string]struct{ page, problem string }{
+		"omission":              {strings.Replace(page, rows[0]+"\n", "", 1), "row missing or duplicated: "},
+		"duplication":           {page + rows[0] + "\n", "row missing or duplicated: "},
+		"balanced substitution": {strings.Replace(page, rows[0], rows[1], 1), "row missing or duplicated: "},
+		"wrong section": {strings.Replace(page, "## "+aggregates["bgp-core"].Heading, "## Unknown", 1),
+			"wrong section: "},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if problems := supportedRowScopeProblems(metas, aggregates, broken); len(problems) == 0 {
-				t.Fatal("broken rendered population accepted")
+			problems := publicRowPlacementProblems(metas, aggregates, broken.page)
+			if !slices.ContainsFunc(problems, func(problem string) bool {
+				return strings.HasPrefix(problem, broken.problem)
+			}) {
+				t.Fatalf("broken rendered population accepted without a %q problem: %v", broken.problem, problems)
 			}
 		})
 	}
@@ -1180,8 +1017,7 @@ func TestOneSummaryRendersExactlyOneStatusRow(t *testing.T) {
 	// whatever the corpus says.
 	stray := map[string]Meta{
 		"rfc1000": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, EnrolmentReason: "gated",
-			Aggregate: "no-such-aggregate", Row: true, Area: "a", Status: "Partial",
-			Coverage: "c", Remaining: "r"},
+			Aggregate: "no-such-aggregate", Row: true, Area: "a"},
 	}
 	if _, err := placeRows(stray, profiles.Aggregates, graph.Build(nil)); err == nil {
 		t.Error("a row under an undeclared aggregate was placed, so it would render under no heading")
@@ -2037,78 +1873,6 @@ func TestDiscriminationMeasuresChangedGoFunctionUnits(t *testing.T) {
 	}
 }
 
-// VALIDATES: exactly ONE disposition excuses a public support claim, and it is
-// the one that states a property of the DOCUMENT.
-// PREVENTS: the escape widening into a blanket. Every other kind says the
-// extraction is owed or unreachable, and a claim resting on either is what this
-// check exists to refuse -- so an escape keyed on "is not enrolled" would exempt
-// the whole un-enrolled population. `source-restricted` sat on the excusing side
-// until 2026-09-02 and is on this side now: being unable to bound a claim is a
-// reason to stop making it, not a reason to be excused from proving it.
-func TestOnlyANonNormativeDispositionExcusesASupportClaim(t *testing.T) {
-	rows := map[string]LedgerRow{selftestStem: {Status: "Experimental"}}
-	stems := map[string]bool{selftestStem: true}
-
-	for _, one := range []struct {
-		kind    string
-		excused bool
-	}{
-		{dispositionNonNormative, true},
-		{dispositionSourceRestricted, false},
-		{dispositionBacklog, false},
-		{dispositionBlocked, false},
-	} {
-		t.Run(one.kind, func(t *testing.T) {
-			errs := checkUnprovenSupport(nil, rows, stems,
-				map[string]Disposition{selftestStem: {Kind: one.kind, Reason: "why"}},
-				map[string]Extraction{}, map[string]string{}, nil)
-			if one.excused && len(errs) != 0 {
-				t.Errorf("%s did not excuse the claim: %v", one.kind, errs)
-			}
-			if !one.excused && len(errs) != 1 {
-				t.Errorf("%s answered %d violation(s), want 1", one.kind, len(errs))
-			}
-		})
-	}
-}
-
-// VALIDATES: the remedy this refusal prints offers only a disposition that
-// ACTUALLY clears it.
-// PREVENTS: a refusal that sends its reader to a fix which does not work. The
-// message closed by telling the author that a standard whose text may not be
-// redistributed "declares `| Enrolment | source-restricted |` instead", and the
-// round-2 fix on 2026-09-02 stopped that kind excusing a support claim. An
-// author who followed the instruction met the same violation on the next run,
-// with nothing naming the contradiction. A refusal's remedy is part of the
-// guard: a wrong one costs the reader the round trip the guard exists to save.
-func TestTheUnprovenSupportRemedyOffersOnlyAnExcusingDisposition(t *testing.T) {
-	rows := map[string]LedgerRow{selftestStem: {Status: "Partial"}}
-	stems := map[string]bool{selftestStem: true}
-
-	errs := checkUnprovenSupport(nil, rows, stems, map[string]Disposition{},
-		map[string]Extraction{}, map[string]string{}, nil)
-	if len(errs) != 1 {
-		t.Fatalf("an unproven support claim answered %d violation(s), want 1: %v", len(errs), errs)
-	}
-	offered := 0
-	for _, kind := range enrolmentKindNames() {
-		if kind == enrolmentEnrolled {
-			continue
-		}
-		cell := "`| Enrolment | " + kind + " |`"
-		if !strings.Contains(errs[0], cell) {
-			continue
-		}
-		offered++
-		if !supportClaimExcused(kind) {
-			t.Errorf("the remedy offers %s, which does not excuse a support claim:\n%s", cell, errs[0])
-		}
-	}
-	if offered == 0 {
-		t.Errorf("the remedy names no disposition at all, so the assertion above proves nothing:\n%s", errs[0])
-	}
-}
-
 // VALIDATES: a `source-restricted` reason must name what stops the text being copied, and
 // must not judge what Ze owes.
 // PREVENTS: an unfalsifiable escape. This kind excuses a public support promise, so its
@@ -2263,39 +2027,12 @@ func TestSurvivingDispositionRefusalsStillFire(t *testing.T) {
 			}}, gatedFixture()),
 			"names nothing a reviewer can check",
 		},
-		{
-			"an out-of-scope summary claiming public support",
-			checkSummaryDisposition("", map[string]Meta{selftestStem: {
-				Enrolment: dispositionOutOfScope, EnrolmentReason: "declined 2026-09-01",
-				Aggregate: FixtureAggregate, Row: true, Status: "Supported",
-			}}, gatedFixture()),
-			"cannot be advertised as supported",
-		},
-		{
-			"a gap the public row does not disclose",
-			checkStatusAgreement([]Requirement{gap},
-				map[string]LedgerRow{selftestStem: {Status: "Supported", Coverage: "complete"}},
-				map[string]bool{selftestStem: true}),
-			"cannot be advertised as clean support",
-		},
+
 		{
 			"a gap on a summary that declares no public row",
 			checkStatusAgreement([]Requirement{gap}, map[string]LedgerRow{},
 				map[string]bool{selftestStem: true}),
 			"the public ledger must disclose it",
-		},
-		{
-			"a support claim over a summary declaring no MUST",
-			checkUnprovenSupport(nil, map[string]LedgerRow{selftestStem: {Status: "Partial"}},
-				map[string]bool{selftestStem: true}, map[string]Disposition{},
-				map[string]Extraction{}, map[string]string{}, nil),
-			"declares no MUST-level requirement",
-		},
-		{
-			"a supported row no extraction sign-off bounds",
-			checkSupportedSignoff(map[string]LedgerRow{selftestStem: {Status: "Supported"}},
-				map[string]Extraction{}),
-			"is not a valid extraction sign-off",
 		},
 	} {
 		t.Run(one.name, func(t *testing.T) {
@@ -2304,51 +2041,6 @@ func TestSurvivingDispositionRefusalsStillFire(t *testing.T) {
 			}
 			if !strings.Contains(one.errs[0], one.want) {
 				t.Errorf("the refusal does not say %q:\n%s", one.want, one.errs[0])
-			}
-		})
-	}
-}
-
-// VALIDATES: AC-10 at the three counts that behave differently -- zero gaps, one
-// gap, and many.
-// PREVENTS: an off-by-one nobody would see at a single count. The spelled reader
-// maps a word to a number, so "one" and "twenty-one" take different branches of
-// spelledNumbers, and a row with no spelled number at all must leave the check
-// rather than be read as zero.
-func TestGapCountAgreementAcrossZeroOneAndMany(t *testing.T) {
-	gaps := func(count int) []Requirement {
-		var out []Requirement
-		for range count {
-			out = append(out, Requirement{
-				RFC: selftestStem, RID: selftestRIDSend, Level: levelMust,
-				Annotation: &Annotation{Kind: AnnotationGap, Reason: "not implemented"},
-			})
-		}
-		return out
-	}
-
-	for _, one := range []struct {
-		name      string
-		remaining string
-		gaps      int
-		refused   bool
-	}{
-		{"no spelled number leaves the check", "No tracked gap in current source anchors.", 3, false},
-		{"zero gaps and no claim", "No tracked gap in current source anchors.", 0, false},
-		{"one gap, agreeing", "One MUST-level gap remains.", 1, false},
-		{"one gap, disagreeing", "One MUST-level gap remains.", 0, true},
-		{"many gaps, agreeing", "Twenty-one MUSTs remain.", 21, false},
-		{"many gaps, disagreeing by one", "Twenty-one MUSTs remain.", 20, true},
-		{"a digit count is outside the check", "21 MUSTs remain.", 3, false},
-	} {
-		t.Run(one.name, func(t *testing.T) {
-			errs := checkGapCountAgreement(gaps(one.gaps),
-				map[string]LedgerRow{selftestStem: {Remaining: one.remaining}})
-			if one.refused && len(errs) != 1 {
-				t.Fatalf("answered %d violation(s), want 1: %v", len(errs), errs)
-			}
-			if !one.refused && len(errs) != 0 {
-				t.Fatalf("answered %d violation(s), want none: %v", len(errs), errs)
 			}
 		})
 	}
@@ -2373,7 +2065,7 @@ func gatedFixture() []Requirement {
 // message wrongly claimed it did.
 func TestAPublicRowCannotBeDeletedWhileItsRFCStaysEnrolled(t *testing.T) {
 	rowed := Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, EnrolmentReason: "gated",
-		Aggregate: FixtureAggregate, Row: true, Status: "Partial"}
+		Aggregate: FixtureAggregate, Row: true}
 	unrowed := Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, EnrolmentReason: "gated"}
 
 	deleted := checkPublicRowMonotonic(
@@ -2461,26 +2153,19 @@ func TestOutOfScopeMustCarryItsExtractionAndItsDate(t *testing.T) {
 // for a guard to be driven from its entry point precisely because a guard
 // nothing reaches is indistinguishable from one that never fires.
 //
-// The fixture is deliberately NOT enrolled. checkSupportedSignoff bills any row
-// whose Status promises conformance, enrolled or not, so the population this
-// guard has to cover is the ROW population -- which is the half the first fix
-// got wrong, and rfc/short/rfc9384.md is the live instance of it.
+// The fixture is deliberately NOT enrolled: the population this guard has to
+// cover is the ROW population, enrolled or not -- which is the half the first
+// fix got wrong, and rfc/short/rfc9384.md is the live instance of it.
 func TestCheckReportsAPublicRowDeletedThroughItsEntryPoint(t *testing.T) {
 	const stem = "rfc9999"
 	declared := "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n| Use cases | - |\n| Optional use cases | - |\n" +
 		"| Title | Widgets |\n| Enrolment | non-normative |\n" +
 		"| Enrolment reason | Informational, and it invokes no RFC 2119 key-words machinery |\n" +
 		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +
-		"| Support | bgp-core |\n| Support area | Widgets |\n" +
-		"| Support status | Partial |\n| Support coverage | unit tests |\n" +
-		"| Support remaining | Zero MUST gaps. |\n\n## Compliance Checklist\n\n" +
+		"| Support | bgp-core |\n| Support area | Widgets |\n\n## Compliance Checklist\n\n" +
 		"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n"
 	retired := strings.Replace(declared, "| Support | bgp-core |", "| Support | - |\n| Aggregate | bgp-core |", 1)
-	for _, cell := range []string{"| Support area | Widgets |\n",
-		"| Support status | Partial |\n", "| Support coverage | unit tests |\n",
-		"| Support remaining | Zero MUST gaps. |\n"} {
-		retired = strings.Replace(retired, cell, "", 1)
-	}
+	retired = strings.Replace(retired, "| Support area | Widgets |\n", "", 1)
 
 	root := commitFixtureTree(t, map[string]string{selftestSummaryRel: declared}, nil)
 	commitFixtureEmptyTip(t, root)
@@ -2535,99 +2220,6 @@ func TestSourceRestrictedIsRefusedWhenTheTextIsPresent(t *testing.T) {
 	}
 }
 
-// VALIDATES: the second refusal in checkUnprovenSupport -- a public row that
-// PROMISES conformance over gated MUST-level requirements of which not one is
-// proven in both polarities is refused, and the status the message offers
-// clears it.
-// PREVENTS: the hole the first arm left open. That arm skipped every stem with
-// a gated count, so a summary listing 55 MUST-level obligations and proving
-// none of them carried `Supported` on the public page with nothing able to
-// contradict it -- a checklist nothing passes reads greener than the empty one
-// the gate did refuse. The remedy is asserted too, because a guard whose fix
-// does not work costs the reader the round trip the guard exists to save:
-// `Partial` is what this page's own vocabulary calls "not proven", so it must
-// leave the check silent.
-func TestASupportPromiseOverAnUnprovenChecklistIsRefused(t *testing.T) {
-	gated := []Requirement{{RFC: selftestStem, RID: selftestRIDSend, Level: levelMust},
-		{RFC: selftestStem, RID: selftestRIDDrop, Level: levelMust}}
-	annotated := []Requirement{
-		{RFC: selftestStem, RID: selftestRIDSend, Level: levelMust,
-			Annotation: &Annotation{Kind: AnnotationGap, Reason: "not implemented"}},
-		{RFC: selftestStem, RID: selftestRIDDrop, Level: levelMust,
-			Annotation: &Annotation{Kind: AnnotationGap, Reason: "not implemented"}}}
-	positive := []Tag{{RID: selftestRIDSend, Polarity: PolarityPositive, File: selftestTestPath}}
-	both := append([]Tag{}, positive...)
-	both = append(both, Tag{RID: selftestRIDSend, Polarity: PolarityNegative, File: selftestTestPath})
-
-	for _, one := range []struct {
-		name         string
-		status       string
-		requirements []Requirement
-		tags         []Tag
-		refused      bool
-	}{
-		{"a promise over a checklist with no test at all", "Supported", gated, nil, true},
-		{"a promise over one polarity only", "Supported", gated, positive, true},
-		{"a promise over annotations alone", "Supported", annotated, nil, true},
-		{"a scoped promise", "Supported in the OSPFv3 path", gated, nil, true},
-		{"a promise one requirement proves in both polarities", "Supported", gated, both, false},
-		{"the Partial the message offers", "Partial", gated, nil, false},
-		{"an experimental row", "Experimental", gated, nil, false},
-		{"a row that promises nothing", "Unsupported", gated, nil, false},
-	} {
-		t.Run(one.name, func(t *testing.T) {
-			errs := checkUnprovenSupport(one.requirements,
-				map[string]LedgerRow{selftestStem: {Status: one.status}},
-				map[string]bool{selftestStem: true}, map[string]Disposition{},
-				map[string]Extraction{}, map[string]string{},
-				CoverageRows(one.requirements, one.tags, nil))
-			if !one.refused {
-				if len(errs) != 0 {
-					t.Fatalf("answered %d violation(s), want none: %v", len(errs), errs)
-				}
-				return
-			}
-			if len(errs) != 1 {
-				t.Fatalf("answered %d violation(s), want 1: %v", len(errs), errs)
-			}
-			for _, want := range []string{selftestStem, "2 MUST-level requirement(s)",
-				"both polarities", "| Support status | Partial |"} {
-				if !strings.Contains(errs[0], want) {
-					t.Errorf("the refusal does not state %q:\n%s", want, errs[0])
-				}
-			}
-		})
-	}
-}
-
-// VALIDATES: the two escapes belong to the empty-checklist arm alone.
-// PREVENTS: an escape widening past the question it answers. `non-normative`
-// and a manual-walk sign-off each state that the DOCUMENT imposes no MUST-level
-// obligation, which says nothing about whether Ze meets one that exists. A
-// summary carrying gated requirements has already contradicted the first, so
-// letting either silence the unproven-checklist refusal would hand every
-// unproven promise a one-cell exit.
-func TestTheEmptyChecklistEscapesDoNotReachAnUnprovenChecklist(t *testing.T) {
-	gated := []Requirement{{RFC: selftestStem, RID: selftestRIDSend, Level: levelMust}}
-	coverage := CoverageRows(gated, nil, nil)
-	rows := map[string]LedgerRow{selftestStem: {Status: "Supported"}}
-	stems := map[string]bool{selftestStem: true}
-
-	nonNormative := checkUnprovenSupport(gated, rows, stems,
-		map[string]Disposition{selftestStem: {Kind: dispositionNonNormative, Reason: "Informational"}},
-		map[string]Extraction{}, map[string]string{}, coverage)
-	if len(nonNormative) != 1 {
-		t.Errorf("a non-normative disposition excused an unproven checklist: %v", nonNormative)
-	}
-	walked := checkUnprovenSupport(gated, rows, stems, map[string]Disposition{},
-		map[string]Extraction{selftestStem: {Path: "rfc/extraction/" + selftestStem + ".json",
-			Register: registerManualWalk, RegisterReason: "no capitalised keyword in the source"}},
-		map[string]string{}, coverage)
-	if len(walked) != 1 {
-		t.Errorf("a manual-walk sign-off excused an unproven checklist: %v", walked)
-	}
-}
-
 // VALIDATES: the id allocation and level ratchets see what the COMMIT UNDER TEST did.
 // `./le verify worktree` checks that commit out detached, where the tree equals HEAD, so a
 // baseline read at HEAD already held the new id and the demotion, and both ratchets judged
@@ -2668,10 +2260,7 @@ func TestCheckMetaRatchetsSeeTipCommit(t *testing.T) {
 	base := "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" +
 		"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n"
 	unrowed := strings.Replace(base, "| Support | bgp-core |", "| Support | - |\n| Aggregate | bgp-core |", 1)
-	for _, cell := range []string{"| Support area | Widgets |\n", "| Support status | Partial |\n",
-		"| Support coverage | unit tests |\n", "| Support remaining | Zero MUST gaps. |\n"} {
-		unrowed = strings.Replace(unrowed, cell, "", 1)
-	}
+	unrowed = strings.Replace(unrowed, "| Support area | Widgets |\n", "", 1)
 	second := strings.NewReplacer("RFC 9999", "RFC 8888", "RFC9999", "RFC8888",
 		"| Enrolment | enrolled |", "| Enrolment | non-normative |").Replace(unrowed)
 	for _, one := range []struct {

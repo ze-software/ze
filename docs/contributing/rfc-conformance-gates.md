@@ -365,7 +365,7 @@ until they are backfilled:
 
 <!-- source: internal/le/rfc/check_evidence.go -- checkExclusionEvidence, evidenceRowIsNew, evidenceReader -->
 <!-- source: internal/le/rfc/check_evidence_prior.go -- priorEvidence, priorRevisionState, committedBacklogAt, pushedFingerprints, pushedBranchPresent -->
-<!-- source: internal/le/rfc/summary.go -- checkNotApplicableRoles, genericRoleWords, roleKey -->
+<!-- source: internal/le/rfc/notapplicable_roles.go -- checkNotApplicableRoles, genericRoleWords, roleKey -->
 <!-- source: internal/le/rfc/notapplicable_roles.go -- scopingRefusal, scopingNegations, roleNamesNoParty -->
 <!-- source: internal/le/rfc/check_evidence.go -- roleQuoteGap, ownObligationRefusal -->
 <!-- source: internal/le/rfc/quote_sentences.go -- quoteSentences, quoteAbbreviations -->
@@ -390,21 +390,25 @@ of the four is now UNREPRESENTABLE rather than refused:
 A fifth, a newly enrolled RFC with no public row, is NOT unrepresentable: one
 `Support` cell reading `-` states it. `checkStatusCompleteness` is gone, and
 `checkPublicRowMonotonic` carries that refusal now, over the same two branches.
-`checkSummaryDisposition` lost three of its branches, and `checkSupportedSignoff`
-lost a population it can never judge. Nothing was weakened: deleting a copy is
-the only free simplification, and the one refusal that was not a copy stayed.
+`checkSummaryDisposition` lost three of its branches. Nothing was weakened:
+deleting a copy is the only free simplification, and the one refusal that was
+not a copy stayed.
 
-`checkStatusAgreement` still compares the claim against the admission, and it
-reaches for a row only when a `{gap}` exists. Five classes of defect sit outside
-it, so each is a hard requirement rather than a HEAD comparison.
-
-A row whose aggregate declares `| Shape | brief |` (the `drafts` aggregate)
-renders in a four-column table with no Remaining cell, and its
-`Support remaining` must be `-`. Its Note, the `Support coverage` cell, is the
-cell the public page prints there, so `rowsFrom` reads the Note as that row's
-Remaining: a `{gap}` or `{partial}` on a draft is disclosed in the Note, and
-`checkGapCountAgreement` counts a number spelled there.
-<!-- source: internal/le/rfc/meta.go -- rowsFrom, checkRowCells -->
+A row's one authored cell is `Support area`. Its Proof, Evidence and Unmet
+cells are derived from the summary's requirement rows and the verified
+discrimination records (`StemFigures`), so no summary authors a status, a
+coverage sentence or a remainder. `ParseMeta` refuses a leftover
+`Support status`, `Support coverage` or `Support remaining` row by name and
+says where the fact went. `checkStatusAgreement` keeps one refusal: an unmet
+requirement (`{gap}`, `{partial}`, `{linux-limit}`) on an enrolled RFC that
+renders no public row, because the derived Unmet cell discloses it only on a
+row that exists. A row whose aggregate declares `| Shape | brief |` (the
+`drafts` aggregate) renders four columns, Standard, Area, Proof and Unmet,
+with no Evidence cell, so an unmet requirement of a draft is still named by
+its id.
+<!-- source: internal/le/rfc/meta.go -- retiredSupportLabels, rowsFrom, checkRowCells -->
+<!-- source: internal/le/rfc/check_status.go -- checkStatusAgreement -->
+<!-- source: internal/le/rfc/render_ledger.go -- proofCell, evidenceCell, unmetCell -->
 
 ### Profiles and aggregates
 
@@ -436,7 +440,7 @@ does not parse is reported like a summary that does not parse.
 
 | Kind | Fields |
 |------|--------|
-| `technology` | `Title`, `Heading` (the status page heading), `Intro` (prose under it, or `-`), `Shape` (`wide` for the six-column table, `brief` for the four-column one), `Release` (`n/a`) |
+| `technology` | `Title`, `Heading` (the status page heading), `Intro` (prose under it, or `-`), `Shape` (`wide` for the five-column table, `brief` for the four-column one), `Release` (`n/a`) |
 | `use-case` | `Title`, `Release` (`yes` marks a release profile) |
 
 A use-case profile lists no member. Each summary declares its own use cases in
@@ -559,7 +563,7 @@ RFCs.
 `annotationKinds` in `internal/le/rfc/rfc.go` declares each coverage kind's
 parser and traits together. `AnnotationKinds` derives the accepted vocabulary;
 `AnnotationTraitsOf` supplies the same meaning to coverage, rollup derivation,
-public-status checks, audit legality, site buckets and health accounting. A new
+the no-row disclosure check, audit legality, site buckets and health accounting. A new
 kind does not add another list of exceptions in each reader.
 
 The traits keep distinct questions separate: whether a row belongs in a
@@ -575,7 +579,7 @@ the zero value of a missing declaration. The existing annotation counts and
 published shares are unchanged by this shared declaration.
 <!-- source: internal/le/rfc/rfc.go -- annotationKinds, AnnotationKinds, AnnotationTraitsOf -->
 <!-- source: internal/le/rfc/check_core.go -- evaluate, rollupTargetState -->
-<!-- source: internal/le/rfc/check_status.go -- checkStatusAgreement, checkGapCountAgreement -->
+<!-- source: internal/le/rfc/check_status.go -- checkStatusAgreement -->
 <!-- source: internal/le/rfc/check_audit.go -- verdictClaims -->
 
 
@@ -583,13 +587,11 @@ published shares are unchanged by this shared declaration.
 | Guard | Refuses |
 |-------|---------|
 | `checkSummaryDisposition` | a `non-normative` reason that judges what ZE owes rather than what the DOCUMENT states, or that cites nothing a reviewer can check. `non-normative` is the one disposition that claims anything about conformance. Its reason rests on the document: the IETF category, an RFC 2119 / RFC 8174 / BCP 14 key-words paragraph, or a capitalized MUST/SHALL/REQUIRED scan of the source |
-| `checkSourceRestricted` | a `source-restricted` reason that names neither the body publishing the standard (ISO, IEC, ITU, IEEE, ANSI, ETSI) nor the license, copyright or paywall that stops the text being copied, and the same kind written over a text that IS in the tree. It excuses no public support claim: being unable to bound a claim is a reason to stop making it, not a reason to be excused from proving it. It is the only PERMANENT disposition: where the text IS fetchable the kind is `blocked`, and a fetch discharges it |
-| `checkUnprovenSupport` | two shapes of a claim nothing behind it can contradict. A support claim over a summary that declares ZERO gated requirements, where a claim is any Status other than `Unsupported` or `Future`, an empty cell included: a claim and a checklist that agree on NOTHING is the cheapest way to look green. Two escapes exist there, and each is evidence rather than assertion. They are a `non-normative` disposition whose reason states a property of the text, and a VALID `manual-walk` sign-off with a `register-reason`. The second one lets an Informational RFC that invokes RFC 2119 nowhere enrol on an honest zero. The other shape is a row PROMISING conformance -- `Supported`, alone or with a scope after it -- over gated requirements of which not one carries a both-polarity test. Neither escape reaches it, because both answer whether the DOCUMENT imposes a MUST rather than whether Ze meets one, and `Partial` is the row that states what is true |
-| `checkPublicRowMonotonic` | a `Support` cell that named an aggregate at HEAD and reads `-` now, while the summary is still there, and a newly enrolled RFC that arrives with no row at all. It is keyed on the ROW, never on enrolment, because `checkSupportedSignoff` bills any row whose Status promises conformance. RFCs enrolled before it existed are grandfathered, so the count of enrolled RFCs with no row can only shrink |
+| `checkSourceRestricted` | a `source-restricted` reason that names neither the body publishing the standard (ISO, IEC, ITU, IEEE, ANSI, ETSI) nor the license, copyright or paywall that stops the text being copied, and the same kind written over a text that IS in the tree. It excuses nothing on the public row: being unable to bound a list leaves the row `not walked`. It is the only PERMANENT disposition: where the text IS fetchable the kind is `blocked`, and a fetch discharges it |
+| `checkPublicRowMonotonic` | a `Support` cell that named an aggregate at HEAD and reads `-` now, while the summary is still there, and a newly enrolled RFC that arrives with no row at all. It is keyed on the ROW, never on enrolment, because a row that vanishes takes its derived Unmet cell with it. RFCs enrolled before it existed are grandfathered, so the count of enrolled RFCs with no row can only shrink |
 | `checkLowerLayerProducer` | a `{lower-layer}` annotation whose producer this checkout cannot show: the file is absent, or it declares no function of that name. The kind rests on a fact a reader can open, and a producer that was renamed or deleted under the annotation is the event this catches |
 | `checkFeatureDeclined` | a `{feature-declined}` annotation whose quote is not in the RFC's own text, whose RFC has no text in this repository, or whose producer this checkout cannot show. Two facts, because the kind makes two claims: the DOCUMENT makes the feature optional, and ZE built the narrower thing |
 | `checkLinuxLimit` | a `{linux-limit}` annotation whose register is unreadable or malformed, whose entry is missing, is not a verified blocking kernel limitation, names another requirement, lacks evidence, or was checked at a kernel version other than the shipped one |
-| `checkGapCountAgreement` | a Remaining cell whose spelled number (including zero), sitting immediately before MUST or SHALL, disagrees with the number of unmet rows (`{gap}`, `{partial}` and `{linux-limit}`). The COUNT is the only fact on that page a machine can own: it counts unmet requirement rows, never distinct protocol obligations or whether their classifications are right |
 
 Un-enrolment exempts only the MISSING-ROW branch of `checkStatusAgreement`. An
 un-enrolled RFC with no row makes no public claim to contradict; one that HAS a
@@ -852,9 +854,9 @@ Each gated partial row counts once in Gated and Annotated and in the explicit
 Partial subset, never in Both, One, Missing or any whole-proven numerator.
 The primary partition remains Gated = Both + One + Annotated + Missing.
 Ordinary gap and Demonstrate counters keep their meanings; partial rows have
-separate counts and lists and are not labelled no-test. Public status must
-disclose the remaining gap. A spelled unmet total counts ordinary gaps plus
-partial requirement rows once per id, not distinct protocol obligations.
+separate counts and lists and are not labelled no-test. The public row's
+derived Unmet cell names each partial row once per id, beside the ordinary
+gaps, never as distinct protocol obligations.
 The six-cell shard, status page, CLI pipes, site JSON/HTML/mirror and health
 show scope and zero whole credit. Verified record counts measure tag claims,
 never whole requirements.
@@ -1179,9 +1181,9 @@ Four rules decide whether it is the right kind:
 - **Ze declined X, and code shows it.** The producer is the function that does
   the narrower thing: it is what a reader opens, and what a later change that
   ADDS the feature has to walk past.
-- **The absent FEATURE is still disclosed.** It goes on the summary's own
-  `Support status` and `Support remaining` rows, as an implementation gap a
-  later scope decision can revisit, and never as a conformance gap
+- **The absent FEATURE is still disclosed.** It goes in the feature's own
+  Scope (`features/*.md`), as an implementation gap a later scope decision can
+  revisit, and never as a conformance gap
   (`ai/rules/rfc-compliance.md`, owner directive 2026-08-31). This kind is the
   coverage register's word for the decision the extraction register records as
   `feature-out-of-scope`. The two are spelled apart because the site's
@@ -1277,16 +1279,14 @@ Every refusal identifies the summary row and the register source. Missing or
 malformed inputs fail closed for annotations, even on unenrolled summaries.
 A corpus without this annotation acquires no required register dependency.
 
-The obligation stays counted and unproven. It is unmet in the public status
-and Remaining count, and contributes a gap to a rollup. A tagged test makes
+The obligation stays counted and unproven. It is listed in the row's derived
+Unmet cell, and contributes a gap to a rollup. A tagged test makes
 the annotation stale. The audit verdict `unimplemented` is legal (with its
 usual code evidence); `not-applicable` is not, because the obligation binds.
 The per-kind trait declaration supplies these decisions and the ceiling exclusion.
-A summary carrying this annotation must never claim `Supported`, including
-scoped `Supported ...` and legacy `Yes` claims, even when Remaining correctly
-says `One MUST unmet`. Set `Support status` to `Partial` and retain the unmet
-disclosure. This prohibition is declared only for `{linux-limit}`; ordinary
-gap and partial annotations retain their existing disclosure rules.
+No summary authors a support claim any more: the Proof cell counts the row
+among the unproven, and the Unmet cell names it, both derived.
+<!-- source: internal/le/rfc/render_ledger.go -- proofCell, unmetCell -->
 
 Each added or reworded instance owes `Linux-limit-owed: <RID>: <LL-id>` in
 the commit. It may land, but publication waits for the owner's
@@ -1335,7 +1335,7 @@ state the author wrote:
 
 The gate raises NO finding for a rollup, in any state (owner decision,
 2026-09-15). A `{gap}` target is a declared state, disclosed under its own id
-by the Remaining cell. An unproven target is already reported under its own id.
+by the derived Unmet cell. An unproven target is already reported under its own id.
 A finding on the rollup would report one fact twice, and the cause on the row
 already names the constituent where the work is owed.
 
@@ -1725,9 +1725,8 @@ before you meet one:
   behavior exists. An excluded site says the obligation never bound Ze, and the
   kind names which decision put it out of reach. `feature-out-of-scope` is the
   kind for an OPTIONAL feature Ze declined to offer: the absent FEATURE is
-  disclosed on `docs/features/rfc-status.md`, through the summary's own
-  `Support status` and `Support remaining` rows, as an implementation gap a
-  later scope decision can revisit, and never as a conformance gap.
+  disclosed in the feature's own Scope (`features/*.md`), as an
+  implementation gap a later scope decision can revisit, and never as a conformance gap.
 
 ### Two signals that an extraction is missing
 

@@ -180,33 +180,18 @@ type rfcBucket struct {
 	Count int    `json:"count"`
 }
 
-// rfcGaps is what the declared gaps amount to, and what the public page says
-// about the RFCs carrying them.
+// rfcGaps is what the declared gaps amount to: how many requirements, over
+// how many RFCs, and the RFCs carrying the most.
 type rfcGaps struct {
-	Requirements           int              `json:"requirements"`
-	RFCs                   int              `json:"rfcs"`
-	StatusCounts           []rfcStatusCount `json:"status-counts"`
-	SupportedWithRemaining []rfcRemaining   `json:"supported-with-remaining"`
-	TopRFCs                []rfcGapCluster  `json:"top-rfcs"`
-}
-
-// rfcStatusCount counts the RFCs with a gap that carry one public status.
-type rfcStatusCount struct {
-	Status string `json:"status"`
-	Count  int    `json:"count"`
-}
-
-// rfcRemaining is a Supported row that still discloses a gap.
-type rfcRemaining struct {
-	RFC       string `json:"rfc"`
-	Remaining string `json:"remaining"`
+	Requirements int             `json:"requirements"`
+	RFCs         int             `json:"rfcs"`
+	TopRFCs      []rfcGapCluster `json:"top-rfcs"`
 }
 
 // rfcGapCluster is one RFC and how many gaps it declares.
 type rfcGapCluster struct {
-	RFC    string `json:"rfc"`
-	Count  int    `json:"count"`
-	Status string `json:"status"`
+	RFC   string `json:"rfc"`
+	Count int    `json:"count"`
 }
 
 // rfcAudit counts the recorded reader verdicts by freshness.
@@ -330,23 +315,6 @@ func rfcAnnotationBucket(kind string) (string, bool) {
 	}
 	return traits.Bucket, true
 }
-
-// rfcStatusOrder is the order the gap-disclosure table lists a public status
-// in. A status this does not name follows, in name order.
-var rfcStatusOrder = []string{"Partial", "Experimental", "Supported", "Not supported", "Unsupported"}
-
-// rfcMissingRow is the status an RFC with a gap and no public row is counted
-// under.
-//
-// It reads as a DECISION rather than as an omission, because that is what it
-// now is. The public row is the summary's own `| Support |` Meta row, readSupport
-// (`internal/le/rfc/meta.go`) refuses a Meta table that carries no such row, and
-// a summary that writes `-` there declares that it renders no row. So a row is
-// never simply forgotten, and the cell says which of the two a reader is looking
-// at. It does NOT say the row is unguarded: whether a row may be DELETED from a
-// summary that keeps its enrolment is a question for the gate, not for this
-// page, and this page states no verdict on it.
-const rfcMissingRow = "No public row declared"
 
 // rfcGapClustersShown bounds the gap-cluster table. The tail is a long list of
 // RFCs with one or two gaps each, which says less than the ledger already does.
@@ -582,7 +550,7 @@ func collectRFCCompliance(tree string) (rfcCompliance, error) {
 	}
 	snapshot.Gate.Message = rfcGateSummary(&report)
 	snapshot.Satisfaction, snapshot.Gaps, snapshot.Unmapped = rfcBuckets(implemented,
-		collected.Tags, input.Rows)
+		collected.Tags)
 	snapshot.Audit = rfcAuditCounts(inspected, input.States, len(inspected))
 	return snapshot, nil
 }
@@ -628,8 +596,7 @@ func rfcGateStages() rfcVerify {
 // The third answer is the requirements whose annotation kind has no bucket.
 // They are in NO published share, so the accounting is short by that many and
 // both notes say so.
-func rfcBuckets(gated []rfc.Requirement, tags []rfc.Tag,
-	rows map[string]rfc.LedgerRow) ([]rfcBucket, rfcGaps, int) {
+func rfcBuckets(gated []rfc.Requirement, tags []rfc.Tag) ([]rfcBucket, rfcGaps, int) {
 	polarities := map[string]map[string]bool{}
 	for _, tag := range tags {
 		if polarities[tag.RID] == nil {
@@ -659,7 +626,7 @@ func rfcBuckets(gated []rfc.Requirement, tags []rfc.Tag,
 	for _, bucket := range rfcSatisfaction {
 		buckets = append(buckets, rfcBucket{Key: bucket.Key, Count: counts[bucket.Key]})
 	}
-	return buckets, rfcGapsOf(counts[rfcGapBucket], gapCounts, gapOrder, rows),
+	return buckets, rfcGapsOf(counts[rfcGapBucket], gapCounts, gapOrder),
 		counts[rfcUnmappedBucket]
 }
 
@@ -688,49 +655,12 @@ func rfcBucketOf(requirement rfc.Requirement, polarities map[string]bool) string
 	}
 }
 
-// rfcGapsOf assembles the gap disclosure from the counted gaps and the public
-// page's rows.
-func rfcGapsOf(requirements int, gapCounts map[string]int, gapOrder []string,
-	rows map[string]rfc.LedgerRow) rfcGaps {
+// rfcGapsOf assembles the gap disclosure from the counted gaps.
+func rfcGapsOf(requirements int, gapCounts map[string]int, gapOrder []string) rfcGaps {
 	gaps := rfcGaps{Requirements: requirements, RFCs: len(gapOrder)}
-
-	byStatus := map[string]int{}
-	for _, stem := range gapOrder {
-		byStatus[rfcPublicStatus(rows, stem)]++
-	}
-	named := map[string]bool{}
-	for _, status := range rfcStatusOrder {
-		named[status] = true
-		if byStatus[status] > 0 {
-			gaps.StatusCounts = append(gaps.StatusCounts, rfcStatusCount{Status: status, Count: byStatus[status]})
-		}
-	}
-	var others []string
-	for status := range byStatus {
-		if !named[status] {
-			others = append(others, status)
-		}
-	}
-	slices.Sort(others)
-	for _, status := range others {
-		gaps.StatusCounts = append(gaps.StatusCounts, rfcStatusCount{Status: status, Count: byStatus[status]})
-	}
-
-	disclosed := make([]string, len(gapOrder))
-	copy(disclosed, gapOrder)
-	slices.Sort(disclosed)
-	for _, stem := range disclosed {
-		if !strings.HasPrefix(rfcPublicStatus(rows, stem), "Supported") {
-			continue
-		}
-		gaps.SupportedWithRemaining = append(gaps.SupportedWithRemaining,
-			rfcRemaining{RFC: rfcDisplayName(stem), Remaining: strings.TrimSpace(rows[stem].Remaining)})
-	}
-
 	clusters := make([]rfcGapCluster, 0, len(gapOrder))
 	for _, stem := range gapOrder {
-		clusters = append(clusters, rfcGapCluster{RFC: rfcDisplayName(stem),
-			Count: gapCounts[stem], Status: rfcPublicStatus(rows, stem)})
+		clusters = append(clusters, rfcGapCluster{RFC: rfcDisplayName(stem), Count: gapCounts[stem]})
 	}
 	// Stable, so an RFC that ties on count keeps the parse order above it.
 	sort.SliceStable(clusters, func(left, right int) bool {
@@ -741,16 +671,6 @@ func rfcGapsOf(requirements int, gapCounts map[string]int, gapOrder []string,
 	}
 	gaps.TopRFCs = clusters
 	return gaps
-}
-
-// rfcPublicStatus answers what the public page says about one stem, which is
-// what that stem's own `| Support |` Meta row declares.
-func rfcPublicStatus(rows map[string]rfc.LedgerRow, stem string) string {
-	row, held := rows[stem]
-	if !held || row.Status == "" {
-		return rfcMissingRow
-	}
-	return row.Status
 }
 
 // rfcDisplayName answers a summary stem the way the page prints it: rfc9012
@@ -1693,28 +1613,13 @@ func rfcScopeNote(split rfcBinding) string {
 		"segment of the bar rather than an omission from it."
 }
 
-// rfcGapDisclosureHTML renders what the public page says about the RFCs
-// declaring a gap, and the Supported rows that still disclose one.
+// rfcGapDisclosureHTML renders how many requirements are declared gaps, and
+// over how many RFCs.
 func rfcGapDisclosureHTML(gaps rfcGaps) string {
 	var rows textbuf.Buffer
-	for _, row := range gaps.StatusCounts {
-		rows.Str(rfcRowCells(html.EscapeString(row.Status),
-			"<strong>"+groupThousands(row.Count)+"</strong>"))
-	}
-	var out textbuf.Buffer
-	out.Str(rfcTableHTML(rfcHeadCells("Public status for RFCs with gaps", "RFCs"),
-		rows.String()))
-	if len(gaps.SupportedWithRemaining) == 0 {
-		return out.String()
-	}
-	out.Byte('\n').Str(`<div class="rfc-note-box">`).
-		Str("\n<h3>Supported rows that still disclose a gap</h3>\n<ul>\n")
-	for _, row := range gaps.SupportedWithRemaining {
-		out.Str("<li><strong>").Str(html.EscapeString(row.RFC)).Str("</strong>: ").
-			Str(html.EscapeString(row.Remaining)).Str("</li>\n")
-	}
-	out.Str("</ul></div>")
-	return out.String()
+	rows.Str(rfcRowCells("Requirements declared as gaps", "<strong>"+groupThousands(gaps.Requirements)+"</strong>"))
+	rows.Str(rfcRowCells("RFCs declaring a gap", "<strong>"+groupThousands(gaps.RFCs)+"</strong>"))
+	return rfcTableHTML(rfcHeadCells("Declared gaps", "Count"), rows.String())
 }
 
 // rfcGapClusterHTML renders the RFCs carrying the most declared gaps.
@@ -1725,10 +1630,9 @@ func rfcGapClusterHTML(gaps rfcGaps) string {
 	var rows textbuf.Buffer
 	for _, row := range gaps.TopRFCs {
 		rows.Str(rfcRowCells("<code>"+html.EscapeString(row.RFC)+"</code>",
-			"<strong>"+groupThousands(row.Count)+"</strong>",
-			html.EscapeString(row.Status)))
+			"<strong>"+groupThousands(row.Count)+"</strong>"))
 	}
-	return rfcTableHTML(rfcHeadCells("RFC", rfcDeclaredGapsLabel, "Public status"),
+	return rfcTableHTML(rfcHeadCells("RFC", rfcDeclaredGapsLabel),
 		rows.String())
 }
 
@@ -1930,24 +1834,17 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 		Str(rfc.TableCell(rfcAccountedNote(split, accounted))).Str(" |\n")
 
 	mirror.Str("\n## Gap disclosure\n\n").Str(rfcLeadGaps).Str("\n\n")
-	mirror.Str("| Public status for RFCs with gaps | RFCs |\n|---|---:|\n")
-	for _, row := range snapshot.Gaps.StatusCounts {
-		mirror.Str("| ").Str(row.Status).Str(" | ").Str(groupThousands(row.Count)).Str(" |\n")
-	}
-	if len(snapshot.Gaps.SupportedWithRemaining) > 0 {
-		mirror.Str("\n### Supported rows that still disclose a gap\n\n")
-		for _, row := range snapshot.Gaps.SupportedWithRemaining {
-			mirror.Str("- **").Str(row.RFC).Str(":** ").Str(row.Remaining).Byte('\n')
-		}
-	}
+	mirror.Str("| Declared gaps | Count |\n|---|---:|\n")
+	mirror.Str("| Requirements declared as gaps | ").Str(groupThousands(snapshot.Gaps.Requirements)).Str(" |\n")
+	mirror.Str("| RFCs declaring a gap | ").Str(groupThousands(snapshot.Gaps.RFCs)).Str(" |\n")
 
 	mirror.Str("\n## Exclusion disclosure\n\n").Str(rfcLeadExclusions).Str("\n\n")
 	mirror.Str(rfcExclusionDisclosureMirror(ledger))
 
 	mirror.Str("\n## Top gap clusters\n\n").Str(rfcLeadClusters).Str("\n\n")
-	mirror.Str("| RFC | Declared gaps | Public status |\n|---|---:|---|\n")
+	mirror.Str("| RFC | Declared gaps |\n|---|---:|\n")
 	for _, row := range snapshot.Gaps.TopRFCs {
-		mirror.Str("| `").Str(row.RFC).Str("` | ").Str(groupThousands(row.Count)).Str(" | ").Str(row.Status).Str(" |\n")
+		mirror.Str("| `").Str(row.RFC).Str("` | ").Str(groupThousands(row.Count)).Str(" |\n")
 	}
 
 	mirror.Str("\n## How this is checked\n\n").Str(rfcLeadMechanism).Str("\n\n")
@@ -2089,14 +1986,14 @@ func rfcEnrolledIndexHTML(ledger rfcLedger) string {
 		body.Str(rfcFigureRowCells(entry.Stem, figures[entry.Stem],
 			"<a href=\""+html.EscapeString(rfcStemHref(entry.Stem))+"\"><code>"+
 				html.EscapeString(entry.Display)+"</code></a> "+html.EscapeString(entry.Title),
-			html.EscapeString(rfcIndexStatus(entry)),
+			html.EscapeString(rfcIndexArea(entry)),
 			mandatory, optional,
 			strconv.Itoa(entry.Coverage.Gated),
 			strconv.Itoa(entry.Coverage.Gaps),
 			strconv.Itoa(entry.Coverage.DemonstratedGaps),
 			strconv.Itoa(entry.Coverage.Missing)))
 	}
-	return rfcIndexLegendHTML(rfcIndexCeilingRows(ledger)) + rfcTableHTML(rfcHeadCells("RFC", rfcIndexStatusLabel,
+	return rfcIndexLegendHTML(rfcIndexCeilingRows(ledger)) + rfcTableHTML(rfcHeadCells("RFC", rfcIndexAreaLabel,
 		rfcIndexMandatoryLabel, rfcIndexOptionalLabel, rfcIndexMustsLabel, rfcIndexGapsLabel,
 		rfcIndexGapsTested, rfcIndexUntestedLabel), body.String())
 }
@@ -2182,14 +2079,14 @@ func rfcIndexMirror(ledger rfcLedger) string {
 		out.Str("No summary is enrolled.\n")
 	} else {
 		out.Str(rfcIndexLegendMirror(rfcIndexCeilingRows(ledger)))
-		out.Str(rfcMirrorHead("RFC", rfcIndexStatusLabel, rfcIndexMandatoryLabel, rfcIndexOptionalLabel,
+		out.Str(rfcMirrorHead("RFC", rfcIndexAreaLabel, rfcIndexMandatoryLabel, rfcIndexOptionalLabel,
 			rfcIndexMustsLabel, rfcIndexGapsLabel, rfcIndexGapsTested, rfcIndexUntestedLabel))
 		for index := range enrolled {
 			entry := enrolled[index]
 			mandatory, optional := rfcFigureMirrorCells(figures[entry.Stem])
 			out.Str("| [`").Str(entry.Display).Str("`](").Str(rfcStemHref(entry.Stem)).
 				Str(pageMirrorFile).Str(") ").Str(rfc.TableCell(entry.Title)).Str(" | ").
-				Str(rfc.TableCell(rfcIndexStatus(entry))).Str(" | ").
+				Str(rfc.TableCell(rfcIndexArea(entry))).Str(" | ").
 				Str(mandatory).Str(" | ").Str(optional).Str(" | ").
 				Int(int64(entry.Coverage.Gated)).Str(" | ").
 				Int(int64(entry.Coverage.Gaps)).Str(" | ").
@@ -2228,13 +2125,14 @@ func rfcIndexRows(ledger rfcLedger, enrolled bool) []*rfcLedgerStem {
 	return rows
 }
 
-// rfcIndexStatus answers what docs/features/rfc-status.md says about one stem,
-// and says plainly that it carries no row rather than showing a blank cell.
-func rfcIndexStatus(entry *rfcLedgerStem) string {
-	if entry.PublicStatus == "" {
+// rfcIndexArea answers the area one stem's row on docs/features/rfc-status.md
+// is filed under, and says plainly that it carries no row rather than showing
+// a blank cell.
+func rfcIndexArea(entry *rfcLedgerStem) string {
+	if entry.PublicArea == "" {
 		return rfcMissingRow
 	}
-	return entry.PublicStatus
+	return entry.PublicArea
 }
 
 // rfcIndexDispositionKind answers which decision keeps one summary out of the
@@ -2705,12 +2603,6 @@ func rfcMechanismLead(snapshot *rfcCompliance) string {
 // rfcMechanismRows answers what the gate reads, what runs it, and what it
 // publishes, as (term, markup) pairs both renderings share.
 func rfcMechanismRows(snapshot *rfcCompliance) [][3]string {
-	supported := 0
-	for _, row := range snapshot.Gaps.StatusCounts {
-		if strings.HasPrefix(row.Status, "Supported") {
-			supported += row.Count
-		}
-	}
 	return [][3]string{
 		{"Reproduce it", "<code>" + html.EscapeString(snapshot.Verify.Command) + "</code>",
 			groupThousands(snapshot.Verify.GateStages) + " of " +
@@ -2722,8 +2614,7 @@ func rfcMechanismRows(snapshot *rfcCompliance) [][3]string {
 		{rfcTestTagsLabel, "<code>internal/</code>, <code>pkg/</code>, <code>test/</code>",
 			groupThousands(snapshot.Gate.TestTags) + " resolved tags"},
 		{"Public ledger", "<code>rfc/short/*.md</code>, the <code>| Support |</code> Meta row",
-			groupThousands(snapshot.Gaps.RFCs) + " RFCs with gaps, " + groupThousands(supported) +
-				" Supported with Remaining"},
+			groupThousands(snapshot.Gaps.RFCs) + " RFCs with gaps"},
 		{"Semantic audits", "<code>rfc/audit/*/*.json</code>",
 			groupThousands(snapshot.Audit.Fresh) + " fresh, " +
 				groupThousands(snapshot.Audit.Shifted) + " shifted, " +

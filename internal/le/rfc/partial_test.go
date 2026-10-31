@@ -161,9 +161,6 @@ func TestPartialNeverMovesWholeProofNumerator(t *testing.T) {
 	if row.Gated != 1 || row.Annotated != 1 || row.Partial != 1 || row.Both+row.One+row.Missing != 0 {
 		t.Fatalf("partition: %+v", row)
 	}
-	if cell := proofCell(row); !strings.Contains(cell, "0 proven") || !strings.Contains(cell, "1 partial subset") {
-		t.Fatalf("public proof cell loses scope: %s", cell)
-	}
 	files := partialFiles()
 	records := partialRecords(t, files)
 	proven, escaped := discriminationRouteCounts(verifyFixture(t, files, nil, records...))
@@ -205,20 +202,9 @@ func TestPartialDisclosureCountsRows(t *testing.T) {
 	if len(checkStatusAgreement([]Requirement{req}, nil, enrolled)) == 0 {
 		t.Fatal("missing public row accepted")
 	}
-	rows := map[string]LedgerRow{selftestStem: {Status: "Supported", Remaining: "None"}}
-	if len(checkStatusAgreement([]Requirement{req}, rows, enrolled)) == 0 {
-		t.Fatal("clean support accepted")
-	}
-	rows[selftestStem] = LedgerRow{Status: "Partial", Remaining: "One MUST row remains unmet: sending absent"}
+	rows := map[string]LedgerRow{selftestStem: {}}
 	if errs := checkStatusAgreement([]Requirement{req}, rows, enrolled); len(errs) != 0 {
-		t.Fatal(errs)
-	}
-	if errs := checkGapCountAgreement([]Requirement{req}, rows); len(errs) != 0 {
-		t.Fatal(errs)
-	}
-	rows[selftestStem] = LedgerRow{Status: "Partial", Remaining: "Zero MUST rows remain unmet"}
-	if len(checkGapCountAgreement([]Requirement{req}, rows)) == 0 {
-		t.Fatal("omitted partial count accepted")
+		t.Fatalf("a public row derives its Unmet cell, yet refused: %v", errs)
 	}
 }
 
@@ -339,40 +325,5 @@ func TestMalformedPartialCannotPublishWholeCredit(t *testing.T) {
 				t.Fatal("refused stamp wrote audit data")
 			}
 		})
-	}
-}
-
-// TestPartialDisclosedInFourColumnNote pins where a four-column row discloses.
-//
-// VALIDATES: a {partial} on a summary whose section renders no Remaining cell
-// (the drafts section) is read against the row's Note, the Coverage cell the
-// page prints, while a six-column row with `Support remaining` `-` is still
-// refused.
-// PREVENTS: a {partial} on a draft that no summary edit can disclose, because
-// checkRowCells holds a four-column `Support remaining` at `-`.
-func TestPartialDisclosedInFourColumnNote(t *testing.T) {
-	req := partialRow(t)
-	enrolled := map[string]bool{selftestStem: true}
-	note := "One MUST row is partial: the -02 form is read, never sent"
-	aggregates := map[string]Aggregate{
-		"drafts":   {Name: "drafts", Shape: ShapeBrief},
-		"bgp-core": {Name: "bgp-core", Shape: ShapeWide},
-	}
-	brief := Meta{Aggregate: "drafts", Row: true, Area: "a", Status: "Partial", Coverage: note, Remaining: supportNone}
-	rows := rowsFrom(map[string]Meta{selftestStem: brief}, aggregates)
-	if rows[selftestStem].Remaining != note {
-		t.Fatalf("four-column Remaining = %q, want the Note %q", rows[selftestStem].Remaining, note)
-	}
-	if errs := checkStatusAgreement([]Requirement{req}, rows, enrolled); len(errs) != 0 {
-		t.Fatal(errs)
-	}
-	full := brief
-	full.Aggregate = "bgp-core"
-	rows = rowsFrom(map[string]Meta{selftestStem: full}, aggregates)
-	if rows[selftestStem].Remaining != "" {
-		t.Fatalf("six-column `-` Remaining = %q, want empty", rows[selftestStem].Remaining)
-	}
-	if len(checkStatusAgreement([]Requirement{req}, rows, enrolled)) == 0 {
-		t.Fatal("six-column row with Remaining `-` accepted a {partial}")
 	}
 }

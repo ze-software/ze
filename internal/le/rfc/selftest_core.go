@@ -58,8 +58,7 @@ const selftestMeta = "## Meta\n\n| Field | Value |\n|-------|-------|\n" +
 	"| Implementation | ze |\n" +
 	"| Implementation reason | the fixture's own Go answers it |\n" +
 	"| Support | " + FixtureAggregate + " |\n| Support area | Widgets |\n" +
-	"| Support status | Partial |\n| Support coverage | unit tests |\n" +
-	"| Support remaining | Zero MUST gaps. |\n" + selftestUseCaseRows + selftestZeRolesRow
+	selftestUseCaseRows + selftestZeRolesRow
 
 // selftestZeRolesRow declares the roles Ze fills for the fixture RFC, which
 // every quoted {not-applicable} row of its summary is held against.
@@ -340,42 +339,41 @@ func runStatusSelftest() ([]leroot.SelftestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows := rowsFrom(map[string]Meta{selftestStem: meta},
-		map[string]Aggregate{FixtureAggregate: {Name: FixtureAggregate, Shape: ShapeWide}})
+	rows := rowsFrom(map[string]Meta{selftestStem: meta})
 	_, absent := ParseMeta("# RFC 8888\n\n## Meta\n\n| Field | Value |\n|--|--|\n| Title | X |\n",
 		selftestStemSecond, selftestSummaryRelSecond)
 	_, unknown := ParseMeta(selftestMetaWith("| Enrolment | maybe |\n"), selftestStemSecond, selftestSummaryRelSecond)
 	_, nearMiss := ParseMeta(selftestMetaWith("| Enrolled | enrolled |\n"), selftestStemSecond, selftestSummaryRelSecond)
+	_, retired := ParseMeta(selftestMetaWith("| Support status | Supported |\n"), selftestStemSecond, selftestSummaryRelSecond)
 	gap := Requirement{
 		RFC: selftestStem, RID: selftestRIDSend, Level: levelMust, Text: "MUST send", Section: "2",
 		Annotation: &Annotation{Kind: AnnotationGap, Reason: "not implemented"},
 	}
 	hidden := checkStatusAgreement(
 		[]Requirement{gap},
-		map[string]LedgerRow{selftestStem: {Status: "Supported", Coverage: "complete"}},
+		map[string]LedgerRow{},
 		map[string]bool{selftestStem: true},
 	)
 	judged := checkSummaryDisposition("", map[string]Meta{selftestStemSecond: {
 		Enrolment: dispositionNonNormative, EnrolmentReason: "ze does not implement it",
 	}}, nil)
-	counted := checkGapCountAgreement([]Requirement{gap},
-		map[string]LedgerRow{selftestStem: {Remaining: "Two MUSTs remain"}})
 
+	_, rowHeld := rows[selftestStem]
 	return []leroot.SelftestResult{
-		selftestResult("status/public-row", rows[selftestStem].Status == "Partial" && rows[selftestStem].Remaining == "Zero MUST gaps.",
-			"the summary's Meta table did not yield its status and remaining work"),
+		selftestResult("status/public-row", rowHeld && meta.Area == "Widgets",
+			"the summary's Meta table did not yield its public row and its area"),
 		selftestResult("status/enrolment-absent", absent != nil,
 			"a summary declaring no enrolment was accepted, which would default it out of the gated population"),
 		selftestResult("status/enrolment-unknown", unknown != nil,
 			"an enrolment value outside the closed set was accepted"),
 		selftestResult("status/enrolment-near-miss", nearMiss != nil,
 			"a Meta label naming enrolment in a spelling nothing reads was skipped in silence"),
+		selftestResult("status/retired-support-cell", retired != nil && strings.Contains(retired.Error(), "retired"),
+			"a summary carrying the retired `Support status` cell was accepted"),
 		selftestResult("status/non-normative-reason", len(judged) == 1,
 			"a non-normative reason judging what ZE owes was accepted"),
 		selftestResult("status/gap-disclosure", len(hidden) == 1 && strings.Contains(hidden[0], selftestRIDSend),
-			"a Supported row hid a requirement gap"),
-		selftestResult("status/gap-count", len(counted) == 1,
-			"a spelled gap count disagreeing with the annotations was accepted"),
+			"an enrolled RFC with a requirement gap and no public row hid the gap"),
 	}, nil
 }
 
@@ -436,10 +434,11 @@ var Gating = []string{suiteParse, suiteUI}
 		map[string]bool{}, []Requirement{req}, map[string]string{}, true,
 		map[string]Meta{selftestStem: {Enrolment: dispositionOutOfScope}},
 	)
-	// And the guard that stops it being a way to look green.
-	claimed := checkOutOfScope("rfc/short/rfc9999.md: ", &Meta{
-		Enrolment: dispositionOutOfScope, EnrolmentReason: "declined 2026-09-01 by the owner",
-		Aggregate: FixtureAggregate, Row: true, Status: "Partial",
+	// And the guard that stops it being a way to look green: a scope
+	// decision nobody can age.
+	undated := checkOutOfScope("rfc/short/rfc9999.md: ", &Meta{
+		Enrolment: dispositionOutOfScope, EnrolmentReason: "declined by the owner",
+		Aggregate: FixtureAggregate, Row: true,
 	}, 1)
 	emptyEnrolment := checkEnrolment(root, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{})
 
@@ -458,8 +457,8 @@ var Gating = []string{suiteParse, suiteUI}
 			"the level ratchet accepted an unauthorized demotion"),
 		selftestResult("baseline/out-of-scope-not-billed", len(scoped) == 0,
 			"an out-of-scope summary was asked to enroll, which pressures the next author to delete its checklist"),
-		selftestResult("baseline/out-of-scope-claims-nothing", len(claimed) == 1 && strings.Contains(claimed[0], "cannot be advertised as supported"),
-			"an out-of-scope summary was allowed to claim public support"),
+		selftestResult("baseline/out-of-scope-dated", len(undated) == 1 && strings.Contains(undated[0], "carrying no date"),
+			"an out-of-scope summary whose scope decision carries no date was accepted"),
 		selftestResult("baseline/new-summary-ratchet", len(newSummary) == 1 && strings.Contains(newSummary[0], "does not declare `| Enrolment | enrolled |`"),
 			"a new gated summary remained unenrolled"),
 		selftestResult("baseline/enrolment-ratchet", len(emptyEnrolment) == 1 && strings.Contains(emptyEnrolment[0], "nothing is enrolled"),

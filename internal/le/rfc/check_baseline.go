@@ -188,13 +188,44 @@ func baselineMetas(tree string) (map[string]Meta, bool) {
 	return baselineMetasBeforeMigration(tree)
 }
 
-// retiredBaselineShapes rewrites a HEAD^ summary written before either Meta
+// retiredBaselineShapes rewrites a HEAD^ summary written before any Meta
 // migration into the shape ParseMeta reads: the aggregate migration of
-// 2026-10-25 (retiredSectionRank), then the declared use-case rows of
-// 2026-10-26 (retiredUseCaseRows). It reads GIT HISTORY only, for the reason
+// 2026-10-25 (retiredSectionRank), the declared use-case rows of 2026-10-26
+// (retiredUseCaseRows), then the authored support cells the derived proof
+// replaced (retiredSupportCells). It reads GIT HISTORY only, for the reason
 // retiredSectionRank gives.
 func retiredBaselineShapes(text string) string {
-	return retiredUseCaseRows(retiredSectionRank(text))
+	return retiredSupportCells(retiredUseCaseRows(retiredSectionRank(text)))
+}
+
+// retiredSupportCells drops every `Support status`, `Support coverage` and
+// `Support remaining` row from a HEAD^ summary written before the public
+// ledger derived its proof. The ratchets this baseline feeds read enrolment
+// and the public row, never those cells, so dropping them changes no baseline
+// fact; without it every summary at the commit that deleted the cells fails to
+// parse and is skipped, and the ratchets stop running over exactly that
+// commit. A summary in the tree that still writes one is refused by
+// ParseMeta (refuseNearMiss).
+func retiredSupportCells(text string) string {
+	lines := strings.SplitAfter(text, "\n")
+	kept := lines[:0]
+	for _, line := range lines {
+		if !isRetiredSupportRow(line) {
+			kept = append(kept, line)
+		}
+	}
+	return strings.Join(kept, "")
+}
+
+// isRetiredSupportRow reports whether line is a Meta table row whose label is
+// one of retiredSupportLabels.
+func isRetiredSupportRow(line string) bool {
+	cell, isRow := strings.CutPrefix(line, "| ")
+	if !isRow {
+		return false
+	}
+	label, _, closed := strings.Cut(cell, " |")
+	return closed && retiredSupportLabels[label]
 }
 
 // retiredUseCaseRows adds `-` use-case rows to a HEAD^ summary written before

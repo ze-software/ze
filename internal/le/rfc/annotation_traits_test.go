@@ -78,13 +78,12 @@ func TestAnnotationTraitsPreserveRowBehavior(t *testing.T) {
 			if stale != one.barsTests {
 				t.Errorf("tag contradicts annotation=%v, want %v; findings=%+v", stale, one.barsTests, findings)
 			}
-			status := map[string]LedgerRow{selftestStem: {Status: "Supported", Remaining: "none"}}
-			if refused := len(checkStatusAgreement([]Requirement{req}, status, map[string]bool{selftestStem: true})) != 0; refused != one.unmet {
-				t.Errorf("clean public support refused=%v, want %v", refused, one.unmet)
+			rowed := map[string]LedgerRow{selftestStem: {}}
+			if refused := len(checkStatusAgreement([]Requirement{req}, rowed, map[string]bool{selftestStem: true})); refused != 0 {
+				t.Errorf("a public row derives its Unmet cell, yet %d refusal(s)", refused)
 			}
-			status[selftestStem] = LedgerRow{Remaining: "one MUST remains"}
-			if refused := len(checkGapCountAgreement([]Requirement{req}, status)) != 0; refused == one.unmet {
-				t.Errorf("one unmet row claim refused=%v, unmet=%v", refused, one.unmet)
+			if refused := len(checkStatusAgreement([]Requirement{req}, map[string]LedgerRow{}, map[string]bool{selftestStem: true})) != 0; refused != one.unmet {
+				t.Errorf("enrolled RFC with no public row refused=%v, want %v", refused, one.unmet)
 			}
 			for _, audit := range []struct {
 				value string
@@ -139,24 +138,5 @@ func TestUnknownAnnotationFailsClosed(t *testing.T) {
 	tags := []Tag{{RID: req.RID, Polarity: PolarityPositive}, {RID: req.RID, Polarity: PolarityNegative}}
 	if polarityCovered(req, tags) {
 		t.Fatal("unknown annotation gained auditable polarity coverage")
-	}
-}
-
-// TestPartialStatusStillRequiresExplicitRemaining distinguishes a partial row's
-// remaining-work disclosure from an ordinary gap's unsupported public status.
-func TestPartialStatusStillRequiresExplicitRemaining(t *testing.T) {
-	rows := map[string]LedgerRow{selftestStem: {Status: "Unsupported", Remaining: "none"}}
-	enrolled := map[string]bool{selftestStem: true}
-	req := Requirement{RFC: selftestStem, RID: selftestRIDSend, Annotation: &Annotation{Kind: AnnotationGap}}
-	if errs := checkStatusAgreement([]Requirement{req}, rows, enrolled); len(errs) != 0 {
-		t.Fatalf("unsupported gap changed semantics: %v", errs)
-	}
-	req.Annotation.Kind = AnnotationPartial
-	if errs := checkStatusAgreement([]Requirement{req}, rows, enrolled); len(errs) != 1 {
-		t.Fatalf("partial without remaining disclosure got %v, want refusal", errs)
-	}
-	rows[selftestStem] = LedgerRow{Status: "Unsupported", Remaining: "one MUST remains"}
-	if errs := checkStatusAgreement([]Requirement{req}, rows, enrolled); len(errs) != 0 {
-		t.Fatalf("disclosed partial refused: %v", errs)
 	}
 }

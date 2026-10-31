@@ -4,6 +4,7 @@
 package rfc
 
 import (
+	"encoding/json"
 	"slices"
 	"strings"
 
@@ -34,7 +35,31 @@ type TreeRow struct {
 	UpdatedBy []string `json:"updated-by"`
 	// Summary is whether rfc/short/ holds a summary. A node without one has
 	// a text the graph reached and no requirement list.
-	Summary             bool           `json:"summary"`
+	Summary bool `json:"summary"`
+	// StemFigures is the stem's figures held whole, as figuresByStem answered
+	// them, so no count can be dropped between the measurement and the row.
+	// It is promoted (row.Walked, row.Mandatory) and published through
+	// MarshalJSON, never by its own field names.
+	StemFigures `json:"-"`
+	// Profiles is the use-case profiles the node's summary is required by,
+	// and OptionalProfiles those listing it as optional.
+	Profiles         []string `json:"profiles"`
+	OptionalProfiles []string `json:"optional-profiles"`
+	// Path is the declaration that puts the node in the named profile, empty
+	// without one.
+	Path string `json:"path"`
+}
+
+// treeRowFields is TreeRow without its methods, so the JSON forms below
+// encode its own keys without recursing into MarshalJSON.
+type treeRowFields TreeRow
+
+// treeRowJSON is the published form of a TreeRow: its own keys, then the
+// figure keys the site and `./le rfc tree | json` read. OSVerified, OSGap,
+// NotYet, NotEver and NotDecided are not published yet, so a row decoded from
+// JSON holds them zero; no TreeRow method reads them.
+type treeRowJSON struct {
+	*treeRowFields
 	Walked              bool           `json:"walked"`
 	MandatoryProven     int            `json:"mandatory-proven"`
 	MandatoryTotal      int            `json:"mandatory-total"`
@@ -44,13 +69,41 @@ type TreeRow struct {
 	OptionalAttainable  int            `json:"optional-attainable"`
 	MandatoryExcluded   map[string]int `json:"mandatory-excluded"`
 	OptionalExcluded    map[string]int `json:"optional-excluded"`
-	// Profiles is the use-case profiles the node's summary is required by,
-	// and OptionalProfiles those listing it as optional.
-	Profiles         []string `json:"profiles"`
-	OptionalProfiles []string `json:"optional-profiles"`
-	// Path is the declaration that puts the node in the named profile, empty
-	// without one.
-	Path string `json:"path"`
+	// MandatoryByKind is the proven mandatory rows by the strongest evidence
+	// kind behind each, summing to MandatoryProven. Unmet is the ids the
+	// summary or an audit says are unmet, published walked or not.
+	MandatoryByKind map[string]int `json:"mandatory-by-kind"`
+	Unmet           []string       `json:"unmet"`
+}
+
+// MarshalJSON publishes the row with its figures under the flat keys.
+func (r *TreeRow) MarshalJSON() ([]byte, error) {
+	unmet := r.Unmet
+	if unmet == nil {
+		unmet = []string{}
+	}
+	return json.Marshal(treeRowJSON{treeRowFields: (*treeRowFields)(r), Walked: r.Walked,
+		MandatoryProven: r.Mandatory.Proven, MandatoryTotal: r.Mandatory.Total,
+		OptionalProven: r.Optional.Proven, OptionalTotal: r.Optional.Total,
+		MandatoryAttainable: r.Mandatory.Attainable, OptionalAttainable: r.Optional.Attainable,
+		MandatoryExcluded: r.Mandatory.Excluded, OptionalExcluded: r.Optional.Excluded,
+		MandatoryByKind: r.MandatoryByKind, Unmet: unmet})
+}
+
+// UnmarshalJSON reads a published row back, so its cells render as
+// `./le rfc tree` printed them.
+func (r *TreeRow) UnmarshalJSON(data []byte) error {
+	wire := treeRowJSON{treeRowFields: (*treeRowFields)(r)}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	r.StemFigures = StemFigures{Stem: r.Stem, Walked: wire.Walked,
+		Mandatory: Figure{Proven: wire.MandatoryProven, Total: wire.MandatoryTotal,
+			Attainable: wire.MandatoryAttainable, Excluded: wire.MandatoryExcluded},
+		Optional: Figure{Proven: wire.OptionalProven, Total: wire.OptionalTotal,
+			Attainable: wire.OptionalAttainable, Excluded: wire.OptionalExcluded},
+		MandatoryByKind: wire.MandatoryByKind, Unmet: wire.Unmet}
+	return nil
 }
 
 // TreeReport is the answer of `./le rfc tree`.
@@ -263,11 +316,7 @@ func (c *priorityCorpus) treeRow(stem string, useCases []profileScope) *TreeRow 
 	row := &TreeRow{Stem: stem, Title: c.metas[stem].Title, Level: c.level(stem),
 		Component: []string{}, Aggregate: c.metas[stem].Aggregate,
 		BuildsOn: append([]string{}, c.buildsOn[stem]...), UpdatedBy: append([]string{}, c.updaters[stem]...),
-		Summary: summarized, Walked: figures.Walked,
-		MandatoryProven: figures.Mandatory.Proven, MandatoryTotal: figures.Mandatory.Total,
-		OptionalProven: figures.Optional.Proven, OptionalTotal: figures.Optional.Total,
-		MandatoryAttainable: figures.Mandatory.Attainable, OptionalAttainable: figures.Optional.Attainable,
-		MandatoryExcluded: figures.Mandatory.Excluded, OptionalExcluded: figures.Optional.Excluded,
+		Summary: summarized, StemFigures: figures,
 		Profiles: []string{}, OptionalProfiles: []string{}}
 	if members, held := c.graph.Component(stem); held {
 		for _, member := range members {
@@ -294,8 +343,7 @@ func (r *TreeRow) Cells() (mandatory, optional string) {
 	if !r.Summary {
 		return noSummaryCell, noSummaryCell
 	}
-	figures := r.figures()
-	return figures.mandatoryCell(), figures.optionalCell()
+	return r.mandatoryCell(), r.optionalCell()
 }
 
 // CeilingCells answers ceiling cells with the same measurement boundary as Cells.
@@ -306,17 +354,7 @@ func (r *TreeRow) CeilingCells() (mandatory, optional string) {
 	if !r.Walked {
 		return notWalked, notWalked
 	}
-	figures := r.figures()
-	return figures.Mandatory.CeilingString(), figures.Optional.CeilingString()
-}
-
-// figures reads the counts carried by a row, including one decoded from JSON.
-func (r *TreeRow) figures() StemFigures {
-	return StemFigures{Stem: r.Stem, Walked: r.Walked,
-		Mandatory: Figure{Proven: r.MandatoryProven, Total: r.MandatoryTotal,
-			Attainable: r.MandatoryAttainable, Excluded: r.MandatoryExcluded},
-		Optional: Figure{Proven: r.OptionalProven, Total: r.OptionalTotal,
-			Attainable: r.OptionalAttainable, Excluded: r.OptionalExcluded}}
+	return r.Mandatory.CeilingString(), r.Optional.CeilingString()
 }
 
 // Text renders the tree, one line per node, for a reader at a terminal: the
@@ -377,9 +415,8 @@ func writeTreeRow(tb *textbuf.Buffer, row *TreeRow) {
 	mandatoryCeiling, optionalCeiling := row.CeilingCells()
 	tb.Str("; ceiling mandatory ").Str(mandatoryCeiling).Str(", optional ").Str(optionalCeiling)
 	if row.Summary && row.Walked {
-		figures := row.figures()
-		writeFigureExclusions(tb, "mandatory", figures.Mandatory)
-		writeFigureExclusions(tb, "optional", figures.Optional)
+		writeFigureExclusions(tb, "mandatory", row.Mandatory)
+		writeFigureExclusions(tb, "optional", row.Optional)
 	}
 	if row.Aggregate != "" {
 		tb.Str("  [").Str(row.Aggregate).Byte(']')
@@ -401,3 +438,14 @@ func levelCell(level *int) string {
 	}
 	return tb.Byte('L').Int(int64(*level)).String()
 }
+
+// ProofCell answers the Proof cell docs/features/rfc-status.md prints for
+// this RFC: `N of M MUST proven`, or `not walked`.
+func (r *TreeRow) ProofCell() string { return proofCell(r.StemFigures) }
+
+// EvidenceCell answers the Evidence cell: the proven mandatory rows by
+// strongest evidence kind, or `-`.
+func (r *TreeRow) EvidenceCell() string { return evidenceCell(r.StemFigures) }
+
+// UnmetCell answers the Unmet cell: the unmet requirement ids, or `-`.
+func (r *TreeRow) UnmetCell() string { return unmetCell(r.StemFigures) }

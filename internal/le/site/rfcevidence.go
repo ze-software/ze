@@ -86,10 +86,9 @@ func rfcGapReason(requirement *rfcLedgerRequirement, declared bool) string {
 
 // rfcGapsHTML renders every gap and every untested MUST.
 //
-// The public ledger's own Remaining cell is NOT here: it is the ledger's prose
-// and it is stated once, under What the public ledger says, beside the Coverage
-// cell it belongs with (owner review, 2026-09-01). This section is the
-// requirement-by-requirement answer.
+// The public ledger's derived Unmet ids are NOT repeated here: they are stated
+// once, under What the public ledger says, beside the Proof figure they belong
+// with. This section is the requirement-by-requirement answer.
 func rfcGapsHTML(entry *rfcLedgerStem) string {
 	var out textbuf.Buffer
 	rows := rfcGapRows(entry)

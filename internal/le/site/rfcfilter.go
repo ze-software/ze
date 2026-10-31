@@ -259,8 +259,8 @@ func rfcFigureCells(row *rfc.TreeRow) (mandatory, optional string) {
 	}
 	mandatoryText, optionalText := row.Cells()
 	mandatoryCeiling, optionalCeiling := rfcRowCeilingCells(row)
-	return rfcProfileBarHTML(row, mandatoryText, row.MandatoryProven, row.MandatoryTotal) + mandatoryCeiling,
-		rfcProfileBarHTML(row, optionalText, row.OptionalProven, row.OptionalTotal) + optionalCeiling
+	return rfcProfileBarHTML(row, mandatoryText, row.Mandatory.Proven, row.Mandatory.Total) + mandatoryCeiling,
+		rfcProfileBarHTML(row, optionalText, row.Optional.Proven, row.Optional.Total) + optionalCeiling
 }
 
 // rfcFigureMirrorCells answers the same two cells as text, for the mirror.
@@ -272,8 +272,8 @@ func rfcFigureMirrorCells(row *rfc.TreeRow) (mandatory, optional string) {
 	if !row.Walked {
 		return mandatory, optional
 	}
-	return mandatory + "; ceiling " + rfcCeilingFigure(row.MandatoryAttainable, row.MandatoryTotal, row.MandatoryExcluded),
-		optional + "; ceiling " + rfcCeilingFigure(row.OptionalAttainable, row.OptionalTotal, row.OptionalExcluded)
+	return mandatory + "; ceiling " + rfcCeilingFigure(row.Mandatory.Attainable, row.Mandatory.Total, row.Mandatory.Excluded),
+		optional + "; ceiling " + rfcCeilingFigure(row.Optional.Attainable, row.Optional.Total, row.Optional.Excluded)
 }
 
 // rfcFigureRowCells answers one table row of the RFC named by stem, carrying
@@ -286,20 +286,26 @@ func rfcFigureRowCells(stem string, row *rfc.TreeRow, cells ...string) string {
 		if row.Walked {
 			walked = "1"
 		}
-		attributes += ` data-walked="` + walked + `" data-mp="` + strconv.Itoa(row.MandatoryProven) +
-			`" data-mt="` + strconv.Itoa(row.MandatoryTotal) + `" data-op="` + strconv.Itoa(row.OptionalProven) +
-			`" data-ot="` + strconv.Itoa(row.OptionalTotal) +
-			`" data-ma="` + strconv.Itoa(row.MandatoryAttainable) + `" data-oa="` + strconv.Itoa(row.OptionalAttainable) +
-			`" data-me="` + html.EscapeString(rfcExcludedJSON(row.MandatoryExcluded)) +
-			`" data-oe="` + html.EscapeString(rfcExcludedJSON(row.OptionalExcluded)) + `"`
+		attributes += ` data-walked="` + walked + `" data-mp="` + strconv.Itoa(row.Mandatory.Proven) +
+			`" data-mt="` + strconv.Itoa(row.Mandatory.Total) + `" data-op="` + strconv.Itoa(row.Optional.Proven) +
+			`" data-ot="` + strconv.Itoa(row.Optional.Total) +
+			`" data-ma="` + strconv.Itoa(row.Mandatory.Attainable) + `" data-oa="` + strconv.Itoa(row.Optional.Attainable) +
+			`" data-me="` + html.EscapeString(rfcExcludedJSON(row.Mandatory.Excluded)) +
+			`" data-oe="` + html.EscapeString(rfcExcludedJSON(row.Optional.Excluded)) + `"`
 	}
 	return "<tr " + attributes + ">" + strings.TrimPrefix(rfcRowCells(cells...), "<tr>")
 }
 
+// rfcMissingRow is the Area cell of an RFC whose summary declares no public
+// row. It reads as a DECISION rather than as an omission: readSupport
+// (internal/le/rfc/meta.go) refuses a Meta table with no `| Support |` row,
+// and a summary writing `-` there declares that it renders none.
+const rfcMissingRow = "No public row declared"
+
 // The enrolled table's short column names. rfcIndexLegend says what each one
 // counts, so the header stays short enough to read.
 const (
-	rfcIndexStatusLabel    = "Status"
+	rfcIndexAreaLabel      = "Area"
 	rfcIndexMustsLabel     = "MUSTs"
 	rfcIndexGapsLabel      = "Gaps"
 	rfcIndexGapsTested     = "Gaps tested"
@@ -311,7 +317,7 @@ const (
 // rfcIndexLegend is each column's meaning, in the order the columns appear.
 func rfcIndexLegend() [][2]string {
 	return [][2]string{
-		{rfcIndexStatusLabel, "the support status the RFC's summary declares"},
+		{rfcIndexAreaLabel, "the area the RFC's public row is filed under, or that its summary declares no public row"},
 		{rfcIndexMandatoryLabel, "the share of the RFC's " + rfcKeywordSeries(rfc.MandatoryKeywords()) +
 			" requirements a test proves by a recorded break. \"not walked\" means the requirement list " +
 			"has not yet been checked against the RFC text, so no figure is counted; \"" + rfcNoProfileCell +
@@ -400,8 +406,8 @@ func rfcRowCeilingCells(row *rfc.TreeRow) (string, string) {
 	if !row.Walked {
 		return "", ""
 	}
-	return `<small class="rfc-ceiling">Ceiling: ` + html.EscapeString(rfcCeilingFigure(row.MandatoryAttainable, row.MandatoryTotal, row.MandatoryExcluded)) + `</small>`,
-		`<small class="rfc-ceiling">Ceiling: ` + html.EscapeString(rfcCeilingFigure(row.OptionalAttainable, row.OptionalTotal, row.OptionalExcluded)) + `</small>`
+	return `<small class="rfc-ceiling">Ceiling: ` + html.EscapeString(rfcCeilingFigure(row.Mandatory.Attainable, row.Mandatory.Total, row.Mandatory.Excluded)) + `</small>`,
+		`<small class="rfc-ceiling">Ceiling: ` + html.EscapeString(rfcCeilingFigure(row.Optional.Attainable, row.Optional.Total, row.Optional.Excluded)) + `</small>`
 }
 
 // rfcExcludedJSON encodes only model count maps, which cannot fail JSON encoding.

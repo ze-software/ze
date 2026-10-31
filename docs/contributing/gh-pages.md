@@ -758,11 +758,12 @@ order, then other stems by name, matching the Go model. Profile links and text
 filters update the same sums. Empty figures say `no rows`, never a percentage;
 an unwalked RFC has no published ceiling. The JSON ledger retains its proof fields and
 adds attainable and excluded counts to the graph, profiles and each stem's
-`figures` member. Profile cards, profile tables, detail pages and their
-Markdown mirrors read those same model counts.
+`figures` member. Detail pages and their Markdown mirrors read those same
+model counts. Profile pages carry no ceiling: they read their figures from
+`data/rfc/`, as above.
 <!-- source: internal/le/site/rfcfilter.go -- rfcFigureRowCells, rfcCeilingStatement, rfcFilterScript -->
 <!-- source: internal/le/site/rfcledger.go -- rfcLedgerStem, requirementLedgerFrom -->
-<!-- source: internal/le/site/rfcprofiles.go -- rfcProfileCards, rfcProfileBody, rfcProfileMirror -->
+<!-- source: internal/le/site/rfcprofiles.go -- rfcProfileBody, rfcProfileMirror -->
 <!-- source: internal/le/site/rfcdetail.go -- rfcDetailCeilingMirror -->
 
 One page per RFC sits under that route, one for every summary in `rfc/short/`.
@@ -931,17 +932,11 @@ Five shapes are load-bearing on that page:
   its own cell. The sentence that explains `unproven` is a legend above the
   table, stated once.
 - **Prose is not a table cell, and not one blob either.** The enrolment reason
-  and the public ledger's cells sit under their own headings. A Coverage cell is
-  a semicolon-chained list of claims and renders as one item per claim; a
-  Remaining cell is a lead sentence and authored "Theme: body" groups and
-  renders as those. `internal/le/site/rfcprose.go` does the split, with a depth
-  counter so a semicolon inside `(...)` or inside a `{ med; }` code span never
-  becomes a cut. The words are NEVER rewritten, paraphrased, summarized or
-  truncated: the split is lossless, every item is balanced, and a cell carrying
-  no such structure renders whole. Inside it every requirement id the RFC
-  declares links to its row and every repository-rooted path links to its file;
-  an id the RFC does not declare and a relative path citation are left as the
-  author wrote them, because a link nobody can follow is worse than none.
+  and the public ledger's facts sit under their own headings. The public
+  ledger states four labelled facts: the authored Area, then the Proof,
+  Evidence and Unmet cells derived from the stem's figures, the same cells
+  `docs/features/rfc-status.md` prints.
+  <!-- source: internal/le/site/rfcdetail.go -- rfcPublicLedgerFacts -->
 - **Every table scrolls inside its own container**, `div.rfc-table-wrap`, the
   convention `.cmd-eq-table-wrap` already holds for the command family. A test
   path is one unbreakable token, so the page body would scroll sideways without

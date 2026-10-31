@@ -395,8 +395,7 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	if !stemsKnown {
 		baselineStems = map[string]bool{}
 	}
-	rows := rowsFrom(collected.Metas, collected.Profiles.Aggregates)
-	dispositions := dispositionsFrom(collected.Metas)
+	rows := rowsFrom(collected.Metas)
 	deriver := NewDeriver(tree)
 	signed, extractionErrors, err := evaluateExtractions(deriver, collected.Requirements)
 	if err != nil {
@@ -534,25 +533,6 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	findings = append(findings, inGroup(CheckPublicStatus, notes(checkSummaryDisposition(tree, collected.Metas, collected.Requirements)))...)
 	findings = append(findings, inGroup(CheckPublicStatus, notes(checkPublicRowMonotonic(collected.Metas, baseMetas,
 		enrolledKnown, newly)))...)
-	derived, err := derivedRegisters(deriver, signed, collected.Requirements)
-	if err != nil {
-		return CheckReport{}, err
-	}
-	findings = append(findings, inGroup(CheckPublicStatus, notes(checkUnprovenSupport(collected.Requirements, rows, stems, dispositions,
-		signed, derived, CoverageRows(collected.Requirements, collected.Tags, carriers))))...)
-	// ARMED 2026-09-01, once every support-promising stem carried a sign-off.
-	// It was written unwired on purpose: arming it while 16 stems still owed one
-	// would have redded this gate for every session sharing the checkout, and a
-	// gate everybody learns to ignore enforces nothing.
-	//
-	// It reads the ROWS rather than the summaries, and since 2026-09-01 those
-	// are the same population: a row is a summary's own `Support` declaration,
-	// so a public claim whose stem has no summary cannot be written. What the
-	// two checks still divide is the QUESTION -- checkUnprovenSupport asks
-	// whether the checklist is empty, this one whether a walk of the source
-	// bounds what the checklist left out.
-	findings = append(findings, inGroup(CheckPublicStatus, notes(checkSupportedSignoff(rows, signed)))...)
-	findings = append(findings, inGroup(CheckPublicStatus, notes(checkGapCountAgreement(collected.Requirements, rows)))...)
 
 	audits, err := loadAudits(tree, collected.Enrolled)
 	if err != nil {

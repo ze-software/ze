@@ -114,9 +114,6 @@ const (
 	metaSupport              = "Support"
 	metaSupportName          = "Support name"
 	metaSupportArea          = "Support area"
-	metaSupportStatus        = "Support status"
-	metaSupportCoverage      = "Support coverage"
-	metaSupportRemain        = "Support remaining"
 	// metaAggregate names the aggregate of a summary whose `Support` is `-`:
 	// it renders no row and still joins its aggregate's rollup.
 	metaAggregate = "Aggregate"
@@ -332,14 +329,10 @@ type Meta struct {
 	// Name overrides the first cell the row would derive from the stem.
 	// Empty everywhere the derivation is right, which is every stem but one.
 	Name string
-	// The four authored cells of the public row, moved verbatim. Nothing here
-	// is derived and nothing here is rewritten: a public support claim is
-	// editorial prose, and a generator that synthesized it would be inventing
-	// the claim it exists to publish.
-	Area      string
-	Status    string
-	Coverage  string
-	Remaining string
+	// Area is the one authored cell of the public row, a classification moved
+	// verbatim. Every other cell the row prints is proof, derived from
+	// verified records (StemFigures), so no summary authors it.
+	Area string
 	// ZeRoles is the roles Ze fills for this RFC, from the `Ze roles` row,
 	// in the order written. Empty when the summary declares none, which only
 	// a summary with no quoted {not-applicable} row may do.
@@ -414,11 +407,18 @@ func (m *Meta) Disposition() Disposition {
 // is not one of the exact labels above.
 var nearMissRE = regexp.MustCompile(`(?i)enrol|support|obsolet|aggregat|use.?case|profile`) //nolint:misspell // `enrol` matches Enrolment and Enrolled; `enroll` misses Enrolment.
 
+// retiredSupportLabels are the three authored support cells the ledger no
+// longer reads. Each mixed availability with proof; proof is now derived
+// (StemFigures) and availability is a feature's Scope. A leftover row is
+// refused by name, never skipped, so an author learns where the fact went.
+var retiredSupportLabels = map[string]bool{
+	"Support status": true, "Support coverage": true, "Support remaining": true,
+}
+
 // knownMetaLabels are every label nearMissRE is allowed to match.
 var knownMetaLabels = map[string]bool{
 	metaEnrolment: true, metaEnrolmentReason: true, metaSupport: true,
-	metaSupportName: true, metaSupportArea: true, metaSupportStatus: true,
-	metaSupportCoverage: true, metaSupportRemain: true,
+	metaSupportName: true, metaSupportArea: true,
 	metaImplementation: true, metaImplementationReason: true, metaAggregate: true,
 	metaAggregateTier: true,
 	metaUseCases:      true, metaOptionalUseCases: true, metaZeRoles: true,
@@ -606,6 +606,14 @@ func splitOutsideParens(cell string) ([]string, bool) {
 // unrecognized leaves the fact absent, and an absent fact reads exactly like a
 // deliberate omission.
 func refuseNearMiss(label, where string) error {
+	if retiredSupportLabels[label] {
+		var tb textbuf.Buffer
+		return parseErr(tb.Str(where).Str(": Meta field `").Str(label).
+			Str("` is retired. The public ledger's proof is derived from verified discrimination ").
+			Str("records and the requirement rows' annotations (`./le rfc tree` prints it), so no ").
+			Str("summary authors it: delete the row. An unmet obligation it described is a ").
+			Str("requirement row annotated {gap}, {partial} or {linux-limit}"))
+	}
 	if !nearMissRE.MatchString(label) {
 		return nil
 	}
@@ -773,9 +781,6 @@ func readSupport(values map[string]string, out *Meta, where string) error {
 	out.Aggregate = aggregate
 	out.Row = true
 	out.Area = values[metaSupportArea]
-	out.Status = values[metaSupportStatus]
-	out.Coverage = values[metaSupportCoverage]
-	out.Remaining = values[metaSupportRemain]
 	return nil
 }
 
@@ -823,8 +828,7 @@ func aggregateName(value, label, where string) (string, error) {
 // A cell nothing renders is a claim nobody reads, and an author who wrote one
 // believes their RFC is on the public page when it is not.
 func refuseOrphanCells(values map[string]string, out *Meta, where string) error {
-	for _, label := range []string{metaSupportName, metaSupportArea, metaSupportStatus,
-		metaSupportCoverage, metaSupportRemain} {
+	for _, label := range []string{metaSupportName, metaSupportArea} {
 		if _, held := values[label]; !held {
 			continue
 		}
@@ -982,32 +986,15 @@ func checkAggregate(meta *Meta, aggregates map[string]Aggregate, stem, where str
 	return checkRowCells(meta, &aggregate, stem, where)
 }
 
-// checkRowCells refuses a row whose cells do not match its aggregate's shape.
+// checkRowCells refuses a row missing its one authored cell, and a Name
+// override on a stem that derives its own first cell.
 func checkRowCells(out *Meta, aggregate *Aggregate, stem, where string) error {
-	for label, value := range map[string]string{
-		metaSupportArea: out.Area, metaSupportStatus: out.Status, metaSupportCoverage: out.Coverage,
-	} {
-		if value != "" {
-			continue
-		}
+	if out.Area == "" {
 		var tb textbuf.Buffer
-		return parseErr(tb.Str(where).Str(": `").Str(metaSupport).
-			Str("` names an aggregate, so this summary renders a public row, but its `").
-			Str(label).Str("` cell is absent or empty. A blank cell on the public page ").
-			Str("states nothing where a reader expects a claim"))
-	}
-	if aggregate.Shape == ShapeBrief && out.Remaining != supportNone {
-		var tb textbuf.Buffer
-		return parseErr(tb.Str(where).Str(": aggregate ").Str(pyRepr(aggregate.Name)).
-			Str(" renders four columns and has no `Remaining` column, so `").
-			Str(metaSupportRemain).Str("` must be `").Str(supportNone).Str("`, not ").
-			Str(pyRepr(truncateRunes(out.Remaining, 40))))
-	}
-	if aggregate.Shape != ShapeBrief && out.Remaining == "" {
-		var tb textbuf.Buffer
-		return parseErr(tb.Str(where).Str(": `").Str(metaSupportRemain).
-			Str("` is absent. Write what is not complete, or `").Str(supportNone).
-			Str("` when the row claims nothing is"))
+		return parseErr(tb.Str(where).Str(": `").Str(metaSupport).Str("` names aggregate ").
+			Str(pyRepr(aggregate.Name)).Str(", so this summary renders a public row, but its `").
+			Str(metaSupportArea).Str("` cell is absent or empty. A blank cell on the public page ").
+			Str("states nothing where a reader expects the RFC's area"))
 	}
 	if out.Name != "" && statusRowRFC.MatchString(stem) {
 		var tb textbuf.Buffer
@@ -1251,34 +1238,19 @@ func dispositionsFrom(metas map[string]Meta) map[string]Disposition {
 	return out
 }
 
-// rowsFrom answers the public page row each summary declares, by the three
-// cells the checks read.
+// rowsFrom answers the stems whose summary declares a public page row.
 //
-// A four-column aggregate (ShapeBrief) renders no Remaining cell,
-// and checkRowCells holds its `Support remaining` at `-`: the row's Note, its
-// Coverage, is the only cell that can say what is not complete. Remaining is
-// therefore the Note for such a row, so a {gap} or {partial} disclosed there
-// is read where the public page prints it.
-//
-// aggregates is the parsed rfc/profiles/. summaryMetas admits no summary whose
-// aggregate is undeclared, so every row's aggregate is present in it.
-func rowsFrom(metas map[string]Meta, aggregates map[string]Aggregate) map[string]LedgerRow {
+// The row carries no authored claim: its proof cells are derived from
+// StemFigures where the page renders, so the map's key is the whole fact the
+// checks read.
+func rowsFrom(metas map[string]Meta) map[string]LedgerRow {
 	out := map[string]LedgerRow{}
 	for stem := range metas {
 		meta := metas[stem]
 		if !meta.HasRow() {
 			continue
 		}
-		remaining := metas[stem].Remaining
-		if remaining == supportNone {
-			remaining = ""
-		}
-		if aggregates[metas[stem].Aggregate].Shape == ShapeBrief {
-			remaining = metas[stem].Coverage
-		}
-		out[stem] = LedgerRow{
-			Status: metas[stem].Status, Coverage: metas[stem].Coverage, Remaining: remaining,
-		}
+		out[stem] = LedgerRow{}
 	}
 	return out
 }

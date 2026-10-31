@@ -32,16 +32,19 @@ func ledgerFixture(t *testing.T) (map[string]string, map[string]Meta, string) {
 		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v",
 			len(collected.MetaProblems), collected.MetaProblems)
 	}
-	known, err := carriers(root)
-	if err != nil {
-		t.Fatalf("read the carriers: %v", err)
-	}
 	levels, err := graph.Load(root)
 	if err != nil {
 		t.Fatalf("read the dependency graph: %v", err)
 	}
-	files, err := ledgerFiles(collected.Metas, collected.Profiles.Aggregates, levels,
-		CoverageRows(collected.Requirements, collected.Tags, known))
+	in, err := NewRenderInput(root, collected, nil, nil)
+	if err != nil {
+		t.Fatalf("assemble the render input: %v", err)
+	}
+	figures, err := StemFiguresOf(&in)
+	if err != nil {
+		t.Fatalf("derive the figures: %v", err)
+	}
+	files, err := ledgerFiles(collected.Metas, collected.Profiles.Aggregates, levels, figures)
 	if err != nil {
 		t.Fatalf("render the ledger files: %v", err)
 	}
@@ -172,21 +175,8 @@ func TestGeneratedStatusRowsMatchTheAuthoredPage(t *testing.T) {
 		if publicRowName(stem, &meta) != cells[0] {
 			t.Errorf("%s renders its first cell as %q, want %q", stem, publicRowName(stem, &meta), cells[0])
 		}
-		for index, want := range []string{cells[1], cells[2]} {
-			got := []string{meta.Area, meta.Status}[index]
-			if unescapePipes(got) != want {
-				t.Errorf("%s cell %d: %q, want %q", stem, index+1, got, want)
-			}
-		}
-		if unescapePipes(meta.Coverage) != cells[3] {
-			t.Errorf("%s coverage:\n authored: %s\n declared: %s", stem, cells[3], meta.Coverage)
-		}
-		remaining := "-"
-		if len(cells) > 4 {
-			remaining = cells[4]
-		}
-		if unescapePipes(meta.Remaining) != remaining {
-			t.Errorf("%s remaining:\n authored: %s\n declared: %s", stem, remaining, meta.Remaining)
+		if unescapePipes(meta.Area) != cells[1] {
+			t.Errorf("%s area: %q, want %q", stem, meta.Area, cells[1])
 		}
 	}
 	declared := 0
@@ -330,11 +320,14 @@ func TestEveryWideRowPublishesItsOwnProofPartition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("collect the corpus: %v", err)
 	}
-	known, err := carriers(root)
+	in, err := NewRenderInput(root, collected, nil, nil)
 	if err != nil {
-		t.Fatalf("read the carriers: %v", err)
+		t.Fatalf("assemble the render input: %v", err)
 	}
-	coverage := coverageByRFC(CoverageRows(collected.Requirements, collected.Tags, known))
+	figures, err := StemFiguresOf(&in)
+	if err != nil {
+		t.Fatalf("derive the figures: %v", err)
+	}
 
 	stemOf := map[string]string{}
 	for stem, meta := range metas {
@@ -360,13 +353,19 @@ func TestEveryWideRowPublishesItsOwnProofPartition(t *testing.T) {
 			continue
 		}
 		checked++
-		if want := proofCell(coverage[stem]); cells[3] != want {
-			t.Errorf("%s publishes Proof %q, want %q", stem, cells[3], want)
+		if want := proofCell(figures[stem]); cells[2] != want {
+			t.Errorf("%s publishes Proof %q, want %q", stem, cells[2], want)
 		}
-		row := coverage[stem]
-		if row.Both+row.Annotated+row.Outstanding() != row.Gated {
-			t.Errorf("%s partitions %d gated requirement(s) into %d + %d + %d, so the cell hides some",
-				stem, row.Gated, row.Both, row.Annotated, row.Outstanding())
+		if want := evidenceCell(figures[stem]); cells[3] != want {
+			t.Errorf("%s publishes Evidence %q, want %q", stem, cells[3], want)
+		}
+		sum := 0
+		for _, count := range figures[stem].MandatoryByKind {
+			sum += count
+		}
+		if figures[stem].Walked && sum != figures[stem].Mandatory.Proven {
+			t.Errorf("%s splits %d proven MUST row(s) into evidence kinds summing to %d, so the Evidence cell hides some",
+				stem, figures[stem].Mandatory.Proven, sum)
 		}
 	}
 	if checked != len(stemOf) {
@@ -414,9 +413,6 @@ func TestStatusPageRowSetUnchanged(t *testing.T) {
 		cells := [][2]string{
 			{publicRowName(stem, &was), publicRowName(stem, &now)},
 			{was.Area, now.Area},
-			{was.Status, now.Status},
-			{was.Coverage, now.Coverage},
-			{was.Remaining, now.Remaining},
 		}
 		for index, pair := range cells {
 			if pair[0] != pair[1] {

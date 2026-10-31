@@ -15,9 +15,6 @@
 | Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | drafts |
 | Support area | BGP Software Version capability code 75 |
-| Support status | Partial |
-| Support coverage | Send side only, and the draft makes both halves optional: "Implementations are not required to advertise the version nor to process received advertisements" (Abstract). `encodeValue` (`internal/component/bgp/plugins/softver/softver.go`) writes the constant `ZeVersion` as the whole Capability Value under the default `encoding draft`; `encoding legacy` puts a length octet first for FRR and ExaBGP peers, an owner-approved deviation that is not counted as conformant (D-13, Notes). `extractSoftverCapabilities` (same file) declares code 75 only for a peer or group whose config carries a `software-version` capability key that is not `disable` or `refuse`, so the default is disabled. Receive side: `parseCapability` (`internal/core/bgp/capability/capability.go`) has no case for code 75, so a received capability becomes an `Unknown` that nothing reads. That is the RFC 5492 Section 3 outcome the draft points at, and it is why the three receiver obligations are met by ignoring rather than by parsing. `ze bgp decode capability 75 <hex>` decodes a payload an operator supplies; that path is a diagnostic tool and is not on the session receive path. Carried in this table as `draft-ietf-idr-software-version` until 2026-09-01. No IETF document of that name exists: the datatracker knows only `draft-abraitis-bgp-version-capability`, revision 18, "Software Version Capability for BGP", which IANA names as the reference for code 75. `docs/architecture/wire/capabilities.md` had always spelled the real one. |
-| Support remaining | - |
 | Use cases | - |
 | Optional use cases | - |
 

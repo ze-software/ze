@@ -18,17 +18,10 @@ import (
 // optional RFC in its own tier.
 func rfcProfilesFixtureLedger() rfcLedger {
 	zero, one := 0, 1
-	walked := &rfc.TreeRow{Stem: "rfc4271", Title: "A Border Gateway Protocol 4 (BGP-4)", Level: &zero,
-		Aggregate: "bgp-core", Summary: true, Walked: true, MandatoryProven: 3, MandatoryTotal: 4, MandatoryAttainable: 4,
-		OptionalProven: 1, OptionalTotal: 2, OptionalAttainable: 2, Component: []string{}, Path: "route-server: required by rfc/short/rfc4271.md"}
-	unwalked := &rfc.TreeRow{Stem: "rfc7947", Title: "Internet Exchange BGP Route Server", Level: &one,
-		Aggregate: "bgp-core", Summary: true, MandatoryTotal: 9, MandatoryAttainable: 9, Component: []string{"rfc7948"},
-		Path: "route-server: required by rfc/short/rfc7947.md"}
-	noLevel := &rfc.TreeRow{Stem: "rfc4762", Title: "VPLS", Summary: true, Walked: true,
-		MandatoryProven: 0, MandatoryTotal: 0, Component: []string{}, Path: "route-server: required by rfc/short/rfc4762.md"}
-	listed := &rfc.TreeRow{Stem: "rfc2918", Title: "Route Refresh Capability for BGP-4", Level: &zero,
-		Summary: true, Walked: true, MandatoryProven: 1, MandatoryTotal: 2, MandatoryAttainable: 2, Component: []string{},
-		Path: "route-server: optional in rfc/short/rfc2918.md"}
+	walked := &rfc.TreeRow{Stem: "rfc4271", Title: "A Border Gateway Protocol 4 (BGP-4)", Level: &zero, Aggregate: "bgp-core", Summary: true, Component: []string{}, Path: "route-server: required by rfc/short/rfc4271.md", Walked: true, Mandatory: rfc.Figure{Proven: 3, Total: 4, Attainable: 4}, Optional: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}, NotYet: 1}
+	unwalked := &rfc.TreeRow{Stem: "rfc7947", Title: "Internet Exchange BGP Route Server", Level: &one, Aggregate: "bgp-core", Summary: true, Component: []string{"rfc7948"}, Path: "route-server: required by rfc/short/rfc7947.md", Mandatory: rfc.Figure{Total: 9, Attainable: 9}}
+	noLevel := &rfc.TreeRow{Stem: "rfc4762", Title: "VPLS", Summary: true, Component: []string{}, Path: "route-server: required by rfc/short/rfc4762.md", Walked: true, Mandatory: rfc.Figure{Proven: 0, Total: 0}}
+	listed := &rfc.TreeRow{Stem: "rfc2918", Title: "Route Refresh Capability for BGP-4", Level: &zero, Summary: true, Component: []string{}, Path: "route-server: optional in rfc/short/rfc2918.md", Walked: true, Mandatory: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}}
 	release := &rfc.TreeReport{Profile: "route-server", Title: "Route server", Kind: "use-case", Release: true,
 		Rollup: &rfc.ScopeRollup{RFCs: 3, NotWalked: 1,
 			Mandatory: rfc.Figure{Proven: 3, Total: 4, Attainable: 4}, Optional: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}},
@@ -66,6 +59,10 @@ func renderRFCProfilesFixture(t *testing.T, ledger rfcLedger) (string, []string)
 	if err := writeNamedArtifact(output, rfcLedgerFile, string(content)); err != nil {
 		t.Fatal(err)
 	}
+	data := rfcProfilesFixtureData(t, &ledger)
+	if err := writeRFCData(output, &data); err != nil {
+		t.Fatal(err)
+	}
 	// A page this family wrote for a profile that no longer exists, and a
 	// directory somebody else put under the same prefix.
 	retired := filepath.Join(output, filepath.FromSlash(rfcProfilesDirectory), "withdrawn")
@@ -83,6 +80,45 @@ func renderRFCProfilesFixture(t *testing.T, ledger rfcLedger) (string, []string)
 		t.Fatalf("renderRFCProfiles: %v", err)
 	}
 	return output, routes
+}
+
+// rfcProfilesFixtureData derives the data/rfc/ files a build publishes for
+// ledger, the way refreshNativeSurfaces does before the producers run: one
+// stem file per profile row through rfcStemDataOf, from the figures the row
+// holds, and one profile file per tree with its two tiers' members.
+func rfcProfilesFixtureData(t *testing.T, ledger *rfcLedger) rfcData {
+	t.Helper()
+	data := rfcData{index: rfcDataIndex{Bars: rfcBars}}
+	seen := map[string]bool{}
+	members := func(rows []*rfc.TreeRow) []string {
+		stems := []string{}
+		for _, row := range rows {
+			stems = append(stems, row.Stem)
+			if seen[row.Stem] {
+				continue
+			}
+			seen[row.Stem] = true
+			stem, err := rfcStemDataOf(row.Stem, rfc.Meta{Title: row.Title}, row.StemFigures)
+			if err != nil {
+				t.Fatalf("rfcStemDataOf(%s): %v", row.Stem, err)
+			}
+			data.stems = append(data.stems, stem)
+			data.index.RFCs = append(data.index.RFCs, rfcIndexRFC{Stem: row.Stem, File: rfcStemDataFile(row.Stem),
+				Title: row.Title, Walked: stem.Walked, Enrolment: "enrolled"})
+		}
+		return stems
+	}
+	for _, report := range ledger.Profiles {
+		profile := rfcProfileData{Name: report.Profile, Kind: report.Kind, Title: report.Title,
+			Release: report.Release, Required: members(report.Rows), Optional: []string{}}
+		if report.Optional != nil {
+			profile.Optional = members(report.Optional.Rows)
+		}
+		data.profiles = append(data.profiles, profile)
+		data.index.Profiles = append(data.index.Profiles, rfcIndexProfile{Name: profile.Name,
+			File: rfcProfileDataFile(profile.Name), Kind: profile.Kind, Title: profile.Title})
+	}
+	return data
 }
 
 func readRFCProfilePage(t *testing.T, output, profile, file string) string {
@@ -143,15 +179,23 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 	page := readRFCProfilePage(t, output, "route-server", pageIndexFile)
 	for _, fact := range []string{
 		rfcProfileMarker, "Release profile",
-		"<strong>75.0%</strong><b>3 of 4 (75.0%)</b>", // mandatory figure
-		"<strong>50.0%</strong><b>1 of 2 (50.0%)</b>", // optional figure
-		"<span>Not walked</span><strong>1</strong>",
+		// The required tier's figures, read from data/rfc/: rfc4271's 3 of
+		// 4 MUST rows proven and 1 of 2 SHOULD / MAY rows, rfc7947 unwalked.
+		`<span data-ze-rfc="profile/route-server/required:must.total">4</span>`,
+		`<span data-ze-rfc="profile/route-server/required:must.ze-proven">3</span>`,
+		`<span data-ze-rfc="profile/route-server/required:should.total">2</span>`,
+		`<span data-ze-rfc="profile/route-server/required:should.proven">1</span>`,
+		`<span data-ze-rfc="profile/route-server/required:not-walked">1</span>`,
 		"<h3>Level 0</h3>", "<h3>Level 1</h3>",
 		"<h3>No level: the corpus holds no text of the RFC</h3>",
 		`<a href="../../rfc4271/">RFC 4271</a>`, "(cycle with rfc7948)",
-		`<span style="width:75.0%">`, "not walked", "route-server: required by rfc/short/rfc7947.md",
-		"<h2>Optional (not counted)</h2>", "Their own figures: mandatory 1 of 2 (50.0%)",
-		"route-server: optional in rfc/short/rfc2918.md", `<span style="width:50.0%">`,
+		`<div data-ze-rfc-bar="rfc4271:must">Ze proven 3, Ze correctness gap 1</div>`, "not walked",
+		"route-server: required by rfc/short/rfc7947.md", "<h2>Optional (not counted)</h2>",
+		// The optional tier's own figures: rfc2918's 1 of 2 MUST rows.
+		`<span data-ze-rfc="profile/route-server/optional:must.total">2</span>`,
+		`<span data-ze-rfc="profile/route-server/optional:must.ze-proven">1</span>`,
+		"route-server: optional in rfc/short/rfc2918.md",
+		`<div data-ze-rfc-bar="rfc2918:must">Ze proven 1, Ze correctness gap 1</div>`,
 	} {
 		if !strings.Contains(page, fact) {
 			t.Errorf("route-server page lacks %q", fact)
@@ -165,15 +209,15 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 	}
 	for _, keyword := range append(rfc.MandatoryKeywords(), rfc.OptionalKeywords()...) {
 		if !strings.Contains(page, keyword+",") && !strings.Contains(page, keyword+" and") && !strings.Contains(page, keyword+" rows") {
-			t.Errorf("route-server page cards do not name keyword %q", keyword)
+			t.Errorf("route-server page figures prose does not name keyword %q", keyword)
 		}
 	}
 	members := len(ledger.Profiles[0].Rows) + len(ledger.Profiles[0].Optional.Rows)
-	if bars := strings.Count(page, `<div class="rfc-bar`); bars != 2*members {
+	if bars := strings.Count(page, `<div data-ze-rfc-bar="rfc`); bars != 2*members {
 		t.Errorf("route-server page carries %d bars, want two per RFC of either tier (%d)", bars, 2*members)
 	}
 	mirror := readRFCProfilePage(t, output, "route-server", "index.md")
-	for _, fact := range []string{"# Route server", "**Mandatory**: 75.0% (3 of 4 (75.0%))", "### Level 0",
+	for _, fact := range []string{"# Route server", "**MUST bar**: Ze proven 3, Ze correctness gap 1", "| MUST rows | 4 |", "### Level 0",
 		"| [RFC 4271](../../rfc4271/) |", "| not walked |", "## Optional (not counted)",
 		"| route-server: optional in rfc/short/rfc2918.md |"} {
 		if !strings.Contains(mirror, fact) {
@@ -234,11 +278,16 @@ func writeRFCProfileUseCase(t *testing.T, source, name, body string) {
 func renderRFCProfilesWithUseCases(t *testing.T, source string) (string, error) {
 	t.Helper()
 	output := t.TempDir()
-	content, err := json.Marshal(rfcProfilesFixtureLedger())
+	ledger := rfcProfilesFixtureLedger()
+	content, err := json.Marshal(ledger)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := writeNamedArtifact(output, rfcLedgerFile, string(content)); err != nil {
+		t.Fatal(err)
+	}
+	data := rfcProfilesFixtureData(t, &ledger)
+	if err := writeRFCData(output, &data); err != nil {
 		t.Fatal(err)
 	}
 	_, err = renderRFCProfiles(Paths{Repository: t.TempDir(), Source: source, Output: output})
@@ -295,7 +344,7 @@ func TestRFCProfileCountLinksToItsRFCs(t *testing.T) {
 	output, _ := renderRFCProfilesFixture(t, rfcProfilesFixtureLedger())
 	const href = "../?profile=route-server&rfc=rfc4271%2Crfc7947%2Crfc4762#" + rfcListAnchor
 	index := readRFCProfilePage(t, output, "", pageIndexFile)
-	if want := `<a href="` + html.EscapeString(href) + `">3</a>`; !strings.Contains(index, want) {
+	if want := `<a href="` + html.EscapeString(href) + `"><span data-ze-rfc="profile/route-server/required:rfcs">3</span></a>`; !strings.Contains(index, want) {
 		t.Errorf("index does not link the route-server RFC count as %s", want)
 	}
 	if strings.Contains(index, "rfc2918") {
@@ -315,9 +364,7 @@ func TestRFCProfileCountLinksToItsRFCs(t *testing.T) {
 // sends an aggregate's reader to the use-case row.
 func TestRFCProfileAggregateOptionalTier(t *testing.T) {
 	zero := 0
-	listed := &rfc.TreeRow{Stem: "rfc4577", Title: "OSPF as the PE/CE Protocol", Level: &zero,
-		Aggregate: "ospf", Summary: true, Walked: true, MandatoryTotal: 2, MandatoryAttainable: 2,
-		Component: []string{}, Path: "ospf: optional in rfc/short/rfc4577.md"}
+	listed := &rfc.TreeRow{Stem: "rfc4577", Title: "OSPF as the PE/CE Protocol", Level: &zero, Aggregate: "ospf", Summary: true, Component: []string{}, Path: "ospf: optional in rfc/short/rfc4577.md", Walked: true, Mandatory: rfc.Figure{Total: 2, Attainable: 2}}
 	report := &rfc.TreeReport{Profile: "ospf", Title: "OSPF", Heading: "OSPF", Kind: "technology",
 		Rollup: &rfc.ScopeRollup{}, Rows: []*rfc.TreeRow{},
 		Optional: &rfc.TreeTier{Rollup: rfc.ScopeRollup{RFCs: 1, Mandatory: rfc.Figure{Total: 2, Attainable: 2}},

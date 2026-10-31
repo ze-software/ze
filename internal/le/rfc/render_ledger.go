@@ -54,15 +54,15 @@ func share(count, total int) string {
 // in public -- and three producers over one declaration could each read it
 // differently.
 //
-// coverage is the per-RFC polarity partition CoverageRows derives. The public
-// page publishes it beside every support claim, so a caller that has already
-// derived it hands it over rather than deriving it a second time.
+// figures is the per-RFC proof StemFiguresOf derives from verified records.
+// The public page publishes it as each row's proof, so a caller that has
+// already derived it hands it over rather than deriving it a second time.
 //
 // aggregates is the parsed rfc/profiles/: the heading, intro and table shape
 // of every aggregate a row renders under.
 func ledgerFiles(metas map[string]Meta, aggregates map[string]Aggregate, levels *graph.Graph,
-	coverage []CoverageRow) (map[string]string, error) {
-	page, err := renderStatusPage(metas, aggregates, levels, coverage)
+	figures map[string]StemFigures) (map[string]string, error) {
+	page, err := renderStatusPage(metas, aggregates, levels, figures)
 	if err != nil {
 		return nil, err
 	}
@@ -77,10 +77,14 @@ func ledgerFiles(metas map[string]Meta, aggregates map[string]Aggregate, levels 
 //
 // Which fields of a RenderInput feed the ledger is stated HERE and nowhere
 // else. Two surfaces render these bytes -- the write and the published site --
-// and a coverage set assembled from a different triple on one of them would
-// publish a Proof column the other cannot reproduce.
+// and figures assembled from a different input on one of them would publish a
+// Proof column the other cannot reproduce.
 func ledgerFilesFrom(in RenderInput) (map[string]string, error) {
-	return ledgerFiles(in.Metas, in.Profiles.Aggregates, in.Graph, CoverageRows(in.Requirements, in.Tags, in.Carriers))
+	figures, err := StemFiguresOf(&in)
+	if err != nil {
+		return nil, err
+	}
+	return ledgerFiles(in.Metas, in.Profiles.Aggregates, in.Graph, figures)
 }
 
 // StatusPage answers the public support page for one checkout: the same bytes
@@ -223,22 +227,21 @@ func renderNotEnrolled(metas map[string]Meta) string {
 // one row per summary whose `Support` names an aggregate, grouped under that
 // aggregate's heading.
 //
-// The four authored cells are moved verbatim from the summary that owns them.
-// No PROSE on this page is synthesized: a support claim is a product judgement,
-// and a generator that wrote the prose would be inventing the claim it exists
-// to publish. What IS derived is every count, the Proof cell beside each claim,
-// the row order inside an aggregate, and the aggregate headings themselves.
+// The one authored cell, Area, is moved verbatim from the summary that owns
+// it. Every other cell is derived from figures (StemFiguresOf): the proof, the
+// evidence kinds behind it and the unmet requirement ids, so no author can
+// write a claim the verified records do not carry. The row order inside an
+// aggregate and the aggregate headings are derived too.
 //
 // Aggregates render in name order, and rows inside one by dependency level,
 // then RFC number (statusRowCompare). Neither order is authored, so no two
 // summaries can claim one place.
 func renderStatusPage(metas map[string]Meta, aggregates map[string]Aggregate, levels *graph.Graph,
-	coverage []CoverageRow) (string, error) {
+	figures map[string]StemFigures) (string, error) {
 	placed, err := placeRows(metas, aggregates, levels)
 	if err != nil {
 		return "", err
 	}
-	proof := coverageByRFC(coverage)
 	rowed := 0
 	for _, rows := range placed {
 		rowed += len(rows)
@@ -264,58 +267,83 @@ func renderStatusPage(metas map[string]Meta, aggregates map[string]Aggregate, le
 			tb.Str(aggregate.Intro).Str("\n\n")
 		}
 		if brief {
-			tb.Str("| Standard | Area | Status | Note |\n")
-			tb.Str("|----------|------|--------|------|\n")
+			tb.Str("| Standard | Area | Proof | Unmet |\n")
+			tb.Str("|----------|------|-------|-------|\n")
 		} else {
-			tb.Str("| RFC | Area | Status | Proof | Implemented coverage | Remaining if not complete |\n")
-			tb.Str("|-----|------|--------|-------|----------------------|---------------------------|\n")
+			tb.Str("| RFC | Area | Proof | Evidence | Unmet |\n")
+			tb.Str("|-----|------|-------|----------|-------|\n")
 		}
 		for index := range rows {
 			row := &rows[index]
+			figure, held := figures[row.Stem]
+			if !held {
+				var tb textbuf.Buffer
+				return "", parseErr(tb.Str("BUG: ").Str(row.Stem).
+					Str(" renders a public row but StemFiguresOf answered no figure for it; its population is every declared Meta"))
+			}
 			tb.Str("| ").Str(publicRowName(row.Stem, &row.Meta)).Str(" | ").Str(row.Meta.Area).
-				Str(" | ").Str(row.Meta.Status).Str(" | ")
+				Str(" | ").Str(proofCell(figure))
 			if !brief {
-				tb.Str(proofCell(proof[row.Stem])).Str(" | ")
+				tb.Str(" | ").Str(evidenceCell(figure))
 			}
-			tb.Str(row.Meta.Coverage)
-			if !brief {
-				tb.Str(" | ").Str(row.Meta.Remaining)
-			}
+			tb.Str(" | ").Str(unmetCell(figure))
 			tb.Str(" |\n")
 		}
 	}
-	tb.Str("\n<!-- source: internal/le/feature/vocabulary.go -- StatusLabel, the feature status vocabulary -->\n")
-	tb.Str("<!-- source: docs/features/bgp-protocol.md -- draft-backed BGP capability rows -->\n")
-	tb.Str("<!-- source: docs/guide/rpki.md -- ASPA draft verification behavior -->\n")
+	tb.Str("\n<!-- source: internal/le/rfc/profilecoverage.go -- StemFiguresOf, the derived proof -->\n")
 	return tb.String(), nil
 }
 
-// proofCell states one stem's own coverage partition, in the cell that sits
-// beside its support claim.
+// proofCell states one RFC's mandatory proof: the gated MUST-level rows a
+// verified discrimination record proves, over all of them.
 //
-// A partition, never a percentage. Two percentages over this corpus already
-// exist and they disagree, because one divides by the gated set and the other
-// by the gated set minus what a scope decision took out of it. A third one
-// here would settle that disagreement on the public page, which is the one
-// place it must not be settled. The three counts sum to the gated count, so a
-// reader takes whichever ratio the question needs.
-//
-// `untested` is CoverageRow.Outstanding: a requirement proven in one polarity
-// only, and a requirement carrying neither a test nor an annotation. Neither
-// is a proof, and the column sits beside a product claim that does not turn on
-// which of the two it is.
-//
-// The zero CoverageRow is the answer for a stem CoverageRows emits no row for,
-// which is exactly a stem gating no MUST-level requirement.
-func proofCell(row CoverageRow) string {
-	if row.Gated == 0 {
-		return "no gated MUST"
+// An unwalked RFC publishes no number: its list is a claim nobody bounded
+// against the RFC's text (StemFigures.cell). A walked RFC gating no MUST-level
+// row says so rather than reading 100%.
+func proofCell(figure StemFigures) string {
+	if !figure.Walked {
+		return notWalked
+	}
+	if figure.Mandatory.Total == 0 {
+		return "no MUST rows"
 	}
 	var tb textbuf.Buffer
-	return tb.Int(int64(row.Gated)).Str(" gated: ").Int(int64(row.Both)).
-		Str(" proven, ").Int(int64(row.Annotated)).Str(" annotated (").
-		Int(int64(row.Partial)).Str(" partial subset), ").
-		Int(int64(row.Outstanding())).Str(" untested").String()
+	return tb.Int(int64(figure.Mandatory.Proven)).Str(" of ").Int(int64(figure.Mandatory.Total)).
+		Str(" MUST proven").String()
+}
+
+// evidenceCell states the proven mandatory rows by the strongest evidence kind
+// behind each, strongest first, so the counts sum to the Proof cell's
+// numerator. An unwalked RFC publishes no count, and a walked RFC with nothing
+// proven prints `-`.
+func evidenceCell(figure StemFigures) string {
+	if !figure.Walked {
+		return "-"
+	}
+	var tb textbuf.Buffer
+	for _, kind := range append(slices.Clone(evidenceStrengthOrder), kindUnknown) {
+		count := figure.MandatoryByKind[kind]
+		if count == 0 {
+			continue
+		}
+		if tb.Len() > 0 {
+			tb.Str(", ")
+		}
+		tb.Str(kind).Byte(' ').Int(int64(count))
+	}
+	if tb.Len() == 0 {
+		return "-"
+	}
+	return tb.String()
+}
+
+// unmetCell lists the requirement ids the summary or an audit says are unmet,
+// walked or not, because it is the summary's own disclosure; `-` when none is.
+func unmetCell(figure StemFigures) string {
+	if len(figure.Unmet) == 0 {
+		return "-"
+	}
+	return strings.Join(figure.Unmet, ", ")
 }
 
 // statusRow is one placed row: the summary that declares it, and what it
@@ -416,25 +444,35 @@ func rfcStemNumber(stem string) (int, bool) {
 // editing it would lose the edit with nothing saying so.
 func statusPageIntro(unrowed, summaries int) string {
 	var tb textbuf.Buffer
-	tb.Str("This page is Ze's public standards status page. It lists RFCs that Ze implements, ")
-	tb.Str("partially implements, has deferred, or has explicitly decided not to implement. It is ")
-	tb.Str("a product support view rather than a formal IETF compliance certificate: `Supported` ")
-	tb.Str("means the behavior is implemented and tied to current source anchors; `Experimental` ")
-	tb.Str("means implemented but still needs deployment evidence or hardening before production ")
-	tb.Str("claims; `Partial` means a named subset is missing, intentionally skipped, or not ")
-	tb.Str("proven; `Unsupported` means Ze explicitly does not implement it; `Future` means ")
-	tb.Str("tracked but not shipped.\n\n")
+	tb.Str("This page is Ze's public RFC proof ledger. It lists the RFCs Ze implements, in part ")
+	tb.Str("or in full, and for each one how much of what the RFC requires is proven. It reports ")
+	tb.Str("proof only: whether an operator can use a capability is a property of the feature that ")
+	tb.Str("carries it (`features/<id>.md`, its Scope), not of the RFC.\n\n")
 	tb.Str("Every row below is declared by the RFC's own summary, in the `## Meta` table of ")
 	tb.Str("`rfc/short/<stem>.md`. A row belongs here only when current docs, source code, tests, ")
 	tb.Str("or learned closure notes tie the RFC to a Ze feature, and a summary that ties to none ")
 	tb.Str("writes `| Support | - |` instead.\n\n")
-	tb.Str("This page is the product view. The per-requirement detail behind it is published at ")
+	tb.Str("The per-requirement detail behind each row is published at ")
 	tb.Str("`/quality/rfc-compliance/<stem>/`, one page for every summary under `rfc/short/`, ")
 	tb.Str("naming each requirement, the tests bound to it, the audit verdict a reader recorded, ")
 	tb.Str("and every gap and untested MUST under its own requirement id. The ")
 	tb.Str(share(unrowed, summaries))
 	tb.Str(" with no row on this page are published there too, and the index at ")
 	tb.Str("`/quality/rfc-compliance/` links all of them.\n\n")
+	tb.Str("**Area** is the one cell an author writes, a classification. Every other cell is ")
+	tb.Str("derived, and no author can change it:\n\n")
+	tb.Str("- **Proof** is `N of M MUST proven`: of the M MUST-level requirements the summary gates, ")
+	tb.Str("the N whose tests a recorded break still verifies (`rfc/discrimination/<stem>.json`). ")
+	tb.Str("A tag with no verifying record proves nothing here. An RFC whose requirement list has ")
+	tb.Str("not been walked against the RFC's own text (no valid `rfc/extraction/<stem>.json`) ")
+	tb.Str("reads `not walked` and publishes no number, because its list bounds nothing. A walked ")
+	tb.Str("RFC gating no MUST-level requirement reads `no MUST rows`.\n")
+	tb.Str("- **Evidence** counts the proven rows by the strongest kind of test behind each ")
+	tb.Str("(`interop`, then `functional`, `editor`, `unit`), so the counts sum to N.\n")
+	tb.Str("- **Unmet** lists the requirement ids the summary annotates `{gap}`, `{partial}` or ")
+	tb.Str("`{linux-limit}`, and those an audit judged not met, at every level.\n\n")
+	tb.Str("A brief table (Internet-Drafts and other standards) carries Area, Proof and Unmet ")
+	tb.Str("and leaves Evidence out, so an unmet requirement of a draft is still named by its id.\n\n")
 	tb.Str("**How strong the proof behind a row is.** Every requirement's evidence is listed in ")
 	tb.Str("that RFC's own file under `rfc/requirements/`, with a `kind/tier` cell per test link. ")
 	tb.Str("`kind` is the layer the test exercises (`unit`, `functional`, `editor`, `interop`); ")
@@ -442,43 +480,10 @@ func statusPageIntro(unrowed, summaries int) string {
 	tb.Str("`./le verify current` on every push. `interop/nightly` runs only in the ")
 	tb.Str("scheduled, advisory `evidence-nightly` workflow -- so a requirement whose evidence is ")
 	tb.Str("entirely nightly-tier is marked `**nightly-only**` on its row there, and counted in ")
-	tb.Str("its own column of the coverage rollup in `ai/RFC-REQUIREMENTS.md`, and a row here ")
-	tb.Str("backed only by such evidence is not proven on the merge path. A tag in a suite no ")
-	tb.Str("pipeline runs is refused outright rather than published with a caveat.\n")
-	tb.Str("<!-- source: internal/le/rfc/actions.go -- Answer -->\n\n")
-	tb.Str("**What on this page a machine checks, and what stays a human judgement.** ")
-	tb.Str("`./le rfc check` enforces exactly three properties of the tables below.\n\n")
-	tb.Str("- **Gap-count agreement.** A `Support remaining` cell can spell a number immediately ")
-	tb.Str("before MUST or SHALL. That number must equal the count of `{gap}` plus `{partial}` requirement rows in the ")
-	tb.Str("same summary.\n")
-	tb.Str("- **Disclosure under a `{gap}`.** A summary can privately admit an unmet MUST. Its row ")
-	tb.Str("here must then say so, in the Status cell or in the Remaining cell.\n")
-	tb.Str("- **A support claim rests on something.** Two rows are refused. A row claiming anything ")
-	tb.Str("but `Unsupported` or `Future` over a summary that declares no MUST-level requirement, ")
-	tb.Str("unless that summary declares itself non-normative or carries a manual-walk extraction ")
-	tb.Str("sign-off. And a row PROMISING conformance -- `Supported`, alone or with a scope after ")
-	tb.Str("it -- whose `Proof` cell says none of its gated MUST-level requirements is proven. A ")
-	tb.Str("checklist nothing passes carries a support promise no better than an empty one, and ")
-	tb.Str("the two escapes above do not reach it: each says the DOCUMENT imposes no MUST, which ")
-	tb.Str("is a different question from whether Ze meets one. `Partial` is the honest row there, ")
-	tb.Str("and it is not refused.\n\n")
-	tb.Str("Row presence needs no check any more. A row exists exactly where a summary names an ")
-	tb.Str("aggregate in its `Support` cell, so an enrolled RFC with no row, a row naming an RFC with no summary, and two ")
-	tb.Str("rows for one RFC are each unrepresentable rather than refused.\n\n")
-	tb.Str("**Proof** is the one derived cell in these tables. It restates that RFC's own coverage ")
-	tb.Str("from `rfc/requirements/<stem>.md`: how many MUST-level requirements the summary gates, ")
-	tb.Str("then how many of them carry a test in BOTH polarities (`proven`), how many carry an ")
-	tb.Str("annotation (`annotated`, with partial scoped evidence shown as a subset), and how many carry neither -- one polarity only, or ")
-	tb.Str("no test at all (`untested`). The three sum to the gated count. A summary gating no ")
-	tb.Str("MUST-level requirement reads `no gated MUST`, and no cell an author writes changes any ")
-	tb.Str("of it.\n\n")
-	tb.Str("Everything else in the table is editorial and no gate reads it. **Status** is a ")
-	tb.Str("product-support judgement. It is neither the RFC's IETF category nor a derived value. ")
-	tb.Str("**Area** is a hand-written label. **Implemented coverage** is source-anchored prose.\n\n")
-	tb.Str("One coverage limit is worth stating outright. A Remaining cell that spells its count ")
-	tb.Str("in digits is not judged, and neither is one that puts words between the number and ")
-	tb.Str("MUST. That is deliberate: the page uses a second convention where a number NEAR the ")
-	tb.Str("word MUST is the not-applicable count.\n")
+	tb.Str("its own column of the coverage rollup in `ai/RFC-REQUIREMENTS.md`. A tag in a suite ")
+	tb.Str("no pipeline runs is refused outright rather than published with a caveat.\n\n")
+	tb.Str("`./le rfc check` refuses an enrolled RFC that carries an unmet requirement and renders ")
+	tb.Str("no row here, and a row that disappears while its summary remains.\n")
 	tb.Str("<!-- source: internal/le/rfc/actions.go -- Answer -->\n")
 	return tb.String()
 }

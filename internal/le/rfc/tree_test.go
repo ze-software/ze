@@ -127,7 +127,7 @@ func TestTreeActionRendersLevelsAndFigures(t *testing.T) {
 	if !slices.Equal(five.Component, []string{"rfc6"}) {
 		t.Errorf("rfc5 component %v, want [rfc6]", five.Component)
 	}
-	if one.MandatoryProven != 1 || one.MandatoryTotal != 2 || !one.Walked || one.Aggregate != "base" || one.Title != "Title of rfc1" {
+	if one.Mandatory.Proven != 1 || one.Mandatory.Total != 2 || !one.Walked || one.Aggregate != "base" || one.Title != "Title of rfc1" {
 		t.Errorf("rfc1 row %+v", one)
 	}
 	if five.Walked {
@@ -355,9 +355,9 @@ func TestTreeProfileListsCandidates(t *testing.T) {
 // although 2 < 10; rfc3 has no text.
 func TestStatusPageOrdersByLevel(t *testing.T) {
 	metas := map[string]Meta{
-		"rfc2":  {Aggregate: "base", Status: "Supported", Row: true},
-		"rfc3":  {Aggregate: "base", Status: "Supported", Row: true},
-		"rfc10": {Aggregate: "base", Status: "Supported", Row: true},
+		"rfc2":  {Aggregate: "base", Row: true},
+		"rfc3":  {Aggregate: "base", Row: true},
+		"rfc10": {Aggregate: "base", Row: true},
 	}
 	aggregates := map[string]Aggregate{"base": {Name: "base", Heading: "Base", Shape: ShapeWide}}
 	levels := graph.Build(map[string]graph.Text{"rfc2": {Cites: []string{"rfc10"}}, "rfc10": {}})
@@ -374,5 +374,50 @@ func TestStatusPageOrdersByLevel(t *testing.T) {
 	}
 	if _, err := placeRows(metas, aggregates, nil); err == nil {
 		t.Error("placeRows with no graph ordered the page by number alone")
+	}
+}
+
+// TestTreeRowHoldsStemFiguresWhole guards the row against dropping a count.
+// Goal: every StemFigures field figuresByStem answers reaches the TreeRow
+// `./le rfc tree` builds, and the published keys survive a JSON round trip.
+// Method: a StemFigures with every field set (checked by reflection, so a
+// field added later fails here until the fixture sets it) goes through
+// treeRow; the row must hold it unchanged, then decode from its own JSON with
+// every published count intact.
+func TestTreeRowHoldsStemFiguresWhole(t *testing.T) {
+	want := StemFigures{Stem: "rfc1", Walked: true,
+		Mandatory:       Figure{Proven: 1, Total: 4, Attainable: 3, Excluded: map[string]int{AnnotationLinuxLimit: 1}},
+		Optional:        Figure{Proven: 2, Total: 5, Attainable: 4, Excluded: map[string]int{AnnotationLowerLayer: 1}},
+		MandatoryByKind: map[string]int{"functional": 1}, Unmet: []string{"RFC1-1-2"},
+		OSVerified: 1, OSGap: 2, NotYet: 3, NotEver: 4, NotDecided: 5, OptionalOSVerified: 6, OptionalOSGap: 7}
+	fields := reflect.ValueOf(want)
+	for index := range fields.NumField() {
+		if fields.Field(index).IsZero() {
+			t.Fatalf("fixture leaves StemFigures.%s zero: set it so this test can see it dropped",
+				fields.Type().Field(index).Name)
+		}
+	}
+	corpus := newPriorityCorpus(graph.Build(map[string]graph.Text{"rfc1": {}}), Profiles{},
+		map[string]Meta{"rfc1": {Title: "Title of rfc1"}}, nil, map[string]StemFigures{"rfc1": want}, nil)
+	row := corpus.treeRow("rfc1", nil)
+	if !reflect.DeepEqual(row.StemFigures, want) {
+		t.Fatalf("tree row figures = %+v, want %+v", row.StemFigures, want)
+	}
+	encoded, err := json.Marshal(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded TreeRow
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	published := want
+	published.OSVerified, published.OSGap, published.NotYet, published.NotEver, published.NotDecided = 0, 0, 0, 0, 0
+	published.OptionalOSVerified, published.OptionalOSGap = 0, 0
+	if !reflect.DeepEqual(decoded.StemFigures, published) {
+		t.Errorf("decoded figures = %+v, want %+v from %s", decoded.StemFigures, published, encoded)
+	}
+	if decoded.Stem != "rfc1" || decoded.Title != "Title of rfc1" || !decoded.Summary {
+		t.Errorf("decoded row lost its own keys: %+v", decoded)
 	}
 }

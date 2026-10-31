@@ -15,9 +15,6 @@
 | Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | drafts |
 | Support area | BGP PATHS-LIMIT |
-| Support status | Supported |
-| Support coverage | Receiver-advertised per-family path-count requests for ADD-PATH, with session-wide outbound enforcement across normal sends and forwarding, including the route-server fast path (`pathsLimitAdmission.section` in `internal/component/bgp/reactor/session_paths_limit.go`). Under the peer's limit Ze sends the paths the bgp-rib election ranks first and withdraws a demoted path before announcing its replacement (`queuePathsLimitElection` in `session_paths_limit_elect.go`). The configuration knob `limit { receive N; }` is advertised and enforced on received paths: an excess path is dropped, counted and warned once per route, and the rest of its UPDATE installs (`receiveCeiling` in `session_paths_limit_recv.go`). |
-| Support remaining | - |
 | Use cases | - |
 | Optional use cases | - |
 

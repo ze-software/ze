@@ -405,21 +405,13 @@ func TestRollupIsAGapWhileOneTargetIs(t *testing.T) {
 			t.Errorf("%s's derived cause reads %q", rid, cause)
 		}
 		// The gap is declared under RFC1-1-2's own id and disclosed by the
-		// Remaining cell, so the rollup reports it a second time nowhere.
+		// derived Unmet cell, so the rollup reports it a second time nowhere.
 		if own := findingsFor(findings, rid); len(own) != 0 {
 			t.Errorf("%s raised %d finding(s), want none: %+v", rid, len(own), own)
 		}
 	}
 	if own := findingsFor(findings, "RFC1-1-3"); len(own) != 1 {
 		t.Errorf("the untested row's own finding is gone: %+v", findings)
-	}
-	rows := map[string]LedgerRow{"rfc1": {Status: "Partial", Remaining: "one MUST-level gap"}}
-	if errs := checkGapCountAgreement(requirements, rows); len(errs) != 0 {
-		t.Errorf("two derived gaps moved the Remaining count: %v", errs)
-	}
-	rows["rfc1"] = LedgerRow{Status: "Partial", Remaining: "three MUST-level gaps"}
-	if errs := checkGapCountAgreement(requirements, rows); len(errs) != 1 {
-		t.Errorf("a cell counting the derived gaps was accepted, so the check above proves nothing: %v", errs)
 	}
 }
 

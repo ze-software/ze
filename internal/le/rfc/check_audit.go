@@ -257,17 +257,11 @@ func checkAuditDisclosure(requirements []Requirement, rows map[string]LedgerRow,
 			continue
 		}
 		seen[req.RID] = true
-		row, rowHeld := rows[req.RFC]
-		if !rowHeld {
-			var tb textbuf.Buffer
-			errs = append(errs, tb.Str(auditRecordRel(req.RFC, req.RID)).Str(": ").Str(req.RID).Str(" is ").Str(pyRepr(value)).Str(" but ").Str(req.RFC).Str(" has no row in docs/features/rfc-status.md; the public ledger must disclose it").String())
-			continue
-		}
-		if rowDisclosesGap(row) {
+		if _, rowHeld := rows[req.RFC]; rowHeld {
 			continue
 		}
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(auditRecordRel(req.RFC, req.RID)).Str(": ").Str(req.RID).Str(" is ").Str(pyRepr(value)).Str(" but docs/features/rfc-status.md says ").Str(req.RFC).Str(" is '").Str(row.Status).Str("' with '").Str(truncateRunes(row.Remaining, 40)).Str("'. An audited requirement that is not met cannot be advertised as clean support -- update the row's Status/Remaining. Reverting the verdict is not an exit: the findings ratchet refuses that too").String())
+		errs = append(errs, tb.Str(auditRecordRel(req.RFC, req.RID)).Str(": ").Str(req.RID).Str(" is ").Str(pyRepr(value)).Str(" but ").Str(req.RFC).Str(" has no row in docs/features/rfc-status.md; the public ledger must disclose it").String())
 	}
 	return errs
 }

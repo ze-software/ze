@@ -319,14 +319,10 @@ const (
 // returned by AnnotationTraitsOf are copies; changing one cannot change the
 // declaration. The zero value grants no proof or audit permission.
 type AnnotationTraits struct {
-	Counts    bool
-	Proves    bool
-	BarsTests bool
-	// BarsSupported forbids a public conformance promise even when Remaining
-	// discloses the unmet obligation.
-	BarsSupported      bool
+	Counts             bool
+	Proves             bool
+	BarsTests          bool
 	Unmet              bool
-	RemainingRequired  bool
 	SinglePolarity     bool
 	Gap                bool
 	Partial            bool
@@ -361,7 +357,7 @@ var annotationKinds = map[string]struct {
 			RollupState: RollupGap, Bucket: "gap", AuditUnimplemented: true},
 	},
 	AnnotationPartial: {
-		traits: AnnotationTraits{Counts: true, Unmet: true, RemainingRequired: true,
+		traits: AnnotationTraits{Counts: true, Unmet: true,
 			Partial: true, RollupState: RollupGap, Bucket: "partial-scope"},
 		parse: parsePartial,
 	},
@@ -388,7 +384,7 @@ var annotationKinds = map[string]struct {
 		parse: parseRollup,
 	},
 	AnnotationLinuxLimit: {
-		traits: AnnotationTraits{Counts: true, BarsTests: true, BarsSupported: true, Unmet: true, RemainingRequired: true,
+		traits: AnnotationTraits{Counts: true, BarsTests: true, Unmet: true,
 			RollupState: RollupGap, Bucket: "linux_limit", AuditUnimplemented: true,
 			CeilingExcluded: true, CeilingLabel: "Linux cannot do this"},
 		parse:  parseLinuxLimit,

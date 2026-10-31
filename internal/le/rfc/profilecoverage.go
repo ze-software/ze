@@ -530,7 +530,7 @@ func CeilingOf(rows []*TreeRow) CeilingSummary {
 			out.NotWalked++
 			continue
 		}
-		figures := row.figures()
+		figures := row.StemFigures
 		out.Mandatory.add(figures.Mandatory)
 		out.Optional.add(figures.Optional)
 		out.LowestMandatory = lowerCeiling(out.LowestMandatory, row.Stem, figures.Mandatory)

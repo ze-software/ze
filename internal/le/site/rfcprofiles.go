@@ -328,68 +328,12 @@ func rfcProfileUseCasesKnown(useCases map[string][]rfcProfileUseCase, profiles [
 	return nil
 }
 
-// rfcProfileCard is one card of a profile's grid: its label, its value, the
-// arithmetic under it, and the sentence saying what it measures.
-type rfcProfileCard struct {
-	Label, Value, Arithmetic, Meaning string
-}
-
-// rfcProfileCards answers the grid the profile pages printed before they
-// read data/rfc/. No page renders it: it stays only while
-// TestCeilingPublicationsAgree (rfcfilter_test.go) still calls it, and that
-// test belongs to the in-flight phase of spec-rfc-figures-sectioned-presentation
-// that retires the ceilings, which deletes both.
-func rfcProfileCards(rollup *rfc.ScopeRollup) []rfcProfileCard {
-	return []rfcProfileCard{
-		{rfcProfileMandatoryLabel, rfcProfilePercent(rollup.Mandatory), rollup.Mandatory.String(),
-			rfcKeywordSeries(rfc.MandatoryKeywords()) + " rows of the walked RFCs that a recorded test break proves."},
-		{rfcProfileOptionalLabel, rfcProfilePercent(rollup.Optional), rollup.Optional.String(),
-			rfcKeywordSeries(rfc.OptionalKeywords()) + " rows, counted the same way."},
-		{"Mandatory ceiling", rfcCeilingPercent(rollup.Mandatory),
-			rfcCeilingFigure(rollup.Mandatory.Attainable, rollup.Mandatory.Total, rollup.Mandatory.Excluded),
-			"Attainable mandatory rows under current classifications, over the unchanged total."},
-		{"Optional ceiling", rfcCeilingPercent(rollup.Optional),
-			rfcCeilingFigure(rollup.Optional.Attainable, rollup.Optional.Total, rollup.Optional.Excluded),
-			"Attainable optional rows under current classifications, over the unchanged total."},
-		{"Not walked", strconv.Itoa(rollup.NotWalked), "of " + strconv.Itoa(rollup.RFCs) + " RFCs",
-			"RFCs with no valid extraction sign-off: their rows count in neither figure."},
-		{"Mandatory register", rfcProfileComplete(rollup), "every row proven, none unwalked",
-			"A profile is complete only when it requires at least one RFC and none of them is unwalked."},
-	}
-}
-
-// rfcProfileComplete answers the mandatory register's state in words, the
-// cell the card and the index both print.
-func rfcProfileComplete(rollup *rfc.ScopeRollup) string {
-	if rollup.MandatoryComplete {
-		return "complete"
-	}
-	return "not complete"
-}
-
 // rfcKeywordSeries joins keywords as prose: `A, B and C`.
 func rfcKeywordSeries(keywords []string) string {
 	if len(keywords) < 2 {
 		return strings.Join(keywords, "")
 	}
 	return strings.Join(keywords[:len(keywords)-1], ", ") + " and " + keywords[len(keywords)-1]
-}
-
-// rfcProfilePercent answers a figure's share, and says so when there are no rows:
-// 0 of 0 is neither 0% nor 100%.
-func rfcProfilePercent(figure rfc.Figure) string {
-	if figure.Total == 0 {
-		return "no rows"
-	}
-	return rfcPercentText(figure.Proven, figure.Total)
-}
-
-// rfcCeilingPercent never publishes a percentage for an empty population.
-func rfcCeilingPercent(figure rfc.Figure) string {
-	if figure.Total == 0 {
-		return "no rows"
-	}
-	return rfcPercentText(figure.Attainable, figure.Total)
 }
 
 // rfcProfileSubject names one tier of a profile as the RFC data's markers do.

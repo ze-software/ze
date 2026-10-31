@@ -148,8 +148,7 @@ const (
 		"in exactly one of these buckets, so the rows add up to the whole. The last column " +
 		"names the condition that puts a requirement in each bucket."
 	rfcLeadGaps = "A gap is a requirement Ze does not meet yet and says so in public. This " +
-		"section shows the public status of the RFCs that declare gaps, and names any RFC " +
-		"published as Supported that still declares one."
+		"section counts the requirements declared as gaps and the RFCs that carry them."
 	rfcLeadExclusions = "Not every sentence of an RFC becomes a requirement. This section " +
 		"counts the sentences a review left out, by the reason given, so you can check what " +
 		"was left out and why."

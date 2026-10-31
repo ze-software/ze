@@ -119,8 +119,7 @@ func TestPartialHealthExplainsScopedEvidence(t *testing.T) {
 			summary := "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|---|---|\n| Use cases | - |\n| Optional use cases | - |\n" +
 				"| Title | Widgets |\n| Enrolment | enrolled |\n| Enrolment reason | isolated fixture |\n" +
 				"| Implementation | ze |\n| Implementation reason | fixture production boundary |\n" +
-				"| Support | bgp-core |\n| Support area | Widgets |\n| Support status | Partial |\n" +
-				"| Support coverage | receipt tests |\n| Support remaining | native sending absent |\n\n" +
+				"| Support | bgp-core |\n| Support area | Widgets |\n\n" +
 				"## Compliance Checklist\n\n- [ ] [RFC9999-2-1] [MUST] A widget MUST be zero when sent and ignored on receipt. (§2) " + marker + "\n"
 			for rel, body := range map[string]string{
 				".github/workflows/fixture.yml": "name: fixture\non: push\njobs: {}\n",

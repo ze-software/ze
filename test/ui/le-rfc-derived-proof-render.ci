@@ -1,0 +1,6 @@
+# Test: le rfc update renders the status page from derived proof, with Proof, Evidence and Unmet cells (Proof and Unmet for a draft) and no Status column.
+# accept-only: registered fixture picks a walked fully proven RFC, an unwalked RFC, a walked RFC with a gated gap and a draft with a gated gap from le rfc tree over its own HEAD export, and requires each page row to state the tree's figure and name its gaps.
+option=timeout:value=900s
+cmd=foreground:seq=1:exec=le test fixture ui/le-rfc-derived-proof-render
+expect=exit:code=0
+expect=stdout:contains=OK

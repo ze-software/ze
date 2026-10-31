@@ -681,21 +681,16 @@ never sums the two, because a nightly tier is not merge-gate proof.
   summary is required unless it writes `| Aggregate tier | optional |`, which
   counts it in the aggregate's optional figures only.
 
-  Four related reds come from the same place. First, a public row that claims support
-  over a summary with zero gated requirements. The escape is evidence that zero is
-  real: a `non-normative` disposition, or a `manual-walk`
-  extraction sign-off whose `register-reason` says why. Second, a row that PROMISES
-  conformance -- `Supported`, alone or with a scope after it -- over gated requirements
-  of which not one carries a test in both polarities. Neither escape reaches that one:
-  each says the DOCUMENT imposes no MUST, and this red is about a MUST that exists and
-  is unproven. Prove one requirement, or write `| Support status | Partial |`, which is
-  what the public page's own vocabulary calls "not proven". Third, a `Support remaining`
-  cell that spells a gap count, including zero, immediately before MUST or SHALL
-  must agree with the summary's unmet requirement count, including Linux-limit
-  rows. Fourth, a Linux-limit row bars `Supported` even when `Support remaining`
-  correctly discloses it: use `Partial` while the obligation remains unmet.
+  A summary authors no support status: the public row's Proof, Evidence and
+  Unmet cells are derived from the requirement rows and the verified records,
+  and `ParseMeta` refuses a leftover `Support status`, `Support coverage` or
+  `Support remaining` row by name. One related red remains: an unmet row
+  (`{gap}`, `{partial}`, `{linux-limit}`) on an enrolled RFC whose summary
+  declares no public row (`| Support | - |`), because the Unmet cell discloses
+  it only on a row that exists.
   <!-- source: internal/le/rfc/meta.go -- ParseMeta, readEnrolment, readSupport -->
-  <!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkSourceRestricted, checkUnprovenSupport, checkGapCountAgreement, checkStatusAgreement -->
+  <!-- source: internal/le/rfc/meta.go -- retiredSupportLabels -->
+  <!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkSourceRestricted, checkStatusAgreement -->
 - **Audit letter and spirit with `/ze-rfc-audit <rfc>`.** The gate proves a link
   exists, but it cannot read the test. The audit reads the RFC itself and each
   tagged test. It then judges whether the test would fail if the code stopped

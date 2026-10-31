@@ -47,8 +47,7 @@ func fixtureMeta(enrolment, reason, support string) string {
 	if support == supportNone {
 		return tb.Str("| Aggregate | ").Str(FixtureAggregate).Str(" |\n").String()
 	}
-	return tb.Str("| Support area | Widgets |\n| Support status | Supported |\n").
-		Str("| Support coverage | full |\n| Support remaining | - |\n").String()
+	return tb.Str("| Support area | Widgets |\n").String()
 }
 
 // renderFixture is the smallest tree the two pages can be rendered over: one

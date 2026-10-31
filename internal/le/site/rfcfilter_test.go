@@ -19,11 +19,9 @@ import (
 // reason counts, including a real zero ceiling and an unmeasured tier.
 func TestTheIndexStatesTheComputedCeiling(t *testing.T) {
 	rows := []*rfc.TreeRow{
-		{Stem: "rfc9998", Summary: true, Walked: true, MandatoryTotal: 4,
-			MandatoryAttainable: 2, MandatoryExcluded: map[string]int{rfc.AnnotationLinuxLimit: 1, rfc.AnnotationNotApplicable: 1}},
-		{Stem: "rfc9999", Summary: true, Walked: true, MandatoryTotal: 1,
-			MandatoryExcluded: map[string]int{rfc.AnnotationLowerLayer: 1}},
-		{Stem: "rfc10000", Summary: true, MandatoryTotal: 100, MandatoryExcluded: map[string]int{rfc.AnnotationLinuxLimit: 100}},
+		{Stem: "rfc9998", Summary: true, Walked: true, Mandatory: rfc.Figure{Total: 4, Attainable: 2, Excluded: map[string]int{rfc.AnnotationLinuxLimit: 1, rfc.AnnotationNotApplicable: 1}}},
+		{Stem: "rfc9999", Summary: true, Walked: true, Mandatory: rfc.Figure{Total: 1, Excluded: map[string]int{rfc.AnnotationLowerLayer: 1}}},
+		{Stem: "rfc10000", Summary: true, Mandatory: rfc.Figure{Total: 100, Excluded: map[string]int{rfc.AnnotationLinuxLimit: 100}}},
 	}
 	statement := rfcCeilingStatement(rows)
 	for _, want := range []string{"2 of 5 (40.0%)", "Linux cannot do this: 1 of 5 (20.0%)", "classification can be revisited", "rfc9999", "0 of 1 (0.0%)", "Optional ceiling: no rows"} {
@@ -39,7 +37,7 @@ func TestTheIndexStatesTheComputedCeiling(t *testing.T) {
 	if strings.Contains(statement, "101") || strings.Contains(statement, "100% under") {
 		t.Fatalf("unwalked rows or fixed maximum entered ceiling: %s", statement)
 	}
-	full := []*rfc.TreeRow{{Stem: "rfc1", Summary: true, Walked: true, MandatoryTotal: 1, MandatoryAttainable: 1}}
+	full := []*rfc.TreeRow{{Stem: "rfc1", Summary: true, Walked: true, Mandatory: rfc.Figure{Total: 1, Attainable: 1}}}
 	if !strings.Contains(rfcCeilingStatement(full), "Every RFC shown with measured rows can reach 100% under current classifications.") {
 		t.Fatal("fully attainable measured rows do not publish their computed maximum")
 	}
@@ -54,11 +52,9 @@ func TestTheIndexStatesTheComputedCeiling(t *testing.T) {
 // zero attainable counts. Browser smoke exercises their actual JS consumer.
 func TestTheOverviewSumsTheCeilingTheRollupSums(t *testing.T) {
 	rows := []*rfc.TreeRow{
-		{Stem: "rfc1", Summary: true, Walked: true, MandatoryProven: 1, MandatoryTotal: 3, MandatoryAttainable: 2,
-			MandatoryExcluded: map[string]int{rfc.AnnotationLinuxLimit: 1}},
-		{Stem: "rfc2", Summary: true, Walked: true, MandatoryTotal: 2,
-			MandatoryExcluded: map[string]int{rfc.AnnotationNotApplicable: 2}},
-		{Stem: "rfc3", Summary: true, MandatoryTotal: 99, MandatoryAttainable: 99},
+		{Stem: "rfc1", Summary: true, Walked: true, Mandatory: rfc.Figure{Proven: 1, Total: 3, Attainable: 2, Excluded: map[string]int{rfc.AnnotationLinuxLimit: 1}}},
+		{Stem: "rfc2", Summary: true, Walked: true, Mandatory: rfc.Figure{Total: 2, Excluded: map[string]int{rfc.AnnotationNotApplicable: 2}}},
+		{Stem: "rfc3", Summary: true, Mandatory: rfc.Figure{Total: 99, Attainable: 99}},
 	}
 	ceiling := rfc.CeilingOf(rows)
 	if ceiling.Mandatory.Attainable != 2 || ceiling.Mandatory.Total != 5 || ceiling.Mandatory.Excluded[rfc.AnnotationLinuxLimit] != 1 || ceiling.NotWalked != 1 {
@@ -222,7 +218,7 @@ func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 				t.Fatalf("published graph lost the measured RFC: %+v", ledger.Graph)
 			}
 			for _, row := range ledger.Graph.Nodes {
-				if row.MandatoryProven != want || row.MandatoryTotal != 2 || row.OptionalProven != 0 || row.OptionalTotal != 1 {
+				if row.Mandatory.Proven != want || row.Mandatory.Total != 2 || row.Optional.Proven != 0 || row.Optional.Total != 1 {
 					t.Fatalf("annotation changed the published figure: %+v", row)
 				}
 			}
@@ -282,39 +278,66 @@ func TestTheLedgerCountsLinuxLimitRows(t *testing.T) {
 	}
 }
 
-// Each producer publishes identical ceilings from a ledger with two distinct
-// exclusion reasons and an unwalked member; no proof bar is replaced.
+// Each producer publishes the same counts from a ledger with two distinct
+// exclusion reasons, a row a lower layer performs and an unwalked member: the
+// compliance index and each detail page state their ceilings, and the profile
+// page, its mirror and the profile index publish the marked data/rfc/ figures
+// the same measurement answers. No proof bar is replaced.
+//
+// Method: render the compliance index from the ledger, publish the ledger's
+// data/rfc/ files and run the profile producer, then read every surface.
 func TestCeilingPublicationsAgree(t *testing.T) {
 	ledger := ceilingPublicationLedger()
-	report := ledger.Profiles[0]
 	paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), ledger)
 	if _, err := renderRFCCompliance(paths); err != nil {
 		t.Fatal(err)
 	}
 	index := readArtifact(t, paths.Output, rfcComplianceDest)
 	indexMirror := readArtifact(t, paths.Output, rfcComplianceDirectory+"/"+pageMirrorFile)
-	profile := rfcProfileBody(report, map[string]string{}, nil)
-	profileMirror := rfcProfileMirror(report, map[string]string{}, nil)
-	const mandatory = "Mandatory ceiling: 3 of 6 (50.0%)"
-	const optional = "Optional ceiling: 1 of 2 (50.0%)"
-	for name, surface := range map[string]string{"index": index, "index mirror": indexMirror, "profile": profile, "profile mirror": profileMirror} {
-		for _, want := range []string{mandatory, optional, "Linux cannot do this: 1 of 6 (16.7%)", "Lowest mandatory ceiling: rfc9998 1 of 3 (33.3%)"} {
+	for name, surface := range map[string]string{"index": index, "index mirror": indexMirror} {
+		for _, want := range []string{"Mandatory ceiling: 3 of 6 (50.0%)", "Optional ceiling: 1 of 2 (50.0%)",
+			"Linux cannot do this: 1 of 6 (16.7%)", "Lowest mandatory ceiling: rfc9998 1 of 3 (33.3%)"} {
 			if !strings.Contains(html.UnescapeString(surface), want) {
 				t.Errorf("%s omits %q", name, want)
 			}
 		}
 	}
-	for _, surface := range []string{rfcProfilesIndexBody(ledger.Profiles), rfcProfilesIndexMirror(ledger.Profiles)} {
-		for _, want := range []string{"3 of 6 (50.0%)", "1 of 2 (50.0%)", "Linux cannot do this: 1 of 6 (16.7%)"} {
-			if !strings.Contains(html.UnescapeString(surface), want) {
-				t.Errorf("profile index omits %q", want)
-			}
+	// The ceiling's 3 of 6 is the rows Ze's code owes (Ze proven 2 plus Ze
+	// correctness gap 1) of the 6 MUST rows counted; its Linux row is the
+	// linux-limit row not owed; its optional 2 is the SHOULD / MAY rows.
+	output := publishRFCProfileFigures(t, ledger, rfcProfilesFixtureData(t, &ledger))
+	if err := renderRFCProfileFigures(output); err != nil {
+		t.Fatalf("renderRFCProfiles: %v", err)
+	}
+	const subject = "profile/widgets/required"
+	const bar = "Ze proven 2, OS testing gap 1, Ze correctness gap 1"
+	page := readRFCProfileFile(t, output, rfcProfilesDirectory+"/widgets/"+pageIndexFile)
+	for field, value := range map[string]string{"rfcs": "3", "not-walked": "1", "must.total": "6",
+		"must.ze-proven": "2", "must.ze-gap": "1", "must.os-gap": "1", "must.not-owed": "2",
+		"must.not-owed-by-kind." + rfc.AnnotationLinuxLimit: "1", "should.total": "2"} {
+		if want := `<span data-ze-rfc="` + subject + ":" + field + `">` + value + `</span>`; !strings.Contains(page, want) {
+			t.Errorf("the profile page omits %s", want)
 		}
 	}
-	for _, card := range rfcProfileCards(report.Rollup) {
-		if card.Label == "Mandatory ceiling" && card.Value != "50.0%" {
-			t.Fatalf("card disagrees: %+v", card)
+	if want := `<div data-ze-rfc-bar="` + subject + `:must">` + bar + `</div>`; !strings.Contains(page, want) {
+		t.Errorf("the profile page omits %s", want)
+	}
+	mirror := readRFCProfileFile(t, output, rfcProfilesDirectory+"/widgets/"+pageMirrorFile)
+	for _, want := range []string{"| RFCs | 3 |", "| Not walked | 1 |", "| MUST rows | 6 |",
+		"| MUST not owed: " + rfc.AnnotationLinuxLimit + " | 1 |", "| SHOULD / MAY rows | 2 |", "**MUST bar**: " + bar} {
+		if !strings.Contains(mirror, want) {
+			t.Errorf("the profile mirror omits %q", want)
 		}
+	}
+	profiles := readRFCProfileFile(t, output, rfcProfilesDest)
+	for _, want := range []string{`<div data-ze-rfc-bar="` + subject + `:must">` + bar + `</div>`,
+		`<span data-ze-rfc="` + subject + `:rfcs">3</span>`, `<span data-ze-rfc="` + subject + `:not-walked">1</span>`} {
+		if !strings.Contains(profiles, want) {
+			t.Errorf("the profile index omits %s", want)
+		}
+	}
+	if !strings.Contains(readRFCProfileFile(t, output, rfcProfilesDirectory+"/"+pageMirrorFile), "| "+bar+" |") {
+		t.Error("the profile index mirror does not state the profile's MUST bar")
 	}
 	for index := range ledger.Stems {
 		entry := &ledger.Stems[index]
@@ -330,21 +353,18 @@ func TestCeilingPublicationsAgree(t *testing.T) {
 }
 
 // ceilingPublicationLedger supplies public renderers, including browser smoke,
-// with measured counts. It changes no repository corpus annotation.
+// with measured counts. It changes no repository corpus annotation. Each
+// walked row's figures add back to their totals, as rfcStemDataOf requires:
+// rfc9998's open SHOULD row is not yet, rfc9997's lower-layer row an OS
+// testing gap.
 func ceilingPublicationLedger() rfcLedger {
 	ledger := twoStemLedger()
 	rows := []*rfc.TreeRow{
-		{Stem: "rfc9998", Title: "Limited widgets", Summary: true, Walked: true,
-			MandatoryProven: 1, MandatoryTotal: 3, MandatoryAttainable: 1,
-			MandatoryExcluded: map[string]int{rfc.AnnotationLinuxLimit: 1, rfc.AnnotationNotApplicable: 1},
-			OptionalTotal:     2, OptionalAttainable: 1, OptionalExcluded: map[string]int{rfc.AnnotationFeatureDeclined: 1}},
-		{Stem: "rfc9997", Title: "Lower-layer widgets", Summary: true, Walked: true,
-			MandatoryProven: 1, MandatoryTotal: 3, MandatoryAttainable: 2,
-			MandatoryExcluded: map[string]int{rfc.AnnotationLowerLayer: 1}},
-		{Stem: "rfc10000", Title: "Unwalked widgets", Summary: true, MandatoryTotal: 100,
-			MandatoryExcluded: map[string]int{rfc.AnnotationLinuxLimit: 100}},
+		{Stem: "rfc9998", Title: "Limited widgets", Summary: true, Walked: true, Mandatory: rfc.Figure{Proven: 1, Total: 3, Attainable: 1, Excluded: map[string]int{rfc.AnnotationLinuxLimit: 1, rfc.AnnotationNotApplicable: 1}}, Optional: rfc.Figure{Total: 2, Attainable: 1, Excluded: map[string]int{rfc.AnnotationFeatureDeclined: 1}}, NotYet: 1},
+		{Stem: "rfc9997", Title: "Lower-layer widgets", Summary: true, Walked: true, Mandatory: rfc.Figure{Proven: 1, Total: 3, Attainable: 2, Excluded: map[string]int{rfc.AnnotationLowerLayer: 1}}, OSGap: 1},
+		{Stem: "rfc10000", Title: "Unwalked widgets", Summary: true, Mandatory: rfc.Figure{Total: 100, Excluded: map[string]int{rfc.AnnotationLinuxLimit: 100}}},
 	}
-	ledger.Stems[0].PublicStatus = "Partial"
+	ledger.Stems[0].PublicArea = "Widgets"
 	ledger.Stems[0].Requirements = append(ledger.Stems[0].Requirements,
 		rfcLedgerRequirement{RID: "RFC9998-2-2", Level: "MUST", Gated: true, Text: "A sender MUST use the missing primitive.",
 			Annotation: &rfcLedgerAnnotation{Kind: rfc.AnnotationLinuxLimit, LimitID: "LL-WIDGET", Reason: "kernel has no primitive"}},
@@ -373,12 +393,8 @@ func ceilingPublicationLedger() rfcLedger {
 func ceilingDraftTiePublicationLedger() rfcLedger {
 	ledger := ceilingPublicationLedger()
 	drafts := []*rfc.TreeRow{
-		{Stem: "draft-z-widget", Title: "Draft Z widgets", Summary: true, Walked: true,
-			MandatoryTotal: 3, MandatoryAttainable: 1,
-			MandatoryExcluded: map[string]int{rfc.AnnotationLinuxLimit: 2}},
-		{Stem: "draft-a-widget", Title: "Draft A widgets", Summary: true, Walked: true,
-			MandatoryTotal: 3, MandatoryAttainable: 1,
-			MandatoryExcluded: map[string]int{rfc.AnnotationLinuxLimit: 2}},
+		{Stem: "draft-z-widget", Title: "Draft Z widgets", Summary: true, Walked: true, Mandatory: rfc.Figure{Total: 3, Attainable: 1, Excluded: map[string]int{rfc.AnnotationLinuxLimit: 2}}},
+		{Stem: "draft-a-widget", Title: "Draft A widgets", Summary: true, Walked: true, Mandatory: rfc.Figure{Total: 3, Attainable: 1, Excluded: map[string]int{rfc.AnnotationLinuxLimit: 2}}},
 	}
 	stems := make([]rfcLedgerStem, 0, len(drafts)+len(ledger.Stems))
 	for _, row := range drafts {
@@ -433,7 +449,13 @@ func TestCeilingDraftTiesUseTheModelStemOrder(t *testing.T) {
 }
 
 // A use case's optional tier has its own measured set. Its excluded rows must
-// not lower the required-tier cards or minima, in HTML or the mirror.
+// not lower the required tier's figures, in HTML or the mirror, and its
+// unwalked member's rows count in no figure of its own tier either.
+//
+// Method: move rfc9998 and the unwalked rfc10000 into the optional tier,
+// publish the data/rfc/ files, run the profile producer, and read each tier's
+// marked figures on the page and its rows on either side of the mirror's
+// optional heading.
 func TestProfileOptionalTierKeepsOwnCeiling(t *testing.T) {
 	ledger := ceilingPublicationLedger()
 	report := ledger.Profiles[0]
@@ -443,19 +465,51 @@ func TestProfileOptionalTierKeepsOwnCeiling(t *testing.T) {
 	optionalCeiling := rfc.CeilingOf(optional)
 	report.Rollup = &rfc.ScopeRollup{Rollup: requiredCeiling.Rollup}
 	report.Optional = &rfc.TreeTier{Rollup: rfc.ScopeRollup{Rollup: optionalCeiling.Rollup}, Rows: optional}
-	for _, surface := range []string{rfcProfileBody(report, nil, nil), rfcProfileMirror(report, nil, nil)} {
-		required, rest, found := strings.Cut(html.UnescapeString(surface), rfcProfileOptionalHeading)
-		if !found {
-			t.Fatal("optional tier disappeared")
+	output := publishRFCProfileFigures(t, ledger, rfcProfilesFixtureData(t, &ledger))
+	if err := renderRFCProfileFigures(output); err != nil {
+		t.Fatalf("renderRFCProfiles: %v", err)
+	}
+	linux := "must.not-owed-by-kind." + rfc.AnnotationLinuxLimit
+	page := readRFCProfileFile(t, output, rfcProfilesDirectory+"/widgets/"+pageIndexFile)
+	for tier, figures := range map[string]map[string]string{
+		// rfc9997 alone: Ze owes 2 of its 3 rows, and no row is Linux's.
+		"required": {"rfcs": "1", "not-walked": "0", "must.total": "3", "must.ze-proven": "1",
+			"must.ze-gap": "1", "must.os-gap": "1", linux: "0"},
+		// rfc9998 and the unwalked rfc10000: rfc10000's 100 linux-limit rows
+		// count nowhere, so the tier holds rfc9998's 3 rows and 1 Linux row.
+		"optional": {"rfcs": "2", "not-walked": "1", "must.total": "3", "must.ze-proven": "1",
+			"must.ze-gap": "0", "must.os-gap": "0", linux: "1"},
+	} {
+		for field, value := range figures {
+			want := `<span data-ze-rfc="profile/widgets/` + tier + ":" + field + `">` + value + `</span>`
+			if !strings.Contains(page, want) {
+				t.Errorf("the %s tier lost its own figure: the page omits %s", tier, want)
+			}
 		}
-		if !strings.Contains(required, "Mandatory ceiling: 2 of 3 (66.7%)") ||
-			strings.Contains(required, "Mandatory ceiling: 1 of 3") {
-			t.Fatal("optional exclusions changed the required tier")
+	}
+	mirror := readRFCProfileFile(t, output, rfcProfilesDirectory+"/widgets/"+pageMirrorFile)
+	required, rest, found := strings.Cut(mirror, rfcProfileOptionalHeading)
+	if !found {
+		t.Fatal("optional tier disappeared from the mirror")
+	}
+	for _, check := range []struct {
+		tier, text string
+		want, not  []string
+	}{
+		{"required", required, []string{"| MUST rows | 3 |", "| MUST not owed: " + rfc.AnnotationLinuxLimit + " | 0 |"},
+			[]string{"| MUST rows | 6 |", "| MUST not owed: " + rfc.AnnotationLinuxLimit + " | 1 |"}},
+		{"optional", rest, []string{"| MUST rows | 3 |", "| Not walked | 1 |", "| MUST not owed: " + rfc.AnnotationLinuxLimit + " | 1 |"},
+			[]string{"| MUST rows | 103 |", "| MUST not owed: " + rfc.AnnotationLinuxLimit + " | 101 |"}},
+	} {
+		for _, want := range check.want {
+			if !strings.Contains(check.text, want) {
+				t.Errorf("the mirror's %s tier omits %q", check.tier, want)
+			}
 		}
-		if !strings.Contains(rest, "Mandatory ceiling: 1 of 3 (33.3%)") ||
-			!strings.Contains(rest, "Linux cannot do this: 1 of 3 (33.3%)") ||
-			strings.Contains(rest, "101 of") {
-			t.Fatal("optional tier lost its own walked-only ceiling")
+		for _, not := range check.not {
+			if strings.Contains(check.text, not) {
+				t.Errorf("the mirror's %s tier states %q, another tier's or an unwalked count", check.tier, not)
+			}
 		}
 	}
 }

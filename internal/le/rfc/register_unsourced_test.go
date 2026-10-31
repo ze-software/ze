@@ -46,26 +46,37 @@ func TestAnUnsourcedIDIsNotBilledAgainstTheKeywordRegister(t *testing.T) {
 	}
 	signed := map[string]Extraction{"rfc9999": unsourcedBoundaryArtifact()}
 
-	registers, err := derivedRegisters(NewDeriver(tree), signed, requirements)
-	if err != nil {
-		t.Fatalf("derivedRegisters: %v", err)
-	}
-	if registers["rfc9999"] != registerRFC2119 {
+	register := signedRegister(t, tree, signed, requirements)
+	if register != registerRFC2119 {
 		t.Errorf("2 keyword sites over 3 gated rows, 1 of them unsourced: register = %q, want %q",
-			registers["rfc9999"], registerRFC2119)
+			register, registerRFC2119)
 	}
 
 	// The sanction subtracts only the ids it names: with a second unsourced
 	// row billed, three gated rows exceed two keyword sites.
 	unnamed := unsourcedBoundaryArtifact()
 	unnamed.Sections[0].UnsourcedIDs = []string{"RFC9999-9-9"}
-	registers, err = derivedRegisters(NewDeriver(tree), map[string]Extraction{"rfc9999": unnamed}, requirements)
+	register = signedRegister(t, tree, map[string]Extraction{"rfc9999": unnamed}, requirements)
+	if register == registerRFC2119 {
+		t.Errorf("an unsourced id naming no gated row was subtracted: register = %q", register)
+	}
+}
+
+// signedRegister answers the register `./le rfc check` derives for rfc9999's
+// sign-off, through the two calls evaluateExtractions makes: the sourced
+// gated count (sourcedGatedCounts), then the inventory under the signed
+// register (Deriver.InventoryUnder).
+func signedRegister(t *testing.T, tree string, signed map[string]Extraction, requirements []Requirement) string {
+	t.Helper()
+	gated := sourcedGatedCounts(requirements, signed)
+	inventory, err := NewDeriver(tree).InventoryUnder("rfc9999", gated["rfc9999"], signed["rfc9999"].Register)
 	if err != nil {
-		t.Fatalf("derivedRegisters: %v", err)
+		t.Fatalf("InventoryUnder: %v", err)
 	}
-	if registers["rfc9999"] == registerRFC2119 {
-		t.Errorf("an unsourced id naming no gated row was subtracted: register = %q", registers["rfc9999"])
+	if inventory == nil {
+		t.Fatal("rfc9999 has no source text, so no register was derived")
 	}
+	return inventory.Register
 }
 
 // TestTheExtractWriterDoesNotBillAnUnsourcedID drives `./le rfc extract`'s

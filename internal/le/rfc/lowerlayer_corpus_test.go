@@ -175,7 +175,7 @@ func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 					// The owner's 2026-10-30 population: an enrolled RFC
 					// whose feature is still to come counts at its figure.
 					name:   "feature-still-to-come",
-					meta:   Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Unsupported"},
+					meta:   Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true},
 					level:  levelMust,
 					walked: true,
 					with:   ProvenShare{Gated: 2, RFCs: 2, Inspected: 2, GatedInspected: 2},

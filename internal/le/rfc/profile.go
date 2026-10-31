@@ -52,11 +52,11 @@ type Shape uint8
 const (
 	// shapeUnspecified is the zero value, which no parsed aggregate holds.
 	shapeUnspecified Shape = iota
-	// ShapeWide is the six-column table: RFC, Area, Status, Proof,
-	// Implemented coverage, Remaining.
+	// ShapeWide is the five-column table: RFC, Area, Proof, Evidence, Unmet.
 	ShapeWide
 	// ShapeBrief is the four-column table for standards that are not RFCs:
-	// Standard, Area, Status, Note. Its `Support remaining` is held at `-`.
+	// Standard, Area, Proof, Unmet. It leaves out Evidence, and keeps Unmet so
+	// a `{gap}` on a draft is still named by its requirement id.
 	ShapeBrief
 )
 

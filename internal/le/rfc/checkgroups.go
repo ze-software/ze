@@ -57,10 +57,12 @@ var CheckGroups = []CheckGroup{
 			"kernel entry in the Linux limitations register with evidence for that exact requirement " +
 			"at the shipped kernel version.",
 		Failure: "An annotation no longer holds as written and must be justified again."},
-	{Key: CheckPublicStatus, Name: "Published support status",
-		Verifies: "The support status each RFC publishes agrees with its requirements and its " +
-			"declared gaps, and a status that promises support is backed by a review of the RFC text.",
-		Failure: "A published support status says something its requirements do not support."},
+	{Key: CheckPublicStatus, Name: "Published ledger rows",
+		Verifies: "Every enrolled RFC with an unmet requirement renders a public row that " +
+			"discloses it, a public row never disappears while its summary remains, and each " +
+			"summary's enrolment disposition gives a reason a reviewer can check.",
+		Failure: "The public ledger hides an RFC's unmet requirement, or a disposition rests on " +
+			"a reason nobody can check."},
 	{Key: CheckAudits, Name: "Reviewer verdicts",
 		Verifies: "Each reviewer verdict recorded on a requirement is well formed and still " +
 			"describes the code and tests it judged.",

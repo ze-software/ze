@@ -141,7 +141,7 @@ func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 	in.Profiles = profiles
 	in.Successors = successorsFrom(metas)
 	if in.Rows == nil {
-		in.Rows = rowsFrom(metas, profiles.Aggregates)
+		in.Rows = rowsFrom(metas)
 	}
 	if in.Dispositions == nil {
 		in.Dispositions = dispositionsFrom(metas)

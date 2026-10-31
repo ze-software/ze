@@ -58,8 +58,6 @@ const fixtureSummary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|---
 	"| Implementation | ze |\n" +
 	"| Implementation reason | the fixture RFC's own Go answers it (internal/widget) |\n" +
 	"| Support | " + FixtureAggregate + " |\n| Support area | Widgets |\n" +
-	"| Support status | Partial |\n| Support coverage | unit tests |\n" +
-	"| Support remaining | Zero MUST gaps. |\n" +
 	"| Use cases | - |\n| Optional use cases | - |\n\n" +
 	"## Compliance Checklist\n\n" +
 	"- [ ] [" + FixtureRequirement + "] [MUST] A speaker MUST send the widget (§2)\n"

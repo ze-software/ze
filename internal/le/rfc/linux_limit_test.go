@@ -128,9 +128,8 @@ func TestCheckLinuxLimitReadsTheRegisterAndTheRow(t *testing.T) {
 
 func linuxLimitCheckFixture(t *testing.T, page, line string) string {
 	t.Helper()
-	meta := strings.Replace(selftestMeta, "| Support remaining | Zero MUST gaps. |", "| Support remaining | One MUST unmet. |", 1)
 	return checkFixtureTree(t, map[string]string{
-		selftestSummaryRel:    "# RFC 9999\n\n" + meta + "\n## Compliance Checklist\n\n" + line + "\n",
+		selftestSummaryRel:    "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" + line + "\n",
 		linuxLimitRegisterRel: page,
 		linuxLimitKernelRel:   "7.2.9\n",
 	})
@@ -180,26 +179,11 @@ func TestALinuxLimitRowCountsAsUnmetInTheStatusRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, one := range []struct {
-		status, remaining string
-		refusal           bool
-	}{{"Supported", "none", true}, {"Partial", "none", true}, {"Partial", "1 MUST unmet", false},
-		{"Supported", "One MUST unmet", true}, {"Supported on Linux", "One MUST unmet", true},
-		{"Yes", "One MUST unmet", true}, {"Partial", "One MUST unmet", false}} {
-		rows := map[string]LedgerRow{req.RFC: {Status: one.status, Remaining: one.remaining}}
-		got := checkStatusAgreement([]Requirement{*req}, rows, map[string]bool{req.RFC: true})
-		if (len(got) > 0) != one.refusal {
-			t.Fatalf("%+v: %v", one, got)
-		}
+	if got := checkStatusAgreement([]Requirement{*req}, map[string]LedgerRow{req.RFC: {}}, map[string]bool{req.RFC: true}); len(got) != 0 {
+		t.Fatalf("a public row derives its Unmet cell, yet refused: %v", got)
 	}
-	for _, one := range []struct {
-		remaining string
-		refusal   bool
-	}{{"Zero MUST unmet", true}, {"One MUST unmet", false}, {"Two MUST unmet", true}} {
-		got := checkGapCountAgreement([]Requirement{*req}, map[string]LedgerRow{req.RFC: {Remaining: one.remaining}})
-		if (len(got) > 0) != one.refusal {
-			t.Fatalf("%+v: %v", one, got)
-		}
+	if got := checkStatusAgreement([]Requirement{*req}, map[string]LedgerRow{}, map[string]bool{req.RFC: true}); len(got) != 1 {
+		t.Fatalf("an enrolled RFC hiding its {linux-limit} row behind no public row was accepted: %v", got)
 	}
 }
 
@@ -209,31 +193,31 @@ func TestSupportedDisclosurePreservesOtherUnmetAnnotations(t *testing.T) {
 	for _, kind := range []string{AnnotationGap, AnnotationPartial} {
 		req := Requirement{RFC: selftestStem, RID: selftestRIDSend,
 			Annotation: &Annotation{Kind: kind, Reason: "work remains"}}
-		rows := map[string]LedgerRow{selftestStem: {Status: "Supported", Remaining: "One MUST unmet"}}
+		rows := map[string]LedgerRow{selftestStem: {}}
 		if errs := checkStatusAgreement([]Requirement{req}, rows, map[string]bool{selftestStem: true}); len(errs) != 0 {
 			t.Fatalf("%s lost its existing disclosure behavior: %v", kind, errs)
 		}
 	}
 }
 
-// TestCheckLinuxLimitRefusesSupportedDespiteDisclosure isolates AC-17 from
-// the no-proof and missing-signoff guards by proving a second row and signing
-// the fixture's complete extraction. Both accepted controls must stay clean.
-func TestCheckLinuxLimitRefusesSupportedDespiteDisclosure(t *testing.T) {
+// TestCheckLinuxLimitAndGapRowsRaiseNoFinding proves a disclosed unmet row,
+// {linux-limit} or {gap}, raises no finding of its own once the fixture's other
+// row is proven and its extraction signed off. The Supported-row refusal this
+// test once pinned left with the authored Support status cell: a support claim
+// now lives in a feature's Level, and `./le feature check` S3 judges it from
+// the derived proof (internal/le/feature TestCheckAcceptsSupportedWithLinuxLimitOnly).
+func TestCheckLinuxLimitAndGapRowsRaiseNoFinding(t *testing.T) {
 	const secondRID = "RFC9999-2-2"
 	const secondQuote = "A receiver MUST preserve the widget."
 	const secondLine = "- [ ] [" + secondRID + "] [MUST] " + secondQuote + " (§2)"
 	for _, one := range []struct {
-		name, status, marker string
-		refused              bool
+		name, marker string
 	}{
-		{"linux-limit supported", "Supported", linuxLimitFixtureMarker, true},
-		{"linux-limit partial", "Partial", linuxLimitFixtureMarker, false},
-		{"ordinary gap supported", "Supported", "{gap: work remains}", false},
+		{"linux-limit", linuxLimitFixtureMarker},
+		{"ordinary gap", "{gap: work remains}"},
 	} {
 		t.Run(one.name, func(t *testing.T) {
-			meta := strings.Replace(selftestMeta, "| Support remaining | Zero MUST gaps. |", "| Support remaining | One MUST unmet |", 1)
-			meta = strings.Replace(meta, "| Support status | Partial |", "| Support status | "+one.status+" |", 1)
+			meta := selftestMeta
 			line := strings.Replace(linuxLimitFixtureLine, linuxLimitFixtureMarker, one.marker, 1)
 			root := checkFixtureTree(t, map[string]string{
 				selftestSummaryRel:     "# RFC 9999\n\n" + meta + "\n## Compliance Checklist\n\n" + line + "\n" + secondLine + "\n",
@@ -248,26 +232,11 @@ func TestCheckLinuxLimitRefusesSupportedDespiteDisclosure(t *testing.T) {
 				t.Fatal(report.CannotRun)
 			}
 			if report.Tags != 2 || report.Gated != 2 || report.Signed != 1 {
-				t.Fatalf("fixture did not isolate status agreement: tags=%d gated=%d signed=%d\n%s",
+				t.Fatalf("fixture did not isolate the unmet row: tags=%d gated=%d signed=%d\n%s",
 					report.Tags, report.Gated, report.Signed, report.Text())
 			}
-			if !one.refused {
-				if code != 0 || len(report.Findings) != 0 {
-					t.Fatalf("accepted control refused, exit %d: %s", code, report.Text())
-				}
-				return
-			}
-			if code != 1 || len(report.Findings) != 1 {
-				t.Fatalf("want only the status-agreement refusal, exit %d: %s", code, report.Text())
-			}
-			finding := report.Findings[0]
-			if finding.Check != CheckPublicStatus {
-				t.Fatalf("wrong gate supplied the refusal: %+v", finding)
-			}
-			for _, want := range []string{selftestRIDSend, selftestSummaryRel, "{linux-limit}", "Supported", "Support status", "Partial"} {
-				if !strings.Contains(finding.Message, want) {
-					t.Errorf("status refusal %q lacks %q", finding.Message, want)
-				}
+			if code != 0 || len(report.Findings) != 0 {
+				t.Fatalf("a disclosed unmet row was refused, exit %d: %s", code, report.Text())
 			}
 		})
 	}
@@ -341,7 +310,7 @@ func TestALinuxLimitRequirementIsAnnotatedAndNotProven(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	metas := map[string]Meta{req.RFC: {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Partial"}}
+	metas := map[string]Meta{req.RFC: {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true}}
 	before := *req
 	before.Annotation = &Annotation{Kind: AnnotationGap, Reason: "work remains"}
 	gap, err := shareOver(t, metas, []Requirement{before}, map[string]bool{req.RFC: true}, map[string]bool{req.RID: true})

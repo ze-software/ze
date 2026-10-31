@@ -139,39 +139,6 @@ func repositoryLineURL(repoPath string, line int) string {
 	return repositoryBlobURL(repoPath) + "#L" + strconv.Itoa(line)
 }
 
-// rfcFoldOver is the width past which prose goes behind a disclosure rather
-// than in front of the reader.
-//
-// The public ledger's cells run from six words to nine hundred, and the long
-// ones are what made the page unreadable (owner review, 2026-09-01). Folding
-// every cell would hide a sentence a reader could have taken at a glance, and
-// folding none reproduces the wall. This is where a paragraph stops being a
-// sentence: about three printed lines at the page's own measure.
-const rfcFoldOver = 240
-
-// rfcFoldMarkupHTML folds ALREADY-RENDERED markup, deciding by the width of the
-// prose it came from.
-//
-// The fold is about how much a reader is asked to take at once, which is a
-// property of the words rather than of the tags around them. Measuring the
-// markup would fold a short sentence carrying two links.
-func rfcFoldMarkupHTML(label, prose, markup string) string {
-	if len(prose) <= rfcFoldOver {
-		return "<p><strong>" + html.EscapeString(label) + ":</strong></p>\n" + markup
-	}
-	return "<details class=\"rfc-fold\"><summary>" + html.EscapeString(label) +
-		"</summary>\n" + markup + "\n</details>"
-}
-
-// rfcFoldMarkupMirror states the same, with the label as a heading a mirror can
-// carry.
-func rfcFoldMarkupMirror(label, prose, body string) string {
-	if len(prose) <= rfcFoldOver {
-		return "**" + label + ":**\n\n" + body + "\n"
-	}
-	return "**" + label + "**\n\n" + body + "\n"
-}
-
 // rfcSubjectRow answers one row whose first cell names the record and whose
 // second cell takes every remaining column.
 //

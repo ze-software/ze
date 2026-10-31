@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"html"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -92,7 +93,7 @@ func twoStemLedger() rfcLedger {
 		{
 			Stem: "rfc9998", Display: "RFC 9998", Title: "The Widget Protocol",
 			Enrolled: true, EnrolmentReason: "every MUST carries both polarities",
-			PublicStatus: "Supported", PublicRemaining: "RFC9998-2-2 unmet",
+			PublicArea:  "Widgets",
 			SummaryPath: "rfc/short/rfc9998.md", ShardPath: "rfc/requirements/rfc9998.md",
 			Coverage: rfcLedgerCoverage{Requirements: 1, Gated: 1, Both: 1},
 			Requirements: []rfcLedgerRequirement{{
@@ -195,27 +196,47 @@ func TestTheRFCComplianceSectionsReadAsThePublishedPage(t *testing.T) {
 	// contributor (rfcreader.go). The published page had none, so the lead is
 	// required at the head of the section and the rest of the section is still
 	// compared character for character.
-	for _, section := range []struct{ name, from, mine, theirs, lead string }{
+	//
+	// The authored public status retired with the Support status cell
+	// (spec-rfc-support-derived-proof), so neither section prints a status any
+	// more. The gap disclosure lost its status table and now states the two
+	// declared-gap counts the published page states in its summary (518 gaps
+	// over 80 RFCs, the same fixture). The clusters keep every RFC, in order,
+	// with its declared-gap count; only the published Public status column is
+	// taken out of the published text before the comparison.
+	for _, section := range []struct {
+		name, from, mine, theirs, lead string
+		published                      func(string) string
+	}{
 		// The exclusion disclosure was inserted between the two on 2026-09-01,
 		// so this section now ends at that heading rather than at the clusters.
-		// What it reads is unchanged, which is what the comparison holds.
-		{"gap disclosure", "Gap disclosure", "Exclusion disclosure", "Top gap clusters", rfcLeadGaps},
+		{"gap disclosure", "Gap disclosure", "Exclusion disclosure", "Top gap clusters", rfcLeadGaps,
+			func(string) string {
+				return "Declared gapsCount Requirements declared as gaps 518 RFCs declaring a gap 80"
+			}},
 		// The Gate inputs section folded into How this is checked on 2026-09-01:
 		// a mechanism belongs in one place, and it was in two.
-		{"top gap clusters", "Top gap clusters", "How this is checked", "AI guard and gate inputs", rfcLeadClusters},
+		{"top gap clusters", "Top gap clusters", "How this is checked", "AI guard and gate inputs", rfcLeadClusters,
+			func(text string) string {
+				return publishedStatusCell.ReplaceAllString(strings.Replace(text, "Public status", "", 1), "$2")
+			}},
 	} {
 		got := textBetween(t, text, section.from, section.mine)
 		if !strings.HasPrefix(got, section.lead+" ") {
 			t.Errorf("the %s section does not open with its lead %q", section.name, section.lead)
 		}
 		got = strings.TrimPrefix(got, section.lead+" ")
-		want := textBetween(t, published, section.from, section.theirs)
+		want := section.published(textBetween(t, published, section.from, section.theirs))
 		if got != want {
 			t.Errorf("the %s section reads as\n  %q\nthe published one reads as\n  %q",
 				section.name, got, want)
 		}
 	}
 }
+
+// publishedStatusCell is one Public status cell of the retired published
+// clusters table, as visibleText spaces it: the status word after a count.
+var publishedStatusCell = regexp.MustCompile(` (Partial|Experimental|Supported|Not supported|Unsupported)( |$)`)
 
 // VALIDATES: the section names the heading that labels it.
 func TestTheRFCCompliancePageIsLabelledByItsOwnHeading(t *testing.T) {
@@ -322,7 +343,7 @@ func TestTheGateInputRowsReadAsThePublishedRows(t *testing.T) {
 		"Requirement source rfc/short/*.md 2,966 gated MUST-level requirements",
 		"Enrolment rfc/short/*.md, the | Enrolment | Meta row 171 enrolled RFCs",
 		"Test tags internal/, pkg/, test/ 3,595 resolved tags",
-		"Public ledger rfc/short/*.md, the | Support | Meta row 80 RFCs with gaps, 4 Supported with Remaining",
+		"Public ledger rfc/short/*.md, the | Support | Meta row 80 RFCs with gaps",
 		"Semantic audits rfc/audit/*/*.json 52 fresh, 0 shifted, 0 stale, 2,914 missing",
 	} {
 		if !strings.Contains(text, row) {
@@ -575,9 +596,7 @@ func TestTheRFCComplianceMirrorReadsAsThePublishedMirror(t *testing.T) {
 		"| Positive and negative tests | 1,239 | 41.8% | `positive tag + negative tag` |",
 		"| Not applicable | 839 | 28.3% | `{not-applicable} annotation`: " +
 			"the obligation does not bind Ze, so it is scope rather than coverage |",
-		"| Partial | 59 |",
-		"- **RFC 1350:** RFC1350-2-3 unmet",
-		"| `DRAFT-IETF-BESS-MUP-SAFI` | 37 | Partial |",
+		"| `DRAFT-IETF-BESS-MUP-SAFI` | 37 |",
 		"| Semantic audits | `rfc/audit/*/*.json` | 52 fresh, 0 shifted, 0 stale, 2,914 missing |",
 	} {
 		if !strings.Contains(mirror, line) {
@@ -771,11 +790,8 @@ func TestTwoRFCsTyingOnGapsKeepTheParseOrder(t *testing.T) {
 		{RFC: "rfc100", RID: "RFC100-1-1", Level: "MUST", Annotation: &rfc.Annotation{Kind: "gap"}},
 		{RFC: "rfc500", RID: "RFC500-1-1", Level: "MUST", Annotation: &rfc.Annotation{Kind: "gap"}},
 	}
-	rows := map[string]rfc.LedgerRow{
-		"rfc900": {Status: "Partial"}, "rfc100": {Status: "Partial"}, "rfc500": {Status: "Partial"},
-	}
 	for attempt := range 8 {
-		_, gaps, _ := rfcBuckets(gated, nil, rows)
+		_, gaps, _ := rfcBuckets(gated, nil)
 		var order []string
 		for _, cluster := range gaps.TopRFCs {
 			order = append(order, cluster.RFC)
@@ -784,24 +800,6 @@ func TestTwoRFCsTyingOnGapsKeepTheParseOrder(t *testing.T) {
 		if strings.Join(order, " ") != strings.Join(want, " ") {
 			t.Fatalf("attempt %d ordered the tie %v, want %v", attempt, order, want)
 		}
-	}
-}
-
-// VALIDATES: an RFC declaring a gap with no row on the public page is counted
-// as missing rather than as a blank status.
-//
-// A blank cell reads as "nothing to disclose", which is the opposite of what an
-// undisclosed gap means.
-func TestAGapWithNoPublicRowIsCountedAsMissing(t *testing.T) {
-	gated := []rfc.Requirement{
-		{RFC: "rfc900", RID: "RFC900-1-1", Level: "MUST", Annotation: &rfc.Annotation{Kind: "gap"}},
-	}
-	_, gaps, _ := rfcBuckets(gated, nil, map[string]rfc.LedgerRow{})
-	if len(gaps.StatusCounts) != 1 || gaps.StatusCounts[0].Status != rfcMissingRow {
-		t.Fatalf("an undisclosed gap counts as %v, want one %q row", gaps.StatusCounts, rfcMissingRow)
-	}
-	if len(gaps.TopRFCs) != 1 || gaps.TopRFCs[0].Status != rfcMissingRow {
-		t.Errorf("the cluster row states %v, want %q", gaps.TopRFCs, rfcMissingRow)
 	}
 }
 
@@ -827,7 +825,7 @@ func TestEachGatedRequirementFallsInTheBucketItsEvidencePutsItIn(t *testing.T) {
 		{RID: "pair", Polarity: "positive"}, {RID: "pair", Polarity: "negative"},
 		{RID: "one-side", Polarity: "positive"},
 	}
-	buckets, _, _ := rfcBuckets(gated, tags, map[string]rfc.LedgerRow{"rfc100": {Status: "Partial"}})
+	buckets, _, _ := rfcBuckets(gated, tags)
 
 	want := map[string]int{
 		"both_polarities": 1, "single_polarity": 1, "not_applicable": 1,
@@ -843,54 +841,21 @@ func TestEachGatedRequirementFallsInTheBucketItsEvidencePutsItIn(t *testing.T) {
 	}
 }
 
-// VALIDATES: the gap disclosure lists a public status in the page's own order,
-// puts an unrecognized one after it in name order, and bounds the clusters.
+// VALIDATES: the gap-cluster table is bounded to rfcGapClustersShown rows.
 //
-// The status order is a reading order, not the ledger's: Partial is the answer
-// an operator meets most, and it comes first.
-func TestTheGapDisclosureOrdersStatusesAndBoundsTheClusters(t *testing.T) {
+// The tail is a long list of one-gap RFCs, so a table that listed every RFC
+// with a gap would bury the clusters a reader came for.
+func TestTheGapClusterTableIsBounded(t *testing.T) {
 	var gated []rfc.Requirement
-	rows := map[string]rfc.LedgerRow{}
-	// The two Supported stems are declared newest first, so a disclosure that
-	// kept the parse order would publish them in the opposite order.
-	statuses := []string{"Unsupported", "Not supported", "Supported", "Experimental", "Partial", "Zebra"}
-	for index, status := range statuses {
-		stem := "rfc" + strconv.Itoa(300-index)
-		rows[stem] = rfc.LedgerRow{Status: status, Remaining: "one MUST short"}
-		gated = append(gated, rfc.Requirement{RFC: stem, RID: stem + "-1",
-			Level: "MUST", Annotation: &rfc.Annotation{Kind: "gap"}})
-	}
-	for _, stem := range []string{"rfc990", "rfc980"} {
-		rows[stem] = rfc.LedgerRow{Status: "Supported", Remaining: "one MUST short"}
-		gated = append(gated, rfc.Requirement{RFC: stem, RID: stem + "-1",
-			Level: "MUST", Annotation: &rfc.Annotation{Kind: "gap"}})
-	}
 	for extra := range rfcGapClustersShown + 3 {
 		stem := "rfc" + strconv.Itoa(200+extra)
-		rows[stem] = rfc.LedgerRow{Status: "Partial"}
 		gated = append(gated, rfc.Requirement{RFC: stem, RID: stem + "-1",
 			Level: "MUST", Annotation: &rfc.Annotation{Kind: "gap"}})
 	}
-	_, gaps, _ := rfcBuckets(gated, nil, rows)
-
-	var order []string
-	for _, row := range gaps.StatusCounts {
-		order = append(order, row.Status)
-	}
-	want := append(append([]string{}, rfcStatusOrder...), "Zebra")
-	if strings.Join(order, "|") != strings.Join(want, "|") {
-		t.Errorf("the statuses read %v, want %v", order, want)
-	}
+	_, gaps, _ := rfcBuckets(gated, nil)
 	if len(gaps.TopRFCs) != rfcGapClustersShown {
 		t.Errorf("the cluster table has %d rows, want the %d it is bounded to",
 			len(gaps.TopRFCs), rfcGapClustersShown)
-	}
-	var disclosed []string
-	for _, row := range gaps.SupportedWithRemaining {
-		disclosed = append(disclosed, row.RFC)
-	}
-	if strings.Join(disclosed, "|") != "RFC 298|RFC 980|RFC 990" {
-		t.Errorf("the Supported disclosure reads %v, want RFC 298, RFC 980, RFC 990 in that order", disclosed)
 	}
 }
 
@@ -1093,7 +1058,7 @@ func TestTheGateVerdictIsAStatusAndNotTerminalOutput(t *testing.T) {
 	// container, as every table on a detail page does. A stem row carries a
 	// title and a disposition reason, both of them prose.
 	for _, want := range []string{
-		`<div class="rfc-table-wrap">` + "\n" + `<table class="rfc-table">` + "\n<thead><tr><th>RFC</th><th>" + rfcIndexStatusLabel + "</th>",
+		`<div class="rfc-table-wrap">` + "\n" + `<table class="rfc-table">` + "\n<thead><tr><th>RFC</th><th>" + rfcIndexAreaLabel + "</th>",
 		`<div class="rfc-table-wrap">` + "\n" + `<table class="rfc-table">` + "\n<thead><tr><th>RFC</th><th>" + rfcIndexMandatoryLabel + "</th><th>" + rfcIndexOptionalLabel + "</th><th>Disposition</th>",
 	} {
 		if !strings.Contains(body, want) {
@@ -1990,7 +1955,7 @@ func TestAnAnnotationWithNoBucketIsNeverPublishedAsUnexcused(t *testing.T) {
 	tags := []rfc.Tag{
 		{RID: "excused", Polarity: "positive"}, {RID: "unknown", Polarity: "positive"},
 	}
-	buckets, _, unmapped := rfcBuckets(gated, tags, map[string]rfc.LedgerRow{})
+	buckets, _, unmapped := rfcBuckets(gated, tags)
 	if unmapped != 1 {
 		t.Errorf("one requirement carries an unmapped kind and the walk counts %d", unmapped)
 	}
@@ -2161,9 +2126,7 @@ func TestTheComplianceIndexRowsCanBeFiltered(t *testing.T) {
 // Method: give the two-stem ledger a profile listing rfc9998 and render.
 func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 	ledger := twoStemLedger()
-	row := &rfc.TreeRow{Stem: "rfc9998", Summary: true, Walked: true,
-		MandatoryProven: 3, MandatoryTotal: 4, MandatoryAttainable: 4,
-		OptionalProven: 1, OptionalTotal: 2, OptionalAttainable: 2}
+	row := &rfc.TreeRow{Stem: "rfc9998", Summary: true, Walked: true, Mandatory: rfc.Figure{Proven: 3, Total: 4, Attainable: 4}, Optional: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}}
 	ledger.Profiles = []*rfc.TreeReport{{Profile: "widgets", Kind: "use-case",
 		Rollup: &rfc.ScopeRollup{RFCs: 1}, Rows: []*rfc.TreeRow{row}}}
 	paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), ledger)

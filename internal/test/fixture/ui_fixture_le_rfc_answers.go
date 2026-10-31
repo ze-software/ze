@@ -27,6 +27,8 @@ func init() {
 	Register("ui/le-rfc-partial-proof-render", uiDriver(leRFCPartialDriver("partial-render", leRFCPartialProofRender)))
 	Register("ui/le-rfc-partial-proof-selector", uiDriver(leRFCPartialDriver("partial-selector", leRFCPartialProofSelector)))
 	Register("ui/le-rfc-partial-proof-malformed", uiDriver(leRFCPartialDriver("partial-malformed", leRFCPartialProofMalformed)))
+	Register("ui/le-rfc-retired-support-cell", uiDriver(leRFCPartialDriver("retired-cell", leRFCRetiredSupportCell)))
+	Register("ui/le-rfc-derived-proof-render", uiDriver(leRFCPartialDriver("derived-render", leRFCDerivedProofRender)))
 }
 
 type leRFCAnswersFailure struct {
@@ -994,8 +996,7 @@ const (
 		"| Title | Scoped Widget Fixture |\n| Enrolment | enrolled |\n" +
 		"| Enrolment reason | isolated tooling fixture |\n| Implementation | ze |\n" +
 		"| Implementation reason | the fixture's own Go boundary |\n| Support | bgp-core |\n" +
-		"| Support area | Scoped Widget Fixture |\n| Support status | Partial |\n" +
-		"| Support coverage | scoped receive assertions |\n| Support remaining | One MUST row remains unmet: native sending is absent. |\n" +
+		"| Support area | Scoped Widget Fixture |\n" +
 		"\n## Compliance Checklist\n\n"
 	leRFCPartialRow = "- [ ] [" + leRFCPartialRID + "] [MUST] " + leRFCPartialSentence + " (§2) " + leRFCPartialMarker + "\n"
 )

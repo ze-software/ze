@@ -29,10 +29,12 @@ func disclosureLedger() rfcLedger {
 	return rfcLedger{Stems: []rfcLedgerStem{{
 		Stem: "rfc9999", Display: "RFC 9999", Title: "The Widget Protocol",
 		Enrolled: true, EnrolmentReason: "every MUST carries both polarities",
-		PublicStatus: "Partial", PublicCoverage: "widgets only",
-		PublicRemaining: "RFC9999-6-1 unmet",
-		SummaryPath:     "rfc/short/rfc9999.md", ShardPath: "rfc/requirements/rfc9999.md",
+		PublicArea:  "Widgets",
+		SummaryPath: "rfc/short/rfc9999.md", ShardPath: "rfc/requirements/rfc9999.md",
 		SourcePath: "rfc/full/rfc9999.txt",
+		Figures: &rfc.TreeRow{Stem: "rfc9999", Summary: true, StemFigures: rfc.StemFigures{Stem: "rfc9999",
+			Walked: true, Mandatory: rfc.Figure{Proven: 3, Total: 7, Attainable: 7},
+			MandatoryByKind: map[string]int{"unit": 3}, Unmet: []string{"RFC9999-5-1"}}},
 		Coverage: rfcLedgerCoverage{Requirements: 7, Gated: 7, Both: 3, One: 1,
 			Annotated: 1, Missing: 2, NightlyOnly: 1, Gaps: 1, GatedGaps: 1,
 			NotApplicable: 0, SinglePolarity: 0, Tags: 7, Units: 7, Audited: 3,
@@ -412,12 +414,12 @@ func shardRowsByRID(shard string) map[string][6]string {
 	return out
 }
 
-// VALIDATES: AC-3 -- the at-a-glance facts state the public status, the
+// VALIDATES: AC-3 -- the at-a-glance facts state the public area, the
 // enrolment and its reason, the counts, and the three repository paths.
 func TestAStemPageStatesItsEnrolmentAndItsPublicStatus(t *testing.T) {
 	_, text, mirror := disclosurePage(t)
 	for _, fact := range []string{
-		"Partial",
+		"Widgets",
 		"Enrolled: every MUST carries both polarities",
 		"rfc/short/rfc9999.md",
 		"rfc/requirements/rfc9999.md",
@@ -473,27 +475,24 @@ func TestAStemPageCarriesTheTitleFromTheSummaryMetaRow(t *testing.T) {
 // rendered as coverage (ai/rules/rfc-compliance.md).
 func TestAGapIsShownWithItsReasonAndTheLedgerRemainder(t *testing.T) {
 	_, text, mirror := disclosurePage(t)
-	// The ledger's Remaining cell is stated under What the public ledger says,
-	// beside the Coverage cell it belongs with, and the requirement-by-
-	// requirement answer is under Gaps and untested MUSTs (owner review,
-	// 2026-09-01). Both are on the page and each is stated once.
+	// The ledger's derived Unmet cell is stated under What the public ledger
+	// says, and the requirement-by-requirement answer is under Gaps and
+	// untested MUSTs (owner review, 2026-09-01). Both are on the page.
 	for _, want := range []string{
 		"RFC9999-5-1",
 		"the counter is not implemented | not scheduled",
-		"What the ledger says remains: RFC9999-6-1 unmet",
+		"Unmet: RFC9999-5-1",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the page does not state %q", want)
 		}
 	}
-	// The mirror escapes a pipe inside a table cell and writes the fold's label
-	// in bold, so it states the same two facts in Markdown's own spelling.
+	// The mirror escapes a pipe inside a table cell and writes the fact's
+	// label in bold, so it states the same two facts in Markdown's own spelling.
 	for _, want := range []string{
 		"RFC9999-5-1",
 		rfc.TableCell("the counter is not implemented | not scheduled"),
-		// The remainder names a requirement this summary declares, so it is
-		// linked to its own row rather than left as text.
-		"**What the ledger says remains:**\n\n[`RFC9999-6-1`](#rfc9999-6-1) unmet",
+		"**Unmet:** RFC9999-5-1",
 	} {
 		if !strings.Contains(mirror, want) {
 			t.Errorf("the mirror does not state %q", want)
@@ -501,8 +500,7 @@ func TestAGapIsShownWithItsReasonAndTheLedgerRemainder(t *testing.T) {
 	}
 
 	noRow := disclosureLedger()
-	noRow.Stems[0].PublicStatus = ""
-	noRow.Stems[0].PublicRemaining = ""
+	noRow.Stems[0].PublicArea = ""
 	_, plain := renderRFCDetail(t, noRow, "rfc9999")
 	// The summary DECLARES the absence; docs/features/rfc-status.md is
 	// generated from that declaration, so the page names the authored fact
@@ -1208,27 +1206,46 @@ func TestAMentionedRequirementLinksToItsOwnRow(t *testing.T) {
 
 // VALIDATES: AC-22 -- the at-a-glance table carries only countable facts and
 // repository paths, and the public remainder is stated exactly once.
+//
+// The public remainder is the derived Unmet cell, stated under What the public
+// ledger says beside the Proof and Evidence cells it comes with. None of the
+// three is a glance fact, so none may leak into the table, and the Unmet cell
+// is written once in the mirror. Method: the disclosure fixture, its glance
+// facts against rfcPublicLedgerFacts, and the rendered page and mirror.
 func TestTheGlanceTableCarriesNoProse(t *testing.T) {
 	entry := disclosureLedger().Stems[0]
 	_, text, mirror := disclosurePage(t)
-	for _, fact := range rfcGlanceFacts(&entry) {
+	glance := rfcGlanceFacts(&entry)
+	for _, fact := range glance {
 		if len(rfcPlain(fact[1])) > 80 {
 			t.Errorf("the %s cell is %d characters, which is prose in a two-column table",
 				fact[0], len(rfcPlain(fact[1])))
 		}
 	}
-	for _, prose := range []string{
-		"Enrolled: every MUST carries both polarities",
-		"widgets only",
-	} {
-		if !strings.Contains(text, prose) {
-			t.Errorf("the page dropped %q, which moved out of the table and owes a heading", prose)
+	prose := "Enrolled: every MUST carries both polarities"
+	if !strings.Contains(text, prose) {
+		t.Errorf("the page dropped %q, which moved out of the table and owes a heading", prose)
+	}
+	if !strings.Contains(mirror, prose) {
+		t.Errorf("the mirror dropped %q", prose)
+	}
+	for _, fact := range rfcPublicLedgerFacts(&entry) {
+		if fact[0] == "Area" {
+			continue
 		}
-		if !strings.Contains(mirror, prose) {
-			t.Errorf("the mirror dropped %q", prose)
+		if !strings.Contains(text, fact[0]+": "+fact[1]) {
+			t.Errorf("the page does not state the derived %s cell %q outside the table", fact[0], fact[1])
+		}
+		if !strings.Contains(mirror, "**"+fact[0]+":** "+fact[1]) {
+			t.Errorf("the mirror does not state the derived %s cell %q", fact[0], fact[1])
+		}
+		for _, cell := range glance {
+			if strings.Contains(rfcPlain(cell[1]), fact[1]) {
+				t.Errorf("the glance %s cell %q carries the derived %s cell %q", cell[0], cell[1], fact[0], fact[1])
+			}
 		}
 	}
-	if count := strings.Count(mirror, "`RFC9999-6-1`](#rfc9999-6-1) unmet"); count != 1 {
+	if count := strings.Count(mirror, "**Unmet:** RFC9999-5-1"); count != 1 {
 		t.Errorf("the mirror states the public remainder %d times, want once", count)
 	}
 }
@@ -1242,7 +1259,6 @@ func TestAnEmptySectionStatesItsEmptinessOnce(t *testing.T) {
 	empty := disclosureLedger()
 	stem := &empty.Stems[0]
 	stem.Successor = ""
-	stem.PublicRemaining = "nothing outstanding"
 	for index := range stem.Requirements {
 		requirement := &stem.Requirements[index]
 		requirement.Annotation, requirement.Superseded = nil, nil
@@ -1475,43 +1491,19 @@ func renderRFCDetailPage(t *testing.T, ledger rfcLedger) (page, text, mirror str
 	return page, visibleText(mainContent(t, page)), mirror
 }
 
-// VALIDATES: AC-33 -- the public ledger's cell is three labeled facts, the long
-// halves are folded, and nothing is dropped.
-func TestThePublicLedgerCellIsLabelledAndFolded(t *testing.T) {
-	long := disclosureLedger()
-	long.Stems[0].PublicCoverage = strings.Repeat("widgets are covered in every direction. ", 12)
-	page, text, mirror := renderRFCDetailPage(t, long)
-
-	if !strings.Contains(text, "Status: Partial") {
-		t.Error("the section does not label the public status")
-	}
-	if !strings.Contains(page,
-		`<details class="rfc-fold"><summary>What the ledger says is covered</summary>`) {
-		t.Error("a long coverage cell is not folded behind a disclosure")
-	}
-	if !strings.Contains(text, strings.TrimSpace(long.Stems[0].PublicCoverage)) {
-		t.Error("folding the coverage cell dropped part of it")
-	}
-	if !strings.Contains(mirror, "**What the ledger says is covered**") {
-		t.Error("the mirror does not label the folded coverage cell")
-	}
-
-	// A short cell is stated in front of the reader rather than hidden behind a
-	// control they have to find.
-	short := disclosureLedger()
-	short.Stems[0].PublicCoverage = "widgets only"
-	shortPage, shortText, _ := renderRFCDetailPage(t, short)
-	if !strings.Contains(shortText, "What the ledger says is covered: widgets only") {
-		t.Error("a short coverage cell is not stated plainly")
-	}
-	if strings.Contains(shortPage,
-		`<summary>What the ledger says is covered</summary>`) {
-		t.Error("a six-word cell was folded behind a disclosure")
-	}
-
-	// The remainder is stated HERE and nowhere else.
-	if count := strings.Count(shortText, "RFC9999-6-1 unmet"); count != 1 {
-		t.Errorf("the page states the public remainder %d times, want once", count)
+// VALIDATES: AC-33 -- the public ledger's cell is four labeled facts: the
+// authored area, then the Proof, Evidence and Unmet cells derived from the
+// stem's figures, each stated once on the page and in the mirror.
+func TestThePublicLedgerCellIsLabelled(t *testing.T) {
+	_, text, mirror := renderRFCDetailPage(t, disclosureLedger())
+	for _, fact := range []string{"Area: Widgets", "Proof: 3 of 7 MUST proven", "Evidence: unit 3", "Unmet: RFC9999-5-1"} {
+		if count := strings.Count(text, fact); count != 1 {
+			t.Errorf("the page states %q %d times, want once", fact, count)
+		}
+		label, value, _ := strings.Cut(fact, ": ")
+		if !strings.Contains(mirror, "**"+label+":** "+value) {
+			t.Errorf("the mirror does not state %q", fact)
+		}
 	}
 }
 
@@ -1529,97 +1521,6 @@ func sliceBetween(t *testing.T, body, from, to string) string {
 		t.Fatalf("the page carries no %q after %q", to, from)
 	}
 	return rest[:end]
-}
-
-// VALIDATES: AC-51 -- the ledger prose is SPLIT, never rewritten. Rejoining the
-// items reproduces the author's bytes, over every cell in the corpus.
-//
-// These cells are the disclosure. A clause lost to a splitter is disclosure
-// lost, so the property this holds is total: every cell of every summary, both
-// directions, byte for byte (owner ruling, 2026-09-01).
-func TestEveryLedgerCellSplitsWithoutLoss(t *testing.T) {
-	ledger := publishedLedgerOfThisCheckout(t)
-	cells, split := 0, 0
-	for index := range ledger.Stems {
-		entry := &ledger.Stems[index]
-		for name, prose := range map[string]string{
-			"coverage":  entry.PublicCoverage,
-			"remaining": entry.PublicRemaining,
-		} {
-			if strings.TrimSpace(prose) == "" {
-				continue
-			}
-			cells++
-			items := rfcProseSplit(prose)
-			if got := rfcProseJoin(items); got != prose {
-				t.Errorf("%s %s: the claim split loses text\n got %q\nwant %q",
-					entry.Stem, name, got, prose)
-			}
-			// Losslessness alone does not prove the split is in the right
-			// places: a naive cut at every semicolon rejoins byte for byte too.
-			// A correct one leaves every item balanced.
-			for _, item := range items {
-				if !rfcProseBalanced(item) {
-					t.Errorf("%s %s: the split left an unbalanced item %q",
-						entry.Stem, name, item)
-				}
-			}
-			themes := rfcProseThemes(prose)
-			if got := rfcProseThemesJoin(themes); got != prose {
-				t.Errorf("%s %s: the theme split loses text\n got %q\nwant %q",
-					entry.Stem, name, got, prose)
-			}
-			if len(items) > 1 || len(themes) > 1 {
-				split++
-			}
-		}
-	}
-	if cells == 0 {
-		t.Fatal("this checkout publishes no ledger prose, so this proves nothing")
-	}
-	t.Logf("%d ledger cells, %d of them split into items", cells, split)
-}
-
-// VALIDATES: AC-52 -- every path this prose links resolves to a file in the
-// tree, and every requirement id it links is one the RFC declares.
-//
-// The prose also cites RELATIVE paths, and a link built from one addresses
-// nothing. The rule is the repository root, and this is what proves the rule
-// rather than trusting it.
-func TestEveryLinkedPathExistsInTheTree(t *testing.T) {
-	root := repositoryRoot(t)
-	ledger := publishedLedgerOfThisCheckout(t)
-	linked, skipped := 0, 0
-	for index := range ledger.Stems {
-		entry := &ledger.Stems[index]
-		declared := rfcDeclaredIDs(entry)
-		for _, prose := range []string{entry.PublicCoverage, entry.PublicRemaining} {
-			for _, path := range rfcRepositoryPath.FindAllString(prose, -1) {
-				if !rfcLinkablePath(path) {
-					skipped++
-					continue
-				}
-				linked++
-				if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(path))); err != nil {
-					t.Errorf("%s links %s, which is not a file in this tree", entry.Stem, path)
-				}
-			}
-			// An id this RFC does not declare is left as text: a link to a row
-			// the page does not carry is a link nobody can follow.
-			for _, id := range rfcRequirementID.FindAllString(prose, -1) {
-				if declared[id] {
-					continue
-				}
-				if strings.Contains(rfcProseMirror(prose, declared), "["+"`"+id+"`](#") {
-					t.Errorf("%s links %s, which it does not declare", entry.Stem, id)
-				}
-			}
-		}
-	}
-	if linked == 0 {
-		t.Fatal("this checkout links no path from its ledger prose, so this proves nothing")
-	}
-	t.Logf("%d repository paths linked, %d relative citations left as text", linked, skipped)
 }
 
 // checkoutRFCCollection holds the unchanged source population, before site
@@ -1688,56 +1589,6 @@ func publishedLedgerOfThisCheckout(t *testing.T) rfcLedger {
 		t.Fatal(checkoutLedgerSnapshot.err)
 	}
 	return checkoutLedgerSnapshot.ledger
-}
-
-// VALIDATES: AC-51 -- a Coverage cell renders as its claims and a Remaining
-// cell as its themes, with the author's words unchanged.
-func TestTheLedgerProseRendersAsItsOwnStructure(t *testing.T) {
-	entry := disclosureLedger().Stems[0]
-	// The first claim carries a semicolon inside PARENTHESES and another inside
-	// a code span. Both are the cuts a naive splitter makes and this one must
-	// not.
-	entry.PublicCoverage = "the first claim, which cites RFC9999-2-1 " +
-		"(internal/a.go; and a `del { med; }` directive); the second claim; the third"
-	entry.PublicRemaining = "Two gaps remain. Header handling: RFC9999-1-1 is unreported. " +
-		"Timers: nothing re-runs the decision."
-	ledger := disclosureLedger()
-	ledger.Stems[0] = entry
-	page, mirror := renderRFCDetail(t, ledger, "rfc9999")
-	text := visibleText(mainContent(t, page))
-
-	// Three claims, and the semicolon inside `{ med; }` did not make a fourth.
-	if got := strings.Count(page, "<li>"); got < 3 {
-		t.Errorf("the coverage cell renders %d list items, want its three claims", got)
-	}
-	if !strings.Contains(text, "the second claim") || !strings.Contains(text, "the third") {
-		t.Error("a claim was lost in the split")
-	}
-	if !strings.Contains(text, "del { med; }") {
-		t.Error("the split cut inside a code span")
-	}
-	// The themes carry the author's own labels and nothing invented.
-	for _, label := range []string{"Header handling:", "Timers:"} {
-		if !strings.Contains(text, label) {
-			t.Errorf("the remaining cell does not carry the %q theme", label)
-		}
-	}
-	if !strings.Contains(text, "Two gaps remain.") {
-		t.Error("the lead sentence was dropped")
-	}
-	// The ids and the paths are links.
-	if !strings.Contains(page, `<a href="#rfc9999-2-1"><code>RFC9999-2-1</code></a>`) {
-		t.Error("a requirement id in the prose is not linked to its row")
-	}
-	if !strings.Contains(page, repositoryBlobURL("internal/a.go")) {
-		t.Error("a repository path in the prose is not linked to its file")
-	}
-	if !strings.Contains(mirror, "- **Header handling:** ") {
-		t.Error("the mirror does not carry the themes as items")
-	}
-	if !strings.Contains(mirror, "- the second claim") {
-		t.Error("the mirror does not carry the claims as items")
-	}
 }
 
 // VALIDATES: AC-53 -- a test is cited by NAME, never by the file it lives in,
@@ -2500,63 +2351,6 @@ func TestTheIndexAccountingRowCanSayTheBucketingIsIncomplete(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-66 -- the prose split and the prose renderer lose no character
-// of a cell whose SHAPE this corpus does not happen to carry yet.
-//
-// Two silent losses were found by reading rather than by a red bar, because no
-// cell in the tree has either shape today: a cell ending in a semicolon lost
-// that semicolon on rejoin, and a cell with an odd number of backticks lost one
-// backtick and marked its tail up as code (independent review, 2026-09-01). An
-// author can write either tomorrow, so the shapes are held here rather than
-// waited for.
-func TestProseOfAnyShapeIsPublishedWholeAndLosesNoCharacter(t *testing.T) {
-	for _, one := range []struct{ name, prose string }{
-		{"a trailing semicolon", "first claim; second claim;"},
-		{"only a semicolon", ";"},
-		{"two trailing semicolons", "first claim;;"},
-		{"an odd backtick", "the `medium flag is set here"},
-		{"an odd backtick after a claim", "one claim; the `medium flag"},
-		{"a semicolon inside a code span", "a `{ med; }` directive; and one more"},
-		{"a semicolon inside brackets", "a (first; second) pair; and one more"},
-		{"no semicolon at all", "one claim only"},
-	} {
-		items := rfcProseSplit(one.prose)
-		if got := rfcProseJoin(items); got != one.prose {
-			t.Errorf("%s: the split loses text\n got %q\nwant %q", one.name, got, one.prose)
-		}
-		// Balance is owed only where the AUTHOR balanced the cell. Prose with
-		// an odd backtick opens a span nothing closes, and no split of it can
-		// leave a balanced item.
-		if rfcProseBalanced(one.prose) {
-			for _, item := range items {
-				if !rfcProseBalanced(item) {
-					t.Errorf("%s: the split left an unbalanced item %q", one.name, item)
-				}
-			}
-		}
-		if got := rfcProseThemesJoin(rfcProseThemes(one.prose)); got != one.prose {
-			t.Errorf("%s: the theme split loses text\n got %q\nwant %q",
-				one.name, got, one.prose)
-		}
-		// The prose here names no requirement and no path, so the mirror of it
-		// is the prose itself. A renderer that ate a backtick reads short here.
-		if got := rfcProseMirror(one.prose, nil); got != one.prose {
-			t.Errorf("%s: the mirror rewrites the prose\n got %q\nwant %q",
-				one.name, got, one.prose)
-		}
-		// A closed code span becomes markup, so its backticks are meant to
-		// leave the page. An UNCLOSED one is text, and every character of it
-		// is owed to the reader.
-		if strings.Count(one.prose, "`")%2 == 1 {
-			if got := strings.Count(rfcProseHTML(one.prose, nil), "`"); got !=
-				strings.Count(one.prose, "`") {
-				t.Errorf("%s: the page carries %d backticks of the %d the author wrote",
-					one.name, got, strings.Count(one.prose, "`"))
-			}
-		}
-	}
-}
-
 // VALIDATES: AC-67 -- retiring a page deletes a page of THIS family and
 // nothing else under the same prefix.
 //
@@ -2840,8 +2634,7 @@ func partialPublicationTree(t *testing.T) (root, summary, marker string) {
 	summary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|---|---|\n| Use cases | - |\n| Optional use cases | - |\n" +
 		"| Title | Widgets |\n| Enrolment | enrolled |\n| Enrolment reason | isolated source fixture |\n" +
 		"| Implementation | ze |\n| Implementation reason | fixture production boundary |\n" +
-		"| Support | bgp-core |\n| Support area | Widgets |\n| Support status | Partial |\n" +
-		"| Support coverage | receipt ignores the field |\n| Support remaining | One MUST row remains unmet: native sending is absent. |\n\n" +
+		"| Support | bgp-core |\n| Support area | Widgets |\n\n" +
 		"## Compliance Checklist\n\n- [ ] [RFC9999-2-1] [MUST] A widget MUST be zero when sent and ignored on receipt. (§2) " + marker + "\n"
 	for path, body := range map[string]string{
 		"rfc/short/rfc9999.md":        summary,
@@ -2935,23 +2728,14 @@ func TestMissingSend(t *testing.T) {
 // kept verbatim, which file a sentence was checked against. Markdown hides
 // them, and the page and the mirror published them as text on rfc1035, rfc2661
 // and rfc5176 (content review of a real build, 2026-10-08). The method feeds
-// one note through each way authored text reaches this family: the subject of
-// a requirement, the Coverage cell and the Remaining cell.
+// one note through the way authored text reaches this family since the
+// Coverage and Remaining cells were retired: the subject of a requirement.
 func TestAnAuthoringNoteIsNotPublished(t *testing.T) {
 	const note = `<!-- "user" is verbatim: the RFC has a typo -->`
 	requirement := rfcLedgerRequirement{Text: "Messages sent using UDP user server port 53 " + note}
-	entry := rfcLedgerStem{
-		PublicStatus:    "Partial",
-		PublicCoverage:  "first claim; second claim. " + note,
-		PublicRemaining: "Lead sentence. " + note + " Timers: none yet.",
-	}
 	for _, one := range []struct{ surface, text string }{
 		{"the subject", rfcRequirementSubjectHTML(&requirement)},
 		{"the subject in the mirror", requirement.Subject()},
-		{"the Coverage cell", rfcClaimsHTML("covered", rfcCoverageProse(&entry), nil)},
-		{"the Coverage mirror", rfcClaimsMirror("covered", rfcCoverageProse(&entry), nil)},
-		{"the Remaining cell", rfcThemesHTML("remains", rfcRemainingText(&entry), nil)},
-		{"the Remaining mirror", rfcThemesMirror("remains", rfcRemainingText(&entry), nil)},
 	} {
 		if strings.Contains(one.text, "!--") || strings.Contains(one.text, "verbatim") {
 			t.Errorf("%s publishes the authoring note: %q", one.surface, one.text)
@@ -2959,35 +2743,5 @@ func TestAnAuthoringNoteIsNotPublished(t *testing.T) {
 	}
 	if got := requirement.Subject(); got != "Messages sent using UDP user server port 53" {
 		t.Errorf("the subject reads %q, want the sentence the author wrote and nothing else", got)
-	}
-	if got := rfcRemainingText(&entry); got != "Lead sentence. Timers: none yet." {
-		t.Errorf("the Remaining cell reads %q, want every authored word around the note", got)
-	}
-}
-
-// VALIDATES: the author's Markdown emphasis renders as emphasis, and emphasis
-// the author did not close stays every character of the text.
-//
-// The Remaining cells of rfc2661 and rfc9552 mark a phrase with **...**, and
-// the page published the asterisks. The phrase on rfc2661 holds a code span, so
-// the emphasis has to wrap the span rather than be cut by it.
-func TestTheAuthorsEmphasisRendersAsEmphasis(t *testing.T) {
-	prose := "data sessions, **outgoing call via `request l2tp outgoing-call`**, dial-target config"
-	got := rfcProseHTML(prose, nil)
-	want := "data sessions, <strong>outgoing call via <code>request l2tp outgoing-call</code>" +
-		"</strong>, dial-target config"
-	if got != want {
-		t.Errorf("the page reads\n %q\nwant\n %q", got, want)
-	}
-	if mirror := rfcProseMirror(prose, nil); mirror != prose {
-		t.Errorf("the mirror rewrites Markdown that is already Markdown: %q", mirror)
-	}
-	for _, unclosed := range []string{
-		"a ** that nothing closes",
-		"**a `code ** span` that the emphasis would cut**",
-	} {
-		if got := rfcProseHTML(unclosed, nil); strings.Count(got, "**") != strings.Count(unclosed, "**") {
-			t.Errorf("%q: the page carries %q, losing asterisks the author wrote", unclosed, got)
-		}
 	}
 }

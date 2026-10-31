@@ -46,18 +46,18 @@ func TestImplementsPopulation(t *testing.T) {
 		want bool
 	}{
 		{"enrolled ze with a row", Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe,
-			Aggregate: "bgp-core", Row: true, Status: "Supported"}, true},
+			Aggregate: "bgp-core", Row: true}, true},
 		{"enrolled ze with a row and a feature still to come (rfc4739)", Meta{Enrolment: enrolmentEnrolled,
-			Implementation: implementationZe, Aggregate: "ipsec", Row: true, Status: "Future"}, true},
+			Implementation: implementationZe, Aggregate: "ipsec", Row: true}, true},
 		{"enrolled mixed with a row", Meta{Enrolment: enrolmentEnrolled, Implementation: implementationMixed,
-			Aggregate: "ipsec", Row: true, Status: "Unsupported"}, true},
+			Aggregate: "ipsec", Row: true}, true},
 		{"enrolled third-party with a row (rfc9582)", Meta{Enrolment: enrolmentEnrolled,
-			Implementation: implementationThirdParty, Aggregate: "rpki", Row: true, Status: "Supported"}, false},
+			Implementation: implementationThirdParty, Aggregate: "rpki", Row: true}, false},
 		{"enrolled foundation with a row", Meta{Enrolment: enrolmentEnrolled,
 			Implementation: implementationFoundation, Aggregate: "bgp-core", Row: true}, false},
 		{"enrolled ze without a row", Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe}, false},
 		{"out of scope ze with a row", Meta{Enrolment: dispositionOutOfScope, Implementation: implementationZe,
-			Aggregate: "bgp-core", Row: true, Status: "Supported"}, false},
+			Aggregate: "bgp-core", Row: true}, false},
 	}
 	for _, tc := range cases {
 		meta := tc.meta

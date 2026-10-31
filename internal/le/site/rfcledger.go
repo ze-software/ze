@@ -71,14 +71,12 @@ type rfcLedgerStem struct {
 	// not (owner directive, 2026-09-21).
 	Implementation       string `json:"implementation"`
 	ImplementationReason string `json:"implementation-reason,omitempty"`
-	// The three cells this RFC's row on docs/features/rfc-status.md carries.
-	// They are the summary's own `| Support status |`, `| Support coverage |`
-	// and `| Support remaining |` Meta rows, which that page is generated from.
-	// Each is empty when the summary declares `| Support | - |` and so renders
-	// no row, which the page says in words.
-	PublicStatus    string `json:"public-status,omitempty"`
-	PublicCoverage  string `json:"public-coverage,omitempty"`
-	PublicRemaining string `json:"public-remaining,omitempty"`
+	// PublicArea is the one authored cell of this RFC's row on
+	// docs/features/rfc-status.md, the summary's `| Support area |` Meta row.
+	// It is empty when the summary declares `| Support | - |` and so renders
+	// no row, which the page says in words. The row's proof cells are derived
+	// and published in Figures (MandatoryByKind, Unmet).
+	PublicArea string `json:"public-area,omitempty"`
 	// The three repository paths a reader follows: the authored summary, the
 	// generated requirement shard, and the RFC's own text. ShardPath is empty
 	// for a summary declaring no requirement, and SourcePath for an RFC whose
@@ -528,8 +526,7 @@ func rfcLedgerStemOf(in *rfcLedgerInput) rfcLedgerStem {
 		entry.Disposition = &rfcLedgerDisposition{Kind: disposition.Kind, Reason: disposition.Reason}
 	}
 	if meta.HasRow() {
-		entry.PublicStatus, entry.PublicCoverage, entry.PublicRemaining =
-			meta.Status, meta.Coverage, meta.Remaining
+		entry.PublicArea = meta.Area
 	}
 	if source, held := rfc.SourcePath(in.Tree, in.Stem); held {
 		entry.SourcePath = source
