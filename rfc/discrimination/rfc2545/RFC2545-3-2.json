@@ -201,23 +201,23 @@
     "rid": "RFC2545-3-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling",
-    "unit-sha": "2f3204cd4defe4cf",
+    "unit-sha": "348b15f0e7a6bbcc",
     "claim-sha": "7da55248ea1e84df",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
     "producer-sha": "21fe78825d93b5dc",
-    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling",
-    "unit-sha": "2f3204cd4defe4cf",
+    "unit-sha": "348b15f0e7a6bbcc",
     "claim-sha": "f7a99d95881bd146",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
     "producer-sha": "21fe78825d93b5dc",
-    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-2",
@@ -250,8 +250,8 @@
     "claim-sha": "f732aaaeded8036d",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop",
-    "producer-sha": "37485d375e4081a6",
-    "break": "body of linkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "producer-sha": "602df978457d6505",
+    "break": "body of linkLocalNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:005E02:000000474001010040020040050400000064800E3600020120FD000000000000000000000000000002FE800000000000000000000000000001008020010DB8000100000000000000000001"
   },
   {

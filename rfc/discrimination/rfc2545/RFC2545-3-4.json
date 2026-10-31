@@ -14,12 +14,12 @@
     "rid": "RFC2545-3-4",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet",
-    "unit-sha": "c2d37ac25ddde334",
+    "unit-sha": "b69576390758f9f1",
     "claim-sha": "10cecfdf61864279",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
-    "producer-sha": "eefbfdd62f8042b3",
-    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "48ad3df5e514d285",
+    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-4",

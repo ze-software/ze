@@ -267,23 +267,23 @@
     "rid": "RFC2545-3-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling",
-    "unit-sha": "2f3204cd4defe4cf",
+    "unit-sha": "348b15f0e7a6bbcc",
     "claim-sha": "d9eee1413aca677a",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
     "producer-sha": "21fe78825d93b5dc",
-    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling",
-    "unit-sha": "2f3204cd4defe4cf",
+    "unit-sha": "348b15f0e7a6bbcc",
     "claim-sha": "f7d3e92a5c6c1a55",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
     "producer-sha": "21fe78825d93b5dc",
-    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-1",
@@ -399,23 +399,23 @@
     "rid": "RFC2545-3-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc2545_static_origination_test.go::TestStaticOriginateContinuesAfterUnusablePolicyNextHop",
-    "unit-sha": "4c4feea72942a2b5",
+    "unit-sha": "0f4646cf79455567",
     "claim-sha": "19955445a1a761a3",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
     "producer-sha": "50f9f938a1311bec",
-    "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2545_static_origination_test.go::TestStaticOriginateContinuesAfterUnusablePolicyNextHop",
-    "unit-sha": "4c4feea72942a2b5",
+    "unit-sha": "0f4646cf79455567",
     "claim-sha": "5377e077c7e11823",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
     "producer-sha": "50f9f938a1311bec",
-    "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-1",
@@ -458,8 +458,8 @@
     "claim-sha": "13822f615a54bf37",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop",
-    "producer-sha": "37485d375e4081a6",
-    "break": "body of linkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "producer-sha": "602df978457d6505",
+    "break": "body of linkLocalNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:005E02:000000474001010040020040050400000064800E3600020120FD000000000000000000000000000002FE800000000000000000000000000001008020010DB8000100000000000000000001"
   },
   {

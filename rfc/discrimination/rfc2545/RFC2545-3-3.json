@@ -25,12 +25,12 @@
     "rid": "RFC2545-3-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet",
-    "unit-sha": "c2d37ac25ddde334",
+    "unit-sha": "b69576390758f9f1",
     "claim-sha": "72cd1515f377a51f",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
-    "producer-sha": "eefbfdd62f8042b3",
-    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "48ad3df5e514d285",
+    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-3",
@@ -40,8 +40,8 @@
     "claim-sha": "d74d4de2ccff1d33",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
-    "producer-sha": "eefbfdd62f8042b3",
-    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "48ad3df5e514d285",
+    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-3",
@@ -51,8 +51,8 @@
     "claim-sha": "f25fb29c22cb01da",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
-    "producer-sha": "eefbfdd62f8042b3",
-    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "48ad3df5e514d285",
+    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-3",
@@ -139,7 +139,7 @@
     "claim-sha": "6bc214eb0b57a548",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
-    "producer-sha": "5c996c319b02bb8e",
+    "producer-sha": "061935927499a739",
     "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -161,7 +161,7 @@
     "claim-sha": "c8fe477ea5ecf56a",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
-    "producer-sha": "5c996c319b02bb8e",
+    "producer-sha": "061935927499a739",
     "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -230,8 +230,8 @@
     "claim-sha": "138f391676c8ffb0",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop",
-    "producer-sha": "37485d375e4081a6",
-    "break": "body of linkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "producer-sha": "602df978457d6505",
+    "break": "body of linkLocalNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:004E02:000000374001010040020040050400000064800E260002011020010DB800000000000000000000FFFF008020010DB8000100000000000000000001"
   },
   {
