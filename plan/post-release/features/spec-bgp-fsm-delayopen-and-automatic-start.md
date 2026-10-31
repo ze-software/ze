@@ -518,3 +518,9 @@ the quotes in the Task section.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md` only, in the same `./le commit create` script
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `claim-outlives-the-evidence-it-cites.md` | 2026-10-31 | RFC4271-8.2.2-15 WEAK: no tagged unit runs a DelayOpenTimer in Connect |
