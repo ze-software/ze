@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -267,4 +268,97 @@ func TestIntegration_RouteDelete(t *testing.T) {
 		assert.Equal(t, 1, addCount, "expected 1 add from ListExisting")
 		assert.Equal(t, 1, removeCount, "expected 1 remove from deletion")
 	})
+}
+
+// receiveGoroutineFrame names the netlink library's receive goroutine, the one
+// that calls the error callback and closes the update channel. Its closer
+// goroutine is routeSubscribeAt.func1 and may still be returning when Wait
+// returns; only the receive goroutine is owed to Wait.
+const receiveGoroutineFrame = "netlink.routeSubscribeAt.func2"
+
+// receiveGoroutinesAlive counts live goroutines whose stack holds the netlink
+// receive goroutine's frame.
+func receiveGoroutinesAlive() int {
+	buf := make([]byte, 1<<20)
+	n := runtime.Stack(buf, true)
+	alive := 0
+	for g := range strings.SplitSeq(string(buf[:n]), "\n\n") {
+		if strings.Contains(g, receiveGoroutineFrame) {
+			alive++
+		}
+	}
+	return alive
+}
+
+// stopCycles is how many watchers TestIntegration_StopWaitEndsTheReceiveGoroutine
+// starts and stops. Without the stop drain the receive goroutine still exits on
+// its own soon after Wait, and one dump right after Wait caught it in 8 of 10
+// runs. Twenty cycles leave a missing drain no realistic way to pass.
+const stopCycles = 20
+
+// TestIntegration_StopWaitEndsTheReceiveGoroutine proves the stop contract
+// both halves of the fix carry: once Stop is called the error callback is
+// never called (the receive error our own socket close causes is not a
+// failure), and once Wait returns the netlink receive goroutine has exited.
+//
+// Method: in its own namespace, stopCycles times, a live subscription proven
+// up by the ListExisting event for one route, then Stop and Wait. Any callback
+// after the stopped flag is set is recorded and fails the test; the goroutine
+// dump taken right after Wait must hold no receive goroutine. Without the
+// suppression the close reports "Receive failed"; without the drain the
+// receive goroutine outlives Wait.
+func TestIntegration_StopWaitEndsTheReceiveGoroutine(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	withNetNS(t, func() {
+		h, err := netlink.NewHandle()
+		require.NoError(t, err)
+		defer h.Close()
+		addLoopback(t, h)
+
+		_, cidr, err := net.ParseCIDR("10.66.0.0/24")
+		require.NoError(t, err)
+		require.NoError(t, h.RouteAdd(&netlink.Route{
+			Dst: cidr, Gw: net.ParseIP("127.0.0.1"), Protocol: 16,
+		}))
+
+		for cycle := range stopCycles {
+			stopAndWaitOnce(t, cycle)
+		}
+	})
+}
+
+// stopAndWaitOnce runs one start, live, Stop, Wait cycle and asserts the stop
+// contract on it.
+func stopAndWaitOnce(t *testing.T, cycle int) {
+	t.Helper()
+	var stopped atomic.Bool
+	var lateMu sync.Mutex
+	var late []string
+	w := New()
+	rec := &eventRecorder{}
+	w.Register(rec.record)
+	w.Start(func(err error) {
+		if !stopped.Load() {
+			t.Logf("cycle %d: watcher error before Stop: %v", cycle, err)
+			return
+		}
+		lateMu.Lock()
+		late = append(late, err.Error())
+		lateMu.Unlock()
+	})
+	rec.waitFor(t, func(evs []RouteEvent) bool {
+		return hasEvent(evs, "10.66.0.0/24", ActionAdd)
+	})
+	require.Positive(t, receiveGoroutinesAlive(), "cycle %d: the subscription is live, so its receive goroutine must be found", cycle)
+
+	stopped.Store(true)
+	w.Stop()
+	w.Wait()
+
+	require.Zero(t, receiveGoroutinesAlive(), "cycle %d: the netlink receive goroutine outlived Wait", cycle)
+	lateMu.Lock()
+	defer lateMu.Unlock()
+	require.Empty(t, late, "cycle %d: the error callback ran after Stop", cycle)
 }

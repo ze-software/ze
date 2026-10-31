@@ -2221,11 +2221,13 @@ watcher then reports through the error callback that route monitoring has stoppe
 report names the lost behavior and it names `CAP_NET_ADMIN`. `fib-kernel` logs it at
 Warn.
 
-`Stop` then `Wait` ends every goroutine the watcher started, the netlink library's
-own receive goroutine included. On stop the watcher closes the subscription and
-drains its update channel until the library closes it, so no error callback and no
-event runs after `Wait` returns. The receive error that closing the socket causes is
-the watcher's own shutdown, and it is not reported.
+After `Stop` then `Wait`, no error callback and no event runs, and the netlink
+library's receive goroutine has exited. On stop the watcher closes the subscription
+and drains its update channel until the library closes it. The library's closer
+goroutine can still be returning when `Wait` returns. The receive error that closing
+the socket causes is the watcher's own shutdown, and it is not reported. The error
+callback MUST NOT call `Wait`: the receive goroutine waits on the callback, the drain
+waits on the receive goroutine, and `Wait` waits on the drain.
 <!-- source: internal/core/routewatch/routewatch.go -- Watcher, Register, deliver -->
 <!-- source: internal/core/routewatch/routewatch_linux.go -- subscribe, subscribeOnce, stopping, subscribeSetupTries, reportSetupGaveUp -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- the error callback that logs it -->

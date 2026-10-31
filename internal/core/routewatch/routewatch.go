@@ -73,6 +73,11 @@ func (w *Watcher) Register(fn Handler) func() {
 	}
 }
 
+// Start opens the route subscription on its own goroutine and reports
+// subscription errors through errCb. Stop ends it, and the caller MUST call Wait
+// after Stop: once Wait returns no errCb call and no event runs. errCb MUST NOT
+// call Wait, which deadlocks: the netlink receive goroutine waits on errCb, the
+// stop drain waits on that goroutine, and Wait waits on the drain.
 func (w *Watcher) Start(errCb func(error)) {
 	w.startOnce.Do(func() {
 		w.errCb = errCb
