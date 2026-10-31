@@ -1,7 +1,7 @@
 {
   "code": {
     "internal/component/bgp/reactor/adj_rib_out.go::adjOutSourceKeyFor": "187f5d07dbd82b34",
-    "internal/component/bgp/reactor/adj_rib_out.go::clearRoutes": "ab37e4e0d7303ec3",
+    "internal/component/bgp/reactor/adj_rib_out.go::clearRoutes": "de47495f8e8a97ee",
     "internal/component/bgp/reactor/adj_rib_out.go::releasePath": "1764c405b6ac7083",
     "internal/component/bgp/reactor/adj_rib_out.go::setOwner": "0bb2cf4418584a3a",
     "internal/component/bgp/reactor/forward_path_id.go::generate": "3c9fb5b7d1f26dcc",
@@ -14,17 +14,17 @@
     "internal/component/bgp/reactor/forward_path_id.go::releaseSource": "8a85e0965ed30bd1",
     "internal/component/bgp/reactor/forward_path_id.go::reserve": "4280d67a383d192c",
     "internal/component/bgp/reactor/forward_path_id.go::retain": "228bba38516d7670",
-    "internal/component/bgp/reactor/session_ownership.go::allow": "bcb63e8c48a718a1",
+    "internal/component/bgp/reactor/session_ownership.go::allow": "359bc95131ccb821",
     "internal/component/bgp/reactor/session_ownership.go::beginAdjOut": "2f196d8453e64539",
-    "internal/component/bgp/reactor/session_ownership.go::bindSourcePath": "92b4c71be9ed5b82",
+    "internal/component/bgp/reactor/session_ownership.go::bindSourcePath": "e9fb3f220c4c91c2",
     "internal/component/bgp/reactor/session_ownership.go::filter": "bd62e97c08afa619",
-    "internal/component/bgp/reactor/session_ownership.go::recordDeletion": "658c1097fd0257ff",
-    "internal/component/bgp/reactor/session_ownership.go::recordSection": "54aa01c0b0035812",
-    "internal/component/bgp/reactor/session_ownership.go::release": "53a0d11615facbb8",
-    "internal/component/bgp/reactor/session_write.go::retireWrite": "730347444d269663",
-    "internal/component/bgp/reactor/session_write.go::writeUpdateBody": "7576a0a8e89ef492"
+    "internal/component/bgp/reactor/session_ownership.go::recordDeletion": "686b2d84959cce58",
+    "internal/component/bgp/reactor/session_ownership.go::recordSection": "5dd1fedc8bd68d33",
+    "internal/component/bgp/reactor/session_ownership.go::release": "3f6f9aa830bb2865",
+    "internal/component/bgp/reactor/session_write.go::retireWrite": "8d1fe8fe152756e1",
+    "internal/component/bgp/reactor/session_write.go::writeUpdateBody": "4f5e4354843aee34"
   },
-  "note": "Re-judged 2026-10-27 by an independent auditor who authored none of the change, after 9b7673180c and 5a65ff5ee7 (spec-add-path-limit-send-receive). RFC 7911 Section 2: \"However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor.\" Two cited producers moved. session_write.go writeUpdateBody now calls s.pathsLimit.filter (the extracted PATHS-LIMIT admission, formerly s.filterPathsLimit) and, after commit, adjOutWrite.owePathsLimitElections, which owes an election per contested prefix into the destination's owed table: neither mints, rebinds or releases a Path Identifier. session_ownership.go adjOutWrite.allow's adjOutRecovery withdraw branch now lets an item marked pathsLimitDemotion withdraw an ADD-PATH key whose owner is current; it still returns before any identifier bookkeeping, still honours recoverySpares, and withdraws the (Prefix, Path Identifier) the destination already holds, so the recipient never sees two paths under one identifier. The identifier producers (forward_path_id.go) and both tagged units are byte-identical, each with its verified revert record on generatePath. Verdict unchanged: enforced. Earlier judgements are in this file's git history. The same closure added a doc-comment paragraph to session_ownership.go beginAdjOut stating that the table mutex stays held until release and MUST NOT be taken again inside that window; the function body is unchanged.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7911): \"However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor.\" Producers moved in a0589dd1d1, ff2aac12b0 and 30ff1fce91 (RFC 8212 import invalidation with reversible released receipts). Re-read each: session_ownership.go bindSourcePath now also treats a key another source released (releasedByOther) as taken, so a released receipt keeps its identifier slot and no second path is bound under that (Prefix, Path Identifier) while it is released; recordSection hands a released receipt's slot and identifier reservation back to the entry through takeReleased, and keeps a denied receipt's record for a non-ADD-PATH key; adj_rib_out.go clearRoutes now releases the identifier reservation of every released ADD-PATH key; recordDeletion keeps a released record; allow fences announcements by source policy epoch and re-sends a released receipt only as its abort restore (sentOwnerCurrent); release zeroes the write's policy epoch; session_write.go writeUpdateBody refuses raw writes under a rejecting export final and records SourcePolicyEpoch, retireWrite adds stopAdmission. None mints a new identifier or lets two paths share one toward a neighbor; the new released-slot rule strengthens uniqueness and is pinned by TestRFC8212ReleasedSlotAddPath (another source's announcement of the same prefix gets an identifier other than the released slot's), which is untagged for this row. The identifier producers in forward_path_id.go and both tagged units are byte-identical. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "5df8a5af519ff87a",
   "tests": {
     "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "8e4558cf2659911f",
