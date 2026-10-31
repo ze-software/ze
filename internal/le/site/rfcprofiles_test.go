@@ -98,7 +98,7 @@ func rfcProfilesFixtureData(t *testing.T, ledger *rfcLedger) rfcData {
 				continue
 			}
 			seen[row.Stem] = true
-			stem, err := rfcStemDataOf(row.Stem, rfc.Meta{Title: row.Title}, row.StemFigures)
+			stem, err := rfcStemDataOf(row.Stem, row.Title, row.StemFigures)
 			if err != nil {
 				t.Fatalf("rfcStemDataOf(%s): %v", row.Stem, err)
 			}

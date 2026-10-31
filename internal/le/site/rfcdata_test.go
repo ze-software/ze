@@ -1,6 +1,7 @@
 package site
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"os"
@@ -52,7 +53,7 @@ func fixtureFigures() rfc.StemFigures {
 // compare the whole published value, so a swapped or summed-wrong segment is a
 // difference in the diff rather than a coincidence.
 func TestPerRFCDataCountsEverySegment(t *testing.T) {
-	got, err := rfcStemDataOf("rfc9999", rfc.Meta{Title: "Widgets"}, fixtureFigures())
+	got, err := rfcStemDataOf("rfc9999", "Widgets", fixtureFigures())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +103,7 @@ func (d rfcStemData) field(t *testing.T, path string) int {
 	if err := json.Unmarshal(body, &value); err != nil {
 		t.Fatal(err)
 	}
-	for _, part := range strings.Split(path, ".") {
+	for part := range strings.SplitSeq(path, ".") {
 		object, ok := value.(map[string]any)
 		if !ok {
 			t.Fatalf("field %s: %v is not an object", path, value)
@@ -141,7 +142,7 @@ func TestTheBarLayoutKeepsTheAgreedOrder(t *testing.T) {
 func TestAnUnwalkedRFCPublishesNoCounts(t *testing.T) {
 	figures := fixtureFigures()
 	figures.Walked = false
-	got, err := rfcStemDataOf("rfc9999", rfc.Meta{}, figures)
+	got, err := rfcStemDataOf("rfc9999", "", figures)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +173,7 @@ func TestFiguresThatDoNotAddUpAreRefused(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			figures := fixtureFigures()
 			check.edit(&figures)
-			_, err := rfcStemDataOf("rfc9999", rfc.Meta{}, figures)
+			_, err := rfcStemDataOf("rfc9999", "", figures)
 			if err == nil {
 				t.Fatal("figures that do not add up were published")
 			}
@@ -342,7 +343,7 @@ func readPublishedJSON(t *testing.T, output, rel string, into any) {
 // holds one walked RFC and whose website carries rfc-figures.js.
 func TestTheNativeRefreshPublishesTheRFCData(t *testing.T) {
 	stubLiveInputs(t, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
-	stem, err := rfcStemDataOf("rfc9999", rfc.Meta{Title: "Widgets"}, fixtureFigures())
+	stem, err := rfcStemDataOf("rfc9999", "Widgets", fixtureFigures())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -394,7 +395,7 @@ var updateRFCBars = flag.Bool("update", false, "rewrite testdata/rfc-bars.json f
 // per-RFC file of fixtureFigures.
 func rfcBarsGoldenContent(t *testing.T) []byte {
 	t.Helper()
-	stem, err := rfcStemDataOf("rfc9999", rfc.Meta{Title: "Widgets"}, fixtureFigures())
+	stem, err := rfcStemDataOf("rfc9999", "Widgets", fixtureFigures())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -422,7 +423,7 @@ func TestTheBarLayoutGoldenIsCurrent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v. Write it with: ./le job run label unit-pkg command go test -run TestTheBarLayoutGoldenIsCurrent ./internal/le/site/ -args -update", rfcBarsGolden, err)
 	}
-	if string(got) != string(want) {
+	if !bytes.Equal(got, want) {
 		t.Fatalf("%s is stale: rfcBars or the per-RFC file changed, so the browser test draws an old layout.\n"+
 			"Refresh it with: ./le job run label unit-pkg command go test -run TestTheBarLayoutGoldenIsCurrent ./internal/le/site/ -args -update\n"+
 			" got: %s\nwant: %s", rfcBarsGolden, got, want)

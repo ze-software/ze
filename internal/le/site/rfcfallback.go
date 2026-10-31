@@ -215,7 +215,7 @@ func lookupRFCField(sum map[string]any, field string) any {
 var rfcNotOwedByKind = regexp.MustCompile(`^(must|should)\.not-owed-by-kind\.[^.]+$`)
 
 // rfcKindKnown refuses a by-kind field naming a kind no row can leave the
-// bars by: the browser shows 0 for any absent kind, so a misspelt kind would
+// bars by: the browser shows 0 for any absent kind, so a misspelled kind would
 // publish a 0 nobody counted.
 func rfcKindKnown(subject, field string) error {
 	if !rfcNotOwedByKind.MatchString(field) {

@@ -133,7 +133,7 @@ func TestTheTitleOfAnRFCWithNoAbstract(t *testing.T) {
 // VALIDATES: every word genericHeadingWords was found missing titles a section
 // of nearly any RFC, so a heading of it alone names no feature.
 func TestTheGenericHeadingWordsHoldTheCommonTitles(t *testing.T) {
-	for _, word := range strings.Fields("timer timers behaviour address addressing attribute capability " +
+	for word := range strings.FieldsSeq("timer timers behaviour address addressing attribute capability " + //nolint:misspell // RFCs written in UK English title sections "Behaviour".
 		"negotiation notification request response reply data length flag code configuration management " +
 		"compatibility transport connection algorithm registration change encoding session author") {
 		if !headingWordsGeneric(word) {

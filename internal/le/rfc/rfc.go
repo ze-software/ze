@@ -248,7 +248,7 @@ func escapeReasonNames() []string { return sortedKeys(escapeReasons) }
 // added for (2026-09-03): Linux XFRM builds every AH packet, and no field of
 // the SA Ze installs decides that the RESERVED field is zero.
 //
-// A test of the OS behaviour on the state Ze installs is still owed (owner
+// A test of the OS behavior on the state Ze installs is still owed (owner
 // rule, ai/META-DECISIONS.md "Goal and scope"), so the kind does not bar a
 // tagged test: its trait is OSMet, not BarsTests. A row whose tagged unit
 // carries a proving discrimination record is OS verified, every other one an

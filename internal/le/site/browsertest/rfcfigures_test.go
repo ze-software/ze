@@ -305,7 +305,7 @@ func TestTheBrowserDrawsRFCFiguresFromTheirFiles(t *testing.T) {
 		t.Errorf("bar segments\n got: %v\nwant: %v", got.Bars, wantBars)
 	}
 	// AC-12: a segment too narrow for its words keeps them in the legend, which
-	// names every non-zero segment in the bar's order with its colour swatch.
+	// names every non-zero segment in the bar's order with its color swatch.
 	wantLegends := map[string][]string{"must-bar": wantBars["must-bar"], "overview-bar": wantBars["overview-bar"],
 		"empty-bar": {}}
 	if !reflect.DeepEqual(got.Legends, wantLegends) {
@@ -369,16 +369,16 @@ func TestTheBrowserDrawsRFCFiguresFromTheirFiles(t *testing.T) {
 	}
 }
 
-// rfcColours is each overview segment's text colour and fills, and the bar's
+// rfcColors is each overview segment's text color and fills, and the bar's
 // own background, as the browser computes them.
-type rfcColours struct {
+type rfcColors struct {
 	Bar      string              `json:"bar"`
 	Text     map[string]string   `json:"text"`
 	Fills    map[string][]string `json:"fills"`
 	Segments []string            `json:"segments"`
 }
 
-const readRFCColours = `(function () {
+const readRFCColors = `(function () {
     var bar = document.querySelector("#overview-bar .rfc-seg-bar");
     var out = {bar: bar ? getComputedStyle(bar).backgroundColor : "", text: {}, fills: {}, segments: []};
     Array.prototype.forEach.call(document.querySelectorAll("#overview-bar .rfc-seg"), function (span) {
@@ -392,8 +392,8 @@ const readRFCColours = `(function () {
     return out;
 })()`
 
-// parseCSSColour answers an opaque rgb() or rgba() colour as three channels;
-// a colour that is not opaque cannot be judged and is an error.
+// parseCSSColour answers an opaque rgb() or rgba() color as three channels;
+// a color that is not opaque cannot be judged and is an error.
 func parseCSSColour(value string) ([3]float64, error) {
 	var out [3]float64
 	inner := strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(value, "rgba("), "rgb("), ")")
@@ -402,7 +402,7 @@ func parseCSSColour(value string) ([3]float64, error) {
 		return out, errors.New(value + " is not opaque")
 	}
 	if len(parts) != 3 && len(parts) != 4 {
-		return out, errors.New(value + " is not an rgb() colour")
+		return out, errors.New(value + " is not an rgb() color")
 	}
 	for index := range 3 {
 		channel, err := strconv.ParseFloat(strings.TrimSpace(parts[index]), 64)
@@ -414,7 +414,7 @@ func parseCSSColour(value string) ([3]float64, error) {
 	return out, nil
 }
 
-// relativeLuminance is WCAG 2.2's relative luminance of an sRGB colour.
+// relativeLuminance is WCAG 2.2's relative luminance of an sRGB color.
 func relativeLuminance(rgb [3]float64) float64 {
 	linear := func(channel float64) float64 {
 		if channel <= 0.04045 {
@@ -431,14 +431,14 @@ func contrastRatio(first, second float64) float64 {
 }
 
 // TestRFCSegmentColoursAreReadableInBothThemes proves every segment's words
-// meet WCAG 2.2 AA for small text (4.5:1) against every colour of its fill in
+// meet WCAG 2.2 AA for small text (4.5:1) against every color of its fill in
 // the light and the dark theme; that OS verified, "light green", is lighter
 // than Ze proven in both; that in the light theme it stands apart from SHOULD
 // proven's teal; and that not decided has a fill of its own, apart from the
 // bar's background and every other segment.
 //
 // Method: load the fixture page with the site's real tokens and component CSS
-// under each data-theme, read each segment's computed colours, and compute the
+// under each data-theme, read each segment's computed colors, and compute the
 // ratios here.
 func TestRFCSegmentColoursAreReadableInBothThemes(t *testing.T) {
 	site := newRFCFixtureSite(t)
@@ -454,12 +454,12 @@ func TestRFCSegmentColoursAreReadableInBothThemes(t *testing.T) {
 			t.Fatalf("load %s: %v", theme, err)
 		}
 		waitForRFCPage(ctx, t)
-		colours, err := chromedp.Run(ctx, chromedp.Evaluate[rfcColours](readRFCColours))
+		colors, err := chromedp.Run(ctx, chromedp.Evaluate[rfcColors](readRFCColors))
 		if err != nil {
-			t.Fatalf("%s: read the colours: %v", theme, err)
+			t.Fatalf("%s: read the colors: %v", theme, err)
 		}
-		if len(colours.Segments) != 9 {
-			t.Fatalf("%s: %d overview segments drawn, want 9: %v", theme, len(colours.Segments), colours.Segments)
+		if len(colors.Segments) != 9 {
+			t.Fatalf("%s: %d overview segments drawn, want 9: %v", theme, len(colors.Segments), colors.Segments)
 		}
 		luminance := func(value string) float64 {
 			rgb, err := parseCSSColour(value)
@@ -469,14 +469,14 @@ func TestRFCSegmentColoursAreReadableInBothThemes(t *testing.T) {
 			return relativeLuminance(rgb)
 		}
 		fills := map[string]string{}
-		for _, segment := range colours.Segments {
-			text := luminance(colours.Text[segment])
-			for _, fill := range colours.Fills[segment] {
+		for _, segment := range colors.Segments {
+			text := luminance(colors.Text[segment])
+			for _, fill := range colors.Fills[segment] {
 				if ratio := contrastRatio(text, luminance(fill)); ratio < 4.5 {
-					t.Errorf("%s %s: text %s on %s is %.2f:1, under 4.5:1", theme, segment, colours.Text[segment], fill, ratio)
+					t.Errorf("%s %s: text %s on %s is %.2f:1, under 4.5:1", theme, segment, colors.Text[segment], fill, ratio)
 				}
 			}
-			fills[segment] = colours.Fills[segment][0]
+			fills[segment] = colors.Fills[segment][0]
 		}
 		if luminance(fills["os-verified"]) <= luminance(fills["ze-proven"]) {
 			t.Errorf("%s: OS verified %s is not lighter than Ze proven %s", theme, fills["os-verified"], fills["ze-proven"])
@@ -487,11 +487,11 @@ func TestRFCSegmentColoursAreReadableInBothThemes(t *testing.T) {
 					fills["os-verified"], fills["should-proven"], ratio)
 			}
 		}
-		if ratio := contrastRatio(luminance(fills["not-decided"]), luminance(colours.Bar)); ratio < 1.4 {
+		if ratio := contrastRatio(luminance(fills["not-decided"]), luminance(colors.Bar)); ratio < 1.4 {
 			t.Errorf("%s: not decided %s is %.2f:1 against the bar's background %s, under 1.4:1",
-				theme, fills["not-decided"], ratio, colours.Bar)
+				theme, fills["not-decided"], ratio, colors.Bar)
 		}
-		for _, segment := range colours.Segments {
+		for _, segment := range colors.Segments {
 			if segment != "not-decided" && fills[segment] == fills["not-decided"] {
 				t.Errorf("%s: not decided shares its fill %s with %s", theme, fills["not-decided"], segment)
 			}

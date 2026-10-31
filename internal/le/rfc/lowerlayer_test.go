@@ -187,7 +187,7 @@ func TestALowerLayerRequirementIsAnnotatedAndNotProven(t *testing.T) {
 }
 
 // TestALowerLayerRowAcceptsATaggedTest checks AC-3 on the gate. Goal: a test
-// tagged on a {lower-layer} row is the test of the OS behaviour on the state Ze
+// tagged on a {lower-layer} row is the test of the OS behavior on the state Ze
 // installs, which the owner rule asks for, so evaluate does not refuse the
 // annotation as stale; its record decides OS verified (figuresByStem). Method:
 // the row with one tagged test, and the same row untagged, each through

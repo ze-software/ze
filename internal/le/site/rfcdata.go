@@ -75,7 +75,7 @@ type rfcShouldCounts struct {
 	NotOwedByKind map[string]int `json:"not-owed-by-kind"`
 }
 
-// rfcBarSegment is one segment of a bar: the class name its colour hangs on
+// rfcBarSegment is one segment of a bar: the class name its color hangs on
 // (`rfc-seg-<Segment>`), the words it carries beside its count, and the
 // dotted fields of a per-RFC file whose sum is its count.
 type rfcBarSegment struct {
@@ -213,7 +213,7 @@ func rfcDataOf(in *rfc.RenderInput) (rfcData, error) {
 	data := rfcData{index: rfcDataIndex{Bars: rfcBars}}
 	for _, stem := range stems {
 		meta := in.Metas[stem]
-		stemData, err := rfcStemDataOf(stem, meta, figures[stem])
+		stemData, err := rfcStemDataOf(stem, meta.Title, figures[stem])
 		if err != nil {
 			return rfcData{}, err
 		}
@@ -245,8 +245,8 @@ func rfcProfileDataFile(name string) string { return rfcDataProfilesDir + "/" + 
 // and the split is checked against the model's own totals: figures that do
 // not add back are refused by stem rather than drawn as a bar whose segments
 // disagree with its total.
-func rfcStemDataOf(stem string, meta rfc.Meta, figures rfc.StemFigures) (rfcStemData, error) {
-	out := rfcStemData{Stem: stem, Title: meta.Title, Walked: figures.Walked, Unmet: figures.Unmet}
+func rfcStemDataOf(stem, title string, figures rfc.StemFigures) (rfcStemData, error) {
+	out := rfcStemData{Stem: stem, Title: title, Walked: figures.Walked, Unmet: figures.Unmet}
 	if out.Unmet == nil {
 		out.Unmet = []string{}
 	}

@@ -400,11 +400,12 @@ func rfcName(stem string) string {
 // what makes it cheap enough to run over every summary on every gate.
 func checkLowerLayerProducer(reader *sourceReader, requirements []Requirement) []string {
 	var errs []string
-	for _, req := range requirements {
+	for reqIndex := range requirements {
+		req := &requirements[reqIndex]
 		if req.Annotation == nil || req.Annotation.Kind != AnnotationLowerLayer {
 			continue
 		}
-		where := requirementWhere(req)
+		where := requirementWhere(*req)
 		state, unresolved := resolveProducer(reader, req.Annotation.Producer)
 		switch state {
 		case producerFound:
@@ -514,7 +515,8 @@ func checkRollupTargets(requirements []Requirement, enrolled map[string]bool) []
 	stems := map[string]bool{}
 	ids := map[string]string{}
 	rollups := map[string][]string{}
-	for _, req := range requirements {
+	for reqIndex := range requirements {
+		req := &requirements[reqIndex]
 		stems[req.RFC] = true
 		ids[req.RID] = req.RFC
 		if req.Rollup() {
@@ -522,11 +524,12 @@ func checkRollupTargets(requirements []Requirement, enrolled map[string]bool) []
 		}
 	}
 	var errs []string
-	for _, req := range requirements {
+	for reqIndex := range requirements {
+		req := &requirements[reqIndex]
 		if !req.Rollup() {
 			continue
 		}
-		where := requirementWhere(req)
+		where := requirementWhere(*req)
 		for _, target := range req.Annotation.Targets {
 			var tb textbuf.Buffer
 			tb.Str(where).Str(": ").Str(req.RID).Str(" is annotated {rollup} and names ")
@@ -642,7 +645,8 @@ func newRollupDeriver(requirements []Requirement, byRID map[string][]Tag,
 		memo:     map[string]rollupVerdict{},
 		visiting: map[string]bool{},
 	}
-	for _, req := range requirements {
+	for reqIndex := range requirements {
+		req := &requirements[reqIndex]
 		// Every rollup is recorded, enrolled or not: a renderer prints every
 		// summary, and a rollup row it reads MUST carry a derived state
 		// (Requirement.DerivedMark). What a rollup derives FROM is the
@@ -663,7 +667,7 @@ func newRollupDeriver(requirements []Requirement, byRID map[string][]Tag,
 		for _, tag := range byRID[req.RID] {
 			polarity[tag.Polarity] = true
 		}
-		deriver.states[req.RID] = rollupTargetState(req, polarity)
+		deriver.states[req.RID] = rollupTargetState(*req, polarity)
 		deriver.stemRows[req.RFC] = append(deriver.stemRows[req.RFC], req.RID)
 	}
 	return deriver
@@ -825,12 +829,13 @@ func rollupRowVerdict(rid string, state RollupState) rollupVerdict {
 func checkFeatureDeclined(tree string, reader *sourceReader, requirements []Requirement) []string {
 	sources := map[string]*quoteSource{}
 	var errs []string
-	for _, req := range requirements {
+	for reqIndex := range requirements {
+		req := &requirements[reqIndex]
 		if req.Annotation == nil || req.Annotation.Kind != AnnotationFeatureDeclined {
 			continue
 		}
-		where := requirementWhere(req)
-		errs = append(errs, featureDeclinedQuote(where, req, sources, tree)...)
+		where := requirementWhere(*req)
+		errs = append(errs, featureDeclinedQuote(where, *req, sources, tree)...)
 		state, unresolved := resolveProducer(reader, req.Annotation.Producer)
 		switch state {
 		case producerFound:
@@ -918,14 +923,15 @@ func featureDeclinedQuote(where string, req Requirement, sources map[string]*quo
 func checkPartialScopes(reader *sourceReader, requirements []Requirement) []string {
 	var errs []string
 	index := newScopeIndex()
-	for _, req := range requirements {
+	for reqIndex := range requirements {
+		req := &requirements[reqIndex]
 		if req.Annotation == nil {
 			continue
 		}
 		if req.Annotation.Kind != AnnotationPartial {
 			continue
 		}
-		if why := partialScopeRefusal(&req); why != "" {
+		if why := partialScopeRefusal(req); why != "" {
 			errs = append(errs, req.RID+" {partial}: "+why)
 		}
 		_, found, err := resolveKeyText(reader.read, index, req.Annotation.Producer, req.RID+" partial producer")

@@ -1,6 +1,7 @@
 package site
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -254,7 +255,11 @@ func TestRFCFigureSetAnswersAsTheScriptDoes(t *testing.T) {
 	if got, err := set.fillMirror("| x | {{ze-rfc rfc1 must.total}} |"); err == nil {
 		t.Errorf("a mistyped mirror token published as %q, want a refusal", got)
 	}
-	set.stems["rfc2"]["must"].(map[string]any)["kept"] = float64(5) //nolint:forcetypeassert // the fixture's own file
+	must, isMap := set.stems["rfc2"]["must"].(map[string]any)
+	if !isMap {
+		t.Fatalf("the fixture's rfc2 file holds no must counts: %v", set.stems["rfc2"])
+	}
+	must["kept"] = float64(5)
 	if got, err := set.bar("rfc2", "must"); err == nil {
 		t.Errorf("a bar whose segments miss its total answered %q", got)
 	}
@@ -334,7 +339,7 @@ func TestTheProfilePageGoldenIsCurrent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v. Write it with: ./le job run label unit-pkg command go test -run TestTheProfilePageGoldenIsCurrent ./internal/le/site/ -args -update", rfcProfilePageGolden, err)
 	}
-	if string(got) != string(want) {
+	if !bytes.Equal(got, want) {
 		t.Fatalf("%s is stale: the profile page changed, so the browser test loads an old page.\n"+
 			"Refresh it with: ./le job run label unit-pkg command go test -run TestTheProfilePageGoldenIsCurrent ./internal/le/site/ -args -update",
 			rfcProfilePageGolden)

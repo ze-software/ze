@@ -62,12 +62,13 @@ func highWater(ids map[string]bool) map[string]int {
 // that id again. Only the retirement record still remembers it.
 func checkIDAllocation(requirements []Requirement, baseline, unreadable, retired map[string]bool, known bool) []string {
 	var errs []string
-	for _, req := range requirements {
+	for reqIndex := range requirements {
+		req := &requirements[reqIndex]
 		if !retired[req.RID] {
 			continue
 		}
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(requirementWhere(req)).Str(": ").Str(req.RID).
+		errs = append(errs, tb.Str(requirementWhere(*req)).Str(": ").Str(req.RID).
 			Str(" reuses a retired id. A `Retired` paragraph in ").Str(correctionRel).Byte('/').Str(req.RFC).
 			Str(".md retired it, and a retired id is never allocated again: every test, extraction mapping and audit verdict that ever named it would silently point at a different obligation. Take the next free ordinal of the section").String())
 	}
@@ -75,7 +76,8 @@ func checkIDAllocation(requirements []Requirement, baseline, unreadable, retired
 		return errs
 	}
 	marks := highWater(baseline)
-	for _, req := range requirements {
+	for reqIndex := range requirements {
+		req := &requirements[reqIndex]
 		if baseline[req.RID] || unreadable[req.RFC] {
 			continue
 		}
@@ -94,7 +96,7 @@ func checkIDAllocation(requirements []Requirement, baseline, unreadable, retired
 		wantHead := want.Str(Prefix(req.RFC)).Byte('-').Str(section).String()
 		if match[1] != wantHead {
 			var tb textbuf.Buffer
-			errs = append(errs, tb.Str(requirementWhere(req)).Str(": new id ").Str(pyRepr(req.RID)).
+			errs = append(errs, tb.Str(requirementWhere(*req)).Str(": new id ").Str(pyRepr(req.RID)).
 				Str(" disagrees with its section (").Str(section).Str("); expected ").
 				Str(wantHead).Str("-<n>. A new id must be anchored to the section it cites.").String())
 		}

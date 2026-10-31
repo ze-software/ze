@@ -1,6 +1,7 @@
 package browsertest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -194,17 +195,26 @@ func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
     })()`)); err != nil {
 		t.Fatalf("add the register probes: %v", err)
 	}
+	// Each probe fills when its own subject's files arrive, and rfc2's are
+	// already loaded, so the wait holds until every probe left its fallback.
+	registers := map[string]string{"profile/lab/required": "not complete", "rfc5": "not complete",
+		"rfc6": "not complete", "rfc2": "complete"}
 	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
 		got, err = chromedp.Run(ctx, chromedp.Evaluate[rfcProfilePageState](readRFCProfilePage))
 		if err != nil {
 			t.Fatalf("read the page: %v", err)
 		}
-		if value := got.Values["rfc2:register"]; value != "" && value != "fallback" {
+		filled := 0
+		for subject := range registers {
+			if value := got.Values[subject+":register"]; value != "" && value != "fallback" {
+				filled++
+			}
+		}
+		if filled == len(registers) {
 			break
 		}
 	}
-	for subject, want := range map[string]string{"profile/lab/required": "not complete", "rfc5": "not complete",
-		"rfc6": "not complete", "rfc2": "complete"} {
+	for subject, want := range registers {
 		if got.Values[subject+":register"] != want {
 			t.Errorf("%s:register shows %q, want %q", subject, got.Values[subject+":register"], want)
 		}
@@ -246,7 +256,7 @@ func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(after) != string(before) {
+	if !bytes.Equal(after, before) {
 		t.Fatal("the page file changed: the republished counts must reach it through the files alone")
 	}
 
