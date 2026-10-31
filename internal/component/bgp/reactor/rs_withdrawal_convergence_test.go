@@ -258,6 +258,26 @@ func purgeRIBCommand(t *testing.T, r *Reactor, command string, args ...string) {
 	}
 }
 
+// grRetainedPeers asks bgp-rib to retain source's IPv4 unicast routes for
+// graceful restart and answers the retained-peers count bgp-rib reports.
+func grRetainedPeers(t *testing.T, r *Reactor, source string) int {
+	t.Helper()
+	data, err := dispatchRIBCommand(r, "request bgp rib retain-routes", source, "ipv4/unicast")
+	if err != nil {
+		t.Fatalf("retain-routes %s: %v", source, err)
+	}
+	var answer struct {
+		Retained *int `json:"retained-peers"`
+	}
+	if err := json.Unmarshal(data, &answer); err != nil {
+		t.Fatalf("retain-routes %s answered %s: %v", source, data, err)
+	}
+	if answer.Retained == nil {
+		t.Fatalf("retain-routes %s answered %s with no retained-peers count", source, data)
+	}
+	return *answer.Retained
+}
+
 // dispatchRIBCommand sends one registered bgp-rib command through the same
 // dispatcher the reactor's recovery lookup uses over IPC.
 func dispatchRIBCommand(r *Reactor, command string, args ...string) (json.RawMessage, error) {
@@ -1658,7 +1678,16 @@ func grPurgeRecovers(t *testing.T, how grPurge, withB bool) {
 	// peer for all the address families that were previously received in
 	// the Graceful Restart Capability and MUST mark them as stale routing
 	// information."
-	purgeRIBCommand(t, r, "request bgp rib retain-routes", source, "ipv4/unicast")
+	//
+	// C holding A's route proves bgp-rs forwarded it, not that bgp-rib has
+	// read A's UPDATE from its own event stream. retain-routes retains only a
+	// peer whose routes bgp-rib holds and answers how many it retained, so a
+	// retain sent before that read retains nothing, and the purge below then
+	// has nothing of A's to remove. Retaining is idempotent: it is repeated
+	// until bgp-rib answers that it retained A.
+	lowEventually(t, func() bool {
+		return grRetainedPeers(t, r, source) == 1
+	}, "bgp-rib retaining "+source+"'s routes")
 	// bgp-gr publishes which families it retains; bgp-rs asks it at
 	// departure and leaves a retained family to bgp-rib's purge.
 	retained := retention.Publish(func(peer string, fam family.Family) bool {

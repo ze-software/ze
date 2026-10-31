@@ -122,7 +122,7 @@ as the rejected branch and nothing builds it.
 
 ## Owned journal rows
 
-Three open journal rows are GR and LLGR defects in the code this spec already
+These open journal rows are GR and LLGR defects in the code this spec already
 reads. They are homed here, not in a new spec. The next design round turns each
 into a D-row and an AC with a test that goes red first; until then they are
 owed by this spec.
@@ -134,6 +134,7 @@ owed by this spec.
 | `declared-format-contradicts-payload` | 2026-10-02 | gr `handleOpenEvent` (JSON path) against `formatCapability` | No arm for `*capability.GracefulRestart`: the generic arm hex-encodes `WriteTo` output with the code and length header, and `decodeGR` reads that header as Restart Flags and Time. The gr tests feed header-less hex, so they cannot see it |
 | `unwired-feature` | 2026-09-08 | `parseGRCapValue` (`gr/gr.go`) | The GR capability carries the flags and restart time only, so ze tells every peer it preserves forwarding state for no family (wire `40 02 00 78`). RFC 4724 Section 3 puts the `<AFI, SAFI, Flags>` tuples after that pair; emit one per negotiated GR family |
 | `test-against-broken-path` | 2026-10-23 | `TestLateReflectorClaimsExistingReplayOwner` (`adj_rib_in/rib_validation_config_test.go`) | Starts bgp-rr forked through `RunEngine`, which 4ce0f460a5 refuses because rr's GR retention read (`retention.Family`) is same-process only. Drive bgp-rr as an internal plugin; this spec owns the forked rr/rs/gr arrangement that commit left open |
+| `false-synchronization-claim` | 2026-10-31 | `retainRoutes` (`rib/rib_commands.go`) | A retain-routes that reaches bgp-rib before it read the peer's first UPDATE retains nothing (`retained-peers 0`), and bgp-gr discards the answer; whether the on-down retain can overtake bgp-rib's ingest in production is unproven |
 
 ## Required Reading
 
