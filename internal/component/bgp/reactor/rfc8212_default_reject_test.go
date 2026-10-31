@@ -1,5 +1,4 @@
 // Design: docs/architecture/api/process-protocol.md -- policy dry-run exposes the effective decision.
-// RFC naming: untagged -- red real-entry policy probes; requirement tags await implementation and discrimination proof.
 package reactor
 
 import (
@@ -199,6 +198,9 @@ func TestRFC8212ChainBoundaries(t *testing.T) {
 // TestRFC8212Section3AbsentImportRejectsOnEBGP checks the actual publication
 // boundary: denied announcements never reach consumers, while explicit IPv4/MP
 // withdrawals and EOR survive. Automatic references do not supply presence.
+// RFC requirement: RFC8212-3-1 negative -- an EBGP peer whose import policy is
+// absent, holds only an automatic filter, or holds only an inactive filter has
+// its IPv4 and MP announcements withheld from every consumer.
 func TestRFC8212Section3AbsentImportRejectsOnEBGP(t *testing.T) {
 	automatic, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
 	if !bound {
@@ -248,6 +250,9 @@ func TestRFC8212Section3AbsentImportRejectsOnEBGP(t *testing.T) {
 
 // TestRFC8212Section3AbsentExportRejectsOnEBGP exercises originated admission
 // before and after snapshot publication, and the general forwarding policy step.
+// RFC requirement: RFC8212-3-2 negative -- an EBGP peer whose export policy is
+// absent or holds only an inactive filter is offered no announcement, before
+// and after its forwarding snapshot, and the general forwarding step rejects it.
 func TestRFC8212Section3AbsentExportRejectsOnEBGP(t *testing.T) {
 	for _, refs := range [][]routepolicy.Ref{nil, {{Name: "off", Inactive: true}}} {
 		for _, snapshot := range []bool{false, true} {

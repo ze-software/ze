@@ -1,5 +1,5 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- the source-policy epoch at recovery
-// RFC naming: untagged -- tests machinery RFC 8212 default reject relies on; rows RFC8212-3-1/3-2 are {gap}, which refuse a proof tag until the spec closes them (AC-11).
+// RFC naming: untagged -- tests machinery RFC 8212 default reject relies on, not the Section 3 verdict itself, which rfc8212_default_reject_test.go and the test/plugin/rfc8212-* carriers prove.
 // Related: relay_recovery.go -- queueRecoveryOutcome, admit, settle
 // Related: session_paths_limit_elect.go -- queuePathsLimitElection
 

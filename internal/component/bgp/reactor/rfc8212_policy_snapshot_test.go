@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/architecture.md -- originated export admission before forwarding publication.
-// RFC naming: untagged -- red existing-entry probe; discrimination follows implementation.
+// RFC naming: untagged -- tests the policy snapshot RFC 8212 default reject reads, not the Section 3 verdict itself, which rfc8212_default_reject_test.go and the test/plugin/rfc8212-* carriers prove.
 package reactor
 
 import (

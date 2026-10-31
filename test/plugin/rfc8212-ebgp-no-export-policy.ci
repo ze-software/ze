@@ -32,6 +32,14 @@
 # rfc8212-bridge-ready file before announcing. The run ends on two fences on
 # the SAME sockets: a withdrawal .3 must echo, and an EOR to .2 that its script
 # answers with a withdrawal only after checking every preceding frame.
+# RFC requirement: RFC8212-3-2 negative -- 127.0.0.2, an EBGP session with no
+# export policy at any layer, is sent none of 10.82.1.0/24 and 10.82.10.0/24
+# to 10.82.16.0/24, from the config update block, bgp-rs forwarding, API text,
+# the ExaBGP bridge, redistribution and the three raw injection forms.
+# RFC requirement: RFC8212-3-2 positive -- 127.0.0.3, an EBGP session with an
+# explicit export `final accept`, is sent each of 10.82.10.0/24, 10.82.1.0/24
+# and 10.82.11.0/24 to 10.82.15.0/24.
+#
 option=timeout:value=120s
 
 stdin=source:terminator=EOF_SOURCE

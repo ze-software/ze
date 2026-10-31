@@ -1,0 +1,49 @@
+[
+  {
+    "rid": "RFC8212-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8212_default_reject_test.go::TestRFC8212Section3AbsentImportRejectsOnEBGP",
+    "unit-sha": "9138ae98d3226cf2",
+    "claim-sha": "920cb4df7a0a69e2",
+    "route": "mutant",
+    "producer": "internal/component/bgp/filterapi/policy.go::AcceptsAtEnd",
+    "producer-sha": "2c2cda1ee27f4bf4",
+    "break": "line 140: \"return !external\" -\u003e \"return true\""
+  },
+  {
+    "rid": "RFC8212-3-1",
+    "polarity": "negative",
+    "unit": "internal/le/interoplab/bgp/check_rfc8212_default_reject.go::checkRFC8212DefaultRejectFRR",
+    "unit-sha": "b5a2847af14f4227",
+    "claim-sha": "0d1f93a73474014c",
+    "route": "mutant",
+    "producer": "internal/component/bgp/filterapi/policy.go::AcceptsAtEnd",
+    "producer-sha": "2c2cda1ee27f4bf4",
+    "break": "line 140: \"return !external\" -\u003e \"return true\"",
+    "citation": "7"
+  },
+  {
+    "rid": "RFC8212-3-1",
+    "polarity": "negative",
+    "unit": "test/plugin/rfc8212-ebgp-no-import-policy.ci",
+    "unit-sha": "915683c66f8c51e2",
+    "claim-sha": "7c77bae81829ca90",
+    "route": "mutant",
+    "producer": "internal/component/bgp/filterapi/policy.go::AcceptsAtEnd",
+    "producer-sha": "2c2cda1ee27f4bf4",
+    "break": "line 140: \"return !external\" -\u003e \"return true\"",
+    "citation": "reject=stderr:pattern=ZE-OBSERVER-FAIL"
+  },
+  {
+    "rid": "RFC8212-3-1",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc8212-ebgp-no-import-policy.ci",
+    "unit-sha": "915683c66f8c51e2",
+    "claim-sha": "476e4da4e1dfca0d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/filterapi/policy.go::AcceptsAtEnd",
+    "producer-sha": "2c2cda1ee27f4bf4",
+    "break": "line 139: \"!p.Configured()\" -\u003e \"true\"",
+    "citation": "reject=stderr:pattern=ZE-OBSERVER-FAIL"
+  }
+]

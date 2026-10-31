@@ -1,5 +1,6 @@
 // Design: docs/guide/bgp-policy.md -- Policy model, the RFC 8212 default for an absent direction
 // Related: rfc8212_warning.go -- warnRFC8212AbsentPolicy, the producer under test
+// RFC naming: untagged -- tests the establishment warning for an absent RFC 8212 direction, an operator aid the RFC does not oblige, not the Section 3 verdict itself.
 //
 // Goal: the Established warning names the peer, the direction, RFC 8212 and
 // the exact editor command, once per absent direction per session, and never

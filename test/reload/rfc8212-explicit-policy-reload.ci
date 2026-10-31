@@ -27,6 +27,11 @@
 #   stage is red until it lands. The export stage runs first and is green now.
 # Discrimination of the export stage: an overlay mutant of
 #   reactor/peer_settings_apply.go with `finalChanged := false` turns it red.
+# RFC requirement: RFC8212-3-2 positive -- a reload that gives the Established
+# EBGP source peer-1 an explicit export `final accept` sends it the configured
+# 192.168.0.0/24 on the same session, and adding it again after its removal
+# sends it again.
+#
 option=timeout:value=180s
 
 stdin=source:terminator=EOF_SOURCE

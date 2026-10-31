@@ -30,6 +30,13 @@
 # releases the rejected source, the accepted control and the absent source in
 # that order, each by an API route on its own socket, counting the source's
 # received UPDATE before any RIB or wire check.
+# RFC requirement: RFC8212-3-1 negative -- 127.0.0.1, an EBGP session with no
+# import policy at any layer, announces 10.82.1.0/24 and 2001:db8:82::/48:
+# neither is a best route and neither reaches the IBGP sink.
+# RFC requirement: RFC8212-3-1 positive -- 127.0.0.3, an EBGP session with an
+# explicit import `final accept`, announces 10.82.3.0/24 and 2001:db8:83::/48:
+# both are best routes and both reach the IBGP sink.
+#
 option=timeout:value=120s
 
 stdin=absent:terminator=EOF_ABSENT
