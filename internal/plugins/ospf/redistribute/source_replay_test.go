@@ -27,11 +27,16 @@ import (
 
 // replayBus is a synchronous ze.EventBus that records every route-change
 // batch in emit order and delivers to its subscribers on the emitting
-// goroutine. Safe for concurrent use.
+// goroutine. Safe for concurrent use, except that onEmit MUST be set before
+// the first Emit it should see.
 type replayBus struct {
 	mu      sync.Mutex
 	batches []recordedBatch
 	subs    map[string][]func(any)
+	// onEmit, when set, runs on the emitting goroutine for every route-change
+	// batch, outside the bus's own lock, so a test can probe what the producer
+	// holds at the moment of the emit.
+	onEmit func(*redistevents.RouteChangeBatch)
 }
 
 // recordedBatch is a deep copy of one emitted batch: the producer recycles
@@ -59,6 +64,9 @@ func (b *replayBus) Emit(namespace, eventType string, payload any) (int, error) 
 	}
 	handlers := append([]func(any){}, b.subs[namespace+"/"+eventType]...)
 	b.mu.Unlock()
+	if batch, ok := payload.(*redistevents.RouteChangeBatch); ok && b.onEmit != nil {
+		b.onEmit(batch)
+	}
 	for _, h := range handlers {
 		h(payload)
 	}
@@ -166,7 +174,9 @@ func TestOSPFSourceReplayWithNoRouteEmitsNothing(t *testing.T) {
 // order, equals the set the incremental batches before it built.
 // PREVENTS: a replay that snapshots the set, loses the race to a delta that
 // removes a route, then emits the stale add after that removal, reviving a
-// route OSPF no longer has. Run under -race.
+// route OSPF no longer has. Run under -race. This is the model check: it
+// catches an out-of-lock emit only when the scheduler hits the gap, so
+// TestOSPFSourceReplayEmitsUnderLock is the deterministic discriminator.
 func TestOSPFSourceReplayNeverRevivesARemovedRoute(t *testing.T) {
 	const rounds = 2000
 	bus := newReplayBus()
@@ -204,4 +214,38 @@ func TestOSPFSourceReplayNeverRevivesARemovedRoute(t *testing.T) {
 		recordEntries(model, batch.entries)
 	}
 	assert.Equal(t, rounds, replays, "every replay was answered")
+}
+
+// TestOSPFSourceReplayEmitsUnderLock proves Replay emits its batch while
+// holding mu, the lock every SPF delta records and emits under, so no delta
+// can remove a route between the replay's read of the set and its emit.
+//
+// VALIDATES: at the moment of every replay emit, the bus probes mu with
+// TryLock and fails to take it; the probe ran once per replay.
+// PREVENTS: a replay that snapshots under mu and emits after releasing it.
+// TestOSPFSourceReplayNeverRevivesARemovedRoute catches that only when the
+// scheduler interleaves a delta in the gap; this probe catches it on every run.
+func TestOSPFSourceReplayEmitsUnderLock(t *testing.T) {
+	bus := newReplayBus()
+	source := NewSource(bus)
+	source.OnSPFChange(spf.RouteDelta{Added: []spf.RouteEntry{
+		extRoute("10.10.0.0/24", 10, "10.0.0.2", spf.RouteIntraArea),
+		extRoute("10.20.0.0/24", 20, "10.0.0.3", spf.RouteInterArea),
+	}})
+	probed, unlocked := 0, 0
+	bus.onEmit = func(batch *redistevents.RouteChangeBatch) {
+		if batch.ReplayID == 0 {
+			return
+		}
+		probed++
+		if source.mu.TryLock() {
+			unlocked++
+			source.mu.Unlock()
+		}
+	}
+
+	source.Replay(7)
+
+	require.Equal(t, 1, probed, "the replay emitted one batch")
+	require.Zero(t, unlocked, "the replay emit holds the lock the SPF deltas hold")
 }

@@ -2370,10 +2370,17 @@ events (like the watchdog). On a peer's down->up edge it allocates a monotonic
 `redistevents.ReplayRequest{ReplayID}` (only when an import feeds BGP). Each producer
 (static, connected, l2tp, as112, the BGP RIB, IS-IS, OSPF) re-emits its current
 route set as a `RouteChangeBatch` with `ReplayID` echoed -- the producer never learns
-the peer, so the batch stays peer-agnostic. Static, as112, connected, l2tp and the
-BGP RIB emit their replay under the lock that orders their incremental emits (static's route lock, as112's producer lock,
+the peer, so the batch stays peer-agnostic. Static, as112, connected, l2tp, the
+BGP RIB, IS-IS and OSPF emit their replay under the lock that orders their incremental emits (static's route lock, as112's producer lock,
 an `emitMu` read-write lock in connected, l2tp and the BGP RIB's redistribution
-hop), so a Remove of a snapshotted route is published after the replay's Add. The
+hop, the redistribution `Source.mu` in IS-IS and OSPF), so a Remove of a snapshotted route is published after the replay's Add.
+A producer holds that ordering lock across a synchronous engine-bus emit, so a
+consumer MUST never call back into a producer on the same goroutine: the call
+would wait on the lock its own caller holds.
+<!-- source: internal/plugins/ospf/redistribute/source.go -- Source.mu, Replay, recordAndSend, send -->
+<!-- source: internal/plugins/isis/redistribute/source.go -- Source.mu, Replay, replayFamily, send -->
+<!-- source: internal/plugins/static/inject.go -- reemitAll -->
+The
 orchestrator also drops a replay Add for a route whose most recent incremental
 action, handled after the request was minted, was a Remove
 (`replayCoordinator.removedSince`), so no producer can revive a removed route. The orchestrator maps the returning
