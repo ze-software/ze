@@ -326,12 +326,13 @@ func (c *RouteChain) Evaluate(r ribpolicy.Route) ribpolicy.Verdict {
 		if result.Reject {
 			return ribpolicy.Verdict{Action: ribpolicy.ActionReject}
 		}
-		if result.Sets.HasDistance {
-			sets.Distance, sets.HasDistance = result.Sets.Distance, true
-		}
+		sets = sets.Override(result.Sets)
+		// The next filter reads the route as the earlier ones left it.
 		if result.Sets.HasTag {
-			sets.Tag, sets.HasTag = result.Sets.Tag, true
 			r.Tag, r.HasTag = result.Sets.Tag, true
+		}
+		if result.Sets.HasMetric {
+			r.Metric = result.Sets.Metric
 		}
 	}
 	switch c.final {

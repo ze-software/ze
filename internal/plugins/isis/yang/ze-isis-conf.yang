@@ -11,7 +11,7 @@ module ze-isis-conf {
     revision 2026-08-10 { description "hostname: enforce RFC 5301 section 3 7-bit ASCII and the RFC 2181 section 11 label lengths (spec-fixit-isis-hostname-ascii)."; }
 
     container isis {
-        uses policy:rib-import-filter;
+        uses policy:igp-filter;
         description "The presence of this container starts the IS-IS component. At least one `net` leaf MUST be set for
             the engine to run. A commit with no net is accepted, and the engine then stays idle, opens no circuit and
             originates no LSP.";

@@ -13,35 +13,77 @@ module ze-policy-conf {
         description "Initial revision: the policy root moves out of bgp.";
     }
 
+    grouping rib-import-chain {
+        description "The import chain into the Loc-RIB, shared by every filter container that holds one.";
+        container import {
+            presence "Configure the import policy into the Loc-RIB.";
+            description "A rejected route stays in the Loc-RIB as a hidden path that is never selected,
+                         so relaxing the chain re-admits it without the protocol sending it again. The
+                         source's chain runs first, then the rib chain.";
+            ze:help "Import policy into the Loc-RIB";
+            leaf-list filters {
+                type string { length "1..max"; }
+                ordered-by user;
+                description "Run these filter instances in order. Each one passes the route on or
+                             rejects it; a filter type with no Loc-RIB route evaluator is refused.";
+                ze:help "Ordered filter instance references";
+                ze:reference "policy-filter";
+            }
+            leaf final {
+                type enumeration {
+                    enum accept { ze:help "Accept a route that passes every filter"; }
+                    enum reject { ze:help "Reject a route that passes every filter"; }
+                }
+                mandatory true;
+                description "Every present import policy must set final accept or final reject, even with no filters.";
+                ze:help "Decision after every filter passes";
+            }
+        }
+    }
+
     grouping rib-import-filter {
         description "The import chain a route source, or the rib root for every source, applies at the
-                     Loc-RIB. Declared once here and used by isis, ospf, static, connected and rib.";
+                     Loc-RIB. Declared once here and used by static, connected, ospf and rib.";
         container filter {
             description "A name references a filter instance defined under the top-level policy root. The
-                         chain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS
-                         LSDB, an OSPF LSDB) is never filtered.";
+                         chain judges routes as they enter the Loc-RIB.";
             ze:help "Route filter chains into the Loc-RIB.";
-            container import {
-                presence "Configure the import policy into the Loc-RIB.";
-                description "A rejected route stays in the Loc-RIB as a hidden path that is never selected,
-                             so relaxing the chain re-admits it without the protocol sending it again. The
-                             source's chain runs first, then the rib chain.";
-                ze:help "Import policy into the Loc-RIB";
+            uses rib-import-chain;
+        }
+    }
+
+    grouping igp-filter {
+        description "The filter chains of a link-state IGP: the import chain into the Loc-RIB and the export
+                     chain over what the IGP advertises from redistribution. Used by isis.";
+        container filter {
+            description "A name references a filter instance defined under the top-level policy root. The
+                         import chain judges routes as they enter the Loc-RIB, and the export chain judges
+                         redistributed routes before the IGP advertises them; the IGP's own database (an
+                         IS-IS LSDB, an OSPF LSDB) is never filtered.";
+            ze:help "Route filter chains into the Loc-RIB and out of redistribution.";
+            uses rib-import-chain;
+            container export {
+                presence "Configure the export policy over redistributed routes.";
+                description "Runs on every route the redistribute import rules hand this protocol, before it
+                             enters the IGP database. A rejected route is not advertised; the sets of an
+                             accepting chain (the metric) shape what is.";
+                ze:help "Export policy over redistributed routes";
                 leaf-list filters {
                     type string { length "1..max"; }
                     ordered-by user;
                     description "Run these filter instances in order. Each one passes the route on or
-                                 rejects it; a filter type with no Loc-RIB route evaluator is refused.";
+                                 rejects it; a filter type with no route evaluator is refused.";
                     ze:help "Ordered filter instance references";
                     ze:reference "policy-filter";
                 }
                 leaf final {
                     type enumeration {
-                        enum accept { ze:help "Accept a route that passes every filter"; }
-                        enum reject { ze:help "Reject a route that passes every filter"; }
+                        enum accept { ze:help "Advertise a route that passes every filter"; }
+                        enum reject { ze:help "Do not advertise a route that passes every filter"; }
                     }
                     mandatory true;
-                    description "Every present import policy must set final accept or final reject, even with no filters.";
+                    description "Every present export policy must set final accept or final reject, even with no
+                                 filters. A filter's accept only passes the route on, so final decides.";
                     ze:help "Decision after every filter passes";
                 }
             }

@@ -265,7 +265,7 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 			}
 			// Empty peer selector: the incremental path fans out to all peers.
 			adjusted := applySets(entry, sets)
-			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, &adjusted)
+			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, &adjusted, &route)
 			recordDispatched(key, entry.Action, &route)
 		}
 	}
@@ -312,11 +312,14 @@ func redistRoute(protocol string, id redistevents.ProtocolID, fam family.Family,
 }
 
 // applySets answers the entry a consumer receives: the producer's entry with
-// the tag the accepting chain set, when it set one.
+// the tag and the metric the accepting chain set, when it set them.
 func applySets(entry *redistevents.RouteChangeEntry, sets ribpolicy.Sets) redistevents.RouteChangeEntry {
 	adjusted := *entry
 	if sets.HasTag {
 		adjusted.Tag = sets.Tag
+	}
+	if sets.HasMetric {
+		adjusted.Metric = sets.Metric
 	}
 	return adjusted
 }
@@ -335,7 +338,9 @@ func entrySource(protocol string, entry *redistevents.RouteChangeEntry) string {
 // dispatchEntryToConsumer dispatches one entry to a consumer. peer is the
 // single-peer selector for the replay path (empty means the normal all-peers
 // fan-out).
-func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, originASN uint32, community []uint32, entry *redistevents.RouteChangeEntry) {
+// dispatchEntryToConsumer hands one entry to consumer. view is the route the
+// import chain judged; a withdraw carries none and passes nil.
+func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, originASN uint32, community []uint32, entry *redistevents.RouteChangeEntry, view *configredist.RedistRoute) {
 	if !entry.Prefix.IsValid() {
 		logger().Warn(Name+": skipping entry with invalid prefix", "action", entry.Action)
 		return
@@ -355,6 +360,13 @@ func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistCo
 		if entry.OriginAS != 0 {
 			effectiveOriginASN = entry.OriginAS
 		}
+		var route ribpolicy.Route
+		if view != nil {
+			// The import chain's sets are on entry; the view carries them too.
+			route = view.Route
+			route.Tag = entry.Tag
+			route.Metric = entry.Metric
+		}
 		consumer.InjectRoute(ctx, fam, configredist.RouteEntry{
 			Prefix:    entry.Prefix.String(),
 			NextHop:   nhop,
@@ -363,6 +375,7 @@ func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistCo
 			OriginASN: effectiveOriginASN,
 			Community: community,
 			Tag:       entry.Tag,
+			Route:     route,
 		})
 		return
 	}

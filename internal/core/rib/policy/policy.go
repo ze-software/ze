@@ -113,7 +113,29 @@ type Sets struct {
 	// Tag replaces the path's tag.
 	Tag    uint32
 	HasTag bool
+
+	// Metric replaces the metric an IGP export advertises: the IS-IS prefix
+	// metric, the OSPF AS-external metric. Only an export attachment allows it.
+	Metric    uint32
+	HasMetric bool
+
+	// MetricType selects the OSPF external metric type. Only the OSPF export
+	// attachment allows it; ExternalMetricTypeUnspecified means no filter set it.
+	MetricType ExternalMetricType
 }
+
+// ExternalMetricType is the OSPF external metric type a filter sets (RFC 2328
+// Section 2.3: a Type 1 metric is in the units of the link state metric, a
+// Type 2 metric is larger than any path internal to the AS). The zero value
+// is Unspecified: no filter set it, and the consumer keeps its default.
+type ExternalMetricType uint8
+
+// The external metric types a filter can set.
+const (
+	ExternalMetricTypeUnspecified ExternalMetricType = 0
+	ExternalMetricType1           ExternalMetricType = 1
+	ExternalMetricType2           ExternalMetricType = 2
+)
 
 // ChainRole names which of a snapshot's two chains judged a route: the chain of
 // the route's own source, or the central chain every source passes. The zero
@@ -249,18 +271,26 @@ func (s *Snapshot) Evaluate(r Route) Verdict {
 		if v.Action != ActionAccept {
 			return Verdict{Action: ActionReject, RejectedBy: ChainRoleCentral}
 		}
-		sets = mergeSets(sets, v.Sets)
+		sets = sets.Override(v.Sets)
 	}
 	return Verdict{Action: ActionAccept, Sets: sets}
 }
 
-// mergeSets returns first with every field later sets overriding it.
-func mergeSets(first, later Sets) Sets {
+// Override returns first with every field later sets overriding it. A
+// chain applies each accepting filter's sets this way, and a snapshot applies
+// the central chain's sets over the source chain's.
+func (first Sets) Override(later Sets) Sets {
 	if later.HasDistance {
 		first.Distance, first.HasDistance = later.Distance, true
 	}
 	if later.HasTag {
 		first.Tag, first.HasTag = later.Tag, true
+	}
+	if later.HasMetric {
+		first.Metric, first.HasMetric = later.Metric, true
+	}
+	if later.MetricType != ExternalMetricTypeUnspecified {
+		first.MetricType = later.MetricType
 	}
 	return first
 }

@@ -4,7 +4,8 @@
 //
 // The modify route evaluator for the Loc-RIB import gate. At a Loc-RIB
 // attachment a modify instance matches on where the route came from (protocol,
-// tag, level, route-type) and sets the administrative distance and the tag. A
+// tag, level, route-type) and sets the administrative distance and the tag;
+// at an IGP export it sets the advertised metric and the OSPF metric type. A
 // route that does not match passes on unchanged. The BGP attribute operations
 // of the same filter type run on BGP chains only; the per-instance field
 // declaration refuses each kind at the attachment that cannot take it.
@@ -21,14 +22,24 @@ import (
 	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
-// The Loc-RIB set keys of a modify set block.
+// The route set keys of a modify set block: distance and tag at a Loc-RIB
+// import, metric and metric-type at an IGP export. The attachment's settable
+// fields decide which of them a chain there may use.
 const (
-	ribSetDistance = "distance"
-	ribSetTag      = "tag"
+	ribSetDistance   = "distance"
+	ribSetTag        = "tag"
+	ribSetMetric     = "metric"
+	ribSetMetricType = "metric-type"
 )
 
-// ribSetKeys are the set keys the Loc-RIB route evaluator applies.
-var ribSetKeys = map[string]bool{ribSetDistance: true, ribSetTag: true}
+// The metric-type values, as the YANG enumeration spells them.
+const (
+	metricTypeName1 = "type-1"
+	metricTypeName2 = "type-2"
+)
+
+// ribSetKeys are the set keys the route evaluator applies.
+var ribSetKeys = map[string]bool{ribSetDistance: true, ribSetTag: true, ribSetMetric: true, ribSetMetricType: true}
 
 // matchKeyFields maps modify's own match keys onto the fields they read.
 var matchKeyFields = map[string]policy.Field{
@@ -54,6 +65,8 @@ var setKeyFields = map[string]policy.Field{
 	extendedCommunityRemoveDirective: policy.FieldExtendedCommunity,
 	ribSetDistance:                   policy.FieldDistance,
 	ribSetTag:                        policy.FieldTag,
+	ribSetMetric:                     policy.FieldMetric,
+	ribSetMetricType:                 policy.FieldMetricType,
 }
 
 // incDecKeyFields maps the increment, decrement and del keys onto the field
@@ -151,7 +164,12 @@ func compileRouteEvaluator(name string, instance map[string]any, resolve policy.
 	}, nil
 }
 
-// parseRIBSets reads the Loc-RIB sets of a modify instance and refuses one
+// metricMax is the largest metric set metric takes: the 24-bit metric field
+// of an OSPF AS-external LSA (RFC 2328 Appendix A.4.5). An IS-IS wide metric
+// is wider, so every value fits there too.
+const metricMax = 1<<24 - 1
+
+// parseRIBSets reads the route sets of a modify instance and refuses one
 // that sets nothing a Loc-RIB route takes.
 func parseRIBSets(name string, instance map[string]any) (ribpolicy.Sets, error) {
 	var sets ribpolicy.Sets
@@ -174,12 +192,30 @@ func parseRIBSets(name string, instance map[string]any) (ribpolicy.Sets, error) 
 				return ribpolicy.Sets{}, fmt.Errorf("modify %q: set tag %q is not a number from 0 to 4294967295", name, text)
 			}
 			sets.Tag, sets.HasTag = uint32(tag), true
+		case ribSetMetric:
+			metric, err := strconv.ParseUint(text, 10, 32)
+			if err != nil {
+				return ribpolicy.Sets{}, fmt.Errorf("modify %q: set metric %q is not a number from 0 to 16777215", name, text)
+			}
+			if metric > metricMax {
+				return ribpolicy.Sets{}, fmt.Errorf("modify %q: set metric %d is above 16777215, the largest metric an OSPF AS-external LSA carries", name, metric)
+			}
+			sets.Metric, sets.HasMetric = uint32(metric), true
+		case ribSetMetricType:
+			switch text {
+			case metricTypeName1:
+				sets.MetricType = ribpolicy.ExternalMetricType1
+			case metricTypeName2:
+				sets.MetricType = ribpolicy.ExternalMetricType2
+			default:
+				return ribpolicy.Sets{}, fmt.Errorf("modify %q: set metric-type %q is not type-1 or type-2", name, text)
+			}
 		default:
 			return ribpolicy.Sets{}, fmt.Errorf("modify %q: set %s changes a BGP attribute, which a Loc-RIB route does not carry", name, key)
 		}
 	}
-	if !sets.HasDistance && !sets.HasTag {
-		return ribpolicy.Sets{}, errors.New("modify " + strconv.Quote(name) + ": sets nothing a Loc-RIB route takes; set distance or tag")
+	if !sets.HasDistance && !sets.HasTag && !sets.HasMetric && sets.MetricType == ribpolicy.ExternalMetricTypeUnspecified {
+		return ribpolicy.Sets{}, errors.New("modify " + strconv.Quote(name) + ": sets nothing a route takes; set distance, tag, metric or metric-type")
 	}
 	return sets, nil
 }

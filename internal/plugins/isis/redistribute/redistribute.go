@@ -26,10 +26,9 @@ import (
 	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
 )
 
-// DefaultRedistMetric is the FIXED default 32-bit prefix metric (RFC 5305 sec 4,
-// TLV 135) applied to every redistributed route. The generic RouteEntry carries
-// no metric (umbrella A-3), so v1 uses this single code constant rather than a
-// config leaf; a configurable/per-route metric is future work. The value is the
+// DefaultRedistMetric is the default 32-bit prefix metric (RFC 5305 sec 4,
+// TLV 135) of a redistributed route that no `isis filter export` filter sets a
+// metric for (a modify instance's `set metric` replaces it). The value is the
 // classical "external" default reachability cost; it is well below
 // MAX_PATH_METRIC (0xFE000000) so SPF never treats a redistributed prefix as
 // unreachable.

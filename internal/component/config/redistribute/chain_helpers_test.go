@@ -37,8 +37,9 @@ func (c tagChain) Evaluate(r ribpolicy.Route) ribpolicy.Verdict {
 }
 
 // prefixSetChain accepts a route whose prefix is in the set and sets tag on
-// it, and rejects any other: `filters [ P ]; final reject;` where P passes the
-// set on with a tag set.
+// it, and rejects any other: `filters [ P M ]; final accept;` where P rejects
+// every prefix outside the set and M sets the tag. A filter's accept only
+// passes the route on, so `final reject` would reject the set too.
 type prefixSetChain struct {
 	accept []netip.Prefix
 	tag    uint32

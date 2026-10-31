@@ -79,10 +79,19 @@ IPv4 reachability. `External` selects TLV 130 rather than TLV 128;
 Neither field adds an external flag to wide TLV 135. IPv6 TLV 236 has its own
 external bit.
 
-## Decision: a fixed default redistribution metric
+## Decision: the export chain decides what enters the LSP
 
-The generic route entry carries no metric, so redistributed prefixes take a code
-constant. A configurable or per-route metric is not implemented.
+Every route the redistribute import rules hand the consumer passes the
+`isis filter export` chain first (`redistribute/export.go`, `exportVerdict`). A
+route the chain rejects is not advertised, and a prefix it advertised before is
+withdrawn. An accepting chain's `set metric` becomes the prefix metric of the
+TLV 135 or TLV 236 entry; a route no filter sets a metric for, or any route when
+no export chain is configured, takes the code constant `DefaultRedistMetric`
+(100). The chain is compiled at verify and installed at configure and apply
+(`export_chain.go`); a change to it judges the routes redistributed after it,
+not the ones already in the LSP.
+<!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict, SetExportChain -->
+<!-- source: internal/plugins/isis/export_chain.go -- parseExportChain -->
 
 ## Trap: the generic withdraw carries no source
 

@@ -10,8 +10,9 @@
 // loop-prevention evaluator because origin "isis" == importing protocol "isis").
 //
 // InjectRoute turns the RouteEntry into a TLV 135 Extended IP Reachability entry
-// (RFC 5305 sec 4) in the node's own LSP set, with the FIXED default metric
-// (DefaultRedistMetric) and the up/down bit CLEAR on first injection -- TLV 135
+// (RFC 5305 sec 4) in the node's own LSP set, once the `isis filter export`
+// chain accepts it (export.go). The metric is the chain's `set metric`, or
+// DefaultRedistMetric, and the up/down bit is CLEAR on first injection -- TLV 135
 // carries NO external bit (RFC 5305 sec 4), and the up/down bit is set only when a
 // prefix is leaked to a lower level (RFC 2966, done by isis-9 SPF leaking, not
 // here). Then it re-originates so flooding carries the change to peers, which run
@@ -162,9 +163,18 @@ func sourceLabel(s string) string {
 // by isis-9 SPF leaking, not here).
 func (c *Consumer) InjectRoute(ctx context.Context, fam family.Family, entry configredist.RouteEntry) {
 	src := sourceLabel(entry.Source)
+	// The export chain judges every route before it enters the LSP: a rejected
+	// route is not advertised, and one this prefix advertised before is withdrawn.
+	metric, accepted := exportVerdict(&entry)
+	if !accepted {
+		slog.Debug("isis redist consumer: export chain rejected route",
+			"family", fam.String(), "prefix", entry.Prefix, "source", src)
+		c.WithdrawRoute(ctx, fam, entry.Prefix)
+		return
+	}
 	if fam.AFI == family.AFIIPv6 {
 		// IPv6 (isis-12): originate a TLV 236 entry. Handled in ipv6.go.
-		c.injectRouteV6(ctx, fam, entry)
+		c.injectRouteV6(ctx, entry, metric)
 		return
 	}
 	if fam.AFI != family.AFIIPv4 {
@@ -182,7 +192,7 @@ func (c *Consumer) InjectRoute(ctx context.Context, fam family.Family, entry con
 
 	info := lsdb.PrefixInfo{
 		Prefix: prefix,
-		Metric: types.NewPrefixMetric(DefaultRedistMetric),
+		Metric: types.NewPrefixMetric(metric),
 		// up/down bit CLEAR on injection: TLV 135 has no external bit (RFC 5305
 		// sec 4); the up/down bit is set only on down-level leak (RFC 2966).
 		UpDown: false,

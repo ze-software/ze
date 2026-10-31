@@ -53,9 +53,12 @@ func init() {
 		[]policy.Field{policy.FieldDistance, policy.FieldTag})
 	// The import chain is compiled into the Loc-RIB gate by the policy plugin.
 	policy.MustRegisterRIBImport(policy.RIBImport{Attachment: "isis import", Root: configRoot, Scope: policy.RIBScopeSource, Protocol: componentName, Floods: true})
-	policy.MustRegisterAttachment(componentName, "isis export",
+	policy.MustRegisterAttachment(componentName, exportAttachment,
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldLevel, policy.FieldOriginAS},
 		[]policy.Field{policy.FieldMetric, policy.FieldLevel})
+	// `isis filter export filters` declares ze:reference "policy-filter"; this
+	// tells that source the chain compiles at "isis export".
+	policy.MustRegisterRouteChainPath(policy.ExportChainPath(configRoot), exportAttachment)
 
 	loggerPtr.Store(slogutil.DiscardLogger())
 }
@@ -167,6 +170,8 @@ func registerISIS() {
 		Features:    "yang",
 		YANG:        isisyang.ZeIsisConfYANG,
 		ConfigRoots: []string{configRoot},
+		// The export chain names filter instances under the policy root.
+		ConfigReads: []string{policy.RootName},
 		// policy is a hard dependency of every protocol with a filter attachment:
 		// the filter instances its chains name live under the policy root.
 		Dependencies: []string{"fib-kernel", "sysctl", policy.PluginName},
@@ -286,10 +291,12 @@ func runISISEngine(conn net.Conn) int {
 	}
 
 	var (
-		cfgMu       sync.Mutex
-		activeCfg   Config
-		pendingCfg  Config
-		havePending bool
+		cfgMu      sync.Mutex
+		activeCfg  Config
+		pendingCfg Config
+		// pendingExport is the export chain of pendingCfg's commit.
+		pendingExport exportChainConfig
+		havePending   bool
 	)
 
 	// OnConfigVerify: parse-check only, rejecting malformed config (no NET, bad
@@ -306,8 +313,13 @@ func runISISEngine(conn net.Conn) int {
 				return verr
 			}
 		}
+		export, err := parseExportChain(toConfigSections(sections))
+		if err != nil {
+			return err
+		}
 		cfgMu.Lock()
 		pendingCfg = cfg
+		pendingExport = export
 		havePending = true
 		cfgMu.Unlock()
 		return nil
@@ -320,9 +332,14 @@ func runISISEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
+		export, err := parseExportChain(toConfigSections(sections))
+		if err != nil {
+			return err
+		}
 		cfgMu.Lock()
 		activeCfg = cfg
 		cfgMu.Unlock()
+		export.install()
 		eng.setConfig(cfg)
 		return nil
 	})
@@ -334,6 +351,7 @@ func runISISEngine(conn net.Conn) int {
 		cfgMu.Lock()
 		if havePending {
 			activeCfg = pendingCfg
+			pendingExport.install()
 			havePending = false
 		}
 		cfg := activeCfg
@@ -427,7 +445,7 @@ func runISISEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, &sdk.Registration{
-		WantsConfig:  []string{configRoot},
+		WantsConfig:  []string{configRoot, policy.RootName},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),

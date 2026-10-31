@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/family"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
 // ErrConsumerConflict is returned when a consumer name is re-registered.
@@ -58,6 +59,10 @@ type RouteEntry struct {
 	// A.4.5); the BGP and IS-IS consumers ignore it. Zero means the route carries
 	// no tag. Additive: it does not change the RedistConsumer interface signature.
 	Tag uint32
+	// Route is the typed view of this route that the redistribute import chain
+	// judged, with that chain's sets applied. A consumer's export chain judges
+	// it (`isis filter export`, `ospf filter export`); the BGP consumer ignores it.
+	Route ribpolicy.Route
 }
 
 var (

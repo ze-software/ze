@@ -95,7 +95,7 @@ func removeReplacedRoute(ctx context.Context, consumer configredist.RedistConsum
 	}
 	logger().Debug(Name+": rejected entry withdraws the held route", "action", action, "source", key.source, "consumer", key.consumer, "family", key.family.String(), "prefix", key.prefix)
 	withdraw := redistevents.RouteChangeEntry{Action: redistevents.ActionRemove, Prefix: key.prefix}
-	dispatchEntryToConsumer(ctx, consumer, key.family, key.source, "", 0, nil, &withdraw)
+	dispatchEntryToConsumer(ctx, consumer, key.family, key.source, "", 0, nil, &withdraw, nil)
 }
 
 // hold records that the consumer named in k now holds k's route.
@@ -133,7 +133,7 @@ func withdrawRejectedHeld(ctx context.Context, ev *configredist.Evaluator) {
 		}
 		logger().Debug(Name+": reloaded rules withdraw the held route", "source", key.source, "consumer", key.consumer, "family", key.family.String(), "prefix", key.prefix)
 		withdraw := redistevents.RouteChangeEntry{Action: redistevents.ActionRemove, Prefix: key.prefix}
-		dispatchEntryToConsumer(ctx, consumer, key.family, key.source, "", 0, nil, &withdraw)
+		dispatchEntryToConsumer(ctx, consumer, key.family, key.source, "", 0, nil, &withdraw, nil)
 	}
 }
 

@@ -35,10 +35,11 @@ import (
 // node's own LSP set at every origination level, then re-originates. A
 // link-local or malformed prefix is rejected without mutating state (security
 // review: input validation; RFC 5308 sec 2: no link-local in TLV 236). The
+// prefix carries metric, the export chain's answer. The
 // external (X) bit is set: the prefix is distributed into IS-IS from another
 // protocol (RFC 5308 sec 2). The up/down bit is CLEAR on first injection (set
 // only on a down-level leak, RFC 2966).
-func (c *Consumer) injectRouteV6(_ context.Context, _ family.Family, entry configredist.RouteEntry) {
+func (c *Consumer) injectRouteV6(_ context.Context, entry configredist.RouteEntry, metric uint32) {
 	src := sourceLabel(entry.Source)
 	prefix, err := netip.ParsePrefix(entry.Prefix)
 	if err != nil || !prefix.IsValid() || !prefix.Addr().Is6() || prefix.Addr().Is4In6() {
@@ -56,7 +57,7 @@ func (c *Consumer) injectRouteV6(_ context.Context, _ family.Family, entry confi
 
 	info := lsdb.PrefixInfoV6{
 		Prefix:   prefix,
-		Metric:   types.NewPrefixMetric(DefaultRedistMetric),
+		Metric:   types.NewPrefixMetric(metric),
 		UpDown:   false, // RFC 2966: clear on injection
 		External: true,  // RFC 5308 sec 2: distributed from another protocol
 	}

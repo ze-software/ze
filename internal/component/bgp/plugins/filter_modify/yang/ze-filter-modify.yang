@@ -218,6 +218,24 @@ declared distance.";
 import chain only: the instance is refused on a BGP chain.";
                     ze:help "Set the tag of a Loc-RIB route.";
                 }
+                leaf metric {
+                    type uint32 { range "0..16777215"; }
+                    description "Ze advertises a matching route with this metric: the prefix metric of
+an IS-IS export, the metric of an OSPF AS-external LSA, whose field is 24 bits wide. An
+IGP export chain only: the instance is refused at any attachment that does not let a
+filter set the metric.";
+                    ze:help "Set the metric an IGP export advertises (0-16777215).";
+                }
+                leaf metric-type {
+                    type enumeration {
+                        enum type-1 { ze:help "External metric in OSPF cost units, added to the internal distance."; }
+                        enum type-2 { ze:help "External metric larger than any internal path, compared alone."; }
+                    }
+                    description "RFC 2328 section 2.3 states that a Type 1 external metric is in the
+same units as the OSPF cost, and a Type 2 metric is larger than any internal path. An
+OSPF export chain only. A route no filter sets takes type-2.";
+                    ze:help "Set the OSPF external metric type of an exported route.";
+                }
             }
 
             container del {
