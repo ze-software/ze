@@ -1,0 +1,69 @@
+# Test: ze config validate checks the names of an IS-IS export chain
+#
+# VALIDATES: spec-route-policy-0-umbrella AC-12 -- `isis filter export filters`
+#            is a registered route-chain path, so `ze config validate` refuses a
+#            name the policy root does not define, naming the value, and accepts
+#            a chain whose names are all defined.
+# VALIDATES: a `match` instance reading `level` is refused at the `isis export`
+#            attachment: the level is where IS-IS injects a redistributed route,
+#            not a field the route carries.
+# PREVENTS: an export chain naming a missing filter loading, and a chain
+#           matching level loading and then silently rejecting every route.
+
+stdin=undefined:terminator=EOF_UNDEFINED
+isis {
+	net 49.0001.0000.0000.0001.00
+	filter {
+		export {
+			filters [ no-such-filter ];
+			final accept;
+		}
+	}
+}
+EOF_UNDEFINED
+
+stdin=defined:terminator=EOF_DEFINED
+policy {
+	prefix-list loopbacks {
+		entry 0.0.0.0/0 { ge 32; le 32; action accept; }
+	}
+}
+isis {
+	net 49.0001.0000.0000.0001.00
+	filter {
+		export {
+			filters [ loopbacks ];
+			final accept;
+		}
+	}
+}
+EOF_DEFINED
+
+stdin=level:terminator=EOF_LEVEL
+policy {
+	match only-level-2 {
+		level [ 2 ];
+	}
+}
+isis {
+	net 49.0001.0000.0000.0001.00
+	filter {
+		export {
+			filters [ only-level-2 ];
+			final accept;
+		}
+	}
+}
+EOF_LEVEL
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=undefined
+expect=exit:code=1
+expect=stdout:contains=no-such-filter
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=defined
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=level
+expect=exit:code=1
+expect=stdout:contains=filter "only-level-2" (match) reads level, which isis export routes do not carry
