@@ -1,5 +1,5 @@
 {
-  "note": "Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1 or 439a413ffd). RFC 7606 Section 5.4: \"A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.\" The only change to TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned (9c3697d0d1) is its doc comment naming ValidateUpdateRFC7606Peer instead of the deleted ValidateUpdateRFC7606AddPath wrapper, which only forwarded to it with acceptASSet false. Body unchanged: MP_REACH EVPN with a type-2 and a type-99 route, then an AS_PATH header declaring 64 octets with none following, asserts exact TreatAsWithdraw from Session.enforceRFC7606, exactly one synthesized withdrawal, the type-99 bytes absent and the type-2 bytes present. Every other cover and its earlier reading stand. Units ran green at HEAD.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7606): \"A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.\" The only edit to test/plugin/rfc7606-54-bgpls-override-propagates.ci, test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci, test/plugin/rfc7606-54-discard-unrecognized-nlri.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "9f4d0f6f62749d2a",
   "tests": {
     "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "a20a0f7a7ea7dd16",
@@ -13,10 +13,10 @@
     "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54FiltersTreatAsWithdrawSynthesis": "498b67ae2a187448",
     "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned": "470773810c685ca2",
     "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "470773810c685ca2",
-    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "49a47285ee4a16ca",
-    "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "d72def77449d8e79",
-    "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "1162cb8dbc70a683",
-    "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "a80055c71e6a4c05"
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "07ffe0ba5c7e0809",
+    "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "5e4675419a58a505",
+    "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "ed1705a77ef4b70d",
+    "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "dc7bf87ff6f0f097"
   },
   "units": {
     "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "2d10edf2bd416f64",
@@ -31,9 +31,9 @@
     "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned": "23850caca330dc1a",
     "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "d3d62cdd889ef0c3",
     "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "5939f163938e3d95",
-    "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "d72def77449d8e79",
-    "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "1162cb8dbc70a683",
-    "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "a80055c71e6a4c05"
+    "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "5e4675419a58a505",
+    "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "ed1705a77ef4b70d",
+    "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "dc7bf87ff6f0f097"
   },
   "verdict": "enforced"
 }

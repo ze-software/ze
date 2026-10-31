@@ -5,7 +5,7 @@
     "internal/component/bgp/message/update_split.go::SplitCompliant": "1b32028da99377eb",
     "internal/component/bgp/reactor/session_write.go::writeOrdinaryUpdateBody": "927f98b290b940f9"
   },
-  "note": "Re-judged 2026-10-19 (independent auditor, after 85deabdd81, 55cd171a3e, 610939d774). Section 5.1: \"An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute.\" The residual recorded last time is closed: for an overridden body writeOrdinaryUpdateBody computes update.MixesNLRIFields() on the final body and sends a mixed one through Splitter.SplitCompliant (which splits on shape even when the UPDATE fits) instead of Splitter.Split; any trailing MP is moved first before the split. TestEgressOverrideSplitsMixedShape sends a fitting override carrying IPv4 NLRI plus a trailing MP_REACH (asserting it fits, so only shape can split it) and asserts exactly two UPDATEs, each with NLRIBearingFieldCount == 1, the IPv4 one carrying exactly 10.0.0.0/24, the other leading with MP_REACH, and both seen; the claim states exactly that. Mutant record session_write.go:604 'mixed' -> 'false' (Split emits the fitting body whole). Cost: the shape walk runs only when overridden; Ze's own composed bodies keep the zero-walk path. 55cd171a3e and 610939d774 touch no 5.1-2 unit or producer. All tagged units pass at HEAD; ./le rfc check reports no unverified 5.1-2 record. Residual, not reachable in product: Session.SendAnnounce writes a filter override raw without SplitCompliant, but Peer.SendAnnounce, its only caller, has no non-test caller.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7606): \"An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute.\" The only edit to test/plugin/rfc7606-relay-one-field.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "3233413f6055604c",
   "tests": {
     "internal/component/bgp/message/rfc7606_shape_test.go::TestNLRIBearingFieldCountEveryCombination": "aa45d556639c54f3",
@@ -18,7 +18,7 @@
     "internal/component/bgp/wireu/rfc7606_shape_test.go::TestSplitWireUpdateCompliantShapeUntouched": "416a192d23139e4d",
     "internal/component/bgp/wireu/rfc7606_shape_test.go::TestSplitWireUpdateSplitsMixedShapeThatFits": "416a192d23139e4d",
     "internal/component/bgp/wireu/rfc7606_split_eor_test.go::TestSplitWireUpdateDoesNotManufactureEoR": "af6e6610cb544b99",
-    "test/plugin/rfc7606-relay-one-field.ci": "67bb2a200311d324"
+    "test/plugin/rfc7606-relay-one-field.ci": "5f2499ca180ea902"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_shape_test.go::TestNLRIBearingFieldCountEveryCombination": "cee943d9f62d4134",
@@ -31,7 +31,7 @@
     "internal/component/bgp/wireu/rfc7606_shape_test.go::TestSplitWireUpdateCompliantShapeUntouched": "23997f3825d6f88f",
     "internal/component/bgp/wireu/rfc7606_shape_test.go::TestSplitWireUpdateSplitsMixedShapeThatFits": "2c77d524af9a9afc",
     "internal/component/bgp/wireu/rfc7606_split_eor_test.go::TestSplitWireUpdateDoesNotManufactureEoR": "7df1c7da3cd9f958",
-    "test/plugin/rfc7606-relay-one-field.ci": "67bb2a200311d324"
+    "test/plugin/rfc7606-relay-one-field.ci": "5f2499ca180ea902"
   },
   "verdict": "enforced"
 }
