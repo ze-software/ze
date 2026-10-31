@@ -1,5 +1,5 @@
 {
-  "note": "Re-judged 2026-10-27 by an independent judge (authored none of the tests). Section 3: \"An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender.\" Both halves are now proven. Knob: TestParsePeerCapabilityPathsLimit and TestConfiguredPathsLimitOpen (unchanged) show limit { receive N; } at container and per-family level decides the advertised tuples, an omitted limit advertising none. Accept ceiling: the knob reaches session_negotiate.go initPathsLimitRecv(Encoding.PathsLimitRecv), and session_read.go calls receiveCeiling before checkPrefixLimits and delivery, which filters NLRIs admitPath refuses at len(prefix.ids) >= f.limit. test/plugin/paths-limit-receive-ceiling.ci drives it end to end from config: with receive 2, the plugin sees ids 1 and 2 of 10.0.0.0/8 plus 20.0.0.0/8 in one exact event line (positive, also proving the other prefix is untouched), id 3 only after a withdrawal of admitted id 1 frees a slot, and never id 4 (negative; reject=path-id 4). TestProcessMessageRefusesPathOverReceiveCeiling asserts the exact delivered path list through processMessage and the admitted/refused counts 2/1; TestReceiveCeilingAdmitsUpToLimit asserts exact admitted ids [1 2 7], refused counter 1, and a replacement at the ceiling kept. Positive inputs are conforming (at or under the ceiling), negatives exceed this ceiling and no neighbouring rule; assertions are exact, not floors. Discrimination records for all six tags observed red under admitPath breaks: ceiling check -> false (negatives) and limit -> limit-1 (positives).",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (draft-abraitis-idr-addpath-paths-limit): \"An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender.\" The only edit to test/plugin/paths-limit-receive-ceiling.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "02645766ca857604",
   "tests": {
     "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimit": "5575e2bdb345b347",
@@ -9,8 +9,8 @@
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestProcessMessageRefusesPathOverReceiveCeiling#2": "3da54d72a50df17e",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestReceiveCeilingAdmitsUpToLimit": "3da54d72a50df17e",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestReceiveCeilingAdmitsUpToLimit#2": "3da54d72a50df17e",
-    "test/plugin/paths-limit-receive-ceiling.ci": "3d79c46ebea6c7eb",
-    "test/plugin/paths-limit-receive-ceiling.ci#2": "3d79c46ebea6c7eb"
+    "test/plugin/paths-limit-receive-ceiling.ci": "3b3750c2c8165377",
+    "test/plugin/paths-limit-receive-ceiling.ci#2": "3b3750c2c8165377"
   },
   "units": {
     "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimit": "d1cea9e5706b6445",
@@ -20,8 +20,8 @@
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestProcessMessageRefusesPathOverReceiveCeiling#2": "36dda0b8ba6e325b",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestReceiveCeilingAdmitsUpToLimit": "82fe867764a5ebae",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go::TestReceiveCeilingAdmitsUpToLimit#2": "82fe867764a5ebae",
-    "test/plugin/paths-limit-receive-ceiling.ci": "3d79c46ebea6c7eb",
-    "test/plugin/paths-limit-receive-ceiling.ci#2": "3d79c46ebea6c7eb"
+    "test/plugin/paths-limit-receive-ceiling.ci": "3b3750c2c8165377",
+    "test/plugin/paths-limit-receive-ceiling.ci#2": "3b3750c2c8165377"
   },
   "verdict": "enforced"
 }
