@@ -127,7 +127,10 @@ func TestIntegration_FanoutFromNetlink(t *testing.T) {
 		w.Start(func(err error) {
 			t.Logf("watcher error: %v", err)
 		})
-		defer w.Stop()
+		defer func() {
+			w.Stop()
+			w.Wait()
+		}()
 
 		// No settle sleep needed: if the subscription binds after RouteAdd,
 		// the ListExisting dump still delivers the route as an add.
@@ -225,7 +228,10 @@ func TestIntegration_RouteDelete(t *testing.T) {
 		w.Start(func(err error) {
 			t.Logf("watcher error: %v", err)
 		})
-		defer w.Stop()
+		defer func() {
+			w.Stop()
+			w.Wait()
+		}()
 
 		// Wait for the ListExisting dump to deliver the add before
 		// deleting; the delete must arrive via the live subscription.

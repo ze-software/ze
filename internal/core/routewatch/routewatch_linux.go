@@ -101,6 +101,16 @@ func (w *Watcher) subscribe() {
 	}
 }
 
+// stopping reports whether Stop has been called.
+func (w *Watcher) stopping() bool {
+	select {
+	case <-w.stopCh:
+		return true
+	default:
+		return false
+	}
+}
+
 // reportSetupGaveUp says that route monitoring has stopped, why waiting will
 // not restart it, and which capability an operator has to grant. The message
 // names CAP_NET_ADMIN because that is what both halves of the setup need: the
@@ -120,14 +130,23 @@ func (w *Watcher) reportSetupGaveUp(attempts int, last error) {
 // the receive loop. The two are different failures. The caller retries a dead
 // receive loop for as long as the process runs, and a refused socket only a
 // few times.
+//
+// The netlink library runs its own receive goroutine, which calls the error
+// callback and closes updates when it exits. On Stop, subscribeOnce closes
+// done (the library then closes the socket) and drains updates until that
+// goroutine has closed it. It returns only once the receive goroutine is
+// gone, so no callback runs after Wait returns. The receive error the close
+// itself causes is Ze's own shutdown, not a failure, and is not reported.
 func (w *Watcher) subscribeOnce() error {
 	updates := make(chan netlink.RouteUpdate, 64)
 	done := make(chan struct{})
-	defer close(done)
 
 	opts := netlink.RouteSubscribeOptions{
 		ListExisting: true,
 		ErrorCallback: func(err error) {
+			if w.stopping() {
+				return
+			}
 			if w.errCb != nil {
 				w.errCb(err)
 			}
@@ -137,15 +156,23 @@ func (w *Watcher) subscribeOnce() error {
 		opts.Namespace = &w.platform.ns
 	}
 	if err := netlink.RouteSubscribeWithOptions(updates, done, opts); err != nil {
+		// The library may already watch done to close the socket it opened.
+		close(done)
 		return fmt.Errorf("subscribe to netlink route updates: %w", err)
 	}
 
 	for {
 		select {
 		case <-w.stopCh:
+			close(done)
+			// Drain until the library's receive goroutine closes updates.
+			for range updates {
+			}
 			return nil
 		case update, ok := <-updates:
 			if !ok {
+				// The receive goroutine has exited; done closes the socket.
+				close(done)
 				return nil
 			}
 			if update.Dst == nil {

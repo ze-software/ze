@@ -2220,8 +2220,14 @@ usual cause is a daemon without `CAP_NET_ADMIN`, and waiting never fixes that. T
 watcher then reports through the error callback that route monitoring has stopped. The
 report names the lost behavior and it names `CAP_NET_ADMIN`. `fib-kernel` logs it at
 Warn.
+
+`Stop` then `Wait` ends every goroutine the watcher started, the netlink library's
+own receive goroutine included. On stop the watcher closes the subscription and
+drains its update channel until the library closes it, so no error callback and no
+event runs after `Wait` returns. The receive error that closing the socket causes is
+the watcher's own shutdown, and it is not reported.
 <!-- source: internal/core/routewatch/routewatch.go -- Watcher, Register, deliver -->
-<!-- source: internal/core/routewatch/routewatch_linux.go -- subscribe, subscribeSetupTries, reportSetupGaveUp -->
+<!-- source: internal/core/routewatch/routewatch_linux.go -- subscribe, subscribeOnce, stopping, subscribeSetupTries, reportSetupGaveUp -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- the error callback that logs it -->
 
 ### FIB Kernel
