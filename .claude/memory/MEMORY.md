@@ -15,6 +15,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
 - [reference_discord_bot.md](reference_discord_bot.md) - Discord bot in ~/Unix/bin/discord.sh; weekly style and archives under `website/changes/discord/`; publish with `./le weekly`
 - [feedback_discord_voice.md](feedback_discord_voice.md) - Discord posts as Zeledon; use third person for Thomas, not "I"
+- [reference_claude_build_server.md](reference_claude_build_server.md) - `ssh claude`: idle x86_64 32-core Linux box for amd64 kernel builds; export the Go PATH, use the qemu builder, sync unpushed commits by git bundle
 
 ## Feedback (testing)
 
