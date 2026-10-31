@@ -51,6 +51,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   authoritative text for it, only a reconstruction the project wrote, and a
   requirement list drawn from that reconstruction proves nothing about the
   standard.
+- Ze's TFTP server accepting uploads (write requests) is in scope, so the
+  RFC 1350, 2347, 2348, 2349 and 7440 requirements that bind a receiver are
+  owed work, never declined.
 - Full YANG (RFC 7950) coverage runs after the first release. Before it, YANG
   work is limited to what blocks something Ze needs.
 - A question the RFC text answers is not asked. Where the RFC is silent or
