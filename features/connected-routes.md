@@ -12,7 +12,7 @@
 | Real-path tests | test/plugin/connected-distance-arbitration.ci, test/plugin/connected-distance-raised-loses.ci |
 | Docs | docs/guide/redistribution.md |
 | Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; Loc-RIB distance arbitration is what connected-distance-*.ci assert |
-| Defect review | 2026-10-07: plan/release/fixes/spec-fixit-redistribution-chain-drops-silently.md open; spec-connected-static-reach-the-locrib closed 2026-10-08 |
+| Defect review | 2026-10-07: spec-fixit-redistribution-chain-drops-silently closed 2026-10-31; spec-connected-static-reach-the-locrib closed 2026-10-08 |
 | Extra criteria | supported: an interface address add announces the prefix to a BGP peer and its removal withdraws it = test/plugin/connected-redistribute-announce-withdraw.ci |
 
 ## Description

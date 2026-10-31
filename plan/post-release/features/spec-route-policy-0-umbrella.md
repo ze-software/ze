@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | New capability: a protocol-neutral route policy and a gate on every source entering the Loc-RIB. No shipped behavior is defective without it; the two defects it owns (journal rows below) are post-release quality, not release blockers. |
 | RFC gaps | - |
-| Depends | `plan/release/fixes/spec-fixit-redistribution-chain-drops-silently.md` (phase 3 needs a working redistribution chain to prove anything); `plan/release/fixes/spec-single-owner-reload-reconcile.md` (its AC-9 tests the redistribute evaluator phase 3 replaces); phase 4 sequences with `plan/post-release/engineering/spec-filter-wire-0-umbrella.md` |
+| Depends | `spec-fixit-redistribution-chain-drops-silently` (closed 2026-10-31; phase 3 needs a working redistribution chain to prove anything); `plan/release/fixes/spec-single-owner-reload-reconcile.md` (its AC-9 tests the redistribute evaluator phase 3 replaces); phase 4 sequences with `plan/post-release/engineering/spec-filter-wire-0-umbrella.md` |
 | Phase | 3/4 (phases 1-2 landed; phase 3 waits on the two Depends redistribution specs, phase 4 on spec-filter-wire-0-umbrella) |
 | Handoff | - |
 | Updated | 2026-10-29 |
