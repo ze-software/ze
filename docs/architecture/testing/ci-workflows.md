@@ -87,7 +87,9 @@ credits the command in that value as well as `docker-lab` itself.
 
 The ASPA and RFC 2545 replay cases run through `qemu netns suites plugin`,
 whose closed selection contains the seven `rpki-aspa-*` validation and policy
-carriers plus `adj-rib-in-replay-rfc2545-next-hop`.
+carriers plus `adj-rib-in-replay-rfc2545-next-hop` and
+`redistribute-chain-static-ospf` (static routes judged by the redistribute
+import chain into OSPF, a `netns-link` case).
 It uses per-test namespaces and the existing functional registry's `bgp plugin`
 command prefix. `test qemu all` still runs the full plugin suite in the guest root
 namespace, where the ASPA cases' `netns-link` prerequisite causes a skip.

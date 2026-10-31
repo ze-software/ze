@@ -56,6 +56,7 @@ var netnsSelections = map[string][]string{
 		"rpki-aspa-valid", "rpki-aspa-invalid", "rpki-aspa-unknown", "rpki-aspa-disabled",
 		"rpki-aspa-policy-logonly", "rpki-aspa-policy-reject", "rpki-aspa-policy-unknown-reject",
 		"adj-rib-in-replay-rfc2545-next-hop",
+		"redistribute-chain-static-ospf",
 	},
 }
 
