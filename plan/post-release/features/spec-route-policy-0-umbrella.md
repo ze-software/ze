@@ -268,7 +268,7 @@ import, and is refused on connected import because connected carries no tag.
 | config `rib { filter { import ... } }` | → | central chain on every source | `TestLocRIBCentralChainAllSources` in `internal/core/rib/locrib/policy_test.go` |
 | forked static plugin route install with tag | → | `applyRouteInstall` → gate | `TestRouteInstallTagReachesGate` in `internal/component/plugin/server/dispatch_route_test.go` |
 | config `isis { filter { export ... } }` | → | IS-IS `InjectRoute` export chain | interop `isis-export-policy-frr` |
-| config `redistribute { destination ospf { import static { filters [ X ]; final reject; } } }` | → | `handleBatch` chain | `test/plugin/redistribute-chain-static-ospf.ci` |
+| config `redistribute { destination ospf { import static { filters [ X ]; final accept; } } }` | → | `handleBatch` chain | `test/plugin/redistribute-chain-static-ospf.ci` |
 
 ## Acceptance Criteria
 
@@ -287,7 +287,7 @@ import, and is refused on connected import because connected carries no tag.
 | AC-11 | A static route with `tag 4242`, `rib filter import` with a `match { tag [ 4242 ]; }` reject | the static route is hidden, whether static runs in-process or forked |
 | AC-12 | `isis filter export` accepts only /32 loopbacks; IS-IS redistributes connected | the IS-IS LSP carries only the loopback /32s; an FRR neighbour installs those and nothing else |
 | AC-13 | `ospf filter export` sets metric 50 and metric-type 1 for static routes matching a tag | the OSPF AS-external LSA carries metric 50, E1; `ospf redistribute { metric ... }` no longer exists and is refused with the migrate command |
-| AC-14 | `redistribute { destination ospf { import bgp { filters [ P ]; final reject; } } }` | only prefixes P accepts move into OSPF; a route that was held and is now rejected after a reload is withdrawn |
+| AC-14 | `redistribute { destination ospf { import bgp { filters [ P ]; final accept; } } }`, where `match` filter P rejects any route that misses its conditions (a filter's accept means "continue", so the chain's `final` decides only routes every filter passed; `final reject` would reject everything) | only prefixes P accepts move into OSPF; a route that was held and is now rejected after a reload is withdrawn |
 | AC-15 | `redistribute { destination ospf { import ebgp } }` | only eBGP-learned best paths move; iBGP-learned ones do not (fixes the journal row) |
 | AC-16 | A source with no chain and no central chain configured | insert performs zero allocations and the gate is one pointer load (alloc test) |
 | AC-18 | A config with only a `policy {}` section; a config with only `isis {}` (no policy section); a build without the `policy` plugin and an `isis filter import` | the first auto-loads `policy`; the second loads `policy` as a dependency of `isis`; the third is refused at load and by `ze config validate` with the missing-dependency message naming `policy` and the rebuild fix. A registry-derived test asserts every plugin with a filter attachment lists `policy` in `Dependencies` |
@@ -345,7 +345,8 @@ import, and is refused on connected import because connected carries no tag.
 | `isis-import-filter-hides-prefix` | `test/isis/isis-import-filter-hides-prefix.ci` | AC-4, AC-5 | |
 | `rib-import-central-bogons` | `test/plugin/rib-import-central-bogons.ci` | AC-7 | |
 | `static-import-filter-distance` | `test/plugin/static-import-filter-distance.ci` | AC-6 | |
-| `redistribute-chain-static-ospf` | `test/plugin/redistribute-chain-static-ospf.ci` | AC-14 | |
+| `redistribute-chain-narrow-reload` | `test/plugin/redistribute-chain-narrow-reload.ci` | AC-14 through fakeredist (accepted prefixes only; a narrowing reload withdraws) | landed, red both ways under an overlay |
+| `redistribute-chain-static-ospf` | `test/plugin/redistribute-chain-static-ospf.ci` | AC-14 with a real OSPF consumer; needs Linux, so it runs on `claude` in package 3c | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
