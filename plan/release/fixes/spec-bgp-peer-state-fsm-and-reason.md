@@ -114,6 +114,26 @@ cycling Connect to Idle (RFC 4271 Section 8.2.2, Connect state, Event 18:
 | FSM transition history | `peer_history.go` ring of `FSMTransition` | `show bgp peer history` | Does not apply: history stays a log of transitions; the reason is current state, not history |
 | Command column registration | `cmd/peer/peer.go` `registerColumns`, `summary.go` column orders | Declares table columns per answer | Extends: the new keys are registered as columns there, not hard-coded in the dashboard |
 
+## ExaBGP Bridge Requirements
+
+ExaBGP 6.0, 5.0 and 4.2 compatibility is agreed (`ai/META-DECISIONS.md`,
+"ExaBGP compatibility"): a script sees what ExaBGP would print. Sources read:
+ExaBGP `main` (6.0, commit d6adb5ddf), `5.0` and `4.2` checkouts under
+`~/Code/github.com/exa-networks/exabgp/`.
+
+| ID | Requirement | ExaBGP source | Ze today | This spec |
+|----|-------------|---------------|----------|-----------|
+| E-1 | `status` lists each peer with `peer.fsm.name()`: the upper-case RFC 4271 state name | 6.0 `src/exabgp/reactor/api/command/reactor.py` `status`: `state = peer.fsm.name()`; `src/exabgp/bgp/fsm.py` `FSMState` (IDLE 0x01, ACTIVE 0x02, CONNECT 0x04, OPENSENT 0x08, OPENCONFIRM 0x10, ESTABLISHED 0x20), `FSM.name` returns `self.state.name` | `bridge_status.go` `StatusPeers` copies detail `fsm-state` (already upper case) | `fsm-state` is removed, so `StatusPeers` reads `state` and maps it back to the upper-case name through the FSM name table in `fsm/state.go`, never by upper-casing a string and never through a second list. Output unchanged |
+| E-2 | `status` exists in 6.0 only (5.0 and 4.2 have no `status` command); the bridge answers it per `_answers_in_json` | 6.0 `reactor.py` `status`; absent from `5.0/src/exabgp/reactor/api/command` and `4.2/lib/exabgp/reactor/api/command` | `docs/architecture/exabgp-bridge.md`, "`status` is answered by the bridge" | Unchanged. The page's sentence "each state is the peer's `fsm-state`" is rewritten to name `state` in the same phase |
+| E-3 | `fsm` event: ExaBGP writes the state entered alone, `{'state': fsm.name()}` | 6.0 `src/exabgp/reactor/api/response/json.py` `fsm`; 4.2 and 5.0 `fsm.py` `STATE.names` give the same upper-case spellings | `bridge_event_fsm.go` `fsmState` reads the `fsm` event's `to`, which ze writes from `fsm.State.String()` | Not touched: this spec changes command answers, not FSM events. AC-15b pins it |
+| E-4 | `state` event values `connected`, `up`, `down` | 6.0 `response/json.py` (`connected`, `up`, `down`) | Built from ze's plugin state events (`up`/`down`) and the `connected` event, never from the lifecycle | Not touched; AC-15b pins it |
+| E-5 | No ExaBGP output carries a ze lifecycle name | All of the above | True today (A-1) | The `active` → `passive` rename and `peer-state` reach no ExaBGP output; a bridge test greps the status and event outputs for the five lifecycle names |
+| E-6 | ExaBGP marks an operator-disabled idle peer `DISABLED` in its neighbor data | 6.0 `src/exabgp/reactor/peer/peer.py` (`'state': 'DISABLED' if self._disable is not None and self.fsm == FSM.IDLE else self.fsm.name()`), read by `neighbor.py` `show neighbor` | The bridge refuses `show neighbor` / `peer show` as untranslated (`bridge_control_test.go`, refused table) | Out of this spec's change, but this spec makes it possible: `state` `idle` with `state-reason` `operator-shutdown` is exactly ExaBGP's DISABLED condition. Recorded as a known gap below, with the mapping the translation must use |
+
+ExaBGP `status` does NOT print DISABLED: it prints `peer.fsm.name()` only, so
+a disabled peer reads `IDLE` in `status` both in ExaBGP and through the bridge.
+The bridge must not invent DISABLED there.
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -213,7 +233,9 @@ cycling Connect to Idle (RFC 4271 Section 8.2.2, Connect state, Event 18:
 | AC-12 | `monitor bgp` | Shows a State column with the FSM state and a Reason column with the reason code plus "retry Ns" when `next-retry` is set; sort and colour follow the FSM state |
 | AC-13 | Web peers page and LG HTML | An established peer is flagged and coloured up; idle/connect/active/opensent/openconfirm are coloured down; no peer falls into the unknown class |
 | AC-14 | LG birdwatcher API | `state` carries the FSM state; `info` carries the FSM state and reason; `last_error` keeps the NOTIFICATION meaning |
-| AC-15 | ExaBGP bridge `status` | Prints the same state spelling it prints today for the same FSM state |
+| AC-15 | ExaBGP bridge `status` / `daemon status`, text and JSON | For every peer, prints ExaBGP's `FSM.name()` spelling of the peer's FSM state (`IDLE`, `ACTIVE`, `CONNECT`, `OPENSENT`, `OPENCONFIRM`, `ESTABLISHED`), byte-identical to the answer before this spec for the same FSM state; a row without `state` still answers `error`, never a guessed state (E-1, E-2) |
+| AC-15b | ExaBGP `fsm` and `state` events (`connected`, `up`, `down`) through the bridge | Byte-identical before and after this spec, in text and JSON, for API 4.2, 5.0 and 6.0 scripts (E-3, E-4) |
+| AC-15c | Lifecycle rename `active` → `passive` | No ExaBGP-facing output contains a lifecycle name, before or after (E-5) |
 | AC-16 | Prometheus | `ze_peer_fsm_state{peer}` reports RFC 4273 `bgpPeerState` values (idle 1, connect 2, active 3, opensent 4, openconfirm 5, established 6); `ze_peer_state` and `ze_peer_state_transitions_total` keep lifecycle labels with `passive` instead of `active`, and their help text lists idle-hold |
 | AC-17 | The reason when several conditions hold | Follows the precedence operator-shutdown, prefix-limit, bfd-wait, notification, connect error, passive-wait, none |
 
@@ -241,7 +263,10 @@ cycling Connect to Idle (RFC 4271 Section 8.2.2, Connect state, Event 18:
 | `TestStateClassCoversEveryFSMState` | `internal/component/lg/render_test.go` | AC-13 LG, derived from the FSM name table | |
 | `TestPeerFlagFromFSMState` | `internal/component/web/page_bgp_peers_test.go` | AC-13 web | |
 | `TestTransformProtocolsCarriesFSMStateAndReason` | `internal/component/lg/handler_api_test.go` | AC-14 | |
-| `TestStatusPeersReadsFSMState` | `internal/exabgp/bridge/bridge_status_test.go` | AC-15 | |
+| `TestStatusPeersReadsFSMState` | `internal/exabgp/bridge/bridge_status_test.go` | AC-15, E-1: every FSM state in the new `state` key prints ExaBGP's upper-case name; an operator-disabled peer prints `IDLE`, not `DISABLED`; a row without `state` answers `error` | |
+| `TestStatusReplyUnchangedAcrossStateRename` | `internal/exabgp/bridge/bridge_status_test.go` | AC-15, E-1, E-2: text and JSON `status` answers for a fixed peer set are byte-identical to the answers pinned before the rename | |
+| `TestBridgeOutputCarriesNoLifecycleName` | `internal/exabgp/bridge/bridge_status_test.go` | AC-15c, E-5: status and event outputs contain none of `stopped`, `connecting`, `passive`, `idle-hold` | |
+| existing `fsm` / `state` event tests | `internal/exabgp/bridge/bridge_event_*_test.go` | AC-15b, E-3, E-4: run unchanged and stay green | |
 | `TestPeerFSMStateGauge` | `internal/component/bgp/reactor/peer_stats_test.go` | AC-16 | |
 
 ### Boundary Tests (numeric inputs)
@@ -258,6 +283,7 @@ cycling Connect to Idle (RFC 4271 Section 8.2.2, Connect state, Event 18:
 | `peer-state-prefix-limit-hold` | `test/plugin/peer-state-prefix-limit-hold.ci` | Prefix limit with reconnect never: reason `prefix-limit` with the family | |
 | `metrics-peer-fsm-state` | `test/plugin/metrics-peer-fsm-state.ci` | Scrape shows `ze_peer_fsm_state` 6 once established | |
 | `metrics-session-lifecycle` | `test/plugin/metrics-session-lifecycle.ci` | Updated if it names `active` | |
+| ExaBGP suite | `./le test functional exabgp` | Every ExaBGP compatibility case, including the `status` answer and `fsm`/`state` events, passes unchanged (AC-15, AC-15b) | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -396,6 +422,7 @@ cycling Connect to Idle (RFC 4271 Section 8.2.2, Connect state, Event 18:
 | Reason derived in the reactor, next to both states | Derive in `cmd/peer` | The reactor holds the Peer fields under `p.mu`; the answer must be a self-contained value |
 
 ## Known Limitations
+- ExaBGP `show neighbor` / `peer show` is not translated by the bridge (refused today). When it is, its `state` column must print `DISABLED` exactly when this spec's answer has `state` `idle` and `state-reason` `operator-shutdown`, and ExaBGP's `FSM.name()` spelling otherwise (E-6). That translation is not in this spec; it needs a home in an ExaBGP bridge spec (to be decided with Thomas)
 - No FSM metric beyond the gauge (no FSM transition counter); the transition history stays in `show bgp peer history`
 - The reason reports only the current cause; earlier causes stay in history and logs
 
