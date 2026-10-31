@@ -124,6 +124,8 @@ ze-diag:show-capture
 ze-diag:show-capture-interface
 ze-diag:show-capture-raw
 ze-diag:show-tcp-check
+ze-dnsresolver:clear-dns-resolver-cache
+ze-dnsresolver:show-dns-resolver
 ze-doctor:show-doctor
 ze-firewall:clear-domain-group
 ze-firewall:clear-irr-as-set

@@ -76,6 +76,7 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/update-cmd/yang"
 
 	// Plugin packages — plugin + schema registration.
+	_ "github.com/ze-software/ze/internal/component/bfd/api"
 	_ "github.com/ze-software/ze/internal/component/firewall/plugins/domain"
 	_ "github.com/ze-software/ze/internal/component/firewall/plugins/irr"
 	_ "github.com/ze-software/ze/internal/component/iface"

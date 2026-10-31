@@ -53,6 +53,7 @@ ddos-flowtriq
 ddos-local
 ddos-observe
 dhcpserver
+dnsresolver
 exabgp-bridge
 fib-kernel
 fib-p4
