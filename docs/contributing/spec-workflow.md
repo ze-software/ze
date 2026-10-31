@@ -447,6 +447,23 @@ Placeholders belong to `skeleton` alone. From `design` onward the placeholder
 guards in `internal/le/hookruntime/lifecycle.go` block the write, because the
 status is a claim that those sections are written.
 
+A design starts from the mechanisms Ze already has, so a spec whose Status is
+`design`, `ready`, `in-progress` or `verification` carries a
+`## Existing Mechanisms` section between `## Current Behavior` and
+`## Data Flow`. Its table holds one row per existing mechanism that already
+does part of the job: the mechanism, where it lives, what it does today, and
+whether the spec extends it, replaces it, or does not apply it, with the
+reason. The pre-write hook `writeSpecMechanisms` refuses an edit whose result
+lacks a data row (the template's bracketed placeholder row does not count),
+and `./le commit create` refuses a commit carrying such a spec. Both judge
+only a spec whose text changes: a spec nobody edits is never judged, and one
+carried unchanged, renamed or moved between buckets passes, so a spec written
+before the rule owes the section the next time it is edited. A `skeleton`,
+`blocked`, `deferred` or `done` spec owes none.
+<!-- source: internal/le/spec/mechanisms/specmechanisms.go -- Problem -->
+<!-- source: internal/le/hookruntime/specmechanisms.go -- writeSpecMechanisms -->
+<!-- source: internal/le/commit/specmechanisms.go -- specMechanismsRefusal -->
+
 The Goal Gates name the targeted tests for what changed: the scoped package
 tests, the component groups and functional suites the change reaches, and
 `./le verify changed` once the work is committed. The full verification

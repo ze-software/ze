@@ -97,7 +97,7 @@ var nativeHookActions = map[string]hookAction{
 		tools: []string{toolWrite, "Edit", "MultiEdit", "NotebookEdit"},
 		checks: []hookCheck{
 			writeLineCitation, writeGenerated, writeRenderedRule, writePointOverwrite,
-			writePointLanguage, writeDesignEvidence, writeSpecStatus, writeStyleGuideRead, writeDesignDoorsRead, writeSpecDoorsRead,
+			writePointLanguage, writeDesignEvidence, writeSpecStatus, writeStyleGuideRead, writeDesignDoorsRead, writeSpecDoorsRead, writeSpecMechanisms,
 			writeGoPatterns,
 			writeFilePatterns, writeWeakening, writeCISleep, writeYangDescription,
 			writeCallBudget,

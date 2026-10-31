@@ -177,21 +177,30 @@ If an annotation wouldn't help someone make a design choice, it's too vague. Rew
    - Write `→ Constraint:` noting preservation requirements
 4. Trace data flow per `ai/rules/architecture.md`
 5. RFC check: verify `rfc/short/rfcNNNN.md` summaries exist for referenced RFCs, and note any `## Meta` `Support` row the spec will add or change, since `docs/features/rfc-status.md` is generated from those rows (per `ai/rules/repo-maintenance.md`)
-6. Fill the spec's **Key Insights** summary (minimal context to resume after compaction)
-7. Present research findings to user:
+6. **Fill `## Existing Mechanisms` (BLOCKING, before the DESIGN gate):** one table
+   row per mechanism Ze already has that does part of this job, found in the
+   doors (`ai/doors/`), the architecture pages and `plan/learned/DESIGN-HISTORY.md`:
+   the mechanism, where it lives (file plus symbol, or page plus section), what
+   it does today, and whether this spec extends it, replaces it, or does not
+   apply it, with the reason (`plan/templates/TEMPLATE.md`). The edit hook and
+   `./le commit create` refuse a spec from `design` onward without a row.
+7. Fill the spec's **Key Insights** summary (minimal context to resume after compaction)
+8. Present research findings to user:
    - Current behavior (what the code does now)
+   - The Existing Mechanisms table, and what this design extends or replaces
    - Architectural constraints discovered
    - Data flow through the system
    - Related specs/work that affects this
-8. **Mandatory challenge:** Before presenting the gate, raise at least one concern:
+9. **Mandatory challenge:** Before presenting the gate, raise at least one concern:
    - What is still unclear or ambiguous in the existing code?
    - What assumption are we making that could be wrong?
    - What existing behavior might this feature accidentally break?
-9. **Record assumptions (BLOCKING):** Every assumption surfaced — in the challenge above
+10. **Record assumptions (BLOCKING):** Every assumption surfaced — in the challenge above
    or anywhere during research — goes into the spec's **Risks & Assumptions** Assumptions
    table (A-N rows) with Basis, "If wrong" impact, and a validation method. Gate
    conversation does not survive the session; the table does.
-10. **GATE:** ASK user: "Is my understanding correct? Here's what concerns me: [concern]."
+11. **GATE:** ASK user: "Is my understanding correct? Here's what concerns me: [concern]."
+   Present the Existing Mechanisms table at this gate.
    Do not proceed to DESIGN until user confirms research is complete.
 
 ---
@@ -207,6 +216,11 @@ If an annotation wouldn't help someone make a design choice, it's too vague. Rew
    - How it works (1-2 sentences)
    - Trade-offs (what it gains, what it costs)
 3. Recommend one and explain why it wins
+
+An alternative that ignores a mechanism in the spec's Existing Mechanisms table,
+building beside it instead of extending or replacing it, is not a valid
+alternative: it does not count toward the two, and it is never the
+recommendation.
 
 #### Design
 

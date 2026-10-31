@@ -207,6 +207,12 @@ func Create(root string, options *Options) (Prepared, error) {
 		if err != nil {
 			return result, err
 		}
+		// A spec the commit edits owes its Existing Mechanisms analysis
+		// (ai/META-DECISIONS.md, "How agents work"). It runs after the review
+		// gate, so a closure still learns first that it owes its review.
+		if err := specMechanismsRefusal(root, paths, removed, selection); err != nil {
+			return result, err
+		}
 		carried, err := ledgerCarriedTrailers(root, options.LedgerCarried, paths, removed)
 		if err != nil {
 			return result, err

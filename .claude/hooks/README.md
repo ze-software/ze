@@ -102,7 +102,6 @@ check's row cannot survive it.
 | `writeSpecStatus` | `planning.md` | A source edit while the claimed spec is not `in-progress`. |
 | `writeStyleGuideRead` | `go-standards.md` | A Go Write, Edit or MultiEdit from a session, or a subagent, with no record of reading `docs/contributing/ze-go-style.md`. A subagent's payload carries the parent's `session_id` and its own `agent_id`, so each subagent needs its own read: the marker is `tmp/session/.doc-read-<escaped document path>-<session>`, with `+<agent_id>` appended for a subagent (`documentReadMarker`, `internal/le/hookruntime/readgate.go`). An id that cannot name a marker is refused. Go written through a Bash heredoc never reaches this check. |
 | `writeDesignDoorsRead` | `architecture.md` | A Go (tests included), YANG or templ Write, Edit or MultiEdit from a session, or a subagent, with no record of a whole read of `ai/doors/system.md` and of every door covering the file. The covering doors are those whose `<!-- door-base: ... -->` header names the longest whole-component prefix of the file's path, all of them on a tie; the headers are parsed at call time, so a new door joins by its header. The refusal lists each unread door. Records and fail-closed identity are shared with `writeStyleGuideRead`; a missing `ai/doors/` or a header that does not close is refused, never read as "no door". |
-| `writeSpecDoorsRead` | `architecture.md` | A Write, Edit or MultiEdit of a spec (`plan/**/spec-*.md`, `specpath.IsSpec`) from a session, or a subagent, with no record of a whole read of `ai/doors/system.md` and of every door covering a repository path the spec names. The paths are every slash-holding run of path characters in the spec on disk and in the proposed text (`specRepoPaths`), mapped through the same `door-base` coverage as `writeDesignDoorsRead`; a brand-new spec naming no path owes `system.md` alone. The refusal lists each unread door, and the fail-closed cases are shared through `unreadDoors` (`internal/le/hookruntime/specdoors.go`). |
 | `writeGoPatterns` | `architecture.md`, `cli.md`, `go-standards.md`, `performance.md`, `quality.md`, `plugins.md`, `goroutine-lifecycle.md` | The Go patterns the rules ban, file by file: handlers, panic, legacy logging, allocating formatting, nolint, init registration, switch dispatch, anonymous goroutines, and fake buffer handles. |
 | `writeFilePatterns` | `architecture.md`, `commands.md`, `config.md`, `quality.md`, `testing.md` | The file-level patterns the rules ban, by path: path shape, package name, scratch location, lint exclusion, config version, and CI observers. |
 | `writeWeakening` | `testing.md` | A proposed edit that lowers what a test proves, unless a `ze-test-judge` approval for that test is recorded. |
@@ -113,6 +112,18 @@ check's row cannot survive it.
 `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Printf`, and `strconv.FormatInt` or
 `strconv.FormatUint` in production Go. The broader allocation audit stays with
 its native verification action.
+
+### Spec door gate (`internal/le/hookruntime/specdoors.go`)
+
+| Check | Enforces | What it refuses |
+|---|---|---|
+| `writeSpecDoorsRead` | `architecture.md` | A Write, Edit or MultiEdit of a spec (`plan/**/spec-*.md`, `specpath.IsSpec`) from a session, or a subagent, with no record of a whole read of `ai/doors/system.md` and of every door covering a repository path the spec names. The paths are every slash-holding run of path characters in the spec on disk and in the proposed text (`specRepoPaths`), mapped through the same `door-base` coverage as `writeDesignDoorsRead`; a brand-new spec naming no path owes `system.md` alone. The refusal lists each unread door, and the fail-closed cases are shared through `unreadDoors`. |
+
+### Spec Existing Mechanisms gate (`internal/le/hookruntime/specmechanisms.go`)
+
+| Check | Enforces | What it refuses |
+|---|---|---|
+| `writeSpecMechanisms` | `planning.md` | A Write, Edit or MultiEdit of a spec (`specpath.IsSpec`) whose content after the edit has Status `design`, `ready`, `in-progress` or `verification` and no `## Existing Mechanisms` section, or a section whose table holds no data row (the template's bracketed placeholder row does not count). It replays the edit over the file on disk, so a spec nobody edits is never judged; an Edit whose `old_string` the file lacks passes to the Edit tool's own failure. The judgement is `specmechanisms.Problem` (`internal/le/spec/mechanisms`), which `./le commit create` applies to the specs a commit edits. |
 
 ## PreToolUse: Bash and Write/Edit, the editing agent's budget (`internal/le/hookruntime/budget.go`)
 
@@ -195,6 +206,7 @@ the shared staging area. A refused gate writes no script.
 | test-coverage | `testCoverageProblems` (`prepare.go`) | `no-test` |
 | verify-status | `verificationState` (`verification.go`) | none: it never refuses a commit, because a missing verification is owed before a push |
 | independent review | `closureStem`, `CheckReview` (`review.go`) | `review-override` |
+| existing-mechanisms | `specMechanismsRefusal` (`specmechanisms.go`): a carried spec whose text changed (not HEAD's, and not a removed spec's under a new stem) and whose Status claims a design with no `## Existing Mechanisms` row | none: add the section's row |
 
 <!-- source: internal/le/commit/prepare.go -- admissionTrailer -->
 <!-- source: internal/le/commit/owed.go -- deriveDebt -->

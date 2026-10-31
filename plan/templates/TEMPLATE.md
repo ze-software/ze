@@ -62,6 +62,26 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **Behavior to change:** (only what the user asked for)
 - [list, or "None - preserve all existing behavior"]
 
+## Existing Mechanisms (MANDATORY)
+
+A design starts from the mechanisms Ze already has. One row per existing Ze
+mechanism that already does part of this job, found in the doors
+(`ai/doors/`), the architecture pages (`docs/architecture/`) and
+`plan/learned/DESIGN-HISTORY.md`. A design proposed beside an existing
+mechanism, instead of extending it, is refused at review.
+
+Example, in prose: the DirectBridge (`pkg/plugin/rpc/bridge.go`) is the
+in-process path for a compiled-in plugin, so a spec adding a plugin hot path
+extends it rather than building a second path.
+
+From `design` onward the spec tooling refuses this section when it is missing
+or its table holds no data row (`internal/le/spec/mechanisms`). A skeleton may
+leave the placeholder row.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| [mechanism] | [file + symbol, or page + section] | [what it does today] | [extends / replaces / does not apply: why] |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point

@@ -22,6 +22,7 @@ work-phases ## Work Phases and the Review Loop
   rfc-proof-records-ship-with-the-code
 spec-metadata-blocking ## Spec Lifecycle
   update-spec-status-at-each-transition
+  start-a-design-from-the-mechanisms-ze-already-has
   closure-takes-two-commits-from-one-script
   a-closure-ends-closed-or-handed-back
   route-the-lesson-write-a-journal-row-only-when-nothing-governs-it

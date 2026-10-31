@@ -66,7 +66,7 @@ phase itself.
    verdict proposes MUST keep every one of them.
    The write hook refuses recording the verdict in the spec until these doors
    are read (`writeSpecDoorsRead`).
-3. **Answer four questions, each with evidence:**
+3. **Answer five questions, each with evidence:**
 
    | Question | How to answer it |
    |----------|------------------|
@@ -74,6 +74,7 @@ phase itself.
    | Has the problem already been solved? | `git log --oneline <baseline>..HEAD -- <target files>`; other live specs under `plan/` naming the same targets or goal; closed specs in commit subjects. For a defect, read the producing function at HEAD and run the scoped test or reproduction that shows whether it still occurs |
    | Has the ground shifted? | `ai/META-DECISIONS.md` (release timing, RFC validation scope, YANG, ExaBGP), the subsystem's door in `ai/doors/README.md`, and each spec in `Depends`: closed or not, and whether it landed the shape this spec assumed |
    | Would it undo a decision? | `git log -S<symbol>` for a deliberate removal and its stated reason. Implementing it as written must not bring that back, or add a second path beside one that exists (`ai/rules/no-layering.md`) |
+   | Does it start from the mechanisms Ze already has? | The spec's `## Existing Mechanisms` table (`plan/templates/TEMPLATE.md`): one row per existing mechanism that already does part of the job, found in the doors, `docs/architecture/` and `plan/learned/DESIGN-HISTORY.md`, each marked extends, replaces or does not apply with the reason. A missing or empty table, or a design proposed beside a mechanism it should extend, is REWORK. A spec from `design` onward is refused by the edit hook and by `./le commit create` until the table has a row, so recording a verdict in an old spec owes the table too |
 
 4. **Give exactly one verdict:**
 
