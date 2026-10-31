@@ -2,6 +2,7 @@ package perfrunner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -9,10 +10,12 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/perf"
 )
 
 // testReporter is the report argv the tests hand New: the le that `le perf run`
@@ -102,10 +105,15 @@ type fakeCall struct {
 
 // dockerRecorder is the Docker process seam: it records every docker argv and
 // answers through answer, or success. A command under an ended context fails
-// the way the real client does when its context is canceled.
+// the way the real client does when its context is canceled. A `le perf send`
+// writes its result into results, as the sender container does through its
+// /results mount: every route arrives unless received names the count for
+// that result file.
 type dockerRecorder struct {
 	commands [][]string
 	answer   func([]string) (interoplab.ProcessResult, error)
+	results  string
+	received map[string]int
 }
 
 func (r *dockerRecorder) Run(ctx context.Context, command interoplab.ProcessCommand) (interoplab.ProcessResult, error) {
@@ -113,10 +121,46 @@ func (r *dockerRecorder) Run(ctx context.Context, command interoplab.ProcessComm
 	if err := ctx.Err(); err != nil {
 		return interoplab.ProcessResult{ExitCode: -1}, err
 	}
+	if err := r.send(command.Arguments); err != nil {
+		return interoplab.ProcessResult{ExitCode: -1}, err
+	}
 	if r.answer == nil {
 		return interoplab.ProcessResult{}, nil
 	}
 	return r.answer(command.Arguments)
+}
+
+// send writes the result a `le perf send` in argv would write, and nothing for
+// any other command.
+func (r *dockerRecorder) send(argv []string) error {
+	at := slices.Index(argv, "send")
+	if at < 1 || argv[at-1] != "perf" {
+		return nil
+	}
+	flag := func(name string) string {
+		if i := slices.Index(argv, name); i >= 0 && i+1 < len(argv) {
+			return argv[i+1]
+		}
+		return ""
+	}
+	routes, err := strconv.Atoi(flag("--routes"))
+	if err != nil {
+		return err
+	}
+	name := filepath.Base(flag("--output"))
+	received, short := r.received[name]
+	if !short {
+		received = routes
+	}
+	result := perf.Result{DUTName: flag("--dut-name"), RoutesSent: routes, RoutesReceived: received, RoutesLost: routes - received}
+	data, err := json.Marshal(&result)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(r.results, 0o750); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(r.results, name), data, 0o600)
 }
 
 // recorded answers the commands recorded so far, one joined line each.
@@ -135,7 +179,7 @@ func fixtureRunner(t *testing.T, stderr io.Writer) (*Runner, *dockerRecorder) {
 	runner := New(t.TempDir(), testReporter, io.Discard, stderr)
 	runner.LinuxTags = "ze_le ze_bgp"
 	runner.Run = func(context.Context, io.Writer, io.Writer, string, []string, []string) error { return nil }
-	recorder := &dockerRecorder{}
+	recorder := &dockerRecorder{results: runner.resultsDir}
 	runner.Docker = interoplab.NewFixtureDocker(recorder)
 	return runner, recorder
 }
@@ -157,7 +201,7 @@ func TestPerfRunnerMountsLinuxLe(t *testing.T) {
 	if err := runner.buildLinuxBinary(t.Context()); err != nil {
 		t.Fatalf("buildLinuxBinary: %v", err)
 	}
-	if !runner.runPerf(t.Context(), DUTs()[0], false) {
+	if _, ok := runner.runPerf(t.Context(), DUTs()[0], false); !ok {
 		t.Fatal("runPerf reported a failure over a fake that always succeeds")
 	}
 
@@ -209,7 +253,7 @@ func TestPerfContainersCarryTheirFlagsAndLabels(t *testing.T) {
 	if err := runner.startDUT(t.Context(), DUTs()[0]); err != nil {
 		t.Fatalf("startDUT: %v", err)
 	}
-	if !runner.runPerf(t.Context(), DUTs()[0], false) {
+	if _, ok := runner.runPerf(t.Context(), DUTs()[0], false); !ok {
 		t.Fatal("runPerf failed over a fake that always succeeds")
 	}
 	lines := recorder.recorded()
@@ -618,6 +662,86 @@ func TestPerfStartContainerRecordsOnlyWhatItMayHaveCreated(t *testing.T) {
 			removed := slices.Contains(recorder.recorded(), "docker rm -f "+runner.containerName("ze"))
 			if removed != row.removed {
 				t.Errorf("removed = %v, want %v: %q", removed, row.removed, recorder.recorded())
+			}
+		})
+	}
+}
+
+// VALIDATES: a DUT whose measurement lost a route fails the run: exit 1, no
+// PASS line, a FAIL counting it as failed, a cause line naming the pass and
+// how many routes of how many arrived, and its result never reaches the
+// comparison. The same holds for the ze propagation pass, while a complete
+// pass of the same DUT is still rendered.
+// METHOD: the sender fixture writes a result that lost routes for one pass;
+// Execute runs the test step over ze and bird; the reporter seam records every
+// result set it is asked to render.
+// PREVENTS: `./le perf run dut ze` printing PASS and a table of 0ms values for
+// a DUT that forwarded nothing, and recording the commit as measured.
+func TestTestRunFailsADUTThatLostRoutes(t *testing.T) {
+	cases := []struct {
+		name     string
+		short    string
+		pass     string
+		rendered []string
+	}{
+		{"measurement", "ze.json", "the measurement", []string{"bird.json"}},
+		{"propagation pass", "ze-propagation.json", "the propagation pass", []string{"ze.json", "bird.json"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout strings.Builder
+			runner, recorder := fixtureRunner(t, io.Discard)
+			runner.Stdout = &stdout
+			runner.Routes = 1000
+			recorder.received = map[string]int{tc.short: 0}
+			recorder.answer = func(argv []string) (interoplab.ProcessResult, error) {
+				if slices.Contains(argv, "{{.State.Running}}") {
+					return interoplab.ProcessResult{Stdout: "true\n"}, nil
+				}
+				return interoplab.ProcessResult{}, nil
+			}
+			var rendered [][]string
+			runner.Run = func(_ context.Context, _, _ io.Writer, _ string, _, argv []string) error {
+				if slices.Contains(argv, "compare") {
+					rendered = append(rendered, argv)
+				}
+				return nil
+			}
+			if code := runner.Execute(t.Context(), Steps{Test: true}, []string{"ze", "bird"}); code != 1 {
+				t.Errorf("Execute(test) = %d with ze losing every route, want 1", code)
+			}
+			var summary string
+			for line := range strings.Lines(stdout.String()) {
+				if strings.HasPrefix(line, "PASS") {
+					t.Errorf("a run whose DUT lost routes printed a PASS line: %q", line)
+				}
+				if strings.HasPrefix(line, "FAIL") {
+					summary = line
+				}
+			}
+			for _, want := range []string{"1 passed", "1 failed: ze"} {
+				if !strings.Contains(summary, want) {
+					t.Errorf("summary %q lacks %q; stdout %q", summary, want, stdout.String())
+				}
+			}
+			for _, want := range []string{"ze: " + tc.pass + " lost routes: 0 of 1000 routes reached the receiver", `./le perf run dut "ze"`} {
+				if !strings.Contains(stdout.String(), want) {
+					t.Errorf("stdout lacks %q: %q", want, stdout.String())
+				}
+			}
+			if len(rendered) == 0 {
+				t.Fatal("the run rendered no comparison, want the complete results rendered")
+			}
+			for _, argv := range rendered {
+				var names []string
+				for _, word := range argv {
+					if strings.HasSuffix(word, ".json") {
+						names = append(names, filepath.Base(word))
+					}
+				}
+				if !reflect.DeepEqual(names, tc.rendered) {
+					t.Errorf("rendered %q, want %q: a result that lost routes MUST NOT reach the comparison", names, tc.rendered)
+				}
 			}
 		})
 	}

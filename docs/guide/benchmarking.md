@@ -149,8 +149,9 @@ DUT_ROUTES=10000 DUT_REPEAT=5 ./le perf run step test dut ze
 
 A run with no `step` keyword builds the images and measures. `step build`
 records nothing, because it measured nothing. Any other `step` value exits 2
-and names the value. A run that measured records the commit, so the perf nudge
-(`./le perf suggest`) stops asking for one.
+and names the value. A run that measured and passed records the commit, so the
+perf nudge (`./le perf suggest`) stops asking for one. A run that failed, for
+any cause below, records nothing.
 
 An image that fails to build or pull fails the run, and the run prints an error
 naming the DUT and the cause. In a `step build` run the image is the whole
@@ -169,10 +170,29 @@ A DUT is skipped only when the run built no image (`NO_BUILD=1`, or
 still pass, but a run that measured no DUT prints `FAIL  no DUT was measured`
 and exits 1, because a run of skips has no result.
 
+A DUT whose measurement lost a route is failed, because its timings describe
+the routes that arrived, or nothing, and a DUT that forwarded nothing reads
+as the fastest. After each `le perf send` pass the runner reads the result
+file and judges it with the same check that sets `le perf send`'s own exit
+code: every route sent must reach the receiver, and a result that sent none
+measured nothing. The ze DUT's propagation pass (`ze-propagation.json`) is
+judged the same way. For a pass that lost routes the run prints the DUT's last
+log lines under its name, while the DUT still runs. The summary line reads
+`FAIL`, counts the DUT as failed, and names the pass and the count, as in
+`ze: the measurement lost routes: 0 of 100000 routes reached the receiver`.
+It then prints the `./le perf run dut "..."` command to run once the DUT is
+fixed, and the run exits 1. A result file that does not read or parse fails
+the pass the same way. A pass that lost routes is left out of the comparison
+table, the HTML report and the doc snapshot, so no row of 0ms values reads as
+a fast result, and a DUT left with no rendered pass is named on the run's
+`no result for` line. A complete pass of the same DUT is still rendered.
+
 `NO_BUILD=1` with `step build` is refused: the run would build nothing, so it
 names `NO_BUILD` as the reason, prints the `env -u NO_BUILD ./le perf run step
 build` command that unsets it, and exits 1 without claiming any image was built.
-<!-- source: internal/test/perfrunner/run.go -- Runner.buildImages, Runner.buildCommand, Execute, Runner.measure, Runner.summarize, measurement.failedRun -->
+<!-- source: internal/test/perfrunner/run.go -- Runner.buildImages, Runner.buildCommand, Execute, Runner.measure, Runner.measureDUT, Runner.judgeResult, readShortfall, Runner.summarize, measurement.failedRun -->
+<!-- source: internal/perf/result.go -- Result.Shortfall -->
+<!-- source: internal/le/perf/bench.go -- Bench.Run -->
 
 The runner builds no host benchmark program. It cross-builds `le` for linux
 with `CGO_ENABLED=0` into `tmp/perf-run/linux-<arch>/le`, and prints how long
@@ -327,7 +347,11 @@ the typical latency, P99 captures tail latency, and max shows the worst case.
 <!-- source: internal/perf/metrics.go -- CalculateLatencies -->
 
 **Routes lost** should always be zero. Any loss indicates the DUT dropped
-routes, which the regression checker always flags.
+routes: `le perf send` then exits 1 (in `--json` mode it exits 0 once the
+result file is written, and the file carries the loss), `./le perf run`
+fails the DUT, and the regression checker always flags it.
+<!-- source: internal/perf/result.go -- Result.Shortfall -->
+<!-- source: internal/perf/cli/cmd_run.go -- cmdRun -->
 
 ### Before you report a number
 
@@ -350,7 +374,8 @@ it, or pick between two builds or two implementations.
    on its defaults, you compared configurations, not implementations.
 4. **Did the work happen?** Check that `routes-lost` is zero and that
    `routes-received` matches `routes-sent`. A run that dropped or rejected routes
-   is often the fastest run.
+   is often the fastest run. `./le perf run` fails such a DUT for you; a
+   result you produced with `le perf send --json` you check yourself.
 5. **Is the gap bigger than the noise?** To compare two builds, alternate them:
    A, B, A, B, at least five times each, appending every `--json` result. Then
    warm caches and machine drift favour neither side. A gap smaller than the

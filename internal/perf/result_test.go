@@ -204,3 +204,35 @@ not valid json
 		}
 	})
 }
+
+// VALIDATES: Shortfall answers nil only when every route sent arrived, and
+// otherwise an error naming how many routes of how many arrived.
+// METHOD: a complete result, one that lost every route, one that lost some,
+// and one that sent none.
+// PREVENTS: a measurement of a DUT that forwarded nothing reading as a result
+// (routes-received 0 with every timing 0).
+func TestResultShortfall(t *testing.T) {
+	if err := (&Result{RoutesSent: 100000, RoutesReceived: 100000}).Shortfall(); err != nil {
+		t.Errorf("Shortfall() of a complete result = %v, want nil", err)
+	}
+	cases := []struct {
+		name   string
+		result Result
+		want   string
+	}{
+		{"lost every route", Result{RoutesSent: 100000, RoutesReceived: 0, RoutesLost: 100000}, "0 of 100000 routes reached the receiver"},
+		{"lost some routes", Result{RoutesSent: 1000, RoutesReceived: 998, RoutesLost: 2}, "998 of 1000 routes reached the receiver"},
+		{"sent no route", Result{}, "the sender announced no route"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.result.Shortfall()
+			if err == nil {
+				t.Fatalf("Shortfall() = nil, want an error containing %q", tc.want)
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("Shortfall() = %q, want it to contain %q", err.Error(), tc.want)
+			}
+		})
+	}
+}

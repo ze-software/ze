@@ -2,6 +2,7 @@ package perfrunner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/linuxle"
+	"github.com/ze-software/ze/internal/perf"
 )
 
 // The benchmark network: one fixed /24 with the sender, the receiver address
@@ -480,16 +482,24 @@ func (runner *Runner) waitDUT(ctx context.Context, name string) error {
 			return err
 		}
 	}
-	if logs, err := runner.Docker.Logs(ctx, container, 20); err == nil {
-		_, _ = io.WriteString(runner.Stdout, logs.Text)
-	} else {
-		say(runner.Stderr, "  warning: read the logs of ", container, ": ", err.Error())
-	}
+	runner.printLogs(ctx, container)
 	if last != nil {
 		return errors.New(name + " did not start within " + limit.String() + ": " + last.Error())
 	}
 	return errors.New(name + " did not start within " + limit.String())
 }
+
+// printLogs prints the last lines of a container's log on stdout, or a
+// warning naming why they could not be read.
+func (runner *Runner) printLogs(ctx context.Context, container string) {
+	logs, err := runner.Docker.Logs(ctx, container, 20)
+	if err != nil {
+		say(runner.Stderr, "  warning: read the logs of ", container, ": ", err.Error())
+		return
+	}
+	_, _ = io.WriteString(runner.Stdout, logs.Text)
+}
+
 func (runner *Runner) stop(ctx context.Context, name string) {
 	runner.removeContainer(ctx, runner.containerName(name))
 }
@@ -516,12 +526,16 @@ func (runner *Runner) senderContainer() interoplab.DetachedContainer {
 	}
 }
 
-func (runner *Runner) runPerf(ctx context.Context, dut DUT, senderFirst bool) bool {
+// runPerf runs one `le perf send` pass against dut and answers the host path
+// of the result file it wrote, or false when the sender could not start or the
+// pass failed. A result file it answers is not yet judged: the caller MUST
+// pass it to judgeResult before counting it.
+func (runner *Runner) runPerf(ctx context.Context, dut DUT, senderFirst bool) (string, bool) {
 	container := runner.senderName()
 	if err := runner.startContainer(ctx, runner.senderContainer()); err != nil {
 		say(runner.Stderr, "  error: start the sender: ", err.Error())
 		runner.removeContainer(ctx, container)
-		return false
+		return "", false
 	}
 	defer runner.removeContainer(ctx, container)
 	runner.prepareSender(ctx, container, "ip", "addr", "add", netip.PrefixFrom(receiverIP, perfSubnet.Bits()).String(), "dev", "eth0")
@@ -552,9 +566,43 @@ func (runner *Runner) runPerf(ctx context.Context, dut DUT, senderFirst bool) bo
 	send := interoplab.ContainerExec{Container: container, Command: args, Stdout: runner.Stdout, Stderr: runner.Stderr, Timeout: timeout}
 	if _, err := runner.Docker.ExecAttached(ctx, send); err != nil {
 		say(runner.Stderr, "  error: measure ", dut.Name, ": ", err.Error())
-		return false
+		return "", false
 	}
-	return true
+	return filepath.Join(runner.resultsDir, result), true
+}
+
+// judgeResult reads the result file path that one pass of dut wrote and
+// answers whether it is complete (perf.Result.Shortfall). An incomplete or
+// unreadable result is recorded in found with its cause, and the last lines
+// of the DUT's log are printed while its container still runs, so the reader
+// sees why it did not forward.
+func (runner *Runner) judgeResult(ctx context.Context, dut DUT, pass, path string, found *measurement) bool {
+	cause := readShortfall(path)
+	if cause == "" {
+		return true
+	}
+	found.incomplete = append(found.incomplete, incompleteRun{dut: dut.Name, pass: pass, cause: cause})
+	say(runner.Stdout, "  ", pass, " of ", dut.Name, " ", cause, "; the last lines of its log:")
+	runner.printLogs(ctx, runner.containerName(dut.Name))
+	return false
+}
+
+// readShortfall answers why the result file at path is not a complete
+// measurement, as a phrase that follows the pass's name, or "" when it is
+// complete.
+func readShortfall(path string) string {
+	data, err := os.ReadFile(path) //nolint:gosec // path is this run's own result file under resultsDir
+	if err != nil {
+		return "wrote no readable result: " + err.Error()
+	}
+	var result perf.Result
+	if err := json.Unmarshal(data, &result); err != nil {
+		return "wrote a result that does not parse: " + err.Error()
+	}
+	if err := result.Shortfall(); err != nil {
+		return "lost routes: " + err.Error()
+	}
+	return ""
 }
 
 // captureProfile writes one pprof endpoint of the running container to path.
@@ -610,15 +658,27 @@ func (runner *Runner) cleanup(ctx context.Context) {
 	}
 }
 
+// incompleteRun is one pass of a DUT whose result is not a measurement: it
+// lost routes, or could not be read. cause is the phrase that follows the
+// pass's name in the summary.
+type incompleteRun struct {
+	dut   string
+	pass  string
+	cause string
+}
+
 // measurement is what the test step found over the selected DUTs. failed
-// names every DUT that failed, unbuilt included; unbuilt carries the cause of
-// those whose image this run could not make.
+// names every DUT that failed, unbuilt and incomplete included; unbuilt
+// carries the cause of those whose image this run could not make, and
+// incomplete the cause of each pass whose result lost routes. results holds
+// only complete results, so an incomplete one never reaches the comparison.
 type measurement struct {
-	passed  int
-	failed  []string
-	unbuilt []unbuiltImage
-	skipped []string
-	results []string
+	passed     int
+	failed     []string
+	unbuilt    []unbuiltImage
+	incomplete []incompleteRun
+	skipped    []string
+	results    []string
 }
 
 // failedRun answers whether the test step's findings fail the run: a DUT
@@ -770,8 +830,10 @@ func (runner *Runner) measureIfPresent(ctx context.Context, dut DUT, found *meas
 }
 
 // measureDUT starts one DUT, waits for it, and measures it into found. It
-// answers false when the DUT did not start or its measurement failed; the
-// caller removes the DUT's container either way.
+// answers false when the DUT did not start, a pass failed, or a pass lost
+// routes; the ze DUT also runs the propagation pass, judged the same way. A
+// complete pass is kept for the comparison even when the DUT's other pass
+// fails. The caller removes the DUT's container either way.
 func (runner *Runner) measureDUT(ctx context.Context, dut DUT, found *measurement) bool {
 	if err := runner.startDUT(ctx, dut); err != nil {
 		say(runner.Stderr, "  error: start ", dut.Name, ": ", err.Error())
@@ -787,18 +849,34 @@ func (runner *Runner) measureDUT(ctx context.Context, dut DUT, found *measuremen
 			runner.captureProfiles(ctx, runner.containerName(dut.Name), filepath.Join(runner.PProfDir, strconv.Itoa(runner.Routes)))
 		})
 	}
-	ok := runner.runPerf(ctx, dut, false)
+	result, ok := runner.runPerf(ctx, dut, false)
 	profile.Wait()
 	if !ok {
 		return false
 	}
-	found.passed++
-	found.results = append(found.results, filepath.Join(runner.resultsDir, dut.Name+".json"))
-	if dut.Name == dutZE && runner.runPerf(ctx, dut, true) {
-		found.results = append(found.results, filepath.Join(runner.resultsDir, "ze-propagation.json"))
+	if !runner.judgeResult(ctx, dut, passMeasurement, result, found) {
+		return false
 	}
+	found.results = append(found.results, result)
+	if dut.Name == dutZE {
+		propagation, ok := runner.runPerf(ctx, dut, true)
+		if !ok {
+			return false
+		}
+		if !runner.judgeResult(ctx, dut, passPropagation, propagation, found) {
+			return false
+		}
+		found.results = append(found.results, propagation)
+	}
+	found.passed++
 	return true
 }
+
+// The passes a DUT is measured in, as the summary names them.
+const (
+	passMeasurement = "the measurement"
+	passPropagation = "the propagation pass"
+)
 
 // render prints the comparison and writes the HTML report and the doc snapshot.
 func (runner *Runner) render(ctx context.Context, results []string) {
@@ -847,9 +925,27 @@ func (runner *Runner) summarize(found measurement) {
 	if len(found.unbuilt) > 0 {
 		say(runner.Stdout, "  fix the cause each line above names, then run again: ./le perf run dut \"", unbuiltNames(found.unbuilt), "\"")
 	}
+	for _, run := range found.incomplete {
+		say(runner.Stdout, "  ", run.dut, ": ", run.pass, " ", run.cause, ", so it is no result and is left out of the comparison")
+	}
+	if len(found.incomplete) > 0 {
+		say(runner.Stdout, "  read the DUT log lines printed under each name above, fix what stops the DUT forwarding every route, then run again: ./le perf run dut \"", incompleteNames(found.incomplete), "\"")
+	}
 	if len(found.skipped) > 0 {
 		say(runner.Stdout, "  no image exists for the skipped DUTs; build them with: ", runner.buildCommand(strings.Join(found.skipped, " ")))
 	}
+}
+
+// incompleteNames answers the DUTs of the incomplete passes, once each, in run
+// order, joined by spaces.
+func incompleteNames(runs []incompleteRun) string {
+	names := make([]string, 0, len(runs))
+	for _, run := range runs {
+		if !slices.Contains(names, run.dut) {
+			names = append(names, run.dut)
+		}
+	}
+	return strings.Join(names, " ")
 }
 
 // reportArgv answers the Reporter command that renders results in one format.

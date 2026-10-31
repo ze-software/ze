@@ -173,7 +173,7 @@ func cmdRun(args []string) int {
 
 	report.PrintHuman(os.Stdout, &result)
 
-	if result.RoutesLost > 0 {
+	if result.Shortfall() != nil {
 		return 1
 	}
 

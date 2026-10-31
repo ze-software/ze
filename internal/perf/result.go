@@ -6,6 +6,7 @@ package perf
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -50,6 +51,22 @@ type Result struct {
 	LatencyMaxMs        int          `json:"latency-max-ms"`
 	WithdrawalMs        int          `json:"withdrawal-ms"`
 	WithdrawalStddevMs  int          `json:"withdrawal-stddev-ms"`
+}
+
+// Shortfall answers nil when every route the sender announced reached the
+// receiver, and otherwise an error naming how many routes of how many arrived.
+// A result that lost a route measured a DUT that did not do the work, so its
+// timings describe the routes that arrived, or nothing: it is not a
+// measurement of forwarding. It is the one judgement of a complete result:
+// `le perf send` exits 1 on it, and `le perf run` fails the DUT on it.
+func (r *Result) Shortfall() error {
+	if r.RoutesSent <= 0 {
+		return errors.New("the sender announced no route, so nothing was measured")
+	}
+	if r.RoutesReceived < r.RoutesSent {
+		return fmt.Errorf("%d of %d routes reached the receiver", r.RoutesReceived, r.RoutesSent)
+	}
+	return nil
 }
 
 // ReadNDJSON reads newline-delimited JSON results from the reader.
