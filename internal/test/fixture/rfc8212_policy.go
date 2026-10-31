@@ -395,7 +395,11 @@ func rfc8212PolicyExport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", prefix82First, "10.82.11.0/24", "10.82.12.0/24"); err != nil {
 		return err
 	}
-	if _, err := done03(ctx, plugin, "request fakeredist emit add ipv4/unicast 10.82.13.0/24"); err != nil {
+	// An explicit next hop, because the default is Ze's own session address,
+	// 127.0.0.5 here: the echo control would return it as a loopback NEXT_HOP,
+	// which RFC 4271 Section 6.3 treats as withdrawn, and the route would read as
+	// absent at 127.0.0.3.
+	if _, err := done03(ctx, plugin, "request fakeredist emit add ipv4/unicast 10.82.13.0/24 192.0.2.1"); err != nil {
 		return err
 	}
 	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", prefix82First, "10.82.11.0/24", "10.82.12.0/24", "10.82.13.0/24"); err != nil {
