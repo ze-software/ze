@@ -338,8 +338,7 @@ func rewriteOperation(network interoplab.Network, current *operation) {
 // (waitAbsent) keeps Query's refusal, where empty would read as absence.
 func queryAnswered(ctx context.Context, lab interoplab.CheckerLab, peer string, command []string) (string, error) {
 	output, err := lab.Query(ctx, peer, command, queryEnvironment(peer, command))
-	var empty *interoplab.EmptyAnswerError
-	if errors.As(err, &empty) {
+	if _, empty := errors.AsType[*interoplab.EmptyAnswerError](err); empty {
 		return "", nil
 	}
 	return output, err
