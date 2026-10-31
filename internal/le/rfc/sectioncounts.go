@@ -1,6 +1,6 @@
 // Design: docs/contributing/rfc-conformance-gates.md -- coverage figures split into the two bars' sections
 // Related: profilecoverage.go -- StemFigures, the per-RFC figures every section is a field or difference of
-// Related: provenshare.go -- the proof share the home page and test health still publish
+// Related: implemented.go -- the section counts of the RFCs Ze implements, which the home page and test health publish
 //
 // sectioncounts.go is the ONE split of an RFC's figures into the sections the
 // two bars draw (spec-rfc-figures-sectioned-presentation, AC-12). `./le rfc

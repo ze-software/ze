@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
 // TestNextActionNamesLowestUncoveredLevel: the gap is the lowest level of the
@@ -138,5 +140,171 @@ func TestNextOptionalSectionSeparate(t *testing.T) {
 	}
 	if !strings.Contains(string(encoded), `"optional":{"rollup":`) {
 		t.Errorf("json lacks the optional section: %s", encoded)
+	}
+}
+
+// nextCorpusOf answers a corpus whose one release profile, core, requires
+// rfc1 alone, holding rows, with the proof set and the OS proofs verdicts
+// give, and exclusions judging every not-owed row: the same derivations
+// StemFiguresOf and priorityCorpusOf make, with one figureEvidence read by the
+// figures and by rowOwes alike.
+func nextCorpusOf(rows []Requirement, verdicts []DiscriminationVerdict, exclusions exclusionJudge) *priorityCorpus {
+	stems := map[string]bool{"rfc1": true}
+	metas := map[string]Meta{"rfc1": {Title: "Title of rfc1", Aggregate: "base", UseCases: []string{"core"}}}
+	profiles := Profiles{
+		UseCases:   map[string]UseCase{"core": {Name: "core", Title: "Core", Release: true}},
+		Aggregates: map[string]Aggregate{"base": {Name: "base"}},
+	}
+	proven := provenRequirements(verdicts)
+	evidence := figureEvidence{osProofs: osProofsOf(verdicts), exclusions: exclusions}
+	figures := figuresByStem(rows, stems, stems, proven, evidence)
+	return newPriorityCorpus(graph.Build(map[string]graph.Text{"rfc1": {}}), profiles, metas, rows, figures,
+		proven, evidence)
+}
+
+// nextVerdict answers a verified, proving record for rid that broke producer.
+func nextVerdict(rid, producer string) DiscriminationVerdict {
+	return DiscriminationVerdict{Record: DiscriminationRecord{RID: rid, Route: RouteRevert, Producer: producer},
+		State: ProofVerified}
+}
+
+// nextOwedRows answers the rows of rfc1's report: every uncovered row, each
+// as id=owes.
+func nextOwedRows(t *testing.T, report *NextReport) []string {
+	t.Helper()
+	out := []string{}
+	for index := range report.Gaps {
+		for _, row := range report.Gaps[index].Uncovered {
+			out = append(out, row.ID+"="+row.Owes)
+		}
+	}
+	return out
+}
+
+// TestNextNamesAnOSTestingGapAsOwed: AC-9 for `next`. Goal: a set whose only
+// MUST gap is an OS testing gap is not complete, and next names that row as
+// owing a test of the OS behavior, never Ze code, in text and JSON alike; a
+// row an annotation leaves not owed blocks nothing. Method: rfc1 with its Ze
+// row proven, one {feature-declined} row, and one {lower-layer} row with no
+// proving record.
+func TestNextNamesAnOSTestingGapAsOwed(t *testing.T) {
+	declined := Requirement{RFC: "rfc1", RID: "RFC1-1-3", Level: levelMust,
+		Annotation: &Annotation{Kind: AnnotationFeatureDeclined, Reason: "the feature is not offered"}}
+	rows := []Requirement{{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust}, lowerLayerRow("RFC1-1-2"), declined}
+	report, err := nextCorpusOf(rows, []DiscriminationVerdict{nextVerdict("RFC1-1-1", "x.go::f")}, acceptEveryExclusion{}).next("core")
+	if err != nil {
+		t.Fatalf("next core: %v", err)
+	}
+	if report.Complete || report.MandatoryComplete || report.Register != registerMandatory {
+		t.Fatalf("next core complete %v mandatory complete %v register %s, want an incomplete mandatory register",
+			report.Complete, report.MandatoryComplete, report.Register)
+	}
+	if got, want := nextOwedRows(t, report), []string{"RFC1-1-2=" + owesOSTest}; !slices.Equal(got, want) {
+		t.Errorf("owed rows %v, want %v", got, want)
+	}
+	text := report.Text()
+	if strings.Contains(text, "nothing is owed") {
+		t.Errorf("text reports nothing owed over an OS testing gap:\n%s", text)
+	}
+	if !strings.Contains(text, "1 OS testing gap, a test of the OS behavior on the state Ze installs is owed: RFC1-1-2") {
+		t.Errorf("text does not name the OS testing gap:\n%s", text)
+	}
+	if strings.Contains(text, " uncovered: ") {
+		t.Errorf("text names an OS testing gap as Ze code owed:\n%s", text)
+	}
+	encoded, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), `"id":"RFC1-1-2","level":"MUST","owes":"os-test"`) {
+		t.Errorf("json does not name the OS testing gap: %s", encoded)
+	}
+	if !strings.Contains(string(encoded), `"mandatory-complete":false,"complete":false`) {
+		t.Errorf("json reports complete: %s", encoded)
+	}
+}
+
+// TestNextCompleteOnlyWhenEveryOwedRowIsProven: Goal: Complete holds once the
+// Ze row is Ze proven and the {lower-layer} row OS verified, and a not-owed
+// row does not hold it back. Method: the rows of the OS-gap case, with a
+// proving record that broke the producer the {lower-layer} row names.
+func TestNextCompleteOnlyWhenEveryOwedRowIsProven(t *testing.T) {
+	declined := Requirement{RFC: "rfc1", RID: "RFC1-1-3", Level: levelMust,
+		Annotation: &Annotation{Kind: AnnotationFeatureDeclined, Reason: "the feature is not offered"}}
+	rows := []Requirement{{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust}, lowerLayerRow("RFC1-1-2"), declined}
+	verdicts := []DiscriminationVerdict{nextVerdict("RFC1-1-1", "x.go::f"), nextVerdict("RFC1-1-2", lowerLayerProducer)}
+	report, err := nextCorpusOf(rows, verdicts, acceptEveryExclusion{}).next("core")
+	if err != nil {
+		t.Fatalf("next core: %v", err)
+	}
+	if !report.Complete || !report.MandatoryComplete {
+		t.Fatalf("next core complete %v mandatory complete %v, want complete; gaps %+v",
+			report.Complete, report.MandatoryComplete, report.Gaps)
+	}
+	if !strings.Contains(report.Text(), "nothing is owed") {
+		t.Errorf("text does not say nothing is owed:\n%s", report.Text())
+	}
+}
+
+// TestNextNamesAZeGapAsZeCode: Goal: an unproven unannotated MUST row is
+// named as Ze code owed, under "uncovered". Method: rfc1 with the
+// {lower-layer} row OS verified and its Ze row unproven.
+func TestNextNamesAZeGapAsZeCode(t *testing.T) {
+	rows := []Requirement{{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust}, lowerLayerRow("RFC1-1-2")}
+	report, err := nextCorpusOf(rows, []DiscriminationVerdict{nextVerdict("RFC1-1-2", lowerLayerProducer)}, acceptEveryExclusion{}).next("core")
+	if err != nil {
+		t.Fatalf("next core: %v", err)
+	}
+	if report.Complete || report.Register != registerMandatory {
+		t.Fatalf("next core complete %v register %s, want an incomplete mandatory register",
+			report.Complete, report.Register)
+	}
+	if got, want := nextOwedRows(t, report), []string{"RFC1-1-1=" + owesZeCode}; !slices.Equal(got, want) {
+		t.Errorf("owed rows %v, want %v", got, want)
+	}
+	if text := report.Text(); !strings.Contains(text, "1 uncovered: RFC1-1-1\n") {
+		t.Errorf("text does not name the Ze gap:\n%s", text)
+	}
+}
+
+// TestNextNamesABareNotApplicableRowAsZeCode: Goal: `./le rfc next` and the
+// figures judge a not-owed row by one rule, so a {not-applicable} row with no
+// role-condition quote stays owed Ze code in both, and the same row leaves
+// both once its evidence passes. Method: rfc1 with a proven MUST row and a
+// bare {not-applicable} MUST row, judged first by the tree's own evidence
+// reader ((*evidenceReader).notOwedGap refuses a row with no quote before it
+// reads a file), then by a judge that accepts every row.
+func TestNextNamesABareNotApplicableRowAsZeCode(t *testing.T) {
+	bare := Requirement{RFC: "rfc1", RID: "RFC1-1-2", Level: levelMust,
+		Annotation: &Annotation{Kind: AnnotationNotApplicable, Reason: "Ze is not that role"}}
+	rows := []Requirement{{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust}, bare}
+	verdicts := []DiscriminationVerdict{nextVerdict("RFC1-1-1", "x.go::f")}
+
+	corpus := nextCorpusOf(rows, verdicts, newEvidenceReader(t.TempDir()))
+	report, err := corpus.next("core")
+	if err != nil {
+		t.Fatalf("next core: %v", err)
+	}
+	if report.Complete || report.MandatoryComplete {
+		t.Fatalf("next core complete %v mandatory complete %v, want the bare row owed",
+			report.Complete, report.MandatoryComplete)
+	}
+	if got, want := nextOwedRows(t, report), []string{"RFC1-1-2=" + owesZeCode}; !slices.Equal(got, want) {
+		t.Errorf("owed rows %v, want %v", got, want)
+	}
+	if figure := corpus.figures["rfc1"].Mandatory; figure.Attainable != 2 || figure.Excluded[AnnotationNotApplicable] != 0 {
+		t.Errorf("figure %+v, want the bare row among the two rows Ze owes, as next lists it", figure)
+	}
+
+	accepted := nextCorpusOf(rows, verdicts, acceptEveryExclusion{})
+	report, err = accepted.next("core")
+	if err != nil {
+		t.Fatalf("next core, every exclusion accepted: %v", err)
+	}
+	if !report.Complete {
+		t.Errorf("next core lists %v once the row's evidence passes, want nothing owed", nextOwedRows(t, report))
+	}
+	if figure := accepted.figures["rfc1"].Mandatory; figure.Attainable != 1 || figure.Excluded[AnnotationNotApplicable] != 1 {
+		t.Errorf("figure %+v, want the row out of the rows Ze owes, as next leaves it", figure)
 	}
 }

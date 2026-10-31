@@ -189,38 +189,42 @@ type factsRepo struct {
 // they were extracted from, the MUST-level ones, and the MUST-level ones an
 // enrolled RFC makes `./le rfc check` gate.
 //
-// Proven, GatedImplemented, Implemented, NotWalked, Inspected and ProvenPercent are the
-// published proof share, and every one of them is a field of the ProvenShare
-// `internal/le/rfc.ProvenShareOf` returns. Nothing here computes a numerator or
-// a denominator of its own: the home page, /quality/health/ and
-// /quality/rfc-compliance/ answer one question with one number because all
-// three read that producer (owner directive, 2026-09-01).
+// Proven, MustKept, Implemented, NotWalked, Inspected and ProvenPercent are the
+// published section counts, and every one of them is a field of, or the
+// percentage rendered by, the ImplementedSections
+// `internal/le/rfc.ImplementedSectionsOf` returns: Ze proven over the MUST rows
+// Ze and the OS owe (Ze proven, OS verified, OS testing gap and Ze correctness
+// gap) in the walked RFCs Ze implements. Nothing here computes a numerator or a
+// denominator of its own: the home page and /quality/health/ answer one
+// question with one number because both read that producer, and
+// /quality/rfc-compliance/ draws the same per-RFC sections (owner directive,
+// 2026-09-01).
 //
 // Every figure here is printed EXACTLY, with no rounding, because `./le rfc
 // check` compares the same numbers. A rounded figure would put the site out of
 // agreement with its own gate.
 type factsRFC struct {
-	Enrolled                int    `json:"enrolled"`
-	EnrolledDisplay         string `json:"enrolled_display"`
-	GatedImplemented        int    `json:"gated_implemented"`
-	GatedImplementedDisplay string `json:"gated_implemented_display"`
-	GatedMust               int    `json:"gated_must"`
-	GatedMustDisplay        string `json:"gated_must_display"`
-	Implemented             int    `json:"implemented"`
-	ImplementedDisplay      string `json:"implemented_display"`
-	Inspected               int    `json:"inspected"`
-	InspectedDisplay        string `json:"inspected_display"`
-	Must                    int    `json:"must"`
-	MustDisplay             string `json:"must_display"`
-	NotWalked               int    `json:"not_walked"`
-	NotWalkedDisplay        string `json:"not_walked_display"`
-	Proven                  int    `json:"proven"`
-	ProvenDisplay           string `json:"proven_display"`
-	ProvenPercent           string `json:"proven_percent"`
-	Requirements            int    `json:"requirements"`
-	RequirementsDisplay     string `json:"requirements_display"`
-	Summaries               int    `json:"summaries"`
-	SummariesDisplay        string `json:"summaries_display"`
+	Enrolled            int    `json:"enrolled"`
+	EnrolledDisplay     string `json:"enrolled_display"`
+	GatedMust           int    `json:"gated_must"`
+	GatedMustDisplay    string `json:"gated_must_display"`
+	Implemented         int    `json:"implemented"`
+	ImplementedDisplay  string `json:"implemented_display"`
+	Inspected           int    `json:"inspected"`
+	InspectedDisplay    string `json:"inspected_display"`
+	Must                int    `json:"must"`
+	MustDisplay         string `json:"must_display"`
+	MustKept            int    `json:"must_kept"`
+	MustKeptDisplay     string `json:"must_kept_display"`
+	NotWalked           int    `json:"not_walked"`
+	NotWalkedDisplay    string `json:"not_walked_display"`
+	Proven              int    `json:"proven"`
+	ProvenDisplay       string `json:"proven_display"`
+	ProvenPercent       string `json:"proven_percent"`
+	Requirements        int    `json:"requirements"`
+	RequirementsDisplay string `json:"requirements_display"`
+	Summaries           int    `json:"summaries"`
+	SummariesDisplay    string `json:"summaries_display"`
 }
 
 // factsTests counts the four test populations the homepage proof strip shows.
@@ -505,15 +509,14 @@ func jsonInt(value any) (int, bool) {
 // rather than parsed back out of the generated text (ai/rules/evidence.md: read
 // the producer).
 //
-// The proof share is not counted here at all. rfc.ProvenShareOf answers it, and
-// its GatedInspected is what GatedMust states: the count this function walked
+// The section counts are not computed here at all. rfc.ImplementedSectionsOf
+// answers them, and its MustInspected is what GatedMust states: the count this function walked
 // the requirements for until 2026-09-02 was a second declaration of the same
 // fact, and two counters over one population are a future disagreement with
 // nothing to arbitrate it (ai/rules/principles.md).
 //
-// The share is summed from rfc.StemFiguresOf, the verified-record figures, on
-// all three surfaces, so none of them can answer a different number from the
-// other two.
+// The sections are summed from rfc.StemFiguresOf, the verified-record figures,
+// on every surface that states them, so none can answer a different number.
 func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	collected, err := liveRFCLedger(repository)
 	if err != nil {
@@ -526,7 +529,7 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	if err != nil {
 		return err
 	}
-	share, err := rfc.ProvenShareOf(collected.Metas, figures)
+	sections, err := rfc.ImplementedSectionsOf(collected.Metas, figures)
 	if err != nil {
 		return err
 	}
@@ -540,20 +543,20 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	facts.RFC.Requirements = len(collected.Requirements)
 	facts.RFC.Summaries = len(summaries)
 	facts.RFC.Enrolled = len(collected.Enrolled)
-	facts.RFC.GatedMust = share.GatedInspected
-	facts.RFC.Inspected = share.Inspected
-	facts.RFC.Implemented = share.RFCs
-	facts.RFC.NotWalked = share.NotWalked
-	facts.RFC.GatedImplemented = share.Gated
-	facts.RFC.Proven = share.Proven
-	facts.RFC.ProvenPercent = share.Percent()
+	facts.RFC.GatedMust = sections.MustInspected
+	facts.RFC.Inspected = sections.Inspected
+	facts.RFC.Implemented = sections.RFCs
+	facts.RFC.NotWalked = sections.NotWalked
+	facts.RFC.MustKept = sections.Sections.Must.Kept
+	facts.RFC.Proven = sections.Sections.Must.ZeProven
+	facts.RFC.ProvenPercent = sections.ProvenPercent()
 
 	facts.RFC.EnrolledDisplay = groupThousands(facts.RFC.Enrolled)
-	facts.RFC.GatedImplementedDisplay = groupThousands(facts.RFC.GatedImplemented)
 	facts.RFC.GatedMustDisplay = groupThousands(facts.RFC.GatedMust)
 	facts.RFC.ImplementedDisplay = groupThousands(facts.RFC.Implemented)
 	facts.RFC.InspectedDisplay = groupThousands(facts.RFC.Inspected)
 	facts.RFC.MustDisplay = groupThousands(facts.RFC.Must)
+	facts.RFC.MustKeptDisplay = groupThousands(facts.RFC.MustKept)
 	facts.RFC.NotWalkedDisplay = groupThousands(facts.RFC.NotWalked)
 	facts.RFC.ProvenDisplay = groupThousands(facts.RFC.Proven)
 	facts.RFC.RequirementsDisplay = groupThousands(facts.RFC.Requirements)
@@ -565,8 +568,8 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	// machine-readable data, which is worse than a stale comment
 	// (independent review; ai/rules/principles.md).
 	facts.Sources["rfc"] = "internal/le/rfc.Collect, over rfc/short/*.md"
-	facts.Sources["rfc.proven"] = "internal/le/rfc.ProvenShareOf, the one producer of the " +
-		"published proof share"
+	facts.Sources["rfc.proven"] = "internal/le/rfc.ImplementedSectionsOf, the one producer of " +
+		"Ze proven over the MUST rows Ze and the OS owe in walked RFCs Ze implements"
 	return nil
 }
 

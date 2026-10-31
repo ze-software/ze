@@ -58,27 +58,30 @@ func checkLinuxLimit(tree string, requirements []Requirement) ([]Finding, []Linu
 			}
 			continue
 		}
-		issue := problem
-		if issue == "" {
-			index := -1
-			for j := range entries {
-				if entries[j].ID == req.Annotation.LimitID {
-					index = j
-					break
-				}
-			}
-			if index < 0 {
-				issue = "has no entry " + req.Annotation.LimitID + "; name an existing verified kernel blocks entry or keep {gap}"
-			} else {
-				issue = linuxLimitEntryRefusal(&entries[index], req.RID, kernel)
-			}
-		}
-		if issue != "" {
+		if issue := linuxLimitIssue(req, entries, kernel, problem); issue != "" {
 			message := requirementWhere(*req) + ": " + req.RID + " {linux-limit: " + req.Annotation.LimitID + "} in " + linuxLimitRegisterRel + ": " + issue
 			findings = append(findings, requirementFinding(*req, issue, message))
 		}
 	}
 	return findings, candidates
+}
+
+// linuxLimitIssue answers what a {linux-limit} row's register entry lacks, or
+// "" when the entry is a verified kernel limit at the shipped kernel that
+// names the row. checkLinuxLimit refuses a row by it, and the figures keep a
+// row it refuses among the rows Ze owes ((*evidenceReader).notOwedGap), so the
+// check and the published count read one rule. problem is the register's own
+// read or parse failure, which refuses every row.
+func linuxLimitIssue(req *Requirement, entries []linuxlimit.Entry, kernel, problem string) string {
+	if problem != "" {
+		return problem
+	}
+	for j := range entries {
+		if entries[j].ID == req.Annotation.LimitID {
+			return linuxLimitEntryRefusal(&entries[j], req.RID, kernel)
+		}
+	}
+	return "has no entry " + req.Annotation.LimitID + "; name an existing verified kernel blocks entry or keep {gap}"
 }
 
 // readLinuxLimitRegister returns the textual entries and shipped kernel pin.

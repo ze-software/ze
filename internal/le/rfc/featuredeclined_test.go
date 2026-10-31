@@ -158,14 +158,17 @@ func TestAFeatureDeclinedAnnotationCannotDisplaceAGap(t *testing.T) {
 }
 
 // TestAFeatureDeclinedRequirementIsAnnotatedAndNotProven runs the same corpus
-// twice, once with the annotation and once without it, and demands the
-// published share be identical.
+// twice, once with the annotation and once without it, and demands that the
+// annotation move the row out of the MUST rows owed and never into Ze proven.
 //
 // The obligation's condition is false, so nothing is owed and nothing is
-// proven: it belongs in the denominator both times and in the numerator neither
-// time. Annotating a row may not move the published percentage by a point,
-// which is what would happen if the kind's declared traits let a verified
-// record prove it. The annotated corpus carries a record on that row to show it does not.
+// proven: the row leaves the MUST rows Ze and the OS owe and is counted not
+// owed, under its kind, and Ze proven stays where it was. A verified record on
+// the row may not raise Ze proven by one, which is what would happen if the
+// kind's declared traits let a record prove it. The annotated corpus carries a
+// record on that row to show it does not. The row leaves only because its
+// quote passes the exclusion evidence check: a third corpus, whose quote the
+// RFC text does not hold, keeps the row owed as a Ze gap.
 func TestAFeatureDeclinedRequirementIsAnnotatedAndNotProven(t *testing.T) {
 	metas := map[string]Meta{"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true}}
 	tags := []Tag{
@@ -176,12 +179,16 @@ func TestAFeatureDeclinedRequirementIsAnnotatedAndNotProven(t *testing.T) {
 		{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust},
 		{RFC: "rfc1", RID: "RFC1-1-2", Level: levelMust},
 	}
-	annotated := []Requirement{
+	unevidenced := []Requirement{
 		{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust},
 		{RFC: "rfc1", RID: "RFC1-1-2", Level: levelMust, Annotation: &Annotation{
 			Kind: AnnotationFeatureDeclined, Quote: featureQuote,
 			Producer: featureProducer, Reason: featureReason,
 		}},
+	}
+	annotated := []Requirement{
+		{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust},
+		evidencedFeatureDeclined(t, "RFC1-1-2"),
 	}
 
 	rows := CoverageRows(annotated, tags, nil)
@@ -200,21 +207,39 @@ func TestAFeatureDeclinedRequirementIsAnnotatedAndNotProven(t *testing.T) {
 		t.Errorf("Gated = %d, want 2: the annotation does not leave the population", row.Gated)
 	}
 
-	before, err := shareOver(t, metas, bare, map[string]bool{"rfc1": true}, map[string]bool{"RFC1-1-1": true})
+	before, err := sectionsOver(t, metas, bare, map[string]bool{"rfc1": true}, map[string]bool{"RFC1-1-1": true})
 	if err != nil {
-		t.Fatalf("ProvenShareOf over the bare corpus: %v", err)
+		t.Fatalf("ImplementedSectionsOf over the bare corpus: %v", err)
 	}
-	after, err := shareOver(t, metas, annotated, map[string]bool{"rfc1": true}, map[string]bool{"RFC1-1-1": true, "RFC1-1-2": true})
+	after, err := sectionsOver(t, metas, annotated, map[string]bool{"rfc1": true}, map[string]bool{"RFC1-1-1": true, "RFC1-1-2": true})
 	if err != nil {
-		t.Fatalf("ProvenShareOf over the annotated corpus: %v", err)
+		t.Fatalf("ImplementedSectionsOf over the annotated corpus: %v", err)
 	}
-	if after != before {
-		t.Errorf("the published share moved when a requirement gained {feature-declined}: %+v, was %+v",
-			after, before)
+	if after.Sections.Must.ZeProven != before.Sections.Must.ZeProven {
+		t.Errorf("Ze proven moved when a requirement gained {feature-declined}: %d, was %d",
+			after.Sections.Must.ZeProven, before.Sections.Must.ZeProven)
 	}
-	if after.Proven != 1 || after.Gated != 2 {
-		t.Errorf("Proven=%d Gated=%d, want 1 of 2: a declined feature is not proven by ze",
-			after.Proven, after.Gated)
+	must := after.Sections.Must
+	if must.ZeProven != 1 || must.Kept != 1 || must.Total != 2 {
+		t.Errorf("Ze proven=%d Kept=%d Total=%d, want 1 of 1 kept of 2: a declined feature is not proven by ze",
+			must.ZeProven, must.Kept, must.Total)
+	}
+	if must.NotOwed != 1 || must.NotOwedByKind[AnnotationFeatureDeclined] != 1 {
+		t.Errorf("not owed=%d by kind %v, want RFC1-1-2 alone, as feature declined", must.NotOwed, must.NotOwedByKind)
+	}
+	if before.Sections.Must.Kept != 2 || before.Sections.Must.ZeGap != 1 {
+		t.Errorf("bare Kept=%d Ze gap=%d, want 2 and 1: unannotated, the row is owed and unproven",
+			before.Sections.Must.Kept, before.Sections.Must.ZeGap)
+	}
+	// A quote the RFC text does not hold is no evidence, so the row stays owed:
+	// the sections equal the bare corpus's, a Ze gap and no row not owed.
+	unproven, err := sectionsOver(t, metas, unevidenced, map[string]bool{"rfc1": true}, map[string]bool{"RFC1-1-1": true, "RFC1-1-2": true})
+	if err != nil {
+		t.Fatalf("ImplementedSectionsOf over the unevidenced corpus: %v", err)
+	}
+	if kept := unproven.Sections.Must; kept.Kept != 2 || kept.ZeGap != 1 || kept.ZeProven != 1 || kept.NotOwed != 0 {
+		t.Errorf("unevidenced Kept=%d Ze gap=%d Ze proven=%d not owed=%d, want 2, 1, 1 and 0: a {feature-declined} "+
+			"whose quote the RFC does not hold leaves no row", kept.Kept, kept.ZeGap, kept.ZeProven, kept.NotOwed)
 	}
 }
 

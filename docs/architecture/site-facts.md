@@ -183,8 +183,13 @@ everywhere in prose.
 
 ## RFC completion data
 
-RFC completion figures are not in `data/site-facts.json`. The build publishes
-them under `data/rfc/`, one file per RFC, so a change to one RFC republishes
+RFC completion figures are not in `data/site-facts.json`, with one exception:
+the home page card's `rfc.proven`, `rfc.must_kept`, `rfc.proven_percent`,
+`rfc.implemented` and `rfc.not_walked` (each with its `_display` form), which
+`factsFromRFCLedger` reads from `rfc.ImplementedSectionsOf`
+(`internal/le/rfc/implemented.go`): Ze proven over the MUST rows Ze and the OS
+owe, summed over the walked RFCs Ze implements. The build publishes the
+per-RFC figures under `data/rfc/`, one file per RFC, so a change to one RFC republishes
 that file and no page. Every count is read from `rfc.StemFiguresOf`
 (`internal/le/rfc/profilecoverage.go`); `rfcStemDataOf` only splits its fields
 into the two bars' segments, and refuses by stem any figures whose split does

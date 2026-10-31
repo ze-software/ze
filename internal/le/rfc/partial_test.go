@@ -173,12 +173,12 @@ func TestPartialNeverMovesWholeProofNumerator(t *testing.T) {
 		t.Fatal(err)
 	}
 	walkedStems, provenRIDs := corpusProof(t, root, collected)
-	share, err := shareOver(t, collected.Metas, collected.Requirements, walkedStems, provenRIDs)
+	sections, err := sectionsOverTree(t, root, collected.Metas, collected.Requirements, walkedStems, provenRIDs)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if share.Proven != 0 || share.Gated != 1 {
-		t.Fatalf("whole credit: %+v", share)
+	if sections.Sections.Must.ZeProven != 0 || sections.Sections.Must.Kept != 1 {
+		t.Fatalf("whole credit: %+v", sections.Sections.Must)
 	}
 	audits := map[string]Audit{selftestStem: {Verdicts: map[string]any{req.RID: map[string]any{"verdict": VerdictEnforced}}}}
 	rows, work := auditCoverageRows(auditCoverageInput{Requirements: []Requirement{req}, Tags: tags, Enrolled: map[string]bool{selftestStem: true}, Audits: audits})

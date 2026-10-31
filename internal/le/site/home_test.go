@@ -80,7 +80,7 @@ const publishedFactsSnapshot = `{
                "routing": 9, "secure": 6, "services": 9}},
   "interop": {"target_display": "9"},
   "rfc": {"enrolled_display": "171", "gated_must_display": "2,972",
-          "gated_implemented_display": "2,966", "implemented_display": "140",
+          "must_kept_display": "2,966", "implemented_display": "140",
           "inspected_display": "171", "not_walked_display": "31",
           "proven_display": "1,609", "proven_percent": "54.2"},
   "tests": {"e2e_display": "1,700+", "fuzz_display": "78", "unit_display": "23,700+"}
@@ -295,7 +295,7 @@ func TestTheHomepageProofStripCarriesItsStatSpans(t *testing.T) {
 		`<span data-ze-stat="tests.fuzz_display">78</span>`,
 		`<span data-ze-stat="interop.target_display">9</span>`,
 		`<span data-ze-stat="rfc.proven_display">1,609</span>`,
-		`<span data-ze-stat="rfc.gated_implemented_display">2,966</span>`,
+		`<span data-ze-stat="rfc.must_kept_display">2,966</span>`,
 		`<span data-ze-stat="rfc.proven_percent">54.2</span>`,
 		`<span data-ze-stat="rfc.implemented_display">140</span>`,
 		`<span data-ze-stat="rfc.not_walked_display">31</span>`,
@@ -322,7 +322,7 @@ func TestAFactTheSnapshotLostStopsTheHomepage(t *testing.T) {
 	writeArtifactFile(t, paths.Output, factsFile,
 		`{"interop":{"target_display":"9"},
 		  "rfc":{"enrolled_display":"171","gated_must_display":"2,972",
-		         "gated_implemented_display":"2,966","implemented_display":"140",
+		         "must_kept_display":"2,966","implemented_display":"140",
 		         "inspected_display":"171","not_walked_display":"31","proven_percent":"54.2"},
 		  "tests":{"e2e_display":"1,700+","fuzz_display":"78","unit_display":"23,700+"}}`)
 	_, err := renderHome(paths)

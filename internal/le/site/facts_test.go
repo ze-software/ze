@@ -165,9 +165,9 @@ func stubGitHubStars(t *testing.T, stars int, failure error) {
 // MUST-level ones under an enrolled RFC, one MUST-level one under an RFC that
 // is not enrolled, and one advisory row that is neither.
 //
-// The Meta table is what rfc.ProvenShareOf reads, so the fixture declares one:
+// The Meta table is what rfc.ImplementedSectionsOf reads, so the fixture declares one:
 // enrolment alone does not say whether Ze implements a document, and a ledger
-// with no public row anywhere is refused rather than published as a share over
+// with no public row anywhere is refused rather than published as sections over
 // an empty population.
 func fixtureRFCLedger() rfc.Collected {
 	return rfc.Collected{
@@ -1119,5 +1119,44 @@ func TestTheLabISOSizeFallsBackUntilAReleaseCarriesOne(t *testing.T) {
 
 	if _, err := snapshotOf(t, twoISOs); err == nil || !strings.Contains(err.Error(), "two .iso assets") {
 		t.Errorf("a release with two ISOs was not refused (%v)", err)
+	}
+}
+
+// TestTheHomeCardStatesZeProvenOverTheRowsOwed checks the home page RFC card:
+// Ze proven over the MUST rows Ze and the OS owe (Ze proven, OS verified, OS
+// testing gap, Ze correctness gap) in the walked RFCs Ze implements.
+//
+// The method states one walked RFC whose five MUST rows land in four sections:
+// two Ze proven, one Ze gap, one performed by the OS with a verified test, one
+// not applicable. The card must read 2 of 4 (50.0%): the not-applicable row is
+// on neither side, and the OS row is owed and not Ze proven. Over every row it
+// would read 2 of 5 (40.0%), and with the OS row counted proven 3 of 4.
+func TestTheHomeCardStatesZeProvenOverTheRowsOwed(t *testing.T) {
+	stubRFCLedger(t, fixtureRFCLedger())
+	liveStemFigures = func(string, rfc.Collected) (map[string]rfc.StemFigures, error) {
+		return map[string]rfc.StemFigures{
+			"rfc4271": {Stem: "rfc4271", Walked: true, OSVerified: 1, Mandatory: rfc.Figure{Total: 5,
+				Attainable: 3, Proven: 2, Excluded: map[string]int{rfc.AnnotationLowerLayer: 1,
+					rfc.AnnotationNotApplicable: 1}}},
+			"rfc7606": {Stem: "rfc7606", Walked: true},
+			"rfc9999": {Stem: "rfc9999"},
+			"rfc8654": {Stem: "rfc8654"},
+		}, nil
+	}
+	facts := siteFacts{Sources: map[string]string{}}
+	if err := factsFromRFCLedger(t.TempDir(), &facts); err != nil {
+		t.Fatalf("factsFromRFCLedger: %v", err)
+	}
+	card := facts.RFC
+	if card.Proven != 2 || card.MustKept != 4 || card.ProvenPercent != "50.0" {
+		t.Errorf("home card = %d of %d (%s%%), want 2 of 4 (50.0%%): Ze proven over the MUST rows Ze and the OS owe",
+			card.Proven, card.MustKept, card.ProvenPercent)
+	}
+	if card.MustKeptDisplay != "4" || card.Implemented != 2 || card.NotWalked != 0 {
+		t.Errorf("display %q, implemented %d, not walked %d, want \"4\", 2 and 0",
+			card.MustKeptDisplay, card.Implemented, card.NotWalked)
+	}
+	if source := facts.Sources["rfc.proven"]; !strings.Contains(source, "rfc.ImplementedSectionsOf") {
+		t.Errorf("rfc.proven source %q does not name its producer", source)
 	}
 }

@@ -3,8 +3,9 @@
 // collect_rfc.go answers Q2 for the RFC ledger: how much of what Ze implements
 // is proven by test, and what the rest of the gated population is.
 //
-// The share itself is rfc.ProvenShareOf, read rather than computed here, so
-// this page, the site home page and /quality/rfc-compliance/ state one number.
+// The headline count is rfc.ImplementedSectionsOf, read rather than computed
+// here, so this page and the site home page state one number: Ze proven over
+// the MUST rows Ze and the OS owe, the sections /quality/rfc-compliance/ draws.
 // What this file derives is the SPLIT beside it: the ledger's own summary
 // reports "0 outstanding", which is true and reads as 100%, and it merges four
 // different states. This splits them back apart.
@@ -76,22 +77,22 @@ var annotationPatterns = func() []*regexp.Regexp {
 
 // collectRFC answers the proof-density metric and the unproven-RFC metric.
 //
-// Two populations, and the metric names both. The published SHARE comes from
-// rfc.ProvenShareOf and is taken over the RFCs Ze implements. The annotation
+// Two populations, and the metric names both. The published SECTIONS come from
+// rfc.ImplementedSectionsOf and are taken over the RFCs Ze implements. The annotation
 // split below is taken over the ENROLLED coverage rows, which is the set `le
 // rfc check` actually gates. The un-enrolled remainder is not hidden -- the
 // generated ledger states it and lists every one of those rows -- it simply
 // is not part of the partition asserted below, because nothing obliges it to be
 // proven or annotated yet.
 //
-// The share was `both / gated`, summed from the rendered rollup's own columns,
+// The headline was `both / gated`, summed from the rendered rollup's own columns,
 // until 2026-09-02, and that one answered 43.2% where /quality/rfc-compliance/
 // answered 58.1% for the same question. The rest of this file kept parsing the
 // render until the model replaced it here: a number read back out of a
 // generated artifact is a second declaration of a fact, and the two
 // declarations diverge in silence (ai/rules/principles.md).
 //
-// One walk of the tree feeds both halves. rfc.Collect is what the share is
+// One walk of the tree feeds both halves. rfc.Collect is what the sections are
 // taken over and what the rollup rows are derived from, so the two populations
 // on this page cannot come from two readings of the corpus.
 func collectRFC(t *tree, floors qualityFloors) (Metric, Metric, error) {
@@ -203,43 +204,44 @@ func rfcMetrics(t *tree, collected rfc.Collected, floors qualityFloors) (Metric,
 			both, onePolarity, annotated, noTest, gated)
 	}
 
-	// The published share is derived LAST, after the two guards above have
+	// The published sections are derived LAST, after the two guards above have
 	// judged the corpus it is taken over. Taken first, it refused an empty
 	// enrolled population on its own terms, with an answer about public rows
 	// and implementation kinds for a corpus whose real fault is that it
 	// carries no enrolled RFC at all. A guard sitting behind another guard's message
 	// cannot be reached, and cannot be driven by a case either
 	// (ai/rules/evidence.md).
-	share, err := provenShare(t.root, collected)
+	sections, err := implementedSections(t.root, collected)
 	if err != nil {
 		return Metric{}, Metric{}, err
 	}
 
 	unproven := unprovenRows(rows)
-	density := ratio(share.Proven, share.Gated)
+	density := ratio(sections.Sections.Must.ZeProven, sections.Sections.Must.Kept)
 
-	return densityMetric(rows, unproven, kinds, density, floors, share,
+	return densityMetric(rows, unproven, kinds, density, floors, &sections,
 			rfcTotals{both: both, gated: gated, annotated: annotated, noTest: noTest}),
 		unprovenMetric(rows, unproven), nil
 }
 
-// provenShare answers the published proof share over one collected corpus.
+// implementedSections answers the published section counts over one collected
+// corpus.
 //
-// The share is summed from rfc.StemFiguresOf, the verified-record figures
+// The sections are summed from rfc.StemFiguresOf, the verified-record figures
 // `./le rfc tree` prints, so a row counts as proven only where a recorded
-// break still verifies against this tree. The site's home page and its RFC
-// compliance report read the same two functions, so the three surfaces cannot
-// answer different numbers.
-func provenShare(root string, collected rfc.Collected) (rfc.ProvenShare, error) {
+// break still verifies against this tree. The site's home page reads the same
+// two functions, and its RFC compliance report the same per-RFC sections, so
+// the surfaces cannot answer different numbers.
+func implementedSections(root string, collected rfc.Collected) (rfc.ImplementedSections, error) {
 	input, err := rfc.NewRenderInput(root, collected, nil, nil)
 	if err != nil {
-		return rfc.ProvenShare{}, err
+		return rfc.ImplementedSections{}, err
 	}
 	figures, err := rfc.StemFiguresOf(&input)
 	if err != nil {
-		return rfc.ProvenShare{}, err
+		return rfc.ImplementedSections{}, err
 	}
-	return rfc.ProvenShareOf(collected.Metas, figures)
+	return rfc.ImplementedSectionsOf(collected.Metas, figures)
 }
 
 // modelRows answers one coverage row per RFC from the requirement model.
@@ -417,27 +419,31 @@ type rfcTotals struct {
 // The percentage is the producer's own rendering rather than one this file
 // formats, so the number here and the number the site publishes are the same
 // string. The detail names the population under every count it states: the
-// share is over the RFCs Ze implements, and the annotation split beside it is
+// sections are over the RFCs Ze implements, and the annotation split beside it is
 // over every enrolled RFC, which is the wider set the gate holds.
 func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density object,
-	floors qualityFloors, share rfc.ProvenShare, totals rfcTotals,
+	floors qualityFloors, sections *rfc.ImplementedSections, totals rfcTotals,
 ) Metric {
+	must := &sections.Sections.Must
 	both, gated, noTest := totals.both, totals.gated, totals.noTest
 	var tb textbuf.Buffer
-	detail := tb.Str(share.Percent()).
-		Str("% of the ").Int(int64(share.Gated)).
-		Str(" gated MUSTs of the walked RFCs ze implements are proven by a recorded break: a " +
-			"discrimination record that still verifies against this tree. ").
-		Int(int64(share.NotWalked)).Str(" of the ").Int(int64(share.RFCs)).
+	detail := tb.Str(sections.ProvenPercent()).
+		Str("% of the ").Int(int64(must.Kept)).
+		Str(" MUST rows ze and the OS owe in the walked RFCs ze implements are proven by ze with a recorded break: a " +
+			"discrimination record that still verifies against this tree. Of the rest, ").
+		Int(int64(must.OSVerified)).Str(" are performed by the OS with a verified test, ").
+		Int(int64(must.OSGap)).Str(" by the OS with no verified test yet, and ").
+		Int(int64(must.ZeGap)).Str(" are owed by ze and not proven. ").
+		Int(int64(must.NotOwed)).Str(" further MUST rows are not owed (not applicable, declined, OS blocked) " +
+		"and are in neither count. ").
+		Int(int64(sections.NotWalked)).Str(" of the ").Int(int64(sections.RFCs)).
 		Str(" RFCs ze implements are not walked yet: their requirement lists are unbounded, so " +
-			"they are left out of both counts rather than measured. The gate holds a wider set -- ").Int(int64(share.GatedInspected)).
-		Str(" gated MUSTs across ").Int(int64(share.Inspected)).
+			"they are left out of every count rather than measured. The gate holds a wider set -- ").Int(int64(sections.MustInspected)).
+		Str(" MUST rows across ").Int(int64(sections.Inspected)).
 		Str(" enrolled RFCs -- and of the ").Int(int64(gated - both)).
 		Str(" of those not proven in both polarities: ").
 		Int(int64(kinds.get(rfc.AnnotationNotApplicable))).
-		Str(" not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 " +
-			"presumes most of these need re-homing, so they stay inside the denominator " +
-			"above rather than being subtracted from it), ").
+		Str(" not-applicable (recorded as not binding ze, so counted not owed), ").
 		Int(int64(kinds.get(rfc.AnnotationGap))).
 		Str(" known gap (unimplemented, genuinely untested), ").
 		Int(int64(kinds.get(rfc.AnnotationPartial))).
@@ -448,23 +454,23 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 		Int(int64(kinds.get(rfc.AnnotationLowerLayer))).
 		Str(" met by a layer under ze on state ze installs, which the annotation names with " +
 			"the producer that installs it: those are MET and are not proven by ze, so they " +
-			"count in the denominator above and never in the share, ").
+			"count in the MUST rows owed above and never in ze proven, ").
 		Int(int64(kinds.get(rfc.AnnotationFeatureDeclined))).
 		Str(" conditional on an optional feature ze does not offer, each quoting the RFC " +
-			"sentence that makes it optional: the condition is false, so nothing is owed, ").
+			"sentence that makes it optional: the condition is false, so nothing is owed and the row is counted not owed, ").
 		Int(int64(kinds.get(rfc.AnnotationLinuxLimit))).
-		Str(" blocked by a verified Linux kernel limitation: the obligation still binds and remains " +
-			"unmet, with no proof credit and no denominator reduction, and ").
+		Str(" blocked by a verified Linux kernel limitation: no proof credit, and counted not owed as OS blocked, " +
+			"because ze cannot meet it on Linux, and ").
 		Int(int64(noTest)).
 		Str(" with no test and no annotation at all, which is what `./le rfc check` is red " +
 			"about. Gaps, remaining partial obligations and unexcused rows are work Ze owes; " +
 			"Linux limits separately name the primitive the kernel cannot provide. Apart from every figure above, ").
 		Int(int64(kinds.get(rfc.AnnotationRollup))).
 		Str(" rows carry {rollup}: each derives its state from rows already counted here, " +
-			"and none is in the denominator.").String()
+			"and none is in any count above.").String()
 
 	tb.Reset()
-	value := tb.Int(int64(share.Proven)).Str(" / ").Int(int64(share.Gated)).String()
+	value := tb.Int(int64(must.ZeProven)).Str(" / ").Int(int64(must.Kept)).String()
 
 	worst := make([]any, 0, 10)
 	for index, row := range unproven {

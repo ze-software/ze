@@ -11,6 +11,7 @@
 package rfc
 
 import (
+	"errors"
 	"slices"
 	"strings"
 
@@ -23,13 +24,29 @@ const (
 	registerOptional  = "optional"
 )
 
+// What an uncovered row owes, the JSON value of NextRow.Owes. The two are the
+// two sections of a bar that hold owed work (sectionsOf): a Ze correctness gap
+// (an open row, for SHOULD) and an OS testing gap.
+const (
+	// owesZeCode: Ze's own code owes the behavior, until a verified record
+	// proves it.
+	owesZeCode = "ze-code"
+	// owesOSTest: a layer under Ze performs the behavior, and a test that
+	// checks it on the state Ze installs is owed, until a proving record
+	// breaks the producer the {lower-layer} annotation names.
+	owesOSTest = "os-test"
+)
+
 // NextRow is one uncovered requirement row.
 type NextRow struct {
 	ID    string `json:"id"`
 	Level string `json:"level"`
-	// Annotation is the row's coverage annotation, empty for none: a
-	// `{not-applicable}` row stays owed and is never proven (owner ruling,
-	// 2026-09-02), so it is named rather than hidden.
+	// Owes is what the row still needs: owesZeCode or owesOSTest. A row an
+	// annotation leaves out of the owed rows (not applicable, declined, OS
+	// blocked) is never uncovered: it sits in the bar's not-owed section and
+	// blocks nothing (AC-9).
+	Owes string `json:"owes"`
+	// Annotation is the row's coverage annotation, empty for none.
 	Annotation string `json:"annotation"`
 	// UpdatedBy is the updater's requirement id when the row carries
 	// `{updated-by}`, which is what put it at the updater's level.
@@ -42,8 +59,9 @@ type NextGap struct {
 	Title   string `json:"title"`
 	Summary bool   `json:"summary"`
 	Walked  bool   `json:"walked"`
-	// Uncovered is the rows of the register owed and not proven; for an
-	// optional-tier member, the rows of both registers.
+	// Uncovered is the rows of the register that still owe work (rowOwes),
+	// each naming what it owes; for an optional-tier member, the rows of both
+	// registers.
 	Uncovered []NextRow `json:"uncovered"`
 	// Profiles is the judged profiles listing the RFC in the gap's tier, and
 	// Path the declaration that puts it in the first of them.
@@ -132,6 +150,13 @@ func (c *priorityCorpus) next(profile string) (*NextReport, error) {
 	}
 	candidates := c.gapCandidates(scopes, report.Register == registerMandatory)
 	if len(candidates) == 0 {
+		// Complete is read off the mandatory figure, never off an empty
+		// candidate list alone: a register that names nothing while a Ze gap
+		// or an OS testing gap remains would print "nothing is owed" over
+		// owed work.
+		if !report.MandatoryComplete {
+			return nil, nothingNamedRefusal(report)
+		}
 		report.Complete = true
 		return report, nil
 	}
@@ -279,16 +304,32 @@ func (c *priorityCorpus) nextGap(stem string, scopes []profileScope, optional bo
 	return gap
 }
 
-// uncoveredRow answers requirement's row when it is owed and not proven.
+// nothingNamedRefusal is the answer of a mandatory register that names no
+// RFC: a set with no required member measures nothing, and any other set
+// reaching here is a defect in rowOwes, because every cause of an incomplete
+// mandatory figure (an unwalked member, a Ze gap, an OS testing gap) is a
+// candidate.
+func nothingNamedRefusal(report *NextReport) error {
+	var tb textbuf.Buffer
+	tb.Str("rfc next: ").Str(strings.Join(report.Profiles, ", "))
+	if report.Rollup.RFCs == 0 {
+		tb.Str(" has no required member, so nothing is measured and nothing is complete; ").
+			Str("declare one in a summary's `Use cases` row (rfc/short/<stem>.md), then run ./le rfc next again")
+		return errors.New(tb.String())
+	}
+	tb.Str(": the mandatory figure is incomplete (").Str(report.Rollup.String()).
+		Str(") but no row is named as owed, a defect in rowOwes (internal/le/rfc/next.go); ").
+		Str("run ./le rfc tree to see the rows, and report it")
+	return errors.New(tb.String())
+}
+
+// uncoveredRow answers requirement's row when it still owes work.
 func (c *priorityCorpus) uncoveredRow(requirement *Requirement) (NextRow, bool) {
-	owed, met := rowCounts(requirement, c.proven)
+	owes, owed := c.rowOwes(requirement)
 	if !owed {
 		return NextRow{}, false
 	}
-	if met {
-		return NextRow{}, false
-	}
-	row := NextRow{ID: requirement.RID, Level: requirement.Level}
+	row := NextRow{ID: requirement.RID, Level: requirement.Level, Owes: owes}
 	if requirement.Annotation != nil {
 		row.Annotation = requirement.Annotation.Kind
 	}
@@ -298,6 +339,38 @@ func (c *priorityCorpus) uncoveredRow(requirement *Requirement) (NextRow, bool) 
 	return row, true
 }
 
+// rowOwes answers what a row still owes, split the way sectionsOf splits the
+// bars, so a row is uncovered exactly when it sits in a section of owed work:
+//   - a row a layer under Ze performs (osMet) owes a test of that layer on the
+//     state Ze installs until osVerified holds: an OS testing gap, owed work
+//     that is not Ze code (ai/META-DECISIONS.md);
+//   - any other row the figures leave out of the attainable rows owes
+//     nothing: it is in the not-owed section. figureEvidence.excluded decides
+//     it, the one rule the figures use, so a {not-applicable},
+//     {feature-declined} or {linux-limit} row whose evidence fails
+//     (*evidenceReader).notOwedGap stays owed Ze code here as it does there;
+//   - any other counted row owes Ze code until a verified record proves it:
+//     a Ze correctness gap, or an open SHOULD row.
+func (c *priorityCorpus) rowOwes(requirement *Requirement) (string, bool) {
+	counted, met := rowCounts(requirement, c.proven)
+	if !counted {
+		return "", false
+	}
+	if osMet(requirement) {
+		if osVerified(requirement, c.evidence.osProofs) {
+			return "", false
+		}
+		return owesOSTest, true
+	}
+	if c.evidence.excluded(requirement) {
+		return "", false
+	}
+	if met {
+		return "", false
+	}
+	return owesZeCode, true
+}
+
 // Text renders the next gap for a reader at a terminal, then the optional
 // tier under its own rollup.
 func (r *NextReport) Text() string {
@@ -305,9 +378,9 @@ func (r *NextReport) Text() string {
 	tb.Str("next RFC gap for ").Str(strings.Join(r.Profiles, ", ")).Str(": ").Str(r.Rollup.String()).Byte('\n')
 	switch {
 	case r.Complete:
-		tb.Str("every mandatory and optional row of the required members is proven: nothing is owed\n")
+		tb.Str("every mandatory and optional row the required members owe is Ze proven or OS verified: nothing is owed\n")
 	case r.MandatoryComplete:
-		tb.Str("mandatory is complete: every mandatory row is proven, so the next gap is optional\n")
+		tb.Str("mandatory is complete: every owed mandatory row is Ze proven or OS verified, so the next gap is optional\n")
 	}
 	if !r.Complete {
 		tb.Str(r.Register).Str(" gap at ").Str(levelCell(r.Level))
@@ -340,22 +413,42 @@ func writeNextGap(tb *textbuf.Buffer, gap *NextGap) {
 		tb.Str("      not walked: no valid extraction sign-off, run ./le rfc extraction create stem ").
 			Str(gap.Stem).Byte('\n')
 	}
-	if len(gap.Uncovered) != 0 {
-		tb.Str("      ").Int(int64(len(gap.Uncovered))).Str(" uncovered: ")
-		for index := range gap.Uncovered {
-			if index > 0 {
-				tb.Str(", ")
-			}
-			row := &gap.Uncovered[index]
-			tb.Str(row.ID)
-			if row.Annotation != "" {
-				tb.Str(" {").Str(row.Annotation).Byte('}')
-			}
-			if row.UpdatedBy != "" {
-				tb.Str(" (updated by ").Str(row.UpdatedBy).Byte(')')
-			}
-		}
-		tb.Byte('\n')
-	}
+	writeNextRows(tb, gap.Uncovered, owesZeCode, " uncovered: ")
+	writeNextRows(tb, gap.Uncovered, owesOSTest,
+		" OS testing gap, a test of the OS behavior on the state Ze installs is owed: ")
 	tb.Str("      serves ").Str(strings.Join(gap.Profiles, ", ")).Str("; via ").Str(gap.Path).Byte('\n')
+}
+
+// writeNextRows renders, under label, the rows of one gap that owe owes, and
+// nothing when none does.
+func writeNextRows(tb *textbuf.Buffer, rows []NextRow, owes, label string) {
+	count := 0
+	for index := range rows {
+		if rows[index].Owes == owes {
+			count++
+		}
+	}
+	if count == 0 {
+		return
+	}
+	tb.Str("      ").Int(int64(count)).Str(label)
+	written := 0
+	for index := range rows {
+		row := &rows[index]
+		if row.Owes != owes {
+			continue
+		}
+		if written > 0 {
+			tb.Str(", ")
+		}
+		written++
+		tb.Str(row.ID)
+		if row.Annotation != "" {
+			tb.Str(" {").Str(row.Annotation).Byte('}')
+		}
+		if row.UpdatedBy != "" {
+			tb.Str(" (updated by ").Str(row.UpdatedBy).Byte(')')
+		}
+	}
+	tb.Byte('\n')
 }

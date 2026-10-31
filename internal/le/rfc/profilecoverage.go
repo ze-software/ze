@@ -65,7 +65,7 @@ func (f *Figure) add(other Figure) {
 func (f Figure) String() string {
 	var tb textbuf.Buffer
 	if f.Total == 0 {
-		return "no rows"
+		return noRowsCell
 	}
 	return tb.Int(int64(f.Proven)).Str(" of ").Int(int64(f.Total)).Str(" (").
 		Float(100*float64(f.Proven)/float64(f.Total), 1).Str("%)").String()
@@ -148,6 +148,20 @@ func (s StemFigures) cell(figure Figure) string {
 // The population is every summary file and every declared Meta, so a Meta
 // whose stem lists no file still answers rather than going missing.
 func StemFiguresOf(in *RenderInput) (map[string]StemFigures, error) {
+	return stemFiguresWith(in, figureEvidenceOf(in))
+}
+
+// figureEvidenceOf answers what the figures of a rendered tree read beside its
+// proof set, with the tree's own evidence reader as the exclusion judge. A
+// caller that reads rows beside the figures (priorityCorpusOf) takes this one
+// value, so a row and the figure it sits in are judged by one rule.
+func figureEvidenceOf(in *RenderInput) figureEvidence {
+	return figureEvidence{tags: tagsByRID(in.Tags), carriers: in.Carriers, audits: in.Audits,
+		osProofs: osProofsOf(in.Discrimination), exclusions: newEvidenceReader(in.Tree)}
+}
+
+// stemFiguresWith answers StemFiguresOf over the evidence a caller holds.
+func stemFiguresWith(in *RenderInput, evidence figureEvidence) (map[string]StemFigures, error) {
 	signed, _, err := evaluateExtractions(in.Deriver, in.Requirements)
 	if err != nil {
 		return nil, err
@@ -163,8 +177,6 @@ func StemFiguresOf(in *RenderInput) (map[string]StemFigures, error) {
 	for stem := range in.Metas {
 		stems[stem] = true
 	}
-	evidence := figureEvidence{tags: tagsByRID(in.Tags), carriers: in.Carriers, audits: in.Audits,
-		osProofs: osProofsOf(in.Discrimination)}
 	figures := figuresByStem(in.Requirements, stems, walked, provenRequirements(in.Discrimination), evidence)
 	// Every walked RFC's figures must split into the two bars' sections, so
 	// a rollup or a row can sum and print them (sectionsOf) without a check
@@ -181,6 +193,15 @@ func StemFiguresOf(in *RenderInput) (map[string]StemFigures, error) {
 	return figures, nil
 }
 
+// exclusionJudge answers what a row an annotation says is not owed lacks of
+// the evidence its kind owes, and whether it lacks any. Every figure the
+// tooling publishes is judged by (*evidenceReader).notOwedGap, the check a new
+// row must pass; a unit test of the arithmetic alone may stand in a judge that
+// accepts every row.
+type exclusionJudge interface {
+	notOwedGap(req *Requirement) (string, bool)
+}
+
 // figureEvidence is what the figures read beside the proof set: the tags that
 // say which kind of test covers a row, the carriers that classify those tags,
 // and the audit verdicts that can name a row unmet.
@@ -192,6 +213,10 @@ type figureEvidence struct {
 	// proving record broke, by requirement id, which osVerified holds a
 	// {lower-layer} row's named producer against.
 	osProofs map[string][]string
+	// exclusions judges the evidence of a row an annotation says is not owed
+	// (excluded). It MUST be set whenever a row carries such an annotation:
+	// without it the figures cannot tell an evidenced row from a bare one.
+	exclusions exclusionJudge
 }
 
 // strongestKind answers the strongest evidence kind among the tags covering
@@ -234,6 +259,30 @@ func (e figureEvidence) unmet(requirement *Requirement) bool {
 	return held && auditVerdictUnmet(verdictValue(verdict))
 }
 
+// excluded answers whether a row leaves the rows Ze's own code owes
+// (Attainable). A row whose annotation is no ceiling exclusion stays. A row a
+// layer under Ze performs (osMet) leaves for the OS sections whatever its
+// evidence: those stay in the MUST bar, so the move can only lower the
+// Ze-proven share, never raise it. A row an annotation says is not owed leaves
+// only when its evidence passes the check a new row must pass
+// ((*evidenceReader).notOwedGap); one the exclusion evidence backlog
+// shelters, or whose evidence fails, stays owed as a Ze correctness gap (an
+// open row at SHOULD level), so annotating a row never raises a figure on
+// unchecked evidence (owner ruling, 2026-10-29).
+func (e figureEvidence) excluded(requirement *Requirement) bool {
+	if !ceilingExcluded(requirement) {
+		return false
+	}
+	if osMet(requirement) {
+		return true
+	}
+	if e.exclusions == nil {
+		panic("BUG: figureEvidence holds no evidence reader, so a not-owed row cannot be judged: " + requirement.RID)
+	}
+	_, lacks := e.exclusions.notOwedGap(requirement)
+	return !lacks
+}
+
 // figuresByStem answers both figures for every stem.
 //
 // stems is every summary; a stem with no requirement row still answers, with
@@ -248,8 +297,9 @@ func (e figureEvidence) unmet(requirement *Requirement) bool {
 //     annotation records why the other side has no input, and the row is
 //     proven only when a verified record proves its one side.
 //   - `{not-applicable}`, `{lower-layer}`, `{feature-declined}` and
-//     `{linux-limit}` stay in the denominator and are never proven by Ze,
-//     whatever records their tags carry: annotating a row may not raise its figure.
+//     `{linux-limit}` are never proven by Ze, whatever records their tags
+//     carry. Each leaves the attainable rows only through excluded, so a
+//     not-owed row whose evidence fails its check stays owed.
 //     A `{lower-layer}` row's proving record makes it OS verified instead, at
 //     either level (countOS), a count apart from Ze's proven rows.
 //   - `{gap}` and `{partial}` stay in the denominator and are NEVER proven,
@@ -281,14 +331,15 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 			figures.Unmet = append(figures.Unmet, requirement.RID)
 		}
 		figures.countOS(requirement, evidence.osProofs)
+		excluded := evidence.excluded(requirement)
 		if requirement.Gated() {
-			figures.Mandatory.count(requirement, met)
+			figures.Mandatory.count(requirement, met, excluded)
 			if met {
 				figures.countKind(evidence.strongestKind(requirement.RID))
 			}
 		} else {
-			figures.countIntent(requirement, met)
-			figures.Optional.count(requirement, met)
+			figures.countIntent(requirement, met, excluded)
+			figures.Optional.count(requirement, met, excluded)
 		}
 		out[requirement.RFC] = figures
 	}
@@ -321,11 +372,11 @@ func (s *StemFigures) countOS(requirement *Requirement, proofs map[string][]stri
 // countIntent adds one owed optional row that is not proven and not excluded
 // to NotYet, NotEver or NotDecided by its {intent} marker, and leaves every
 // other row alone.
-func (s *StemFigures) countIntent(requirement *Requirement, met bool) {
+func (s *StemFigures) countIntent(requirement *Requirement, met, excluded bool) {
 	if met {
 		return
 	}
-	if ceilingExcluded(requirement) {
+	if excluded {
 		return
 	}
 	if requirement.Intent == nil {
@@ -398,14 +449,15 @@ func (s *StemFigures) countKind(kind string) {
 	s.MandatoryByKind[kind]++
 }
 
-// count adds one owed row. Only declared ceiling exclusions remove attainable
-// work; gaps and partials remain future work, and unknown kinds get no exemption.
-func (f *Figure) count(requirement *Requirement, proven bool) {
+// count adds one owed row. Only a declared ceiling exclusion the figures accept
+// (figureEvidence.excluded) removes attainable work; gaps and partials remain
+// future work, and unknown kinds get no exemption.
+func (f *Figure) count(requirement *Requirement, proven, excluded bool) {
 	f.Total++
 	if proven {
 		f.Proven++
 	}
-	if ceilingExcluded(requirement) {
+	if excluded {
 		if f.Excluded == nil {
 			f.Excluded = make(map[string]int)
 		}
@@ -478,9 +530,11 @@ func rollupOf(figures map[string]StemFigures, members []string) Rollup {
 	return out
 }
 
-// mandatoryComplete answers whether the set has a member, every mandatory row
-// of it is proven, and no member is unwalked. A set with no member is never
-// complete: 0 of 0 measures nothing (AC-5).
+// mandatoryComplete answers whether the set has a member, no member is
+// unwalked, and its MUST bar holds neither a Ze correctness gap nor an OS
+// testing gap: every MUST row the stack owes is Ze proven or OS verified, and a
+// row not owed blocks nothing (AC-9). A set with no member is never complete:
+// 0 of 0 measures nothing (AC-5).
 func (r Rollup) mandatoryComplete() bool {
 	if r.RFCs == 0 {
 		return false
@@ -488,7 +542,10 @@ func (r Rollup) mandatoryComplete() bool {
 	if r.NotWalked != 0 {
 		return false
 	}
-	return r.Mandatory.Proven == r.Mandatory.Total
+	if r.Sections.Must.ZeGap != 0 {
+		return false
+	}
+	return r.Sections.Must.OSGap == 0
 }
 
 // String renders the rollup's sections with its count of members that add no
@@ -497,7 +554,7 @@ func (r Rollup) mandatoryComplete() bool {
 func (r Rollup) String() string {
 	var tb textbuf.Buffer
 	if r.Sections.Must.Total+r.Sections.Should.Total == 0 {
-		tb.Str("no rows")
+		tb.Str(noRowsCell)
 	} else {
 		tb.Str(r.Sections.String())
 	}

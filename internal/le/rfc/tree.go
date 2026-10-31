@@ -16,6 +16,10 @@ import (
 // tree and the candidates hold such a node; no profile member is one.
 const noSummaryCell = "no summary"
 
+// noRowsCell is the state of a figure that counts no row: 0 of 0 is neither
+// complete nor empty, so no number is printed for it.
+const noRowsCell = "no rows"
+
 // candidatesHeading introduces the candidates, and says why none is owed.
 const candidatesHeading = "candidates, not owed: one builds-on or updates edge from a member, listed in " +
 	"neither tier. A normative citation is never an obligation; a summary's `Use cases` row makes one owed\n"
@@ -398,13 +402,18 @@ func writeScopeRollup(tb *textbuf.Buffer, label string, rollup *ScopeRollup) {
 }
 
 // sectionsCell renders the row's sections, or the state that publishes none:
-// `no summary` or `not walked`.
+// `no summary`, `not walked`, or `no rows` for a walked RFC that counts no
+// MUST and no SHOULD row. A bar of zeros would read as a measurement, so the
+// cell says what the site's rfc-figures.js says for the same RFC.
 func sectionsCell(row *TreeRow) string {
 	if !row.Summary {
 		return noSummaryCell
 	}
 	if row.Sections == nil {
 		return notWalked
+	}
+	if row.Sections.Must.Total+row.Sections.Should.Total == 0 {
+		return noRowsCell
 	}
 	return row.Sections.String()
 }

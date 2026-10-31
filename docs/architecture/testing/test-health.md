@@ -245,16 +245,22 @@ visible in the split but outside its accounting total; every other current
 kind stays in that total. An unknown kind cannot shrink it. These are the same
 traits `rfc.CoverageRows` reads, not a health-specific list of exceptions.
 
-The proof share beside that split is not computed here. `provenShare` renders
-the corpus once and sums `rfc.StemFiguresOf` through `rfc.ProvenShareOf`, the
-same two functions the site's home page and RFC compliance page read. It is
-taken over the RFCs that are enrolled, render a public row and declare an
-Implementation of `ze` or `mixed`, and it counts a row as proven only where a
-discrimination record still verifies on a walked summary. A tag pair no record
-proves adds nothing. Only walked RFCs add to either side of the share, and the
-detail names how many of those RFCs are not walked and left out.
-<!-- source: internal/le/test/health/collect_rfc.go -- annotationCounts.total, provenShare -->
-<!-- source: internal/le/rfc/provenshare.go -- ProvenShareOf, Implements -->
+The headline beside that split is not computed here. `implementedSections`
+renders the corpus once and sums `rfc.StemFiguresOf` through
+`rfc.ImplementedSectionsOf`, the same two functions the site's home page reads;
+the RFC compliance page draws the same per-RFC sections. It is taken over the
+RFCs that are enrolled, render a public row and declare an Implementation of
+`ze` or `mixed`. The density is Ze proven over the MUST rows Ze and the OS owe
+(Ze proven, OS verified, OS testing gap and Ze correctness gap), and it counts a
+row as Ze proven only where a discrimination record still verifies on a walked
+summary. A tag pair no record proves adds nothing. A row not owed (not
+applicable, declined, OS blocked) is on neither side, and the detail states how
+many there are. A row counts not owed only when its evidence passes the
+exclusion evidence check; one lacking it stays owed
+(`docs/contributing/rfc-conformance-gates.md`, "The exclusion evidence ratchet"). Only walked RFCs add to any section, and the detail names how
+many of those RFCs are not walked and left out.
+<!-- source: internal/le/test/health/collect_rfc.go -- annotationCounts.total, implementedSections, densityMetric -->
+<!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, Implements -->
 <!-- source: internal/le/rfc/rfc.go -- AnnotationTraitsOf -->
 
 Linux-limit annotations stay in that denominator and earn no proof credit.

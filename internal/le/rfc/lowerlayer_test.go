@@ -125,14 +125,15 @@ func TestALowerLayerAnnotationCannotDisplaceAGap(t *testing.T) {
 }
 
 // TestALowerLayerRequirementIsAnnotatedAndNotProven runs the same corpus twice,
-// once with the annotation and once without it, and demands the published share
-// be identical.
+// once with the annotation and once without it, and demands the published
+// proven percentage be identical.
 //
 // The requirement is MET, by a layer under Ze, and it is not proven BY ZE. So
-// it belongs in the denominator both times and in the numerator neither time:
-// annotating a row may not move the published percentage by a point, which is
-// what would happen if the kind's declared traits let a verified record prove
-// it. The annotated corpus carries a record on that row to show it does not.
+// it stays in the MUST rows Ze and the OS owe both times, moving from Ze gap to
+// the OS sections, and in Ze proven neither time: annotating a row may not move the
+// published percentage by a point, which is what would happen if the kind's
+// declared traits let a verified record prove it. The annotated corpus carries
+// a record on that row to show it does not.
 func TestALowerLayerRequirementIsAnnotatedAndNotProven(t *testing.T) {
 	metas := map[string]Meta{"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true}}
 	tags := []Tag{
@@ -168,21 +169,28 @@ func TestALowerLayerRequirementIsAnnotatedAndNotProven(t *testing.T) {
 		t.Errorf("Gated = %d, want 2: the annotation does not leave the population", row.Gated)
 	}
 
-	before, err := shareOver(t, metas, bare, map[string]bool{"rfc1": true}, map[string]bool{"RFC1-1-1": true})
+	before, err := sectionsOver(t, metas, bare, map[string]bool{"rfc1": true}, map[string]bool{"RFC1-1-1": true})
 	if err != nil {
-		t.Fatalf("ProvenShareOf over the bare corpus: %v", err)
+		t.Fatalf("ImplementedSectionsOf over the bare corpus: %v", err)
 	}
-	after, err := shareOver(t, metas, annotated, map[string]bool{"rfc1": true}, map[string]bool{"RFC1-1-1": true, "RFC1-1-2": true})
+	after, err := sectionsOver(t, metas, annotated, map[string]bool{"rfc1": true}, map[string]bool{"RFC1-1-1": true, "RFC1-1-2": true})
 	if err != nil {
-		t.Fatalf("ProvenShareOf over the annotated corpus: %v", err)
+		t.Fatalf("ImplementedSectionsOf over the annotated corpus: %v", err)
 	}
-	if after != before {
-		t.Errorf("the published share moved when a requirement gained {lower-layer}: %+v, was %+v",
-			after, before)
+	if after.ProvenPercent() != before.ProvenPercent() {
+		t.Errorf("the published percentage moved when a requirement gained {lower-layer}: %s%%, was %s%%",
+			after.ProvenPercent(), before.ProvenPercent())
 	}
-	if after.Proven != 1 || after.Gated != 2 {
-		t.Errorf("Proven=%d Gated=%d, want 1 of 2: met below Ze is not proven by Ze",
-			after.Proven, after.Gated)
+	must := after.Sections.Must
+	if must.ZeProven != 1 || must.Kept != 2 || before.Sections.Must.Kept != 2 {
+		t.Errorf("Ze proven=%d Kept=%d (bare Kept=%d), want 1 of 2 both times: met below Ze is not proven by Ze",
+			must.ZeProven, must.Kept, before.Sections.Must.Kept)
+	}
+	// The record alone verifies nothing of the OS: no tagged unit of the
+	// layer below stands behind it here, so the row is an OS testing gap.
+	if must.OSGap != 1 || must.OSVerified != 0 || must.ZeGap != 0 || must.NotOwed != 0 {
+		t.Errorf("OS gap=%d OS verified=%d Ze gap=%d not owed=%d, want the row performed by the OS, owed by the stack",
+			must.OSGap, must.OSVerified, must.ZeGap, must.NotOwed)
 	}
 }
 

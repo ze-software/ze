@@ -131,12 +131,16 @@ type rfcLedgerCoverage struct {
 	// demonstrates. Gaps minus this is the gaps described by prose alone.
 	DemonstratedGaps int `json:"demonstrated-gaps"`
 	// NotApplicable counts the gated requirements whose `{not-applicable}`
-	// annotation says the obligation does not bind Ze at all. It is SCOPE, and
-	// it is a NAMED share of the gated population rather than a subtraction
-	// from it: taking it out of the denominator was how annotating an
-	// obligation away raised every ratio above it, and a reader could not see
-	// what had left (owner decision, 2026-09-02).
-	NotApplicable int `json:"out-of-scope"`
+	// annotation says the obligation does not bind Ze at all. It counts the
+	// ANNOTATION, whether or not its evidence passes, so it is never the count
+	// out of scope: the figures leave a row out of the rows Ze owes only once
+	// its evidence passes (rfc.StemFigures, Mandatory.Excluded), and
+	// rfcOutOfScopeValue reads that. It is a NAMED share of the gated
+	// population rather than a subtraction from it: taking it out of the
+	// denominator was how annotating an obligation away raised every ratio
+	// above it, and a reader could not see what had left (owner decision,
+	// 2026-09-02).
+	NotApplicable int `json:"annotated-never-bound"`
 	// SinglePolarity counts the gated requirements a `{single-polarity}`
 	// annotation excuses from one direction. Those DO bind.
 	SinglePolarity int `json:"excused-one-polarity"`
@@ -154,7 +158,7 @@ type rfcLedgerCoverage struct {
 	// NotApplicable has not.
 	//
 	// The JSON key describes the state rather than spelling the annotation
-	// kind, as `out-of-scope` and `met-below` beside it do:
+	// kind, as `annotated-never-bound` and `met-below` beside it do:
 	// TestTheSiteReadsItsRFCVocabularyFromThePackage refuses a closed set's own
 	// word written a second time in this file.
 	FeatureDeclined int `json:"optional-not-offered"`

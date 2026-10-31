@@ -168,8 +168,11 @@ func intentOnGatedRow(req *Requirement, where string) error {
 
 // evaluateIntent refuses an {intent} marker that says nothing true: one on a
 // row a layer under Ze performs (osMet), which the kernel already performs and
-// which counts OS verified or OS gap instead; one on a row its annotation
-// leaves out of the attainable rows (ceilingExcluded), which Ze does not owe;
+// which counts OS verified or OS gap instead; one on a row whose annotation
+// says Ze does not owe it (ceilingExcluded), which contradicts an intent
+// whatever the annotation's evidence: the trait, not figureEvidence.excluded,
+// decides here, because the two declarations disagree on the row's own line
+// even where the figures keep a row with failing evidence owed;
 // or one on a row a proving record covers, whose state is computed and never
 // declared. proven is provenRequirements over the tree's verdicts.
 func evaluateIntent(requirements []Requirement, proven map[string]bool) []Finding {
@@ -188,7 +191,7 @@ func evaluateIntent(requirements []Requirement, proven map[string]bool) []Findin
 			why = "is annotated {" + req.Annotation.Kind + "}: a layer under Ze performs it, so the kernel already performs it and no intent applies"
 			fix += ", or reclassify the row if Ze's own code performs it"
 		case ceilingExcluded(req):
-			why = "is annotated {" + req.Annotation.Kind + "}, which leaves it out of the rows Ze owes, so no intent applies"
+			why = "is annotated {" + req.Annotation.Kind + "}, which says Ze does not owe it, so no intent applies"
 		case proven[req.RID]:
 			why = "is proven by its discrimination record, and proven is computed, never declared"
 		default:

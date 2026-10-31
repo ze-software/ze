@@ -904,7 +904,13 @@ installs, so it is neither proven by Ze nor work Ze owes.
 conditional on a feature the RFC makes optional and Ze does not offer, so its
 condition is false and nothing is owed. That one is counted with
 `{not-applicable}` in the `Out of scope` card, whose note names both kinds and
-what each one says (`docs/contributing/rfc-conformance-gates.md`). The gated count keeps its place below the ratios as
+what each one says (`docs/contributing/rfc-conformance-gates.md`). That card,
+and the `Not applicable, so out of scope` row of the at-a-glance table, count
+only the rows the figures judged excluded (`rfcOutOfScopeValue`, reading
+`rfc.StemFigures` `Mandatory.Excluded`): an annotation whose evidence fails is
+a Ze gap in the figures, so neither surface calls it out of scope. The bucket
+cards beside them still count the annotations, and their notes say which ones
+stay owed. The gated count keeps its place below the ratios as
 the accounting total it is, and the bucket table states it as the sum of the two
 populations. The page led with that count until 2026-09-01, when the owner
 called the arrangement deceptive: a count of obligations judged reads as a count
@@ -1083,14 +1089,20 @@ count may accompany the list and never stands in for it.
 
 For a partial requirement, the proof block states that the records cover only
 scoped tag claims and give zero whole-requirement credit. The compliance index
-publishes no proof share: its sections count the MUST rows of the walked
-enrolled RFCs. The homepage RFC card still states one, from `rfc.ProvenShareOf`
-through the site facts: proven MUSTs of the walked RFCs, then the implemented RFC
-count with its not-walked part. The gated-binding partition still spans every
-implemented RFC, walked or not, so its total exceeds the share's denominator by
-the rows of the unwalked RFCs. Rollup rows belong to neither count.
-These figures come from the native RFC collector, not hand-maintained totals.
-<!-- source: internal/le/rfc/provenshare.go -- ProvenShareOf -->
+publishes no proof percentage: its sections count the MUST rows of the walked
+enrolled RFCs. The homepage RFC card states one, from
+`rfc.ImplementedSectionsOf` through the site facts: the Ze-proven MUST rows over
+the MUST rows Ze and the OS owe (Ze proven, OS verified, OS testing gap and Ze
+correctness gap) in the walked RFCs Ze implements (`rfc.proven_display` of
+`rfc.must_kept_display`), then the implemented RFC count with its not-walked
+part. A row not owed (not applicable, declined, OS blocked) is on neither side,
+and a row counts not owed only when its evidence passes the exclusion evidence
+check (`docs/contributing/rfc-conformance-gates.md`).
+The gated-binding partition still spans every implemented RFC, walked or not,
+and every row in it, so its total exceeds the card's denominator. Rollup rows
+belong to neither count. These figures come from the native RFC collector, not
+hand-maintained totals.
+<!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, ImplementedSections.ProvenPercent -->
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
 The input is `../gh-pages/data/rfc-requirements.json`, derived once per build by

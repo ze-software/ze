@@ -257,7 +257,7 @@ func TestRouteServerProfileExcludesCitationClosure(t *testing.T) {
 // useCaseTiers answers each use-case profile's scope, keyed by name: the two
 // declared tiers `./le rfc tree profile <name>` renders.
 func useCaseTiers(profiles Profiles, metas map[string]Meta) map[string]profileScope {
-	corpus := newPriorityCorpus(graph.Build(nil), profiles, metas, nil, nil, nil)
+	corpus := newPriorityCorpus(graph.Build(nil), profiles, metas, nil, nil, nil, figureEvidence{})
 	out := map[string]profileScope{}
 	for _, scope := range corpus.useCaseScopes(false) {
 		out[scope.name] = scope

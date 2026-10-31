@@ -304,25 +304,52 @@ func TestLinuxLimitCandidatesAreReportedNotApplied(t *testing.T) {
 	}
 }
 
-// TestALinuxLimitRequirementIsAnnotatedAndNotProven holds the share fixed when a gap changes classification.
+// TestALinuxLimitRequirementIsAnnotatedAndNotProven holds Ze proven fixed when a
+// gap changes classification, and moves the row from the MUST rows owed to not
+// owed, under its kind, only while its register entry passes linuxLimitIssue:
+// an unverified entry keeps it owed. A bare companion row keeps the population
+// non-empty once the limit row leaves it.
 func TestALinuxLimitRequirementIsAnnotatedAndNotProven(t *testing.T) {
 	req, err := oneLine(t, linuxLimitFixtureLine)
 	if err != nil {
 		t.Fatal(err)
 	}
 	metas := map[string]Meta{req.RFC: {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true}}
+	companion := Requirement{RFC: req.RFC, RID: req.RID + "-companion", Level: levelMust}
 	before := *req
 	before.Annotation = &Annotation{Kind: AnnotationGap, Reason: "work remains"}
-	gap, err := shareOver(t, metas, []Requirement{before}, map[string]bool{req.RFC: true}, map[string]bool{req.RID: true})
+	walked := map[string]bool{req.RFC: true}
+	proven := map[string]bool{req.RID: true}
+	root := linuxLimitCheckFixture(t, linuxLimitFixtureRegister, linuxLimitFixtureLine)
+	gap, err := sectionsOverTree(t, root, metas, []Requirement{before, companion}, walked, proven)
 	if err != nil {
 		t.Fatal(err)
 	}
-	limit, err := shareOver(t, metas, []Requirement{*req}, map[string]bool{req.RFC: true}, map[string]bool{req.RID: true})
+	limit, err := sectionsOverTree(t, root, metas, []Requirement{*req, companion}, walked, proven)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gap != limit || limit.Proven != 0 || limit.Gated != 1 {
-		t.Fatalf("classification moved share: gap=%+v, limit=%+v", gap, limit)
+	if gap.Sections.Must.ZeProven != 0 || limit.Sections.Must.ZeProven != 0 {
+		t.Fatalf("a verified record proved a gap or linux-limit row: gap=%+v, limit=%+v", gap.Sections.Must, limit.Sections.Must)
+	}
+	if gap.Sections.Must.Kept != 2 || gap.Sections.Must.ZeGap != 2 {
+		t.Fatalf("gap row left the owed rows: %+v", gap.Sections.Must)
+	}
+	if limit.Sections.Must.Kept != 1 || limit.Sections.Must.NotOwed != 1 ||
+		limit.Sections.Must.NotOwedByKind[AnnotationLinuxLimit] != 1 || limit.Sections.Must.Total != 2 {
+		t.Fatalf("linux-limit row not moved to not owed: %+v", limit.Sections.Must)
+	}
+	// A register entry that is not verified is no evidence, so the row stays
+	// owed as a Ze gap, exactly where the {gap} row sat.
+	unverified := linuxLimitCheckFixture(t, strings.Replace(linuxLimitFixtureRegister, "**Status:** verified", "**Status:** unverified", 1),
+		linuxLimitFixtureLine)
+	sheltered, err := sectionsOverTree(t, unverified, metas, []Requirement{*req, companion}, walked, proven)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := sheltered.Sections.Must, gap.Sections.Must; got.Kept != want.Kept || got.ZeGap != want.ZeGap || got.NotOwed != 0 || got.Total != want.Total {
+		t.Fatalf("a linux-limit row whose register entry is unverified left the owed rows: %+v, want the gap row's %+v",
+			sheltered.Sections.Must, gap.Sections.Must)
 	}
 	rows := CoverageRows([]Requirement{*req}, nil, nil)
 	if len(rows) != 1 || rows[0].Annotated != 1 || rows[0].Gated != 1 || rows[0].Both != 0 {

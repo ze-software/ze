@@ -16,8 +16,14 @@ import (
 // The stem is walked and both gated rows carry verified records, so the only
 // thing that differs between subtests is the annotation on RFC9999-2-1: the
 // pair on RFC9999-2-2 is whole credit, and RFC9999-2-1 earns it only when
-// its annotation is single-polarity.
-func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
+// its annotation is single-polarity. RFC9999-2-1 leaves the MUST rows owed
+// only in the one case whose not-applicable evidence passes its check: the
+// bare forms of the other cases stay owed.
+// relayScoping is the scoping sentence of the fixture RFC's section 2 an
+// evidenced not-applicable row quotes.
+const relayScoping = "This section applies only to relay agents."
+
+func TestNoAnnotationExceptSinglePolarityRaisesThePublishedProven(t *testing.T) {
 	forms := map[string]string{
 		rfc.AnnotationGap:             "{gap: native sending absent}",
 		rfc.AnnotationNotApplicable:   "{not-applicable: another role}",
@@ -26,7 +32,24 @@ func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 		rfc.AnnotationFeatureDeclined: `{feature-declined: "A widget MUST be zero when sent and ignored on receipt."; internal/sample/widget.go::SendWidget}`,
 		rfc.AnnotationSinglePolarity:  "{single-polarity: positive; no counter-case}",
 	}
+	// Every kind runs with the form above, whose evidence, where its kind owes
+	// any, does not pass: a bare not-applicable reason, a feature-declined quote
+	// of the row's own obligation, a linux-limit entry no register holds. One
+	// more case carries a not-applicable row's evidence: a scoping sentence of
+	// section 2 binding relay agents, with Ze declared a receiver. Only that
+	// row leaves the MUST rows owed.
+	type publishedCase struct {
+		name, kind, form string
+		leaves           bool
+	}
+	var cases []publishedCase
 	for _, kind := range rfc.AnnotationKinds() {
+		cases = append(cases, publishedCase{name: kind, kind: kind, form: forms[kind]})
+	}
+	cases = append(cases, publishedCase{name: rfc.AnnotationNotApplicable + "/evidenced", kind: rfc.AnnotationNotApplicable,
+		form: `{not-applicable: "` + relayScoping + `"; binds relay agents; ze relays no widget}`, leaves: true})
+	for _, one := range cases {
+		kind := one.kind
 		traits, known := rfc.AnnotationTraitsOf(kind)
 		if !known {
 			t.Fatal(kind)
@@ -34,14 +57,15 @@ func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 		if traits.Rollup {
 			continue
 		} // A derived row carries no obligation of its own.
-		t.Run(kind, func(t *testing.T) {
+		t.Run(one.name, func(t *testing.T) {
 			root, summary, marker := partialPublicationTree(t)
-			form, held := forms[kind]
+			summary = strings.Replace(summary, "| Use cases | - |\n", "| Ze roles | receiver |\n| Use cases | - |\n", 1)
+			form, held := one.form, one.form != ""
 			if kind == rfc.AnnotationPartial {
 				form, held = marker, true
 			}
 			if !held {
-				t.Fatalf("new annotation %s needs a public-share fixture", kind)
+				t.Fatalf("new annotation %s needs a published-sections fixture", kind)
 			}
 			// A real pair remains proven beside the annotated row; an optional
 			// annotated row exercises the second figure without changing public share.
@@ -49,7 +73,7 @@ func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 				"- [ ] [RFC9999-2-3] [MAY] A widget MUST be zero when sent and ignored on receipt. (§2) " + marker + "\n"
 			writePartialPublicationFile(t, root, "rfc/short/rfc9999.md", strings.ReplaceAll(summary, marker, form))
 			writePartialPublicationFile(t, root, "rfc/full/rfc9999.txt", "Test RFC 9999\n\n2.  Widgets\n\n"+
-				"A widget MUST be zero when sent and ignored on receipt.\nA receiver MUST accept a valid widget.\n")
+				"A widget MUST be zero when sent and ignored on receipt.\nA receiver MUST accept a valid widget.\n\n"+relayScoping+"\n")
 			writePartialPublicationFile(t, root, "test/plugin/pair.ci",
 				"# RFC requirement: RFC9999-2-2 positive -- accepts valid widget\n"+
 					"# RFC requirement: RFC9999-2-2 negative -- refuses invalid widget\nexpect=stdout:contains=OK\n")
@@ -108,12 +132,23 @@ func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 			if !figure.Walked || figure.Mandatory.Proven != want || figure.Mandatory.Total != 2 {
 				t.Fatalf("annotation changed the stem figure: %+v", figure)
 			}
-			share, err := rfc.ProvenShareOf(collected.Metas, figures)
+			sections, err := rfc.ImplementedSectionsOf(collected.Metas, figures)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if share.Proven != want || share.Gated != 2 {
-				t.Fatalf("annotation changed public share: %+v", share)
+			// A row leaves the MUST rows owed only when its kind is excluded
+			// from what Ze's code owes, no layer under Ze performs it, and its
+			// evidence passes its check; every other row stays owed.
+			wantKept := 2
+			if one.leaves {
+				wantKept = 1
+			}
+			if one.leaves && (!traits.CeilingExcluded || traits.OSMet) {
+				t.Fatalf("case %s leaves the owed rows, but its kind is not one the sections count not owed", one.name)
+			}
+			if sections.Sections.Must.ZeProven != want || sections.Sections.Must.Kept != wantKept {
+				t.Fatalf("annotation changed the published sections: %+v, want Ze proven %d of %d owed",
+					sections.Sections.Must, want, wantKept)
 			}
 			if len(ledger.Graph.Nodes) != 1 {
 				t.Fatalf("published graph lost the measured RFC: %+v", ledger.Graph)

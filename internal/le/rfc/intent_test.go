@@ -134,7 +134,7 @@ func TestIntentCounts(t *testing.T) {
 	}
 	stems := map[string]bool{"rfc1": true}
 	proven := map[string]bool{"RFC1-1-5": true, "RFC1-1-6": true}
-	figures := figuresByStem(requirements, stems, stems, proven, figureEvidence{})["rfc1"]
+	figures := figuresByStem(requirements, stems, stems, proven, figureEvidence{exclusions: acceptEveryExclusion{}})["rfc1"]
 	if figures.NotYet != 2 || figures.NotEver != 1 || figures.NotDecided != 2 {
 		t.Errorf("NotYet=%d NotEver=%d NotDecided=%d, want 2, 1 and 2", figures.NotYet, figures.NotEver, figures.NotDecided)
 	}

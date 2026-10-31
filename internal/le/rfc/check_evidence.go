@@ -18,6 +18,7 @@ import (
 
 	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/linuxlimit"
 )
 
 // evidenceBacklogRel is the committed count of rows, per counted kind, that
@@ -427,6 +428,13 @@ type evidenceReader struct {
 	vendorRead    bool
 	vendorModules map[string]bool // module paths vendor/modules.txt names
 	vendorRefusal string
+
+	// The linux-limit register, read once for notOwedGap
+	// (readLinuxLimitRegister).
+	limitsRead    bool
+	limitEntries  []linuxlimit.Entry
+	limitKernel   string
+	limitsProblem string
 }
 
 func newEvidenceReader(tree string) *evidenceReader {
@@ -755,6 +763,26 @@ func (reader *evidenceReader) gap(req *Requirement) (string, bool) {
 	default:
 		return "", false
 	}
+}
+
+// notOwedGap answers what a row an annotation takes out of the rows the stack
+// owes ({not-applicable}, {feature-declined}, {linux-limit}: CeilingExcluded
+// and not OSMet) lacks of the evidence its kind owes, through the same check
+// a new row must pass: gap for the first two, linuxLimitIssue for the third.
+// The figures keep a row it refuses among the rows Ze owes, as a Ze
+// correctness gap (figureEvidence.excluded), so a row the backlog shelters
+// from the ratchet never raises a published figure (owner ruling, 2026-10-29:
+// leaving Ze's section raises the headline only with checked evidence).
+func (reader *evidenceReader) notOwedGap(req *Requirement) (string, bool) {
+	if req.Annotation.Kind != AnnotationLinuxLimit {
+		return reader.gap(req)
+	}
+	if !reader.limitsRead {
+		reader.limitsRead = true
+		reader.limitEntries, reader.limitKernel, reader.limitsProblem = readLinuxLimitRegister(reader.tree)
+	}
+	issue := linuxLimitIssue(req, reader.limitEntries, reader.limitKernel, reader.limitsProblem)
+	return issue, issue != ""
 }
 
 // roleQuoteGap judges a {not-applicable} row's quote against its RFC and its

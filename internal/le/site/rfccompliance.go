@@ -35,7 +35,7 @@ const (
 	rfcComplianceSnapshot = "data/rfc-compliance.json"
 	// The bucket a gated requirement falls in. Each is named because three
 	// tables read it: rfcSatisfaction declares it, rfcStanding groups it into a
-	// published share, and rfcLedgerCoverage.Bucket translates a stem's own
+	// published ratio card, and rfcLedgerCoverage.Bucket translates a stem's own
 	// counters into it. A key spelled three times is a partition three tables
 	// can disagree about.
 	//
@@ -66,7 +66,7 @@ const (
 	rfcRollupBucket = "rollup"
 	// rfcUnmappedBucket is where a gated requirement goes when it carries an
 	// annotation this page has no bucket for. It is deliberately NOT one of
-	// rfcSatisfaction, so nothing publishes it as a share: it leaves a hole in
+	// rfcSatisfaction, so no ratio card counts it: it leaves a hole in
 	// the accounting that both notes state, which is what a page can be honest
 	// about.
 	//
@@ -202,15 +202,15 @@ var rfcSatisfaction = []struct {
 	// Binds says the obligation binds Ze. A `{not-applicable}` one does not,
 	// so it is SCOPE rather than coverage, and the page says so in words: the
 	// bucket's Source condition cell, the scale card and the bucket's own
-	// share each name it.
+	// ratio card each name it.
 	//
 	// It is NOT a filter on any denominator. It was one until 2026-09-02, and
 	// what it removed was the evidence: an obligation annotated away left the
-	// tape, the key, the cards and the total, and every share around it rose
+	// tape, the key, the cards and the total, and every ratio around it rose
 	// with nothing on the page to say why (owner decision, 2026-09-02).
 	Binds bool
 	// Derived says the bucket's rows are OUTSIDE the gated population every
-	// share on this page is taken over, because each carries no obligation of
+	// ratio card on this page is taken over, because each carries no obligation of
 	// its own: a {rollup} names rows already counted once under their own
 	// ids, and rfc.CoverageRows leaves it out of every count. So the bucket
 	// is in no partition sum, no tape segment, no card and no total row, and
@@ -467,16 +467,16 @@ func collectRFCCompliance(tree string) (rfcCompliance, error) {
 	// summary. It is the gate's own scale and the set the recorded audit
 	// verdicts are judged over.
 	//
-	// implemented is the set the published SHARES are taken over: the gated
-	// MUSTs of the RFCs Ze implements, which is the population
-	// rfc.ProvenShareOf uses: enrolled, with a public row, and an
-	// Implementation of `ze` or `mixed`. rfc.Implements is the one definition
+	// implemented is the set the satisfaction buckets are taken over: the
+	// gated MUSTs of the RFCs Ze implements, the population
+	// rfc.ImplementedSectionsOf sums the published sections over: enrolled,
+	// with a public row, and an Implementation of `ze` or `mixed`. rfc.Implements is the one definition
 	// of that set, read here rather than restated (ai/rules/principles.md).
 	//
 	// A {rollup} row is in NEITHER. It carries no obligation of its own, so
 	// rfc.CoverageRows leaves it out of every count, and a population here
-	// that held it would sum the buckets to more than the share's denominator
-	// and hold the gate to one more MUST than the share inspects.
+	// that held it would sum the buckets to more than the gated count they
+	// partition and hold the gate to one more MUST than it inspects.
 	var inspected, implemented []rfc.Requirement
 	for _, requirement := range collected.Requirements {
 		if !requirement.Gated() {
@@ -551,7 +551,7 @@ func rfcGateStages() rfcVerify {
 // published, and it is stable: a Go map's own order is not.
 //
 // The third answer is the requirements whose annotation kind has no bucket.
-// They are in NO published share, so the accounting is short by that many and
+// They are in NO published ratio card, so the accounting is short by that many and
 // both notes say so.
 func rfcBuckets(gated []rfc.Requirement, tags []rfc.Tag) ([]rfcBucket, rfcGaps, int) {
 	polarities := map[string]map[string]bool{}
@@ -681,7 +681,7 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 		Str(rfcLeadHTML(rfcLeadProfiles)).Str(rfcProfilesPointerHTML()).Str("\n</section>\n")
 
 	// Who implements the document comes BEFORE the buckets, because it decides
-	// what the buckets are taken over. A reader meeting a share first has
+	// what the buckets are taken over. A reader meeting a ratio first has
 	// already been told it measures Ze before anything says whose work it is.
 	body.Str("<section><h2>Who implements each document</h2>\n").
 		Str(rfcLeadHTML(rfcLeadImplements)).Str(rfcImplementationHTML(ledger)).Str("\n</section>\n")
@@ -723,10 +723,10 @@ type rfcCard struct {
 	// declared beside the tone it explains, so the two cannot drift, and
 	// rfcToneLegendHTML is the only reader of it.
 	Rule string
-	// Overall says this card is the SCALE every share is taken over rather than
+	// Overall says this card is the SCALE every ratio is taken over rather than
 	// a measure of its own. It is what puts the card in the first movement.
 	Overall bool
-	// Partition says this card's share is one PART of the binding population.
+	// Partition says this card's ratio is one PART of the binding population.
 	// The parts sum to the whole, which is what lets a reader add the cards up
 	// and land on 100%. The proof ratio is not one of them: its denominator is
 	// tagged units, a different population, and a card that let itself be added
@@ -756,7 +756,7 @@ var rfcCardGroups = []struct {
 	Overall bool
 }{
 	{Heading: "Overall", Tone: rfcToneNeutral, Overall: true,
-		Lead: "the populations every share below is taken over"},
+		Lead: "the populations every ratio below is taken over"},
 	{Heading: "Positive", Tone: rfcToneOK,
 		Lead: "what Ze has"},
 	{Heading: "Neutral", Tone: rfcToneNeutral,
@@ -835,7 +835,7 @@ func rfcOrDash(value string) string {
 //
 // It counted how many cards were MARKED as a part and then said they add to
 // 100%, without reading one of their values: the sentence was true by
-// assertion, and a partition that had lost a share published it unchanged
+// assertion, and a partition that had lost a part published it unchanged
 // (independent review, 2026-09-02). It now sums Part and states the shortfall
 // where there is one.
 //
@@ -857,7 +857,7 @@ func rfcPartitionNote(cards []rfcCard, whole int) string {
 		return "No card above is a part of a population, so there is nothing to add up."
 	}
 	// The tail names the cards that are NOT parts, and it names only the ones
-	// this grid actually carries: a stem page has no headline share, and a
+	// this grid actually carries: a stem page has no headline ratio, and a
 	// sentence about a card a reader cannot see is a sentence about nothing.
 	tail := ""
 	if rfcGridHas(cards, rfcProofCardLabel) {
@@ -988,19 +988,20 @@ func rfcTotalsOf(ledger rfcLedger) rfcLedgerTotals {
 //
 // EVERY bucket appears in exactly one group, including the not-applicable one.
 // That is what makes the ratios partition the denominator, so a reader who adds
-// the shares lands on 100% rather than on 96.7% with nowhere to look for the
+// the ratios lands on 100% rather than on 96.7% with nowhere to look for the
 // rest -- which is what the owner found on 2026-09-01.
 // TestTheRatioCardsPartitionTheirDenominator holds the property rather than
 // trusting this table. The one bucket in NO group is the Derived one: its rows
-// are outside the denominator, so a card showing them as a share of it would
+// are outside the denominator, so a card showing them as a part of it would
 // be the arithmetic the test exists to refuse.
 //
 // The denominator is the GATED count. It was the gated count less the
 // not-applicable obligations until 2026-09-02, and that subtraction existed
 // only to take those obligations out of view: an obligation annotated away
-// left the page, and the shares above it rose. The owner ruled against
-// removing them, so they are a NAMED slice here instead, and the two green
-// slices added together are the proof share this site publishes.
+// left the page, and the ratios above it rose. The owner ruled against
+// removing them, so they are a NAMED slice here instead. The home page does
+// not read these slices: it publishes Ze proven over the MUST rows Ze and the
+// OS owe, from rfc.ImplementedSectionsOf.
 //
 // Tone is the color a NON-ZERO value takes, and a card's color names what its
 // measure MEANS rather than how well Ze scores on it: the number under the
@@ -1037,8 +1038,9 @@ var rfcStanding = []struct {
 		Rule: "green at zero, RED above it: a binding obligation nothing exercises is a claim " +
 			"with nothing behind it, whether or not a reason is stated"},
 	{Label: rfcNotApplyLabel, Keys: []string{rfcNotApplyBucket}, Tone: rfcToneNeutral,
-		Meaning: "a {not-applicable} annotation says the obligation does not bind Ze, so no " +
-			"test is owed for it. It is counted in the gated whole the cards add up to",
+		Meaning: "a {not-applicable} annotation says the obligation does not bind Ze. No test " +
+			"is owed only once its evidence passes; one whose evidence fails stays owed, and " +
+			"the figures count it as a Ze gap. It is counted in the gated whole the cards add up to",
 		Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
 			"failure, and counting it either way would be a claim"},
 	{Label: rfcLowerLayerLabel, Keys: []string{rfcLowerLayerBucket}, Tone: rfcToneNeutral,
@@ -1051,8 +1053,9 @@ var rfcStanding = []struct {
 	{Label: rfcFeatureDeclinedLabel, Keys: []string{rfcFeatureDeclinedBucket}, Tone: rfcToneNeutral,
 		Meaning: "a {feature-declined} annotation says the obligation is conditional on a " +
 			"feature the RFC makes optional and Ze does not offer, and it quotes the sentence " +
-			"that makes it optional. The condition is false, so nothing is owed and nothing " +
-			"is missing. It is counted in the gated whole the cards add up to",
+			"that makes it optional. The condition is false, so nothing is owed once that " +
+			"quote passes its evidence check; one whose quote fails stays owed, and the " +
+			"figures count it as a Ze gap. It is counted in the gated whole the cards add up to",
 		Rule: "no color: an obligation whose condition Ze never meets is neither an " +
 			"achievement nor a failure. The absent FEATURE is disclosed on the RFC's own " +
 			"status row, as an implementation gap a later scope decision can revisit"},
@@ -1103,7 +1106,7 @@ func (c rfcLedgerCoverage) Bucket(key string) int {
 //
 // One builder for the index and for every stem page, so the two cannot publish
 // different partitions of the same idea (ai/rules/principles.md). The whole is
-// the GATED count on both: the corpus page passes the share's own denominator
+// the GATED count on both: the corpus page passes the gated count of the RFCs Ze implements
 // and a stem page passes its own gated total, and neither takes anything out of
 // it first.
 //
@@ -1133,14 +1136,14 @@ func rfcStandingCards(whole int, countOf func(string) int) []rfcCard {
 // the rule that chose its tone.
 //
 // SCALE first, then STANDING. The grid opens with the population the gate holds
-// and the part of it that does not bind Ze, then the headline share, then the
-// five shares that partition that same population, then the proof ratio over
+// and the part of it that does not bind Ze, then the headline ratio, then the
+// five ratios that partition that same population, then the proof ratio over
 // its own denominator. The
 // population leads by owner amendment of 2026-09-01, which supersedes the
 // ratio-first order of the ruling earlier the same day; what has not changed is
 // WHY that rule existed, so `Gated MUSTs` is labeled as scale, carries the
 // neutral tone and the sentence saying a population is not a result, and the
-// coverage shares sit in the same grid immediately after it.
+// coverage ratios sit in the same grid immediately after it.
 func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {
 	totals := rfcTotalsOf(ledger)
 	return []rfcCard{
@@ -1169,8 +1172,8 @@ const rfcEnrolledSectionsTitle = "How the enrolled RFCs' requirements are answer
 
 // rfcEnrolledScope says which RFCs the sections count and how large the
 // corpus behind them is. The implemented count is rfc.Implements summed
-// through each file's implemented flag, the population the retired proof
-// share took as its RFCs. The corpus count is every summary file under
+// through each file's implemented flag, the population
+// rfc.ImplementedSectionsOf takes as its RFCs. The corpus count is every summary file under
 // rfc/short/, those declaring no requirement included, so it is a different
 // population from the RFCs the site facts count as holding a requirement. The
 // last sentences say what the figure this block replaced counted
@@ -1184,7 +1187,7 @@ func rfcEnrolledScope() string {
 		"listing " + rfcValueMirror(rfcAllSubject, "requirements") + " requirements at every " +
 		"level: the size of the lists, not a measure of Ze. Until 2026-10-31 this page led " +
 		"with Gated MUSTs, which counted every MUST row of the enrolled RFCs, annotated rows " +
-		"included, and a share proven by test taken over it. The sections replace both: each " +
+		"included, and a percentage proven by test taken over it. The sections replace both: each " +
 		"MUST row of a walked enrolled RFC sits in exactly one of them."
 }
 
@@ -1221,7 +1224,7 @@ func rfcEnrolledSectionsMirror() string {
 }
 
 // rfcProofCard answers the proof ratio, which is over TAGGED UNITS and is
-// therefore not one of the shares that partition the binding obligations.
+// therefore not one of the ratios that partition the binding obligations.
 //
 // The card says what a recorded break IS, because a reader is right to ask
 // whether a red observed once at authoring time is a current property. It is
@@ -1298,11 +1301,12 @@ const (
 	// TWO kinds land in that number and each says something different, so the
 	// note names both: a card counting two populations while its words name one
 	// is a false statement about the one it leaves out.
-	rfcScopeCardNote = "an obligation that does not bind Ze. A {not-applicable} annotation " +
-		"says it never bound; a {feature-declined} annotation says its condition is an " +
-		"optional feature Ze does not offer, and quotes the RFC sentence that makes it " +
-		"optional. Scope, not coverage: it is counted in the gated whole the cards on this " +
-		"page add up to"
+	rfcScopeCardNote = "an obligation that does not bind Ze, counted once its evidence passes. A " +
+		"{not-applicable} annotation says it never bound; a {feature-declined} annotation says " +
+		"its condition is an optional feature Ze does not offer, and quotes the RFC sentence " +
+		"that makes it optional. An annotation whose evidence fails is not counted here: the " +
+		"figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole " +
+		"the cards on this page add up to"
 )
 
 // rfcNonBindingOf sums the buckets whose obligation does not bind Ze, over one

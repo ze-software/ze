@@ -84,7 +84,7 @@ func priorityFixture(t *testing.T, proven map[string]bool, unwalked ...string) *
 		walked[stem] = !slices.Contains(unwalked, stem)
 	}
 	figures := figuresByStem(requirements, stems, walked, proven, figureEvidence{})
-	return newPriorityCorpus(g, profiles, metas, requirements, figures, proven)
+	return newPriorityCorpus(g, profiles, metas, requirements, figures, proven, figureEvidence{})
 }
 
 // rowStems answers the stems of rows, in order.
@@ -401,7 +401,7 @@ func TestTreeRowHoldsStemFiguresWhole(t *testing.T) {
 		}
 	}
 	corpus := newPriorityCorpus(graph.Build(map[string]graph.Text{"rfc1": {}}), Profiles{},
-		map[string]Meta{"rfc1": {Title: "Title of rfc1"}}, nil, map[string]StemFigures{"rfc1": want}, nil)
+		map[string]Meta{"rfc1": {Title: "Title of rfc1"}}, nil, map[string]StemFigures{"rfc1": want}, nil, figureEvidence{})
 	row := corpus.treeRow("rfc1", nil)
 	if !reflect.DeepEqual(row.StemFigures, want) {
 		t.Fatalf("tree row figures = %+v, want %+v", row.StemFigures, want)

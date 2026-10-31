@@ -67,7 +67,7 @@ func TestCoverageMandatoryOptional(t *testing.T) {
 	requirements, verdicts := coverageFixture()
 	stems := map[string]bool{"rfc1": true, "rfc2": true, "rfc3": true}
 	walked := map[string]bool{"rfc1": true, "rfc3": true}
-	figures := figuresByStem(requirements, stems, walked, provenRequirements(verdicts), figureEvidence{})
+	figures := figuresByStem(requirements, stems, walked, provenRequirements(verdicts), figureEvidence{exclusions: acceptEveryExclusion{}})
 
 	one := figures["rfc1"]
 	if !reflect.DeepEqual(one.Mandatory, Figure{Proven: 2, Total: 9, Attainable: 7,
@@ -130,7 +130,7 @@ func TestCoverageMandatoryOptional(t *testing.T) {
 // 0 of 0 over no RFC is not a measurement.
 func TestRollupNeverCompleteWithUnwalkedOrEmpty(t *testing.T) {
 	figures := map[string]StemFigures{
-		"rfc1": {Stem: "rfc1", Walked: true, Mandatory: Figure{Proven: 3, Total: 3}},
+		"rfc1": {Stem: "rfc1", Walked: true, Mandatory: Figure{Proven: 3, Total: 3, Attainable: 3}},
 		"rfc2": {Stem: "rfc2"},
 	}
 	if !rollupOf(figures, []string{"rfc1"}).mandatoryComplete() {
@@ -178,10 +178,10 @@ func TestALinuxLimitMovesARowToNotOwedAndNotTheFigure(t *testing.T) {
 	}
 	stems := map[string]bool{"rfc1": true}
 	proven := map[string]bool{"RFC1-1-1": true, "RFC1-1-2": true, "RFC1-2-1": true, "RFC1-2-2": true}
-	before := figuresByStem(requirements, stems, stems, proven, figureEvidence{})["rfc1"]
+	before := figuresByStem(requirements, stems, stems, proven, figureEvidence{exclusions: acceptEveryExclusion{}})["rfc1"]
 	requirements[1].Annotation = &Annotation{Kind: AnnotationLinuxLimit, LimitID: "LL-FIXTURE"}
 	requirements[3].Annotation = &Annotation{Kind: AnnotationLinuxLimit, LimitID: "LL-FIXTURE"}
-	figures := figuresByStem(requirements, stems, stems, proven, figureEvidence{})
+	figures := figuresByStem(requirements, stems, stems, proven, figureEvidence{exclusions: acceptEveryExclusion{}})
 	after := figures["rfc1"]
 	for _, pair := range [][2]Figure{{before.Mandatory, after.Mandatory}, {before.Optional, after.Optional}} {
 		if pair[0].Proven != 1 || pair[0].Total != 2 || pair[1].Proven != 1 || pair[1].Total != 2 {
@@ -191,7 +191,8 @@ func TestALinuxLimitMovesARowToNotOwedAndNotTheFigure(t *testing.T) {
 			t.Fatalf("classification did not move only the owed rows: before %+v, after %+v", pair[0], pair[1])
 		}
 	}
-	corpus := newPriorityCorpus(base.graph, base.profiles, base.metas, requirements, figures, proven)
+	corpus := newPriorityCorpus(base.graph, base.profiles, base.metas, requirements, figures, proven,
+		figureEvidence{exclusions: acceptEveryExclusion{}})
 	report, err := corpus.tree("")
 	if err != nil {
 		t.Fatal(err)
@@ -245,7 +246,7 @@ func TestCeilingPartitionsEveryAnnotation(t *testing.T) {
 				req.Annotation = &Annotation{Kind: kind}
 			}
 			stems := map[string]bool{"rfc1": true}
-			figure := figuresByStem([]Requirement{req}, stems, stems, map[string]bool{req.RID: true}, figureEvidence{})["rfc1"].Mandatory
+			figure := figuresByStem([]Requirement{req}, stems, stems, map[string]bool{req.RID: true}, figureEvidence{exclusions: acceptEveryExclusion{}})["rfc1"].Mandatory
 			total, attainable, proven := 1, 1, 0
 			if kind == AnnotationRollup {
 				total, attainable = 0, 0
@@ -291,7 +292,7 @@ func TestTheRollupSectionsSumWalkedMembersOnly(t *testing.T) {
 	}
 	stems := map[string]bool{"rfc1": true, "rfc2": true, "rfc3": true, "rfc4": true}
 	walked := map[string]bool{"rfc1": true, "rfc2": true, "rfc4": true}
-	figures := figuresByStem(requirements, stems, walked, nil, figureEvidence{})
+	figures := figuresByStem(requirements, stems, walked, nil, figureEvidence{exclusions: acceptEveryExclusion{}})
 	want := Rollup{RFCs: 4, NotWalked: 1,
 		Mandatory: Figure{Total: 6, Attainable: 2, Excluded: map[string]int{
 			AnnotationLinuxLimit: 1, AnnotationLowerLayer: 1, AnnotationFeatureDeclined: 1, AnnotationNotApplicable: 1}},
@@ -305,7 +306,8 @@ func TestTheRollupSectionsSumWalkedMembersOnly(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("rollup = %+v, want %+v", got, want)
 	}
-	corpus := newPriorityCorpus(base.graph, base.profiles, base.metas, requirements, figures, nil)
+	corpus := newPriorityCorpus(base.graph, base.profiles, base.metas, requirements, figures, nil,
+		figureEvidence{exclusions: acceptEveryExclusion{}})
 	if row := corpus.treeRow("rfc3", nil); row.Sections != nil || sectionsCell(row) != notWalked {
 		t.Errorf("unwalked row published sections %+v, cell %q", row.Sections, sectionsCell(row))
 	}
@@ -318,8 +320,42 @@ func TestTheRollupSectionsSumWalkedMembersOnly(t *testing.T) {
 	}
 }
 
+// TestRegisterCompleteNeedsNoZeOrOSGap checks AC-9: the mandatory register is
+// complete only when the MUST bar holds no Ze correctness gap and no OS testing
+// gap. The method is one walked RFC per bar shape: Ze proven alone, Ze proven
+// beside an OS verified row and a row not owed (complete), one Ze gap, and one
+// OS gap (each incomplete, though neither is Ze proven).
+func TestRegisterCompleteNeedsNoZeOrOSGap(t *testing.T) {
+	lowerLayer := map[string]int{AnnotationLowerLayer: 1}
+	figures := map[string]StemFigures{
+		"proven": {Stem: "proven", Walked: true, Mandatory: Figure{Proven: 2, Total: 2, Attainable: 2}},
+		"stack": {Stem: "stack", Walked: true, OSVerified: 1,
+			Mandatory: Figure{Proven: 1, Total: 3, Attainable: 1,
+				Excluded: map[string]int{AnnotationLowerLayer: 1, AnnotationNotApplicable: 1}}},
+		"ze-gap": {Stem: "ze-gap", Walked: true, Mandatory: Figure{Proven: 1, Total: 2, Attainable: 2}},
+		"os-gap": {Stem: "os-gap", Walked: true, OSGap: 1,
+			Mandatory: Figure{Proven: 1, Total: 2, Attainable: 1, Excluded: lowerLayer}},
+	}
+	for _, one := range []struct {
+		members  []string
+		complete bool
+	}{
+		{[]string{"proven"}, true},
+		{[]string{"proven", "stack"}, true},
+		{[]string{"proven", "ze-gap"}, false},
+		{[]string{"proven", "os-gap"}, false},
+	} {
+		rollup := rollupOf(figures, one.members)
+		if got := rollup.mandatoryComplete(); got != one.complete {
+			t.Errorf("%v: mandatoryComplete = %v, want %v (sections %+v)", one.members, got, one.complete,
+				rollup.Sections.Must)
+		}
+	}
+}
+
 // TestSectionsCellHasNoInventedMeasurement checks that a summary-less row, an
-// unwalked row and a rollup with no rows name their state rather than print a
+// unwalked row, a walked row with no rows and a rollup with no rows name their
+// state rather than print a
 // bar of zeros.
 func TestSectionsCellHasNoInventedMeasurement(t *testing.T) {
 	if cell := sectionsCell(&TreeRow{Stem: "rfc3", Walked: true, Mandatory: Figure{Total: 9}}); cell != noSummaryCell {
@@ -327,6 +363,9 @@ func TestSectionsCellHasNoInventedMeasurement(t *testing.T) {
 	}
 	if cell := sectionsCell(&TreeRow{Stem: "rfc2", Summary: true, Mandatory: Figure{Total: 9}}); cell != notWalked {
 		t.Errorf("unwalked cell = %q, want %q", cell, notWalked)
+	}
+	if cell := sectionsCell(&TreeRow{Stem: "rfc4", Summary: true, Walked: true, Sections: &Sections{}}); cell != noRowsCell {
+		t.Errorf("walked cell with no rows = %q, want %q", cell, noRowsCell)
 	}
 	if text := (Rollup{RFCs: 1, NotWalked: 1}).String(); text != "no rows; 1 RFCs, 1 not walked" {
 		t.Errorf("empty rollup = %q, want no rows and its member counts", text)
@@ -483,7 +522,7 @@ func TestStemFiguresListUnmetIDs(t *testing.T) {
 	stems := map[string]bool{"rfc1": true, "rfc2": true}
 	walked := map[string]bool{"rfc1": true}
 
-	figures := figuresByStem(requirements, stems, walked, nil, figureEvidence{audits: audits})
+	figures := figuresByStem(requirements, stems, walked, nil, figureEvidence{audits: audits, exclusions: acceptEveryExclusion{}})
 
 	want := []string{"RFC1-1-2", "RFC1-1-3", "RFC1-1-4", "RFC1-1-5", "RFC1-1-6", "RFC1-1-9"}
 	if !slices.Equal(figures["rfc1"].Unmet, want) {

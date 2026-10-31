@@ -370,6 +370,27 @@ until they are backfilled:
 <!-- source: internal/le/rfc/check_evidence.go -- roleQuoteGap, ownObligationRefusal -->
 <!-- source: internal/le/rfc/quote_sentences.go -- quoteSentences, quoteAbbreviations -->
 <!-- source: internal/le/rfc/check_evidence.go -- parseEvidenceBacklog -->
+
+The backlog shelters a row from the ratchet, never from the figures. A row
+leaves the MUST rows owed (and the open SHOULD rows) for not owed only when
+its evidence passes the same check a new row must pass:
+`(*evidenceReader).notOwedGap` applies `gap` to a `{not-applicable}` or
+`{feature-declined}` row and `linuxLimitIssue`, the check `checkLinuxLimit`
+refuses by, to a `{linux-limit}` row. `figureEvidence.excluded`
+(`internal/le/rfc/profilecoverage.go`) reads it for every row `StemFiguresOf`
+counts, so a backlog row, a quote the RFC text does not hold, or a register
+entry that is not a verified kernel limit stays owed as a Ze correctness gap,
+and the per-RFC data files, `./le rfc tree`, the RFC pages, the home card and
+`/quality/health/` all read the sections that follow from it. A
+`{lower-layer}` row is not judged there: it moves to the OS sections, which
+stay in the MUST bar, so it cannot raise the Ze-proven percentage, and its
+layer path stays the ratchet's to judge. `TestNoPublishedNotOwedRowLacksItsEvidence`
+holds the published not-owed count of each kind to the rows whose evidence
+passes, on this checkout's corpus.
+
+<!-- source: internal/le/rfc/check_evidence.go -- notOwedGap -->
+<!-- source: internal/le/rfc/linux_limit.go -- linuxLimitIssue -->
+<!-- source: internal/le/rfc/profilecoverage.go -- figureEvidence.excluded, exclusionJudge -->
 <!-- source: internal/le/rfc/summary.go -- parseNotApplicable, parseLowerLayer -->
 <!-- source: internal/le/rfc/check_core.go -- featureDeclinedQuote -->
 
@@ -480,9 +501,9 @@ OPTIONAL over every other level. Each is rows proven over rows owed. A row is
 proven only when a tagged unit covering it carries a discrimination record
 that still verifies and is not the `no-break` escape
 (`DiscriminationVerdict.Proven`, the one per-row predicate). The figures use
-the same row partition as `ProvenShareOf` (the 2026-09-02 ruling), proven only
-by a verified record: `{rollup}` rows are out of both sides, and every other
-annotated row stays in the denominator. `{single-polarity}` is the one
+one row partition, proven only by a verified record: `{rollup}` rows are out
+of every count, and every other annotated row stays in `Total`; the sections
+then split it (`SectionsOf`, below). `{single-polarity}` is the one
 annotation a row can be proven under, and only by a verifying record on its
 one side. A `{not-applicable}`,
 `{lower-layer}`, `{feature-declined}` or `{linux-limit}` row is never proven by Ze,
@@ -505,7 +526,9 @@ sections the two bars draw, and is the one split every surface reads. The MUST
 bar is Ze proven (the mandatory proven rows), OS verified and OS testing gap
 (the `{lower-layer}` rows, split by `OSVerified` and `OSGap`), and Ze
 correctness gap (attainable less proven); their sum is the MUST rows kept.
-Every other excluded kind is not owed, counted by kind, so kept plus not owed
+Every other excluded kind is not owed, counted by kind, once its evidence
+passes its check (`figureEvidence.excluded`, see "The exclusion evidence
+ratchet"); a row lacking it stays a Ze correctness gap. So kept plus not owed
 is the MUST total. The SHOULD sections are proven, OS verified, OS testing gap,
 not owed by kind, and the open rows by intent (not ever, not yet, not
 decided), which sum to the SHOULD total. `SectionsOf` refuses figures that do
@@ -550,25 +573,27 @@ disclose). The list is the summary's own disclosure, so an unwalked RFC lists
 it too. `StemFiguresOf` derives all of it from one rendered corpus, and every
 surface that counts proof reads it.
 
-The published proof share (`ProvenShareOf`, `internal/le/rfc/provenshare.go`)
-sums these figures over the RFCs Ze implements (`Implements`): enrolled, which
-already requires an Implementation of `ze` or `mixed`, and rendering a public
-row. An enrolled RFC whose feature is still to come counts at its real figure
-(owner, 2026-10-30). The numerator is the verified-record figure alone. The
-share is a rollup over that set and follows the rollup rule above, through
-`rollupOf` itself: only walked RFCs add to the numerator and the denominator,
-and the share states how many RFCs it leaves out (`NotWalked`). An unwalked
-list is unbounded, so a denominator holding its rows would measure the list,
-not the software. Every surface that prints the share prints that count beside
-it: the `/quality/health/` proof-density detail, the home page card
-(`rfc.not_walked_display` in the site facts) and the headline card of the RFC
-compliance page. The satisfaction buckets on that page still partition every
-gated MUST of the RFCs Ze implements, walked or not, so their total is their
-own sum, and it exceeds the share's denominator by the rows of the unwalked
-RFCs.
+The published section counts of the RFCs Ze implements
+(`ImplementedSectionsOf`, `internal/le/rfc/implemented.go`) sum `SectionsOf`
+over the RFCs Ze implements (`Implements`): enrolled, which already requires an
+Implementation of `ze` or `mixed`, and rendering a public row. An enrolled RFC
+whose feature is still to come counts at its real figure (owner, 2026-10-30).
+Only walked RFCs add to a section, and the count states how many RFCs it
+leaves out (`NotWalked`): an unwalked list is unbounded, so a section holding
+its rows would measure the list, not the software. The published percentage
+(`ProvenPercent`) is Ze proven over the MUST rows Ze and the OS owe (`Kept`:
+Ze proven, OS verified, OS testing gap and Ze correctness gap). A row not owed
+(not applicable, declined, OS blocked) is on neither side; a row the OS
+performs stays in the denominator and never in Ze proven, verified or not.
+Every surface that prints the percentage prints the not-walked count beside it:
+the `/quality/health/` proof-density detail and the home page card
+(`rfc.not_walked_display` in the site facts). The satisfaction buckets on the
+RFC compliance page still partition every gated MUST of the RFCs Ze implements,
+walked or not, so their total is their own sum, and it exceeds the card's
+denominator.
 <!-- source: internal/le/rfc/profilecoverage.go -- figuresByStem, rowCounts, rollupOf, Rollup.mandatoryComplete, StemFiguresOf, figureEvidence -->
 <!-- source: internal/le/rfc/sectioncounts.go -- SectionsOf, sectionsOf, Sections.String -->
-<!-- source: internal/le/rfc/provenshare.go -- ProvenShareOf, Implements -->
+<!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, ImplementedSections.ProvenPercent, Implements -->
 
 ### One declaration for annotation meaning
 
@@ -757,10 +782,10 @@ Four rules decide whether it is the right kind:
   takes `{rollup}` (below), which derives its state from those rows and asserts
   nothing of its own.
 
-It stays INSIDE the gated denominator and OUT of the proven numerator
-(`ProvenShareOf`, `internal/le/rfc/provenshare.go`): the requirement is met, and
-it is not proven BY ZE. Annotating a row may not move the published share by a
-point. On the site it is its own bucket, `lower_layer`, labeled `Met below Ze`
+It stays INSIDE the MUST rows Ze and the OS owe, as OS verified or OS testing
+gap, and OUT of Ze proven (`ImplementedSectionsOf`,
+`internal/le/rfc/implemented.go`): the requirement is met, and it is not proven
+BY ZE. Annotating a row may not move the published percentage by a point. On the site it is its own bucket, `lower_layer`, labeled `Met below Ze`
 and colored neutral, because an obligation met below Ze is neither a test Ze
 wrote nor work Ze owes.
 
@@ -1198,13 +1223,16 @@ Four rules decide whether it is the right kind:
   revisit, and never as a conformance gap
   (`ai/rules/rfc-compliance.md`, owner directive 2026-08-31). This kind is the
   coverage register's word for the decision the extraction register records as
-  `feature-out-of-scope`. The two are spelled apart because the site's
-  `out-of-scope` counter already means `{not-applicable}` there.
+  `feature-out-of-scope`. The two were spelled apart because the site's
+  ledger counter, now `annotated-never-bound`, meant `{not-applicable}` there.
 
-It stays INSIDE the gated denominator and OUT of the proven numerator, exactly
-as `{lower-layer}` does, and
-`TestNoAnnotationExceptSinglePolarityMovesThePublishedShare` holds that property
-over this checkout's own corpus for every kind but `{single-polarity}`. On the
+It leaves the MUST rows Ze and the OS owe and is counted not owed, under its
+kind, once its quote passes the exclusion evidence check (a row whose quote
+fails stays owed), and it never reaches Ze proven, whatever record it carries.
+`TestNoAnnotationExceptSinglePolarityRaisesThePublishedProven` holds the second
+half for every kind but `{single-polarity}`, and
+`TestAnnotationsNeverInflateThePublishedSections` holds both over this
+checkout's own corpus. On the
 site it is its own bucket, `feature_declined`, labeled `Optional feature
 declined`, and it is counted with `{not-applicable}` in the `Out of scope` card:
 neither obligation binds Ze, and the card's own note names both kinds and what
@@ -1380,7 +1408,7 @@ Every obligation it names is already counted once under that row's id, so
 counting the rollup would bill a document twice. It would also hold a fully
 conformant RFC's share one row short of 100%. `CoverageRows`
 (`internal/le/rfc/coverage.go`) leaves it out of every count, and
-`TestRollupMovesNeitherShareNorGatedCount` holds that over this checkout's
+`TestRollupMovesNeitherSectionsNorGatedCount` holds that over this checkout's
 corpus in both directions.
 
 The public ledger prints the derived state after the
@@ -1606,12 +1634,29 @@ not in the repository.
 `./le rfc next` names the next gap the owner rule orders, across every release
 profile or inside `profile <name>`, from the required members alone. Until
 their mandatory figure is complete it judges the mandatory register: an RFC
-owes there when a mandatory row is owed and not proven, or when it is not
-walked. The answer is the lowest level holding such an RFC, the lowest RFC
+owes there when it is not walked, or when a mandatory row sits in a section of
+the MUST bar that holds owed work. Each uncovered row names what it owes
+(`owes` in the JSON, `rowOwes`): a Ze correctness gap owes Ze code
+(`ze-code`, printed under `uncovered`), and an OS testing gap, a
+`{lower-layer}` row with no proving record that broke its named producer,
+owes a test of the OS behavior on the state Ze installs (`os-test`, printed
+under `OS testing gap`). A row in the not-owed section (not applicable,
+declined, OS blocked) is never uncovered and blocks nothing. A row enters that
+section by the rule the figures use (`figureEvidence.excluded`), never by its
+annotation alone: a `{not-applicable}`, `{feature-declined}` or
+`{linux-limit}` row whose evidence fails the check a new row must pass
+(`(*evidenceReader).notOwedGap`) stays a Ze correctness gap and is listed as
+`ze-code`. The mandatory
+figure is complete only when the members are all walked and both the Ze gap
+and the OS testing gap are zero, and `next` reports `complete` only then: a
+mandatory register that names no row while the figure is incomplete is
+refused as a defect, and a set with no required member is refused because it
+measures nothing. The answer is the lowest level holding such an RFC, the lowest RFC
 number at that level, and every member of its citation cycle owing at the
 same level. A row marked `{updated-by}` is owed at the updater's level,
 counted in its own RFC's figure. Once the mandatory figure is complete it
-judges the optional register the same way, and says so. The optional tier
+judges the optional register the same way, where an open SHOULD row owes Ze
+code and an OS testing gap owes its test, and says so. The optional tier
 follows under `optional, not counted` with its own rollup: each optional
 member that is not walked or holds an uncovered row of either register, and
 never the answered gap. Across several profiles, a stem one of them requires

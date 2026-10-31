@@ -2545,13 +2545,13 @@ func TestPartialProofPublicationsAgree(t *testing.T) {
 	}
 	// The fixture carries no extraction sign-off, so its RFC is not walked:
 	// its own figure still counts the row (walked: false), and the published
-	// share, which sums walked RFCs alone, refuses rather than publish a
+	// sections, which sum walked RFCs alone, refuse rather than publish a
 	// number over an unbounded list.
 	if one := figures["rfc9999"]; one.Walked || one.Mandatory.Proven != 0 || one.Mandatory.Total != 1 {
 		t.Fatalf("published partial gained whole credit: %+v", one)
 	}
-	if share, err := rfc.ProvenShareOf(collected.Metas, figures); err == nil {
-		t.Fatalf("a share over no walked RFC was published: %+v", share)
+	if sections, err := rfc.ImplementedSectionsOf(collected.Metas, figures); err == nil {
+		t.Fatalf("sections over no walked RFC were published: %+v", sections)
 	}
 	// Deliberately corrupt a render-only input: no successful gate is assumed.
 	render.Audits["rfc9999"] = rfc.Audit{Verdicts: map[string]any{rid: map[string]any{"verdict": rfc.VerdictEnforced}}}
@@ -2672,13 +2672,13 @@ func TestMissingSend(t *testing.T) {
 	}
 	// The fixture carries no extraction sign-off, so its RFC is not walked:
 	// its own figure still counts the row (walked: false), and the published
-	// share, which sums walked RFCs alone, refuses rather than publish a
+	// sections, which sum walked RFCs alone, refuse rather than publish a
 	// number over an unbounded list.
 	if one := figures["rfc9999"]; one.Walked || one.Mandatory.Proven != 0 || one.Mandatory.Total != 1 {
 		t.Fatalf("demonstration moved whole proof: %+v", one)
 	}
-	if share, err := rfc.ProvenShareOf(collected.Metas, figures); err == nil {
-		t.Fatalf("a share over no walked RFC was published: %+v", share)
+	if sections, err := rfc.ImplementedSectionsOf(collected.Metas, figures); err == nil {
+		t.Fatalf("sections over no walked RFC were published: %+v", sections)
 	}
 }
 

@@ -197,16 +197,16 @@ func rfcDetailEyebrow(entry *rfcLedgerStem) string {
 //
 // SCALE first, then STANDING, as on the index and for the same reason: the
 // population the gate holds, the part of it that does not bind Ze, then the
-// shares that partition the whole of it. The shares are built by
+// ratios that partition the whole of it. The ratios are built by
 // rfcStandingCards, so this page and the index cannot publish different
 // partitions of one idea.
 //
-// The shares were over `gated - not-applicable` until 2026-09-02, and on a page
+// The ratios were over `gated - not-applicable` until 2026-09-02, and on a page
 // about ONE RFC that subtraction was at its worst: a summary whose obligations
-// are all annotated published four shares of nothing, and every other page
+// are all annotated published four ratios of nothing, and every other page
 // quietly measured itself against a denominator its own scale card did not
 // state. They are over the gated count now, with the not-applicable obligations
-// as a named share (owner decision, 2026-09-02).
+// as a named ratio (owner decision, 2026-09-02).
 func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 	coverage := &entry.Coverage
 	proof := rfcProofCountsOf(entry)
@@ -218,7 +218,7 @@ func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 			Tone:  rfcToneNeutral,
 			Rule: "no color: a population is a scale, and a larger one is neither good news " +
 				"nor bad. It is the accounting total"},
-		{Label: "Out of scope", Value: groupThousands(rfcNonBindingOf(coverage.Bucket)),
+		{Label: "Out of scope", Value: rfcOutOfScopeValue(entry, rfcNonBindingOf),
 			Count: "of " + groupThousands(coverage.Gated) + " gated MUSTs",
 			Note:  rfcScopeCardNote,
 			Tone:  rfcToneNeutral,
@@ -257,10 +257,10 @@ func rfcGatedCardLabel(entry *rfcLedgerStem) string {
 func rfcGatedCardNote(entry *rfcLedgerStem) string {
 	if entry.Enrolled {
 		return "MUST-level requirements the gate HOLDS. A population, not a result: the " +
-			"shares beside it are what says how Ze stands"
+			"ratios beside it are what says how Ze stands"
 	}
 	return "MUST-level requirements this summary DECLARES. The gate holds none of them, " +
-		"because this RFC is not enrolled (" + entry.Disposition.Kind + "), so every share " +
+		"because this RFC is not enrolled (" + entry.Disposition.Kind + "), so every ratio " +
 		"below reads what the summary records rather than what the gate enforces"
 }
 
@@ -306,7 +306,7 @@ func rfcGlanceFacts(entry *rfcLedgerStem) [][2]string {
 		{rfcEnrolmentLabel, html.EscapeString(rfcEnrolmentState(entry))},
 		{"Requirements", strconv.Itoa(entry.Coverage.Requirements)},
 		{"Gated MUST-level", strconv.Itoa(entry.Coverage.Gated)},
-		{"Not applicable, so out of scope", strconv.Itoa(entry.Coverage.NotApplicable)},
+		{"Not applicable, so out of scope", html.EscapeString(rfcOutOfScopeValue(entry, rfcNotApplicableOf))},
 		{rfcDeclaredGapsLabel, strconv.Itoa(entry.Coverage.Gaps)},
 		{rfcDemonstratedGapsLabel, strconv.Itoa(entry.Coverage.DemonstratedGaps)},
 		{"Gated with no test", strconv.Itoa(entry.Coverage.Missing)},
@@ -322,6 +322,44 @@ func rfcGlanceFacts(entry *rfcLedgerStem) [][2]string {
 			rfcPathOrAbsent(entry.SourcePath, "this checkout does not carry the RFC's own text")},
 	}
 }
+
+// rfcOutOfScopeUnjudged is what an out-of-scope count says for a summary the
+// figures answered nothing for. Zero would read as "nothing is out of scope".
+const rfcOutOfScopeUnjudged = "not judged: the figures answer nothing for this summary"
+
+// rfcOutOfScopeValue answers, as page text, how many gated MUST rows the
+// figures leave out of the rows Ze owes, summed over the buckets sum adds up.
+//
+// It reads the judged exclusions (rfc.StemFigures, Mandatory.Excluded) and
+// never the annotation counters of rfcLedgerCoverage. The figures leave a
+// `{not-applicable}` or `{feature-declined}` row out only when its evidence
+// passes, and count a bare one as a Ze gap: a page calling the bare row out of
+// scope would state the opposite of its own bars. The bucket of each kind is
+// rfcAnnotationBucket's, so the card and the bucket table share one mapping.
+func rfcOutOfScopeValue(entry *rfcLedgerStem, sum func(countOf func(string) int) int) string {
+	if entry.Figures == nil {
+		return rfcOutOfScopeUnjudged
+	}
+	excluded := entry.Figures.Mandatory.Excluded
+	return groupThousands(sum(func(bucket string) int {
+		total := 0
+		for kind, count := range excluded {
+			kindBucket, known := rfcAnnotationBucket(kind)
+			if !known {
+				panic("BUG: the figures excluded a row under annotation kind " + kind +
+					", which rfc.AnnotationTraitsOf does not declare")
+			}
+			if kindBucket == bucket {
+				total += count
+			}
+		}
+		return total
+	}))
+}
+
+// rfcNotApplicableOf answers the `{not-applicable}` bucket's count alone, for
+// the at-a-glance row that names that kind.
+func rfcNotApplicableOf(countOf func(string) int) int { return countOf(rfcNotApplyBucket) }
 
 // rfcPathOrAbsent answers a repository path as code, or says why there is none.
 // An empty cell would read as a rendering fault rather than as a fact.
@@ -536,7 +574,7 @@ func rfcCoverageTotal(buckets []rfcCoverageBucket) int {
 // The Count comes from rfc.CoverageRows, which walks the shard. The IDs come
 // from the walk rfcCoverageBuckets does over this page's own requirements. Two
 // walks over one population can disagree, and a page that printed only one of
-// them would publish shares that do not add up with every test green
+// them would publish ratios that do not add up with every test green
 // (independent review, 2026-09-01). The `Positive and negative tests` bucket
 // names its members like the others, so no bucket escapes the comparison.
 func rfcCoverageWalkNote(bucket rfcCoverageBucket) string {

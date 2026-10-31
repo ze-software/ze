@@ -1,18 +1,22 @@
-// VALIDATES: annotations never inflate the published whole-proof share.
-// Every annotation but {single-polarity} keeps its denominator and earns no
-// credit even when a verified discrimination record covers the row, which is
-// the only thing that earns credit since 2026-10-30. Rollups remain outside the
-// population because they derive other rows.
+// VALIDATES: annotations never inflate the published Ze-proven count. Every
+// annotation but {single-polarity} earns no credit even when a verified
+// discrimination record covers the row, which is the only thing that earns
+// credit since 2026-10-30. A kind the sections count not owed (excluded from
+// what Ze's code owes and performed by no layer under Ze) moves exactly its own
+// MUST rows whose evidence passes its check out of the rows owed; a row of it
+// lacking that evidence, and every row of every other kind, stays owed. Rollups
+// remain outside the population because they derive other rows.
 
 package rfc
 
 import (
+	"slices"
 	"testing"
 
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-func TestAnnotationsNeverInflateThePublishedShare(t *testing.T) {
+func TestAnnotationsNeverInflateThePublishedSections(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {
 		t.Fatalf("resolve checkout: %v", err)
@@ -53,16 +57,19 @@ func TestAnnotationsNeverInflateThePublishedShare(t *testing.T) {
 	for stem := range collected.Metas {
 		stems[stem] = true
 	}
-	shareOf := func(requirements []Requirement) ProvenShare {
+	// One reader over this checkout judges every not-owed row, for the
+	// figures and for the independent count alike.
+	reader := newEvidenceReader(root)
+	sectionsOf := func(requirements []Requirement) headline {
 		t.Helper()
-		share, err := ProvenShareOf(collected.Metas,
-			figuresByStem(requirements, stems, walked, proven, figureEvidence{}))
+		sections, err := ImplementedSectionsOf(collected.Metas,
+			figuresByStem(requirements, stems, walked, proven, figureEvidence{exclusions: reader}))
 		if err != nil {
-			t.Fatalf("the share over the corpus: %v", err)
+			t.Fatalf("the sections over the corpus: %v", err)
 		}
-		return share
+		return headlineOf(&sections)
 	}
-	with := shareOf(collected.Requirements)
+	with := sectionsOf(collected.Requirements)
 
 	for _, kind := range AnnotationKinds() {
 		if kind == AnnotationSinglePolarity {
@@ -74,13 +81,17 @@ func TestAnnotationsNeverInflateThePublishedShare(t *testing.T) {
 			// A {rollup} row is the one kind whose counterfactual is the LINE
 			// removed rather than the annotation stripped (AC-9 of
 			// spec-rfc-ledger-rollup-annotation). Stripped, the row is a bare
-			// MUST nobody tests, which re-enters Gated and moves the share:
-			// that would prove the row is out of the denominator, which
-			// TestRollupMovesNeitherShareNorGatedCount already holds, and
+			// MUST nobody tests, which re-enters the owed rows and moves them:
+			// that would prove the row is out of the population, which
+			// TestRollupMovesNeitherSectionsNorGatedCount already holds, and
 			// nothing about the annotation.
 			stripped := make([]Requirement, 0, len(collected.Requirements))
 			annotated := 0
 			excludedCredit := 0
+			leavingOwed := 0
+			// sheltered counts the rows whose kind leaves the owed rows on its
+			// traits but whose evidence fails its check: they stay owed.
+			sheltered := 0
 			for _, requirement := range collected.Requirements {
 				if requirement.Annotation == nil || requirement.Annotation.Kind != kind {
 					stripped = append(stripped, requirement)
@@ -92,25 +103,90 @@ func TestAnnotationsNeverInflateThePublishedShare(t *testing.T) {
 				}
 				meta := collected.Metas[requirement.RFC]
 				excludedCredit += annotationWholeCreditDelta(&requirement, &meta, walked, proven)
+				owed := annotationOwedDelta(&requirement, &meta, walked, reader)
+				leavingOwed += owed
+				if owed == 0 && leavesOwedOnTraits(&requirement, &meta, walked) {
+					sheltered++
+				}
 				requirement.Annotation = nil
 				stripped = append(stripped, requirement)
 			}
 			if annotated == 0 {
 				t.Fatalf("no requirement of this corpus carries {%s}, so this case proves nothing", kind)
 			}
-			without := shareOf(stripped)
+			without := sectionsOf(stripped)
 			expected := with
-			expected.Proven += excludedCredit
+			expected.ZeProven += excludedCredit
+			expected.Kept += leavingOwed
 			if expected != without {
-				t.Errorf("%d {%s} annotation(s) changed the population or whole credit beyond their %d excluded claims: with %+v, without %+v",
-					annotated, kind, excludedCredit, with, without)
+				t.Errorf("%d {%s} annotation(s) changed the population or whole credit beyond their %d excluded claims and %d not-owed rows: with %+v, without %+v",
+					annotated, kind, excludedCredit, leavingOwed, with, without)
 			}
-			if with.Proven > without.Proven {
+			if with.ZeProven > without.ZeProven {
 				t.Errorf("{%s} annotations inflated whole credit: with %+v, without %+v", kind, with, without)
 			}
-			t.Logf("%d {%s} rows retain their denominator; %d otherwise-whole claims excluded", annotated, kind, excludedCredit)
+			if kind == AnnotationNotApplicable {
+				notApplicableBothWays(t, &collected, walked, reader, leavingOwed, with, sectionsOf)
+			}
+			t.Logf("%d {%s} rows; %d leave the owed rows; %d stay owed for want of evidence; %d otherwise-whole claims excluded",
+				annotated, kind, leavingOwed, sheltered, excludedCredit)
 		})
 	}
+}
+
+// headline is the comparable projection of ImplementedSections the published
+// figures read: Ze proven over the MUST rows owed, and the populations beside
+// them. Total is every MUST row counted, so an annotation that moves a row out
+// of the owed rows leaves it unchanged.
+type headline struct {
+	ZeProven, Kept, Total, NotWalked, RFCs, Inspected, MustInspected int
+}
+
+func headlineOf(s *ImplementedSections) headline {
+	return headline{ZeProven: s.Sections.Must.ZeProven, Kept: s.Sections.Must.Kept, Total: s.Sections.Must.Total,
+		NotWalked: s.NotWalked, RFCs: s.RFCs, Inspected: s.Inspected, MustInspected: s.MustInspected}
+}
+
+// annotationOwedDelta independently counts the owed MUST row an annotation
+// takes away: a row leavesOwedOnTraits names whose evidence passes the check a
+// new row must pass (notOwedGap). The sections count such a row not owed;
+// stripped of its annotation it is owed. A row whose evidence fails stays
+// owed either way, so it moves nothing.
+func annotationOwedDelta(requirement *Requirement, meta *Meta, walked map[string]bool, reader *evidenceReader) int {
+	if !leavesOwedOnTraits(requirement, meta, walked) {
+		return 0
+	}
+	if _, lacks := reader.notOwedGap(requirement); lacks {
+		return 0
+	}
+	return 1
+}
+
+// leavesOwedOnTraits answers whether a row would leave the owed rows on its
+// annotation's traits alone: a gated row of a walked RFC Ze implements whose
+// kind its declared traits exclude from what Ze's code owes and no layer
+// under Ze performs.
+func leavesOwedOnTraits(requirement *Requirement, meta *Meta, walked map[string]bool) bool {
+	if requirement.Annotation == nil {
+		return false
+	}
+	traits, _ := AnnotationTraitsOf(requirement.Annotation.Kind)
+	if !traits.CeilingExcluded {
+		return false
+	}
+	if traits.OSMet {
+		return false
+	}
+	if !requirement.Gated() {
+		return false
+	}
+	if !Implements(meta) {
+		return false
+	}
+	if !walked[requirement.RFC] {
+		return false
+	}
+	return true
 }
 
 // annotationWholeCreditDelta independently counts the credit a row would earn
@@ -160,7 +236,7 @@ func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 				meta   Meta
 				level  string
 				walked bool
-				with   ProvenShare
+				with   headline
 				owes   bool
 			}{
 				{
@@ -168,7 +244,7 @@ func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 					meta:   Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true},
 					level:  levelMust,
 					walked: true,
-					with:   ProvenShare{Gated: 2, RFCs: 2, Inspected: 2, GatedInspected: 2},
+					with:   headline{Kept: 2, Total: 2, RFCs: 2, Inspected: 2, MustInspected: 2},
 					owes:   true,
 				},
 				{
@@ -178,7 +254,7 @@ func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 					meta:   Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true},
 					level:  levelMust,
 					walked: true,
-					with:   ProvenShare{Gated: 2, RFCs: 2, Inspected: 2, GatedInspected: 2},
+					with:   headline{Kept: 2, Total: 2, RFCs: 2, Inspected: 2, MustInspected: 2},
 					owes:   true,
 				},
 				{
@@ -187,28 +263,28 @@ func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 					level: levelMust,
 					// Unwalked: the target RFC adds to neither side, so only the
 					// walked companion's row is gated (the rollup rule).
-					with: ProvenShare{Gated: 1, RFCs: 2, NotWalked: 1, Inspected: 2, GatedInspected: 2},
+					with: headline{Kept: 1, Total: 1, RFCs: 2, NotWalked: 1, Inspected: 2, MustInspected: 2},
 				},
 				{
 					name:   "unenrolled",
 					meta:   Meta{Enrolment: dispositionOutOfScope, Implementation: implementationZe, Aggregate: "bgp-core", Row: true},
 					level:  levelMust,
 					walked: true,
-					with:   ProvenShare{Gated: 1, RFCs: 1, Inspected: 1, GatedInspected: 1},
+					with:   headline{Kept: 1, Total: 1, RFCs: 1, Inspected: 1, MustInspected: 1},
 				},
 				{
 					name:   "no-public-row",
 					meta:   Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe},
 					level:  levelMust,
 					walked: true,
-					with:   ProvenShare{Gated: 1, RFCs: 1, Inspected: 2, GatedInspected: 2},
+					with:   headline{Kept: 1, Total: 1, RFCs: 1, Inspected: 2, MustInspected: 2},
 				},
 				{
 					name:   "third-party",
 					meta:   Meta{Enrolment: enrolmentEnrolled, Implementation: implementationThirdParty, Aggregate: "bgp-core", Row: true},
 					level:  levelMust,
 					walked: true,
-					with:   ProvenShare{Gated: 1, RFCs: 1, Inspected: 1, GatedInspected: 1},
+					with:   headline{Kept: 1, Total: 1, RFCs: 1, Inspected: 1, MustInspected: 1},
 				},
 				{
 					name:   "advisory",
@@ -218,7 +294,7 @@ func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 					// An RFC with no gated row is still in both populations
 					// (AC-8 names the population, not its rows); it adds no
 					// gated requirement to either.
-					with: ProvenShare{Gated: 1, RFCs: 2, Inspected: 2, GatedInspected: 1},
+					with: headline{Kept: 1, Total: 1, RFCs: 2, Inspected: 2, MustInspected: 1},
 				},
 			} {
 				// Excluded populations need a record: weaker evidence repeats
@@ -244,25 +320,78 @@ func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 					if got := annotationWholeCreditDelta(&requirements[1], &scope.meta, walked, proven); got != delta {
 						t.Fatalf("independent delta = %d, want %d", got, delta)
 					}
-					with, err := shareOver(t, metas, requirements, walked, proven)
+					owed := 0
+					if scope.owes {
+						// The bare {linux-limit} names no register entry, so its
+						// evidence fails and the row stays owed (owed is 0).
+						owed = annotationOwedDelta(&requirements[1], &scope.meta, walked, newEvidenceReader(t.TempDir()))
+					}
+					annotated, err := sectionsOver(t, metas, requirements, walked, proven)
 					if err != nil {
 						t.Fatal(err)
 					}
-					if with != scope.with {
-						t.Fatalf("annotated share = %+v, want %+v", with, scope.with)
+					// The table's Kept is the stripped population: a not-owed
+					// kind takes its own row out of it while annotated.
+					wantWith := scope.with
+					wantWith.Kept -= owed
+					if with := headlineOf(&annotated); with != wantWith {
+						t.Fatalf("annotated sections = %+v, want %+v", with, wantWith)
 					}
 					requirements[1].Annotation = nil
-					without, err := shareOver(t, metas, requirements, walked, proven)
+					stripped, err := sectionsOver(t, metas, requirements, walked, proven)
 					if err != nil {
 						t.Fatal(err)
 					}
 					want := scope.with
-					want.Proven += delta
-					if without != want {
-						t.Fatalf("stripped share = %+v, want %+v", without, want)
+					want.ZeProven += delta
+					if without := headlineOf(&stripped); without != want {
+						t.Fatalf("stripped sections = %+v, want %+v", without, want)
 					}
 				})
 			}
 		}
 	}
+}
+
+// notApplicableBothWays holds the {not-applicable} case to both sides of the
+// evidence rule on the real corpus. The exact comparison of the counterfactual
+// already keeps every row lacking evidence in the owed rows; this adds that
+// the corpus carries rows whose evidence passes, which leave (leavingOwed), and
+// that a bare copy of one of them, its quote and bound role dropped as the
+// backlog's rows are written, does not move the denominator: it joins the owed
+// rows, one more Kept and one more Total. The copy is made in memory, so the
+// proof holds whatever the backlog holds.
+func notApplicableBothWays(t *testing.T, collected *Collected, walked map[string]bool, reader *evidenceReader,
+	leavingOwed int, with headline,
+	sectionsOf func([]Requirement) headline,
+) {
+	t.Helper()
+	if leavingOwed == 0 {
+		t.Fatal("no {not-applicable} row of this corpus carries passing evidence, so nothing shows an evidenced row leaves")
+	}
+	for _, requirement := range collected.Requirements {
+		if requirement.Annotation == nil || requirement.Annotation.Kind != AnnotationNotApplicable {
+			continue
+		}
+		meta := collected.Metas[requirement.RFC]
+		if annotationOwedDelta(&requirement, &meta, walked, reader) != 1 {
+			// A row outside the published population, or one whose
+			// evidence fails: it proves nothing about leaving.
+			continue
+		}
+		bare := requirement
+		annotation := *requirement.Annotation
+		annotation.Quote, annotation.BoundRole = "", ""
+		bare.Annotation, bare.RID = &annotation, requirement.RID+"-bare"
+		got := sectionsOf(append(slices.Clone(collected.Requirements), bare))
+		want := with
+		want.Kept++
+		want.Total++
+		want.MustInspected++
+		if got != want {
+			t.Fatalf("a bare copy of %s moved the sections beyond one owed row: with %+v, with the copy %+v", requirement.RID, with, got)
+		}
+		return
+	}
+	t.Fatal("no evidenced {not-applicable} row of the published population was found to copy")
 }

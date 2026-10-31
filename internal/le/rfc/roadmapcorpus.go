@@ -79,7 +79,7 @@ func readRoadmapCorpus(files map[string]string) (roadmap.Corpus, error) {
 // cannot disagree. No edge of the dependency graph is read: a citation adds no
 // member.
 func requiredMembers(profiles Profiles, metas map[string]Meta) map[string][]string {
-	corpus := newPriorityCorpus(graph.Build(nil), profiles, metas, nil, nil, nil)
+	corpus := newPriorityCorpus(graph.Build(nil), profiles, metas, nil, nil, nil, figureEvidence{})
 	out := map[string][]string{}
 	for _, scope := range corpus.useCaseScopes(false) {
 		out[scope.name] = sortedSet(scope.members)

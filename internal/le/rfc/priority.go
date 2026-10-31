@@ -33,6 +33,10 @@ type priorityCorpus struct {
 	requirements []Requirement
 	figures      map[string]StemFigures
 	proven       map[string]bool
+	// evidence is the figureEvidence the figures were judged with, so a row
+	// is OS verified, not owed or owed here exactly when its figure counts it
+	// so (rowOwes).
+	evidence figureEvidence
 	// buildsOn is each node's builds-on targets, and updaters each node's
 	// corpus updaters: the two edge kinds a row shows and a candidate is
 	// named by. Neither adds a member.
@@ -45,9 +49,11 @@ type priorityCorpus struct {
 // updates. Every node is indexed, member of a profile or not. Every edge list
 // stays sorted, because Edges answers them sorted.
 func newPriorityCorpus(g *graph.Graph, profiles Profiles, metas map[string]Meta,
-	requirements []Requirement, figures map[string]StemFigures, proven map[string]bool) *priorityCorpus {
+	requirements []Requirement, figures map[string]StemFigures, proven map[string]bool,
+	evidence figureEvidence,
+) *priorityCorpus {
 	c := &priorityCorpus{graph: g, profiles: profiles, metas: metas, requirements: requirements,
-		figures: figures, proven: proven, buildsOn: map[string][]string{}, updaters: map[string][]string{}}
+		figures: figures, proven: proven, evidence: evidence, buildsOn: map[string][]string{}, updaters: map[string][]string{}}
 	for _, edge := range g.Edges() {
 		//exhaustive:ignore // Rows and candidates read builds-on and updates only; an obsoletes edge names a text the builds-on redirect already replaced.
 		switch edge.Kind {
@@ -80,12 +86,14 @@ func loadPriorityCorpus(tree string) (*priorityCorpus, error) {
 // caller that holds one (the site's ledger) reads the same figures without a
 // second pass over the tree.
 func priorityCorpusOf(in *RenderInput) (*priorityCorpus, error) {
-	figures, err := StemFiguresOf(in)
+	evidence := figureEvidenceOf(in)
+	figures, err := stemFiguresWith(in, evidence)
 	if err != nil {
 		return nil, err
 	}
 	proven := provenRequirements(in.Discrimination)
-	return newPriorityCorpus(in.Graph, in.Profiles, in.Metas, in.Requirements, figures, proven), nil
+	return newPriorityCorpus(in.Graph, in.Profiles, in.Metas, in.Requirements, figures, proven,
+		evidence), nil
 }
 
 // profileScope is one profile's members. For a use-case profile, members is

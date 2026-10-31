@@ -1,8 +1,8 @@
 // VALIDATES: over THIS checkout's corpus, a {rollup} row moves neither the
-// published proof share nor any coverage count (AC-9 of
+// published section counts nor any coverage count (AC-9 of
 // spec-rfc-ledger-rollup-annotation).
 // PREVENTS: a document billed twice. A rollup names rows that are each counted
-// once under their own id, so the rollup itself sits outside Gated, Proven and
+// once under their own id, so the rollup itself sits outside every section and
 // Annotated, and a fully conformant RFC whose rollup is met reads 100% rather
 // than one row short. The method is the counterfactual in both directions: the
 // corpus with every rollup line removed, and the corpus with one synthetic
@@ -12,13 +12,14 @@
 package rfc
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-func TestRollupMovesNeitherShareNorGatedCount(t *testing.T) {
+func TestRollupMovesNeitherSectionsNorGatedCount(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {
 		t.Fatalf("resolve checkout: %v", err)
@@ -39,14 +40,14 @@ func TestRollupMovesNeitherShareNorGatedCount(t *testing.T) {
 		bare = append(bare, requirement)
 	}
 	walked, proven := realCorpusProofSets(t)
-	baseShare, err := shareOver(t, collected.Metas, bare, walked, proven)
+	baseSections, err := sectionsOverTree(t, root, collected.Metas, bare, walked, proven)
 	if err != nil {
-		t.Fatalf("the share over the corpus without rollups: %v", err)
+		t.Fatalf("the sections over the corpus without rollups: %v", err)
 	}
 	baseRows := CoverageRows(bare, collected.Tags, nil)
 
 	// A synthetic rollup on the first implemented RFC, naming that RFC's
-	// first gated row, so the added row is one the share's population would
+	// first gated row, so the added row is one the sections' population would
 	// count if a rollup were counted.
 	var synthetic Requirement
 	for _, requirement := range bare {
@@ -69,13 +70,13 @@ func TestRollupMovesNeitherShareNorGatedCount(t *testing.T) {
 		"the corpus plus one synthetic": append(slices.Clone(bare), synthetic),
 	} {
 		t.Run(name, func(t *testing.T) {
-			share, err := shareOver(t, collected.Metas, requirements, walked, proven)
+			sections, err := sectionsOverTree(t, root, collected.Metas, requirements, walked, proven)
 			if err != nil {
-				t.Fatalf("the share: %v", err)
+				t.Fatalf("the sections: %v", err)
 			}
-			if share != baseShare {
-				t.Errorf("the rollup rows moved the published share: %+v, without them %+v",
-					share, baseShare)
+			if !reflect.DeepEqual(sections, baseSections) {
+				t.Errorf("the rollup rows moved the published sections: %+v, without them %+v",
+					sections, baseSections)
 			}
 			rows := CoverageRows(requirements, collected.Tags, nil)
 			if !slices.Equal(rows, baseRows) {
@@ -83,8 +84,8 @@ func TestRollupMovesNeitherShareNorGatedCount(t *testing.T) {
 			}
 		})
 	}
-	t.Logf("%d rollup row(s) in the corpus, one synthetic on %s; share unmoved at %s%% (%d of %d)",
-		removed, synthetic.RFC, baseShare.Percent(), baseShare.Proven, baseShare.Gated)
+	t.Logf("%d rollup row(s) in the corpus, one synthetic on %s; sections unmoved at %s%% (%d of %d)",
+		removed, synthetic.RFC, baseSections.ProvenPercent(), baseSections.Sections.Must.ZeProven, baseSections.Sections.Must.Kept)
 }
 
 // TestRollupRowsInThisCorpusDeriveAsStated holds AC-10 over this checkout's
