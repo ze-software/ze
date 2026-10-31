@@ -133,7 +133,11 @@ func TestReloadExportPolicyRefreshesForwardFacts(t *testing.T) {
 // is followed by the transaction's rejection receipt, which resumes input. The
 // bare session of the other cases has no plugin server to capture owners from
 // (sourceInvalidation.capture, source_policy_reload.go) and no admitted import
-// epoch, so it cannot carry that transaction.
+// epoch, so it cannot carry that transaction. A case that lifts the default
+// rejection (rising) is the D-1 relaxation: it needs Route Refresh negotiated
+// and a config transaction for its undo, so it runs on the same fixture with
+// Route Refresh published, and its rollback restores the rejection through
+// the same in-place invalidation (undoImportRelaxation, source_policy_relax.go).
 func TestPolicyFinalSwapRollbackPreservesSession(t *testing.T) {
 	accept := mustPolicy(t, nil, routepolicy.FinalAccept)
 	reject := mustPolicy(t, nil, routepolicy.FinalReject)
@@ -142,13 +146,14 @@ func TestPolicyFinalSwapRollbackPreservesSession(t *testing.T) {
 		from    filterapi.Policy
 		to      filterapi.Policy
 		falling bool
+		rising  bool
 	}{
 		{name: "accept to reject", from: accept, to: reject, falling: true},
-		{name: "reject to accept", from: reject, to: accept},
+		{name: "reject to accept", from: reject, to: accept, rising: true},
 		{name: "remove reject", from: reject},
 		{name: "remove accept", from: accept, falling: true},
 		{name: "configure reject", to: reject},
-		{name: "configure accept", to: accept},
+		{name: "configure accept", to: accept, rising: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
@@ -159,8 +164,12 @@ func TestPolicyFinalSwapRollbackPreservesSession(t *testing.T) {
 				j        configJournal
 				complete func(t *testing.T)
 			)
-			if tc.falling {
+			if tc.falling || tc.rising {
 				fx := newRFC8212ImportFixture(t, false)
+				if tc.rising {
+					// D-1: lifting the default rejection needs Route Refresh.
+					fx.peer.negotiated.Store(relaxNegotiated(true))
+				}
 				r, peer, session = fx.r, fx.peer, fx.f.s
 				peer.mu.Lock()
 				peer.settings.ImportPolicy = tc.from
@@ -174,7 +183,7 @@ func TestPolicyFinalSwapRollbackPreservesSession(t *testing.T) {
 					t.Helper()
 					require.True(t, session.IsPaused(), "input resumed before the transaction's receipt")
 					require.NoError(t, r.CompleteSourcePolicyTx(t.Context(), tx.txID, false))
-					fx.settled(t, true)
+					fx.settled(t, tc.falling)
 				}
 			} else {
 				initial := swapTestPeerSettings(t)

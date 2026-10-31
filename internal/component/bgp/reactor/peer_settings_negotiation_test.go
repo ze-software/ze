@@ -416,6 +416,10 @@ func TestOpenHeaderEqualCoversEveryOpenField(t *testing.T) {
 // below against the read in the reconcile.
 func TestReloadDecisionReadsPeerSettingsUnderLock(t *testing.T) {
 	current := negotiationSettings(capIPv4())
+	// Every policy below accepts, so no reload lifts an RFC 8212 default
+	// rejection: that transition needs Route Refresh (D-1), which this
+	// session did not negotiate, and the race under test is the read alone.
+	current.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "initial"}}, routepolicy.FinalAccept)
 	next := negotiationSettings(capIPv4())
 	next.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "reloaded"}}, routepolicy.FinalAccept)
 

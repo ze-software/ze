@@ -221,16 +221,17 @@ func TestDynamicPolicyFinalSwapRollbackPreservesSession(t *testing.T) {
 	accept := mustPolicy(t, nil, routepolicy.FinalAccept)
 	reject := mustPolicy(t, nil, routepolicy.FinalReject)
 	for _, tc := range []struct {
-		name string
-		from filterapi.Policy
-		to   filterapi.Policy
+		name    string
+		from    filterapi.Policy
+		to      filterapi.Policy
+		refused string
 	}{
-		{name: "accept to reject", from: accept, to: reject},
-		{name: "reject to accept", from: reject, to: accept},
+		{name: "accept to reject", from: accept, to: reject, refused: "needs a config transaction operation"},
+		{name: "reject to accept", from: reject, to: accept, refused: "not negotiated capabilities"},
 		{name: "remove reject", from: reject},
-		{name: "remove accept", from: accept},
+		{name: "remove accept", from: accept, refused: "needs a config transaction operation"},
 		{name: "configure reject", to: reject},
-		{name: "configure accept", to: accept},
+		{name: "configure accept", to: accept, refused: "not negotiated capabilities"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			group := dynamicReloadGroup(t)
@@ -247,6 +248,22 @@ func TestDynamicPolicyFinalSwapRollbackPreservesSession(t *testing.T) {
 			next := dynamicReloadGroup(t)
 			next.Settings.ImportPolicy = tc.to
 			next.Settings.ExportPolicy = tc.to
+			if tc.refused != "" {
+				// An import decision that falls (D-2) or rises (D-1) on this
+				// Established session is refused on a journal of no config
+				// transaction, with no Route Refresh negotiated, and nothing
+				// changes (TestRFC8212DynamicTemplateRelaxation).
+				err := (&reactorAPIAdapter{r: r}).reconcileDynamicGroupsJournaled([]*DynamicGroupConfig{next}, "test", &internalJournal{})
+				require.ErrorContains(t, err, tc.refused)
+				assert.Equal(t, tc.from, peer.ImportPolicy())
+				assert.Equal(t, tc.from, peer.ExportPolicy())
+				template := peer.readDynamicTemplate()
+				assert.Equal(t, tc.from, template.importTemplate)
+				assert.Equal(t, tc.from, template.exportTemplate)
+				assert.True(t, r.Peers()[0] == peer)
+				assert.True(t, peer.currentSession() == session)
+				return
+			}
 			j := reloadDynamicGroups(t, r, next)
 			require.Equal(t, tc.to, peer.ImportPolicy())
 			require.Equal(t, tc.to, peer.ExportPolicy())
