@@ -1,19 +1,19 @@
 {
-  "note": "Rejudged 2026-10-23 by an independent auditor (not the author) after 010e649057, which sends a synthesized withdrawal only to a destination holding an adj-out record for the route; RFC 4271 Section 3.1 allows a withdrawal only for \"the IP prefix that expresses the destination for a previously advertised route\". The owner approved re-fixturing these .ci (RFC-approved trailers in 010e649057). RFC 1997, Well-known Communities, NO_ADVERTISE (0xFFFFFF02): \"All routes received carrying a communities attribute containing this value MUST NOT be advertised to other BGP peers.\" Moved unit: test/plugin/wellknown-no-advertise-egress.ci (both tags). Neither session now expects 180A0100 withdrawn; both reject 180A0100 in the announced AND withdrawn scopes, since neither was ever advertised it. Non-vacuity: the internal session must receive 180A0200 (NO_EXPORT_SUBCONFED allows an internal peer) and the 192.0.2.0/24 fence; the external session must receive the fence; plugin16WellknownCounts now demands exact counts 2 internal and 1 external. A gate that leaks to either peer type fails the announced reject; a forward-nothing build fails the fence deliveries. The wireu predicate pair (TestWellKnownNoAdvertiseRefusesEveryPeer / AbsentAdvertisesToEveryPeer) and TestForwardNoAdvertiseSkipsEveryPeer are byte-identical. The prior note's 'withdrawn at BOTH destinations' is superseded: the route is now neither announced nor withdrawn, which is what RFC 4271 Section 3.1 permits for a never-advertised route.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc1997): \"All routes received carrying a communities attribute containing this value MUST NOT be advertised to other BGP peers.\" The only edit to test/plugin/wellknown-no-advertise-egress.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "50a97592f8c45bed",
   "tests": {
-    "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoAdvertiseSkipsEveryPeer": "1186b372293f818a",
+    "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoAdvertiseSkipsEveryPeer": "fcbd869c57b5684a",
     "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer": "dec76563936c7c9c",
     "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoAdvertiseRefusesEveryPeer": "dec76563936c7c9c",
-    "test/plugin/wellknown-no-advertise-egress.ci": "e4926f4f2c499836",
-    "test/plugin/wellknown-no-advertise-egress.ci#2": "e4926f4f2c499836"
+    "test/plugin/wellknown-no-advertise-egress.ci": "f1fe6c2440de082e",
+    "test/plugin/wellknown-no-advertise-egress.ci#2": "f1fe6c2440de082e"
   },
   "units": {
     "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoAdvertiseSkipsEveryPeer": "f195af0ab88d74eb",
     "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer": "0a72268fe1be4335",
     "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoAdvertiseRefusesEveryPeer": "c98d7a73b890617d",
-    "test/plugin/wellknown-no-advertise-egress.ci": "e4926f4f2c499836",
-    "test/plugin/wellknown-no-advertise-egress.ci#2": "e4926f4f2c499836"
+    "test/plugin/wellknown-no-advertise-egress.ci": "f1fe6c2440de082e",
+    "test/plugin/wellknown-no-advertise-egress.ci#2": "f1fe6c2440de082e"
   },
   "verdict": "enforced"
 }
