@@ -42,8 +42,8 @@ type ExternalInjector interface {
 	WithdrawExternal(prefix netip.Prefix) (bool, error)
 }
 
-// DefaultExternalMetric is the AS-external metric of a redistributed route no
-// export filter sets a metric for.
+// DefaultExternalMetric is the AS-external metric of a redistributed route
+// neither the redistribute import chain nor the export chain sets a metric for.
 const DefaultExternalMetric = uint32(20)
 
 // External is the AS-external origination one redistributed route asks for:

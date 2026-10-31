@@ -164,3 +164,61 @@ func TestISISExportReloadRejudges(t *testing.T) {
 		t.Fatalf("TLV 135 entries after the chain was removed = %v, want both offered routes", got)
 	}
 }
+
+// acceptKeep is an export chain that accepts every route and sets nothing.
+type acceptKeep struct{}
+
+func (acceptKeep) Evaluate(ribpolicy.Route) ribpolicy.Verdict {
+	return ribpolicy.Verdict{Action: ribpolicy.ActionAccept}
+}
+
+// TestISISExportKeepsImportMetric proves the metric precedence at the
+// consumer: the redistribute import chain's `set metric` (RouteEntry.HasMetric)
+// is the prefix metric when no export chain is configured and when the export
+// chain sets none, and an export chain's `set metric` replaces it. Method:
+// inject one entry carrying an import metric under each chain shape and read
+// the TLV 135 and TLV 236 metrics the fake LSP injector holds.
+func TestISISExportKeepsImportMetric(t *testing.T) {
+	t.Cleanup(func() { SetExportChain(nil) })
+	v4 := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}
+	v6 := family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}
+	cases := []struct {
+		name  string
+		chain ribpolicy.Chain
+		want  uint32
+	}{
+		{"no export chain", nil, 30},
+		{"export chain sets no metric", acceptKeep{}, 30},
+		{"export chain sets metric", acceptAll{metric: 10}, 10},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			SetExportChain(tc.chain)
+			inj := newFakeInjector(lsdb.Level2)
+			c := NewConsumer(inj)
+			ctx := context.Background()
+
+			entry := exportEntry("198.51.100.0/24")
+			entry.Metric, entry.HasMetric = 30, true
+			c.InjectRoute(ctx, v4, entry)
+			entryV6 := exportEntry("2001:db8:1::/64")
+			entryV6.Metric, entryV6.HasMetric = 30, true
+			c.InjectRoute(ctx, v6, entryV6)
+
+			got := inj.snapshot(lsdb.Level2)
+			if len(got) != 1 {
+				t.Fatalf("TLV 135 entries = %v, want 198.51.100.0/24", got)
+			}
+			if got[0].Metric.Value() != tc.want {
+				t.Fatalf("TLV 135 metric = %d, want %d", got[0].Metric.Value(), tc.want)
+			}
+			gotV6 := inj.snapshotV6(lsdb.Level2)
+			if len(gotV6) != 1 {
+				t.Fatalf("TLV 236 entries = %v, want 2001:db8:1::/64", gotV6)
+			}
+			if gotV6[0].Metric.Value() != tc.want {
+				t.Fatalf("TLV 236 metric = %d, want %d", gotV6[0].Metric.Value(), tc.want)
+			}
+		})
+	}
+}

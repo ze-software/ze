@@ -306,3 +306,75 @@ func TestOSPFExportReloadRejudges(t *testing.T) {
 	assert.Contains(t, f.injected, tagged, "a route rejected by the previous chain is still offered")
 	assert.NotContains(t, f.injected, untagged, "a withdrawn route is never re-originated by a reload")
 }
+
+// setsChain is an export chain that accepts every route with sets.
+type setsChain struct{ sets ribpolicy.Sets }
+
+func (c setsChain) Evaluate(ribpolicy.Route) ribpolicy.Verdict {
+	return ribpolicy.Verdict{Action: ribpolicy.ActionAccept, Sets: c.sets}
+}
+
+// TestOSPFExportKeepsImportMetric proves the metric precedence at the
+// consumer: the redistribute import chain's `set metric` (RouteEntry.HasMetric)
+// and `set tag` (RouteEntry.Tag) reach the AS-external LSA when no export chain
+// is configured and when the export chain sets neither, and an export chain's
+// set metric and set tag replace them. Method: inject one entry carrying an
+// import metric and tag under each chain shape and read the External the fake
+// injector holds.
+func TestOSPFExportKeepsImportMetric(t *testing.T) {
+	t.Cleanup(func() { SetExportChain(nil) })
+	p := netip.MustParsePrefix("203.0.113.0/24")
+	cases := []struct {
+		name  string
+		chain ribpolicy.Chain
+		want  External
+	}{
+		{"no export chain", nil, External{Metric: 30, Type2: true, Tag: 7}},
+		{"export chain sets nothing", setsChain{}, External{Metric: 30, Type2: true, Tag: 7}},
+		{"export chain sets metric and tag",
+			setsChain{sets: ribpolicy.Sets{Metric: 10, HasMetric: true, Tag: 900, HasTag: true}},
+			External{Metric: 10, Type2: true, Tag: 900}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			SetExportChain(tc.chain)
+			f := newFakeInjector()
+			c := NewConsumer(f)
+			c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{
+				Prefix: p.String(), Source: "static", Tag: 7, Metric: 30, HasMetric: true,
+				Route: ribpolicy.Route{Prefix: p, Tag: 7, HasTag: true, Metric: 30},
+			})
+			assert.Equal(t, tc.want, f.externals[p])
+		})
+	}
+}
+
+// TestOSPFExportSaturatesMetric proves a metric above the 24-bit AS-external
+// field originates LSInfinity (0xffffff, RFC 2328 Appendix B), never the low
+// 24 bits: 0x1000000 would otherwise wrap to metric 0, the cheapest route.
+// Method: hand the consumer an import metric and, separately, an export set
+// metric of 0x1000000 and read the External the fake injector holds.
+func TestOSPFExportSaturatesMetric(t *testing.T) {
+	t.Cleanup(func() { SetExportChain(nil) })
+	p := netip.MustParsePrefix("203.0.113.0/24")
+	cases := []struct {
+		name     string
+		chain    ribpolicy.Chain
+		imported uint32
+	}{
+		{"import metric", nil, 0x1000000},
+		{"export set metric", setsChain{sets: ribpolicy.Sets{Metric: 0x1000000, HasMetric: true}}, 30},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			SetExportChain(tc.chain)
+			f := newFakeInjector()
+			c := NewConsumer(f)
+			c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{
+				Prefix: p.String(), Source: "static", Metric: tc.imported, HasMetric: true,
+				Route: ribpolicy.Route{Prefix: p, HasTag: true, Metric: tc.imported},
+			})
+			assert.Equal(t, uint32(0xffffff), f.externals[p].Metric)
+		})
+	}
+}

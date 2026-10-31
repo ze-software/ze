@@ -270,9 +270,10 @@ func (r routerInformationConfig) HasScope(s OpaqueScope) bool {
 	return slices.Contains(r.Scopes, s)
 }
 
-// redistributeConfig is one `ospf redistribute <source>` entry. The metric, the
-// metric type and the tag of a redistributed route are the `ospf filter export`
-// chain's to set (ospfredistribute.exportVerdict).
+// redistributeConfig is one `ospf redistribute <source>` entry. The metric and
+// the tag of a redistributed route are the redistribute import chain's to set,
+// and the metric, the metric type and the tag the `ospf filter export` chain's,
+// which wins (ospfredistribute.exportVerdict).
 type redistributeConfig struct {
 	Source        string
 	NSSAPropagate bool

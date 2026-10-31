@@ -18,7 +18,8 @@ type exportPolicy struct {
 
 // exportChain holds the export chain the IS-IS config applies. Written on
 // every config apply, read on every inject. Nil means no export chain is
-// configured: every redistributed route is advertised at the default metric.
+// configured: every redistributed route is advertised at the metric the import
+// chain set, or the default metric.
 var exportChain atomic.Pointer[exportPolicy]
 
 // SetExportChain installs chain as the IS-IS export chain. A nil chain clears
@@ -32,14 +33,30 @@ func SetExportChain(chain ribpolicy.Chain) {
 	exportChain.Store(&exportPolicy{chain: chain})
 }
 
-// exportVerdict judges entry against the export chain, answering the prefix
-// metric to advertise and whether the chain accepts the route. With no chain
-// every route is accepted at DefaultRedistMetric; an accepting chain's metric
-// set replaces the default.
-func exportVerdict(entry *configredist.RouteEntry) (metric uint32, accepted bool) {
+// ExportChain answers the export chain SetExportChain installed last, nil when
+// none is. Safe for concurrent use.
+func ExportChain() ribpolicy.Chain {
 	policy := exportChain.Load()
 	if policy == nil {
-		return DefaultRedistMetric, true
+		return nil
+	}
+	return policy.chain
+}
+
+// exportVerdict judges entry against the export chain, answering the prefix
+// metric to advertise and whether the chain accepts the route. The metric
+// starts from the one the redistribute import chain set (entry.HasMetric), or
+// DefaultRedistMetric when it set none, and an accepting export chain's metric
+// set replaces it. FRR's isis_redist_update does the same with its one
+// route-map: route_set_metric overwrites the redistribute default.
+func exportVerdict(entry *configredist.RouteEntry) (metric uint32, accepted bool) {
+	metric = DefaultRedistMetric
+	if entry.HasMetric {
+		metric = entry.Metric
+	}
+	policy := exportChain.Load()
+	if policy == nil {
+		return metric, true
 	}
 	verdict := policy.chain.Evaluate(entry.Route)
 	if verdict.Action != ribpolicy.ActionAccept {
@@ -48,5 +65,5 @@ func exportVerdict(entry *configredist.RouteEntry) (metric uint32, accepted bool
 	if verdict.Sets.HasMetric {
 		return verdict.Sets.Metric, true
 	}
-	return DefaultRedistMetric, true
+	return metric, true
 }

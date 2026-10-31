@@ -11,8 +11,9 @@
 //
 // InjectRoute turns the RouteEntry into a TLV 135 Extended IP Reachability entry
 // (RFC 5305 sec 4) in the node's own LSP set, once the `isis filter export`
-// chain accepts it (export.go). The metric is the chain's `set metric`, or
-// DefaultRedistMetric, and the up/down bit is CLEAR on first injection -- TLV 135
+// chain accepts it (export.go). The metric is the export chain's `set metric`,
+// else the redistribute import chain's, else DefaultRedistMetric, and the
+// up/down bit is CLEAR on first injection -- TLV 135
 // carries NO external bit (RFC 5305 sec 4), and the up/down bit is set only when a
 // prefix is leaked to a lower level (RFC 2966, done by isis-9 SPF leaking, not
 // here). Then it re-originates so flooding carries the change to peers, which run
