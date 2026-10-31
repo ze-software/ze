@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged after TestRFC4754SignerPadsRAndS began forcing both short integers. RFC 4754 Section 7: the ECDSA-256/384/521 signature payload SHALL be r concatenated with s, 256/384/528 bits each, left-padded with zeros. Receive side: TestRFC4754SignatureIsRConcatS, through verifyRemoteAuth for methods 9, 10 and 11, accepts r||s with a padded short r and refuses s||r (errSignatureFailed) and the DER SEQUENCE (length); its records are line mutants of verifyECDSAAuth observed red. Send side: TestRFC8247LegacySignatureWithoutNotify drives computeX509Auth with no notify for each curve and requires method 9/10/11, exactly 64/96/132 octets, and ecdsa.Verify of the first half as r and the second as s with SHA-256/384/512, so DER output, a swap, a wrong hash or unpadded scalars go red. TestRFC4754SignerPadsRAndS loops computeX509Auth (up to 20000 tries) until it has seen both an r and an s below 2^248, requiring 64 octets on every signature, a leading zero octet on each short integer and a verifying r||s, and fails if either case was never seen, so a signer that leaves r or s unpadded goes red deterministically; the earlier s-padding gap is closed. Send-side tags are positive only; the negative polarity is the receive-side test.",
+  "requirement_sha": "5616679c53056a00",
+  "tests": {
+    "internal/component/ike/engine/rfc4754_auth_test.go::TestRFC4754SignatureIsRConcatS": "6256c4622f48a7b8",
+    "internal/component/ike/engine/rfc4754_auth_test.go::TestRFC4754SignatureIsRConcatS#2": "6256c4622f48a7b8",
+    "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC4754SignerPadsRAndS": "5e9e40ee5755dc69",
+    "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacySignatureWithoutNotify": "5e9e40ee5755dc69"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4754_auth_test.go::TestRFC4754SignatureIsRConcatS": "f319c39f0f2bc824",
+    "internal/component/ike/engine/rfc4754_auth_test.go::TestRFC4754SignatureIsRConcatS#2": "f319c39f0f2bc824",
+    "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC4754SignerPadsRAndS": "1b91bf24f8db3fa3",
+    "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacySignatureWithoutNotify": "9fd67b9a05b0236e"
+  },
+  "verdict": "enforced"
+}

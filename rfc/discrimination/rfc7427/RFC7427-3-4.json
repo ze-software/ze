@@ -7,7 +7,7 @@
     "claim-sha": "211ed16e6810b816",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
-    "producer-sha": "e4459e54b89de08b",
+    "producer-sha": "9276f793a0008843",
     "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -25,22 +25,22 @@
     "rid": "RFC7427-3-4",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify",
-    "unit-sha": "f478b38d2839408d",
+    "unit-sha": "99387aa4816c7fda",
     "claim-sha": "5537e76e9f384a03",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
-    "producer-sha": "e4459e54b89de08b",
+    "producer-sha": "9276f793a0008843",
     "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7427-3-4",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify",
-    "unit-sha": "f478b38d2839408d",
-    "claim-sha": "f96598fa00561288",
+    "unit-sha": "99387aa4816c7fda",
+    "claim-sha": "2d18abefc67fd778",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
-    "producer-sha": "e4459e54b89de08b",
+    "producer-sha": "9276f793a0008843",
     "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

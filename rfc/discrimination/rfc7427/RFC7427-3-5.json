@@ -3,22 +3,22 @@
     "rid": "RFC7427-3-5",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed",
-    "unit-sha": "b56462543ef14a36",
+    "unit-sha": "2d56c76e00695ea3",
     "claim-sha": "64957032fe9135cc",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
-    "producer-sha": "e4459e54b89de08b",
+    "producer-sha": "9276f793a0008843",
     "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7427-3-5",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed",
-    "unit-sha": "b56462543ef14a36",
-    "claim-sha": "a82b9689efbb0066",
+    "unit-sha": "2d56c76e00695ea3",
+    "claim-sha": "4c7501a91409117b",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
-    "producer-sha": "e4459e54b89de08b",
+    "producer-sha": "9276f793a0008843",
     "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

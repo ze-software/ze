@@ -20,5 +20,27 @@
     "producer": "internal/component/ike/engine/auth_ecdsa.go::verifyECDSAAuth",
     "producer-sha": "d1b36cd424f39e1a",
     "break": "line 65: \"len(authData) != 2*method.scalarOctets\" -\u003e \"false \u0026\u0026 len(authData) != 2*method.scalarOctets\""
+  },
+  {
+    "rid": "RFC4754-7-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC4754SignerPadsRAndS",
+    "unit-sha": "28a1c3485fa19765",
+    "claim-sha": "1f5aeb97c4eca4d8",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth_ecdsa.go::signECDSAAuth",
+    "producer-sha": "63a4f8d7d17d1b5a",
+    "break": "body of signECDSAAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4754-7-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacySignatureWithoutNotify",
+    "unit-sha": "4fd3c67418e367bd",
+    "claim-sha": "0acba625764e348c",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth_ecdsa.go::signECDSAAuth",
+    "producer-sha": "63a4f8d7d17d1b5a",
+    "break": "body of signECDSAAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

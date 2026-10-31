@@ -588,9 +588,15 @@ func verifyAcceptedOffer(accepted *wire.PayloadSA, ikeGroup ipsec.IKEGroup, espG
 
 // parseHashAlgoNotify extracts hash algorithm IDs from a SIGNATURE_HASH_ALGORITHMS
 // notify payload data.
+//
+// The answer is never nil, because SA.RemoteHashAlgos tells a received notify from
+// none by nil alone (computeX509Auth reads it). A notify too short to hold one
+// identifier is still a notify the peer sent: RFC 7427 Section 3 then still
+// requires the Digital Signature method, and the empty list makes that signature
+// refuse rather than fall back to a legacy method.
 func parseHashAlgoNotify(data []byte) []uint16 {
 	if len(data) < 2 {
-		return nil
+		return []uint16{}
 	}
 	algos := make([]uint16, 0, len(data)/2)
 	for i := 0; i+1 < len(data); i += 2 {

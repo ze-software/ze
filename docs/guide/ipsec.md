@@ -411,6 +411,19 @@ toward the anchor. Ze sends its own chain the same way: the `certificate` entry
 first, then the intermediate that PKI entry carries. A refusal names the anchor
 and the number of intermediate certificates the peer supplied.
 
+The signature method follows the peer. Ze announces RFC 7427 signature
+authentication in every IKE_SA_INIT, and a peer that announces it too gets an
+RFC 7427 Digital Signature (method 14). A peer that does not, such as strongSwan
+with `charon.signature_authentication = no`, gets the method that fits Ze's
+certificate key: RSA Digital Signature (method 1, SHA-1) for an RSA key, and
+ECDSA-256, ECDSA-384 or ECDSA-521 (methods 9, 10, 11) for an ECDSA key on P-256,
+P-384 or P-521. Any other key, Ed25519 for example, cannot authenticate to such
+a peer, and the refusal says so. Ze verifies all of these methods from the peer.
+A ze started with `GODEBUG=fips140=only` refuses method 1, because Go refuses
+SHA-1 signatures in that mode: enable RFC 7427 on the peer instead.
+<!-- source: internal/component/ike/engine/auth_legacy.go -- computeLegacySignatureAuth, signLegacyRSAAuth, verifyLegacyRSAAuth -->
+<!-- source: internal/component/ike/engine/auth_ecdsa.go -- signECDSAAuth -->
+
 An `eap-tls` peer whose EAP-TLS client sends its certificate without the
 intermediate that issued it can still authenticate. Store that intermediate as a
 PKI `ca` entry and name it in `intermediate-certificate`, a list. When Ze is the

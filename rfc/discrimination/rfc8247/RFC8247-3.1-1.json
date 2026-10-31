@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8247-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacyRSAVerifiesSHA1",
+    "unit-sha": "859b0df611a60d10",
+    "claim-sha": "f669108c8459209d",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth_legacy.go::verifyLegacyRSAAuth",
+    "producer-sha": "ab0029bbb8108e82",
+    "break": "body of verifyLegacyRSAAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8247-3.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacyRSAVerifiesSHA1",
+    "unit-sha": "859b0df611a60d10",
+    "claim-sha": "96f5199d1bc774bf",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth_legacy.go::verifyLegacyRSAAuth",
+    "producer-sha": "ab0029bbb8108e82",
+    "break": "body of verifyLegacyRSAAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8247-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacySignatureWithoutNotify",
+    "unit-sha": "4fd3c67418e367bd",
+    "claim-sha": "823aebd6492f811e",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth_legacy.go::signLegacyRSAAuth",
+    "producer-sha": "23b89cff9d4499bc",
+    "break": "body of signLegacyRSAAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8247-3.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacySignatureWithoutNotify",
+    "unit-sha": "4fd3c67418e367bd",
+    "claim-sha": "a96f6f5ae7c1093c",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
+    "producer-sha": "9276f793a0008843",
+    "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

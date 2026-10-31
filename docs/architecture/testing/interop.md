@@ -2142,6 +2142,42 @@ second, so the strongSwan SA never comes up. Both scenarios set
 <!-- source: test/interop-ipsec/scenarios/multiple-auth-ze-responder/ -- the Ze-responder fixtures -->
 <!-- source: internal/le/interoplab/ipsec/multiauth.go -- checkMultipleAuthZeInitiator, checkMultipleAuthZeResponder -->
 
+### Legacy signature methods against a strongSwan without RFC 7427
+
+The five `x509-legacy-*` scenarios set
+`charon.signature_authentication = no`, so strongSwan 6.1.0 neither sends
+SIGNATURE_HASH_ALGORITHMS nor reads Ze's (`ike_init.c`). Ze then receives no
+notify, as initiator or as responder, RFC 7427 Section 3 leaves it no method 14, and it must
+sign with its key's legacy method (RFC 8247 Section 3.1). charon signs its own
+AUTH the same way (`pubkey_authenticator.c` `build`).
+
+| Scenario | Keys on both sides | Method each side sends | PKI |
+|----------|--------------------|------------------------|-----|
+| `x509-legacy-rsa-signature` | RSA 2048 | 1, RSASSA-PKCS1-v1_5 over SHA-1 | the scenario's `pki/` |
+| `x509-legacy-ecdsa-p256-signature` | ECDSA P-256 | 9, ECDSA-256 | the shared lab PKI |
+| `x509-legacy-ecdsa-p384-signature` | ECDSA P-384 | 10, ECDSA-384 | the scenario's `pki/` |
+| `x509-legacy-ecdsa-p521-signature` | ECDSA P-521 | 11, ECDSA-521 | the scenario's `pki/` |
+| `x509-legacy-rsa-signature-ze-responder` | RSA 2048, strongSwan initiates | 1, RSASSA-PKCS1-v1_5 over SHA-1 | the scenario's `pki/` |
+
+Ze initiates in the first four and responds in the last. Each scenario's own
+`pki/` holds leaf certificates issued by the shared lab CA.
+The checker requires the IKE and Child SAs, both kernels' ESP states and
+traffic both ways, then charon's two log lines: `authentication of
+'ze-test-client' with <method> successful` for Ze's AUTH, and
+`authentication of '172.28.0.3' (myself) with <method> successful` for its own,
+which Ze verified before installing the Child SA. charon names a method 14 AUTH
+by signature scheme rather than by method, so a Ze that sent method 14 fails the
+first line.
+
+Each scenario was walked red on 2026-10-31: with `computeX509Auth` reverted to
+refusing when no notify arrived, the rebuilt Ze logs `ike: build IKE_AUTH
+failed` and the strongSwan SA never comes up. The RSA scenario was also walked
+red with `verifyLegacyRSAAuth` reverted to SHA-256 only: Ze then refuses
+charon's SHA-1 method 1 AUTH.
+<!-- source: test/interop-ipsec/scenarios/x509-legacy-rsa-signature/ -- the method 1 fixtures -->
+<!-- source: test/interop-ipsec/scenarios/x509-legacy-ecdsa-p256-signature/ -- the method 9 fixtures -->
+<!-- source: internal/le/interoplab/ipsec/legacysig.go -- checkLegacySignature -->
+
 ### ESP transform kernel proof
 
 `esp-aes-cbc-sha256`, `esp-chacha20poly1305` and `esp-3des-sha1` offer one

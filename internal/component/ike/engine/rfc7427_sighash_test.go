@@ -2,7 +2,8 @@
 // conditional permission; Section 4 states which algorithm the signer may pick.
 //
 // VALIDATES: Ze emits AUTH method 14 only after a SIGNATURE_HASH_ALGORITHMS notify has
-// arrived, and it signs only with an algorithm that notify listed.
+// arrived, and it signs only with an algorithm that notify listed. With none arrived
+// it signs with the key's legacy method instead (rfc8247_legacy_auth_test.go).
 // PREVENTS: the two wire-visible defects these tests were written for. computeX509Auth
 // emitted method 14 whether or not the notify had arrived, and selectSignatureAlgorithm
 // read the ECDSA curve alone while the RSA branch fell through to SHA-256 without
@@ -93,9 +94,11 @@ func loadSigningKey(t *testing.T, name string, key crypto.Signer) {
 // method 14 the method computeX509Auth emits.
 //
 // RFC requirement: RFC7427-3-4 negative -- the discriminator, and the case the
-// permission exists for. With no notify received the condition is not met, so the
-// method is refused rather than emitted. Without this case the requirement would be
-// proven by a test that never enters the branch the RFC is about.
+// permission exists for. With no notify received the condition is not met, so
+// computeX509Auth emits no method 14 payload: it signs with the key's legacy method
+// instead (RFC 8247 Section 3.1), and the AUTH method is that one, never 14. Without
+// this case the requirement would be proven by a test that never enters the branch
+// the RFC is about.
 func TestRFC7427DigitalSignatureNeedsTheNotify(t *testing.T) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
 	if err != nil {
@@ -109,9 +112,17 @@ func TestRFC7427DigitalSignatureNeedsTheNotify(t *testing.T) {
 
 	// No SIGNATURE_HASH_ALGORITHMS notify arrived from this peer.
 	sa.RemoteHashAlgos = nil
-	if _, err := computeX509Auth(sa); !errors.Is(err, errNoSignatureHashAlgos) {
-		t.Fatalf("with no notify received, computeX509Auth returned %v, want %v",
-			err, errNoSignatureHashAlgos)
+	legacy, err := computeX509Auth(sa)
+	if err != nil {
+		t.Fatalf("with no notify received, computeX509Auth: %v", err)
+	}
+	if legacy.AuthMethod == wire.AuthMethodDigitalSig {
+		t.Fatalf("with no notify received, computeX509Auth emitted method %d (Digital Signature), "+
+			"which RFC 7427 Section 3 does not permit", legacy.AuthMethod)
+	}
+	if legacy.AuthMethod != wire.AuthMethodECDSA256 {
+		t.Fatalf("with no notify received, AUTH method is %d, want %d (the P-256 key's ECDSA-256)",
+			legacy.AuthMethod, wire.AuthMethodECDSA256)
 	}
 
 	// The same SA once the notify has arrived.

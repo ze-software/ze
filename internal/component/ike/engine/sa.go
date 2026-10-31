@@ -228,7 +228,12 @@ type SA struct {
 	// deadline by value, which is correct.
 	hardExpiry int64 //nolint:modernize // atomic.Int64 carries noCopy, and the twin-SA test copies this struct.
 
-	// Remote peer hash algorithms announced via SIGNATURE_HASH_ALGORITHMS notify
+	// RemoteHashAlgos holds the hash algorithms the peer announced in its
+	// SIGNATURE_HASH_ALGORITHMS notify (RFC 7427 Section 4). It is nil until that
+	// notify arrives, and parseHashAlgoNotify never answers nil, so nil means "no
+	// notify received" and an empty list means "a notify that listed nothing".
+	// computeX509Auth relies on that difference: nil selects the legacy signature
+	// methods, anything else the Digital Signature method.
 	RemoteHashAlgos []uint16
 
 	// NAT Traversal state (RFC 7296 Section 2.23).

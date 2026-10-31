@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged after TestRFC8247LegacyRSAVerifiesSHA1 moved to verifyRemoteAuth. RFC 8247 Section 3.1 keeps RSA Digital Signature (method 1) at MUST; RFC 7296 Section 3.8 defines it as RSASSA-PKCS1-v1_5 with SHA-1 as the SHOULD default. Send side: TestRFC8247LegacySignatureWithoutNotify drives computeX509Auth with no notify and an RSA key and requires method 1, the bare modulus-length signature, accepted by verifyLegacyRSAAuth and by rsa.VerifyPKCS1v15 with crypto.SHA1 over the signed octets, so a wrong method, a DER prefix, a SHA-2 hash or the wrong octets go red. Receive side: TestRFC8247LegacyRSAVerifiesSHA1 hands verifyRemoteAuth a method 1 AUTH over the remote party's signed octets (computeSignedOctets with !IsInitiator) and requires SHA-1 and SHA-256 signatures to verify and a SHA-1 signature over other octets to fail with errSignatureFailed, so deleting the method 1 case of verifyRemoteAuth's switch or an accept-all verifier goes red; the earlier dispatch gap is closed. Remaining note: of the send-side negatives, 'notify received yields 14' is RFC7427-3-5's obligation and 'fails over other octets' is a property of rsa.VerifyPKCS1v15; the receive-side negative is the discriminating one. Untagged support: interop scenarios x509-legacy-rsa-signature and x509-legacy-rsa-signature-ze-responder against strongSwan with RFC 7427 disabled.",
+  "requirement_sha": "ca87327158a7d85a",
+  "tests": {
+    "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacyRSAVerifiesSHA1": "5e9e40ee5755dc69",
+    "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacyRSAVerifiesSHA1#2": "5e9e40ee5755dc69",
+    "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacySignatureWithoutNotify": "5e9e40ee5755dc69",
+    "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacySignatureWithoutNotify#2": "5e9e40ee5755dc69"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacyRSAVerifiesSHA1": "c8b0f8888e980d88",
+    "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacyRSAVerifiesSHA1#2": "c8b0f8888e980d88",
+    "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacySignatureWithoutNotify": "9fd67b9a05b0236e",
+    "internal/component/ike/engine/rfc8247_legacy_auth_test.go::TestRFC8247LegacySignatureWithoutNotify#2": "9fd67b9a05b0236e"
+  },
+  "verdict": "enforced"
+}

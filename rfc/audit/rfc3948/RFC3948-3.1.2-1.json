@@ -2,8 +2,8 @@
   "note": "Independently re-judged against committed a617f53893dab242be088ea985b9baae7e66c430. RFC 3948 Section 3.1.2 states: \"When a transport mode has been used to transmit packets, contained TCP or UDP headers will have incorrect checksums due to the change of parts of the IP header during transit.\" The section requires one local-policy checksum-handling alternative. checkNATTTransportInnerChecksum requires inbound transport-mode ESP-in-UDP state, successful TCP and UDP delivery, and acceptance of correct and deliberately corrupt inner-checksum probes without checksum-error increments. checkNATTTunnelInnerChecksum requires correct probes to succeed and corrupt probes to increment checksum-error counters without acceptance. craftedProbe uses rawprobe -b through a raw IP socket, not nping. createFirstChildSA/installChildSA and xfrmStateFromParams select and install the mode and encapsulation consumed by Linux XFRM. This covers the selected transport receive outcome and tunnel boundary, not NAT-OA or a real address-translating middlebox. Both scenario names dispatch to the examined checkers. Verdict retained from source review; no new execution result is claimed by this rejudgment.",
   "requirement_sha": "637ce5ff3c56e746",
   "tests": {
-    "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum": "b92bd17da7fbfa29",
-    "internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum": "b92bd17da7fbfa29"
+    "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum": "57696d5392eaf8de",
+    "internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum": "57696d5392eaf8de"
   },
   "units": {
     "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum": "11cb4e2cc70a27d0",

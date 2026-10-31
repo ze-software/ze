@@ -183,9 +183,16 @@ func TestParseHashAlgoNotify(t *testing.T) {
 	}
 }
 
+// TestParseHashAlgoNotifyShort reads a notify too short to hold one identifier. It
+// lists nothing, and the answer is still not nil: nil in SA.RemoteHashAlgos means no
+// notify arrived, which would select a legacy signature method RFC 7427 Section 3
+// does not leave open once a notify was received.
 func TestParseHashAlgoNotifyShort(t *testing.T) {
 	algos := parseHashAlgoNotify([]byte{0})
-	if algos != nil {
-		t.Fatalf("expected nil for short data, got %v", algos)
+	if len(algos) != 0 {
+		t.Fatalf("expected no algorithms for short data, got %v", algos)
+	}
+	if algos == nil {
+		t.Fatal("expected a non-nil empty list for a received notify, got nil")
 	}
 }

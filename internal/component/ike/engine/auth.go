@@ -38,12 +38,6 @@ var (
 	errUnsupportedKey  = errors.New("ike auth: unsupported key type")
 	errSignatureFailed = errors.New("ike auth: signature verification failed")
 
-	// RFC 7427 Section 3 permits the Digital Signature method only when a
-	// SIGNATURE_HASH_ALGORITHMS notify "has been sent and received by each peer".
-	errNoSignatureHashAlgos = errors.New(
-		"ike auth: the peer sent no SIGNATURE_HASH_ALGORITHMS notify, so RFC 7427 Section 3 " +
-			"does not permit the Digital Signature authentication method")
-
 	// RFC 7427 Section 4 requires the signer to pick an algorithm the peer sent.
 	errNoMutualHashAlgo = errors.New(
 		"ike auth: the peer offered no signature hash algorithm this key can sign with")
@@ -351,20 +345,19 @@ func computePSKAuth(sa *SA) (*wire.PayloadAUTH, error) {
 	}, nil
 }
 
-// computeX509Auth computes AUTH using X.509 digital signature (RFC 7427 method 14).
+// computeX509Auth computes AUTH using an X.509 certificate's private key: the RFC
+// 7427 Digital Signature method (14) when the peer sent SIGNATURE_HASH_ALGORITHMS,
+// and the legacy method that fits the key when it did not.
 //
-// RFC 7427 Section 3 states the method as a conditional permission, and the condition
+// RFC 7427 Section 3 states method 14 as a conditional permission, and the condition
 // is checked here: "As the authentication methods are not negotiated in IKEv2, the
 // peer is only allowed to use this authentication method if the Notify payload of type
 // SIGNATURE_HASH_ALGORITHMS has been sent and received by each peer." Ze sends that
 // notify in every IKE_SA_INIT it writes, as an initiator (initiator.go) and as a
 // responder (responder.go), so the half left to establish is reception.
-// sa.RemoteHashAlgos holds what arrived, and it is empty exactly when nothing did.
+// sa.RemoteHashAlgos is nil exactly when nothing arrived (its field comment, and
+// parseHashAlgoNotify, which never answers nil).
 func computeX509Auth(sa *SA) (*wire.PayloadAUTH, error) {
-	if len(sa.RemoteHashAlgos) == 0 {
-		return nil, fmt.Errorf("%w: peer %q", errNoSignatureHashAlgos, sa.PeerName)
-	}
-
 	certName := sa.localAuth().Certificate
 	if certName == "" {
 		return nil, errNoCertificate
@@ -378,6 +371,14 @@ func computeX509Auth(sa *SA) (*wire.PayloadAUTH, error) {
 	signedOctets, err := computeSignedOctets(sa, sa.IsInitiator)
 	if err != nil {
 		return nil, err
+	}
+
+	// No notify received: method 14 is not permitted, so the key signs with its
+	// legacy method. RFC 8247 Section 3.1 keeps RSA Digital Signature (1) at MUST
+	// because "RSA Digital Signature is widely deployed and, therefore, kept for
+	// interoperability."
+	if sa.RemoteHashAlgos == nil {
+		return computeLegacySignatureAuth(sa, certName, entry.PrivateKey, signedOctets)
 	}
 
 	algID, hashFunc, err := selectSignatureAlgorithm(entry.PrivateKey, sa.RemoteHashAlgos)
@@ -524,24 +525,6 @@ func verifyX509Auth(sa *SA, authData, signedOctets []byte) error {
 	// whose order is shorter than the hash (P-256 with ecdsa-with-SHA384),
 	// ecdsa.VerifyASN1 keeps its leftmost bits, which is that method.
 	return verifySignature(cert.PublicKey, digest, signature, hashFunc)
-}
-
-// verifyLegacyRSAAuth verifies a legacy RSA signature (method 1) AUTH payload.
-func verifyLegacyRSAAuth(sa *SA, authData, signedOctets []byte) error {
-	cert, err := getRemoteCert(sa)
-	if err != nil {
-		return err
-	}
-
-	h := sha256.New()
-	h.Write(signedOctets)
-	digest := h.Sum(nil)
-
-	rsaPub, ok := cert.PublicKey.(*rsa.PublicKey)
-	if !ok {
-		return errUnsupportedKey
-	}
-	return rsa.VerifyPKCS1v15(rsaPub, crypto.SHA256, digest, authData)
 }
 
 // buildCertRequest builds a CERTREQ payload with the SHA-1 hash of the configured CA's public key.

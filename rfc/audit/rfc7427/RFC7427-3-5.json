@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: with the notify exchanged and signature authentication in use, emitting a legacy AUTH method (1 RSA, 3 DSS) instead of Digital Signature (14). TestRFC7427DigitalSignatureMethodIsUsed asserts auth.AuthMethod == wire.AuthMethodDigitalSig with RemoteHashAlgos set (red on any other method) and, as the negative, that with no notify received computeX509Auth returns an error and a nil payload rather than falling back to a legacy method.",
+  "note": "Re-judged after the test dropped its no-notify case and gained key types. With RemoteHashAlgos set, TestRFC7427DigitalSignatureMethodIsUsed drives computeX509Auth for RSA-2048 and ECDSA on P-256, P-384 and P-521, every key type that now has a legacy method in auth_legacy.go and auth_ecdsa.go, and fails on any of methods 1, 3, 9, 10, 11 and on anything other than 14 with non-empty data, so a legacy branch leaking past the notify goes red for each key. Dropping the no-notify case is right: RFC 7427 Section 3 conditions this sentence on both ends having sent the notify, and that case belongs to RFC7427-3-4. Finding: the negative tag is entailed by the positive's == 14 assertion over the same inputs, so the pair is one assertion in two hats; it still discriminates because the requirement is a signer obligation whose only violation is Ze's own output. Untested edge: a received notify with an empty list must not fall back to a legacy method (parseHashAlgoNotify answers []uint16{}, pinned untagged by TestParseHashAlgoNotifyShort, never through computeX509Auth). Recorded discrimination breaks are whole-body panics only.",
   "requirement_sha": "10c463074286513c",
   "tests": {
-    "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed": "99c1f2646db3b221",
-    "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed#2": "99c1f2646db3b221"
+    "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed": "02f22f306d63d17e",
+    "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed#2": "02f22f306d63d17e"
   },
   "units": {
-    "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed": "e4c84de1ab6e540c",
-    "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed#2": "e4c84de1ab6e540c"
+    "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed": "78e18755525878c0",
+    "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed#2": "78e18755525878c0"
   },
   "verdict": "enforced"
 }

@@ -7,7 +7,7 @@
     "claim-sha": "fb045b4a00a2bef1",
     "route": "revert",
     "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
-    "producer-sha": "e4459e54b89de08b",
+    "producer-sha": "9276f793a0008843",
     "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

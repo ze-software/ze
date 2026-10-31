@@ -99,6 +99,15 @@ var scenarioCheckers = map[string]scenarioCheck{
 	"unbound-inner-address-uniqueness":      {run: checkUnboundInnerAddressUniqueness},
 	"virtual-ip-assignment":                 {run: checkVirtualIPAssignment},
 	"virtual-ip-uniqueness":                 {run: checkVirtualIPUniqueness},
+	// RFC 8247 Section 3.1 legacy signatures: strongSwan runs with RFC 7427 off, so
+	// Ze signs and verifies the AUTH method of each key (legacysig.go).
+	"x509-legacy-ecdsa-p256-signature": {run: checkLegacySignature("ECDSA-256 signature")},
+	"x509-legacy-ecdsa-p384-signature": {run: checkLegacySignature("ECDSA-384 signature")},
+	"x509-legacy-ecdsa-p521-signature": {run: checkLegacySignature("ECDSA-521 signature")},
+	"x509-legacy-rsa-signature":        {run: checkLegacySignature("RSA signature")},
+	// The same exchange with strongSwan initiating, so Ze signs as the responder
+	// from the notify-free IKE_SA_INIT request it answered (responder.go).
+	"x509-legacy-rsa-signature-ze-responder": {run: checkLegacySignature("RSA signature")},
 }
 
 // ScenarioNames returns every typed checker name in lexical selection order.

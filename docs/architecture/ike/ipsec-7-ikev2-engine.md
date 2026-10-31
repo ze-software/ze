@@ -376,16 +376,31 @@ receiver together.
 <!-- source: internal/component/ike/engine/eap_auth.go -- computeAuthFromSharedSecret, verifyAuthFromSharedSecret, constantTimeEqualAuth -->
 
 **A signature AUTH is verified by the method number the peer sent.** Method 14
-(RFC 7427 Digital Signature) carries an AlgorithmIdentifier and a DER signature,
-and it is the only signature method Ze signs with. Methods 9, 10 and 11 (RFC 4754
-ECDSA-256, ECDSA-384 and ECDSA-521) carry r followed by s, each zero-padded to
-32, 48 or 66 octets. Ze verifies them and never sends them. `verifyECDSAAuth`
+(RFC 7427 Digital Signature) carries an AlgorithmIdentifier and a DER signature.
+Methods 9, 10 and 11 (RFC 4754 ECDSA-256, ECDSA-384 and ECDSA-521) carry r
+followed by s, each zero-padded to 32, 48 or 66 octets. `verifyECDSAAuth`
 refuses any other length, a certificate key that is not ECDSA, and a key on a
 curve other than the one the method names. A DER signature sent under method 9
-is refused for its length. Method 1 (RSA) is verified with SHA-256.
+is refused for its length. Method 1 (RSA Digital Signature) is verified with
+SHA-1, the default RFC 7296 Section 3.8 names, or with SHA-256, SHA-384 or
+SHA-512, whichever the signature's DigestInfo carries.
 
-<!-- source: internal/component/ike/engine/auth.go -- verifyRemoteAuth, verifyX509Auth, verifyLegacyRSAAuth -->
-<!-- source: internal/component/ike/engine/auth_ecdsa.go -- verifyECDSAAuth, ecdsa256, ecdsa384, ecdsa521 -->
+**The method Ze signs with follows the peer's SIGNATURE_HASH_ALGORITHMS
+notify.** RFC 7427 Section 3 permits method 14 only once that notify has been
+sent and received by each peer, and Ze sends it in every IKE_SA_INIT. When the
+peer's notify arrived, `computeX509Auth` signs with method 14 and an algorithm
+from the peer's list. When none arrived (`sa.RemoteHashAlgos` is nil, which
+`parseHashAlgoNotify` never answers for a received notify), it signs with the
+key's legacy method: method 1, RSASSA-PKCS1-v1_5 over SHA-1, for an RSA key,
+and method 9, 10 or 11 by curve for an ECDSA key on P-256, P-384 or P-521. Any
+other key is refused with an error naming the key and the fix. Under
+`GODEBUG=fips140=only`, where Go refuses SHA-1 signatures, method 1 is refused
+with an error naming that mode; Ze sets no FIPS mode itself.
+
+<!-- source: internal/component/ike/engine/auth.go -- verifyRemoteAuth, verifyX509Auth, computeX509Auth -->
+<!-- source: internal/component/ike/engine/auth_legacy.go -- computeLegacySignatureAuth, signLegacyRSAAuth, verifyLegacyRSAAuth, fipsOnlyEnforced -->
+<!-- source: internal/component/ike/engine/auth_ecdsa.go -- verifyECDSAAuth, signECDSAAuth, ecdsa256, ecdsa384, ecdsa521 -->
+<!-- source: internal/component/ike/engine/initiator.go -- parseHashAlgoNotify -->
 
 **The engine emits SA lifecycle events.** `vpn-ipsec/sa-up` and
 `vpn-ipsec/sa-down` are registered at init time, so any component can subscribe.
