@@ -307,3 +307,66 @@ func TestCreatedPeerInheritsTheBGPLevelPolicy(t *testing.T) {
 		t.Error("the created peer has no export policy: the bgp-level one was not applied")
 	}
 }
+
+// TestCreatedPeerFromStdinConfigInheritsTheBGPLevelPolicy is
+// TestCreatedPeerInheritsTheBGPLevelPolicy on a reactor whose config came from
+// stdin ("-"), the way `ze -` and the chaos in-process run
+// (LoadReactorWithPluginsStandalone) build it.
+//
+// VALIDATES: a reactor with no config file to re-read still builds a created
+// peer through the config pipeline, so the peer carries the bgp-level policy.
+// PREVENTS: the created-peer builder keyed on the file reload: CreateReactor
+// gave the tree pipeline only to a file-configured reactor, so a created EBGP
+// peer on a stdin daemon fell back to its own entry and refused every route.
+func TestCreatedPeerFromStdinConfigInheritsTheBGPLevelPolicy(t *testing.T) {
+	r, err := LoadReactorWithPluginsStandalone(nil, createdPeerPolicyConfig, "-", nil)
+	if err != nil {
+		t.Fatalf("create reactor: %v", err)
+	}
+	loaded, err := config.LoadConfig(createdPeerPolicyConfig, "-", nil)
+	if err != nil {
+		t.Fatalf("parse the config: %v", err)
+	}
+	assertCreatedPeerInheritsPolicy(t, r, loaded.Tree.ToPluginMap())
+}
+
+// assertCreatedPeerInheritsPolicy records running as r's running
+// configuration, creates an EBGP peer through the lifecycle adapter, and
+// asserts the peer carries the bgp-level import and export policy.
+func assertCreatedPeerInheritsPolicy(t *testing.T, r *reactor.Reactor, running map[string]any) {
+	t.Helper()
+	api, ok := r.ReactorLifecycleAdapter().(interface {
+		AddDynamicPeer(netip.Addr, map[string]any) error
+		SetConfigTree(map[string]any)
+	})
+	if !ok {
+		t.Fatal("the reactor lifecycle adapter lacks the create surface")
+	}
+	api.SetConfigTree(running)
+
+	createdAddr := netip.MustParseAddr("192.0.2.9")
+	if err := api.AddDynamicPeer(createdAddr, map[string]any{
+		"connection": map[string]any{"local": map[string]any{"ip": "192.168.1.1"}},
+		"session":    map[string]any{"asn": map[string]any{"remote": "65009"}},
+	}); err != nil {
+		t.Fatalf("create the peer: %v", err)
+	}
+	var created *reactor.PeerSettings
+	for _, peer := range r.Peers() {
+		if peer.Settings().Address == createdAddr {
+			created = peer.Settings()
+		}
+	}
+	if created == nil {
+		t.Fatal("the created peer is not running")
+	}
+	if !created.IsEBGP() {
+		t.Fatal("the created peer is not EBGP: the test proves nothing about RFC 8212")
+	}
+	if !created.ImportPolicy.Configured() {
+		t.Error("the created peer has no import policy: the bgp-level one was not applied")
+	}
+	if !created.ExportPolicy.Configured() {
+		t.Error("the created peer has no export policy: the bgp-level one was not applied")
+	}
+}

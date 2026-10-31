@@ -1,13 +1,18 @@
 package reactor
 
 import (
+	"fmt"
+	"maps"
 	"net/netip"
+	"slices"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/configorder"
 )
 
@@ -216,15 +221,99 @@ func TestAddDynamicPeerAcceptsItsOwnIdentity(t *testing.T) {
 
 // newDynamicPeerReactor builds the reactor these tests drive.
 //
-// It states the config explicitly rather than reusing newTestReactor, which
-// leaves the config pointer nil: AddDynamicPeer reads the router's own local AS
-// and BGP Identifier out of it, so a nil there is a panic rather than a
-// default.
+// It states the config explicitly rather than reusing newTestReactor: the
+// router's own local AS and BGP Identifier are both in its config and in the
+// bgp block of its running configuration, which is where the tree pipeline a
+// created peer is built by reads them (createdPeerSettings). A zero leaves the
+// leaf out of the running configuration, as a bgp section that states none.
+// The reactor holds the tree pipeline every reactor CreateReactorFromTree
+// builds holds, here the stand-in testTreeReload.
 func newDynamicPeerReactor(t *testing.T, localAS, routerID uint32) *Reactor {
 	t.Helper()
 	r := newTestReactor(t)
 	r.config = &Config{LocalAS: localAS, RouterID: routerID}
+	bgp := map[string]any{}
+	if localAS != 0 {
+		bgp["session"] = map[string]any{"asn": map[string]any{"local": strconv.FormatUint(uint64(localAS), 10)}}
+	}
+	if routerID != 0 {
+		bgp["router-id"] = netip.AddrFrom4([4]byte{byte(routerID >> 24), byte(routerID >> 16), byte(routerID >> 8), byte(routerID)}).String()
+	}
+	r.configTree = map[string]any{"bgp": bgp}
+	r.SetTreeReloadFunc(testTreeReload(t))
 	return r
+}
+
+// testTreeReload stands in for the config pipeline (createTreeReloadFunc,
+// ../config/loader_create.go), which this package cannot import: the YANG
+// defaults every configured peer gets, the globals of the bgp block, then
+// each peer parsed with them, an incomplete one refused naming its leaf. It
+// resolves no group and reads no dynamic group.
+func testTreeReload(t *testing.T) TreeReloadFunc {
+	t.Helper()
+	return func(tree map[string]any) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error) {
+		schema, err := config.YANGSchema()
+		if err != nil {
+			return nil, Globals{}, nil, err
+		}
+		peerSchema, err := schema.Lookup("bgp/peer")
+		if err != nil {
+			return nil, Globals{}, nil, err
+		}
+		_, bgp, peers := copyToPeerList(tree)
+		for name, entry := range peers {
+			peer, isMap := cloneTestTree(entry).(map[string]any)
+			if !isMap {
+				return nil, Globals{}, nil, fmt.Errorf("peer %s is a %T", name, entry)
+			}
+			config.ApplyDefaults(peer, peerSchema)
+			peers[name] = peer
+		}
+		if len(peers) > 0 {
+			bgp["peer"] = peers
+		}
+		globals, err := GlobalsFromTree(bgp)
+		if err != nil {
+			return nil, Globals{}, nil, err
+		}
+		// The pipeline refuses an incomplete peer naming the leaf
+		// (refuseIncompletePeers), where PeersFromTree skips it.
+		names := slices.Sorted(maps.Keys(peers))
+		built := make([]*PeerSettings, 0, len(names))
+		for _, name := range names {
+			peer, _ := peers[name].(map[string]any)
+			settings, err := parsePeerFromTree(name, peer, globals.LocalAS, globals.RouterID)
+			if err != nil {
+				return nil, Globals{}, nil, fmt.Errorf("peer %s: %w", name, err)
+			}
+			settings.Name = name
+			built = append(built, settings)
+		}
+		return built, globals, nil, nil
+	}
+}
+
+// cloneTestTree answers a deep copy of a config tree value, so the defaults
+// testTreeReload writes never reach the tree it was handed.
+func cloneTestTree(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, child := range v {
+			out[key] = cloneTestTree(child)
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i, child := range v {
+			out[i] = cloneTestTree(child)
+		}
+		return out
+	case []string:
+		return append([]string(nil), v...)
+	default:
+		return v
+	}
 }
 
 // TestAddDynamicPeerRecordsTheRunningConfig holds the join between the command

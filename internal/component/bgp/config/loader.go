@@ -51,21 +51,16 @@ func CreateReactor(cfg *config.LoadConfigResult, configPath string, store storag
 		return nil, err
 	}
 
+	// Only a file-configured reactor re-reads its config: Reload and
+	// VerifyConfig read the file (createReloadFunc). The tree loader, which
+	// reads no file, every reactor already holds (CreateReactorFromTree). Both
+	// run one pipeline (reloadPeersFromTree).
 	if configPath != "" && configPath != "-" {
 		r.SetConfigPath(configPath)
-		setReloadFuncs(r, store, cfg.CLIPlugins)
+		r.SetReloadFunc(createReloadFunc(store, cfg.CLIPlugins))
 	}
 
 	return r, nil
-}
-
-// setReloadFuncs gives a file-configured reactor its two loaders: Reload
-// and VerifyConfig re-read the file (createReloadFunc), and ApplyConfigDiff
-// loads the tree it is handed (createTreeReloadFunc). Both run one pipeline
-// (reloadPeersFromTree).
-func setReloadFuncs(r *reactor.Reactor, store storage.Storage, cliPlugins []string) {
-	r.SetReloadFunc(createReloadFunc(store, cliPlugins))
-	r.SetTreeReloadFunc(createTreeReloadFunc())
 }
 
 // LoadReactorWithPlugins parses config with CLI plugins and creates a borrow-mode

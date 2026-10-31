@@ -16,8 +16,9 @@ package reactor
 type TreeReloadFunc func(tree map[string]any) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error)
 
 // SetTreeReloadFunc sets the loader ApplyConfigDiff runs over the tree it is
-// handed. A file-configured daemon sets it beside
-// SetReloadFunc (CreateReactor, ../config/loader.go).
+// handed, and the builder of a created peer (createdPeerSettings). Every
+// reactor CreateReactorFromTree builds holds it (../config/loader_create.go),
+// whether its config came from a file or from stdin: it reads no file.
 func (r *Reactor) SetTreeReloadFunc(fn TreeReloadFunc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -39,8 +40,9 @@ func (r *Reactor) SetTreeReloadFunc(fn TreeReloadFunc) {
 // groups are the tree's own (dynamicGroupsReadAs), so the dynamic step
 // reconciles the population against the tree being applied.
 //
-// A reactor with no TreeReloadFunc is one CreateReactor did not build (a
-// test, a non-file daemon): it keeps loadPeersFullOrTree over the bgp block.
+// A reactor with no TreeReloadFunc is one CreateReactorFromTree did not
+// build, which only a package test does: it keeps loadPeersFullOrTree over the
+// bgp block.
 func (a *reactorAPIAdapter) loadPeersFromConfig(tree map[string]any) (loadedConfig, error) {
 	a.r.mu.RLock()
 	treeReloadFn := a.r.treeReloadFunc

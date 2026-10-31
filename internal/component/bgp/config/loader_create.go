@@ -187,6 +187,13 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 
 	r := reactor.New(reactorCfg)
 
+	// Every reactor gets the tree pipeline, whatever its config came from: it
+	// builds a peer `create bgp peer` adds (createdPeerSettings) and the peers
+	// of a tree ApplyConfigDiff is handed, and it reads no file. A daemon
+	// started from stdin ("-") or by the chaos in-process run has no file to
+	// re-read, but it still builds peers from its running tree.
+	r.SetTreeReloadFunc(createTreeReloadFunc())
+
 	// Start the Prometheus metrics HTTP exporter from the telemetry config block
 	// via the always-on metrics.StartExporter seam. The gated exporter
 	// (//go:build ze_telemetry) parses the config, creates the shared registry,

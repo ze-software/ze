@@ -11,13 +11,11 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"slices"
 	"strconv"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -575,15 +573,16 @@ func (r *Reactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
 // configuration recorded, so a restored peer is the peer that was created.
 // The caller MUST NOT hold r.mu: the defaults are read under it.
 //
-// A reactor CreateReactor built holds the TreeReloadFunc, and the peer is then
-// built by the pipeline that builds every peer the file declares: the entry
-// joins a copy of the running configuration under its name and the whole tree
-// is built (createdPeerFromRunning). A created peer therefore inherits the
-// bgp-level import and export policy, the default filters and every other
-// layered setting exactly as a configured peer does. Built from its own entry
-// alone, an EBGP peer had an absent policy, which RFC 8212 Section 3 turns into
-// refusing every route both ways. A reactor with no TreeReloadFunc (a test, a
-// non-file daemon) keeps the entry parser, as loadPeersFromConfig does.
+// The peer is built by the pipeline that builds every peer the file declares
+// (TreeReloadFunc): the entry joins a copy of the running configuration under
+// its name and the whole tree is built (createdPeerFromRunning). A created
+// peer therefore inherits the bgp-level import and export policy, the default
+// filters and every other layered setting exactly as a configured peer does.
+// Built from its own entry alone, an EBGP peer had an absent policy, which
+// RFC 8212 Section 3 turns into refusing every route both ways, so there is
+// no second builder: a reactor holding no TreeReloadFunc refuses the peer.
+// CreateReactorFromTree (../config/loader_create.go) gives every reactor one,
+// whether its config came from a file or from stdin.
 func (r *Reactor) createdPeerSettings(addr netip.Addr, tree map[string]any) (*PeerSettings, error) {
 	name := peerConfigNameFor(addr)
 	r.mu.RLock()
@@ -591,13 +590,10 @@ func (r *Reactor) createdPeerSettings(addr netip.Addr, tree map[string]any) (*Pe
 	running := r.configTree
 	r.mu.RUnlock()
 
-	var settings *PeerSettings
-	var err error
-	if treeReloadFn != nil {
-		settings, err = createdPeerFromRunning(treeReloadFn, running, name, tree)
-	} else {
-		settings, err = r.createdPeerFromEntry(addr, tree)
+	if treeReloadFn == nil {
+		return nil, fmt.Errorf("dynamic peer %s: this reactor holds no configuration pipeline to build it (SetTreeReloadFunc was never called): %w", addr, ErrIncompleteConfig)
 	}
+	settings, err := createdPeerFromRunning(treeReloadFn, running, name, tree)
 	if err != nil {
 		return nil, fmt.Errorf("dynamic peer %s: %w", addr, err)
 	}
@@ -652,64 +648,6 @@ func createdPeerFromRunning(build TreeReloadFunc, running map[string]any, name s
 		}
 	}
 	return nil, fmt.Errorf("the configuration pipeline built no peer %s from its entry: %w", name, ErrIncompleteConfig)
-}
-
-// createdPeerFromEntry builds a created peer from its own entry, with the YANG
-// defaults and the reactor's global AS and router-id. It is the builder of a
-// reactor that holds no TreeReloadFunc (createdPeerSettings).
-func (r *Reactor) createdPeerFromEntry(addr netip.Addr, tree map[string]any) (*PeerSettings, error) {
-	withDefaults, err := createdPeerSchemaDefaults(tree)
-	if err != nil {
-		return nil, err
-	}
-	globals := r.globals()
-	return parsePeerFromTree(addr.String(), withDefaults, globals.LocalAS, globals.RouterID)
-}
-
-// createdPeerSchemaDefaults answers a copy of a created peer's entry with the
-// YANG defaults the config pipeline gives every configured peer
-// (applyPeerSchemaDefaults, ../config/peers.go). Without them the two builders
-// disagree about one entry (CapabilityConfigJSON lacks the defaulted
-// `asn4 enable`), so a reload or a compensation that declares a created peer
-// restarted a session nothing changed. The entry itself is not written to: it
-// is what the running configuration records and `update bgp config` saves.
-func createdPeerSchemaDefaults(entry map[string]any) (map[string]any, error) {
-	schema, err := config.YANGSchema()
-	if err != nil {
-		return nil, fmt.Errorf("YANG schema: %w", err)
-	}
-	peerSchema, err := schema.Lookup("bgp/peer")
-	if err != nil {
-		return nil, fmt.Errorf("YANG schema bgp/peer: %w", err)
-	}
-	withDefaults := cloneConfigValue(entry).(map[string]any) //nolint:forcetypeassert // A map clones to a map.
-	config.ApplyDefaults(withDefaults, peerSchema)
-	return withDefaults, nil
-}
-
-// cloneConfigValue answers a deep copy of one config map value. The recursion
-// is bounded by the YANG schema's nesting depth: the entry is one the CLI
-// parser or the running configuration built, never peer input.
-func cloneConfigValue(value any) any {
-	switch v := value.(type) {
-	case map[string]any:
-		out := make(map[string]any, len(v))
-		for key, child := range v {
-			out[key] = cloneConfigValue(child)
-		}
-		return out
-	case []any:
-		out := make([]any, len(v))
-		for i, child := range v {
-			out[i] = cloneConfigValue(child)
-		}
-		return out
-	case []string:
-		return slices.Clone(v)
-	default:
-		// A scalar (string, float64, bool) is a value: the copy is itself.
-		return v
-	}
 }
 
 // PortOverrideFromEnv answers the BGP port every peer of this daemon dials,
