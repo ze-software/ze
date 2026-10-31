@@ -8,7 +8,7 @@
 | Release reason | New capability: a protocol-neutral route policy and a gate on every source entering the Loc-RIB. No shipped behavior is defective without it; the two defects it owns (journal rows below) are post-release quality, not release blockers. |
 | RFC gaps | - |
 | Depends | `plan/release/fixes/spec-fixit-redistribution-chain-drops-silently.md` (phase 3 needs a working redistribution chain to prove anything); `plan/release/fixes/spec-single-owner-reload-reconcile.md` (its AC-9 tests the redistribute evaluator phase 3 replaces); phase 4 sequences with `plan/post-release/engineering/spec-filter-wire-0-umbrella.md` |
-| Phase | 2/4 |
+| Phase | 3/4 (phases 1-2 landed; phase 3 waits on the two Depends redistribution specs, phase 4 on spec-filter-wire-0-umbrella) |
 | Handoff | - |
 | Updated | 2026-10-29 |
 
@@ -350,10 +350,10 @@ import, and is refused on connected import because connected carries no tag.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `isis-import-policy-frr` | `test/interop/scenarios/` | FRR | AC-4: FRR's prefix is in Ze's LSDB, flooded on to a second FRR, and absent from Ze's FIB | |
+| `isis-import-policy-frr` | `test/interop/scenarios/` | FRR | AC-4: FRR's prefix is in Ze's LSDB, flooded on to a second FRR, and absent from Ze's FIB | green at f99da3eeef on `claude`; red at assertion 5 with `ribChain.Evaluate` reject disabled; green restored. Needed b77067bc31 (TLV 240 circuit-ID echo) |
 | `isis-export-policy-frr` | `test/interop/scenarios/` | FRR | AC-12 | |
 | `ospf-export-policy-frr` | `test/interop/scenarios/` | FRR | AC-13 | |
-| `ospf-import-policy-bird` | `test/interop/scenarios/` | BIRD 3 | AC-9 with tagged OSPF externals learned from BIRD: the tagged prefix is installed at the set distance and loses to a static route it would otherwise beat | |
+| `ospf-import-policy-bird` | `test/interop/scenarios/` | BIRD 3 | AC-9 with tagged OSPF externals learned from BIRD: the tagged prefix is installed at the set distance and loses to a static route it would otherwise beat | green at 2e08f27eb5 on `claude`; red at assertion 2 with the Loc-RIB `admit` gate skipped; green restored |
 
 ## Files to Modify
 - `internal/core/rib/locrib/candidate.go`, `entry.go`, `manager.go`, `distance.go` - hidden flag, tag/level/route-type fields, gate, re-evaluation in Reselect
