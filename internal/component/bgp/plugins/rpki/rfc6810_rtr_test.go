@@ -1,4 +1,4 @@
-// RFC naming: untagged -- these tests run RTR version 1 sessions, so they prove shared router behavior that RFC 8210 rows already carry; ze speaks no RTR version 0, and every RFC 6810 row they once carried is a gap (owner ruling 2026-10-30).
+// RFC naming: untagged -- these tests run RTR version 1 or 2 sessions, so they prove shared router behavior that RFC 8210 rows already carry; ze speaks no RTR version 0, and every RFC 6810 row they once carried is a gap (owner ruling 2026-10-30).
 package rpki
 
 import (
@@ -16,9 +16,9 @@ import (
 // TestRFC6810DefaultPollCadenceIsHourly checks the cadence a session uses
 // before any cache has supplied timing parameters.
 //
-// VALIDATES: before any End of Data has set intervals, both waits a version 1
-// session takes between queries (after a sync and after a failed query) start at
-// or below one hour.
+// VALIDATES: before any End of Data has set intervals, both waits a version 2
+// session (rtrVersionMax) takes between queries (after a sync and after a failed
+// query) start at or below one hour.
 // PREVENTS: a default that lets an idle router go quiet for more than an hour.
 func TestRFC6810DefaultPollCadenceIsHourly(t *testing.T) {
 	s := newTestRTRSession(t, "192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), make(chan struct{}))

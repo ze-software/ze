@@ -498,7 +498,7 @@ func TestRTRReservedOctetsIgnoredOnReceipt(t *testing.T) {
 
 // TestRTRPollsAtLeastHourly checks the poll cadence a router keeps when its cache sends no timing.
 //
-// VALIDATES: in a version 1 session, an End of Data whose interval fields are zero leaves the wait
+// VALIDATES: in a version 2 session, an End of Data whose interval fields are zero leaves the wait
 // after a sync and the wait after a failed query at or under one hour, and the group does query
 // again once the wait ends.
 // PREVENTS: a poll loop that stops after the first sync, or a default wait above one hour.
