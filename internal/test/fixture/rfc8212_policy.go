@@ -36,6 +36,10 @@ func rfc8212PolicyDriver(mode string) Driver {
 		if mode == "import" {
 			state.forbidden["127.0.0.2"] = map[string]bool{prefix82First: true, "10.82.4.0/24": true, "2001:db8:82::/48": true}
 		}
+		if mode == "ibgp" {
+			// RFC 4271 Section 9.2: "When a BGP speaker receives an UPDATE message from an internal peer, the receiving BGP speaker SHALL NOT re-distribute the routing information contained in that UPDATE message to other internal peers (unless the speaker acts as a BGP Route Reflector [RFC2796])."
+			state.forbidden["127.0.0.2"] = map[string]bool{prefix82First: true}
+		}
 		if mode == "export" {
 			state.forbidden["127.0.0.2"] = map[string]bool{prefix82First: true, "10.82.10.0/24": true, "10.82.11.0/24": true, "10.82.12.0/24": true, "10.82.13.0/24": true, "10.82.14.0/24": true, "10.82.15.0/24": true, "10.82.16.0/24": true}
 		}
@@ -188,15 +192,24 @@ func rfc8212PolicyImport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 	if ibgp {
 		wanted = prefix82First
 	}
-	wantedRoutes := []string{wanted, "192.168.250.0/24"}
+	// Both sessions are IBGP, so the source's route is selected but never
+	// relayed to the sink: import is proven by the best path, export by Ze's own
+	// routes reaching both IBGP peers.
+	wantedRoutes := []string{"192.168.250.0/24"}
 	if !ibgp {
-		wantedRoutes = append(wantedRoutes, "2001:db8:83::/48")
+		wantedRoutes = append(wantedRoutes, wanted, "2001:db8:83::/48")
 	}
 	if err := state.wait(ctx, "127.0.0.2", "", wantedRoutes...); err != nil {
 		return err
 	}
 	if !ibgp {
 		if err := rfc8212PolicyBest(ctx, plugin, "2001:db8:83::/48", true); err != nil {
+			return err
+		}
+	}
+	if ibgp {
+		// No sink copy orders this check, so wait for the selection itself.
+		if err := rfc8212PolicyBestEventually(ctx, plugin, wanted, true); err != nil {
 			return err
 		}
 	}
@@ -214,7 +227,11 @@ func rfc8212PolicyImport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 	if err := liveStagesRoute(ctx, plugin, accepted+" update text nhop 192.0.2.1 nlri add 192.168.2.0/24"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "127.0.0.2", wanted, "192.168.250.0/24"); err != nil {
+	if ibgp {
+		if err := rfc8212PolicyBestEventually(ctx, plugin, wanted, false); err != nil {
+			return err
+		}
+	} else if err := state.wait(ctx, "127.0.0.2", wanted, "192.168.250.0/24"); err != nil {
 		return err
 	}
 	if err := rfc8212PolicyBest(ctx, plugin, wanted, false); err != nil {
@@ -307,6 +324,22 @@ func rfc8212PolicyDualStack(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("sources and sink did not negotiate both families and send both EORs: %+v", result.Peers)
 	}
 	return nil
+}
+
+// rfc8212PolicyBestEventually polls rfc8212PolicyBest until it holds, and
+// returns its last refusal when it never does.
+func rfc8212PolicyBestEventually(ctx context.Context, plugin *sdk.Plugin, prefix string, present bool) error {
+	var last error
+	if Poll(ctx, 80, liveStagesPollDelay, func() bool {
+		last = rfc8212PolicyBest(ctx, plugin, prefix, present)
+		return last == nil
+	}) {
+		return nil
+	}
+	if last == nil {
+		last = ctx.Err()
+	}
+	return fmt.Errorf("best path for %s never settled: %w", prefix, last)
 }
 
 func rfc8212PolicyBest(ctx context.Context, plugin *sdk.Plugin, prefix string, present bool) error {

@@ -1,0 +1,93 @@
+# Test: an IBGP session with no import and no export policy at any layer keeps
+#       exchanging routes (RFC 8212 Section 3 binds EBGP sessions only).
+#
+# VALIDATES: spec-bgp-rfc8212-ebgp-default-reject AC-4 -- through the real
+#            receive and send paths, on two IBGP sessions with no `filter`
+#            block anywhere in the configuration:
+#   127.0.0.1 source: Ze exports its API routes 192.168.1.0/24 and
+#             192.168.2.0/24, which MUST reach it (its script waits for each);
+#             Ze imports the 10.82.1.0/24 it answers with, which MUST become the selected
+#             best path, and its withdrawal MUST remove it
+#   127.0.0.2 sink (echo): Ze's API route 192.168.250.0/24 MUST reach it, and
+#             10.82.1.0/24 MUST NOT: RFC 4271 Section 9.2 forbids relaying an
+#             internal peer's route to another internal peer without route
+#             reflection, so the sink proves export, not the relay.
+# PREVENTS: the EBGP default reject leaking onto IBGP, in either direction.
+#
+# The observer is the compiled fixture plugin/rfc8212-ibgp-no-policy-unchanged
+# (internal/test/fixture/rfc8212_policy.go, rfc8212PolicyDriver("ibgp")). It
+# waits for both End-of-RIBs, releases each step by an API route on the same
+# socket, and ends on a withdrawal fence the sink must echo, so the exact
+# surviving map is checked after every earlier frame. Both sessions must keep
+# their original connection.
+option=timeout:value=90s
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# IBGP: empty AS_PATH, NEXT_HOP 192.0.2.1, LOCAL_PREF 100, NLRI 10.82.1.0/24.
+expect=bgp:conn=1:seq=2:announced=18C0A801
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304C000020140050400000064180A5201
+expect=bgp:conn=1:seq=3:announced=18C0A802
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A52010000
+EOF_SOURCE
+
+stdin=sink:terminator=EOF_SINK
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65000
+EOF_SINK
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal adj-rib-in { use bgp-adj-rib-in; }
+    internal rs { use bgp-rs; }
+    internal rib { use bgp-rib; }
+    external rfc8212-policy { run "le test fixture plugin/rfc8212-ibgp-no-policy-unchanged"; encoder json; }
+}
+bgp {
+    peer source {
+        connection { remote { ip 127.0.0.1; } local { ip 127.0.0.4; accept false; } }
+        session {
+            asn { local 65000; remote 65000; }
+            aigp { enabled false; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        attach process rfc8212-policy { send [ update ]; }
+        attach process adj-rib-in { receive [ update-received state ]; }
+        attach process rs { receive [ update-received state open-received refresh ]; }
+        attach process rib { receive [ update state refresh ]; }
+    }
+    peer sink {
+        connection { remote { ip 127.0.0.2; } local { ip 127.0.0.5; accept false; } }
+        session {
+            asn { local 65000; remote 65000; }
+            aigp { enabled false; }
+            # The test peer answers with Ze's identifier plus one. Two IBGP peers
+            # with one identifier break the AS-wide claim (RFC 6286 Section 2.1).
+            router-id 1.2.3.6;
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        attach process rfc8212-policy { receive [ update-received state ]; send [ update ]; }
+        attach process rs { receive [ state open-received refresh ]; send [ update ]; }
+        attach process rib { receive [ update-sent state refresh ]; send [ update ]; }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --bind 127.0.0.1 --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT --mode echo:stdin=sink
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=90s
+
+expect=exit:code=0
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
+# AC-9 names EBGP only: no RFC 8212 repair warning for an IBGP session.
+reject=stderr:pattern=set bgp peer (source|sink) filter
