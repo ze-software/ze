@@ -1066,28 +1066,6 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-bgp-peer-no-role"},
 	},
 	{
-		Code:  "doctor-redistribute-unknown-source",
-		Title: "redistribute imports a source no component registered",
-		Description: "A `redistribute { destination <proto> { import <source> } }` rule names a source that is in no " +
-			"component's source registry. Ze refuses to start on it, because a nil evaluator would disable every " +
-			"redistribution rule in the file rather than the one line that is wrong. Remedy: correct the source " +
-			"name, or compile in the component that registers it. `ze config schema redistribute` lists the " +
-			"sources this build registers.",
-		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-redistribute-unknown-source"},
-	},
-	{
-		Code:  "doctor-redistribute-unknown-destination",
-		Title: "redistribute names a destination protocol nothing can consume",
-		Description: "A `redistribute { destination <proto> }` block names a protocol that registered no " +
-			"redistribution identity, so no consumer can ever answer to that name and every rule under the block " +
-			"is inert. The daemon starts and says nothing, because a destination nobody serves and a destination " +
-			"that rejects every route produce the same silence. This is a warning rather than an error: a " +
-			"consumer registers at plugin startup, so a build that omits the destination protocol is a " +
-			"legitimate reason for the name to be unknown here. Remedy: correct the protocol name, or compile in " +
-			"the protocol that consumes it.",
-		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-redistribute-unknown-destination"},
-	},
-	{
 		Code:        "doctor-tacacs-unreachable",
 		Title:       "TACACS+ servers unreachable",
 		Description: "No configured TACACS+ authentication server accepted a TCP connection within the probe timeout.",

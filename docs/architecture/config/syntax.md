@@ -1327,10 +1327,8 @@ static and connected runs on a router with no BGP.
 The refusal replaced a warning. The warning left the global evaluator nil, which
 disabled every redistribution rule in the file rather than the one line that was
 wrong, and its only trace was a startup log line. `ze doctor` on a config file
-reports either fault through its config-parse diagnostic, because the load
-refuses both. Its post-config check names them under
-`doctor-redistribute-unknown-source` and
-`doctor-redistribute-unknown-destination` for a tree that reaches it.
+reports either fault through its config-parse diagnostic, because it loads the
+config through `LoadConfig` and the load refuses both (`runChecks`).
 
 An empty rule list installs an EMPTY evaluator rather than leaving the previous
 one standing, so a reload that removed the last `redistribute` block stops
@@ -1339,7 +1337,7 @@ redistributing.
 <!-- source: internal/component/config/loader_redistribute.go -- RefuseRedistributeRules -->
 <!-- source: internal/component/config/redistribute/destination.go -- Destination, RegisterDestination -->
 <!-- source: internal/plugins/redistribute/config.go -- ruleState -->
-<!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules -->
+<!-- source: internal/component/doctor/doctor.go -- runChecks -->
 
 ---
 

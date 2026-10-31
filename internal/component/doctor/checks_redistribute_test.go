@@ -1,9 +1,12 @@
-// Design: docs/guide/redistribution.md -- the redistribute readiness check, driven through the runner
+// Design: docs/guide/redistribution.md -- the refusal `ze doctor` reports for a redistribute rule
 //
-// The check and its unit cases live with the config component
-// (internal/component/config/doctor_redistribute.go and its test). What stays
-// here is the one case that drives `ze doctor` itself, because it is the
-// runner it exercises.
+// `ze doctor` holds no redistribution check of its own. Every entry point (the
+// command, `show doctor`, the support bundle) reaches runChecks, which loads
+// the config through config.LoadConfig, and that load refuses an unknown
+// source or destination (config.RefuseRedistributeRules). A post-config check
+// could only ever meet a tree the load had already accepted, so it was a
+// second declaration of the refusal and was removed. What stays here proves
+// the refusal reaches the operator through the doctor runner.
 
 package doctor
 
@@ -29,20 +32,19 @@ func codes(diags []diagnostic.Diagnostic) []string {
 	return out
 }
 
-// TestRunChecksReachesTheRedistributeCheck drives the check from the entry
-// point an operator reaches, rather than from the helper.
+// TestRunChecksReportsTheRedistributeRefusal drives `ze doctor` from the entry
+// point an operator reaches.
 //
 // VALIDATES: `ze doctor` on a config whose redistribution destination is a
 // typo reports it as an error that names the token, the declared destinations
 // and the fix. The config load refuses a destination no protocol declared
 // (config.RefuseRedistributeRules), so the report arrives as the config-parse
 // diagnostic, before any post-config check runs.
-// PREVENTS: the defect this test was written for. The check and its unit
-// tests once landed in one commit that never added the runner call, so the
-// check was dead from the day it was written and every helper-driven test
-// stayed green (`ai/rules/evidence.md`). An operator who runs `ze doctor` on
-// the typo and is told nothing is the same defect wearing a new cause.
-func TestRunChecksReachesTheRedistributeCheck(t *testing.T) {
+// PREVENTS: an operator who runs `ze doctor` on the typo and is told nothing.
+// A redistribution check once landed with its unit tests and no runner call,
+// so it was dead from the day it was written while every helper-driven test
+// stayed green (`ai/rules/evidence.md`). Only the runner proves the report.
+func TestRunChecksReportsTheRedistributeRefusal(t *testing.T) {
 	cfgPath := writeTestConfig(t, `redistribute {
 	destination ospv3 {
 		import connected

@@ -422,10 +422,10 @@ disabled for the WHOLE file. One mistyped word silently stopped rules that were
 written correctly.
 
 `ze doctor` on such a config reports the same refusal, as its config-parse
-diagnostic. Its own redistribution check, which names an unknown source under
-`doctor-redistribute-unknown-source` and an unknown destination under
-`doctor-redistribute-unknown-destination`, runs after the config parses, so on
-a config file the parse refusal names the token first.
+diagnostic `doctor-config-parse`. Every `ze doctor` entry point (the command,
+`show doctor` on a running daemon, and the support bundle) loads the config
+through the same door the daemon boots through, so the refusal is the whole
+report and no separate redistribution check exists.
 
 ```
 ze doctor
@@ -433,8 +433,7 @@ ze doctor
 
 <!-- source: internal/component/config/loader_redistribute.go -- RefuseRedistributeRules, refuseUndeclaredDestination -->
 <!-- source: internal/component/config/redistribute/destination.go -- DestinationNames -->
-<!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules -->
-<!-- source: internal/core/diagnostic/codes.go -- doctor-redistribute-unknown-source, doctor-redistribute-unknown-destination -->
+<!-- source: internal/component/doctor/doctor.go -- runChecks -->
 
 ### Counters
 
