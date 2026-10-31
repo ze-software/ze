@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/family"
@@ -92,7 +93,8 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 }
 
 // RefuseRedistributeRules refuses a config whose `redistribute` block cannot
-// act: every refusal ExtractRedistributeRules makes, and a rule that names a
+// act: every refusal ExtractRedistributeRules makes, a destination no protocol
+// declared (a typo such as `destination ospv3`), and a rule that names a
 // source or a destination whose protocol has no config root in this config.
 //
 // It needs the whole tree, which only the config doors hold: LoadConfig (boot
@@ -128,14 +130,34 @@ func RefuseRedistributeRules(tree *Tree) error {
 		if refusedDestinations[rule.Destination] {
 			continue
 		}
-		if dest, ok := redistribute.LookupDestination(rule.Destination); ok {
-			if refusal := refuseAbsentRoot(tree, dest.ConfigRoot, `"destination `+rule.Destination+`"`, "destination "+rule.Destination); refusal != nil {
-				refusedDestinations[rule.Destination] = true
-				refusals = append(refusals, refusal)
-			}
+		dest, ok := redistribute.LookupDestination(rule.Destination)
+		if !ok {
+			refusedDestinations[rule.Destination] = true
+			refusals = append(refusals, refuseUndeclaredDestination(rule.Destination))
+			continue
+		}
+		if refusal := refuseAbsentRoot(tree, dest.ConfigRoot, `"destination `+rule.Destination+`"`, "destination "+rule.Destination); refusal != nil {
+			refusedDestinations[rule.Destination] = true
+			refusals = append(refusals, refusal)
 		}
 	}
 	return errors.Join(refusals...)
+}
+
+// refuseUndeclaredDestination answers the refusal for a destination name no
+// protocol declared (redistribute.RegisterDestination). Nothing in this build
+// can receive routes under that name, so the rules under it would move nothing.
+// The declared names come from the registry, so the list is what this build
+// holds, never a copy of it.
+func refuseUndeclaredDestination(name string) error {
+	declared := "none in this build"
+	if names := redistribute.DestinationNames(); len(names) > 0 {
+		declared = strings.Join(names, ", ")
+	}
+	return fmt.Errorf("redistribute: %q names no protocol that receives redistributed routes, so the rules under it would move no route\n"+
+		"  declared destinations: %s\n"+
+		"  fix: rename %q to one of the declared destinations, or remove %q from the redistribute block",
+		"destination "+name, declared, name, "destination "+name)
 }
 
 // refuseAbsentRoot answers the refusal for a statement whose protocol needs

@@ -1,6 +1,7 @@
 package redistribute
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,33 @@ func TestRegisterDestinationDeclaresTheRoot(t *testing.T) {
 
 	_, ok = LookupDestination("desttest-never-declared")
 	assert.False(t, ok, "a name nobody declared is not found")
+}
+
+// TestDestinationNamesListsEveryDeclarationSorted proves the name list a
+// refusal prints is the registry's, in a stable order.
+//
+// VALIDATES: DestinationNames answers every declared name, sorted, once.
+// PREVENTS: a refusal whose list of valid destinations omits one or varies
+// from run to run.
+func TestDestinationNamesListsEveryDeclarationSorted(t *testing.T) {
+	require.NoError(t, RegisterDestination(Destination{Name: "desttest-names-b"}))
+	require.NoError(t, RegisterDestination(Destination{Name: "desttest-names-a"}))
+	require.NoError(t, RegisterDestination(Destination{Name: "desttest-names-a"}))
+
+	names := DestinationNames()
+	assert.True(t, slices.IsSorted(names), "names come back sorted: %v", names)
+	assert.Equal(t, 1, countOf(names, "desttest-names-a"), "a repeated declaration is listed once")
+	assert.Equal(t, 1, countOf(names, "desttest-names-b"))
+}
+
+func countOf(names []string, name string) int {
+	n := 0
+	for _, candidate := range names {
+		if candidate == name {
+			n++
+		}
+	}
+	return n
 }
 
 // TestRegisterDestinationRefusesAConflict proves a second declaration under

@@ -27,6 +27,13 @@ var (
 	errUsageFakeredistConsumed = errors.New("usage: fakeredist consumed <destination-name>")
 )
 
+// sinkDestinations are the destination names a synthetic consumer may register
+// under. init() declares each one (configredist.RegisterDestination), so a
+// .ci config can name it, and runConsume refuses any other name, so a scenario
+// cannot register a consumer no config could have named. `fakeprobe` proves the
+// dispatcher is live; `fakedest` is the consumer a scenario fills late.
+var sinkDestinations = []string{"fakedest", "fakeprobe"}
+
 // sink is a RedistConsumer that keeps what it was given. Safe for concurrent
 // use: the orchestrator dispatches on the emitting goroutine and a .ci scenario
 // reads back on the command goroutine.
@@ -84,6 +91,9 @@ func runConsume(args []string) (json.RawMessage, error) {
 	name := args[0]
 	if name == ProtocolName {
 		return nil, fmt.Errorf("consumer name %q is this plugin's own source name; a protocol is never redistributed into itself", name)
+	}
+	if !slices.Contains(sinkDestinations, name) {
+		return nil, fmt.Errorf("consumer name %q is not a destination this plugin declares; use one of %v", name, sinkDestinations)
 	}
 
 	s := &sink{name: name, prefixes: map[string]struct{}{}}

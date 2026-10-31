@@ -29,14 +29,12 @@ example bgp or ospf.";
                 // No ze:validate here. Each protocol declares its destination
                 // name and the config root it needs from init()
                 // (configredist.RegisterDestination), and the config doors
-                // refuse a rule whose protocol has no block in the config
-                // (config.RefuseRedistributeRules). A name no protocol declares
-                // is not refused: the orchestrator dispatches over the consumers
-                // that registered, and such a name matches none of them. `ze
-                // doctor` reports it, under doctor-redistribute-unknown-destination
-                // (internal/component/config/doctor_redistribute.go).
-                description "bgp, ospf and isis are examples. A rule naming a destination whose
-protocol has no block in the config is refused at load, validate and commit.";
+                // refuse a name no protocol declares, listing the declared
+                // names, and a rule whose protocol has no block in the config
+                // (config.RefuseRedistributeRules).
+                description "bgp, ospf and isis are examples. A destination no protocol in this
+build declares, or one whose protocol has no block in the config, is refused at
+load, validate and commit.";
                 ze:help "Name of the protocol that receives the redistributed routes.";
             }
 

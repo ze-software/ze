@@ -26,6 +26,14 @@ func init() {
 	}); err != nil {
 		panic("BUG: " + Name + " source registration failed: " + err.Error())
 	}
+	// The synthetic consumers are destinations a .ci config names, so they are
+	// declared like any protocol's: the config load refuses a destination no
+	// package declared (config.RefuseRedistributeRules).
+	for _, destination := range sinkDestinations {
+		if err := configredist.RegisterDestination(configredist.Destination{Name: destination}); err != nil {
+			panic("BUG: " + Name + " destination registration failed: " + err.Error())
+		}
+	}
 
 	reg := registry.Registration{
 		Name:        Name,

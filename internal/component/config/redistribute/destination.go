@@ -7,6 +7,7 @@ package redistribute
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 )
 
@@ -56,6 +57,20 @@ func RegisterDestination(d Destination) error {
 	}
 	destinations[d.Name] = d
 	return nil
+}
+
+// DestinationNames returns every declared destination name in sorted order.
+// A refusal of an undeclared destination lists them, so the operator reads
+// what this build can receive routes into rather than a hand-kept list.
+func DestinationNames() []string {
+	destinationMu.RLock()
+	defer destinationMu.RUnlock()
+	names := make([]string, 0, len(destinations))
+	for name := range destinations {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
 }
 
 // LookupDestination returns the declaration registered for a destination name.

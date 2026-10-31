@@ -33,12 +33,15 @@ func codes(diags []diagnostic.Diagnostic) []string {
 // point an operator reaches, rather than from the helper.
 //
 // VALIDATES: `ze doctor` on a config whose redistribution destination is a
-// typo reports it, through the registration the config component makes.
+// typo reports it as an error that names the token, the declared destinations
+// and the fix. The config load refuses a destination no protocol declared
+// (config.RefuseRedistributeRules), so the report arrives as the config-parse
+// diagnostic, before any post-config check runs.
 // PREVENTS: the defect this test was written for. The check and its unit
 // tests once landed in one commit that never added the runner call, so the
 // check was dead from the day it was written and every helper-driven test
-// stayed green (`ai/rules/evidence.md`). A registration that init() no longer
-// makes is the same defect wearing the registry's name.
+// stayed green (`ai/rules/evidence.md`). An operator who runs `ze doctor` on
+// the typo and is told nothing is the same defect wearing a new cause.
 func TestRunChecksReachesTheRedistributeCheck(t *testing.T) {
 	cfgPath := writeTestConfig(t, `redistribute {
 	destination ospv3 {
@@ -47,5 +50,18 @@ func TestRunChecksReachesTheRedistributeCheck(t *testing.T) {
 }
 `)
 
-	assert.Contains(t, codes(runChecks(cfgPath)), "doctor-redistribute-unknown-destination")
+	diags := runChecks(cfgPath)
+	var report *diagnostic.Diagnostic
+	for i := range diags {
+		if diags[i].Code == "doctor-config-parse" {
+			report = &diags[i]
+		}
+	}
+	if !assert.NotNil(t, report, "ze doctor reports the refused destination: %v", codes(diags)) {
+		return
+	}
+	assert.Equal(t, diagnostic.SeverityError, report.Severity)
+	assert.Contains(t, report.Message, `"destination ospv3" names no protocol that receives redistributed routes`)
+	assert.Contains(t, report.Message, "declared destinations: ")
+	assert.Contains(t, report.Message, `fix: rename "ospv3" to one of the declared destinations`)
 }

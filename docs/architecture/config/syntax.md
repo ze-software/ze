@@ -1308,11 +1308,12 @@ the process keeps its own binding unchanged.
 
 `redistribute { destination <proto> { import <source> } }` is read once at load
 and again on every SIGHUP reload, and a config it cannot turn into rules
-REFUSES the load, and `ze config validate` and a commit refuse it too. Four
+REFUSES the load, and `ze config validate` and a commit refuse it too. Five
 shapes fail, each naming what the operator typed: a source no component
 registered, a family name that is not a registered address family, a
-`destination` that imports nothing, and a rule naming a source or a destination
-whose protocol has no block in the config (`import bgp` or `destination bgp`
+`destination` that imports nothing, a `destination` no protocol declared (the
+refusal lists `redistribute.DestinationNames`, the declared set), and a rule
+naming a source or a destination whose protocol has no block in the config (`import bgp` or `destination bgp`
 with no `bgp { }` block, and the same for `isis` and `ospf`). The root each
 source or destination needs is declared from the protocol's own `init()`
 (`RouteSource.ConfigRoot`, `Destination.ConfigRoot`), before any plugin starts,
@@ -1325,12 +1326,11 @@ static and connected runs on a router with no BGP.
 
 The refusal replaced a warning. The warning left the global evaluator nil, which
 disabled every redistribution rule in the file rather than the one line that was
-wrong, and its only trace was a startup log line. `ze doctor` reports the same
-two faults ahead of the daemon, under `doctor-redistribute-unknown-source` and
-`doctor-redistribute-unknown-destination`; the second is a warning, because a
-destination name no protocol in this build registers is not refused at load,
-and a build without that protocol is a legitimate reason for the name to be
-unknown.
+wrong, and its only trace was a startup log line. `ze doctor` on a config file
+reports either fault through its config-parse diagnostic, because the load
+refuses both. Its post-config check names them under
+`doctor-redistribute-unknown-source` and
+`doctor-redistribute-unknown-destination` for a tree that reaches it.
 
 An empty rule list installs an EMPTY evaluator rather than leaving the previous
 one standing, so a reload that removed the last `redistribute` block stops

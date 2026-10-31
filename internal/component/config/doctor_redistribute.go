@@ -27,8 +27,9 @@ import (
 const codeRedistUnknownSource = "doctor-redistribute-unknown-source"
 
 // codeRedistUnknownDestination names a `redistribute` destination that no
-// protocol can ever consume. The daemon starts and the rules under it never
-// fire.
+// protocol can ever consume. The config load refuses a name no protocol
+// declared (RefuseRedistributeRules), so through `ze doctor` on a config file
+// the config-parse diagnostic names it first.
 const codeRedistUnknownDestination = "doctor-redistribute-unknown-destination"
 
 // redistributeDoctorCheck describes the check. register_doctor.go registers it.
@@ -56,18 +57,19 @@ var redistributeDoctorCheck = diagnostic.DoctorCheck{
 // load on it, and `ze doctor` is where an operator finds out first.
 //
 // A destination's consumer registers at plugin startup, after this process
-// reads anything. A destination whose protocol has no block in the config is
-// refused at load from the protocol's static declaration
-// (config.RefuseRedistributeRules, redistribute.RegisterDestination). A name no
-// protocol registered at all is not refused there, so this check asks the
-// question it can answer honestly: did any protocol register this name?
+// reads anything. The config load refuses a destination no protocol declared,
+// and one whose protocol has no block in the config, from the protocol's
+// static declaration (config.RefuseRedistributeRules,
+// redistribute.RegisterDestination). `ze doctor` on a config file therefore
+// reports a typo through its config-parse diagnostic, before this check runs.
+// This check asks the narrower question of a tree that reached it: did any
+// protocol register a redistribution identity under this name?
 //
 // A name nothing registered can have no consumer under any startup order. The
 // YANG leaf carries no validation for it
-// (internal/component/config/redistribute/yang/ze-redistribute-conf.yang), so a
-// typo there is invisible everywhere else. It is a WARNING, because a build
-// that omits the destination protocol is a legitimate reason for the name to be
-// unknown.
+// (internal/component/config/redistribute/yang/ze-redistribute-conf.yang). It
+// is a WARNING, because a build that omits the destination protocol is a
+// legitimate reason for the name to be unknown.
 //
 // A nil tree is the missing-config phase, which this check does not run in, and
 // a context carrying anything else is a runner defect the runner's own type

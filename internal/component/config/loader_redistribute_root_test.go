@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"sync"
 	"testing"
 
@@ -16,6 +17,10 @@ const (
 	rootNeedDestination = "rootneed-dest"
 	rootNeedPlainSource = "rootneed-plain"
 	rootNeedRoot        = "rootneedproto"
+	// rootNeedPlainDestination is declared with no root: it stands for a
+	// destination such as isis whose rules the source-side checks judge, in a
+	// test binary that links no IS-IS plugin to declare the real one.
+	rootNeedPlainDestination = "rootneed-plaindest"
 )
 
 var registerRootNeedOnce sync.Once
@@ -38,7 +43,57 @@ func registerRootNeed(t *testing.T) {
 			Name:       rootNeedDestination,
 			ConfigRoot: rootNeedRoot,
 		}))
+		require.NoError(t, redistribute.RegisterDestination(redistribute.Destination{
+			Name: rootNeedPlainDestination,
+		}))
 	})
+}
+
+// TestRefuseRedistributeRulesNamesAnUndeclaredDestination proves a destination
+// no protocol declared is refused, and the refusal names the token the
+// operator wrote and every declared destination, read from the registry.
+//
+// VALIDATES: `destination ospv3 { import connected }` (a typo) is refused at
+// load and commit, with the names the operator could have meant.
+// PREVENTS: a destination nothing declares loading, validating and committing,
+// then moving no route, with only a `ze doctor` line to say so.
+func TestRefuseRedistributeRulesNamesAnUndeclaredDestination(t *testing.T) {
+	registerRootNeed(t)
+
+	const typo = "rootneed-typo"
+	_, declared := redistribute.LookupDestination(typo)
+	require.False(t, declared, "the destination under test is one nobody declares")
+
+	err := RefuseRedistributeRules(rootNeedTree(typo, rootNeedPlainSource, true))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `redistribute: "destination rootneed-typo" names no protocol that receives redistributed routes`)
+	assert.Contains(t, err.Error(), "declared destinations: "+strings.Join(redistribute.DestinationNames(), ", "))
+	assert.Contains(t, err.Error(), rootNeedDestination, "the list carries the declarations this test made")
+	assert.Contains(t, err.Error(), rootNeedPlainDestination, "the list carries the declarations this test made")
+	assert.Contains(t, err.Error(), `fix: rename "rootneed-typo" to one of the declared destinations, or remove "destination rootneed-typo" from the redistribute block`)
+
+	errs := VerifyPluginConfigMapTransition(nil, rootNeedTree(typo, rootNeedPlainSource, true).ToPluginMap())
+	require.NotEmpty(t, errs, "the validate and commit door refuses what boot refuses")
+	assert.Contains(t, JoinPluginConfigVerifyErrors(errs).Error(), `"destination rootneed-typo" names no protocol`)
+
+	assert.NoError(t, RefuseRedistributeRules(rootNeedTree(rootNeedPlainDestination, rootNeedPlainSource, false)),
+		"a declared destination with the same import is accepted")
+}
+
+// TestRefuseRedistributeRulesNamesAnUndeclaredDestinationOnce proves a
+// destination is named once however many imports sit under it, so the
+// operator reads one refusal per typo.
+func TestRefuseRedistributeRulesNamesAnUndeclaredDestinationOnce(t *testing.T) {
+	registerRootNeed(t)
+
+	tree := rootNeedTree("rootneed-typo", rootNeedPlainSource, true)
+	redist := tree.GetContainer("redistribute")
+	dest := redist.GetListOrdered("destination")[0].Value
+	dest.AddListEntry("import", rootNeedSource, NewTree())
+
+	err := RefuseRedistributeRules(tree)
+	require.Error(t, err)
+	assert.Equal(t, 1, strings.Count(err.Error(), "names no protocol"))
 }
 
 // rootNeedTree builds `redistribute { destination <dest> { import <source> } }`,
@@ -68,12 +123,12 @@ func rootNeedTree(dest, source string, withRoot bool) *Tree {
 func TestRefuseRedistributeRulesNeedsTheSourceRoot(t *testing.T) {
 	registerRootNeed(t)
 
-	err := RefuseRedistributeRules(rootNeedTree("isis", rootNeedSource, false))
+	err := RefuseRedistributeRules(rootNeedTree(rootNeedPlainDestination, rootNeedSource, false))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `"import rootneed-src" under "destination isis" needs rootneedproto configured, and this config has no rootneedproto { } block`)
+	assert.Contains(t, err.Error(), `"import rootneed-src" under "destination rootneed-plaindest" needs rootneedproto configured, and this config has no rootneedproto { } block`)
 	assert.Contains(t, err.Error(), "fix: configure rootneedproto in a rootneedproto { } block")
 
-	assert.NoError(t, RefuseRedistributeRules(rootNeedTree("isis", rootNeedSource, true)),
+	assert.NoError(t, RefuseRedistributeRules(rootNeedTree(rootNeedPlainDestination, rootNeedSource, true)),
 		"the same rule with its root present is accepted")
 }
 
@@ -111,7 +166,7 @@ func TestRefuseRedistributeRulesNeedsTheDestinationRoot(t *testing.T) {
 func TestRefuseRedistributeRulesAcceptsRulesWithNoRoot(t *testing.T) {
 	registerRootNeed(t)
 
-	assert.NoError(t, RefuseRedistributeRules(rootNeedTree("isis", rootNeedPlainSource, false)))
+	assert.NoError(t, RefuseRedistributeRules(rootNeedTree(rootNeedPlainDestination, rootNeedPlainSource, false)))
 }
 
 // TestVerifyDoorRefusesRedistributeWithoutRoot proves the validate and commit
@@ -124,11 +179,11 @@ func TestRefuseRedistributeRulesAcceptsRulesWithNoRoot(t *testing.T) {
 func TestVerifyDoorRefusesRedistributeWithoutRoot(t *testing.T) {
 	registerRootNeed(t)
 
-	errs := VerifyPluginConfigMapTransition(nil, rootNeedTree("isis", rootNeedSource, false).ToPluginMap())
+	errs := VerifyPluginConfigMapTransition(nil, rootNeedTree(rootNeedPlainDestination, rootNeedSource, false).ToPluginMap())
 	require.NotEmpty(t, errs)
-	assert.Contains(t, JoinPluginConfigVerifyErrors(errs).Error(), `"import rootneed-src" under "destination isis" needs rootneedproto configured`)
+	assert.Contains(t, JoinPluginConfigVerifyErrors(errs).Error(), `"import rootneed-src" under "destination rootneed-plaindest" needs rootneedproto configured`)
 
-	assert.Empty(t, VerifyPluginConfigMapTransition(nil, rootNeedTree("isis", rootNeedSource, true).ToPluginMap()))
+	assert.Empty(t, VerifyPluginConfigMapTransition(nil, rootNeedTree(rootNeedPlainDestination, rootNeedSource, true).ToPluginMap()))
 
 	errs = VerifyPluginConfigMapTransition(nil, rootNeedTree(rootNeedDestination, rootNeedPlainSource, false).ToPluginMap())
 	require.NotEmpty(t, errs)

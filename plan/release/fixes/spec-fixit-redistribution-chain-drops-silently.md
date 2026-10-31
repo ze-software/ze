@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P1 |
 | Release reason | Configured redistribution must deliver routes and preserve unresolved NSSA and IS-IS proof ownership. |
 | Scope | plugin |
 | Depends | - |
-| Phase | - |
+| Phase | 6/6 |
 | Handoff | - |
-| Updated | 2026-10-09 |
+| Updated | 2026-10-31 |
 
 Set aside 2026-10-09 (owner: "Also set aside 4 specs nobody is working on"): no session is working it. AC-2 (NSSA Type-7) and AC-3 (IS-IS readiness) are undiagnosed. Next, per "Current diagnosis boundary": diagnose the missing NSSA route through `v6OriginateNSSALSA`, and the `isis-redist-frr` readiness failure.
 
@@ -56,6 +56,10 @@ Two findings carried into this spec from the investigation that commissioned it:
 - `docs/guide/redistribution.md` is titled "Route Filters" and documents route
   filters end to end. It says nothing about the `redistribute` config root. That
   silence is what authorized this investigation.
+
+Claimed 2026-10-31 past the WIP cap (14/14) with the owner's approval, because
+route-policy phase 3 (`plan/post-release/features/spec-route-policy-0-umbrella.md`)
+needs a working redistribution chain to prove anything.
 
 ## Owned journal rows
 

@@ -346,7 +346,8 @@ isis` needs an `isis { }` block before any plugin starts. The consumer that
 receives the routes comes later. OSPF and IS-IS register theirs when their
 plugins start. BGP declares a consumer factory, which the orchestrator builds
 over its own connection to the engine. A build without a protocol has neither,
-so a build without BGP has no `bgp` destination.
+so a build without BGP has no `bgp` destination, and a config naming one is
+refused at load with the list of destinations the build does declare.
 
 **A protocol is never redistributed into itself.** `destination isis { import
 isis }` parses and moves nothing, at every guard: the config evaluator, the
@@ -414,21 +415,24 @@ and the error names what you typed:
 | `import isis` or `destination isis`, and no `isis { }` block | the same refusal: `redistribute: "destination isis" needs isis configured, and this config has no isis { } block` |
 | `import ospf` or `destination ospf`, and no `ospf { }` block | the same refusal: `redistribute: "destination ospf" needs ospf configured, and this config has no ospf { } block` |
 
+| `destination ospv3 { import connected }`, a name no protocol in this build declares | the load, `ze config validate` and a commit fail: `redistribute: "destination ospv3" names no protocol that receives redistributed routes`, then a line listing the declared destinations (read from the registry, so it is what this build carries) and the fix |
+
 A refusal is deliberate. Ze used to warn once and carry on with redistribution
 disabled for the WHOLE file. One mistyped word silently stopped rules that were
 written correctly.
 
-One fault is not refused at load: a `destination` naming a protocol that no
-component in this build declares. `ze doctor` warns about it, under
-`doctor-redistribute-unknown-destination`, because a build without that
-protocol is a legitimate reason for the name to be unknown. It reports an
-unknown source too, under `doctor-redistribute-unknown-source`.
+`ze doctor` on such a config reports the same refusal, as its config-parse
+diagnostic. Its own redistribution check, which names an unknown source under
+`doctor-redistribute-unknown-source` and an unknown destination under
+`doctor-redistribute-unknown-destination`, runs after the config parses, so on
+a config file the parse refusal names the token first.
 
 ```
 ze doctor
 ```
 
-<!-- source: internal/component/config/loader_redistribute.go -- RefuseRedistributeRules -->
+<!-- source: internal/component/config/loader_redistribute.go -- RefuseRedistributeRules, refuseUndeclaredDestination -->
+<!-- source: internal/component/config/redistribute/destination.go -- DestinationNames -->
 <!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules -->
 <!-- source: internal/core/diagnostic/codes.go -- doctor-redistribute-unknown-source, doctor-redistribute-unknown-destination -->
 

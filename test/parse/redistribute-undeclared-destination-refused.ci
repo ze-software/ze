@@ -1,0 +1,52 @@
+# Test: a redistribute destination no protocol declares is refused at validate
+# time and at daemon start, naming the token, the declared destinations and
+# the fix.
+#
+# VALIDATES: RefuseRedistributeRules (internal/component/config/loader_redistribute.go)
+#            looks every destination up in the declaration registry
+#            (configredist.RegisterDestination) and refuses a miss, listing
+#            redistribute.DestinationNames. `ze config validate` (the commit
+#            door) and LoadConfig (boot) both refuse. The same rule under a
+#            declared destination validates.
+# PREVENTS:  a typo such as `destination ospv3` loading, validating and
+#            committing, then moving no route, with only a `ze doctor` line to
+#            say so.
+
+stdin=dest-typo:terminator=EOF_TYPO
+redistribute {
+	destination ospv3 {
+		import connected
+	}
+}
+EOF_TYPO
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=dest-typo
+expect=exit:code=1
+expect=stdout:contains=redistribute: "destination ospv3" names no protocol that receives redistributed routes, so the rules under it would move no route
+expect=stdout:pattern=declared destinations: .*bgp.*isis.*ospf
+expect=stdout:contains=fix: rename "ospv3" to one of the declared destinations, or remove "destination ospv3" from the redistribute block
+
+cmd=foreground:seq=2:exec=ze -:stdin=dest-typo:timeout=15s
+expect=exit:code=1
+expect=stderr:contains=redistribute: "destination ospv3" names no protocol that receives redistributed routes
+expect=stderr:pattern=declared destinations: .*bgp.*isis.*ospf
+
+stdin=dest-declared:terminator=EOF_DECLARED
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+}
+
+redistribute {
+	destination ospf {
+		import connected
+	}
+}
+EOF_DECLARED
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=dest-declared
+expect=exit:code=0
+expect=stdout:contains=configuration valid
