@@ -452,6 +452,18 @@
   },
   {
     "rid": "RFC2545-3-1",
+    "polarity": "negative",
+    "unit": "test/encode/new-v6.ci",
+    "unit-sha": "facaad02640abf6a",
+    "claim-sha": "2be7ae8ceee2c9bc",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/update_build.go::buildMPReach",
+    "producer-sha": "4d39aed49a7780ef",
+    "break": "line 706: \"nextHops[0] = p.NextHop\" -\u003e \"nextHops[0] = p.NextHop.Next()\"",
+    "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00590200000042800E26000201102A020B8000000002000000000000000100802A020B8000000001000000000000000140010100400200400504000000C8C008087814000078147814"
+  },
+  {
+    "rid": "RFC2545-3-1",
     "polarity": "positive",
     "unit": "test/exabgp-compat/encoding/conf-llnh-update.ci",
     "unit-sha": "4c1734e43fbc1d5d",
