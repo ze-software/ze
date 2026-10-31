@@ -89,6 +89,26 @@ func TestLowSimilarityRenamePairingFailsClosedOnAmbiguity(t *testing.T) {
 	}
 }
 
+// TestLowSimilarityRenamePairingIgnoresAmbiguityAmongNonTests proves an
+// ambiguous pairing that holds no test path cannot refuse the commit: a module
+// bump moved a vendored exhaustive.go while another exhaustive.go changed, and
+// the gate refused the whole re-vendor although no test was renamed.
+//
+// VALIDATES: acceptedRenamePairs skips a basename with no test candidate.
+// PREVENTS: a vendor re-sync refused by the test-weakening gate.
+func TestLowSimilarityRenamePairingIgnoresAmbiguityAmongNonTests(t *testing.T) {
+	t.Parallel()
+	paths := []string{"new-one/shared/a.go", "new-two/shared/a.go"}
+	removed := []string{"old-one/shared/a.go", "old-two/shared/a.go"}
+	pairs := []RenamePair{
+		{OldPath: removed[0], NewPath: paths[0], Score: 1},
+		{OldPath: removed[1], NewPath: paths[1], Score: 1},
+	}
+	if accepted, problem := acceptedRenamePairs(paths, removed, pairs); problem != "" || len(accepted) != 0 {
+		t.Fatalf("non-test ambiguous low-score pairs = %#v, %q; want none and no problem", accepted, problem)
+	}
+}
+
 // The pairing needs each accepted pair to share a unique suffix of two or more
 // components: docvalid/dispatch.go and le/dispatch.go. The extra new path
 // internal/other/dispatch.go shares only dispatch.go and must stay unpaired.

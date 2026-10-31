@@ -202,6 +202,12 @@ func acceptedRenamePairs(paths, removed []string, pairs []RenamePair) ([]RenameP
 	for _, name := range names {
 		oldCandidates := filterBasename(removed, name, usedOld)
 		newCandidates := filterBasename(paths, name, usedNew)
+		// ProspectiveCommit keeps only pairs whose two sides are test paths, so a
+		// basename with no test candidate cannot change the result. Pairing it
+		// anyway lets a vendored file move refuse the whole commit.
+		if !slices.ContainsFunc(oldCandidates, isTestPath) && !slices.ContainsFunc(newCandidates, isTestPath) {
+			continue
+		}
 		optimum, unique := uniqueSuffixPairing(oldCandidates, newCandidates)
 		if !unique {
 			return nil, "low-similarity rename pairing is ambiguous for basename " + strconv.Quote(name) + ": the maximum common-suffix pairing is not unique"
