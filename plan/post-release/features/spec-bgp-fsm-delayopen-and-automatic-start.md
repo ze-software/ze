@@ -523,4 +523,5 @@ the quotes in the Task section.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `callback-reenters-held-lock.md` | 2026-10-30 | strict BFD release holds `openMu` across the negotiated publication, so the read loop's close waits on it |
 | `claim-outlives-the-evidence-it-cites.md` | 2026-10-31 | RFC4271-8.2.2-15 WEAK: no tagged unit runs a DelayOpenTimer in Connect |
