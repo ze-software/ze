@@ -53,6 +53,34 @@ func TestAnnotationsNeverInflateThePublishedSections(t *testing.T) {
 	walked[fixtureStem] = true
 	proven[fixtureRID] = true
 
+	// No row of the corpus carries {feature-declined}: the owner rules that
+	// only a feature he will never implement leaves the count, and every row
+	// that carried the kind became a {gap} owed after the first release. The
+	// kind is still declared and judged, so its case runs on a fixture row of
+	// a real RFC whose quote and producer the evidence reader checks against
+	// this checkout: the line RFC8907-5.4-2 carried before it became a {gap},
+	// under an id the corpus does not hold, its text narrowed to the one
+	// sentence the quote holds, since featureShapeGap judges a conditional
+	// quote only as the row's own sentence.
+	const declinedStem = "rfc8907"
+	const declinedRID = "RFC8907-5.4-90"
+	if !walked[declinedStem] {
+		t.Fatalf("the {feature-declined} fixture needs %s walked, and this checkout has not walked it", declinedStem)
+	}
+	for _, requirement := range collected.Requirements {
+		if requirement.RID == declinedRID {
+			t.Fatal("feature-declined fixture requirement collides with the real corpus")
+		}
+	}
+	declined, err := ParseSummaryText(
+		"- [ ] [RFC8907-5.4-90] [MUST NOT] When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered. (§5.4, Description of Authentication Process) {feature-declined: \"When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered.\"; ze never queries the user for the information: internal/component/tacacs/client.go::Authenticate builds a PAP START with NewPAPAuthenStart from the username and password already supplied through aaa.AuthRequest and returns the REPLY, so it never prompts the user in response to a TACACS+ reply}\n",
+		declinedStem, "in-memory-feature-declined-fixture",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	collected.Requirements = append(collected.Requirements, declined...)
+
 	stems := map[string]bool{}
 	for stem := range collected.Metas {
 		stems[stem] = true
@@ -126,7 +154,16 @@ func TestAnnotationsNeverInflateThePublishedSections(t *testing.T) {
 				t.Errorf("{%s} annotations inflated whole credit: with %+v, without %+v", kind, with, without)
 			}
 			if kind == AnnotationNotApplicable {
-				notApplicableBothWays(t, &collected, walked, reader, leavingOwed, with, sectionsOf)
+				// The bare copy drops the quote and the role it binds, as the
+				// backlog's rows are written.
+				evidencedRowBothWays(t, kind, &collected, walked, reader, leavingOwed, with, sectionsOf,
+					func(annotation *Annotation) { annotation.Quote, annotation.BoundRole = "", "" })
+			}
+			if kind == AnnotationFeatureDeclined {
+				// The bare copy drops the optionality quote, the evidence the
+				// parser demands of every such row.
+				evidencedRowBothWays(t, kind, &collected, walked, reader, leavingOwed, with, sectionsOf,
+					func(annotation *Annotation) { annotation.Quote, annotation.Heading = "", "" })
 			}
 			t.Logf("%d {%s} rows; %d leave the owed rows; %d stay owed for want of evidence; %d otherwise-whole claims excluded",
 				annotated, kind, leavingOwed, sheltered, excludedCredit)
@@ -353,24 +390,25 @@ func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 	}
 }
 
-// notApplicableBothWays holds the {not-applicable} case to both sides of the
-// evidence rule on the real corpus. The exact comparison of the counterfactual
-// already keeps every row lacking evidence in the owed rows; this adds that
-// the corpus carries rows whose evidence passes, which leave (leavingOwed), and
-// that a bare copy of one of them, its quote and bound role dropped as the
-// backlog's rows are written, does not move the denominator: it joins the owed
-// rows, one more Kept and one more Total. The copy is made in memory, so the
-// proof holds whatever the backlog holds.
-func notApplicableBothWays(t *testing.T, collected *Collected, walked map[string]bool, reader *evidenceReader,
+// evidencedRowBothWays holds a kind the sections count not owed to both sides
+// of the evidence rule on the corpus. The exact comparison of the
+// counterfactual already keeps every row lacking evidence in the owed rows;
+// this adds that the corpus carries rows of the kind whose evidence passes,
+// which leave (leavingOwed), and that a bare copy of one of them, its evidence
+// dropped by strip, does not move the denominator: it joins the owed rows,
+// one more Kept and one more Total. The copy is made in memory, so the proof
+// holds whatever the backlog holds.
+func evidencedRowBothWays(t *testing.T, kind string, collected *Collected, walked map[string]bool, reader *evidenceReader,
 	leavingOwed int, with headline,
 	sectionsOf func([]Requirement) headline,
+	strip func(*Annotation),
 ) {
 	t.Helper()
 	if leavingOwed == 0 {
-		t.Fatal("no {not-applicable} row of this corpus carries passing evidence, so nothing shows an evidenced row leaves")
+		t.Fatalf("no {%s} row of this corpus carries passing evidence, so nothing shows an evidenced row leaves", kind)
 	}
 	for _, requirement := range collected.Requirements {
-		if requirement.Annotation == nil || requirement.Annotation.Kind != AnnotationNotApplicable {
+		if requirement.Annotation == nil || requirement.Annotation.Kind != kind {
 			continue
 		}
 		meta := collected.Metas[requirement.RFC]
@@ -381,7 +419,7 @@ func notApplicableBothWays(t *testing.T, collected *Collected, walked map[string
 		}
 		bare := requirement
 		annotation := *requirement.Annotation
-		annotation.Quote, annotation.BoundRole = "", ""
+		strip(&annotation)
 		bare.Annotation, bare.RID = &annotation, requirement.RID+"-bare"
 		got := sectionsOf(append(slices.Clone(collected.Requirements), bare))
 		want := with
@@ -393,5 +431,5 @@ func notApplicableBothWays(t *testing.T, collected *Collected, walked map[string
 		}
 		return
 	}
-	t.Fatal("no evidenced {not-applicable} row of the published population was found to copy")
+	t.Fatalf("no evidenced {%s} row of the published population was found to copy", kind)
 }
