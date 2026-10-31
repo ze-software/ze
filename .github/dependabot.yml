@@ -26,8 +26,18 @@ updates:
     # inside the x/crypto repository, and Dependabot resolves it as part of
     # golang.org/x/crypto, so the whole update run failed on it. It is bumped by
     # hand with `go get golang.org/x/crypto/x509roots/fallback@latest`.
+    #
+    # gobwas/glob v1 removed the glob.Glob type that linters vendored by
+    # golangci-lint still use (protogetter, misspell, wrapcheck), and Go keeps
+    # one version per build, so glob v1 breaks the golangci-lint build. depguard
+    # v2.3.0 is what requires glob v1. Both stay at golangci-lint's own pins
+    # (depguard v2.2.1, glob v0.2.3) until golangci-lint itself moves to glob v1.
     ignore:
       - dependency-name: golang.org/x/crypto/x509roots/fallback
+      - dependency-name: github.com/gobwas/glob
+        versions: [">= 1.0.0"]
+      - dependency-name: github.com/OpenPeeDeeP/depguard/v2
+        versions: [">= 2.3.0"]
     groups:
       go-modules:
         patterns:
