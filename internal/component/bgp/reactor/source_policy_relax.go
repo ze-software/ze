@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"strings"
 	"time"
 )
 
@@ -314,9 +315,11 @@ func relaxationRefreshFailed(peer *Peer, err, undoErr error) error {
 // (CompleteSourcePolicyTx, relaxationUndo), or until the hold expires at the
 // receipt's completion deadline (holdUntilCompletion), which finalizes it too.
 // An invalidation that failed after publishing the rejecting policy keeps it
-// and the denial (sourceInvalidation.fail); one whose publish failed leaves
-// the accepting policy in effect, and both are reported with the hold-down
-// sequence that clears them. A session that went down after the ROUTE-REFRESH
+// and the denial, and drives the exclusion to every owner apply missed
+// (sourceInvalidation.fail, completeExclusion); one whose publish failed
+// leaves the accepting policy in effect. Each is reported from what it
+// achieved (relaxationUndoFailed), with the hold-down sequence wherever paths
+// may stay eligible. A session that went down after the ROUTE-REFRESH
 // failed has nothing to pause, so it is purged as a peer that is not
 // Established is.
 func (a *reactorAPIAdapter) undoImportRelaxation(peer *Peer, apply settingsCopier, previous *PeerSettings, txID string, deadline time.Time) error {
@@ -341,13 +344,21 @@ func (a *reactorAPIAdapter) undoImportRelaxation(peer *Peer, apply settingsCopie
 		deadline = a.r.clock.Now().Add(sourcePolicyTxBudget)
 	}
 	inv, err := a.r.prepareImportInvalidation(txID, deadline, peer)
-	if err != nil && peer.currentSession() == nil {
-		if restoreErr := restore(); restoreErr != nil {
-			return errors.Join(err, restoreErr)
-		}
-		return a.r.purgeRetained(peer)
-	}
 	if err != nil {
+		// A session that ended while prepare ran has nothing to pause. The
+		// state is judged again under establishGate, as above, so a session
+		// establishing from here on waits for the restored rejecting policy
+		// (enterEstablished) instead of admitting under the candidate.
+		peer.establishGate.Lock()
+		if peer.State() != PeerStateEstablished {
+			restoreErr := restore()
+			peer.establishGate.Unlock()
+			if restoreErr != nil {
+				return errors.Join(err, restoreErr)
+			}
+			return a.r.purgeRetained(peer)
+		}
+		peer.establishGate.Unlock()
 		return errors.Join(fmt.Errorf("peer %s: the rejecting import policy is restored, but the routes the "+
 			"undone change admitted could not be withdrawn and stay eligible; run `request peer %s disable`, then "+
 			"`request peer %s enable`: %w", peer.addrString, peer.addrString, peer.addrString, err), restore())
@@ -365,13 +376,34 @@ func (a *reactorAPIAdapter) undoImportRelaxation(peer *Peer, apply settingsCopie
 	if err == nil {
 		return nil
 	}
+	return relaxationUndoFailed(peer, inv, err)
+}
+
+// relaxationUndoFailed words a relaxation undo whose invalidation failed from
+// what it achieved. A failed publish aborted (aborted): the accepting policy
+// stays in effect. Otherwise the rejecting policy is published and
+// completeExclusion drove every owner apply missed: the owners it could not
+// make apply (unexcluded) keep the paths eligible; when every owner applied
+// and downstream settled, the undo is complete and the first failure is only
+// logged; when only downstream did not settle, a copy may stay advertised.
+func relaxationUndoFailed(peer *Peer, inv *sourceInvalidation, err error) error {
+	label := peer.addrString
 	if inv.aborted {
 		return fmt.Errorf("peer %s: the rejecting import policy could not be restored, so the accepting policy stays "+
 			"in effect and the routes it admitted stay eligible; run `request peer %s disable`, then `request peer "+
-			"%s enable`: %w", peer.addrString, peer.addrString, peer.addrString, err)
+			"%s enable`: %w", label, label, label, err)
 	}
-	return fmt.Errorf("peer %s: the rejecting import policy is restored, but withdrawing the routes the undone "+
-		"change admitted did not complete; they stay out of eligibility only once the transaction ends, so run "+
-		"`request peer %s disable`, then `request peer %s enable`: %w", peer.addrString, peer.addrString,
-		peer.addrString, err)
+	if len(inv.unexcluded) != 0 {
+		return fmt.Errorf("peer %s: the rejecting import policy is restored, but source-policy owner %s did not "+
+			"withdraw the routes the undone change admitted, so they stay eligible; run `request peer %s disable`, "+
+			"then `request peer %s enable`: %w", label, strings.Join(inv.unexcluded, ", "), label, label, err)
+	}
+	if inv.exclusionErr == nil {
+		reactorLogger().Warn("import relaxation undo completed after a retry", "peer", label,
+			"transaction", inv.txID, "error", err)
+		return nil
+	}
+	return fmt.Errorf("peer %s: the rejecting import policy is restored and every source-policy owner withdrew the "+
+		"routes the undone change admitted, but the change did not settle downstream, so a copy may stay advertised; "+
+		"run `request peer %s disable`, then `request peer %s enable`: %w", label, label, label, err)
 }

@@ -665,20 +665,32 @@ The D-1 relaxation's undo (`undoImportRelaxation`) is this invalidation run
 from the accepting candidate back to the rejecting policy, marked
 `relaxationUndo`. Its apply publishes the rejecting policy, so the receipt
 finalizes it whether the transaction was accepted or rejected, and the hold
-bounds its pause like an abort's; an expired hold finalizes the owners too. A
-failure after the rejecting policy was published keeps that policy and the
-denial instead of aborting, because an abort would make the paths the
-candidate admitted eligible again under a policy that rejects them; the error
-reports the compensation incomplete and names `request peer <address>
-disable`, then `enable`. A failure to publish it leaves the accepting
-candidate in effect and says so with the same sequence. A peer whose session
-went down while the relaxation's ROUTE-REFRESH failed has nothing to pause, so
-the undo restores the rejecting policy and purges what Graceful Restart
+bounds its pause like an abort's. An expired hold finalizes the owners too,
+before it releases the pause and under its own one-second bound, since the
+completion deadline it fires at has passed; the receipt and the expiry each
+claim the end before calling an owner, so only one of them finalizes and
+reports. A failure after the rejecting policy was published keeps that policy
+and the denial instead of aborting, because an abort would make the paths the
+candidate admitted eligible again under a policy that rejects them
+(`completeExclusion`): every owner from the one that failed on gets `apply`
+again under the same epoch (an owner whose first apply landed answers with its
+recorded outcome), and one that still refuses never excluded the paths, so it
+cannot be finalized (its ledger admits `finalize` only after `apply`): it gets
+`abort` with target zero, which releases its pins, and the error names it,
+says its routes stay eligible, and gives `request peer <address> disable`,
+then `enable`. When every owner applied and downstream settled, the undo
+reports nothing and only logs the first failure. A failure to publish the
+rejecting policy aborts, leaves the accepting candidate in effect and says so
+with the same sequence, and its expiry says the same and finalizes nothing. A
+peer whose session ended while the relaxation's ROUTE-REFRESH failed, or while
+the undo prepared, has nothing to pause, so the undo judges the state again
+under `establishGate`, restores the rejecting policy there, so a session that
+establishes meanwhile waits for it, and purges what Graceful Restart
 retained, as for a peer that is not Established.
 
 <!-- source: internal/component/bgp/reactor/source_policy_reload.go -- importDecisionFalls, enterEstablished, swapImportFalling, sourceInvalidation.finalizeDeadline, prepareImportInvalidation, sourceInvalidation.apply, sourceInvalidation.undo, sourceInvalidation.abort, sourceInvalidation.holdUntilCompletion, sourceInvalidation.expire, sourceInvalidation.finalize, CheckSourcePolicyTx, CompleteSourcePolicyTx -->
-<!-- source: internal/component/bgp/reactor/source_policy_reload.go -- sourceInvalidation.fail, sourceInvalidation.finalizeOwners -->
-<!-- source: internal/component/bgp/reactor/source_policy_relax.go -- undoImportRelaxation, refuseImportSwapEarly -->
+<!-- source: internal/component/bgp/reactor/source_policy_reload.go -- sourceInvalidation.fail, sourceInvalidation.completeExclusion, sourceInvalidation.claimEnd, sourceInvalidation.finalizeOwners -->
+<!-- source: internal/component/bgp/reactor/source_policy_relax.go -- undoImportRelaxation, relaxationUndoFailed, refuseImportSwapEarly -->
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- planDynamicGroupsLocked -->
 <!-- source: internal/component/bgp/reactor/source_policy_reload.go -- sourceInvalidation.settleDownstream, joinSourceWriters -->
 <!-- source: internal/component/plugin/server/source_policy.go -- DrainEventSubscribers -->

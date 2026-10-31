@@ -810,7 +810,9 @@ const rfc8212ImportOwnerName = "rfc8212-import-owner"
 // rfc8212ImportOwner models the acknowledged-settlement contract the real route
 // owners (bgp-rib, bgp-adj-rib-in) implement for one source: prepare pins its
 // stored path, apply makes it ineligible, abort restores it restamped to
-// NextPolicyEpoch, finalize drops the pins. Safe for concurrent use.
+// NextPolicyEpoch, finalize drops the pins. Like the real owners' ledger
+// (sourcepolicy Owner.ordered), it refuses a finalize that no apply preceded.
+// Safe for concurrent use.
 type rfc8212ImportOwner struct {
 	mu        sync.Mutex
 	ops       []rpc.SourcePolicyOperation
@@ -818,10 +820,12 @@ type rfc8212ImportOwner struct {
 	eligible  bool
 	epoch     uint64
 	pinned    bool
+	applied   bool
 	hang      rpc.SourcePolicyOperation
 	onPrepare func()
 	onApply   func()
 	onAbort   func()
+	onFinal   func()
 	// plugin is the owner's SDK handle, set once its engine runs, so a hook
 	// can call the engine from inside a lifecycle callback.
 	plugin *sdk.Plugin
@@ -857,7 +861,11 @@ func (o *rfc8212ImportOwner) handle(ctx context.Context, in rpc.SourcePolicyInpu
 		if o.onAbort != nil {
 			o.onAbort()
 		}
-	case rpc.SourcePolicyFinalize, rpc.SourcePolicyUnspecified:
+	case rpc.SourcePolicyFinalize:
+		if o.onFinal != nil {
+			o.onFinal()
+		}
+	case rpc.SourcePolicyUnspecified:
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -871,7 +879,7 @@ func (o *rfc8212ImportOwner) handle(ctx context.Context, in rpc.SourcePolicyInpu
 		if !o.pinned {
 			return errors.New("apply without prepare")
 		}
-		o.eligible = false
+		o.eligible, o.applied = false, true
 	case rpc.SourcePolicyAbort:
 		if !o.pinned && in.NextPolicyEpoch == 0 {
 			return nil // Never prepared: nothing to release (sourcepolicy Owner.Admit).
@@ -879,8 +887,11 @@ func (o *rfc8212ImportOwner) handle(ctx context.Context, in rpc.SourcePolicyInpu
 		if !o.pinned {
 			return errors.New("abort without prepare")
 		}
-		o.eligible, o.epoch, o.pinned = true, in.NextPolicyEpoch, false
+		o.eligible, o.epoch, o.pinned, o.applied = true, in.NextPolicyEpoch, false, false
 	case rpc.SourcePolicyFinalize:
+		if !o.applied {
+			return errors.New("finalize without apply")
+		}
 		o.pinned = false
 	case rpc.SourcePolicyUnspecified:
 		return errors.New("unspecified operation")

@@ -365,14 +365,21 @@ func TestRFC8212RelaxUndoHoldExpires(t *testing.T) {
 
 // TestRFC8212RelaxUndoApplyFailureKeepsRejection proves a relaxation's undo
 // whose invalidation fails after it published the rejecting policy keeps that
-// policy. Method: the relaxation applies with Route Refresh; on rollback the
-// owner refuses the invalidation's apply, as an owner that lost its pin does.
-// VALIDATES: the rollback reports the compensation incomplete, naming the
-// hold-down sequence; the policy still rejects; input stays paused until the
-// rejection receipt, which finalizes the denial and never aborts it.
+// policy and reports the paths it could not exclude. Method: the relaxation
+// applies with Route Refresh; on rollback the owner refuses the
+// invalidation's apply every time, as an owner that lost its pin does. The
+// fixture owner refuses a finalize no apply preceded, as every real owner's
+// ledger does (sourcepolicy Owner.ordered).
+// VALIDATES: the undo retries the apply, then aborts the owner with a zero
+// target (it never applied, so it cannot be finalized); the rollback names
+// that owner, says its routes stay eligible and gives the hold-down sequence;
+// the policy still rejects; input stays paused until the rejection receipt,
+// which succeeds and resumes it.
 // PREVENTS: a failed undo re-publishing the accepting candidate while the
-// config rolled back to reject, and a receipt then claiming the previous
-// policy is in effect.
+// config rolled back to reject; a report claiming the paths leave
+// eligibility when the transaction ends while an owner never excluded them;
+// a receipt finalizing an owner that never applied, which every real owner
+// refuses, leaving its ledger open.
 func TestRFC8212RelaxUndoApplyFailureKeepsRejection(t *testing.T) {
 	fx := newRelaxFixture(t, true)
 	fx.owner.onApply = func() {
@@ -387,13 +394,18 @@ func TestRFC8212RelaxUndoApplyFailureKeepsRejection(t *testing.T) {
 
 	errs := j.Rollback()
 	require.Len(t, errs, 1)
-	require.ErrorContains(t, errs[0], "the rejecting import policy is restored, but withdrawing the routes")
+	require.ErrorContains(t, errs[0], "the rejecting import policy is restored, but source-policy owner "+
+		rfc8212ImportOwnerName+" did not withdraw the routes the undone change admitted, so they stay eligible")
 	require.ErrorContains(t, errs[0], "`request peer 192.0.2.1 disable`, then `request peer 192.0.2.1 enable`")
+	require.NotContains(t, errs[0].Error(), "once the transaction ends", "an unexcluded path reported as leaving eligibility")
 	require.False(t, importAccepts(fx.peer), "the failed undo re-published the accepting policy")
 	require.True(t, fx.f.s.IsPaused(), "input resumed before the transaction's receipt")
 	require.NoError(t, fx.r.CompleteSourcePolicyTx(t.Context(), j.txID, false))
-	ops, _, _, _ := fx.owner.seen()
-	require.Equal(t, []rpc.SourcePolicyOperation{rpc.SourcePolicyPrepare, rpc.SourcePolicyApply, rpc.SourcePolicyFinalize}, ops)
+	ops, targets, _, _ := fx.owner.seen()
+	require.Equal(t, []rpc.SourcePolicyOperation{rpc.SourcePolicyPrepare, rpc.SourcePolicyApply,
+		rpc.SourcePolicyApply, rpc.SourcePolicyAbort}, ops)
+	require.Equal(t, targets[1], targets[2], "the retry named another epoch than the apply")
+	require.Zero(t, targets[3], "the never-applied owner was aborted with a target epoch")
 	require.False(t, importAccepts(fx.peer))
 	require.False(t, fx.f.s.IsPaused(), "input left paused after the receipt")
 }
@@ -450,7 +462,10 @@ func TestRFC8212RelaxRefreshFailureOnDownSessionPurges(t *testing.T) {
 	fx.peer.mu.Lock()
 	fx.peer.session = fx.f.s
 	fx.peer.mu.Unlock()
+	// A teardown leaves Established before it clears the session
+	// (Peer.sessionDown, then runOnce's deferred clear).
 	conn.onFail = func() {
+		fx.peer.setState(PeerStateConnecting)
 		fx.peer.mu.Lock()
 		fx.peer.session = nil
 		fx.peer.mu.Unlock()

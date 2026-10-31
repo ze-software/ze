@@ -81,9 +81,21 @@ type sourceInvalidation struct {
 	// (undoImportRelaxation): its apply published the restored rejecting
 	// policy, so it IS the rollback, and the receipt finalizes it.
 	relaxationUndo bool
-	released       atomic.Bool
-	mu             sync.Mutex  // guards hold
-	hold           clock.Timer // the expiry of a pause only the receipt ends (holdUntilCompletion)
+	// applied counts the leading owners whose apply completed: owners
+	// [0, applied) excluded the source's paths, the rest were only prepared.
+	applied int
+	// unexcluded names the owners a relaxation's undo could not make apply
+	// and aborted instead (completeExclusion): the paths they hold stay
+	// eligible. exclusionErr is what completeExclusion could not settle,
+	// nil when every owner excluded the paths and downstream settled.
+	unexcluded   []string
+	exclusionErr error
+	// ending is claimed once, by finalize or expire, before either calls an
+	// owner, so the receipt and the hold's expiry never both end it.
+	ending   atomic.Bool
+	released atomic.Bool
+	mu       sync.Mutex  // guards hold
+	hold     clock.Timer // the expiry of a pause only the receipt ends (holdUntilCompletion)
 }
 
 // importDecisionFalls reports the D-2 transition: an effective import
@@ -348,6 +360,7 @@ func (inv *sourceInvalidation) apply(publish, restore func() error) error {
 			cause := fmt.Errorf("source-policy owner %s: invalidation of peer %s failed: %w", owner.Name(), inv.peer.addrString, err)
 			return errors.Join(cause, inv.fail(restore))
 		}
+		inv.applied++
 		if err := inv.drainValidation(work); err != nil {
 			return errors.Join(fmt.Errorf("peer %s: after owner %s: %w", inv.peer.addrString, owner.Name(), err), inv.fail(restore))
 		}
@@ -362,15 +375,66 @@ func (inv *sourceInvalidation) apply(publish, restore func() error) error {
 // aborts (undo). A relaxation's undo (relaxationUndo) published the rejecting
 // policy it restores, and its abort would make the paths the candidate
 // admitted eligible again under a policy that rejects them, so it keeps the
-// denial like rejectNotUndone: input stays paused, the transaction's receipt
-// finalizes it (CompleteSourcePolicyTx), and the hold bounds the pause if no
-// receipt arrives. Its caller reports the compensation incomplete.
+// denial like rejectNotUndone and drives the exclusion to the owners apply
+// never reached (completeExclusion): input stays paused, the transaction's
+// receipt finalizes the owners that applied (CompleteSourcePolicyTx), and the
+// hold bounds the pause if no receipt arrives. Its caller words the report
+// from unexcluded and exclusionErr.
 func (inv *sourceInvalidation) fail(restore func() error) error {
-	if inv.relaxationUndo {
-		inv.holdUntilCompletion()
-		return nil
+	if !inv.relaxationUndo {
+		return inv.undo(restore)
 	}
-	return inv.undo(restore)
+	inv.exclusionErr = inv.completeExclusion()
+	inv.holdUntilCompletion()
+	return inv.exclusionErr
+}
+
+// completeExclusion finishes a relaxation undo's apply that failed part way.
+// Every owner from the one that failed on is asked to apply again, under the
+// epoch apply already opened: an owner whose first apply did land answers the
+// repeat with its recorded outcome (sourcepolicy Owner.Admit). An owner that
+// still refuses never excluded the paths and cannot be finalized
+// (sourcepolicy Owner.ordered admits finalize only after apply), so it is
+// aborted with a zero target, which releases its pins and changes nothing
+// else, and is named in unexcluded: its paths stay eligible. An owner whose
+// abort fails too may have applied late, so it stays for finalize and is
+// named as well. The completion deadline bounds it, the reserve the work
+// deadline left for compensation.
+//
+// RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated
+// with an EBGP peer SHALL NOT be considered eligible in the Decision
+// Process if no explicit Import Policy has been applied."
+func (inv *sourceInvalidation) completeExclusion() error {
+	deadline := inv.receipt.CompletionDeadline()
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	var result error
+	if err := inv.r.joinSourceWriters(ctx, inv.peer); err != nil {
+		result = fmt.Errorf("destination writers did not settle: %w", err)
+	}
+	finalizable := slices.Clone(inv.owners[:inv.applied])
+	for _, owner := range inv.owners[inv.applied:] {
+		err := owner.Call(ctx, inv.request(rpc.SourcePolicyApply, inv.window, deadline))
+		if err == nil {
+			finalizable = append(finalizable, owner)
+			if err := inv.drainValidation(ctx); err != nil {
+				result = errors.Join(result, fmt.Errorf("after owner %s: %w", owner.Name(), err))
+			}
+			continue
+		}
+		result = errors.Join(result, fmt.Errorf("source-policy owner %s: invalidation retry failed: %w", owner.Name(), err))
+		inv.unexcluded = append(inv.unexcluded, owner.Name())
+		if err := owner.Call(ctx, inv.request(rpc.SourcePolicyAbort, 0, deadline)); err != nil {
+			finalizable = append(finalizable, owner)
+			result = errors.Join(result, fmt.Errorf("source-policy owner %s: abort failed too: %w", owner.Name(), err))
+		}
+	}
+	inv.owners = finalizable
+	inv.applied = len(finalizable)
+	if err := inv.settleDownstream(ctx); err != nil {
+		result = errors.Join(result, err)
+	}
+	return result
 }
 
 // undo is the journal's inverse and apply's own failure path: it aborts and
@@ -450,11 +514,21 @@ func (inv *sourceInvalidation) abort(restore func() error) error {
 // input through the new policy. A failure keeps the epoch fence and still
 // releases the pause, so the session never stays paused.
 func (inv *sourceInvalidation) finalize(ctx context.Context) error {
-	if inv.released.Load() {
+	if !inv.claimEnd() {
 		return nil
 	}
 	defer inv.release()
 	return inv.finalizeOwners(ctx)
+}
+
+// claimEnd reports whether this call ends the invalidation: the first of
+// finalize and expire claims it before any owner call, and the other returns
+// with no owner call and no report. Safe for concurrent use.
+func (inv *sourceInvalidation) claimEnd() bool {
+	if inv.released.Load() {
+		return false
+	}
+	return inv.ending.CompareAndSwap(false, true)
 }
 
 // finalizeOwners asks every owner to make the invalidation permanent. It
@@ -605,28 +679,49 @@ func (inv *sourceInvalidation) holdUntilCompletion() {
 	}
 }
 
-// expire runs on the hold timer. It resumes input under the restored policy
-// and, when it was the call that released, records the expiry for the late
+// expire runs on the hold timer. It resumes input and, when it was the call
+// that ended the invalidation (claimEnd), records the expiry for the late
 // receipt to report and logs it. A relaxation's undo published the rejecting
 // policy rather than aborting, so its owners are finalized here, as its
-// receipt would have: the denial stays permanent and nothing is left prepared.
+// receipt would have, before input resumes: the denial stays permanent and
+// nothing is left applied to refuse the next prepare. The completion deadline
+// has passed by now, so that finalize gets its own bound, the reserve a pause
+// keeps for resumption. A relaxation's undo whose publish failed aborted: the
+// accepting candidate stays in effect and no owner holds anything to finalize.
 func (inv *sourceInvalidation) expire() {
-	if inv.released.Load() {
+	if !inv.claimEnd() {
 		return
 	}
-	err := fmt.Errorf("peer %s: transaction %s sent no rejection receipt by the completion deadline %s; "+
-		"input resumed under the restored import policy, possibly before every other participant restored its config",
-		inv.peer.addrString, inv.txID, inv.receipt.CompletionDeadline().Format(time.RFC3339))
-	// Only the call that released records the expiry: a receipt that won the
-	// race already reported the outcome, so a record here would outlive it.
+	label, txID := inv.peer.addrString, inv.txID
+	completion := inv.receipt.CompletionDeadline().Format(time.RFC3339)
+	var err error
+	// relaxationUndo is set, and aborted written by apply, before the hold
+	// is armed, so this goroutine reads both after their last write.
+	switch {
+	case inv.relaxationUndo && inv.aborted:
+		err = fmt.Errorf("peer %s: transaction %s sent no receipt by the completion deadline %s; input resumed "+
+			"under the accepting import policy, because restoring the rejecting one failed, so the routes it admits "+
+			"stay eligible; run `request peer %s disable`, then `request peer %s enable`",
+			label, txID, completion, label, label)
+	case inv.relaxationUndo:
+		err = fmt.Errorf("peer %s: transaction %s sent no receipt by the completion deadline %s; input resumed "+
+			"under the restored rejecting import policy, possibly before every other participant restored its config",
+			label, txID, completion)
+		ctx, cancel := context.WithDeadline(context.Background(), inv.receipt.session.clock.Now().Add(sourcePolicyReserve))
+		err = errors.Join(err, inv.finalizeOwners(ctx))
+		cancel()
+	default:
+		err = fmt.Errorf("peer %s: transaction %s sent no rejection receipt by the completion deadline %s; "+
+			"input resumed under the restored import policy, possibly before every other participant restored its config",
+			label, txID, completion)
+	}
+	// Only the call that released records the expiry: a receipt that
+	// released an aborted invalidation first already reported the outcome.
 	if !inv.release() {
 		return
 	}
-	if inv.relaxationUndo {
-		err = errors.Join(err, inv.finalizeOwners(context.Background()))
-	}
-	inv.r.sourcePolicy.recordExpiry(inv.txID, err)
-	reactorLogger().Error("import invalidation hold expired", "peer", inv.peer.addrString, "transaction", inv.txID, "error", err)
+	inv.r.sourcePolicy.recordExpiry(txID, err)
+	reactorLogger().Error("import invalidation hold expired", "peer", label, "transaction", txID, "error", err)
 }
 
 // finalizeDeadline bounds finalize, which runs once the whole reload was
