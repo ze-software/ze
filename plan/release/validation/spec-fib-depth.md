@@ -83,6 +83,12 @@ and backend parity under AC-15.
 | Route types: unicast, blackhole, unreachable, prohibit | Static plugin already models blackhole/unreachable. Extend to FIB event so backends handle it | Linux RTN_BLACKHOLE/RTN_UNREACHABLE/RTN_PROHIBIT, VPP drop/unreach adjacencies |
 | Consistent Linux/VPP semantics | Both backends must produce identical forwarding behavior for the same BestChangeEntry | Test via le test functional comparisons |
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `fixture-encodes-an-impossible-state.md` | 2026-10-31 | `connectedDistanceWinner02` injects a next hop the kernel cannot install |
+
 ## Required Reading
 
 ### Architecture Docs
