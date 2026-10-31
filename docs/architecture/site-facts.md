@@ -227,8 +227,11 @@ is the last build's value: a renderer writes the element empty, and
 `rfcFigureSet.fillHTML` fills it from the `data/rfc/` files the same build
 published, answering each case as the script does, a bar as its non-zero
 segments' words and counts. A Markdown mirror carries the same values through
-`fillMirror`. Both refuse the page when a marked element has no answer, so no
-page prints a figure the files do not hold. The RFC profile pages are the
+`fillMirror`. Both refuse the page when a marked element has no answer, when
+a field names a not-owed kind no row can carry, or when a marker is not in the
+exact shape the helpers write (another attribute, another tag, a mistyped
+mirror token), which the fill could not reach. So no page prints a figure the
+files do not hold, and none publishes a marker left empty. The RFC profile pages are the
 first pages marked this way (`docs/contributing/gh-pages.md`). A file the index names that cannot be read is named
 in the element with the command that publishes it (`./le site build`), never
 dropped from a sum. The segment colours are the `.rfc-seg-<segment>` rules of
@@ -237,7 +240,7 @@ dropped from a sum. The segment colours are the `.rfc-seg-<segment>` rules of
 fill use `--ink-on-light`, dark in both. Every segment's words meet 4.5:1 on
 their fill in both themes.
 <!-- source: website/assets/js/rfc-figures.js -- sumStems, registerOf, drawBar -->
-<!-- source: internal/le/site/rfcfallback.go -- rfcFigureSet, rfcRegisterOf, fillHTML, fillMirror -->
+<!-- source: internal/le/site/rfcfallback.go -- rfcFigureSet, rfcRegisterOf, rfcKindKnown, rfcStrayMarker, fillHTML, fillMirror -->
 <!-- source: internal/le/site/browsertest/rfcfigures_test.go -- TestTheBrowserDrawsRFCFiguresFromTheirFiles, TestRFCSegmentColoursAreReadableInBothThemes -->
 
 The browser test draws the layout the build publishes, not a copy of it:

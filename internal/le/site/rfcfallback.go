@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -213,8 +214,28 @@ func lookupRFCField(sum map[string]any, field string) any {
 // row was excluded by is absent from every file, and its count is 0.
 var rfcNotOwedByKind = regexp.MustCompile(`^(must|should)\.not-owed-by-kind\.[^.]+$`)
 
+// rfcKindKnown refuses a by-kind field naming a kind no row can leave the
+// bars by: the browser shows 0 for any absent kind, so a misspelt kind would
+// publish a 0 nobody counted.
+func rfcKindKnown(subject, field string) error {
+	if !rfcNotOwedByKind.MatchString(field) {
+		return nil
+	}
+	kind := field[strings.LastIndexByte(field, '.')+1:]
+	kinds := rfcProfileNotOwedKinds()
+	if slices.Contains(kinds, kind) {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return errors.New(tb.Str(subject).Str(":").Str(field).Str(" names the kind `").Str(kind).
+		Str("`, which no row can be not owed by; write one of ").Str(strings.Join(kinds, ", ")).String())
+}
+
 // value answers the text rfc-figures.js fillValue writes for subject:field.
 func (set *rfcFigureSet) value(subject, field string) (string, error) {
+	if err := rfcKindKnown(subject, field); err != nil {
+		return "", err
+	}
 	sum, err := set.sum(subject)
 	if err != nil {
 		return "", err
@@ -367,9 +388,35 @@ func rfcValueMirror(subject, field string) string { return "{{ze-rfc " + subject
 // subject's bar into, as text.
 func rfcBarMirror(subject, bar string) string { return "{{ze-rfc-bar " + subject + ":" + bar + "}}" }
 
+// rfcStrayMarker refuses a marker the fill cannot reach: an element or token
+// carrying a marker but not written in the helpers' exact shape (another
+// attribute, another tag, a mistyped token). The fill would leave it empty,
+// or publish the token as text, with no refusal.
+func rfcStrayMarker(text string, shapes []*regexp.Regexp, markers []string) error {
+	for _, shape := range shapes {
+		text = shape.ReplaceAllString(text, "")
+	}
+	for _, marker := range markers {
+		at := strings.Index(text, marker)
+		if at < 0 {
+			continue
+		}
+		end := min(len(text), at+120)
+		var tb textbuf.Buffer
+		return errors.New(tb.Str("a marked element is not in the shape the build fills, so it would publish with no value: ").
+			Str(text[max(0, at-40):end]).Str("; write it with rfcValueHTML, rfcBarMarkHTML, rfcValueMirror or rfcBarMirror ").
+			Str("(internal/le/site/rfcfallback.go)").String())
+	}
+	return nil
+}
+
 // fillHTML writes the last build's value inside every marked element of a
 // page, refusing the page when one has none.
 func (set *rfcFigureSet) fillHTML(page string) (string, error) {
+	if err := rfcStrayMarker(page, []*regexp.Regexp{rfcValueElement, rfcBarElement},
+		[]string{`data-ze-rfc="`, `data-ze-rfc-bar="`}); err != nil {
+		return "", err
+	}
 	var failure error
 	fill := func(pattern *regexp.Regexp, answer func(subject, field string) (string, error), page string) string {
 		return pattern.ReplaceAllStringFunc(page, func(element string) string {
@@ -391,6 +438,10 @@ func (set *rfcFigureSet) fillHTML(page string) (string, error) {
 // fillMirror writes the last build's value at every mark of a Markdown
 // mirror, refusing the mirror when one has none.
 func (set *rfcFigureSet) fillMirror(mirror string) (string, error) {
+	if err := rfcStrayMarker(mirror, []*regexp.Regexp{rfcValueToken, rfcBarValueToken},
+		[]string{"{{ze-rfc"}); err != nil {
+		return "", err
+	}
 	var failure error
 	fill := func(pattern *regexp.Regexp, answer func(subject, field string) (string, error), mirror string) string {
 		return pattern.ReplaceAllStringFunc(mirror, func(token string) string {

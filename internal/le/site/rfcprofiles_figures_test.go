@@ -18,6 +18,8 @@ import (
 // Profile edge requires rfc1 to rfc3; core requires rfc2 alone, so its
 // register is complete; lab requires rfc2 and the unwalked rfc3, so its
 // register is open with no gap. Lab has no page: only set answers read it.
+// rfc5 is walked with only an OS gap, rfc6 with only a Ze gap: each keeps its
+// own register open by one clause alone.
 func rfcProfileFiguresData() rfcData {
 	stems := []rfcStemData{
 		{Stem: "rfc1", Title: "One", Walked: true, Unmet: []string{}, ProvenByKind: map[string]int{},
@@ -29,6 +31,12 @@ func rfcProfileFiguresData() rfcData {
 			Must:   &rfcMustCounts{Total: 4, Kept: 4, ZeProven: 4, NotOwedByKind: map[string]int{}},
 			Should: &rfcShouldCounts{NotOwedByKind: map[string]int{}}},
 		{Stem: "rfc3", Title: "Three", Unmet: []string{}},
+		{Stem: "rfc5", Title: "Five", Walked: true, Unmet: []string{}, ProvenByKind: map[string]int{},
+			Must:   &rfcMustCounts{Total: 3, Kept: 3, ZeProven: 2, OSGap: 1, NotOwedByKind: map[string]int{}},
+			Should: &rfcShouldCounts{NotOwedByKind: map[string]int{}}},
+		{Stem: "rfc6", Title: "Six", Walked: true, Unmet: []string{}, ProvenByKind: map[string]int{},
+			Must:   &rfcMustCounts{Total: 3, Kept: 3, ZeProven: 1, ZeGap: 2, NotOwedByKind: map[string]int{}},
+			Should: &rfcShouldCounts{NotOwedByKind: map[string]int{}}},
 		{Stem: "rfc4", Title: "Four", Walked: true, Unmet: []string{}, ProvenByKind: map[string]int{},
 			Must:   &rfcMustCounts{Total: 9, Kept: 9, ZeProven: 9, NotOwedByKind: map[string]int{}},
 			Should: &rfcShouldCounts{NotOwedByKind: map[string]int{}}},
@@ -209,7 +217,9 @@ func TestRFCFigureSetAnswersAsTheScriptDoes(t *testing.T) {
 		{"an unwalked member keeps a gapless register open", "profile/lab/required", "register", rfcRegisterOpen},
 		{"a gapless walked set is complete", "profile/core/required", "register", rfcRegisterComplete},
 		{"an empty set is not complete", "profile/core/optional", "register", rfcRegisterOpen},
-		{"a Ze gap keeps the register open", "rfc1", "register", rfcRegisterOpen},
+		{"a Ze gap alone keeps the register open", "rfc6", "register", rfcRegisterOpen},
+		{"an OS gap alone keeps the register open", "rfc5", "register", rfcRegisterOpen},
+		{"a walked RFC with neither gap is complete", "rfc2", "register", rfcRegisterComplete},
 		{"a set sums walked members only", "profile/edge/required", "walked", "2"},
 	} {
 		got, err := set.value(check.subject, check.field)
@@ -223,7 +233,7 @@ func TestRFCFigureSetAnswersAsTheScriptDoes(t *testing.T) {
 	}
 	for _, refused := range []struct{ subject, field string }{
 		{"rfc1", "must.no-such-count"}, {"rfc9", "must.total"}, {"profile/nobody/required", "rfcs"},
-		{"profile/edge/everything", "rfcs"},
+		{"profile/edge/everything", "rfcs"}, {"rfc1", "must.not-owed-by-kind.declind"},
 	} {
 		if got, err := set.value(refused.subject, refused.field); err == nil {
 			t.Errorf("%s:%s answered %q, want a refusal", refused.subject, refused.field, got)
@@ -234,6 +244,15 @@ func TestRFCFigureSetAnswersAsTheScriptDoes(t *testing.T) {
 	}
 	if got, err := set.bar("rfc1", "sideways"); err == nil {
 		t.Errorf("an undeclared bar answered %q", got)
+	}
+	for _, stray := range []string{`<span class="x" data-ze-rfc="rfc1:must.total"></span>`,
+		`<p data-ze-rfc="rfc1:must.total"></p>`, `<div data-ze-rfc-bar="rfc1:must" title="t"></div>`} {
+		if got, err := set.fillHTML("<main>" + stray + "</main>"); err == nil {
+			t.Errorf("a marker out of the fill's shape published as %q, want a refusal", got)
+		}
+	}
+	if got, err := set.fillMirror("| x | {{ze-rfc rfc1 must.total}} |"); err == nil {
+		t.Errorf("a mistyped mirror token published as %q, want a refusal", got)
 	}
 	set.stems["rfc2"]["must"].(map[string]any)["kept"] = float64(5) //nolint:forcetypeassert // the fixture's own file
 	if got, err := set.bar("rfc2", "must"); err == nil {

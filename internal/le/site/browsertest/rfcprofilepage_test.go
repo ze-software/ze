@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -128,8 +129,27 @@ func loadRFCProfilePage(ctx context.Context, t *testing.T, pageURL string, done 
 func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
 	dir, pageURL := rfcProfilePageSite(t)
 	ctx := newRFCBrowser(t)
+	// The build's fallback text equals what the script writes, so a page
+	// whose script never ran would pass every check: seed a fallback that
+	// differs in every marked element first.
+	page := filepath.Join(dir, "quality", "rfc-compliance", "profiles", "edge", "index.html")
+	built, err := os.ReadFile(page) //nolint:gosec // the test's own temporary site
+	if err != nil {
+		t.Fatal(err)
+	}
+	seeded := regexp.MustCompile(`(data-ze-rfc(?:-bar)?="[^"]+">)[^<]*(<)`).ReplaceAllString(string(built), "${1}fallback${2}")
+	if err := os.WriteFile(page, []byte(seeded), 0o600); err != nil {
+		t.Fatal(err)
+	}
 
-	got := loadRFCProfilePage(ctx, t, pageURL, func(*rfcProfilePageState) bool { return true })
+	got := loadRFCProfilePage(ctx, t, pageURL, func(state *rfcProfilePageState) bool {
+		for _, value := range state.Values {
+			if value == "fallback" {
+				return false
+			}
+		}
+		return true
+	})
 	mustBar := []string{"ze-proven=Ze proven 7", "os-verified=OS verified 2", "os-gap=OS testing gap 1",
 		"ze-gap=Ze correctness gap 1,200"}
 	for key, want := range map[string][]string{
@@ -159,36 +179,37 @@ func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
 		}
 	}
 
-	// Lab requires a gapless RFC and an unwalked one, and has no page: its
-	// register is drawn into an element added here, so the unwalked member
-	// alone must keep it open.
-	var lab string
+	// Registers each kept open by one clause alone, drawn into elements added
+	// here: lab (a gapless RFC and an unwalked one), rfc5 (only an OS gap),
+	// rfc6 (only a Ze gap); rfc2, with neither, is complete.
 	if _, err := chromedp.Run(ctx, chromedp.Evaluate[bool](`(function () {
-        var node = document.createElement("span");
-        node.id = "lab-register";
-        node.setAttribute("data-ze-rfc", "profile/lab/required:register");
-        node.textContent = "fallback";
-        document.body.appendChild(node);
+        ["profile/lab/required", "rfc5", "rfc6", "rfc2"].forEach(function (subject) {
+            var node = document.createElement("span");
+            node.setAttribute("data-ze-rfc", subject + ":register");
+            node.textContent = "fallback";
+            document.body.appendChild(node);
+        });
         window.zeRFCFigures.fill(document.body);
         return true;
     })()`)); err != nil {
-		t.Fatalf("add the lab register: %v", err)
+		t.Fatalf("add the register probes: %v", err)
 	}
 	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
-		var err error
-		lab, err = chromedp.Run(ctx, chromedp.Evaluate[string](`document.getElementById("lab-register").textContent`))
+		got, err = chromedp.Run(ctx, chromedp.Evaluate[rfcProfilePageState](readRFCProfilePage))
 		if err != nil {
-			t.Fatalf("read the lab register: %v", err)
+			t.Fatalf("read the page: %v", err)
 		}
-		if lab != "fallback" {
+		if value := got.Values["rfc2:register"]; value != "" && value != "fallback" {
 			break
 		}
 	}
-	if lab != "not complete" {
-		t.Errorf("a gapless set with an unwalked member shows its register %q, want %q", lab, "not complete")
+	for subject, want := range map[string]string{"profile/lab/required": "not complete", "rfc5": "not complete",
+		"rfc6": "not complete", "rfc2": "complete"} {
+		if got.Values[subject+":register"] != want {
+			t.Errorf("%s:register shows %q, want %q", subject, got.Values[subject+":register"], want)
+		}
 	}
 
-	page := filepath.Join(dir, "quality", "rfc-compliance", "profiles", "edge", "index.html")
 	before, err := os.ReadFile(page) //nolint:gosec // the test's own temporary site
 	if err != nil {
 		t.Fatal(err)

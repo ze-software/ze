@@ -744,7 +744,7 @@ pairing is written once and the two directions cannot disagree. A link to a
 profile no file under `rfc/profiles/` declares refuses the build. The homepage
 regression-prevention block and the Examples menu both link to the profile
 index.
-<!-- source: internal/le/site/rfcprofiles.go -- renderRFCProfiles, rfcProfileGroups, rfcProfileTiersAgree, rfcProfileFigures, removeRetiredRFCProfilePages, rfcProfileUseCases, rfcProfileUseCasesKnown -->
+<!-- source: internal/le/site/rfcprofiles.go -- renderRFCProfiles, rfcProfileGroups, rfcProfileTiersAgree, rfcProfileFigures, rfcProfileBarHTML, removeRetiredRFCProfilePages, rfcProfileUseCases, rfcProfileUseCasesKnown -->
 <!-- source: internal/le/site/rfcfallback.go -- loadRFCFigureSet, fillHTML, fillMirror -->
 <!-- source: internal/le/site/rfcfilter.go -- rfcProfileListHref, rfcFilterHTML, rfcFilterScript, rfcStemRows, rfcIndexLegend, rfcCeilingStatement -->
 
