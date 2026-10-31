@@ -7,8 +7,8 @@
     "claim-sha": "2207efee8bed4861",
     "route": "revert",
     "producer": "internal/plugins/isis/redistribute/ipv6.go::ConnectedPrefixInfosV6",
-    "producer-sha": "846c19004cdafbe6",
-    "break": "body of ConnectedPrefixInfosV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "fd1cd69f0d75178c",
+    "break": "body of ConnectedPrefixInfosV6 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5308-2-3",

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Priority | P1 |
 | Release reason | Configured redistribution must deliver routes and preserve unresolved NSSA and IS-IS proof ownership. |
 | Scope | plugin |
@@ -11,12 +11,23 @@
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Closure handed back 2026-10-31: see "Blocker" below. The implementation and
-its interop walks are complete (Goal Validation); three RFC proof records the
-IS-IS commit staled are owed by `/ze-implement` before `/ze-close` can land
-commits A and B.
+Closure handed back 2026-10-31 and the blocker below is cleared the same day:
+the three RFC proof records the IS-IS commit staled are re-recorded, so
+`/ze-close` reruns and lands commits A and B.
 
-## Blocker
+## Blocker (cleared 2026-10-31)
+
+Cleared by the commit "rfc: re-record three IS-IS proofs staled by f17bea8930",
+which carries this edit. `./le rfc record` re-observed each red with the same
+panic-body break on the current producer: `RFC2966-2-4` positive went red in
+`TestRFC2966NativePrefixesGoOutWithBitZero` (panic from
+`ConnectedPrefixInfos` in `source.go`), `RFC5305-4.1-2` negative in
+`TestRFC5305ConnectedInjectionClearsUpDown` (same producer), and `RFC5308-2-3`
+negative in `TestRFC5308ConnectedIPv6ClearsExternalBit` (panic from
+`ConnectedPrefixInfosV6` in `ipv6.go`). The rerun of `./le rfc check`
+(log `tmp/session/2026-10-29-b253ee28-af02-45d1-a862-79a55bdba37c/scratch/rerecord-rfc-check.log`)
+names no record or audit row for RFC2966, RFC5305, RFC5308 or RFC1195, and none
+of its remaining stale rows names a file this spec's commits touched.
 
 | Field | Value |
 |-------|-------|

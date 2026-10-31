@@ -29,8 +29,8 @@
     "claim-sha": "b1e1622ce83e2639",
     "route": "revert",
     "producer": "internal/plugins/isis/redistribute/source.go::ConnectedPrefixInfos",
-    "producer-sha": "eabe51a41e921877",
-    "break": "body of ConnectedPrefixInfos replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "ef18c1081abe9124",
+    "break": "body of ConnectedPrefixInfos replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2966-2-4",
