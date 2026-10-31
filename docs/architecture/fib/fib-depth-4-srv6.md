@@ -35,7 +35,13 @@ retains its device, on-link flag, weight and encapsulation. IPv6 destinations
 with IPv4 gateways are rejected. An unusable member rejects the route update,
 so the kernel never receives a silently reduced group.
 
+The seg6 encapsulation needs `CONFIG_IPV6_SEG6_LWTUNNEL`, which Ze's runtime
+kernel builds in and its require manifest pins. A kernel without it refuses
+the route with EOPNOTSUPP from `lwtunnel_valid_encap_type`
+(`net/core/lwtunnel.c`, Linux 7.3).
+
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildSEG6Encap, buildRichRoute -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_IPV6_SEG6_LWTUNNEL -->
 
 ## VPP backend
 

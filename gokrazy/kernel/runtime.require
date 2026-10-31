@@ -105,6 +105,17 @@ CONFIG_MPLS_IP_MTU
 CONFIG_NF_CONNTRACK
 CONFIG_NF_CT_NETLINK
 
+# The seg6 lightweight tunnel every RFC 9252 Service SID route installs through
+# (buildSEG6Encap, internal/plugins/fib/kernel/nexthop_linux.go). A line here
+# fails the build if IPV6_SEG6_LWTUNNEL stops resolving, rather than shipping a
+# kernel that refuses every SRv6 service route with EOPNOTSUPP.
+#
+# Deliberately NOT pinned:
+#   CONFIG_DST_CACHE            promptless, `select`ed by IPV6_SEG6_LWTUNNEL.
+#   CONFIG_IPV6_SEG6_HMAC       not requested: ze installs no SRH HMAC.
+#   CONFIG_IPV6_SEG6_BPF        not requested: ze installs no seg6local bpf.
+CONFIG_IPV6_SEG6_LWTUNNEL
+
 # Kernel crash capture. Both are tristate, so a `=y` request in runtime.config
 # can answer =m, and a modular pstore on the appliance is as absent as no pstore
 # at all: gokrazy loads modules from the kernel package but the region is bound
