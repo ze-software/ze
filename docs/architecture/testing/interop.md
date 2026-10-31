@@ -1285,6 +1285,31 @@ its own path, so the static path's 150 cannot stand for the OSPF path's
 distance.
 <!-- source: internal/le/interoplab/bgp/check_import_policy.go -- checkOSPFImportPolicy -->
 
+### IGP export-policy scenarios
+
+`isis-export-policy-frr` and `ospf-export-policy-frr` read an IGP export
+chain's verdicts and sets out of FRR, one JSON answer per assertion, so every
+absence sits beside the presences that prove the query saw Ze's routes.
+
+In `isis-export-policy-frr` Ze redistributes three static routes into IS-IS
+under `isis filter export { filters [ loopbacks tagged-loopback-metric ]; final
+accept; }`: a prefix-list accepting only /32s, then a modify that sets metric 77
+on tag 300. FRR's `show ip route isis json` must hold 10.66.0.1/32 through Ze
+at 87 (FRR's pinned link metric 10 plus 77), 10.66.0.2/32 at 110 (10 plus Ze's
+default 100), and no 10.66.1.0/24.
+
+In `ospf-export-policy-frr` Ze redistributes three static routes into OSPFv2
+under `ospf filter export { filters [ ospf-export-refused ospf-export-tagged ];
+final accept; }`. FRR's `show ip ospf database external json` must hold exactly
+one LSA from Ze's router ID 10.255.0.2 for 10.67.1.0/24 at metric 50, E1, tag
+200 (the modify's sets on the route tagged 100), one for 10.67.2.0/24 at the
+defaults (metric 20, E2, tag 0), and none for the rejected 10.67.3.0/24. The
+predicate collects every object carrying a `linkStateId` wherever FRR nests it,
+in a bounded iterative walk.
+<!-- source: internal/le/interoplab/bgp/check_export_policy.go -- checkISISExportPolicy, checkOSPFExportPolicy, waitFRRVerdict -->
+<!-- source: internal/le/interoplab/bgp/check_export_policy_predicate.go -- isisExportPolicyVerdict, ospfExportPolicyVerdict, ospfExternalLSAs -->
+<!-- source: internal/le/interoplab/bgp/register_export_policy.go -- specialCheckers entries -->
+
 ### Scenario Structure
 
 Each scenario is a directory under `test/interop/scenarios/`:
@@ -3179,6 +3204,8 @@ is not packet-forwarding evidence.
 | 61 | isis-import-policy-frr | Ze, FRR 10.7.1 twice (FRR-A, FRR-B on separate links) | `isis filter import` decides what Ze installs and nothing else: the hidden prefix is out of Ze's RIB and FIB, listed by `show rib candidates` as hidden by the `isis import` chain, and still flooded on, so FRR-B learns it through Ze ("Separate links between daemons") |
 | 62 | ospf-import-policy-bird | Ze, BIRD 3.4.0 | `ospf filter import` sets distance 200 on BIRD's tagged external, which then loses to a static path at 150, while the untagged one keeps 110 and wins, judged per path in `show rib candidates` |
 | 63 | bgp-rfc8212-default-reject-frr | Ze (route server, bgp-rib), FRR 10.7.1 twice (FRR at host 3 with no Ze policy, the FRR sink at host 15 with an explicit Ze policy) | RFC 8212 Section 3, the EBGP default reject in both directions, against an FRR that keeps its own `bgp ebgp-requires-policy` and holds explicit route-maps toward Ze: with no policy on Ze's FRR session, Ze's `show bgp rib best` must hold the sink's 10.81.15.0/24 and not FRR's 10.81.1.0/24 (after FRR's `advertised-routes` names it and Ze counts its UPDATE and End-of-RIB), FRR must hold neither Ze's config-originated 10.81.0.0/24 nor the sink's route, and the sink must receive 10.81.0.0/24 from the same config `update` path. A reload adding a bgp-level `final accept` in both directions must then deliver every route across the FRR session, with FRR and the sink each counting one establishment and no drop. Results on 2026-10-31, each image built by the harness: unmodified (`sha256:16bb31efdbb8`), assertions 1 to 15 pass, so both default rejects hold and the reload's export recovery reaches FRR with no reset, and assertion 16 fails: FRR's 10.81.1.0/24 never reaches Ze's RIB after the reload, because the import policy rising did not yet re-learn the routes the absent policy discarded. Ze's FRR peer now negotiates Route Refresh (`route-refresh enable`), since a rising import on a peer without it is refused (spec D-1). On 2026-10-31, after the import-rise refresh (e9385df360 through 16744a9e7e), the unmodified build passes all assertions in 25s: the reload sends ROUTE-REFRESH to FRR and FRR's 10.81.1.0/24 reaches Ze's RIB with no session reset. `Policy.AcceptsAtEnd` answering `true` for an unconfigured policy (a `GOFLAGS=-overlay` build, `sha256:7a6490c76e9b`): red at assertion 7, Ze's RIB holds 10.81.1.0/24. An export-only break, the `PolicyFilterChain` final verdict skipped for export and `egressFinalAccepts`, `forward_rs.go` and `egress_inject_filter.go` admitting (overlay, `sha256:41f076b8fae9`): red at assertion 8, FRR holds 10.81.0.0/24. The same break without `egressFinalAccepts` left assertion 8 green, so the session write gate is the guard Ze's config-originated route meets |
+| 64 | isis-export-policy-frr | Ze, FRR 10.7.1 | `isis filter export` decides what enters Ze's LSP and at what metric: FRR installs the tagged /32 at its link metric plus the 77 the modify set, the untagged /32 at the link metric plus Ze's default 100, and no route for the /24 the prefix-list rejects ("IGP export-policy scenarios"). Not yet run |
+| 65 | ospf-export-policy-frr | Ze, FRR 10.7.1 | `ospf filter export` decides which AS-External-LSAs Ze originates and what they carry: FRR holds the tagged route's LSA at metric 50, E1, tag 200, the untagged one at metric 20, E2, tag 0, and none for the rejected route ("IGP export-policy scenarios"). Not yet run |
 <!-- source: internal/le/interoplab/bgp/check_session_protection.go -- checkSessionProtection, sessionProbeScript -->
 <!-- source: internal/le/interoplab/bgp/check_session_protection_predicate.go -- parseSessionProbe, coppUnknownSourceDrops -->
 <!-- source: internal/le/interoplab/bgp/check_paths_limit_receive.go -- checkPathsLimitReceive, decodePathsLimitReceive, requirePathsLimitReceive -->
