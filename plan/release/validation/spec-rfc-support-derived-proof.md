@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | 6/6 |
 | Handoff | - |
-| Updated | 2026-10-30 |
+| Updated | 2026-10-31 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -130,8 +130,8 @@ decision.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Out-of-scope stems (Enrolment `out-of-scope`, Status Future) need no new annotations: they leave every count by enrolment, so deleting Status loses no counted disclosure | `meta.Enrolled()`; rfc2868, rfc6514, rfc1570 read `Enrolment out-of-scope` | eight Future summaries would publish unannotated MUSTs as owed | grep Enrolment of every Future/Unsupported stem | confirmed 2026-10-30: 13 are out-of-scope, 5 blocked, 7 enrolled (the owner-approved population change), rfc9582 enrolled third-party |
 | A-2 | No gh-pages page reads `public-status`, `status-counts`, `supported-with-remaining` or `top-rfcs[].status` | research agent grep of `../gh-pages` and `website/` | a live page breaks on the JSON change | re-grep at implementation | confirmed 2026-10-30: no file outside `../gh-pages/data/` names them |
-| A-4 | Unannotated, untagged MUST rows already read as unproven in the verified-record figure, so only missing rows and tagged-but-partly-unmet rows publish false proof | `profilecoverage.go::figuresByStem` counts only verified records | the figure could over-claim on another shape | AC-6 and a fixture with an untagged row | unvalidated |
-| A-3 | About 50 Partial/Experimental stems with zero unmet rows say "partial" for feature or evidence reasons, not for a missed obligation | audit class E | a stem silently reads 100% for an obligation nobody extracted | extraction sign-off state of each such stem | unvalidated |
+| A-4 | Unannotated, untagged MUST rows already read as unproven in the verified-record figure, so only missing rows and tagged-but-partly-unmet rows publish false proof | `profilecoverage.go::figuresByStem` counts only verified records | the figure could over-claim on another shape | AC-6 and a fixture with an untagged row | confirmed 2026-10-31: `figuresByStem` (`internal/le/rfc/profilecoverage.go`) counts a row met only through `rowCounts(requirement, proven)`, where proven is `provenRequirements(in.Discrimination)`; `TestProvenShareCountsVerifiedRecordsOnly` and `TestFixtureProofWalksTheStemAndVerifiesItsRecords` hold a tagged row with no record at 0 |
+| A-3 | About 50 Partial/Experimental stems with zero unmet rows say "partial" for feature or evidence reasons, not for a missed obligation | audit class E | a stem silently reads 100% for an obligation nobody extracted | extraction sign-off state of each such stem | confirmed 2026-10-31 by mechanism: a stem publishes a number only when walked (`proofCell` returns `not walked` otherwise, 8 rows on `docs/features/rfc-status.md`), and a walked stem's sign-off maps every normative site the extractor sees to a row or a reasoned exclusion, so an unextracted MUST cannot hide behind 100% on a numbered row |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -428,7 +428,10 @@ N-A: tooling, no protocol peer.
 | S3 requires every attainable mandatory row proven | today's Status prefix check | the old check passed on one proven row; no current Supported feature lists an RFC |
 
 ## Known Limitations
-- The public status page built from features is the follow-up spec named in the Task section; it is written when this one is ready.
+- The public status page built from features is owned by `plan/release/validation/spec-feature-status-page.md`, written as a skeleton at this spec's closure (Work Not Done).
+- `plan/release/fixes/spec-bgp-link-local-only-next-hop.md` (around lines 600 and 721) still names the retired cell. Another session holds that file dirty, so this closure leaves it to that session; the parser refuses the cell, so any summary edit following the old wording is refused with the fix.
+- `docs/features/test-health.md` carries another session's regeneration drift and is left to its owner; Phase 6 ran `./le test health update` and found the formula text already current.
+- `plan/proposals/spec-rfc-ledger-gap-count-reader.md`, whose subject was the retired cell and `checkGapCountAgreement`, was removed by another session in 2a3b97dd94 after a SUPERSEDED disposition.
 - Class F items that are not disclosures (stale prose, pending owner decisions such as RFC 5216 versus RFC 8996) leave with the cell; any still owed already has its own row or spec.
 
 ## Checklist
@@ -466,3 +469,171 @@ N-A: tooling, no protocol peer.
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A:** code + tests + docs + edited spec + journal rows owed
 - [ ] **Commit B:** `remove` the spec only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Part 1 (2e7150577e): RFC7947-2.1-1 and RFC9774-5.2-1 new `{gap}` rows with their extraction sites mapped; RFC9915-18.2.10.1-1, RFC2131-4.1-7, RFC2131-4.1-15 and RFC8050-4.1-1 `{partial}`, with re-judged audits. rfc1195, rfc2205, rfc4754 and rfc9514 needed nothing after reading the producer (Phase 2 handoff in the session state file).
+- Derived figure (947a07ca7c): `StemFigures.MandatoryByKind` and `Unmet`, `StemFiguresOf` as the one derivation (`internal/le/rfc/profilecoverage.go`), `evidenceStrengthOrder` (`carriers.go`), `auditVerdictUnmet` (`audit.go`). `ProvenShareOf` sums verified-record figures of walked RFCs and reports `NotWalked`. `Implements` is `Enrolled && HasRow`, and `Enrolled` already requires Implementation `ze` or `mixed` (`meta.go::implementationCounts`). `FixtureProof` (`fixture.go`) refuses any stem but the fixture stem.
+- Feature S3 (8e596b1cd7): `criterionRFC` reads `rfcProofUnmet` over `stemFigures` (`internal/le/feature/check.go`), never `meta.Status`; six features gained the class E stems in `RFCs`.
+- Retirement (697558b8ae): `retiredSupportLabels` and the refusal in `ParseMeta` (`meta.go`); `LedgerRow` is a presence marker; the Status-only checks and traits deleted (`check_status.go`, `check_audit.go`, `rfc.go`); `renderStatusPage` prints Area, Proof, Evidence and Unmet (`proofCell`, `evidenceCell`, `unmetCell`); `TreeRow` holds `StemFigures` whole (`tree.go`); site JSON loses the retired keys and publishes `public-area` and the figures; the three rows deleted from every summary; `check_baseline.go::retiredSupportCells` strips them from HEAD^ summaries so the ratchets stay armed on the deletion commit.
+- Skills and docs (607a4ba3dc), and the status-table fixture fix (7cc8f0cf2e).
+- Closure: `TestRFCLedgerPublishesDerivedProofOnly` (`internal/le/site/rfcledger_test.go`), the Wiring Test row that named a test nobody wrote; the owned journal row closed as `fixed:`; the follow-up skeleton `plan/release/validation/spec-feature-status-page.md`.
+
+### Bugs Found/Fixed
+- `TreeRow.figures()` (`tree.go`) copied `StemFigures` field by field, so fields added later read as silent zeros: TreeRow now embeds the value whole, covered by `TestTreeRowHoldsStemFiguresWhole`.
+- `baselineMetas` skipped every HEAD^ summary that failed to parse, so the deletion commit would have disarmed the ratchets: fixed by `retiredSupportCells`, covered by `TestBaselineReadsSummariesWithRetiredSupportCells`.
+- The status-table fixture lost its table at the separator row (red in the 607a4ba3dc verify run): fixed in 7cc8f0cf2e.
+
+### Documentation Updates
+- `docs/contributing/rfc-conformance-gates.md` (Coverage figures, retired cells, brief shape, guard table, linux-limit clause), `docs/contributing/rfc-implementation-guide.md`, `docs/contributing/feature-maturity.md` (S3, anchors `criterionRFC`, `rfcProofUnmet`, `stemFigures`, `StemFiguresOf`), `docs/contributing/gh-pages.md`, `docs/architecture/testing/test-health.md`; `docs/features/rfc-status.md` regenerated by `./le rfc update`.
+- `ai/skills/ze-rfc.md`, `ze-close.md` and `ze-rfc-audit.md`, with `.claude/skills` regenerated by `./le ai sync update`.
+- Phase 6 ran `./le doc check links` (one red, in `website/assets/vendor/README.md`, not ours) and `./le doc wiring` (foreign page anchors only).
+
+### Deviations from Plan
+- The brief drafts table gained an Unmet column (`| Standard | Area | Proof | Unmet |`): a design change during Phase 4, because without it a `{gap}` on a draft was disclosed nowhere on the page.
+- `rfc/short` prose naming the retired labels was rewritten in eight summaries (rfc9915, rfc7011, rfc7474, rfc7950, rfc4761, rfc4861, rfc4301, rfc4552), each to "disclosed by its own annotation", for AC-2's strict grep.
+- `check_baseline.go` drops the retired rows from HEAD^ summaries, a production change the plan did not list, so the four gated ratchets and the public-row ratchet keep judging the deletion commit.
+- TDD plan names changed. `TestStatusPageRowIsDerived` is covered by `TestEveryWideRowPublishesItsOwnProofPartition` (Proof and Evidence cells over the real corpus, kinds summing to Proven) and by the `le-rfc-derived-proof-render` functional test (Proof, Evidence, Unmet, `not walked`). `TestRealCorpusCarriesNoSupportCells` is covered by the parser refusal, under which every real-corpus test goes red if a label returns (`ledgerFixture` refuses any Meta problem), and by the Deliverables grep.
+- `.claude/skills` copies are generated and gitignored, so AC-13 is met by the `ai/skills` sources.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Phase 4 claimed rfc4761, rfc4861 and rfc7950 carried the labels only as Meta rows | they carried them in Enrolment reasons and annotation prose | the AC-2 grep after deletion | prose rewritten in eight summaries |
+| approach | A Wiring Test row named `TestRFCLedgerPublishesDerivedProofOnly`, and no phase wrote it | the site JSON path had no test of the retired keys | closure audit of the TDD plan against `git grep func Test` | written at closure, red shown by breaking the `unmet` JSON tag through an overlay |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Part 1: prose-only unmet obligations become rows | Done | `rfc/short/rfc7947.md`, `rfc9774.md`, `rfc9915.md`, `rfc2131.md`, `rfc8050.md` | 2e7150577e |
+| Part 2: the three Meta rows deleted with parser, checks, renderers | Done | `internal/le/rfc/meta.go::ParseMeta`, `check_status.go`, `render_ledger.go` | 697558b8ae |
+| Part 3: derived proof per RFC with evidence kinds and unmet rows | Done | `profilecoverage.go::StemFiguresOf`, `figuresByStem` | 947a07ca7c |
+| Part 4: feature S3 reads the derived proof | Done | `internal/le/feature/check.go::rfcProofUnmet` | 8e596b1cd7 |
+| Part 5: `Support area` and `Use cases` stay | Done | `meta.go` keeps `metaSupportArea`; `checkRowCells` requires Area | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestParseMetaRefusesRetiredSupportCells`; `le-rfc-retired-support-cell` | |
+| AC-2 | Done | corpus grep prints nothing; `./le rfc check` raises no Meta refusal | |
+| AC-3 | Done | the RFC 7947 row of `docs/features/rfc-status.md` reads `2 of 3 MUST proven` with `RFC7947-2.1-1` under Unmet | |
+| AC-4 | Done | the RFC 1334 row reads `13 of 13 MUST proven`, Evidence `unit 13`, Unmet `-` | |
+| AC-5 | Done | `proofCell` returns `not walked`; 8 such rows; `le-rfc-derived-proof-render` | |
+| AC-6 | Done | `TestProvenShareCountsVerifiedRecordsOnly`; `figuresByStem` reads verified records only | |
+| AC-7 | Done | `TestRFCLedgerPublishesDerivedProofOnly` | added at closure |
+| AC-8 | Done | `TestImplementsPopulation` (rfc4739 in, rfc9582 out) | |
+| AC-9 | Done | `TestCheckRefusesSupportedWithUnprovenRFC` | |
+| AC-10 | Done | `TestCheckAcceptsSupportedWithLinuxLimitOnly` | |
+| AC-11 | Done | `./le rfc check`: no row-quote refusal on any Part 1 stem | |
+| AC-12 | Done | `features/pppoe-access.md` and `features/l2tpv2-bng.md` list rfc1334 | |
+| AC-13 | Done | the label grep finds only the retirement notes | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestParseMetaRefusesRetiredSupportCells` | Done | `internal/le/rfc/meta_test.go` | |
+| `TestStemFiguresCountProvenByEvidenceKind` | Done | `internal/le/rfc/profilecoverage_test.go` | |
+| `TestStemFiguresListUnmetIDs` | Done | `internal/le/rfc/profilecoverage_test.go` | |
+| `TestStatusPageRowIsDerived` | Changed | `TestEveryWideRowPublishesItsOwnProofPartition`, `le-rfc-derived-proof-render.ci` | Deviations |
+| `TestImplementsPopulation` | Done | `internal/le/rfc/provenshare_test.go` | |
+| `TestProvenShareCountsVerifiedRecordsOnly` | Done | `internal/le/rfc/provenshare_test.go` | |
+| `TestCheckRefusesSupportedWithUnprovenRFC` | Done | `internal/le/feature/check_test.go` | |
+| `TestCheckAcceptsSupportedWithLinuxLimitOnly` | Done | `internal/le/feature/check_test.go` | |
+| `TestRFCLedgerPublishesDerivedProofOnly` | Done | `internal/le/site/rfcledger_test.go` | closure |
+| `TestRealCorpusCarriesNoSupportCells` | Changed | parser refusal plus every real-corpus test | Deviations |
+| `le-rfc-retired-support-cell` | Done | `test/ui/le-rfc-retired-support-cell.ci` | |
+| `le-rfc-derived-proof-render` | Done | `test/ui/le-rfc-derived-proof-render.ci` | rerun owed after 7cc8f0cf2e, see Pre-Commit Verification |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `rfc/short/*.md`, `features/*.md` | Done | |
+| `internal/le/rfc/*` named files | Done | `status.go` unchanged: S3 derives figures through `NewRenderInput` and `StemFiguresOf` instead |
+| `internal/le/site/*` named files | Done | |
+| `internal/le/test/health/collect_rfc.go`, `internal/le/feature/check.go` | Done | |
+| skills and the three contributing pages | Done | |
+| `plan/release/validation/spec-feature-maturity-declared.md` note | Done | Phase 6 kept its dated Decision as history |
+| `test/ui/le-rfc-retired-support-cell.ci`, `test/ui/le-rfc-derived-proof-render.ci` | Done | |
+
+### Audit Summary
+- **Total items:** 37
+- **Done:** 35
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The ledger reports proof only, derived, never authored | functional | `le-rfc-derived-proof-render`; the regenerated page headers `| RFC | Area | Proof | Evidence | Unmet |` and `| Standard | Area | Proof | Unmet |`; `le-rfc-retired-support-cell` refuses an authored cell |
+| RFC 1334 reads fully proven, not Partial | functional | regenerated row `| RFC 1334 | PAP | 13 of 13 MUST proven | unit 13 | - |`, equal to `./le rfc tree` mandatory 13 of 13 |
+| No disclosed unmet obligation is lost | data | RFC 7947 reads `2 of 3 MUST proven` with `RFC7947-2.1-1` under Unmet, the obligation that was prose-only |
+| Availability lives on the feature, S3 on derived proof | unit, through `checkOn` | `TestCheckRefusesSupportedWithUnprovenRFC`, `TestCheckAcceptsSupportedWithLinuxLimitOnly`; mutating Attainable to Total and dropping the walked check each go red (Phase 5) |
+| Site data publishes derived proof only | unit over the build path | `TestRFCLedgerPublishesDerivedProofOnly`, red when the `unmet` JSON tag is broken |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The public status page built from features, with RFC proof beneath | owner decision 2026-10-30: a second spec | `plan/release/validation/spec-feature-status-page.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc-support-derived-proof-eb02a97b-841d-43fe-a1a6-cbde3103e80f.md` (83 files: the code, tests, docs, features and skills of the five implementation commits, plus the closure's new test, journal row and skeleton spec). Four of them (`internal/le/rfc/check_core.go`, `lowerlayer_test.go`, `rfc.go`, `internal/le/site/rfcprofiles_test.go`) changed since in another session's 50a9734a44, a rangeValCopy lint refactor and a spelling fix that change no behaviour; the pin covers them as they stand |
+| `./le spec review check` | clean, see Pre-Commit Verification |
+| Rounds | 2 |
+| Reviewer lenses used | derived figure (`figuresByStem`, `strongestKind`, `unmet`), population (`Implements`, `Enrolled`), parser refusal and baseline strip, S3 (`rfcProofUnmet`), renderer cells, site JSON, the TDD plan against `git grep func Test`, citation sweep, style pass on every changed Go file (no `panic` added, no `fmt.Sprintf`, no discarded error; the one `_` is the found flag of `strings.Cut`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The Wiring Test row for the site build named `TestRFCLedgerPublishesDerivedProofOnly`, which did not exist, so AC-7 had no test of the published JSON | `internal/le/site/rfcledger.go::requirementLedgerFrom` | new `internal/le/site/rfcledger_test.go`; red with `unmet` renamed in `tree.go` through an overlay, green restored |
+| 2 | ISSUE | The owned journal row (2026-10-06, `gate-ignores-the-level-it-counts.md`) stayed `open:` though its producer was deleted | `plan/journal/gate-ignores-the-level-it-counts.md` | rewritten to `fixed:` with the removal commit and the HEAD search |
+
+NOTEs, not blocking: `isRetiredSupportRow` matches a row written with single spaces only, which is every row the corpus held; the site still publishes the tag-polarity counts (`Both`) as "Positive and negative tests", labelled as polarity, never as proof; S3 accepts a walked RFC gating no MUST row (0 of 0), which the page prints as `no MUST rows`.
+
+### Run 2
+0 BLOCKER, 0 ISSUE over the closure diff (the new test, the journal row, the skeleton spec, this record).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ui/le-rfc-retired-support-cell.ci`, `test/ui/le-rfc-derived-proof-render.ci` | Yes | both committed in 697558b8ae; both ran in the 607a4ba3dc verify (`10-test-functional-gating.log`) |
+| `internal/le/site/rfcledger_test.go` | Yes | `ok github.com/ze-software/ze/internal/le/site 1.011s` with `-run TestRFCLedgerPublishesDerivedProofOnly` |
+| `plan/release/validation/spec-feature-status-page.md` | Yes | written at closure, validate-spec hook clean |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-2 | no summary carries the labels | `grep -l '^| Support \(status\|coverage\|remaining\) |' rfc/short/*.md` printed nothing |
+| AC-3, AC-4, AC-5 | derived rows | the RFC 1334 and RFC 7947 rows of `docs/features/rfc-status.md` as quoted above; `grep -c 'not walked'` gives 8 |
+| AC-7 | site JSON | `TestRFCLedgerPublishesDerivedProofOnly` passes; it fails with `lacks "unmet":["RFC9999-2-1"]` under the overlay break |
+| AC-11 | row quotes | `./le rfc check`: 9 violations, all on rfc2545, rfc4271, rfc5305, rfc5308 and rfc7911 (stale audits and records from other sessions' producer edits); none on a Part 1 stem, no Meta refusal |
+| AC-12, AC-13 | features and skills | the `RFCs` rows of `features/pppoe-access.md` and `features/l2tpv2-bng.md` list rfc1334; the label grep over `ai/skills` and `docs/contributing` returns only the retirement notes |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc check` over a summary carrying `Support status` | `test/ui/le-rfc-retired-support-cell.ci` | PASS in the 607a4ba3dc verify run |
+| `./le rfc update` rendering the status page | `test/ui/le-rfc-derived-proof-render.ci` | FAIL in the 607a4ba3dc verify run on the fixture's separator-row parse, fixed in 7cc8f0cf2e; the closure rerun waited 285s behind another session's lint admission and never started, so `./le test ui --pattern le-rfc-derived-proof-render` is owed in `./le verify changed` |
+| `./le feature check` | `TestCheckRefusesSupportedWithUnprovenRFC` | drives `checkOn` over a fixture tree; package ok under `-race` (Phase 4, round 4) |
+| site build emitting `data/rfc-requirements.json` | `TestRFCLedgerPublishesDerivedProofOnly` | calls `collectRequirementLedger`, the build's own path |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Assumptions table, 2026-10-30 |
+| A-2 | confirmed | Assumptions table, 2026-10-30 |
+| A-3 | confirmed | Assumptions table, 2026-10-31 |
+| A-4 | confirmed | Assumptions table, 2026-10-31 |
