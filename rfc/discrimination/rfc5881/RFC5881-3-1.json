@@ -29,8 +29,8 @@
     "claim-sha": "13625d09ad833b67",
     "route": "revert",
     "producer": "internal/component/bfd/config.go::validate",
-    "producer-sha": "2d9850f511d54b00",
-    "break": "body of validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "feaa1be7745fbabb",
+    "break": "body of validate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5881-3-1",
@@ -40,7 +40,7 @@
     "claim-sha": "ffa51a526617d100",
     "route": "revert",
     "producer": "internal/component/bfd/config.go::validate",
-    "producer-sha": "2d9850f511d54b00",
-    "break": "body of validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "feaa1be7745fbabb",
+    "break": "body of validate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

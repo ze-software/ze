@@ -7,8 +7,8 @@
     "claim-sha": "b97230d0e55c34d1",
     "route": "revert",
     "producer": "internal/plugins/ospf/spf/external.go::ComputeExternalWith",
-    "producer-sha": "d1477a8fda3754a2",
-    "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "890e0ad80b723413",
+    "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3101-2.4-7",
@@ -18,7 +18,7 @@
     "claim-sha": "94451067bf577efe",
     "route": "revert",
     "producer": "internal/plugins/ospf/spf/external.go::ComputeExternalWith",
-    "producer-sha": "d1477a8fda3754a2",
-    "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "890e0ad80b723413",
+    "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

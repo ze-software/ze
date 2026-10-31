@@ -7,8 +7,8 @@
     "claim-sha": "89431103612ca52b",
     "route": "revert",
     "producer": "internal/plugins/ospf/afstrategy_v6.go::v6ExternalReader",
-    "producer-sha": "7c59b3cf8a7fe5da",
-    "break": "body of v6ExternalReader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "382729891c7a65b3",
+    "break": "body of v6ExternalReader replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5838-2.3-1",

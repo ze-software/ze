@@ -29,8 +29,8 @@
     "claim-sha": "45d76627245318a5",
     "route": "revert",
     "producer": "internal/plugins/ospf/config.go::validateConfigAF",
-    "producer-sha": "f0d03a69269f9ba3",
-    "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "7dbf2a4b618ba406",
+    "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5340-C.3-2",
@@ -40,7 +40,7 @@
     "claim-sha": "5fea5e543df7ebe6",
     "route": "revert",
     "producer": "internal/plugins/ospf/config.go::validateConfigAF",
-    "producer-sha": "f0d03a69269f9ba3",
-    "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "7dbf2a4b618ba406",
+    "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
