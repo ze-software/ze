@@ -954,7 +954,7 @@ func TestPublicRowPlacementFixtures(t *testing.T) {
 		t.Fatalf("fixture needs two distinct rendered RFC rows, got %v", rows)
 	}
 	// Each broken page names the problem kind that must catch it, so a subtest cannot
-	// pass on a neighbouring problem: the wrong-section page also carries a header no
+	// pass on an adjacent problem: the wrong-section page also carries a header no
 	// declared section owns, and that alone must not satisfy it.
 	for name, broken := range map[string]struct{ page, problem string }{
 		"omission":              {strings.Replace(page, rows[0]+"\n", "", 1), "row missing or duplicated: "},

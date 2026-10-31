@@ -184,6 +184,11 @@ func leRFCStatusTables(page string) (wide, brief map[string][]string) {
 	wide, brief = map[string][]string{}, map[string][]string{}
 	var current *leRFCStatusTable
 	for line := range strings.SplitSeq(page, "\n") {
+		// The separator row sits inside its table, and `|-----|` does not open
+		// with "| ", so it is skipped before the test that ends a table.
+		if strings.HasPrefix(line, "|-") || strings.HasPrefix(line, "| -") {
+			continue
+		}
 		if !strings.HasPrefix(line, "| ") {
 			current = nil
 			continue
@@ -194,9 +199,6 @@ func leRFCStatusTables(page string) (wide, brief map[string][]string) {
 			brief := slices.Equal(cells, leRFCBriefHeader)
 			leRFCAnswersRequire(brief || slices.Equal(cells, leRFCWideHeader), "%s header %q is neither %q nor %q", leRFCStatusPage, line, leRFCWideHeader, leRFCBriefHeader)
 			current = &leRFCStatusTable{header: cells}
-			continue
-		}
-		if strings.HasPrefix(line, "|-") || strings.HasPrefix(line, "| -") {
 			continue
 		}
 		leRFCAnswersRequire(len(cells) == len(current.header), "%s row %q has %d cells under a %d-cell header", leRFCStatusPage, line, len(cells), len(current.header))

@@ -230,8 +230,8 @@ func realCorpusProofSets(t *testing.T) (walked, proven map[string]bool) {
 		t.Fatalf("load the real corpus: %v", err)
 	}
 	walked = map[string]bool{}
-	for stem, figures := range corpus.figures {
-		if figures.Walked {
+	for stem := range corpus.figures {
+		if corpus.figures[stem].Walked {
 			walked[stem] = true
 		}
 	}
