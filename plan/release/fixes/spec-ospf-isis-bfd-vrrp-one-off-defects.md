@@ -163,6 +163,7 @@ BFD `api.Service`, BGP-LS export, the durable store (boot count).
 | `declared-format-contradicts-payload` | 2026-10-20 | `v6EIntraAreaPrefixBody` references LS Type 0x2001 |
 | `declared-format-contradicts-payload` | 2026-10-20 | `v6EInterAreaPrefixBody` has no Inter-Area-Prefix TLV |
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-17 | OSPF reload-created instance tests race in `reconcile` |
+| `field-derived-from-the-message-not-the-sender` | 2026-10-31 | IS-IS `lspTypeBlock` L1L2 IS Type in L1 LSPs |
 
 ## Rows found already fixed
 
