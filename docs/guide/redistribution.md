@@ -332,12 +332,23 @@ token first.
 | Source | Registered by | What it contributes |
 |--------|---------------|---------------------|
 | `bgp`, `ibgp`, `ebgp` | the BGP engine | the Loc-RIB's best paths, all sessions or internal or external only |
-| `connected` | the interface component | prefixes of configured interface addresses |
+| `connected` | the connected plugin | prefixes of configured interface addresses, except the unroutable ones below |
 | `static` | the static plugin | forward routes in the default table |
 | `kernel` | the kernel plugin | routes another program installed in the OS FIB |
 | `isis`, `ospf` | the IGP plugins | that protocol's SPF-selected routes |
 | `as112`, `l2tp` | those plugins | the covering prefixes and the per-session routes they own |
 | `ipsec` | the IKE engine | the remote traffic selector of each established Child SA |
+
+`connected` never offers a prefix whose network address is loopback
+(127.0.0.0/8, ::1/128), link-local (169.254.0.0/16, fe80::/10), multicast
+(224.0.0.0/4) or in the zero network (0.0.0.0/8). The address `lo` carries
+would otherwise reach every OSPF, IS-IS or BGP neighbor, which then routes its
+own loopback range through this router. The prefix still enters the Loc-RIB,
+because the kernel holds its route, so `show rib` lists it; only the
+redistribution feed leaves it out. FRR's zebra refuses the same set on its
+redistribute path (`zebra_check_addr`), and BIRD's `direct` protocol skips any
+address of host or link scope.
+<!-- source: internal/plugins/connected/connected.go -- redistributable, emitID -->
 
 A destination is the name of a protocol that receives routes: `bgp`, `ospf`
 and `isis` today. Each protocol declares its destination when its package

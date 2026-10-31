@@ -248,3 +248,50 @@ func TestConnectedReemitsReplayID(t *testing.T) {
 	obs.reemitAll(0)
 	require.Empty(t, bus.events(), "reemitAll(0) must be a no-op")
 }
+
+// VALIDATES: an interface address FRR's zebra never redistributes (loopback,
+// IPv4 and IPv6 link-local, class D, and the zero network BIRD rejects as an
+// invalid address) reaches the Loc-RIB but never the redistribution feed, on
+// add, on remove and on a late-join replay.
+// PREVENTS: `redistribute { destination isis|ospf|bgp { import connected } }`
+// exporting 127.0.0.0/8 from `lo`, or fe80::/64 from every link, to a peer.
+// Method: drive each address through the observer with a recording bus and a
+// recording Loc-RIB sink, then read both; 10.0.0.1/24 is the routable control.
+func TestConnectedNeverRedistributesUnroutablePrefixes(t *testing.T) {
+	cases := []struct {
+		addr      string
+		prefixLen int
+	}{
+		{"127.0.0.1", 8},
+		{"::1", 128},
+		{"169.254.10.1", 16},
+		{"fe80::1", 64},
+		{"224.0.0.5", 24},
+		{"0.1.2.3", 8},
+	}
+	for _, tc := range cases {
+		t.Run(tc.addr, func(t *testing.T) {
+			bus := &recordingBus{}
+			sink := &recordingSink{}
+			obs := newRouteObserver(bus)
+			obs.setLocRIB(nil, sink)
+
+			obs.handleAddrAdded(makePayload(tc.addr, tc.prefixLen))
+			require.Len(t, sink.inserted, 1, "the kernel holds the connected route, so the Loc-RIB still carries it")
+			require.Empty(t, bus.events(), "an unroutable prefix must never reach the redistribution feed")
+
+			obs.reemitAll(9)
+			require.Empty(t, bus.events(), "a late-join replay must not export it either")
+
+			obs.handleAddrRemoved(makePayload(tc.addr, tc.prefixLen))
+			require.Len(t, sink.removed, 1)
+			require.Empty(t, bus.events(), "its removal emits nothing, because its add emitted nothing")
+		})
+	}
+
+	bus := &recordingBus{}
+	obs := newRouteObserver(bus)
+	obs.handleAddrAdded(makePayload("10.0.0.1", 24))
+	obs.reemitAll(9)
+	require.Len(t, bus.events(), 2, "a routable prefix is emitted and replayed")
+}

@@ -153,6 +153,11 @@ func (o *routeObserver) emitID(action redistevents.RouteAction, prefix netip.Pre
 	if o.bus == nil {
 		return
 	}
+	// The prefix is in the Loc-RIB whatever its address, because the kernel
+	// holds its route; it only never reaches the redistribution feed.
+	if !redistributable(prefix) {
+		return
+	}
 	var fam family.Family
 	if prefix.Addr().Is4() {
 		fam = family.IPv4Unicast
@@ -172,6 +177,41 @@ func (o *routeObserver) emitID(action redistevents.RouteAction, prefix netip.Pre
 	if _, err := connectedevents.RouteChange.Emit(o.bus, b); err != nil {
 		logger().Warn("connected: route-change emit failed", "error", err)
 	}
+}
+
+// redistributable reports whether a connected prefix may be offered to the
+// redistribute orchestrator. It refuses the set FRR's zebra never hands a
+// redistribute client, zebra_check_addr in zebra/zebra_rib.c, which
+// zebra_redistribute_add and redistribute_update (zebra/redistribute.c) call
+// before they send a route:
+//
+//	if (IPV4_NET127(addr) || IN_CLASSD(addr) ||
+//	    (IPV4_LINKLOCAL(addr) && !IPV4_CLASS_E(addr)))
+//		return 0;
+//	...
+//	if (IN6_IS_ADDR_LOOPBACK(&p->u.prefix6))
+//		return 0;
+//	if (IN6_IS_ADDR_LINKLOCAL(&p->u.prefix6))
+//		return 0;
+//
+// It also refuses the zero network 0/8, which BIRD's ip4_classify (lib/ip.c)
+// answers IADDR_INVALID, so BIRD never learns such an interface address at
+// all. A prefix is judged by its network address, as zebra judges rn->p.
+func redistributable(prefix netip.Prefix) bool {
+	addr := prefix.Addr()
+	if addr.IsLoopback() {
+		return false
+	}
+	if addr.IsLinkLocalUnicast() {
+		return false
+	}
+	if addr.IsMulticast() {
+		return false
+	}
+	if addr.Is4() && addr.As4()[0] == 0 {
+		return false
+	}
+	return true
 }
 
 // reemitAll re-emits every currently-connected prefix as an add tagged with
