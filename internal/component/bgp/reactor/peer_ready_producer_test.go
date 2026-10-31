@@ -36,6 +36,12 @@ type readyProducerAPI struct {
 	ready         chan readyProducerReceipt
 	server        *pluginserver.Server
 	relayAttempts chan error
+	// afterRelay runs on the relay consumer's goroutine, after the real
+	// consumer answered and before that answer reaches the plugin. A step
+	// placed here is ordered before everything the plugin does next (its
+	// readiness report included), which a step taken after reading
+	// relayAttempts is not.
+	afterRelay    func(error)
 	beforeReady   func()
 	attempts      chan error
 	beforeInitial func()
@@ -79,6 +85,9 @@ func (a *readyProducerAPI) AnnounceNLRIBatch(ctx context.Context, sel *selector.
 
 func (a *readyProducerAPI) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute, sender plugin.Sender) error {
 	err := a.reactorAPIAdapter.RelayStoredRoute(destination, routes, sender)
+	if a.afterRelay != nil {
+		a.afterRelay(err)
+	}
 	a.relayAttempts <- err
 	return err
 }
@@ -614,14 +623,20 @@ func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 			// The source session is down while the late peer's replay runs, so
 			// the replay of its stored route has no source to relay from and the
 			// reactor refuses it (resolveRelaySource). It is back once the
-			// refusal is seen, so the held live forward still drains.
+			// refusal is answered and before RR can report its replay done, so
+			// the held live forward still drains. The worker that writes it
+			// re-checks the source (forwardSourceCurrent, forward_pool.go) and
+			// rightly drops a forward whose source is not established. RR's
+			// readiness follows the refusal at once, so restoring the source
+			// after the test reads relayAttempts raced the drain: hence the
+			// restore inside the relay consumer (afterRelay).
 			f.source.state.Store(int32(PeerStateStopped))
+			api.afterRelay = func(error) { f.source.state.Store(int32(PeerStateEstablished)) }
 			awaitRelayError := func() {
 				t.Helper()
 				select {
 				case err := <-api.relayAttempts:
 					require.ErrorIs(t, err, errRelayNoSource)
-					f.source.state.Store(int32(PeerStateEstablished))
 				case <-time.After(5 * time.Second):
 					t.Fatal("RR replay never reached the actual relay consumer")
 				}
