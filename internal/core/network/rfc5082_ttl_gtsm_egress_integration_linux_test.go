@@ -193,10 +193,20 @@ func newTCPEgress(t *testing.T, key string) *tcpEgress {
 const truncatedIPv4TCPCapture = "truncated IPv4/TCP capture"
 
 // receive returns one complete IPv4 TCP packet captured on the peer's link.
+// A blocking recvfrom returns EINTR when a signal (the Go runtime's own
+// preemption SIGURG included) lands mid-wait; that is no frame and no
+// failure, so receive retries it, up to 64 interrupts, without spending one
+// of its 64 frames.
 func (p *tcpEgress) receive() ([]byte, error) {
 	var buffer [1600]byte
-	for range 64 {
+	interrupts := 0
+	for frames := 0; frames < 64; {
 		packet, err := p.receiveFrame(buffer[:], 0)
+		if errors.Is(err, unix.EINTR) && interrupts < 64 {
+			interrupts++
+			continue
+		}
+		frames++
 		if err != nil {
 			return nil, fmt.Errorf("capture configured egress: %w", err)
 		}
