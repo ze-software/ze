@@ -28,9 +28,9 @@
     "unit-sha": "fa6b04d419e90e70",
     "claim-sha": "a3bb7210c7bf8c99",
     "route": "mutant",
-    "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorRegistry.claim",
-    "producer-sha": "f86a425719742ef1",
-    "break": "line 468: \"r.adoptStrandedLocked(owner, installs)\" -\u003e \"r.mu.Unlock(); r.retryMu.Unlock(); r.retryMu.Lock(); r.mu.Lock(); r.adoptStrandedLocked(owner, installs)\""
+    "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorRegistry.beginInstall",
+    "producer-sha": "7e5f9b93273ae773",
+    "break": "line 457: \"r.putLocked(child, innerSelectorHolding{owner: owner, pairs: pairs})\" -\u003e \"r.mu.Unlock(); r.retryMu.Unlock(); yield := make(chan struct{}); go close(yield); \u003c-yield; r.retryMu.Lock(); r.mu.Lock(); r.putLocked(child, innerSelectorHolding{owner: owner, pairs: pairs})\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -138,9 +138,9 @@
     "unit-sha": "be3cfd139cf3d9be",
     "claim-sha": "1ced3937028e3841",
     "route": "mutant",
-    "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorRegistry.claim",
-    "producer-sha": "f86a425719742ef1",
-    "break": "line 349: \"if err := r.conflictLocked(owner, pairs[i]); err != nil {\" -\u003e \"if err := r.conflictLocked(owner, pairs[i]); false \u0026\u0026 err != nil {\""
+    "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorRegistry.beginInstall",
+    "producer-sha": "7e5f9b93273ae773",
+    "break": "line 452: \"if err := r.conflictLocked(owner, pairs[i]); err != nil {\" -\u003e \"if err := r.conflictLocked(owner, pairs[i]); false \u0026\u0026 err != nil {\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -149,9 +149,9 @@
     "unit-sha": "8da174bd9b2b02a9",
     "claim-sha": "b0ea20a147faabde",
     "route": "mutant",
-    "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorRegistry.claim",
-    "producer-sha": "f86a425719742ef1",
-    "break": "line 349: \"if err := r.conflictLocked(owner, pairs[i]); err != nil {\" -\u003e \"if err := r.conflictLocked(owner, pairs[i]); false \u0026\u0026 err != nil {\""
+    "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorRegistry.beginInstall",
+    "producer-sha": "7e5f9b93273ae773",
+    "break": "line 452: \"if err := r.conflictLocked(owner, pairs[i]); err != nil {\" -\u003e \"if err := r.conflictLocked(owner, pairs[i]); false \u0026\u0026 err != nil {\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -278,12 +278,12 @@
     "rid": "RFC3948-5.1-1",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc3948_inner_selector_transport_test.go::TestRFC3948TunnelAroundTransportPeerRefused",
-    "unit-sha": "1537b5aaeca6c342",
+    "unit-sha": "e6452c0fd98d9b5a",
     "claim-sha": "abb9ba2ddc4195ef",
     "route": "mutant",
-    "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorGuard.claim",
-    "producer-sha": "85654bba5cce412a",
-    "break": "line 696: \"if g.registry == nil {\" -\u003e \"if g.registry == nil || child.Mode == modeTransport {\""
+    "producer": "internal/component/ike/engine/inner_selectors.go::innerSelectorGuard.beginInstall",
+    "producer-sha": "ef7472571adcff86",
+    "break": "line 824: \"return g.registry.beginInstall(child, child.Owner, innerSelectorPairsOf(child))\" -\u003e \"return g.registry.beginInstall(child, child.Owner, map[bool][]innerSelectorPair{false: innerSelectorPairsOf(child)}[child.Mode == modeTransport])\""
   },
   {
     "rid": "RFC3948-5.1-1",
