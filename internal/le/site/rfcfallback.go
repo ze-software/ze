@@ -30,7 +30,12 @@ type rfcFigureSet struct {
 	// dotted field resolves the same way on both sides.
 	stems    map[string]map[string]any
 	profiles map[string]*rfcProfileData
+	// order is every stem in the index's order, the members of all.
+	order []string
 }
+
+// rfcAllSubject is the subject that sums every RFC the index lists.
+const rfcAllSubject = "all"
 
 // rfcPublishMissing is the command that writes data/rfc/, named in every
 // refusal about a file this reader could not use.
@@ -52,6 +57,7 @@ func loadRFCFigureSet(output string) (*rfcFigureSet, error) {
 			return nil, err
 		}
 		set.stems[entry.Stem] = stem
+		set.order = append(set.order, entry.Stem)
 	}
 	for _, entry := range index.Profiles {
 		profile := &rfcProfileData{}
@@ -80,9 +86,14 @@ func readRFCDataFile(output, name string, target any) error {
 	return nil
 }
 
-// members answers the stems a subject names: one RFC stem, or a profile tier
-// written profile/<name>/required or profile/<name>/optional.
+// members answers the stems a subject names: one RFC stem, a profile tier
+// written profile/<name>/required or profile/<name>/optional, or all, every
+// RFC the index lists. In the browser a filter narrows all to the RFCs it
+// shows (data-ze-rfc-stems); the page is built with none filtered.
 func (set *rfcFigureSet) members(subject string) ([]string, error) {
+	if subject == rfcAllSubject {
+		return set.order, nil
+	}
 	name, isProfile := strings.CutPrefix(subject, "profile/")
 	if !isProfile {
 		return []string{subject}, nil
@@ -111,7 +122,7 @@ func (set *rfcFigureSet) members(subject string) ([]string, error) {
 func rfcSubjectRefusal(subject string) error {
 	var tb textbuf.Buffer
 	return errors.New(tb.Str(subject).Str(" is not a subject the RFC data answers; write an RFC stem, ").
-		Str("profile/<name>/required or profile/<name>/optional (docs/architecture/site-facts.md, \"RFC completion data\")").String())
+		Str("all, profile/<name>/required or profile/<name>/optional (docs/architecture/site-facts.md, \"RFC completion data\")").String())
 }
 
 // sum answers the counts of a subject's members as rfc-figures.js sumStems

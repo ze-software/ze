@@ -209,9 +209,12 @@ MUST bar counts MUST rows only.
 <!-- source: internal/le/site/rfcdata.go -- rfcShouldCountsOf, rfcBars -->
 
 A page marks a value with `data-ze-rfc="<subject>:<field>"` and a bar with
-`data-ze-rfc-bar="<subject>:<bar>"`, where the subject is a stem or a profile
-tier (`profile/<name>/required`, `profile/<name>/optional`) and the bar is
-`must` or `overview`. Besides the fields of a per-RFC file, a set answers
+`data-ze-rfc-bar="<subject>:<bar>"`, where the subject is a stem, a profile
+tier (`profile/<name>/required`, `profile/<name>/optional`) or `all`, and the
+bar is `must` or `overview`. `all` is every RFC the index lists; in the
+browser an ancestor carrying `data-ze-rfc-stems="<stem>,<stem>"` narrows it to
+those stems, which is how a filter sums only the RFCs it shows. The build
+fills `all` over the whole index. Besides the fields of a per-RFC file, a set answers
 `rfcs`, `walked`, `not-walked` and `register`, its mandatory register in
 words: `complete` only when the set holds at least one RFC, none of them is
 unwalked, and `must.ze-gap` and `must.os-gap` are both 0, `not complete`
@@ -231,16 +234,16 @@ segments' words and counts. A Markdown mirror carries the same values through
 a field names a not-owed kind no row can carry, or when a marker is not in the
 exact shape the helpers write (another attribute, another tag, a mistyped
 mirror token), which the fill could not reach. So no page prints a figure the
-files do not hold, and none publishes a marker left empty. The RFC profile pages are the
-first pages marked this way (`docs/contributing/gh-pages.md`). A file the index names that cannot be read is named
+files do not hold, and none publishes a marker left empty. The RFC profile pages
+and the per-RFC detail pages are marked this way (`docs/contributing/gh-pages.md`). A file the index names that cannot be read is named
 in the element with the command that publishes it (`./le site build`), never
 dropped from a sum. The segment colours are the `.rfc-seg-<segment>` rules of
 `website/assets/css/30-components.css`; OS verified has its own token,
 `--green-soft`, lighter than `--green` in both themes, and the words on a light
 fill use `--ink-on-light`, dark in both. Every segment's words meet 4.5:1 on
 their fill in both themes.
-<!-- source: website/assets/js/rfc-figures.js -- sumStems, registerOf, drawBar -->
-<!-- source: internal/le/site/rfcfallback.go -- rfcFigureSet, rfcRegisterOf, rfcKindKnown, rfcStrayMarker, fillHTML, fillMirror -->
+<!-- source: website/assets/js/rfc-figures.js -- membersOf, sumStems, registerOf, drawBar -->
+<!-- source: internal/le/site/rfcfallback.go -- rfcFigureSet, members, rfcRegisterOf, rfcKindKnown, rfcStrayMarker, fillHTML, fillMirror -->
 <!-- source: internal/le/site/browsertest/rfcfigures_test.go -- TestTheBrowserDrawsRFCFiguresFromTheirFiles, TestRFCSegmentColoursAreReadableInBothThemes -->
 
 The browser test draws the layout the build publishes, not a copy of it:

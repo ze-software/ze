@@ -11,8 +11,10 @@
  *   data-ze-rfc-bar="<subject>:<bar>"   the element becomes the bar, <bar>
  *                                       being "must" or "overview"
  *
- * A subject is an RFC stem (rfc4271), or a profile tier
- * (profile/<name>/required, profile/<name>/optional). A field is a dotted path
+ * A subject is an RFC stem (rfc4271), a profile tier
+ * (profile/<name>/required, profile/<name>/optional), or all: every RFC the
+ * index lists, unless an ancestor of the element carries
+ * data-ze-rfc-stems="<stem>,<stem>", the RFCs a filter shows. A field is a dotted path
  * of a per-RFC file (must.ze-proven, should.not-decided), or one of the set
  * counts rfcs, walked and not-walked, or register, the set's mandatory
  * register in words. The text inside a marked element is the last build's
@@ -82,7 +84,14 @@
 
     // membersOf answers the stems a subject names, read from the index and,
     // for a profile tier, from the profile's own file.
-    function membersOf(index, subject) {
+    function membersOf(index, subject, node) {
+        if (subject === "all") {
+            var scope = node && node.closest ? node.closest("[data-ze-rfc-stems]") : null;
+            if (!scope) {
+                return Promise.resolve((index.rfcs || []).map(function (entry) { return entry.stem; }));
+            }
+            return Promise.resolve(scope.getAttribute("data-ze-rfc-stems").split(",").filter(Boolean));
+        }
         var parts = subject.split("/");
         if (parts[0] !== "profile") {
             return Promise.resolve([subject]);
@@ -175,9 +184,9 @@
         return sum.must["ze-gap"] === 0 && sum.must["os-gap"] === 0 ? "complete" : "not complete";
     }
 
-    function sumSubject(subject) {
+    function sumSubject(subject, node) {
         return loadIndex().then(function (index) {
-            return membersOf(index, subject);
+            return membersOf(index, subject, node);
         }).then(sumStems);
     }
 
@@ -218,7 +227,7 @@
     function fillValue(node) {
         var marker = splitMarker(node.getAttribute("data-ze-rfc"));
         if (!marker) return showError(node, badMarker(node, "data-ze-rfc", "<subject>:<field>"));
-        sumSubject(marker[0]).then(function (sum) {
+        sumSubject(marker[0], node).then(function (sum) {
             var value = lookup(sum, marker[1]);
             if (typeof value === "number") {
                 node.textContent = value.toLocaleString("en-GB");
@@ -311,7 +320,7 @@
     function fillBar(node) {
         var marker = splitMarker(node.getAttribute("data-ze-rfc-bar"));
         if (!marker) return showError(node, badMarker(node, "data-ze-rfc-bar", "<subject>:must or <subject>:overview"));
-        Promise.all([loadIndex(), sumSubject(marker[0])]).then(function (loaded) {
+        Promise.all([loadIndex(), sumSubject(marker[0], node)]).then(function (loaded) {
             drawBar(node, loaded[0].bars || {}, loaded[1], marker[1]);
         }, function (error) {
             showError(node, error.message);

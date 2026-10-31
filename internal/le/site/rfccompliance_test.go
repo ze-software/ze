@@ -71,6 +71,10 @@ func rfcCompliancePathsWith(t *testing.T, snapshot *rfcCompliance, ledger rfcLed
 
 	output := t.TempDir()
 	writeLedgerArtifact(t, output, ledger)
+	data := rfcLedgerFixtureData(ledger)
+	if err := writeRFCData(output, &data); err != nil {
+		t.Fatal(err)
+	}
 	return Paths{Repository: root, Source: source, Output: output}
 }
 

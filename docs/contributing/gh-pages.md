@@ -758,13 +758,12 @@ order, then other stems by name, matching the Go model. Profile links and text
 filters update the same sums. Empty figures say `no rows`, never a percentage;
 an unwalked RFC has no published ceiling. The JSON ledger retains its proof fields and
 adds attainable and excluded counts to the graph, profiles and each stem's
-`figures` member. Detail pages and their Markdown mirrors read those same
-model counts. Profile pages carry no ceiling: they read their figures from
-`data/rfc/`, as above.
+`figures` member. Profile pages and detail pages carry no ceiling: they read
+their figures from `data/rfc/`, as above.
 <!-- source: internal/le/site/rfcfilter.go -- rfcFigureRowCells, rfcCeilingStatement, rfcFilterScript -->
 <!-- source: internal/le/site/rfcledger.go -- rfcLedgerStem, requirementLedgerFrom -->
 <!-- source: internal/le/site/rfcprofiles.go -- rfcProfileBody, rfcProfileMirror -->
-<!-- source: internal/le/site/rfcdetail.go -- rfcDetailCeilingMirror -->
+<!-- source: internal/le/site/rfcdetail.go -- rfcDetailFiguresHTML, rfcDetailFiguresMirror -->
 
 One page per RFC sits under that route, one for every summary in `rfc/short/`.
 The compliance page itself is the index over them: two link tables, one for the
@@ -779,6 +778,16 @@ of scope`, then the shares that partition the binding population, then the proof
 ratio. Every card carries its value, the arithmetic under it, and a sentence
 saying what the measure means. `rfcCardsHTML` renders the grid for both pages
 and `rfcCardsMirror` states it in both mirrors.
+
+A detail page's Figures section carries that RFC's MUST bar and overview bar
+and the same figure table a profile page carries for a tier, each a
+`data-ze-rfc` or `data-ze-rfc-bar` element whose subject is the RFC's stem, so
+`rfc-figures.js` fills them from `data/rfc/<stem>.json`, the file the RFC's row
+on a profile page reads. The build writes the last build's values inside them,
+and the mirror states the same values with a link to the file. A summary the
+published index does not list refuses the build by stem. The section replaced
+the attainable ceiling statement.
+<!-- source: internal/le/site/rfcdetail.go -- writeRFCDetailPage, rfcDetailFiguresHTML, rfcDetailFiguresMirror -->
 
 **The ratio cards partition their denominator.** `rfcStanding` groups every
 binding bucket into exactly one card, so the shares add to 100% and a reader who

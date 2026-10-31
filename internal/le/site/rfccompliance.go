@@ -346,6 +346,10 @@ func renderRFCCompliance(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	figures, err := loadRFCFigureSet(paths.Output)
+	if err != nil {
+		return nil, err
+	}
 	body, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("encode %s: %w", rfcComplianceSnapshot, err)
@@ -373,7 +377,7 @@ func renderRFCCompliance(paths Paths) ([]string, error) {
 	routes = append(routes, rfcComplianceRoute)
 	written := make(map[string]bool, len(ledger.Stems))
 	for index := range ledger.Stems {
-		route, err := writeRFCDetailPage(paths.Output, &ledger.Stems[index], links)
+		route, err := writeRFCDetailPage(paths.Output, &ledger.Stems[index], figures, links)
 		if err != nil {
 			return nil, err
 		}

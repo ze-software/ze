@@ -57,7 +57,11 @@ const (
 
 // writeRFCDetailPage publishes one summary's page and its mirror, and answers
 // the route it wrote.
-func writeRFCDetailPage(output string, entry *rfcLedgerStem, links pageLinks) (string, error) {
+//
+// Every figure the Figures section shows is a marked element figures fills
+// with the last build's value from data/rfc/<stem>.json, the file
+// rfc-figures.js reads again in the browser.
+func writeRFCDetailPage(output string, entry *rfcLedgerStem, figures *rfcFigureSet, links pageLinks) (string, error) {
 	route := rfcComplianceRoute + entry.Stem + "/"
 	destination := rfcComplianceDirectory + "/" + entry.Stem + "/" + pageIndexFile
 	shell := pageShell{
@@ -67,7 +71,7 @@ func writeRFCDetailPage(output string, entry *rfcLedgerStem, links pageLinks) (s
 		Path:        destination,
 		Sidebar:     pageSidebar(rfcDetailRoot, route[1:], links),
 	}
-	if err := writePublishedPage(output, destination,
+	if err := writeRFCFigurePage(output, destination, figures,
 		shell.render(rfcDetailBody(entry)), rfcDetailMirror(entry)); err != nil {
 		return "", err
 	}
@@ -91,7 +95,7 @@ var rfcDetailSections = []struct {
 	{rfcEnrolmentLabel, rfcEnrolmentHTML, rfcEnrolmentMirror},
 	{"What the public ledger says", rfcPublicLedgerHTML, rfcPublicLedgerMirror},
 	{"Coverage", rfcCoverageHTML, rfcCoverageMirror},
-	{"Attainable ceiling", rfcDetailCeilingHTML, rfcDetailCeilingMirror},
+	{rfcDetailFiguresHeading, rfcDetailFiguresHTML, rfcDetailFiguresMirror},
 	{"Requirements", rfcRequirementsHTML, rfcRequirementsMirror},
 	{"Gaps and untested MUSTs", rfcGapsHTML, rfcGapsMirror},
 	{"Proof state", rfcProofHTML, rfcProofMirror},
@@ -125,6 +129,7 @@ func rfcDetailBody(entry *rfcLedgerStem) string {
 		body.Str("<section><h2>").Str(html.EscapeString(section.Heading)).Str("</h2>\n").
 			Str(section.HTML(entry)).Str("\n</section>\n")
 	}
+	body.Str(rfcFiguresScriptHTML(rfcDetailRoot))
 	body.Str("            </section>\n")
 	return body.String()
 }
@@ -141,20 +146,21 @@ func rfcDetailMirror(entry *rfcLedgerStem) string {
 	return out.String()
 }
 
-// rfcDetailCeilingMirror reads the same model row as the index and profiles.
-func rfcDetailCeilingMirror(entry *rfcLedgerStem) string {
-	if entry.Figures == nil {
-		return "No ceiling measurement is available.\n"
-	}
-	if !entry.Figures.Walked {
-		return "Not walked: no proof figure or ceiling is published.\n"
-	}
-	return rfcCeilingStatement([]*rfc.TreeRow{entry.Figures}) + "\n"
-}
+// rfcDetailFiguresHeading names the section that carries the RFC's two bars
+// and its figure table.
+const rfcDetailFiguresHeading = "Figures"
 
-// rfcDetailCeilingHTML publishes the mirror's exact ceiling statement.
-func rfcDetailCeilingHTML(entry *rfcLedgerStem) string {
-	return "<p>" + html.EscapeString(strings.TrimSpace(rfcDetailCeilingMirror(entry))) + "</p>"
+// rfcDetailFiguresHTML draws the RFC's MUST and overview bars and its figure
+// table from data/rfc/<stem>.json, the same file the RFC's row on the index
+// and on every profile page reads, so the page and its list row cannot
+// state different counts.
+func rfcDetailFiguresHTML(entry *rfcLedgerStem) string { return rfcProfileTierHTML(entry.Stem) }
+
+// rfcDetailFiguresMirror states the same bars and table in the mirror, with
+// the link to the file they are read from.
+func rfcDetailFiguresMirror(entry *rfcLedgerStem) string {
+	file := rfcStemDataFile(entry.Stem)
+	return rfcProfileTierMirror(entry.Stem) + "\nSource: [" + file + "](" + rfcDetailRoot + file + ").\n"
 }
 
 // rfcDetailHeading is the page's own H1: the display name, and the RFC's title
