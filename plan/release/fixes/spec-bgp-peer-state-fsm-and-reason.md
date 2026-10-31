@@ -422,7 +422,7 @@ The bridge must not invent DISABLED there.
 | Reason derived in the reactor, next to both states | Derive in `cmd/peer` | The reactor holds the Peer fields under `p.mu`; the answer must be a self-contained value |
 
 ## Known Limitations
-- ExaBGP `show neighbor` / `peer show` is not translated by the bridge (refused today). When it is, its `state` column must print `DISABLED` exactly when this spec's answer has `state` `idle` and `state-reason` `operator-shutdown`, and ExaBGP's `FSM.name()` spelling otherwise (E-6). That translation is not in this spec; it needs a home in an ExaBGP bridge spec (to be decided with Thomas)
+- ExaBGP `show neighbor` / `peer show` is not translated by the bridge (refused today). When it is, its `state` column must print `DISABLED` exactly when this spec's answer has `state` `idle` and `state-reason` `operator-shutdown`, and ExaBGP's `FSM.name()` spelling otherwise (E-6). That translation is not in this spec: Thomas agreed it gets its own spec in `plan/release/fixes/`, depending on this one, started from `plan/handover/01-exabgp-show-neighbor-spec.md`
 - No FSM metric beyond the gauge (no FSM transition counter); the transition history stays in `show bgp peer history`
 - The reason reports only the current cause; earlier causes stay in history and logs
 
