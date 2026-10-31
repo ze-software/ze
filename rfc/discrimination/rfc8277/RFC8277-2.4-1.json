@@ -146,11 +146,11 @@
     "rid": "RFC8277-2.4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes",
-    "unit-sha": "8c4a4c6b09625a25",
+    "unit-sha": "54a6e577c835aeb9",
     "claim-sha": "44f45fdef859a965",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rr/rr.go::handleStateDown",
-    "producer-sha": "fe81bb1989f16f94",
+    "producer-sha": "b8117c5d5f1046f7",
     "break": "body of handleStateDown replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -161,8 +161,8 @@
     "claim-sha": "e681975e391a13e7",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rr/withdrawal.go::walkVPNNLRIs",
-    "producer-sha": "af326fd756df8ea9",
-    "break": "body of walkVPNNLRIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c2536ae7768c77c9",
+    "break": "body of walkVPNNLRIs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8277-2.4-1",
@@ -172,8 +172,8 @@
     "claim-sha": "db121d87dff8ea14",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rr/withdrawal.go::walkVPNNLRIs",
-    "producer-sha": "af326fd756df8ea9",
-    "break": "body of walkVPNNLRIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c2536ae7768c77c9",
+    "break": "body of walkVPNNLRIs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8277-2.4-1",

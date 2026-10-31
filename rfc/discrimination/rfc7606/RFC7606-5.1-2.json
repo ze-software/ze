@@ -47,12 +47,12 @@
     "rid": "RFC7606-5.1-2",
     "polarity": "positive",
     "unit": "test/plugin/rfc7606-relay-one-field.ci",
-    "unit-sha": "d6fcda2a56ba426a",
+    "unit-sha": "1f56eadd6d442500",
     "claim-sha": "639b8ce2b61bf9b7",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606_shape.go::MixesNLRIFields",
     "producer-sha": "d640d39959600009",
-    "break": "body of MixesNLRIFields replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "break": "body of MixesNLRIFields replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418AC10000000"
   }
 ]

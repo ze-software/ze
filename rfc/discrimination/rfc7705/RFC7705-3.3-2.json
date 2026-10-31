@@ -3,22 +3,22 @@
     "rid": "RFC7705-3.3-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705NoPrependInstalledAndAdvertised",
-    "unit-sha": "6ea50fe3a461cdac",
+    "unit-sha": "c9fd1342d9f7df74",
     "claim-sha": "805d995b67813747",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_validation.go::publishBase",
     "producer-sha": "cf237298722b119a",
-    "break": "body of publishBase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of publishBase replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7705-3.3-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7705_live_behavior_test.go::TestRFC7705NoPrependInstalledAndAdvertised",
-    "unit-sha": "6ea50fe3a461cdac",
+    "unit-sha": "c9fd1342d9f7df74",
     "claim-sha": "eb0f36dbb9892eca",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleReceivedStructured",
-    "producer-sha": "1b60bfbb169d0e9e",
-    "break": "body of handleReceivedStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "eb58c6973313bbeb",
+    "break": "body of handleReceivedStructured replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -3,24 +3,24 @@
     "rid": "RFC7606-5.4-1",
     "polarity": "positive",
     "unit": "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci",
-    "unit-sha": "d43d04bd52764eb3",
+    "unit-sha": "072df01d30085b5e",
     "claim-sha": "0cec02bf7889b63c",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI",
     "producer-sha": "5a5cf35ccd5fa8b1",
-    "break": "body of RecognizeNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "break": "body of RecognizeNLRI replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=2:seq=1:contains=0100010C0000FDE90000000118C00002010004110000FDE90000000140C633640101020304"
   },
   {
     "rid": "RFC7606-5.4-1",
     "polarity": "positive",
     "unit": "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci",
-    "unit-sha": "58103c0d5fffdcb8",
+    "unit-sha": "f3d7ee5d631847cd",
     "claim-sha": "15c78265969a8ea3",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/nlri/evpn/rfc7606.go::RecognizeNLRI",
     "producer-sha": "30e74730e5be7ad1",
-    "break": "body of RecognizeNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "break": "body of RecognizeNLRI replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=2:seq=1:contains=03110000FDE9000000010000000020C000020102210000FDE90000000100000000000000000000000000003000112233445500000641"
   }
 ]

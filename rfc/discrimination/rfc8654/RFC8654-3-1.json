@@ -111,17 +111,6 @@
   },
   {
     "rid": "RFC8654-3-1",
-    "polarity": "positive",
-    "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling",
-    "unit-sha": "5d66c430dd89fc19",
-    "claim-sha": "c666441c54ab1833",
-    "route": "mutant",
-    "producer": "internal/component/bgp/reactor/session_read.go::readAndProcessMessage",
-    "producer-sha": "84cd05f1ccd745aa",
-    "break": "line 110: \"s.extendedMessage\" -\u003e \"false\""
-  },
-  {
-    "rid": "RFC8654-3-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling",
     "unit-sha": "5d66c430dd89fc19",
@@ -130,5 +119,16 @@
     "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
     "producer-sha": "58b04127b9658cea",
     "break": "line 260: \"message.RFC7606ActionTreatAsWithdraw\" -\u003e \"message.RFC7606ActionNone\""
+  },
+  {
+    "rid": "RFC8654-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling",
+    "unit-sha": "5d66c430dd89fc19",
+    "claim-sha": "c666441c54ab1833",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_read.go::readAndProcessMessage",
+    "producer-sha": "72cbf8588bf90014",
+    "break": "line 112: \"s.extendedMessage\" -\u003e \"false\""
   }
 ]

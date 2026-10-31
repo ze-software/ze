@@ -29,8 +29,8 @@
     "claim-sha": "7156181d16944a07",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced",
-    "producer-sha": "82f8a4258457006c",
-    "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c972fb73dcf80bf9",
+    "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8654-6-1",
@@ -40,8 +40,8 @@
     "claim-sha": "4eaf9b67864475c8",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced",
-    "producer-sha": "82f8a4258457006c",
-    "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c972fb73dcf80bf9",
+    "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8654-6-1",
