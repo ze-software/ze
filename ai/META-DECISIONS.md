@@ -340,6 +340,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - A session stops, signals or deletes only the processes and files it created
   itself, its own agents' included. Another session's process, file or lock is
   never touched, however stuck or stale it looks: report it instead.
+- When a run fails for a reason outside your change (a build another session
+  broke, a stale binary, a missing cache entry), find the cause before running
+  again. Never wait and retry the same run hoping it passes: name what broke and
+  whose it is, then run where it can answer, such as a clean worktree at the
+  commit under test, or before and after the change to see which side a red is on.
 - `sudo` is allowed only for the stress harness (`./le test integration
   stress`): one root run at a time, alone on the host, removing what it
   created, and leaving anything in a shared location usable by the owner's
