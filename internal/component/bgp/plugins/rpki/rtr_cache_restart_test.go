@@ -3,6 +3,7 @@ package rpki
 import (
 	"context"
 	"encoding/binary"
+	"log/slog"
 	"net"
 	"slices"
 	"strconv"
@@ -23,6 +24,7 @@ import (
 // PREVENTS: a lone cache that went away and returned staying unsynced past its advertised Retry
 // Interval.
 func TestCacheGroupResyncsAfterSingleCacheRestart(t *testing.T) {
+	failures := captureCacheFailures(t)
 	cache := newRestartableRTRCache(t)
 	roas, aspas := newROACache(), newASPACache()
 	stop := make(chan struct{})
@@ -40,7 +42,9 @@ func TestCacheGroupResyncsAfterSingleCacheRestart(t *testing.T) {
 	require.Equal(t, time.Second, session.Snapshot().RetryInterval)
 
 	cache.stop()
-	require.Eventually(t, func() bool { return !group.retryAt[0].IsZero() }, 5*time.Second,
+	// The group's retryAt belongs to its Run goroutine, so the test cannot read it while Run is
+	// live. load() reports the failed query in the same branch that starts the Retry Interval.
+	require.Eventually(t, func() bool { return failures.count() > 0 }, 5*time.Second,
 		10*time.Millisecond, "no query failed while the cache was down")
 	// Keep the cache down for a few Retry Intervals, as the demo does.
 	time.Sleep(2500 * time.Millisecond)
@@ -53,6 +57,47 @@ func TestCacheGroupResyncsAfterSingleCacheRestart(t *testing.T) {
 	require.Less(t, time.Since(restarted), 3*time.Second,
 		"the resync came later than the one-second Retry Interval allows")
 }
+
+// cacheFailureLog counts the cache group's "cache did not answer" warnings, as the package
+// logger's handler for one test. Safe for concurrent use: the cache group logs from its Run
+// goroutine while the test reads the count.
+type cacheFailureLog struct {
+	mu       sync.Mutex
+	failures int
+}
+
+// captureCacheFailures installs a cacheFailureLog as the package logger until the test ends.
+// The package logger is global, so a test that calls this MUST NOT run in parallel.
+func captureCacheFailures(t *testing.T) *cacheFailureLog {
+	t.Helper()
+	previous := logger()
+	t.Cleanup(func() { setLogger(previous) })
+	failures := &cacheFailureLog{}
+	setLogger(slog.New(failures))
+	return failures
+}
+
+func (l *cacheFailureLog) count() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.failures
+}
+
+func (l *cacheFailureLog) Enabled(context.Context, slog.Level) bool { return true }
+
+func (l *cacheFailureLog) Handle(_ context.Context, record slog.Record) error { //nolint:gocritic // slog.Handler takes the record by value
+	if record.Message != "rtr: cache did not answer, trying the next one in preference order" {
+		return nil
+	}
+	l.mu.Lock()
+	l.failures++
+	l.mu.Unlock()
+	return nil
+}
+
+func (l *cacheFailureLog) WithAttrs([]slog.Attr) slog.Handler { return l }
+
+func (l *cacheFailureLog) WithGroup(string) slog.Handler { return l }
 
 // restartableRTRCache is an RTR cache on a fixed loopback port that can stop listening and
 // start again. It answers every query with a full load, the way `le mock rpki` does: PDUs of
