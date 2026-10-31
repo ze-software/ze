@@ -7,7 +7,7 @@
     "claim-sha": "781b32ec3a39e1f0",
     "route": "revert",
     "producer": "internal/component/radius/client.go::Exchange",
-    "producer-sha": "5e8643efe336479a",
+    "producer-sha": "92eb442f4a726521",
     "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

@@ -7,7 +7,7 @@
     "claim-sha": "608208e6ea9ad0cf",
     "route": "revert",
     "producer": "internal/component/radius/client.go::Exchange",
-    "producer-sha": "5e8643efe336479a",
+    "producer-sha": "92eb442f4a726521",
     "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "c6b5c8ecb6d698f8",
     "route": "revert",
     "producer": "internal/component/radius/client.go::Exchange",
-    "producer-sha": "5e8643efe336479a",
+    "producer-sha": "92eb442f4a726521",
     "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

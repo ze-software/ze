@@ -7,7 +7,7 @@
     "claim-sha": "1799f99386675344",
     "route": "revert",
     "producer": "internal/component/radius/client.go::SendToServers",
-    "producer-sha": "a551f16b98abc13b",
+    "producer-sha": "8a8183b44ee1439b",
     "break": "body of SendToServers replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -29,7 +29,7 @@
     "claim-sha": "219b339b713ad13e",
     "route": "revert",
     "producer": "internal/component/radius/client.go::Exchange",
-    "producer-sha": "5e8643efe336479a",
+    "producer-sha": "92eb442f4a726521",
     "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "0d453a428d281ab5",
     "route": "revert",
     "producer": "internal/component/radius/client.go::SendToServers",
-    "producer-sha": "a551f16b98abc13b",
+    "producer-sha": "8a8183b44ee1439b",
     "break": "body of SendToServers replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
