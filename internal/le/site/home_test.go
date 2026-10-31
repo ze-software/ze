@@ -848,3 +848,20 @@ func readDemoJSON(t *testing.T, path string, value any) {
 		t.Fatal(err)
 	}
 }
+
+// TestTheHomepageRFCCardSaysWhatTheOldFigureCounted: the RFC card's
+// percentage changed population on 2026-10-31, from every MUST row of the
+// walked RFCs Ze implements to the MUST rows Ze and the OS owe, so the card
+// says what the earlier figure counted beside the new one
+// (spec-rfc-figures-sectioned-presentation AC-15; ai/rules/rfc-compliance.md:
+// a correction names what the earlier figure counted).
+//
+// Method: render the homepage fixture and read the card's visible text.
+func TestTheHomepageRFCCardSaysWhatTheOldFigureCounted(t *testing.T) {
+	page, _ := renderHomeFixture(t)
+	text := visibleText(page)
+	want := "Until 2026-10-31 the figure counted every MUST row, annotated rows included"
+	if !strings.Contains(text, want) {
+		t.Errorf("the homepage RFC card does not say what the earlier figure counted: want %q", want)
+	}
+}

@@ -229,6 +229,7 @@ const homeTemplate = `        <div class="site-home">
                         <ul>
                             <li>{{ze:rfc.proven_display}} of {{ze:rfc.must_kept_display}} MUSTs Ze and the OS owe, in walked RFCs Ze implements</li>
                             <li>Across {{ze:rfc.implemented_display}} RFCs, {{ze:rfc.not_walked_display}} not walked yet</li>
+                            <li>Until 2026-10-31 the figure counted every MUST row, annotated rows included</li>
                             <li>Tests tied to requirements</li>
                         </ul>
                         <span class="proof-check concept-evidence">RFC requirement ledger.</span>
