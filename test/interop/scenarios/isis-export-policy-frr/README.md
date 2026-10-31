@@ -46,6 +46,10 @@ must then fail twice over: the /24 is installed and 10.66.0.1/32 sits at 110.
 
 ## Status
 
-Runs under the Linux Docker interop harness only (raw L2 and FRR isisd). Not
-yet run: the config validates (`ze config validate`), and the checker's
-predicates are driven in both polarities by `TestBespokeCheckerBranches`.
+Runs under the Linux Docker interop harness only (raw L2 and FRR isisd).
+Results on 2026-10-31 at 697dc6a618, each image built by the harness:
+unmodified, pass; `exportVerdict` answering accepted at `DefaultRedistMetric`
+whatever the chain says, assertion 2 red with "FRR's IS-IS route for
+10.66.0.1/32 has metric 110, want 87"; restored (`git diff --quiet`), pass
+(`sha256:310feaf0c24f`). The checker's predicates are also driven in both
+polarities by `TestBespokeCheckerBranches`.

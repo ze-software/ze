@@ -46,9 +46,11 @@ deciding through `ospfExportPolicyVerdict` in `check_export_policy_predicate.go`
 
 The checker reads FRR's keys `linkStateId`, `advertisingRouter`,
 `networkMask`, `metricType`, `metric` and `externalRouteTag`, wherever FRR
-nests the LSA objects. The key names are FRR's `show_as_external_lsa_detail`
-(`ospfd/ospf_vty.c`) as remembered, not yet read from a run against the lab
-image: the first Linux run confirms them.
+nests the LSA objects. The first Linux run captured FRR 10.7.1's answer with
+`docker exec`: the key names match, the LSAs sit in an `asExternalLinkStates`
+array, and `metricType` is "E1" for type 1 but "E2 (Larger than any link state
+path)" for type 2, so the checker compares the word before the first space
+(`ospfExternalMetricTypeOf`, commit 697dc6a618).
 
 ## Red walk
 
@@ -59,6 +61,9 @@ returns the External it was given. Assertion 2 must then fail: the LSA for
 ## Status
 
 Runs under the Linux Docker interop harness only (FRR ospfd over the shared
-bridge). Not yet run: the config validates (`ze config validate`), and the
-checker's predicates are driven in both polarities by
-`TestBespokeCheckerBranches`.
+bridge). Results on 2026-10-31 at 697dc6a618, each image built by the harness:
+unmodified, pass (`sha256:7459d9f4deca`); `applyExportSets` returning its input,
+assertion 2 red with "FRR's AS-External-LSA for 10.67.1.0/24 has metric 20,
+want 50" (`sha256:49ebad4b55cc`); restored (`git diff --quiet`), pass
+(`sha256:8cfc88af0ea1`). The checker's predicates are also driven in both
+polarities by `TestBespokeCheckerBranches`, including FRR's captured answer.

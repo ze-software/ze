@@ -2142,6 +2142,40 @@ second, so the strongSwan SA never comes up. Both scenarios set
 <!-- source: test/interop-ipsec/scenarios/multiple-auth-ze-responder/ -- the Ze-responder fixtures -->
 <!-- source: internal/le/interoplab/ipsec/multiauth.go -- checkMultipleAuthZeInitiator, checkMultipleAuthZeResponder -->
 
+### Legacy signature methods against a strongSwan without RFC 7427
+
+The four `x509-legacy-*-signature` scenarios set
+`charon.signature_authentication = no`, so strongSwan 6.1.0 neither sends
+SIGNATURE_HASH_ALGORITHMS nor reads Ze's (`ike_init.c`). Ze, the initiator,
+then receives no notify, RFC 7427 Section 3 leaves it no method 14, and it must
+sign with its key's legacy method (RFC 8247 Section 3.1). charon signs its own
+AUTH the same way (`pubkey_authenticator.c` `build`).
+
+| Scenario | Keys on both sides | Method each side sends | PKI |
+|----------|--------------------|------------------------|-----|
+| `x509-legacy-rsa-signature` | RSA 2048 | 1, RSASSA-PKCS1-v1_5 over SHA-1 | the scenario's `pki/` |
+| `x509-legacy-ecdsa-p256-signature` | ECDSA P-256 | 9, ECDSA-256 | the shared lab PKI |
+| `x509-legacy-ecdsa-p384-signature` | ECDSA P-384 | 10, ECDSA-384 | the scenario's `pki/` |
+| `x509-legacy-ecdsa-p521-signature` | ECDSA P-521 | 11, ECDSA-521 | the scenario's `pki/` |
+
+Each scenario's own `pki/` holds leaf certificates issued by the shared lab CA.
+The checker requires the IKE and Child SAs, both kernels' ESP states and
+traffic both ways, then charon's two log lines: `authentication of
+'ze-test-client' with <method> successful` for Ze's AUTH, and
+`authentication of '172.28.0.3' (myself) with <method> successful` for its own,
+which Ze verified before installing the Child SA. charon names a method 14 AUTH
+by signature scheme rather than by method, so a Ze that sent method 14 fails the
+first line.
+
+Each scenario was walked red on 2026-10-31: with `computeX509Auth` reverted to
+refusing when no notify arrived, the rebuilt Ze logs `ike: build IKE_AUTH
+failed` and the strongSwan SA never comes up. The RSA scenario was also walked
+red with `verifyLegacyRSAAuth` reverted to SHA-256 only: Ze then refuses
+charon's SHA-1 method 1 AUTH.
+<!-- source: test/interop-ipsec/scenarios/x509-legacy-rsa-signature/ -- the method 1 fixtures -->
+<!-- source: test/interop-ipsec/scenarios/x509-legacy-ecdsa-p256-signature/ -- the method 9 fixtures -->
+<!-- source: internal/le/interoplab/ipsec/legacysig.go -- checkLegacySignature -->
+
 ### ESP transform kernel proof
 
 `esp-aes-cbc-sha256`, `esp-chacha20poly1305` and `esp-3des-sha1` offer one
@@ -2423,6 +2457,31 @@ outside the fault window refuse the run. The relay neither constructs client
 requests nor generates acknowledgments.
 The new carrier still owes green and forced-red execution evidence.
 <!-- source: internal/plugins/tftpserver/tftp_curl_docker_test.go -- TestTFTPCurlDuplicateACKInterop, curlTFTPRelay.transfer -->
+
+### Ze's TFTP server against tftp-hpa and curl options
+
+Two Linux, Docker-tagged tests in `tftp_hpa_docker_test.go` drive Ze's
+production TFTP handlers (`ServeConn`) with independent clients, through a
+relay that copies every datagram both ways and records the client's RRQ
+options, the server's OACK and the longest run of DATA blocks between two
+ACKs. The relay constructs nothing.
+
+- `TestTFTPHPAWindowsizeInterop` builds the tftp-hpa 7.2 client from its
+  release tag (`test/interop-tftp/Dockerfile.tftp-hpa`, which refuses any
+  other commit) and downloads a 300-block file twice: with the client's
+  default request (windowsize 64) and with `-W 1000`. Each must be granted
+  windowsize 64, be sent in windows (64 DATA blocks between ACKs), and match
+  the file's SHA-256. With `grantWindowsize` forced to one block the OACK
+  carries no windowsize and the test goes red.
+- `TestTFTPCurlTimeoutInterop` runs curl 8.23.0 with its default options,
+  whose RRQ carries `timeout 5` for `--max-time 25`. The OACK must echo that
+  timeout and curl must deliver the exact file. With the timeout left out of
+  the OACK the test goes red.
+
+Both run on a Mac the way the dnsmasq test below does: the test binary is
+cross-built with `-tags docker` and run in a `docker:cli` container on the
+`ze` Colima VM's host network.
+<!-- source: internal/plugins/tftpserver/tftp_hpa_docker_test.go -- TestTFTPHPAWindowsizeInterop, TestTFTPCurlTimeoutInterop, optionRelay -->
 
 ### Ze's TFTP client against dnsmasq
 
@@ -3204,8 +3263,8 @@ is not packet-forwarding evidence.
 | 61 | isis-import-policy-frr | Ze, FRR 10.7.1 twice (FRR-A, FRR-B on separate links) | `isis filter import` decides what Ze installs and nothing else: the hidden prefix is out of Ze's RIB and FIB, listed by `show rib candidates` as hidden by the `isis import` chain, and still flooded on, so FRR-B learns it through Ze ("Separate links between daemons") |
 | 62 | ospf-import-policy-bird | Ze, BIRD 3.4.0 | `ospf filter import` sets distance 200 on BIRD's tagged external, which then loses to a static path at 150, while the untagged one keeps 110 and wins, judged per path in `show rib candidates` |
 | 63 | bgp-rfc8212-default-reject-frr | Ze (route server, bgp-rib), FRR 10.7.1 twice (FRR at host 3 with no Ze policy, the FRR sink at host 15 with an explicit Ze policy) | RFC 8212 Section 3, the EBGP default reject in both directions, against an FRR that keeps its own `bgp ebgp-requires-policy` and holds explicit route-maps toward Ze: with no policy on Ze's FRR session, Ze's `show bgp rib best` must hold the sink's 10.81.15.0/24 and not FRR's 10.81.1.0/24 (after FRR's `advertised-routes` names it and Ze counts its UPDATE and End-of-RIB), FRR must hold neither Ze's config-originated 10.81.0.0/24 nor the sink's route, and the sink must receive 10.81.0.0/24 from the same config `update` path. A reload adding a bgp-level `final accept` in both directions must then deliver every route across the FRR session, with FRR and the sink each counting one establishment and no drop. Results on 2026-10-31, each image built by the harness: unmodified (`sha256:16bb31efdbb8`), assertions 1 to 15 pass, so both default rejects hold and the reload's export recovery reaches FRR with no reset, and assertion 16 fails: FRR's 10.81.1.0/24 never reaches Ze's RIB after the reload, because the import policy rising did not yet re-learn the routes the absent policy discarded. Ze's FRR peer now negotiates Route Refresh (`route-refresh enable`), since a rising import on a peer without it is refused (spec D-1). On 2026-10-31, after the import-rise refresh (e9385df360 through 16744a9e7e), the unmodified build passes all assertions in 25s: the reload sends ROUTE-REFRESH to FRR and FRR's 10.81.1.0/24 reaches Ze's RIB with no session reset. `Policy.AcceptsAtEnd` answering `true` for an unconfigured policy (a `GOFLAGS=-overlay` build, `sha256:7a6490c76e9b`): red at assertion 7, Ze's RIB holds 10.81.1.0/24. An export-only break, the `PolicyFilterChain` final verdict skipped for export and `egressFinalAccepts`, `forward_rs.go` and `egress_inject_filter.go` admitting (overlay, `sha256:41f076b8fae9`): red at assertion 8, FRR holds 10.81.0.0/24. The same break without `egressFinalAccepts` left assertion 8 green, so the session write gate is the guard Ze's config-originated route meets |
-| 64 | isis-export-policy-frr | Ze, FRR 10.7.1 | `isis filter export` decides what enters Ze's LSP and at what metric: FRR installs the tagged /32 at its link metric plus the 77 the modify set, the untagged /32 at the link metric plus Ze's default 100, and no route for the /24 the prefix-list rejects ("IGP export-policy scenarios"). Not yet run |
-| 65 | ospf-export-policy-frr | Ze, FRR 10.7.1 | `ospf filter export` decides which AS-External-LSAs Ze originates and what they carry: FRR holds the tagged route's LSA at metric 50, E1, tag 200, the untagged one at metric 20, E2, tag 0, and none for the rejected route ("IGP export-policy scenarios"). Not yet run |
+| 64 | isis-export-policy-frr | Ze, FRR 10.7.1 | `isis filter export` decides what enters Ze's LSP and at what metric: FRR installs the tagged /32 at its link metric plus the 77 the modify set, the untagged /32 at the link metric plus Ze's default 100, and no route for the /24 the prefix-list rejects ("IGP export-policy scenarios"). Results on 2026-10-31 at 697dc6a618, each image built by the harness: unmodified, pass; `exportVerdict` answering accepted at `DefaultRedistMetric`, assertion 2 red with "FRR's IS-IS route for 10.66.0.1/32 has metric 110, want 87"; restored, pass (`sha256:310feaf0c24f`) |
+| 65 | ospf-export-policy-frr | Ze, FRR 10.7.1 | `ospf filter export` decides which AS-External-LSAs Ze originates and what they carry: FRR holds the tagged route's LSA at metric 50, E1, tag 200, the untagged one at metric 20, E2, tag 0, and none for the rejected route ("IGP export-policy scenarios"). Results on 2026-10-31 at 697dc6a618, each image built by the harness: unmodified, pass (`sha256:7459d9f4deca`); `applyExportSets` returning its input, assertion 2 red with "FRR's AS-External-LSA for 10.67.1.0/24 has metric 20, want 50" (`sha256:49ebad4b55cc`); restored, pass (`sha256:8cfc88af0ea1`). The first run found FRR 10.7.1 writing "E2 (Larger than any link state path)" for type 2, which the checker now reads by its first word (697dc6a618) |
 <!-- source: internal/le/interoplab/bgp/check_session_protection.go -- checkSessionProtection, sessionProbeScript -->
 <!-- source: internal/le/interoplab/bgp/check_session_protection_predicate.go -- parseSessionProbe, coppUnknownSourceDrops -->
 <!-- source: internal/le/interoplab/bgp/check_paths_limit_receive.go -- checkPathsLimitReceive, decodePathsLimitReceive, requirePathsLimitReceive -->
