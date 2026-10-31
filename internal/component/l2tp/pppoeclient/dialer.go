@@ -173,6 +173,9 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	discoveryDone := make(chan struct{})
 	go watchPADT(discFD, ifindex, hwaddr, acMAC, sessID, link, stopCh, discoveryDone, logger)
 	var cleanupOnce sync.Once
+	// result holds the unit's reader once negotiation connected the channel;
+	// until then the unit is the bare descriptor.
+	var result sessionResult
 	cleanup := func() {
 		cleanupOnce.Do(func() {
 			_ = link.Close() //nolint:errcheck // shutdown; descriptors are released once
@@ -186,7 +189,15 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 			}
 			// The caller may still be configuring ppp<unitNum> after Done
 			// closes. Reserve its identity until that owner invokes Cleanup.
-			pppoe.ClosePPPoxFD(unitFD)
+			// A connected unit's reader ends on the EOF the detached channel
+			// gives it, and MUST be joined before its descriptor closes.
+			if result.unit == nil {
+				pppoe.ClosePPPoxFD(unitFD)
+				return
+			}
+			for range result.unitFrames {
+			}
+			_ = result.unit.Close() //nolint:errcheck // shutdown; the reader has exited
 		})
 	}
 
@@ -196,7 +207,8 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		password: cfg.AuthSecret,
 		chanFD:   chanFD,
 	}
-	result, negErr := negotiateSession(link, frames, unitFD, unitNum, sessCfg, link.stopped, logger)
+	var negErr error
+	result, negErr = negotiateSession(link, frames, unitFD, unitNum, sessCfg, link.stopped, logger)
 	if negErr != nil {
 		cleanup()
 		return iface.PPPoESession{}, negErr
@@ -271,7 +283,7 @@ func (s *sessionLink) Close() error {
 // RFC 2516 Section 7: "When LCP terminates, the Host and Access concentrator
 // MUST stop using that PPPoE session." The close is how the Host stops.
 func superviseNetworkPhase(link *sessionLink, result *sessionResult, done chan<- struct{}, logger *slog.Logger) {
-	keepaliveLoop(link, result.frames, result.magic, result.chap, done, link.stopped, logger)
+	keepaliveLoop(link, result, done, link.stopped, logger)
 	_ = link.Close() //nolint:errcheck // shutdown after PPP termination or read failure
 }
 

@@ -30,7 +30,7 @@ func runNetworkPhase(t *testing.T, stop chan struct{}, feed ...readFrame) (*reco
 	done := make(chan struct{})
 	chap := networkPhaseCHAPFor(ppp.ProtoCHAP, sessionConfig{username: "user", password: "pass"})
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	go keepaliveLoop(w, frames, 1, chap, done, stop, logger)
+	go keepaliveLoop(w, &sessionResult{frames: frames, magic: 1, chap: chap}, done, stop, logger)
 	for _, f := range feed {
 		frames <- f
 	}

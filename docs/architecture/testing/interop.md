@@ -2150,20 +2150,24 @@ relay refuses a data header carrying Ns and Nr, because a frame it injected
 would break the sequence. From the marker on, it logs every data datagram in
 both directions, unfiltered, and the checker refuses one it cannot read, so a
 frame the log holds is never passed over. The checker decodes the probes and
-Ze's answers from that log. It requires two LCP Code-Rejects with different
-Identifiers (RFC 1661 Section 5.6: "The Identifier field MUST be changed for
-each Code-Reject sent."). The IPCP probes draw no answer, and the checker
-asserts none: once NCP is up Ze connects the PPP channel to its unit, Linux's
-`ppp_input` then queues an IPCP frame on the unit descriptor rather than the
-channel, and Ze reads only the channel
-(`plan/journal/frames-rerouted-to-a-descriptor-nobody-reads.md`). The probes
-stay so the session must survive them, and the fix adds their assertions.
-Each LCP Code-Reject must have an Information field of at most 128 octets,
+Ze's answers from that log. It requires two LCP Code-Rejects and two IPCP
+Code-Rejects, the two of each protocol with different Identifiers (RFC 1661
+Section 5.6: "The Identifier field MUST be changed for each Code-Reject
+sent."). The IPCP probes reach Ze on its PPP unit descriptor, not the
+channel: once NCP is up Ze connects the PPP channel to its unit, and Linux's
+`ppp_input` then queues an IPCP frame on the unit, so the IPCP answers prove
+Ze reads that descriptor.
+Each Code-Reject must have an Information field of at most 128 octets,
 and its Rejected-Packet must be the start of the probe, with the probe's Code, Identifier and Length unchanged (RFC 1661 Section 5.6: "The
 Rejected-Packet MUST be truncated to comply with the peer's established
 MRU."). The session must survive: a ping still crosses it, both PPP
 interfaces are the ones from before the probes, and neither peer sends an LCP
-or IPCP Configure or Terminate packet afterwards.
+or IPCP Configure or Terminate packet afterwards. Last, the checker creates
+`/run/ipcp-terminate`, the relay sends one IPCP Terminate-Request with
+Identifier 0x5a on the next LAC datagram, and Ze must answer with an IPCP
+Terminate-Ack carrying 0x5a (RFC 1661 Section 5.5: "Upon reception of a
+Terminate-Request, a Terminate-Ack MUST be transmitted."). That ends IPCP,
+so it runs after every other assertion.
 <!-- source: internal/le/interoplab/l2tp/ppp_code_reject.go -- checkPPPCodeReject -->
 <!-- source: internal/le/interoplab/l2tp/avprelay/pppinject.go -- relayData, codeRejectFrames -->
 

@@ -18,6 +18,26 @@ import (
 // datagrams and logs none of them.
 const codeRejectMarker = "/run/code-reject"
 
+// terminateMarker is the file the checker creates once it has read Ze's
+// Code-Rejects. The next LAC datagram after it is the trigger for one IPCP
+// Terminate-Request, once per relay, which ends the scenario's IPCP.
+const terminateMarker = "/run/ipcp-terminate"
+
+// terminateIdentifier is the Identifier of the injected Terminate-Request,
+// which Ze's Terminate-Ack must carry (RFC 1661 Section 5.5).
+const terminateIdentifier = 0x5a
+
+// codeTerminateRequest is the LCP and IPCP Terminate-Request Code (RFC 1661
+// Section 5.5).
+const codeTerminateRequest = 5
+
+// injection records what the relay has sent Ze, so each injection happens
+// once per relay.
+type injection struct {
+	codeReject bool
+	terminate  bool
+}
+
 // L2TP data message header flags, RFC 2661 Section 3.1.
 const (
 	flagType     = 0x8000
@@ -60,15 +80,17 @@ var codeRejectProbes = [...]probe{
 // exists it also logs every data datagram in both directions, unfiltered, so
 // the checker decides what each one is and refuses one it cannot read. The
 // first datagram the LAC sends after the marker is the trigger: the relay forwards it, then sends Ze the four
-// probes on that datagram's tunnel and session, once per relay. The relay
-// neither sequences nor acknowledges data messages, so it refuses to inject
-// into a session that carries Ns and Nr.
+// probes on that datagram's tunnel and session, once per relay. The first LAC
+// datagram after terminateMarker is the trigger for one IPCP
+// Terminate-Request the same way. The relay neither sequences nor
+// acknowledges data messages, so it refuses to inject into a session that
+// carries Ns and Nr.
 func relayData(conn *net.UDPConn, encoder *json.Encoder, packet []byte,
-	direction string, target netip.AddrPort, injected *bool) error {
+	direction string, target netip.AddrPort, injected *injection) error {
 	if _, err := conn.WriteToUDPAddrPort(packet, target); err != nil {
 		return err
 	}
-	armed, err := codeRejectArmed()
+	armed, err := markerExists(codeRejectMarker)
 	if err != nil {
 		return err
 	}
@@ -79,17 +101,38 @@ func relayData(conn *net.UDPConn, encoder *json.Encoder, packet []byte,
 	if err := encoder.Encode(wireObservation{direction, encoded, encoded}); err != nil {
 		return err
 	}
-	if *injected {
-		return nil
-	}
 	if direction != "lac" {
 		return nil
 	}
-	frames, err := codeRejectFrames(packet)
+	if !injected.codeReject {
+		frames, err := codeRejectFrames(packet)
+		if err != nil {
+			return err
+		}
+		injected.codeReject = true
+		return injectFrames(conn, encoder, target, frames)
+	}
+	if injected.terminate {
+		return nil
+	}
+	armed, err = markerExists(terminateMarker)
 	if err != nil {
 		return err
 	}
-	*injected = true
+	if !armed {
+		return nil
+	}
+	start, err := dataHeaderLength(packet)
+	if err != nil {
+		return err
+	}
+	injected.terminate = true
+	frame := pppFrameBehind(packet[:start], protocolIPCP, codeTerminateRequest, terminateIdentifier, nil)
+	return injectFrames(conn, encoder, target, [][]byte{frame})
+}
+
+// injectFrames sends each frame to target and logs it as the relay's own.
+func injectFrames(conn *net.UDPConn, encoder *json.Encoder, target netip.AddrPort, frames [][]byte) error {
 	for _, frame := range frames {
 		if _, err := conn.WriteToUDPAddrPort(frame, target); err != nil {
 			return err
@@ -101,10 +144,10 @@ func relayData(conn *net.UDPConn, encoder *json.Encoder, packet []byte,
 	return nil
 }
 
-func codeRejectArmed() (bool, error) {
-	_, err := os.Stat(codeRejectMarker)
+func markerExists(path string) (bool, error) {
+	_, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
-		// The absent marker holds the probes back until PPP traffic has succeeded.
+		// The absent marker holds the injection back until the checker asks for it.
 		return false, nil
 	}
 	if err != nil {
@@ -175,24 +218,37 @@ func codeRejectFrames(trigger []byte) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	data := make([]byte, probeDataOctets)
+	for i := range data {
+		data[i] = byte(i)
+	}
 	frames := make([][]byte, 0, len(codeRejectProbes))
 	for _, p := range codeRejectProbes {
-		frame := make([]byte, start+4+4+probeDataOctets)
-		copy(frame, trigger[:start])
-		if binary.BigEndian.Uint16(frame)&flagLength != 0 {
-			binary.BigEndian.PutUint16(frame[2:], uint16(len(frame)))
-		}
-		frame[start] = 0xff
-		frame[start+1] = 0x03
-		binary.BigEndian.PutUint16(frame[start+2:], p.protocol)
-		packet := frame[start+4:]
-		packet[0] = p.code
-		packet[1] = probeIdentifier
-		binary.BigEndian.PutUint16(packet[2:], uint16(len(packet)))
-		for i := range probeDataOctets {
-			packet[4+i] = byte(i)
-		}
-		frames = append(frames, frame)
+		frames = append(frames, pppFrameBehind(trigger[:start], p.protocol, p.code, probeIdentifier, data))
 	}
 	return frames, nil
+}
+
+// pppFrameBehind builds one PPP control packet behind a copy of an L2TP data
+// header, which carries the live tunnel and session. A header with a Length
+// field gets the frame's own length.
+//
+// The frame: the header, then 0xff 0x03, the 2-octet PPP Protocol, and the
+// packet: Code (1), Identifier (1), Length (2), Data.
+func pppFrameBehind(header []byte, protocol uint16, code, identifier byte, data []byte) []byte {
+	start := len(header)
+	frame := make([]byte, start+4+4+len(data))
+	copy(frame, header)
+	if binary.BigEndian.Uint16(frame)&flagLength != 0 {
+		binary.BigEndian.PutUint16(frame[2:], uint16(len(frame)))
+	}
+	frame[start] = 0xff
+	frame[start+1] = 0x03
+	binary.BigEndian.PutUint16(frame[start+2:], protocol)
+	packet := frame[start+4:]
+	packet[0] = code
+	packet[1] = identifier
+	binary.BigEndian.PutUint16(packet[2:], uint16(len(packet)))
+	copy(packet[4:], data)
+	return frame
 }

@@ -1,0 +1,14 @@
+[
+  {
+    "rid": "RFC1661-5.6-1",
+    "polarity": "positive",
+    "unit": "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject",
+    "unit-sha": "84c30064d1e10ab4",
+    "claim-sha": "bbf9d5c4acbe2c12",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
+    "producer-sha": "26dcb22afbde02b8",
+    "break": "line 688: \"s.wakeUnitReader()\" -\u003e \"_ = s.wakeUnitReader\"",
+    "citation": "2"
+  }
+]

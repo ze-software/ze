@@ -1,0 +1,15 @@
+{
+  "note": "Positive: TestRFC1661CodeRejectTruncatedToMRU (LCP Code 99 and IPCP Code 12, 404 octets, negotiatedMRU 100) goes red unless the Code-Reject frame's Information field is exactly 100 octets, the Rejected-Packet keeps the original Code, Identifier 0x61 and Length 404, and the kept 92 Data octets are the head of the packet. checkPPPCodeReject assertion 4, with pppd's mru 128 (ppp-options) and 204-octet probes, goes red if any LCP or IPCP Code-Reject's Information field exceeds 128 octets, its Length disagrees with it, or its Rejected-Packet is not the probe's Code, Identifier 0x42, Length 204 and leading Data; the claim states exactly that. Negative: TestRFC1661CodeRejectKeptWhenItFits requires a 44-octet packet under the same 100-octet MRU to come back whole, so the truncation is conditional on the MRU and an unconditional cut goes red, which the Rejected-Packet description ('contains a copy of the LCP packet which is being rejected') requires.",
+  "requirement_sha": "0b15bfcac2103c64",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectKeptWhenItFits": "abd3fecb016ef0e7",
+    "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectTruncatedToMRU": "abd3fecb016ef0e7",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "ad383087d2aafe76"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectKeptWhenItFits": "74101e343f08a8ce",
+    "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectTruncatedToMRU": "ac437d40d8483b7e",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "2d797b2c5a8817d7"
+  },
+  "verdict": "enforced"
+}

@@ -185,12 +185,13 @@ Proves Ze's PPP Code-Reject against a real xl2tpd and pppd session (RFC 1661
 Section 5.6). pppd requests an MRU of 128. Once a ping has crossed the
 session, the relay sends Ze, as the LAC, two LCP packets with the unknown Code
 99 and two IPCP packets with Code 12, all with Identifier 0x42 and 204 octets
-long. The checker reads Ze's answers off the wire. The two LCP Code-Rejects
-carry different Identifiers, each fits the 128-octet MRU with a copy of the
-start of the probe it rejects, and the session stays up. Ze answers neither
-IPCP probe today, because it never reads the PPP unit descriptor Linux queues
-IPCP on after the channel is connected; the checker asserts nothing about them
-until that defect is fixed. The full
+long. The checker reads Ze's answers off the wire. The two LCP and the two
+IPCP Code-Rejects carry different Identifiers within each protocol, each fits
+the 128-octet MRU with a copy of the start of the probe it rejects, and the
+session stays up. The IPCP answers come from the PPP unit descriptor, where
+Linux queues IPCP once the channel is connected. Last, the relay sends one
+IPCP Terminate-Request and Ze must answer with a Terminate-Ack carrying its
+Identifier. The full
 account is in `docs/architecture/testing/interop.md`, "L2TP and PPPoE
 lifecycle fault scenarios".
 

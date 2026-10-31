@@ -25,12 +25,12 @@
     "rid": "RFC1661-5.6-2",
     "polarity": "positive",
     "unit": "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject",
-    "unit-sha": "8b51b356a220aaec",
-    "claim-sha": "bf3937ee8c187e00",
+    "unit-sha": "84c30064d1e10ab4",
+    "claim-sha": "3bf57e0df46cd27f",
     "route": "mutant",
-    "producer": "internal/component/l2tp/ppp/session_run.go::sendCodeReject",
-    "producer-sha": "2e521ac95a1b10ec",
-    "break": "line 1943: \"s.lcpCodeRejectID++\" -\u003e \"s.lcpCodeRejectID = req.Identifier\"",
+    "producer": "internal/component/l2tp/ppp/ncp.go::sendNCPCodeReject",
+    "producer-sha": "8526e7974ebcb562",
+    "break": "line 1165: \"s.nextNCPCodeRejectID(family)\" -\u003e \"req.Identifier\"",
     "citation": "3"
   }
 ]

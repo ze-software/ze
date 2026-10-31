@@ -12,9 +12,10 @@ import (
 // the checker exists to refuse fails the predicate that owns it, and only that
 // one.
 func TestPPPCodeRejectEvidence(t *testing.T) {
+	// rejects holds Ze's two LCP Code-Rejects, then its two IPCP ones.
 	type exchange struct {
 		probes  [4][]byte
-		rejects [2][]byte
+		rejects [4][]byte
 		extra   []string
 	}
 	conforming := func() exchange {
@@ -25,8 +26,9 @@ func TestPPPCodeRejectEvidence(t *testing.T) {
 		}{{protocolLCP, probeCodeLCP}, {protocolLCP, probeCodeLCP}, {protocolIPCP, probeCodeIPCP}, {protocolIPCP, probeCodeIPCP}} {
 			e.probes[index] = pppDatagram(p.protocol, codeRejectProbe(p.code))
 		}
-		for index := range e.rejects {
+		for index := range 2 {
 			e.rejects[index] = pppDatagram(protocolLCP, codeReject(byte(index+1), codeRejectProbe(probeCodeLCP), pppCodeRejectMRU))
+			e.rejects[2+index] = pppDatagram(protocolIPCP, codeReject(byte(index+1), codeRejectProbe(probeCodeIPCP), pppCodeRejectMRU))
 		}
 		return e
 	}
@@ -50,11 +52,12 @@ func TestPPPCodeRejectEvidence(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		rejects := zeCodeRejects(frames, protocolLCP)
+		// As checkPPPCodeReject judges them: each verdict holds for both protocols.
+		lcp, ipcp := zeCodeRejects(frames, protocolLCP), zeCodeRejects(frames, protocolIPCP)
 		return verdicts{
 			probes:      injectedProbes(frames) == nil,
-			identifiers: distinctIdentifiers(rejects) == nil,
-			mru:         rejectsWithinMRU(rejects, probeCodeLCP) == nil,
+			identifiers: distinctIdentifiers(lcp) == nil && distinctIdentifiers(ipcp) == nil,
+			mru:         rejectsWithinMRU(lcp, probeCodeLCP) == nil && rejectsWithinMRU(ipcp, probeCodeIPCP) == nil,
 			kept:        sessionKept(frames) == nil,
 		}
 	}
@@ -65,10 +68,22 @@ func TestPPPCodeRejectEvidence(t *testing.T) {
 	}{
 		{name: "conforming", want: verdicts{true, true, true, true}},
 		{name: "Identifier copied from the probe", change: func(e *exchange) {
-			for index := range e.rejects {
+			for index := range 2 {
 				e.rejects[index] = pppDatagram(protocolLCP, codeReject(probeIdentifier, codeRejectProbe(probeCodeLCP), pppCodeRejectMRU))
 			}
 		}, want: verdicts{true, false, true, true}},
+		{name: "IPCP Identifier copied from the probe", change: func(e *exchange) {
+			for index := 2; index < 4; index++ {
+				e.rejects[index] = pppDatagram(protocolIPCP, codeReject(probeIdentifier, codeRejectProbe(probeCodeIPCP), pppCodeRejectMRU))
+			}
+		}, want: verdicts{true, false, true, true}},
+		{name: "IPCP Rejected-Packet not cut", change: func(e *exchange) {
+			e.rejects[3] = pppDatagram(protocolIPCP, codeReject(2, codeRejectProbe(probeCodeIPCP), 4+probeOctets))
+		}, want: verdicts{true, true, false, true}},
+		{name: "IPCP probes unanswered, the unit descriptor unread", change: func(e *exchange) {
+			e.rejects[2] = pppDatagram(protocolLCP, []byte{9, 1, 0, 4})
+			e.rejects[3] = pppDatagram(protocolLCP, []byte{9, 2, 0, 4})
+		}, want: verdicts{true, false, false, false}},
 		{name: "Rejected-Packet not cut", change: func(e *exchange) {
 			e.rejects[0] = pppDatagram(protocolLCP, codeReject(1, codeRejectProbe(probeCodeLCP), 4+probeOctets))
 		}, want: verdicts{true, true, false, true}},
@@ -84,8 +99,10 @@ func TestPPPCodeRejectEvidence(t *testing.T) {
 			e.rejects[1] = pppDatagram(protocolLCP, []byte{9, 1, 0, 4})
 		}, want: verdicts{true, false, true, false}},
 		{name: "a Code-Reject sent on IPCP is not an LCP one", change: func(e *exchange) {
+			// It also joins the IPCP answers, where its Rejected-Packet holds
+			// an LCP probe's Code, so the IPCP MRU judgement refuses it too.
 			e.rejects[1] = pppDatagram(protocolIPCP, codeReject(2, codeRejectProbe(probeCodeLCP), pppCodeRejectMRU))
-		}, want: verdicts{true, false, true, false}},
+		}, want: verdicts{true, false, false, false}},
 		{name: "a probe never sent", change: func(e *exchange) {
 			e.probes[3] = pppDatagram(protocolLCP, []byte{9, 1, 0, 4})
 		}, want: verdicts{false, true, true, true}},
@@ -125,6 +142,55 @@ func TestPPPCodeRejectEvidence(t *testing.T) {
 	}
 	if err := rejectsWithinMRU(nil, probeCodeLCP); err == nil {
 		t.Fatal("no Code-Reject at all was measured as within the MRU")
+	}
+}
+
+// TestPPPTerminateEvidence drives the assertion 6 predicates: the relay's
+// fifth injected frame is the IPCP Terminate-Request, and Ze's answer is an
+// IPCP Terminate-Ack carrying its Identifier. Each wrong reading fails.
+func TestPPPTerminateEvidence(t *testing.T) {
+	request := pppDatagram(protocolIPCP, []byte{codeTerminateRequest, terminateIdentifier, 0, 4})
+	probes := ""
+	for range 4 {
+		probe := pppDatagram(protocolLCP, codeRejectProbe(probeCodeLCP))
+		probes += wireLine(t, relayInjected, nil, probe)
+	}
+	frames := func(t *testing.T, text string) []pppFrame {
+		t.Helper()
+		parsed, err := relayPPPFrames(text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return parsed
+	}
+	ack := func(protocol uint16, id byte) string {
+		datagram := pppDatagram(protocol, []byte{codeTerminateAck, id, 0, 4})
+		return wireLine(t, relayFromZe, datagram, datagram)
+	}
+	sent := probes + wireLine(t, relayInjected, nil, request)
+
+	if err := injectedTerminate(frames(t, sent)); err != nil {
+		t.Fatalf("the Terminate-Request after four probes was refused: %v", err)
+	}
+	if err := injectedTerminate(frames(t, probes)); err == nil {
+		t.Fatal("four probes and no Terminate-Request were read as the injection")
+	}
+	lcpRequest := pppDatagram(protocolLCP, []byte{codeTerminateRequest, terminateIdentifier, 0, 4})
+	if err := injectedTerminate(frames(t, probes+wireLine(t, relayInjected, nil, lcpRequest))); err == nil {
+		t.Fatal("an LCP Terminate-Request was read as the IPCP one")
+	}
+
+	if err := zeTerminateAck(frames(t, sent+ack(protocolIPCP, terminateIdentifier))); err != nil {
+		t.Fatalf("Ze's IPCP Terminate-Ack was refused: %v", err)
+	}
+	if err := zeTerminateAck(frames(t, sent)); err == nil {
+		t.Fatal("no answer was read as a Terminate-Ack")
+	}
+	if err := zeTerminateAck(frames(t, sent+ack(protocolIPCP, terminateIdentifier+1))); err == nil {
+		t.Fatal("a Terminate-Ack with another Identifier was accepted")
+	}
+	if err := zeTerminateAck(frames(t, sent+ack(protocolLCP, terminateIdentifier))); err == nil {
+		t.Fatal("an LCP Terminate-Ack was accepted for the IPCP request")
 	}
 }
 

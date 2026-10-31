@@ -83,15 +83,18 @@ func (c *networkPhaseCHAP) handle(w io.Writer, buf []byte, pkt ppp.LCPPacket, lo
 }
 
 // keepaliveLoop handles LCP echo on the frames channel created during
-// negotiation. Closes done when the session ends (echo timeout,
-// terminate, read error). Uses the existing reader goroutine to avoid
-// a second concurrent Read on the same fd.
+// negotiation, and IPCP on the unit's unitFrames. Closes done when the
+// session ends (echo timeout, terminate, read error, IPCP leaving Opened).
+// Uses the existing reader goroutines to avoid a second concurrent Read on
+// either fd.
 //
-// chap is nil when LCP did not negotiate CHAP. That nil is a guard: a CHAP
-// frame is then dropped like any other non-LCP frame, because no Challenge
-// is expected on a link that authenticated with PAP or not at all.
-func keepaliveLoop(chanFile io.Writer, frames <-chan readFrame, magic uint32, chap *networkPhaseCHAP, done chan<- struct{}, stopCh <-chan struct{}, logger *slog.Logger) {
+// result.chap is nil when LCP did not negotiate CHAP. That nil is a guard: a
+// CHAP frame is then dropped like any other non-LCP frame, because no
+// Challenge is expected on a link that authenticated with PAP or not at all.
+func keepaliveLoop(chanFile io.Writer, result *sessionResult, done chan<- struct{}, stopCh <-chan struct{}, logger *slog.Logger) {
 	defer close(done)
+	frames, magic, chap := result.frames, result.magic, result.chap
+	ipcpCodeRejectID := result.ipcpCodeRejectID
 
 	echoTicker := time.NewTicker(echoInterval)
 	defer echoTicker.Stop()
@@ -117,6 +120,27 @@ func keepaliveLoop(chanFile io.Writer, frames <-chan readFrame, magic uint32, ch
 			echoFails++
 			if echoFails >= echoMaxFailures {
 				logger.Warn("pppoe-client: echo timeout", "failures", echoFails)
+				return
+			}
+		case frame, ok := <-result.unitFrames:
+			if !ok || frame.err != nil {
+				// The unit's read ends when the transport closes, at Cleanup or
+				// on loss, which ends the channel's read in the same moment, so
+				// it ends the loop as quietly as the channel's does.
+				return
+			}
+			proto, payload, _, parseErr := ppp.ParseFrame(frame.data)
+			if parseErr != nil {
+				continue
+			}
+			if proto != ppp.ProtoIPCP {
+				continue
+			}
+			pkt, pktErr := ppp.ParseLCPPacket(payload)
+			if pktErr != nil {
+				continue
+			}
+			if !answerOpenedIPCP(chanFile, frameBuf[:], pkt, &ipcpCodeRejectID, result.peerMRU, logger) {
 				return
 			}
 		case frame, ok := <-frames:
@@ -157,4 +181,51 @@ func keepaliveLoop(chanFile io.Writer, frames <-chan readFrame, magic uint32, ch
 			}
 		}
 	}
+}
+
+// answerOpenedIPCP answers one IPCP packet received once IPCP is Opened, and
+// reports whether the session goes on. The client negotiates IPCP once, before
+// PPPIOCCONNECT, and has no address to offer a renegotiation, so every packet
+// that takes IPCP out of Opened (RFC 1661 Section 4.1: RCR, RCA, RCN, RTR,
+// RTA and RXJ- all leave Opened through tld) ends the session, and the dialer
+// brings up a new one.
+func answerOpenedIPCP(w io.Writer, buf []byte, pkt ppp.LCPPacket, codeRejectID *uint8, peerMRU uint16,
+	logger *slog.Logger) bool {
+	// RFC 1332 Section 2: "Other Codes should be treated as unrecognized and
+	// should result in Code-Rejects."
+	if ipcpCodeUnrecognized(pkt.Code) {
+		// RFC 1661 Section 5.6: "The Identifier field MUST be changed for
+		// each Code-Reject sent."
+		*codeRejectID++
+		if err := sendIPCPCodeReject(w, buf, pkt, *codeRejectID, peerMRU); err != nil {
+			logger.Warn("pppoe-client: IPCP Code-Reject write failed", "error", err)
+			return false
+		}
+		return true
+	}
+	if pkt.Code == ppp.LCPTerminateRequest {
+		// RFC 1661 Section 5.5: "Upon reception of a Terminate-Request, a
+		// Terminate-Ack MUST be transmitted."
+		off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
+		off += ppp.WriteLCPPacket(buf, off, ppp.LCPTerminateAck, pkt.Identifier, nil)
+		if err := writeClientPacket(w, buf[:off]); err != nil {
+			logger.Warn("pppoe-client: IPCP Terminate-Ack write failed", "error", err)
+		}
+		logger.Info("pppoe-client: server sent IPCP Terminate-Request")
+		return false
+	}
+	logger.Info("pppoe-client: IPCP left Opened, ending the session", "code", ppp.LCPCodeName(pkt.Code))
+	return false
+}
+
+// ipcpCodeUnrecognized reports whether code is none of the seven IPCP uses.
+// RFC 1332 Section 2: "Only Codes 1 through 7 (Configure-Request,
+// Configure-Ack, Configure-Nak, Configure-Reject, Terminate-Request,
+// Terminate-Ack and Code-Reject) are used." Code 0 is outside that range as
+// much as Code 8 is.
+func ipcpCodeUnrecognized(code uint8) bool {
+	if code == 0 {
+		return true
+	}
+	return code > ppp.LCPCodeReject
 }

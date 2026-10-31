@@ -1,13 +1,15 @@
 {
-  "note": "Forbidden: not Code-Rejecting an unknown Code. TestRFC1661CodeRejectForUnknownCode goes red on no Code-Reject or a Rejected-Packet not carrying Code 99, Identifier 0x41, Length 6, Data aabb; TestRFC1661NoCodeRejectForKnownCode goes red if a Terminate-Request is Code-Rejected.",
+  "note": "Forbidden: not Code-Rejecting an unknown Code. TestRFC1661CodeRejectForUnknownCode goes red on no Code-Reject or a Rejected-Packet not carrying Code 99, Identifier 0x41, Length 6, Data aabb; TestRFC1661NoCodeRejectForKnownCode goes red if a Terminate-Request is Code-Rejected. checkPPPCodeReject, over live xl2tpd and pppd with LCP and IPCP Opened, goes red at assertion 2 unless Ze answers the two injected LCP Code 99 probes with LCP Code-Rejects and the two IPCP Code 12 probes with IPCP Code-Rejects, and assertions 3 and 4 then require exactly two per protocol, each carrying the probe's Code and Identifier 0x42. Its claim now names both halves and states no more than the body checks. The LCP half is the sentence this row quotes; the IPCP half applies RFC 1332 Section 2 ('Other Codes should be treated as unrecognized and should result in Code-Rejects'). Its record breaks wakeUnitReader in afterLCPOpen (red at assertion 2), which proves the IPCP half needs Ze to read its PPP unit descriptor; no interop record breaks the LCP Code-Reject producer, whose discrimination rests on the unit tests.",
   "requirement_sha": "ee40e5c7a7172d2a",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CodeRejectForUnknownCode": "9afaf002f0fd81ec",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode": "9afaf002f0fd81ec"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode": "9afaf002f0fd81ec",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "ad383087d2aafe76"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CodeRejectForUnknownCode": "609e1d202c32e1e2",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode": "44d57804605012ad"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode": "44d57804605012ad",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "2d797b2c5a8817d7"
   },
   "verdict": "enforced"
 }

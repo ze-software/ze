@@ -41,6 +41,17 @@ type sessionResult struct {
 	negMTU  uint16
 	magic   uint32
 	frames  <-chan readFrame // reused by keepaliveLoop to avoid double-reader
+	// unit is the PPP unit descriptor, read by the reader behind unitFrames
+	// from PPPIOCCONNECT on: Linux then queues every IPCP frame there, not on
+	// the channel (ppp_input and ppp_receive_nonmp_frame,
+	// drivers/net/ppp/ppp_generic.c). Both are nil in a session that never
+	// connected. Dial's cleanup MUST drain unitFrames before it closes unit.
+	unit       io.Closer
+	unitFrames <-chan readFrame
+	// peerMRU bounds the Rejected-Packet of a network-phase Code-Reject, and
+	// ipcpCodeRejectID is the Identifier of the last IPCP Code-Reject sent.
+	peerMRU          uint16
+	ipcpCodeRejectID uint8
 	// chap is non-nil when LCP negotiated CHAP, so keepaliveLoop answers a
 	// Challenge the authenticator sends in the network phase.
 	chap *networkPhaseCHAP
@@ -146,13 +157,21 @@ func negotiateSession(chanFile io.ReadWriteCloser, frames <-chan readFrame, unit
 		return sessionResult{}, errors.New("pppoe-client: PPPIOCSMRU: " + err.Error())
 	}
 
+	// The unit now receives IPCP, so its reader starts here, for the rest of
+	// the session. It ends when the unit reads EOF, which Linux answers once
+	// the channel is unregistered, so closing the transport ends it.
+	unit := ppp.NewFDFile(unitFD, "pppoe-client.unit")
 	return sessionResult{
-		localIP: ipcpResult.localIP,
-		peerIP:  ipcpResult.peerIP,
-		negMTU:  negMTU,
-		magic:   magic,
-		frames:  frames,
-		chap:    chap,
+		localIP:          ipcpResult.localIP,
+		peerIP:           ipcpResult.peerIP,
+		negMTU:           negMTU,
+		magic:            magic,
+		frames:           frames,
+		unit:             unit,
+		unitFrames:       startReader(unit, stopCh),
+		peerMRU:          lcpResult.peerMRU,
+		ipcpCodeRejectID: ipcpResult.codeRejectID,
+		chap:             chap,
 	}, nil
 }
 
@@ -591,6 +610,9 @@ func writeClientPAPRequest(w io.Writer, buf, request []byte) error {
 type ipcpResult struct {
 	localIP netip.Addr
 	peerIP  netip.Addr
+	// codeRejectID is the Identifier of the last IPCP Code-Reject sent, so
+	// the network phase goes on from it rather than reuse one.
+	codeRejectID uint8
 }
 
 // negotiateIPCP opens IPCP. chap is nil when LCP did not negotiate CHAP, and
@@ -673,7 +695,7 @@ func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint3
 			}
 			// RFC 1332 Section 2: "Other Codes should be treated as
 			// unrecognized and should result in Code-Rejects."
-			if pkt.Code > ppp.LCPCodeReject {
+			if ipcpCodeUnrecognized(pkt.Code) {
 				codeRejectID++
 				if err := sendIPCPCodeReject(w, buf, pkt, codeRejectID, peerMRU); err != nil {
 					return ipcpResult{}, err
@@ -786,6 +808,7 @@ func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint3
 	if !result.peerIP.IsGlobalUnicast() {
 		return ipcpResult{}, errors.New("pppoe-client: IPCP did not supply a usable peer address")
 	}
+	result.codeRejectID = codeRejectID
 	return result, nil
 }
 

@@ -1,0 +1,15 @@
+{
+  "note": "Every probe pair shares one Identifier, which isolates the defect the row forbids (copying the rejected packet's Identifier). TestRFC1661LCPCodeRejectIdentifierChanges (LCP, Opened, two Code 99 with 0x41) and TestRFC1661NCPCodeRejectIdentifierChanges (IPCP and IPv6CP, Req-Sent, two Code 12 with 0x51) go red unless exactly two Code-Rejects on that protocol carry different Identifiers. checkPPPCodeReject assertion 3 does the same on the wire for LCP and IPCP (two probes with 0x42 each, exactly two Code-Rejects per protocol, Identifiers differ); its record breaks nextNCPCodeRejectID to req.Identifier in sendNCPCodeReject and is red at assertion 3. The {single-polarity: positive} argument holds: sendCodeReject advances lcpCodeRejectID and nextNCPCodeRejectID (ncp.go) advances ipcpCodeRejectID or ipv6cpCodeRejectID per Code-Reject, and no input can ask Ze to keep a Code-Reject Identifier, so no refusing case exists to assert. Two consecutive distinct values is what 'changed for each Code-Reject sent' can be observed as.",
+  "requirement_sha": "0939592602cb495b",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661LCPCodeRejectIdentifierChanges": "abd3fecb016ef0e7",
+    "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661NCPCodeRejectIdentifierChanges": "abd3fecb016ef0e7",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "ad383087d2aafe76"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661LCPCodeRejectIdentifierChanges": "c53b5be2338a9d29",
+    "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661NCPCodeRejectIdentifierChanges": "1e7943f69d5a6fe6",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "2d797b2c5a8817d7"
+  },
+  "verdict": "enforced"
+}

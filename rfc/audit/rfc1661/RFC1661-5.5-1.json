@@ -1,13 +1,15 @@
 {
-  "note": "Forbidden: no Terminate-Ack for a Terminate-Request. TestRFC1661TerminateAckSentAndLinkHeld goes red on no Terminate-Ack or Identifier != 0x77 (driven in Opened only); TestRFC1661NoTerminateAckForTerminateAck goes red if a Terminate-Ack draws one.",
+  "note": "Forbidden: no Terminate-Ack for a Terminate-Request. TestRFC1661TerminateAckSentAndLinkHeld goes red on no LCP Terminate-Ack or an Identifier other than the request's 0x77, as Section 5.5 asks ('the Identifier field of the Terminate-Request is copied into the Identifier field of the Terminate-Ack packet'); TestRFC1661NoTerminateAckForTerminateAck goes red if a Terminate-Ack draws one. checkPPPCodeReject assertion 6 goes red unless the relay's fifth injected frame is exactly IPCP 05 5a 00 04 and Ze then sends an IPCP Terminate-Ack carrying 0x5a; assertion 5 has already shown Ze sent no Code 1-6 packet after the probes, so the Ack is the reply to that request. IPCP inherits this obligation unchanged: RFC 1332 Section 2 makes IPCP 'exactly the same as the Link Control Protocol' and lists no Terminate exception. Scope: every tagged unit drives the Opened state (LCP and IPCP). The Section 4.1 sta edges of Stopped, Closing, Stopping, Ack-Rcvd and Ack-Sent have no test asserting a Terminate-Ack anywhere in the package (Closed is covered by TestLCPPeerTerminateRestartTimer, IPCP Req-Sent by TestIPCPUsedCodesAreNotCodeRejected); journaled as requirement-proven-in-one-state-of-many.",
   "requirement_sha": "71d5c82cfcaeb473",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck": "9afaf002f0fd81ec",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "9afaf002f0fd81ec"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "9afaf002f0fd81ec",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "ad383087d2aafe76"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck": "603e6a540427ca0e",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "3825213225d359e1"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "3825213225d359e1",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "2d797b2c5a8817d7"
   },
   "verdict": "enforced"
 }

@@ -66,11 +66,22 @@ event channels. Client mode reverses all of that. Adding client branches to
 every server-side handler would put the L2TP and BNG path at risk, so the client
 calls the ppp package's exported pure functions instead.
 
-**One reader goroutine for the whole session lifetime.** `Dial` creates a reader
-and passes its frame channel through negotiation to keepalive. Cleanup cancels
-blocked data and error delivery even when the four-frame queue is full, closes
-the transport to release a blocked read, and joins the reader by draining its
-channel until it closes.
+**One reader goroutine per descriptor for the whole session lifetime.** `Dial`
+creates the channel reader and passes its frame channel through negotiation to
+keepalive. Once IPCP is Opened, negotiation connects the channel to the unit
+(`PPPIOCCONNECT`), and from then on Linux queues every IPCP frame on the unit,
+not the channel (`ppp_input` and `ppp_receive_nonmp_frame`,
+`drivers/net/ppp/ppp_generic.c`). So `negotiateSession` starts a second reader
+on the unit there, and keepalive reads both. In the network phase it answers
+an IPCP packet with an unknown Code with a Code-Reject whose Identifier goes on
+from the last one IPCP negotiation sent, answers an IPCP Terminate-Request with
+a Terminate-Ack and ends the session, and ends the session on any other IPCP
+packet that takes IPCP out of Opened, because the client has no renegotiation
+path; the dialer brings up a new session. Cleanup cancels blocked data and
+error delivery even when the four-frame queue is full, closes the transport to
+release a blocked read on either descriptor, and joins each reader by draining
+its channel until it closes, the unit reader before the unit closes.
+<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop, answerOpenedIPCP -->
 The reader and negotiation buffers allow a 1500-octet Information field
 plus its two-octet Protocol field. The kernel receive MRU remains 1500;
 the outgoing IP MTU is bounded by both the peer's MRU and the configured

@@ -9,5 +9,17 @@
     "producer": "internal/component/l2tp/ppp/session_run.go::sendTerminateAck",
     "producer-sha": "904bcf80544e6bf8",
     "break": "body of sendTerminateAck replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.5-1",
+    "polarity": "positive",
+    "unit": "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject",
+    "unit-sha": "84c30064d1e10ab4",
+    "claim-sha": "052b633491f9a848",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/ncp.go::performNCPAction",
+    "producer-sha": "796307d1cb00262d",
+    "break": "line 798: \"return s.sendNCPTerminateAck(family, current)\" -\u003e \"return true\"",
+    "citation": "6"
   }
 ]

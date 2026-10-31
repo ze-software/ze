@@ -56,7 +56,7 @@ func run() error {
 	var buffer [65536]byte
 	encoder := json.NewEncoder(os.Stdout)
 	controls := 0
-	injected := false
+	var injected injection
 	for range 65536 {
 		count, source, err := conn.ReadFromUDPAddrPort(buffer[:len(buffer)-6])
 		if err != nil {

@@ -33,14 +33,32 @@ type pppSession struct {
 	// The channel carries userspace PPP control frames. unitFile owns
 	// the kernel PPP unit attached by PPPIOCCONNECT; framesIn is fed
 	// by the lifetime reader on chanFile.
-	chanFile io.ReadWriteCloser
-	unitFile io.ReadCloser
-	framesIn <-chan []byte
-	chanFD   int
-	unitFD   int
-	unitNum  int
-	lnsMode  bool
-	pppoe    bool
+	//
+	// Once the channel is connected, Linux ppp_input queues only a frame
+	// whose protocol is 0xc000 or above (LCP, PAP, CHAP), or a CCP
+	// fragment (PPP_CCPFRAG), on the channel,
+	// and ppp_receive_nonmp_frame queues every other non-network frame
+	// (IPCP, IPv6CP, CCP, an unknown protocol) on the unit
+	// (drivers/net/ppp/ppp_generic.c, v6.12 lines 2318 and 2472).
+	// unitFramesIn is fed by readUnitFrames, the lifetime reader on
+	// unitFile, which unitConnected wakes after each connect. Both are nil
+	// when unitFile is nil. unitIdle carries one signal each time the reader
+	// reads EOF and goes back to sleep, and unitGone closes when it returns.
+	// resetNCP MUST set unitDrainOwed when it disconnects, and afterLCPOpen
+	// MUST then run awaitUnitDrained before it connects again.
+	chanFile      io.ReadWriteCloser
+	unitFile      io.ReadCloser
+	framesIn      <-chan []byte
+	unitFramesIn  <-chan []byte
+	unitConnected chan struct{}
+	unitIdle      chan struct{}
+	unitGone      chan struct{}
+	unitDrainOwed bool
+	chanFD        int
+	unitFD        int
+	unitNum       int
+	lnsMode       bool
+	pppoe         bool
 
 	// Protected by mu: descriptor shutdown cannot race post-NCP ioctls.
 	filesClosed bool

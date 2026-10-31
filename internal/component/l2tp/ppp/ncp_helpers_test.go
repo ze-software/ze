@@ -2,6 +2,7 @@ package ppp
 
 import (
 	"encoding/binary"
+	"io"
 	"log/slog"
 	"net"
 	"net/netip"
@@ -67,8 +68,22 @@ func newNCPTestDriverIP(t *testing.T, overrides *StartSession, ipFn func(*Driver
 // code path gated on session state that has no other visible side effect).
 func newNCPTestDriverIPLogged(t *testing.T, overrides *StartSession, ipFn func(*Driver), logger *slog.Logger) *ncpTestDriver {
 	t.Helper()
+	return newNCPTestDriverUnit(t, overrides, ipFn, logger, nil)
+}
+
+// newNCPTestDriverUnit is newNCPTestDriverIPLogged with a caller-supplied unit
+// descriptor. nil keeps the unit unread, as every other helper here does; a
+// test that plays the kernel's post-PPPIOCCONNECT routing passes one end of a
+// pipe and writes NCP frames into the other.
+func newNCPTestDriverUnit(t *testing.T, overrides *StartSession, ipFn func(*Driver), logger *slog.Logger,
+	unit io.ReadCloser) *ncpTestDriver {
+	t.Helper()
 	reg := newPipeRegistry()
 	installPipeRegistry(t, reg)
+	if unit != nil {
+		prevUnit := SetNewUnitFileForTest(func(int) io.ReadCloser { return unit })
+		t.Cleanup(func() { RestoreNewUnitFile(prevUnit) })
+	}
 	const fd = 5001
 	pair := newPipePair(reg, fd)
 	// peer stays live through cleanup.

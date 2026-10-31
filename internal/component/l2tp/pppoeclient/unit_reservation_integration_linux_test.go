@@ -178,6 +178,9 @@ type unitReservationPeer struct {
 	fd, ifindex int
 	mac         [pppoe.EthALen]byte
 	sid         uint16
+	// observed, when set, receives every IPCP packet the client sends that is
+	// not a Configure-Request, for a test that reads the client's answers.
+	observed chan<- ppp.LCPPacket
 }
 
 func unitPeerNetworkOrder(v uint16) uint16 { return v<<8 | v>>8 }
@@ -256,6 +259,14 @@ func (p *unitReservationPeer) serve(ctx context.Context) error {
 			pkt, err := ppp.ParseLCPPacket(payload)
 			if err != nil {
 				return err
+			}
+			if p.observed != nil && proto == ppp.ProtoIPCP && pkt.Code != ppp.LCPConfigureRequest {
+				pkt.Data = bytes.Clone(pkt.Data)
+				select {
+				case p.observed <- pkt:
+				case <-ctx.Done():
+					return nil
+				}
 			}
 			if pkt.Code != ppp.LCPConfigureRequest {
 				continue

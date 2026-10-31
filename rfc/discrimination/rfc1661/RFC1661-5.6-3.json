@@ -25,12 +25,12 @@
     "rid": "RFC1661-5.6-3",
     "polarity": "positive",
     "unit": "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject",
-    "unit-sha": "8b51b356a220aaec",
-    "claim-sha": "a4f1273b1e896989",
+    "unit-sha": "84c30064d1e10ab4",
+    "claim-sha": "f46155f8aae854aa",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::writeCodeReject",
     "producer-sha": "11648e10a133df5e",
-    "break": "line 1989: \"len(rejected) \u003e room\" -\u003e \"false\"",
+    "break": "line 2124: \"len(rejected) \u003e room\" -\u003e \"false\"",
     "citation": "4"
   }
 ]

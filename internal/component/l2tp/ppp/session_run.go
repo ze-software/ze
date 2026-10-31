@@ -95,7 +95,8 @@ func putFrameBuf(b []byte) {
 // drainFramesToPool returns any frame buffers still queued in the
 // channel back to frameBufPool. Called via defer on session exit so
 // readFrames-produced buffers don't leak. Reads everything currently
-// buffered (channel is buffered size 4) and returns.
+// buffered (channel is buffered size 4) and returns. It drains
+// readUnitFrames' channel the same way.
 func drainFramesToPool(frames <-chan []byte) {
 	for n := len(frames); n > 0; n-- {
 		frame, ok := <-frames
@@ -112,18 +113,24 @@ func drainFramesToPool(frames <-chan []byte) {
 //
 // Uses a SINGLE readFrames goroutine for the session's lifetime to
 // avoid the double-reader race between negotiation and opened
-// phases. The main loop differentiates phases via timer channel
-// enablement (negoTimerC vs echoTickerC).
+// phases, and a SINGLE readUnitFrames goroutine for the unit, which
+// carries the NCP frames once the channel is connected. The main loop
+// differentiates phases via timer channel enablement (negoTimerC vs
+// echoTickerC).
 func (s *pppSession) run(start *StartSession) {
-	// Teardown order must be: close chanFile (unblocks readFrames
-	// reads) -> wait for readFrames to exit -> drain leftover frames
-	// back to the pool. A single defer guarantees the sequence;
-	// multiple defers would fire LIFO in a way that lets readFrames
-	// keep producing frames after the drain already ran.
+	// Teardown order must be: close unitStop (ends a readUnitFrames that
+	// waits for a connect or a free queue slot) -> close both files
+	// (unblocks a test pipe's read; the kernel ends both reads when the
+	// channel unregisters) -> wait for both readers to exit -> drain
+	// leftover frames back to the pool. A single defer guarantees the
+	// sequence; multiple defers would fire LIFO in a way that lets a
+	// reader keep producing frames after the drain already ran.
 	var (
-		framesCh chan []byte
-		readerWG sync.WaitGroup
+		framesCh     chan []byte
+		unitFramesCh chan []byte
+		readerWG     sync.WaitGroup
 	)
+	unitStop := make(chan struct{})
 	defer func() {
 		if !s.sessionDownSent {
 			select {
@@ -140,10 +147,14 @@ func (s *pppSession) run(start *StartSession) {
 		if err := s.teardownNCPResources(); err != nil {
 			s.logger.Warn("ppp: final NCP cleanup failed; closing unit", "error", err)
 		}
+		close(unitStop)
 		s.closeFiles()
 		readerWG.Wait()
 		if framesCh != nil {
 			drainFramesToPool(framesCh)
+		}
+		if unitFramesCh != nil {
+			drainFramesToPool(unitFramesCh)
 		}
 	}()
 
@@ -167,6 +178,23 @@ func (s *pppSession) run(start *StartSession) {
 	readerWG.Go(func() {
 		s.readFrames(frames, readDone)
 	})
+
+	// The unit reader starts here too, and sleeps until afterLCPOpen
+	// connects the channel: before that the unit has no channel and a read
+	// answers EOF at once (ppp_read, "Return 0 (EOF) on an interface that
+	// has no channels connected").
+	var unitReadDone chan error
+	if s.unitFile != nil {
+		unitFramesCh = make(chan []byte, 4)
+		unitReadDone = make(chan error, 1)
+		s.unitFramesIn = unitFramesCh
+		s.unitConnected = make(chan struct{}, 1)
+		s.unitIdle = make(chan struct{}, 1)
+		s.unitGone = make(chan struct{})
+		readerWG.Go(func() {
+			s.readUnitFrames(unitFramesCh, unitReadDone, unitStop)
+		})
+	}
 
 	// RFC 2661 Section 18: when the peer LAC provides Initial-Received-
 	// LCP-CONFREQ, Last-Sent-LCP-CONFREQ, and Last-Received-LCP-CONFREQ
@@ -352,6 +380,26 @@ func (s *pppSession) run(start *StartSession) {
 				Cause:  s.terminateCause(l2tpevents.TerminateCauseNASError),
 			})
 			return
+
+		case err := <-unitReadDone:
+			// The unit descriptor failed to read. The NCP frames the kernel
+			// queues there would go unanswered from now on, so the session
+			// ends rather than carry on deaf to IPCP and IPv6CP. RFC 2866
+			// Section 5.10 value 9, as for the channel above.
+			var tb textbuf.Buffer
+			s.sendEvent(EventSessionDown{
+				TunnelID: s.tunnelID, SessionID: s.sessionID,
+				Reason: tb.Str("unit fd read error: ").Err(err).String(),
+				Cause:  s.terminateCause(l2tpevents.TerminateCauseNASError),
+			})
+			return
+
+		case frame := <-s.unitFramesIn:
+			term := s.handleFrame(frame)
+			putFrameBuf(frame)
+			if term {
+				return
+			}
 
 		case <-negoTimerC:
 			var tb textbuf.Buffer
@@ -601,6 +649,12 @@ func (s *pppSession) afterLCPOpen() bool {
 		return false
 	}
 
+	// A reconnect after resetNCP waits until the unit has handed out every
+	// frame of the NCP lifetime that ended (awaitUnitDrained).
+	if s.unitDrainOwed && !s.awaitUnitDrained() {
+		return false
+	}
+
 	s.mu.Lock()
 	// Cancellation can arrive after the assignment acknowledgment, while
 	// this goroutine waits for the descriptor lock. Do not connect then.
@@ -621,7 +675,9 @@ func (s *pppSession) afterLCPOpen() bool {
 	// Post-NCP: connect channel to unit and bring interface up.
 	// PPPIOCCONNECT must happen after NCP because it changes frame
 	// routing from channel fd to unit fd (accel-ppp uses the same
-	// deferred-connect pattern). MRU/MTU/AdminUp follow.
+	// deferred-connect pattern): from here on the NCP frames arrive on
+	// the unit, so readUnitFrames is woken to read them. MRU/MTU/AdminUp
+	// follow.
 	var tb textbuf.Buffer
 	if err := s.ops.connect(s.chanFD, s.unitNum); err != nil {
 		s.mu.Unlock()
@@ -629,6 +685,7 @@ func (s *pppSession) afterLCPOpen() bool {
 		return false
 	}
 	s.channelConnected = true
+	s.wakeUnitReader()
 	// RFC 1661 Section 6.1: "If smaller packets are requested, an
 	// implementation MUST still be able to receive the full 1500 octet
 	// information field in case link synchronization is lost."
@@ -752,6 +809,108 @@ func (s *pppSession) sendAuthEvent(ev AuthEvent) {
 	case s.authEventsOut <- ev:
 	case <-s.stopCh:
 	case <-s.sessStop:
+	}
+}
+
+// awaitUnitDrained discards every frame the unit still delivers after
+// resetNCP disconnected the channel, until readUnitFrames reads EOF, and
+// reports whether the session may connect again. ppp_read dequeues a queued
+// frame before it checks for a channel, and PPPIOCDISCONN does not purge the
+// unit's queue, so the frames the peer sent before the disconnect are read
+// after it: some wait in unitFramesIn, and the rest stay in the kernel while
+// the reader is blocked on a full unitFramesIn. Nothing new reaches a unit
+// with no channel, so every frame before the EOF belongs to the NCP lifetime
+// that ended. Connecting first would let the rest be read as frames of the
+// new one. Called by the session goroutine, without mu held.
+func (s *pppSession) awaitUnitDrained() bool {
+	for {
+		select {
+		case <-s.unitIdle:
+			drainFramesToPool(s.unitFramesIn)
+			s.unitDrainOwed = false
+			return true
+		case frame := <-s.unitFramesIn:
+			s.logger.Debug("ppp: unit frame from the ended NCP lifetime discarded", "len", len(frame))
+			putFrameBuf(frame)
+		case <-s.unitGone:
+			s.fail("unit fd reader ended before the channel could be connected again")
+			return false
+		case <-s.stopCh:
+			return false
+		case <-s.sessStop:
+			return false
+		}
+	}
+}
+
+// wakeUnitReader tells readUnitFrames that the channel is connected, so the
+// unit now carries NCP frames. The one-slot queue never blocks: a wake still
+// pending covers this connect too.
+func (s *pppSession) wakeUnitReader() {
+	if s.unitConnected == nil {
+		return
+	}
+	select {
+	case s.unitConnected <- struct{}{}:
+	default:
+	}
+}
+
+// readUnitFrames is the session's one reader of unitFile, for the session's
+// lifetime. It sleeps until wakeUnitReader reports a connect, then forwards
+// every frame the unit delivers on out. EOF means the unit has no channel
+// any more (PPPIOCDISCONN in resetNCP, or the kernel unregistering the
+// channel at teardown, both of which wake the read), so it sleeps again
+// until the next connect. Any other read error is sent on done and ends it.
+// It exits when stop closes.
+//
+// Linux ppp_input queues a frame on the channel only while "!pch->ppp ||
+// proto >= 0xc000 || proto == PPP_CCPFRAG", and once the channel is
+// connected ppp_receive_nonmp_frame queues a control or unknown frame on the
+// unit: "/* control or unknown frame - pass it to pppd */
+// skb_queue_tail(&ppp->file.rq, skb);" (drivers/net/ppp/ppp_generic.c,
+// v6.12). Without this reader every IPCP and IPv6CP packet after Opened was
+// lost.
+func (s *pppSession) readUnitFrames(out chan<- []byte, done chan<- error, stop <-chan struct{}) {
+	defer close(s.unitGone)
+	for {
+		select {
+		case <-s.unitConnected:
+		case <-stop:
+			return
+		}
+		for {
+			buf := getFrameBuf()
+			n, err := s.unitFile.Read(buf)
+			if errors.Is(err, io.EOF) {
+				putFrameBuf(buf)
+				// awaitUnitDrained waits for this before the next connect.
+				select {
+				case s.unitIdle <- struct{}{}:
+				default:
+				}
+				break
+			}
+			if err != nil {
+				putFrameBuf(buf)
+				select {
+				case done <- err:
+				case <-stop:
+				}
+				return
+			}
+			if n < 2 {
+				putFrameBuf(buf)
+				s.logger.Warn("ppp: undersized frame from unit fd", "len", n)
+				continue
+			}
+			select {
+			case out <- buf[:n]:
+			case <-stop:
+				putFrameBuf(buf)
+				return
+			}
+		}
 	}
 }
 

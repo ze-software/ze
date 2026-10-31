@@ -92,3 +92,20 @@ func TestCodeRejectFramesKeepTheSession(t *testing.T) {
 		t.Fatal("built probes behind a sequenced data message")
 	}
 }
+
+// TestTerminateFrameRidesTheSession builds the IPCP Terminate-Request behind a
+// data header with a Length field and checks it keeps the tunnel and session
+// IDs, carries its own Length, and is IPCP Code 5 with terminateIdentifier and
+// no Data.
+func TestTerminateFrameRidesTheSession(t *testing.T) {
+	trigger := []byte{0x40, 0x02, 0, 12, 0x12, 0x34, 0x56, 0x78, 0xff, 0x03, 0x00, 0x21}
+	start, err := dataHeaderLength(trigger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frame := pppFrameBehind(trigger[:start], protocolIPCP, codeTerminateRequest, terminateIdentifier, nil)
+	want := []byte{0x40, 0x02, 0, 16, 0x12, 0x34, 0x56, 0x78, 0xff, 0x03, 0x80, 0x21, 5, terminateIdentifier, 0, 4}
+	if !bytes.Equal(frame, want) {
+		t.Fatalf("frame % x, want % x", frame, want)
+	}
+}

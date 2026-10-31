@@ -577,7 +577,9 @@ All payloads follow ze's JSON conventions:
    -> L2TP emits (l2tp, session-auth-request)
    -> l2tp-auth plugin queries RADIUS
    -> l2tp-auth returns accept + attributes (pool name, rate limit)
-7. L2TP runs IPCP negotiation (via /dev/ppp unit fd)
+7. L2TP runs IPCP negotiation (via /dev/ppp channel fd; after the
+   post-NCP PPPIOCCONNECT, later IPCP and IPv6CP frames arrive on the unit
+   fd, which the session's unit reader reads)
    -> L2TP emits (l2tp, session-ip-request) with pool name
    -> l2tp-pool allocates address, returns it
    -> L2TP uses allocated address in IPCP CONFACK

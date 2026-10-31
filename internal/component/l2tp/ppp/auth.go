@@ -350,6 +350,15 @@ func waitCHAPLike[T any](
 				continue
 			}
 			return resp, true
+		case f := <-s.unitFramesIn:
+			// A periodic re-authentication runs with the channel connected,
+			// so IPCP and IPv6CP arrive on the unit (session.go,
+			// unitFramesIn). They are never CHAP, which stays on the channel.
+			term := s.handleFrame(f)
+			putFrameBuf(f)
+			if term || s.currentState() != lcpState {
+				return zero, false
+			}
 		case <-s.stopCh:
 			return zero, false
 		case <-s.sessStop:

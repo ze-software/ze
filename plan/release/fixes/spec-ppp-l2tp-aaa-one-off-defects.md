@@ -164,6 +164,8 @@ The subscriber auth registry, the metrics registry, session teardown events.
 | `peer-refusal-logged-at-warn` | 2026-10-09 | `InterfaceServer.handlePADT` |
 | `registry-read-outruns-its-lazy-creation` | 2026-09-09 | `l2tp/subsystem.go` metrics |
 | `reply-sized-by-the-peer-it-answers` | 2026-08-31 | LCP Configure-Nak construction |
+| `silent-fall-through` | 2026-10-31 | PPPoE client sends no LCP Protocol-Reject |
+| `requirement-proven-in-one-state-of-many` | 2026-10-31 | RFC 1661 Terminate-Ack and Code-Reject outside Opened |
 | `silent-fall-through` | 2026-10-20 | `zePeer` radius interop env |
 | `silent-fall-through` | 2026-10-05 | `LCPDoTransition` |
 | `silent-fall-through` | 2026-09-20 | `EncodeVSA` |

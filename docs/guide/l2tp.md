@@ -241,6 +241,25 @@ Closing a session prevents new operations while an in-flight blocking syscall
 retains its descriptor reference. This keeps a late read or repeated close
 from using a descriptor number the process has since recycled.
 <!-- source: internal/component/l2tp/ppp/frame_linux.go -- NewFDFile -->
+
+Each session reads both descriptors, one long-lived reader for each. LCP,
+authentication and the first NCP negotiation all run on the channel, because
+Ze connects the channel to the unit (`PPPIOCCONNECT`) only once NCP is up.
+From then on Linux queues on the channel only a frame whose protocol is 0xc000
+or above (LCP, PAP, CHAP) or a CCP fragment, and every other control frame
+(IPCP, IPv6CP, CCP or an unknown protocol) on the unit (`ppp_input` and
+`ppp_receive_nonmp_frame`, `drivers/net/ppp/ppp_generic.c`). The unit reader
+sleeps until that connect, and both readers feed the one session loop, so an
+IPCP Terminate-Request, renegotiation or unknown Code after session-up is
+answered like any other. The unit reader reads EOF when the channel is
+disconnected or unregistered, and waits for the next connect. A unit read
+error ends the session. After an LCP restart disconnects the channel, Linux
+still hands out the frames queued on the unit before the disconnect, and those
+belong to the NCP lifetime that ended. So before it connects again, the session
+discards everything the unit delivers until the reader reads EOF, and only then
+connects.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- run, readUnitFrames, wakeUnitReader, awaitUnitDrained -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- resetNCP -->
 The PPP driver closes both the channel and unit on natural exit or explicit
 stop. Shutdown, channel attachment and detachment, and post-NCP interface
 setup share a lock so an ioctl cannot use a recycled descriptor.

@@ -40,11 +40,18 @@ const (
 	protocolIPCP = 0x8021
 
 	codeConfigureRequest = 1
+	codeTerminateRequest = 5
 	codeTerminateAck     = 6
 	codeCodeReject       = 7
 
+	// terminateIdentifier is the Identifier of the one IPCP
+	// Terminate-Request the relay sends once /run/ipcp-terminate exists.
+	terminateIdentifier = 0x5a
+
 	// commandPing is busybox ping in the LAC image.
 	commandPing = "ping"
+	// commandTouch creates the relay marker files.
+	commandTouch = "touch"
 
 	// relayInjected is the relay's direction label for a probe it sent.
 	relayInjected = "inject"
@@ -63,22 +70,32 @@ type pppFrame struct {
 // checkPPPCodeReject has the relay send Ze, as the LAC and on the live L2TP
 // session, two LCP packets with the unknown Code 99 and two IPCP packets with
 // Code 12, all four with Identifier 0x42 and 204 octets long, then reads Ze's
-// Code-Rejects off the wire.
+// Code-Rejects off the wire. Last, the relay sends one IPCP Terminate-Request
+// and the checker reads Ze's Terminate-Ack.
 //
-// Only the LCP answers are asserted. Once IPCP is Opened, ze connects the PPP
-// channel to its unit, and Linux then queues every IPCP frame on the unit
-// descriptor, which ze never reads, so the IPCP probes draw no answer at all
-// (plan/journal/frames-rerouted-to-a-descriptor-nobody-reads.md). The IPCP
-// probes stay, so the session must survive them, and the fix of that defect
-// adds their assertions.
+// The IPCP packets reach Ze on its PPP unit descriptor, not the channel: once
+// IPCP is Opened ze connects the channel to the unit, and Linux then queues
+// every frame whose protocol is below 0xc000 on the unit (ppp_input and
+// ppp_receive_nonmp_frame, drivers/net/ppp/ppp_generic.c). So the IPCP
+// assertions prove ze reads that descriptor.
 //
+// RFC requirement: RFC1661-5.6-1 positive -- over a live xl2tpd and pppd
+// session with LCP and IPCP Opened, two LCP packets with the unknown Code 99 each
+// draw an LCP Code-Reject from ze, and two IPCP packets with the unused Code 12,
+// which ze reads from its PPP unit descriptor, each draw an IPCP Code-Reject.
 // RFC requirement: RFC1661-5.6-2 positive -- over a live xl2tpd and pppd
 // session, two LCP packets with the unknown Code 99 sharing Identifier 0x42 draw
-// two LCP Code-Rejects from ze whose Identifiers differ.
+// two LCP Code-Rejects from ze whose Identifiers differ, and two IPCP packets
+// with Code 12 sharing that Identifier draw two IPCP Code-Rejects whose
+// Identifiers differ.
 // RFC requirement: RFC1661-5.6-3 positive -- with pppd requesting an MRU of 128,
-// each of those two LCP Code-Rejects ze sends has an Information field of at
-// most 128 octets, and its Rejected-Packet is the start of the 204-octet packet
-// it rejects, that packet's Code, Identifier and Length unchanged.
+// each of those two LCP and two IPCP Code-Rejects ze sends has an Information
+// field of at most 128 octets, and its Rejected-Packet is the start of the
+// 204-octet packet it rejects, that packet's Code, Identifier and Length
+// unchanged.
+// RFC requirement: RFC1661-5.5-1 positive -- over a live xl2tpd and pppd
+// session with IPCP Opened, an IPCP Terminate-Request with Identifier 0x5a
+// draws an IPCP Terminate-Ack from ze carrying Identifier 0x5a.
 //
 // Each assertion is numbered, so a red run names which one failed and a
 // discrimination record can cite it.
@@ -111,17 +128,17 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 		return fail(1, err)
 	}
 
-	// Assertion 2. The relay sent the four probes, and Ze answered both LCP
-	// probes with a Code-Reject. The next datagram the LAC sends after the
-	// marker is the relay's trigger, and the ping supplies it.
-	if _, err := lab.Exec(ctx, peerAVPRelay, []string{"touch", "/run/code-reject"}, nil); err != nil {
+	// Assertion 2. The relay sent the four probes, and Ze answered each of
+	// them with a Code-Reject on its own protocol. The next datagram the LAC
+	// sends after the marker is the relay's trigger, and the ping supplies it.
+	if _, err := lab.Exec(ctx, peerAVPRelay, []string{commandTouch, "/run/code-reject"}, nil); err != nil {
 		return fail(2, err)
 	}
 	if err := pingThroughSession(ctx, lab); err != nil {
 		return fail(2, err)
 	}
 	frames, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout: 30 * time.Second, Interval: time.Second, Description: "four probes and two Ze LCP Code-Rejects",
+		Timeout: 30 * time.Second, Interval: time.Second, Description: "four probes and two Ze LCP and two IPCP Code-Rejects",
 	}, func(probeCtx context.Context) ([]pppFrame, error) {
 		result, readErr := lab.Logs(probeCtx, peerAVPRelay, 1000)
 		if readErr != nil {
@@ -129,7 +146,10 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 		}
 		return relayPPPFrames(result.Text)
 	}, func(frames []pppFrame) bool {
-		return len(zeCodeRejects(frames, protocolLCP)) >= 2
+		if len(zeCodeRejects(frames, protocolLCP)) < 2 {
+			return false
+		}
+		return len(zeCodeRejects(frames, protocolIPCP)) >= 2
 	})
 	if err != nil {
 		return fail(2, err)
@@ -139,13 +159,19 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 	}
 
 	// Assertion 3. RFC 1661 Section 5.6: "The Identifier field MUST be changed
-	// for each Code-Reject sent." Both LCP probes carried Identifier 0x42.
-	if err := distinctIdentifiers(zeCodeRejects(frames, protocolLCP)); err != nil {
-		return fail(3, err)
+	// for each Code-Reject sent." Both probes of each protocol carried
+	// Identifier 0x42.
+	for _, protocol := range []uint16{protocolLCP, protocolIPCP} {
+		if err := distinctIdentifiers(zeCodeRejects(frames, protocol)); err != nil {
+			return fail(3, err)
+		}
 	}
 	// Assertion 4. RFC 1661 Section 5.6: "The Rejected-Packet MUST be truncated
 	// to comply with the peer's established MRU."
 	if err := rejectsWithinMRU(zeCodeRejects(frames, protocolLCP), probeCodeLCP); err != nil {
+		return fail(4, err)
+	}
+	if err := rejectsWithinMRU(zeCodeRejects(frames, protocolIPCP), probeCodeIPCP); err != nil {
 		return fail(4, err)
 	}
 
@@ -181,10 +207,90 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 	if err := sessionKept(after); err != nil {
 		return fail(5, interoplab.WithSearchedOutput(err, result.Text))
 	}
+
+	// Assertion 6. RFC 1661 Section 5.5: "Upon reception of a
+	// Terminate-Request, a Terminate-Ack MUST be transmitted." The relay sends
+	// one IPCP Terminate-Request on the first LAC datagram after the marker,
+	// and the ping supplies that datagram. It ends IPCP, so this comes last,
+	// and the ping is only the trigger: whether its replies return once IPCP
+	// has gone is no part of the assertion.
+	if _, err := lab.Exec(ctx, peerAVPRelay, []string{commandTouch, "/run/ipcp-terminate"}, nil); err != nil {
+		return fail(6, err)
+	}
+	_ = pingThroughSession(ctx, lab) //nolint:errcheck // the trigger only, see above
+	terminated, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: 30 * time.Second, Interval: time.Second, Description: "an IPCP Terminate-Request and Ze's Terminate-Ack",
+	}, func(probeCtx context.Context) ([]pppFrame, error) {
+		logs, readErr := lab.Logs(probeCtx, peerAVPRelay, 1000)
+		if readErr != nil {
+			return nil, readErr
+		}
+		return relayPPPFrames(logs.Text)
+	}, func(frames []pppFrame) bool {
+		return zeTerminateAck(frames) == nil
+	})
+	if err != nil {
+		return fail(6, err)
+	}
+	if err := injectedTerminate(terminated); err != nil {
+		return fail(6, err)
+	}
 	// Retain the wire evidence in the native job log before Suite removes the
 	// relay container, including on a successful run.
-	_, err = os.Stdout.WriteString("L2TP-PPP-CODE-REJECT-WIRE four probes, two LCP Code-Rejects, session kept\n" + result.Text + "\n")
+	final, err := lab.Logs(ctx, peerAVPRelay, 1000)
+	if err != nil {
+		return fail(6, err)
+	}
+	_, err = os.Stdout.WriteString("L2TP-PPP-CODE-REJECT-WIRE four probes, two LCP and two IPCP Code-Rejects, " +
+		"session kept, IPCP Terminate-Ack\n" + final.Text + "\n")
 	return err
+}
+
+// injectedTerminate requires the relay to have sent, after its four probes,
+// exactly one more frame: the IPCP Terminate-Request with
+// terminateIdentifier and no Data.
+func injectedTerminate(frames []pppFrame) error {
+	injected := make([]pppFrame, 0, 5)
+	for _, frame := range frames {
+		if frame.direction == relayInjected {
+			injected = append(injected, frame)
+		}
+	}
+	if len(injected) != 5 {
+		return errors.New("the relay sent " + strconv.Itoa(len(injected)) +
+			" frames, not four probes and one Terminate-Request")
+	}
+	last := injected[4]
+	if last.protocol != protocolIPCP {
+		return errors.New("the relay's fifth frame is not IPCP")
+	}
+	if !bytes.Equal(last.packet, []byte{codeTerminateRequest, terminateIdentifier, 0, 4}) {
+		return errors.New("the relay's fifth frame is not the IPCP Terminate-Request: " + hex.EncodeToString(last.packet))
+	}
+	return nil
+}
+
+// zeTerminateAck answers nil once Ze has sent an IPCP Terminate-Ack carrying
+// terminateIdentifier, and an error naming what is missing until then.
+func zeTerminateAck(frames []pppFrame) error {
+	for _, frame := range frames {
+		if frame.direction != relayFromZe {
+			continue
+		}
+		if frame.protocol != protocolIPCP {
+			continue
+		}
+		if len(frame.packet) < 4 {
+			continue
+		}
+		if frame.packet[0] != codeTerminateAck {
+			continue
+		}
+		if frame.packet[1] == terminateIdentifier {
+			return nil
+		}
+	}
+	return errors.New("ze sent no IPCP Terminate-Ack with Identifier " + strconv.Itoa(terminateIdentifier))
 }
 
 // pingThroughSession sends three echo requests from the LAC to Ze's end of the
@@ -312,11 +418,8 @@ func requireProbe(packet []byte, code byte) error {
 }
 
 // zeCodeRejects answers the Information field of every Code-Reject Ze sent on
-// protocol, in the order the relay forwarded them. Only LCP is asked for
-// today. The IPCP assertions owed by
-// plan/journal/frames-rerouted-to-a-descriptor-nobody-reads.md ask for
-// protocolIPCP.
-func zeCodeRejects(frames []pppFrame, protocol uint16) [][]byte { //nolint:unparam // the owed IPCP assertions pass protocolIPCP
+// protocol, in the order the relay forwarded them.
+func zeCodeRejects(frames []pppFrame, protocol uint16) [][]byte {
 	rejects := make([][]byte, 0, 2)
 	for _, frame := range frames {
 		if frame.direction != relayFromZe {
@@ -393,13 +496,17 @@ func rejectsWithinMRU(rejects [][]byte, code byte) error {
 	return nil
 }
 
-// sessionKept requires the relay's log to hold ze's two LCP Code-Rejects and
-// no LCP or IPCP Configure or Terminate packet, Codes 1 through 6, from either
-// peer. The relay logs from the moment the checker arms it, before the
-// probes, so the Code-Rejects are the proof the log covered the time after.
+// sessionKept requires the relay's log to hold ze's two LCP and two IPCP
+// Code-Rejects and no LCP or IPCP Configure or Terminate packet, Codes 1
+// through 6, from either peer. The relay logs from the moment the checker
+// arms it, before the probes, so the Code-Rejects are the proof the log
+// covered the time after.
 func sessionKept(frames []pppFrame) error {
 	if len(zeCodeRejects(frames, protocolLCP)) != 2 {
 		return errors.New("the relay log does not hold ze's two LCP Code-Rejects")
+	}
+	if len(zeCodeRejects(frames, protocolIPCP)) != 2 {
+		return errors.New("the relay log does not hold ze's two IPCP Code-Rejects")
 	}
 	for _, frame := range frames {
 		if frame.direction == relayInjected {

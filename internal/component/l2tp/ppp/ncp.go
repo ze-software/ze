@@ -1288,6 +1288,8 @@ func (s *pppSession) resetNCP() bool {
 			return false
 		}
 		s.channelConnected = false
+		// The unit keeps handing out frames queued before the disconnect.
+		s.unitDrainOwed = s.unitConnected != nil
 	}
 	s.mu.Unlock()
 	if err := s.teardownNCPResources(); err != nil {
