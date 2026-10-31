@@ -5,9 +5,23 @@
 | Status | design |
 | Priority | P3 |
 | Release reason | Release-independent filter wire 0 umbrella work; historical findings do not establish a current product defect. |
-| Depends | - |
+| Depends | Route-policy phases 1-3, landed (490618ef43). This builds on their library in `internal/component/policy/`: `policy.CompileRouteChain`, `policy.RouteChain` and `policy.CheckChain`; the field registry, `policy.MustRegisterField` with a `policy.RouteView` (`Read`, `Written`); `policy.MustRegisterRouteAttachment`; and `ribpolicy.Route` and `ribpolicy.Sets` (`internal/core/rib/policy`) |
 | Phase | - |
 | Updated | 2026-10-31 |
+
+## Read this first
+
+Status: **REWORK**, as of 2026-10-31.
+
+Everything from `## Task` through `## Work Inherited From a Deferral Row` is the
+July 2026 design. `## Disposition`, at the end of this file, supersedes it, and
+it must not be implemented as written.
+
+The next step is `/ze-spec` on this file. It redesigns this spec as the BGP
+half of route-policy phase 4 (`plan/post-release/features/spec-route-policy-0-umbrella.md`,
+AC-17, its phase 4 step), under the owner's fixed requirements recorded in the
+Disposition: two paths, one vocabulary; the language-neutral, versioned plugin
+path; parse on demand; the in-code fast path, as approved.
 
 ## Post-Compaction Recovery
 
@@ -391,3 +405,14 @@ AS path or the communities. The raw UPDATE bytes go only to a plugin that
 declares it wants them. The load-time check uses the same declaration, so the
 set of fields a plugin may read is the set it is sent. The owner approved the
 in-code fast path as proposed above.
+
+**The consequence, stated outright:**
+
+- Replacing the text `Update` filter IPC breaks third-party filter plugins
+  written against the text format. The new contract is versioned and
+  documented in the plugin protocol pages
+  (`docs/architecture/api/process-protocol.md`, `docs/plugin-development/`),
+  and the in-tree filter plugins migrate with it.
+- The redesign must define what an external plugin sees as protocol version
+  or capability negotiation, so a plugin can tell which contract it is
+  speaking.
