@@ -627,6 +627,7 @@ func TestReactorVerifyConfigNoMutation(t *testing.T) {
 func TestReactorApplyConfigDiffAddPeer(t *testing.T) {
 	cfg := &Config{ListenAddr: "127.0.0.1:0", Standalone: true}
 	r := New(cfg)
+	r.SetTreeReloadFunc(testTreeReload(t))
 	require.NoError(t, r.Start())
 	defer r.Stop()
 
@@ -652,6 +653,7 @@ func TestReactorApplyConfigDiffAddPeer(t *testing.T) {
 func TestReactorApplyConfigDiffRemovePeer(t *testing.T) {
 	cfg := &Config{ListenAddr: "127.0.0.1:0", Standalone: true}
 	r := New(cfg)
+	r.SetTreeReloadFunc(testTreeReload(t))
 
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
 	settings.Connection = ConnectionPassive
@@ -678,6 +680,7 @@ func TestReactorApplyConfigDiffRemovePeer(t *testing.T) {
 func TestReactorApplyConfigDiffChangedPeer(t *testing.T) {
 	cfg := &Config{ListenAddr: "127.0.0.1:0", Standalone: true}
 	r := New(cfg)
+	r.SetTreeReloadFunc(testTreeReload(t))
 
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
 	settings.Connection = ConnectionPassive
@@ -773,6 +776,7 @@ func TestReactorVerifyConfigNoPeerSection(t *testing.T) {
 func TestReactorApplyConfigDiffNoPeerSection(t *testing.T) {
 	cfg := &Config{ListenAddr: "127.0.0.1:0", Standalone: true}
 	r := New(cfg)
+	r.SetTreeReloadFunc(testTreeReload(t))
 
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
 	settings.Connection = ConnectionPassive
@@ -795,21 +799,24 @@ func TestReactorApplyConfigDiffNoPeerSection(t *testing.T) {
 
 // TestTreeRouteReadsTheBGPBlockOfTheConfigTree holds the contract of
 // VerifyConfig and ApplyConfigDiff on a reactor with no configuration file
-// (loadPeersFullOrTree, reactor_api.go).
+// (loadPeersFullOrTree, reactor_api.go, and loadPeersFromConfig,
+// reload_tree.go).
 //
 // GOAL: the reload hands the reactor the whole configuration tree, the tree
 // SetConfigTree and ReloadRunning take (reloadConfig,
 // ../../plugin/server/reload.go), and a reactor that parses that tree reads its
 // bgp block.
-// METHOD: a reactor with no config path and no reload function; verify and
-// apply a root tree whose bgp block declares one peer, then verify one whose
-// peer address is invalid.
+// METHOD: a reactor with no config path and no reload function, holding the
+// stand-in tree pipeline (testTreeReload) every apply needs; verify and apply
+// a root tree whose bgp block declares one peer, then verify one whose peer
+// address is invalid.
 // VALIDATES: the apply runs the declared peer; the verify refuses the invalid
 // address.
 // PREVENTS: a reload that parses the root as if it were the bgp block, finds
 // no peer list, verifies nothing and tears every configured session down.
 func TestTreeRouteReadsTheBGPBlockOfTheConfigTree(t *testing.T) {
 	r := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
+	r.SetTreeReloadFunc(testTreeReload(t))
 	require.NoError(t, r.Start())
 	defer r.Stop()
 	adapter := &reactorAPIAdapter{r: r}
@@ -837,7 +844,8 @@ func TestTreeRouteReadsTheBGPBlockOfTheConfigTree(t *testing.T) {
 // every configured session; a bgp block that is not a container is refused.
 // METHOD: call configBGPBlock on a root with no bgp key and on one whose bgp
 // value is a string; then, on a reactor running one configured peer with no
-// config path and no reload function, verify and apply a root with no bgp key.
+// config path and no reload function, holding the stand-in tree pipeline
+// (testTreeReload), verify and apply a root with no bgp key.
 // VALIDATES: the absent block answers nil with no error, the non-container
 // answers an error, the verify passes and the apply leaves no peer.
 // PREVENTS: an absent block refused as an error (a reload that drops BGP
@@ -851,6 +859,7 @@ func TestTreeWithNoBGPBlockConfiguresNoPeer(t *testing.T) {
 	require.Error(t, err, "a bgp block that is not a container is refused")
 
 	r := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
+	r.SetTreeReloadFunc(testTreeReload(t))
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
 	settings.Connection = ConnectionPassive
 	require.NoError(t, r.AddPeer(settings))

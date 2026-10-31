@@ -498,9 +498,11 @@ and it builds a peer `create bgp peer` adds, from the running configuration
 with the new entry joined, so that peer inherits the bgp-level policy whether
 the daemon's config came from a file or from stdin. Only a file-configured
 reactor also holds the ReloadFunc, which re-reads the file; verify keeps the
-file. A reactor built with neither, which only a reactor package test builds,
-reads no group at all and answers "not read", which the dynamic step treats as
-"leave every dynamic peer as it is", never as "every group is gone".
+file. A reactor built without the TreeReloadFunc, which only a reactor package
+test builds, refuses ApplyConfigDiff: it holds no pipeline that can build a
+peer from the tree. Verify on a reactor with no ReloadFunc parses the bgp block
+alone, reads no group at all and answers "not read", which the dynamic step
+treats as "leave every dynamic peer as it is", never as "every group is gone".
 <!-- source: internal/component/bgp/config/loader_create.go -- createReloadFunc, createTreeReloadFunc, reloadPeersFromTree -->
 <!-- source: internal/component/bgp/reactor/reload_tree.go -- loadPeersFromConfig -->
 <!-- source: internal/component/bgp/reactor/reactor_peers.go -- createdPeerSettings, createdPeerFromRunning -->

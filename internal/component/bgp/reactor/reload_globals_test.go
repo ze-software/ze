@@ -49,6 +49,7 @@ func peerByAddr(t *testing.T, r *Reactor, addr string) *Peer {
 // changed it, the defect in plan/journal/reload-rolls-back-instead-of-applying.md.
 func TestReloadAppliesGlobalRouterID(t *testing.T) {
 	r := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true, RouterID: 0x01020304, LocalAS: 65000})
+	r.SetTreeReloadFunc(testTreeReload(t))
 	require.NoError(t, r.Start())
 	defer r.Stop()
 

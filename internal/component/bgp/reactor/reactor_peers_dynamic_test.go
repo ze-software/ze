@@ -247,8 +247,8 @@ func newDynamicPeerReactor(t *testing.T, localAS, routerID uint32) *Reactor {
 // testTreeReload stands in for the config pipeline (createTreeReloadFunc,
 // ../config/loader_create.go), which this package cannot import: the YANG
 // defaults every configured peer gets, the globals of the bgp block, then
-// each peer parsed with them, an incomplete one refused naming its leaf. It
-// resolves no group and reads no dynamic group.
+// each peer parsed with them, an incomplete one refused naming its leaf, and
+// the dynamic groups (testDynamicGroups). It resolves no static group.
 func testTreeReload(t *testing.T) TreeReloadFunc {
 	t.Helper()
 	return func(tree map[string]any) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error) {
@@ -289,7 +289,84 @@ func testTreeReload(t *testing.T) TreeReloadFunc {
 			settings.Name = name
 			built = append(built, settings)
 		}
-		return built, globals, nil, nil
+		groups, err := testDynamicGroups(bgp, peerSchema, globals)
+		if err != nil {
+			return nil, Globals{}, nil, err
+		}
+		return built, globals, groups, nil
+	}
+}
+
+// testDynamicGroups reads the dynamic groups of a bgp block as the config
+// pipeline does (resolveDynamicGroup and dynamicGroupsFromTree,
+// ../config/resolve.go and ../config/peers.go): a group whose remote ip is
+// dynamic, its ranges required, its template the bgp-level leaves under the
+// group's own with the peer YANG defaults applied, parsed by
+// ParseDynamicGroupTemplate. The answer is never nil, because the pipeline
+// returns the groups even when the config declares none: an empty list is how
+// a removed group's peers are torn down by the reload's dynamic step.
+func testDynamicGroups(bgp map[string]any, peerSchema config.Node, globals Globals) ([]*DynamicGroupConfig, error) {
+	groupList, _ := bgp["group"].(map[string]any)
+	defaults := maps.Clone(bgp)
+	delete(defaults, "peer")
+	delete(defaults, "group")
+	groups := make([]*DynamicGroupConfig, 0, len(groupList))
+	for _, name := range slices.Sorted(maps.Keys(groupList)) {
+		fields, isMap := cloneTestTree(groupList[name]).(map[string]any)
+		if !isMap {
+			return nil, fmt.Errorf("bgp/group %s is a %T", name, groupList[name])
+		}
+		delete(fields, "peer")
+		if !config.IsDynamicBGPGroup(fields) {
+			continue
+		}
+		remote, _ := config.BGPRemote(fields)
+		ranges, _, err := config.BGPRemoteRanges(remote)
+		if err != nil {
+			return nil, fmt.Errorf("bgp/group %s: %w", name, err)
+		}
+		if len(ranges) == 0 {
+			return nil, fmt.Errorf("bgp/group %s: ip dynamic requires at least one range", name)
+		}
+		var maxPeers uint32 = 1000
+		if text, stated := remote["max-peers"].(string); stated {
+			parsed, err := strconv.ParseUint(text, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("bgp/group %s: max-peers %q: %w", name, text, err)
+			}
+			maxPeers = uint32(parsed)
+		}
+		template, _ := cloneTestTree(defaults).(map[string]any)
+		mergeTestTree(template, fields)
+		template["group-name"] = name
+		config.ApplyDefaults(template, peerSchema)
+		settings, err := ParseDynamicGroupTemplate(name, template, globals.LocalAS, globals.RouterID)
+		if err != nil {
+			return nil, fmt.Errorf("bgp/group %s: %w", name, err)
+		}
+		groups = append(groups, &DynamicGroupConfig{
+			GroupName: name,
+			Ranges:    ranges,
+			MaxPeers:  maxPeers,
+			Settings:  settings,
+			Template:  template,
+		})
+	}
+	return groups, nil
+}
+
+// mergeTestTree writes overlay onto base, a container merged key by key and
+// any other value replacing base's, as the pipeline's group inheritance does.
+// Recursion is bounded by the depth of the test's own config tree.
+func mergeTestTree(base, overlay map[string]any) {
+	for key, value := range overlay {
+		child, isMap := value.(map[string]any)
+		existing, wasMap := base[key].(map[string]any)
+		if isMap && wasMap {
+			mergeTestTree(existing, child)
+			continue
+		}
+		base[key] = value
 	}
 }
 
@@ -403,11 +480,19 @@ func TestRemovePeerDropsTheRunningConfig(t *testing.T) {
 // beside an order that does not name it produces.
 func TestRunningConfigKeepsTheEntryOrder(t *testing.T) {
 	r := newDynamicPeerReactor(t, 65001, 0x0A000001)
-	r.configTree = map[string]any{
-		"bgp": map[string]any{
-			"peer": map[string]any{
-				"peer1": map[string]any{"session": map[string]any{"asn": map[string]any{"remote": "65003"}}},
+	// The running configuration is one a real reactor could hold: it keeps
+	// the local AS and the router-id newDynamicPeerReactor states, and its
+	// peer is complete. The created peer is built from the whole tree, so a
+	// peer the pipeline refuses there refuses the created one too.
+	running, isMap := r.configTree["bgp"].(map[string]any)
+	require.True(t, isMap, "newDynamicPeerReactor records a bgp block")
+	running["peer"] = map[string]any{
+		"peer1": map[string]any{
+			"connection": map[string]any{
+				"remote": map[string]any{"ip": "192.0.2.3"},
+				"local":  map[string]any{"ip": "auto"},
 			},
+			"session": map[string]any{"asn": map[string]any{"remote": "65003"}},
 		},
 	}
 	api := &reactorAPIAdapter{r: r}

@@ -1064,9 +1064,9 @@ func configBGPBlock(tree map[string]any) (map[string]any, error) {
 //
 // Every other reactor parses the bgp block it was handed, with none of that
 // around it. VerifyConfig takes the whole configuration tree and hands the bgp
-// block over (configBGPBlock), and so does ApplyConfigDiff on a reactor with
-// no TreeReloadFunc; with one, ApplyConfigDiff never comes here
-// (loadPeersFromConfig, reload_tree.go). The BGP plugin's apply hands its bgp
+// block over (configBGPBlock). ApplyConfigDiff never comes here: it builds
+// through the TreeReloadFunc and refuses without one (loadPeersFromConfig,
+// reload_tree.go). The BGP plugin's apply hands its bgp
 // section (ReconcilePeersWithJournal, reactor.go). The only stage the two routes share is PeersFromTree (config.go), and
 // sharing it is what stops them disagreeing about how a peer's config is READ.
 // It does not make them equivalent, because they differ in what reaches the

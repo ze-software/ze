@@ -4,6 +4,8 @@
 
 package reactor
 
+import "errors"
+
 // TreeReloadFunc builds the peers, the global defaults and the dynamic groups
 // of the whole configuration tree it is handed, in the ToPluginMap shape the
 // reload coordinator passes to ApplyConfigDiff. It runs the
@@ -41,24 +43,25 @@ func (r *Reactor) SetTreeReloadFunc(fn TreeReloadFunc) {
 // reconciles the population against the tree being applied.
 //
 // A reactor with no TreeReloadFunc is one CreateReactorFromTree did not
-// build, which only a package test does: it keeps loadPeersFullOrTree over the
-// bgp block.
+// build. It holds no pipeline that can build a peer from the tree, so it
+// refuses: parsing the bgp block alone would skip group resolution, the YANG
+// defaults and the dynamic groups, and the reconcile would read every peer as
+// changed.
 func (a *reactorAPIAdapter) loadPeersFromConfig(tree map[string]any) (loadedConfig, error) {
 	a.r.mu.RLock()
 	treeReloadFn := a.r.treeReloadFunc
 	a.r.mu.RUnlock()
 
-	if treeReloadFn != nil {
-		peers, globals, groups, err := treeReloadFn(tree)
-		if err != nil {
-			return loadedConfig{}, err
-		}
-		return loadedConfig{peers: peers, globals: globals, groups: dynamicGroupsReadAs(groups)}, nil
+	if treeReloadFn == nil {
+		return loadedConfig{}, errNoTreeReload
 	}
-
-	bgpTree, err := configBGPBlock(tree)
+	peers, globals, groups, err := treeReloadFn(tree)
 	if err != nil {
 		return loadedConfig{}, err
 	}
-	return a.loadPeersFullOrTree(bgpTree)
+	return loadedConfig{peers: peers, globals: globals, groups: dynamicGroupsReadAs(groups)}, nil
 }
+
+// errNoTreeReload refuses a config apply on a reactor that holds no
+// configuration pipeline (SetTreeReloadFunc was never called).
+var errNoTreeReload = errors.New("bgp: cannot apply the configuration: this reactor holds no configuration pipeline to build its peers (SetTreeReloadFunc was never called); build the reactor with CreateReactorFromTree")
