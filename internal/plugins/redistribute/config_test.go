@@ -216,7 +216,7 @@ func TestRuleChainCompilesFromPolicy(t *testing.T) {
 	require.NotNil(t, ev)
 	route := func(tag uint32) *configredist.RedistRoute {
 		return &configredist.RedistRoute{Origin: "fakeredist", Source: "fakeredist",
-			Route: ribpolicy.Route{Family: family.IPv4Unicast, Tag: tag, HasTag: tag != 0}}
+			Route: ribpolicy.Route{Family: family.IPv4Unicast, Tag: tag, HasTag: true}}
 	}
 	_, accepted := ev.Accept(route(42), "isis")
 	assert.True(t, accepted, "a route T42 passes moves")
