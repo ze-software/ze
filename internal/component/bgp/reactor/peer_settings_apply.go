@@ -298,12 +298,7 @@ func (a *reactorAPIAdapter) swapPeerJournaled(peer *Peer, next *PeerSettings, ap
 func (a *reactorAPIAdapter) swapImportInvalidating(peer *Peer, next *PeerSettings, apply settingsCopier, previous *PeerSettings, j configJournal) error {
 	tx, ok := j.(sourcePolicyTransaction)
 	if !ok {
-		return fmt.Errorf("peer %s: this change removes the session's last accepting import policy (RFC 8212 Section 3), "+
-			"which needs a config transaction operation to pause the session's input and withdraw its accepted routes in place; "+
-			"it reached BGP on a path that carries none, so nothing was changed. "+
-			"Commit the import policy change on its own from the config editor (`commit`): BGP applies a change to the "+
-			"`filter import` of the peer, its group or the bgp level as a per-peer operation. If that commit is refused "+
-			"with this message too, it is a defect: report it with the commit's diff", peer.addrString)
+		return importFallNeedsTransaction(peer)
 	}
 	txID, deadline := tx.SourcePolicyTransaction()
 	if txID == "" {
@@ -323,6 +318,18 @@ func (a *reactorAPIAdapter) swapImportInvalidating(peer *Peer, next *PeerSetting
 		},
 		func() error { return inv.undo(restore) },
 	)
+}
+
+// importFallNeedsTransaction is the refusal of a D-2 transition on an
+// Established session outside a config transaction (swapImportInvalidating,
+// refuseImportSwapEarly).
+func importFallNeedsTransaction(peer *Peer) error {
+	return fmt.Errorf("peer %s: this change removes the session's last accepting import policy (RFC 8212 Section 3), "+
+		"which needs a config transaction operation to pause the session's input and withdraw its accepted routes in place; "+
+		"it reached BGP on a path that carries none, so nothing was changed. "+
+		"Commit the import policy change on its own from the config editor (`commit`): BGP applies a change to the "+
+		"`filter import` of the peer, its group or the bgp level as a per-peer operation. If that commit is refused "+
+		"with this message too, it is a defect: report it with the commit's diff", peer.addrString)
 }
 
 // hotSwappableSnapshot copies the peer's current values of the fields copy

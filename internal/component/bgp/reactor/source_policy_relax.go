@@ -20,15 +20,18 @@ import (
 // whose import policy was never resolved (unresolved).
 func (p *Peer) importDecisionRises(next *PeerSettings, copy settingsCopier, unresolved bool) (bool, error) {
 	current := p.settingsSnapshot()
-	// refuse-by-default: guards swapPeerJournaled -- a peer with no published settings has no rejecting policy to lift
+	// refuse-by-default: guards swapImportRising -- a peer with no published settings has no rejecting policy to lift
 	if current == nil {
 		return false, nil
 	}
 	candidate := *current
 	copy(&candidate, next)
 	external := current.IsEBGP()
-	// RFC 8212 Section 3: a decision rises only when the current import
-	// policy rejects at its end and the candidate accepts.
+	// RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated
+	// with an EBGP peer SHALL NOT be considered eligible in the Decision
+	// Process if no explicit Import Policy has been applied." A decision
+	// rises only when the current import policy rejects at its end and the
+	// candidate accepts.
 	if current.ImportPolicy.AcceptsAtEnd(external) {
 		return false, nil
 	}
@@ -81,12 +84,17 @@ func (a *reactorAPIAdapter) verifyImportRelaxation(next *PeerSettings, resolved 
 	a.r.mu.RLock()
 	peer := a.r.peers[next.PeerKey()]
 	a.r.mu.RUnlock()
+	// refuse-by-default: guards verifyRelaxationSwap -- a peer the reload creates has no session, so its first one admits under the published policy
 	if peer == nil {
 		return nil
 	}
 	current := peer.settingsSnapshot()
-	// refuse-by-default: guards verifyImportRelaxation -- a dynamic peer is judged against its group's template (verifyDynamicRelaxations)
-	if current == nil || current.IsDynamic {
+	// refuse-by-default: guards verifyRelaxationSwap -- a peer with no published settings has no rejecting policy to lift
+	if current == nil {
+		return nil
+	}
+	// A dynamic peer is judged against its group's template (verifyDynamicRelaxations).
+	if current.IsDynamic {
 		return nil
 	}
 	session := peer.currentSession()
@@ -193,7 +201,7 @@ func (a *reactorAPIAdapter) swapImportRising(peer *Peer, next *PeerSettings, app
 	if tx, ok := j.(sourcePolicyTransaction); ok {
 		txID, deadline = tx.SourcePolicyTransaction()
 	}
-	undo := func() error { return a.undoImportRelaxation(peer, next, apply, previous, txID, deadline) }
+	undo := func() error { return a.undoImportRelaxation(peer, apply, previous, txID, deadline) }
 	publish := func() error {
 		if err := peer.applyHotSwappableSettings(next, apply); err != nil {
 			return errors.Join(err, peer.restoreHotSwappableSettings(previous, apply))
@@ -214,28 +222,84 @@ func (a *reactorAPIAdapter) swapImportRising(peer *Peer, next *PeerSettings, app
 		return err
 	}
 	if txID == "" {
-		return fmt.Errorf("peer %s: this change makes its import policy accept routes the session's RFC 8212 "+
-			"default rejected, which needs a config transaction operation to undo it in place if the commit fails; "+
-			"it reached BGP on a path that carries none, so nothing was changed. Commit the import policy change "+
-			"on its own from the config editor (`commit`). If that commit is refused with this message too, it is "+
-			"a defect: report it with the commit's diff", peer.addrString)
+		return importRiseNeedsTransaction(peer)
 	}
 	return j.Record(
 		func() error {
 			if err := publish(); err != nil {
 				return err
 			}
-			// RFC 7313 Section 3.2: a ROUTE-REFRESH of subtype 0 "is referred
-			// to as a normal route refresh request". requestRouteRefreshAll
-			// asks once per negotiated family, on the session judged above.
+			// RFC 7313 Section 3.2: "0 - Normal route refresh request
+			// [RFC2918]". requestRouteRefreshAll asks once per negotiated
+			// family, on the session judged above.
 			if err := peer.requestRouteRefreshAll(session); err != nil {
-				return errors.Join(fmt.Errorf("peer %s: the import policy now accepts its routes, but asking the "+
-					"peer to send them again failed, so the change was undone: %w", peer.addrString, err), undo())
+				return relaxationRefreshFailed(peer, err, undo())
 			}
 			return nil
 		},
 		undo,
 	)
+}
+
+// importRiseNeedsTransaction is the refusal of a D-1 transition on an
+// Established session outside a config transaction (swapImportRising,
+// refuseImportSwapEarly).
+func importRiseNeedsTransaction(peer *Peer) error {
+	return fmt.Errorf("peer %s: this change makes its import policy accept routes the session's RFC 8212 "+
+		"default rejected, which needs a config transaction operation to undo it in place if the commit fails; "+
+		"it reached BGP on a path that carries none, so nothing was changed. Commit the import policy change "+
+		"on its own from the config editor (`commit`). If that commit is refused with this message too, it is "+
+		"a defect: report it with the commit's diff", peer.addrString)
+}
+
+// refuseImportSwapEarly judges one swap, before any irreversible step, the way
+// swapPeerJournaled's apply would refuse it: a rise on an Established session
+// that did not negotiate Route Refresh (D-1) or that belongs to no config
+// transaction, and a fall on an Established session outside one (D-2). The
+// dynamic step runs it while planning under r.mu, before a peer is removed or
+// restarted, so a refused step leaves every peer, group and session as it
+// was. The apply still judges again: the session can change in between.
+func (p *Peer) refuseImportSwapEarly(next *PeerSettings, apply settingsCopier, transactional bool) error {
+	// RFC 8212 Section 3
+	falls, err := p.importDecisionFalls(next, apply, false)
+	if err != nil {
+		return err
+	}
+	// RFC 8212 Section 3
+	rises, err := p.importDecisionRises(next, apply, false)
+	if err != nil {
+		return err
+	}
+	if p.State() != PeerStateEstablished {
+		return nil
+	}
+	if falls {
+		if transactional {
+			return nil
+		}
+		return importFallNeedsTransaction(p)
+	}
+	if !rises {
+		return nil
+	}
+	if err := p.refuseRelaxationWithoutRefresh(p.currentSession()); err != nil {
+		return err
+	}
+	if transactional {
+		return nil
+	}
+	return importRiseNeedsTransaction(p)
+}
+
+// relaxationRefreshFailed reports a relaxation whose ROUTE-REFRESH was not
+// sent, worded from what its undo (undoErr) achieved.
+func relaxationRefreshFailed(peer *Peer, err, undoErr error) error {
+	if undoErr == nil {
+		return fmt.Errorf("peer %s: the import policy accepted its routes, but asking the peer to send them "+
+			"again failed, so the change was undone: %w", peer.addrString, err)
+	}
+	return errors.Join(fmt.Errorf("peer %s: the import policy accepted its routes, but asking the peer to send "+
+		"them again failed, and undoing the change did not complete: %w", peer.addrString, err), undoErr)
 }
 
 // undoImportRelaxation restores the rejecting import policy a relaxation
@@ -246,9 +310,16 @@ func (a *reactorAPIAdapter) swapImportRising(peer *Peer, next *PeerSettings, app
 // Graceful Restart retained from a session that came and went; an Established
 // peer takes the in-place invalidation, whose fresh epoch fences every path
 // the candidate admitted and every late answer to the ROUTE-REFRESH. Its
-// pause lasts until the transaction's rejection receipt, which finalizes it
-// (CompleteSourcePolicyTx, relaxationUndo).
-func (a *reactorAPIAdapter) undoImportRelaxation(peer *Peer, next *PeerSettings, apply settingsCopier, previous *PeerSettings, txID string, deadline time.Time) error {
+// pause lasts until the transaction's receipt, which finalizes it
+// (CompleteSourcePolicyTx, relaxationUndo), or until the hold expires at the
+// receipt's completion deadline (holdUntilCompletion), which finalizes it too.
+// An invalidation that failed after publishing the rejecting policy keeps it
+// and the denial (sourceInvalidation.fail); one whose publish failed leaves
+// the accepting policy in effect, and both are reported with the hold-down
+// sequence that clears them. A session that went down after the ROUTE-REFRESH
+// failed has nothing to pause, so it is purged as a peer that is not
+// Established is.
+func (a *reactorAPIAdapter) undoImportRelaxation(peer *Peer, apply settingsCopier, previous *PeerSettings, txID string, deadline time.Time) error {
 	restore := func() error { return peer.restoreHotSwappableSettings(previous, apply) }
 	peer.establishGate.Lock()
 	if peer.State() != PeerStateEstablished {
@@ -270,13 +341,37 @@ func (a *reactorAPIAdapter) undoImportRelaxation(peer *Peer, next *PeerSettings,
 		deadline = a.r.clock.Now().Add(sourcePolicyTxBudget)
 	}
 	inv, err := a.r.prepareImportInvalidation(txID, deadline, peer)
+	if err != nil && peer.currentSession() == nil {
+		if restoreErr := restore(); restoreErr != nil {
+			return errors.Join(err, restoreErr)
+		}
+		return a.r.purgeRetained(peer)
+	}
 	if err != nil {
 		return errors.Join(fmt.Errorf("peer %s: the rejecting import policy is restored, but the routes the "+
 			"undone change admitted could not be withdrawn and stay eligible; run `request peer %s disable`, then "+
 			"`request peer %s enable`: %w", peer.addrString, peer.addrString, peer.addrString, err), restore())
 	}
 	inv.relaxationUndo = true
-	// RFC 8212 Section 3: the restored policy rejects at its end again, so
-	// the paths the candidate admitted leave eligibility under a new epoch.
-	return inv.apply(restore, func() error { return peer.applyHotSwappableSettings(next, apply) })
+	// RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated
+	// with an EBGP peer SHALL NOT be considered eligible in the Decision
+	// Process if no explicit Import Policy has been applied." The restored
+	// policy rejects at its end again, so the paths the candidate admitted
+	// leave eligibility under a new epoch. A failed publish aborts with no
+	// settings restore: re-publishing the candidate would not make the
+	// receipt's report true.
+	err = inv.apply(restore, nil)
+	inv.holdUntilCompletion()
+	if err == nil {
+		return nil
+	}
+	if inv.aborted {
+		return fmt.Errorf("peer %s: the rejecting import policy could not be restored, so the accepting policy stays "+
+			"in effect and the routes it admitted stay eligible; run `request peer %s disable`, then `request peer "+
+			"%s enable`: %w", peer.addrString, peer.addrString, peer.addrString, err)
+	}
+	return fmt.Errorf("peer %s: the rejecting import policy is restored, but withdrawing the routes the undone "+
+		"change admitted did not complete; they stay out of eligibility only once the transaction ends, so run "+
+		"`request peer %s disable`, then `request peer %s enable`: %w", peer.addrString, peer.addrString,
+		peer.addrString, err)
 }

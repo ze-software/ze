@@ -653,10 +653,33 @@ journal, so a mixed commit applies whole and rolls back whole
 section-path journal (`ReconcilePeersWithJournal`, internal
 Reload/ApplyConfigDiff) carries no transaction, so a change that still reaches
 it is refused there before anything is published, with an error saying to
-commit the import change on its own and to report a repeat as a defect. Dynamic peers and the D-1 relaxation are not yet
-coordinated.
+commit the import change on its own and to report a repeat as a defect.
+
+A dynamic group's template edit takes the same transitions through
+`swapPeerJournaled`. The dynamic step judges each swap's refusals while it
+plans under the reactor lock (`refuseImportSwapEarly`), before it removes or
+restarts any dynamic peer, so a refused step tears nothing down; the apply
+judges again.
+
+The D-1 relaxation's undo (`undoImportRelaxation`) is this invalidation run
+from the accepting candidate back to the rejecting policy, marked
+`relaxationUndo`. Its apply publishes the rejecting policy, so the receipt
+finalizes it whether the transaction was accepted or rejected, and the hold
+bounds its pause like an abort's; an expired hold finalizes the owners too. A
+failure after the rejecting policy was published keeps that policy and the
+denial instead of aborting, because an abort would make the paths the
+candidate admitted eligible again under a policy that rejects them; the error
+reports the compensation incomplete and names `request peer <address>
+disable`, then `enable`. A failure to publish it leaves the accepting
+candidate in effect and says so with the same sequence. A peer whose session
+went down while the relaxation's ROUTE-REFRESH failed has nothing to pause, so
+the undo restores the rejecting policy and purges what Graceful Restart
+retained, as for a peer that is not Established.
 
 <!-- source: internal/component/bgp/reactor/source_policy_reload.go -- importDecisionFalls, enterEstablished, swapImportFalling, sourceInvalidation.finalizeDeadline, prepareImportInvalidation, sourceInvalidation.apply, sourceInvalidation.undo, sourceInvalidation.abort, sourceInvalidation.holdUntilCompletion, sourceInvalidation.expire, sourceInvalidation.finalize, CheckSourcePolicyTx, CompleteSourcePolicyTx -->
+<!-- source: internal/component/bgp/reactor/source_policy_reload.go -- sourceInvalidation.fail, sourceInvalidation.finalizeOwners -->
+<!-- source: internal/component/bgp/reactor/source_policy_relax.go -- undoImportRelaxation, refuseImportSwapEarly -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- planDynamicGroupsLocked -->
 <!-- source: internal/component/bgp/reactor/source_policy_reload.go -- sourceInvalidation.settleDownstream, joinSourceWriters -->
 <!-- source: internal/component/plugin/server/source_policy.go -- DrainEventSubscribers -->
 <!-- source: internal/component/bgp/plugin/operation.go -- bgpImportLayerChanges, collectBGPImportLayers, bgpResidualOperation, completeBGPTransaction -->

@@ -297,9 +297,11 @@ func (a *reactorAPIAdapter) reconcileDynamicGroupsJournaled(groups []*DynamicGro
 	// then restores the group set.
 	inner := &internalJournal{}
 	var swapped configJournal = inner
+	transactional := false
 	if tx, ok := j.(sourcePolicyTransaction); ok {
 		txID, deadline := tx.SourcePolicyTransaction()
 		swapped = &dynamicSwapJournal{internalJournal: inner, txID: txID, deadline: deadline}
+		transactional = txID != ""
 	}
 	restore := func() error {
 		errs := inner.Rollback()
@@ -312,7 +314,11 @@ func (a *reactorAPIAdapter) reconcileDynamicGroupsJournaled(groups []*DynamicGro
 		func() error {
 			r.mu.Lock()
 			previous = r.dynamicGroups
-			stops, swaps := r.planDynamicGroupsLocked(groups, label)
+			stops, swaps, err := r.planDynamicGroupsLocked(groups, label, transactional)
+			if err != nil {
+				r.mu.Unlock()
+				return err
+			}
 			r.installDynamicGroupsLocked(groups)
 			r.mu.Unlock()
 
@@ -359,9 +365,14 @@ func (j *dynamicSwapJournal) SourcePolicyTransaction() (string, time.Time) { ret
 // one it was built from. A wider range or a raised max-peers changes the group
 // and nothing the peer holds, so neither reaches the plan.
 //
+// Each swap is judged first (refuseImportSwapEarly, transactional naming
+// whether the step belongs to a config transaction): a refused import
+// transition fails the plan before any peer is removed, so nothing is torn
+// down for a step that cannot apply.
+//
 // The caller MUST hold r.mu for writing, and the old groups MUST still be
 // installed: removeDynamicPeer decrements the counter of the group it finds.
-func (r *Reactor) planDynamicGroupsLocked(groups []*DynamicGroupConfig, label string) ([]peerStop, []dynamicSwap) {
+func (r *Reactor) planDynamicGroupsLocked(groups []*DynamicGroupConfig, label string, transactional bool) ([]peerStop, []dynamicSwap, error) {
 	nextByName := make(map[string]*DynamicGroupConfig, len(groups))
 	for _, g := range groups {
 		nextByName[g.GroupName] = g
@@ -403,6 +414,15 @@ func (r *Reactor) planDynamicGroupsLocked(groups []*DynamicGroupConfig, label st
 		}
 		swaps = append(swaps, dynamicSwap{peer: peer, next: nextBuilt, apply: apply})
 	}
+	var refused error
+	for _, swap := range swaps {
+		if err := swap.peer.refuseImportSwapEarly(swap.next, swap.apply, transactional); err != nil {
+			refused = errors.Join(refused, fmt.Errorf("swap dynamic peer %s: %w", swap.peer.addrString, err))
+		}
+	}
+	if refused != nil {
+		return nil, nil, refused
+	}
 
 	// RFC 4486 Section 4: a peer the config no longer accepts is told "Peer
 	// De-configured", a restarted one "Other Configuration Change".
@@ -413,7 +433,7 @@ func (r *Reactor) planDynamicGroupsLocked(groups []*DynamicGroupConfig, label st
 	for _, peer := range restarted {
 		stops = append(stops, r.removeDynamicPeer(peer, message.NotifyCeaseOtherConfigChange))
 	}
-	return stops, swaps
+	return stops, swaps, nil
 }
 
 // dynamicTemplateUnbuildable is the restart reason for a dynamic peer whose old

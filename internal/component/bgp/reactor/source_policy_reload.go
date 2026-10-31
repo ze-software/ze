@@ -83,7 +83,7 @@ type sourceInvalidation struct {
 	relaxationUndo bool
 	released       atomic.Bool
 	mu             sync.Mutex  // guards hold
-	hold           clock.Timer // the expiry of an aborted invalidation's pause
+	hold           clock.Timer // the expiry of a pause only the receipt ends (holdUntilCompletion)
 }
 
 // importDecisionFalls reports the D-2 transition: an effective import
@@ -325,7 +325,9 @@ func (inv *sourceInvalidation) capture() error {
 // fresh epoch, joins the destination writers and has every owner exclude the
 // source's paths. Any failure aborts before returning, because a failed journal
 // apply is never undone by the journal, and keeps input paused for the rest of
-// the transaction's rollback.
+// the transaction's rollback. A relaxation's undo (relaxationUndo) aborts only
+// when its publish failed: once the rejecting policy is published it keeps the
+// denial instead (fail).
 func (inv *sourceInvalidation) apply(publish, restore func() error) error {
 	if err := inv.receipt.Check(); err != nil {
 		return errors.Join(fmt.Errorf("peer %s: no budget left to remove its accepting import policy: %w", inv.peer.addrString, err), inv.undo(nil))
@@ -339,21 +341,36 @@ func (inv *sourceInvalidation) apply(publish, restore func() error) error {
 	work, cancel := inv.workContext()
 	defer cancel()
 	if err := inv.r.joinSourceWriters(work, inv.peer); err != nil {
-		return errors.Join(fmt.Errorf("peer %s: destination writers did not settle: %w", inv.peer.addrString, err), inv.undo(restore))
+		return errors.Join(fmt.Errorf("peer %s: destination writers did not settle: %w", inv.peer.addrString, err), inv.fail(restore))
 	}
 	for _, owner := range inv.owners {
 		if err := owner.Call(work, inv.request(rpc.SourcePolicyApply, next, inv.receipt.Deadline())); err != nil {
 			cause := fmt.Errorf("source-policy owner %s: invalidation of peer %s failed: %w", owner.Name(), inv.peer.addrString, err)
-			return errors.Join(cause, inv.undo(restore))
+			return errors.Join(cause, inv.fail(restore))
 		}
 		if err := inv.drainValidation(work); err != nil {
-			return errors.Join(fmt.Errorf("peer %s: after owner %s: %w", inv.peer.addrString, owner.Name(), err), inv.undo(restore))
+			return errors.Join(fmt.Errorf("peer %s: after owner %s: %w", inv.peer.addrString, owner.Name(), err), inv.fail(restore))
 		}
 	}
 	if err := inv.settleDownstream(work); err != nil {
-		return errors.Join(fmt.Errorf("peer %s: %w", inv.peer.addrString, err), inv.undo(restore))
+		return errors.Join(fmt.Errorf("peer %s: %w", inv.peer.addrString, err), inv.fail(restore))
 	}
 	return nil
+}
+
+// fail is apply's failure path once publish ran. An ordinary invalidation
+// aborts (undo). A relaxation's undo (relaxationUndo) published the rejecting
+// policy it restores, and its abort would make the paths the candidate
+// admitted eligible again under a policy that rejects them, so it keeps the
+// denial like rejectNotUndone: input stays paused, the transaction's receipt
+// finalizes it (CompleteSourcePolicyTx), and the hold bounds the pause if no
+// receipt arrives. Its caller reports the compensation incomplete.
+func (inv *sourceInvalidation) fail(restore func() error) error {
+	if inv.relaxationUndo {
+		inv.holdUntilCompletion()
+		return nil
+	}
+	return inv.undo(restore)
 }
 
 // undo is the journal's inverse and apply's own failure path: it aborts and
@@ -437,6 +454,12 @@ func (inv *sourceInvalidation) finalize(ctx context.Context) error {
 		return nil
 	}
 	defer inv.release()
+	return inv.finalizeOwners(ctx)
+}
+
+// finalizeOwners asks every owner to make the invalidation permanent. It
+// leaves the pause to its caller.
+func (inv *sourceInvalidation) finalizeOwners(ctx context.Context) error {
 	deadline := inv.finalizeDeadline(ctx)
 	work, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
@@ -562,9 +585,10 @@ func (r *Reactor) dropReleasedSource(source *Peer) {
 	}
 }
 
-// holdUntilCompletion arms the bound on an aborted invalidation's pause: at
-// the receipt's completion deadline expire resumes input, so a rejection
-// receipt that never arrives cannot leave the session paused.
+// holdUntilCompletion arms the bound on the pause of an aborted invalidation,
+// or of a relaxation's undo, whose receipt alone ends it: at the receipt's
+// completion deadline expire resumes input, so a receipt that never arrives
+// cannot leave the session paused.
 func (inv *sourceInvalidation) holdUntilCompletion() {
 	if inv.receipt == nil {
 		return
@@ -583,7 +607,9 @@ func (inv *sourceInvalidation) holdUntilCompletion() {
 
 // expire runs on the hold timer. It resumes input under the restored policy
 // and, when it was the call that released, records the expiry for the late
-// receipt to report and logs it.
+// receipt to report and logs it. A relaxation's undo published the rejecting
+// policy rather than aborting, so its owners are finalized here, as its
+// receipt would have: the denial stays permanent and nothing is left prepared.
 func (inv *sourceInvalidation) expire() {
 	if inv.released.Load() {
 		return
@@ -595,6 +621,9 @@ func (inv *sourceInvalidation) expire() {
 	// race already reported the outcome, so a record here would outlive it.
 	if !inv.release() {
 		return
+	}
+	if inv.relaxationUndo {
+		err = errors.Join(err, inv.finalizeOwners(context.Background()))
 	}
 	inv.r.sourcePolicy.recordExpiry(inv.txID, err)
 	reactorLogger().Error("import invalidation hold expired", "peer", inv.peer.addrString, "transaction", inv.txID, "error", err)
@@ -832,6 +861,11 @@ func (r *Reactor) CompleteSourcePolicyTx(ctx context.Context, txID string, accep
 	for _, inv := range r.sourcePolicy.transaction(txID) {
 		if inv.aborted {
 			inv.release()
+			if accepted && inv.relaxationUndo {
+				result = errors.Join(result, fmt.Errorf("peer %s: transaction %s accepted after its import policy "+
+					"relaxation could not be undone; the accepting policy stays in effect", inv.peer.addrString, txID))
+				continue
+			}
 			if accepted {
 				result = errors.Join(result, fmt.Errorf("peer %s: transaction %s accepted after its import invalidation was undone; the previous policy stays in effect", inv.peer.addrString, txID))
 			}
