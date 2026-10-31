@@ -7,18 +7,18 @@
     "claim-sha": "44f895ca5a61a13c",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::runIngressPolicyChain",
-    "producer-sha": "88a5a98d4b7260ad",
-    "break": "body of runIngressPolicyChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "47440ee2014d8690",
+    "break": "body of runIngressPolicyChain replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-5.1.5-5",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally",
     "unit-sha": "46cd518d2e801276",
-    "claim-sha": "6be706a8ec5be336",
+    "claim-sha": "7ca18856a0a6195b",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_local_pref.go::applyFactsLocalPref",
     "producer-sha": "7ff68f32e189ebc3",
-    "break": "body of applyFactsLocalPref replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of applyFactsLocalPref replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
