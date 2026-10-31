@@ -2,7 +2,7 @@
   "note": "RFC 7947 Section 2.2.1: \"As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the \"third-party\" next-hop feature described in Section 5.1.3. of [RFC4271].\" The sole current carrier TestReactorForwardRSTransparent forwards a body with NEXT_HOP 10.0.0.254 and reachable NLRI to an RS client and requires complete byte identity. A dropped/changed next-hop fails, and nonempty output excludes the no-forward false positive. Existing single-polarity annotation remains justified for the default transparent path: ordinary forwarding also preserves next-hop unless an explicit policy requests a rewrite; changing that policy would test another feature, not create this rule's confining negative. peerForwardFacts/buildForwardFacts and forwarding producer path were read. One positive cover, zero negative, with the existing annotation rather than a fabricated pair. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
   "requirement_sha": "6f61efe4552f9700",
   "tests": {
-    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "0ebebd910ef51e13"
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "016010e177d39707"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b6c7cccf999cf20e"

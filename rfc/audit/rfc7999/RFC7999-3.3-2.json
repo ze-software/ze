@@ -13,8 +13,8 @@
     "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "619a6a003fffd5d0",
     "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "619a6a003fffd5d0",
     "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup#2": "619a6a003fffd5d0",
-    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "49a47285ee4a16ca",
-    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "49a47285ee4a16ca"
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "07ffe0ba5c7e0809",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "07ffe0ba5c7e0809"
   },
   "units": {
     "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix": "1180af0e7f6a806f",

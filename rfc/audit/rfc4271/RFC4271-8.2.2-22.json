@@ -4,7 +4,7 @@
   "tests": {
     "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmManualStopReleasesTheConnection": "3893958fa17fe9dc",
     "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmWithoutManualStopKeepsTheConnection": "3893958fa17fe9dc",
-    "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "370f8bb637f5b632"
+    "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "8d680bc509c6bbd2"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmManualStopReleasesTheConnection": "f225cfa65db52a63",

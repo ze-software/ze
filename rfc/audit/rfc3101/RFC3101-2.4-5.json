@@ -2,7 +2,7 @@
   "note": "Forbidden: a border router leaving an attached NSSA without a default. nssa_ac14_16_test.go TestOSPFNSSABorderRouterDefaultsEveryArea requires one self Type-7 default in the regular NSSA (line 33) on an ABR with two NSSAs; origination_v6_nssa_default_test.go TestOSPFv3NSSABorderRouterOriginatesDefault requires the v3 0x2007 default (line 66); spf/area_type_test.go TestOSPFNSSANoSummaryDefaultInjection requires the Type-3 default in the no-summary NSSA (line 133). Negatives: an internal NSSA router originates none (nssa_ac14_16_test.go line 54, v6 line 175). The interop check checkNSSADefault is also tagged.",
   "requirement_sha": "4b357d8f2afb7da7",
   "tests": {
-    "internal/le/interoplab/bgp/check_rfc.go::checkNSSADefault": "49a47285ee4a16ca",
+    "internal/le/interoplab/bgp/check_rfc.go::checkNSSADefault": "07ffe0ba5c7e0809",
     "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "49a610561289e458",
     "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAInternalRouterOriginatesNoBorderDefault": "49a610561289e458",
     "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e",

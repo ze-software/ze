@@ -2,7 +2,7 @@
   "note": "Forbidden: a reserved (non-F) per-peer flag bit transmitted as 1 on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Flags != 0 is Errorf, red on any set bit. Single-polarity marker: no producer sets a flag, so no negative input exists. The row claims only the transmit half; the 'ignored on receipt' clause of the same sentence is not quoted and has no row.",
   "requirement_sha": "94c63e0d5de6539c",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "72b33d9afd5c33d4"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "5fc3b343f5d0ee61"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"

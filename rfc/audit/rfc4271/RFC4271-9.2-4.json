@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "e914a6452ddec559",
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "e914a6452ddec559",
-    "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered": "788bfed5f4fb150c",
-    "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess": "788bfed5f4fb150c"
+    "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered": "e072807a9cc6699f",
+    "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess": "e072807a9cc6699f"
   },
   "units": {
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "eb45d769d02cad24",

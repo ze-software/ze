@@ -2,7 +2,7 @@
   "note": "Re-judged 2026-10-23. TestLocRIBSinglePeerUpPerInstance changed by fixture only: each best change now carries Attributes (ORIGIN IGP), because buildLocRIBUpdateBody refuses an announce with no stored attribute set. The assertion is unchanged: two BGP peers' best changes produce exactly one Loc-RIB Peer Up (peerUps != 1 is Errorf), red on zero and on one per peer. Single-polarity annotation stands: the one-shot locRIBUpSent guard has no per-peer path to reject. Ze runs one Loc-RIB instance.",
   "requirement_sha": "97426f7d41647786",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "72b33d9afd5c33d4"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "5fc3b343f5d0ee61"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "47bb1c6c32383c95"

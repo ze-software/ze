@@ -5,7 +5,7 @@
   "note": "Re-judged 2026-10-30 by an independent auditor after the userns conversion. The unit's only change since the last verdict is userns.Enter(t) as its first statement (the child re-runs the whole body in its own user, network and mount namespace; a child failure or skip propagates to the parent, and a child that ran nothing fails it) plus removal of EPERM/EACCES skips, so a refused privilege now fails instead of skipping. Assertions are byte-identical. Section 3: 'The TTL of GTSM-enabled sessions MUST NOT be decremented.' Single positive per the owner's local-output scope. TestGTSMConfiguredEgressDoesNotDecrement dials with RealDialer OutTTL 255 over a two-namespace veth and fails unless every captured packet from 192.0.2.1 carries TTL exactly 255 and both the SYN and the exact data payload are seen; newTCPEgress now fails instead of skipping on a refused namespace. Producer network.go DialContext through ttl_linux.go setIPTTL before the SYN; an omission or a 254 fails the on-wire assertion.",
   "requirement_sha": "a5e061d662e2b62b",
   "tests": {
-    "internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "32766c1ce102d78a"
+    "internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "3dac249e50c5d0f2"
   },
   "units": {
     "internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "7b6d2370d6ba598b"

@@ -7,8 +7,8 @@
   "requirement_sha": "2eaaad937d8e63dd",
   "tests": {
     "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "6adacdb5c2b444a1",
-    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "87862cd048077d14",
-    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "87862cd048077d14",
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "14d00ebc253428f1",
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "14d00ebc253428f1",
     "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "ecf02c1d9bcb0077",
     "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "ecf02c1d9bcb0077"
   },

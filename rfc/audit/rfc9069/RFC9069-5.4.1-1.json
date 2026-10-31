@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-23. The Route Monitoring UPDATE now carries the best path's stored attributes, so AGGREGATOR became a second ASN carrier and the unit was extended to it. TestLocRIBRouteMonitoringUsesFourByteASNs asserts: AS_PATH value 2+4n octets (Fatal) with ASN 4200000001 whole (Errorf); AGGREGATOR value 8 octets with AS 4200000001 (Fatal/Errorf); AS4_PATH and AS4_AGGREGATOR absent (RFC 6793 Section 4.1), red observed with the attrCodeAfter AS4 filter removed. The stored AGGREGATOR's four-octet form is established at ingest (attribute.ReconcileASPathFamily, per storage.ParseAttributes), outside this unit: the unit proves the encoder carries it as stored and adds no two-octet companion. Both polarity tags on one unit.",
   "requirement_sha": "a496e9aab9d9bca7",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs": "72b33d9afd5c33d4",
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs#2": "72b33d9afd5c33d4"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs": "5fc3b343f5d0ee61",
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs#2": "5fc3b343f5d0ee61"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs": "8950584f7ea4f158",

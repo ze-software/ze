@@ -5,8 +5,8 @@
     "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "2c272fac7c7acf8a",
     "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "2c272fac7c7acf8a",
     "internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go::TestForwardReflectionLeavesAWithdrawalUntouched": "cc6b0757b3a3332b",
-    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "0a0b84ff215732f8",
-    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "0a0b84ff215732f8"
+    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "36185dfb9da1d175",
+    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "36185dfb9da1d175"
   },
   "units": {
     "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "12fecf3624468e58",

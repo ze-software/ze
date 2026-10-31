@@ -4,8 +4,8 @@
   "tests": {
     "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp": "138d0f89ea4cda2f",
     "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp#2": "138d0f89ea4cda2f",
-    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown": "d32edc6561822cd6",
-    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown#2": "d32edc6561822cd6"
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown": "418f2f0d23778457",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown#2": "418f2f0d23778457"
   },
   "units": {
     "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp": "2c0598ab2e23c31c",

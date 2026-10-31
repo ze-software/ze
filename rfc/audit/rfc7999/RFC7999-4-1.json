@@ -2,8 +2,8 @@
   "note": "SHOULD NOT discard without an operator directive. Positive (conforming) TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement: a modify naming only 65001:100 accepts the 65535:666 route with no change; rib TestBlackholeNotStampedWithoutAgreement / ...WhenNoCommunityAgreedButAuthorizationExists: RouteType 0 on both rails. Negative TestBlackholeCommunityRewritesNextHopWhenAgreed is the directive-present counter-case (next-hop rewritten to the named discard address). Accepted as the negative: it shows the no-discard outcome is caused by the absent directive, so a filter that never rewrote anything cannot pass the pair. Revert records on (matchCond).matches for both filter_modify units; the rib positives have none.",
   "requirement_sha": "c006b51aa3795b1a",
   "tests": {
-    "internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement": "91411573b949eb87",
-    "internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityRewritesNextHopWhenAgreed": "91411573b949eb87",
+    "internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement": "297e699cd3593f53",
+    "internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityRewritesNextHopWhenAgreed": "297e699cd3593f53",
     "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "619a6a003fffd5d0",
     "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWithoutAgreement": "619a6a003fffd5d0"
   },

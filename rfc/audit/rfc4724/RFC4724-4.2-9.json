@@ -4,7 +4,7 @@
   "tests": {
     "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
     "internal/component/bgp/message/rfc4724_eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
-    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "59f801a924a77387",
+    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "6a156dc9daf725a7",
     "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "e72eb4d8a404ce48"
   },
   "units": {

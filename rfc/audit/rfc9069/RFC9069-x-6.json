@@ -3,8 +3,8 @@
   "requirement_sha": "a3032001657ec349",
   "tests": {
     "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "1750bdc6c8f6cfcd",
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "72b33d9afd5c33d4",
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "72b33d9afd5c33d4"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "5fc3b343f5d0ee61",
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "5fc3b343f5d0ee61"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "ec5d663dfbfb7e20",

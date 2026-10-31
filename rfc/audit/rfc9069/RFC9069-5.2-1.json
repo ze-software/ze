@@ -2,7 +2,7 @@
   "note": "Re-judged 2026-10-23. TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop changed by fixture only: Attributes (ORIGIN IGP) and mustLocRIBBody, which fails the test on the encoder's new error. Assertions unchanged: the IPv4 route with an IPv6 next hop travels in MP_REACH_NLRI and the fabricated OPEN carries Extended Next Hop. Carrying the stored attribute set adds no capability need: path attributes other than the ASN carriers need none, and the ASN carriers are four-octet as the 4-octet ASN capability states. The other two units are unchanged. Single-polarity annotation stands.",
   "requirement_sha": "7b21af20b10bac12",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "72b33d9afd5c33d4",
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "5fc3b343f5d0ee61",
     "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses": "ef925362dfcc8685",
     "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "ef925362dfcc8685"
   },

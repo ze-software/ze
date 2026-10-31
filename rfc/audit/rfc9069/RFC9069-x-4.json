@@ -2,7 +2,7 @@
   "note": "Re-judged 2026-09-29 (row prose rewritten, claim unchanged). rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring subscribes a stand-in RIB that answers startLocRIB's replay-request with one best change carrying its token, and requires after the Loc-RIB Peer Up a Route Monitoring of Peer Type 3 carrying 10.20.30.0/24: the initial synchronization arrives as Route Monitoring. bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump asserts the trigger and its per-dump tokens; it carries no discrimination record, the delivery unit does (startLocRIB break). {single-polarity: positive} holds: no non-conformant input to refuse.",
   "requirement_sha": "b62aa6339f2e611b",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "72b33d9afd5c33d4",
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "5fc3b343f5d0ee61",
     "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring": "ef925362dfcc8685"
   },
   "units": {

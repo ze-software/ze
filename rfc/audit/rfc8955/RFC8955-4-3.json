@@ -12,8 +12,8 @@
     "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop#2": "03d254040896ec90",
     "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop": "35393b715d2814ad",
     "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop#2": "35393b715d2814ad",
-    "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop": "ada10f5c4fa4bef3",
-    "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2": "ada10f5c4fa4bef3",
+    "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop": "ccdb184cb892efa5",
+    "internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2": "ccdb184cb892efa5",
     "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop": "78564f0792620624",
     "test/encode/flow-encode.ci": "4ccb1a1d5d30da76"
   },

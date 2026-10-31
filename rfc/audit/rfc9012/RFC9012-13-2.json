@@ -2,8 +2,8 @@
   "note": "Framing controls isolate outer and short/long sub-TLV boundary violations against valid endpoints. TestRFC9012ReceiveRemovesInstalledNativeRoutes now supplements the exact-action root with actual target removal, independent-route preservation and same-session reinstall on all seven Section 6 carriers. The prior classification-only and missing-carrier objections no longer describe the tagged test set.",
   "requirement_sha": "eda2fcfe2576aa8a",
   "tests": {
-    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes": "db256d42d0cdc6ff",
-    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes#2": "db256d42d0cdc6ff",
+    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes": "a6036fce01122dce",
+    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes#2": "a6036fce01122dce",
     "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012TunnelFramingReceiveVerdicts": "cd227ea5764f94be",
     "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012TunnelFramingReceiveVerdicts#2": "cd227ea5764f94be"
   },
