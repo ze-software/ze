@@ -28,11 +28,11 @@ const (
 type list struct {
 	listMode    listMode
 	name        string
-	files       []*glob.Pattern
-	negFiles    []*glob.Pattern
-	tree        *utils.CompressedPrefixTree
+	files       []glob.Glob
+	negFiles    []glob.Glob
+	allow       []string
+	deny        []string
 	suggestions []string
-	anyAllows   bool // only for backwards compatible original lists
 }
 
 func (l *List) compile() (*list, error) {
@@ -83,22 +83,17 @@ func (l *List) compile() (*list, error) {
 		}
 	}
 
-	li.tree = utils.NewCompressedPrefixTree()
-
 	if len(l.Allow) > 0 {
 		// Expand Allow
 		l.Allow, err = utils.ExpandSlice(l.Allow, utils.PackageExpandable)
 		if err != nil {
 			errs = append(errs, err)
 		}
-		for _, allow := range l.Allow {
-			if allow == "" {
-				errs = append(errs, errors.New("allow contains an empty package"))
-				continue
-			}
-			li.anyAllows = true
-			li.tree.InsertAllow(allow)
-		}
+
+		// Sort Allow
+		li.allow = make([]string, len(l.Allow))
+		copy(li.allow, l.Allow)
+		sort.Strings(li.allow)
 	}
 
 	if l.Deny != nil {
@@ -108,19 +103,24 @@ func (l *List) compile() (*list, error) {
 			errs = append(errs, err)
 		}
 
-		li.suggestions = make([]string, 0, len(l.Deny))
-		for deny, sug := range l.Deny {
-			if deny == "" {
-				errs = append(errs, errors.New("deny contains an empty package"))
-				continue
-			}
-			li.tree.InsertDeny(deny, len(li.suggestions))
-			li.suggestions = append(li.suggestions, strings.TrimSpace(sug))
+		// Split Deny Into Package Slice
+		li.deny = make([]string, 0, len(l.Deny))
+		for pkg := range l.Deny {
+			li.deny = append(li.deny, pkg)
+		}
+
+		// Sort Deny
+		sort.Strings(li.deny)
+
+		// Populate Suggestions to match the Deny order
+		li.suggestions = make([]string, 0, len(li.deny))
+		for _, dp := range li.deny {
+			li.suggestions = append(li.suggestions, strings.TrimSpace(l.Deny[dp]))
 		}
 	}
 
 	// Populate the type of this list
-	if !li.anyAllows && len(li.suggestions) == 0 {
+	if len(li.allow) == 0 && len(li.deny) == 0 {
 		errs = append(errs, errors.New("must have an Allow and/or Deny package list"))
 	}
 
@@ -137,24 +137,23 @@ func (l *list) fileMatch(fileName string) bool {
 }
 
 func (l *list) importAllowed(imp string) (bool, string) {
-	aLen, dLen, dSug := l.tree.Search(imp)
-	inAllowed := aLen != -1
-	inDenied := dLen != -1
+	inAllowed, aIdx := strInPrefixList(imp, l.allow)
+	inDenied, dIdx := strInPrefixList(imp, l.deny)
 	var allowed bool
 	switch l.listMode {
 	case listModeOriginal:
-		inAllowed = !l.anyAllows || inAllowed
+		inAllowed = len(l.allow) == 0 || inAllowed
 		allowed = inAllowed && !inDenied
 	case listModeStrict:
-		allowed = inAllowed && (!inDenied || aLen > dLen)
+		allowed = inAllowed && (!inDenied || len(l.allow[aIdx]) > len(l.deny[dIdx]))
 	case listModeLax:
-		allowed = !inDenied || (inAllowed && aLen > dLen)
+		allowed = !inDenied || (inAllowed && len(l.allow[aIdx]) > len(l.deny[dIdx]))
 	default:
 		allowed = false
 	}
 	sugg := ""
-	if !allowed && inDenied && dSug != -1 {
-		sugg = l.suggestions[dSug]
+	if !allowed && inDenied && dIdx != -1 {
+		sugg = l.suggestions[dIdx]
 	}
 	return allowed, sugg
 }
@@ -187,7 +186,7 @@ func (l LinterSettings) compile() (linterSettings, error) {
 	for _, name := range names {
 		c, err := l[name].compile()
 		if err != nil {
-			errs = append(errs, fmt.Errorf("%s: %w", name, err))
+			errs = append(errs, err)
 			continue
 		}
 		if c == nil {
@@ -213,11 +212,37 @@ func (s linterSettings) whichLists(fileName string) []*list {
 	return matches
 }
 
-func strInGlobList(str string, globList []*glob.Pattern) bool {
+func strInGlobList(str string, globList []glob.Glob) bool {
 	for _, g := range globList {
 		if g.Match(str) {
 			return true
 		}
 	}
 	return false
+}
+
+func strInPrefixList(str string, prefixList []string) (bool, int) {
+	// Idx represents where in the prefix slice the passed in string would go
+	// when sorted. -1 Just means that it would be at the very front of the slice.
+	idx := sort.Search(len(prefixList), func(i int) bool {
+		return strings.TrimRight(prefixList[i], "$") > str
+	}) - 1
+	// This means that the string passed in has no way to be prefixed by anything
+	// in the prefix list as it is already smaller then everything
+	if idx == -1 {
+		return false, idx
+	}
+	ioc := prefixList[idx]
+	if ioc[len(ioc)-1] == '$' {
+		return str == ioc[:len(ioc)-1], idx
+	}
+
+	// There is no sep chars in ioc so it is a GOROOT import that is being matched to the import (str) (see $gostd expander)
+	// AND the import contains a period which GOROOT cannot have. This eliminates the go.evil.me/pkg scenario
+	// BUT should still allow /os/exec and ./os/exec imports which are very uncommon
+	if !strings.ContainsAny(ioc, "./") && strings.ContainsRune(str, '.') {
+		return false, idx
+	}
+
+	return strings.HasPrefix(str, ioc), idx
 }

@@ -2,14 +2,12 @@ package utils
 
 import (
 	"fmt"
-	"go/build"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
-	"sync"
-
-	"golang.org/x/tools/go/buildutil"
-	"golang.org/x/tools/go/packages"
 )
 
 type Expander interface {
@@ -26,7 +24,6 @@ var (
 	PackageExpandable = ExpanderMap{
 		"$gostd": &gostdExpander{},
 	}
-	goStdPkgs = sync.OnceValues(findStdPkgs)
 )
 
 type allExpander struct{}
@@ -41,72 +38,48 @@ func (*testExpander) Expand() ([]string, error) {
 	return []string{"**/*_test.go"}, nil
 }
 
-type gostdExpander struct{}
-
-func (e *gostdExpander) Expand() ([]string, error) {
-	return goStdPkgs()
+type gostdExpander struct {
+	cache []string
 }
 
-func findStdPkgs() ([]string, error) {
-	var stdPkgs []string
-	if goroot := os.Getenv("GOROOT"); goroot != "" {
-		// User explicitly set GOROOT, we should use that
-		buildCtx := build.Default
-		buildCtx.GOROOT = goroot
-		buildCtx.GOPATH = "" // I don't want GOPATH packages only GOROOT
-		for _, p := range buildutil.AllPackages(&buildCtx) {
-			if !isStdPkg(p) {
-				continue
-			}
-			files, err := os.ReadDir(filepath.Join(goroot, "src", p))
-			if err != nil {
-				continue
-			}
-			hasGoFile := false
-			for _, f := range files {
-				if f.IsDir() {
-					continue
-				}
-				if strings.HasSuffix(f.Name(), "_test.go") {
-					continue
-				}
-				if !strings.HasSuffix(f.Name(), ".go") {
-					continue
-				}
-				hasGoFile = true
-				break
-			}
-			if hasGoFile {
-				stdPkgs = append(stdPkgs, p+"$")
-			}
-		}
-		if len(stdPkgs) == 0 {
-			return nil, fmt.Errorf("GOROOT=%q contains no standard library packages", goroot)
-		}
-		return stdPkgs, nil
+// We can do this as all imports that are not root are either prefixed with a domain
+// or prefixed with `./` or `/` to dictate it is a local file reference
+func (e *gostdExpander) Expand() ([]string, error) {
+	if len(e.cache) != 0 {
+		return e.cache, nil
 	}
-	pkgs, err := packages.Load(&packages.Config{Mode: packages.NeedName}, "std")
+	root := path.Join(findGOROOT(), "src")
+	fs, err := os.ReadDir(root)
 	if err != nil {
-		return nil, fmt.Errorf("could not list standard library: %w", err)
+		return nil, fmt.Errorf("could not read GOROOT directory: %w", err)
 	}
-	for _, p := range pkgs {
-		if !isStdPkg(p.PkgPath) {
+	var pkgPrefix []string
+	for _, f := range fs {
+		if !f.IsDir() {
 			continue
 		}
-		stdPkgs = append(stdPkgs, p.PkgPath+"$")
+		pkgPrefix = append(pkgPrefix, f.Name())
 	}
-	return stdPkgs, nil
+	e.cache = pkgPrefix
+	return pkgPrefix, nil
 }
 
-func isStdPkg(str string) bool {
-	return str != "cmd" &&
-		!strings.HasPrefix(str, "cmd/") &&
-		str != "vendor" &&
-		!strings.HasPrefix(str, "vendor/") &&
-		str != "internal" &&
-		!strings.HasPrefix(str, "internal/") &&
-		!strings.Contains(str, "/internal/") &&
-		!strings.HasSuffix(str, "/internal")
+func findGOROOT() string {
+	// code borrowed from https://github.com/golang/tools/blob/86c93e8732cce300d0270bce23117456ce92bb17/cmd/godoc/goroot.go#L15-L30
+	if env := os.Getenv("GOROOT"); env != "" {
+		return filepath.Clean(env)
+	}
+	def := filepath.Clean(runtime.GOROOT())
+	if runtime.Compiler == "gccgo" {
+		// gccgo has no real GOROOT, and it certainly doesn't
+		// depend on the executable's location.
+		return def
+	}
+	out, err := exec.Command("go", "env", "GOROOT").Output()
+	if err != nil {
+		return def
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func ExpandSlice(sl []string, exp ExpanderMap) ([]string, error) {
