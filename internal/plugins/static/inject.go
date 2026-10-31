@@ -142,12 +142,8 @@ func (rm *routeManager) applyRouteLocked(r staticRoute) error {
 	// announcement (the skip branch below). teardownRouteLocked does NOT touch
 	// the backend, so the old kernel route survives a replace.
 	var replacedRoute staticRoute
-	var hasReplaced, replacedEmitted, removeAlreadyEmitted bool
+	var hasReplaced, replacedEmitted bool
 	if existing := rm.routes[key]; existing != nil {
-		if existing.emitted && r.Action != actionForward {
-			rm.emitRouteChange(redistevents.ActionRemove, existing.route)
-			removeAlreadyEmitted = true
-		}
 		replacedRoute = existing.route
 		hasReplaced = true
 		replacedEmitted = existing.emitted
@@ -188,9 +184,8 @@ func (rm *routeManager) applyRouteLocked(r staticRoute) error {
 				logger().Warn("static: replaced route removal failed on skip",
 					"prefix", replacedRoute.Prefix, "table", replacedRoute.Table, "error", remErr)
 			}
-			// Withdraw the old announcement, but only if it was announced AND the
-			// forward->non-forward branch above did not already emit its Remove.
-			if replacedEmitted && !removeAlreadyEmitted {
+			// Withdraw the old announcement, but only if it was announced.
+			if replacedEmitted {
 				rm.emitRouteChange(redistevents.ActionRemove, replacedRoute)
 			}
 		}
@@ -224,6 +219,13 @@ func (rm *routeManager) programRouteLocked(rs *routeState) error {
 		if err := rm.applyProgrammed(rs.route); err != nil {
 			logger().Warn("static: apply route failed", "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
 			return err
+		}
+		// A blackhole or reject route is a redistribute source, as in FRR
+		// (zebra_redistribute_check tests no next-hop type) and BIRD
+		// (static_announce_rte announces every r->dest).
+		if !rs.emitted {
+			rm.emitRouteChange(redistevents.ActionAdd, rs.route)
+			rs.emitted = true
 		}
 		return nil
 	}
@@ -546,17 +548,14 @@ func (rm *routeManager) emitRouteChange(action redistevents.RouteAction, r stati
 // emitRouteChangeID emits a single-route batch tagged with replayID (0 for the
 // normal incremental path; nonzero echoes a redistribute ReplayRequest so the
 // orchestrator can replay to a newly-established peer or to a destination
-// consumer that registered after this producer emitted). Only forward routes in
-// table 0 are redistribute sources; the guards match emitRouteChange.
+// consumer that registered after this producer emitted). Every route in table 0
+// is a redistribute source, forward, blackhole and reject alike.
 func (rm *routeManager) emitRouteChangeID(action redistevents.RouteAction, r staticRoute, replayID uint64) {
 	if r.Table != 0 {
 		return
 	}
 	bus := getEventBus()
 	if bus == nil {
-		return
-	}
-	if r.Action != actionForward {
 		return
 	}
 	b := redistevents.AcquireBatch()
@@ -585,7 +584,8 @@ func (rm *routeManager) emitRouteChangeID(action redistevents.RouteAction, r sta
 // reemitAll re-emits every currently-announced static route as an add tagged
 // with replayID, so the redistribute orchestrator can replay them to a peer
 // that establishes after the original emit. Reflects the CURRENT live set: only
-// routes with emitted==true (forward, table 0, active next-hop) are re-emitted;
+// routes with emitted==true (table 0; a forward route needs an active next-hop)
+// are re-emitted;
 // a route withdrawn before the peer joined is absent. A zero replayID is a
 // no-op (the orchestrator only allocates nonzero tokens).
 func (rm *routeManager) reemitAll(replayID uint64) {

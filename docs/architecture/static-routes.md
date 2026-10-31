@@ -84,7 +84,10 @@ in its table as protocol 251, and neither `show rib` nor the main table lists it
 
 Redistribution is unchanged and does not pass through the Loc-RIB.
 `redistribute { import static }` receives the routes over the redistribute event
-bus, from `emitRouteChange`, which still emits for main-table forward routes only.
+bus, from `emitRouteChange`, which emits every main-table route: forward,
+blackhole and reject. FRR (`zebra_redistribute_check` tests no next-hop type)
+and BIRD (`static_announce_rte` announces every destination type) redistribute
+a discard route the same way, which is how an operator originates an aggregate.
 
 **A main-table route needs a FIB plugin, and the operator does not have to ask
 for one.** The system RIB selects the winner and a FIB plugin writes it. Static
@@ -265,10 +268,10 @@ interface plugin whenever static loads, with or without an `interface` stanza;
 it is optional only in that a build without the interface plugin still runs
 static.
 
-Emit tracking uses a per-route `emitted` flag. A forward to non-forward
-replacement emits a remove for the old route. A forward to forward replacement
-emits no remove, which avoids a redistribute flap; the new route emits an add,
-which is idempotent for the consumer.
+Emit tracking uses a per-route `emitted` flag. A replacement, forward or
+blackhole or reject on either side, emits no remove, which avoids a
+redistribute flap; the new route emits an add, which is idempotent for the
+consumer. A forward route whose next hops are all down is withdrawn.
 
 ## Config format traps
 

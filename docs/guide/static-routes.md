@@ -368,3 +368,8 @@ redistribute {
     }
 }
 ```
+
+Every route in the default table is redistributed, `blackhole` and `reject`
+routes included, as FRR and BIRD do. A discard route is the usual way to
+originate an aggregate: install `blackhole { }` for the covering prefix and
+import it into BGP or OSPF, and the more specific routes keep forwarding.

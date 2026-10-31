@@ -49,11 +49,11 @@ func (b *staticRecordingBus) reset() {
 }
 
 // VALIDATES: TestProducerEchoesReplayIDOnReplayRequest (static) -- reemitAll
-// re-emits the current announced (forward, table 0) route set as adds tagged
-// with the echoed ReplayID; non-forward routes (blackhole) are not re-emitted;
-// the incremental emit stays ReplayID=0 (AC-6, AC-8).
+// re-emits the current announced (table 0) route set as adds tagged with the
+// echoed ReplayID, a blackhole route included (it is a redistribute source, as
+// in FRR and BIRD); the incremental emit stays ReplayID=0 (AC-6, AC-8).
 // PREVENTS: a late-joining peer missing static routes; a wire change to the
-// incremental path; blackhole routes leaking into the replay.
+// incremental path.
 func TestStaticReemitsReplayID(t *testing.T) {
 	bus := &staticRecordingBus{}
 	setEventBus(bus)
@@ -69,7 +69,7 @@ func TestStaticReemitsReplayID(t *testing.T) {
 		},
 		{
 			Prefix: netip.MustParsePrefix("192.0.2.0/24"),
-			Action: actionBlackhole, // not a redistribute source route
+			Action: actionBlackhole, // a redistribute source like the forward route
 		},
 	}))
 
@@ -82,11 +82,18 @@ func TestStaticReemitsReplayID(t *testing.T) {
 	rm.reemitAll(55)
 
 	evts := bus.events()
-	require.Len(t, evts, 1, "only the forward route re-emits (blackhole is not a redistribute route)")
-	require.Equal(t, uint64(55), evts[0].ReplayID, "re-emit echoes the replayID")
-	require.Len(t, evts[0].Entries, 1)
-	require.Equal(t, redistevents.ActionAdd, evts[0].Entries[0].Action)
-	require.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), evts[0].Entries[0].Prefix)
+	require.Len(t, evts, 2, "both announced routes re-emit, the blackhole one included")
+	got := map[netip.Prefix]bool{}
+	for _, evt := range evts {
+		require.Equal(t, uint64(55), evt.ReplayID, "re-emit echoes the replayID")
+		require.Len(t, evt.Entries, 1)
+		require.Equal(t, redistevents.ActionAdd, evt.Entries[0].Action)
+		got[evt.Entries[0].Prefix] = true
+	}
+	require.Equal(t, map[netip.Prefix]bool{
+		netip.MustParsePrefix("10.0.0.0/8"):   true,
+		netip.MustParsePrefix("192.0.2.0/24"): true,
+	}, got)
 
 	// reemitAll(0) is a no-op.
 	bus.reset()
