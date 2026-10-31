@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-10-31 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -303,3 +303,20 @@ keyword, is outside this check."
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only
+
+## Disposition
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-10-31 |
+| Checked at | 95d73c66f5 |
+| Verdict | SUPERSEDED |
+| Targets gone | `checkGapCountAgreement`, `spelledGapCount` and `gapCountRE` were deleted by 697558b8ae; only comments in `internal/le/rfc` still name them |
+| Cell retired | No `rfc/short/*.md` carries `Support remaining`; `retiredSupportLabels` in `internal/le/rfc/meta.go` refuses the label |
+| Derived instead | The Unmet cell comes from `unmetCell` in `internal/le/rfc/render_ledger.go`, reached through `TreeRow.UnmetCell` in `internal/le/rfc/tree.go`, fed by `StemFiguresOf` |
+| Owning spec | `plan/release/validation/spec-rfc-support-derived-proof.md` (in-progress), whose Phase 4 landed 697558b8ae |
+| Owner decision | 697558b8ae cites the decision that a public RFC row reports derived proof only, which answers the question this spec waited on |
+
+This spec asked whether the ledger should widen its prose reader for the hand-written gap count or derive the number instead. The second option has landed. The hand-written Support cells are gone, the parser refuses them by name, and every summary's unmet figure is derived from its gap, partial and linux-limit rows. No prose number is parsed any more, so the misreadings this spec set out to prevent (counting 133, or the 5 in "All 5 ... implemented", as gaps) cannot happen, and the 58 rows it wanted kept each get a derived figure. Implementing it now would bring back a cell the parser rejects and a check that was removed on purpose, leaving two paths for one job.
+
+Removing the spec is the owner's decision. If approved, the same commit drops this spec's row from `plan/release/roadmap.md`. Two references go stale with it: the row in `plan/journal/gate-ignores-the-level-it-counts.md`, which the derived-proof spec already owns, and the mention of `checkGapCountAgreement` as a live check in `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`.
