@@ -3,12 +3,12 @@
     "internal/component/bgp/message/header.go::ValidateLengthWithMax": "f5edfc67f79c21f7",
     "internal/component/bgp/plugins/rib/rib_bestchange.go::emitPurgedWithdraws": "d487f3946e24fee7",
     "internal/component/bgp/reactor/reactor_notify.go::notifyPeerClosed": "5c28951551d0524c",
-    "internal/component/bgp/reactor/relay_recovery.go::departedOwner": "7721156d18e56eda",
+    "internal/component/bgp/reactor/relay_recovery.go::departedOwner": "1c66d51af827c4a9",
     "internal/component/bgp/reactor/relay_recovery.go::oweDeparture": "8e5da96dbd548cc6",
-    "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced": "72de2ad357c956ed",
-    "internal/component/bgp/reactor/session_read.go::readAndProcessMessage": "35c41b3fd034c3a1"
+    "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced": "8d61f46de707ae76",
+    "internal/component/bgp/reactor/session_read.go::readAndProcessMessage": "90ac58a6e9121315"
   },
-  "note": "Re-judged 2026-10-26 by an independent auditor who authored none of the change, after 394bd1e802 and 180b306ffa (spec-bgp-rs-replacement-on-withdrawal). RFC 8654 Section 5: \"Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271].\" RFC 4271 Section 6 requires the invalid routes of the closed connection be withdrawn or replaced by new best routes. relay_recovery.go oweDeparture now requires the departure to name its session generation (refusing generation 0 with an error) and owes a non-ADD-PATH key only when departedOwner holds: same source, entry.owner.generation <= the departed generation, and the owner no longer current. This narrows a departure to the routes of the session that actually closed; a newer session's route was never one of the RFC 4271 Section 6 invalid routes, so the narrowing is what the RFC asks. The generation reaches the engine on the real path: rr.go and rs/server_handlers.go pass StructuredEvent.SessionGeneration as recovery-generation, and update_text.go recoveryFromMeta sets NLRIBatch.RecoveryGeneration. All seven tagged units are byte-identical; TestRFC8654FatalLengthReleasesInstalledRoutes and TestRFC8654FatalLengthReelectsAlternateBest (positives) still require the closed session's routes released and the alternate re-elected, the negatives still require a valid-length message leave the session and routes intact and an over-length one take the NOTIFICATION path; revert records on notifyPeerClosed, emitPurgedWithdraws, readAndProcessMessage, readAndProcessCoalesced and ValidateLengthWithMax verify. Reactor and message TestRFC8654* green at HEAD in an export. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8654): \"Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271].\" Producers moved: relay_recovery.go departedOwner now tests adjOutOwnerSessionCurrent rather than adjOutOwnerCurrent (30ff1fce91/fa6552968f), so a departure stays a session fact and a live session's policy-stale path is not counted departed; the routes of the closed session are still the ones owed withdrawal or replacement, which is what RFC 4271 Section 6 requires. session_read.go readAndProcessMessage and session_coalesce.go readAndProcessCoalesced (ff2aac12b0) gained a beginAdmission gate that holds a fully read packet while a policy change pauses admission; in readAndProcessMessage it sits after hdr.ValidateLengthWithMax, so an over-length message still returns its error and takes the NOTIFICATION path before the gate. All seven tagged units are byte-identical. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "df841e66398cf2dd",
   "tests": {
     "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
@@ -17,7 +17,7 @@
     "internal/component/bgp/reactor/rfc8654_bad_length_session_test.go::TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling": "a1acece001388bd1",
     "internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654FatalLengthReleasesInstalledRoutes": "2d1638e2334a8ae9",
     "internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654ValidLengthRetainsInstalledRoutes": "2d1638e2334a8ae9",
-    "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654FatalLengthReelectsAlternateBest": "a760f727cff62bc9"
+    "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654FatalLengthReelectsAlternateBest": "2b56a3dab417d749"
   },
   "units": {
     "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa",
