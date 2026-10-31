@@ -37,7 +37,11 @@ type Flavor struct {
 func Shipped(root string) ([]Flavor, error) {
 	files, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(Glob)))
 	if err != nil {
-		return nil, errors.New("cannot list " + Glob + " (" + err.Error() + "); restore cmd/ze from git")
+		// filepath.Glob fails only on a malformed pattern, never on a missing
+		// file, so the fix is the pattern: the Glob constant, or a root path
+		// holding a glob metacharacter.
+		return nil, errors.New("cannot list " + Glob + " under " + root + " (" + err.Error() +
+			"); correct the Glob constant in internal/test/buildflavor/buildflavor.go, or run from a checkout whose path holds no [, * or ? character")
 	}
 	if len(files) == 0 {
 		return nil, errors.New("no " + Glob + " file declares a shipped flavor; restore the " + Glob + " files from git")
