@@ -455,7 +455,12 @@ gets `set bgp group <group> ...`, because it exists only through its group.
 or use `final reject` when that direction must stay closed, which also stops
 the warning. Every new session warns again while the direction stays absent.
 An IBGP session and a configured direction never warn.
-<!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- warnRFC8212AbsentPolicy, rfc8212Fix -->
+`ze config validate` reports the same directions before the daemon starts,
+as warnings with the same words and the same fix command, so a config whose
+EBGP sessions would carry nothing is visible without bringing one up
+([`ze config validate`](command-reference.md#ze-config-validate)).
+<!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- warnRFC8212AbsentPolicy, RFC8212Absences, rfc8212Fix -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- addRFC8212Warning -->
 Policy dry-run applies the same final: absence rejects on EBGP and
 accepts on IBGP. With a rejecting final, a pure withdrawal remains `accept` with unchanged resulting
 text. A mixed announcement and withdrawal reports `modify`, with only its explicit

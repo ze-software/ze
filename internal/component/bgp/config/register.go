@@ -59,6 +59,7 @@ func init() {
 	infra.SetBGPTreeResolver(ResolveBGPTree)
 	infra.SetBGPPeerValidator(validatePeersFromTree)
 	infra.SetBGPRolelessPeerReporter(rolelessPeersFromTree)
+	infra.SetBGPPolicyValidator(policyAbsencesFromTree)
 	infra.SetGRMarkerWriter(writeGRMarker)
 
 	// A peer that asks for BFD strict mode in a configuration with no BFD
@@ -110,6 +111,41 @@ func doctorRegistrationFailed(check string, err error) {
 func validatePeersFromTree(tree *zeconfig.Tree) error {
 	_, err := PeersFromConfigTree(tree)
 	return err
+}
+
+// policyAbsencesFromTree adapts peersAndDynamicGroups to the
+// infra.BGPPolicyValidator seam: the same walk validatePeersFromTree gates on,
+// plus each RFC 8212 absence on the peers and dynamic groups it built, worded
+// by reactor.RFC8212Absences exactly as the establishment warning words it.
+//
+// A dynamic group with no remote AS is not judged: its members are EBGP or
+// IBGP by the AS each OPEN carries, so only the session can tell, and the
+// reactor warns then. The zero PeerAS is that "decided by the OPEN" case, not
+// a missing answer.
+func policyAbsencesFromTree(tree *zeconfig.Tree) ([]infra.BGPPolicyAbsence, error) {
+	peers, groups, err := peersAndDynamicGroups(tree)
+	if err != nil {
+		return nil, err
+	}
+	var absences []infra.BGPPolicyAbsence
+	for _, ps := range peers {
+		absences = appendPolicyAbsences(absences, "peer "+ps.Name, ps)
+	}
+	for _, group := range groups {
+		if group.Settings.PeerAS == 0 {
+			continue
+		}
+		absences = appendPolicyAbsences(absences, "group "+group.GroupName, group.Settings)
+	}
+	return absences, nil
+}
+
+// appendPolicyAbsences appends the RFC 8212 absences of one session template.
+func appendPolicyAbsences(absences []infra.BGPPolicyAbsence, owner string, ps *reactor.PeerSettings) []infra.BGPPolicyAbsence {
+	for _, a := range reactor.RFC8212Absences(ps) {
+		absences = append(absences, infra.BGPPolicyAbsence{Owner: owner, Direction: a.Direction, Message: a.Message, Fix: a.Fix})
+	}
+	return absences
 }
 
 // writeGRMarker persists the RFC 4724 Restarting-Speaker marker so the next

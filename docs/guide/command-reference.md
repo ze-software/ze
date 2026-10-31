@@ -129,6 +129,27 @@ the running daemon produces on reload. See
 <!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate, backend-gate loop -->
 <!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures -->
 
+Validation warns, and still exits 0, for every EBGP peer direction that has no
+explicit import or export policy. RFC 8212 Section 3 closes that direction: Ze
+uses none of the routes the peer sends, or sends it none, so the session comes
+up and carries nothing. The warning uses the words of the daemon's
+establishment warning and names the editor command that adds a policy at the
+level the peer is configured at
+([RFC 8212 default](bgp-policy.md)):
+
+```text
+configuration valid: router.conf
+
+Warnings:
+  warning: peer transit-a: RFC 8212: this EBGP peer has no import policy, so Ze uses none of the routes it receives from it; to exchange routes, run `set bgp peer transit-a filter import final accept`, then `commit now`
+```
+
+An IBGP peer and a configured direction never warn. A dynamic group with no
+remote AS is judged only when each member's OPEN says whether it is EBGP.
+<!-- source: internal/component/config/cli/cmd_validate.go -- addRFC8212Warning -->
+<!-- source: internal/component/bgp/config/register.go -- policyAbsencesFromTree -->
+<!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- RFC8212Absences -->
+
 ### ze config
 
 Configuration management.

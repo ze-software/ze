@@ -382,10 +382,18 @@ func runValidation(input, path string) *validationResult {
 			return result
 		}
 
-		if peersErr := infra.ValidateBGPPeers(tree); peersErr != nil {
+		// The peer walk also names each EBGP session RFC 8212 closes for want
+		// of an explicit policy. The config is valid and the session comes
+		// up, yet it carries no routes in that direction, which is the silence
+		// an operator otherwise meets only as the establishment warning.
+		absences, peersErr := infra.ValidateBGPPeersWithPolicy(tree)
+		if peersErr != nil {
 			result.addErrorWithRepair("config-bgp-peer", peersErr.Error(),
 				&diagnostic.Repair{ID: "fix-peer-reference", Summary: "Correct peer settings or cross-reference"}, diagnostic.SafetyRequiresHumanReview)
 			return result
+		}
+		for _, a := range absences {
+			addRFC8212Warning(result, a)
 		}
 	}
 
@@ -575,6 +583,26 @@ func yangErrorCode(t configyang.ErrorType) string {
 	default:
 		panic("BUG: unknown YANG diagnostic error type")
 	}
+}
+
+// rfc8212WarningCode is the diagnostic code of an RFC 8212 policy absence.
+const rfc8212WarningCode = "config-bgp-rfc8212-no-policy"
+
+// addRFC8212Warning reports one RFC 8212 policy absence as a warning: what
+// RFC 8212 stops, worded as the daemon's establishment warning, and the editor
+// command that gives the direction an explicit policy. `final accept` in that
+// command is an example: which routes to accept is the operator's decision.
+func addRFC8212Warning(result *validationResult, a infra.BGPPolicyAbsence) {
+	var tb textbuf.Buffer
+	tb.Str(a.Owner).Str(": ").Str(a.Message).Str("; to exchange routes, run `").Str(a.Fix).Str("`, then `commit now`")
+	result.Diagnostics = append(result.Diagnostics, diagnostic.Diagnostic{
+		Code:      rfc8212WarningCode,
+		Severity:  diagnostic.SeverityWarning,
+		Message:   tb.String(),
+		Help:      a.Fix,
+		Repair:    &diagnostic.Repair{ID: "configure-" + a.Direction + "-policy", Summary: "Give the " + a.Direction + " direction an explicit policy"},
+		FixSafety: diagnostic.SafetyRequiresHumanReview,
+	})
 }
 
 // addSemanticWarnings carries no router-id warning: bgp/router-id is YANG

@@ -3,11 +3,12 @@
 // Links internal/component/bgp/config so its init() fills the always-on seams,
 // gated on ze_bgp alone. The seams are the reactor factory
 // (registry.RegisterReactorFactory), the inline plugin extractor
-// (zeconfig.RegisterPluginExtractor) and four in internal/component/config/infra:
+// (zeconfig.RegisterPluginExtractor) and five in internal/component/config/infra:
 // config resolution (SetBGPTreeResolver), peer validation
-// (SetBGPPeerValidator), roleless-peer reporting
-// (SetBGPRolelessPeerReporter) and the RFC 4724 GR marker writer
-// (SetGRMarkerWriter). With ze_bgp off all six stay nil and every caller takes
+// (SetBGPPeerValidator), peer validation with the RFC 8212 policy-absence
+// report `ze config validate` prints (SetBGPPolicyValidator), roleless-peer
+// reporting (SetBGPRolelessPeerReporter) and the RFC 4724 GR marker writer
+// (SetGRMarkerWriter). With ze_bgp off all seven stay nil and every caller takes
 // its no-BGP branch.
 //
 // bgp/config is linked from a package main file rather than from

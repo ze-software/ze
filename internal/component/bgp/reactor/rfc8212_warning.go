@@ -5,7 +5,6 @@
 package reactor
 
 import (
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -27,6 +26,47 @@ var (
 	}
 )
 
+// RFC8212Absence is one policy direction RFC 8212 closes on an EBGP session
+// because no layer configured it. `ze config validate` reports it before the
+// daemon starts and the reactor logs it when the session is established, from
+// this one value, so the two surfaces cannot word the problem differently.
+type RFC8212Absence struct {
+	Direction string // the config container under filter: import or export
+	Message   string // what RFC 8212 stops on this session
+	Fix       string // the configuration editor command that configures the direction
+}
+
+// RFC8212Absences answers the directions RFC 8212 closes on the session the
+// settings describe: none for an IBGP session or a configured direction, one
+// entry per unconfigured direction otherwise. Automatic and inactive
+// references are not a configured policy (Policy.Configured), the same test
+// Policy.AcceptsAtEnd applies. The caller MUST pass settings whose session type
+// is known: a dynamic member is judged on the AS its OPEN carried.
+func RFC8212Absences(settings *PeerSettings) []RFC8212Absence {
+	if settings.IsIBGP() {
+		return nil
+	}
+	var absences []RFC8212Absence
+	// RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated with an EBGP peer SHALL NOT be considered eligible in the Decision Process if no explicit Import Policy has been applied."
+	if !settings.ImportPolicy.Configured() {
+		absences = append(absences, rfc8212AbsenceOf(settings, rfc8212Import))
+	}
+	// RFC 8212 Section 3: "Routes SHALL NOT be added to an Adj-RIB-Out associated with an EBGP peer if no explicit Export Policy has been applied."
+	if !settings.ExportPolicy.Configured() {
+		absences = append(absences, rfc8212AbsenceOf(settings, rfc8212Export))
+	}
+	return absences
+}
+
+// rfc8212AbsenceOf builds the absence of one direction on the session.
+func rfc8212AbsenceOf(settings *PeerSettings, direction rfc8212Direction) RFC8212Absence {
+	return RFC8212Absence{
+		Direction: direction.name,
+		Message:   direction.blocked,
+		Fix:       rfc8212Fix(settings, direction.name),
+	}
+}
+
 // warnRFC8212AbsentPolicy logs one warning for each direction that RFC 8212
 // closes on the session that just reached Established. It MUST run once per
 // establishment, after resolveDynamicPeerSettings, so a dynamic peer is judged
@@ -38,28 +78,14 @@ var (
 // who missed the first line meets the same silence on the next session.
 func (p *Peer) warnRFC8212AbsentPolicy() {
 	settings := p.settingsSnapshot()
-	if settings.IsIBGP() {
-		return
+	for _, absence := range RFC8212Absences(settings) {
+		peerLogger().Warn(absence.Message,
+			"peer", settings.Name,
+			"address", settings.Address,
+			"direction", absence.Direction,
+			"fix", absence.Fix,
+			"then", "commit now")
 	}
-	// RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated with an EBGP peer SHALL NOT be considered eligible in the Decision Process if no explicit Import Policy has been applied."
-	warnRFC8212Direction(settings, settings.ImportPolicy, rfc8212Import)
-	// RFC 8212 Section 3: "Routes SHALL NOT be added to an Adj-RIB-Out associated with an EBGP peer if no explicit Export Policy has been applied."
-	warnRFC8212Direction(settings, settings.ExportPolicy, rfc8212Export)
-}
-
-// warnRFC8212Direction logs the warning for one direction when no layer
-// configured it. Automatic and inactive references are not a configured
-// policy (Policy.Configured), the same test Policy.AcceptsAtEnd applies.
-func warnRFC8212Direction(settings *PeerSettings, policy filterapi.Policy, direction rfc8212Direction) {
-	if policy.Configured() {
-		return
-	}
-	peerLogger().Warn(direction.blocked,
-		"peer", settings.Name,
-		"address", settings.Address,
-		"direction", direction.name,
-		"fix", rfc8212Fix(settings, direction.name),
-		"then", "commit now")
 }
 
 // rfc8212Fix returns the configuration editor command that gives the absent
