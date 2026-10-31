@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/sessiondir"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	"github.com/ze-software/ze/internal/le/procscan"
 )
@@ -215,7 +216,53 @@ func writeSessionFixture(t *testing.T, sessions, sid string) string {
 	if err := os.WriteFile(filepath.Join(path, "bin", "ze"), []byte("binary"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	// The reaper reads the owner from .session-id, never from the name.
+	if err := os.WriteFile(filepath.Join(path, sessiondir.IDFile), []byte(sid+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	return path
+}
+
+// VALIDATES: the reaper takes a session directory's owner from its
+// .session-id, not from its name, and keeps a dated directory whose owner is
+// not recorded, counting it as unowned.
+// PREVENTS: a creation-time name read as a session id (every new directory
+// would look dead), or a directory of unknown owner removed while its session
+// still runs.
+func TestReapReadsTheOwnerFromItsIDFileAndKeepsUnownedDirectories(t *testing.T) {
+	root := t.TempDir()
+	sessions := filepath.Join(root, "tmp", "session")
+	owned := filepath.Join(sessions, "2026-10-30-142305")
+	unowned := filepath.Join(sessions, "2026-10-30-142305-2")
+	dead := filepath.Join(sessions, "2026-10-30-142306")
+	for _, dir := range []string{owned, unowned, dead} {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for dir, sid := range map[string]string{owned: "own", dead: "dead"} {
+		if err := os.WriteFile(filepath.Join(dir, sessiondir.IDFile), []byte(sid+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	report, err := reap(root, filepath.Join(root, "config"), "own", false, fixtureReapOps(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.RemovedDirs != 1 || report.Kept != 1 || report.Unowned != 1 {
+		t.Fatalf("report = %#v, text %q", report, report.Text())
+	}
+	if !strings.Contains(report.Text(), "1 with no readable .session-id") {
+		t.Errorf("text %q does not report the unowned directory", report.Text())
+	}
+	if _, err := os.Stat(dead); !os.IsNotExist(err) {
+		t.Errorf("dead session remains: %v", err)
+	}
+	for _, dir := range []string{owned, unowned} {
+		if _, err := os.Stat(dir); err != nil {
+			t.Errorf("%s was removed: %v", dir, err)
+		}
+	}
 }
 
 func writeTranscriptFixture(t *testing.T, projects, sid string, at time.Time) {

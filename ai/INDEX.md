@@ -723,8 +723,10 @@ declares its own enrolment and its own row on `docs/features/rfc-status.md`.
 
 ## Session State
 
-Per-session: `tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md` (gitignored),
-in the directory that also holds this session's `bin/` and `scratch/`. Each session gets its own file.
+Per-session: `tmp/session/<YYYY-MM-DD>-<HHMMSS>/state/session-state-<spec-stem>-<SID>.md` (gitignored),
+in the directory that also holds this session's `bin/` and `scratch/`. The directory is named by
+its creation time, and its owner's id is in its `.session-id` file (`internal/core/sessiondir`).
+Each session gets its own file.
 Session markers: `tmp/session/.session-<ID>` map sessions to specs. `./le spec current`
 reads the claim, `./le spec state current` locates this session's state, and
 `./le spec state latest spec <spec-file>` locates the newest prior state. The

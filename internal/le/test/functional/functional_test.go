@@ -15,7 +15,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
@@ -581,8 +580,14 @@ func TestFunctionalScratchUsesTheNativeSessionPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve functional scratch: %v", err)
 	}
-	wantDir := filepath.Join(
-		"tmp", "session", time.Now().Format("2006-01-02")+"-functional-fixture")
+	// The directory's name is its creation time (internal/core/sessiondir),
+	// so the native answer for the same id is the oracle: the runner must use
+	// that directory, not compute one of its own.
+	native, err := lepath.SessionForID(root, "functional-fixture")
+	if err != nil {
+		t.Fatalf("resolve the native session path: %v", err)
+	}
+	wantDir := native.Dir
 	wantScratch := filepath.Join(wantDir, "scratch")
 	if got != wantScratch {
 		t.Errorf("sessionScratch = %q, want %q", got, wantScratch)

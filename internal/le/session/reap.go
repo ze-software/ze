@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/sessiondir"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/procscan"
@@ -29,6 +30,7 @@ type ReapReport struct {
 	RemovedDirs    int      `json:"removed-directories"`
 	RemovedMarkers int      `json:"removed-markers"`
 	Kept           int      `json:"kept-running"`
+	Unowned        int      `json:"kept-unowned"`
 	Paths          []string `json:"paths,omitempty"`
 	Notice         string   `json:"notice,omitempty"`
 	MissingRoot    bool     `json:"missing-root"`
@@ -63,7 +65,12 @@ func (r ReapReport) Text() string {
 	}
 	text.Str("session-reap: ").Str(verb).Byte(' ').Int(int64(r.RemovedDirs)).
 		Str(" dead session ").Str(directory).Str(" and ").Int(int64(r.RemovedMarkers)).
-		Byte(' ').Str(marker).Str("; kept ").Int(int64(r.Kept)).Str(" running.\n")
+		Byte(' ').Str(marker).Str("; kept ").Int(int64(r.Kept)).Str(" running")
+	if r.Unowned > 0 {
+		text.Str(" and ").Int(int64(r.Unowned)).Str(" with no readable ").Str(sessiondir.IDFile).
+			Str(", whose owner is unknown")
+	}
+	text.Str(".\n")
 	return text.String()
 }
 
@@ -122,6 +129,8 @@ func Judge(root, configDir string, processes []procscan.Process) (Judgement, err
 	for _, path := range decision.candidates {
 		judgement.Dirs = append(judgement.Dirs, path)
 	}
+	// An unowned directory is kept, so the walk over kept directories sees it.
+	judgement.Dirs = append(judgement.Dirs, decision.unowned...)
 	for _, path := range decision.dead {
 		judgement.Dead = append(judgement.Dead, path)
 	}
@@ -151,7 +160,8 @@ func newReapScope(root, configDir string) (reapScope, error) {
 	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 		return reapScope{}, fmt.Errorf("session-reap: refusing unsafe session root %s", sessionRoot)
 	}
-	paths, err := lepath.ResolveSession(root, false)
+	// The id alone: judging liveness must not create a session directory.
+	ownID, err := lepath.ResolveSessionID(root)
 	if err != nil {
 		return reapScope{}, err
 	}
@@ -165,14 +175,16 @@ func newReapScope(root, configDir string) (reapScope, error) {
 		}
 		configDir = filepath.Join(home, ".claude")
 	}
-	return reapScope{ownID: paths.ID, configDir: configDir}, nil
+	return reapScope{ownID: ownID, configDir: configDir}, nil
 }
 
 // reapDecision is judge's answer: every candidate directory and the dead ones,
-// keyed by session id, the pid pins whose process is gone, and the notice that
+// keyed by session id, the dated directories whose owner could not be read
+// (never removed), the pid pins whose process is gone, and the notice that
 // stops every removal.
 type reapDecision struct {
 	candidates  map[string]string
+	unowned     []string
 	dead        map[string]string
 	stalePins   []string
 	notice      string
@@ -209,6 +221,7 @@ func reap(root, configDir, ownID string, dry bool, ops reapOps) (ReapReport, err
 	report.Paths = paths
 	report.RemovedDirs = len(dead)
 	report.Kept = len(decision.candidates) - report.RemovedDirs
+	report.Unowned = len(decision.unowned)
 	if !dry {
 		for _, path := range dead {
 			_ = ops.removeDir(path)
@@ -248,11 +261,16 @@ func judge(root, configDir, ownID string, processes []procscan.Process) (reapDec
 	}
 	candidates := make(map[string]string)
 	for _, entry := range entries {
-		sid, ok := candidateSID(entry.Name())
-		if !ok || !entry.IsDir() || entry.Type()&os.ModeSymlink != 0 {
+		if !sessiondir.Dated(entry.Name()) || !entry.IsDir() || entry.Type()&os.ModeSymlink != 0 {
 			continue
 		}
-		candidates[sid] = filepath.Join(sessionRoot, entry.Name())
+		path := filepath.Join(sessionRoot, entry.Name())
+		sid, ok := candidateSID(path)
+		if !ok {
+			decision.unowned = append(decision.unowned, path)
+			continue
+		}
+		candidates[sid] = path
 	}
 	decision.candidates = candidates
 	live := map[string]bool{}
@@ -314,16 +332,15 @@ func judge(root, configDir, ownID string, processes []procscan.Process) (reapDec
 	return decision, nil
 }
 
-func candidateSID(name string) (string, bool) {
-	if len(name) < len("2000-01-01-")+1 || name[4] != '-' || name[7] != '-' || name[10] != '-' {
+// candidateSID reads the owner of a dated session directory from its
+// .session-id. The name carries no id, so a directory whose file is missing,
+// unreadable or unsafe has no known owner and answers false: liveness cannot
+// be judged for it, so it is never reaped.
+func candidateSID(dir string) (string, bool) {
+	sid, err := sessiondir.Owner(dir)
+	if err != nil {
 		return "", false
 	}
-	for _, index := range []int{0, 1, 2, 3, 5, 6, 8, 9} {
-		if name[index] < '0' || name[index] > '9' {
-			return "", false
-		}
-	}
-	sid := name[11:]
 	if !safeReapSID(sid) {
 		return "", false
 	}

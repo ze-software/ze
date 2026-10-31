@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/sessiondir"
 	"github.com/ze-software/ze/internal/le/job"
 )
 
@@ -217,15 +218,16 @@ func validateSessionBinary(binary string) (string, error) {
 	parts := strings.Split(filepath.ToSlash(binary), "/")
 	if len(parts) != 5 {
 		if len(parts) > 5 {
-			return "", fmt.Errorf("refusing %s: deeper than tmp/session/<dated-id>/bin/<name>", binary)
+			return "", fmt.Errorf("refusing %s: deeper than tmp/session/<YYYY-MM-DD>-<HHMMSS>/bin/<name>", binary)
 		}
 		return "", fmt.Errorf("refusing %s: not a binary in a session bin directory", binary)
 	}
 	if parts[0] != "tmp" || parts[1] != "session" || parts[3] != "bin" || parts[4] == "" {
 		return "", fmt.Errorf("refusing %s: not a binary in a session bin directory", binary)
 	}
-	matched, err := filepath.Match("????-??-??-*", parts[2])
-	if err != nil || !matched {
+	// Both directory shapes on disk pass: <date>-<HHMMSS> and the earlier
+	// <date>-<session-id>.
+	if !sessiondir.Dated(parts[2]) {
 		return "", fmt.Errorf("refusing %s: not a binary in a session bin directory", binary)
 	}
 	return filepath.Join(parts[0], parts[1], parts[2]), nil

@@ -8,7 +8,7 @@ Rationale: `ai/rationale/session-start.md`
 ```
 [ ] 1. Run `./le spec current` to see this session's claimed spec
 [ ] 2. Read plan/<spec-name> (if a spec is claimed)
-[ ] 3. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md) if exists
+[ ] 3. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<HHMMSS>/state/session-state-<spec-stem>-<SID>.md, located by `./le spec state current`) if exists
 [ ] 4. Check git status
 [ ] 5. If user provides a handoff: complete Receiving a Handoff (below) before any plan
 [ ] 6. Before the first search, grep, or agent: read the page that documents the

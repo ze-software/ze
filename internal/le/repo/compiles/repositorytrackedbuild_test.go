@@ -342,11 +342,13 @@ func TestTheScratchTreeUsesTheNativeSessionPathAndIsEmptied(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create the scratch tree: %v", err)
 	}
-	want := filepath.Join(
-		root,
-		"tmp", "session", time.Now().Format("2006-01-02")+"-tracked-fixture",
-		"scratch", "compiles", strconv.Itoa(os.Getpid()),
-	)
+	// The directory's name is its creation time (internal/core/sessiondir),
+	// so the native answer for the same id is the oracle.
+	native, err := lepath.SessionForID(root, "tracked-fixture")
+	if err != nil {
+		t.Fatalf("resolve the native session path: %v", err)
+	}
+	want := filepath.Join(root, native.Dir, "scratch", "compiles", strconv.Itoa(os.Getpid()))
 	if dir != want {
 		t.Fatalf("scratchTree = %q, want native path %q", dir, want)
 	}

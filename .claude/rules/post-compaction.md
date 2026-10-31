@@ -7,7 +7,7 @@ Rationale: `ai/rationale/post-compaction.md`
 
 ```
 [ ] 1. Run `./le spec current` → read spec if one is claimed
-[ ] 2. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md) if exists
+[ ] 2. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<HHMMSS>/state/session-state-<spec-stem>-<SID>.md, located by `./le spec state current`) if exists
 [ ] 3. Check git status
 ```
 

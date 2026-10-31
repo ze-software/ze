@@ -128,10 +128,12 @@ func TestModuleReadsGoModAndRefusesOneWithoutIt(t *testing.T) {
 	}
 }
 
-// VALIDATES: ResolveSession publishes the helper's root-relative answer and
-// creates scratch with mkdir-compatible permissions only when asked.
-// PREVENTS: a native caller changing the path contract or creating state during
-// a path-only lookup.
+// VALIDATES: ResolveSession creates the session directory under its
+// creation-time name <YYYY-MM-DD>-<HHMMSS>, records the id in .session-id,
+// publishes the root-relative answer, and creates scratch with
+// mkdir-compatible permissions only when asked.
+// PREVENTS: a native caller changing the path contract, a directory whose
+// owner is not recorded, or scratch created during a path-only lookup.
 func TestResolveSessionAnswersAndCreatesTheCurrentScratchPath(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "sid-current")
@@ -140,19 +142,34 @@ func TestResolveSessionAnswersAndCreatesTheCurrentScratchPath(t *testing.T) {
 	oldMask := syscall.Umask(0o027)
 	t.Cleanup(func() { syscall.Umask(oldMask) })
 
-	wantDir := filepath.Join(
-		"tmp", "session", time.Now().Format("2006-01-02")+"-sid-current")
+	before := time.Now()
+	got, err := ResolveSession(root, false)
+	if err != nil {
+		t.Fatalf("resolve the session path: %v", err)
+	}
+	name := filepath.Base(got.Dir)
+	createdAt, parseErr := time.ParseInLocation("2006-01-02-150405", name, time.Local)
+	if parseErr != nil {
+		t.Fatalf("Dir %q is not tmp/session/<YYYY-MM-DD>-<HHMMSS>: %v", got.Dir, parseErr)
+	}
+	if createdAt.Before(before.Truncate(time.Second)) || createdAt.After(time.Now()) {
+		t.Errorf("Dir %q is not named by its creation time (resolved at %s)", got.Dir, before)
+	}
+	wantDir := filepath.Join("tmp", "session", name)
 	want := SessionPaths{
 		ID:      "sid-current",
 		Dir:     wantDir,
 		Scratch: filepath.Join(wantDir, "scratch"),
 	}
-	got, err := ResolveSession(root, false)
-	if err != nil {
-		t.Fatalf("resolve the session path: %v", err)
-	}
 	if got != want {
 		t.Fatalf("ResolveSession = %#v, want %#v", got, want)
+	}
+	owner, err := os.ReadFile(filepath.Join(root, got.Dir, ".session-id"))
+	if err != nil {
+		t.Fatalf("read the owner file: %v", err)
+	}
+	if string(owner) != "sid-current\n" {
+		t.Errorf(".session-id = %q, want %q", owner, "sid-current\n")
 	}
 	if _, err := os.Stat(filepath.Join(root, got.Scratch)); !os.IsNotExist(err) {
 		t.Fatalf("a path-only lookup created scratch: %v", err)
@@ -174,8 +191,9 @@ func TestResolveSessionAnswersAndCreatesTheCurrentScratchPath(t *testing.T) {
 	}
 }
 
-// VALIDATES: an existing dated directory is selected before today's spelling,
-// and only a directory is eligible.
+// VALIDATES: an existing directory in the earlier <date>-<id> shape is found by
+// its id (Find backfills its .session-id) before a new one is created, and only
+// a directory is eligible.
 // PREVENTS: a session moving at midnight or adopting a regular file that only
 // resembles its prior state.
 func TestResolveSessionSelectsExistingState(t *testing.T) {

@@ -446,13 +446,16 @@ func TestSessionStartReportsTheTree(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// The identity is pinned: with none in the environment and no
 			// harness ancestor, the hook mints one and caches it under
-			// tmp/session/ in the fixture, which carries no .gitignore, so
-			// the cache file reads as an untracked file and the tree as dirty.
+			// tmp/session/. Resolving the session also creates its
+			// directory and .session-id there, so the fixture ignores tmp
+			// as the checkout's own .gitignore does; without that the
+			// session's own files read as untracked and the tree as dirty.
 			t.Setenv("CLAUDE_CODE_SESSION_ID", "session-start-fixture")
 			root := t.TempDir()
 			for _, artifact := range derived.All() {
 				writeHookFixture(t, root, artifact.Path, "# derived\n")
 			}
+			writeHookFixture(t, root, ".gitignore", "tmp\n")
 			if test.git {
 				commitHookFixture(t, root)
 			}

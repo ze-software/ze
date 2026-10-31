@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/sessiondir"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -37,9 +38,11 @@ type SessionPaths struct {
 }
 
 // ResolveSession resolves the canonical four-source identity and its
-// checkout-local paths in-process. The returned paths are relative to root. An
-// existing dated directory wins, so a session does not move at midnight.
-// Scratch is created only when ensureScratch is true.
+// checkout-local paths in-process. The returned paths are relative to root.
+// Resolution creates the session directory, named <YYYY-MM-DD>-<HHMMSS> when it
+// is first made and owned through its .session-id, so a session does not move
+// at midnight (internal/core/sessiondir). Scratch is created only when
+// ensureScratch is true.
 //
 // A non-empty raw CLAUDE_CODE_SESSION_ID that is unsafe is an error. It MUST NOT
 // fall through to another identity source because that would make one process
@@ -85,6 +88,17 @@ func resolveSession(root string, ensureScratch bool, process sessionProcess) (Se
 	return paths, nil
 }
 
+// ResolveSessionID resolves the canonical four-source identity alone, for a
+// caller that needs the id and not the directory: ResolveSession creates the
+// session directory, and this creates none.
+func ResolveSessionID(root string) (string, error) {
+	absoluteRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", fmt.Errorf("resolve session checkout %s: %w", root, err)
+	}
+	return resolveSessionID(absoluteRoot, nativeProcess{})
+}
+
 // SpecClaimMarker answers the file holding the spec claim of one harness
 // session, or of one of its agents when agent is not "". Each agent owns its
 // marker, so a claim by one never replaces a sibling's or the parent's; a
@@ -118,7 +132,8 @@ func MarkerOwnedBy(name, session string) bool {
 }
 
 // SessionForID resolves paths for a validated hook payload identity without
-// consulting ambient process state. It does not create the directory.
+// consulting ambient process state. Like ResolveSession it creates the session
+// directory when id owns none, and it never creates scratch.
 func SessionForID(root, id string) (SessionPaths, error) {
 	if !safeSessionID(id) {
 		return SessionPaths{}, fmt.Errorf("session paths: unsafe session id %q", id)
@@ -315,35 +330,16 @@ func randomSessionID() (string, error) {
 	), nil
 }
 
+// resolveSessionDir answers id's directory relative to root, creating it the
+// first time (internal/core/sessiondir, the one copy of the rule). 0o777 is
+// deliberate, as for scratch: every agent account on this host shares the tree.
 func resolveSessionDir(root, id string) (string, error) {
 	relativeRoot := filepath.Join("tmp", sessionRoot)
-	absoluteSessionRoot := filepath.Join(root, relativeRoot)
-	entries, err := os.ReadDir(absoluteSessionRoot)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("read session directory %s: %w", absoluteSessionRoot, err)
+	name, err := sessiondir.Resolve(filepath.Join(root, relativeRoot), id, time.Now(), 0o777)
+	if err != nil {
+		return "", err
 	}
-	pattern := "????-??-??-" + id
-	for _, entry := range entries {
-		matched, matchErr := filepath.Match(pattern, entry.Name())
-		if matchErr != nil {
-			return "", fmt.Errorf("match session directory %s: %w", entry.Name(), matchErr)
-		}
-		if !matched {
-			continue
-		}
-		candidate := filepath.Join(absoluteSessionRoot, entry.Name())
-		info, statErr := os.Stat(candidate)
-		if statErr != nil {
-			if errors.Is(statErr, os.ErrNotExist) {
-				continue
-			}
-			return "", fmt.Errorf("inspect session directory %s: %w", candidate, statErr)
-		}
-		if info.IsDir() {
-			return filepath.Join(relativeRoot, entry.Name()), nil
-		}
-	}
-	return filepath.Join(relativeRoot, time.Now().Format("2006-01-02")+"-"+id), nil
+	return filepath.Join(relativeRoot, name), nil
 }
 
 func sessionCacheKey(process sessionProcess, pid int) string {

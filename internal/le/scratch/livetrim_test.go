@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/sessiondir"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/procscan"
 	"github.com/ze-software/ze/internal/le/session"
@@ -34,6 +35,21 @@ func agedDir(t *testing.T, path string, now time.Time, age time.Duration) string
 		t.Fatal(err)
 	}
 	return path
+}
+
+// agedSessionDir is agedDir for a session directory: it records the owner,
+// the part of the name after the date, in .session-id before it sets the
+// mtime, because the reaper reads the owner from that file.
+func agedSessionDir(t *testing.T, path string, now time.Time, age time.Duration) string {
+	t.Helper()
+	if err := os.MkdirAll(path, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	owner := filepath.Base(path)[len("2006-01-02-"):]
+	if err := os.WriteFile(filepath.Join(path, sessiondir.IDFile), []byte(owner+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return agedDir(t, path, now, age)
 }
 
 // zeCheckoutRoot answers a temporary directory carrying the two markers
@@ -239,10 +255,10 @@ func TestTrimSessionsAgePlusReap(t *testing.T) {
 	root := t.TempDir()
 	sessions := filepath.Join(root, "tmp", "session")
 	day := 25 * time.Hour
-	deadOld := agedDir(t, filepath.Join(sessions, "2026-01-01-deadold"), now, day)
-	deadYoung := agedDir(t, filepath.Join(sessions, "2026-01-01-deadyoung"), now, time.Hour)
-	liveArgv := agedDir(t, filepath.Join(sessions, "2026-01-01-liveargv"), now, day)
-	liveTranscript := agedDir(t, filepath.Join(sessions, "2026-01-01-livetranscript"), now, day)
+	deadOld := agedSessionDir(t, filepath.Join(sessions, "2026-01-01-deadold"), now, day)
+	deadYoung := agedSessionDir(t, filepath.Join(sessions, "2026-01-01-deadyoung"), now, time.Hour)
+	liveArgv := agedSessionDir(t, filepath.Join(sessions, "2026-01-01-liveargv"), now, day)
+	liveTranscript := agedSessionDir(t, filepath.Join(sessions, "2026-01-01-livetranscript"), now, day)
 	notSession := agedDir(t, filepath.Join(sessions, "scratch-notdated"), now, day)
 
 	configDir := t.TempDir()
@@ -286,7 +302,7 @@ func TestTrimSessionsAgePlusReap(t *testing.T) {
 	})
 	t.Run("a directory a peer already removed is gone, not removed by this run", func(t *testing.T) {
 		root := t.TempDir()
-		dir := agedDir(t, filepath.Join(root, "tmp", "session", "2026-01-01-peergone"), now, day)
+		dir := agedSessionDir(t, filepath.Join(root, "tmp", "session", "2026-01-01-peergone"), now, day)
 		rows := trimLiveness(t.Context(), root, &livenessPass{
 			now: now, processes: []procscan.Process{claudeCLI(now)}, judge: judgeIn(t, root),
 			startedAt: func(int) time.Time { return time.Time{} },
@@ -335,7 +351,7 @@ func TestTrimSkipsLivenessWithoutSessions(t *testing.T) {
 	agedFile(t, filepath.Join(root, "bin", "gomu"), now, day)
 	dead := filepath.Join(root, "tmp", "session", "2026-01-01-dead")
 	agedDir(t, filepath.Join(dead, scratchSubdir, "testbin-pid-999999-x"), now, day)
-	agedDir(t, dead, now, day)
+	agedSessionDir(t, dead, now, day)
 	entry := filepath.Join(gotoolchain.GoCache(root), "ab", "abguard-a")
 	agedFile(t, entry, now, day)
 
@@ -426,7 +442,7 @@ func TestTrimOrphanTestbins(t *testing.T) {
 	suffix := testbin(scratch, "testbin-keep", 30*24*time.Hour)
 	topLevel := testbin(sessionDir, "testbin-pid-777-toplevel", old)
 	agedDir(t, scratch, now, 0)
-	agedDir(t, sessionDir, now, 30*24*time.Hour)
+	agedSessionDir(t, sessionDir, now, 30*24*time.Hour)
 
 	processes := []procscan.Process{
 		claudeCLI(now),

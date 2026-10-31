@@ -143,7 +143,7 @@ and the check-repair steps are in `plan/journal/README.md` and are not repeated.
 | Step | Rule |
 |------|------|
 | 1 | The session appends a Pass Log row with result `running`, its session id and the class, and commits it alone before any other edit, so a second session reading HEAD skips that class |
-| 2 | A `running` row whose session directory `tmp/session/<date>-<id>/` is no longer written is abandoned: the next session rewrites its result to `abandoned` and may take the class |
+| 2 | A `running` row whose session directory `tmp/session/<YYYY-MM-DD>-<HHMMSS>/` (the one whose `.session-id` file holds that session id) is no longer written is abandoned: the next session rewrites its result to `abandoned` and may take the class |
 | 3 | The pass session claims this spec (`./le spec claim plan/post-release/engineering/spec-journal-resolution.md`) for the edit hook, and works the class through `/ze-explore` (read every row), `/ze-implement` (check, proof, fixes) and `/ze-review` in an independent context |
 
 ### Resolving a row

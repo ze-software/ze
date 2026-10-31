@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ze-software/ze/internal/core/sessiondir"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -31,7 +32,8 @@ func Scratch(root string, ensure bool) (ScratchReport, error) {
 }
 
 // scratchCleanReport records the current session directory explicitly removed
-// by a clean invocation. It intentionally renders no text.
+// by a clean invocation, Session empty when this session has no directory. It
+// intentionally renders no text.
 type scratchCleanReport struct {
 	Session string `json:"session"`
 	Removed bool   `json:"removed"`
@@ -41,13 +43,14 @@ type scratchCleanReport struct {
 func (scratchCleanReport) Text() string { return "" }
 
 // cleanScratch removes this session's whole dated directory, including bin,
-// etc, scratch, and state. It refuses a symlinked session root.
+// etc, scratch, and state. It refuses a symlinked session root, and it only
+// finds the directory: resolving it would create one just to remove it.
 func cleanScratch(root string) (scratchCleanReport, error) {
-	paths, err := lepath.ResolveSession(root, false)
+	id, err := lepath.ResolveSessionID(root)
 	if err != nil {
 		return scratchCleanReport{}, err
 	}
-	report := scratchCleanReport{Session: filepath.ToSlash(paths.Dir)}
+	var report scratchCleanReport
 	sessionRoot := filepath.Join(root, "tmp", "session")
 	info, err := os.Lstat(sessionRoot)
 	if os.IsNotExist(err) {
@@ -59,15 +62,15 @@ func cleanScratch(root string) (scratchCleanReport, error) {
 	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 		return report, fmt.Errorf("session scratch: refusing unsafe session root %s", sessionRoot)
 	}
-	sessionPath := filepath.Join(root, paths.Dir)
-	if filepath.Dir(sessionPath) != sessionRoot {
-		return report, fmt.Errorf("session scratch: refusing path outside %s", sessionRoot)
-	}
-	if _, err := os.Lstat(sessionPath); os.IsNotExist(err) {
-		return report, nil
-	} else if err != nil {
+	name, found, err := sessiondir.Find(sessionRoot, id)
+	if err != nil {
 		return report, err
 	}
+	if !found {
+		return report, nil
+	}
+	report.Session = filepath.ToSlash(filepath.Join("tmp", "session", name))
+	sessionPath := filepath.Join(sessionRoot, name)
 	if err := os.RemoveAll(sessionPath); err != nil {
 		return report, err
 	}

@@ -647,7 +647,26 @@ are.
 Every `./le` command resolves one harness session id: `CLAUDE_CODE_SESSION_ID`
 first, then the `--session-id` of an ancestor process, then the access token, and
 last a minted id (`resolveSessionID`, `internal/le/le/path/session.go`). The id
-names the dated session directory and its `scratch/`.
+owns one session directory, `tmp/session/<YYYY-MM-DD>-<HHMMSS>/`, and its
+`scratch/`.
+
+The directory is named by the local time at which it was first created, so
+`2026-10-30-142305`. A second session created in the same second gets
+`2026-10-30-142305-2`, then `-3`: the suffix is chosen by an exclusive
+`mkdir`, never by checking first. The name carries no session id. The owner
+is the file `<dir>/.session-id`, which holds the full session id and a
+newline, and it is the only record of which session owns a directory. The
+first resolution for an id creates the directory and writes that file, and
+every later one finds it by reading `.session-id`, after midnight included, so
+a session never moves. Resolution creates the directory but never `scratch/`,
+which only `./le session scratch ensure` makes. A directory in the earlier
+`<YYYY-MM-DD>-<session-id>` shape gets its `.session-id` the first time its
+own session looks for it. `./le spec state current` prints where this
+session's state file lives. `./le session clean` and the store trim read each
+directory's owner from `.session-id`, and keep a dated directory whose file is
+missing or unreadable, because its owner is unknown. The one copy of this rule
+is `internal/core/sessiondir`, which the native session tools and the test
+artifact router (`internal/test/sessionpath`) both call.
 
 A subagent runs under its parent's session. The pretool Bash hook prefixes each
 of its calls with `export ZE_AGENT_ID=<agent_id>; export
@@ -688,6 +707,8 @@ that writes into it picks a per-run name (`cover-<pid>.out`, the discrimination
 a name of your own.
 <!-- source: internal/le/le/path/commitsession.go -- CommitSession, SessionCommitSession -->
 <!-- source: internal/le/le/path/session.go -- SpecClaimMarker, MarkerOwnedBy -->
+<!-- source: internal/core/sessiondir/sessiondir.go -- Resolve, Find, Owner -->
+<!-- source: internal/le/session/reap.go -- candidateSID -->
 <!-- source: internal/le/hookruntime/session.go -- writeParentSessionPrefix -->
 <!-- source: internal/le/test/weakened/approve.go -- ApprovalPath, approveAnswer -->
 
@@ -1627,7 +1648,7 @@ not been tested the way the gate tests it, so put it back before the end.
 ### `quiet`, and the pattern it replaces
 
 `quiet` sits between the label and the `command` keyword. It sends the child's
-merged output to `tmp/session/<date>-<id>/scratch/job-<label>.log` instead of
+merged output to `tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-<label>.log` instead of
 the terminal, and answers three things: the exit code, that log's path, and up
 to twenty failure lines from it, each with its line number.
 
