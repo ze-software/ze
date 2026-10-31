@@ -470,7 +470,20 @@ func runOSPFEngine(conn net.Conn) int {
 		// nil before it. A config apply that installs a new export chain
 		// re-judges the routes it already holds.
 		redistConsumer *ospfredistribute.Consumer
+		// redistReplayUnsub drops the replay subscription of the producer
+		// Source OnStarted wired last, nil before it. OnStarted re-fires on an
+		// SDK reconnect with a fresh Source, which replaces the old one.
+		redistReplayUnsub func()
 	)
+	defer func() {
+		cfgMu.Lock()
+		unsub := redistReplayUnsub
+		redistReplayUnsub = nil
+		cfgMu.Unlock()
+		if unsub != nil {
+			unsub()
+		}
+	}()
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		cfg, err := parseOSPFConfig(sdkConfigSections(sections), systemRouterIDSource{})
@@ -623,7 +636,17 @@ func runOSPFEngine(conn net.Conn) int {
 		cfgMu.Lock()
 		redistConsumer = consumer
 		cfgMu.Unlock()
-		eng.wireRedistProducer(ospfredistribute.NewSource(getEventBus()))
+		source := ospfredistribute.NewSource(getEventBus())
+		eng.wireRedistProducer(source)
+		// The Source answers the orchestrator's ReplayRequest with its current
+		// route set, so a reload, a rollback or a late-joining peer gets the
+		// SPF routes without waiting for the next SPF delta.
+		cfgMu.Lock()
+		if redistReplayUnsub != nil {
+			redistReplayUnsub()
+		}
+		redistReplayUnsub = source.SubscribeReplay()
+		cfgMu.Unlock()
 
 		// Watch the Loc-RIB default route so a conditional `default-information
 		// originate` reacts live when a non-OSPF default appears or disappears, even

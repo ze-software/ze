@@ -309,7 +309,20 @@ func runISISEngine(conn net.Conn) int {
 		// nil before it. A config apply that installs a new export chain
 		// re-judges the routes it already holds.
 		redistConsumer *isisredistribute.Consumer
+		// redistReplayUnsub drops the replay subscription of the producer
+		// Source OnStarted wired last, nil before it. OnStarted re-fires on an
+		// SDK reconnect with a fresh Source, which replaces the old one.
+		redistReplayUnsub func()
 	)
+	defer func() {
+		cfgMu.Lock()
+		unsub := redistReplayUnsub
+		redistReplayUnsub = nil
+		cfgMu.Unlock()
+		if unsub != nil {
+			unsub()
+		}
+	}()
 
 	// OnConfigVerify: parse-check only, rejecting malformed config (no NET, bad
 	// NET, system-id mismatch) before any state mutation (AC-3/AC-4). The
@@ -420,7 +433,17 @@ func runISISEngine(conn net.Conn) int {
 		if replaced := configredist.ReregisterConsumer(consumer); replaced {
 			log.Info("isis: rewired redistribution consumer for new engine instance")
 		}
-		eng.wireRedistProducer(isisredistribute.NewSource(getEventBus()))
+		source := isisredistribute.NewSource(getEventBus())
+		eng.wireRedistProducer(source)
+		// The Source answers the orchestrator's ReplayRequest with its current
+		// route set, so a reload, a rollback or a late-joining peer gets the
+		// SPF routes without waiting for the next SPF delta.
+		cfgMu.Lock()
+		if redistReplayUnsub != nil {
+			redistReplayUnsub()
+		}
+		redistReplayUnsub = source.SubscribeReplay()
+		cfgMu.Unlock()
 
 		cfgMu.Lock()
 		redistConsumer = consumer

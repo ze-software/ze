@@ -32,6 +32,19 @@ identity.
 
 <!-- source: internal/plugins/isis/redistribute/events/events.go -- the producer registration and the typed route-change handle -->
 
+## Decision: the producer answers a replay request with its current set
+
+The redistribute orchestrator's late-join replay, and its reload and rollback
+reconciliation, judge only what each producer sends back for a replay request.
+A producer that emitted SPF deltas alone left a widened import chain with nothing
+to admit until the next SPF run. The source therefore keeps the route set its
+deltas built, one map per address family, and answers a request with one batch
+per family (IPv4, then IPv6) carrying the request's replay ID. It emits under the
+lock that orders the deltas, so a replay never revives a route a later delta
+removed.
+
+<!-- source: internal/plugins/isis/redistribute/source.go -- Source.Replay, Source.recordAndSend -->
+
 ## Decision: the producer must register as a producer
 
 Registering only the config route source feeds the YANG validator and completion.

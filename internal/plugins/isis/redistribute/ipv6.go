@@ -136,7 +136,9 @@ func ConnectedPrefixInfosV6(prefixes []netip.Prefix, metric uint32) []lsdb.Prefi
 // the REDISTRIBUTION path only -- the FIB install is the Computer's own IPv6
 // Installer (Loc-RIB), a separate path. Mirrors OnSPFChange for IPv4.
 func (s *Source) OnSPFChangeV6(delta spf.RouteDelta) {
-	emitDeltaFamily(delta, isisProtocolIDV6(), family.AFIIPv6, s.send)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	emitDeltaFamily(delta, isisProtocolIDV6(), family.AFIIPv6, s.recordAndSend)
 }
 
 // isisProtocolIDV6 returns the IS-IS redistevents identity. IS-IS uses a SINGLE

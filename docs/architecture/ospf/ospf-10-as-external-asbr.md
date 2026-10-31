@@ -24,6 +24,14 @@ computation, bidirectional redistribution, and `default-information originate`.
   self-import with no OSPF-specific code.
   <!-- source: internal/plugins/ospf/redistribute/source.go -- source -->
   <!-- source: internal/plugins/ospf/redistribute/consumer.go -- consumer -->
+- **The producer keeps the route set its SPF deltas built and answers a replay
+  request with it.** The redistribute orchestrator's late-join replay, and its
+  reload and rollback reconciliation, judge only what each producer sends back
+  for a request, so a producer that emitted deltas alone left a widened import
+  chain with nothing to admit until the next SPF run. The answer is one IPv4
+  batch carrying the request's replay ID, emitted under the lock that orders the
+  deltas, so a replay never revives a route a later delta removed.
+  <!-- source: internal/plugins/ospf/redistribute/source.go -- Source.Replay, Source.recordAndSend -->
 - **`default-information originate` lives on the engine, not in the
   redistribution package**, because it reads engine and LSDB state. `always`
   originates unconditionally. The bare form originates only while a NON-OSPF

@@ -13,6 +13,10 @@
 //     redistevents.RouteChangeBatch under the single isis ProtocolID and EMIT it on
 //     the typed RouteChange handle, so the orchestrator dispatches IS-IS routes to
 //     the BGP consumer (export IS-IS -> BGP). This NEVER installs to the FIB.
+//   - Keep the redistributable route set those deltas built, per address family,
+//     and re-emit it on a redistevents ReplayRequest tagged with the request's
+//     ReplayID, so the orchestrator's late-join replay and its reload and rollback
+//     reconciliation reach IS-IS routes without waiting for the next SPF delta.
 //
 // It also exposes the connected-prefix helper (connectedPrefixInfos) the engine
 // uses to advertise its own enabled/passive interface prefixes as internal TLV 135
@@ -71,25 +75,122 @@ func mustRegister(src configredist.RouteSource) {
 // deltas as redistevents batches. The engine constructs one and wires it as the
 // SPF Computer's OnChange callback (so every SPF run that changes the route set
 // emits). A nil bus (engine without an event bus) makes Emit a no-op, but the
-// delta is still walked (cheap, and keeps the path uniform).
+// delta is still walked and recorded (cheap, and keeps the path uniform).
+//
+// Safe for concurrent use: OnSPFChange, OnSPFChangeV6 and Replay serialize on mu.
 type Source struct {
 	bus ze.EventBus
+	// mu orders every emit. A delta (either family) and a replay each record and
+	// emit while holding it, so a replay can never revive a route a later delta
+	// removed, nor miss one an earlier delta added.
+	mu sync.Mutex
+	// current is the redistributable route set the emitted deltas built, one
+	// prefix map per address family: exactly what a replay re-emits. Guarded by mu.
+	current map[family.AFI]map[netip.Prefix]redistevents.RouteChangeEntry
 }
 
+// replayFamilies is the order Replay emits its per-family batches in.
+var replayFamilies = [...]family.AFI{family.AFIIPv4, family.AFIIPv6}
+
 // NewSource constructs a producer Source emitting on bus (may be nil).
-func NewSource(bus ze.EventBus) *Source { return &Source{bus: bus} }
+func NewSource(bus ze.EventBus) *Source {
+	current := make(map[family.AFI]map[netip.Prefix]redistevents.RouteChangeEntry, len(replayFamilies))
+	for _, afi := range replayFamilies {
+		current[afi] = make(map[netip.Prefix]redistevents.RouteChangeEntry)
+	}
+	return &Source{bus: bus, current: current}
+}
 
 // OnSPFChange is the SPF Computer OnChange callback: it turns the route delta into
 // a single redistevents batch and emits it (both levels, single source). It is the
 // REDISTRIBUTION path only -- the FIB install is the Computer's own Installer
 // (Loc-RIB), a separate path.
 func (s *Source) OnSPFChange(delta spf.RouteDelta) {
-	emitDelta(delta, isisredistevents.ProtocolID, s.send)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	emitDelta(delta, isisredistevents.ProtocolID, s.recordAndSend)
+}
+
+// SubscribeReplay subscribes the Source to the shared redistribute ReplayRequest
+// broadcast and returns the unsubscribe function, which the caller MUST call when
+// the Source is replaced or the plugin stops. A nil bus subscribes nothing.
+func (s *Source) SubscribeReplay() (unsubscribe func()) {
+	if s.bus == nil {
+		return func() {}
+	}
+	return redistevents.ReplayRequestEvent.Subscribe(s.bus, func(r *redistevents.ReplayRequest) {
+		s.Replay(r.ReplayID)
+	})
+}
+
+// Replay re-emits the current redistributable route set as one ActionAdd batch
+// per address family, tagged with replayID, the token of the ReplayRequest it
+// answers, the way the static and connected producers' reemitAll do. It emits
+// under mu, the lock that orders the incremental deltas. A zero replayID is a
+// no-op (the orchestrator only allocates nonzero tokens), and a family with no
+// route emits nothing.
+func (s *Source) Replay(replayID uint64) {
+	if replayID == 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, afi := range replayFamilies {
+		s.replayFamily(afi, replayID)
+	}
+}
+
+// replayFamily emits one family's current set as a replay batch. The caller MUST
+// hold mu.
+func (s *Source) replayFamily(afi family.AFI, replayID uint64) {
+	routes := s.current[afi]
+	if len(routes) == 0 {
+		return
+	}
+	b := redistevents.AcquireBatch()
+	defer redistevents.ReleaseBatch(b)
+	b.Protocol = isisredistevents.ProtocolID
+	b.AFI = uint16(afi)
+	b.SAFI = uint8(family.SAFIUnicast)
+	b.ReplayID = replayID
+	for _, e := range routes {
+		b.Entries = append(b.Entries, e)
+	}
+	s.send(b)
+}
+
+// recordAndSend is the delta sink: it folds the batch into its family's current
+// set, then emits it. The caller MUST hold mu.
+func (s *Source) recordAndSend(b *redistevents.RouteChangeBatch) {
+	routes, ok := s.current[family.AFI(b.AFI)]
+	if !ok {
+		panic("BUG: isis redist source emitted a batch for a family it does not track")
+	}
+	recordEntries(routes, b.Entries)
+	s.send(b)
+}
+
+// recordEntries folds entries into current: an add stores the entry, a remove
+// drops the prefix. Every entry comes from emitDeltaFamily, which writes only adds
+// and removes, so the switch is closed (class C).
+func recordEntries(current map[netip.Prefix]redistevents.RouteChangeEntry, entries []redistevents.RouteChangeEntry) {
+	for i := range entries {
+		e := entries[i]
+		switch e.Action {
+		case redistevents.ActionAdd:
+			current[e.Prefix] = e
+		case redistevents.ActionRemove:
+			delete(current, e.Prefix)
+		case redistevents.ActionUnspecified:
+			panic("BUG: isis redist source recorded an entry with no action")
+		}
+	}
 }
 
 // send delivers one filled batch on the typed RouteChange handle and is the
-// production sink for emitDelta. The pooled batch is owned by emitDelta (acquired
-// and released there); send only Emits while it is alive. A nil bus is a no-op.
+// production sink for the deltas and Replay. The pooled batch is owned by the
+// caller (acquired and released there); send only Emits while it is alive. A nil
+// bus is a no-op.
 func (s *Source) send(b *redistevents.RouteChangeBatch) {
 	if s.bus == nil {
 		return
