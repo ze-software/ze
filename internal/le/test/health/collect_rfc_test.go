@@ -188,3 +188,41 @@ func TestPartialHealthExplainsScopedEvidence(t *testing.T) {
 		})
 	}
 }
+
+// TestDensityDetailCountsAnExclusionNotOwedOnlyWithItsEvidence: the health
+// page's proof-density explanation says what the published sections do with
+// an annotated row, and what the figure before them counted.
+//
+// Method: render the metric over empty counts and read its prose. The
+// sections count a {not-applicable}, {feature-declined} or {linux-limit} row
+// not owed only when (*evidenceReader).notOwedGap accepts its evidence, and
+// keep one it refuses among the rows ze owes as a ze gap; the backlog in
+// rfc/exclusion-evidence-backlog.txt shelters such rows from the ratchet, so
+// the prose must not say every annotated row of a kind is counted not owed.
+// The page published a percentage over every gated MUST row until
+// 2026-10-31, so it says what that figure counted beside the new one
+// (spec-rfc-figures-sectioned-presentation AC-15).
+func TestDensityDetailCountsAnExclusionNotOwedOnlyWithItsEvidence(t *testing.T) {
+	metric := densityMetric(nil, nil, annotationCounts{}, ratio(0, 0), qualityFloors{values: object{}},
+		&rfc.ImplementedSections{}, rfcTotals{})
+	for _, unconditional := range []string{
+		"recorded as not binding ze, so counted not owed)",
+		"nothing is owed and the row is counted not owed,",
+		"no proof credit, and counted not owed as OS blocked,",
+	} {
+		if strings.Contains(metric.Detail, unconditional) {
+			t.Errorf("the detail says every row of a kind is counted not owed (%q), "+
+				"but a row whose evidence fails stays owed by ze:\n%s", unconditional, metric.Detail)
+		}
+	}
+	for _, want := range []string{
+		"counted not owed only once its evidence passes",
+		"counted not owed as OS blocked only once its register entry verifies",
+		"stays among the rows ze owes as a ze gap",
+		"Until 2026-10-31 this figure was taken over every MUST row of those RFCs, annotated rows included",
+	} {
+		if !strings.Contains(metric.Detail, want) {
+			t.Errorf("the detail lacks %q:\n%s", want, metric.Detail)
+		}
+	}
+}
