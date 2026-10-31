@@ -264,8 +264,7 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 				continue
 			}
 			// Empty peer selector: the incremental path fans out to all peers.
-			adjusted := applySets(entry, sets)
-			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, &adjusted, &route)
+			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry, &route, sets)
 			recordDispatched(key, entry.Action, &route)
 		}
 	}
@@ -335,12 +334,13 @@ func entrySource(protocol string, entry *redistevents.RouteChangeEntry) string {
 	return protocol
 }
 
-// dispatchEntryToConsumer dispatches one entry to a consumer. peer is the
-// single-peer selector for the replay path (empty means the normal all-peers
-// fan-out).
-// dispatchEntryToConsumer hands one entry to consumer. view is the route the
-// import chain judged; a withdraw carries none and passes nil.
-func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, originASN uint32, community []uint32, entry *redistevents.RouteChangeEntry, view *configredist.RedistRoute) {
+// dispatchEntryToConsumer hands one entry to consumer. peer is the single-peer
+// selector for the replay path (empty means the normal all-peers fan-out).
+// view is the route the import chain judged and sets what its accepting chain
+// set; a withdraw carries neither and passes nil and the zero Sets.
+func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, originASN uint32, community []uint32, produced *redistevents.RouteChangeEntry, view *configredist.RedistRoute, sets ribpolicy.Sets) {
+	adjusted := applySets(produced, sets)
+	entry := &adjusted
 	if !entry.Prefix.IsValid() {
 		logger().Warn(Name+": skipping entry with invalid prefix", "action", entry.Action)
 		return
@@ -375,6 +375,8 @@ func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistCo
 			OriginASN: effectiveOriginASN,
 			Community: community,
 			Tag:       entry.Tag,
+			Metric:    entry.Metric,
+			HasMetric: sets.HasMetric,
 			Route:     route,
 		})
 		return

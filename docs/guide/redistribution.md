@@ -338,6 +338,78 @@ instance because the rules changed since the route was announced.
 <!-- source: internal/plugins/redistribute/held.go -- removeReplacedRoute -->
 <!-- source: internal/plugins/static/inject.go -- applyRouteLocked -->
 
+### Setting the metric
+
+A `modify` instance in the import chain can `set metric`. What the destination
+does with that metric depends on the protocol:
+
+| Destination | A `set metric` becomes | With no `set metric` |
+|-------------|------------------------|----------------------|
+| `bgp` | the route's MULTI_EXIT_DISC | the route is sent with no MULTI_EXIT_DISC |
+| `isis` | the TLV 135 or TLV 236 prefix metric | the default prefix metric, 100 |
+
+BGP takes the metric as MED the way FRR does: `bgp_redistribute_add` makes the
+redistributed metric the route's MED, and `redistribute <source> metric N`
+replaces it. Ze sends a MED only when a filter set one, the way BIRD sends a MED
+only when an export filter sets `bgp_med`, because a producer's own metric (an
+IGP cost, a static route's zero) is not a figure a BGP neighbour can compare.
+<!-- source: internal/component/bgp/redistribute/consumer.go -- formatAnnounce -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- dispatchEntryToConsumer, applySets -->
+
+```
+policy {
+    modify redistribute-bgp-static {
+        set { metric 50; }
+    }
+}
+redistribute {
+    destination bgp {
+        import static {
+            filters [ redistribute-bgp-static ];
+            final accept;
+        }
+    }
+}
+```
+
+### The export chain of an IGP
+
+The import chain decides what may leave the source. IS-IS also judges every
+route it receives with its own chain, `isis filter export`, before the route
+enters its LSP. A route that chain rejects is not advertised, and a prefix it
+advertised before is withdrawn. A `modify` instance's `set metric` there is the
+prefix metric, and it replaces any metric the import chain set. The export chain
+cannot match on `level`: the level is where IS-IS injects the route, at every
+level the router originates, not a property the route arrives with, so a
+`match level` there is refused at load. `ze config validate` refuses a name in
+`filters` that the `policy` root does not define.
+
+```
+policy {
+    prefix-list loopbacks {
+        entry 0.0.0.0/0 { ge 32; le 32; action accept; }
+    }
+    modify loopback-metric {
+        set { metric 10; }
+    }
+}
+isis {
+    filter {
+        export {
+            filters [ loopbacks loopback-metric ];
+            final accept;
+        }
+    }
+}
+```
+
+A reload that changes the export chain judges the routes IS-IS already holds
+again: a route the new chain rejects leaves the LSP, a route it now accepts is
+advertised, and a changed `set metric` replaces the advertised metric.
+<!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict -->
+<!-- source: internal/plugins/isis/redistribute/consumer.go -- Rejudge -->
+<!-- source: internal/plugins/isis/register.go -- init, MustRegisterAttachment exportAttachment -->
+
 That block is the whole configuration. It needs no `plugin` block and no
 `attach process` block. The orchestrator that dispatches the routes auto-loads
 because the `redistribute` root is present, and it installs the rules from that

@@ -59,6 +59,14 @@ type RouteEntry struct {
 	// A.4.5); the BGP and IS-IS consumers ignore it. Zero means the route carries
 	// no tag. Additive: it does not change the RedistConsumer interface signature.
 	Tag uint32
+	// Metric is the metric the redistribute import chain's `set metric` gave
+	// the route, valid only when HasMetric is true. HasMetric false means no
+	// filter set one: the route's own metric (Route.Metric) is then a
+	// producer's figure, and the BGP consumer sends no MULTI_EXIT_DISC for it.
+	// The BGP consumer emits a set metric as MULTI_EXIT_DISC; the link-state
+	// consumers judge Route instead.
+	Metric    uint32
+	HasMetric bool
 	// Route is the typed view of this route that the redistribute import chain
 	// judged, with that chain's sets applied. A consumer's export chain judges
 	// it (`isis filter export`, `ospf filter export`); the BGP consumer ignores it.

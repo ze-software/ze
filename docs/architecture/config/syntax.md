@@ -841,6 +841,31 @@ a chain judges every stored path again. Load refuses these chains
 <!-- source: internal/core/rib/policy/policy.go -- Snapshot.Evaluate -->
 <!-- source: internal/component/policy/rib_compile.go -- readRIBChain, compileRIBChain, installRIBImports -->
 
+### filter export (IGP export chain)
+
+`isis` carries `filter { import { ... } export { ... } }`, declared as the
+`igp-filter` grouping in `ze-policy-conf`. The export chain has the same two
+keywords as the import chain and judges every route redistribution hands the
+protocol, before it is advertised: a rejected route is not advertised, and a
+`modify` instance's `set metric` becomes the advertised metric.
+
+```
+isis {
+    filter {
+        export {
+            filters [ loopbacks ];
+            final accept;
+        }
+    }
+}
+```
+
+Load refuses an export chain with no `final`, a name that is not a `policy`
+instance, and a filter that reads a field a redistributed route does not carry,
+`level` among them ([Route Filters and Redistribution](../../guide/redistribution.md)).
+<!-- source: internal/component/policy/yang/ze-policy-conf.yang -- grouping igp-filter -->
+<!-- source: internal/component/policy/export_chain.go -- CompileExportChain, ExportChainPath -->
+
 ### Peer Groups
 
 Peers are organized into named groups under `bgp`. Groups provide shared defaults inherited by all member peers.

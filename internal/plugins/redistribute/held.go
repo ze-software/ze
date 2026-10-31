@@ -16,6 +16,7 @@ import (
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
 // heldKey names one route a consumer holds because the orchestrator dispatched
@@ -95,7 +96,7 @@ func removeReplacedRoute(ctx context.Context, consumer configredist.RedistConsum
 	}
 	logger().Debug(Name+": rejected entry withdraws the held route", "action", action, "source", key.source, "consumer", key.consumer, "family", key.family.String(), "prefix", key.prefix)
 	withdraw := redistevents.RouteChangeEntry{Action: redistevents.ActionRemove, Prefix: key.prefix}
-	dispatchEntryToConsumer(ctx, consumer, key.family, key.source, "", 0, nil, &withdraw, nil)
+	dispatchEntryToConsumer(ctx, consumer, key.family, key.source, "", 0, nil, &withdraw, nil, ribpolicy.Sets{})
 }
 
 // hold records that the consumer named in k now holds k's route.
@@ -133,7 +134,7 @@ func withdrawRejectedHeld(ctx context.Context, ev *configredist.Evaluator) {
 		}
 		logger().Debug(Name+": reloaded rules withdraw the held route", "source", key.source, "consumer", key.consumer, "family", key.family.String(), "prefix", key.prefix)
 		withdraw := redistevents.RouteChangeEntry{Action: redistevents.ActionRemove, Prefix: key.prefix}
-		dispatchEntryToConsumer(ctx, consumer, key.family, key.source, "", 0, nil, &withdraw, nil)
+		dispatchEntryToConsumer(ctx, consumer, key.family, key.source, "", 0, nil, &withdraw, nil, ribpolicy.Sets{})
 	}
 }
 

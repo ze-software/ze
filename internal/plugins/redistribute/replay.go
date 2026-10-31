@@ -388,8 +388,7 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 			countChainRejected(ev, &route, destination, name)
 			continue
 		}
-		adjusted := applySets(entry, sets)
-		dispatchEntryToConsumer(ctx, consumer, famVal, name, peer, b.OriginASN, b.Community, &adjusted, &route)
+		dispatchEntryToConsumer(ctx, consumer, famVal, name, peer, b.OriginASN, b.Community, entry, &route, sets)
 		// A consumer replay is what the newly registered consumer holds. A peer
 		// replay feeds one BGP peer a route the consumer already holds from the
 		// incremental path, so it changes nothing the held set records.

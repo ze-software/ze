@@ -38,7 +38,7 @@ func NewBGPConsumer(d redistribute.RouteUpdater) *BGPConsumer {
 func (c *BGPConsumer) Name() string { return bgpConsumerName }
 
 func (c *BGPConsumer) InjectRoute(ctx context.Context, fam family.Family, entry redistribute.RouteEntry) {
-	cmd := formatAnnounce(fam.String(), entry.NextHop, entry.Prefix, entry.OriginASN, entry.Community)
+	cmd := formatAnnounce(fam.String(), &entry)
 	// Peer targets a single peer (replay-on-peer-up); empty is the normal
 	// fan-out to all peers.
 	sel := entry.Peer
@@ -80,8 +80,10 @@ func (c *BGPConsumer) WithdrawRoute(ctx context.Context, fam family.Family, pref
 // normal export rule, so the AS_PATH is [originASN] to iBGP peers and
 // [localAS, originASN] to eBGP peers (unlike a verbatim `as-path`). Otherwise it
 // keeps the legacy `origin incomplete` with no AS_PATH so existing producers are
-// byte-for-byte unchanged. A non-empty community list adds `community [ ... ]`.
-func formatAnnounce(fam, nextHop, prefix string, originASN uint32, community []uint32) string {
+// byte-for-byte unchanged. A non-empty community list adds `community [ ... ]`,
+// and a metric the redistribute chain set adds `med <metric>`.
+func formatAnnounce(fam string, entry *redistribute.RouteEntry) string {
+	nextHop, prefix, originASN, community := entry.NextHop, entry.Prefix, entry.OriginASN, entry.Community
 	// textbuf.Buffer (128B inline, no heap alloc for the common case) per
 	// ai/rules/performance.md; grows automatically when a long community
 	// list overruns the inline array, so no under-provisioned Grow hint.
@@ -104,6 +106,20 @@ func formatAnnounce(fam, nextHop, prefix string, originASN uint32, community []u
 			b.Uint(uint64(c >> 16)).Byte(':').Uint(uint64(c & 0xFFFF))
 		}
 		b.Byte(']')
+	}
+	// RFC 4271 is silent on how a redistributed route's MULTI_EXIT_DISC is
+	// chosen, so Ze follows FRR. bgp_redistribute_add (bgpd/bgp_route.c) sets
+	// the route's MED from the redistributed metric and lets the redistribute
+	// metric replace it:
+	//	bgp_attr_set_med(&attr, metric);
+	//	...
+	//	if (red->redist_metric_flag)
+	//		attr_new.med = red->redist_metric;
+	// Ze sends the metric only when a filter set it, the way BIRD sends a MED
+	// only when an export filter sets bgp_med: a producer's own metric (an IGP
+	// cost, a static route's zero) is not a figure a BGP neighbour can compare.
+	if entry.HasMetric {
+		b.Str(" med ").Uint32(entry.Metric)
 	}
 	b.Str(" nhop ")
 	if nextHop == "" {

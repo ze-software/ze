@@ -227,3 +227,25 @@ func TestBGPConsumerAnnounceReachingNoPeerWarns(t *testing.T) {
 		}
 	}
 }
+
+// TestBGPConsumerInjectRouteSetMetricIsMED proves a metric the redistribute
+// import chain set reaches BGP as MULTI_EXIT_DISC, the way FRR's
+// bgp_redistribute_add makes the redistribute metric the route's MED, and that
+// a route no filter set a metric for carries no MED. Method: read the
+// update-route command the consumer dispatches.
+func TestBGPConsumerInjectRouteSetMetricIsMED(t *testing.T) {
+	disp := &fakeDispatcher{}
+	c := NewBGPConsumer(disp)
+
+	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{
+		Prefix: "10.0.0.0/24", Metric: 50, HasMetric: true,
+	})
+	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{
+		Prefix: "10.0.1.0/24", Metric: 70,
+	})
+
+	calls := disp.snapshot()
+	require.Len(t, calls, 2)
+	assert.Equal(t, "update text origin incomplete med 50 nhop self nlri add 10.0.0.0/24", calls[0].command)
+	assert.Equal(t, "update text origin incomplete nhop self nlri add 10.0.1.0/24", calls[1].command)
+}
