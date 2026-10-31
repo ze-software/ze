@@ -184,8 +184,15 @@ accepts and replace them with narrower policies where appropriate.
 Validate the actual output with `ze config validate ze-bgp.conf`, then exercise
 the migrated configuration with its scripts against a peer. Successful
 serialization or validation alone does not prove that scripts exchange routes.
+The ExaBGP compatibility suites (`le test exabgp old-4.2`, `old-5.0`, `api`
+and `encoding`) are that proof for the cases they hold: each migrates the
+ExaBGP config, runs ze on the result with the case's scripts, and checks every
+UPDATE the peer receives, so a migrated EBGP neighbor that lost its policies
+goes red there.
 <!-- source: internal/exabgp/migration/migrate.go -- migrateSingleNeighbor -->
 <!-- source: internal/exabgp/migration/migrate_serialize.go -- serializeTreeIndent -->
+<!-- test: internal/exabgp/migration/rfc8212_policy_test.go TestMigrateWritesExplicitRFC8212Policies -->
+<!-- test: test/parse/cli-exabgp-migrate-rfc8212-policy.ci -->
 
 #### Hold time and Graceful Restart time
 

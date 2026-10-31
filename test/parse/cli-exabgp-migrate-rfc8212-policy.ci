@@ -1,0 +1,40 @@
+# Test: ze exabgp migrate writes explicit RFC 8212 policies on every migrated peer
+#
+# RFC 8212 Section 3: Ze refuses EBGP import and export for a direction with no
+# explicit policy. ExaBGP has no import or export policy and exchanges every
+# route, so the migration keeps that behaviour by stating it on each peer
+# (docs/exabgp/exabgp-migration.md, "Explicit route-exchange policy").
+#
+# VALIDATES: an EBGP neighbor and an IBGP neighbor each migrate to a peer whose
+# filter carries `import { final accept; }` and `export { final accept; }`, and
+# the migration warns, per peer, that it added them and why.
+# PREVENTS: a migrated ExaBGP config silently losing every EBGP route exchange
+# when ze applies the RFC 8212 default.
+
+stdin=config:terminator=EOF_STDIN
+bgp {
+	router-id 203.0.113.253
+}
+EOF_STDIN
+
+tmpfs=exabgp.conf:terminator=EOF_CONF
+neighbor 10.0.0.1 {
+	router-id 1.1.1.1
+	local-address 10.0.0.2
+	local-as 65001
+	peer-as 65002
+}
+neighbor 10.0.0.3 {
+	router-id 1.1.1.1
+	local-address 10.0.0.2
+	local-as 65001
+	peer-as 65001
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze exabgp migrate exabgp.conf
+expect=exit:code=0
+expect=stdout:pattern=(?s)peer peer-1 \{.*filter \{\s*import \{\s*final accept;?\s*\}\s*export \{\s*final accept;?\s*\}.*peer peer-2 \{.*filter \{\s*import \{\s*final accept;?\s*\}\s*export \{\s*final accept;?\s*\}
+expect=stderr:contains=peer peer-1: added explicit import and export final accept policies to preserve ExaBGP route-exchange intent under RFC 8212
+expect=stderr:contains=peer peer-2: added explicit import and export final accept policies to preserve ExaBGP route-exchange intent under RFC 8212
+reject=stderr:pattern=panic
