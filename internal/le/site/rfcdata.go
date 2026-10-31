@@ -22,15 +22,6 @@ const (
 	rfcDataIndexFile   = rfcDataDir + "/index.json"
 )
 
-// The two kinds a profile file declares (`| Kind |`), spelled as
-// internal/le/rfc/profile.go spells them. That package keeps the words
-// unexported, and a profile's kind here follows from which map of rfc.Profiles
-// holds it, so the word only names the answer.
-const (
-	rfcProfileKindUseCase    = "use-case"
-	rfcProfileKindTechnology = "technology"
-)
-
 // rfcStemData is data/rfc/<stem>.json: one RFC's section counts, read from
 // rfc.StemFiguresOf and never counted here.
 //
@@ -130,7 +121,9 @@ var rfcBars = rfcBarLayout{
 // never counted in its required figures, and an aggregate's optional tier
 // (`| Aggregate tier | optional |`) holds members that leave its main table.
 type rfcProfileData struct {
-	Name     string   `json:"name"`
+	Name string `json:"name"`
+	// Kind is rfc.ProfileKindUseCase or rfc.ProfileKindTechnology, the word
+	// the profile file declares.
 	Kind     string   `json:"kind"`
 	Title    string   `json:"title"`
 	Release  bool     `json:"release"`
@@ -225,7 +218,10 @@ func rfcDataOf(in *rfc.RenderInput) (rfcData, error) {
 		data.index.RFCs = append(data.index.RFCs, rfcIndexRFC{Stem: stem, File: rfcStemDataFile(stem),
 			Title: meta.Title, Walked: stemData.Walked, Enrolment: meta.Enrolment})
 	}
-	data.profiles = rfcProfileDataOf(in.Profiles, in.Metas)
+	data.profiles, err = rfcProfileDataOf(in.Profiles, in.Metas)
+	if err != nil {
+		return rfcData{}, err
+	}
 	for index := range data.profiles {
 		profile := &data.profiles[index]
 		data.index.Profiles = append(data.index.Profiles, rfcIndexProfile{Name: profile.Name,
@@ -275,9 +271,13 @@ func rfcStemDataOf(stem string, meta rfc.Meta, figures rfc.StemFigures) (rfcStem
 // exclusion kind is not owed.
 func rfcMustCountsOf(stem string, figures *rfc.StemFigures) (*rfcMustCounts, error) {
 	mandatory := &figures.Mandatory
-	osRows, notOwed, err := splitExcluded(stem, mandatory.Excluded)
+	osByKind, notOwed, err := splitExcluded(stem, mandatory.Excluded)
 	if err != nil {
 		return nil, err
+	}
+	osRows := 0
+	for _, count := range osByKind {
+		osRows += count
 	}
 	if osRows != figures.OSVerified+figures.OSGap {
 		return nil, figuresRefusal(stem, "the OS verified and OS gap MUST rows (", figures.OSVerified+figures.OSGap,
@@ -303,15 +303,16 @@ func rfcMustCountsOf(stem string, figures *rfc.StemFigures) (*rfcMustCounts, err
 }
 
 // rfcShouldCountsOf splits the SHOULD / MAY figure. Every exclusion kind is
-// not owed here, a lower layer's included: no OS split is kept for SHOULD rows.
+// not owed here, a lower layer's included, each under its own kind: no OS
+// split is kept for SHOULD rows.
 func rfcShouldCountsOf(stem string, figures *rfc.StemFigures) (*rfcShouldCounts, error) {
 	optional := &figures.Optional
-	osRows, notOwed, err := splitExcluded(stem, optional.Excluded)
+	osByKind, notOwed, err := splitExcluded(stem, optional.Excluded)
 	if err != nil {
 		return nil, err
 	}
-	if osRows > 0 {
-		notOwed[rfc.AnnotationLowerLayer] += osRows
+	for kind, count := range osByKind {
+		notOwed[kind] += count
 	}
 	counts := &rfcShouldCounts{Total: optional.Total, Proven: optional.Proven, NotEver: figures.NotEver,
 		NotYet: figures.NotYet, NotDecided: figures.NotDecided, NotOwedByKind: notOwed}
@@ -330,21 +331,22 @@ func rfcShouldCountsOf(stem string, figures *rfc.StemFigures) (*rfcShouldCounts,
 	return counts, nil
 }
 
-// splitExcluded answers how many excluded rows a lower layer performs and the
-// rest by kind. A kind internal/le/rfc does not declare is refused: its
-// meaning is unknown, so no section can hold it.
-func splitExcluded(stem string, excluded map[string]int) (osRows int, notOwed map[string]int, err error) {
-	notOwed = map[string]int{}
+// splitExcluded answers the excluded rows a lower layer performs (traits
+// OSMet) and the rest, each by annotation kind, so a second OSMet kind is
+// counted under its own name. A kind internal/le/rfc does not declare is
+// refused: its meaning is unknown, so no section can hold it.
+func splitExcluded(stem string, excluded map[string]int) (osRows, notOwed map[string]int, err error) {
+	osRows, notOwed = map[string]int{}, map[string]int{}
 	for kind, count := range excluded {
 		traits, known := rfc.AnnotationTraitsOf(kind)
 		if !known {
 			var tb textbuf.Buffer
-			return 0, nil, errors.New(tb.Str(stem).Str(": the figures exclude rows of annotation kind `").Str(kind).
+			return nil, nil, errors.New(tb.Str(stem).Str(": the figures exclude rows of annotation kind `").Str(kind).
 				Str("`, which internal/le/rfc does not declare, so no section of the RFC data can hold them. ").
 				Str("Declare the kind in annotationKinds (internal/le/rfc/rfc.go) or fix the summary, then rerun `./le site build`").String())
 		}
 		if traits.OSMet {
-			osRows += count
+			osRows[kind] += count
 			continue
 		}
 		notOwed[kind] += count
@@ -364,48 +366,22 @@ func figuresRefusal(stem, first string, got int, second string, want int) error 
 }
 
 // rfcProfileDataOf answers one file per profile, use cases first and then
-// aggregates, each sorted by name. Membership is what each summary's Meta
-// declares (Use cases, Optional use cases, Support or Aggregate, Aggregate
-// tier), the only declaration of it.
-func rfcProfileDataOf(profiles rfc.Profiles, metas map[string]rfc.Meta) []rfcProfileData {
-	stems := make([]string, 0, len(metas))
-	for stem := range metas {
-		stems = append(stems, stem)
-	}
-	slices.Sort(stems)
-	var out []rfcProfileData
-	for _, name := range sortedKeys(profiles.UseCases) {
-		useCase := profiles.UseCases[name]
-		profile := rfcProfileData{Name: name, Kind: rfcProfileKindUseCase, Title: useCase.Title,
-			Release: useCase.Release, Required: []string{}, Optional: []string{}}
-		for _, stem := range stems {
-			meta := metas[stem]
-			if slices.Contains(meta.UseCases, name) {
-				profile.Required = append(profile.Required, stem)
-			}
-			if slices.Contains(meta.OptionalUseCases, name) {
-				profile.Optional = append(profile.Optional, stem)
-			}
+// aggregates, each sorted by name. Membership is rfc.ProfileTiersOf, which
+// reads what each summary's Meta declares (Use cases, Optional use cases,
+// Support or Aggregate, Aggregate tier): the membership `./le rfc tree` reads.
+func rfcProfileDataOf(profiles rfc.Profiles, metas map[string]rfc.Meta) ([]rfcProfileData, error) {
+	names := sortedKeys(profiles.UseCases)
+	names = append(names, sortedKeys(profiles.Aggregates)...)
+	out := make([]rfcProfileData, 0, len(names))
+	for _, name := range names {
+		tiers, err := rfc.ProfileTiersOf(profiles, metas, name)
+		if err != nil {
+			return nil, err
 		}
-		out = append(out, profile)
+		out = append(out, rfcProfileData{Name: tiers.Name, Kind: tiers.Kind, Title: tiers.Title,
+			Release: tiers.Release, Required: tiers.Required, Optional: tiers.Optional})
 	}
-	for _, name := range sortedKeys(profiles.Aggregates) {
-		profile := rfcProfileData{Name: name, Kind: rfcProfileKindTechnology, Title: profiles.Aggregates[name].Title,
-			Required: []string{}, Optional: []string{}}
-		for _, stem := range stems {
-			meta := metas[stem]
-			if meta.Aggregate != name {
-				continue
-			}
-			if meta.AggregateOptional {
-				profile.Optional = append(profile.Optional, stem)
-				continue
-			}
-			profile.Required = append(profile.Required, stem)
-		}
-		out = append(out, profile)
-	}
-	return out
+	return out, nil
 }
 
 // sortedKeys answers a map's keys in order.

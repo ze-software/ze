@@ -196,12 +196,13 @@ whole on every build, so no file outlives the index that names it.
 |------|-------|
 | `data/rfc/index.json` | `bars`: both bars' segments left to right, each with its class name (`segment`), its words (`label`) and the dotted `fields` whose sum is its count, and the fields each bar's segments must add up to (`must-total`, `overview-total`). Then `rfcs` (stem, file, title, walked, enrolment) and `profiles` (name, file, kind, title) |
 | `data/rfc/<stem>.json` | `stem`, `title`, `walked`; `must` (`total`, `kept`, `ze-proven`, `os-verified`, `os-gap`, `ze-gap`, `not-owed`, `not-owed-by-kind`); `should` (`total`, `proven`, `not-owed`, `not-ever`, `not-yet`, `not-decided`, `not-owed-by-kind`); `proven-by-kind`; `unmet`. `must`, `should` and `proven-by-kind` are `null` for an RFC no walk bounded |
-| `data/rfc/profiles/<name>.json` | `name`, `kind` (`use-case` or `technology`), `title`, `release`, and the two tiers `required` and `optional`, never merged. An aggregate's optional tier is the summaries whose `Aggregate tier` Meta row says `optional` |
+| `data/rfc/profiles/<name>.json` | `name`, `kind` (`use-case` or `technology`), `title`, `release`, and the two tiers `required` and `optional`, never merged. An aggregate's optional tier is the summaries whose `Aggregate tier` Meta row says `optional`. Both tiers come from `rfc.ProfileTiersOf` (`internal/le/rfc/priority.go`), the same membership `./le rfc tree` reads |
 
 `must.kept` is the MUST bar: `ze-proven + os-verified + os-gap + ze-gap`.
 `must.not-owed` is the rest of `must.total` (not applicable, declined, OS
-blocked). A SHOULD row a lower layer performs is `should.not-owed`: the OS split
-is kept for MUST rows only.
+blocked). A SHOULD row a lower layer performs is `should.not-owed`, under its
+own annotation kind in `not-owed-by-kind`: the OS split is kept for MUST rows
+only.
 
 A page marks a value with `data-ze-rfc="<subject>:<field>"` and a bar with
 `data-ze-rfc-bar="<subject>:<bar>"`, where the subject is a stem or a profile
@@ -209,13 +210,28 @@ tier (`profile/<name>/required`, `profile/<name>/optional`) and the bar is
 `must` or `overview`. `assets/rfc-figures.js` reads the index, sums a set's
 walked members count by count (the rest are `not-walked`), writes each value,
 and draws each bar's segments in the index's order, each carrying its words and
-count as text and a width of its count over the bar's total. The text inside a
-marked element is the last build's value. A file the index names that cannot
-be read is named in the element, never dropped from a sum. The segment colours
-are the `.rfc-seg-<segment>` rules of `website/assets/css/30-components.css`;
-OS verified has its own token, `--green-soft`.
+count as text and a width of its count over the bar's total. A legend under the
+bar names every non-zero segment again with its count and a colour swatch, so a
+segment too narrow for its words loses none of them. A set with no member shows
+`no rows`, one whose members are all unwalked `not walked`, and a
+`not-owed-by-kind` key no file holds shows 0. The text inside a marked element
+is the last build's value. A file the index names that cannot be read is named
+in the element with the command that publishes it (`./le site build`), never
+dropped from a sum. The segment colours are the `.rfc-seg-<segment>` rules of
+`website/assets/css/30-components.css`; OS verified has its own token,
+`--green-soft`, lighter than `--green` in both themes, and the words on a light
+fill use `--ink-on-light`, dark in both. Every segment's words meet 4.5:1 on
+their fill in both themes.
 <!-- source: website/assets/js/rfc-figures.js -- sumStems, drawBar -->
-<!-- source: internal/le/site/browsertest/rfcfigures_test.go -- TestTheBrowserDrawsRFCFiguresFromTheirFiles -->
+<!-- source: internal/le/site/browsertest/rfcfigures_test.go -- TestTheBrowserDrawsRFCFiguresFromTheirFiles, TestRFCSegmentColoursAreReadableInBothThemes -->
+
+The browser test draws the layout the build publishes, not a copy of it:
+`TestTheBarLayoutGoldenIsCurrent` writes `rfcBars` and a sample per-RFC file to
+`internal/le/site/testdata/rfc-bars.json`, the browser test reads that file as
+its index, and checks its own per-RFC fixtures against the sample's fields. A
+stale golden fails with the command that refreshes it:
+`./le job run label unit-pkg command go test -run TestTheBarLayoutGoldenIsCurrent ./internal/le/site/ -args -update`.
+<!-- source: internal/le/site/rfcdata_test.go -- TestTheBarLayoutGoldenIsCurrent -->
 
 ## Release data
 

@@ -39,10 +39,11 @@ const (
 	profileShape   = "Shape"
 )
 
-// The two kinds a profile declares.
+// The two kinds a profile declares (`| Kind |`), exported so the site's RFC
+// data names each profile's kind in the words its file declares.
 const (
-	profileKindUseCase    = "use-case"
-	profileKindTechnology = "technology"
+	ProfileKindUseCase    = "use-case"
+	ProfileKindTechnology = "technology"
 )
 
 // Shape is the public table an aggregate's rows render as.
@@ -166,14 +167,14 @@ func parseProfile(out *Profiles, text, name, rel string) error {
 		return err
 	}
 	switch values[profileKind] {
-	case profileKindUseCase:
+	case ProfileKindUseCase:
 		useCase, err := parseUseCase(values, name, rel)
 		if err != nil {
 			return err
 		}
 		out.UseCases[name] = useCase
 		return nil
-	case profileKindTechnology:
+	case ProfileKindTechnology:
 		aggregate, err := parseAggregate(values, name, rel)
 		if err != nil {
 			return err
@@ -183,8 +184,8 @@ func parseProfile(out *Profiles, text, name, rel string) error {
 	}
 	var tb textbuf.Buffer
 	return parseErr(tb.Str(rel).Str(": `").Str(profileKind).Str("` is ").
-		Str(pyRepr(values[profileKind])).Str(", which is neither `").Str(profileKindUseCase).
-		Str("` nor `").Str(profileKindTechnology).Str("`"))
+		Str(pyRepr(values[profileKind])).Str(", which is neither `").Str(ProfileKindUseCase).
+		Str("` nor `").Str(ProfileKindTechnology).Str("`"))
 }
 
 // profileFields answers the `| Field | Value |` rows, refusing a repeated label.

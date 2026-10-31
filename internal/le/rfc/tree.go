@@ -97,7 +97,7 @@ type TreeCandidate struct {
 
 // IsAggregate answers whether the report is a technology aggregate's, whose
 // members are the RFCs naming it in `Support` or `Aggregate`.
-func (r *TreeReport) IsAggregate() bool { return r.Kind == profileKindTechnology }
+func (r *TreeReport) IsAggregate() bool { return r.Kind == ProfileKindTechnology }
 
 // treeReport answers the tree of one checkout, limited to profile when it is
 // not empty.
@@ -148,7 +148,7 @@ func (c *priorityCorpus) tree(profile string) (*TreeReport, error) {
 	report.Rows = c.treeRows(useCases, &scope, false)
 	report.Optional = &TreeTier{Rollup: c.optionalRollupOfScopes([]profileScope{scope}),
 		Rows: c.treeRows(useCases, &scope, true)}
-	if scope.kind == profileKindTechnology {
+	if scope.kind == ProfileKindTechnology {
 		return report, nil
 	}
 	report.Candidates = c.candidates(&scope)

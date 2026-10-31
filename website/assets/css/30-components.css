@@ -1491,7 +1491,8 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
    green kept by Ze, light green kept by the OS and verified, teal an optional
    row proven, greys rows not owed or not taken up, amber an OS row nobody has
    tested, red a MUST Ze's code owes and does not prove. Each segment also
-   carries its name and count as text, so the split reads without colour. */
+   carries its name and count as text, and the legend beside the bar repeats
+   them, so the split reads without colour and in a narrow segment. */
 .rfc-seg-bar {
     display: flex;
     width: 100%;
@@ -1510,13 +1511,37 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
     text-overflow: ellipsis;
     color: var(--text);
 }
+.rfc-seg-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem 0.9rem;
+    margin: 0.35rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.78rem;
+    color: var(--text);
+}
+.rfc-seg-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.rfc-seg-swatch {
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 2px;
+}
+/* Every segment's words meet 4.5:1 on its fill in both themes
+   (TestRFCSegmentColoursAreReadableInBothThemes). */
 .rfc-seg-ze-proven { background: var(--green); color: var(--panel); }
-.rfc-seg-os-verified { background: var(--green-soft); }
-.rfc-seg-should-proven { background: var(--teal); }
-.rfc-seg-not-owed { background: var(--mint-base); color: var(--panel); }
+.rfc-seg-os-verified { background: var(--green-soft); color: var(--ink-on-light); }
+.rfc-seg-should-proven { background: var(--teal); color: var(--ink-on-light); }
+.rfc-seg-not-owed { background: var(--mint-deep); color: var(--panel); }
 .rfc-seg-not-ever { background: var(--mint-chip); }
 .rfc-seg-not-yet { background: repeating-linear-gradient(135deg, var(--mint-chip), var(--mint-chip) 4px, var(--line) 4px, var(--line) 8px); }
-.rfc-seg-not-decided { background: var(--bg-soft); }
+.rfc-seg-not-decided { background: var(--line-strong); }
 .rfc-seg-os-gap { background: var(--amber); color: var(--panel); }
 .rfc-seg-ze-gap { background: var(--danger-deep); color: var(--panel); }
 .rfc-figure-error { color: var(--danger-deep); font-weight: 600; }

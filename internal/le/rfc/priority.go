@@ -107,37 +107,46 @@ type profileScope struct {
 // name with no rfc/profiles/ file is refused naming every valid one, and its
 // example names verb, the action the user ran (`tree` or `next`).
 func (c *priorityCorpus) scope(name, verb string) (profileScope, error) {
-	if useCase, held := c.profiles.UseCases[name]; held {
-		return c.useCaseScope(&useCase), nil
-	}
-	if _, held := c.profiles.Aggregates[name]; held {
-		out := profileScope{name: name, kind: profileKindTechnology,
-			members: map[string]bool{}, optional: map[string]bool{}}
-		for stem := range c.metas {
-			meta := c.metas[stem]
-			if meta.Aggregate != name {
-				continue
-			}
-			out.tier(meta.AggregateOptional)[stem] = true
-		}
+	if out, held := scopeOf(c.profiles, c.metas, name); held {
 		return out, nil
 	}
 	var tb textbuf.Buffer
 	tb.Str("no profile ").Str(pyRepr(name)).Str(" under ").Str(profileRel).
-		Str("/, so there is nothing to order. Name one of: ").
-		Str(strings.Join(sortedKeysOf(c.profiles.UseCases), ", ")).Str(" (use cases); ").
-		Str(strings.Join(sortedKeysOf(c.profiles.Aggregates), ", ")).
-		Str(" (aggregates). Example: ./le rfc ").Str(verb).Str(" profile route-server")
+		Str("/, so there is nothing to order. ")
+	profileNamesHint(&tb, c.profiles)
+	tb.Str(". Example: ./le rfc ").Str(verb).Str(" profile route-server")
 	return profileScope{}, parseErr(&tb)
 }
 
-// useCaseScope answers one use-case profile's two tiers, read from the
-// summaries' declarations alone: the one place use-case membership is built.
-func (c *priorityCorpus) useCaseScope(useCase *UseCase) profileScope {
-	out := profileScope{name: useCase.Name, kind: profileKindUseCase, release: useCase.Release,
+// scopeOf answers the named profile's two tiers, read from the summaries'
+// declarations alone: the one place profile membership is built. held is
+// false when no profile file carries the name.
+func scopeOf(profiles Profiles, metas map[string]Meta, name string) (out profileScope, held bool) {
+	if useCase, isUseCase := profiles.UseCases[name]; isUseCase {
+		return useCaseScopeOf(&useCase, metas), true
+	}
+	if _, isAggregate := profiles.Aggregates[name]; !isAggregate {
+		return profileScope{}, false
+	}
+	out = profileScope{name: name, kind: ProfileKindTechnology,
 		members: map[string]bool{}, optional: map[string]bool{}}
-	for stem := range c.metas {
-		meta := c.metas[stem]
+	for stem := range metas {
+		meta := metas[stem]
+		if meta.Aggregate != name {
+			continue
+		}
+		out.tier(meta.AggregateOptional)[stem] = true
+	}
+	return out, true
+}
+
+// useCaseScopeOf answers one use-case profile's two tiers: `Use cases` names
+// the required tier and `Optional use cases` the optional one.
+func useCaseScopeOf(useCase *UseCase, metas map[string]Meta) profileScope {
+	out := profileScope{name: useCase.Name, kind: ProfileKindUseCase, release: useCase.Release,
+		members: map[string]bool{}, optional: map[string]bool{}}
+	for stem := range metas {
+		meta := metas[stem]
 		if slices.Contains(meta.UseCases, useCase.Name) {
 			out.members[stem] = true
 		}
@@ -146,6 +155,47 @@ func (c *priorityCorpus) useCaseScope(useCase *UseCase) profileScope {
 		}
 	}
 	return out
+}
+
+// profileNamesHint writes every profile name a refusal can offer, use cases
+// then aggregates.
+func profileNamesHint(tb *textbuf.Buffer, profiles Profiles) {
+	tb.Str("Name one of: ").Str(strings.Join(sortedKeysOf(profiles.UseCases), ", ")).Str(" (use cases); ").
+		Str(strings.Join(sortedKeysOf(profiles.Aggregates), ", ")).Str(" (aggregates)")
+}
+
+// ProfileTiers is one profile's members as the summaries declare them, each
+// tier sorted by stem. Kind is ProfileKindUseCase or ProfileKindTechnology;
+// Release is false for an aggregate, which declares no release.
+type ProfileTiers struct {
+	Name     string
+	Kind     string
+	Title    string
+	Release  bool
+	Required []string
+	Optional []string
+}
+
+// ProfileTiersOf answers the named profile's two tiers, built by scopeOf, the
+// same membership `./le rfc tree` and `./le rfc next` read. A name no profile
+// file carries is refused naming the valid ones.
+func ProfileTiersOf(profiles Profiles, metas map[string]Meta, name string) (ProfileTiers, error) {
+	scope, held := scopeOf(profiles, metas, name)
+	if !held {
+		var tb textbuf.Buffer
+		tb.Str("no profile ").Str(pyRepr(name)).Str(" under ").Str(profileRel).
+			Str("/, so it has no members to publish. ")
+		profileNamesHint(&tb, profiles)
+		return ProfileTiers{}, parseErr(&tb)
+	}
+	out := ProfileTiers{Name: name, Kind: scope.kind, Release: scope.release,
+		Required: sortedKeysOf(scope.members), Optional: sortedKeysOf(scope.optional)}
+	if scope.kind == ProfileKindUseCase {
+		out.Title = profiles.UseCases[name].Title
+		return out, nil
+	}
+	out.Title = profiles.Aggregates[name].Title
+	return out, nil
 }
 
 // useCaseScopes answers every use-case profile, release ones only when
@@ -157,7 +207,7 @@ func (c *priorityCorpus) useCaseScopes(releaseOnly bool) []profileScope {
 		if releaseOnly && !useCase.Release {
 			continue
 		}
-		out = append(out, c.useCaseScope(&useCase))
+		out = append(out, useCaseScopeOf(&useCase, c.metas))
 	}
 	return out
 }
@@ -181,7 +231,7 @@ func (s *profileScope) path(stem string, optional bool) string {
 	switch {
 	case optional:
 		tb.Str("optional in ")
-	case s.kind == profileKindTechnology:
+	case s.kind == ProfileKindTechnology:
 		tb.Str("aggregate named by ")
 	default:
 		tb.Str("required by ")

@@ -1,0 +1,143 @@
+{
+  "bars": {
+    "must": [
+      {
+        "segment": "ze-proven",
+        "label": "Ze proven",
+        "fields": [
+          "must.ze-proven"
+        ]
+      },
+      {
+        "segment": "os-verified",
+        "label": "OS verified",
+        "fields": [
+          "must.os-verified"
+        ]
+      },
+      {
+        "segment": "os-gap",
+        "label": "OS testing gap",
+        "fields": [
+          "must.os-gap"
+        ]
+      },
+      {
+        "segment": "ze-gap",
+        "label": "Ze correctness gap",
+        "fields": [
+          "must.ze-gap"
+        ]
+      }
+    ],
+    "must-total": [
+      "must.kept"
+    ],
+    "overview": [
+      {
+        "segment": "ze-proven",
+        "label": "Ze MUST proven",
+        "fields": [
+          "must.ze-proven"
+        ]
+      },
+      {
+        "segment": "os-verified",
+        "label": "OS verified",
+        "fields": [
+          "must.os-verified"
+        ]
+      },
+      {
+        "segment": "should-proven",
+        "label": "SHOULD proven",
+        "fields": [
+          "should.proven"
+        ]
+      },
+      {
+        "segment": "not-owed",
+        "label": "Not owed",
+        "fields": [
+          "must.not-owed",
+          "should.not-owed"
+        ]
+      },
+      {
+        "segment": "not-ever",
+        "label": "SHOULD not ever",
+        "fields": [
+          "should.not-ever"
+        ]
+      },
+      {
+        "segment": "not-yet",
+        "label": "SHOULD not yet",
+        "fields": [
+          "should.not-yet"
+        ]
+      },
+      {
+        "segment": "not-decided",
+        "label": "SHOULD not decided",
+        "fields": [
+          "should.not-decided"
+        ]
+      },
+      {
+        "segment": "os-gap",
+        "label": "OS testing gap",
+        "fields": [
+          "must.os-gap"
+        ]
+      },
+      {
+        "segment": "ze-gap",
+        "label": "Ze correctness gap",
+        "fields": [
+          "must.ze-gap"
+        ]
+      }
+    ],
+    "overview-total": [
+      "must.total",
+      "should.total"
+    ]
+  },
+  "stem": {
+    "stem": "rfc9999",
+    "title": "Widgets",
+    "walked": true,
+    "must": {
+      "total": 20,
+      "kept": 14,
+      "ze-proven": 3,
+      "os-verified": 2,
+      "os-gap": 3,
+      "ze-gap": 6,
+      "not-owed": 6,
+      "not-owed-by-kind": {
+        "feature-declined": 2,
+        "not-applicable": 4
+      }
+    },
+    "should": {
+      "total": 10,
+      "proven": 1,
+      "not-owed": 2,
+      "not-ever": 1,
+      "not-yet": 2,
+      "not-decided": 4,
+      "not-owed-by-kind": {
+        "not-applicable": 2
+      }
+    },
+    "proven-by-kind": {
+      "functional": 1,
+      "unit": 2
+    },
+    "unmet": [
+      "RFC9999-2-4"
+    ]
+  }
+}

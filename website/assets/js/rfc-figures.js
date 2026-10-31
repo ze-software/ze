@@ -17,8 +17,9 @@
  * counts rfcs, walked and not-walked. The text inside a marked element is the
  * last build's value, shown until the files are read.
  *
- * A set sums only walked RFCs and counts the rest apart. A file the index
- * names that cannot be read is named on the page, never dropped from a sum.
+ * A set sums only walked RFCs and counts the rest apart, and a set with no
+ * member shows "no rows". A file the index names that cannot be read is named
+ * on the page with the command that publishes it, never dropped from a sum.
  */
 (function () {
     "use strict";
@@ -38,8 +39,17 @@
         return root;
     }
 
+    var publish = "Run ./le site build to publish data/rfc/.";
+
+    // unreadable is the error for files that could not be read: which files,
+    // what the page cannot show without them, and the command that writes them.
+    function unreadable(paths, consequence) {
+        return new Error(paths.join(", ") + " could not be read, so " + consequence + ". " + publish);
+    }
+
     // loadFile answers the parsed file at a site-relative path, fetched once
-    // per page load, or rejects with the path when it cannot be read.
+    // per page load, or rejects with the path when it cannot be read: the
+    // caller words the error, because only it knows what the file was for.
     function loadFile(path) {
         if (!filePromises[path]) {
             filePromises[path] = fetch(siteRoot() + path).then(function (response) {
@@ -53,7 +63,11 @@
     }
 
     function loadIndex() {
-        if (!indexPromise) indexPromise = loadFile("data/rfc/index.json");
+        if (!indexPromise) {
+            indexPromise = loadFile("data/rfc/index.json").catch(function (error) {
+                throw unreadable([error.message], "no RFC figure on this page can be shown");
+            });
+        }
         return indexPromise;
     }
 
@@ -73,16 +87,20 @@
             return Promise.resolve([subject]);
         }
         if (parts.length !== 3 || (parts[2] !== "required" && parts[2] !== "optional")) {
-            return Promise.reject(new Error("unknown subject " + subject));
+            return Promise.reject(new Error(subject + " is not a subject the RFC data answers, so nothing can be " +
+                "shown here. Fix the marker: write profile/<name>/required or profile/<name>/optional."));
         }
         var entry = (index.profiles || []).filter(function (profile) {
             return profile.name === parts[1];
         })[0];
-        if (!entry) return Promise.reject(new Error("unknown profile " + parts[1]));
+        if (!entry) {
+            return Promise.reject(new Error("the index lists no profile named " + parts[1] + ", so it has no " +
+                "figure. Fix the marker, or add rfc/profiles/" + parts[1] + ".md. " + publish));
+        }
         return loadFile(entry.file).then(function (profile) {
             return profile[parts[2]] || [];
         }, function (error) {
-            throw new Error("missing " + error.message);
+            throw unreadable([error.message], "the members of profile " + parts[1] + " are unknown");
         });
     }
 
@@ -112,7 +130,10 @@
                 files[entry.stem] = entry.file;
             });
             var unknown = stems.filter(function (stem) { return !files[stem]; });
-            if (unknown.length) throw new Error("no RFC data for " + unknown.join(", "));
+            if (unknown.length) {
+                throw new Error("the index lists no RFC named " + unknown.join(", ") + ", so it has no figure. " +
+                    "Fix the marker, or add its rfc/short/ summary. " + publish);
+            }
             return Promise.all(stems.map(function (stem) {
                 return loadFile(files[stem]).then(function (data) {
                     return { data: data };
@@ -123,7 +144,9 @@
         }).then(function (loaded) {
             var missing = loaded.filter(function (item) { return item.missing; })
                 .map(function (item) { return item.missing; });
-            if (missing.length) throw new Error("missing " + missing.join(", "));
+            if (missing.length) {
+                throw unreadable(missing, "this figure would leave " + (missing.length === 1 ? "that RFC" : "those RFCs") + " out");
+            }
             var sum = { rfcs: loaded.length, walked: 0, "not-walked": 0, must: null, should: null };
             loaded.forEach(function (item) {
                 if (!item.data.walked) {
@@ -156,6 +179,10 @@
         return value;
     }
 
+    // byKind matches a per-kind count of the rows not owed: a kind no row was
+    // excluded by is absent from every file, and its count is 0.
+    var byKind = /^(must|should)\.not-owed-by-kind\.[^.]+$/;
+
     function fieldsSum(sum, fields) {
         var total = 0;
         for (var i = 0; i < fields.length; i++) {
@@ -166,6 +193,11 @@
         return total;
     }
 
+    function badMarker(node, attribute, shape) {
+        return attribute + "=\"" + node.getAttribute(attribute) + "\" is not a marker the RFC data answers, so nothing can be shown here. " +
+            "Write it as " + shape + ".";
+    }
+
     function showError(node, message) {
         node.textContent = message;
         node.classList.add("rfc-figure-error");
@@ -173,30 +205,49 @@
 
     function fillValue(node) {
         var marker = splitMarker(node.getAttribute("data-ze-rfc"));
-        if (!marker) return showError(node, "bad marker " + node.getAttribute("data-ze-rfc"));
+        if (!marker) return showError(node, badMarker(node, "data-ze-rfc", "<subject>:<field>"));
         sumSubject(marker[0]).then(function (sum) {
             var value = lookup(sum, marker[1]);
             if (typeof value === "number") {
                 node.textContent = value.toLocaleString("en-GB");
                 return;
             }
+            if (sum.rfcs === 0) {
+                node.textContent = "no rows";
+                return;
+            }
             if (sum.walked === 0) {
                 node.textContent = "not walked";
                 return;
             }
-            showError(node, "no field " + marker[1]);
+            if (value === undefined && byKind.test(marker[1])) {
+                node.textContent = "0";
+                return;
+            }
+            showError(node, marker[1] + " is not a field of the RFC data, so nothing can be shown here. " +
+                "Fix the data-ze-rfc marker: docs/architecture/site-facts.md lists the fields.");
         }, function (error) {
             showError(node, error.message);
         });
     }
 
-    // drawBar replaces the element's content with the bar's segments, left to
-    // right in the order the index declares, each carrying its words and count
-    // as text and a width that is its count over the bar's total.
+    // drawBar replaces the element's content with the bar and its legend. The
+    // bar's segments run left to right in the order the index declares, each
+    // carrying its words and count as text and a width that is its count over
+    // the bar's total. A segment too narrow for its words cuts them, so the
+    // legend beside the bar names every non-zero segment again, from the same
+    // layout and counts, with its colour as a swatch.
     function drawBar(node, layout, sum, bar) {
         var segments = layout[bar];
         var totalFields = layout[bar + "-total"];
-        if (!segments || !totalFields) return showError(node, "unknown bar " + bar);
+        if (!segments || !totalFields) {
+            return showError(node, bar + " is not a bar the RFC data declares, so nothing can be drawn here. " +
+                "Write the marker as <subject>:must or <subject>:overview.");
+        }
+        if (sum.rfcs === 0) {
+            node.textContent = "no rows";
+            return;
+        }
         if (sum.walked === 0) {
             node.textContent = "not walked";
             return;
@@ -205,29 +256,45 @@
         var counts = segments.map(function (segment) { return fieldsSum(sum, segment.fields); });
         var drawn = counts.reduce(function (a, b) { return a + b; }, 0);
         if (!isFinite(total) || drawn !== total) {
-            return showError(node, "the " + bar + " segments sum to " + drawn + ", not the " + total + " rows the files state");
+            return showError(node, "the " + bar + " segments sum to " + drawn + ", not the " + total +
+                " rows the files state, so the bar would misdraw them. " + publish);
         }
         while (node.firstChild) node.removeChild(node.firstChild);
-        node.classList.add("rfc-seg-bar");
+        node.classList.add("rfc-seg-figure");
         if (total === 0) {
             node.textContent = "no rows";
             return;
         }
+        var track = document.createElement("div");
+        track.className = "rfc-seg-bar";
+        var legend = document.createElement("ul");
+        legend.className = "rfc-seg-legend";
         segments.forEach(function (segment, index) {
             if (!counts[index]) return;
+            var words = segment.label + " " + counts[index].toLocaleString("en-GB");
             var span = document.createElement("span");
             span.className = "rfc-seg rfc-seg-" + segment.segment;
             span.setAttribute("data-segment", segment.segment);
             span.style.width = (100 * counts[index] / total) + "%";
-            span.textContent = segment.label + " " + counts[index].toLocaleString("en-GB");
-            span.title = span.textContent;
-            node.appendChild(span);
+            span.textContent = words;
+            span.title = words;
+            track.appendChild(span);
+            var item = document.createElement("li");
+            item.setAttribute("data-segment", segment.segment);
+            var swatch = document.createElement("span");
+            swatch.className = "rfc-seg-swatch rfc-seg-" + segment.segment;
+            swatch.setAttribute("aria-hidden", "true");
+            item.appendChild(swatch);
+            item.appendChild(document.createTextNode(words));
+            legend.appendChild(item);
         });
+        node.appendChild(track);
+        node.appendChild(legend);
     }
 
     function fillBar(node) {
         var marker = splitMarker(node.getAttribute("data-ze-rfc-bar"));
-        if (!marker) return showError(node, "bad marker " + node.getAttribute("data-ze-rfc-bar"));
+        if (!marker) return showError(node, badMarker(node, "data-ze-rfc-bar", "<subject>:must or <subject>:overview"));
         Promise.all([loadIndex(), sumSubject(marker[0])]).then(function (loaded) {
             drawBar(node, loaded[0].bars || {}, loaded[1], marker[1]);
         }, function (error) {

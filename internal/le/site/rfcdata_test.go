@@ -2,6 +2,7 @@ package site
 
 import (
 	"encoding/json"
+	"flag"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -191,7 +192,10 @@ func TestProfileDataKeepsTheTiersApart(t *testing.T) {
 		"rfc4577": {Aggregate: "ospf", AggregateOptional: true, OptionalUseCases: []string{"edge"}},
 		"rfc4576": {Aggregate: "ospf", AggregateOptional: true},
 	}
-	got := rfcProfileDataOf(profiles, metas)
+	got, err := rfcProfileDataOf(profiles, metas)
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := []rfcProfileData{
 		{Name: "edge", Kind: "use-case", Title: "Edge", Release: true,
 			Required: []string{"rfc2328"}, Optional: []string{"rfc4577"}},
@@ -209,11 +213,18 @@ func TestProfileDataKeepsTheTiersApart(t *testing.T) {
 // over the same corpus (AC-16).
 //
 // Method: build a one-RFC corpus through the production readers (Collect,
-// NewRenderInput), seed the output with a file for a stem that no longer
-// exists, publish, and walk data/rfc/ against the index.
+// NewRenderInput) and give its stem an extraction sign-off, so it is walked
+// and publishes counts. Seed the output with a file for a stem that no longer
+// exists, publish, and walk data/rfc/ against the index. The published counts
+// are compared with the numbers the corpus states (one MUST row, a {gap}, so
+// one Ze gap) and with the rfc.StemFigures fields directly, never with
+// rfcStemDataOf, the function under test.
 func TestDataIndexAndFilesAgree(t *testing.T) {
 	root, summary, marker := partialPublicationTree(t)
 	writePartialPublicationFile(t, root, "rfc/short/rfc9999.md", strings.ReplaceAll(summary, marker, "{gap: native sending absent}"))
+	if err := rfc.FixtureProof(root, rfc.FixtureStem, map[string]string{"2:1": "RFC9999-2-1"}); err != nil {
+		t.Fatal(err)
+	}
 	output := t.TempDir()
 	writePartialPublicationFile(t, output, rfcDataDir+"/rfc0001.json", "{}\n")
 	if err := publishRFCData(Paths{Repository: root, Output: output}); err != nil {
@@ -265,14 +276,41 @@ func TestDataIndexAndFilesAgree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := rfcStemDataOf("rfc9999", input.Metas["rfc9999"], figures["rfc9999"])
-	if err != nil {
-		t.Fatal(err)
+	model := figures["rfc9999"]
+	if !model.Walked {
+		t.Fatal("the signed-off stem is not walked, so its counts would not be published")
 	}
 	var got rfcStemData
 	readPublishedJSON(t, output, index.RFCs[0].File, &got)
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("published file differs from the model\n got: %+v\nwant: %+v", got, want)
+	if !got.Walked || got.Must == nil || got.Should == nil {
+		t.Fatalf("the walked stem published no counts: %+v", got)
+	}
+	wantMust := rfcMustCounts{Total: 1, Kept: 1, ZeGap: 1, NotOwedByKind: map[string]int{}}
+	if !reflect.DeepEqual(*got.Must, wantMust) {
+		t.Errorf("published MUST counts\n got: %+v\nwant: %+v", *got.Must, wantMust)
+	}
+	wantShould := rfcShouldCounts{NotOwedByKind: map[string]int{}}
+	if !reflect.DeepEqual(*got.Should, wantShould) {
+		t.Errorf("published SHOULD counts\n got: %+v\nwant: %+v", *got.Should, wantShould)
+	}
+	for _, pair := range []struct {
+		field     string
+		got, want int
+	}{
+		{"must.total", got.Must.Total, model.Mandatory.Total},
+		{"must.ze-proven", got.Must.ZeProven, model.Mandatory.Proven},
+		{"must.os-verified", got.Must.OSVerified, model.OSVerified},
+		{"must.os-gap", got.Must.OSGap, model.OSGap},
+		{"must.ze-gap", got.Must.ZeGap, model.Mandatory.Attainable - model.Mandatory.Proven},
+		{"should.total", got.Should.Total, model.Optional.Total},
+		{"should.proven", got.Should.Proven, model.Optional.Proven},
+		{"should.not-ever", got.Should.NotEver, model.NotEver},
+		{"should.not-yet", got.Should.NotYet, model.NotYet},
+		{"should.not-decided", got.Should.NotDecided, model.NotDecided},
+	} {
+		if pair.got != pair.want {
+			t.Errorf("%s is %d, the model states %d", pair.field, pair.got, pair.want)
+		}
 	}
 	if !slices.Equal(got.Unmet, []string{"RFC9999-2-1"}) {
 		t.Fatalf("the gap row is not disclosed: %+v", got.Unmet)
@@ -334,5 +372,88 @@ func TestTheNativeRefreshPublishesTheRFCData(t *testing.T) {
 	}
 	if script := readArtifact(t, output, "assets/rfc-figures.js"); script != "window.zeRFCFigures = {};\n" {
 		t.Fatalf("assets/rfc-figures.js published as %q", script)
+	}
+}
+
+// rfcBarsGolden is the bar layout and one per-RFC file as this package writes
+// them. internal/le/site/browsertest reads it as its index and checks its own
+// per-RFC fixtures against the sample's keys, so the browser test draws the
+// layout the build publishes rather than a copy of it.
+const rfcBarsGolden = "testdata/rfc-bars.json"
+
+// updateRFCBars rewrites rfcBarsGolden from the code instead of comparing.
+var updateRFCBars = flag.Bool("update", false, "rewrite testdata/rfc-bars.json from rfcBars and a sample per-RFC file")
+
+// rfcBarsGoldenContent is what rfcBarsGolden must hold: rfcBars and the
+// per-RFC file of fixtureFigures.
+func rfcBarsGoldenContent(t *testing.T) []byte {
+	t.Helper()
+	stem, err := rfcStemDataOf("rfc9999", rfc.Meta{Title: "Widgets"}, fixtureFigures())
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := json.MarshalIndent(map[string]any{"bars": rfcBars, "stem": stem}, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return append(content, '\n')
+}
+
+// TestTheBarLayoutGoldenIsCurrent proves the golden the browser test reads is
+// the layout and the per-RFC file shape this package publishes.
+//
+// Method: marshal rfcBars and a sample per-RFC file and compare them with the
+// golden byte for byte; with -update, write the golden instead.
+func TestTheBarLayoutGoldenIsCurrent(t *testing.T) {
+	want := rfcBarsGoldenContent(t)
+	if *updateRFCBars {
+		if err := os.WriteFile(rfcBarsGolden, want, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	got, err := os.ReadFile(rfcBarsGolden)
+	if err != nil {
+		t.Fatalf("read %s: %v. Write it with: ./le job run label unit-pkg command go test -run TestTheBarLayoutGoldenIsCurrent ./internal/le/site/ -args -update", rfcBarsGolden, err)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("%s is stale: rfcBars or the per-RFC file changed, so the browser test draws an old layout.\n"+
+			"Refresh it with: ./le job run label unit-pkg command go test -run TestTheBarLayoutGoldenIsCurrent ./internal/le/site/ -args -update\n"+
+			" got: %s\nwant: %s", rfcBarsGolden, got, want)
+	}
+}
+
+// TestSplitExcludedKeepsTheOSRowsByKind proves splitExcluded answers the rows a
+// lower layer performs by their own annotation kind, apart from the rows not
+// owed, so a SHOULD file files each OS row under the kind that excluded it
+// rather than under one assumed kind.
+//
+// Method: one lower-layer and one not-applicable count; then the SHOULD split
+// of figures whose optional exclusions hold both.
+func TestSplitExcludedKeepsTheOSRowsByKind(t *testing.T) {
+	osRows, notOwed, err := splitExcluded("rfc9999", map[string]int{
+		rfc.AnnotationLowerLayer: 5, rfc.AnnotationNotApplicable: 4,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(osRows, map[string]int{rfc.AnnotationLowerLayer: 5}) {
+		t.Errorf("OS rows by kind: %v", osRows)
+	}
+	if !reflect.DeepEqual(notOwed, map[string]int{rfc.AnnotationNotApplicable: 4}) {
+		t.Errorf("not-owed rows by kind: %v", notOwed)
+	}
+	figures := fixtureFigures()
+	figures.Optional = rfc.Figure{Proven: 1, Total: 10, Attainable: 5, Excluded: map[string]int{
+		rfc.AnnotationNotApplicable: 2, rfc.AnnotationLowerLayer: 3,
+	}}
+	figures.NotYet, figures.NotEver, figures.NotDecided = 2, 1, 1
+	should, err := rfcShouldCountsOf("rfc9999", &figures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]int{rfc.AnnotationNotApplicable: 2, rfc.AnnotationLowerLayer: 3}
+	if should.NotOwed != 5 || !reflect.DeepEqual(should.NotOwedByKind, want) {
+		t.Errorf("SHOULD not owed %d by kind %v, want 5 by kind %v", should.NotOwed, should.NotOwedByKind, want)
 	}
 }
