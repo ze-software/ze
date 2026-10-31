@@ -106,7 +106,7 @@ The included test runner benchmarks all eight supported implementations in Docke
 
 | DUT | Image | Config | Forwarding mechanism |
 |-----|-------|--------|---------------------|
-| Ze | ze-interop (built) | `test/perf/configs/ze.conf` | bgp-rs plugin |
+| Ze | ze-interop (built) | `test/perf/configs/ze.conf` | bgp-rs plugin, import and export `final accept` (RFC 8212 refuses an EBGP direction with no policy) |
 | FRR | quay.io/frrouting/frr:10.7.1, pinned by digest (`interoplab.FRRImage`) | `test/perf/configs/frr.conf` | route-map PERMIT |
 | BIRD | bird-interop (built) | `test/perf/configs/bird.conf` | import/export all |
 | GoBGP | gobgp-interop (built) | `test/perf/configs/gobgp.toml` | default accept policy |
