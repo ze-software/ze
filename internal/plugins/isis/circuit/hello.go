@@ -146,25 +146,36 @@ func (c *Circuit) isNeighborsTLV(snpas []adjacency.SNPA) packet.TLV {
 	return packet.TLV{Type: packet.TLVISNeighbors, Value: val}
 }
 
+// p2pNeighbor is what our TLV 240 echoes about the P2P neighbor: its System ID
+// and the Extended Local Circuit ID it reported for its end of the link.
+type p2pNeighbor struct {
+	systemID          types.SystemID
+	extendedCircuitID uint32
+}
+
 // threeWayTLV builds TLV 240 (P2P only) reporting our three-way state and, when
-// we have heard the neighbor, echoing its System ID so it can complete the
-// handshake (RFC 5303 sec 3.1). The value layout is: 1-octet state + 4-octet
-// extended local circuit ID + (when haveNeighbor) 6-octet neighbor System ID +
-// 4-octet neighbor extended circuit ID. We always emit the extended local
-// circuit ID (the 5- or 15-octet form), never the bare 1-octet form, so a peer
-// can match our circuit. The 15-octet form (with the neighbor echo) is what
-// proves to the neighbor that we have heard it.
-func (c *Circuit) threeWayTLV(state packet.AdjThreeWayState, neighborID types.SystemID, haveNeighbor bool) packet.TLV {
+// we know the neighbor's System ID and Extended Local Circuit ID, echoing both so
+// it can complete the handshake (RFC 5303 sec 3.2). The value layout is: 1-octet
+// state + 4-octet extended local circuit ID + (when haveNeighbor) 6-octet
+// neighbor System ID + 4-octet neighbor extended circuit ID. We always emit the
+// extended local circuit ID (the 5- or 15-octet form), never the bare 1-octet
+// form, so a peer can match our circuit. The 15-octet form (with the neighbor
+// echo) is what proves to the neighbor that we have heard it, and the neighbor
+// discards it unless both echoed fields name it (RFC 5303 sec 3.2).
+func (c *Circuit) threeWayTLV(state packet.AdjThreeWayState, neighbor p2pNeighbor, haveNeighbor bool) packet.TLV {
 	val := make([]byte, 0, p2pThreeWayValueMaxLen)
 	val = append(val, byte(state))
 	cid := uint32(c.localCircuitID)
 	val = append(val, byte(cid>>24), byte(cid>>16), byte(cid>>8), byte(cid))
 	if haveNeighbor {
-		val = append(val, neighborID[:]...)
-		// Neighbor extended circuit ID: we do not track it separately, so echo 0;
-		// RFC 5303 makes the System ID echo the load-bearing proof of having heard
-		// the neighbor.
-		val = append(val, 0, 0, 0, 0)
+		// RFC 5303 Section 3.2: "If the system ID and Extended Local Circuit ID
+		// of the neighboring system are known (in adjacency three-way state
+		// Initializing or Up), the neighbor's system ID SHALL be reported in the
+		// Neighbor System ID field, and the neighbor's Extended Local Circuit ID
+		// SHALL be reported in the Neighbor Extended Local Circuit ID field."
+		val = append(val, neighbor.systemID[:]...)
+		ncid := neighbor.extendedCircuitID
+		val = append(val, byte(ncid>>24), byte(ncid>>16), byte(ncid>>8), byte(ncid))
 	}
 	return packet.TLV{Type: packet.TLVP2PThreeWay, Value: val}
 }
@@ -198,9 +209,9 @@ func (c *Circuit) buildLANHello(level adjacency.Level, snpas []adjacency.SNPA, p
 }
 
 // buildP2PHello assembles a full P2P IIH (without padding) carrying the
-// origination TLVs and TLV 240. state/neighborID/haveNeighbor describe our
+// origination TLVs and TLV 240. state/neighbor/haveNeighbor describe our
 // three-way state toward the single P2P neighbor.
-func (c *Circuit) buildP2PHello(state packet.AdjThreeWayState, neighborID types.SystemID, haveNeighbor bool, padMTU int) []byte {
+func (c *Circuit) buildP2PHello(state packet.AdjThreeWayState, neighbor p2pNeighbor, haveNeighbor bool, padMTU int) []byte {
 	h := packet.P2PHello{
 		CircuitType: c.circuitTypeField(),
 		SystemID:    c.systemID,
@@ -212,7 +223,7 @@ func (c *Circuit) buildP2PHello(state packet.AdjThreeWayState, neighborID types.
 		// (HelloSchedules), which is the period this IIH really goes out at.
 		HoldingTime:    types.HoldingTime(c.holdTime(c.p2pPreferredLevel())),
 		LocalCircuitID: c.localCircuitID,
-		TLVs:           append(c.originationTLVs(), c.threeWayTLV(state, neighborID, haveNeighbor)),
+		TLVs:           append(c.originationTLVs(), c.threeWayTLV(state, neighbor, haveNeighbor)),
 	}
 	encodedLen := h.EncodedLen()
 	buf := make([]byte, encodedLen, max(encodedLen, padMTU))

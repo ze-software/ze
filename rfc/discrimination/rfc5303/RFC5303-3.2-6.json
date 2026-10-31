@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5303-3.2-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/circuit/rfc5303_neighbor_circuit_echo_test.go::TestRFC5303SentIIHEchoesNeighborExtendedCircuitID",
+    "unit-sha": "3e12a7d1bd53a149",
+    "claim-sha": "2058cf259b3f589b",
+    "route": "revert",
+    "producer": "internal/plugins/isis/adjacency/fsm.go::updateThreeWay",
+    "producer-sha": "e9ed6daa9b6fb280",
+    "break": "body of updateThreeWay replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5303-3.2-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/circuit/rfc5303_neighbor_circuit_echo_test.go::TestRFC5303SentIIHNoEchoWithoutNeighborExtendedCircuitID",
+    "unit-sha": "c44412e90abd0390",
+    "claim-sha": "4484d5bdb6ad6fcf",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
+    "producer-sha": "b7d5e42798cfdc81",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

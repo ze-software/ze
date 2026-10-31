@@ -26,7 +26,7 @@ func TestISISP2PThreeWayStateFieldIncluded(t *testing.T) {
 	for _, state := range []packet.AdjThreeWayState{
 		packet.AdjThreeWayUp, packet.AdjThreeWayInitializing, packet.AdjThreeWayDown,
 	} {
-		tlv := c.threeWayTLV(state, nbr, true)
+		tlv := c.threeWayTLV(state, p2pNeighbor{systemID: nbr}, true)
 		if tlv.Type != packet.TLVP2PThreeWay {
 			t.Fatalf("state %d: TLV type = %d, want %d", state, tlv.Type, packet.TLVP2PThreeWay)
 		}
@@ -53,7 +53,7 @@ func TestISISP2PThreeWayStateFieldIncluded(t *testing.T) {
 // the state field when the optional neighbor fields are absent (RFC 5303 sec 3.1).
 func TestISISP2PThreeWayStateFieldPresentWithoutNeighbor(t *testing.T) {
 	c := &Circuit{localCircuitID: 7}
-	tlv := c.threeWayTLV(packet.AdjThreeWayDown, types.SystemID{}, false)
+	tlv := c.threeWayTLV(packet.AdjThreeWayDown, p2pNeighbor{}, false)
 
 	dec, err := packet.DecodeP2PThreeWayTLV(tlv.Value)
 	if err != nil {
@@ -132,7 +132,7 @@ func newThreeWayCircuit(localCircuitID uint8) *Circuit {
 func TestISISP2PIIHCarriesThreeWayOption(t *testing.T) {
 	c := newThreeWayCircuit(7)
 
-	p2p := c.buildP2PHello(packet.AdjThreeWayDown, types.SystemID{}, false, 0)
+	p2p := c.buildP2PHello(packet.AdjThreeWayDown, p2pNeighbor{}, false, 0)
 	if _, ok := p2pHelloTLV240(t, p2p); !ok {
 		t.Fatal("point-to-point IIH does not carry the TLV 240 three-way option")
 	}
@@ -208,7 +208,7 @@ func TestISISThreeWayDownWhenNoAdjacency(t *testing.T) {
 // emit different Extended Local Circuit ID values.
 func TestISISThreeWayExtendedLocalCircuitID(t *testing.T) {
 	c := newThreeWayCircuit(7)
-	dec, ok := p2pHelloTLV240(t, c.buildP2PHello(packet.AdjThreeWayDown, types.SystemID{}, false, 0))
+	dec, ok := p2pHelloTLV240(t, c.buildP2PHello(packet.AdjThreeWayDown, p2pNeighbor{}, false, 0))
 	if !ok {
 		t.Fatal("point-to-point IIH does not carry TLV 240")
 	}
@@ -217,7 +217,7 @@ func TestISISThreeWayExtendedLocalCircuitID(t *testing.T) {
 	}
 
 	other := newThreeWayCircuit(42)
-	dec2, _ := p2pHelloTLV240(t, other.buildP2PHello(packet.AdjThreeWayDown, types.SystemID{}, false, 0))
+	dec2, _ := p2pHelloTLV240(t, other.buildP2PHello(packet.AdjThreeWayDown, p2pNeighbor{}, false, 0))
 	if dec2.LocalCircuitID == dec.LocalCircuitID {
 		t.Fatalf("two circuits emitted the same Extended Local Circuit ID %d", dec2.LocalCircuitID)
 	}
@@ -233,12 +233,12 @@ func TestISISThreeWayReportsNeighborSystemID(t *testing.T) {
 	peer := types.SystemID{0, 0, 0, 0, 0, 9}
 	c := newThreeWayCircuit(7)
 
-	dec, _ := p2pHelloTLV240(t, c.buildP2PHello(packet.AdjThreeWayUp, peer, true, 0))
+	dec, _ := p2pHelloTLV240(t, c.buildP2PHello(packet.AdjThreeWayUp, p2pNeighbor{systemID: peer}, true, 0))
 	if !dec.HasNeighbor || dec.NeighborID != peer {
 		t.Fatalf("Neighbor System ID echo = %v (present=%v), want %v", dec.NeighborID, dec.HasNeighbor, peer)
 	}
 
-	dec2, _ := p2pHelloTLV240(t, c.buildP2PHello(packet.AdjThreeWayDown, types.SystemID{}, false, 0))
+	dec2, _ := p2pHelloTLV240(t, c.buildP2PHello(packet.AdjThreeWayDown, p2pNeighbor{}, false, 0))
 	if dec2.HasNeighbor {
 		t.Fatal("Neighbor System ID field emitted when no neighbor is known")
 	}

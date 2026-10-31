@@ -8,7 +8,7 @@
     "route": "revert",
     "producer": "internal/plugins/isis/adjacency/fsm.go::threeWayTableAction",
     "producer-sha": "a6818b6a91423daa",
-    "break": "body of threeWayTableAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of threeWayTableAction replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5303-3.2-10",
@@ -19,7 +19,7 @@
     "route": "revert",
     "producer": "internal/plugins/isis/adjacency/fsm.go::threeWayTableAction",
     "producer-sha": "a6818b6a91423daa",
-    "break": "body of threeWayTableAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of threeWayTableAction replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5303-3.2-10",
@@ -29,8 +29,8 @@
     "claim-sha": "b95df8501e932020",
     "route": "revert",
     "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
-    "producer-sha": "ff7005409d43b373",
-    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b7d5e42798cfdc81",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5303-3.2-10",
@@ -40,7 +40,7 @@
     "claim-sha": "aace071a6d57ab17",
     "route": "revert",
     "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
-    "producer-sha": "ff7005409d43b373",
-    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b7d5e42798cfdc81",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

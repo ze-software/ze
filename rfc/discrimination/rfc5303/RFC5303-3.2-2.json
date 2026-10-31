@@ -7,8 +7,8 @@
     "claim-sha": "42052adc907cfafe",
     "route": "revert",
     "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
-    "producer-sha": "ff7005409d43b373",
-    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b7d5e42798cfdc81",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5303-3.2-2",
@@ -18,8 +18,8 @@
     "claim-sha": "c837c34dba158ba1",
     "route": "revert",
     "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
-    "producer-sha": "ff7005409d43b373",
-    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b7d5e42798cfdc81",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5303-3.2-2",
@@ -29,8 +29,8 @@
     "claim-sha": "b5e3f6434176c2cf",
     "route": "revert",
     "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
-    "producer-sha": "ff7005409d43b373",
-    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b7d5e42798cfdc81",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5303-3.2-2",
@@ -40,7 +40,7 @@
     "claim-sha": "f564902876ede9f1",
     "route": "revert",
     "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
-    "producer-sha": "ff7005409d43b373",
-    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b7d5e42798cfdc81",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

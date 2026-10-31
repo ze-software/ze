@@ -388,9 +388,9 @@ func (c *Circuit) sendP2PHello(mtu int) error {
 	if err := c.sendISH(); err != nil {
 		return err
 	}
-	state, neighborID, haveNeighbor, adjLevel := c.p2pThreeWayState()
+	state, neighbor, haveNeighbor, adjLevel := c.p2pThreeWayState()
 	mtu = c.helloPaddingTarget(adjLevel, mtu)
-	pdu := c.buildP2PHello(state, neighborID, haveNeighbor, mtu)
+	pdu := c.buildP2PHello(state, neighbor, haveNeighbor, mtu)
 	pdu = padHello(pdu, mtu)
 	// Sign AFTER padding, BEFORE framing (spec-isis-10). A P2P IIH is
 	// level-agnostic on the wire (one PDU type, no level bit: RFC 1195 sec 5.3
@@ -422,15 +422,17 @@ func (c *Circuit) p2pPreferredLevel() adjacency.Level {
 // p2pThreeWayState reports our RFC 5303 three-way state toward the P2P neighbor
 // for our outgoing TLV 240: Up when our adjacency is Up, Initializing when we
 // have heard the neighbor but not yet completed the handshake, Down when we have
-// no adjacency. haveNeighbor is set (echoing the neighbor's System ID) once we
-// have heard a Hello, which is the proof the neighbor needs to reach Up. The
-// returned level is the active adjacency's NEGOTIATED level (the IIH signing
-// chain selector); it is the circuit's preferred P2P level when there is no
-// active adjacency yet.
-func (c *Circuit) p2pThreeWayState() (packet.AdjThreeWayState, types.SystemID, bool, adjacency.Level) {
+// no adjacency. haveNeighbor is set once we have heard a Hello whose TLV 240
+// carried the neighbor's Extended Local Circuit ID: only then are both fields
+// the echo needs known, and the echo is the proof the neighbor needs to reach
+// Up. A neighbor that sends no TLV 240, or the 1-octet form, gets our state
+// with no echo. The returned level is the active adjacency's NEGOTIATED level
+// (the IIH signing chain selector); it is the circuit's preferred P2P level
+// when there is no active adjacency yet.
+func (c *Circuit) p2pThreeWayState() (packet.AdjThreeWayState, p2pNeighbor, bool, adjacency.Level) {
 	var (
 		state        = packet.AdjThreeWayDown
-		neighborID   types.SystemID
+		neighbor     p2pNeighbor
 		haveNeighbor bool
 		level        = c.p2pPreferredLevel()
 	)
@@ -441,8 +443,11 @@ func (c *Circuit) p2pThreeWayState() (packet.AdjThreeWayState, types.SystemID, b
 		if a.ISHOnly {
 			return
 		}
-		haveNeighbor = true
-		neighborID = a.SystemID
+		// RFC 5303 Section 3.2: "If the system ID and Extended Local Circuit ID
+		// of the neighboring system are known (in adjacency three-way state
+		// Initializing or Up), the neighbor's system ID SHALL be reported".
+		neighbor.systemID = a.SystemID
+		neighbor.extendedCircuitID, haveNeighbor = a.NeighborExtendedCircuitID()
 		// The negotiated level the FSM stored on the active P2P adjacency
 		// (adj.Level = in.Level, from p2pLevel) selects the IIH auth chain.
 		level = a.Level
@@ -452,7 +457,7 @@ func (c *Circuit) p2pThreeWayState() (packet.AdjThreeWayState, types.SystemID, b
 			state = packet.AdjThreeWayInitializing
 		}
 	})
-	return state, neighborID, haveNeighbor, level
+	return state, neighbor, haveNeighbor, level
 }
 
 // downEvent pairs a session-down transition with the snapshot captured under the

@@ -368,6 +368,9 @@ func applyThreeWayAction(adj *Adjacency, action threeWayAction, now time.Time) {
 // sawTLV240 false so the legacy fall-back applies; once it sends one the
 // sec 3.2 state table decides every later Hello. neighborNamesOther is set
 // when the neighbor's TLV 240 carries a Neighbor System ID that is not ours.
+// The neighbor's Extended Local Circuit ID is stored from every TLV 240 that
+// carries one, and forgotten on one that does not, so the echo in our own
+// TLV 240 always names the circuit the neighbor last reported.
 func updateThreeWay(adj *Adjacency, local Local, in HelloInput) {
 	if !in.HasThreeWay {
 		return
@@ -375,6 +378,14 @@ func updateThreeWay(adj *Adjacency, local Local, in HelloInput) {
 	adj.sawTLV240 = true
 	adj.reportedState = in.ThreeWay.State
 	adj.neighborNamesOther = in.ThreeWay.HasNeighbor && in.ThreeWay.NeighborID != local.SystemID
+	// RFC 5303 Section 3.2: "If the system ID and Extended Local Circuit ID of
+	// the neighboring system are known (in adjacency three-way state
+	// Initializing or Up), the neighbor's system ID SHALL be reported in the
+	// Neighbor System ID field, and the neighbor's Extended Local Circuit ID
+	// SHALL be reported in the Neighbor Extended Local Circuit ID field."
+	// Storing the received value is what makes it known.
+	adj.extendedCircuitID = in.ThreeWay.LocalCircuitID
+	adj.extendedCircuitKnown = in.ThreeWay.HasCircuitID
 }
 
 // classify maps a (previous, next) state pair to the session event flags.

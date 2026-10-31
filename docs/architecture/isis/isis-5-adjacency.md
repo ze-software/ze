@@ -80,6 +80,20 @@ being discarded (RFC5303-3.2-9).
 <!-- source: internal/plugins/isis/adjacency/fsm.go -- ReceiveHello -->
 <!-- source: internal/plugins/isis/circuit/runtime.go -- handleP2PHello -->
 
+The TLV 240 Ze sends always carries its own Extended Local Circuit ID. Once the
+neighbor's TLV 240 has carried the neighbor's Extended Local Circuit ID, Ze also
+echoes the neighbor's System ID and that circuit ID, each P2P circuit from its
+own adjacency (RFC5303-3.2-5, RFC5303-3.2-6). A neighbor that sends no TLV 240,
+or only the 1-octet form, gets Ze's state with no echo, because RFC 5303
+section 3.2 reports the neighbor fields only when both are known. FRR discards
+an IIH whose echoed circuit ID is not its own circuit index
+(`process_p2p_hello`), so an echo of a constant would form no adjacency on any
+FRR circuit whose index is not 0.
+
+<!-- source: internal/plugins/isis/adjacency/fsm.go -- updateThreeWay -->
+<!-- source: internal/plugins/isis/circuit/runtime.go -- p2pThreeWayState -->
+<!-- source: internal/plugins/isis/circuit/hello.go -- threeWayTLV -->
+
 
 ## Decision: padding is owned by the engine
 

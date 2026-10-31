@@ -138,6 +138,13 @@ type Adjacency struct {
 	reportedState      packet.AdjThreeWayState
 	neighborNamesOther bool
 	sawTLV240          bool
+	// extendedCircuitID is the neighbor's Extended Local Circuit ID from its
+	// last TLV 240, which our own TLV 240 echoes back in the Neighbor Extended
+	// Local Circuit ID field (RFC 5303 sec 3.2). extendedCircuitKnown records
+	// that the neighbor sent one: a TLV 240 in the 1-octet form carries none,
+	// and zero is a valid circuit ID, so the value alone cannot say it is known.
+	extendedCircuitID    uint32
+	extendedCircuitKnown bool
 
 	// deleteAt is when the record is purged after going Down. Zero while Up or
 	// Initializing; set when the adjacency drops, to hold the record through the
@@ -147,3 +154,10 @@ type Adjacency struct {
 
 // IsUp reports whether the adjacency is in the Up state.
 func (a *Adjacency) IsUp() bool { return a.State == StateUp }
+
+// NeighborExtendedCircuitID returns the Extended Local Circuit ID the neighbor
+// reported in its last TLV 240, and whether it reported one. A P2P circuit
+// echoes it in its own TLV 240, and only when it is known (RFC 5303 sec 3.2).
+func (a *Adjacency) NeighborExtendedCircuitID() (uint32, bool) {
+	return a.extendedCircuitID, a.extendedCircuitKnown
+}
