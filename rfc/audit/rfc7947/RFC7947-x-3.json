@@ -1,17 +1,17 @@
 {
-  "note": "RFC 7947 Section 2.2.3: \"Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value.\" TestReactorForwardRSTransparent requires body identity with MED 100; TestForwardKeepsMEDForRouteServerClient pins no MED operation/no rebuild; med-not-propagated-across-as.ci separately compares complete actual UPDATEs at an RS client (MED retained unchanged) and ordinary eBGP destination (MED absent). applyFactsMED uses the RS destination exception and otherwise records suppression of a received, unmodified metric. Thus both propagation and unchanged value are asserted, and preserving MED for all destinations would fail the negative. No source capability was widened. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): \"Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value.\" The only edit to test/plugin/med-not-propagated-across-as.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "91cb65f9bb46cfd0",
   "tests": {
-    "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsMEDForRouteServerClient": "677aec0a7e53cb68",
-    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "0ebebd910ef51e13",
-    "test/plugin/med-not-propagated-across-as.ci": "7ddd56d72dc48f9a",
-    "test/plugin/med-not-propagated-across-as.ci#2": "7ddd56d72dc48f9a"
+    "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsMEDForRouteServerClient": "a0dd0281b27d0572",
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "016010e177d39707",
+    "test/plugin/med-not-propagated-across-as.ci": "645c67f92099c212",
+    "test/plugin/med-not-propagated-across-as.ci#2": "645c67f92099c212"
   },
   "units": {
     "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsMEDForRouteServerClient": "35e5ce69bc0a0fa6",
     "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b6c7cccf999cf20e",
-    "test/plugin/med-not-propagated-across-as.ci": "7ddd56d72dc48f9a",
-    "test/plugin/med-not-propagated-across-as.ci#2": "7ddd56d72dc48f9a"
+    "test/plugin/med-not-propagated-across-as.ci": "645c67f92099c212",
+    "test/plugin/med-not-propagated-across-as.ci#2": "645c67f92099c212"
   },
   "verdict": "enforced"
 }
