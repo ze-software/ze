@@ -301,7 +301,10 @@ func runISISEngine(conn net.Conn) int {
 		pendingCfg Config
 		// pendingExport is the export chain of pendingCfg's commit.
 		pendingExport exportChainConfig
-		havePending   bool
+		// exports is the export chain installed and the one it replaced, for
+		// OnConfigRollback.
+		exports     exportChainSlot
+		havePending bool
 		// redistConsumer is the redistribution consumer OnStarted registered,
 		// nil before it. A config apply that installs a new export chain
 		// re-judges the routes it already holds.
@@ -347,6 +350,7 @@ func runISISEngine(conn net.Conn) int {
 		}
 		cfgMu.Lock()
 		activeCfg = cfg
+		exports.active = export
 		cfgMu.Unlock()
 		export.install()
 		eng.setConfig(cfg)
@@ -359,9 +363,10 @@ func runISISEngine(conn net.Conn) int {
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		cfgMu.Lock()
 		installed := havePending
+		exports.disarm()
 		if havePending {
 			activeCfg = pendingCfg
-			pendingExport.install()
+			exports.adopt(pendingExport)
 			havePending = false
 		}
 		cfg := activeCfg
@@ -373,6 +378,20 @@ func runISISEngine(conn net.Conn) int {
 			consumer.Rejudge(context.Background())
 		}
 		eng.reconcile(cfg)
+		return nil
+	})
+
+	// OnConfigRollback: a transaction that fails after this plugin applied it
+	// takes its export chain back, so the chain of the config still running
+	// judges the routes IS-IS holds again.
+	p.OnConfigRollback(func(_ string) error {
+		cfgMu.Lock()
+		restored := exports.restore()
+		consumer := redistConsumer
+		cfgMu.Unlock()
+		if restored && consumer != nil {
+			consumer.Rejudge(context.Background())
+		}
 		return nil
 	})
 

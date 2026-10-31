@@ -184,11 +184,11 @@ switch (`ai/rules/principles.md`).
 | `next-hop` | address | C | C | C | - (none: connected names no next-hop) | C | C | C | C |
 | `interface` | name | C | C | C (when configured) | C | - | - | - | - |
 | `metric` | uint32 | C (SPF metric) | C (SPF cost) | C (when configured) | - | C (MED as published) | C | C | C (MED) |
-| `tag` | uint32 | - (A-8: Ze's IS-IS has no RFC 5130 admin tag) | C (external route tag) | C (`tag` leaf) | - | - | C | C (OSPF only) | - |
-| `level` | 1 or 2 | C | - | - | - | - | - | C (IS-IS consumer only) | - |
-| `route-type` | intra-area, inter-area, external-1, external-2, nssa-1, nssa-2 | - | C | - | - | - | - | C (OSPF consumer only) | - |
-| `origin-as` | uint32 | - | - | - | - | - | C (redistevents entry) | C | C (from AS_PATH) |
-| `community`, `large-community`, `extended-community` | lists | - | - | - | - | - | C (batch community) | - | C |
+| `tag` | uint32 | - (A-8: Ze's IS-IS has no RFC 5130 admin tag) | C (external route tag) | C (`tag` leaf) | - | - | C | C (both: the redistributed route's tag, after the import chain's `set tag`, 6934ae5bff) | - |
+| `level` | 1 or 2 | C | - | - | - | - | - | - (the level is where IS-IS injects, not a field the route arrives with) | - |
+| `route-type` | intra-area, inter-area, external-1, external-2, nssa-1, nssa-2 | - | C | - | - | - | - | - (never set on a redistributed route view, 6934ae5bff) | - |
+| `origin-as` | uint32 | - | - | - | - | - | - (`ribpolicy.Route` holds none, 6934ae5bff) | - (same) | C (from AS_PATH) |
+| `community`, `large-community`, `extended-community` | lists | - | - | - | - | - | - (`ribpolicy.Route` holds none, 6934ae5bff) | - | C |
 | `as-path` | AS path | - | - | - | - | - | - | - | C |
 | `local-preference`, `origin`, `aigp`, `med` | BGP attributes | - | - | - | - | - | - | - | C |
 
@@ -202,9 +202,9 @@ Decisions, "BGP import stays ingress").
 |------------|---|---|---|---|---|
 | `distance` (0-255) | allowed: writes `DistanceOverride` | - | - | - | - |
 | `tag` | allowed: replaces the path's tag | allowed | - (no RFC 5130 admin tag, A-8) | allowed (external route tag) | - |
-| `metric` | - (metric ranks within a protocol; the producer owns it) | allowed | allowed (wide metric range) | allowed (0-16777215) | `med` as today |
+| `metric` | - (metric ranks within a protocol; the producer owns it) | allowed (the IGP's starting metric, which its export chain's `set metric` replaces) | allowed (wide metric range) | allowed (above 16777215 saturates at LSInfinity) | `med` as today |
 | `metric-type` | - | - | - | allowed (1 or 2) | - |
-| `level` | - | - | allowed (1 or 2) | - | - |
+| `level` | - | - | - (no filter sets a level the consumer could honour) | - | - |
 | BGP attribute sets of `modify` (`local-preference`, `community-add`, ...) | - | - | - | - | allowed, unchanged |
 
 ### Fields each filter type reads and sets

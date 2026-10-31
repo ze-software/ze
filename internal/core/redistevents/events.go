@@ -145,9 +145,12 @@ type RouteChangeEntry struct {
 	// Zero means "this route carries no tag". Every producer already treats the two
 	// as one value -- an absent `tag` leaf parses to zero, `show static route` omits
 	// a zero tag, and zero is the OSPF default external route tag -- so the pool's
-	// clear() leaves an entry saying exactly what an unconfigured route says. The
-	// reliance on that zero is a guard, and it is named where it is read
-	// (externalRouteTag, internal/plugins/ospf/redist_wiring.go), never inline.
+	// clear() leaves an entry saying exactly what an unconfigured route says. No
+	// reader treats zero as absent: the redistribute import chain matches it as a
+	// tag like any other (`match tag [ 0 ]` selects the untagged routes,
+	// redistRoute in internal/plugins/redistribute/redistribute.go), and the OSPF
+	// consumer writes it verbatim (exportVerdict,
+	// internal/plugins/ospf/redistribute/export.go).
 	// Value type; reset by the pool's clear(); no allocation.
 	Tag uint32
 

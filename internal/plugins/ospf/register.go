@@ -462,7 +462,10 @@ func runOSPFEngine(conn net.Conn) int {
 		pendingCfg ospfConfig
 		// pendingExport is the export chain of pendingCfg's commit.
 		pendingExport exportChainConfig
-		havePending   bool
+		// exports is the export chain installed and the one it replaced, for
+		// OnConfigRollback.
+		exports     exportChainSlot
+		havePending bool
 		// redistConsumer is the redistribution consumer OnStarted registered,
 		// nil before it. A config apply that installs a new export chain
 		// re-judges the routes it already holds.
@@ -517,6 +520,9 @@ func runOSPFEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
+		cfgMu.Lock()
+		exports.active = export
+		cfgMu.Unlock()
 		export.install()
 		cfgMu.Lock()
 		activeCfg = cfg
@@ -532,9 +538,10 @@ func runOSPFEngine(conn net.Conn) int {
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		cfgMu.Lock()
 		installed := havePending
+		exports.disarm()
 		if havePending {
 			activeCfg = pendingCfg
-			pendingExport.install()
+			exports.adopt(pendingExport)
 			havePending = false
 		}
 		cfg := activeCfg
@@ -549,6 +556,20 @@ func runOSPFEngine(conn net.Conn) int {
 			return err
 		}
 		return v6set.apply(cfg.v6Families(), cfg.multiAF())
+	})
+
+	// OnConfigRollback: a transaction that fails after this plugin applied it
+	// takes its export chain back, so the chain of the config still running
+	// judges the routes OSPF holds again.
+	p.OnConfigRollback(func(_ string) error {
+		cfgMu.Lock()
+		restored := exports.restore()
+		consumer := redistConsumer
+		cfgMu.Unlock()
+		if restored && consumer != nil {
+			consumer.Rejudge(context.Background())
+		}
+		return nil
 	})
 
 	p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {

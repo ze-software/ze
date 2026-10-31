@@ -1,6 +1,6 @@
 // Design: docs/guide/redistribution.md -- the OSPF export chain over redistributed routes
 // Related: redistribute/export.go -- SetExportChain and the consumer's judgment
-// Related: register.go -- parses the chain at verify and installs it at configure and apply
+// Related: register.go -- parses the chain at verify, installs it at configure and apply, restores it at rollback
 
 package ospf
 
@@ -28,6 +28,46 @@ func (c exportChainConfig) install() {
 		return
 	}
 	ospfredistribute.SetExportChain(c.chain)
+}
+
+// exportChainSlot holds the export chain the running config installed and the
+// one it replaced, so a config transaction rolled back after its apply puts the
+// chain of the config still running back. Not safe for concurrent use: the
+// caller holds cfgMu.
+type exportChainSlot struct {
+	active   exportChainConfig
+	previous exportChainConfig
+	// armed is true from an apply that installed a chain until the next apply
+	// or a rollback: only such an apply has a chain to take back.
+	armed bool
+}
+
+// adopt installs next as the chain of a config apply, keeping the chain it
+// replaces for restore.
+func (s *exportChainSlot) adopt(next exportChainConfig) {
+	s.previous = s.active
+	s.active = next
+	s.armed = true
+	next.install()
+}
+
+// disarm marks an apply that installed no chain: a rollback of it has nothing
+// to restore.
+func (s *exportChainSlot) disarm() {
+	s.armed = false
+}
+
+// restore installs the chain the last apply replaced, answering true when it
+// did. The caller MUST call Consumer.Rejudge after a true answer, because the
+// routes already offered were judged by the chain being taken back.
+func (s *exportChainSlot) restore() bool {
+	if !s.armed {
+		return false
+	}
+	s.armed = false
+	s.active = s.previous
+	s.active.install()
+	return true
 }
 
 // parseExportChain compiles the export chain from the ospf section against the

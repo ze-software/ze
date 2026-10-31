@@ -101,12 +101,12 @@ is refused rather than matching nothing.
 | `isis filter export` | prefix, family, protocol, next-hop, metric, tag | metric |
 | `ospf filter export` | prefix, family, protocol, next-hop, metric, tag | tag, metric, metric-type |
 | `redistribute destination D import S` | prefix, family, protocol, next-hop, metric, tag | tag, metric |
-<!-- source: internal/plugins/connected/register.go -- MustRegisterAttachment -->
-<!-- source: internal/plugins/static/register.go -- MustRegisterAttachment -->
-<!-- source: internal/plugins/ospf/register.go -- MustRegisterAttachment -->
-<!-- source: internal/plugins/isis/register.go -- MustRegisterAttachment -->
-<!-- source: internal/component/sysrib/register.go -- MustRegisterAttachment -->
-<!-- source: internal/plugins/redistribute/register.go -- MustRegisterAttachment -->
+<!-- source: internal/plugins/connected/register.go -- MustRegisterRouteAttachment -->
+<!-- source: internal/plugins/static/register.go -- MustRegisterRouteAttachment -->
+<!-- source: internal/plugins/ospf/register.go -- MustRegisterRouteAttachment -->
+<!-- source: internal/plugins/isis/register.go -- MustRegisterRouteAttachment -->
+<!-- source: internal/component/sysrib/register.go -- MustRegisterRouteAttachment -->
+<!-- source: internal/plugins/redistribute/register.go -- MustRegisterRouteAttachment -->
 
 IS-IS routes carry no tag, because Ze does not implement the IS-IS
 administrative tag (RFC 5130). A static route carries a tag only when its `tag`
@@ -135,6 +135,29 @@ Five config roots carry `filter { import { ... } }`:
 A route meets its source's chain first, then the `rib` chain. A route is
 selected only when both accept it.
 <!-- source: internal/core/rib/policy/policy.go -- Snapshot.Evaluate -->
+
+Three more chains judge the routes one protocol hands another, never the
+routes the Loc-RIB selects:
+
+| Config | Chain | Routes it judges |
+|--------|-------|------------------|
+| `redistribute { destination <protocol> { import <source> { ... } } }` | redistribute import | Each route a source offers that destination |
+| `isis filter export` | IS-IS export | Each redistributed route before it enters the LSP |
+| `ospf filter export` | OSPF export | Each redistributed route before its AS-external LSA is originated |
+
+A redistributed route meets the redistribute import chain first, then the
+destination's export chain, and a `set metric` or `set tag` in the export chain
+replaces the one the import chain set. [Route Filters and
+Redistribution](redistribution.md) covers both.
+
+Every one of these chains, and the five above, judges the same typed route, so
+each attachment registers with `MustRegisterRouteAttachment`, naming the fields
+its routes carry and the fields a filter there may set ("The fields each
+attachment carries", above).
+<!-- source: internal/component/policy/fields.go -- MustRegisterRouteAttachment -->
+<!-- source: internal/plugins/redistribute/register.go -- MustRegisterRouteAttachment chainAttachment -->
+<!-- source: internal/plugins/isis/register.go -- MustRegisterRouteAttachment exportAttachment -->
+<!-- source: internal/plugins/ospf/register.go -- MustRegisterRouteAttachment exportAttachment -->
 
 ## How a chain decides
 

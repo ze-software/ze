@@ -363,6 +363,15 @@ does with that metric depends on the protocol:
 |-------------|------------------------|----------------------|
 | `bgp` | the route's MULTI_EXIT_DISC | the route is sent with no MULTI_EXIT_DISC |
 | `isis` | the TLV 135 or TLV 236 prefix metric | the default prefix metric, 100 |
+| `ospf` | the AS-external LSA metric | the default external metric, 20 |
+
+At `isis` and `ospf` the IGP's own export chain judges the route next, and a
+`set metric` there replaces the one the import chain set (below). A `set tag`
+in the import chain reaches OSPF the same way, as the External Route Tag, until
+an export chain sets another. This is FRR's precedence for its one route-map on
+`redistribute`: `ospf_external_lsa_body_set` takes the route-map's metric over
+the redistribute default, and isisd's `route_set_metric` overwrites the default
+`isis_redist_update` started from.
 
 BGP takes the metric as MED the way FRR does: `bgp_redistribute_add` makes the
 redistributed metric the route's MED, and `redistribute <source> metric N`
@@ -371,6 +380,8 @@ only when an export filter sets `bgp_med`, because a producer's own metric (an
 IGP cost, a static route's zero) is not a figure a BGP neighbour can compare.
 <!-- source: internal/component/bgp/redistribute/consumer.go -- formatAnnounce -->
 <!-- source: internal/plugins/redistribute/redistribute.go -- dispatchEntryToConsumer, applySets -->
+<!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict -->
+<!-- source: internal/plugins/ospf/redistribute/export.go -- exportVerdict -->
 
 ```
 policy {
@@ -422,11 +433,15 @@ isis {
 A reload that changes the export chain judges the routes the IGP already holds
 again: a route the new chain rejects leaves the LSP or has its AS-external LSA
 flushed, a route it now accepts is advertised, and a changed set replaces what
-was advertised.
+was advertised. A commit that fails after IS-IS or OSPF applied it takes the
+new chain back, and the routes are judged again by the chain of the config
+still running.
 <!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict -->
+<!-- source: internal/plugins/isis/export_chain.go -- exportChainSlot -->
+<!-- source: internal/plugins/ospf/export_chain.go -- exportChainSlot -->
 <!-- source: internal/plugins/isis/redistribute/consumer.go -- Rejudge -->
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Rejudge -->
-<!-- source: internal/plugins/isis/register.go -- init, MustRegisterAttachment exportAttachment -->
+<!-- source: internal/plugins/isis/register.go -- init, MustRegisterRouteAttachment exportAttachment -->
 
 That block is the whole configuration. It needs no `plugin` block and no
 `attach process` block. The orchestrator that dispatches the routes auto-loads
