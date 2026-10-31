@@ -2142,40 +2142,6 @@ second, so the strongSwan SA never comes up. Both scenarios set
 <!-- source: test/interop-ipsec/scenarios/multiple-auth-ze-responder/ -- the Ze-responder fixtures -->
 <!-- source: internal/le/interoplab/ipsec/multiauth.go -- checkMultipleAuthZeInitiator, checkMultipleAuthZeResponder -->
 
-### Legacy signature methods against a strongSwan without RFC 7427
-
-The four `x509-legacy-*-signature` scenarios set
-`charon.signature_authentication = no`, so strongSwan 6.1.0 neither sends
-SIGNATURE_HASH_ALGORITHMS nor reads Ze's (`ike_init.c`). Ze, the initiator,
-then receives no notify, RFC 7427 Section 3 leaves it no method 14, and it must
-sign with its key's legacy method (RFC 8247 Section 3.1). charon signs its own
-AUTH the same way (`pubkey_authenticator.c` `build`).
-
-| Scenario | Keys on both sides | Method each side sends | PKI |
-|----------|--------------------|------------------------|-----|
-| `x509-legacy-rsa-signature` | RSA 2048 | 1, RSASSA-PKCS1-v1_5 over SHA-1 | the scenario's `pki/` |
-| `x509-legacy-ecdsa-p256-signature` | ECDSA P-256 | 9, ECDSA-256 | the shared lab PKI |
-| `x509-legacy-ecdsa-p384-signature` | ECDSA P-384 | 10, ECDSA-384 | the scenario's `pki/` |
-| `x509-legacy-ecdsa-p521-signature` | ECDSA P-521 | 11, ECDSA-521 | the scenario's `pki/` |
-
-Each scenario's own `pki/` holds leaf certificates issued by the shared lab CA.
-The checker requires the IKE and Child SAs, both kernels' ESP states and
-traffic both ways, then charon's two log lines: `authentication of
-'ze-test-client' with <method> successful` for Ze's AUTH, and
-`authentication of '172.28.0.3' (myself) with <method> successful` for its own,
-which Ze verified before installing the Child SA. charon names a method 14 AUTH
-by signature scheme rather than by method, so a Ze that sent method 14 fails the
-first line.
-
-Each scenario was walked red on 2026-10-31: with `computeX509Auth` reverted to
-refusing when no notify arrived, the rebuilt Ze logs `ike: build IKE_AUTH
-failed` and the strongSwan SA never comes up. The RSA scenario was also walked
-red with `verifyLegacyRSAAuth` reverted to SHA-256 only: Ze then refuses
-charon's SHA-1 method 1 AUTH.
-<!-- source: test/interop-ipsec/scenarios/x509-legacy-rsa-signature/ -- the method 1 fixtures -->
-<!-- source: test/interop-ipsec/scenarios/x509-legacy-ecdsa-p256-signature/ -- the method 9 fixtures -->
-<!-- source: internal/le/interoplab/ipsec/legacysig.go -- checkLegacySignature -->
-
 ### ESP transform kernel proof
 
 `esp-aes-cbc-sha256`, `esp-chacha20poly1305` and `esp-3des-sha1` offer one
@@ -2457,31 +2423,6 @@ outside the fault window refuse the run. The relay neither constructs client
 requests nor generates acknowledgments.
 The new carrier still owes green and forced-red execution evidence.
 <!-- source: internal/plugins/tftpserver/tftp_curl_docker_test.go -- TestTFTPCurlDuplicateACKInterop, curlTFTPRelay.transfer -->
-
-### Ze's TFTP server against tftp-hpa and curl options
-
-Two Linux, Docker-tagged tests in `tftp_hpa_docker_test.go` drive Ze's
-production TFTP handlers (`ServeConn`) with independent clients, through a
-relay that copies every datagram both ways and records the client's RRQ
-options, the server's OACK and the longest run of DATA blocks between two
-ACKs. The relay constructs nothing.
-
-- `TestTFTPHPAWindowsizeInterop` builds the tftp-hpa 7.2 client from its
-  release tag (`test/interop-tftp/Dockerfile.tftp-hpa`, which refuses any
-  other commit) and downloads a 300-block file twice: with the client's
-  default request (windowsize 64) and with `-W 1000`. Each must be granted
-  windowsize 64, be sent in windows (64 DATA blocks between ACKs), and match
-  the file's SHA-256. With `grantWindowsize` forced to one block the OACK
-  carries no windowsize and the test goes red.
-- `TestTFTPCurlTimeoutInterop` runs curl 8.23.0 with its default options,
-  whose RRQ carries `timeout 5` for `--max-time 25`. The OACK must echo that
-  timeout and curl must deliver the exact file. With the timeout left out of
-  the OACK the test goes red.
-
-Both run on a Mac the way the dnsmasq test below does: the test binary is
-cross-built with `-tags docker` and run in a `docker:cli` container on the
-`ze` Colima VM's host network.
-<!-- source: internal/plugins/tftpserver/tftp_hpa_docker_test.go -- TestTFTPHPAWindowsizeInterop, TestTFTPCurlTimeoutInterop, optionRelay -->
 
 ### Ze's TFTP client against dnsmasq
 
