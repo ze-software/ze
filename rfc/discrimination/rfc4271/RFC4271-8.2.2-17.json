@@ -7,7 +7,7 @@
     "claim-sha": "f18840ee961b0352",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_connection.go::CloseWithNotification",
-    "producer-sha": "1cffab2c758cff40",
+    "producer-sha": "07cf461b19fdc46e",
     "break": "body of CloseWithNotification replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
