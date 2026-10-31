@@ -875,6 +875,7 @@ const (
 // The verdict and the keys of a check's evidence record.
 const (
 	verdictPassed       = "passed"
+	evidenceKeyVerdict  = "verdict"
 	evidenceKeyNetwork  = "network"
 	evidenceKeyEvidence = "evidence"
 	evidenceKeyScenario = "scenario"

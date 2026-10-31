@@ -56,7 +56,7 @@ func checkCHAPRechallenge(ctx context.Context, check *interoplab.CheckContext) (
 	if err := lifecyclePing(ctx, lab, zeImageName, iface, accelGateway); err != nil {
 		return err
 	}
-	before, err := query(ctx, lab, zeImageName, []string{"cat", procNetPPPoE})
+	before, err := query(ctx, lab, zeImageName, []string{commandCat, procNetPPPoE})
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func checkCHAPRechallenge(ctx context.Context, check *interoplab.CheckContext) (
 	if err := rechallengeEvidence(frames, local); err != nil {
 		return err
 	}
-	after, err := query(ctx, lab, zeImageName, []string{"cat", procNetPPPoE})
+	after, err := query(ctx, lab, zeImageName, []string{commandCat, procNetPPPoE})
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func checkPeerTerminate(ctx context.Context, check *interoplab.CheckContext) (er
 	if err != nil {
 		return err
 	}
-	if _, err := exec(ctx, lab, clientImageName, []string{"pkill", signalTERM, "-x", pppdExecutable}); err != nil {
+	if _, err := exec(ctx, lab, clientImageName, []string{commandPkill, signalTERM, "-x", pppdExecutable}); err != nil {
 		return err
 	}
 	if err := waitLifecycleEvidence(ctx, lab, 15*time.Second, func(frames []lifecycleFrame) error {
@@ -248,7 +248,7 @@ func waitZeKernelRelease(ctx context.Context, lab interoplab.CheckerLab, iface s
 		if err != nil {
 			return kernelState{}, err
 		}
-		table, err := query(probeCtx, lab, zeImageName, []string{"cat", procNetPPPoE})
+		table, err := query(probeCtx, lab, zeImageName, []string{commandCat, procNetPPPoE})
 		if err != nil {
 			return kernelState{}, err
 		}
@@ -269,7 +269,7 @@ func waitZeKernelRelease(ctx context.Context, lab interoplab.CheckerLab, iface s
 // is emitted after pcap activation, unlike mere process existence.
 func startLifecycleCapture(ctx context.Context, lab interoplab.CheckerLab) ([6]byte, error) {
 	var local [6]byte
-	address, err := query(ctx, lab, zeImageName, []string{"cat", "/sys/class/net/eth0/address"})
+	address, err := query(ctx, lab, zeImageName, []string{commandCat, "/sys/class/net/eth0/address"})
 	if err != nil {
 		return local, err
 	}
@@ -286,14 +286,14 @@ func startLifecycleCapture(ctx context.Context, lab interoplab.CheckerLab) ([6]b
 		return local, err
 	}
 	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 10 * time.Second, Interval: 200 * time.Millisecond, Description: "Ze-side PPPoE capture activation"}, func(probeCtx context.Context) (string, error) {
-		return lab.Query(probeCtx, zeImageName, []string{"cat", "/tmp/pppoe-lifecycle.log"}, nil)
+		return lab.Query(probeCtx, zeImageName, []string{commandCat, "/tmp/pppoe-lifecycle.log"}, nil)
 	}, func(output string) bool { return strings.Contains(output, "listening on eth0") })
 	return local, err
 }
 
 // stopLifecycleCapture MUST follow startLifecycleCapture before the final read.
 func stopLifecycleCapture(ctx context.Context, lab interoplab.CheckerLab) error {
-	if _, err := exec(ctx, lab, zeImageName, []string{"pkill", "-INT", "-x", "tcpdump"}); err != nil {
+	if _, err := exec(ctx, lab, zeImageName, []string{commandPkill, "-INT", "-x", "tcpdump"}); err != nil {
 		return err
 	}
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 10 * time.Second, Interval: 200 * time.Millisecond, Description: "Ze-side capture flush"}, func(probeCtx context.Context) (bool, error) {

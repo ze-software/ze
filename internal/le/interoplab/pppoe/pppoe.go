@@ -43,6 +43,7 @@ const (
 
 	commandShow  = "show"
 	commandPkill = "pkill"
+	commandCat   = "cat"
 	commandAdd   = "add"
 	commandDev   = "dev"
 	commandLink  = "link"

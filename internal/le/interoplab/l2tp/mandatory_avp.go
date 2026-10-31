@@ -50,7 +50,7 @@ const peerAVPRelay = "avp-relay"
 // a message associated with the overall tunnel, the entire tunnel (and all
 // sessions within) MUST be terminated." With M=0 it "MUST be ignored."
 func checkUnknownMandatoryAVP(ctx context.Context, lab labOperations, _ time.Duration) error {
-	for _, message := range []string{logSessionIPAssigned, "subscriber route inject"} {
+	for _, message := range []string{logSessionIPLine, "subscriber route inject"} {
 		if err := waitPeerLog(ctx, lab, peerZe, message, 60*time.Second); err != nil {
 			return err
 		}

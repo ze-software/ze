@@ -245,7 +245,7 @@ func checkTeardown(ctx context.Context, lab interoplab.CheckerLab) error {
 		ctx,
 		lab,
 		clientImageName,
-		[]string{"pkill", signalTERM, "-x", pppdExecutable},
+		[]string{commandPkill, signalTERM, "-x", pppdExecutable},
 	); err != nil {
 		return fmt.Errorf("teardown: signal pppd: %w", err)
 	}

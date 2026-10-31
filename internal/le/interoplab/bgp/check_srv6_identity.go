@@ -84,7 +84,7 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 			verdict = resultErr.Error()
 		}
 		data, marshalErr := json.MarshalIndent(map[string]any{
-			evidenceKeyScenario: check.Source.Name, evidenceKeyNetwork: check.Network, "verdict": verdict,
+			evidenceKeyScenario: check.Source.Name, evidenceKeyNetwork: check.Network, evidenceKeyVerdict: verdict,
 			evidenceKeyEvidence: evidence,
 		}, "", "  ")
 		resultErr = errors.Join(resultErr, marshalErr)
