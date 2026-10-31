@@ -26,6 +26,7 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 var crashSignatures = []string{
@@ -459,8 +460,11 @@ func buildDaemon(ctx context.Context, root, outDir string, opts Options, deps ru
 }
 
 // daemonBase is the personality a repro compiles, before the gates
-// featuretags adds to it: the daemon, plus the setup surface the repro drives.
-const daemonBase = "ze_core ze_distro ze_setup"
+// featuretags adds to it: the daemon, plus the setup surface the repro drives,
+// plus the test-only plugins (fakeredist and the rest) a functional test names.
+// The functional DUT build carries the same tag (runner.TestBuildTags); without
+// it a repro of such a test fails at load, not at the race it is hunting.
+const daemonBase = "ze_core ze_distro ze_setup " + runner.TestPluginBuildTag
 
 // daemonTags answers the `-tags` value for the daemon build, with the caller's
 // extra tag last.

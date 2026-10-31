@@ -437,7 +437,9 @@ func TestRaceBuildUsesDerivedSortedTagsAndRemovesTemporaryBinary(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("report/code = %#v/%d", report, code)
 	}
-	wantTags := "ze_core ze_distro ze_setup ze_bgp ze_ospf ze_extra"
+	// zetest links the test-only plugins (fakeredist) a functional test names,
+	// as the functional DUT build does; without it such a repro fails at load.
+	wantTags := "ze_core ze_distro ze_setup zetest ze_bgp ze_ospf ze_extra"
 	if fake.buildRoot != root || fake.buildTags != wantTags || !fake.buildRace {
 		t.Fatalf("race build root/tags = %q/%q", fake.buildRoot, fake.buildTags)
 	}
