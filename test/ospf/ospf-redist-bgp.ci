@@ -12,7 +12,14 @@
 # instead of being a no-op, or the 24-bit metric range is not enforced.
 
 # --- Valid: ospf redistribution leaves + generic orchestrator wiring. ----------
+# --- The config carries a bgp block: `destination bgp` and `import bgp` with none
+# --- are refused (test/parse/redistribute-bgp-without-bgp-block.ci), and the
+# --- subject here is the ospf wiring alone.
 stdin=ospf-redist-valid:terminator=EOF_VALID
+bgp {
+	router-id 10.0.0.1
+}
+
 ospf {
 	router-id 10.0.0.1
 	default-information {
