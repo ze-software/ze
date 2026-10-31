@@ -80,38 +80,38 @@
   },
   {
     "rid": "RFC1997-Well-1",
+    "polarity": "negative",
+    "unit": "test/plugin/wellknown-no-export-egress.ci",
+    "unit-sha": "dcad9cdaeae04990",
+    "claim-sha": "7360225e8076b216",
+    "route": "revert",
+    "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
+    "producer-sha": "1180e31db97ccb63",
+    "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+    "citation": "expect=bgp:conn=1:seq=1:announced=180A0000"
+  },
+  {
+    "rid": "RFC1997-Well-1",
     "polarity": "positive",
     "unit": "test/plugin/wellknown-no-export-egress.ci",
-    "unit-sha": "a8f00941cc34916d",
+    "unit-sha": "dcad9cdaeae04990",
     "claim-sha": "217da1ee99c5a695",
     "route": "revert",
     "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
     "producer-sha": "1180e31db97ccb63",
-    "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "reject=bgp:conn=1:scope=announced:pattern=180A0000"
   },
   {
     "rid": "RFC1997-Well-1",
     "polarity": "negative",
-    "unit": "test/plugin/wellknown-no-export-egress.ci",
-    "unit-sha": "a8f00941cc34916d",
-    "claim-sha": "7360225e8076b216",
-    "route": "revert",
-    "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
-    "producer-sha": "1180e31db97ccb63",
-    "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-    "citation": "expect=bgp:conn=1:seq=1:announced=180A0000"
-  },
-  {
-    "rid": "RFC1997-Well-1",
-    "polarity": "negative",
     "unit": "test/plugin/wellknown-no-export-withdraw-egress.ci",
-    "unit-sha": "115213e0c31726c5",
+    "unit-sha": "e81ed47a53c15e46",
     "claim-sha": "90aa885c9d7f9777",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_build.go::buildWithdrawalPayload",
     "producer-sha": "222f77983244b5f3",
-    "break": "body of buildWithdrawalPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "break": "body of buildWithdrawalPayload replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=1:seq=3:withdrawn=18C63364"
   }
 ]
