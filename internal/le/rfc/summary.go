@@ -10,6 +10,7 @@ package rfc
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -901,7 +902,7 @@ func validateID(rid, stem, where string) error {
 // It raises for a line that is TRYING to be a requirement and is malformed,
 // including a legacy line with no id. It never answers nil for those: skipping
 // a MUST is how a gate goes green while an obligation is unenforced.
-func parseChecklistLine(line, stem, source string, lineno int) (*Requirement, error) {
+func parseChecklistLine(line, stem, source string, lineno int32) (*Requirement, error) {
 	where := "line"
 	if source != "" {
 		var tb textbuf.Buffer
@@ -968,10 +969,20 @@ func parseChecklistLine(line, stem, source string, lineno int) (*Requirement, er
 // ParseSummaryText parses every checklist line in a summary. It raises on a
 // duplicate id: ids are permanent and unique. Source names the input in errors.
 func ParseSummaryText(text, stem, source string) ([]Requirement, error) {
+	lines := strings.Split(text, "\n")
+	// Requirement.Line is an int32, which keeps Requirement under gocritic's
+	// rangeValCopy threshold, so a summary past that many lines is refused
+	// rather than numbered wrong.
+	if len(lines) > math.MaxInt32 {
+		var tb textbuf.Buffer
+		return nil, parseErr(tb.Str(source).Str(": the summary has ").Int(int64(len(lines))).
+			Str(" lines, more than a requirement's line number can hold (").Int(math.MaxInt32).
+			Str("). Split the summary"))
+	}
 	var out []Requirement
-	seen := map[string]int{}
-	for i, line := range strings.Split(text, "\n") {
-		lineno := i + 1
+	seen := map[string]int32{}
+	for i, line := range lines {
+		lineno := int32(i + 1)
 		req, err := parseChecklistLine(line, stem, source, lineno)
 		if err != nil {
 			return nil, err

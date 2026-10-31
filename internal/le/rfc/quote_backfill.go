@@ -65,7 +65,7 @@ type quoteBackfillRow struct {
 	// being rewritten.
 	Reason string `json:"reason,omitempty"`
 	// line is the row's summary line, rewritten when apply is set.
-	line    int
+	line    int32
 	newLine string
 }
 

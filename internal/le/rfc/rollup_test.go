@@ -131,7 +131,7 @@ func TestRollupCannotDisplaceAGap(t *testing.T) {
 // rollupRow builds one {rollup} requirement of rfc1 in code, the way
 // TestCheckLowerLayerProducerReadsTheTree builds its rows: the parser is
 // proven above, and the check under test reads Requirement values.
-func rollupRow(rid string, line int, targets ...string) Requirement {
+func rollupRow(rid string, line int32, targets ...string) Requirement {
 	return Requirement{RFC: "rfc1", RID: rid, Level: levelMust,
 		Source: "rfc/short/rfc1.md", Line: line, Annotation: &Annotation{
 			Kind: AnnotationRollup, Targets: targets,

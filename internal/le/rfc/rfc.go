@@ -646,7 +646,11 @@ type Requirement struct {
 	// Annotation is nil when the line carries no coverage annotation.
 	Annotation *Annotation `json:"annotation,omitempty"`
 	Source     string      `json:"source"`
-	Line       int         `json:"line"`
+	// Line is the summary line the row sits on. An int32 packs it beside
+	// Ticked and Derived in one word, which keeps Requirement under gocritic's
+	// rangeValCopy threshold (TestRequirementStaysUnderRangeValCopy); a
+	// summary that long is refused by ParseSummaryText.
+	Line int32 `json:"line"`
 	// Ticked records a hand-written "- [x]". Recorded, not obeyed: coverage is
 	// DERIVED from test tags, so a tick is someone's claim, not evidence.
 	Ticked bool `json:"ticked"`
