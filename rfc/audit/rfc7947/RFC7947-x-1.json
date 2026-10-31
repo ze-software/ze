@@ -1,24 +1,23 @@
 {
-  "code": {},
-  "note": "RFC 7947 Section 2.2.2.1: \"As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way.\" Re-judged 2026-10-26 by an independent auditor after a6c328343b changed TestReactorForwardRSEBGPPrepend: the only change gives its non-RS EBGP destination ProcessBindings rsRelaySendBinding(), the bgp-rs send [ update ] grant the fast path now requires (2de6f30f3b); without it the destination received nothing, so the fixture change restores reachability and no assertion moved (one dispatch, non-empty rawBodies, body longer than the input). The growth-only assertion remains weaker than an exact path oracle, as recorded before, and the exact pair stays supplied by TestRelayStoredRouteRSClientPreservesASPath / TestRelayStoredRoutePlainEBGPPrependsLocalAS ([65001] versus [65000,65001]), TestReactorForwardRSTransparent (byte identity for an RS client), bgp-rs-relay-aspath-transparency.ci and checkRouteServerASPath, all unchanged. Discrimination record renewed and verified for the changed unit: mutant forward_rs.go::reactorForwardRSSection '!facts.rsClient' -> false (no prepend for a non-RS EBGP peer) reddens it. Verdict unchanged.",
+  "note": "RFC 7947 Section 2.2.2.1: \"As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way.\" Re-judged 2026-10-31 by an independent auditor after c8a7d38c3f changed TestReactorForwardRSEBGPPrepend and f8f7628bdf changed bgp-rs-relay-aspath-transparency.ci. Both changes are the same RFC 8212 Section 3 fixture repair: the unit's non-RS EBGP destination gains an explicit filterless FinalAccept ExportPolicy (and makeRSPeer gives its source the same import/export pair), and the .ci gains a bgp-level filter { import { final accept; } export { final accept; } }. Without them reactorForwardRSSection skips the destination at filterapi.Policy.AcceptsAtEnd (an unconfigured policy returns !external), so the tests dispatched nothing; the policies carry no refs, so hasActiveFilter stays false and the fast path, and the !facts.rsClient prepend branch it reaches, are unchanged. No assertion moved: the unit still requires one dispatch, non-empty rawBodies and a body longer than the input, and the .ci still pins the exact wire bytes, conn=2 (rs-client true) byte-identical with AS_SEQUENCE[65001] and conn=3 (rs-client false) AS_SEQUENCE[65000,65001]. The unit's growth-only assertion remains weaker than an exact path oracle, as recorded before; the exact pair is supplied by the .ci and by TestRelayStoredRouteRSClientPreservesASPath / TestRelayStoredRoutePlainEBGPPrependsLocalAS, with TestReactorForwardRSTransparent proving byte identity for an RS client and checkRouteServerASPath the interop side, all unchanged. Discrimination record re-taken in c8a7d38c3f over the changed unit and verified by ./le rfc discriminate: mutant forward_rs.go::reactorForwardRSSection line 633 '!facts.rsClient' -> false reddens it. Both carriers re-run green (go test -run TestReactorForwardRSEBGPPrepend|TestReactorForwardRSTransparent; ./le test bgp plugin bgp-rs-relay-aspath-transparency). Verdict unchanged.",
   "requirement_sha": "d53a5657709f4770",
   "tests": {
-    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend": "0ebebd910ef51e13",
-    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "0ebebd910ef51e13",
-    "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRoutePlainEBGPPrependsLocalAS": "22497bb4493ee528",
-    "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRouteRSClientPreservesASPath": "22497bb4493ee528",
-    "internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath": "49a47285ee4a16ca",
-    "test/plugin/bgp-rs-relay-aspath-transparency.ci": "04f9cb15a64d4a4c",
-    "test/plugin/bgp-rs-relay-aspath-transparency.ci#2": "04f9cb15a64d4a4c"
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend": "016010e177d39707",
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "016010e177d39707",
+    "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRoutePlainEBGPPrependsLocalAS": "1b7cd485650b6cd1",
+    "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRouteRSClientPreservesASPath": "1b7cd485650b6cd1",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath": "07ffe0ba5c7e0809",
+    "test/plugin/bgp-rs-relay-aspath-transparency.ci": "83e8ac232e5da888",
+    "test/plugin/bgp-rs-relay-aspath-transparency.ci#2": "83e8ac232e5da888"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend": "3f711815cd8dcb07",
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend": "4dcb5c9026655343",
     "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b6c7cccf999cf20e",
     "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRoutePlainEBGPPrependsLocalAS": "3b4fbb087fcf2d9c",
     "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRouteRSClientPreservesASPath": "3ef63e3764265834",
     "internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath": "f3bc15669480d296",
-    "test/plugin/bgp-rs-relay-aspath-transparency.ci": "04f9cb15a64d4a4c",
-    "test/plugin/bgp-rs-relay-aspath-transparency.ci#2": "04f9cb15a64d4a4c"
+    "test/plugin/bgp-rs-relay-aspath-transparency.ci": "83e8ac232e5da888",
+    "test/plugin/bgp-rs-relay-aspath-transparency.ci#2": "83e8ac232e5da888"
   },
   "verdict": "enforced"
 }
