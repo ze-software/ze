@@ -692,7 +692,6 @@ Struck (Q1 (c) only, not run): `vrrp.TestVRRPOwnerAnswersWithVirtualMACOnly` (20
 |------------|------|-----------------|
 | `plan/journal/announced-before-it-is-installed.md` | 2026-10-30 | owner boot announcement sent before the asynchronous VIP install (RFC9568-8.1.2-2, -8.2.2-4) |
 | `plan/journal/claim-outlives-the-evidence-it-cites.md` | 2026-10-30 | VRRP RFC tag lines in `instance_test.go` cite `doInstallVIPs` by a stale `instance.go` line |
-| `plan/journal/reference-checked-claim-unchecked.md` | 2026-10-30 | RFC5798-5.1.2.2-1 `{lower-layer}` row, `rfc/short/rfc5798.md` |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
