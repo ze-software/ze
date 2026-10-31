@@ -109,8 +109,8 @@ func TestShowRIBBestFactUnderElectionAndPeerDown(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for range rounds {
-			r.peerMu.Lock()   //nolint:gocritic // the empty critical section is the queued writer under test
-			r.peerMu.Unlock() //nolint:staticcheck // the empty critical section is the queued writer under test
+			r.peerMu.Lock()
+			r.peerMu.Unlock() //nolint:staticcheck,gocritic // the empty critical section is the queued writer under test
 		}
 	}()
 	go func() {

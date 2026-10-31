@@ -664,7 +664,8 @@ func creationFootprint(schema *config.Schema, ops []config.StructuralOp, histori
 		return nil, err
 	}
 	paths := make(map[string]bool)
-	for _, op := range plan.ops {
+	for i := range plan.ops {
+		op := &plan.ops[i]
 		if op.Type == config.StructuralOpCreateEntry {
 			if err := addCreationAncestors(schema, paths, op.SourcePath(schema)); err != nil {
 				return nil, err
@@ -815,8 +816,8 @@ func (e *Editor) pruneCreationMaterializations(guard storage.WriteGuard, changeP
 			}
 		}
 		appendMeta(pending)
-		for _, op := range ops {
-			owners = append(owners, op.PendingChange(e.schema))
+		for i := range ops {
+			owners = append(owners, ops[i].PendingChange(e.schema))
 		}
 	}
 	changed := false

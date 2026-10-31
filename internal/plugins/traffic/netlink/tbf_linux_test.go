@@ -89,7 +89,10 @@ func TestTBFApplyReachesBothDirectionsAndReadback(t *testing.T) {
 		if !ok {
 			t.Fatalf("got %T, want *netlink.MatchAll", ops.added[len(ops.added)-1])
 		}
-		police := filter.Actions[0].(*netlink.PoliceAction)
+		police, ok := filter.Actions[0].(*netlink.PoliceAction)
+		if !ok {
+			t.Fatalf("got %T, want *netlink.PoliceAction", filter.Actions[0])
+		}
 		if uint64(police.Rate) != rates[1]/8 || filter.Parent != netlink.HANDLE_MIN_INGRESS || police.ExceedAction != netlink.TC_POLICE_SHOT {
 			t.Fatalf("installed upload filter = %+v, action = %+v", filter, police)
 		}
@@ -152,7 +155,11 @@ func TestTBFReadbackUsesKernelUnits(t *testing.T) {
 	if err != nil || qos.Qdisc.RateBps != 10_000_000 {
 		t.Fatalf("readback = %+v, error = %v", qos, err)
 	}
-	ops.qdiscs["ppp0"][0].(*netlink.Tbf).Rate = math.MaxUint64/8 + 1
+	installed, ok := ops.qdiscs["ppp0"][0].(*netlink.Tbf)
+	if !ok {
+		t.Fatalf("got %T, want *netlink.Tbf", ops.qdiscs["ppp0"][0])
+	}
+	installed.Rate = math.MaxUint64/8 + 1
 	if _, err := b.ListQdiscs("ppp0"); err == nil {
 		t.Fatal("readback overflow accepted")
 	}

@@ -523,7 +523,8 @@ func copySessionMemberOps(schema *config.Schema, ops []config.StructuralOp, copy
 		return nil, err
 	}
 	var copied []config.StructuralOp
-	for _, op := range ops {
+	for i := range ops {
+		op := ops[i] // A working copy: the body rewrites its parent path before appending it.
 		if !isMemberOp(op) || op.SessionKey() != copyOp.SessionKey() {
 			continue
 		}

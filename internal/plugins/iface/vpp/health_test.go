@@ -53,7 +53,9 @@ func TestVPPHealthCheckSocketRefuses(t *testing.T) {
 	path := filepath.Join(shortSocketDir(t), "api.sock")
 	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "unix", path)
 	require.NoError(t, err)
-	ln.(*net.UnixListener).SetUnlinkOnClose(false) //nolint:forcetypeassert // Listen("unix") returns *net.UnixListener
+	unixListener, ok := ln.(*net.UnixListener)
+	require.True(t, ok, "Listen(\"unix\") answered %T", ln)
+	unixListener.SetUnlinkOnClose(false)
 	require.NoError(t, ln.Close())
 	withActiveVPPSocket(t, path, true)
 

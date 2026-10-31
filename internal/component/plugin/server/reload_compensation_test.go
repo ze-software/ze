@@ -580,7 +580,10 @@ func TestReloadCompletionRejectsInFlightReplacement(t *testing.T) {
 			successorConn := &ipc.PluginConn{}
 			successorConn.SetBridge(successorBridge)
 			ctx, finish := s.DeferReloadAcceptance(t.Context())
-			pending := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
+			pending, ok := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
+			if !ok {
+				t.Fatalf("reload context carries %T, want *reloadAcceptance", ctx.Value(reloadAcceptanceKey{}))
+			}
 			pending.batches = []*reloadOperationBatch{{
 				txID: txID, participants: map[string]reloadParticipant{name: {proc: original, conn: conn}},
 			}}
