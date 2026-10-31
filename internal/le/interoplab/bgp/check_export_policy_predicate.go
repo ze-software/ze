@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"strings"
 )
 
 // frrISISExportWant is one prefix FRR must install through IS-IS: its next hop
@@ -90,8 +91,18 @@ func frrNextHopsHold(hops []frrNextHop, address netip.Addr) bool {
 	return false
 }
 
-// ospfExternalMetricType is the metric type FRR prints for an AS-External-LSA.
+// ospfExternalMetricType is the metric type FRR prints for an AS-External-LSA,
+// the first word of its metricType key. FRR 10.7.1 writes "E1" for type 1 and
+// "E2 (Larger than any link state path)" for type 2, captured from `show ip
+// ospf database external json` on the ospf-export-policy-frr run.
 type ospfExternalMetricType string
+
+// ospfExternalMetricTypeOf reads the metric type from FRR's metricType text: the
+// word before the first space, so type 2's explanation is not compared.
+func ospfExternalMetricTypeOf(text string) ospfExternalMetricType {
+	kind, _, _ := strings.Cut(text, " ")
+	return ospfExternalMetricType(kind)
+}
 
 const (
 	// ospfExternalE1 is metric type 1, the E bit clear (RFC 2328 Appendix A.4.5).
@@ -178,7 +189,7 @@ func ospfExternalLSAVerdict(lsas []ospfExternalLSA, router netip.Addr, want *osp
 	if *found.Metric != want.metric {
 		return fmt.Errorf("FRR's AS-External-LSA for %s has metric %d, want %d", want.prefix, *found.Metric, want.metric)
 	}
-	if ospfExternalMetricType(found.MetricType) != want.metricType {
+	if ospfExternalMetricTypeOf(found.MetricType) != want.metricType {
 		return fmt.Errorf("FRR's AS-External-LSA for %s has metric type %q, want %s", want.prefix, found.MetricType, want.metricType)
 	}
 	if found.Tag == nil {

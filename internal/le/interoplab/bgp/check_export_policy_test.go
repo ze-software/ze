@@ -57,6 +57,20 @@ func isisExportPolicyCheckerBranches(t *testing.T) {
 	}
 }
 
+// frrE2 is the metricType text FRR 10.7.1 writes for a type 2 external metric.
+const frrE2 = "E2 (Larger than any link state path)"
+
+// frrExternalDatabase is FRR 10.7.1's `show ip ospf database external json`,
+// captured with docker exec on the green ospf-export-policy-frr run: the LSAs
+// sit in an array, and type 2 carries frrE2.
+const frrExternalDatabase = `{"routerId":"172.30.0.3","asExternalLinkStates":[` +
+	`{"lsaAge":26,"options":"*|-|-|-|-|-|E|-","lsaFlags":6,"lsaType":"AS-external-LSA","linkStateId":"10.67.1.0",` +
+	`"advertisingRouter":"10.255.0.2","lsaSeqNumber":"80000001","checksum":"58a5","length":36,"networkMask":24,` +
+	`"metricType":"E1","tos":0,"metric":50,"forwardAddress":"0.0.0.0","externalRouteTag":200},` +
+	`{"lsaAge":26,"options":"*|-|-|-|-|-|E|-","lsaFlags":6,"lsaType":"AS-external-LSA","linkStateId":"10.67.2.0",` +
+	`"advertisingRouter":"10.255.0.2","lsaSeqNumber":"80000001","checksum":"85dd","length":36,"networkMask":24,` +
+	`"metricType":"E2 (Larger than any link state path)","tos":0,"metric":20,"forwardAddress":"0.0.0.0","externalRouteTag":0}]}`
+
 // ospfExportPolicyCheckerBranches drives ospfExportPolicyVerdict in both
 // polarities.
 // VALIDATES: FRR's external LSDB passes only with the tagged route's LSA from
@@ -82,10 +96,15 @@ func ospfExportPolicyCheckerBranches(t *testing.T) {
 	database := func(lsas ...string) string {
 		return `{"routerId":"172.30.0.3","asExternalLinkStates":{` + strings.Join(lsas, ",") + `}}`
 	}
-	good := database(lsa("10.67.1.0", ospfExportRouterID, "E1", 50, 200), lsa("10.67.2.0", ospfExportRouterID, "E2", 20, 0))
+	good := database(lsa("10.67.1.0", ospfExportRouterID, "E1", 50, 200), lsa("10.67.2.0", ospfExportRouterID, frrE2, 20, 0))
 	t.Run("set route carries the sets, default route the defaults", func(t *testing.T) {
 		if err := ospfExportPolicyVerdict(good, router, wants, refused); err != nil {
 			t.Fatalf("the correct database was refused: %v", err)
+		}
+	})
+	t.Run("FRR 10.7.1's own answer", func(t *testing.T) {
+		if err := ospfExportPolicyVerdict(frrExternalDatabase, router, wants, refused); err != nil {
+			t.Fatalf("the database FRR printed on the green run was refused: %v", err)
 		}
 	})
 	for _, tc := range []struct {
@@ -93,13 +112,13 @@ func ospfExportPolicyCheckerBranches(t *testing.T) {
 		output string
 		reason string
 	}{
-		{"the rejected route originated", database(lsa("10.67.1.0", ospfExportRouterID, "E1", 50, 200), lsa("10.67.2.0", ospfExportRouterID, "E2", 20, 0),
-			lsa("10.67.3.0", ospfExportRouterID, "E2", 20, 0)), "export chain rejects"},
-		{"the sets never reached the LSA", database(lsa("10.67.1.0", ospfExportRouterID, "E2", 20, 100), lsa("10.67.2.0", ospfExportRouterID, "E2", 20, 0)), "has metric 20, want 50"},
-		{"metric type left E2", database(lsa("10.67.1.0", ospfExportRouterID, "E2", 50, 200), lsa("10.67.2.0", ospfExportRouterID, "E2", 20, 0)), `metric type "E2", want E1`},
-		{"route tag kept over the set tag", database(lsa("10.67.1.0", ospfExportRouterID, "E1", 50, 100), lsa("10.67.2.0", ospfExportRouterID, "E2", 20, 0)), "has tag 100, want 200"},
+		{"the rejected route originated", database(lsa("10.67.1.0", ospfExportRouterID, "E1", 50, 200), lsa("10.67.2.0", ospfExportRouterID, frrE2, 20, 0),
+			lsa("10.67.3.0", ospfExportRouterID, frrE2, 20, 0)), "export chain rejects"},
+		{"the sets never reached the LSA", database(lsa("10.67.1.0", ospfExportRouterID, frrE2, 20, 100), lsa("10.67.2.0", ospfExportRouterID, frrE2, 20, 0)), "has metric 20, want 50"},
+		{"metric type left E2", database(lsa("10.67.1.0", ospfExportRouterID, frrE2, 50, 200), lsa("10.67.2.0", ospfExportRouterID, frrE2, 20, 0)), `metric type "E2 (Larger than any link state path)", want E1`},
+		{"route tag kept over the set tag", database(lsa("10.67.1.0", ospfExportRouterID, "E1", 50, 100), lsa("10.67.2.0", ospfExportRouterID, frrE2, 20, 0)), "has tag 100, want 200"},
 		{"sets applied to the unmatched route", database(lsa("10.67.1.0", ospfExportRouterID, "E1", 50, 200), lsa("10.67.2.0", ospfExportRouterID, "E1", 50, 200)), "has metric 50, want 20"},
-		{"LSA from another router", database(lsa("10.67.1.0", "172.30.0.3", "E1", 50, 200), lsa("10.67.2.0", ospfExportRouterID, "E2", 20, 0)), "no AS-External-LSA for 10.67.1.0/24"},
+		{"LSA from another router", database(lsa("10.67.1.0", "172.30.0.3", "E1", 50, 200), lsa("10.67.2.0", ospfExportRouterID, frrE2, 20, 0)), "no AS-External-LSA for 10.67.1.0/24"},
 		{"an empty database", `{"routerId":"172.30.0.3","asExternalLinkStates":{}}`, "holds no LSA"},
 		{"not json", "% Unknown command", "decode"},
 	} {
