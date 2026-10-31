@@ -1,6 +1,9 @@
 // Design: docs/architecture/testing/interop.md -- transparent xl2tpd AVP injection.
-// This process is not an L2TP peer: it originates no datagram and maintains no
-// protocol state. The real xl2tpd and Ze own sequencing, ACKs and retransmits.
+// Related: pppinject.go -- the PPP frames sent once the code-reject marker is set.
+// This process is not an L2TP peer: it maintains no protocol state, and the
+// real xl2tpd and Ze own sequencing, ACKs and retransmits. It originates no
+// control datagram. Its one origination is the four PPP data frames of
+// pppinject.go, sent once and only after a checker sets /run/code-reject.
 // RFC 2661 Section 4.1 -- see rfc/short/rfc2661.md.
 package main
 
@@ -53,6 +56,7 @@ func run() error {
 	var buffer [65536]byte
 	encoder := json.NewEncoder(os.Stdout)
 	controls := 0
+	injected := false
 	for range 65536 {
 		count, source, err := conn.ReadFromUDPAddrPort(buffer[:len(buffer)-6])
 		if err != nil {
@@ -69,37 +73,44 @@ func run() error {
 		}
 		packet := buffer[:count]
 		control := count >= 2 && packet[0]&0x80 != 0
-		var original string
-		if control {
-			controls++
-			if controls > 256 {
-				return errors.New("control datagram limit exceeded")
+		if !control {
+			// A data message: the PPP path reads it, and only once its
+			// marker is set; the AVP path below reads control messages only.
+			if err := relayData(conn, encoder, packet, direction, target, &injected); err != nil {
+				return err
 			}
-			original = hex.EncodeToString(packet)
-			if source == lac {
-				mandatory, err := mandatoryArmed()
-				if err != nil {
-					return err
-				}
-				// inject MUST receive six spare bytes; ReadFromUDPAddrPort
-				// above reserves them in the fixed relay buffer.
-				packet = inject(packet, mandatory)
+			continue
+		}
+		controls++
+		if controls > 256 {
+			return errors.New("control datagram limit exceeded")
+		}
+		original := hex.EncodeToString(packet)
+		if source == lac {
+			mandatory, err := mandatoryArmed()
+			if err != nil {
+				return err
 			}
+			// inject MUST receive six spare bytes; ReadFromUDPAddrPort
+			// above reserves them in the fixed relay buffer.
+			packet = inject(packet, mandatory)
 		}
 		if _, err := conn.WriteToUDPAddrPort(packet, target); err != nil {
 			return err
 		}
-		if control {
-			if err := encoder.Encode(struct {
-				Direction string `json:"direction"`
-				Original  string `json:"original"`
-				Forwarded string `json:"forwarded"`
-			}{direction, original, hex.EncodeToString(packet)}); err != nil {
-				return err
-			}
+		if err := encoder.Encode(wireObservation{direction, original, hex.EncodeToString(packet)}); err != nil {
+			return err
 		}
 	}
 	return errors.New("datagram limit exceeded")
+}
+
+// wireObservation is one relayed or injected datagram, as the checkers read it
+// from the relay's standard output.
+type wireObservation struct {
+	Direction string `json:"direction"`
+	Original  string `json:"original"`
+	Forwarded string `json:"forwarded"`
 }
 
 func mandatoryArmed() (bool, error) {

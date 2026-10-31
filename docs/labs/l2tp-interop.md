@@ -27,17 +27,24 @@ test/interop-l2tp/
     03-ze-lac-xl2tpd-lns/   ze as initiator (LAC) vs real xl2tpd LNS
     04-radius-acct-attrs/   subscriber attributes in RADIUS auth and accounting
     dns-resolver-l2tp-subscriber/   IPCP DNS to Ze's LAN resolver, then a lookup
+    l2tp-unknown-mandatory-avp-xl2tpd/   unknown AVP, M=0 then M=1, through the relay
+    ppp-code-reject-xl2tpd/   unknown LCP and IPCP Codes injected through the relay
 internal/le/interoplab/l2tp/
   l2tp.go              Native topology, images, selection, and lifecycle
-  checkers.go          Typed protocol assertions for all four scenarios
+  checkers.go          Typed protocol assertions for the scenarios
   dns_resolver.go      The dns-resolver-l2tp-subscriber assertions
+  mandatory_avp.go     The l2tp-unknown-mandatory-avp-xl2tpd assertions
+  ppp_code_reject.go   The ppp-code-reject-xl2tpd assertions
+  avprelay/            UDP relay between the LAC and Ze, on 172.29.0.4
   radiusmock/          Independent Go RADIUS peer
 ```
 
 Each scenario contains the protocol configuration mounted by its typed plan.
 The plans choose the Ze, xl2tpd, FRR, and RADIUS peers for that scenario, while
 the checker map fixes the complete scenario population. The
-`dns-resolver-l2tp-subscriber` plan adds Knot DNS on `172.29.0.7`.
+`dns-resolver-l2tp-subscriber` plan adds Knot DNS on `172.29.0.7`, and the
+`l2tp-unknown-mandatory-avp-xl2tpd` and `ppp-code-reject-xl2tpd` plans put the
+relay on `172.29.0.4`, the address their xl2tpd dials as its LNS.
 
 ## Prerequisites
 
@@ -171,6 +178,21 @@ method. Read in xl2tpd v1.3.18 and v1.3.19: `avpsend.c` has no builder for AVP
 26, 27 or 28, and the ICRQ and ICCN branches of `control.c` carry none. The
 authentication has to reach a credential, because RFC 2865 Section 4.1 admits
 no Access-Request without one.
+
+### ppp-code-reject-xl2tpd
+
+Proves Ze's PPP Code-Reject against a real xl2tpd and pppd session (RFC 1661
+Section 5.6). pppd requests an MRU of 128. Once a ping has crossed the
+session, the relay sends Ze, as the LAC, two LCP packets with the unknown Code
+99 and two IPCP packets with Code 12, all with Identifier 0x42 and 204 octets
+long. The checker reads Ze's answers off the wire. The two LCP Code-Rejects
+carry different Identifiers, each fits the 128-octet MRU with a copy of the
+start of the probe it rejects, and the session stays up. Ze answers neither
+IPCP probe today, because it never reads the PPP unit descriptor Linux queues
+IPCP on after the channel is connected; the checker asserts nothing about them
+until that defect is fixed. The full
+account is in `docs/architecture/testing/interop.md`, "L2TP and PPPoE
+lifecycle fault scenarios".
 
 ## Relationship to Other Evidence
 

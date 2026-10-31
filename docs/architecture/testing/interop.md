@@ -2134,6 +2134,36 @@ validation (no matching StopCCN 2/8), then passed after a normal rebuild.
 <!-- source: internal/le/interoplab/l2tp/mandatory_avp.go -- checkUnknownMandatoryAVP -->
 <!-- source: internal/le/interoplab/l2tp/avprelay/main.go -- run, inject -->
 
+`ppp-code-reject-xl2tpd` puts the same relay between xl2tpd and Ze, and it is
+the one scenario where the relay originates frames. No lab peer sends a PPP
+Code it does not know, so the relay injects them on the live L2TP session,
+and only after the checker creates `/run/code-reject` once PPP traffic has
+flowed. The next data message from the LAC is the trigger: the relay
+forwards it, then sends Ze four PPP packets behind a copy of its L2TP header,
+so they carry the live tunnel and session IDs. Two are LCP packets with Code
+99 and two are IPCP packets with Code 12, all four with Identifier 0x42 and
+204 octets long, against the MRU of 128 that pppd requests (`mru 128`). The
+relay refuses a data header carrying Ns and Nr, because a frame it injected
+would break the sequence. From the marker on, it logs every data datagram in
+both directions, unfiltered, and the checker refuses one it cannot read, so a
+frame the log holds is never passed over. The checker decodes the probes and
+Ze's answers from that log. It requires two LCP Code-Rejects with different
+Identifiers (RFC 1661 Section 5.6: "The Identifier field MUST be changed for
+each Code-Reject sent."). The IPCP probes draw no answer, and the checker
+asserts none: once NCP is up Ze connects the PPP channel to its unit, Linux's
+`ppp_input` then queues an IPCP frame on the unit descriptor rather than the
+channel, and Ze reads only the channel
+(`plan/journal/frames-rerouted-to-a-descriptor-nobody-reads.md`). The probes
+stay so the session must survive them, and the fix adds their assertions.
+Each LCP Code-Reject must have an Information field of at most 128 octets,
+and its Rejected-Packet must be the start of the probe, with the probe's Code, Identifier and Length unchanged (RFC 1661 Section 5.6: "The
+Rejected-Packet MUST be truncated to comply with the peer's established
+MRU."). The session must survive: a ping still crosses it, both PPP
+interfaces are the ones from before the probes, and neither peer sends an LCP
+or IPCP Configure or Terminate packet afterwards.
+<!-- source: internal/le/interoplab/l2tp/ppp_code_reject.go -- checkPPPCodeReject -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/pppinject.go -- relayData, codeRejectFrames -->
+
 `pppoe-chap-rechallenge-ze-client` observes two accel-ppp reauthentication
 exchanges after working IPCP traffic, checks each CHAP Response's Identifier
 and digest, and requires the session and connectivity to survive.

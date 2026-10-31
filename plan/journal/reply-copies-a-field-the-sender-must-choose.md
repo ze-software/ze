@@ -9,4 +9,4 @@ Ze's replies as one.
 
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
-| 2026-10-30 | - | l2tp ppp Code-Reject | RFC 1661 Section 5.6: "The Identifier field MUST be changed for each Code-Reject sent." `sendCodeReject` (`ppp/session_run.go`, LCP) and `sendNCPCodeReject` (`ppp/ncp.go`, IPCP and IPv6CP) write the rejected packet's own Identifier as the Code-Reject's, so two rejected packets with one Identifier draw two Code-Rejects with one Identifier | fixed: a Code-Reject Identifier counter per protocol, and tests that two such packets draw two Identifiers |
+| 2026-10-30 | spec-ppp-l2tp-aaa-one-off-defects | l2tp ppp Code-Reject | RFC 1661 Section 5.6: "The Identifier field MUST be changed for each Code-Reject sent." `sendCodeReject` (`ppp/session_run.go`, LCP) and `sendNCPCodeReject` (`ppp/ncp.go`, IPCP and IPv6CP) write the rejected packet's own Identifier as the Code-Reject's, so two rejected packets with one Identifier draw two Code-Rejects with one Identifier | fixed: a Code-Reject Identifier counter per protocol, and tests that two such packets draw two Identifiers; interop `ppp-code-reject-xl2tpd` proves the LCP half |

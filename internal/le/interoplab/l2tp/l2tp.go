@@ -31,6 +31,7 @@ const (
 	scenarioRadiusAttrs         = "04-radius-acct-attrs"
 	scenarioUnknownMandatoryAVP = "l2tp-unknown-mandatory-avp-xl2tpd"
 	scenarioDNSResolver         = "dns-resolver-l2tp-subscriber"
+	scenarioPPPCodeReject       = "ppp-code-reject-xl2tpd"
 
 	commandShow  = "show"
 	commandLink  = "link"
@@ -56,6 +57,7 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 		scenarioRadiusAttrs:         checker(checkRadiusAttributes, timeout, peerZe, peerLAC, peerRadius),
 		scenarioUnknownMandatoryAVP: checker(checkUnknownMandatoryAVP, timeout, peerZe, peerLAC, peerAVPRelay),
 		scenarioDNSResolver:         checker(checkDNSResolverSubscriber, timeout, peerZe, peerLAC, peerKnot),
+		scenarioPPPCodeReject:       checker(checkPPPCodeReject, timeout, peerZe, peerLAC, peerAVPRelay),
 	}
 }
 
@@ -203,7 +205,9 @@ func prepareScenario(_ context.Context, root string, source interoplab.ScenarioS
 		peers = []interoplab.PeerConfig{lac, ze}
 	case scenarioRadiusAttrs:
 		peers = []interoplab.PeerConfig{radiusPeer(environment.Suffix), ze, lac}
-	case scenarioUnknownMandatoryAVP:
+	case scenarioUnknownMandatoryAVP, scenarioPPPCodeReject:
+		// Both put the relay between the LAC and Ze: the AVP scenario for
+		// control messages, the Code-Reject scenario for PPP frames.
 		relay, err := avpRelayPeer(environment.Suffix, network)
 		if err != nil {
 			return interoplab.PreparedScenario{}, err
@@ -379,7 +383,8 @@ func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) 
 	for _, plan := range plans {
 		needFRR = needFRR || plan.Source.Name == scenarioBGPRedistribute
 		needRadius = needRadius || plan.Source.Name == scenarioRadiusAttrs
-		needAVPRelay = needAVPRelay || plan.Source.Name == scenarioUnknownMandatoryAVP
+		needAVPRelay = needAVPRelay || plan.Source.Name == scenarioUnknownMandatoryAVP ||
+			plan.Source.Name == scenarioPPPCodeReject
 		needKnot = needKnot || plan.Source.Name == scenarioDNSResolver
 	}
 	labRoot := filepath.Join(root, "test", "interop-l2tp")
