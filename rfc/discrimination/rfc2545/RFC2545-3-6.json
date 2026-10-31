@@ -51,7 +51,7 @@
     "claim-sha": "a8aeda65593ab613",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
-    "producer-sha": "5c996c319b02bb8e",
+    "producer-sha": "061935927499a739",
     "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "4"
   }

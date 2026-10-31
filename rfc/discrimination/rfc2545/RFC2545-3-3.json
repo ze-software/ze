@@ -218,7 +218,7 @@
     "claim-sha": "9e45d4543e43bc6b",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
-    "producer-sha": "5c996c319b02bb8e",
+    "producer-sha": "061935927499a739",
     "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "4"
   },
@@ -242,8 +242,8 @@
     "claim-sha": "b4c1a76dae087ae0",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop",
-    "producer-sha": "37485d375e4081a6",
-    "break": "body of linkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "producer-sha": "602df978457d6505",
+    "break": "body of linkLocalNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:005E02:000000474001010040020040050400000064800E3600020120FD000000000000000000000000000002FE800000000000000000000000000001008020010DB8000100000000000000000001"
   },
   {

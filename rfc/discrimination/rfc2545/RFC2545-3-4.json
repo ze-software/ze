@@ -84,8 +84,8 @@
     "claim-sha": "b7cb0dc5427f891a",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop",
-    "producer-sha": "37485d375e4081a6",
-    "break": "body of linkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "producer-sha": "602df978457d6505",
+    "break": "body of linkLocalNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:005E02:000000474001010040020040050400000064800E3600020120FD000000000000000000000000000002FE800000000000000000000000000001008020010DB8000100000000000000000001"
   },
   {
