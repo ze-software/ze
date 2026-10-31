@@ -246,6 +246,29 @@ func TestNextCompleteOnlyWhenEveryOwedRowIsProven(t *testing.T) {
 	}
 }
 
+// TestNextNeverNamesANotEverRow: Goal: a SHOULD row the owner marked
+// `{intent: not-ever}` is not owed work, so `./le rfc next` never names it,
+// while a `{intent: not-yet}` row beside it stays owed Ze code. Method: rfc1
+// with its MUST row proven and two unproven SHOULD rows, one of each intent;
+// the optional register must name the not-yet row alone.
+func TestNextNeverNamesANotEverRow(t *testing.T) {
+	notEver := Requirement{RFC: "rfc1", RID: "RFC1-1-2", Level: levelShould,
+		Intent: &Intent{State: IntentNotEver, Quote: "x", Reason: "y"}}
+	notYet := Requirement{RFC: "rfc1", RID: "RFC1-1-3", Level: levelShould, Intent: &Intent{State: IntentNotYet}}
+	rows := []Requirement{{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust}, notEver, notYet}
+	report, err := nextCorpusOf(rows, []DiscriminationVerdict{nextVerdict("RFC1-1-1", "x.go::f")}, acceptEveryExclusion{}).next("core")
+	if err != nil {
+		t.Fatalf("next core: %v", err)
+	}
+	if report.Complete || report.Register != registerOptional {
+		t.Fatalf("next core complete %v register %s, want an incomplete optional register",
+			report.Complete, report.Register)
+	}
+	if got, want := nextOwedRows(t, report), []string{"RFC1-1-3=" + owesZeCode}; !slices.Equal(got, want) {
+		t.Errorf("owed rows %v, want %v", got, want)
+	}
+}
+
 // TestNextNamesAZeGapAsZeCode: Goal: an unproven unannotated MUST row is
 // named as Ze code owed, under "uncovered". Method: rfc1 with the
 // {lower-layer} row OS verified and its Ze row unproven.

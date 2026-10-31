@@ -1641,7 +1641,8 @@ the MUST bar that holds owed work. Each uncovered row names what it owes
 `{lower-layer}` row with no proving record that broke its named producer,
 owes a test of the OS behavior on the state Ze installs (`os-test`, printed
 under `OS testing gap`). A row in the not-owed section (not applicable,
-declined, OS blocked) is never uncovered and blocks nothing. A row enters that
+declined, OS blocked) is never uncovered and blocks nothing, and neither is a
+SHOULD or MAY row marked `{intent: not-ever}`, which Ze will not support. A row enters that
 section by the rule the figures use (`figureEvidence.excluded`), never by its
 annotation alone: a `{not-applicable}`, `{feature-declined}` or
 `{linux-limit}` row whose evidence fails the check a new row must pass

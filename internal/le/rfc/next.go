@@ -368,6 +368,13 @@ func (c *priorityCorpus) rowOwes(requirement *Requirement) (string, bool) {
 	if met {
 		return "", false
 	}
+	// An optional row the owner marked `{intent: not-ever}` is one Ze will
+	// not support, so it is never the next gap; the figures still count it in
+	// its own SHOULD segment (sectionsOf). A gated row never carries an intent
+	// (intentOnGatedRow), so this cannot release a MUST row.
+	if requirement.Intent != nil && requirement.Intent.State == IntentNotEver {
+		return "", false
+	}
 	return owesZeCode, true
 }
 
