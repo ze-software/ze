@@ -64,16 +64,21 @@ func rfcProfilePageSite(t *testing.T) (dir, pageURL string) {
 }
 
 // rfcProfilePageState is what the page shows once the script ran: each bar's
-// segments and legend items as segment=text, and each marked value.
+// segments and legend items as segment=text, and each marked value. Values
+// keys a value by its marker alone, and where two blocks of one page mark the
+// same value the filtered list's #rfc-overview wins; Scoped keys each value
+// inside an identified .rfc-overview block as "<block id>|<marker>", so a
+// test reads a block the filter never narrows apart from the list.
 type rfcProfilePageState struct {
 	Bars    map[string][]string `json:"bars"`
 	Legends map[string][]string `json:"legends"`
 	Values  map[string]string   `json:"values"`
+	Scoped  map[string]string   `json:"scoped"`
 	Drawn   bool                `json:"drawn"`
 }
 
 const readRFCProfilePage = `(function () {
-    var bars = {}, legends = {}, values = {}, drawn = true;
+    var bars = {}, legends = {}, values = {}, scoped = {}, drawn = true;
     Array.prototype.forEach.call(document.querySelectorAll("[data-ze-rfc-bar]"), function (node) {
         var key = node.getAttribute("data-ze-rfc-bar");
         var spans = node.querySelectorAll(".rfc-seg");
@@ -89,9 +94,16 @@ const readRFCProfilePage = `(function () {
         });
     });
     Array.prototype.forEach.call(document.querySelectorAll("[data-ze-rfc]"), function (node) {
-        values[node.getAttribute("data-ze-rfc")] = node.textContent;
+        var key = node.getAttribute("data-ze-rfc");
+        var block = node.closest(".rfc-overview[id]");
+        if (block) {
+            scoped[block.id + "|" + key] = node.textContent;
+        }
+        if (!(key in values) || (block && block.id === "rfc-overview")) {
+            values[key] = node.textContent;
+        }
     });
-    return {bars: bars, legends: legends, values: values, drawn: drawn};
+    return {bars: bars, legends: legends, values: values, scoped: scoped, drawn: drawn};
 })()`
 
 // loadRFCProfilePage opens the page and polls until every bar is drawn and

@@ -32,10 +32,17 @@ type rfcFigureSet struct {
 	profiles map[string]*rfcProfileData
 	// order is every stem in the index's order, the members of all.
 	order []string
+	// enrolled is the stems the index marks gated (rfc.Meta.Enrolled), in
+	// its order, the members of the enrolled subject.
+	enrolled []string
 }
 
 // rfcAllSubject is the subject that sums every RFC the index lists.
 const rfcAllSubject = "all"
+
+// rfcEnrolledSubject is the subject that sums the RFCs the index marks
+// gated: the ones the gate holds Ze to.
+const rfcEnrolledSubject = "enrolled"
 
 // rfcPublishMissing is the command that writes data/rfc/, named in every
 // refusal about a file this reader could not use.
@@ -58,6 +65,9 @@ func loadRFCFigureSet(output string) (*rfcFigureSet, error) {
 		}
 		set.stems[entry.Stem] = stem
 		set.order = append(set.order, entry.Stem)
+		if entry.Gated {
+			set.enrolled = append(set.enrolled, entry.Stem)
+		}
 	}
 	for _, entry := range index.Profiles {
 		profile := &rfcProfileData{}
@@ -94,6 +104,9 @@ func (set *rfcFigureSet) members(subject string) ([]string, error) {
 	if subject == rfcAllSubject {
 		return set.order, nil
 	}
+	if subject == rfcEnrolledSubject {
+		return set.enrolled, nil
+	}
 	name, isProfile := strings.CutPrefix(subject, "profile/")
 	if !isProfile {
 		return []string{subject}, nil
@@ -122,19 +135,20 @@ func (set *rfcFigureSet) members(subject string) ([]string, error) {
 func rfcSubjectRefusal(subject string) error {
 	var tb textbuf.Buffer
 	return errors.New(tb.Str(subject).Str(" is not a subject the RFC data answers; write an RFC stem, ").
-		Str("all, profile/<name>/required or profile/<name>/optional (docs/architecture/site-facts.md, \"RFC completion data\")").String())
+		Str("all, enrolled, profile/<name>/required or profile/<name>/optional (docs/architecture/site-facts.md, \"RFC completion data\")").String())
 }
 
 // sum answers the counts of a subject's members as rfc-figures.js sumStems
-// does: rfcs, walked and not-walked, then must and should summed over the
-// walked members only, count by count.
+// does: rfcs, walked and not-walked, requirements and implemented over every
+// member, then must and should summed over the walked members only, count by
+// count.
 func (set *rfcFigureSet) sum(subject string) (map[string]any, error) {
 	stems, err := set.members(subject)
 	if err != nil {
 		return nil, err
 	}
 	out := map[string]any{"rfcs": float64(len(stems))}
-	walked, notWalked := 0, 0
+	walked, notWalked, requirements, implemented := 0, 0, 0.0, 0
 	for _, stem := range stems {
 		data := set.stems[stem]
 		if data == nil {
@@ -142,6 +156,22 @@ func (set *rfcFigureSet) sum(subject string) (map[string]any, error) {
 			return nil, errors.New(tb.Str("data/rfc/index.json lists no RFC named ").Str(stem).
 				Str(", which ").Str(subject).Str(" counts, so its figure would leave it out; add its rfc/short/ summary, then ").
 				Str(rfcPublishMissing).String())
+		}
+		count, counted := data["requirements"].(float64)
+		if !counted {
+			var tb textbuf.Buffer
+			return nil, errors.New(tb.Str(rfcStemDataFile(stem)).Str(" holds no requirements count, so ").Str(subject).
+				Str(" would sum the requirement rows without it; ").Str(rfcPublishMissing).String())
+		}
+		requirements += count
+		implements, declared := data["implemented"].(bool)
+		if !declared {
+			var tb textbuf.Buffer
+			return nil, errors.New(tb.Str(rfcStemDataFile(stem)).Str(" holds no implemented flag, so ").Str(subject).
+				Str(" would count the RFCs Ze implements without it; ").Str(rfcPublishMissing).String())
+		}
+		if implements {
+			implemented++
 		}
 		if held, _ := data["walked"].(bool); !held {
 			notWalked++
@@ -159,6 +189,8 @@ func (set *rfcFigureSet) sum(subject string) (map[string]any, error) {
 		}
 	}
 	out["walked"], out["not-walked"] = float64(walked), float64(notWalked)
+	out["requirements"] = requirements
+	out["implemented"] = float64(implemented)
 	out["register"] = rfcRegisterOf(len(stems), notWalked, out)
 	return out, nil
 }

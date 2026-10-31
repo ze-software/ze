@@ -91,12 +91,10 @@ const (
 	rfcToneNeutral = "neutral"
 	rfcToneWarn    = "warn"
 	rfcToneBad     = "bad"
-	// The two cards that carry a percentage and are NOT parts of the
-	// partition. Named here because rfcPartitionNote names them and their
-	// builders set them, and a label spelled twice is a sentence that stops
-	// matching the card it describes.
-	rfcProvenShareLabel = "Proven by test"
-	rfcProofCardLabel   = "Proven by a recorded break"
+	// The card that is NOT a part of the partition. Named here because
+	// rfcPartitionNote names it and its builder sets it, and a label spelled
+	// twice is a sentence that stops matching the card it describes.
+	rfcProofCardLabel = "Proven by a recorded break"
 	// The label the non-binding bucket carries. The partition row, the tone
 	// legend and the bucket table each name it, and a label spelled three times
 	// is a sentence that stops matching the card it describes.
@@ -121,40 +119,11 @@ const (
 // the build derives it once, publishes it beside the page as
 // data/rfc-compliance.json, and every figure the page shows comes from it.
 type rfcCompliance struct {
-	Gate rfcGate `json:"gate"`
-	// Share is the published proof share, exactly as internal/le/rfc answers
-	// it. The page states it; it derives no share of its own.
-	Share        rfcShare    `json:"share"`
+	Gate         rfcGate     `json:"gate"`
 	Satisfaction []rfcBucket `json:"satisfaction"`
 	Gaps         rfcGaps     `json:"gaps"`
 	Audit        rfcAudit    `json:"audit"`
 	Verify       rfcVerify   `json:"verify"`
-	// Unmapped counts the gated requirements whose annotation kind has no
-	// bucket. It is zero in a healthy tree and the page states it when it is
-	// not, because those requirements are in no published share.
-	Unmapped int `json:"unmapped-annotations,omitempty"`
-}
-
-// rfcShare is the ONE answer to "how much of what Ze implements is proven by
-// test", carried here in the shape rfc.ProvenShareOf returns it.
-//
-// Three surfaces state it and all three read that producer, so they cannot
-// disagree. Until 2026-09-02 this page answered 58.1% over a denominator that
-// dropped every {not-applicable} obligation, /quality/health/ answered 43.2%
-// over every enrolled RFC, and the home page published two absolute counts with
-// no denominator at all (owner directive, 2026-09-01).
-//
-// Percent is the producer's own rendering rather than a second formatting of
-// Proven over Gated, because a page that re-rounds the ratio can print a
-// different last digit from the producer that owns it.
-type rfcShare struct {
-	Proven         int    `json:"proven"`
-	Gated          int    `json:"gated"`
-	RFCs           int    `json:"rfcs"`
-	NotWalked      int    `json:"not-walked"`
-	Inspected      int    `json:"inspected"`
-	GatedInspected int    `json:"gated-inspected"`
-	Percent        string `json:"percent"`
 }
 
 // rfcGate is the gate's verdict and the scale it judged.
@@ -492,18 +461,6 @@ func collectRFCCompliance(tree string) (rfcCompliance, error) {
 		return rfcCompliance{}, fmt.Errorf("the RFC gate cannot run: %s", report.CannotRun)
 	}
 
-	// The share is summed from the verified-record figures of the input this
-	// page already rendered. The home page and /quality/health/ read the same
-	// two functions, so the three surfaces cannot answer different numbers.
-	figures, err := rfc.StemFiguresOf(&input)
-	if err != nil {
-		return rfcCompliance{}, err
-	}
-	share, err := rfc.ProvenShareOf(collected.Metas, figures)
-	if err != nil {
-		return rfcCompliance{}, err
-	}
-
 	// TWO populations, and every figure below names which one it is over.
 	//
 	// inspected is what the GATE holds: every gated MUST of an enrolled
@@ -547,14 +504,10 @@ func collectRFCCompliance(tree string) (rfcCompliance, error) {
 			Violations: report.Violations,
 			Findings:   report.Findings,
 		},
-		Share: rfcShare{Proven: share.Proven, Gated: share.Gated, RFCs: share.RFCs,
-			NotWalked: share.NotWalked, Inspected: share.Inspected, GatedInspected: share.GatedInspected,
-			Percent: share.Percent()},
 		Verify: rfcGateStages(),
 	}
 	snapshot.Gate.Message = rfcGateSummary(&report)
-	snapshot.Satisfaction, snapshot.Gaps, snapshot.Unmapped = rfcBuckets(implemented,
-		collected.Tags)
+	snapshot.Satisfaction, snapshot.Gaps, _ = rfcBuckets(implemented, collected.Tags)
 	snapshot.Audit = rfcAuditCounts(inspected, input.States, len(inspected))
 	return snapshot, nil
 }
@@ -719,6 +672,7 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	body.Str(rfcListSlot)
 	body.Str(rfcReaderIntroHTML())
 	body.Str(rfcLeadHTML(rfcLeadVerdict))
+	body.Str(rfcEnrolledSectionsHTML())
 	body.Str(rfcCardGrid(snapshot, ledger))
 	body.Str(rfcGateVerdictHTML(snapshot))
 	// The per-profile pages come straight after the verdict: a reader asking
@@ -731,7 +685,6 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	// already been told it measures Ze before anything says whose work it is.
 	body.Str("<section><h2>Who implements each document</h2>\n").
 		Str(rfcLeadHTML(rfcLeadImplements)).Str(rfcImplementationHTML(ledger)).Str("\n</section>\n")
-	body.Str("<section><h2>Requirement buckets</h2>\n").Str(rfcLeadHTML(rfcLeadBuckets)).Str(rfcSatisfactionHTML(snapshot)).Str("\n</section>\n")
 	body.Str("<section><h2>Gap disclosure</h2>\n").Str(rfcLeadHTML(rfcLeadGaps)).Str(rfcGapDisclosureHTML(snapshot.Gaps)).Str("\n</section>\n")
 	body.Str("<section><h2>Exclusion disclosure</h2>\n").
 		Str(rfcLeadHTML(rfcLeadExclusions)).Str(rfcExclusionDisclosureHTML(ledger)).Str("\n</section>\n")
@@ -886,8 +839,8 @@ func rfcOrDash(value string) string {
 // (independent review, 2026-09-02). It now sums Part and states the shortfall
 // where there is one.
 //
-// A reader who adds the shares this page shows must land somewhere they can
-// name. Showing two parts of a four-part split and leaving 3.3% unexplained is
+// A reader who adds the counts this page shows must land somewhere they can
+// name. Showing two parts of a four-part split and leaving a remainder unexplained is
 // an incomplete report, which is the defect the owner found on 2026-09-01. The
 // note states the whole, and it states that the proof ratio is over a different
 // population so nobody adds it in.
@@ -901,29 +854,25 @@ func rfcPartitionNote(cards []rfcCard, whole int) string {
 		sum += card.Part
 	}
 	if parts == 0 || whole == 0 {
-		return "No card above is a share of a population, so there is nothing to add up."
+		return "No card above is a part of a population, so there is nothing to add up."
 	}
 	// The tail names the cards that are NOT parts, and it names only the ones
 	// this grid actually carries: a stem page has no headline share, and a
 	// sentence about a card a reader cannot see is a sentence about nothing.
 	tail := ""
-	if rfcGridHas(cards, rfcProvenShareLabel) {
-		tail += " " + rfcProvenShareLabel + " is the first two of them added together, so it " +
-			"is not a part of its own."
-	}
 	if rfcGridHas(cards, rfcProofCardLabel) {
-		tail += " " + rfcProofCardLabel + " is a share of TAGGED UNITS, a different " +
+		tail += " " + rfcProofCardLabel + " counts TAGGED UNITS, a different " +
 			"population, so it is not one of them."
 	}
 	if sum != whole {
-		return "The " + plural(parts, "share") + " marked as a part above account for " +
+		return "The " + plural(parts, "count") + " marked as a part above account for " +
 			groupThousands(sum) + " of the " + groupThousands(whole) +
 			" gated MUSTs, so " + groupThousands(whole-sum) +
-			" fall in none of them: they do NOT add to 100%." + tail
+			" fall in none of them: they do NOT add up to " + groupThousands(whole) + "." + tail
 	}
-	return "The " + plural(parts, "share") + " marked as a part above " +
+	return "The " + plural(parts, "count") + " marked as a part above " +
 		"are the whole of the " + groupThousands(whole) +
-		" gated MUSTs: they add to 100%." + tail
+		" gated MUSTs: they add up to " + groupThousands(whole) + "." + tail
 }
 
 // rfcGridHas answers whether a grid carries the card with one label.
@@ -988,7 +937,7 @@ func rfcToneLegendMirror(cards []rfcCard) string {
 // rfcCardGrid renders the four headline numbers and the gate's wiring.
 func rfcCardGrid(snapshot *rfcCompliance, ledger rfcLedger) string {
 	cards := rfcComplianceCards(snapshot, ledger)
-	return rfcCardsHTML(cards, rfcBindingOf(snapshot).Gated) +
+	return rfcCardsHTML(cards, 0) +
 		rfcToneLegendHTML(cards) + "\n"
 }
 
@@ -1070,7 +1019,7 @@ var rfcStanding = []struct {
 		Meaning: "a positive test proves Ze does what the requirement demands and a negative " +
 			"one proves it refuses what the requirement forbids",
 		Rule: "green at every value: a test pair is the outcome this gate exists to produce, " +
-			"and the share under the label is what says how far Ze has got"},
+			"and the count under the label is what says how far Ze has got"},
 	{Label: "One polarity plus reason", Keys: []string{rfcSingleBucket}, Tone: rfcToneOK,
 		Meaning: "the requirement admits no counter-case, so one polarity plus a recorded " +
 			"reason is the whole proof available for it",
@@ -1089,7 +1038,7 @@ var rfcStanding = []struct {
 			"with nothing behind it, whether or not a reason is stated"},
 	{Label: rfcNotApplyLabel, Keys: []string{rfcNotApplyBucket}, Tone: rfcToneNeutral,
 		Meaning: "a {not-applicable} annotation says the obligation does not bind Ze, so no " +
-			"test is owed for it. It stays in the denominator every share here is taken over",
+			"test is owed for it. It is counted in the gated whole the cards add up to",
 		Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
 			"failure, and counting it either way would be a claim"},
 	{Label: rfcLowerLayerLabel, Keys: []string{rfcLowerLayerBucket}, Tone: rfcToneNeutral,
@@ -1098,12 +1047,12 @@ var rfcStanding = []struct {
 			"obligation binds Ze and is met; Ze proves none of it, because its own boundary " +
 			"carries no value the behavior reads",
 		Rule: "no color: an obligation met below Ze is neither a test Ze wrote nor work Ze " +
-			"owes, and the two green shares above are what says how much Ze proves itself"},
+			"owes, and the two green counts above are what says how much Ze proves itself"},
 	{Label: rfcFeatureDeclinedLabel, Keys: []string{rfcFeatureDeclinedBucket}, Tone: rfcToneNeutral,
 		Meaning: "a {feature-declined} annotation says the obligation is conditional on a " +
 			"feature the RFC makes optional and Ze does not offer, and it quotes the sentence " +
 			"that makes it optional. The condition is false, so nothing is owed and nothing " +
-			"is missing. It stays in the denominator every share here is taken over",
+			"is missing. It is counted in the gated whole the cards add up to",
 		Rule: "no color: an obligation whose condition Ze never meets is neither an " +
 			"achievement nor a failure. The absent FEATURE is disclosed on the RFC's own " +
 			"status row, as an implementation gap a later scope decision can revisit"},
@@ -1111,32 +1060,6 @@ var rfcStanding = []struct {
 		Meaning: "Linux cannot provide the primitive this requirement needs. The obligation still binds " +
 			"Ze and remains unmet; it stays in every denominator and earns no proof credit",
 		Rule: "neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption"},
-}
-
-// rfcBinding is the gated population of the RFCs Ze implements, and how it is
-// answered.
-//
-// EVERY share on this page is taken over Gated, which the producer answered and
-// no bucket here produced. There was a second population until 2026-09-02,
-// `Gated - OutOfScope`, and the five shares were taken over that one: a
-// `{not-applicable}` annotation moved its obligation out of the denominator,
-// out of the tape and out of every card, and each share above it rose. The
-// owner ruled against removing them from view, so not-applicable is a NAMED
-// slice of the partition now and the subtraction is gone.
-//
-// OutOfScope survives because the scale card still states how many of the gated
-// MUSTs that slice holds. It is a count the page shows, no longer a subtrahend.
-type rfcBinding struct {
-	Gated      int
-	OutOfScope int
-	// Obligations is the sum of the buckets whose obligation binds Ze. Nothing
-	// on the page divides by it; TestTheBucketTableAccountsForEveryGatedRequirement
-	// holds it against a count taken straight from the vocabulary, which is
-	// what says rfcBindingOf read the snapshot correctly.
-	Obligations int
-	// Unmapped counts the gated requirements in no bucket at all, which is the
-	// one way the buckets can fail to account for Gated.
-	Unmapped int
 }
 
 // Bucket answers this summary's count for one index bucket key.
@@ -1199,37 +1122,11 @@ func rfcStandingCards(whole int, countOf func(string) int) []rfcCard {
 			tone = rfcToneFor(part, rfcToneBad)
 		}
 		cards = append(cards, rfcCard{Label: group.Label,
-			Value: rfcPercentText(part, whole),
-			Count: groupThousands(part) + " of " + groupThousands(whole) + " gated MUSTs",
+			Value: groupThousands(part),
+			Count: "of " + groupThousands(whole) + " gated MUSTs",
 			Note:  group.Meaning, Tone: tone, Rule: group.Rule, Partition: true, Part: part})
 	}
 	return cards
-}
-
-// rfcBindingOf splits the gated population into what binds Ze and what does
-// not, from the buckets the snapshot already carries.
-func rfcBindingOf(snapshot *rfcCompliance) rfcBinding {
-	counted := map[string]int{}
-	for _, bucket := range snapshot.Satisfaction {
-		counted[bucket.Key] = bucket.Count
-	}
-	// The partition is over every gated MUST of the RFCs Ze implements, walked
-	// or not, so its total is its own parts summed. The proof share's
-	// denominator holds the walked RFCs alone (rfc.ProvenShareOf), and the two
-	// differ by exactly the rows of the RFCs no walk has bounded.
-	split := rfcBinding{Unmapped: snapshot.Unmapped}
-	for _, bucket := range rfcSatisfaction {
-		if bucket.Derived {
-			continue
-		}
-		split.Gated += counted[bucket.Key]
-		if bucket.Binds {
-			split.Obligations += counted[bucket.Key]
-			continue
-		}
-		split.OutOfScope += counted[bucket.Key]
-	}
-	return split
 }
 
 // rfcComplianceCards answers the index page's own headline numbers, each with
@@ -1244,88 +1141,17 @@ func rfcBindingOf(snapshot *rfcCompliance) rfcBinding {
 // WHY that rule existed, so `Gated MUSTs` is labeled as scale, carries the
 // neutral tone and the sentence saying a population is not a result, and the
 // coverage shares sit in the same grid immediately after it.
-// rfcWalkBound says how many gated documents have been read against their own
-// text, in the same note as the population it bounds.
-//
-// Every check behind these figures compares a requirement LIST to the tests,
-// and none reads the RFC, so a count over unwalked summaries measures the list.
-// On 2026-09-21 this page published 3,058 gated MUSTs while 125 of 184
-// documents had never been compared to their standard; the walks that followed
-// found 882 obligations the RFCs state and no summary carried. A reader cannot
-// act on the number without this sentence, so the two travel together
-// (ai/rules/rfc-compliance.md).
-func rfcWalkBound(ledger rfcLedger) string {
-	gated, walked := 0, 0
-	for index := range ledger.Stems {
-		stem := &ledger.Stems[index]
-		if !stem.Enrolled {
-			continue
-		}
-		gated++
-		if stem.Extraction != nil {
-			walked++
-		}
-	}
-	if gated == 0 {
-		return ""
-	}
-	if walked == gated {
-		return "All " + groupThousands(gated) + " were analyzed for every MUST they state, " +
-			"so this population cannot be short."
-	}
-	return "THE GATE IS RED: " + groupThousands(gated-walked) + " of " + groupThousands(gated) +
-		" carry no sign-off, so a MUST they state can be absent from this population " +
-		"altogether."
-}
-
 func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {
 	totals := rfcTotalsOf(ledger)
-	split := rfcBindingOf(snapshot)
-
-	cards := []rfcCard{
-		{Label: "Gated MUSTs", Value: groupThousands(split.Gated), Overall: true,
-			Count: groupThousands(totals.Requirements) + " extracted from " +
-				groupThousands(totals.Summaries) + " summaries",
-			Note: "MUST-level requirements the gate HOLDS, across the " +
-				groupThousands(snapshot.Share.RFCs) + " RFCs Ze implements, out of " +
-				groupThousands(snapshot.Share.GatedInspected) + " across the " +
-				groupThousands(snapshot.Share.Inspected) + " RFCs inspected. A population, not " +
-				"a result: the shares beside it are what says how Ze stands. " +
-				rfcWalkBound(ledger),
-			Tone: rfcToneNeutral,
-			Rule: "no color: a population is a scale, and a larger one is neither good news " +
-				"nor bad. It is the accounting total"},
-		{Label: "Out of scope", Value: groupThousands(split.OutOfScope), Overall: true,
-			Count: "of " + groupThousands(split.Gated) + " gated MUSTs",
-			Note:  rfcScopeCardNote,
-			Tone:  rfcToneNeutral,
-			Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
-				"failure, and counting it either way would be a claim"},
-		rfcProvenShareCard(snapshot.Share),
-	}
-	// The whole is the gate's own gated total less what the buckets put out of
-	// scope, and NOT split.Obligations, which is the sum of the binding buckets
-	// the parts are drawn from. Passing that sum made the partition note
-	// compare a number with itself, the same tautology rfcAccountedNote carried
-	// (independent review, 2026-09-01 and 2026-09-02). The two are equal today
-	// and the note is what says so.
-	cards = append(cards, rfcStandingCards(split.Gated, func(key string) int {
-		for _, bucket := range snapshot.Satisfaction {
-			if bucket.Key == key {
-				return bucket.Count
-			}
-		}
-		return 0
-	})...)
-	return append(cards,
+	return []rfcCard{
 		rfcProofCard(totals.Proven(), totals.Units, totals.Escapes, totals.Stale,
 			" in enrolled RFCs"),
-		rfcCard{Label: "Gate verdict", Value: rfcGateWord(snapshot.Gate.OK),
+		{Label: "Gate verdict", Value: rfcGateWord(snapshot.Gate.OK),
 			Count: plural(snapshot.Gate.ErrorCount, "open gate issue"),
 			Note:  "whether ./le rfc check passes over this tree",
 			Tone:  rfcGateTone(snapshot.Gate.OK),
 			Rule:  "the verdict IS the value: green when the gate passes, red when it does not"},
-		rfcCard{Label: "Semantic verdicts", Value: groupThousands(snapshot.Audit.Fresh),
+		{Label: "Semantic verdicts", Value: groupThousands(snapshot.Audit.Fresh),
 			Count: groupThousands(snapshot.Audit.Shifted) + " shifted, " +
 				groupThousands(snapshot.Audit.Stale) + " stale, " +
 				groupThousands(snapshot.Audit.Missing) + " missing",
@@ -1334,37 +1160,64 @@ func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {
 				"their own RFC's page",
 			Tone: rfcToneNeutral,
 			Rule: "no color: a count of judgements recorded is a scale rather than an outcome, " +
-				"and the shifted and stale counts beside it are the states that need reading"})
+				"and the shifted and stale counts beside it are the states that need reading"},
+	}
 }
 
-// rfcProvenShareCard answers the ONE published share: how much of what Ze
-// implements is proven by a test bound to the requirement id.
-//
-// It states the producer's own percentage and both populations it is drawn
-// from, because an absolute number alone counts obligations JUDGED and is read
-// as obligations MET (owner directive, 2026-09-01). It is NOT marked as a part
-// of the partition: it is two of those parts added together, so counting it
-// again would put the same obligations in the sum twice.
-//
-// Its numerator IS those two buckets summed and its denominator IS theirs, so
-// it is those two slices of the partition added together and stated as one
-// number. TestTheHeadlineShareIsTheTwoProvenCardsSummed holds the numerator
-// half of that, and the card's own note tells a reader the same thing.
-func rfcProvenShareCard(share rfcShare) rfcCard {
-	// Overall stays false: this card is a MEASURE rather than one of the
-	// populations the shares are taken over, so it reads in the Positive
-	// movement beside the other green cards.
-	return rfcCard{Label: rfcProvenShareLabel, Value: share.Percent + "%",
-		Count: groupThousands(share.Proven) + " of " + groupThousands(share.Gated) +
-			" gated MUSTs of the walked RFCs Ze implements; " + groupThousands(share.NotWalked) +
-			" of its " + groupThousands(share.RFCs) + " RFCs are not walked and are left out",
-		Note: "the share this site publishes everywhere: Tested both ways and One polarity " +
-			"plus reason added together, two of the five shares that partition the same " +
-			"denominator. That denominator keeps the {not-applicable} obligations, so " +
-			"annotating a requirement away cannot raise it",
-		Tone: rfcToneOK,
-		Rule: "green at every value: a proven obligation is the outcome this gate exists to " +
-			"produce, and the number under the label is what says how far Ze has got"}
+// rfcEnrolledSectionsTitle heads the index's headline figures.
+const rfcEnrolledSectionsTitle = "How the enrolled RFCs' requirements are answered"
+
+// rfcEnrolledScope says which RFCs the sections count and how large the
+// corpus behind them is. The implemented count is rfc.Implements summed
+// through each file's implemented flag, the population the retired proof
+// share took as its RFCs. The corpus count is every summary file under
+// rfc/short/, those declaring no requirement included, so it is a different
+// population from the RFCs the site facts count as holding a requirement. The
+// last sentences say what the figure this block replaced counted
+// (spec-rfc-figures-sectioned-presentation, AC-15).
+func rfcEnrolledScope() string {
+	return rfcValueMirror(rfcEnrolledSubject, "rfcs") + " enrolled RFCs, of which " +
+		rfcValueMirror(rfcEnrolledSubject, "not-walked") + " not walked, so their rows count in no " +
+		"figure above. Ze implements " + rfcValueMirror(rfcEnrolledSubject, "implemented") +
+		" of them: the enrolled RFCs that render a public row. Behind them, rfc/short/ holds " + rfcValueMirror(rfcAllSubject, "rfcs") +
+		" summary files, enrolled or not and including those that declare no requirement, " +
+		"listing " + rfcValueMirror(rfcAllSubject, "requirements") + " requirements at every " +
+		"level: the size of the lists, not a measure of Ze. Until 2026-10-31 this page led " +
+		"with Gated MUSTs, which counted every MUST row of the enrolled RFCs, annotated rows " +
+		"included, and a share proven by test taken over it. The sections replace both: each " +
+		"MUST row of a walked enrolled RFC sits in exactly one of them."
+}
+
+// rfcMarkedHTML escapes text for a page and turns each mirror mark in it into
+// the marked element rfc-figures.js fills, so one sentence serves the page
+// and the mirror.
+func rfcMarkedHTML(text string) string {
+	return rfcValueToken.ReplaceAllStringFunc(html.EscapeString(text), func(token string) string {
+		match := rfcValueToken.FindStringSubmatch(token)
+		return rfcValueHTML(html.UnescapeString(match[1]), html.UnescapeString(match[2]))
+	})
+}
+
+// rfcEnrolledSectionsHTML renders the index's headline: the enrolled RFCs'
+// MUST bar and overview bar, their Total row and its check, and the
+// populations behind them. Every value is a marked element.
+func rfcEnrolledSectionsHTML() string {
+	var out textbuf.Buffer
+	out.Str(`<div class="rfc-overview" id="rfc-enrolled-sections">`).Byte('\n')
+	out.Str("<h3>").Str(html.EscapeString(rfcEnrolledSectionsTitle)).Str("</h3>\n")
+	out.Str(rfcBarsHTML(rfcEnrolledSubject))
+	out.Str(rfcTotalRowHTML(rfcEnrolledSubject, "rfc-enrolled-check"))
+	out.Str(`<p id="rfc-enrolled-scope">`).Str(rfcMarkedHTML(rfcEnrolledScope())).Str("</p>\n</div>\n")
+	return out.String()
+}
+
+// rfcEnrolledSectionsMirror states the same headline in the mirror.
+func rfcEnrolledSectionsMirror() string {
+	var out textbuf.Buffer
+	out.Str("### ").Str(rfcEnrolledSectionsTitle).Str("\n\n").Str(rfcBarsMirror(rfcEnrolledSubject)).Byte('\n')
+	out.Str(rfcTotalRowMirror(rfcEnrolledSubject))
+	out.Str(rfcEnrolledScope()).Str("\n\n")
+	return out.String()
 }
 
 // rfcProofCard answers the proof ratio, which is over TAGGED UNITS and is
@@ -1384,15 +1237,15 @@ func rfcProofCard(proven, units, escapes, stale int, where string) rfcCard {
 		count += ", " + groupThousands(escapes) + " escaped and " + groupThousands(stale) +
 			" lapsed"
 	}
-	return rfcCard{Label: rfcProofCardLabel, Value: rfcPercentText(proven, units),
+	return rfcCard{Label: rfcProofCardLabel, Value: groupThousands(proven),
 		Count: count,
 		Note: "a red was observed once under a recorded procedure, and the unit, the claim " +
 			"and the producer it rested on still hash to what was recorded. The break is not " +
 			"re-run. A test pair is not a proof until one has been observed",
 		Tone: rfcToneOK,
 		Rule: "green at every value: an observed break is the outcome the discrimination gate " +
-			"exists to produce. The denominator is TAGGED UNITS, not obligations, so this " +
-			"share is not one of the parts above"}
+			"exists to produce. It counts TAGGED UNITS, not obligations, so this " +
+			"count is not one of the parts above"}
 }
 
 // rfcGateWord and rfcGateTone answer the verdict the card and the status block
@@ -1439,160 +1292,25 @@ func rfcGateVerdictText(snapshot *rfcCompliance) string {
 		" this page inlines."
 }
 
-// rfcSatisfactionHTML renders the proportion tape, its key, and the bucket
-// table with the total that proves the accounting.
-//
-// The shares are over the GATED population, every bucket included. They were
-// over `gated - not-applicable` until 2026-09-02, which took 642 annotated
-// obligations out of the tape, out of the key and out of every denominator: a
-// requirement annotated away left the picture, and each share around it rose.
-// The owner ruled against removing them from view, so the not-applicable bucket
-// is a segment of the tape like any other and its row sits with the rest.
-//
-// The tape carries no text of its own. A bucket at 4.5% of the width had a
-// label wider than its segment, so the small buckets -- which are the ones that
-// matter -- were the unreadable ones. The tape is the proportion, the key
-// beneath it is the words, and every bucket is legible at any width.
-//
-// An empty bucket is left out of the tape and its key: a zero-width segment
-// shows nothing and a zero row says nothing. Every bucket the vocabulary
-// declares keeps its table row, so the accounting cannot read as complete while
-// a bucket is missing from it.
-func rfcSatisfactionHTML(snapshot *rfcCompliance) string {
-	counted := map[string]int{}
-	for _, bucket := range snapshot.Satisfaction {
-		counted[bucket.Key] = bucket.Count
-	}
-	split := rfcBindingOf(snapshot)
-
-	var out textbuf.Buffer
-	out.Str(`<div class="rfc-tape" role="img" aria-label="How every gated MUST is answered">`).Byte('\n')
-	for _, bucket := range rfcSatisfaction {
-		if counted[bucket.Key] == 0 || bucket.Derived {
-			continue
-		}
-		out.Str(`<span class="rfc-tape-`).Str(bucket.Key).Str(`" style="--w: `).
-			Float(rfcPercent(counted[bucket.Key], split.Gated), 3).
-			Str(`%"></span>`).Byte('\n')
-	}
-	out.Str("</div>\n<ul class=\"rfc-tape-key\">\n")
-	for _, bucket := range rfcSatisfaction {
-		if counted[bucket.Key] == 0 || bucket.Derived {
-			continue
-		}
-		out.Str(`<li><span class="rfc-swatch rfc-tape-`).Str(bucket.Key).Str(`"></span> `).
-			Str(html.EscapeString(bucket.Label)).Str(": <strong>").Str(groupThousands(counted[bucket.Key])).
-			Str("</strong> (").Str(rfcPercentText(counted[bucket.Key], split.Gated)).Str(")</li>\n")
-	}
-	out.Str("</ul>\n<p>").Str(html.EscapeString(rfcScopeNote(split))).Str("</p>\n")
-	out.Str(rfcTableHTML(rfcHeadCells("Bucket", "Count", "Share of gated",
-		"Source condition"), rfcSatisfactionRows(counted, split)))
-	return out.String()
-}
-
-// rfcSatisfactionRows answers one row per bucket and the accounting total.
-//
-// ONE pass over the vocabulary, in its own order. There were two passes and two
-// totals until 2026-09-02, because the not-applicable bucket was published
-// below a subtotal it had been subtracted out of. It is a row like the others
-// now, and its Source condition still says the obligation does not bind Ze.
-//
-// A Derived bucket has no row: the table partitions the gated population and
-// its rows are not in it, so a row would show a count of a population the
-// total does not carry and a share of a denominator it is not in.
-func rfcSatisfactionRows(counted map[string]int, split rfcBinding) string {
-	var rows textbuf.Buffer
-	accounted := 0
-	for _, bucket := range rfcSatisfaction {
-		if bucket.Derived {
-			continue
-		}
-		accounted += counted[bucket.Key]
-		condition := "<code>" + html.EscapeString(bucket.Condition) + "</code>"
-		if !bucket.Binds {
-			condition += ": " + html.EscapeString(rfcScopeCell)
-		}
-		rows.Str(rfcRowCells(html.EscapeString(bucket.Label),
-			"<strong>"+groupThousands(counted[bucket.Key])+"</strong>",
-			rfcPercentText(counted[bucket.Key], split.Gated), condition))
-	}
-	rows.Str(`<tr class="rfc-total"><td><strong>`).
-		Str(html.EscapeString(rfcGatedLabel)).Str(`</strong></td><td><strong>`).
-		Str(groupThousands(split.Gated)).Str("</strong></td><td>").
-		Str(rfcPercentText(accounted, split.Gated)).Str("</td><td>").
-		Str(html.EscapeString(rfcAccountedNote(split, accounted))).Str("</td></tr>\n")
-	return rows.String()
-}
-
-// The label and the sentence the accounting rows carry.
+// The sentence the `Out of scope` card of a per-RFC page carries.
 const (
-	rfcGatedLabel = "Gated MUST-level requirements"
-	rfcScopeCell  = "the obligation does not bind Ze, so it is scope rather than coverage"
-	// rfcScopeCardNote is the sentence both `Out of scope` cards carry, the
-	// index's and one RFC's. TWO kinds land in that number and each says
-	// something different, so the note names both: a card counting two
-	// populations while its words name one is a false statement about the one
-	// it leaves out. TestARatioLeadsAndAPopulationFollows holds it against the
-	// bucket table.
+	// rfcScopeCardNote is the sentence one RFC's `Out of scope` card carries.
+	// TWO kinds land in that number and each says something different, so the
+	// note names both: a card counting two populations while its words name one
+	// is a false statement about the one it leaves out.
 	rfcScopeCardNote = "an obligation that does not bind Ze. A {not-applicable} annotation " +
 		"says it never bound; a {feature-declined} annotation says its condition is an " +
 		"optional feature Ze does not offer, and quotes the RFC sentence that makes it " +
-		"optional. Scope, not coverage: it stays in the denominator every share on this page " +
-		"is taken over"
+		"optional. Scope, not coverage: it is counted in the gated whole the cards on this " +
+		"page add up to"
 )
-
-// rfcAccountedNote says whether the buckets account for the gated population.
-//
-// A mismatch is STATED rather than hidden. The buckets are meant to partition
-// it, so a difference is a defect in the bucketing and a page that printed only
-// the sum would let it pass.
-func rfcAccountedNote(split rfcBinding, accounted int) string {
-	obligations := split.Gated
-	if accounted == obligations {
-		return "every gated MUST falls in exactly one bucket above, the " +
-			groupThousands(split.OutOfScope) + " that do not bind Ze included. This total is " +
-			"the denominator of every share above it"
-	}
-	note := "the buckets account for " + groupThousands(accounted) + " of " +
-		groupThousands(obligations) + ", so " + groupThousands(obligations-accounted) +
-		" fall in none: the bucketing is incomplete"
-	if split.Unmapped == 0 {
-		return note
-	}
-	return note + ". " + groupThousands(split.Unmapped) +
-		" of them carry an annotation kind this page has no bucket for, so they are " +
-		"counted apart rather than moved into a bucket that would misdescribe them"
-}
-
-// rfcNonBindingKinds names, in bucket order, the annotation kinds whose
-// obligation does not bind Ze.
-//
-// Derived through rfcAnnotationBucket from the vocabulary itself, never written
-// out: a sentence that says what a number counts has to change when the number
-// does, and a hand list beside a registry is a future disagreement with nothing
-// to arbitrate it (ai/rules/principles.md). It read "{not-applicable}" while
-// one kind was non-binding, and it says both from 2026-09-03.
-func rfcNonBindingKinds() string {
-	names := make([]string, 0, len(rfcSatisfaction))
-	for _, bucket := range rfcSatisfaction {
-		if bucket.Binds {
-			continue
-		}
-		for _, kind := range rfc.AnnotationKinds() {
-			if key, known := rfcAnnotationBucket(kind); known && key == bucket.Key {
-				names = append(names, "{"+kind+"}")
-			}
-		}
-	}
-	return strings.Join(names, " or ")
-}
 
 // rfcNonBindingOf sums the buckets whose obligation does not bind Ze, over one
 // summary's own counters.
 //
-// The index takes the same sum through rfcBindingOf. Both read the Binds column
-// of one table, so the `Out of scope` card cannot count one population on the
-// index and another on a stem page.
+// It reads the Binds column of rfcSatisfaction, the one table that says which
+// buckets bind Ze, so the `Out of scope` card counts what the bucket
+// vocabulary declares rather than a list of its own.
 func rfcNonBindingOf(countOf func(string) int) int {
 	total := 0
 	for _, bucket := range rfcSatisfaction {
@@ -1601,21 +1319,6 @@ func rfcNonBindingOf(countOf func(string) int) int {
 		}
 	}
 	return total
-}
-
-// rfcScopeNote says what the bar counts, so a reader is never shown a
-// proportion whose population they cannot name.
-//
-// It used to say what the bar LEAVES OUT, because the not-applicable
-// obligations were not in it. They are a segment of it now.
-func rfcScopeNote(split rfcBinding) string {
-	if split.OutOfScope == 0 {
-		return "The bar is every gated MUST-level requirement: none of them is out of scope."
-	}
-	return "The bar is every one of the " + groupThousands(split.Gated) +
-		" gated MUST-level requirements. " + groupThousands(split.OutOfScope) +
-		" of them are " + rfcNonBindingKinds() + ": they do not bind Ze, and they are a named " +
-		"segment of the bar rather than an omission from it."
 }
 
 // rfcGapDisclosureHTML renders how many requirements are declared gaps, and
@@ -1792,8 +1495,9 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	mirror.Str("## Gate verdict\n\n").Str(rfcLeadVerdict).Str("\n\n").Str(rfcGateWord(snapshot.Gate.OK)).Str(". ").
 		Str(rfcGateVerdictText(snapshot)).Str(" Contributors reproduce it with `").Str(snapshot.Verify.Command).
 		Str("`. The gate's own line reads `").Str(snapshot.Gate.Message).Str("`.\n\n")
+	mirror.Str(rfcEnrolledSectionsMirror())
 	cards := rfcComplianceCards(snapshot, ledger)
-	mirror.Str(rfcCardsMirror(cards, rfcBindingOf(snapshot).Gated)).Byte('\n').
+	mirror.Str(rfcCardsMirror(cards, 0)).Byte('\n').
 		Str(rfcToneLegendMirror(cards)).Byte('\n')
 	mirror.Str("| Metric | Value |\n|---|---:|\n")
 	for _, row := range []struct {
@@ -1801,8 +1505,6 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 		Value int
 	}{
 		{"Gate issues", snapshot.Gate.ErrorCount},
-		{"Gated MUST-level requirements", snapshot.Gate.GatedMust},
-		{"Enrolled RFCs", snapshot.Gate.Enrolled},
 		{"Resolved test tags", snapshot.Gate.TestTags},
 		{rfcDeclaredGapsLabel, snapshot.Gaps.Requirements},
 		{"RFCs with declared gaps", snapshot.Gaps.RFCs},
@@ -1812,31 +1514,12 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	} {
 		mirror.Str("| ").Str(row.Label).Str(" | ").Str(groupThousands(row.Value)).Str(" |\n")
 	}
+	mirror.Str("| MUST rows of the walked enrolled RFCs | ").Str(rfcValueMirror(rfcEnrolledSubject, rfcMustTotalField)).Str(" |\n")
+	mirror.Str("| Enrolled RFCs | ").Str(rfcValueMirror(rfcEnrolledSubject, "rfcs")).Str(" |\n")
 
-	split := rfcBindingOf(snapshot)
 	mirror.Str("\n## ").Str(rfcProfilesPointerHeading).Str("\n\n").Str(rfcLeadProfiles).Str("\n\n").Str(rfcProfilesPointerMirror())
 	mirror.Str("\n## Who implements each document\n\n").Str(rfcLeadImplements).Str("\n\n")
 	mirror.Str(rfcImplementationMirror(ledger))
-
-	mirror.Str("\n## Requirement buckets\n\n").Str(rfcLeadBuckets).Str("\n\n")
-	mirror.Str(rfcScopeNote(split)).Str("\n\n")
-	mirror.Str("| Bucket | Count | Share of gated | Source condition |\n|---|---:|---:|---|\n")
-	accounted := 0
-	for _, bucket := range rfcSatisfaction {
-		if bucket.Derived {
-			continue
-		}
-		accounted += counted[bucket.Key]
-		condition := "`" + bucket.Condition + "`"
-		if !bucket.Binds {
-			condition += ": " + rfc.TableCell(rfcScopeCell)
-		}
-		mirror.Str("| ").Str(bucket.Label).Str(" | ").Str(groupThousands(counted[bucket.Key])).
-			Str(" | ").Str(rfcPercentText(counted[bucket.Key], split.Gated)).Str(" | ").Str(condition).Str(" |\n")
-	}
-	mirror.Str("| **").Str(rfcGatedLabel).Str("** | **").Str(groupThousands(split.Gated)).
-		Str("** | ").Str(rfcPercentText(accounted, split.Gated)).Str(" | ").
-		Str(rfc.TableCell(rfcAccountedNote(split, accounted))).Str(" |\n")
 
 	mirror.Str("\n## Gap disclosure\n\n").Str(rfcLeadGaps).Str("\n\n")
 	mirror.Str("| Declared gaps | Count |\n|---|---:|\n")
@@ -1859,19 +1542,6 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	mirror.Str(rfcCheckMirror(snapshot.Gate))
 	mirror.Str(rfcIndexMirror(ledger))
 	return mirror.String()
-}
-
-// rfcPercent answers one share, and zero when nothing was counted.
-func rfcPercent(count, total int) float64 {
-	if total == 0 {
-		return 0
-	}
-	return 100 * float64(count) / float64(total)
-}
-
-// rfcPercentText answers one share as the page prints it.
-func rfcPercentText(count, total int) string {
-	return strconv.FormatFloat(rfcPercent(count, total), 'f', 1, 64) + "%"
 }
 
 // groupThousands answers a count with a comma between each group of three
@@ -2269,11 +1939,11 @@ func rfcExclusionsOf(ledger rfcLedger) rfcExclusions {
 
 // rfcExclusionCoverage says how much of the corpus this count covers, on the
 // section's own face.
-func rfcExclusionCoverage(exclusions rfcExclusions) string {
-	return groupThousands(exclusions.Signed) + " of " + groupThousands(exclusions.Stems) +
-		" summaries carry an extraction sign-off, " + groupThousands(exclusions.SignedEnrolled) +
-		" of them among the " + groupThousands(exclusions.Enrolled) +
-		" enrolled. The other " + groupThousands(exclusions.Stems-exclusions.Signed) +
+func rfcExclusionCoverage() string {
+	return rfcValueMirror(rfcAllSubject, "walked") + " of the " + rfcValueMirror(rfcAllSubject, "rfcs") +
+		" summary files carry an extraction sign-off, " + rfcValueMirror(rfcEnrolledSubject, "walked") +
+		" of them among the " + rfcValueMirror(rfcEnrolledSubject, "rfcs") +
+		" enrolled. The other " + rfcValueMirror(rfcAllSubject, "not-walked") +
 		" have no exclusion ledger at all, so what follows counts the walks that HAVE been " +
 		"done and is not the whole picture."
 }
@@ -2299,7 +1969,7 @@ func rfcExclusionDisclosureHTML(ledger rfcLedger) string {
 	exclusions := rfcExclusionsOf(ledger)
 	var out textbuf.Buffer
 	out.Str("<p>").Str(html.EscapeString(rfcExclusionIntro(exclusions))).Str("</p>\n")
-	out.Str("<p>").Str(html.EscapeString(rfcExclusionCoverage(exclusions))).Str("</p>\n")
+	out.Str("<p>").Str(rfcMarkedHTML(rfcExclusionCoverage())).Str("</p>\n")
 	if exclusions.Sites == 0 {
 		out.Str("<p>").Str(html.EscapeString("No sign-off has declined a sentence.")).Str("</p>")
 		return out.String()
@@ -2377,7 +2047,7 @@ func rfcExclusionDisclosureMirror(ledger rfcLedger) string {
 	exclusions := rfcExclusionsOf(ledger)
 	var out textbuf.Buffer
 	out.Str(rfcExclusionIntro(exclusions)).Str("\n\n")
-	out.Str(rfcExclusionCoverage(exclusions)).Str("\n\n")
+	out.Str(rfcExclusionCoverage()).Str("\n\n")
 	if exclusions.Sites == 0 {
 		return out.String() + "No sign-off has declined a sentence.\n"
 	}
@@ -2572,7 +2242,7 @@ func rfcMechanismHTML(snapshot *rfcCompliance) string {
 	var rows textbuf.Buffer
 	for _, row := range rfcMechanismRows(snapshot) {
 		rows.Str(rfcRowCells(html.EscapeString(row[0]), row[1],
-			html.EscapeString(row[2])))
+			rfcMarkedHTML(row[2])))
 	}
 	return "<p>" + html.EscapeString(rfcMechanismLead(snapshot)) + "</p>\n" +
 		rfcTableHTML(rfcHeadCells("Input", "Producer", "What it answered here"), rows.String())
@@ -2610,9 +2280,9 @@ func rfcMechanismRows(snapshot *rfcCompliance) [][3]string {
 			groupThousands(snapshot.Verify.GateStages) + " of " +
 				groupThousands(snapshot.Verify.Stages) + " full-mode verify stages run it"},
 		{"Requirement source", "<code>rfc/short/*.md</code>",
-			groupThousands(snapshot.Gate.GatedMust) + " gated MUST-level requirements"},
+			rfcValueMirror(rfcEnrolledSubject, rfcMustTotalField) + " MUST rows in the walked enrolled RFCs"},
 		{rfcEnrolmentLabel, "<code>rfc/short/*.md</code>, the <code>| Enrolment |</code> Meta row",
-			groupThousands(snapshot.Gate.Enrolled) + " enrolled RFCs"},
+			rfcValueMirror(rfcEnrolledSubject, "rfcs") + " enrolled RFCs"},
 		{rfcTestTagsLabel, "<code>internal/</code>, <code>pkg/</code>, <code>test/</code>",
 			groupThousands(snapshot.Gate.TestTags) + " resolved tags"},
 		{"Public ledger", "<code>rfc/short/*.md</code>, the <code>| Support |</code> Meta row",

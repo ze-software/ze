@@ -31,11 +31,22 @@ const (
 // figures"). Unmet is published either way, because it is the summary's own
 // disclosure rather than a measurement.
 type rfcStemData struct {
-	Stem   string           `json:"stem"`
-	Title  string           `json:"title,omitempty"`
-	Walked bool             `json:"walked"`
-	Must   *rfcMustCounts   `json:"must"`
-	Should *rfcShouldCounts `json:"should"`
+	Stem   string `json:"stem"`
+	Title  string `json:"title,omitempty"`
+	Walked bool   `json:"walked"`
+	// Requirements is every requirement row the summary declares, at every
+	// level and whether or not a walk bounded it: the size of the list, never
+	// a measure of Ze. It is the one count an unwalked RFC publishes.
+	Requirements int `json:"requirements"`
+	// Implementer is the summary's Implementation kind (ze, mixed,
+	// third-party or foundation): who implements the document.
+	Implementer string `json:"implementer"`
+	// Implemented is rfc.Implements over the summary, the ONE definition of
+	// an RFC Ze implements, so a page counts that population by summing this
+	// flag rather than restating the predicate.
+	Implemented bool             `json:"implemented"`
+	Must        *rfcMustCounts   `json:"must"`
+	Should      *rfcShouldCounts `json:"should"`
 	// ProvenByKind is rfc.StemFigures.MandatoryByKind: the Ze-proven MUST
 	// rows by the strongest kind of test covering each one.
 	ProvenByKind map[string]int `json:"proven-by-kind"`
@@ -93,6 +104,11 @@ type rfcBarLayout struct {
 	OverviewTotal []string        `json:"overview-total"`
 }
 
+// rfcMustTotalField is the per-RFC field that counts every MUST row, the
+// kept ones and the ones not owed: the overview bar's total and the MUST row
+// count the index and its mirror print.
+const rfcMustTotalField = "must.total"
+
 // rfcBars is the ONE declaration of both bars' segments, their order and
 // their words (spec-rfc-figures-sectioned-presentation, AC-12). It is
 // published in the index, so the browser draws what this says and holds no
@@ -116,7 +132,7 @@ var rfcBars = rfcBarLayout{
 		{"os-gap", "OS testing gap", []string{"must.os-gap", "should.os-gap"}},
 		{"ze-gap", "Ze correctness gap", []string{"must.ze-gap"}},
 	},
-	OverviewTotal: []string{"must.total", "should.total"},
+	OverviewTotal: []string{rfcMustTotalField, "should.total"},
 }
 
 // rfcProfileData is data/rfc/profiles/<name>.json. Required and Optional are
@@ -149,6 +165,11 @@ type rfcIndexRFC struct {
 	Title     string `json:"title,omitempty"`
 	Walked    bool   `json:"walked"`
 	Enrolment string `json:"enrolment"`
+	// Gated is rfc.Meta.Enrolled: the enrolment row says enrolled AND the
+	// Implementation kind counts against Ze's Go. The enrolled subject reads
+	// it, so a third-party or foundation summary marked enrolled, which the
+	// gate never holds Ze to, is never summed as enrolled.
+	Gated bool `json:"gated"`
 }
 
 // rfcIndexProfile is one profile in the index.
@@ -210,6 +231,10 @@ func rfcDataOf(in *rfc.RenderInput) (rfcData, error) {
 		stems = append(stems, stem)
 	}
 	slices.Sort(stems)
+	requirements, err := rfcRequirementCounts(in.Requirements, figures)
+	if err != nil {
+		return rfcData{}, err
+	}
 	data := rfcData{index: rfcDataIndex{Bars: rfcBars}}
 	for _, stem := range stems {
 		meta := in.Metas[stem]
@@ -217,9 +242,11 @@ func rfcDataOf(in *rfc.RenderInput) (rfcData, error) {
 		if err != nil {
 			return rfcData{}, err
 		}
+		stemData.Requirements = requirements[stem]
+		rfcStemImplementer(&stemData, &meta)
 		data.stems = append(data.stems, stemData)
 		data.index.RFCs = append(data.index.RFCs, rfcIndexRFC{Stem: stem, File: rfcStemDataFile(stem),
-			Title: meta.Title, Walked: stemData.Walked, Enrolment: meta.Enrolment})
+			Title: meta.Title, Walked: stemData.Walked, Enrolment: meta.Enrolment, Gated: meta.Enrolled()})
 	}
 	data.profiles, err = rfcProfileDataOf(in.Profiles, in.Metas)
 	if err != nil {
@@ -231,6 +258,32 @@ func rfcDataOf(in *rfc.RenderInput) (rfcData, error) {
 			File: rfcProfileDataFile(profile.Name), Kind: profile.Kind, Title: profile.Title})
 	}
 	return data, nil
+}
+
+// rfcStemImplementer writes who implements the summary into its file: the
+// declared Implementation kind, and rfc.Implements, read rather than restated,
+// so the pages count the RFCs Ze implements as the retired proof share did.
+func rfcStemImplementer(stemData *rfcStemData, meta *rfc.Meta) {
+	stemData.Implementer = meta.Implementation
+	stemData.Implemented = rfc.Implements(meta)
+}
+
+// rfcRequirementCounts counts the requirement rows each summary declares. A
+// row whose RFC has no figures is refused by id: it would be counted in no
+// file, so the corpus total the pages sum would silently leave it out.
+func rfcRequirementCounts(requirements []rfc.Requirement, figures map[string]rfc.StemFigures) (map[string]int, error) {
+	out := make(map[string]int, len(figures))
+	for index := range requirements {
+		requirement := &requirements[index]
+		if _, held := figures[requirement.RFC]; !held {
+			var tb textbuf.Buffer
+			return nil, errors.New(tb.Str(requirement.RID).Str(" names the RFC ").Str(requirement.RFC).
+				Str(", which rfc.StemFiguresOf answers no figures for, so data/rfc/ would publish no file counting it; ").
+				Str("check the summary's file name under rfc/short/, then ").Str(rfcPublishMissing).String())
+		}
+		out[requirement.RFC]++
+	}
+	return out, nil
 }
 
 // rfcStemDataFile is the published path of one RFC's file.

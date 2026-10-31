@@ -289,8 +289,8 @@ from the snapshot rather than counting it again. The matching rule is
 in `docs/architecture/site-facts.md`, "One published copy of each value".
 <!-- source: internal/le/site/plaintext.go -- checkPlainFigures -->
 
-The RFC pages that still carry server-written figures are listed in
-`website/data/plain-figure-ratchet.json`, which the check reads from the
+The RFC pages that still carry server-written figures would be listed in
+`website/data/plain-figure-ratchet.json` (none is: the compliance index moved its figures to `data-ze-rfc` marks), which the check reads from the
 sources and never deploys. A listed page is not refused for its figures. When
 a listed page no longer shows one, the check lists it under `stale-ratchet`
 and fails: delete its entry from the file. Only a page under
@@ -762,10 +762,24 @@ of the family is reachable only through search. 39 stems carry no row in
 `docs/features/rfc-status.md`, which is why the index lives here rather than on
 the mirror of that page.
 
-Each detail page opens with the card grid the index carries, over that RFC's own
-numbers. **Scale leads, then standing**, on both pages: `Gated MUSTs` and `Out
-of scope`, then the shares that partition the binding population, then the proof
-ratio. Every card carries its value, the arithmetic under it, and a sentence
+The compliance index opens with the enrolled RFCs' sections: the MUST bar and
+the overview bar over the subject `enrolled`, its Total row and check line, and
+a sentence naming the enrolled RFC count, the unwalked ones, how many of them
+Ze implements (`enrolled:implemented`, the files' `implemented` flags, which
+are `rfc.Implements`: the population the retired proof share took), and the
+corpus behind them (`all:rfcs` summary files, every file under `rfc/short/`, those
+with no requirement included, so not the site facts' `rfc.summaries`, and
+`all:requirements` rows). The mechanism table and the exclusion coverage carry
+the same marks. The cards after it are the proof count, the gate verdict and
+the semantic verdicts. The Gated MUSTs card, the Proven by test share, the
+Requirement buckets tape and table, and every percentage left the index with
+the owner's information-preservation approval of 2026-10-31.
+<!-- source: internal/le/site/rfccompliance.go -- rfcEnrolledSectionsHTML, rfcEnrolledScope, rfcComplianceCards -->
+
+Each detail page opens with a card grid over that RFC's own
+numbers. **Scale leads, then standing**: `Gated MUSTs` and `Out
+of scope`, then the counts that partition the binding population, then the proof
+count. Every card carries its value, the population under it, and a sentence
 saying what the measure means. `rfcCardsHTML` renders the grid for both pages
 and `rfcCardsMirror` states it in both mirrors.
 
@@ -779,10 +793,11 @@ published index does not list refuses the build by stem. The section replaced
 the attainable ceiling statement.
 <!-- source: internal/le/site/rfcdetail.go -- writeRFCDetailPage, rfcDetailFiguresHTML, rfcDetailFiguresMirror -->
 
-**The ratio cards partition their denominator.** `rfcStanding` groups every
-binding bucket into exactly one card, so the shares add to 100% and a reader who
-adds them lands on the whole. Publishing two parts of a four-part split left
-3.3% of RFC 4271 unexplained. `rfcLedgerCoverage.Bucket` is the one translation
+**The standing cards partition their population.** `rfcStanding` groups every
+binding bucket into exactly one card, so the counts add up to the gated MUSTs
+and a reader who adds them lands on the whole. Publishing two parts of a
+four-part split once left part of RFC 4271 unexplained. The cards were
+percentages until the owner's information-preservation approval of 2026-10-31. `rfcLedgerCoverage.Bucket` is the one translation
 between the index's bucket keys and a stem's own counters, so the two pages
 cannot publish different partitions of one idea. The proof ratio is over TAGGED
 UNITS, a different population, and the sentence under the grid says so.
@@ -1047,12 +1062,8 @@ card declares the RULE that chose its tone beside the tone, and
 or bad direction -- a population, for instance -- takes `neutral` and gets no
 color, because a color on a number is a verdict.
 
-On the index page the requirement buckets carry a `Gated MUST-level requirements`
-total for the implemented-RFC population and a sentence saying whether every
-requirement in that population falls in exactly one bucket. The tape above it carries no text of its own:
-a bucket at 4.5% of the width had a label wider than its segment, so the small
-buckets were the unreadable ones. The tape is the proportion, the key beneath it
-is the words, and every bucket the vocabulary declares has a color rule.
+The index page carried a requirement bucket tape and table until 2026-10-31;
+the enrolled RFCs' sections replaced them (AC-13).
 
 A section with nothing to show says so in one sentence. An omitted section and
 an empty one read the same to a reader, and only one of them is a fact.
@@ -1071,12 +1082,10 @@ record are each named on the page under the requirement id they belong to. A
 count may accompany the list and never stands in for it.
 
 For a partial requirement, the proof block states that the records cover only
-scoped tag claims and give zero whole-requirement credit. The gate population
-is the gated MUSTs of enrolled RFCs; published satisfaction shares use the
-implemented RFCs within that population. The proof share counts only the
-walked ones among them, from verified discrimination records, and the page
-states how many implemented RFCs it leaves out as not walked. The homepage RFC
-card says the same: proven MUSTs of the walked RFCs, then the implemented RFC
+scoped tag claims and give zero whole-requirement credit. The compliance index
+publishes no proof share: its sections count the MUST rows of the walked
+enrolled RFCs. The homepage RFC card still states one, from `rfc.ProvenShareOf`
+through the site facts: proven MUSTs of the walked RFCs, then the implemented RFC
 count with its not-walked part. The gated-binding partition still spans every
 implemented RFC, walked or not, so its total exceeds the share's denominator by
 the rows of the unwalked RFCs. Rollup rows belong to neither count.

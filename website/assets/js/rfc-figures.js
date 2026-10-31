@@ -85,6 +85,11 @@
     // membersOf answers the stems a subject names, read from the index and,
     // for a profile tier, from the profile's own file.
     function membersOf(index, subject, node) {
+        if (subject === "enrolled") {
+            return Promise.resolve((index.rfcs || []).filter(function (entry) {
+                return entry.gated === true;
+            }).map(function (entry) { return entry.stem; }));
+        }
         if (subject === "all") {
             var scope = node && node.closest ? node.closest("[data-ze-rfc-stems]") : null;
             if (!scope) {
@@ -131,8 +136,9 @@
     }
 
     // sumStems answers the summed counts of the stems: rfcs, walked and
-    // not-walked, then must and should over the walked ones (null when none
-    // is walked). It rejects, naming every file, when any cannot be read.
+    // not-walked, requirements and implemented over every stem, then must and
+    // should over the walked ones (null when none is walked). It rejects,
+    // naming every file, when any cannot be read.
     function sumStems(stems) {
         return loadIndex().then(function (index) {
             var files = {};
@@ -157,8 +163,20 @@
             if (missing.length) {
                 throw unreadable(missing, "this figure would leave " + (missing.length === 1 ? "that RFC" : "those RFCs") + " out");
             }
-            var sum = { rfcs: loaded.length, walked: 0, "not-walked": 0, must: null, should: null };
+            var sum = { rfcs: loaded.length, walked: 0, "not-walked": 0, requirements: 0, implemented: 0, must: null, should: null };
+            var uncounted = loaded.filter(function (item) {
+                return typeof item.data.requirements !== "number" || typeof item.data.implemented !== "boolean";
+            })
+                .map(function (item) { return item.data.stem; });
+            if (uncounted.length) {
+                throw new Error("the files of " + uncounted.join(", ") + " hold no requirements count or implemented flag, so this " +
+                    "figure would leave their rows out. " + publish);
+            }
             loaded.forEach(function (item) {
+                sum.requirements += item.data.requirements;
+                if (item.data.implemented) {
+                    sum.implemented += 1;
+                }
                 if (!item.data.walked) {
                     sum["not-walked"] += 1;
                     return;

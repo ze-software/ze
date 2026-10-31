@@ -25,7 +25,11 @@ func rfcLedgerFixtureData(ledger rfcLedger) rfcData {
 	for index := range ledger.Stems {
 		entry := &ledger.Stems[index]
 		row := entry.Figures
-		stem := rfcStemData{Stem: entry.Stem, Title: entry.Title, Unmet: []string{}}
+		// The fixture's summary declares its coverage's requirement rows, and
+		// an enrolled entry with a public area is one rfc.Implements answers.
+		stem := rfcStemData{Stem: entry.Stem, Title: entry.Title, Unmet: []string{},
+			Requirements: entry.Coverage.Requirements, Implementer: "ze",
+			Implemented: entry.Enrolled && entry.PublicArea != ""}
 		if row != nil && row.Walked {
 			stem.Walked = true
 			stem.ProvenByKind = map[string]int{}
@@ -35,9 +39,13 @@ func rfcLedgerFixtureData(ledger rfcLedger) rfcData {
 			stem.Should = &rfcShouldCounts{Total: row.Optional.Total, Proven: row.Optional.Proven,
 				NotDecided: row.Optional.Total - row.Optional.Proven, NotOwedByKind: map[string]int{}}
 		}
+		enrolment := "enrolled"
+		if entry.Disposition != nil {
+			enrolment = entry.Disposition.Kind
+		}
 		data.stems = append(data.stems, stem)
 		data.index.RFCs = append(data.index.RFCs, rfcIndexRFC{Stem: entry.Stem, File: rfcStemDataFile(entry.Stem),
-			Title: entry.Title, Walked: stem.Walked, Enrolment: "enrolled"})
+			Title: entry.Title, Walked: stem.Walked, Enrolment: enrolment, Gated: entry.Enrolled})
 	}
 	for _, report := range ledger.Profiles {
 		profile := rfcProfileData{Name: report.Profile, Kind: report.Kind, Title: report.Title,
@@ -57,15 +65,20 @@ func rfcLedgerFixtureData(ledger rfcLedger) rfcData {
 	return data
 }
 
-// rfcDetailFiguresLedger publishes the profile fixture's six RFCs, rfc6 not
-// enrolled, with the profile fixture's data: rfc1 has every MUST bar segment
+// rfcDetailFiguresLedger publishes the profile fixture's seven RFCs, rfc6 not
+// enrolled and rfc7 enrolled but third-party, with the profile fixture's data: rfc1 has every MUST bar segment
 // non-zero and rfc3 is not walked.
 func rfcDetailFiguresLedger(t *testing.T) (Paths, rfcLedger) {
 	t.Helper()
 	ledger := rfcProfileFiguresLedger()
 	ledger.Stems = append(ledger.Stems, rfcLedgerStem{Stem: "rfc5", Display: "RFC 5", Enrolled: true},
 		rfcLedgerStem{Stem: "rfc6", Display: "RFC 6",
-			Disposition: &rfcLedgerDisposition{Kind: "backlog", Reason: "the extraction is owed"}})
+			Disposition: &rfcLedgerDisposition{Kind: "backlog", Reason: "the extraction is owed"}},
+		// The enrolment row says enrolled and the summary is third-party, so,
+		// as rfc.Meta.Disposition answers, the kind that took it off the gate
+		// is its Implementation.
+		rfcLedgerStem{Stem: "rfc7", Display: "RFC 7", Implementation: "third-party",
+			Disposition: &rfcLedgerDisposition{Kind: "third-party", Reason: "Linux XFRM performs it"}})
 	for index := range ledger.Stems {
 		ledger.Stems[index].Title = "Title " + ledger.Stems[index].Stem
 		ledger.Stems[index].SummaryPath = "rfc/short/" + ledger.Stems[index].Stem + ".md"

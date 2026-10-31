@@ -392,13 +392,18 @@ const rfcBarsGolden = "testdata/rfc-bars.json"
 var updateRFCBars = flag.Bool("update", false, "rewrite testdata/rfc-bars.json from rfcBars and a sample per-RFC file")
 
 // rfcBarsGoldenContent is what rfcBarsGolden must hold: rfcBars and the
-// per-RFC file of fixtureFigures.
+// per-RFC file of fixtureFigures, written as rfcDataOf writes one, with the
+// requirement row count and who implements the summary filled in: the 20
+// MUST and 13 SHOULD rows the figures count and two MAY rows they do not, and
+// an enrolled summary Ze implements in Go with a public row.
 func rfcBarsGoldenContent(t *testing.T) []byte {
 	t.Helper()
 	stem, err := rfcStemDataOf("rfc9999", "Widgets", fixtureFigures())
 	if err != nil {
 		t.Fatal(err)
 	}
+	stem.Requirements = 35
+	rfcStemImplementer(&stem, &rfc.Meta{Enrolment: "enrolled", Implementation: "ze", Row: true})
 	content, err := json.MarshalIndent(map[string]any{"bars": rfcBars, "stem": stem}, "", "  ")
 	if err != nil {
 		t.Fatal(err)

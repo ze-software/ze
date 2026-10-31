@@ -40,17 +40,19 @@ func readRFCGolden(t *testing.T) rfcGolden {
 	return golden
 }
 
-// rfcIndexOf is data/rfc/index.json over the golden's bar layout: four RFCs,
-// one of them unwalked, and two profiles.
+// rfcIndexOf is data/rfc/index.json over the golden's bar layout: five RFCs,
+// one of them unwalked and one, rfc5, enrolled but not gated (a third-party
+// summary the gate never holds Ze to), and two profiles.
 func rfcIndexOf(t *testing.T, golden *rfcGolden) string {
 	t.Helper()
 	rfcs := []map[string]any{}
 	for _, one := range []struct {
 		stem   string
 		walked bool
-	}{{"rfc1", true}, {"rfc2", true}, {"rfc3", false}, {"rfc4", true}} {
+		gated  bool
+	}{{"rfc1", true, true}, {"rfc2", true, true}, {"rfc3", false, true}, {"rfc4", true, true}, {"rfc5", true, false}} {
 		rfcs = append(rfcs, map[string]any{"stem": one.stem, "file": "data/rfc/" + one.stem + ".json",
-			"walked": one.walked, "enrolment": "enrolled"})
+			"walked": one.walked, "enrolment": "enrolled", "gated": one.gated})
 	}
 	body, err := json.Marshal(map[string]any{"bars": golden.Bars, "rfcs": rfcs, "profiles": []map[string]string{
 		{"name": "edge", "file": "data/rfc/profiles/edge.json", "kind": "use-case", "title": "Edge"},
@@ -80,7 +82,7 @@ func fieldPaths(prefix string, value map[string]any, into map[string]bool) {
 func rfcStemFile(stem string, zeProven, osVerified, osGap, zeGap, mustNotOwed int, should [6]int) string {
 	kept := zeProven + osVerified + osGap + zeGap
 	body, err := json.Marshal(map[string]any{
-		"stem": stem, "title": "RFC " + stem, "walked": true, "unmet": []string{}, "proven-by-kind": map[string]int{},
+		"stem": stem, "title": "RFC " + stem, "walked": true, "requirements": 0, "implementer": "ze", "implemented": true, "unmet": []string{}, "proven-by-kind": map[string]int{},
 		"must": map[string]any{"total": kept + mustNotOwed, "kept": kept, "ze-proven": zeProven,
 			"os-verified": osVerified, "os-gap": osGap, "ze-gap": zeGap, "not-owed": mustNotOwed,
 			"not-owed-by-kind": map[string]int{"not-applicable": mustNotOwed}},
@@ -109,6 +111,7 @@ const rfcFiguresPage = `<!DOCTYPE html>
 <span id="by-kind" data-ze-rfc="rfc1:must.not-owed-by-kind.not-applicable">fallback</span>
 <span id="by-kind-absent" data-ze-rfc="rfc1:must.not-owed-by-kind.feature-declined">fallback</span>
 <span id="bad-field" data-ze-rfc="rfc1:must.no-such-count">fallback</span>
+<span id="enrolled-rfcs" data-ze-rfc="enrolled:rfcs">fallback</span>
 <div id="empty-bar" data-ze-rfc-bar="profile/core/optional:must">fallback</div>
 <div id="must-bar" data-ze-rfc-bar="profile/edge/required:must">fallback</div>
 <div id="overview-bar" data-ze-rfc-bar="rfc1:overview">fallback</div>
@@ -131,7 +134,7 @@ type rfcPageState struct {
 const readRFCPage = `(function () {
     var texts = {}, bars = {}, legends = {}, widths = {}, fallback = false;
     ["stem", "unwalked", "profile-gap", "profile-unwalked", "optional-proven", "empty-optional", "by-kind",
-        "by-kind-absent", "bad-field"].forEach(function (id) {
+        "by-kind-absent", "bad-field", "enrolled-rfcs"].forEach(function (id) {
         texts[id] = document.getElementById(id).textContent;
         if (texts[id] === "fallback") fallback = true;
     });
@@ -192,7 +195,8 @@ func (site *rfcFixtureSite) write(name, content string) {
 }
 
 // newRFCFixtureSite serves the fixture: RFC 1 holds a different count in
-// every segment, RFC 2 and RFC 4 only MUST rows, RFC 3 is unwalked; profile
+// every segment, RFC 2 and RFC 4 only MUST rows, RFC 3 is unwalked, RFC 5 is
+// enrolled but not gated; profile
 // edge requires RFC 1 to 3 and lists RFC 4 as optional, and profile core has
 // an empty optional tier.
 func newRFCFixtureSite(t *testing.T) *rfcFixtureSite {
@@ -218,7 +222,8 @@ func newRFCFixtureSite(t *testing.T) *rfcFixtureSite {
 	site.write("data/rfc/rfc1.json", rfcStemFile("rfc1", 3, 2, 3, 6, 6, [6]int{10, 1, 2, 1, 2, 4}))
 	site.write("data/rfc/rfc2.json", rfcStemFile("rfc2", 4, 0, 0, 1, 0, [6]int{0, 0, 0, 0, 0, 0}))
 	site.write("data/rfc/rfc4.json", rfcStemFile("rfc4", 9, 0, 0, 0, 0, [6]int{0, 0, 0, 0, 0, 0}))
-	site.write("data/rfc/rfc3.json", `{"stem":"rfc3","walked":false,"must":null,"should":null,"proven-by-kind":null,"unmet":[]}`)
+	site.write("data/rfc/rfc5.json", rfcStemFile("rfc5", 1, 0, 0, 0, 0, [6]int{0, 0, 0, 0, 0, 0}))
+	site.write("data/rfc/rfc3.json", `{"stem":"rfc3","walked":false,"requirements":0,"implementer":"ze","implemented":true,"must":null,"should":null,"proven-by-kind":null,"unmet":[]}`)
 
 	files := http.FileServer(http.Dir(site.dir))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -289,7 +294,10 @@ func TestTheBrowserDrawsRFCFiguresFromTheirFiles(t *testing.T) {
 	wantTexts := map[string]string{"stem": "3", "unwalked": "not walked", "profile-gap": "7", "profile-unwalked": "1",
 		"optional-proven": "9", "empty-optional": "no rows", "by-kind": "6", "by-kind-absent": "0",
 		"bad-field": "must.no-such-count is not a field of the RFC data, so nothing can be shown here. " +
-			"Fix the data-ze-rfc marker: docs/architecture/site-facts.md lists the fields."}
+			"Fix the data-ze-rfc marker: docs/architecture/site-facts.md lists the fields.",
+		// rfc5 is enrolled but not gated, so the enrolled subject counts the
+		// other four; a reader that took the enrolment word would count five.
+		"enrolled-rfcs": "4"}
 	if !reflect.DeepEqual(got.Texts, wantTexts) {
 		t.Errorf("marked values\n got: %v\nwant: %v", got.Texts, wantTexts)
 	}

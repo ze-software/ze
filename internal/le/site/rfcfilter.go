@@ -40,6 +40,9 @@ const rfcFilterHTML = `<div class="rfc-filter" id="rfc-filter" hidden>
 // tables.
 const rfcListOverviewTitle = "Every RFC listed"
 
+// rfcTotalLabel heads the Total row's first cell on the page and the mirror.
+const rfcTotalLabel = "Total"
+
 // rfcListOverviewHTML is the overview above the RFC tables: the two bars and
 // the Total row over the subject all, which the filter script narrows to the
 // rows it shows by setting data-ze-rfc-stems, so a link naming a profile's RFCs
@@ -50,25 +53,7 @@ func rfcListOverviewHTML() string {
 	out.Str(`<div class="rfc-overview" id="rfc-overview">`).Byte('\n')
 	out.Str(`<h3 id="rfc-overview-title">`).Str(rfcListOverviewTitle).Str("</h3>\n")
 	out.Str(rfcBarsHTML(rfcAllSubject))
-	columns := rfcListTotalColumns()
-	labels := []string{"Total"}
-	values := []string{"Total"}
-	for _, column := range columns {
-		labels = append(labels, column.Label)
-		values = append(values, rfcValueHTML(rfcAllSubject, column.Field))
-	}
-	out.Str(rfcTableHTML(rfcHeadCells(labels...), rfcRowCells(values...))).Byte('\n')
-	out.Str(`<p id="rfc-overview-check">Check: `)
-	for index, column := range columns {
-		switch {
-		case index == len(columns)-1:
-			out.Str(" = ")
-		case index != 0:
-			out.Str(" + ")
-		}
-		out.Str(rfcValueHTML(rfcAllSubject, column.Field))
-	}
-	out.Str(" ").Str(html.EscapeString(rfcListCheckWords())).Str("</p>\n")
+	out.Str(rfcTotalRowHTML(rfcAllSubject, "rfc-overview-check"))
 	out.Str(`<p id="rfc-overview-scope">`).Str(rfcValueHTML(rfcAllSubject, "rfcs")).
 		Str(" RFCs, of which ").Str(rfcValueHTML(rfcAllSubject, "not-walked")).
 		Str(" not walked, so their rows count in no figure.</p>\n</div>\n")
@@ -79,20 +64,58 @@ func rfcListOverviewHTML() string {
 func rfcListOverviewMirror() string {
 	var out textbuf.Buffer
 	out.Str("### ").Str(rfcListOverviewTitle).Str("\n\n").Str(rfcBarsMirror(rfcAllSubject)).Byte('\n')
+	out.Str(rfcTotalRowMirror(rfcAllSubject))
+	out.Str(rfcValueMirror(rfcAllSubject, "rfcs")).Str(" RFCs, of which ").
+		Str(rfcValueMirror(rfcAllSubject, "not-walked")).Str(" not walked, so their rows count in no figure.\n\n")
+	return out.String()
+}
+
+// rfcTotalRowHTML renders one subject's Total row, the MUST sections, the
+// rows not owed and the total they add up to, and the check line that adds
+// them, every value a marked element.
+func rfcTotalRowHTML(subject, checkID string) string {
+	var out textbuf.Buffer
 	columns := rfcListTotalColumns()
-	labels := []string{"Total"}
-	values := []string{"Total"}
+	labels := make([]string, 0, 1+len(columns))
+	labels = append(labels, rfcTotalLabel)
+	values := make([]string, 0, 1+len(columns))
+	values = append(values, rfcTotalLabel)
+	for _, column := range columns {
+		labels = append(labels, column.Label)
+		values = append(values, rfcValueHTML(subject, column.Field))
+	}
+	out.Str(rfcTableHTML(rfcHeadCells(labels...), rfcRowCells(values...))).Byte('\n')
+	out.Str(`<p id="`).Str(checkID).Str(`">Check: `)
+	for index, column := range columns {
+		switch {
+		case index == len(columns)-1:
+			out.Str(" = ")
+		case index != 0:
+			out.Str(" + ")
+		}
+		out.Str(rfcValueHTML(subject, column.Field))
+	}
+	out.Str(" ").Str(html.EscapeString(rfcListCheckWords())).Str("</p>\n")
+	return out.String()
+}
+
+// rfcTotalRowMirror states the same Total row and check line in a mirror.
+func rfcTotalRowMirror(subject string) string {
+	var out textbuf.Buffer
+	columns := rfcListTotalColumns()
+	labels := make([]string, 0, 1+len(columns))
+	labels = append(labels, rfcTotalLabel)
+	values := make([]string, 0, 1+len(columns))
+	values = append(values, rfcTotalLabel)
 	check := make([]string, 0, len(columns))
 	for _, column := range columns {
 		labels = append(labels, column.Label)
-		values = append(values, rfcValueMirror(rfcAllSubject, column.Field))
-		check = append(check, rfcValueMirror(rfcAllSubject, column.Field))
+		values = append(values, rfcValueMirror(subject, column.Field))
+		check = append(check, rfcValueMirror(subject, column.Field))
 	}
 	out.Str(rfcMirrorHead(labels...)).Str(rfcMirrorRow(values...)).Byte('\n')
 	out.Str("Check: ").Str(strings.Join(check[:len(check)-1], " + ")).Str(" = ").Str(check[len(check)-1]).
 		Str(" ").Str(rfcListCheckWords()).Str("\n\n")
-	out.Str(rfcValueMirror(rfcAllSubject, "rfcs")).Str(" RFCs, of which ").
-		Str(rfcValueMirror(rfcAllSubject, "not-walked")).Str(" not walked, so their rows count in no figure.\n\n")
 	return out.String()
 }
 

@@ -110,6 +110,9 @@
     "stem": "rfc9999",
     "title": "Widgets",
     "walked": true,
+    "requirements": 35,
+    "implementer": "ze",
+    "implemented": true,
     "must": {
       "total": 20,
       "kept": 14,

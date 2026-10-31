@@ -59,7 +59,7 @@ func rfcGlossary() []rfcGlossaryTerm {
 			"enrolled are listed at the end of the page, each with its reason."},
 		{"Gate, gated", "the gate is the automatic check that reads every summary and the " +
 			"tests. A gated requirement is a MUST-level requirement of an enrolled RFC, one " +
-			"the gate holds Ze to. Every share on this page is taken over the gated requirements."},
+			"the gate holds Ze to."},
 		{"Positive and negative test (polarity)", "a positive test proves Ze does what the " +
 			"requirement demands; a negative test proves Ze refuses what the requirement " +
 			"forbids. Tested both ways means both exist."},
@@ -84,11 +84,9 @@ func rfcGlossary() []rfcGlossaryTerm {
 			"installs into that layer. {gap}: a declared gap. A partial requirement has " +
 			"tests for part of it; the rest is unmet or unproven and earns no credit."},
 		{"Linux cannot do this", "a verified kernel limitation prevents the required primitive. " +
-			"The obligation still binds Ze and remains unmet. The annotation names the Linux " +
-			"Limitations Register entry; it earns no proof credit and stays in the denominator."},
-		{"Ceiling", "attainable requirements over the same total as the proof figure, under current " +
-			"classifications. This is not an immutable Linux maximum. Not-applicable and " +
-			"feature-declined classifications can be revisited; unwalked RFCs have no ceiling."},
+			"The annotation names the Linux Limitations Register entry. The row is OS blocked: " +
+			"a limit of the kernel, never counted against Ze, so it sits with the rows not owed " +
+			"and in no section of the MUST bar."},
 		{"Walked, sign-off", "a reviewer read the RFC's own text sentence by sentence and " +
 			"checked the requirement list against it; the sign-off records that review. " +
 			"Not walked means the review has not been done, so no figure is counted."},
@@ -137,16 +135,15 @@ func rfcReaderIntroMirror() string {
 // page and in the mirror.
 const (
 	rfcLeadVerdict = "The gate holds Ze to every MUST-level requirement of the RFCs it " +
-		"implements. The cards below say how many of those requirements a test proves, how " +
-		"many do not bind Ze, and how many Ze still owes."
+		"implements. The bars and the Total row below put each MUST row of a walked " +
+		"enrolled RFC in one section: proven by Ze's tests, verified in the operating " +
+		"system, not owed, or still owed by Ze or by the operating system's tests. The cards " +
+		"after them say how many tagged tests carry a recorded break and whether the gate passes."
 	rfcLeadProfiles = "A profile groups the RFCs one kind of deployment needs. If you are " +
 		"evaluating Ze for one role, its profile page gives the figures for that role alone."
 	rfcLeadImplements = "Some RFCs are carried out by Ze's own code, some by a layer under or " +
 		"beside Ze, and some oblige no implementation at all. This section says which is " +
 		"which, because the figures on this page count only what Ze's own code is held to."
-	rfcLeadBuckets = "The detailed accounting behind the cards: every gated requirement falls " +
-		"in exactly one of these buckets, so the rows add up to the whole. The last column " +
-		"names the condition that puts a requirement in each bucket."
 	rfcLeadGaps = "A gap is a requirement Ze does not meet yet and says so in public. This " +
 		"section counts the requirements declared as gaps and the RFCs that carry them."
 	rfcLeadExclusions = "Not every sentence of an RFC becomes a requirement. This section " +

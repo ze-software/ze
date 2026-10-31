@@ -20,27 +20,29 @@ import (
 // register is complete; lab requires rfc2 and the unwalked rfc3, so its
 // register is open with no gap. Lab has no page: only set answers read it.
 // rfc5 is walked with only an OS gap, rfc6 with only a Ze gap: each keeps its
-// own register open by one clause alone.
+// own register open by one clause alone. rfc6 is the one RFC not enrolled,
+// and every RFC declares a requirement count, the unwalked rfc3 included.
 func rfcProfileFiguresData() rfcData {
 	stems := []rfcStemData{
-		{Stem: "rfc1", Title: "One", Walked: true, Unmet: []string{}, ProvenByKind: map[string]int{},
+		{Stem: "rfc1", Title: "One", Walked: true, Requirements: 1300, Unmet: []string{}, ProvenByKind: map[string]int{},
 			Must: &rfcMustCounts{Kept: 1206, ZeProven: 3, OSVerified: 2, OSGap: 1, ZeGap: 1200, NotOwed: 10,
 				NotOwedByKind: map[string]int{rfc.AnnotationNotApplicable: 4, rfc.AnnotationFeatureDeclined: 6}},
 			Should: &rfcShouldCounts{Total: 10, Proven: 1, OSVerified: 1, OSGap: 1, NotOwed: 2, NotEver: 1, NotYet: 2, NotDecided: 2,
 				NotOwedByKind: map[string]int{rfc.AnnotationNotApplicable: 2}}},
-		{Stem: "rfc2", Title: "Two", Walked: true, Unmet: []string{}, ProvenByKind: map[string]int{},
+		{Stem: "rfc2", Title: "Two", Walked: true, Requirements: 6, Unmet: []string{}, ProvenByKind: map[string]int{},
 			Must:   &rfcMustCounts{Total: 4, Kept: 4, ZeProven: 4, NotOwedByKind: map[string]int{}},
 			Should: &rfcShouldCounts{NotOwedByKind: map[string]int{}}},
-		{Stem: "rfc3", Title: "Three", Unmet: []string{}},
-		{Stem: "rfc5", Title: "Five", Walked: true, Unmet: []string{}, ProvenByKind: map[string]int{},
+		{Stem: "rfc3", Title: "Three", Requirements: 7, Unmet: []string{}},
+		{Stem: "rfc5", Title: "Five", Walked: true, Requirements: 3, Unmet: []string{}, ProvenByKind: map[string]int{},
 			Must:   &rfcMustCounts{Total: 3, Kept: 3, ZeProven: 2, OSGap: 1, NotOwedByKind: map[string]int{}},
 			Should: &rfcShouldCounts{NotOwedByKind: map[string]int{}}},
-		{Stem: "rfc6", Title: "Six", Walked: true, Unmet: []string{}, ProvenByKind: map[string]int{},
+		{Stem: "rfc6", Title: "Six", Walked: true, Requirements: 5, Unmet: []string{}, ProvenByKind: map[string]int{},
 			Must:   &rfcMustCounts{Total: 3, Kept: 3, ZeProven: 1, ZeGap: 2, NotOwedByKind: map[string]int{}},
 			Should: &rfcShouldCounts{NotOwedByKind: map[string]int{}}},
-		{Stem: "rfc4", Title: "Four", Walked: true, Unmet: []string{}, ProvenByKind: map[string]int{},
+		{Stem: "rfc4", Title: "Four", Walked: true, Requirements: 9, Unmet: []string{}, ProvenByKind: map[string]int{},
 			Must:   &rfcMustCounts{Total: 9, Kept: 9, ZeProven: 9, NotOwedByKind: map[string]int{}},
 			Should: &rfcShouldCounts{NotOwedByKind: map[string]int{}}},
+		{Stem: "rfc7", Title: "Seven", Requirements: 2, Unmet: []string{}},
 	}
 	// rfc1's MUST total is its kept rows plus its rows not owed.
 	stems[0].Must.Total = stems[0].Must.Kept + stems[0].Must.NotOwed
@@ -49,9 +51,24 @@ func rfcProfileFiguresData() rfcData {
 		{Name: "edge", Kind: "use-case", Title: "Edge", Release: true, Required: []string{"rfc1", "rfc2", "rfc3"}, Optional: []string{"rfc4"}},
 		{Name: "lab", Kind: "use-case", Title: "Lab", Required: []string{"rfc2", "rfc3"}, Optional: []string{}},
 	}}
+	// rfc6 is not enrolled, and rfc7 is enrolled but third-party, which the
+	// gate never holds Ze to, so the enrolled subject sums the other five: a
+	// reader that took the enrolment word would count six. rfc4 is enrolled
+	// with no public row, so rfc.Implements leaves it out and the RFCs Ze
+	// implements are the other four.
 	for index := range stems {
+		enrolment := "enrolled"
+		if stems[index].Stem == "rfc6" {
+			enrolment = "backlog"
+		}
+		gated := enrolment == "enrolled" && stems[index].Stem != "rfc7"
+		stems[index].Implementer = "ze"
+		if stems[index].Stem == "rfc7" {
+			stems[index].Implementer = "third-party"
+		}
+		stems[index].Implemented = gated && stems[index].Stem != "rfc4"
 		data.index.RFCs = append(data.index.RFCs, rfcIndexRFC{Stem: stems[index].Stem, File: rfcStemDataFile(stems[index].Stem),
-			Title: stems[index].Title, Walked: stems[index].Walked, Enrolment: "enrolled"})
+			Title: stems[index].Title, Walked: stems[index].Walked, Enrolment: enrolment, Gated: gated})
 	}
 	for index := range data.profiles {
 		profile := &data.profiles[index]

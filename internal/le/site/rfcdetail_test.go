@@ -1089,8 +1089,8 @@ func TestAStemPageOpensWithTheCardGridTheIndexCarries(t *testing.T) {
 	if !strings.Contains(mirror, rfcCardsMirror(cards, whole)) {
 		t.Error("the mirror does not carry the table rfcCardsMirror answers")
 	}
-	// The percentage and the arithmetic behind it are BOTH on the card, the
-	// count under the value (owner ruling, 2026-09-01).
+	// The value and the population behind it are BOTH on the card, the
+	// population under the value (owner ruling, 2026-09-01).
 	for _, card := range cards {
 		if !strings.Contains(text, card.Label+card.Value+card.Count+card.Note) {
 			t.Errorf("the %s card does not read %q / %q / %q", card.Label, card.Value,
@@ -1142,9 +1142,13 @@ func TestAStemPageOpensWithTheCardGridTheIndexCarries(t *testing.T) {
 	if !strings.Contains(cards[0].Note, "A population, not a result") {
 		t.Errorf("the leading card does not say it is a population: %q", cards[0].Note)
 	}
-	if !strings.HasSuffix(cards[2].Value, "%") {
-		t.Errorf("the third card is %q, so a reader meets no coverage share beside the scale",
-			cards[2].Label)
+	// The standing cards are counts since the owner retired every percentage
+	// from the RFC pages (2026-10-31): the value is the group's own count, and
+	// the population it is part of follows it.
+	if !cards[2].Partition || cards[2].Value != groupThousands(cards[2].Part) ||
+		cards[2].Count != "of "+groupThousands(whole)+" gated MUSTs" {
+		t.Errorf("the third card is %q reading %q / %q, so a reader meets no standing count of the %d gated MUSTs beside the scale",
+			cards[2].Label, cards[2].Value, cards[2].Count, whole)
 	}
 
 	clean := disclosureLedger()
@@ -2307,50 +2311,6 @@ func TestEveryStemPageAccountsForItsGatedRequirements(t *testing.T) {
 	t.Logf("%d stem pages account for their own gated population", checked)
 }
 
-// VALIDATES: AC-65 -- the index's accounting row compares two counts that were
-// produced independently, so its mismatch branch can execute.
-//
-// It compared the sum of the binding buckets against rfcBinding.Obligations,
-// which is that same sum, so the sentence saying the bucketing is incomplete
-// was unreachable (independent review, 2026-09-01). The method is a split whose
-// gated total does not agree with its buckets.
-func TestTheIndexAccountingRowCanSayTheBucketingIsIncomplete(t *testing.T) {
-	// 100 gated, of which 10 are out of scope: since 2026-09-02 the buckets
-	// have to account for all 100, because the out-of-scope ones are a bucket
-	// rather than a subtraction.
-	split := rfcBinding{Gated: 100, OutOfScope: 10, Obligations: 85}
-	if note := rfcAccountedNote(split, 95); !strings.Contains(note, "incomplete") {
-		t.Errorf("95 of 100 accounted reads %q, which does not say the bucketing is incomplete",
-			note)
-	}
-	if note := rfcAccountedNote(split, 100); strings.Contains(note, "incomplete") {
-		t.Errorf("100 of 100 accounted reads %q, which calls a complete bucketing incomplete",
-			note)
-	}
-	// 90 was the denominator this page used until 2026-09-02, when the ten
-	// out-of-scope obligations were subtracted rather than bucketed. Accounting
-	// for 90 of the 100 is a shortfall now, and a note calling it complete is
-	// what reinstating that subtraction would look like from here.
-	// Fatal, because it is the premise of every expectation below it: if the ten
-	// out-of-scope obligations are subtracted again, the note is answering about
-	// 90 and the rest of this test is checking the wrong denominator.
-	if note := rfcAccountedNote(split, 90); !strings.Contains(note, "incomplete") {
-		t.Fatalf("90 of 100 accounted reads %q, which is the old binding denominator "+
-			"being read as a complete bucketing", note)
-	}
-	// The one cause the page can name. A shortfall with no unmapped annotation
-	// behind it says only that the buckets are short, because this page does
-	// not know what else could have caused one.
-	unmapped := rfcBinding{Gated: 100, OutOfScope: 10, Obligations: 85, Unmapped: 5}
-	note := rfcAccountedNote(unmapped, 95)
-	if !strings.Contains(note, "no bucket for") {
-		t.Errorf("5 requirements are in no bucket and the note does not say why: %q", note)
-	}
-	if strings.Contains(rfcAccountedNote(split, 95), "no bucket for") {
-		t.Error("a shortfall with no unmapped annotation behind it claims one")
-	}
-}
-
 // VALIDATES: AC-67 -- retiring a page deletes a page of THIS family and
 // nothing else under the same prefix.
 //
@@ -2442,7 +2402,7 @@ func TestAnUnenrolledPageNeverClaimsTheGateHoldsIt(t *testing.T) {
 
 // VALIDATES: the partition sentence reads the shares it claims add up.
 //
-// It said "they add to 100%" after counting how many cards were MARKED as a
+// It said the shares add up after counting how many cards were MARKED as a
 // part, never reading one of their values, so a partition that had lost a
 // share published the same sentence (independent review, 2026-09-02). The two
 // cases below are the whole of what the sentence can say, and neither is
@@ -2454,7 +2414,7 @@ func TestThePartitionSentenceReadsTheSharesItAddsUp(t *testing.T) {
 		{Label: "Proven by a recorded break", Part: 999},
 	}
 	note := rfcPartitionNote(complete, 100)
-	if !strings.Contains(note, "they add to 100%") {
+	if !strings.Contains(note, "they add up to 100.") {
 		t.Errorf("a partition that adds up is not stated as one: %q", note)
 	}
 	if strings.Contains(note, "fall in none") {
@@ -2467,7 +2427,7 @@ func TestThePartitionSentenceReadsTheSharesItAddsUp(t *testing.T) {
 		{Label: "Excused", Partition: true, Part: 33},
 	}
 	note = rfcPartitionNote(short, 100)
-	if !strings.Contains(note, "do NOT add to 100%") {
+	if !strings.Contains(note, "do NOT add up to 100.") {
 		t.Errorf("7 obligations fall in no share and the note claims a partition: %q", note)
 	}
 	for _, want := range []string{"account for 93", "of the 100", "7 fall in none"} {

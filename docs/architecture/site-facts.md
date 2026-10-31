@@ -125,7 +125,7 @@ A value printed as plain text is a second copy the file cannot update.
 | The key set | the snapshot's own dotted JSON keys, walked from the published file (`siteFactSnapshot.keys`), so a map-typed section's keys count too and no name table exists |
 | A hand-marked element | a hand-written HTML source may carry `data-ze-stat="<key>"` around fallback text. The build writes the snapshot's value into it when the key holds one, and leaves the fallback while the key's section is `null` (`markedValue`), which is what `site.js` does in the browser. A key neither the snapshot nor the `siteFacts` model names is refused by name, and so is markup or a `{{ze:}}` token inside the element, whether or not the key's section holds a value yet (`readMarkedText`) |
 | The guard | `./le site check` reports `plain-figures`: each display string (a thousands separator or a "+") and each whole number of 100 or more beside its unit word that a page shows outside a marker (`checkPlainFigures`) |
-| The RFC ratchet | `website/data/plain-figure-ratchet.json`, committed and never deployed, lists the RFC pages (under `quality/rfc-compliance/`) whose figures are still server-written, each with its reason. A listed page's plain figures are not refused; a listed page that shows none is reported under `stale-ratchet` and fails the check, so the list only shrinks. The check never writes it, and refuses by name a missing file, an unknown field, a page outside the RFC section, an unclean path, a page listed twice and a page with no reason (`loadPlainFigureRatchet`). An RFC page not listed is judged like any other. `spec-rfc-figures-sectioned-presentation`'s website phase empties it |
+| The RFC ratchet | `website/data/plain-figure-ratchet.json`, committed and never deployed, lists the RFC pages (under `quality/rfc-compliance/`) whose figures are still server-written, each with its reason. A listed page's plain figures are not refused; a listed page that shows none is reported under `stale-ratchet` and fails the check, so the list only shrinks. The check never writes it, and refuses by name a missing file, an unknown field, a page outside the RFC section, an unclean path, a page listed twice and a page with no reason (`loadPlainFigureRatchet`). An RFC page not listed is judged like any other. `spec-rfc-figures-sectioned-presentation`'s website phase emptied it: no RFC page is listed, so every RFC page is judged like any other |
 <!-- source: internal/le/site/plaintext.go -- checkPlainFigures, publishedFigures, plainFigures, loadPlainFigureRatchet -->
 <!-- source: internal/le/site/factfallback.go -- markedValue, modelNamesFactKey, readMarkedText -->
 
@@ -194,8 +194,8 @@ whole on every build, so no file outlives the index that names it.
 
 | File | Holds |
 |------|-------|
-| `data/rfc/index.json` | `bars`: both bars' segments left to right, each with its class name (`segment`), its words (`label`) and the dotted `fields` whose sum is its count, and the fields each bar's segments must add up to (`must-total`, `overview-total`). Then `rfcs` (stem, file, title, walked, enrolment) and `profiles` (name, file, kind, title) |
-| `data/rfc/<stem>.json` | `stem`, `title`, `walked`; `must` (`total`, `kept`, `ze-proven`, `os-verified`, `os-gap`, `ze-gap`, `not-owed`, `not-owed-by-kind`); `should` (`total`, `proven`, `os-verified`, `os-gap`, `not-owed`, `not-ever`, `not-yet`, `not-decided`, `not-owed-by-kind`); `proven-by-kind`; `unmet`. `must`, `should` and `proven-by-kind` are `null` for an RFC no walk bounded |
+| `data/rfc/index.json` | `bars`: both bars' segments left to right, each with its class name (`segment`), its words (`label`) and the dotted `fields` whose sum is its count, and the fields each bar's segments must add up to (`must-total`, `overview-total`). Then `rfcs` (stem, file, title, walked, enrolment, and `gated`, which is `rfc.Meta.Enrolled`: the enrolment row says enrolled and the Implementation kind counts against Ze's Go) and `profiles` (name, file, kind, title) |
+| `data/rfc/<stem>.json` | `stem`, `title`, `walked`; `requirements`, every requirement row the summary declares at every level, walked or not (`rfcRequirementCounts`); `implementer`, the summary's Implementation kind (`ze`, `mixed`, `third-party`, `foundation`); `implemented`, `rfc.Implements` over the summary (enrolled and rendering a public row); `must` (`total`, `kept`, `ze-proven`, `os-verified`, `os-gap`, `ze-gap`, `not-owed`, `not-owed-by-kind`); `should` (`total`, `proven`, `os-verified`, `os-gap`, `not-owed`, `not-ever`, `not-yet`, `not-decided`, `not-owed-by-kind`); `proven-by-kind`; `unmet`. `must`, `should` and `proven-by-kind` are `null` for an RFC no walk bounded |
 | `data/rfc/profiles/<name>.json` | `name`, `kind` (`use-case` or `technology`), `title`, `release`, and the two tiers `required` and `optional`, never merged. An aggregate's optional tier is the summaries whose `Aggregate tier` Meta row says `optional`. Both tiers come from `rfc.ProfileTiersOf` (`internal/le/rfc/priority.go`), the same membership `./le rfc tree` reads |
 
 `must.kept` is the MUST bar: `ze-proven + os-verified + os-gap + ze-gap`.
@@ -210,12 +210,12 @@ MUST bar counts MUST rows only.
 
 A page marks a value with `data-ze-rfc="<subject>:<field>"` and a bar with
 `data-ze-rfc-bar="<subject>:<bar>"`, where the subject is a stem, a profile
-tier (`profile/<name>/required`, `profile/<name>/optional`) or `all`, and the
-bar is `must` or `overview`. `all` is every RFC the index lists; in the
+tier (`profile/<name>/required`, `profile/<name>/optional`), `enrolled` or `all`, and the
+bar is `must` or `overview`. `enrolled` is every RFC the index marks `gated`, the RFCs the gate holds Ze to: a summary whose enrolment says enrolled but whose Implementation kind is `third-party` or `foundation` is not one of them. `all` is every RFC the index lists; in the
 browser an ancestor carrying `data-ze-rfc-stems="<stem>,<stem>"` narrows it to
 those stems, which is how a filter sums only the RFCs it shows. The build
 fills `all` over the whole index. Besides the fields of a per-RFC file, a set answers
-`rfcs`, `walked`, `not-walked` and `register`, its mandatory register in
+`rfcs`, `walked`, `not-walked`, `requirements` (summed over every member, walked or not; a file without the count is refused), `implemented` (how many members carry `implemented: true`, the RFCs Ze implements; a file without the flag is refused) and `register`, its mandatory register in
 words: `complete` only when the set holds at least one RFC, none of them is
 unwalked, and `must.ze-gap` and `must.os-gap` are both 0, `not complete`
 otherwise. `assets/rfc-figures.js` reads the index, sums a set's
