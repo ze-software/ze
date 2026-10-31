@@ -11,6 +11,7 @@ package redistribute
 import (
 	"context"
 	"net/netip"
+	"slices"
 	"sync"
 
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
@@ -54,14 +55,49 @@ type heldKey struct {
 // generation moved in between, a reload installed other rules after the batch
 // judged the route, possibly after the reload's withdraw scan had already run,
 // so settleAdd judges the route again under the installed rules.
+//
+// inflight counts, for each key, the Adds dispatched (beginAdd) and not yet
+// settled. The reload's withdraw scan leaves such a key to its settleAdd, which
+// judges it again under the installed rules: withdrawing it from the scan as
+// well would send the consumer the same withdraw twice. Bound: one entry for
+// each Add between its dispatch and its settlement.
 type heldRoutes struct {
 	mu         sync.Mutex
-	set        map[heldKey]configredist.RedistRoute
+	set        map[heldKey]heldRoute
+	inflight   map[heldKey]int
 	generation uint64
 }
 
+// heldRoute is one route a consumer holds: the view the import filter accepted,
+// which a reload judges again, and what the consumer was sent with it, which a
+// replay compares to decide whether the consumer already holds what it would
+// send.
+type heldRoute struct {
+	view configredist.RedistRoute
+	sent sentRoute
+}
+
+// sentRoute is what dispatchEntryToConsumer hands a consumer besides the route
+// view: the values the accepting chain set, the origin AS and the communities.
+// community is owned: the producer's batch is pooled and reused.
+type sentRoute struct {
+	sets      ribpolicy.Sets
+	originASN uint32
+	community []uint32
+}
+
+// newSentRoute answers what a dispatch of entry from a batch carrying originASN
+// and community sends with sets. The per-entry origin AS wins over the batch's,
+// as dispatchEntryToConsumer decides.
+func newSentRoute(sets ribpolicy.Sets, entry *redistevents.RouteChangeEntry, originASN uint32, community []uint32) sentRoute {
+	if entry.OriginAS != 0 {
+		originASN = entry.OriginAS
+	}
+	return sentRoute{sets: sets, originASN: originASN, community: slices.Clone(community)}
+}
+
 // consumerHeld is the orchestrator's one held set.
-var consumerHeld = &heldRoutes{set: make(map[heldKey]configredist.RedistRoute)}
+var consumerHeld = &heldRoutes{set: make(map[heldKey]heldRoute), inflight: make(map[heldKey]int)}
 
 // settlement is what settleAdd tells the dispatcher to send after it recorded
 // an Add. Zero is never an answer, so a caller that forgot to read it cannot
@@ -101,6 +137,41 @@ func (h *heldRoutes) evaluator() (*configredist.Evaluator, uint64) {
 	return configredist.Global(), h.generation
 }
 
+// beginAdd records that an Add of k is about to be dispatched, and answers
+// whether it must be. A consumer replay passes onlyChanged: when the consumer
+// already holds k with the same view and was sent it with the same values, the
+// replay sends nothing, so a reload that changes nothing for a route sends its
+// consumer nothing for it: the BGP consumer turns every InjectRoute into an
+// update-route command to every peer (BGPConsumer.InjectRoute), however often
+// it was sent before. A true answer MUST be followed by
+// settleAdd with dispatched set, which ends the in-flight record.
+func (h *heldRoutes) beginAdd(k heldKey, view *configredist.RedistRoute, sent *sentRoute, onlyChanged bool) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if onlyChanged {
+		if held, ok := h.set[k]; ok && held.matches(view, sent) {
+			return false
+		}
+	}
+	h.inflight[k]++
+	return true
+}
+
+// matches answers whether the consumer holding r was sent exactly view with
+// sent.
+func (r *heldRoute) matches(view *configredist.RedistRoute, sent *sentRoute) bool {
+	if r.view != *view {
+		return false
+	}
+	if r.sent.sets != sent.sets {
+		return false
+	}
+	if r.sent.originASN != sent.originASN {
+		return false
+	}
+	return slices.Equal(r.sent.community, sent.community)
+}
+
 // settleAdd records an Add the evaluator of generation gen judged for the
 // consumer named in k, accepted or not, and answers what the consumer must now
 // be sent. When gen is still the installed generation the verdict stands: an
@@ -115,20 +186,29 @@ func (h *heldRoutes) evaluator() (*configredist.Evaluator, uint64) {
 //
 // The re-judgement runs under the same lock install takes, so no third
 // evaluator can slip between the judgement and the record.
-func (h *heldRoutes) settleAdd(k heldKey, route *configredist.RedistRoute, accepted bool, gen uint64) (settlement, ribpolicy.Sets) {
+//
+// dispatched says the batch sent this Add (beginAdd answered true); a consumer
+// replay that found the route unchanged, or a rejected Add, sent nothing. sent
+// is what a dispatch carries besides the view.
+func (h *heldRoutes) settleAdd(k heldKey, route *configredist.RedistRoute, sent *sentRoute, dispatched, accepted bool, gen uint64) (settlement, ribpolicy.Sets) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	var sets ribpolicy.Sets
-	sent := accepted
+	if dispatched {
+		h.endInflightLocked(k)
+	}
+	sets := sent.sets
 	moved := gen != h.generation
 	if moved {
 		accepted = false
+		sets = ribpolicy.Sets{}
 		if ev := configredist.Global(); ev != nil {
 			sets, accepted = ev.Accept(route, k.consumer)
 		}
 	}
 	if accepted {
-		h.set[k] = *route
+		record := *sent
+		record.sets = sets
+		h.set[k] = heldRoute{view: *route, sent: record}
 		if moved {
 			return settlementResend, sets
 		}
@@ -139,10 +219,20 @@ func (h *heldRoutes) settleAdd(k heldKey, route *configredist.RedistRoute, accep
 	if held {
 		return settlementWithdraw, sets
 	}
-	if sent {
+	if dispatched {
 		return settlementWithdraw, sets
 	}
 	return settlementSettled, sets
+}
+
+// endInflightLocked ends one in-flight record of k. Caller holds h.mu.
+func (h *heldRoutes) endInflightLocked(k heldKey) {
+	n := h.inflight[k] - 1
+	if n > 0 {
+		h.inflight[k] = n
+		return
+	}
+	delete(h.inflight, k)
 }
 
 // removeReplacedRoute handles a Remove the import filter rejected, and
@@ -176,16 +266,44 @@ func (h *heldRoutes) rejected(ev *configredist.Evaluator) []heldKey {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	var out []heldKey
-	for k, route := range h.set {
-		if ev == nil {
-			out = append(out, k)
-			continue
-		}
-		if _, ok := ev.Accept(&route, k.consumer); !ok {
+	for k := range h.set {
+		if h.rejectsLocked(ev, k) {
 			out = append(out, k)
 		}
 	}
 	return out
+}
+
+// rejectsLocked answers whether ev rejects the route held under k. Caller holds
+// h.mu and has checked k is held.
+func (h *heldRoutes) rejectsLocked(ev *configredist.Evaluator, k heldKey) bool {
+	if ev == nil {
+		return true
+	}
+	held := h.set[k]
+	_, ok := ev.Accept(&held.view, k.consumer)
+	return !ok
+}
+
+// releaseRejected forgets k's route and answers true only when, checked under
+// the lock, the consumer still holds a route ev rejects and no Add of k is in
+// flight. A batch can settle a newer, accepted version of k after the scan
+// listed it, and an in-flight Add is judged again by its own settleAdd, so
+// either one leaves k alone.
+func (h *heldRoutes) releaseRejected(ev *configredist.Evaluator, k heldKey) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if _, ok := h.set[k]; !ok {
+		return false
+	}
+	if h.inflight[k] > 0 {
+		return false
+	}
+	if !h.rejectsLocked(ev, k) {
+		return false
+	}
+	delete(h.set, k)
+	return true
 }
 
 // withdrawRejectedHeld withdraws every held route the reloaded rules reject,
@@ -193,8 +311,15 @@ func (h *heldRoutes) rejected(ev *configredist.Evaluator) []heldKey {
 // longer registered holds nothing to withdraw, so its routes are only
 // forgotten. Called with the lock released: a dispatch reaches the consumer.
 func withdrawRejectedHeld(ctx context.Context, ev *configredist.Evaluator) {
-	for _, key := range consumerHeld.rejected(ev) {
-		if !consumerHeld.release(key) {
+	withdrawListed(ctx, ev, consumerHeld.rejected(ev))
+}
+
+// withdrawListed withdraws each listed key that ev still rejects when it comes
+// to it (releaseRejected): the list is a snapshot, and a batch may have settled
+// a newer version of a key since it was taken.
+func withdrawListed(ctx context.Context, ev *configredist.Evaluator, keys []heldKey) {
+	for _, key := range keys {
+		if !consumerHeld.releaseRejected(ev, key) {
 			continue
 		}
 		consumer, ok := configredist.LookupConsumer(key.consumer)

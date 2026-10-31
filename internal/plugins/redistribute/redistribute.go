@@ -241,6 +241,10 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 
 	famVal := family.Family{AFI: family.AFI(b.AFI), SAFI: family.SAFI(b.SAFI)}
 
+	// Recorded before any dispatch, so a replay batch handled after this one
+	// knows a route this batch removed (replayCoordinator.noteIncremental).
+	getReplayCoordinator().noteIncremental(name, famVal, b.Entries)
+
 	consumers := configredist.ConsumerNames()
 	if len(consumers) == 0 {
 		logger().Warn(Name+": no consumers registered, dropping batch", "source", name)
@@ -277,10 +281,15 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 			switch entry.Action {
 			case redistevents.ActionAdd:
 				// Empty peer selector: the incremental path fans out to all peers.
+				sent := newSentRoute(sets, entry, b.OriginASN, b.Community)
+				dispatched := false
 				if accepted {
+					dispatched = beginDispatchedAdd(key, &route, &sent, false)
+				}
+				if dispatched {
 					dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry, &route, sets)
 				}
-				settleDispatchedAdd(ctx, consumer, key, gen, accepted, &route, entry, "", b.OriginASN, b.Community)
+				settleDispatchedAdd(ctx, consumer, key, gen, dispatched, accepted, &route, &sent, entry, "", b.OriginASN, b.Community)
 			case redistevents.ActionRemove:
 				if !accepted {
 					removeReplacedRoute(ctx, consumer, key)
@@ -297,16 +306,27 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 	}
 }
 
+// beginDispatchedAdd marks an accepted Add of key in flight and answers whether
+// it is to be dispatched (heldRoutes.beginAdd). An entry with an invalid prefix
+// reaches no consumer (dispatchEntryToConsumer), so it is never in flight.
+func beginDispatchedAdd(key heldKey, view *configredist.RedistRoute, sent *sentRoute, onlyChanged bool) bool {
+	if !key.prefix.IsValid() {
+		return true
+	}
+	return consumerHeld.beginAdd(key, view, sent, onlyChanged)
+}
+
 // settleDispatchedAdd records an Add the batch judged, accepted or not, under
 // the evaluator of generation gen, and sends the consumer what a reload that
 // landed in between makes owed: the route again with the installed rules'
-// sets, or its withdraw (heldRoutes.settleAdd). An entry with an invalid prefix
-// reached no consumer (dispatchEntryToConsumer), so it changes nothing.
-func settleDispatchedAdd(ctx context.Context, consumer configredist.RedistConsumer, key heldKey, gen uint64, accepted bool, view *configredist.RedistRoute, produced *redistevents.RouteChangeEntry, peer string, originASN uint32, community []uint32) {
+// sets, or its withdraw (heldRoutes.settleAdd). dispatched says the batch sent
+// the Add. An entry with an invalid prefix reached no consumer
+// (dispatchEntryToConsumer), so it changes nothing.
+func settleDispatchedAdd(ctx context.Context, consumer configredist.RedistConsumer, key heldKey, gen uint64, dispatched, accepted bool, view *configredist.RedistRoute, sent *sentRoute, produced *redistevents.RouteChangeEntry, peer string, originASN uint32, community []uint32) {
 	if !key.prefix.IsValid() {
 		return
 	}
-	outcome, sets := consumerHeld.settleAdd(key, view, accepted, gen)
+	outcome, sets := consumerHeld.settleAdd(key, view, sent, dispatched, accepted, gen)
 	switch outcome {
 	case settlementSettled:
 	case settlementResend:

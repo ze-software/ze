@@ -130,6 +130,7 @@ func (h *heldRoutes) reset() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	clear(h.set)
+	clear(h.inflight)
 }
 
 func resetState(t *testing.T) {

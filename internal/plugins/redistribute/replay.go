@@ -26,6 +26,7 @@ package redistribute
 
 import (
 	"context"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,6 +34,7 @@ import (
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -96,20 +98,41 @@ type replayEntry struct {
 // orchestrator's batch handler maps the ID back to the target and reaches only
 // that target. Distinct replayIDs per trigger mean concurrent replays never
 // cross-deliver (R-2).
+//
+// removed is the orchestrator's half of the guarantee that a replay never
+// revives a removed route. A producer snapshots its set to answer a request,
+// and a Remove of a route in that snapshot can reach the orchestrator before
+// the replay batch carrying the route's Add. removed holds, for each route
+// whose most recent incremental action was a Remove handled while a replay
+// was pending, the newest replayID minted when that Remove was handled. A
+// replay Add for the route is dropped when its replayID is not newer
+// (removedSince). An incremental Add of the route clears its entry. Bound:
+// the routes removed within replayTTL of the last request; once every pending
+// mapping has expired the map is cleared, since no replay can return for it.
 type replayCoordinator struct {
-	mu      sync.Mutex
-	gen     uint64
-	pending map[uint64]replayEntry
-	peerUp  map[string]bool
-	ttl     time.Duration
-	maxSize int
+	mu           sync.Mutex
+	gen          uint64
+	pending      map[uint64]replayEntry
+	removed      map[sourceRoute]uint64
+	lastDeadline time.Time
+	peerUp       map[string]bool
+	ttl          time.Duration
+	maxSize      int
 	// nowFn is injectable so tests can drive TTL eviction deterministically.
 	nowFn func() time.Time
+}
+
+// sourceRoute names one route a producer announces, whatever consumer holds it.
+type sourceRoute struct {
+	source string
+	family family.Family
+	prefix netip.Prefix
 }
 
 func newReplayCoordinator() *replayCoordinator {
 	return &replayCoordinator{
 		pending: make(map[uint64]replayEntry),
+		removed: make(map[sourceRoute]uint64),
 		peerUp:  make(map[string]bool),
 		ttl:     replayTTL,
 		maxSize: replayMapMaxSize,
@@ -245,7 +268,9 @@ func (c *replayCoordinator) fire(bus ze.EventBus, kind replayKind, name string) 
 	c.evictLocked()
 	c.gen++
 	id := c.gen
-	c.pending[id] = replayEntry{kind: kind, name: name, deadline: c.nowFn().Add(c.ttl)}
+	deadline := c.nowFn().Add(c.ttl)
+	c.pending[id] = replayEntry{kind: kind, name: name, deadline: deadline}
+	c.lastDeadline = deadline
 	c.mu.Unlock()
 
 	// Emit OUTSIDE the lock: engine subscribers deliver synchronously and the
@@ -293,6 +318,50 @@ func (c *replayCoordinator) lookupTarget(replayID uint64) (replayEntry, bool) {
 		return replayEntry{}, false
 	}
 	return e, true
+}
+
+// noteIncremental records the incremental actions of one batch from source for
+// removedSince. A Remove is recorded only while a replay is pending, because
+// a request minted later is answered from a snapshot taken after the Remove.
+// Safe on a nil coordinator, which a unit test of the dispatch alone leaves.
+func (c *replayCoordinator) noteIncremental(source string, fam family.Family, entries []redistevents.RouteChangeEntry) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.pending) == 0 || c.nowFn().After(c.lastDeadline) {
+		// Every mapping has expired: no replay batch can still be answered,
+		// so nothing it carries needs judging against a Remove.
+		clear(c.removed)
+		return
+	}
+	for i := range entries {
+		k := sourceRoute{source: source, family: fam, prefix: entries[i].Prefix}
+		//exhaustive:ignore // only the two actions that change a route's presence are recorded; the dispatcher refuses the others
+		switch entries[i].Action {
+		case redistevents.ActionRemove:
+			c.removed[k] = c.gen
+		case redistevents.ActionAdd:
+			delete(c.removed, k)
+		}
+	}
+}
+
+// removedSince answers whether the most recent incremental action on source's
+// route was a Remove handled after replayID was minted, so the replay's Add of
+// it is stale.
+func (c *replayCoordinator) removedSince(replayID uint64, source string, fam family.Family, prefix netip.Prefix) bool {
+	if c == nil {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	g, ok := c.removed[sourceRoute{source: source, family: fam, prefix: prefix}]
+	if !ok {
+		return false
+	}
+	return g >= replayID
 }
 
 // evictLocked drops expired entries and, if still over the hard cap, the oldest
@@ -385,6 +454,14 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		if entry.Action != redistevents.ActionAdd {
 			continue // a replay reflects the current live set; only adds are meaningful
 		}
+		// The producer took this snapshot before it removed the route, and the
+		// Remove reached the orchestrator first. Dispatching the stale Add would
+		// hand the target a route its source no longer has, with no Remove left
+		// to retire it.
+		if coord.removedSince(b.ReplayID, name, famVal, entry.Prefix) {
+			logger().Debug("redistribute-orchestrator: replay entry removed since the request, dropping", "source", name, "family", famVal.String(), "prefix", entry.Prefix, "replay-id", b.ReplayID)
+			continue
+		}
 		// Destination-scoped, and decided for each route: only sources imported
 		// under this destination replay, and an import rule whose chain selects
 		// routes (by tag, family, BGP class) replays only the routes it accepts.
@@ -395,21 +472,37 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 			logger().Debug("redistribute-orchestrator: evaluator rejected replay entry", "source", name, "destination", destination, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)
 			countChainRejected(ev, &route, destination, name)
 		}
-		if accepted {
-			dispatchEntryToConsumer(ctx, consumer, famVal, name, peer, b.OriginASN, b.Community, entry, &route, sets)
-			if m := getMetrics(); m != nil && m.replayTotal != nil {
-				m.replayTotal.With(name).Inc()
+		// A peer replay feeds one BGP peer a route the consumer already holds
+		// from the incremental path, so it changes nothing the held set records
+		// and always sends: the peer holds nothing yet.
+		if target.kind != replayKindConsumer {
+			if accepted {
+				dispatchReplayed(ctx, consumer, famVal, name, peer, b, entry, &route, sets)
 			}
+			continue
 		}
 		// A consumer replay is what that consumer holds, whether it just
 		// registered or a reload changed its rules, so it settles in the held
-		// set as an incremental Add does. A peer replay feeds one BGP peer a
-		// route the consumer already holds from the incremental path, so it
-		// changes nothing the held set records.
-		if target.kind == replayKindConsumer {
-			key := heldKey{consumer: destination, source: name, family: famVal, prefix: entry.Prefix}
-			settleDispatchedAdd(ctx, consumer, key, gen, accepted, &route, entry, peer, b.OriginASN, b.Community)
+		// set as an incremental Add does. It sends only what the consumer does
+		// not already hold as it would be sent (heldRoutes.beginAdd).
+		key := heldKey{consumer: destination, source: name, family: famVal, prefix: entry.Prefix}
+		sent := newSentRoute(sets, entry, b.OriginASN, b.Community)
+		dispatched := false
+		if accepted {
+			dispatched = beginDispatchedAdd(key, &route, &sent, true)
 		}
+		if dispatched {
+			dispatchReplayed(ctx, consumer, famVal, name, peer, b, entry, &route, sets)
+		}
+		settleDispatchedAdd(ctx, consumer, key, gen, dispatched, accepted, &route, &sent, entry, peer, b.OriginASN, b.Community)
 	}
 	logger().Debug("redistribute-orchestrator: replayed source", "source", name, "destination", destination, "peer", peer, "entries", len(b.Entries))
+}
+
+// dispatchReplayed sends one replayed entry and counts it.
+func dispatchReplayed(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, source, peer string, b *redistevents.RouteChangeBatch, entry *redistevents.RouteChangeEntry, view *configredist.RedistRoute, sets ribpolicy.Sets) {
+	dispatchEntryToConsumer(ctx, consumer, fam, source, peer, b.OriginASN, b.Community, entry, view, sets)
+	if m := getMetrics(); m != nil && m.replayTotal != nil {
+		m.replayTotal.With(source).Inc()
+	}
 }
