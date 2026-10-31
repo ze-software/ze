@@ -274,7 +274,7 @@ the shim directory, keeps its default cache.
 | `protobuf` (`protoc`) | Protocol buffer compiler |
 | `jq` | JSON processing |
 | `golangci-lint` | Go linter (via `go install`) |
-| `staticcheck` | Feature-tag structural type checker, pinned to 2026.2.1 (honnef.co/go/tools v0.8.1 in `go.mod`, built from the vendor tree with `go install -mod=vendor` so it links the x/tools `go.mod` requires) |
+| `staticcheck` | Feature-tag structural type checker, pinned to 2026.2.2 (honnef.co/go/tools v0.8.2 in `go.mod`, built from the vendor tree with `go install -mod=vendor` so it links the x/tools `go.mod` requires) |
 | `goimports` | Go import formatter (via `go install`) |
 | `gopls` | Go language server behind the agent LSP tool (via `go install`) |
 | `govulncheck` | Dependency vulnerability scanner for the verification gate, built from the vendored copy (via `go install`) |

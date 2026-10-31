@@ -22,10 +22,11 @@ This package provides a mutation testing framework with automatic mutator regist
    - Update the TODO items with actual implementation
    - Add supported operators and mutation logic
 
-3. **Update tests:**
-   - Edit the generated `<mutator_name>_test.go` file
-   - Add realistic test cases
-   - Update expected behaviors
+3. **Add representative code:**
+   - Add code to the generated `testdata/<mutator_name>/input.go` that the
+     mutator should mutate, and similar code it should not
+   - Run `go test ./internal/mutation -run TestMutators/<mutator_name> -update`
+   - Review the generated `testdata/<mutator_name>/*.golden` files
 
 4. **Register automatically:**
    ```bash
@@ -47,9 +48,9 @@ go run scaffold.go bitwise
 #    - isBitwiseOp() - check if token is bitwise operator
 #    - getBitwiseMutations() - return mutation mappings
 
-# 3. Edit bitwise_test.go - add test cases:
-#    - Test supported operations like "a & b", "a | b"
-#    - Update expected mutation results
+# 3. Add representative code to testdata/bitwise/input.go:
+#    - Include supported operations like "a & b", "a | b"
+#    - Run: go test ./internal/mutation -run TestMutators/bitwise -update
 
 # 4. Register and test
 go generate
@@ -87,6 +88,7 @@ The registry is automatically generated from existing mutator files:
 - **ArithmeticMutator** - Mutates `+`, `-`, `*`, `/`, `%`, `++`, `--`
 - **ConditionalMutator** - Mutates `==`, `!=`, `<`, `<=`, `>`, `>=`  
 - **LogicalMutator** - Mutates `&&`, `||`, `!`
+- **SwitchMutator** - Empties non-empty `case`/`default` clause bodies (type-switch clauses that leave the switch variable unused are reported `NOT_VIABLE`; no clause deletion or forced case selection)
 
 ## Architecture
 

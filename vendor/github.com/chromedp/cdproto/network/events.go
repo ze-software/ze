@@ -46,9 +46,10 @@ type EventLoadingFailed struct {
 //
 // See: https://chromedevtools.github.io/devtools-protocol/tot/Network#event-loadingFinished
 type EventLoadingFinished struct {
-	RequestID         RequestID         `json:"requestId"`         // Request identifier.
-	Timestamp         cdp.MonotonicTime `json:"timestamp"`         // Timestamp.
-	EncodedDataLength float64           `json:"encodedDataLength"` // Total number of bytes received for this request.
+	RequestID         RequestID         `json:"requestId"`                            // Request identifier.
+	Timestamp         cdp.MonotonicTime `json:"timestamp"`                            // Timestamp.
+	EncodedDataLength float64           `json:"encodedDataLength"`                    // Total number of bytes received for this request.
+	EncodedBodyLength float64           `json:"encodedBodyLength,omitempty,omitzero"` // Size of the response body before removing content encodings. Includes cached bodies, but excludes headers and transfer framing.
 }
 
 // EventRequestServedFromCache fired if request ended up loading from cache.
@@ -267,16 +268,18 @@ type EventDirectTCPSocketChunkReceived struct {
 //
 // See: https://chromedevtools.github.io/devtools-protocol/tot/Network#event-directUDPSocketJoinedMulticastGroup
 type EventDirectUDPSocketJoinedMulticastGroup struct {
-	Identifier RequestID `json:"identifier"`
-	IPAddress  string    `json:"IPAddress"`
+	Identifier    RequestID `json:"identifier"`
+	IPAddress     string    `json:"IPAddress"`                        // Multicast group address.
+	SourceAddress string    `json:"sourceAddress,omitempty,omitzero"` // Source address of a source-specific multicast (SSM) membership. Absent for any-source multicast (ASM) memberships.
 }
 
 // EventDirectUDPSocketLeftMulticastGroup [no description].
 //
 // See: https://chromedevtools.github.io/devtools-protocol/tot/Network#event-directUDPSocketLeftMulticastGroup
 type EventDirectUDPSocketLeftMulticastGroup struct {
-	Identifier RequestID `json:"identifier"`
-	IPAddress  string    `json:"IPAddress"`
+	Identifier    RequestID `json:"identifier"`
+	IPAddress     string    `json:"IPAddress"`                        // Multicast group address.
+	SourceAddress string    `json:"sourceAddress,omitempty,omitzero"` // Source address of a source-specific multicast (SSM) membership. Absent for any-source multicast (ASM) memberships.
 }
 
 // EventDirectUDPSocketCreated fired upon direct_socket.UDPSocket creation.

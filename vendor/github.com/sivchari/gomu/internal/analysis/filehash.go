@@ -48,6 +48,28 @@ func (h *FileHasher) HashFiles(filePaths []string) (map[string]string, error) {
 	return hashes, nil
 }
 
+// HashRelatedTests calculates the combined hash of the test files related to filePath.
+// It is the single source of truth for the TestHash stored in history and the one
+// compared against it. It returns "" when there is no hashable related test file.
+func (h *FileHasher) HashRelatedTests(filePath string) string {
+	var combined []byte
+
+	for _, testFile := range FindRelatedTestFiles(filePath) {
+		hash, err := h.HashFile(testFile)
+		if err != nil {
+			continue
+		}
+
+		combined = append(combined, hash...)
+	}
+
+	if len(combined) == 0 {
+		return ""
+	}
+
+	return h.HashContent(combined)
+}
+
 // HashContent calculates the SHA256 hash of content.
 func (h *FileHasher) HashContent(content []byte) string {
 	hash := sha256.New()

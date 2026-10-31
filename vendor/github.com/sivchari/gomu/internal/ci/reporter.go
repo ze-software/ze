@@ -100,13 +100,7 @@ func (r *Reporter) generateJSONReport(summary *report.Summary, qualityResult *Qu
 		data["qualityGatePassed"] = qualityResult.Pass
 		data["qualityGateReason"] = qualityResult.Reason
 	} else {
-		// Calculate mutation score from summary
-		score := 0.0
-		if summary.TotalMutants > 0 {
-			score = float64(summary.KilledMutants) / float64(summary.TotalMutants) * 100
-		}
-
-		data["mutationScore"] = score
+		data["mutationScore"] = report.MutationScore(summary.KilledMutants, summary.TotalMutants, summary.Statistics.NotViable)
 		data["qualityGatePassed"] = "N/A"
 		data["qualityGateReason"] = noQualityGateMessage
 	}
@@ -130,11 +124,8 @@ func (r *Reporter) generateHTMLReport(summary *report.Summary, qualityResult *Qu
 	// Build file details HTML
 	fileDetailsHTML := ""
 
-	for _, file := range summary.Files {
-		score := 0.0
-		if file.TotalMutants > 0 {
-			score = float64(file.KilledMutants) / float64(file.TotalMutants) * 100
-		}
+	for _, file := range sortedFiles(summary.Files) {
+		score := report.MutationScore(file.KilledMutants, file.TotalMutants, file.NotViable)
 
 		fileDetailsHTML += fmt.Sprintf(`
         <tr>
@@ -142,13 +133,13 @@ func (r *Reporter) generateHTMLReport(summary *report.Summary, qualityResult *Qu
             <td>%d</td>
             <td>%d</td>
             <td>%.1f%%</td>
-        </tr>`, file.FilePath, file.TotalMutants, file.KilledMutants, score)
+        </tr>`, displayPath(file.FilePath), file.TotalMutants, file.KilledMutants, score)
 	}
 
-	// Handle nil quality result
-	mutationScore := 0.0
-
-	var qualityGateStatus string
+	var (
+		mutationScore     float64
+		qualityGateStatus string
+	)
 
 	if qualityResult != nil {
 		mutationScore = qualityResult.MutationScore
@@ -158,11 +149,7 @@ func (r *Reporter) generateHTMLReport(summary *report.Summary, qualityResult *Qu
 			qualityGateStatus = fmt.Sprintf("FAILED - %s", qualityResult.Reason)
 		}
 	} else {
-		// Calculate score from summary
-		if summary.TotalMutants > 0 {
-			mutationScore = float64(summary.KilledMutants) / float64(summary.TotalMutants) * 100
-		}
-
+		mutationScore = report.MutationScore(summary.KilledMutants, summary.TotalMutants, summary.Statistics.NotViable)
 		qualityGateStatus = noQualityGateMessage
 	}
 

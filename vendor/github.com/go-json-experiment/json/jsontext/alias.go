@@ -36,7 +36,7 @@
 //
 //   - a JSON literal, string, or number
 //   - a JSON object (e.g., `{"name":"value"}`)
-//   - a JSON array (e.g., `[1,2,3,]`)
+//   - a JSON array (e.g., `[1,2,3]`)
 //
 // A JSON value is represented by the [Value] type in Go and is a []byte
 // containing the raw textual representation of the value. There is some overlap
@@ -45,18 +45,18 @@
 //
 // The [Encoder] and [Decoder] types contain methods to read or write the next
 // [Token] or [Value] in a sequence. They maintain a state machine to validate
-// whether the sequence of JSON tokens and/or values produces a valid JSON.
+// whether the sequence of JSON tokens and/or values produces valid JSON.
 // [Options] may be passed to the [NewEncoder] or [NewDecoder] constructors
-// to configure the syntactic behavior of encoding and decoding.
+// to configure the behavior of encoding and decoding.
 //
 // # Terminology
 //
 // The terms "encode" and "decode" are used for syntactic functionality
 // that is concerned with processing JSON based on its grammar, and
 // the terms "marshal" and "unmarshal" are used for semantic functionality
-// that determines the meaning of JSON values as Go values and vice-versa.
-// This package (i.e., [jsontext]) deals with JSON at a syntactic layer,
-// while [encoding/json/v2] deals with JSON at a semantic layer.
+// that determines the meaning of JSON values as Go values and vice versa.
+// This package deals with JSON syntax,
+// while [encoding/json/v2] deals with JSON semantics.
 // The goal is to provide a clear distinction between functionality that
 // is purely concerned with encoding versus that of marshaling.
 // For example, one can directly encode a stream of JSON tokens without
@@ -136,7 +136,7 @@ import (
 //	d.ReadValue() // {"k":"v"}
 //	d.ReadToken() // }
 //
-// The above is one of many possible sequence of calls and
+// The above is one of many possible sequences of calls and
 // may not represent the most sensible method to call for any given token/value.
 // For example, it is probably more common to call [Decoder.ReadToken] to obtain a
 // string token for object names.
@@ -151,7 +151,7 @@ func NewDecoder(r io.Reader, opts ...Options) *Decoder {
 	return jsontext.NewDecoder(r, opts...)
 }
 
-// Encoder is a streaming encoder from raw JSON tokens and values.
+// Encoder is a streaming encoder to raw JSON tokens and values.
 // It is used to write a stream of top-level JSON values,
 // each terminated with a newline character.
 //
@@ -176,7 +176,7 @@ func NewDecoder(r io.Reader, opts ...Options) *Decoder {
 //	e.WriteValue(Value(`{"k":"v"}`)) // {"k":"v"}
 //	e.WriteToken(EndObject)          // }
 //
-// The above is one of many possible sequence of calls and
+// The above is one of many possible sequences of calls and
 // may not represent the most sensible method to call for any given token/value.
 // For example, it is probably more common to call [Encoder.WriteToken] with a string
 // for object names.
@@ -193,7 +193,7 @@ func NewEncoder(w io.Writer, opts ...Options) *Encoder {
 	return jsontext.NewEncoder(w, opts...)
 }
 
-// SyntacticError is a description of a syntactic error that occurred when
+// SyntacticError is a description of an error that occurred when
 // encoding or decoding JSON according to the grammar.
 //
 // The contents of this error as produced by this package may change over time.
@@ -202,7 +202,7 @@ type SyntacticError = jsontext.SyntacticError
 // Options configures [NewEncoder], [Encoder.Reset], [NewDecoder],
 // and [Decoder.Reset] with specific features.
 // Each function takes in a variadic list of options, where properties
-// set in latter options override the value of previously set properties.
+// set in later options override the value of previously set properties.
 //
 // There is a single Options type, which is used with both encoding and decoding.
 // Some options affect both operations, while others only affect one operation:
@@ -308,7 +308,7 @@ func CanonicalizeRawInts(v bool) Options {
 // It is safe to canonicalize a serialized single precision number and
 // parse it back as a single precision number and expect the same value.
 // If a number exceeds ±1.7976931348623157e+308, which is the maximum
-// finite number, then it saturated at that value and formatted as such.
+// finite number, then it is saturated at that value and formatted as such.
 //
 // This only affects encoding and is ignored when decoding.
 func CanonicalizeRawFloats(v bool) Options {
@@ -350,7 +350,7 @@ func SpaceAfterComma(v bool) Options {
 // If [SpaceAfterComma] is not specified, then the default is false.
 // If [WithIndent] is not specified, then the default is "\t".
 //
-// If set to false, then the output is a single-line,
+// If set to false, then the output is a single line,
 // where the only whitespace emitted is determined by the current
 // values of [SpaceAfterColon] and [SpaceAfterComma].
 //
@@ -363,9 +363,9 @@ func Multiline(v bool) Options {
 // where each element in a JSON object or array begins on a new, indented line
 // beginning with the indent prefix (see [WithIndentPrefix])
 // followed by one or more copies of indent according to the nesting depth.
-// The indent must only be composed of space or tab characters.
+// The indent must be composed of only space and tab characters.
 //
-// If the intent to emit indented output without a preference for
+// If the intent is to emit indented output without a preference for
 // the particular indent string, then use [Multiline] instead.
 //
 // This only affects encoding and is ignored when decoding.
@@ -378,7 +378,7 @@ func WithIndent(indent string) Options {
 // where each element in a JSON object or array begins on a new, indented line
 // beginning with the indent prefix followed by one or more copies of indent
 // (see [WithIndent]) according to the nesting depth.
-// The prefix must only be composed of space or tab characters.
+// The prefix must be composed of only space and tab characters.
 //
 // This only affects encoding and is ignored when decoding.
 // Use of this option implies [Multiline] being set to true.
@@ -437,12 +437,12 @@ var ErrNonStringName = jsontext.ErrNonStringName
 // either a JSON object name or an index to a JSON array element
 // encoded as a base-10 integer value.
 // It is impossible to distinguish between an array index and an object name
-// (that happens to be an base-10 encoded integer) without also knowing
+// (that happens to be a base-10 encoded integer) without also knowing
 // the structure of the top-level JSON value that the pointer refers to.
 //
 // There is exactly one representation of a pointer to a particular value,
 // so comparability of Pointer values is equivalent to checking whether
-// they both point to the exact same value.
+// they both point to the same value.
 type Pointer = jsontext.Pointer
 
 // Token represents a lexical JSON token, which may be one of the following:
@@ -455,6 +455,20 @@ type Pointer = jsontext.Pointer
 // A Token cannot represent entire array or object values, while a [Value] can.
 // There is no Token to represent commas and colons since
 // these structural tokens can be inferred from the surrounding context.
+//
+// A Token stores data in one of two forms:
+//
+//   - As raw JSON text: backed by the internal buffer of the [Decoder]
+//     and only ever produced by [Decoder.ReadToken].
+//     Such a token is only valid until the next call to any method on that
+//     [Decoder] (e.g., [Decoder.PeekKind], [Decoder.ReadToken],
+//     [Decoder.ReadValue], or [Decoder.SkipValue]).
+//     Call [Token.Clone] to copy the raw text into an independent allocation
+//     that persists beyond subsequent [Decoder] calls.
+//
+//   - As a typed Go value: a self-contained representation produced by
+//     the constructor functions (e.g., [String], [Int], [Uint], [Float]).
+//     Such tokens are valid indefinitely and do not need to be cloned.
 type Token = jsontext.Token
 
 var (
@@ -479,7 +493,10 @@ func String(s string) Token {
 	return jsontext.String(s)
 }
 
-// Float constructs a Token representing a JSON number.
+// Float constructs a Token representing a JSON number as
+// a 64-bit floating-point number formatted according to
+// ECMA-262, 10th edition, section 7.1.12.1 and RFC 8785, section 3.2.2.3.
+// with the exception that -0 is still formatted as -0.
 // The values NaN, +Inf, and -Inf will be represented
 // as a JSON string with the values "NaN", "Infinity", and "-Infinity".
 func Float(n float64) Token {
@@ -496,23 +513,25 @@ func Uint(n uint64) Token {
 	return jsontext.Uint(n)
 }
 
-// Kind represents each possible JSON token kind with a single byte,
-// which is conveniently the first byte of that kind's grammar
-// with the restriction that numbers always be represented with '0':
+// A Kind represents the kind of a JSON token.
 //
-//   - 'n': null
-//   - 'f': false
-//   - 't': true
-//   - '"': string
-//   - '0': number
-//   - '{': object begin
-//   - '}': object end
-//   - '[': array begin
-//   - ']': array end
-//
-// An invalid kind is usually represented using 0,
-// but may be non-zero due to invalid JSON data.
+// A Kind is a single byte, which is conveniently the first byte of that
+// kind's symbol in the grammar (except for numbers, which are always represented
+// with '0').
 type Kind = jsontext.Kind
+
+const (
+	KindInvalid     = jsontext.KindInvalid
+	KindNull        = jsontext.KindNull
+	KindFalse       = jsontext.KindFalse
+	KindTrue        = jsontext.KindTrue
+	KindString      = jsontext.KindString
+	KindNumber      = jsontext.KindNumber
+	KindBeginObject = jsontext.KindBeginObject
+	KindEndObject   = jsontext.KindEndObject
+	KindBeginArray  = jsontext.KindBeginArray
+	KindEndArray    = jsontext.KindEndArray
+)
 
 // AppendFormat formats the JSON value in src and appends it to dst
 // according to the specified options.
@@ -520,8 +539,8 @@ type Kind = jsontext.Kind
 //
 // The dst and src may overlap.
 // If an error is reported, then the entirety of src is appended to dst.
-func AppendFormat(dst, src []byte, opts ...Options) ([]byte, error) {
-	return jsontext.AppendFormat(dst, src, opts...)
+func AppendFormat[Bytes ~[]byte | ~string](dst []byte, src Bytes, opts ...Options) ([]byte, error) {
+	return jsontext.AppendFormat(dst, []byte(src), opts...)
 }
 
 // Value represents a single raw JSON value, which may be one of the following:

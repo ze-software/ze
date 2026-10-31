@@ -34,7 +34,7 @@
 //
 //   - a JSON literal, string, or number
 //   - a JSON object (e.g., `{"name":"value"}`)
-//   - a JSON array (e.g., `[1,2,3,]`)
+//   - a JSON array (e.g., `[1,2,3]`)
 //
 // A JSON value is represented by the [Value] type in Go and is a []byte
 // containing the raw textual representation of the value. There is some overlap
@@ -43,18 +43,18 @@
 //
 // The [Encoder] and [Decoder] types contain methods to read or write the next
 // [Token] or [Value] in a sequence. They maintain a state machine to validate
-// whether the sequence of JSON tokens and/or values produces a valid JSON.
+// whether the sequence of JSON tokens and/or values produces valid JSON.
 // [Options] may be passed to the [NewEncoder] or [NewDecoder] constructors
-// to configure the syntactic behavior of encoding and decoding.
+// to configure the behavior of encoding and decoding.
 //
 // # Terminology
 //
 // The terms "encode" and "decode" are used for syntactic functionality
 // that is concerned with processing JSON based on its grammar, and
 // the terms "marshal" and "unmarshal" are used for semantic functionality
-// that determines the meaning of JSON values as Go values and vice-versa.
-// This package (i.e., [jsontext]) deals with JSON at a syntactic layer,
-// while [encoding/json/v2] deals with JSON at a semantic layer.
+// that determines the meaning of JSON values as Go values and vice versa.
+// This package deals with JSON syntax,
+// while [encoding/json/v2] deals with JSON semantics.
 // The goal is to provide a clear distinction between functionality that
 // is purely concerned with encoding versus that of marshaling.
 // For example, one can directly encode a stream of JSON tokens without

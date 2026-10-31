@@ -13,7 +13,12 @@ const (
 	nilIdentName             = "nil"
 )
 
-// ErrorHandlingMutator mutates error return values by replacing err with nil.
+// ErrorHandlingMutator mutates error return values by replacing them with nil.
+//
+// Eligibility for a given identifier is decided by TypeChecker using static type
+// information: any identifier whose type is the universe error interface qualifies,
+// regardless of its name. Without type information, it falls back to matching the
+// identifier name "err".
 type ErrorHandlingMutator struct {
 }
 
@@ -22,7 +27,12 @@ func (m *ErrorHandlingMutator) Name() string {
 	return errorHandlingMutatorName
 }
 
-// CanMutate returns true if the node is a return statement containing an err identifier.
+// Description returns a human-readable summary of the mutator.
+func (m *ErrorHandlingMutator) Description() string {
+	return "Replace a returned err with nil"
+}
+
+// CanMutate returns true if the node is a return statement containing a candidate identifier.
 func (m *ErrorHandlingMutator) CanMutate(node ast.Node) bool {
 	stmt, ok := node.(*ast.ReturnStmt)
 	if !ok {
@@ -30,7 +40,7 @@ func (m *ErrorHandlingMutator) CanMutate(node ast.Node) bool {
 	}
 
 	for _, expr := range stmt.Results {
-		if isErrIdent(expr) {
+		if isNilifyCandidate(expr) {
 			return true
 		}
 	}
@@ -39,6 +49,9 @@ func (m *ErrorHandlingMutator) CanMutate(node ast.Node) bool {
 }
 
 // Mutate generates mutants for the given node.
+//
+// It emits a candidate for every identifier result; TypeChecker.IsValidMutation
+// performs the actual error-type check (or the name-based fallback).
 func (m *ErrorHandlingMutator) Mutate(node ast.Node, fset *token.FileSet) []Mutant {
 	stmt, ok := node.(*ast.ReturnStmt)
 	if !ok {
@@ -50,7 +63,7 @@ func (m *ErrorHandlingMutator) Mutate(node ast.Node, fset *token.FileSet) []Muta
 
 	for _, expr := range stmt.Results {
 		ident, ok := expr.(*ast.Ident)
-		if !ok || ident.Name != errIdentName {
+		if !ok || !isNilifyCandidate(ident) {
 			continue
 		}
 
@@ -96,9 +109,18 @@ func (m *ErrorHandlingMutator) Apply(node ast.Node, mutant Mutant) bool {
 	return false
 }
 
-// isErrIdent reports whether expr is an identifier named "err".
-func isErrIdent(expr ast.Expr) bool {
+// isNilifyCandidate reports whether expr is an identifier that could plausibly hold an
+// error value, excluding the predeclared identifiers that never do.
+func isNilifyCandidate(expr ast.Expr) bool {
 	ident, ok := expr.(*ast.Ident)
+	if !ok {
+		return false
+	}
 
-	return ok && ident.Name == errIdentName
+	switch ident.Name {
+	case nilIdentName, "_", boolTrue, boolFalse, "iota":
+		return false
+	default:
+		return true
+	}
 }

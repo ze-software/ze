@@ -2,38 +2,57 @@ package prettier
 
 import (
 	"fmt"
-	"html"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"github.com/a-h/templ/internal/htmlfind"
 )
 
-const defaultPosixCommand = "prettier --use-tabs --stdin-filepath $TEMPL_PRETTIER_FILENAME"
+var posixCommands = map[string]string{
+	"prettier":  "prettier --use-tabs --stdin-filepath $TEMPL_PRETTIER_FILENAME",
+	"prettierd": "prettierd --use-tabs --stdin-filepath $TEMPL_PRETTIER_FILENAME",
+}
 
-var shellNameToCommand = map[string]string{
-	"nu": "prettier --use-tabs --stdin-filepath $env.TEMPL_PRETTIER_FILENAME",
+var nuCommands = map[string]string{
+	"prettier":  "prettier --use-tabs --stdin-filepath $env.TEMPL_PRETTIER_FILENAME",
+	"prettierd": "prettierd --use-tabs --stdin-filepath $env.TEMPL_PRETTIER_FILENAME",
+}
+
+var shellNameToCommands = map[string]map[string]string{
+	"nu": nuCommands,
 }
 
 // DefaultCommand returns the default prettier command appropriate for the current shell.
+// It prefers prettier over prettierd, falling back to prettierd if prettier is not found.
 func DefaultCommand() string {
-	shell := os.Getenv("SHELL")
+	return defaultCommand(os.Getenv("SHELL"), exec.LookPath)
+}
+
+func defaultCommand(shell string, lookPath func(string) (string, error)) string {
 	if shell == "" {
 		shell = "/bin/sh"
 	}
 	shellName := filepath.Base(shell)
-	if shellCommand, ok := shellNameToCommand[shellName]; ok {
-		return shellCommand
+	commands := posixCommands
+	if shellCommands, ok := shellNameToCommands[shellName]; ok {
+		commands = shellCommands
 	}
-	return defaultPosixCommand
+	for _, name := range []string{"prettier", "prettierd"} {
+		if _, err := lookPath(name); err == nil {
+			return commands[name]
+		}
+	}
+	// Neither found, return the prettier command so error messages reference it.
+	return commands["prettier"]
 }
 
 func IsAvailable(command string) bool {
-	executable := strings.Fields(command)[0]
-	_, err := exec.LookPath(executable)
+	fields := strings.Fields(command)
+	if len(fields) == 0 {
+		return false
+	}
+	_, err := exec.LookPath(fields[0])
 	return err == nil
 }
 
@@ -67,67 +86,4 @@ func getCommand(goos, shell, command string) *exec.Cmd {
 		return exec.Command("cmd.exe", "/C", command)
 	}
 	return exec.Command(shell, "-c", command)
-}
-
-func Element(name string, typeAttrValue string, content string, depth int, prettierCommand string) (after string, err error) {
-	var indentationWrapper strings.Builder
-
-	// Add divs to the start and end of the script to ensure that prettier formats the content with
-	// correct indentation.
-	for i := range depth {
-		indentationWrapper.WriteString(fmt.Sprintf("<div data-templ-depth=\"%d\">", i))
-	}
-
-	// Write start tag with type attribute if present.
-	indentationWrapper.WriteString("<")
-	indentationWrapper.WriteString(name)
-	if typeAttrValue != "" {
-		indentationWrapper.WriteString(" type=\"")
-		indentationWrapper.WriteString(html.EscapeString(typeAttrValue))
-		indentationWrapper.WriteString("\"")
-	}
-	indentationWrapper.WriteString(">")
-
-	// Write contents.
-	indentationWrapper.WriteString(content)
-
-	// Write end tag.
-	indentationWrapper.WriteString("</")
-	indentationWrapper.WriteString(name)
-	indentationWrapper.WriteString(">")
-
-	for range depth {
-		indentationWrapper.WriteString("</div>")
-	}
-
-	before := indentationWrapper.String()
-	after, err = Run(before, "templ_content.html", prettierCommand)
-	if err != nil {
-		return "", fmt.Errorf("prettier error: %w", err)
-	}
-	if before == after {
-		return before, nil
-	}
-
-	// Chop off the start and end divs we added to get prettier to format the content with correct
-	// indentation.
-	matcher := htmlfind.Element(name)
-	nodes, err := htmlfind.AllReader(strings.NewReader(after), matcher)
-	if err != nil {
-		return before, fmt.Errorf("htmlfind error: %w", err)
-	}
-	if len(nodes) != 1 {
-		return before, fmt.Errorf("expected 1 %q node, got %d", name, len(nodes))
-	}
-	scriptNode := nodes[0]
-	if scriptNode.FirstChild == nil {
-		return before, fmt.Errorf("%q node has no children", name)
-	}
-	var sb strings.Builder
-	for node := range scriptNode.ChildNodes() {
-		sb.WriteString(node.Data)
-	}
-	after = strings.TrimRight(sb.String(), " \t\r\n") + "\n" + strings.Repeat("\t", depth)
-
-	return after, nil
 }

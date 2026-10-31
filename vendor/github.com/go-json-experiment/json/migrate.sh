@@ -4,6 +4,8 @@ GOROOT=${1:-../go}
 JSONROOT="."
 
 cp $JSONROOT/alias_gen.go $JSONROOT/alias_gen.go.bak
+cp $JSONROOT/options_format_global.go $JSONROOT/options_format_global.go.bak
+cp $JSONROOT/options_format_test.go $JSONROOT/options_format_test.go.bak
 rm -r $JSONROOT/*.go $JSONROOT/internal $JSONROOT/jsontext $JSONROOT/v1
 mv $JSONROOT/alias_gen.go.bak $JSONROOT/alias_gen.go
 cp -r $GOROOT/src/encoding/json/v2/*.go $JSONROOT/
@@ -18,6 +20,8 @@ for X in $(git ls-files --cached --others --exclude-standard | grep ".*[.]go$");
     if [ ! -e "$X" ]; then
         continue
     fi
+    sed -i 's/go:build goexperiment.jsonv2 && !goexperiment.jsonformat$/go:build (!goexperiment.jsonv2 || !go1.25) \&\& !goexperiment.jsonformat/' $X
+    sed -i 's/go:build goexperiment.jsonv2 && goexperiment.jsonformat$/go:build (!goexperiment.jsonv2 || !go1.25) \&\& goexperiment.jsonformat/' $X
     sed -i 's/go:build goexperiment.jsonv2$/go:build !goexperiment.jsonv2 || !go1.25/' $X
     sed -i 's|"encoding/json/v2"|"github.com/go-json-experiment/json"|' $X
     sed -i 's|"encoding/json/internal"|"github.com/go-json-experiment/json/internal"|' $X
@@ -32,11 +36,7 @@ for X in $(git ls-files --cached --others --exclude-standard | grep ".*[.]go$");
 done
 sed -i 's/v2[.]struct/json.struct/' $JSONROOT/errors_test.go
 sed -i 's|jsonv1 "github.com/go-json-experiment/json/v1"|jsonv1 "encoding/json"|' $JSONROOT/bench_test.go
-
-# TODO(go1.26): Remove this rewrite once errors.AsType is in the standard library.
-sed -i 's/_, ok := errors\.AsType\[\*SyntacticError\](err)/ok := errors.As(err, new(*SyntacticError))/g' $JSONROOT/jsontext/*.go
-sed -i 's/serr, ok := errors\.AsType\[\*json.SemanticError\](err)/var serr *json.SemanticError; ok := errors.As(err, \&serr)/g' $JSONROOT/example_test.go
-gofmt -w $JSONROOT/example_test.go
+sed -i '/testenv/d' $JSONROOT/jsontext/token_test.go
 
 # Remove documentation that only makes sense within the stdlib.
 sed -i  '/This package .* is experimental/,+4d' $JSONROOT/doc.go
@@ -47,3 +47,14 @@ git checkout internal/zstd # we still need local copy of zstd for testing
 go run alias_gen.go "encoding/json"          $JSONROOT/v1
 go run alias_gen.go "encoding/json/v2"       $JSONROOT
 go run alias_gen.go "encoding/json/jsontext" $JSONROOT/jsontext
+
+mv $JSONROOT/options_format_global.go.bak $JSONROOT/options_format_global.go
+mv $JSONROOT/options_format_test.go.bak $JSONROOT/options_format_test.go
+cp $GOROOT/src/encoding/json/internal/jsonopts/options_format.go $JSONROOT/options_format.go
+sed -i '/go:build goexperiment.jsonv2/d' $JSONROOT/options_format.go
+sed -i 's/package jsonopts/package json/' $JSONROOT/options_format.go
+goimports -w $JSONROOT/options_format.go
+sed -i -E '/^func (Marshal|MarshalWrite|MarshalEncode|Unmarshal|UnmarshalRead|UnmarshalDecode)\(/a opts = mayAppendSupportFormatTag(opts)' $JSONROOT/alias.go
+sed -i -E '/^func (Marshal|MarshalWrite|MarshalEncode|Unmarshal|UnmarshalRead|UnmarshalDecode)\(/a opts = mayAppendSupportFormatTag(opts)' $JSONROOT/arshal.go
+goimports -w $JSONROOT/alias.go
+goimports -w $JSONROOT/arshal.go

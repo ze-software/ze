@@ -211,6 +211,9 @@ func (p *Pack) writeBootFile(bootfilename, mbrfilename string) error {
 	if err := p.writeBoot(f, mbrfilename); err != nil {
 		return err
 	}
+	if err := syncFile(f); err != nil {
+		return err
+	}
 	return f.Close()
 }
 
@@ -427,6 +430,9 @@ func (p *Pack) writeBoot(f io.Writer, mbrfilename string) error {
 		}
 		defer fmbr.Close()
 		if err := p.writeMBR(p.FirstPartitionOffsetSectors, f.(io.ReadSeeker), fmbr, p.Partuuid); err != nil {
+			return err
+		}
+		if err := syncFile(fmbr); err != nil {
 			return err
 		}
 		if err := fmbr.Close(); err != nil {
@@ -698,6 +704,9 @@ func (p *Pack) writeRootFile(filename string, root *FileInfo) error {
 	}
 	defer f.Close()
 	if err := p.writeRoot(f, root); err != nil {
+		return err
+	}
+	if err := syncFile(f); err != nil {
 		return err
 	}
 	return f.Close()

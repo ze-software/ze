@@ -3,15 +3,9 @@ package execution
 import (
 	"encoding/json"
 	"fmt"
-	"go/ast"
-	"go/format"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"time"
-
-	"golang.org/x/tools/go/ast/astutil"
 
 	"github.com/sivchari/gomu/internal/mutation"
 )
@@ -117,75 +111,16 @@ func (om *OverlayMutator) createMutatedFile(mutant mutation.Mutant, originalPath
 		return fmt.Errorf("failed to read source file: %w", err)
 	}
 
-	fset := token.NewFileSet()
-
-	file, err := parser.ParseFile(fset, originalPath, src, parser.ParseComments)
+	mutated, err := mutation.ApplyMutantToSource(src, originalPath, mutant)
 	if err != nil {
-		return fmt.Errorf("failed to parse file: %w", err)
+		return fmt.Errorf("failed to apply mutant: %w", err)
 	}
 
-	mutated := false
-
-	astutil.Apply(file, nil, func(c *astutil.Cursor) bool {
-		if mutated {
-			return false
-		}
-
-		node := c.Node()
-		if node == nil {
-			return true
-		}
-
-		pos := fset.Position(node.Pos())
-		if pos.Line == mutant.Line && pos.Column == mutant.Column {
-			mutated = om.applyMutationToNode(node, func(replacement ast.Node) {
-				c.Replace(replacement)
-			}, mutant)
-		}
-
-		return !mutated
-	})
-
-	if !mutated {
-		return fmt.Errorf("failed to find mutation target at %s:%d:%d", originalPath, mutant.Line, mutant.Column)
-	}
-
-	f, err := os.Create(mutatedPath)
-	if err != nil {
-		return fmt.Errorf("failed to create mutated file: %w", err)
-	}
-
-	defer f.Close()
-
-	if err := format.Node(f, fset, file); err != nil {
+	if err := os.WriteFile(mutatedPath, mutated, 0600); err != nil {
 		return fmt.Errorf("failed to write mutated file: %w", err)
 	}
 
 	return nil
-}
-
-// applyMutationToNode applies the mutation to a specific AST node.
-func (om *OverlayMutator) applyMutationToNode(node ast.Node, replaceFunc func(ast.Node), mutant mutation.Mutant) bool {
-	engine, err := mutation.New()
-	if err != nil {
-		return false
-	}
-
-	for _, m := range engine.GetMutators() {
-		if ca, ok := m.(mutation.CursorApplier); ok {
-			if ca.ApplyWithCursor(node, replaceFunc, mutant) {
-				return true
-			}
-		}
-	}
-
-	for _, m := range engine.GetMutators() {
-		if m.Apply(node, mutant) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // generateOverlayJSON creates the overlay.json file for go build/test.

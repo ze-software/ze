@@ -16,7 +16,9 @@ import (
 
 	_ "embed"
 
+	"github.com/a-h/templ/internal/htmlattr"
 	"github.com/a-h/templ/parser/v2"
+	"github.com/a-h/templ/parser/v2/visitor"
 )
 
 type GenerateOpt func(g *generator) error
@@ -161,6 +163,9 @@ func (g *generator) generate() (err error) {
 	if err = g.writeGeneratedDateComment(); err != nil {
 		return
 	}
+	if err = g.writeBlankLineAfterGeneratorComments(); err != nil {
+		return
+	}
 	if err = g.writeHeader(); err != nil {
 		return
 	}
@@ -202,6 +207,16 @@ func (g *generator) writeVersionComment() (err error) {
 func (g *generator) writeGeneratedDateComment() (err error) {
 	if g.options.GeneratedDate != "" {
 		_, err = g.w.Write("// templ: generated: " + g.options.GeneratedDate + "\n")
+	}
+	return err
+}
+
+// writeBlankLineAfterGeneratorComments separates the version and generated date
+// comments from the package clause, so that Go does not treat them as package
+// documentation.
+func (g *generator) writeBlankLineAfterGeneratorComments() (err error) {
+	if g.options.Version != "" || g.options.GeneratedDate != "" {
+		_, err = g.w.Write("\n")
 	}
 	return err
 }
@@ -497,26 +512,20 @@ func (g *generator) writeTemplate(nodeIdx int, t *parser.HTMLTemplate) error {
 		if _, err = g.w.WriteIndent(indentLevel, "ctx = templ.InitializeContext(ctx)\n"); err != nil {
 			return err
 		}
+		// Children must be read before ClearChildren is called, but only
+		// templates that render { children... } can read them, because an unused
+		// variable does not compile. The variable name is allocated either way,
+		// so that the numbering of other generated variables does not change.
 		g.childrenVar = g.createVariableName()
+		usesChildren, err := containsChildrenExpression(t.Children)
+		if err != nil {
+			return err
+		}
 		// templ_7745c5c3_Var1 := templ.GetChildren(ctx)
-		// if templ_7745c5c3_Var1 == nil {
-		//  	templ_7745c5c3_Var1 = templ.NopComponent
-		// }
-		if _, err = g.w.WriteIndent(indentLevel, fmt.Sprintf("%s := templ.GetChildren(ctx)\n", g.childrenVar)); err != nil {
-			return err
-		}
-		if _, err = g.w.WriteIndent(indentLevel, fmt.Sprintf("if %s == nil {\n", g.childrenVar)); err != nil {
-			return err
-		}
-		{
-			indentLevel++
-			if _, err = g.w.WriteIndent(indentLevel, fmt.Sprintf("%s = templ.NopComponent\n", g.childrenVar)); err != nil {
+		if usesChildren {
+			if _, err = g.w.WriteIndent(indentLevel, fmt.Sprintf("%s := templ.GetChildren(ctx)\n", g.childrenVar)); err != nil {
 				return err
 			}
-			indentLevel--
-		}
-		if _, err = g.w.WriteIndent(indentLevel, "}\n"); err != nil {
-			return err
 		}
 		// ctx = templ.ClearChildren(children)
 		if _, err = g.w.WriteIndent(indentLevel, "ctx = templ.ClearChildren(ctx)\n"); err != nil {
@@ -646,10 +655,7 @@ func (g *generator) writeNode(indentLevel int, current parser.Node, next parser.
 		return fmt.Errorf("unhandled type: %v", reflect.TypeOf(n))
 	}
 	// Write trailing whitespace, if there is a next node that might need the space.
-	// If the next node is inline or text, we might need it.
-	// If the current node is a block element, we don't need it.
-	needed := (isInlineOrText(current) && isInlineOrText(next))
-	if ws, ok := current.(parser.WhitespaceTrailer); ok && needed {
+	if ws, ok := current.(parser.WhitespaceTrailer); ok && isTrailingSpaceNeeded(current, next) {
 		if err := g.writeWhitespaceTrailer(indentLevel, ws.Trailing()); err != nil {
 			return err
 		}
@@ -676,6 +682,40 @@ func isInlineOrText(next parser.Node) bool {
 		return true
 	case *parser.StringExpression:
 		return true
+	}
+	return false
+}
+
+func isTextLike(n parser.Node) bool {
+	switch n.(type) {
+	case *parser.Text:
+		return true
+	case *parser.StringExpression:
+		return true
+	}
+	return false
+}
+
+func isSelfClosingTemplElementExpression(n parser.Node) bool {
+	tee, ok := n.(*parser.TemplElementExpression)
+	return ok && len(tee.Children) == 0
+}
+
+// isTrailingSpaceNeeded reports whether trailing whitespace should be emitted between current and next.
+// Trailing space is needed when both nodes are inline content (text, inline elements, control flow), or
+// when a self-closing templ element expression is adjacent to text or a string expression. When text
+// precedes a self-closing templ expression, trailing space is only emitted for horizontal whitespace
+// (same-line), not vertical (different lines), to avoid adding spaces before block-level components.
+func isTrailingSpaceNeeded(current, next parser.Node) bool {
+	if isInlineOrText(current) && isInlineOrText(next) {
+		return true
+	}
+	if isSelfClosingTemplElementExpression(current) && isTextLike(next) {
+		return true
+	}
+	if isTextLike(current) && isSelfClosingTemplElementExpression(next) {
+		ws, ok := current.(parser.WhitespaceTrailer)
+		return ok && ws.Trailing() == parser.SpaceHorizontal
 	}
 	return false
 }
@@ -989,20 +1029,8 @@ func (g *generator) writeElement(indentLevel int, n *parser.Element) (err error)
 			return err
 		}
 	} else {
-		attrs := parser.CopyAttributes(n.Attributes)
-		// <style type="text/css"></style>
-		if err = g.writeElementCSS(indentLevel, attrs); err != nil {
-			return err
-		}
-		// <script></script>
-		if err = g.writeElementScript(indentLevel, attrs); err != nil {
-			return err
-		}
-		// <div
-		if _, err = g.w.WriteStringLiteral(indentLevel, fmt.Sprintf(`<%s`, html.EscapeString(n.Name))); err != nil {
-			return err
-		}
-		if err = g.writeElementAttributes(indentLevel, n.Name, attrs); err != nil {
+		// <div class="a" ...
+		if err = g.writeOpeningTag(indentLevel, n.Name, n.Attributes); err != nil {
 			return err
 		}
 		// >
@@ -1025,121 +1053,114 @@ func (g *generator) writeElement(indentLevel int, n *parser.Element) (err error)
 	return err
 }
 
-func (g *generator) writeAttributeCSS(indentLevel int, attr *parser.ExpressionAttribute) (result *parser.ExpressionAttribute, ok bool, err error) {
-	var r parser.Range
-	name := html.EscapeString(attr.Key.String())
-	if name != "class" {
-		ok = false
-		return
-	}
-	// Create a class name for the style.
-	// The expression can either be expecting a templ.Classes call, or an expression that returns
-	// var templ_7745c5c3_CSSClasses = []any{
-	classesName := g.createVariableName()
-	if _, err = g.w.WriteIndent(indentLevel, "var "+classesName+" = []any{"); err != nil {
-		return
-	}
-	// p.Name()
-	if r, err = g.w.Write(attr.Expression.Value); err != nil {
-		return
-	}
-	g.sourceMap.Add(attr.Expression, r)
-	// }\n
-	if _, err = g.w.Write("}\n"); err != nil {
-		return
-	}
-	// Render the CSS before the element if required.
-	// templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_CSSClasses...)
-	if _, err = g.w.WriteIndent(indentLevel, "templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, "+classesName+"...)\n"); err != nil {
-		return
-	}
-	if err = g.writeErrorHandler(indentLevel); err != nil {
-		return
-	}
-	// Rewrite the ExpressionAttribute to point at the new variable.
-	newAttr := &parser.ExpressionAttribute{
-		Key: attr.Key,
-		Expression: parser.Expression{
-			Value: "templ.CSSClasses(" + classesName + ").String()",
-		},
-	}
-	return newAttr, true, nil
-}
-
-func (g *generator) writeAttributesCSS(indentLevel int, attrs []parser.Attribute) (err error) {
-	for i, attr := range attrs {
-		if attr, ok := attr.(*parser.ExpressionAttribute); ok {
-			attr, ok, err = g.writeAttributeCSS(indentLevel, attr)
-			if err != nil {
-				return err
-			}
-			if ok {
-				attrs[i] = attr
-			}
+// writeOpeningTag writes the opening tag of an element, up to the closing '>'.
+//
+// Some attribute values render a script or CSS class that must be defined
+// before the element, e.g. onclick={ handler() } renders the function of the
+// handler. Each attribute expression is evaluated once, in place, so that an
+// expression in a conditional attribute is only evaluated when its branch is
+// selected, and so that the rendered function is the one that the attribute
+// calls. The opening tag is written to an element buffer while its attributes
+// are evaluated, and the scripts and CSS classes are written to the element
+// writer, then the element buffer is written after them.
+func (g *generator) writeOpeningTag(indentLevel int, elementName string, attrs []parser.Attribute) (err error) {
+	if !g.requiresElementWriter(elementName, attrs) {
+		// <div
+		if _, err = g.w.WriteStringLiteral(indentLevel, "<"+html.EscapeString(elementName)); err != nil {
+			return err
 		}
-		if cattr, ok := attr.(*parser.ConditionalAttribute); ok {
-			err = g.writeAttributesCSS(indentLevel, cattr.Then)
-			if err != nil {
-				return err
-			}
-			err = g.writeAttributesCSS(indentLevel, cattr.Else)
-			if err != nil {
-				return err
-			}
-			attrs[i] = cattr
-		}
+		// class="a" ...
+		return g.writeElementAttributes(indentLevel, elementName, mayAnimateURL(attrs), attrs)
 	}
-	return nil
+	// {
+	if _, err = g.w.WriteIndent(indentLevel, "{\n"); err != nil {
+		return err
+	}
+	{
+		indentLevel++
+		// templ_7745c5c3_ElementWriter := templ_7745c5c3_Buffer
+		if _, err = g.w.WriteIndent(indentLevel, elementWriterVariable+" := templ_7745c5c3_Buffer\n"); err != nil {
+			return err
+		}
+		// templ_7745c5c3_Buffer := templ.GetBuffer()
+		if _, err = g.w.WriteIndent(indentLevel, "templ_7745c5c3_Buffer := templ.GetBuffer()\n"); err != nil {
+			return err
+		}
+		// var templ_7745c5c3_ElementScripts []templ.ComponentScript
+		if _, err = g.w.WriteIndent(indentLevel, "var "+elementScriptsVariable+" []templ.ComponentScript\n"); err != nil {
+			return err
+		}
+		// <div
+		if _, err = g.w.WriteStringLiteral(indentLevel, "<"+html.EscapeString(elementName)); err != nil {
+			return err
+		}
+		// class="a" ...
+		if err = g.writeElementAttributes(indentLevel, elementName, mayAnimateURL(attrs), attrs); err != nil {
+			return err
+		}
+		// The scripts of event handlers with constant names are rendered in a single
+		// script element.
+		// templ_7745c5c3_Err = templ.RenderScriptItems(ctx, templ_7745c5c3_ElementWriter, templ_7745c5c3_ElementScripts...)
+		if _, err = g.w.WriteIndent(indentLevel, "templ_7745c5c3_Err = templ.RenderScriptItems(ctx, "+elementWriterVariable+", "+elementScriptsVariable+"...)\n"); err != nil {
+			return err
+		}
+		if err = g.writeErrorHandler(indentLevel); err != nil {
+			return err
+		}
+		// _, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteTo(templ_7745c5c3_ElementWriter)
+		if _, err = g.w.WriteIndent(indentLevel, "_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteTo("+elementWriterVariable+")\n"); err != nil {
+			return err
+		}
+		if err = g.writeErrorHandler(indentLevel); err != nil {
+			return err
+		}
+		// templ.ReleaseBuffer(templ_7745c5c3_Buffer)
+		if _, err = g.w.WriteIndent(indentLevel, "templ.ReleaseBuffer(templ_7745c5c3_Buffer)\n"); err != nil {
+			return err
+		}
+		indentLevel--
+	}
+	// }
+	_, err = g.w.WriteIndent(indentLevel, "}\n")
+	return err
 }
 
-func (g *generator) writeElementCSS(indentLevel int, attrs []parser.Attribute) (err error) {
-	return g.writeAttributesCSS(indentLevel, attrs)
-}
+// elementWriterVariable is the variable that attribute values write scripts and
+// CSS classes to, before the opening tag of the element.
+const elementWriterVariable = "templ_7745c5c3_ElementWriter"
 
-func isScriptAttribute(name string) bool {
-	for _, prefix := range []string{"on", "hx-on:"} {
-		if strings.HasPrefix(name, prefix) {
+// elementScriptsVariable is the variable that event handler attributes with
+// constant names append their scripts to, so that they are rendered in a single
+// script element before the opening tag.
+const elementScriptsVariable = "templ_7745c5c3_ElementScripts"
+
+// requiresElementWriter returns true if any of attrs, including those within
+// conditional attributes, writes a script or CSS class before the opening tag
+// of the element.
+func (g *generator) requiresElementWriter(elementName string, attrs []parser.Attribute) bool {
+	for _, attr := range attrs {
+		switch attr := attr.(type) {
+		case *parser.ConditionalAttribute:
+			if g.requiresElementWriter(elementName, attr.Then) || g.requiresElementWriter(elementName, attr.Else) {
+				return true
+			}
+		case *parser.ExpressionAttribute:
+			key, ok := attr.Key.(parser.ConstantAttributeKey)
+			if !ok {
+				return true
+			}
+			if isClassAttribute(key) || htmlattr.Classify(elementName, key.Name) == htmlattr.ContextEventHandler {
+				return true
+			}
+		case *parser.SpreadAttributes:
 			return true
 		}
 	}
 	return false
 }
 
-func (g *generator) writeElementScript(indentLevel int, attrs []parser.Attribute) (err error) {
-	var scriptExpressions []string
-	for _, attr := range attrs {
-		scriptExpressions = append(scriptExpressions, getAttributeScripts(attr)...)
-	}
-	if len(scriptExpressions) == 0 {
-		return
-	}
-	// Render the scripts before the element if required.
-	// templ_7745c5c3_Err = templ.RenderScriptItems(ctx, templ_7745c5c3_Buffer, a, b, c)
-	if _, err = g.w.WriteIndent(indentLevel, "templ_7745c5c3_Err = templ.RenderScriptItems(ctx, templ_7745c5c3_Buffer, "+strings.Join(scriptExpressions, ", ")+")\n"); err != nil {
-		return err
-	}
-	if err = g.writeErrorHandler(indentLevel); err != nil {
-		return err
-	}
-	return err
-}
-
-func getAttributeScripts(attr parser.Attribute) (scripts []string) {
-	if attr, ok := attr.(*parser.ConditionalAttribute); ok {
-		for _, attr := range attr.Then {
-			scripts = append(scripts, getAttributeScripts(attr)...)
-		}
-		for _, attr := range attr.Else {
-			scripts = append(scripts, getAttributeScripts(attr)...)
-		}
-	}
-	if attr, ok := attr.(*parser.ExpressionAttribute); ok {
-		name := html.EscapeString(attr.Key.String())
-		if isScriptAttribute(name) {
-			scripts = append(scripts, attr.Expression.Value)
-		}
-	}
-	return scripts
+func isClassAttribute(key parser.ConstantAttributeKey) bool {
+	return strings.EqualFold(key.Name, "class")
 }
 
 func (g *generator) writeAttributeKey(indentLevel int, attr parser.AttributeKey) (err error) {
@@ -1151,38 +1172,42 @@ func (g *generator) writeAttributeKey(indentLevel int, attr parser.AttributeKey)
 		return nil
 	}
 	if attr, ok := attr.(parser.ExpressionAttributeKey); ok {
-		var r parser.Range
-		vn := g.createVariableName()
-		// var vn string
-		if _, err = g.w.WriteIndent(indentLevel, "var "+vn+" string\n"); err != nil {
-			return err
-		}
-		// vn, templ_7745c5c3_Err = templ.JoinStringErrs(
-		if _, err = g.w.WriteIndent(indentLevel, vn+", templ_7745c5c3_Err = templ.JoinStringErrs("); err != nil {
-			return err
-		}
-		// p.Name()
-		if r, err = g.w.Write(attr.Expression.Value); err != nil {
-			return err
-		}
-		g.sourceMap.Add(attr.Expression, r)
-		// )
-		if _, err = g.w.Write(")\n"); err != nil {
-			return err
-		}
-		// Attribute expression error handler.
-		err = g.writeExpressionErrorHandler(indentLevel, attr.Expression)
-		if err != nil {
-			return err
-		}
-
-		// _, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(vn)
-		if _, err = g.w.WriteIndent(indentLevel, "_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(` `+"+vn+"))\n"); err != nil {
-			return err
-		}
-		return g.writeErrorHandler(indentLevel)
+		_, err = g.writeExpressionAttributeKey(indentLevel, attr)
+		return err
 	}
 	return fmt.Errorf("unknown attribute key type %T", attr)
+}
+
+func (g *generator) writeExpressionAttributeKey(indentLevel int, attr parser.ExpressionAttributeKey) (vn string, err error) {
+	var r parser.Range
+	vn = g.createVariableName()
+	// var vn string
+	if _, err = g.w.WriteIndent(indentLevel, "var "+vn+" string\n"); err != nil {
+		return vn, err
+	}
+	// vn, templ_7745c5c3_Err = templ.JoinStringErrs(
+	if _, err = g.w.WriteIndent(indentLevel, vn+", templ_7745c5c3_Err = templ.JoinStringErrs("); err != nil {
+		return vn, err
+	}
+	// p.Name()
+	if r, err = g.w.Write(attr.Expression.Value); err != nil {
+		return vn, err
+	}
+	g.sourceMap.Add(attr.Expression, r)
+	// )
+	if _, err = g.w.Write(")\n"); err != nil {
+		return vn, err
+	}
+	// Attribute expression error handler.
+	if err = g.writeExpressionErrorHandler(indentLevel, attr.Expression); err != nil {
+		return vn, err
+	}
+
+	// _, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(` `+templruntime.SanitizeAttributeName(vn)))
+	if _, err = g.w.WriteIndent(indentLevel, "_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(` `+templruntime.SanitizeAttributeName("+vn+")))\n"); err != nil {
+		return vn, err
+	}
+	return vn, g.writeErrorHandler(indentLevel)
 }
 
 func (g *generator) writeBoolConstantAttribute(indentLevel int, attr *parser.BoolConstantAttribute) (err error) {
@@ -1240,33 +1265,32 @@ func (g *generator) writeBoolExpressionAttribute(indentLevel int, attr *parser.B
 	return nil
 }
 
-func (g *generator) writeExpressionAttributeValueURL(indentLevel int, attr *parser.ExpressionAttribute) (err error) {
+func (g *generator) writeExpressionAttributeValueResolved(indentLevel int, resolver attributeResolver, attr *parser.ExpressionAttribute) (err error) {
+	var r parser.Range
 	vn := g.createVariableName()
-	// var vn templ.SafeURL
-	if _, err = g.w.WriteIndent(indentLevel, "var "+vn+" templ.SafeURL\n"); err != nil {
+	// var vn string
+	if _, err = g.w.WriteIndent(indentLevel, "var "+vn+" string\n"); err != nil {
 		return err
 	}
-	// vn, templ_7745c5c3_Err = templ.JoinURLErrs(
-	if _, err = g.w.WriteIndent(indentLevel, vn+", templ_7745c5c3_Err = templ.JoinURLErrs("); err != nil {
+	// vn, templ_7745c5c3_Err = templruntime.NewAttributeExpression(
+	if _, err = g.w.WriteIndent(indentLevel, vn+", templ_7745c5c3_Err = "+resolver.Constructor+"("); err != nil {
 		return err
 	}
 	// p.Name()
-	var r parser.Range
 	if r, err = g.w.Write(attr.Expression.Value); err != nil {
 		return err
 	}
 	g.sourceMap.Add(attr.Expression, r)
-	// )
-	if _, err = g.w.Write(")\n"); err != nil {
+	// ).Resolve(ctx)
+	if _, err = g.w.Write(")." + resolver.FormatMethodCall() + "\n"); err != nil {
 		return err
 	}
 	// Attribute expression error handler.
-	err = g.writeExpressionErrorHandler(indentLevel, attr.Expression)
-	if err != nil {
+	if err = g.writeExpressionErrorHandler(indentLevel, attr.Expression); err != nil {
 		return err
 	}
 	// _, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(vn)
-	if _, err = g.w.WriteIndent(indentLevel, "_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString("+vn+"))\n"); err != nil {
+	if _, err = g.w.WriteIndent(indentLevel, "_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("+vn+")\n"); err != nil {
 		return err
 	}
 	return g.writeErrorHandler(indentLevel)
@@ -1288,40 +1312,12 @@ func (g *generator) writeExpressionAttributeValueScript(indentLevel int, attr *p
 	if _, err = g.w.Write("\n"); err != nil {
 		return err
 	}
+	// The function of the script is rendered before the element.
+	// templ_7745c5c3_ElementScripts = append(templ_7745c5c3_ElementScripts, vn)
+	if _, err = g.w.WriteIndent(indentLevel, elementScriptsVariable+" = append("+elementScriptsVariable+", "+vn+")\n"); err != nil {
+		return err
+	}
 	if _, err = g.w.WriteIndent(indentLevel, "_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("+vn+".Call)\n"); err != nil {
-		return err
-	}
-	return g.writeErrorHandler(indentLevel)
-}
-
-func (g *generator) writeExpressionAttributeValueDefault(indentLevel int, attr *parser.ExpressionAttribute) (err error) {
-	var r parser.Range
-	vn := g.createVariableName()
-	// var vn string
-	if _, err = g.w.WriteIndent(indentLevel, "var "+vn+" string\n"); err != nil {
-		return err
-	}
-	// vn, templ_7745c5c3_Err = templ.ResolveAttributeValue(
-	if _, err = g.w.WriteIndent(indentLevel, vn+", templ_7745c5c3_Err = templ.ResolveAttributeValue("); err != nil {
-		return err
-	}
-	// p.Name()
-	if r, err = g.w.Write(attr.Expression.Value); err != nil {
-		return err
-	}
-	g.sourceMap.Add(attr.Expression, r)
-	// )
-	if _, err = g.w.Write(")\n"); err != nil {
-		return err
-	}
-	// Attribute expression error handler.
-	err = g.writeExpressionErrorHandler(indentLevel, attr.Expression)
-	if err != nil {
-		return err
-	}
-
-	// _, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(vn)
-	if _, err = g.w.WriteIndent(indentLevel, "_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("+vn+")\n"); err != nil {
 		return err
 	}
 	return g.writeErrorHandler(indentLevel)
@@ -1360,7 +1356,10 @@ func (g *generator) writeExpressionAttributeValueStyle(indentLevel int, attr *pa
 	return g.writeErrorHandler(indentLevel)
 }
 
-func (g *generator) writeExpressionAttribute(indentLevel int, elementName string, attr *parser.ExpressionAttribute) (err error) {
+func (g *generator) writeExpressionAttribute(indentLevel int, elementName string, sanitizeAnimationValues bool, attr *parser.ExpressionAttribute) (err error) {
+	if key, ok := attr.Key.(parser.ExpressionAttributeKey); ok {
+		return g.writeDynamicKeyExpressionAttribute(indentLevel, elementName, key, attr)
+	}
 	if err = g.writeAttributeKey(indentLevel, attr.Key); err != nil {
 		return err
 	}
@@ -1368,35 +1367,96 @@ func (g *generator) writeExpressionAttribute(indentLevel int, elementName string
 	if _, err = g.w.WriteStringLiteral(indentLevel, `=\"`); err != nil {
 		return err
 	}
-	attrKey := html.EscapeString(attr.Key.String())
 	// Value.
-	if isExpressionAttributeValueURL(elementName, attrKey) {
-		if err := g.writeExpressionAttributeValueURL(indentLevel, attr); err != nil {
-			return err
-		}
-	} else if isScriptAttribute(attrKey) {
-		if err := g.writeExpressionAttributeValueScript(indentLevel, attr); err != nil {
-			return err
-		}
-	} else if attrKey == "style" {
-		if err := g.writeExpressionAttributeValueStyle(indentLevel, attr); err != nil {
-			return err
-		}
-	} else {
-		if err := g.writeExpressionAttributeValueDefault(indentLevel, attr); err != nil {
-			return err
-		}
-	}
-	// Close quote.
-	if _, err = g.w.WriteStringLiteral(indentLevel, `\"`); err != nil {
+	if err = g.writeExpressionAttributeValue(indentLevel, elementName, sanitizeAnimationValues, attr); err != nil {
 		return err
 	}
-	return nil
+	// Close quote.
+	_, err = g.w.WriteStringLiteral(indentLevel, `\"`)
+	return err
 }
 
-func (g *generator) writeSpreadAttributes(indentLevel int, attr *parser.SpreadAttributes) (err error) {
-	// templ.RenderAttributes(ctx, w, spreadAttrs)
-	if _, err = g.w.WriteIndent(indentLevel, `templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, `); err != nil {
+func (g *generator) writeExpressionAttributeValue(indentLevel int, elementName string, sanitizeAnimationValues bool, attr *parser.ExpressionAttribute) (err error) {
+	if key, ok := attr.Key.(parser.ConstantAttributeKey); ok && isClassAttribute(key) {
+		return g.writeExpressionAttributeValueClass(indentLevel, attr)
+	}
+	attrContext := htmlattr.Classify(elementName, attr.Key.String())
+	if attrContext == htmlattr.ContextAnimationValue && !sanitizeAnimationValues {
+		attrContext = htmlattr.ContextDefault
+	}
+	switch attrContext {
+	case htmlattr.ContextEventHandler:
+		return g.writeExpressionAttributeValueScript(indentLevel, attr)
+	case htmlattr.ContextURL:
+		return g.writeExpressionAttributeValueResolved(indentLevel, attributeResolverURL, attr)
+	case htmlattr.ContextSrcdoc:
+		return g.writeExpressionAttributeValueResolved(indentLevel, attributeResolverSrcdoc, attr)
+	case htmlattr.ContextSrcset:
+		return g.writeExpressionAttributeValueResolved(indentLevel, attributeResolverSrcset, attr)
+	case htmlattr.ContextAnimationValue:
+		return g.writeExpressionAttributeValueResolved(indentLevel, attributeResolverAnimationValue, attr)
+	case htmlattr.ContextStyle:
+		return g.writeExpressionAttributeValueStyle(indentLevel, attr)
+	}
+	return g.writeExpressionAttributeValueResolved(indentLevel, attributeResolverDefault, attr)
+}
+
+func (g *generator) writeExpressionAttributeValueClass(indentLevel int, attr *parser.ExpressionAttribute) (err error) {
+	// Create a class name for the style.
+	// The expression can either be expecting a templ.Classes call, or an expression that returns
+	classesName := g.createVariableName()
+	// var templ_7745c5c3_Var1 = []any{
+	if _, err = g.w.WriteIndent(indentLevel, "var "+classesName+" = []any{"); err != nil {
+		return err
+	}
+	// p.Name()
+	var r parser.Range
+	if r, err = g.w.Write(attr.Expression.Value); err != nil {
+		return err
+	}
+	g.sourceMap.Add(attr.Expression, r)
+	// }
+	if _, err = g.w.Write("}\n"); err != nil {
+		return err
+	}
+	// Render the CSS before the element.
+	// templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_ElementWriter, templ_7745c5c3_Var1...)
+	if _, err = g.w.WriteIndent(indentLevel, "templ_7745c5c3_Err = templ.RenderCSSItems(ctx, "+elementWriterVariable+", "+classesName+"...)\n"); err != nil {
+		return err
+	}
+	if err = g.writeErrorHandler(indentLevel); err != nil {
+		return err
+	}
+	// templruntime.NewAttributeExpression(templ.CSSClasses(templ_7745c5c3_Var1).String()).Resolve(ctx)
+	return g.writeExpressionAttributeValueResolved(indentLevel, attributeResolverDefault, &parser.ExpressionAttribute{
+		Key: attr.Key,
+		Expression: parser.Expression{
+			Value: "templ.CSSClasses(" + classesName + ").String()",
+		},
+	})
+}
+
+func (g *generator) writeDynamicKeyExpressionAttribute(indentLevel int, elementName string, key parser.ExpressionAttributeKey, attr *parser.ExpressionAttribute) (err error) {
+	keyVariable, err := g.writeExpressionAttributeKey(indentLevel, key)
+	if err != nil {
+		return err
+	}
+	// ="
+	if _, err = g.w.WriteStringLiteral(indentLevel, `=\"`); err != nil {
+		return err
+	}
+	// The attribute name is unknown until runtime, so the value is sanitized at runtime.
+	if err = g.writeExpressionAttributeValueResolved(indentLevel, newDynamicAttributeResolver(elementName, keyVariable), attr); err != nil {
+		return err
+	}
+	// Close quote.
+	_, err = g.w.WriteStringLiteral(indentLevel, `\"`)
+	return err
+}
+
+func (g *generator) writeSpreadAttributes(indentLevel int, elementName string, attr *parser.SpreadAttributes) (err error) {
+	// templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "div", spreadAttrs)
+	if _, err = g.w.WriteIndent(indentLevel, `templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, `+elementWriterVariable+`, `+strconv.Quote(elementName)+`, `); err != nil {
 		return err
 	}
 	// spreadAttrs
@@ -1415,7 +1475,7 @@ func (g *generator) writeSpreadAttributes(indentLevel int, attr *parser.SpreadAt
 	return nil
 }
 
-func (g *generator) writeConditionalAttribute(indentLevel int, elementName string, attr *parser.ConditionalAttribute) (err error) {
+func (g *generator) writeConditionalAttribute(indentLevel int, elementName string, sanitizeAnimationValues bool, attr *parser.ConditionalAttribute) (err error) {
 	// if
 	if _, err = g.w.WriteIndent(indentLevel, `if `); err != nil {
 		return err
@@ -1432,7 +1492,7 @@ func (g *generator) writeConditionalAttribute(indentLevel int, elementName strin
 	}
 	{
 		indentLevel++
-		if err = g.writeElementAttributes(indentLevel, elementName, attr.Then); err != nil {
+		if err = g.writeElementAttributes(indentLevel, elementName, sanitizeAnimationValues, attr.Then); err != nil {
 			return err
 		}
 		indentLevel--
@@ -1444,7 +1504,7 @@ func (g *generator) writeConditionalAttribute(indentLevel int, elementName strin
 		}
 		{
 			indentLevel++
-			if err = g.writeElementAttributes(indentLevel, elementName, attr.Else); err != nil {
+			if err = g.writeElementAttributes(indentLevel, elementName, sanitizeAnimationValues, attr.Else); err != nil {
 				return err
 			}
 			indentLevel--
@@ -1457,7 +1517,7 @@ func (g *generator) writeConditionalAttribute(indentLevel int, elementName strin
 	return nil
 }
 
-func (g *generator) writeElementAttributes(indentLevel int, name string, attrs []parser.Attribute) (err error) {
+func (g *generator) writeElementAttributes(indentLevel int, name string, sanitizeAnimationValues bool, attrs []parser.Attribute) (err error) {
 	for _, attr := range attrs {
 		switch attr := attr.(type) {
 		case *parser.BoolConstantAttribute:
@@ -1467,16 +1527,46 @@ func (g *generator) writeElementAttributes(indentLevel int, name string, attrs [
 		case *parser.BoolExpressionAttribute:
 			err = g.writeBoolExpressionAttribute(indentLevel, attr)
 		case *parser.ExpressionAttribute:
-			err = g.writeExpressionAttribute(indentLevel, name, attr)
+			err = g.writeExpressionAttribute(indentLevel, name, sanitizeAnimationValues, attr)
 		case *parser.SpreadAttributes:
-			err = g.writeSpreadAttributes(indentLevel, attr)
+			err = g.writeSpreadAttributes(indentLevel, name, attr)
 		case *parser.ConditionalAttribute:
-			err = g.writeConditionalAttribute(indentLevel, name, attr)
+			err = g.writeConditionalAttribute(indentLevel, name, sanitizeAnimationValues, attr)
+		case *parser.AttributeComment:
+			continue
 		default:
 			err = fmt.Errorf("unknown attribute type %T", attr)
 		}
+		if err != nil {
+			return err
+		}
 	}
-	return
+	return nil
+}
+
+func mayAnimateURL(attrs []parser.Attribute) bool {
+	for _, attr := range attrs {
+		switch attr := attr.(type) {
+		case *parser.ConstantAttribute:
+			key, ok := attr.Key.(parser.ConstantAttributeKey)
+			if !ok {
+				return true
+			}
+			if strings.EqualFold(key.Name, "attributeName") {
+				return htmlattr.IsAnimationTargetURL(html.UnescapeString(attr.Value))
+			}
+		case *parser.ExpressionAttribute:
+			key, ok := attr.Key.(parser.ConstantAttributeKey)
+			if !ok || strings.EqualFold(key.Name, "attributeName") {
+				return true
+			}
+		case *parser.BoolConstantAttribute, *parser.BoolExpressionAttribute, *parser.AttributeComment:
+			continue
+		default:
+			return true
+		}
+	}
+	return true
 }
 
 func (g *generator) writeRawElement(indentLevel int, n *parser.RawElement) (err error) {
@@ -1486,15 +1576,8 @@ func (g *generator) writeRawElement(indentLevel int, n *parser.RawElement) (err 
 			return err
 		}
 	} else {
-		// <script></script>
-		if err = g.writeElementScript(indentLevel, n.Attributes); err != nil {
-			return err
-		}
-		// <div
-		if _, err = g.w.WriteStringLiteral(indentLevel, fmt.Sprintf(`<%s`, html.EscapeString(n.Name))); err != nil {
-			return err
-		}
-		if err = g.writeElementAttributes(indentLevel, n.Name, n.Attributes); err != nil {
+		// <div class="a" ...
+		if err = g.writeOpeningTag(indentLevel, n.Name, n.Attributes); err != nil {
 			return err
 		}
 		// >
@@ -1520,15 +1603,8 @@ func (g *generator) writeScriptElement(indentLevel int, n *parser.ScriptElement)
 			return err
 		}
 	} else {
-		// <script></script>
-		if err = g.writeElementScript(indentLevel, n.Attributes); err != nil {
-			return err
-		}
-		// <div
-		if _, err = g.w.WriteStringLiteral(indentLevel, "<script"); err != nil {
-			return err
-		}
-		if err = g.writeElementAttributes(indentLevel, "script", n.Attributes); err != nil {
+		// <script type="module" ...
+		if err = g.writeOpeningTag(indentLevel, "script", n.Attributes); err != nil {
 			return err
 		}
 		// >
@@ -1565,8 +1641,20 @@ func (g *generator) writeScriptContents(indentLevel int, c parser.ScriptContents
 		// Here, we need to get the result, which might be any type. We can use templ.ScriptContent to get the result.
 		// vn, templ_7745c5c3_Err := templruntime.ScriptContent(
 		fnCall := "templruntime.ScriptContentOutsideStringLiteral"
-		if c.InsideStringLiteral {
+		switch c.Context {
+		case parser.ScriptContentsContextString:
 			fnCall = "templruntime.ScriptContentInsideStringLiteral"
+		case parser.ScriptContentsContextTemplateLiteral:
+			fnCall = "templruntime.ScriptContentInsideTemplateLiteral"
+		case parser.ScriptContentsContextRegexp:
+			fnCall = "templruntime.ScriptContentInsideRegexp"
+		case parser.ScriptContentsContextRegexpStart:
+			// An empty group keeps an empty value from joining the opening '/' to
+			// the next character, e.g. `//` or `/*`, which start a comment.
+			if err = g.writeText(indentLevel, &parser.Text{Value: "(?:)"}); err != nil {
+				return err
+			}
+			fnCall = "templruntime.ScriptContentInsideRegexp"
 		}
 		if _, err = g.w.WriteIndent(indentLevel, vn+", templ_7745c5c3_Err := "+fnCall+"("); err != nil {
 			return err
@@ -1816,14 +1904,16 @@ func stripTypes(parameters string) string {
 	return strings.Join(variableNames, ", ")
 }
 
-func isExpressionAttributeValueURL(elementName, attrName string) bool {
-	switch elementName {
-	case "a", "link":
-		return attrName == "href"
-	case "form":
-		return attrName == "action"
-	case "object":
-		return attrName == "data"
+func containsChildrenExpression(nodes []parser.Node) (found bool, err error) {
+	v := visitor.New()
+	v.ChildrenExpression = func(n *parser.ChildrenExpression) error {
+		found = true
+		return nil
 	}
-	return false
+	for _, node := range nodes {
+		if err = node.Visit(v); err != nil {
+			return false, err
+		}
+	}
+	return found, nil
 }

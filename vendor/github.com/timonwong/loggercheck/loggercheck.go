@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 
 	"github.com/timonwong/loggercheck/internal/checkers"
+	"github.com/timonwong/loggercheck/internal/nilness"
 	"github.com/timonwong/loggercheck/internal/rules"
 	"github.com/timonwong/loggercheck/internal/sets"
 )
@@ -41,11 +42,15 @@ type loggercheck struct {
 	requireStringKey bool           // flag -requirestringkey
 	noPrintfLike     bool           // flag -noprintflike
 
-	rules       []string        // used for external integration, for example golangci-lint
-	rulesetList []rules.Ruleset // populate at runtime
+	rules []string // used for external integration, for example golangci-lint
 
-	rulesetIndicesByImportMu sync.Mutex
-	rulesetIndicesByImport   map[string][]int // ruleset index, populate at runtime
+	// The analyzer runs once per package, possibly concurrently, but the
+	// configuration only needs to be processed once. After configOnce the
+	// fields below are read-only.
+	configOnce             sync.Once
+	configErr              error
+	rulesetList            []rules.Ruleset  // populate at runtime
+	rulesetIndicesByImport map[string][]int // ruleset index, populate at runtime
 }
 
 func newLoggerCheck(opts ...Option) *loggercheck {
@@ -81,17 +86,14 @@ func vendorLessPath(ipath string) string {
 	return ipath
 }
 
-func (l *loggercheck) getCheckerForFunc(fn *types.Func) checkers.Checker {
+func (l *loggercheck) getCheckerForFunc(fn *types.Func) (checker checkers.Checker, rulesetName string) {
 	pkg := fn.Pkg()
 	if pkg == nil {
-		return nil
+		return nil, ""
 	}
 
 	pkgPath := vendorLessPath(pkg.Path())
-
-	l.rulesetIndicesByImportMu.Lock()
 	indices := l.rulesetIndicesByImport[pkgPath]
-	l.rulesetIndicesByImportMu.Unlock()
 
 	for _, idx := range indices {
 		rs := &l.rulesetList[idx]
@@ -104,17 +106,17 @@ func (l *loggercheck) getCheckerForFunc(fn *types.Func) checkers.Checker {
 			continue
 		}
 
-		checker := checkerByRulesetName[rs.Name]
+		checker = checkerByRulesetName[rs.Name]
 		if checker == nil {
-			return checkers.General{}
+			return checkers.General{}, rs.Name
 		}
-		return checker
+		return checker, rs.Name
 	}
 
-	return nil
+	return nil, ""
 }
 
-func (l *loggercheck) checkLoggerArguments(pass *analysis.Pass, call *ast.CallExpr) {
+func (l *loggercheck) checkLoggerArguments(pass *analysis.Pass, call *ast.CallExpr, nl *nilness.Index) {
 	fn, _ := typeutil.Callee(pass.TypesInfo, call).(*types.Func)
 	if fn == nil {
 		return // function pointer is not supported
@@ -130,7 +132,7 @@ func (l *loggercheck) checkLoggerArguments(pass *analysis.Pass, call *ast.CallEx
 		return
 	}
 
-	checker := l.getCheckerForFunc(fn)
+	checker, rulesetName := l.getCheckerForFunc(fn)
 	if checker == nil {
 		return
 	}
@@ -139,9 +141,11 @@ func (l *loggercheck) checkLoggerArguments(pass *analysis.Pass, call *ast.CallEx
 		Expr:      call,
 		Func:      fn,
 		Signature: sig,
+		Nilness:   nl,
 	}, checkers.Config{
 		RequireStringKey: l.requireStringKey,
 		NoPrintfLike:     l.noPrintfLike,
+		NilStringer:      nilStringerRulesetNames.Has(rulesetName),
 	})
 }
 
@@ -172,20 +176,28 @@ func (l *loggercheck) processConfig() error {
 		indices[rs.PackageImport] = append(indices[rs.PackageImport], i)
 	}
 
-	l.rulesetIndicesByImportMu.Lock()
 	l.rulesetIndicesByImport = indices
-	l.rulesetIndicesByImportMu.Unlock()
 
 	return nil
 }
 
+// loadConfig processes the configuration on the first call and returns the
+// same result on every later call.
+func (l *loggercheck) loadConfig() error {
+	l.configOnce.Do(func() {
+		l.configErr = l.processConfig()
+	})
+	return l.configErr
+}
+
 func (l *loggercheck) run(pass *analysis.Pass) (interface{}, error) {
-	err := l.processConfig()
+	err := l.loadConfig()
 	if err != nil {
 		return nil, err
 	}
 
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	nl := nilness.NewLazyIndex(pass)
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
 	}
@@ -198,7 +210,7 @@ func (l *loggercheck) run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
-		l.checkLoggerArguments(pass, call)
+		l.checkLoggerArguments(pass, call, nl)
 	})
 
 	return nil, nil

@@ -268,7 +268,7 @@ func TestGoModRequiresThePinnedGolangCI(t *testing.T) {
 // staticcheckModuleVersion is the honnef.co/go/tools module version that
 // prints StaticcheckVersion. go.mod requires exactly this version, and the
 // install builds it from the vendor tree.
-const staticcheckModuleVersion = "v0.8.1"
+const staticcheckModuleVersion = "v0.8.2"
 
 func TestOnlyThePinnedStaticcheckCounts(t *testing.T) {
 	pinned := "staticcheck " + StaticcheckVersion

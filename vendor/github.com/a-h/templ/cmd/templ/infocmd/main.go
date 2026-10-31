@@ -68,13 +68,11 @@ func getGoplsInfo() (d ToolInfo) {
 		d.Message = fmt.Sprintf("failed to find gopls: %v", err)
 		return
 	}
-	cmd := exec.Command(d.Location, "version")
-	v, err := cmd.Output()
+	d.Version, err = pls.GoplsVersion(d.Location)
 	if err != nil {
 		d.Message = fmt.Sprintf("failed to get gopls version: %v", err)
 		return
 	}
-	d.Version = strings.TrimSpace(string(v))
 	d.Level = slog.LevelInfo
 	return
 }
@@ -126,9 +124,14 @@ func getPrettierInfo() (d ToolInfo) {
 	d.Level = slog.LevelWarn
 
 	var err error
-	d.Location, err = exec.LookPath("prettier")
+	for _, name := range []string{"prettier", "prettierd"} {
+		d.Location, err = exec.LookPath(name)
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
-		d.Message = fmt.Sprintf("failed to find prettier: %v", err)
+		d.Message = fmt.Sprintf("failed to find prettier or prettierd: %v", err)
 		return
 	}
 	cmd := exec.Command(d.Location, "--version")
@@ -147,23 +150,18 @@ func getInfo() (d Info) {
 	d.OS.GOARCH = runtime.GOARCH
 
 	var wg sync.WaitGroup
-	wg.Add(4)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		d.Go = getGoInfo()
-	}()
-	go func() {
-		defer wg.Done()
+	})
+	wg.Go(func() {
 		d.Gopls = getGoplsInfo()
-	}()
-	go func() {
-		defer wg.Done()
+	})
+	wg.Go(func() {
 		d.Templ = getTemplInfo()
-	}()
-	go func() {
-		defer wg.Done()
+	})
+	wg.Go(func() {
 		d.Prettier = getPrettierInfo()
-	}()
+	})
 	wg.Wait()
 	return
 }

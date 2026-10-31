@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -33,11 +32,12 @@ func KillAll() (err error) {
 }
 
 func kill(cmd *exec.Cmd) (err error) {
+	pgid := -cmd.Process.Pid
 	errs := make([]error, 4)
-	errs[0] = ignoreExited(cmd.Process.Signal(syscall.SIGINT))
-	errs[1] = ignoreExited(cmd.Process.Signal(syscall.SIGTERM))
+	errs[0] = ignoreExited(syscall.Kill(pgid, syscall.SIGINT))
+	errs[1] = ignoreExited(syscall.Kill(pgid, syscall.SIGTERM))
 	errs[2] = ignoreExited(cmd.Wait())
-	errs[3] = ignoreExited(syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL))
+	errs[3] = ignoreExited(syscall.Kill(pgid, syscall.SIGKILL))
 	return errors.Join(errs...)
 }
 
@@ -45,7 +45,9 @@ func ignoreExited(err error) error {
 	if errors.Is(err, syscall.ESRCH) {
 		return nil
 	}
-	// Ignore *exec.ExitError
+	if errors.Is(err, syscall.EPERM) {
+		return nil
+	}
 	if _, ok := err.(*exec.ExitError); ok {
 		return nil
 	}
@@ -63,14 +65,11 @@ func Run(ctx context.Context, workingDir string, input string) (cmd *exec.Cmd, e
 
 		delete(running, input)
 	}
-	parts := strings.Fields(input)
-	executable := parts[0]
-	args := []string{}
-	if len(parts) > 1 {
-		args = append(args, parts[1:]...)
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "/bin/sh"
 	}
-
-	cmd = exec.CommandContext(ctx, executable, args...)
+	cmd = exec.CommandContext(ctx, shell, "-c", input)
 	// Wait for the process to finish gracefully before termination.
 	cmd.WaitDelay = time.Second * 3
 	cmd.Env = os.Environ()
