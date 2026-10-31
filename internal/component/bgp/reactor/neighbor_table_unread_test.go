@@ -17,7 +17,7 @@ import (
 // carries (warnNeighborTableUnread).
 const unreadWarning = "the neighbor table cannot be read"
 
-// TestRFC2545NoNeighbourReaderWarnsOncePerPeer proves the warning for a
+// TestNoNeighbourReaderWarnsOncePerPeer proves the warning for a
 // neighbor table that cannot be read is given once per peer, whatever the
 // number of routes: the cause is the host's (no reader in this build, no
 // interface backend), so it holds for every route until fixed, and a line per
@@ -32,7 +32,7 @@ const unreadWarning = "the neighbor table cannot be read"
 // MUTATION: rate-limit the warning in one window for every peer, as before
 // (the second peer is never named), or drop the reset in
 // refreshLinkScopeWith (the failure after a good read stays silent).
-func TestRFC2545NoNeighbourReaderWarnsOncePerPeer(t *testing.T) {
+func TestNoNeighbourReaderWarnsOncePerPeer(t *testing.T) {
 	sink := captureReactorLog(t)
 	connected := []netip.Prefix{netip.MustParsePrefix("2001:db8:1::/64")}
 	unread := neighborView{err: network.ErrNeighborTableNotRegistered}
