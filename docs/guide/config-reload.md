@@ -268,7 +268,7 @@ arrives on another. For that time it holds a binding to an address the host does
 not have. The listener for the address is stopped and started again from the
 kernel's own address notifications. That is a separate path from the commit, and
 it is not ordered against the commit.
-<!-- source: internal/component/bgp/reactor/reactor_iface.go -- handleAddrRemovedPayload, handleAddrAddedPayload -->
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- handleAddressRemoved, handleAddressAdded -->
 
 To move an address with no such window, use two commits. Remove the peers that
 bind it in the first commit. Add them again in the second commit, after the

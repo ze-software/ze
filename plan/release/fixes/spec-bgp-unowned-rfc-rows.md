@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P1 |
 | Release reason | Remaining wire and routing obligations concern implemented BGP families, not optional feature rows already split out. |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-21 |
+| Updated | 2026-10-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -522,6 +522,7 @@ Defects land first, each in its own commit, so no defect waits on another.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `subscriber-waits-on-an-event-another-feature-produces.md` | 2026-10-30 | AC-5 neighbor refresh needs the netlink monitor, which runs only with an `interface` block |
+| `subscriber-waits-on-an-event-another-feature-produces.md` | 2026-10-30 | AC-5 connected subnets and late listeners need address events, which the monitor emits only with an `interface` block |
 
 ## RFC Documentation (Scope: protocol)
 

@@ -315,10 +315,10 @@ interface.
 <!-- source: internal/component/iface/backend.go -- ErrBackendNotReady -->
 
 The kernel-driven path is still there and is not a substitute.
-`handleAddrRemovedPayload` stops the LISTENER bound to a removed address and
-`handleAddrAddedPayload` starts it again. Neither stops a peer, and neither is
-ordered against the commit.
-<!-- source: internal/component/bgp/reactor/reactor_iface.go -- handleAddrAddedPayload, handleAddrRemovedPayload -->
+`handleAddressRemoved` stops the LISTENER bound to a removed address and
+`handleAddressAdded` starts it again, both run by the reactor's address table
+watch. Neither stops a peer, and neither is ordered against the commit.
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- handleAddressAdded, handleAddressRemoved -->
 
 ## The pipeline
 

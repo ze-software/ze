@@ -1156,6 +1156,23 @@ watched.
 <!-- source: internal/plugins/iface/vpp/neighbor.go -- WatchNeighbors -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go -- neighborWatchWorker -->
 
+BGP does not read `interface/addr-added` or `interface/addr-removed` either,
+for the same reason: it needs address changes with or without an `interface`
+block. The netlink backend package registers a watcher of the kernel address
+table in `internal/core/network` (`network.RegisterAddressWatcher`) at init,
+whichever backend is active, with its own netlink subscription to address
+changes. The BGP reactor opens the watch when it starts, re-reads the table on
+each signal, starts a listener for a peer's local address that appeared, stops
+the one for an address that went away, and re-settles RFC 2545 Section 3's
+common-subnet condition. On a platform with no netlink backend the watch
+cannot start, and BGP logs a warning that names the cause. Other consumers
+(OSPF, the unnumbered donor, the connected-route plugin) still read the bus
+topics.
+
+<!-- source: internal/core/network/addresses.go -- RegisterAddressWatcher, WatchAddresses -->
+<!-- source: internal/plugins/iface/netlink/address_watch_linux.go -- watchKernelAddresses -->
+<!-- source: internal/component/bgp/reactor/reactor_address_watch.go -- addressWatchWorker, addressSync.apply -->
+
 Each RTM_NEWLINK also emits the current `up` or `down` state, including the first
 update that emits `created`. An interface can exist before the monitor starts,
 so its first observed update can already be a link failure.

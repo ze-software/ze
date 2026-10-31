@@ -161,15 +161,15 @@ func (b *fakeEventBus) activeSubscriptions() int {
 
 func TestStartWithContextReleasesEventSubscriptionsOnFailure(t *testing.T) {
 	// VALIDATES: A failed startup releases the EventBus subscriptions registered
-	// by SubscribeInterfaceEvents (called before any abort-guarded failure), so
-	// (interface, addr-*) handlers do not leak on the bus after StartWithContext
+	// by subscribeDaemonSignals (called before any abort-guarded failure), so
+	// the (daemon, signal) handler does not leak on the bus after StartWithContext
 	// returns an error. activeSubscriptions()==0 proves the production
 	// unsubscribe funcs ran and removed the handlers from the bus.
-	// PREVENTS: BENG-004 -- abortStartup leaving interface event handlers
+	// PREVENTS: BENG-004 -- abortStartup leaving event handlers
 	// subscribed against a half-torn-down reactor (the Task/Security-Review
 	// promise that no event subscription may remain after a failed startup).
 	//
-	// an earlier draft added a peer + emitted addr-added to assert no
+	// an earlier draft added a peer + an added address to assert no
 	// listener starts after abort, but a peer LocalAddress forces a per-peer bind
 	// on the privileged BGP port (179) that fails before the injected API error
 	// and is unrelated to subscription release. Listener-handler behavior is

@@ -876,9 +876,8 @@ have arrived for the same transaction.
 ### Example: BGP binding to a new local address
 
 1. Engine emits `(config, apply-iface)` and `(config, apply-bgp)` -- iface plugin and BGP reactor both receive their own apply event
-2. Iface plugin assigns the IP, emits `(interface, addr-added)`
-3. BGP reactor sees its `apply-bgp` but waits for `(interface, addr-added)` for the local address
-4. Address event arrives -- BGP starts the listener, emits `(config, apply-ok)`
+2. Iface plugin assigns the IP in the kernel, and emits `(interface, addr-added)` for its other consumers
+3. BGP does not wait on the bus: its own watch of the kernel address table sees the address and starts the listener, outside the transaction (`docs/architecture/bgp/interface-event-reactions.md`)
 
 ### Rollback during dependency wait
 
@@ -922,8 +921,8 @@ config changes. Other plugins may depend on them before completing their own app
 |-------|----------|-----------|------|
 | `(interface, created)` | iface | DHCP, BGP, telemetry | New interface configured |
 | `(interface, down)` | iface | DHCP, BGP | Interface removed or brought down |
-| `(interface, addr-added)` | iface | BGP (listener binding) | IP address assigned |
-| `(interface, addr-removed)` | iface | BGP | IP address removed |
+| `(interface, addr-added)` | iface | OSPF, unnumbered donor, connected routes | IP address assigned. BGP reads the kernel address table itself |
+| `(interface, addr-removed)` | iface | OSPF, unnumbered donor, connected routes | IP address removed |
 | `(interface, dhcp-acquired)` | ifacedhcp | BGP, DNS | DHCP lease obtained |
 | `(bgp, listener-ready)` | BGP | iface migrate | BGP listener bound to address |
 | `(bgp, state)` | BGP | RIB, monitoring | Peer state change after config apply |
@@ -950,11 +949,10 @@ Engine ----(config, apply-rib)-----> [rib]
 Engine ----(config, apply-dhcp)-------> [dhcp]
   |                              |
   |                              +--(interface, created)----> [dhcp]
-  |                              +--(interface, addr-added)-> [bgp]
   |                              |
   |   <---(config, apply-ok)---- [iface]
   |   <---(config, apply-ok)---- [dhcp]   (after interface/created)
-  |   <---(config, apply-ok)---- [bgp]    (after interface/addr-added)
+  |   <---(config, apply-ok)---- [bgp]
   |   <---(config, apply-ok)---- [rib]
   |
   |

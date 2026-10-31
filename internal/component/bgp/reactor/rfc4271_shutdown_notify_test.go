@@ -688,12 +688,11 @@ func TestReactorStopForRestartSendsNoNotification(t *testing.T) {
 //
 // Reactor.stop shuts the listeners under r.mu, but shutting them is not the same
 // as keeping them shut, and r.ctx stays live for the whole notify budget.
-// A netlink address-added event inside that window reaches
-// handleAddrAddedPayload (reactor_iface.go), which takes r.mu and starts a fresh
-// Listener on that still-live context. Nothing stops the event arriving: the
-// EventBus subscriptions are released by Reactor.cleanup, and cleanup is reached
-// from monitor(), which blocks on <-r.ctx.Done(). So the release happens AFTER
-// the cancel, one whole budget too late. The daemon accepts again, answers with
+// An address the kernel reports added inside that window reaches
+// handleAddressAdded (reactor_iface.go), which takes r.mu and starts a fresh
+// Listener on that still-live context. Nothing stops the change arriving: the
+// address watch worker applies changes until r.ctx ends, and the cancel comes
+// one whole budget after the stop began. The daemon accepts again, answers with
 // an OPEN, and the cancel closes that socket with nothing on the wire to say why
 // (RFC 4271 Section 8.2.2, ManualStop).
 //
@@ -712,7 +711,7 @@ func TestReactorStopStartsNoListenerForAnAddressAddedWhileItNotifies(t *testing.
 	local := netip.MustParseAddr("127.0.0.1")
 	lkey := net.JoinHostPort(local.String(), "0")
 
-	// A peer bound to that local address, because handleAddrAddedPayload starts
+	// A peer bound to that local address, because handleAddressAdded starts
 	// nothing for an address no peer asked for.
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.3"), 65001, 65002, 0x01020306)
 	settings.LocalAddress = local
@@ -721,13 +720,11 @@ func TestReactorStopStartsNoListenerForAnAddressAddedWhileItNotifies(t *testing.
 	r.peers[peerKeyFromAddrPort(settings.Address, settings.Port)] = NewPeer(settings)
 	r.mu.Unlock()
 
-	added := interfaceAddrPayload{Name: "lo", Unit: 0, Address: local.String(), PrefixLength: 8}
-
-	// Non-vacuity, measured rather than assumed: the same event DOES open a
+	// Non-vacuity, measured rather than assumed: the same change DOES open a
 	// listener on this reactor before the stop. Take it back down afterwards,
 	// because startListenerForAddressPort returns early for a key it already
 	// holds and the assertion below would then pass for the wrong reason.
-	r.handleAddrAddedPayload(added)
+	r.handleAddressAdded(local)
 	r.mu.Lock()
 	preStop, hadListener := r.listeners[lkey]
 	if hadListener {
@@ -736,7 +733,7 @@ func TestReactorStopStartsNoListenerForAnAddressAddedWhileItNotifies(t *testing.
 	}
 	r.mu.Unlock()
 	require.True(t, hadListener,
-		"this event opens no listener even before the stop, so the assertion below proves nothing")
+		"this change opens no listener even before the stop, so the assertion below proves nothing")
 
 	slowSession, _ := shutdownTestSession(t, fsm.StateEstablished)
 	attachPeer(t, r, slowSession)
@@ -756,7 +753,7 @@ func TestReactorStopStartsNoListenerForAnAddressAddedWhileItNotifies(t *testing.
 		return r.stopping
 	}, 5*time.Second, time.Millisecond, "Stop never sealed, so the window never opened")
 
-	r.handleAddrAddedPayload(added)
+	r.handleAddressAdded(local)
 
 	r.mu.RLock()
 	_, reopened := r.listeners[lkey]
@@ -769,7 +766,7 @@ func TestReactorStopStartsNoListenerForAnAddressAddedWhileItNotifies(t *testing.
 		"the slow peer did not hold Stop for its budget, so this test proves nothing")
 
 	require.False(t, reopened,
-		"an address-added event re-opened a listener on a reactor that had already "+
+		"an added address re-opened a listener on a reactor that had already "+
 			"sealed: the reactor context is live for the whole notify budget, so that "+
 			"listener accepts, answers with an OPEN, and the cancel closes it in silence")
 

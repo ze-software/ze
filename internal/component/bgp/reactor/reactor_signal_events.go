@@ -12,7 +12,7 @@ import (
 // operating-system signal the daemon takes. The hub owns the signals and
 // publishes them (daemonevents.Signal); the reactor only fans each one out, so
 // a signal reaches a process by one path whichever way the daemon was built.
-// Must be called after SetEventBus, like subscribeInterfaceEvents.
+// Must be called after SetEventBus and before StartWithContext returns.
 func (r *Reactor) subscribeDaemonSignals() {
 	if r.eventBus == nil {
 		return

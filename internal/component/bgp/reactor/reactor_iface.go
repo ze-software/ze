@@ -1,5 +1,5 @@
 // Design: docs/architecture/bgp/interface-event-reactions.md -- BGP reactions to interface events
-// RFC: rfc/short/rfc2545.md — the Section 3 link-local condition is re-settled on an address event
+// RFC: rfc/short/rfc2545.md — the Section 3 link-local condition is re-settled on an address or neighbor change
 // Overview: reactor.go — Reactor struct and lifecycle
 
 package reactor
@@ -13,51 +13,17 @@ import (
 	"slices"
 	"strconv"
 	"sync"
-	"time"
+	"syscall"
 
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
-	"github.com/ze-software/ze/internal/core/clock"
-	"github.com/ze-software/ze/internal/core/events"
-	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/network"
 )
-
-// interfaceAddrPayload is the JSON payload emitted by the interface monitor
-// for (interface, addr-added) and (interface, addr-removed). The reactor
-// parses it to discover the local address that needs a listener.
-type interfaceAddrPayload struct {
-	Name         string `json:"name"`
-	Unit         int    `json:"unit"`
-	Index        int    `json:"index"`
-	Address      string `json:"address"`
-	PrefixLength int    `json:"prefix-length"`
-	Family       string `json:"family"`
-}
 
 // bgpListenerReadyPayload is the JSON payload emitted by the reactor on
 // (bgp, listener-ready). Iface migration consumers wait for this signal
 // before tearing down the old address.
 type bgpListenerReadyPayload struct {
 	Address string `json:"address"`
-}
-
-// subscribeInterfaceEvents registers EventBus handlers for the interface
-// events the reactor cares about. Replaces the legacy OnBusEvent prefix
-// subscription that lived in reactor_bus.go. Must be called after
-// SetEventBus and before StartWithContext.
-//
-// The reactor acts on addr-added and addr-removed in the (interface, *)
-// namespace. Other events (created, up, down, dhcp-*, rollback, router-*) have
-// no BGP-side reaction. Neighbor table changes do not come from the bus: they
-// come from the neighbor table watch (startNeighborWatch), which runs whether
-// or not an interface monitor does.
-func (r *Reactor) subscribeInterfaceEvents() {
-	if r.eventBus == nil {
-		return
-	}
-	unsubAdded := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrAdded, events.AsString(r.onInterfaceAddrAdded))
-	unsubRemoved := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrRemoved, events.AsString(r.onInterfaceAddrRemoved))
-	r.eventBusUnsubs = append(r.eventBusUnsubs, unsubAdded, unsubRemoved)
 }
 
 // refreshPeerLinkScopesMu serializes refreshPeerLinkScopes across its two
@@ -72,21 +38,10 @@ var refreshPeerLinkScopesMu sync.Mutex
 // component's init().
 var watchNeighborTable = network.WatchNeighbors
 
-// neighborWatchRetryFirst and neighborWatchRetryMax bound how soon a watch
-// that could not start, or that ended under a live reactor, is started again.
-// The delay doubles from the first to the max, so a source that keeps failing
-// costs one start, one stopped state and one warning per delay. It resets to
-// the first only after a watch ran neighborWatchRetryMax: a watch that starts
-// and then ends at once is the failing source the doubling exists for.
-const (
-	neighborWatchRetryFirst = time.Second
-	neighborWatchRetryMax   = time.Minute
-)
-
-// waitNeighborWatch is the wait between two watch starts. It is
-// waitNeighborWatchRetry; a test replaces it to record the delays without
+// waitNeighborWatch is the wait between two neighbor watch starts. It is
+// waitTableWatchRetry; a test replaces it to record the delays without
 // sleeping through them, and restores it in t.Cleanup.
-var waitNeighborWatch = waitNeighborWatchRetry
+var waitNeighborWatch = waitTableWatchRetry
 
 // errNeighborWatchEnded is the state of a watch that closed its channel while
 // the reactor ran. The interface component's watch follows a replaced backend
@@ -110,20 +65,16 @@ func (r *Reactor) startNeighborWatch() {
 // change anywhere in the neighbor table rebuilds every live peer's snapshot
 // once.
 //
-// The worker owns each watch it starts: it ranges over the watch's channel
-// until the watch closes it, so no watch goroutine outlives the worker. A
-// replaced interface backend never closes the channel, because the watch
-// moves to the backend that replaced it. A watch that cannot start, or that
-// closes while ctx is live, is published as stopped and started again after a
-// delay that doubles up to neighborWatchRetryMax; the loop has no count bound
-// because the reactor needs the watch for as long as it runs, and it ends only
-// with ctx, the reactor's run context. Every state it reaches is published
-// (noteNeighborWatch), so a next hop sent without its router's Link-Local
-// says whether the table it was answered from is watched.
+// superviseTableWatch keeps the watch open and starts it again after a
+// failure. A replaced interface backend never closes the watch's channel,
+// because the watch moves to the backend that replaced it. Every state the
+// worker reaches is published (noteNeighborWatch), so a next hop sent without
+// its router's Link-Local says whether the table it was answered from is
+// watched.
 //
 // RFC 2545 Section 3 binds the form of each advertisement made after the
-// change, as for an address event; it states no obligation to re-advertise a
-// route already sent, so none is triggered here.
+// change; it states no obligation to re-advertise a route already sent, so
+// none is triggered here.
 func (r *Reactor) neighborWatchWorker(ctx context.Context) {
 	// published is the last state this worker stored. A later StartWithContext
 	// starts a new worker: leave no state of this run behind for views built
@@ -131,54 +82,24 @@ func (r *Reactor) neighborWatchWorker(ctx context.Context) {
 	// worker already published.
 	var published *neighborWatchState
 	defer func() { r.neighborWatch.CompareAndSwap(published, nil) }()
-	retry := neighborWatchRetryFirst
-	for {
-		changes, err := watchNeighborTable(ctx)
-		if err == nil {
-			started := r.clock.Now()
-			// The table may have moved while no watch ran, so read it again
-			// before waiting for the first signal.
+	changes, err := watchNeighborTable(ctx)
+	r.superviseTableWatch(ctx, tableWatch{
+		start: watchNeighborTable,
+		wait:  waitNeighborWatch,
+		ended: errNeighborWatchEnded,
+		running: func() {
 			published, _ = r.noteNeighborWatch(neighborWatchState{status: neighborWatchRunning})
 			r.refreshPeerLinkScopes()
-			for range changes {
-				if ctx.Err() != nil {
-					continue // draining until the watch closes the channel
-				}
+		},
+		changed: r.refreshPeerLinkScopes,
+		stopped: func(err error) {
+			var changed bool
+			published, changed = r.noteNeighborWatch(neighborWatchState{status: neighborWatchStopped, err: err})
+			if changed {
 				r.refreshPeerLinkScopes()
 			}
-			if ctx.Err() != nil {
-				return
-			}
-			// A watch that ran a long time failed once, and starts again
-			// from the shortest delay.
-			if r.clock.Now().Sub(started) >= neighborWatchRetryMax {
-				retry = neighborWatchRetryFirst
-			}
-			err = errNeighborWatchEnded
-		}
-		var changed bool
-		published, changed = r.noteNeighborWatch(neighborWatchState{status: neighborWatchStopped, err: err})
-		if changed {
-			r.refreshPeerLinkScopes()
-		}
-		if !waitNeighborWatch(ctx, r.clock, retry) {
-			return
-		}
-		retry = min(2*retry, neighborWatchRetryMax)
-	}
-}
-
-// waitNeighborWatchRetry waits delay on clk, and reports false when ctx ended
-// first.
-func waitNeighborWatchRetry(ctx context.Context, clk clock.Clock, delay time.Duration) bool {
-	timer := clk.NewTimer(delay)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return false
-	case <-timer.C():
-		return true
-	}
+		},
+	}, changes, err)
 }
 
 // noteNeighborWatch publishes state, logs it when it differs from the state
@@ -216,28 +137,6 @@ func (r *Reactor) neighborWatchState() neighborWatchState {
 	return neighborWatchState{status: neighborWatchNotStarted}
 }
 
-// onInterfaceAddrAdded is the EventBus handler for (interface, addr-added).
-// Runs synchronously inside the EventBus delivery path; MUST NOT hold
-// reactor.mu (deadlock risk with the listener startup path).
-func (r *Reactor) onInterfaceAddrAdded(payload string) {
-	var p interfaceAddrPayload
-	if err := json.Unmarshal([]byte(payload), &p); err != nil {
-		reactorLogger().Debug("iface: unmarshal addr-added", "error", err)
-		return
-	}
-	r.handleAddrAddedPayload(p)
-}
-
-// onInterfaceAddrRemoved is the EventBus handler for (interface, addr-removed).
-func (r *Reactor) onInterfaceAddrRemoved(payload string) {
-	var p interfaceAddrPayload
-	if err := json.Unmarshal([]byte(payload), &p); err != nil {
-		reactorLogger().Debug("iface: unmarshal addr-removed", "error", err)
-		return
-	}
-	r.handleAddrRemovedPayload(p)
-}
-
 // refreshPeerLinkScopes re-reads the host interface and neighbor tables once and
 // re-settles RFC 2545 Section 3's inclusion condition, and the third-party
 // Link-Local it names, for every peer that has a live forwarding snapshot.
@@ -250,12 +149,12 @@ func (r *Reactor) onInterfaceAddrRemoved(payload string) {
 // appending a link-local Section 3 now forbids, or keeps omitting one it now
 // requires.
 //
-// This binds the FORM of every advertisement made after the event. Section 3
+// This binds the FORM of every advertisement made after the change. Section 3
 // constrains what a speaker "shall advertise ... in the Network Address of Next
 // Hop field", which is the act of advertising; it states no obligation to
 // re-advertise a route already sent, so no re-advertisement is triggered here.
 //
-// It runs on the EventBus delivery goroutine for an address event and on
+// It runs on addressWatchWorker for an address change and on
 // neighborWatchWorker for a neighbor change; refreshPeerLinkScopesMu serializes
 // the two so an older read never stores after a newer one. It MUST NOT hold
 // reactor.mu while refreshing, so the peer list is copied under the read lock and
@@ -326,37 +225,33 @@ func (r *Reactor) refreshPeerLinkScopes() {
 	}
 }
 
-// handleAddrAddedPayload starts a listener when an address matching a
-// peer's LocalAddress appears. On success it emits (bgp, listener-ready)
-// so iface migration consumers can complete their make-before-break.
-func (r *Reactor) handleAddrAddedPayload(p interfaceAddrPayload) {
-	addr, err := netip.ParseAddr(p.Address)
-	if err != nil {
-		reactorLogger().Debug("iface: parse address", "address", p.Address, "error", err)
-		return
-	}
-	addr = addr.Unmap()
-
-	// RFC 2545 Section 3: the new address changes which subnets this host is
-	// attached to, for every peer and not only the ones bound to it.
-	r.refreshPeerLinkScopes()
-
+// handleAddressAdded starts a listener when an address matching a peer's
+// LocalAddress appears. On success it emits (bgp, listener-ready) so iface
+// migration consumers can complete their make-before-break. It runs on
+// addressWatchWorker and MUST be called without reactor.mu held.
+//
+// It answers false only when the address cannot be bound YET: an IPv6
+// address still in duplicate address detection is in the table, and the
+// kernel refuses to bind it (EADDRNOTAVAIL) until DAD clears its tentative
+// flag. That clearing is an address update of its own, so the worker leaves
+// the address unrecorded and tries again on the next signal.
+func (r *Reactor) handleAddressAdded(addr netip.Addr) bool {
 	// Find peers whose LocalAddress matches.
 	r.mu.RLock()
-	var matchingPeers []*Peer
+	matchingPeers := 0
 	for _, peer := range r.peers {
 		if peer.settings.LocalAddress == addr {
-			matchingPeers = append(matchingPeers, peer)
+			matchingPeers++
 		}
 	}
 	r.mu.RUnlock()
 
-	if len(matchingPeers) == 0 {
-		return
+	if matchingPeers == 0 {
+		return true
 	}
 
 	reactorLogger().Info("iface: address added, starting listener",
-		"address", p.Address, "unit", p.Unit, "peers", len(matchingPeers))
+		"address", addr, "peers", matchingPeers)
 
 	// Start listener for this address. startListenerForAddressPort is
 	// idempotent (returns nil if already listening).
@@ -368,39 +263,37 @@ func (r *Reactor) handleAddrAddedPayload(p interfaceAddrPayload) {
 	if startErr != nil {
 		// A stopping reactor refuses the listener by design (reactor.go, the
 		// r.stopping read in startListenerForAddressPort), and this handler runs
-		// on the EventBus goroutine that cleanup unsubscribes only after the
-		// cancel -- so any address event during a shutdown lands here. That is
-		// the seal working, not an operator's problem, and Error would put it in
-		// front of them on every stop that meets a netlink event.
+		// on the address watch worker, which ends only with the cancel -- so any
+		// address change during a shutdown lands here. That is the seal working,
+		// not an operator's problem, and Error would put it in front of them on
+		// every stop that meets an address change.
 		if errors.Is(startErr, errReactorStopping) {
 			reactorLogger().Debug("iface: listener not started, reactor is stopping",
-				"address", p.Address, "port", port)
-			return
+				"address", addr, "port", port)
+			return true
+		}
+		if errors.Is(startErr, syscall.EADDRNOTAVAIL) {
+			reactorLogger().Info("iface: address not usable yet, the listener starts when the kernel reports it usable",
+				"address", addr, "port", port, "error", startErr)
+			return false
 		}
 		reactorLogger().Error("iface: start listener failed",
-			"address", p.Address, "port", port, "error", startErr)
-		return
+			"address", addr, "port", port, "error", startErr,
+			"fix", "the error names the cause: for address already in use, find the other listener with: ss -ltnp; for permission denied, run ze with CAP_NET_BIND_SERVICE")
+		return true
 	}
 	if r.eventBus != nil {
-		readyPayload, _ := json.Marshal(bgpListenerReadyPayload{Address: p.Address})
+		readyPayload, _ := json.Marshal(bgpListenerReadyPayload{Address: addr.String()})
 		if _, emitErr := r.eventBus.Emit(bgpevents.Namespace, bgpevents.EventListenerReady, string(readyPayload)); emitErr != nil {
-			reactorLogger().Debug("iface: emit listener-ready", "address", p.Address, "error", emitErr)
+			reactorLogger().Debug("iface: emit listener-ready", "address", addr, "error", emitErr)
 		}
 	}
+	return true
 }
 
-// handleAddrRemovedPayload stops the listener for an address that was removed.
-func (r *Reactor) handleAddrRemovedPayload(p interfaceAddrPayload) {
-	addr, err := netip.ParseAddr(p.Address)
-	if err != nil {
-		return
-	}
-	addr = addr.Unmap()
-
-	// RFC 2545 Section 3: a removed address can end a shared subnet, for every
-	// peer and not only the one bound to this address.
-	r.refreshPeerLinkScopes()
-
+// handleAddressRemoved stops the listener for an address that was removed.
+// It runs on addressWatchWorker and MUST be called without reactor.mu held.
+func (r *Reactor) handleAddressRemoved(addr netip.Addr) {
 	r.mu.Lock()
 	port := r.config.Port
 	// Use net.JoinHostPort for consistent key format with
@@ -411,7 +304,7 @@ func (r *Reactor) handleAddrRemovedPayload(p interfaceAddrPayload) {
 	listener, exists := r.listeners[lkey]
 	if exists {
 		reactorLogger().Info("iface: address removed, stopping listener",
-			"address", p.Address, "unit", p.Unit)
+			"address", addr)
 		listener.Stop()
 		delete(r.listeners, lkey)
 	}

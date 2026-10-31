@@ -92,7 +92,7 @@ var (
 	ErrNoReloadFunc   = errors.New("reload function not set")
 	// errReactorStopping refuses a new listening socket to a reactor whose stop
 	// has sealed. It is an error rather than a quiet nil because a caller that
-	// gets nil back reads it as "the socket is up": handleAddrAddedPayload
+	// gets nil back reads it as "the socket is up": handleAddressAdded
 	// publishes (bgp, listener-ready) on that answer (reactor_iface.go). It is
 	// unexported because nothing outside this package needs to tell this refusal
 	// from any other listen failure; the wrapped text is what a reader gets.
@@ -385,7 +385,7 @@ type Reactor struct {
 	connCallback    connectionCallback
 	messageReceiver MessageReceiver       // Receives raw BGP messages
 	eventBus        ze.EventBus           // Namespaced pub/sub for cross-component notifications (nil until SetEventBus)
-	eventBusUnsubs  []func()              // Active EventBus unsubscribe funcs (populated by SubscribeInterfaceEvents)
+	eventBusUnsubs  []func()              // Active EventBus unsubscribe funcs (populated by subscribeDaemonSignals)
 	processSpawner  plugin.ProcessSpawner // PluginManager for process lifecycle (nil = Server self-manages)
 
 	// neighborWatch is the state of the kernel neighbor table watch
@@ -1341,10 +1341,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// Start background gap scan goroutine for the recent update cache.
 	r.recentUpdates.Start()
 
-	// Subscribe to EventBus events for cross-component reactions (interface
-	// addr changes, etc.). Must happen before listeners start so handlers are
-	// active when events arrive.
-	r.subscribeInterfaceEvents()
+	// The address table watch needs no event bus and no interface config,
+	// like the neighbor watch below. It opens before the listeners start, so
+	// an address that moves while they start is a change it applies.
+	r.startAddressWatch()
 	r.subscribeDaemonSignals()
 	// The neighbor table watch needs no event bus and no interface config:
 	// RFC 2545 Section 3's third-party Link-Local must follow the table in a
@@ -1664,7 +1664,7 @@ func (r *Reactor) startSignalHandler() {
 }
 
 // releaseEventSubscriptions unsubscribes every EventBus handler registered by
-// SubscribeInterfaceEvents and clears the slice. The bus unregister func only
+// subscribeDaemonSignals and clears the slice. The bus unregister func only
 // deletes the handler from the subscriber map under the bus's own lock and
 // never waits for an in-flight handler (dispatch copies handlers and releases
 // the bus lock before invoking them), so this is safe to call whether or not
@@ -1680,10 +1680,10 @@ func (r *Reactor) releaseEventSubscriptions() {
 // abortStartup tears down provisional resources on startup failure.
 // Caller MUST hold r.mu.
 func (r *Reactor) abortStartup() {
-	// Drop EventBus subscriptions first so no interface event handler is
-	// dispatched against the half-torn-down reactor. SubscribeInterfaceEvents
-	// runs before any abort-guarded failure, so a failed startup that does not
-	// release these would leak the (interface, addr-*) handlers on the bus.
+	// Drop EventBus subscriptions first so no event handler is dispatched
+	// against the half-torn-down reactor. subscribeDaemonSignals runs before
+	// any abort-guarded failure, so a failed startup that does not release
+	// these would leak the (daemon, signal) handler on the bus.
 	r.releaseEventSubscriptions()
 	if r.api != nil && !r.externalServer {
 		r.api.Stop()
@@ -1815,9 +1815,9 @@ func (r *Reactor) StopForRestart() {
 //
 // The listener shutdown and the r.stopping reads below are not part of that
 // argument and do not carry it. They stop new SOCKETS and new PEERS -- an
-// address-added netlink event reaching startListenerForAddressPort on the
-// EventBus goroutine that cleanup does not unsubscribe until after the cancel
-// (reactor_iface.go), and tryCreateDynamicPeer under this same lock. Doing less
+// address the kernel reports added reaching startListenerForAddressPort on
+// addressWatchWorker, which applies changes until the cancel
+// (reactor_address_watch.go), and tryCreateDynamicPeer under this same lock. Doing less
 // work on the way out is worth having; it is not what makes the stop final.
 //
 // Peer.stopping's read at the top of Peer.run is likewise the cheap early exit
@@ -1989,11 +1989,10 @@ func (r *Reactor) newListenerFactory(port int) network.ListenerFactory {
 // 8.2.2, ManualStop). All five call sites hold r.mu: startMultiListeners in this
 // file, AddPeer twice (reactor_peers.go, once for a new listener and once to
 // restart one whose MD5 peer set changed), installDynamicGroupsLocked (reactor_dynamic.go,
-// for a group a reload added) and handleAddrAddedPayload
-// (reactor_iface.go). The last one is a netlink address-added event, which
-// arrives on the EventBus delivery goroutine and is not unsubscribed until
-// cleanup, i.e. after the cancel. Gating the callers instead is what left this
-// rail open.
+// for a group a reload added) and handleAddressAdded
+// (reactor_iface.go). The last one is an address the kernel reports added,
+// applied on addressWatchWorker, which stops applying only once the cancel
+// ends its context. Gating the callers instead is what left this rail open.
 func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int) error {
 	if r.stopping {
 		return fmt.Errorf("listen on %s: %w", net.JoinHostPort(addr.String(), strconv.Itoa(port)), errReactorStopping)
@@ -2142,8 +2141,8 @@ func (r *Reactor) monitor() {
 func (r *Reactor) cleanup() {
 	// Unsubscribe from the EventBus BEFORE acquiring r.mu. EventBus handlers
 	// run synchronously inside the publisher's goroutine and may acquire
-	// r.mu.RLock() (e.g., onInterfaceAddrAdded). Unsubscribing first prevents
-	// any new dispatch from racing with the cleanup write lock.
+	// r.mu.RLock() (e.g., onDaemonSignal). Unsubscribing first prevents any
+	// new dispatch from racing with the cleanup write lock.
 	r.releaseEventSubscriptions()
 
 	// Stop the forward pool first, and BEFORE taking r.mu: it drains in-flight

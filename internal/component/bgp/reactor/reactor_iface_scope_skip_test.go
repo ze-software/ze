@@ -13,7 +13,7 @@ import (
 // TestRefreshPeerLinkScopesSkipsAnUnchangedTable pins the burst guard in
 // refreshPeerLinkScopes.
 //
-// An interface that comes up delivers one addr-added event per address, and the
+// An interface that comes up delivers one address update per address, and the
 // kernel already holds every address of the burst when the first event arrives.
 // Events 2..N therefore read a table identical to the one each peer's scope was
 // built from. RFC 2545 Section 3's condition is decided by that table alone, so an
