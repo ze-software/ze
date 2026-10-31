@@ -131,7 +131,7 @@ func rfcListTotalColumns() []rfcProfileFigure {
 		}
 		columns = append(columns, rfcProfileFigure{segment.Label, segment.Fields[0]})
 	}
-	return append(columns, rfcProfileFigure{"Not owed", "must.not-owed"}, rfcProfileFigure{"MUST rows", "must.total"})
+	return append(columns, rfcProfileFigure{"Not owed", rfcMustNotOwedField}, rfcProfileFigure{"MUST rows", "must.total"})
 }
 
 // rfcListCheckWords says what the check line adds up.

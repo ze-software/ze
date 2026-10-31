@@ -32,11 +32,10 @@ const (
 	rfcProfileMarker = ` id="rfc-profile-title"`
 	// rfcProfilesMarker is the index's own heading id.
 	rfcProfilesMarker = ` id="rfc-profiles-title"`
-	// rfcProfileMandatoryLabel and rfcProfileOptionalLabel name the two
-	// coverage figures in the columns of the filtered RFC list (rfcfilter.go)
-	// that still prints them.
-	rfcProfileMandatoryLabel = "Mandatory"
-	rfcProfileOptionalLabel  = "Optional"
+	// rfcTierRequired and rfcTierOptional name a profile's two tiers in a
+	// data-ze-rfc subject (`profile:<name>:<tier>`) and in its data file.
+	rfcTierRequired = "required"
+	rfcTierOptional = "optional"
 )
 
 func init() {
@@ -138,7 +137,7 @@ func rfcProfileTiersAgree(report *rfc.TreeReport, figures *rfcFigureSet) error {
 		name    string
 		rows    []*rfc.TreeRow
 		members []string
-	}{{"required", report.Rows, profile.Required}, {"optional", optional, profile.Optional}} {
+	}{{rfcTierRequired, report.Rows, profile.Required}, {rfcTierOptional, optional, profile.Optional}} {
 		stems := make([]string, 0, len(tier.rows))
 		for _, row := range tier.rows {
 			stems = append(stems, row.Stem)
@@ -365,7 +364,7 @@ func rfcProfileFigures() []rfcProfileFigure {
 		}
 		figures = append(figures, rfcProfileFigure{segment.Label, segment.Fields[0]})
 	}
-	figures = append(figures, rfcProfileFigure{"MUST rows not owed", "must.not-owed"})
+	figures = append(figures, rfcProfileFigure{"MUST rows not owed", rfcMustNotOwedField})
 	kinds := rfcProfileNotOwedKinds()
 	for _, kind := range kinds {
 		figures = append(figures, rfcProfileFigure{"MUST not owed: " + kind, "must.not-owed-by-kind." + kind})
@@ -497,7 +496,7 @@ func rfcProfileBody(report *rfc.TreeReport, display map[string]string, useCases 
 			Str(html.EscapeString(useCase.Title)).Str("</a></p>\n")
 	}
 	body.Str("<section><h2>").Str(rfcProfileFiguresHeading).Str("</h2>\n").
-		Str(rfcProfileTierHTML(rfcProfileSubject(report, "required"))).Str("</section>\n")
+		Str(rfcProfileTierHTML(rfcProfileSubject(report, rfcTierRequired))).Str("</section>\n")
 	body.Str("<section><h2>Tree</h2>\n<p>").Str(html.EscapeString(rfcProfileTreeProse(report))).Str("</p>\n")
 	for _, level := range rfcProfileLevels(report.Rows) {
 		body.Str("<h3>").Str(html.EscapeString(level.Label)).Str("</h3>\n")
@@ -507,7 +506,7 @@ func rfcProfileBody(report *rfc.TreeReport, display map[string]string, useCases 
 	if report.Optional != nil && len(report.Optional.Rows) != 0 {
 		body.Str("<section><h2>").Str(rfcProfileOptionalHeading).Str("</h2>\n<p>").
 			Str(html.EscapeString(rfcProfileOptionalProse(report))).Str("</p>\n")
-		body.Str(rfcProfileTierHTML(rfcProfileSubject(report, "optional")))
+		body.Str(rfcProfileTierHTML(rfcProfileSubject(report, rfcTierOptional)))
 		body.Str(rfcTableHTML(rfcHeadCells(rfcProfileColumns(report)...),
 			rfcProfileRowsHTML(report, report.Optional.Rows, display))).Str("\n</section>\n")
 	}
@@ -553,7 +552,7 @@ func rfcProfileMirror(report *rfc.TreeReport, display map[string]string, useCase
 		out.Str("Use case: [").Str(useCase.Title).Str("](").Str(rfcProfileRoot).Str(useCase.Route).Str(")\n\n")
 	}
 	out.Str(rfcProfileDataLinks(rfcProfileRoot, rfcProfileDataFile(report.Profile)))
-	out.Str("## ").Str(rfcProfileFiguresHeading).Str("\n\n").Str(rfcProfileTierMirror(rfcProfileSubject(report, "required")))
+	out.Str("## ").Str(rfcProfileFiguresHeading).Str("\n\n").Str(rfcProfileTierMirror(rfcProfileSubject(report, rfcTierRequired)))
 	out.Str("\n## Tree\n\n").Str(rfcProfileTreeProse(report)).Byte('\n')
 	for _, level := range rfcProfileLevels(report.Rows) {
 		out.Str("\n### ").Str(level.Label).Str("\n\n").Str(rfcMirrorHead(rfcProfileColumns(report)...)).
@@ -562,7 +561,7 @@ func rfcProfileMirror(report *rfc.TreeReport, display map[string]string, useCase
 	if report.Optional != nil && len(report.Optional.Rows) != 0 {
 		out.Str("\n## ").Str(rfcProfileOptionalHeading).Str("\n\n").
 			Str(rfcProfileOptionalProse(report)).Str("\n\n").
-			Str(rfcProfileTierMirror(rfcProfileSubject(report, "optional"))).Byte('\n').
+			Str(rfcProfileTierMirror(rfcProfileSubject(report, rfcTierOptional))).Byte('\n').
 			Str(rfcMirrorHead(rfcProfileColumns(report)...)).
 			Str(rfcProfileRowsMirror(report, report.Optional.Rows, display))
 	}
@@ -673,7 +672,7 @@ func rfcProfilesIndexBody(profiles []*rfc.TreeReport) string {
 			if !group.Holds(report) {
 				continue
 			}
-			subject := rfcProfileSubject(report, "required")
+			subject := rfcProfileSubject(report, rfcTierRequired)
 			rows.Str(rfcRowCells(
 				`<a href="`+html.EscapeString(report.Profile)+`/">`+html.EscapeString(rfcProfileTitle(report))+"</a>",
 				rfcBarMarkHTML(subject, "must"), rfcBarMarkHTML(subject, "overview"),
@@ -703,7 +702,7 @@ func rfcProfilesIndexMirror(profiles []*rfc.TreeReport) string {
 			if !group.Holds(report) {
 				continue
 			}
-			subject := rfcProfileSubject(report, "required")
+			subject := rfcProfileSubject(report, rfcTierRequired)
 			rows.Str(rfcMirrorRow("["+rfcMirrorCell(rfcProfileTitle(report))+"]("+report.Profile+"/)",
 				rfcBarMirror(subject, "must"), rfcBarMirror(subject, "overview"),
 				"["+rfcValueMirror(subject, "rfcs")+"]("+rfcProfileListHref(report)+")",

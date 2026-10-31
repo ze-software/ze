@@ -11,6 +11,7 @@ package site
 
 import (
 	"html"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -47,7 +48,7 @@ type rfcGlossaryTerm struct {
 // card, a legend or a section on this page already says about the term, so the
 // glossary adds no claim of its own.
 func rfcGlossary() []rfcGlossaryTerm {
-	return []rfcGlossaryTerm{
+	return append([]rfcGlossaryTerm{
 		{"Summary", "Ze's file for one RFC: it lists the RFC's requirements, the tests " +
 			"behind each one, and the support status Ze publishes for the RFC."},
 		{"Requirement", "one obligation an RFC states, kept in the summary with an " +
@@ -95,7 +96,61 @@ func rfcGlossary() []rfcGlossaryTerm {
 		{"Semantic verdict", "a reviewer's recorded judgement that a requirement's tests " +
 			"enforce what the requirement says. Fresh: still current. Shifted: the test is " +
 			"unchanged and only the file around it moved. Stale: what it judged has changed."},
+	}, rfcBarGlossary()...)
+}
+
+// rfcSegmentMeanings defines each bar segment, keyed by the segment name
+// rfcBars declares. rfcBarGlossary reads rfcBars for the segments and their
+// words, so a segment added there without a meaning here is refused by
+// TestGlossaryDefinesBarTerms rather than published undefined.
+var rfcSegmentMeanings = map[string]string{
+	rfcSegZeProven: "a MUST row Ze's own code performs, with a tagged test whose " +
+		"recorded break was seen to fail.",
+	rfcSegOSVerified: "a row a layer under Ze performs (the Linux kernel Ze ships, or a Go " +
+		"library Ze links), with a tagged test that checks that layer's behavior on the " +
+		"state Ze installs, and a recorded break.",
+	rfcSegOSGap: "a row a layer under Ze performs, with no verified test of that behavior " +
+		"yet. It is a gap in testing, not in correctness.",
+	rfcSegZeGap: "a MUST row Ze's own code owes that no recorded break proves yet: a " +
+		"declared gap, a partial row, a row with no proof, or an exclusion whose " +
+		"evidence does not hold. Every one is work Ze owes.",
+	rfcSegShouldProven: "a SHOULD or MAY row Ze's code performs, with a tagged test whose " +
+		"recorded break was seen to fail.",
+	rfcSegNotOwed: "a row that does not bind Ze, shown by checked evidence: it binds a role " +
+		"Ze does not fill, it applies only to an optional feature Ze does not offer, or " +
+		"Linux cannot provide its primitive (OS blocked). It is left out of the MUST bar.",
+	rfcSegNotEver: "a SHOULD or MAY row Ze will never support. Only the project owner sets it.",
+	rfcSegNotYet:  "a SHOULD or MAY row Ze intends to support and does not support yet.",
+	rfcSegNotDecided: "a SHOULD or MAY row nobody has decided on yet: every unproven " +
+		"optional row starts here.",
+}
+
+// rfcBarGlossary answers one glossary term per bar segment, in the order the
+// bars draw them. A segment the two bars share is one term, named by every
+// label it carries, so each word a bar shows is defined exactly once. A
+// segment with no meaning panics: rfcBars and rfcSegmentMeanings are both
+// package constants, so only a Ze defect reaches it, and the glossary test
+// runs it.
+func rfcBarGlossary() []rfcGlossaryTerm {
+	order := []string{}
+	labels := map[string][]string{}
+	for _, segment := range append(slices.Clone(rfcBars.Must), rfcBars.Overview...) {
+		if _, seen := labels[segment.Segment]; !seen {
+			order = append(order, segment.Segment)
+		}
+		if !slices.Contains(labels[segment.Segment], segment.Label) {
+			labels[segment.Segment] = append(labels[segment.Segment], segment.Label)
+		}
 	}
+	terms := make([]rfcGlossaryTerm, 0, len(order))
+	for _, name := range order {
+		meaning, ok := rfcSegmentMeanings[name]
+		if !ok {
+			panic("BUG: bar segment " + name + " has no glossary meaning")
+		}
+		terms = append(terms, rfcGlossaryTerm{strings.Join(labels[name], ", ") + " (bar segment)", meaning})
+	}
+	return terms
 }
 
 // rfcReaderIntroHTML renders the introduction and the glossary.

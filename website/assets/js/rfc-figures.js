@@ -121,6 +121,11 @@
 
     // addCounts adds every count of source into target: numbers, and the
     // per-kind maps one level down.
+    // isCounts answers whether a level of a per-RFC file is a counts object.
+    function isCounts(value) {
+        return value !== null && typeof value === "object" && !Array.isArray(value);
+    }
+
     function addCounts(target, source) {
         Object.keys(source).forEach(function (key) {
             var value = source[key];
@@ -172,6 +177,17 @@
                 throw new Error("the files of " + uncounted.join(", ") + " hold no requirements count or implemented flag, so this " +
                     "figure would leave their rows out. " + publish);
             }
+            // A walked RFC's file always carries both levels (rfcDataOf,
+            // internal/le/site/rfcdata.go); one without them would add nothing
+            // and draw a short bar, so it is named instead.
+            var unsplit = loaded.filter(function (item) {
+                return item.data.walked && !(isCounts(item.data.must) && isCounts(item.data.should));
+            })
+                .map(function (item) { return item.data.stem; });
+            if (unsplit.length) {
+                throw new Error("the files of " + unsplit.join(", ") + " are walked but hold no must or should counts, so this " +
+                    "figure would leave their rows out. " + publish);
+            }
             loaded.forEach(function (item) {
                 sum.requirements += item.data.requirements;
                 if (item.data.implemented) {
@@ -184,8 +200,8 @@
                 sum.walked += 1;
                 sum.must = sum.must || {};
                 sum.should = sum.should || {};
-                addCounts(sum.must, item.data.must || {});
-                addCounts(sum.should, item.data.should || {});
+                addCounts(sum.must, item.data.must);
+                addCounts(sum.should, item.data.should);
             });
             sum.register = registerOf(sum);
             return sum;

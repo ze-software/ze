@@ -123,9 +123,9 @@ func (set *rfcFigureSet) members(subject string) ([]string, error) {
 			Str(".md or fix the marker, then ").Str(rfcPublishMissing).String())
 	}
 	switch tier {
-	case "required":
+	case rfcTierRequired:
 		return profile.Required, nil
-	case "optional":
+	case rfcTierOptional:
 		return profile.Optional, nil
 	}
 	return nil, rfcSubjectRefusal(subject)
@@ -291,7 +291,7 @@ func (set *rfcFigureSet) value(subject, field string) (string, error) {
 		return words, nil
 	}
 	if sum["rfcs"] == float64(0) {
-		return "no rows", nil
+		return rfcNoRows, nil
 	}
 	if sum["walked"] == float64(0) {
 		return "not walked", nil
@@ -317,7 +317,7 @@ func (set *rfcFigureSet) bar(subject, name string) (string, error) {
 		return "", err
 	}
 	if sum["rfcs"] == float64(0) {
-		return "no rows", nil
+		return rfcNoRows, nil
 	}
 	if sum["walked"] == float64(0) {
 		return "not walked", nil
@@ -349,7 +349,7 @@ func (set *rfcFigureSet) bar(subject, name string) (string, error) {
 			Str(" rows the files state, so the bar would misdraw them; ").Str(rfcPublishMissing).String())
 	}
 	if total == 0 {
-		return "no rows", nil
+		return rfcNoRows, nil
 	}
 	return words.String(), nil
 }

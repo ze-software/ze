@@ -338,6 +338,21 @@ func TestTheBrowserDrawsRFCFiguresFromTheirFiles(t *testing.T) {
 		t.Errorf("republished counts not shown: %v", got.Texts)
 	}
 
+	// A walked RFC's file with no level counts is named, never summed as
+	// zero rows: the same refusal as a missing file.
+	republished := rfcStemFile("rfc1", 5, 2, 3, 4, 6, [6]int{10, 1, 2, 1, 2, 4})
+	site.write("data/rfc/rfc1.json", `{"stem":"rfc1","walked":true,"requirements":30,"implemented":true}`)
+	if _, err := chromedp.Run(ctx, chromedp.Reload()); err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	got = waitForRFCPage(ctx, t)
+	const unsplit = "the files of rfc1 are walked but hold no must or should counts, so this figure would " +
+		"leave their rows out. Run ./le site build to publish data/rfc/."
+	if got.Texts["profile-gap"] != unsplit {
+		t.Errorf("profile-gap shows %q, want the unsplit file named", got.Texts["profile-gap"])
+	}
+	site.write("data/rfc/rfc1.json", republished)
+
 	// AC-18: a file the index names is missing, and the page names it.
 	if err := os.Remove(filepath.Join(site.dir, "data", "rfc", "rfc2.json")); err != nil {
 		t.Fatal(err)

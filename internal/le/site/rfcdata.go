@@ -76,28 +76,51 @@ type rfcBarLayout struct {
 // count the index and its mirror print.
 const rfcMustTotalField = "must.total"
 
+// rfcMustNotOwedField is the per-RFC field that counts the MUST rows that do
+// not bind Ze: a segment of the overview bar and a column of the RFC list and
+// the profile pages.
+const rfcMustNotOwedField = "must.not-owed"
+
+// rfcNoRows is what a figure over zero rows shows, in place of a bar or a
+// count that would read as a measured zero.
+const rfcNoRows = "no rows"
+
+// The bar segment names, shared by rfcBars and the glossary that defines
+// each segment (rfcSegmentMeanings, rfcreader.go).
+const (
+	rfcSegZeProven     = "ze-proven"
+	rfcSegOSVerified   = "os-verified"
+	rfcSegOSGap        = "os-gap"
+	rfcSegZeGap        = "ze-gap"
+	rfcSegShouldProven = "should-proven"
+	rfcSegNotOwed      = "not-owed"
+	rfcSegNotEver      = "not-ever"
+	rfcSegNotYet       = "not-yet"
+	rfcSegNotDecided   = "not-decided"
+)
+
 // rfcBars is the ONE declaration of both bars' segments, their order and
 // their words (spec-rfc-figures-sectioned-presentation, AC-12). It is
 // published in the index, so the browser draws what this says and holds no
 // list of its own.
 var rfcBars = rfcBarLayout{
 	Must: []rfcBarSegment{
-		{"ze-proven", "Ze proven", []string{"must.ze-proven"}},
-		{"os-verified", "OS verified", []string{"must.os-verified"}},
-		{"os-gap", "OS testing gap", []string{"must.os-gap"}},
-		{"ze-gap", "Ze correctness gap", []string{"must.ze-gap"}},
+		{rfcSegZeProven, "Ze proven", []string{"must.ze-proven"}},
+		{rfcSegOSVerified, "OS verified", []string{"must.os-verified"}},
+		{rfcSegOSGap, "OS testing gap", []string{"must.os-gap"}},
+		{rfcSegZeGap, "Ze correctness gap", []string{"must.ze-gap"}},
 	},
 	MustTotal: []string{"must.kept"},
 	Overview: []rfcBarSegment{
-		{"ze-proven", "Ze MUST proven", []string{"must.ze-proven"}},
-		{"os-verified", "OS verified", []string{"must.os-verified", "should.os-verified"}},
-		{"should-proven", "SHOULD proven", []string{"should.proven"}},
-		{"not-owed", "Not owed", []string{"must.not-owed", "should.not-owed"}},
-		{"not-ever", "SHOULD not ever", []string{"should.not-ever"}},
-		{"not-yet", "SHOULD not yet", []string{"should.not-yet"}},
-		{"not-decided", "SHOULD not decided", []string{"should.not-decided"}},
-		{"os-gap", "OS testing gap", []string{"must.os-gap", "should.os-gap"}},
-		{"ze-gap", "Ze correctness gap", []string{"must.ze-gap"}},
+		{rfcSegZeProven, "Ze MUST proven", []string{"must.ze-proven"}},
+		{rfcSegOSVerified, "OS verified", []string{"must.os-verified", "should.os-verified"}},
+		{rfcSegShouldProven, "SHOULD proven", []string{"should.proven"}},
+		{rfcSegNotOwed, "Not owed", []string{rfcMustNotOwedField, "should.not-owed"}},
+		{rfcSegNotEver, "SHOULD not ever", []string{"should.not-ever"}},
+		{rfcSegNotYet, "SHOULD not yet", []string{"should.not-yet"}},
+		{rfcSegNotDecided, "SHOULD not decided", []string{"should.not-decided"}},
+		{rfcSegOSGap, "OS testing gap", []string{"must.os-gap", "should.os-gap"}},
+		{rfcSegZeGap, "Ze correctness gap", []string{"must.ze-gap"}},
 	},
 	OverviewTotal: []string{rfcMustTotalField, "should.total"},
 }
