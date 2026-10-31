@@ -174,7 +174,7 @@ refused at commit.
 | AC-6 | ze restarts after a previous process left a ze-owned nft table the new config does not request | the table is removed at startup; an operator table without the marker is untouched |
 | AC-7 | An operator table whose name collides with a ze owner table | the commit is refused with what, why and the rename command |
 | AC-8 | A web form save where the third field is refused | the working tree is unchanged |
-| AC-9 | A reload narrows a redistribute rule | routes the old rule admitted and the new rule refuses are withdrawn at the destination |
+| AC-9 | A reload narrows a redistribute import's route-policy chain (`redistribute { destination <d> { import <s> { filters [ ... ]; final ...; } } }`, built by `plan/post-release/features/spec-route-policy-0-umbrella.md` phase 3, which deletes the family/tag matcher and its evaluator) | routes the old chain admitted and the new chain refuses are withdrawn at the destination |
 | AC-10 | A reload adds an `external` plugin program | the program starts and completes its stages |
 | AC-11 | A commit changes isis `net` or `system-id`, or bmp `environment` listeners | the running circuits or listeners reflect the change without a restart |
 | AC-12 | iface carrier or address flap between two reads | the reconcile acts on event-ordered state; the counter its functional test reads counts each repair once |
@@ -188,7 +188,7 @@ refused at commit.
 | `TestReloadCompensationRestoresPreviousPeers` | `internal/component/bgp/reactor/reactor_api_test.go` | AC-3 | |
 | `TestRegistryReconcileWaitsForOwedApply` | `internal/component/iface/config_apply_test.go` | AC-4 | |
 | `TestFormSaveRefusedFieldLeavesTreeUnchanged` | `internal/component/web/editor_test.go` | AC-8 | |
-| `TestRuleNarrowingWithdrawsHeldRoutes` | `internal/component/config/redistribute/evaluator_test.go` | AC-9 | |
+| `TestRuleNarrowingWithdrawsHeldRoutes` | `internal/plugins/redistribute/config_test.go` (the orchestrator's apply re-judges every held route against the newly compiled route-policy chain) | AC-9 | |
 | `TestReloadStartsNewExternalPlugin` | `internal/component/plugin/server/startup_autoload_test.go` | AC-10 | |
 
 ### Boundary Tests (numeric inputs)
@@ -200,7 +200,7 @@ refused at commit.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `reload-reject-restores-peers` | `test/reload/` | a rejected reload leaves the previous peers running (AC-3) | |
-| `redistribute-rule-narrowed` | `test/reload/` | narrowing a rule withdraws what it no longer admits (AC-9) | |
+| `redistribute-rule-narrowed` | `test/reload/` | narrowing a redistribute import's route-policy chain (a `filters` entry added, or `final accept` turned to `final reject`) withdraws what it no longer admits (AC-9) | |
 | `TestIntegrationReconcileKeepsLearnedAddresses` extended | `internal/component/iface/` QEMU integration | AC-5 with VPP lifetimes | |
 | `TestRestartReclaimsMarkedTable` | `internal/plugins/firewall/nft/` Linux integration | AC-6 | |
 
@@ -230,7 +230,7 @@ refused at commit.
 - `internal/plugins/firewall/nft/backend_linux.go`, `internal/component/firewall/registry.go`
 - `internal/plugins/flowspec-firewall/state.go`
 - `internal/component/web/editor.go`
-- `internal/component/config/redistribute/evaluator.go`
+- `internal/plugins/redistribute/config.go`, `held.go` (AC-9: the apply re-judges held routes against the route-policy chain that `spec-route-policy-0-umbrella` phase 3 compiles; the family/tag evaluator is deleted there), and their page `docs/guide/redistribution.md` (what a reload withdraws)
 - `internal/plugins/isis/circuits.go`, `server.go`
 - `internal/component/bgp/plugins/bmp/bmp.go`
 

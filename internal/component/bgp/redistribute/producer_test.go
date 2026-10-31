@@ -186,3 +186,28 @@ func TestBGPProducerBridgeUnknownActionLogged(t *testing.T) {
 	assert.Equal(t, netip.MustParsePrefix("192.0.2.0/24"), got.Entries[0].Prefix)
 	assert.Equal(t, uint64(1), unknownActionSkips.Load()-before, "the skipped entry must be counted, not silently dropped")
 }
+
+// TestBGPProducerBridgeCarriesPeerClass proves each best path keeps its own
+// peer class across the bridge, which is what `import ebgp` and `import ibgp`
+// match on (spec-route-policy-0-umbrella AC-15). Method: convert one best
+// change per ProtocolType and read the entry's BGPClass.
+func TestBGPProducerBridgeCarriesPeerClass(t *testing.T) {
+	cases := []struct {
+		peerClass routeaction.ProtocolType
+		want      redistevents.BGPClass
+	}{
+		{routeaction.ProtocolEBGP, redistevents.BGPClassExternal},
+		{routeaction.ProtocolIBGP, redistevents.BGPClassInternal},
+		{routeaction.ProtocolUnspecified, redistevents.BGPClassUnspecified},
+	}
+	for _, tc := range cases {
+		in := ribevents.BestChangeEntry{
+			Action:       routeaction.Add,
+			Prefix:       netip.MustParsePrefix("10.0.0.0/24"),
+			ProtocolType: tc.peerClass,
+		}
+		entry, ok := convertBestChange(&in)
+		require.True(t, ok)
+		assert.Equal(t, tc.want, entry.BGPClass, "peer class %s", tc.peerClass)
+	}
+}

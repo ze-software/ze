@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
 // The redistribute source names this package registers. A source name is what
@@ -15,8 +16,8 @@ import (
 // three spell the same word.
 const (
 	sourceNameBGP  = "bgp"
-	sourceNameIBGP = "ibgp"
-	sourceNameEBGP = "ebgp"
+	sourceNameIBGP = redistevents.SourceNameIBGP
+	sourceNameEBGP = redistevents.SourceNameEBGP
 )
 
 var bgpSourcesOnce sync.Once

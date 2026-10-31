@@ -98,7 +98,25 @@ func convertBestChange(in *ribevents.BestChangeEntry) (redistevents.RouteChangeE
 		NextHop:  in.NextHop,
 		Metric:   in.Metric,
 		OriginAS: in.OriginAS,
+		BGPClass: bgpClassOf(in.ProtocolType),
 	}, true
+}
+
+// bgpClassOf answers the redistribute class of a best path's peer class, so a
+// rule naming `import ebgp` or `import ibgp` sees the class of the route rather
+// than the batch protocol, which is `bgp` for both. ProtocolType is set by Ze's
+// own best-path selection, never read from the wire (class C switch).
+func bgpClassOf(peerClass routeaction.ProtocolType) redistevents.BGPClass {
+	switch peerClass {
+	case routeaction.ProtocolEBGP:
+		return redistevents.BGPClassExternal
+	case routeaction.ProtocolIBGP:
+		return redistevents.BGPClassInternal
+	case routeaction.ProtocolUnspecified:
+		return redistevents.BGPClassUnspecified
+	case routeaction.ProtocolCount:
+	}
+	panic("BUG: bgp redistribute: best path with an out-of-range peer class")
 }
 
 // LocRIBPlugin is the registry name of the plugin that holds the Loc-RIB whose

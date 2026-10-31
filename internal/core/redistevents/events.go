@@ -150,6 +150,12 @@ type RouteChangeEntry struct {
 	// (externalRouteTag, internal/plugins/ospf/redist_wiring.go), never inline.
 	// Value type; reset by the pool's clear(); no allocation.
 	Tag uint32
+
+	// BGPClass is the peer class of a BGP best path, set by the BGP producer
+	// from the path it selected. A redistribute rule naming `ebgp` or `ibgp`
+	// matches on it: the batch protocol alone is `bgp` for both. Every other
+	// producer leaves it BGPClassUnspecified, which the pool's clear() restores.
+	BGPClass BGPClass
 }
 
 // RouteChangeBatch is the payload of (<protocol>, "route-change"). One batch

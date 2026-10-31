@@ -331,7 +331,7 @@ token first.
 
 | Source | Registered by | What it contributes |
 |--------|---------------|---------------------|
-| `bgp`, `ibgp`, `ebgp` | the BGP engine | the Loc-RIB's best paths, all sessions or internal or external only |
+| `bgp`, `ibgp`, `ebgp` | the BGP engine | the Loc-RIB's best paths, all sessions or internal or external only. Each best path carries the class of the peer it was learned from, so `ebgp` moves only eBGP-learned paths and `ibgp` only iBGP-learned ones; a locally originated path has no peer class and moves through `bgp` alone |
 | `connected` | the connected plugin | prefixes of configured interface addresses, except the unroutable ones below |
 | `static` | the static plugin | forward routes in the default table |
 | `kernel` | the kernel plugin | routes another program installed in the OS FIB |

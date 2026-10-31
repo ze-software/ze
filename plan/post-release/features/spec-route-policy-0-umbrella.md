@@ -321,7 +321,7 @@ import, and is refused on connected import because connected carries no tag.
 | `TestLocRIBSnapshotRace` | `internal/core/rib/locrib/policy_test.go` | R-7 under `-race` | |
 | `TestRouteInstallTagReachesGate` | `internal/component/plugin/server/dispatch_route_test.go` | AC-11 forked | |
 | `TestRedistributeChainAccept` | `internal/component/config/redistribute/route_test.go` | AC-14 | |
-| `TestRedistributeEBGPClass` | `internal/component/bgp/plugins/redistribute_egress/redistribute_test.go` | AC-15 | |
+| `TestRedistributeEBGPClass` | `internal/plugins/redistribute/redistribute_bgpclass_test.go` (the orchestrator moved from `bgp/plugins/redistribute_egress`) | AC-15 | |
 | `TestOSPFExportSetMetric` | `internal/plugins/ospf/redistribute/consumer_test.go` | AC-13 | |
 | `TestISISExportChain` | `internal/plugins/isis/redistribute/consumer_test.go` | AC-12 unit | |
 
@@ -370,7 +370,8 @@ import, and is refused on connected import because connected carries no tag.
 - `pkg/plugin/rpc/types.go` (`RouteInstallInput`), `internal/component/plugin/server/dispatch_route.go` - carry the new fields
 - `internal/component/config/redistribute/route.go`, `evaluator.go`, `registry.go`, `internal/component/config/loader_redistribute.go` - chains replace family/tag; `RouteSource` declares fields
 - `internal/component/config/redistribute/yang/ze-redistribute-conf.yang` - `filters`/`final` replace `family`/`tag`
-- `internal/component/bgp/plugins/redistribute_egress/redistribute.go`, `replay.go` - evaluate chains; BGP class from the route
+- `internal/plugins/redistribute/redistribute.go`, `replay.go`, `config.go`, `held.go` - evaluate chains; BGP class from the route; the apply re-judges held routes
+- `internal/core/redistevents/events.go`, `bgpclass.go` (new) - `RouteChangeEntry.BGPClass` and the `ebgp`/`ibgp` source names, declared once
 - `internal/component/bgp/redistribute/producer.go` - carries the eBGP/iBGP class per entry
 - `internal/plugins/isis/redistribute/consumer.go`, `internal/plugins/ospf/redistribute/consumer.go`, `redist_wiring.go` - export chains; OSPF per-source settings deleted
 - `internal/component/sysrib/sysrib.go` - `show rib candidates` (hidden paths); A-2 second input

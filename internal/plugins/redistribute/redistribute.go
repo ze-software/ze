@@ -231,7 +231,6 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 	route := configredist.RedistRoute{
 		Origin: name,
 		Family: famVal,
-		Source: name,
 	}
 
 	consumers := configredist.ConsumerNames()
@@ -257,10 +256,10 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 		for i := range b.Entries {
 			entry := &b.Entries[i]
 			// Acceptance is decided for each ROUTE, not for the batch: an import
-			// rule can name a tag, and the tag belongs to the entry. Every other
-			// input to the decision (origin, source, family) is the same for the
-			// whole batch, so the rule set is walked with only the tag varying.
+			// rule can name a tag, or a BGP class (ebgp, ibgp), and both belong
+			// to the entry. Origin and family are the same for the whole batch.
 			route.Tag = entry.Tag
+			route.Source = entrySource(name, entry)
 			key := heldKey{consumer: cname, source: name, family: famVal, prefix: entry.Prefix}
 			if !ev.Accept(route, cname) {
 				logger().Debug(Name+": evaluator rejected", "source", name, "consumer", cname, "origin", route.Origin, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)
@@ -275,6 +274,17 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 			recordDispatched(key, entry.Action)
 		}
 	}
+}
+
+// entrySource answers the source a rule matches an entry under: the BGP class
+// of a BGP best path (`ebgp`, `ibgp`), which the producer stamps on the entry,
+// and otherwise the batch protocol. A rule naming the protocol itself (`bgp`)
+// still matches through the route's Origin.
+func entrySource(protocol string, entry *redistevents.RouteChangeEntry) string {
+	if class, ok := entry.BGPClass.SourceName(); ok {
+		return class
+	}
+	return protocol
 }
 
 // dispatchEntryToConsumer dispatches one entry to a consumer. peer is the

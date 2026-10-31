@@ -50,8 +50,8 @@ const (
 // The BGP classes the protocol condition names beside the registered sources
 // (spec "Route Field Vocabulary": protocol is `ebgp` or `ibgp` for a BGP best).
 const (
-	protocolClassEBGP = "ebgp"
-	protocolClassIBGP = "ibgp"
+	protocolClassEBGP = redistevents.SourceNameEBGP
+	protocolClassIBGP = redistevents.SourceNameIBGP
 )
 
 // matchCondition is one row of the condition table.
