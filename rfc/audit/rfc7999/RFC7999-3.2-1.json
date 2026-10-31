@@ -1,17 +1,17 @@
 {
-  "note": "Positive TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity: config leaf parsed, [BLACKHOLE 64496:1] leaves applyIngressFilter with NO_EXPORT (or NO_ADVERTISE) appended and the other community kept. Negative TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity: with the guard on, no COMMUNITY, 65535:665 (one below BLACKHOLE) and 64496:1 pass unchanged, so the trigger is BLACKHOLE alone. Both carry revert records on blackholePropagationGuard. SHOULD: the add is operator-enabled (no leaf: unchanged), which 3.2-2 permits.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7999): \"A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS.\" The only edit to test/plugin/community-blackhole-noexport.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "d39585bfbbd1e803",
   "tests": {
     "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestRFC7999BlackholeFieldHasReader": "4bbcfd3a57bbed31",
     "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity": "5bee8846594dbe6a",
     "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity": "5bee8846594dbe6a",
-    "test/plugin/community-blackhole-noexport.ci": "5027f3f5b21e254d"
+    "test/plugin/community-blackhole-noexport.ci": "769adfd9e429715c"
   },
   "units": {
     "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestRFC7999BlackholeFieldHasReader": "eacfe9ac70880fbc",
     "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity": "e89478426e039e95",
     "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity": "71a267ba2179b3d3",
-    "test/plugin/community-blackhole-noexport.ci": "5027f3f5b21e254d"
+    "test/plugin/community-blackhole-noexport.ci": "769adfd9e429715c"
   },
   "verdict": "enforced"
 }
