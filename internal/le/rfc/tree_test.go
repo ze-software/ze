@@ -142,7 +142,9 @@ func TestTreeActionRendersLevelsAndFigures(t *testing.T) {
 	}
 
 	text := report.Text()
-	for _, want := range []string{"L0 rfc1", "L2 rfc5 (cycle with rfc6)", "mandatory not walked",
+	for _, want := range []string{"L0 rfc1", "L2 rfc5 (cycle with rfc6)  not walked",
+		"L0 rfc1  MUST 2 kept: Ze proven 1, OS verified 0, OS testing gap 0, Ze correctness gap 1",
+		"edge (release): MUST 6 kept: Ze proven 2",
 		"via edge: required by rfc/short/rfc1.md"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("text lacks %q:\n%s", want, text)
@@ -154,7 +156,7 @@ func TestTreeActionRendersLevelsAndFigures(t *testing.T) {
 	}
 	for _, key := range []string{`"stem":`, `"title":`, `"level":`, `"aggregate":`, `"builds-on":`,
 		`"updated-by":`, `"mandatory-proven":`, `"mandatory-total":`, `"optional-proven":`,
-		`"optional-total":`, `"walked":`, `"not-walked":`, `"mandatory-complete":`, `"optional":`,
+		`"optional-total":`, `"sections":`, `"walked":`, `"not-walked":`, `"mandatory-complete":`, `"optional":`,
 		`"candidates":`, `"optional-profiles":`} {
 		if !strings.Contains(string(encoded), key) {
 			t.Errorf("json lacks %s", key)
@@ -172,7 +174,7 @@ func TestTreeActionRendersLevelsAndFigures(t *testing.T) {
 			t.Error("rfc6 has no summary, but its whole-corpus row says it does")
 		}
 	}
-	if want := "rfc6 (cycle with rfc5)  mandatory no summary, optional no summary"; !strings.Contains(whole.Text(), want) {
+	if want := "rfc6 (cycle with rfc5)  no summary"; !strings.Contains(whole.Text(), want) {
 		t.Errorf("whole tree text lacks %q:\n%s", want, whole.Text())
 	}
 
@@ -267,7 +269,8 @@ func TestTreeOptionalTierNotCounted(t *testing.T) {
 		t.Errorf("optional rollup %+v, want rfc9 alone, 0 of 1, incomplete", optional)
 	}
 	text := withReport.Text()
-	for _, want := range []string{"; mandatory complete", "optional members, not counted: mandatory 0 of 1",
+	for _, want := range []string{"; mandatory complete",
+		"optional members, not counted: MUST 1 kept: Ze proven 0, OS verified 0, OS testing gap 0, Ze correctness gap 1",
 		"edge: optional in rfc/short/rfc9.md"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("text lacks %q:\n%s", want, text)
@@ -411,11 +414,20 @@ func TestTreeRowHoldsStemFiguresWhole(t *testing.T) {
 	if err := json.Unmarshal(encoded, &decoded); err != nil {
 		t.Fatal(err)
 	}
+	// The OS and intent splits and the figures' Attainable and Excluded are
+	// published only inside the sections, so the decoded figures hold them
+	// zero and the decoded sections hold them whole.
 	published := want
 	published.OSVerified, published.OSGap, published.NotYet, published.NotEver, published.NotDecided = 0, 0, 0, 0, 0
 	published.OptionalOSVerified, published.OptionalOSGap = 0, 0
+	published.Mandatory = Figure{Proven: want.Mandatory.Proven, Total: want.Mandatory.Total}
+	published.Optional = Figure{Proven: want.Optional.Proven, Total: want.Optional.Total}
 	if !reflect.DeepEqual(decoded.StemFigures, published) {
 		t.Errorf("decoded figures = %+v, want %+v from %s", decoded.StemFigures, published, encoded)
+	}
+	wantSections := sectionsOf(&want)
+	if row.Sections == nil || decoded.Sections == nil || !reflect.DeepEqual(*decoded.Sections, wantSections) {
+		t.Errorf("decoded sections = %+v, want %+v from %s", decoded.Sections, wantSections, encoded)
 	}
 	if decoded.Stem != "rfc1" || decoded.Title != "Title of rfc1" || !decoded.Summary {
 		t.Errorf("decoded row lost its own keys: %+v", decoded)

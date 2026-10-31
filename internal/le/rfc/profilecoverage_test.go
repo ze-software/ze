@@ -110,7 +110,11 @@ func TestCoverageMandatoryOptional(t *testing.T) {
 	want := Rollup{RFCs: 3, NotWalked: 1,
 		Mandatory: Figure{Proven: 2, Total: 9, Attainable: 7,
 			Excluded: map[string]int{AnnotationNotApplicable: 1, AnnotationLowerLayer: 1}},
-		Optional: Figure{Proven: 1, Total: 2, Attainable: 2}}
+		Optional: Figure{Proven: 1, Total: 2, Attainable: 2},
+		Sections: Sections{
+			Must: MustSections{Total: 9, Kept: 8, ZeProven: 2, OSGap: 1, ZeGap: 5, NotOwed: 1,
+				NotOwedByKind: map[string]int{AnnotationNotApplicable: 1}},
+			Should: ShouldSections{Total: 2, Proven: 1, NotDecided: 1, NotOwedByKind: map[string]int{}}}}
 	if !reflect.DeepEqual(rollup, want) {
 		t.Errorf("rollup = %+v, want %+v", rollup, want)
 	}
@@ -160,9 +164,11 @@ func TestRollupHasNoAbsentState(t *testing.T) {
 	}
 }
 
-// TestALinuxLimitLowersTheCeilingAndNotTheFigure reclassifies gated and optional
-// gaps through the priority tree, preserving proof counts while lowering ceilings.
-func TestALinuxLimitLowersTheCeilingAndNotTheFigure(t *testing.T) {
+// TestALinuxLimitMovesARowToNotOwedAndNotTheFigure reclassifies gated and
+// optional gaps through the priority tree, preserving proof counts while
+// moving the rows from the Ze correctness gap to not owed, in the figures, the
+// tree JSON and the tree text.
+func TestALinuxLimitMovesARowToNotOwedAndNotTheFigure(t *testing.T) {
 	base := priorityFixture(t, nil)
 	requirements := []Requirement{
 		{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust},
@@ -182,7 +188,7 @@ func TestALinuxLimitLowersTheCeilingAndNotTheFigure(t *testing.T) {
 			t.Fatalf("classification changed the proof figure: before %+v, after %+v", pair[0], pair[1])
 		}
 		if pair[0].Attainable != 2 || pair[1].Attainable != 1 || pair[1].Excluded[AnnotationLinuxLimit] != 1 {
-			t.Fatalf("classification did not lower only the ceiling: before %+v, after %+v", pair[0], pair[1])
+			t.Fatalf("classification did not move only the owed rows: before %+v, after %+v", pair[0], pair[1])
 		}
 	}
 	corpus := newPriorityCorpus(base.graph, base.profiles, base.metas, requirements, figures, proven)
@@ -203,9 +209,10 @@ func TestALinuxLimitLowersTheCeilingAndNotTheFigure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{`"mandatory-proven":1`, `"mandatory-total":2`, `"mandatory-attainable":1`,
-		`"optional-proven":1`, `"optional-total":2`, `"optional-attainable":1`,
-		`"mandatory-excluded":{"linux-limit":1}`, `"optional-excluded":{"linux-limit":1}`} {
+	for _, key := range []string{`"mandatory-proven":1`, `"mandatory-total":2`,
+		`"optional-proven":1`, `"optional-total":2`,
+		`"must":{"total":2,"kept":1,"ze-proven":1,"os-verified":0,"os-gap":0,"ze-gap":0,"not-owed":1,"not-owed-by-kind":{"linux-limit":1}}`,
+		`"should":{"total":2,"proven":1,"os-verified":0,"os-gap":0,"not-owed":1,"not-ever":0,"not-yet":0,"not-decided":0,"not-owed-by-kind":{"linux-limit":1}}`} {
 		if !strings.Contains(string(encoded), key) {
 			t.Errorf("JSON lacks %s: %s", key, encoded)
 		}
@@ -214,12 +221,15 @@ func TestALinuxLimitLowersTheCeilingAndNotTheFigure(t *testing.T) {
 	if err := json.Unmarshal(encoded, &decoded); err != nil {
 		t.Fatal(err)
 	}
-	mandatory, optional := decoded.CeilingCells()
-	if mandatory != "1 of 2 (50.0%)" || optional != mandatory {
-		t.Errorf("decoded ceiling cells = %q, %q", mandatory, optional)
+	if decoded.Sections == nil || !reflect.DeepEqual(*decoded.Sections, *row.Sections) {
+		t.Errorf("decoded sections = %+v, want %+v", decoded.Sections, row.Sections)
 	}
-	if !strings.Contains(report.Text(), "ceiling mandatory 1 of 2 (50.0%), optional 1 of 2 (50.0%)") {
-		t.Errorf("tree text lacks its measured ceiling:\n%s", report.Text())
+	want := "MUST 1 kept: Ze proven 1, OS verified 0, OS testing gap 0, Ze correctness gap 0; MUST not owed 1, linux-limit 1"
+	if !strings.Contains(report.Text(), want) {
+		t.Errorf("tree text lacks %q:\n%s", want, report.Text())
+	}
+	if strings.Contains(report.Text(), "ceiling") || strings.Contains(report.Text(), "%") {
+		t.Errorf("tree text still states a ceiling or a percentage:\n%s", report.Text())
 	}
 }
 
@@ -261,9 +271,11 @@ func TestCeilingPartitionsEveryAnnotation(t *testing.T) {
 	}
 }
 
-// TestTheRollupCeilingSumsWalkedMembersOnly checks unequal RFC sizes and all four
-// exclusion reasons against both profile aggregation and the site's row view.
-func TestTheRollupCeilingSumsWalkedMembersOnly(t *testing.T) {
+// TestTheRollupSectionsSumWalkedMembersOnly checks unequal RFC sizes and all
+// four exclusion reasons: a rollup sums the walked members' figures and
+// sections as counts, an unwalked member adds nothing, and the row view
+// publishes no sections for it.
+func TestTheRollupSectionsSumWalkedMembersOnly(t *testing.T) {
 	base := priorityFixture(t, nil)
 	requirements := []Requirement{
 		{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust, Annotation: &Annotation{Kind: AnnotationLinuxLimit}},
@@ -283,34 +295,22 @@ func TestTheRollupCeilingSumsWalkedMembersOnly(t *testing.T) {
 	want := Rollup{RFCs: 4, NotWalked: 1,
 		Mandatory: Figure{Total: 6, Attainable: 2, Excluded: map[string]int{
 			AnnotationLinuxLimit: 1, AnnotationLowerLayer: 1, AnnotationFeatureDeclined: 1, AnnotationNotApplicable: 1}},
-		Optional: Figure{Total: 2, Attainable: 1, Excluded: map[string]int{AnnotationLinuxLimit: 1}}}
+		Optional: Figure{Total: 2, Attainable: 1, Excluded: map[string]int{AnnotationLinuxLimit: 1}},
+		Sections: Sections{
+			Must: MustSections{Total: 6, Kept: 3, OSGap: 1, ZeGap: 2, NotOwed: 3, NotOwedByKind: map[string]int{
+				AnnotationLinuxLimit: 1, AnnotationFeatureDeclined: 1, AnnotationNotApplicable: 1}},
+			Should: ShouldSections{Total: 2, NotOwed: 1, NotDecided: 1,
+				NotOwedByKind: map[string]int{AnnotationLinuxLimit: 1}}}}
 	got := rollupOf(figures, []string{"rfc1", "rfc2", "rfc3", "rfc4"})
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("rollup = %+v, want %+v", got, want)
 	}
-	if text := got.Mandatory.CeilingString(); text != "2 of 6 (33.3%)" {
-		t.Errorf("weighted ceiling = %q, want 33.3%%, not the 20%% average of 0/1 and 2/5", text)
-	}
 	corpus := newPriorityCorpus(base.graph, base.profiles, base.metas, requirements, figures, nil)
-	rows := []*TreeRow{corpus.treeRow("rfc1", nil), corpus.treeRow("rfc2", nil),
-		corpus.treeRow("rfc3", nil), corpus.treeRow("rfc4", nil)}
-	summary := CeilingOf(rows)
-	if !reflect.DeepEqual(summary.Rollup, want) {
-		t.Errorf("view = %+v, want profile counts %+v", summary.Rollup, want)
+	if row := corpus.treeRow("rfc3", nil); row.Sections != nil || sectionsCell(row) != notWalked {
+		t.Errorf("unwalked row published sections %+v, cell %q", row.Sections, sectionsCell(row))
 	}
-	if summary.LowestMandatory == nil || *summary.LowestMandatory != (StemCeiling{Stem: "rfc1", Total: 1}) {
-		t.Errorf("lowest mandatory = %+v, want rfc1 at 0 of 1", summary.LowestMandatory)
-	}
-	if summary.LowestOptional == nil || *summary.LowestOptional != (StemCeiling{Stem: "rfc2", Total: 2, Attainable: 1}) {
-		t.Errorf("lowest optional = %+v, want rfc2 at 1 of 2", summary.LowestOptional)
-	}
-	mandatory, optional := rows[2].CeilingCells()
-	if mandatory != notWalked || optional != notWalked {
-		t.Errorf("unwalked ceiling cells = %q, %q", mandatory, optional)
-	}
-	mandatory, optional = rows[3].CeilingCells()
-	if mandatory != "no rows" || optional != "no rows" {
-		t.Errorf("empty ceiling cells = %q, %q", mandatory, optional)
+	if row := corpus.treeRow("rfc2", nil); row.Sections == nil || row.Sections.Must.Kept != 3 {
+		t.Errorf("walked row sections = %+v, want rfc2's 3 kept MUST rows", row.Sections)
 	}
 	// Aggregating the same source again must not mutate per-RFC exclusions.
 	if repeated := rollupOf(figures, []string{"rfc1", "rfc2", "rfc3", "rfc4"}); !reflect.DeepEqual(repeated, want) {
@@ -318,52 +318,34 @@ func TestTheRollupCeilingSumsWalkedMembersOnly(t *testing.T) {
 	}
 }
 
-// TestCeilingMinimumHasNoInventedMeasurement checks empty, unwalked and
-// summary-less views, then tied fractions in reverse RFC order.
-func TestCeilingMinimumHasNoInventedMeasurement(t *testing.T) {
-	rows := []*TreeRow{
-		{Stem: "rfc1", Summary: true, Walked: true},
-		{Stem: "rfc2", Summary: true, Mandatory: Figure{Total: 9}},
-		{Stem: "rfc3", Walked: true, Mandatory: Figure{Total: 9}},
+// TestSectionsCellHasNoInventedMeasurement checks that a summary-less row, an
+// unwalked row and a rollup with no rows name their state rather than print a
+// bar of zeros.
+func TestSectionsCellHasNoInventedMeasurement(t *testing.T) {
+	if cell := sectionsCell(&TreeRow{Stem: "rfc3", Walked: true, Mandatory: Figure{Total: 9}}); cell != noSummaryCell {
+		t.Errorf("summary-less cell = %q, want %q", cell, noSummaryCell)
 	}
-	summary := CeilingOf(rows)
-	if summary.LowestMandatory != nil || summary.LowestOptional != nil || summary.Mandatory.Total != 0 {
-		t.Fatalf("unmeasured view invented a ceiling: %+v", summary)
+	if cell := sectionsCell(&TreeRow{Stem: "rfc2", Summary: true, Mandatory: Figure{Total: 9}}); cell != notWalked {
+		t.Errorf("unwalked cell = %q, want %q", cell, notWalked)
 	}
-	if summary.Mandatory.CeilingString() != "no rows" || (Figure{}).CeilingString() != "no rows" {
-		t.Error("zero denominator invented a percentage")
-	}
-	mandatory, optional := rows[2].CeilingCells()
-	if mandatory != noSummaryCell || optional != noSummaryCell {
-		t.Errorf("summary-less cells = %q, %q", mandatory, optional)
-	}
-	tied := CeilingOf([]*TreeRow{
-		{Stem: "rfc10", Summary: true, Walked: true, Mandatory: Figure{Total: 4, Attainable: 2}},
-		{Stem: "rfc2", Summary: true, Walked: true, Mandatory: Figure{Total: 2, Attainable: 1}},
-	})
-	if tied.LowestMandatory == nil || tied.LowestMandatory.Stem != "rfc2" {
-		t.Errorf("tie = %+v, want rfc2 in RFC-number order", tied.LowestMandatory)
+	if text := (Rollup{RFCs: 1, NotWalked: 1}).String(); text != "no rows; 1 RFCs, 1 not walked" {
+		t.Errorf("empty rollup = %q, want no rows and its member counts", text)
 	}
 }
 
-// TestCeilingRenderingBoundaries checks no rows, fully attainable, fully
-// excluded and mixed figures without treating the ceiling as current proof.
-func TestCeilingRenderingBoundaries(t *testing.T) {
+// TestFigureRenderingBoundaries checks no rows, none proven and mixed proof
+// figures: a zero total renders no percentage.
+func TestFigureRenderingBoundaries(t *testing.T) {
 	for _, one := range []struct {
-		name    string
-		figure  Figure
-		ceiling string
-		proof   string
+		name   string
+		figure Figure
+		proof  string
 	}{
-		{"empty", Figure{}, "no rows", "no rows"},
-		{"none excluded", Figure{Total: 4, Attainable: 4}, "4 of 4 (100.0%)", "0 of 4 (0.0%)"},
-		{"all excluded", Figure{Total: 4}, "0 of 4 (0.0%)", "0 of 4 (0.0%)"},
-		{"mixed", Figure{Proven: 1, Total: 4, Attainable: 3}, "3 of 4 (75.0%)", "1 of 4 (25.0%)"},
+		{"empty", Figure{}, "no rows"},
+		{"none proven", Figure{Total: 4, Attainable: 4}, "0 of 4 (0.0%)"},
+		{"mixed", Figure{Proven: 1, Total: 4, Attainable: 3}, "1 of 4 (25.0%)"},
 	} {
 		t.Run(one.name, func(t *testing.T) {
-			if got := one.figure.CeilingString(); got != one.ceiling {
-				t.Errorf("ceiling = %q, want %q", got, one.ceiling)
-			}
 			if got := one.figure.String(); got != one.proof {
 				t.Errorf("proof = %q, want %q", got, one.proof)
 			}
@@ -371,26 +353,36 @@ func TestCeilingRenderingBoundaries(t *testing.T) {
 	}
 }
 
-// TestCeilingTextSeparatesExclusions renders both text paths and ensures an
-// unwalked row's retained raw counts never escape as measurements.
-func TestCeilingTextSeparatesExclusions(t *testing.T) {
-	row := &TreeRow{Stem: "rfc1", Summary: true, Walked: true, Mandatory: Figure{Total: 2, Attainable: 1, Excluded: map[string]int{AnnotationLinuxLimit: 1}}, Optional: Figure{Total: 3, Attainable: 1, Excluded: map[string]int{AnnotationLowerLayer: 2}}}
+// TestSectionsTextSeparatesNotOwedKinds renders both text paths and ensures
+// each not-owed kind and each OS row is named apart, and that an unwalked
+// row's retained raw counts never escape as measurements.
+func TestSectionsTextSeparatesNotOwedKinds(t *testing.T) {
+	figures := StemFigures{Stem: "rfc1", Walked: true,
+		Mandatory:     Figure{Total: 2, Attainable: 1, Excluded: map[string]int{AnnotationLinuxLimit: 1}},
+		Optional:      Figure{Total: 3, Attainable: 1, Excluded: map[string]int{AnnotationLowerLayer: 2}},
+		OptionalOSGap: 2, NotDecided: 1}
+	sections, err := SectionsOf("rfc1", &figures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := &TreeRow{Stem: "rfc1", Summary: true, StemFigures: figures, Sections: &sections}
 	report := TreeReport{Rows: []*TreeRow{row}}
-	summary := CeilingOf(report.Rows)
-	for label, text := range map[string]string{"tree": report.Text(), "rollup": summary.Rollup.String()} {
-		for _, phrase := range []string{"mandatory excluded: linux-limit 1", "optional excluded: lower-layer 2"} {
+	rollup := Rollup{RFCs: 1, Sections: sections}
+	for label, text := range map[string]string{"tree": report.Text(), "rollup": rollup.String()} {
+		for _, phrase := range []string{"MUST not owed 1, linux-limit 1", "Ze correctness gap 1",
+			"SHOULD 3: proven 0, OS verified 0, OS testing gap 2", "not decided 1", "SHOULD not owed 0"} {
 			if !strings.Contains(text, phrase) {
 				t.Errorf("%s text lacks %q: %s", label, phrase, text)
 			}
 		}
 	}
-	row.Walked = false
+	row.Walked, row.Sections = false, nil
 	text := report.Text()
-	if strings.Contains(text, "%") || strings.Contains(text, "excluded:") {
+	if strings.Contains(text, "%") || strings.Contains(text, "not owed") {
 		t.Errorf("unwalked raw counts escaped into text: %s", text)
 	}
-	if !strings.Contains(text, "ceiling mandatory not walked, optional not walked") {
-		t.Errorf("unwalked ceiling state missing: %s", text)
+	if !strings.Contains(text, "rfc1  not walked") {
+		t.Errorf("unwalked state missing: %s", text)
 	}
 }
 

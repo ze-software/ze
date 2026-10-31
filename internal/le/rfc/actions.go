@@ -178,15 +178,17 @@ var actions = leaction.New(area,
 			{Keyword: keyUnder, Kind: leaction.KindPath, Help: "the directory the proposal covers", Value: "dir", Requirement: leaction.Optional},
 		},
 		AnswerArgs: renameAnswer},
-	leaction.Action{Verb: "tree", Does: doesReport, Summary: "print the RFC dependency tree with both coverage figures",
+	leaction.Action{Verb: "tree", Does: doesReport, Summary: "print the RFC dependency tree with the section counts of both bars",
 		Why: "print the dependency graph of the RFC texts roots to leaves: one row per RFC or draft with its " +
-			"level, aggregate, builds-on and updated-by edges, and its mandatory and optional coverage " +
-			"figures (rows proven by a recorded break over rows owed, `not walked` without a valid extraction " +
-			"sign-off). Membership is declared by each summary in two tiers: its `Use cases` row names the " +
+			"level, aggregate, builds-on and updated-by edges, and its section counts: the MUST bar (Ze proven " +
+			"by a recorded break, OS verified, OS testing gap, Ze correctness gap, and their sum, the MUST rows " +
+			"kept), the MUST rows not owed by annotation kind, and the SHOULD states (proven, OS verified, " +
+			"OS testing gap, not ever, not yet, not decided, not owed by kind); `not walked` without a valid " +
+			"extraction sign-off, `no summary` for a text no summary covers. Membership is declared by each summary in two tiers: its `Use cases` row names the " +
 			"profiles that require it, its `Optional use cases` row those that list it without counting it. " +
 			"Without profile the rows a release profile requires come first, each naming both tiers. " +
 			"profile <name> limits it to one use-case profile's required members, with a rollup whose " +
-			"percentage counts the required tier only, then the optional members under their own rollup, " +
+			"section counts sum the required tier only, its walked members, then the optional members under their own rollup, " +
 			"then the candidates: RFCs one builds-on or updates edge from a member that no tier lists, which " +
 			"are never owed or counted. For an aggregate it lists the members naming it, then those whose " +
 			"`Aggregate tier` row is `optional` under their own rollup",

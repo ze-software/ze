@@ -22,8 +22,8 @@ const (
 	rfcDataIndexFile   = rfcDataDir + "/index.json"
 )
 
-// rfcStemData is data/rfc/<stem>.json: one RFC's section counts, read from
-// rfc.StemFiguresOf and never counted here.
+// rfcStemData is data/rfc/<stem>.json: one RFC's section counts, split by
+// rfc.SectionsOf from rfc.StemFiguresOf and never counted here.
 //
 // Must and Should are null for an RFC no walk bounded (Walked false): its
 // requirement list is a claim nobody checked against the RFC text, so it
@@ -44,46 +44,13 @@ type rfcStemData struct {
 	// Implemented is rfc.Implements over the summary, the ONE definition of
 	// an RFC Ze implements, so a page counts that population by summing this
 	// flag rather than restating the predicate.
-	Implemented bool             `json:"implemented"`
-	Must        *rfcMustCounts   `json:"must"`
-	Should      *rfcShouldCounts `json:"should"`
+	Implemented bool                `json:"implemented"`
+	Must        *rfc.MustSections   `json:"must"`
+	Should      *rfc.ShouldSections `json:"should"`
 	// ProvenByKind is rfc.StemFigures.MandatoryByKind: the Ze-proven MUST
 	// rows by the strongest kind of test covering each one.
 	ProvenByKind map[string]int `json:"proven-by-kind"`
 	Unmet        []string       `json:"unmet"`
-}
-
-// rfcMustCounts splits every MUST row Ze or the stack under it owes.
-//
-// Total is every counted MUST row. Kept is the MUST bar: the rows the stack
-// must keep for Ze to be RFC compliant, ZeProven + OSVerified + OSGap + ZeGap.
-// NotOwed is the rest (not applicable, declined, OS blocked), split by
-// annotation kind, so Kept + NotOwed is Total.
-type rfcMustCounts struct {
-	Total         int            `json:"total"`
-	Kept          int            `json:"kept"`
-	ZeProven      int            `json:"ze-proven"`
-	OSVerified    int            `json:"os-verified"`
-	OSGap         int            `json:"os-gap"`
-	ZeGap         int            `json:"ze-gap"`
-	NotOwed       int            `json:"not-owed"`
-	NotOwedByKind map[string]int `json:"not-owed-by-kind"`
-}
-
-// rfcShouldCounts splits every SHOULD / MAY row: proven, performed by a layer
-// under Ze (OS verified or OS gap, as a MUST row is), left out by an annotation
-// that says it does not bind Ze (NotOwed, by kind), or open and declared not
-// ever, not yet, or not at all (not decided). The seven add up to Total.
-type rfcShouldCounts struct {
-	Total         int            `json:"total"`
-	Proven        int            `json:"proven"`
-	OSVerified    int            `json:"os-verified"`
-	OSGap         int            `json:"os-gap"`
-	NotOwed       int            `json:"not-owed"`
-	NotEver       int            `json:"not-ever"`
-	NotYet        int            `json:"not-yet"`
-	NotDecided    int            `json:"not-decided"`
-	NotOwedByKind map[string]int `json:"not-owed-by-kind"`
 }
 
 // rfcBarSegment is one segment of a bar: the class name its color hangs on
@@ -292,12 +259,9 @@ func rfcStemDataFile(stem string) string { return rfcDataDir + "/" + stem + ".js
 // rfcProfileDataFile is the published path of one profile's file.
 func rfcProfileDataFile(name string) string { return rfcDataProfilesDir + "/" + name + ".json" }
 
-// rfcStemDataOf splits one RFC's figures into the bar counts.
-//
-// Every count is a field of rfc.StemFigures or a difference of two of them,
-// and the split is checked against the model's own totals: figures that do
-// not add back are refused by stem rather than drawn as a bar whose segments
-// disagree with its total.
+// rfcStemDataOf publishes one RFC's figures as the bar counts rfc.SectionsOf
+// splits them into. Figures that do not add back are refused by stem there,
+// rather than drawn as a bar whose segments disagree with its total.
 func rfcStemDataOf(stem, title string, figures rfc.StemFigures) (rfcStemData, error) {
 	out := rfcStemData{Stem: stem, Title: title, Walked: figures.Walked, Unmet: figures.Unmet}
 	if out.Unmet == nil {
@@ -306,126 +270,16 @@ func rfcStemDataOf(stem, title string, figures rfc.StemFigures) (rfcStemData, er
 	if !figures.Walked {
 		return out, nil
 	}
-	must, err := rfcMustCountsOf(stem, &figures)
+	sections, err := rfc.SectionsOf(stem, &figures)
 	if err != nil {
 		return rfcStemData{}, err
 	}
-	should, err := rfcShouldCountsOf(stem, &figures)
-	if err != nil {
-		return rfcStemData{}, err
-	}
-	out.Must, out.Should = must, should
+	out.Must, out.Should = &sections.Must, &sections.Should
 	out.ProvenByKind = figures.MandatoryByKind
 	if out.ProvenByKind == nil {
 		out.ProvenByKind = map[string]int{}
 	}
 	return out, nil
-}
-
-// rfcMustCountsOf splits the MUST figure. A row a layer under Ze performs
-// (traits OSMet) is OS verified or an OS gap, never "not owed"; every other
-// exclusion kind is not owed.
-func rfcMustCountsOf(stem string, figures *rfc.StemFigures) (*rfcMustCounts, error) {
-	mandatory := &figures.Mandatory
-	osByKind, notOwed, err := splitExcluded(stem, mandatory.Excluded)
-	if err != nil {
-		return nil, err
-	}
-	osRows := 0
-	for _, count := range osByKind {
-		osRows += count
-	}
-	if osRows != figures.OSVerified+figures.OSGap {
-		return nil, figuresRefusal(stem, "the OS verified and OS gap MUST rows (", figures.OSVerified+figures.OSGap,
-			") differ from the MUST rows a lower layer performs (", osRows)
-	}
-	if mandatory.Proven > mandatory.Attainable {
-		return nil, figuresRefusal(stem, "the Ze-proven MUST rows (", mandatory.Proven,
-			") exceed the MUST rows Ze's code owes (", mandatory.Attainable)
-	}
-	counts := &rfcMustCounts{
-		Total: mandatory.Total, ZeProven: mandatory.Proven, OSVerified: figures.OSVerified, OSGap: figures.OSGap,
-		ZeGap: mandatory.Attainable - mandatory.Proven, NotOwedByKind: notOwed,
-	}
-	for _, count := range notOwed {
-		counts.NotOwed += count
-	}
-	counts.Kept = counts.ZeProven + counts.OSVerified + counts.OSGap + counts.ZeGap
-	if counts.Kept+counts.NotOwed != counts.Total {
-		return nil, figuresRefusal(stem, "the MUST sections (", counts.Kept+counts.NotOwed,
-			") differ from the MUST rows counted (", counts.Total)
-	}
-	return counts, nil
-}
-
-// rfcShouldCountsOf splits the SHOULD / MAY figure as rfcMustCountsOf splits
-// the MUST one: a row a layer under Ze performs (traits OSMet) is OS verified
-// or an OS gap, never "not owed" (owner, 2026-10-31); every other exclusion
-// kind is not owed.
-func rfcShouldCountsOf(stem string, figures *rfc.StemFigures) (*rfcShouldCounts, error) {
-	optional := &figures.Optional
-	osByKind, notOwed, err := splitExcluded(stem, optional.Excluded)
-	if err != nil {
-		return nil, err
-	}
-	osRows := 0
-	for _, count := range osByKind {
-		osRows += count
-	}
-	if osRows != figures.OptionalOSVerified+figures.OptionalOSGap {
-		return nil, figuresRefusal(stem, "the OS verified and OS gap SHOULD rows (", figures.OptionalOSVerified+figures.OptionalOSGap,
-			") differ from the SHOULD rows a lower layer performs (", osRows)
-	}
-	counts := &rfcShouldCounts{Total: optional.Total, Proven: optional.Proven, OSVerified: figures.OptionalOSVerified,
-		OSGap: figures.OptionalOSGap, NotEver: figures.NotEver, NotYet: figures.NotYet, NotDecided: figures.NotDecided,
-		NotOwedByKind: notOwed}
-	for _, count := range notOwed {
-		counts.NotOwed += count
-	}
-	open := optional.Attainable - optional.Proven
-	if open != counts.NotEver+counts.NotYet+counts.NotDecided {
-		return nil, figuresRefusal(stem, "the not ever, not yet and not decided SHOULD rows (",
-			counts.NotEver+counts.NotYet+counts.NotDecided, ") differ from the open SHOULD rows (", open)
-	}
-	if counts.Proven+counts.OSVerified+counts.OSGap+counts.NotOwed+open != counts.Total {
-		return nil, figuresRefusal(stem, "the SHOULD sections (", counts.Proven+counts.OSVerified+counts.OSGap+counts.NotOwed+open,
-			") differ from the SHOULD rows counted (", counts.Total)
-	}
-	return counts, nil
-}
-
-// splitExcluded answers the excluded rows a lower layer performs (traits
-// OSMet) and the rest, each by annotation kind, so a second OSMet kind is
-// counted under its own name. A kind internal/le/rfc does not declare is
-// refused: its meaning is unknown, so no section can hold it.
-func splitExcluded(stem string, excluded map[string]int) (osRows, notOwed map[string]int, err error) {
-	osRows, notOwed = map[string]int{}, map[string]int{}
-	for kind, count := range excluded {
-		traits, known := rfc.AnnotationTraitsOf(kind)
-		if !known {
-			var tb textbuf.Buffer
-			return nil, nil, errors.New(tb.Str(stem).Str(": the figures exclude rows of annotation kind `").Str(kind).
-				Str("`, which internal/le/rfc does not declare, so no section of the RFC data can hold them. ").
-				Str("Declare the kind in annotationKinds (internal/le/rfc/rfc.go) or fix the summary, then rerun `./le site build`").String())
-		}
-		if traits.OSMet {
-			osRows[kind] += count
-			continue
-		}
-		notOwed[kind] += count
-	}
-	return osRows, notOwed, nil
-}
-
-// figuresRefusal names a stem whose figures do not add back to their totals.
-// It is a defect in rfc.StemFiguresOf, never in the summary, so the fix it
-// names is there.
-func figuresRefusal(stem, first string, got int, second string, want int) error {
-	var tb textbuf.Buffer
-	return errors.New(tb.Str(stem).Str(": ").Str(first).Int(int64(got)).Str(second).Int(int64(want)).
-		Str("), so the RFC data would publish a bar whose segments disagree with its total. ").
-		Str("This is a defect in rfc.StemFiguresOf (internal/le/rfc/profilecoverage.go): compare `./le rfc tree` for the stem, ").
-		Str("fix the partition, then rerun `./le site build`").String())
 }
 
 // rfcProfileDataOf answers one file per profile, use cases first and then

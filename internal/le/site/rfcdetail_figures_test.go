@@ -33,10 +33,10 @@ func rfcLedgerFixtureData(ledger rfcLedger) rfcData {
 		if row != nil && row.Walked {
 			stem.Walked = true
 			stem.ProvenByKind = map[string]int{}
-			stem.Must = &rfcMustCounts{Total: row.Mandatory.Total, Kept: row.Mandatory.Total,
+			stem.Must = &rfc.MustSections{Total: row.Mandatory.Total, Kept: row.Mandatory.Total,
 				ZeProven: row.Mandatory.Proven, ZeGap: row.Mandatory.Total - row.Mandatory.Proven,
 				NotOwedByKind: map[string]int{}}
-			stem.Should = &rfcShouldCounts{Total: row.Optional.Total, Proven: row.Optional.Proven,
+			stem.Should = &rfc.ShouldSections{Total: row.Optional.Total, Proven: row.Optional.Proven,
 				NotDecided: row.Optional.Total - row.Optional.Proven, NotOwedByKind: map[string]int{}}
 		}
 		enrolment := "enrolled"

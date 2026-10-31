@@ -493,23 +493,34 @@ or `{partial}` row stays in and is never proven either, because the summary
 itself says the obligation is unmet: that is what keeps a requirement only
 unreached code meets at 0%.
 
-Each figure also carries a CEILING: attainable rows over the same total, or
-`(Total - excluded) / Total`. The annotation declaration's `CeilingExcluded`
-trait excludes `{linux-limit}`, `{lower-layer}`, `{feature-declined}` and
-`{not-applicable}` from attainable rows, never from Total. Gaps and partials
-remain attainable future work. This ceiling describes current classifications,
-not an immutable platform limit: not-applicable and feature-declined decisions
-can be revisited. Each excluded kind has its own count so Linux limits are
-never hidden among classification decisions.
+Each figure also counts its ATTAINABLE rows, the rows Ze's code owes:
+`Total` less the rows excluded by kind. The annotation declaration's
+`CeilingExcluded` trait excludes `{linux-limit}`, `{lower-layer}`,
+`{feature-declined}` and `{not-applicable}` from attainable rows, never from
+Total. Gaps and partials remain attainable future work. Each excluded kind has
+its own count so Linux limits are never hidden among classification decisions.
 
-`Figure` JSON retains `proven` and `total`, adding `attainable` and `excluded`
-(positive counts keyed by annotation kind). Tree rows expose
-`mandatory-attainable`, `optional-attainable`, `mandatory-excluded` and
-`optional-excluded` beside the existing proof fields. `TreeRow.CeilingCells`
-renders these counts; `CeilingOf` sums walked rows and identifies the lowest
-nonempty mandatory and optional RFC ceilings. Equal ceilings choose numbered
-RFCs in numeric order before other stems, which sort by name. A zero total
-renders `no rows`, not 100%.
+`SectionsOf` (`sectioncounts.go`) splits a walked RFC's figures into the
+sections the two bars draw, and is the one split every surface reads. The MUST
+bar is Ze proven (the mandatory proven rows), OS verified and OS testing gap
+(the `{lower-layer}` rows, split by `OSVerified` and `OSGap`), and Ze
+correctness gap (attainable less proven); their sum is the MUST rows kept.
+Every other excluded kind is not owed, counted by kind, so kept plus not owed
+is the MUST total. The SHOULD sections are proven, OS verified, OS testing gap,
+not owed by kind, and the open rows by intent (not ever, not yet, not
+decided), which sum to the SHOULD total. `SectionsOf` refuses figures that do
+not add back, and `StemFiguresOf` runs it over every walked RFC, so no figure
+it answers can draw a bar that disagrees with its total. A rollup sums its
+walked members' sections as counts (`Rollup.Sections`).
+
+`./le rfc tree` publishes each row's sections under `sections` in its JSON,
+beside `walked`, `mandatory-proven`, `mandatory-total`, `optional-proven`,
+`optional-total`, `mandatory-by-kind` and `unmet`; a row with no summary or no
+walk publishes `sections: null`. A row read back from that JSON
+(`TreeRow.UnmarshalJSON`) holds the sections whole and the figures' proven and
+total counts; their attainable and excluded counts are published only inside
+the sections. No ceiling, lowest ceiling or proven percentage is printed by
+the tree (owner information-preservation approval, 2026-10-31).
 
 An RFC with no valid extraction sign-off renders `not walked` rather than a
 figure. Every RFC a profile lists has a summary (owner: "all RFC should have a
@@ -519,10 +530,10 @@ states how many are not walked. It is never complete while that count is
 above zero, nor while the set has no member: 0 of 0 measures nothing. A
 use-case profile's percentage is the rollup of its required tier alone; its
 optional tier carries a rollup of its own beside it.
-The same walked-only rule applies to ceilings and per-kind exclusion counts.
-Rollups sum counts before dividing, never average RFC percentages. An unwalked
-RFC publishes neither proof nor ceiling measurements; its raw JSON counts are
-retained under the existing `walked: false` convention.
+The same walked-only rule applies to the sections and per-kind exclusion
+counts. Rollups sum counts, never average RFC percentages. An unwalked RFC
+publishes no sections; its proven and total counts are retained under the
+existing `walked: false` convention.
 
 Beside the two figures, each RFC carries two derived facts (`StemFigures`).
 `MandatoryByKind` counts its proven mandatory rows by the strongest evidence
@@ -556,6 +567,7 @@ gated MUST of the RFCs Ze implements, walked or not, so their total is their
 own sum, and it exceeds the share's denominator by the rows of the unwalked
 RFCs.
 <!-- source: internal/le/rfc/profilecoverage.go -- figuresByStem, rowCounts, rollupOf, Rollup.mandatoryComplete, StemFiguresOf, figureEvidence -->
+<!-- source: internal/le/rfc/sectioncounts.go -- SectionsOf, sectionsOf, Sections.String -->
 <!-- source: internal/le/rfc/provenshare.go -- ProvenShareOf, Implements -->
 
 ### One declaration for annotation meaning
@@ -1571,13 +1583,15 @@ naming it, split by their `Aggregate tier` row: required unless it says
 answers the candidates.
 
 `./le rfc tree` prints one row per node, roots to leaves: level, cycle
-members, aggregate, `builds-on` and `updated-by` edges, both figures (or `not
-walked`, or `no summary` for a text no summary covers), the use-case profiles
+members, aggregate, `builds-on` and `updated-by` edges, its section counts
+(the MUST bar's Ze proven, OS verified, OS testing gap and Ze correctness gap
+with their sum, the MUST rows not owed by kind, then the SHOULD states), or
+`not walked`, or `no summary` for a text no summary covers, the use-case profiles
 requiring it and, under `optional-profiles`, those listing it as optional.
 Without `profile` it covers every text and summary, with the rows a release
 profile requires first. `profile <name>` limits it to that profile's required
 members, each with the declaration that put it there (`route-server: required
-by rfc/short/rfc7947.md`), under the rollup the profile percentage is. Then
+by rfc/short/rfc7947.md`), under the rollup of that tier's walked members. Then
 comes the optional tier, `optional members, not counted`, with its own rollup
 and rows (`route-server: optional in rfc/short/rfc2918.md`); an aggregate's
 optional tier is its members whose `Aggregate tier` is `optional`
@@ -1628,7 +1642,7 @@ per profile from them (`docs/contributing/gh-pages.md`, "Quality pages"). A row
 read back from that JSON renders its cells through `TreeRow.Cells`, the cells
 `./le rfc tree` prints.
 <!-- source: internal/le/rfc/priority.go -- useCaseScope, scope, path, loadPriorityCorpus, priorityCorpusOf -->
-<!-- source: internal/le/rfc/tree.go -- tree, treeRow, candidates, Cells -->
+<!-- source: internal/le/rfc/tree.go -- tree, treeRow, candidates, Cells, sectionsCell -->
 <!-- source: internal/le/rfc/priority_export.go -- PriorityOf -->
 <!-- source: internal/le/rfc/next.go -- next, gapCandidates, optionalGaps -->
 <!-- source: internal/le/rfc/check_core.go -- checkUpdatedByMembership -->

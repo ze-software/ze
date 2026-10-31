@@ -41,6 +41,11 @@ type TreeRow struct {
 	// It is promoted (row.Walked, row.Mandatory) and published through
 	// MarshalJSON, never by its own field names.
 	StemFigures `json:"-"`
+	// Sections is the stem's two bars (sectionsOf over StemFigures), nil for
+	// a node with no summary or an unwalked one, which publish no figure.
+	// MarshalJSON publishes it under `sections`, and a row read back from
+	// JSON holds it as published.
+	Sections *Sections `json:"-"`
 	// Profiles is the use-case profiles the node's summary is required by,
 	// and OptionalProfiles those listing it as optional.
 	Profiles         []string `json:"profiles"`
@@ -55,20 +60,18 @@ type TreeRow struct {
 type treeRowFields TreeRow
 
 // treeRowJSON is the published form of a TreeRow: its own keys, then the
-// figure keys the site and `./le rfc tree | json` read. OSVerified, OSGap,
-// NotYet, NotEver and NotDecided are not published yet, so a row decoded from
-// JSON holds them zero; no TreeRow method reads them.
+// figure keys the site and `./le rfc tree | json` read. The section counts are
+// published whole under `sections`; the figures' Attainable and Excluded, and
+// the OS and intent splits they come from, are not published apart, so a row
+// decoded from JSON holds them zero and no TreeRow method reads them.
 type treeRowJSON struct {
 	*treeRowFields
-	Walked              bool           `json:"walked"`
-	MandatoryProven     int            `json:"mandatory-proven"`
-	MandatoryTotal      int            `json:"mandatory-total"`
-	OptionalProven      int            `json:"optional-proven"`
-	OptionalTotal       int            `json:"optional-total"`
-	MandatoryAttainable int            `json:"mandatory-attainable"`
-	OptionalAttainable  int            `json:"optional-attainable"`
-	MandatoryExcluded   map[string]int `json:"mandatory-excluded"`
-	OptionalExcluded    map[string]int `json:"optional-excluded"`
+	Walked          bool      `json:"walked"`
+	MandatoryProven int       `json:"mandatory-proven"`
+	MandatoryTotal  int       `json:"mandatory-total"`
+	OptionalProven  int       `json:"optional-proven"`
+	OptionalTotal   int       `json:"optional-total"`
+	Sections        *Sections `json:"sections"`
 	// MandatoryByKind is the proven mandatory rows by the strongest evidence
 	// kind behind each, summing to MandatoryProven. Unmet is the ids the
 	// summary or an audit says are unmet, published walked or not.
@@ -85,9 +88,7 @@ func (r *TreeRow) MarshalJSON() ([]byte, error) {
 	return json.Marshal(treeRowJSON{treeRowFields: (*treeRowFields)(r), Walked: r.Walked,
 		MandatoryProven: r.Mandatory.Proven, MandatoryTotal: r.Mandatory.Total,
 		OptionalProven: r.Optional.Proven, OptionalTotal: r.Optional.Total,
-		MandatoryAttainable: r.Mandatory.Attainable, OptionalAttainable: r.Optional.Attainable,
-		MandatoryExcluded: r.Mandatory.Excluded, OptionalExcluded: r.Optional.Excluded,
-		MandatoryByKind: r.MandatoryByKind, Unmet: unmet})
+		Sections: r.Sections, MandatoryByKind: r.MandatoryByKind, Unmet: unmet})
 }
 
 // UnmarshalJSON reads a published row back, so its cells render as
@@ -98,11 +99,10 @@ func (r *TreeRow) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	r.StemFigures = StemFigures{Stem: r.Stem, Walked: wire.Walked,
-		Mandatory: Figure{Proven: wire.MandatoryProven, Total: wire.MandatoryTotal,
-			Attainable: wire.MandatoryAttainable, Excluded: wire.MandatoryExcluded},
-		Optional: Figure{Proven: wire.OptionalProven, Total: wire.OptionalTotal,
-			Attainable: wire.OptionalAttainable, Excluded: wire.OptionalExcluded},
+		Mandatory:       Figure{Proven: wire.MandatoryProven, Total: wire.MandatoryTotal},
+		Optional:        Figure{Proven: wire.OptionalProven, Total: wire.OptionalTotal},
 		MandatoryByKind: wire.MandatoryByKind, Unmet: wire.Unmet}
+	r.Sections = wire.Sections
 	return nil
 }
 
@@ -318,6 +318,10 @@ func (c *priorityCorpus) treeRow(stem string, useCases []profileScope) *TreeRow 
 		BuildsOn: append([]string{}, c.buildsOn[stem]...), UpdatedBy: append([]string{}, c.updaters[stem]...),
 		Summary: summarized, StemFigures: figures,
 		Profiles: []string{}, OptionalProfiles: []string{}}
+	if summarized && figures.Walked {
+		sections := sectionsOf(&figures)
+		row.Sections = &sections
+	}
 	if members, held := c.graph.Component(stem); held {
 		for _, member := range members {
 			if member != stem {
@@ -344,17 +348,6 @@ func (r *TreeRow) Cells() (mandatory, optional string) {
 		return noSummaryCell, noSummaryCell
 	}
 	return r.mandatoryCell(), r.optionalCell()
-}
-
-// CeilingCells answers ceiling cells with the same measurement boundary as Cells.
-func (r *TreeRow) CeilingCells() (mandatory, optional string) {
-	if !r.Summary {
-		return noSummaryCell, noSummaryCell
-	}
-	if !r.Walked {
-		return notWalked, notWalked
-	}
-	return r.Mandatory.CeilingString(), r.Optional.CeilingString()
 }
 
 // Text renders the tree, one line per node, for a reader at a terminal: the
@@ -404,20 +397,25 @@ func writeScopeRollup(tb *textbuf.Buffer, label string, rollup *ScopeRollup) {
 	tb.Byte('\n')
 }
 
+// sectionsCell renders the row's sections, or the state that publishes none:
+// `no summary` or `not walked`.
+func sectionsCell(row *TreeRow) string {
+	if !row.Summary {
+		return noSummaryCell
+	}
+	if row.Sections == nil {
+		return notWalked
+	}
+	return row.Sections.String()
+}
+
 // writeTreeRow renders one row and its path.
 func writeTreeRow(tb *textbuf.Buffer, row *TreeRow) {
-	mandatory, optional := row.Cells()
 	tb.Str("  ").Str(levelCell(row.Level)).Byte(' ').Str(row.Stem)
 	if len(row.Component) != 0 {
 		tb.Str(" (cycle with ").Str(strings.Join(row.Component, ", ")).Byte(')')
 	}
-	tb.Str("  mandatory ").Str(mandatory).Str(", optional ").Str(optional)
-	mandatoryCeiling, optionalCeiling := row.CeilingCells()
-	tb.Str("; ceiling mandatory ").Str(mandatoryCeiling).Str(", optional ").Str(optionalCeiling)
-	if row.Summary && row.Walked {
-		writeFigureExclusions(tb, "mandatory", row.Mandatory)
-		writeFigureExclusions(tb, "optional", row.Optional)
-	}
+	tb.Str("  ").Str(sectionsCell(row))
 	if row.Aggregate != "" {
 		tb.Str("  [").Str(row.Aggregate).Byte(']')
 	}

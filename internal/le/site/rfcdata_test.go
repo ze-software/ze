@@ -59,11 +59,11 @@ func TestPerRFCDataCountsEverySegment(t *testing.T) {
 	}
 	want := rfcStemData{
 		Stem: "rfc9999", Title: "Widgets", Walked: true,
-		Must: &rfcMustCounts{
+		Must: &rfc.MustSections{
 			Total: 20, Kept: 14, ZeProven: 3, OSVerified: 2, OSGap: 3, ZeGap: 6, NotOwed: 6,
 			NotOwedByKind: map[string]int{rfc.AnnotationNotApplicable: 4, rfc.AnnotationFeatureDeclined: 2},
 		},
-		Should: &rfcShouldCounts{
+		Should: &rfc.ShouldSections{
 			Total: 13, Proven: 1, OSVerified: 1, OSGap: 2, NotOwed: 2, NotEver: 1, NotYet: 2, NotDecided: 4,
 			NotOwedByKind: map[string]int{rfc.AnnotationNotApplicable: 2},
 		},
@@ -290,11 +290,11 @@ func TestDataIndexAndFilesAgree(t *testing.T) {
 	if !got.Walked || got.Must == nil || got.Should == nil {
 		t.Fatalf("the walked stem published no counts: %+v", got)
 	}
-	wantMust := rfcMustCounts{Total: 1, Kept: 1, ZeGap: 1, NotOwedByKind: map[string]int{}}
+	wantMust := rfc.MustSections{Total: 1, Kept: 1, ZeGap: 1, NotOwedByKind: map[string]int{}}
 	if !reflect.DeepEqual(*got.Must, wantMust) {
 		t.Errorf("published MUST counts\n got: %+v\nwant: %+v", *got.Must, wantMust)
 	}
-	wantShould := rfcShouldCounts{NotOwedByKind: map[string]int{}}
+	wantShould := rfc.ShouldSections{NotOwedByKind: map[string]int{}}
 	if !reflect.DeepEqual(*got.Should, wantShould) {
 		t.Errorf("published SHOULD counts\n got: %+v\nwant: %+v", *got.Should, wantShould)
 	}
@@ -432,44 +432,5 @@ func TestTheBarLayoutGoldenIsCurrent(t *testing.T) {
 		t.Fatalf("%s is stale: rfcBars or the per-RFC file changed, so the browser test draws an old layout.\n"+
 			"Refresh it with: ./le job run label unit-pkg command go test -run TestTheBarLayoutGoldenIsCurrent ./internal/le/site/ -args -update\n"+
 			" got: %s\nwant: %s", rfcBarsGolden, got, want)
-	}
-}
-
-// TestSplitExcludedKeepsTheOSRowsByKind proves splitExcluded answers the rows a
-// lower layer performs by their own annotation kind, apart from the rows not
-// owed, and that a SHOULD file counts those rows OS verified or OS gap, never
-// not owed (owner, 2026-10-31), while every other kind stays not owed.
-//
-// Method: one lower-layer and one not-applicable count; then the SHOULD split
-// of figures whose optional exclusions hold both.
-func TestSplitExcludedKeepsTheOSRowsByKind(t *testing.T) {
-	osRows, notOwed, err := splitExcluded("rfc9999", map[string]int{
-		rfc.AnnotationLowerLayer: 5, rfc.AnnotationNotApplicable: 4,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(osRows, map[string]int{rfc.AnnotationLowerLayer: 5}) {
-		t.Errorf("OS rows by kind: %v", osRows)
-	}
-	if !reflect.DeepEqual(notOwed, map[string]int{rfc.AnnotationNotApplicable: 4}) {
-		t.Errorf("not-owed rows by kind: %v", notOwed)
-	}
-	figures := fixtureFigures()
-	figures.Optional = rfc.Figure{Proven: 1, Total: 10, Attainable: 5, Excluded: map[string]int{
-		rfc.AnnotationNotApplicable: 2, rfc.AnnotationLowerLayer: 3,
-	}}
-	figures.NotYet, figures.NotEver, figures.NotDecided = 2, 1, 1
-	figures.OptionalOSVerified, figures.OptionalOSGap = 1, 2
-	should, err := rfcShouldCountsOf("rfc9999", &figures)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := map[string]int{rfc.AnnotationNotApplicable: 2}
-	if should.NotOwed != 2 || !reflect.DeepEqual(should.NotOwedByKind, want) {
-		t.Errorf("SHOULD not owed %d by kind %v, want 2 by kind %v: a lower-layer row is never not owed", should.NotOwed, should.NotOwedByKind, want)
-	}
-	if should.OSVerified != 1 || should.OSGap != 2 {
-		t.Errorf("SHOULD OS verified %d and OS gap %d, want 1 and 2", should.OSVerified, should.OSGap)
 	}
 }

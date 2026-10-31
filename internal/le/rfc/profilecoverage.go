@@ -1,6 +1,6 @@
 // Design: docs/contributing/rfc-conformance-gates.md -- coverage figures per RFC, profile and aggregate
 // Related: profile.go -- the profiles and aggregates these figures roll up over
-// Related: provenshare.go -- the denominator rule these figures share (owner ruling, 2026-09-02)
+// Related: sectioncounts.go -- the split of these figures into the two bars' sections
 //
 // profilecoverage.go answers the two coverage figures the owner rule of
 // 2026-10-25 orders RFC work by: a MANDATORY figure over the gated levels and
@@ -69,17 +69,6 @@ func (f Figure) String() string {
 	}
 	return tb.Int(int64(f.Proven)).Str(" of ").Int(int64(f.Total)).Str(" (").
 		Float(100*float64(f.Proven)/float64(f.Total), 1).Str("%)").String()
-}
-
-// CeilingString renders attainable rows without changing the proof figure.
-// Zero rows measure nothing, so they carry no percentage.
-func (f Figure) CeilingString() string {
-	var tb textbuf.Buffer
-	if f.Total == 0 {
-		return "no rows"
-	}
-	return tb.Int(int64(f.Attainable)).Str(" of ").Int(int64(f.Total)).Str(" (").
-		Float(100*float64(f.Attainable)/float64(f.Total), 1).Str("%)").String()
 }
 
 // StemFigures is one RFC's two figures.
@@ -176,7 +165,20 @@ func StemFiguresOf(in *RenderInput) (map[string]StemFigures, error) {
 	}
 	evidence := figureEvidence{tags: tagsByRID(in.Tags), carriers: in.Carriers, audits: in.Audits,
 		osProofs: osProofsOf(in.Discrimination)}
-	return figuresByStem(in.Requirements, stems, walked, provenRequirements(in.Discrimination), evidence), nil
+	figures := figuresByStem(in.Requirements, stems, walked, provenRequirements(in.Discrimination), evidence)
+	// Every walked RFC's figures must split into the two bars' sections, so
+	// a rollup or a row can sum and print them (sectionsOf) without a check
+	// of its own.
+	for stem := range figures {
+		one := figures[stem]
+		if !one.Walked {
+			continue
+		}
+		if _, err := SectionsOf(stem, &one); err != nil {
+			return nil, err
+		}
+	}
+	return figures, nil
 }
 
 // figureEvidence is what the figures read beside the proof set: the tags that
@@ -239,13 +241,12 @@ func (e figureEvidence) unmet(requirement *Requirement) bool {
 // proven is provenRequirements over the tree's verdicts. evidence classifies
 // each proven mandatory row by kind and names the unmet rows.
 //
-// Which rows count, by annotation, is the same row partition as ProvenShareOf
-// (provenshare.go, owner ruling 2026-09-02), proven only by a verified record:
+// Which rows count, by annotation (owner ruling 2026-09-02), proven only by a
+// verified record:
 //   - `{rollup}` is out of both sides: it carries no obligation of its own.
 //   - `{single-polarity}` is the one annotation that can be proven: its
 //     annotation records why the other side has no input, and the row is
-//     proven only when a verified record proves its one side, here and in
-//     ProvenShareOf, which sums these figures.
+//     proven only when a verified record proves its one side.
 //   - `{not-applicable}`, `{lower-layer}`, `{feature-declined}` and
 //     `{linux-limit}` stay in the denominator and are never proven by Ze,
 //     whatever records their tags carry: annotating a row may not raise its figure.
@@ -451,11 +452,15 @@ type Rollup struct {
 	NotWalked int    `json:"not-walked"`
 	Mandatory Figure `json:"mandatory"`
 	Optional  Figure `json:"optional"`
+	// Sections is the walked members' section counts summed (sectionsOf),
+	// the two bars `./le rfc tree` and `./le rfc next` print.
+	Sections Sections `json:"sections"`
 }
 
 // rollupOf sums the figures of members. Only walked members contribute rows:
 // an unwalked list is unbounded, so its rows would make the figure a
-// measurement of the list.
+// measurement of the list. Each member's sections come from sectionsOf, which
+// StemFiguresOf has already checked for every walked RFC.
 func rollupOf(figures map[string]StemFigures, members []string) Rollup {
 	out := Rollup{}
 	for _, stem := range members {
@@ -467,6 +472,8 @@ func rollupOf(figures map[string]StemFigures, members []string) Rollup {
 		}
 		out.Mandatory.add(one.Mandatory)
 		out.Optional.add(one.Optional)
+		sections := sectionsOf(&one)
+		out.Sections.add(&sections)
 	}
 	return out
 }
@@ -484,94 +491,16 @@ func (r Rollup) mandatoryComplete() bool {
 	return r.Mandatory.Proven == r.Mandatory.Total
 }
 
-// String renders the rollup with its count of members that add no rows.
+// String renders the rollup's sections with its count of members that add no
+// rows. A set no walked member adds a row to renders `no rows`: 0 of 0 is
+// neither complete nor empty, and a bar of zeros would read as a measurement.
 func (r Rollup) String() string {
 	var tb textbuf.Buffer
-	tb.Str("mandatory ").Str(r.Mandatory.String()).Str(", optional ").Str(r.Optional.String())
-	tb.Str("; ceiling mandatory ").Str(r.Mandatory.CeilingString()).
-		Str(", optional ").Str(r.Optional.CeilingString())
-	writeFigureExclusions(&tb, "mandatory", r.Mandatory)
-	writeFigureExclusions(&tb, "optional", r.Optional)
+	if r.Sections.Must.Total+r.Sections.Should.Total == 0 {
+		tb.Str("no rows")
+	} else {
+		tb.Str(r.Sections.String())
+	}
 	tb.Str("; ").Int(int64(r.RFCs)).Str(" RFCs, ").Int(int64(r.NotWalked)).Str(" not walked")
 	return tb.String()
-}
-
-// StemCeiling names a measured RFC ceiling; zero-total RFCs have no such minimum.
-type StemCeiling struct {
-	Stem       string `json:"stem"`
-	Attainable int    `json:"attainable"`
-	Total      int    `json:"total"`
-}
-
-// String renders this ceiling with the same arithmetic as its source figure.
-func (s StemCeiling) String() string {
-	return (Figure{Attainable: s.Attainable, Total: s.Total}).CeilingString()
-}
-
-// CeilingSummary carries a view's walked-only sums and lowest measured ceilings.
-type CeilingSummary struct {
-	Rollup
-	LowestMandatory *StemCeiling `json:"lowest-mandatory"`
-	LowestOptional  *StemCeiling `json:"lowest-optional"`
-}
-
-// CeilingOf sums a view's distinct RFC rows. Callers MUST supply each RFC once.
-// Unwalked and summary-less rows contribute no measurements. Minima exclude
-// empty figures, and ties choose RFC-number order rather than input order.
-func CeilingOf(rows []*TreeRow) CeilingSummary {
-	var out CeilingSummary
-	for _, row := range rows {
-		out.RFCs++
-		if !row.Summary {
-			out.NotWalked++
-			continue
-		}
-		if !row.Walked {
-			out.NotWalked++
-			continue
-		}
-		figures := row.StemFigures
-		out.Mandatory.add(figures.Mandatory)
-		out.Optional.add(figures.Optional)
-		out.LowestMandatory = lowerCeiling(out.LowestMandatory, row.Stem, figures.Mandatory)
-		out.LowestOptional = lowerCeiling(out.LowestOptional, row.Stem, figures.Optional)
-	}
-	return out
-}
-
-// lowerCeiling keeps the lowest nonempty fraction without percentage rounding.
-func lowerCeiling(current *StemCeiling, stem string, figure Figure) *StemCeiling {
-	if figure.Total == 0 {
-		return current
-	}
-	if current != nil {
-		left := int64(figure.Attainable) * int64(current.Total)
-		right := int64(current.Attainable) * int64(figure.Total)
-		if left > right {
-			return current
-		}
-		if left == right && statusRowCompare(stem, current.Stem) >= 0 {
-			return current
-		}
-		current.Stem, current.Attainable, current.Total = stem, figure.Attainable, figure.Total
-		return current
-	}
-	return &StemCeiling{Stem: stem, Attainable: figure.Attainable, Total: figure.Total}
-}
-
-// writeFigureExclusions exposes each declared classification separately.
-func writeFigureExclusions(tb *textbuf.Buffer, label string, figure Figure) {
-	if len(figure.Excluded) == 0 {
-		return
-	}
-	tb.Str("; ").Str(label).Str(" excluded: ")
-	separator := ""
-	for _, kind := range AnnotationKinds() {
-		count := figure.Excluded[kind]
-		if count == 0 {
-			continue
-		}
-		tb.Str(separator).Str(kind).Byte(' ').Int(int64(count))
-		separator = ", "
-	}
 }
