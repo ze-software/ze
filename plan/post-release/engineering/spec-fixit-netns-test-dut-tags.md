@@ -209,6 +209,12 @@ report a failure no test can cause is worse than a vehicle that refuses to run.
 - Does not address QEMU targets; `ZE_QEMU_DUT_TAGS` (`internal/le/integration/gates.go`)
   already includes `zetest` and is unaffected.
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `test-gate-repeats-expensive-work.md` | 2026-10-31 | `le test fixture` child stalls 27s in the netns OSPF suite |
+
 ## Checklist
 
 - [ ] Tests written
