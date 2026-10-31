@@ -99,7 +99,7 @@ MUST NOT edit those tests.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc9252.md` - `RFC9252-5-1`, `RFC9252-5-2`, and the `## Meta` Support rows
-  → Constraint: the `{gap}` annotation on `RFC9252-5-2` and the `Support remaining` paragraph both name this gap, and both are rewritten when the behavior exists
+  → Constraint: the `{gap}` annotation on `RFC9252-5-2` names this gap, and the derived Unmet cell lists it until tagged tests replace the annotation when the behavior exists
 - [ ] `rfc/full/rfc9252.txt` Sections 5, 6 and 7 - the authoritative sentences
   → Constraint: the same MUST appears in Section 5 (L3) and Section 6 (EVPN), so the check binds every family carrying a Service SID
 - [ ] `docs/contributing/rfc-conformance-gates.md` - what a new tag owes
@@ -285,8 +285,7 @@ MUST NOT edit those tests.
 - `docs/architecture/plugin/rib-storage-design.md` - declared by three of the files above; document the resolvability filter and the re-evaluation worker
 - `docs/architecture/core-design.md` - declared by `sysrib.go` and by the new seam; document the reachability seam beside the IGP cost seam
 - `docs/features/srv6.md` - correct the resolvability row, which currently publishes the FIB-time check as the Section 5 behavior, and fix the `IsSRv6Ineligible()` casing
-- `rfc/short/rfc9252.md` - `RFC9252-5-2` loses its `{gap}`, and the `## Meta` `Support remaining` paragraph drops it from the gap list
-
+- `rfc/short/rfc9252.md` - `RFC9252-5-2` loses its `{gap}`
 ## Files to Create
 - `internal/core/rib/reachable/reachable.go` - the leaf seam: a `Func` type, `Set` for the producer, and a `Lookup` returning both the verdict and whether a producer exists
 - `internal/core/rib/reachable/reachable_test.go` - the seam's own tests

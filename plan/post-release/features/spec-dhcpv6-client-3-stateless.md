@@ -152,7 +152,7 @@ RFC9915-21.23-1, -5, -6, -7, RFC9915-21.25-2, -3, -4.
 | AC-13 | `stateless true` beside `pd { }` | the commit is refused with a message naming both and saying to remove one |
 | AC-14 | stateful worker | Solicit, Request, Renew and Rebind ORO unchanged and never carry Information Refresh Time (RFC9915-21.23-2 still proven) |
 | AC-15 | Stop of a stateless worker | resolvers cleared, no message sent |
-| AC-16 | the 12 rows | no `{gap}`; each a positive and a negative tagged test with a discrimination record; RFC9915-21.7-1 gains an Information-request case; `Support remaining` lowered by 12, Information-request removed from its list |
+| AC-16 | the 12 rows | no `{gap}`; each a positive and a negative tagged test with a discrimination record; RFC9915-21.7-1 gains an Information-request case; the derived Unmet cell of the RFC 9915 row names none of the 12 ids |
 
 ## End-to-End User Stories
 

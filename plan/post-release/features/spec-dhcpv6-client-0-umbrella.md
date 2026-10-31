@@ -71,7 +71,7 @@ Information-request, which child 3 builds.
 - [ ] `docs/contributing/rfc-conformance-gates.md` - "The feature-declined annotation", `checkGapCountAgreement`, "Proof is monotonic"
   → Decision: `{feature-declined}` requires that "Ze declined X"; after the owner's 2026-10-19 decision that fact is false for these four features, so the rows become `{gap}` (an unconditional or now-binding obligation ze does not meet)
   → Constraint: a `{gap}` row carries no `positive` or `negative` tag; each feature child removes the `{gap}` and adds both polarities with a discrimination record (`./le rfc record`)
-  → Constraint: the `Support remaining` cell's spelled number before MUST must equal the `{gap}` plus `{partial}` rows (`spelledGapCount`, `internal/le/rfc/check_status.go`); every child that closes gaps rewrites that number
+  → Constraint: the derived Unmet cell of the RFC 9915 public row lists every `{gap}` and `{partial}` row (`unmetCell`, `internal/le/rfc/render_ledger.go`); a child that closes gaps changes it only through those rows, and no summary cell is rewritten
 - [ ] `docs/architecture/testing/interop.md` - Kea row (`kea-dhcp6.conf`, `test/interop/Dockerfile.kea`)
   → Constraint: the Kea image is Alpine 3.21 `kea-dhcp6` 2.6.2; scenarios are named, never numbered
 
@@ -170,7 +170,7 @@ Information-request, which child 3 builds.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | child 1 committed | the 23 rows carry `{gap}`, `./le rfc check` passes |
-| AC-2 | children 2, 3, 4 closed | none of the 23 rows carries `{gap}`; each carries a positive and a negative test with a discrimination record, and `Support remaining` no longer lists Confirm, Information-request, Reconfigure or the Authentication option |
+| AC-2 | children 2, 3, 4 closed | none of the 23 rows carries `{gap}`; each carries a positive and a negative test with a discrimination record, and the derived Unmet cell of the RFC 9915 row names none of the 23 ids |
 | AC-3 | every child closed | `docs/features/interfaces.md` describes Confirm, stateless mode and Reconfigure as the code does |
 
 ## End-to-End User Stories

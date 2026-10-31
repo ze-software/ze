@@ -65,7 +65,7 @@ its producer at HEAD before writing the design.
   → Constraint: [specific rule from the doc that applies here]
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfc9494.md` - rows RFC9494-4.2-7, RFC9494-4.2-9, RFC9494-4.2-10 and the `Support remaining` row
+- [ ] `rfc/short/rfc9494.md` - rows RFC9494-4.2-7, RFC9494-4.2-9, RFC9494-4.2-10
   → Constraint: RFC scope is frozen (owner, 2026-10-08): these rows are in an enrolled summary, so fixing them is in scope; no new row or summary is added
 - [ ] `plan/release/fixes/spec-bgp-graceful-restart-rfc-defects.md` - D2 and its `onSessionReestablished` design, the `llgrFamilies` capture before `stopLLSTTimersLocked`
   → Constraint: [shared-function constraint, filled at design]
@@ -203,7 +203,7 @@ its producer at HEAD before writing the design.
      referenced architecture doc describes, list that doc here too. -->
 - `internal/component/bgp/plugins/gr/gr_state.go` - [feature changes]
 - `internal/component/bgp/plugins/gr/gr.go` - [feature changes]
-- `rfc/short/rfc9494.md` - the three `{gap}` rows and the `Support remaining` row
+- `rfc/short/rfc9494.md` - the three `{gap}` rows
 
 ## Files to Create
 - `internal/...` - [new feature file]

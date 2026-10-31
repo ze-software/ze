@@ -225,11 +225,12 @@ in a commit.
 - Re-check an annotation's source and evidence rather than accepting its author's claim.
   Report implemented-tested, implemented-unverified, and unimplemented behavior separately.
   Full RFC support is the long-term goal, not an automatic audit acceptance criterion.
-- A `{gap}` must still be disclosed on the public row. Edit `Support status` or `Support
-  remaining` in that summary's `## Meta` table and run `./le rfc update`:
-  `docs/features/rfc-status.md` is generated from those rows and a hand edit to it is lost.
-  The gate checks that the row is not claiming clean support, but only a reader can tell
-  whether it says enough.
+- An unmet obligation is disclosed only as an annotated requirement row (`{gap}`,
+  `{partial}`, `{linux-limit}`). The public row is derived from those rows: its Unmet cell
+  lists them, `./le rfc tree` prints its coverage figures and `./le rfc update`
+  renders it into `docs/features/rfc-status.md`, where a hand edit is lost. The gate refuses an unmet row
+  on an enrolled RFC that renders no public row, but only a reader can tell whether the
+  annotation's reason says enough.
 
 ## Related
 

@@ -305,7 +305,7 @@ adds a NAMED scenario and does not extend the numbered set.
 - `internal/component/l2tp/pppoe/server.go` - set the fields on `StartSession`
 - `internal/le/interoplab/l2tp/l2tp.go` - register the new scenario name and its checker
 - `test/interop-l2tp/Dockerfile.lac` - the packet-filter and packet-count tools the new scenario runs (A-3)
-- `rfc/short/rfc1661.md` - five checklist rows from `{gap}` to test bindings, and the `Support remaining` row
+- `rfc/short/rfc1661.md` - five checklist rows from `{gap}` to test bindings
 - `docs/guide/l2tp.md` - the `lcp` container block and its hot-apply table rows
 - `docs/guide/pppoe.md` - the same container on the PPPoE page
 - `docs/research/l2tpv2-ze-integration.md` - declared by `start_session.go`; the transport-to-PPP boundary gains four fields
@@ -368,7 +368,7 @@ counted backlog rather than blocked.
 Two consequences decide what this spec must do, and the first corrects the premise
 this spec was commissioned under:
 
-1. **The summary already declares all five obligations.** `rfc/short/rfc1661.md` carries `RFC1661-4.6-1` through `4.6-4` and `RFC1661-4.4-2` as `[MUST]` checklist rows with `{gap:}` reasons that name the producing symbols, and its `Support remaining` row lists them as gated gap group (7). The obligations are visible on the public ledger today. What is missing is the implementation and its proof, not the declaration. The homelessness this spec fixes is that no SPEC owns the work.
+1. **The summary already declares all five obligations.** `rfc/short/rfc1661.md` carries `RFC1661-4.6-1` through `4.6-4` and `RFC1661-4.4-2` as `[MUST]` checklist rows with `{gap:}` reasons that name the producing symbols, and the derived Unmet cell of its public row lists them. The obligations are visible on the public ledger today. What is missing is the implementation and its proof, not the declaration. The homelessness this spec fixes is that no SPEC owns the work.
 2. **The extraction sign-off is NOT a precondition of this spec.** The sign-off gates a NEW enrolment, and `rfc1661` enrolled before that gate existed. `checkExtractionRatchet` compares a stem against its own HEAD row, and this stem has no baseline, so nothing here is blocked on it. Writing `rfc/extraction/rfc1661.json` is separate work on the corpus-wide drain schedule in `rfc/drain-budget.txt`, and this spec MUST NOT attempt it as a side effect: a walk of a 60-page RFC done to unblock five requirements is the quota-driven signature that schedule exists to prevent.
 
 The summary edits this spec owes:
@@ -380,7 +380,7 @@ The summary edits this spec owes:
 | `RFC1661-4.6-3` | the same |
 | `RFC1661-4.6-4` | the same |
 | `RFC1661-4.4-2` | the same |
-| `Support remaining` | gap group (7) deleted, and the count "Twenty-four MUST gaps" becomes nineteen |
+| Derived Unmet cell | the five ids leave it; no summary cell is edited |
 | `Enrolment reason`, in both `rfc/short/rfc1661.md` and `rfc/enrolled.txt` | the "no configurable Restart timer / Max-Terminate / Max-Configure / Max-Failure, zrc no-op" clause moves out of the gap list |
 
 `rfc/requirements/rfc1661.md`, `ai/RFC-REQUIREMENTS.md` and the

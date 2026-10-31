@@ -181,7 +181,7 @@ at all") stops being true.
 | AC-13 | the device's link-local address changes while accepting | the link reopens on the new address and a Renew starts before T1 (RFC9915-18.2.4-2) |
 | AC-14 | `reconfigure-accept` false or absent | today's behavior: a Reconfigure is discarded, the link closes after each exchange, `TestDHCPv6LinkOneDatagramPerExchange` unchanged |
 | AC-15 | any log line of this feature | never carries the key or an HMAC value |
-| AC-16 | the 11 rows | the seven `{gap}` rows and the four `{single-polarity}` rows carry a positive and a negative tagged test each, with discrimination records; `Support remaining` count lowered by seven, Reconfigure and the Authentication option removed from its list |
+| AC-16 | the 11 rows | the seven `{gap}` rows and the four `{single-polarity}` rows carry a positive and a negative tagged test each, with discrimination records; the derived Unmet cell of the RFC 9915 row names none of the seven former `{gap}` ids |
 
 ## End-to-End User Stories
 

@@ -86,7 +86,7 @@ The governing policy is `ai/rules/points/go-standards/directives/preserve-validi
 
 ### RFC Summaries
 
-- [ ] `rfc/short/rfc7296.md`, including the current Support and Support remaining rows.
+- [ ] `rfc/short/rfc7296.md`, including the current Support and Support area rows.
   → Constraint: preserve DH input refusal, selector narrowing and the disclosed OPAQUE limitation. No Support row or RFC verdict is promoted by this representation migration. Read each affected enforcing requirement before an implementation changes its carrier.
 
 **Key insights:** validation is a property of a value at a use site, including its aliases and lifetime. A successful constructor proves only what it checked. Parsed config can still lack valid references. A finite local category can already be safe without a public constructor. Go cannot make a transition consume every copy of its input.

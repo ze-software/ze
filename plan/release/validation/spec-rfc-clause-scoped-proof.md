@@ -133,7 +133,7 @@ No extraction schema, site id, inventory algorithm or exclusion kind changes. A 
 
 For RFC9514, retain sites 7.2:2/3 mapped to -2/3 and -5/6 in §7.2 UnsourcedIDs. The later ledger author corrects the section reason to say -5/6 retain the whole sentences with receipt-scoped evidence and an explicit origination gap; it must no longer imply they contain only the receipt half. Keep register, site counts, exclusions and all existing ids unchanged. The independent extraction review must not claim a new full walk merely because a reason changed.
 
-The later ledger application records dated Correction paragraphs for -5/6 describing the scope annotation, quoting the whole RFC sentence and citing owner decision 10. It does not retire -2/3, deduplicate requirements, relevel rows or move tests. Those are separate semantic changes not authorized by this representation. Support status remains Partial; Support remaining names the absent native SRv6 BGP EPE originator. Preserve the four existing -5/6 discrimination records byte-for-byte when their native verification still establishes matching claims/units/producers; stale records are re-recorded natively, not deleted. No RFC9514 file changes belong to this design author.
+The later ledger application records dated Correction paragraphs for -5/6 describing the scope annotation, quoting the whole RFC sentence and citing owner decision 10. It does not retire -2/3, deduplicate requirements, relevel rows or move tests. Those are separate semantic changes not authorized by this representation. The absent native SRv6 BGP EPE originator stays disclosed by its `{gap}` rows, which the derived Unmet cell lists. Preserve the four existing -5/6 discrimination records byte-for-byte when their native verification still establishes matching claims/units/producers; stale records are re-recorded natively, not deleted. No RFC9514 file changes belong to this design author.
 
 ## Data Flow
 
@@ -162,7 +162,7 @@ The later ledger application records dated Correction paragraphs for -5/6 descri
 | ID | Assumption | Basis | If wrong | Validation | Status |
 |----|------------|-------|----------|------------|--------|
 | A-1 | One tested scope per parent suffices | Both target ids carry receipt-only claims in TestRFC9514PeerNodeSIDReservedIgnored | Per-tag assignments would need a larger approved model | Independent judge reads every current tag before migration | confirmed for current tag prose; judgment owed |
-| A-2 | Native SRv6 BGP EPE origination is absent | Owner decision 10; current Support remaining; c35-author producer investigation | Gap no longer describes current code | Ledger author/judge re-read native EPE producer at application | owner-established; current-tree recheck owed |
+| A-2 | Native SRv6 BGP EPE origination is absent | Owner decision 10; current derived Unmet cell; c35-author producer investigation | Gap no longer describes current code | Ledger author/judge re-read native EPE producer at application | owner-established; current-tree recheck owed |
 | A-3 | No additional schema is needed for extraction | ExtractionSite.MappedTo, UnsourcedIDs and existing RFC9514 mapping | A selector might be mistaken for a new requirement | Synthetic extraction equality test before/after annotation | source-confirmed; test owed |
 
 | ID | Risk | Early signal | Mitigation |

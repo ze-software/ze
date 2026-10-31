@@ -59,8 +59,7 @@ runs". That decision is about SCHEDULING this spec. It is not a decision about
 whether to declare less: the requirements are met, and recording them is the
 better-proven direction the rule takes without asking.
 
-RFC 3748's Meta already carries `Support ipsec 70`, `Support status Supported in
-IPsec`. A summary that promises conformance owes an extraction sign-off that
+RFC 3748's Meta already declares a public row (`| Support | eap |`). A summary that promises conformance owes an extraction sign-off that
 bounds it, so these fourteen undeclared sites are part of what the sign-off must
 account for.
 
@@ -86,7 +85,7 @@ account for.
 - [ ] `internal/core/eap/eap.go` - carries `(*Packet).Encode`, `(*Session).Process`, `(*Session).handleMethod`, `(*Session).failure`, `(*Session).finalRequest`, and the `stateLastWord` session state that exists for site 4.2:8 and quotes its sentence. This is the authenticator half of eight of the fourteen
 - [ ] `internal/core/eap/peer.go` - carries `PeerSession.Process` and `handleRequest`, the peer half of sites 4.1:3 and 4.1:6
 - [ ] `internal/component/ike/engine/eap_auth.go` - `ComputeAuthFromMSK` is the only consumer of the MSK, which is what makes site 7.10:3 met
-- [ ] `rfc/short/rfc3748.md` - Meta declares `Support ipsec 70` and `Support status Supported in IPsec`. Its checklist declares none of the fourteen sites
+- [ ] `rfc/short/rfc3748.md` - Meta declares a public row (`| Support | eap |`). Its checklist declares none of the fourteen sites
 
 **Behavior to preserve:**
 - Every one of the fourteen behaviors: this spec declares and proves them, it does not change them

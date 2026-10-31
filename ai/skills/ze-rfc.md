@@ -37,9 +37,8 @@ named `not walked` owes its extraction sign-off.
    then `./le rfc check`. **A summary that is new since HEAD and declares gated MUSTs
    must be enrolled in the same change** (`check_new_summaries`): writing obligations down
    and gating none of them is how a compliance claim rots. Enrolling does not mean every
-   MUST is met — classify each honestly as tested, `{single-polarity}`, `{gap}` (with a
-   non-"Supported" `Support status` row in the summary's own `## Meta` table),
-   `{lower-layer}`, `{feature-declined}`, `{linux-limit}` (with register evidence and instance approval), or `{not-applicable}`. The gate also fails a new summary that does not parse, or that
+   MUST is met: classify each honestly as tested, `{single-polarity}`, `{gap}`,
+   `{partial}`, `{lower-layer}`, `{feature-declined}`, `{linux-limit}` (with register evidence and instance approval), or `{not-applicable}`. The gate also fails a new summary that does not parse, or that
    captures zero requirements while
    `rfc/full/<stem>.txt` contains MUST-level keywords. **Enrolling a stem that was not
    enrolled at HEAD also requires an extraction sign-off** (`rfc/extraction/<stem>.json`);
@@ -60,8 +59,7 @@ named `not walked` owes its extraction sign-off.
    | `Support` | the aggregate this RFC's public row renders under, a file name under `rfc/profiles/` (`bgp-core` for `rfc/profiles/bgp-core.md`), or `-` for no public row. The row's place is derived: its aggregate, then its dependency level, then its RFC number |
    | `Aggregate` | ONLY where `Support` is `-`: the aggregate the RFC still belongs to, so it joins that aggregate's coverage rollup. Refused beside a `Support` cell that names one |
    | `Support name` | the first cell, ONLY where an `rfc<number>` stem cannot derive it |
-   | `Support area`, `Support status`, `Support coverage` | the authored cells, moved verbatim onto the page. Required whenever `Support` names an aggregate |
-   | `Support remaining` | what is not complete, or `-`. An aggregate whose profile says `| Shape | brief |` (`drafts`) has no such column, so a row there writes `-` |
+   | `Support area` | the row's one authored cell, moved verbatim onto the page. Required whenever `Support` names an aggregate. The Proof, Evidence and Unmet cells are derived from the requirement rows and the verified discrimination records, so no summary authors a status, a coverage sentence or a remainder. `ParseMeta` refuses a `Support status`, `Support coverage` or `Support remaining` row by name |
    | `Use cases` | the use-case profiles (files under `rfc/profiles/` whose `Kind` is `use-case`) that REQUIRE this RFC, comma separated, or `-`. Counted in each profile's figures. Never infer it from citations: a builds-on or updated-by edge makes an RFC a candidate, not a member. An aggregate name is refused |
    | `Optional use cases` | the use-case profiles that list this RFC without counting it, or `-`. A name in both rows is refused. The owner moves an RFC into scope by moving its name to `Use cases` |
 
@@ -376,7 +374,7 @@ rejected by `./le rfc check`.
 | Annotation | Meaning | Gate behavior |
 |------------|---------|---------------|
 | `{not-applicable: why}` | Not applicable to Ze (protocol not implemented, role not played) | Passes. MUST NOT coexist with any test tag |
-| `{gap: why; ref}` | Known, deliberate divergence | Passes, but MUST be disclosed in that RFC's public row, which is declared by the `Support status` and `Support remaining` rows of its own `## Meta` table. Not a place to hide an accident |
+| `{gap: why; ref}` | Known, deliberate divergence | Passes. The annotated row is the disclosure: the derived public row lists it under Unmet, and `./le rfc check` refuses it on an enrolled RFC whose `Support` is `-`, because no row exists to list it. Not a place to hide an accident |
 | `{single-polarity: positive\|negative; why}` | Genuinely testable only one way | Requires tags of that polarity only, instead of the usual pair |
 | `{lower-layer: <layer>; <path>.go::<Symbol> ...}` | A layer under Ze performs the behavior, on state Ze installs into it, and Ze's own boundary carries no value to assert | Passes. MUST NOT coexist with any test tag. The reason MUST name the layer and the producer, and `./le rfc check` refuses a producer this tree cannot show |
 | `{feature-declined: "<RFC sentence>"; <path>.go::<Symbol> ...}` | The obligation is conditional on a feature the RFC makes OPTIONAL, and Ze declined it, so the condition is false | Passes. MUST NOT coexist with any test tag. The reason MUST open with the RFC's own sentence making the feature optional, in double quotes, and MUST name the producer that does the narrower thing. `./le rfc check` refuses a quote that is not in `rfc/full/<stem>.txt` and a producer this tree cannot show |
@@ -423,8 +421,9 @@ does not meet is a `{gap}`, whatever the reason. Does the RFC make X optional in
 can QUOTE? Quote them: the check finds that span in `rfc/full/<stem>.txt`, with whitespace
 collapsed, and refuses the line when it is not there. Did Ze DECLINE X, and does code show
 it? Name that function as `<path>.go::<Symbol>`, and read it before you name it. Is the
-absent feature DISCLOSED on the summary's own `Support status` and `Support remaining`
-rows? The feature is an implementation gap a later scope decision can revisit, and never a
+absent feature recorded as an implementation gap? A `{feature-declined}` row is not a
+conformance gap, so it stays out of the derived Unmet cell, and the feature's absence is
+stated in the Scope of its `features/<id>.md` declaration. The feature is an implementation gap a later scope decision can revisit, and never a
 conformance gap. This kind is the coverage register's word for what an extraction sign-off
 records as `feature-out-of-scope`.
 
@@ -434,8 +433,8 @@ carried diff; `constrains design` says Ze can implement the behavior in another
 shape; an unverified entry proves nothing. All remain gaps. Only a verified
 kernel `blocks` entry, current at the shipped version and naming this exact
 requirement with evidence, supports the classification. Keep the evidence in
-the register, not a second copy in the annotation. Disclose the row as unmet
-in `Support status` and `Support remaining`. The honest audit verdict is
+the register, not a second copy in the annotation. The annotated row is the
+disclosure: the derived public row lists it under Unmet. The honest audit verdict is
 `unimplemented`, never `not-applicable`.
 
 `./le rfc check` lists qualifying rows as candidates without annotating them.
@@ -692,4 +691,4 @@ Step-by-step, pseudocode if RFC provides it.
 | Regenerate the requirement ledger | `./le rfc update` → `ai/RFC-REQUIREMENTS.md` and `rfc/requirements/` |
 | Read one RFC's requirement → test rows | Read `rfc/requirements/<stem>.md` after `./le rfc update` |
 | Re-audit that tests still enforce letter and spirit | `/ze-rfc-audit <rfc>` |
-| Public per-RFC support status | Declare it in the summary's `## Meta` `Support` rows. `./le rfc update` renders `docs/features/rfc-status.md` from them, and it must agree with the `{gap}` annotations |
+| Public per-RFC row | Declare its place and area in the summary's `## Meta` `Support` and `Support area` rows. Its Proof, Evidence and Unmet cells are derived: `./le rfc tree` prints the coverage figures and `./le rfc update` renders the whole row into `docs/features/rfc-status.md`. An unmet obligation is disclosed only as an annotated requirement row (`{gap}`, `{partial}`, `{linux-limit}`) |
