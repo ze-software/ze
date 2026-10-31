@@ -86,9 +86,15 @@ type sourceInvalidation struct {
 	applied int
 	// unexcluded names the owners a relaxation's undo could not make apply
 	// and aborted instead (completeExclusion): the paths they hold stay
-	// eligible. exclusionErr is what completeExclusion could not settle,
-	// nil when every owner excluded the paths and downstream settled.
+	// eligible. unsettled names the owners that answered the apply with an
+	// error and refused the zero-target abort, which an owner's ledger
+	// refuses once apply is recorded (sourcepolicy Owner.abortable): they
+	// excluded the paths, or did so late, and are finalized, but their
+	// downstream copies may remain. exclusionErr is what completeExclusion
+	// could not settle, nil when every owner excluded the paths and
+	// downstream settled.
 	unexcluded   []string
+	unsettled    []string
 	exclusionErr error
 	// ending is claimed once, by finalize or expire, before either calls an
 	// owner, so the receipt and the hold's expiry never both end it.
@@ -397,9 +403,13 @@ func (inv *sourceInvalidation) fail(restore func() error) error {
 // (sourcepolicy Owner.ordered admits finalize only after apply), so it is
 // aborted with a zero target, which releases its pins and changes nothing
 // else, and is named in unexcluded: its paths stay eligible. An owner whose
-// abort fails too may have applied late, so it stays for finalize and is
-// named as well. The completion deadline bounds it, the reserve the work
-// deadline left for compensation.
+// abort fails too recorded its apply, with the error of a downstream settle
+// that failed (the ledger refuses a zero-target abort once apply is
+// recorded), or applied late: it stays for finalize and is named in
+// unsettled, because its paths are excluded and only its downstream copies
+// may remain. Were it never to have applied, the receipt's finalize, which
+// its ledger refuses, reports it. The completion deadline bounds it, the
+// reserve the work deadline left for compensation.
 //
 // RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated
 // with an EBGP peer SHALL NOT be considered eligible in the Decision
@@ -423,11 +433,13 @@ func (inv *sourceInvalidation) completeExclusion() error {
 			continue
 		}
 		result = errors.Join(result, fmt.Errorf("source-policy owner %s: invalidation retry failed: %w", owner.Name(), err))
-		inv.unexcluded = append(inv.unexcluded, owner.Name())
 		if err := owner.Call(ctx, inv.request(rpc.SourcePolicyAbort, 0, deadline)); err != nil {
 			finalizable = append(finalizable, owner)
-			result = errors.Join(result, fmt.Errorf("source-policy owner %s: abort failed too: %w", owner.Name(), err))
+			inv.unsettled = append(inv.unsettled, owner.Name())
+			result = errors.Join(result, fmt.Errorf("source-policy owner %s: abort refused: %w", owner.Name(), err))
+			continue
 		}
+		inv.unexcluded = append(inv.unexcluded, owner.Name())
 	}
 	inv.owners = finalizable
 	inv.applied = len(finalizable)

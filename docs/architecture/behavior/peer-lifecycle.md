@@ -678,7 +678,12 @@ recorded outcome), and one that still refuses never excluded the paths, so it
 cannot be finalized (its ledger admits `finalize` only after `apply`): it gets
 `abort` with target zero, which releases its pins, and the error names it,
 says its routes stay eligible, and gives `request peer <address> disable`,
-then `enable`. When every owner applied and downstream settled, the undo
+then `enable`. An owner whose ledger refuses that abort recorded its apply
+with an error, as `bgp-rr` and `bgp-rs` record a downstream settle that
+failed (its ledger refuses a zero-target abort once apply is recorded), or
+applied late: it is kept for finalize, and the error says it withdrew the
+routes but a copy may stay advertised downstream, with the same sequence.
+When every owner applied and downstream settled, the undo
 reports nothing and only logs the first failure. A failure to publish the
 rejecting policy aborts, leaves the accepting candidate in effect and says so
 with the same sequence, and its expiry says the same and finalizes nothing. A

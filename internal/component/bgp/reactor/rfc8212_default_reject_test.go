@@ -811,7 +811,11 @@ const rfc8212ImportOwnerName = "rfc8212-import-owner"
 // owners (bgp-rib, bgp-adj-rib-in) implement for one source: prepare pins its
 // stored path, apply makes it ineligible, abort restores it restamped to
 // NextPolicyEpoch, finalize drops the pins. Like the real owners' ledger
-// (sourcepolicy Owner.ordered), it refuses a finalize that no apply preceded.
+// (sourcepolicy Owner.ordered), it refuses a finalize that no apply preceded,
+// and a target-zero abort once apply landed (sourcepolicy Owner.abortable).
+// settleErr models a downstream settle that failed after apply took effect,
+// recorded as applied with that error (bgp-rr, bgp-rs): every apply,
+// a repeat included, makes the path ineligible and returns it.
 // Safe for concurrent use.
 type rfc8212ImportOwner struct {
 	mu        sync.Mutex
@@ -822,6 +826,7 @@ type rfc8212ImportOwner struct {
 	pinned    bool
 	applied   bool
 	hang      rpc.SourcePolicyOperation
+	settleErr error
 	onPrepare func()
 	onApply   func()
 	onAbort   func()
@@ -880,9 +885,13 @@ func (o *rfc8212ImportOwner) handle(ctx context.Context, in rpc.SourcePolicyInpu
 			return errors.New("apply without prepare")
 		}
 		o.eligible, o.applied = false, true
+		return o.settleErr
 	case rpc.SourcePolicyAbort:
 		if !o.pinned && in.NextPolicyEpoch == 0 {
 			return nil // Never prepared: nothing to release (sourcepolicy Owner.Admit).
+		}
+		if o.applied && in.NextPolicyEpoch == 0 {
+			return errors.New("was applied; its abort needs a target epoch newer than the apply target, not zero")
 		}
 		if !o.pinned {
 			return errors.New("abort without prepare")

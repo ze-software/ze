@@ -2,6 +2,7 @@
 package reactor
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -252,4 +253,47 @@ func TestRFC8212RelaxUndoAbortedExpiry(t *testing.T) {
 	require.NotContains(t, err.Error(), "finalization failed", "the expiry finalized an aborted owner")
 	ops, _, _, _ := fx.owner.seen()
 	require.Equal(t, []rpc.SourcePolicyOperation{rpc.SourcePolicyPrepare, rpc.SourcePolicyAbort}, ops)
+}
+
+// TestRFC8212RelaxUndoAppliedOwnerUnsettled proves a relaxation's undo reports
+// an owner that withdrew the routes but failed to settle downstream as such,
+// not as an owner whose routes stay eligible. Method: the relaxation applies
+// with Route Refresh; on rollback the owner applies every time and returns a
+// settle error, as bgp-rr and bgp-rs record a failed downstream settle
+// (Record(input, StageApplied, settled)); its ledger then refuses the
+// target-zero abort because apply landed (sourcepolicy Owner.abortable).
+// VALIDATES: the undo retries the apply, its abort is refused, and the
+// receipt finalizes the owner; the rollback names the owner as having
+// withdrawn the routes, says a copy may stay advertised downstream and gives
+// the disable/enable sequence; it never says the routes stay eligible; the
+// path is ineligible and the policy rejects.
+// PREVENTS: a report telling the operator that an owner which excluded the
+// paths left them eligible (RFC 8212 Section 3), hiding that only its
+// downstream copies may remain.
+func TestRFC8212RelaxUndoAppliedOwnerUnsettled(t *testing.T) {
+	fx := newRelaxFixture(t, true)
+	j := relaxJournal(fx, "tx-undo-unsettled")
+	require.NoError(t, relax(fx, j))
+	require.Equal(t, 2, refreshesOnWire(t, fx))
+	fx.owner.mu.Lock()
+	fx.owner.settleErr = errors.New("downstream settle timed out")
+	fx.owner.mu.Unlock()
+
+	errs := j.Rollback()
+	require.Len(t, errs, 1)
+	require.ErrorContains(t, errs[0], "the rejecting import policy is restored and source-policy owner "+
+		rfc8212ImportOwnerName+" withdrew the routes the undone change admitted, but it reported an error before "+
+		"its change settled downstream, so a copy may stay advertised")
+	require.ErrorContains(t, errs[0], "`request peer 192.0.2.1 disable`, then `request peer 192.0.2.1 enable`")
+	require.NotContains(t, errs[0].Error(), "stay eligible", "an owner that withdrew the routes reported as leaving them eligible")
+	require.False(t, importAccepts(fx.peer), "the failed undo re-published the accepting policy")
+	require.True(t, fx.f.s.IsPaused(), "input resumed before the transaction's receipt")
+	require.NoError(t, fx.r.CompleteSourcePolicyTx(t.Context(), j.txID, false))
+	ops, targets, eligible, _ := fx.owner.seen()
+	require.Equal(t, []rpc.SourcePolicyOperation{rpc.SourcePolicyPrepare, rpc.SourcePolicyApply,
+		rpc.SourcePolicyApply, rpc.SourcePolicyAbort, rpc.SourcePolicyFinalize}, ops)
+	require.Equal(t, targets[1], targets[2], "the retry named another epoch than the apply")
+	require.Zero(t, targets[3], "the abort of an owner that may not have applied named a target epoch")
+	require.False(t, eligible, "a path the owner withdrew is eligible again")
+	require.False(t, fx.f.s.IsPaused(), "input left paused after the receipt")
 }

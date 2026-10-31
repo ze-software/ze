@@ -85,7 +85,10 @@ func (a *reactorAPIAdapter) verifyImportRelaxation(next *PeerSettings, resolved 
 	a.r.mu.RLock()
 	peer := a.r.peers[next.PeerKey()]
 	a.r.mu.RUnlock()
-	// refuse-by-default: guards verifyRelaxationSwap -- a peer the reload creates has no session, so its first one admits under the published policy
+	// A peer the reload creates has no session and discarded no routes, so
+	// its first session admits under the published policy, and the apply
+	// judges any swap again, so verify has nothing to refuse here.
+	// refuse-by-default: guards swapImportRising -- a created peer has no session; apply judges the swap again
 	if peer == nil {
 		return nil
 	}
@@ -379,11 +382,24 @@ func (a *reactorAPIAdapter) undoImportRelaxation(peer *Peer, apply settingsCopie
 	return relaxationUndoFailed(peer, inv, err)
 }
 
+// unsettledClause names, inside the unexcluded report, the owners that
+// withdrew the routes but may leave a copy advertised downstream; empty when
+// there are none.
+func unsettledClause(unsettled []string) string {
+	if len(unsettled) == 0 {
+		return ""
+	}
+	return " (source-policy owner " + strings.Join(unsettled, ", ") +
+		" withdrew them, but a copy may stay advertised downstream)"
+}
+
 // relaxationUndoFailed words a relaxation undo whose invalidation failed from
 // what it achieved. A failed publish aborted (aborted): the accepting policy
 // stays in effect. Otherwise the rejecting policy is published and
 // completeExclusion drove every owner apply missed: the owners it could not
-// make apply (unexcluded) keep the paths eligible; when every owner applied
+// make apply (unexcluded) keep the paths eligible; the owners that refused
+// to undo an apply they recorded with an error (unsettled) withdrew the
+// paths but may leave a copy advertised downstream; when every owner applied
 // and downstream settled, the undo is complete and the first failure is only
 // logged; when only downstream did not settle, a copy may stay advertised.
 func relaxationUndoFailed(peer *Peer, inv *sourceInvalidation, err error) error {
@@ -395,8 +411,15 @@ func relaxationUndoFailed(peer *Peer, inv *sourceInvalidation, err error) error 
 	}
 	if len(inv.unexcluded) != 0 {
 		return fmt.Errorf("peer %s: the rejecting import policy is restored, but source-policy owner %s did not "+
-			"withdraw the routes the undone change admitted, so they stay eligible; run `request peer %s disable`, "+
-			"then `request peer %s enable`: %w", label, strings.Join(inv.unexcluded, ", "), label, label, err)
+			"withdraw the routes the undone change admitted, so they stay eligible%s; run `request peer %s disable`, "+
+			"then `request peer %s enable`: %w", label, strings.Join(inv.unexcluded, ", "),
+			unsettledClause(inv.unsettled), label, label, err)
+	}
+	if len(inv.unsettled) != 0 {
+		return fmt.Errorf("peer %s: the rejecting import policy is restored and source-policy owner %s withdrew the "+
+			"routes the undone change admitted, but it reported an error before its change settled downstream, so a "+
+			"copy may stay advertised; run `request peer %s disable`, then `request peer %s enable`: %w",
+			label, strings.Join(inv.unsettled, ", "), label, label, err)
 	}
 	if inv.exclusionErr == nil {
 		reactorLogger().Warn("import relaxation undo completed after a retry", "peer", label,
