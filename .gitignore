@@ -20,6 +20,9 @@ tmp/*
 # Derived committed-tree release inventory.
 /plan/release/roadmap.md
 
+# Owner's private plans and confidential configs, never committed.
+/plan/private/
+
 # Build outputs (kernel, initrd, pxe, ipxe)
 build/
 # le's `build` command area is source, not output.
