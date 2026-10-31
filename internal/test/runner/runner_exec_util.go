@@ -147,6 +147,21 @@ func chownTree(root string, uid, gid int) error {
 	})
 }
 
+// publishDaemonPID writes the daemon's pid to pidPath, the file a fixture reads
+// to signal the daemon (SIGHUP for a reload). The runner writes it after
+// chownTree has handed the work directory to the dropped user, so in netns mode
+// the file is created root-owned 0600 and a fixture running as that user cannot
+// open it. dropped names that mode, and the file is then owned to uid:gid.
+func publishDaemonPID(pidPath string, pid int, dropped bool, uid, gid int) error {
+	if err := os.WriteFile(pidPath, fmt.Appendf(nil, "%d", pid), 0o600); err != nil {
+		return err
+	}
+	if dropped {
+		return os.Chown(pidPath, uid, gid)
+	}
+	return nil
+}
+
 // zeRepoRootEnv renders the ZE_REPO_ROOT=<baseDir> environment entry exported
 // to every exec'd test process. Shell-script tests use it to locate the source
 // tree (the ze binary's own directory is a temp build dir, not <repo>/bin).

@@ -112,9 +112,15 @@ func ospfLiveExternals(ctx context.Context, plugin *sdk.Plugin) ([]string, error
 	if err != nil {
 		return nil, err
 	}
-	database, ok := value.(map[string]any)
+	// The engine answers a one-element list holding the LSDB snapshot
+	// (databaseSnapshotByType, internal/plugins/ospf/show_database.go).
+	snapshots, ok := value.([]any)
+	if !ok || len(snapshots) != 1 {
+		return nil, fmt.Errorf("show ospf database external: expected a one-element list, got %#v", value)
+	}
+	database, ok := snapshots[0].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("show ospf database external: expected a JSON object, got %#v", value)
+		return nil, fmt.Errorf("show ospf database external: expected a JSON object in the list, got %#v", snapshots[0])
 	}
 	// An LSDB with no AS-external-LSA renders the list as null; an object
 	// with no such key is a renamed field, which is refused, never read as empty.
