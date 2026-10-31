@@ -2,8 +2,8 @@
 
 BGP assumed a configured IP always existed. Listeners were created at startup
 and never adjusted. The reactor now watches the kernel interface address table
-and reacts: it starts a listener when a peer's local address appears, stops it
-when the address goes away, and re-settles RFC 2545 Section 3's common-subnet
+and reacts: it starts a listener when a passive peer's local address appears,
+stops every listener on an address that goes away, and re-settles RFC 2545 Section 3's common-subnet
 condition for every live peer.
 
 <!-- source: internal/component/bgp/reactor/reactor_address_watch.go -- startAddressWatch, addressWatchWorker, addressSync.apply -->
@@ -48,8 +48,26 @@ exactly that defect.
 address can be read as `::ffff:10.0.0.1`. Without `Unmap`, the match against a
 peer `LocalAddress` of `10.0.0.1` fails in silence.
 
-**A removed address stops its listener only.** A session already running on
-that address is not torn down by this path.
+**An added address opens what the start opens, by the same rule.**
+`listenerSpecs` names the (address, port) pairs the configuration accepts
+connections on: the local address of each passive peer and dynamic group, at
+the port `peerListenPort` answers for it. The start and an added address both
+read it. A peer with its own `connection > local > port` gets its listener on
+that port, and a peer that only dials out (`connection active`) gets no
+listener at all. Before this rule was shared, the handler used the daemon's
+port and ignored the connection mode, so an own-port peer's listener opened on
+the wrong port.
+
+**A removed address stops every listener on it, at any port.** Nothing can
+accept on an address the host no longer holds, so the stop does not ask the
+configuration which ports it wants. That also closes a listener a reload left
+with no claimant: `installDynamicGroupsLocked` leaves a removed group's socket
+open, because it may be shared with a peer and closing it is the peer-removal
+path's decision. A session already running on that address is
+not torn down by this path.
+
+<!-- source: internal/component/bgp/reactor/reactor.go -- listenerSpecs, startMultiListeners -->
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- listenPortsAt, addressBound, handleAddressAdded, handleAddressRemoved -->
 
 **Address changes refresh the received NEXT_HOP view as well as export link
 scope.** One interface read supplies unmasked local addresses for RFC 4271
@@ -68,9 +86,13 @@ later successful refresh, rather than validated against stale addresses.
 They are never called with it held. A stopping reactor refuses the listener
 (`errReactorStopping`), so a change applied during a stop opens nothing.
 
-**Peers that share a `LocalAddress` share one listener.** It is created once,
-on the first read that finds the address.
+**Peers that share a `LocalAddress` and a listen port share one listener.** It
+is created once, on the first read that finds the address. A peer on another
+port of the same address has a listener of its own.
 
 A new listener starts before the old one stops, so sessions survive an
 interface migration: the interface component adds the new address, waits for
-BGP's `bgp/listener-ready` for it, then removes the old one.
+BGP's `bgp/listener-ready` for it, then removes the old one. BGP sends that
+event once every listener the address owes is up. An address that only peers
+dialling out are bound to owes none, so the event goes out as soon as it
+appears. An address no peer or group names gets no event.

@@ -1162,8 +1162,9 @@ block. The netlink backend package registers a watcher of the kernel address
 table in `internal/core/network` (`network.RegisterAddressWatcher`) at init,
 whichever backend is active, with its own netlink subscription to address
 changes. The BGP reactor opens the watch when it starts, re-reads the table on
-each signal, starts a listener for a peer's local address that appeared, stops
-the one for an address that went away, and re-settles RFC 2545 Section 3's
+each signal, starts a listener for a passive peer's local address that
+appeared, on the port that peer listens on, stops it when the address goes
+away, and re-settles RFC 2545 Section 3's
 common-subnet condition. On a platform with no netlink backend the watch
 cannot start, and BGP logs a warning that names the cause. Other consumers
 (OSPF, the unnumbered donor, the connected-route plugin) still read the bus

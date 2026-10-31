@@ -15,6 +15,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -705,11 +706,11 @@ func TestReactorStopForRestartSendsNoNotification(t *testing.T) {
 // elapsed assertion runs FIRST, because a stop that returned in microseconds
 // opens no window and would make everything below vacuous.
 func TestReactorStopStartsNoListenerForAnAddressAddedWhileItNotifies(t *testing.T) {
-	r := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
+	r := New(&Config{ListenAddr: "127.0.0.1:0", Port: freePort(t), Standalone: true})
 	require.NoError(t, r.Start())
 
 	local := netip.MustParseAddr("127.0.0.1")
-	lkey := net.JoinHostPort(local.String(), "0")
+	lkey := net.JoinHostPort(local.String(), strconv.Itoa(r.config.Port))
 
 	// A peer bound to that local address, because handleAddressAdded starts
 	// nothing for an address no peer asked for.

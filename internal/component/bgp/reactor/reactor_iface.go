@@ -8,10 +8,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net"
 	"net/netip"
 	"slices"
-	"strconv"
 	"sync"
 	"syscall"
 
@@ -225,42 +223,81 @@ func (r *Reactor) refreshPeerLinkScopes() {
 	}
 }
 
-// handleAddressAdded starts a listener when an address matching a peer's
-// LocalAddress appears. On success it emits (bgp, listener-ready) so iface
-// migration consumers can complete their make-before-break. It runs on
-// addressWatchWorker and MUST be called without reactor.mu held.
+// listenPortsAt returns the ports the configuration wants a listener on at
+// addr, by the rule the start uses (listenerSpecs): a passive peer or dynamic
+// group bound to addr, each at its own listen port. It is empty when nothing
+// accepts connections on addr.
+// Caller MUST hold r.mu (read or write).
+func (r *Reactor) listenPortsAt(addr netip.Addr) []int {
+	var ports []int
+	for _, spec := range r.listenerSpecs() {
+		if spec.addr == addr {
+			ports = append(ports, spec.port)
+		}
+	}
+	return ports
+}
+
+// addressBound reports whether any peer or dynamic group names addr as its
+// local address, whether it listens or only dials out.
+// Caller MUST hold r.mu (read or write).
+func (r *Reactor) addressBound(addr netip.Addr) bool {
+	for _, peer := range r.peers {
+		if peer.Settings().LocalAddress == addr {
+			return true
+		}
+	}
+	for _, dg := range r.dynamicGroups {
+		if dg.Settings != nil && dg.Settings.LocalAddress == addr {
+			return true
+		}
+	}
+	return false
+}
+
+// handleAddressAdded starts the listeners the configuration wants on an
+// address that appeared (listenPortsAt): one per listen port of the passive
+// peers and dynamic groups bound to it, and none for a peer that only dials
+// out. When every one of them is up it emits (bgp, listener-ready) so iface
+// migration consumers can complete their make-before-break. An address bound
+// only by peers that dial out owes no listener, so it is ready as soon as it
+// appears and the event goes out at once: MigrateInterface waits for it before
+// it removes the old address, and would otherwise time out and roll back. It
+// runs on addressWatchWorker and MUST be called without reactor.mu held.
 //
 // It answers false only when the address cannot be bound YET: an IPv6
 // address still in duplicate address detection is in the table, and the
 // kernel refuses to bind it (EADDRNOTAVAIL) until DAD clears its tentative
 // flag. That clearing is an address update of its own, so the worker leaves
-// the address unrecorded and tries again on the next signal.
+// the address unrecorded and tries again on the next signal. The retry
+// re-opens nothing already up, because startListenerForAddressPort returns
+// nil for a key it already holds.
 func (r *Reactor) handleAddressAdded(addr netip.Addr) bool {
-	// Find peers whose LocalAddress matches.
-	r.mu.RLock()
-	matchingPeers := 0
-	for _, peer := range r.peers {
-		if peer.settings.LocalAddress == addr {
-			matchingPeers++
-		}
-	}
-	r.mu.RUnlock()
-
-	if matchingPeers == 0 {
-		return true
-	}
-
-	reactorLogger().Info("iface: address added, starting listener",
-		"address", addr, "peers", matchingPeers)
-
-	// Start listener for this address. startListenerForAddressPort is
-	// idempotent (returns nil if already listening).
 	r.mu.Lock()
-	port := r.config.Port
-	startErr := r.startListenerForAddressPort(addr, port)
+	bound := r.addressBound(addr)
+	ports := r.listenPortsAt(addr)
+	startErrs := make([]error, len(ports))
+	for i, port := range ports {
+		startErrs[i] = r.startListenerForAddressPort(addr, port)
+	}
 	r.mu.Unlock()
 
-	if startErr != nil {
+	if !bound {
+		return true
+	}
+	if len(ports) > 0 {
+		reactorLogger().Info("iface: address added, starting listeners",
+			"address", addr, "ports", ports)
+	}
+
+	usable := true
+	ready := true
+	for i, startErr := range startErrs {
+		if startErr == nil {
+			continue
+		}
+		ready = false
+		port := ports[i]
 		// A stopping reactor refuses the listener by design (reactor.go, the
 		// r.stopping read in startListenerForAddressPort), and this handler runs
 		// on the address watch worker, which ends only with the cancel -- so any
@@ -270,17 +307,20 @@ func (r *Reactor) handleAddressAdded(addr netip.Addr) bool {
 		if errors.Is(startErr, errReactorStopping) {
 			reactorLogger().Debug("iface: listener not started, reactor is stopping",
 				"address", addr, "port", port)
-			return true
+			continue
 		}
 		if errors.Is(startErr, syscall.EADDRNOTAVAIL) {
 			reactorLogger().Info("iface: address not usable yet, the listener starts when the kernel reports it usable",
 				"address", addr, "port", port, "error", startErr)
-			return false
+			usable = false
+			continue
 		}
 		reactorLogger().Error("iface: start listener failed",
 			"address", addr, "port", port, "error", startErr,
 			"fix", "the error names the cause: for address already in use, find the other listener with: ss -ltnp; for permission denied, run ze with CAP_NET_BIND_SERVICE")
-		return true
+	}
+	if !ready {
+		return usable
 	}
 	if r.eventBus != nil {
 		readyPayload, _ := json.Marshal(bgpListenerReadyPayload{Address: addr.String()})
@@ -291,22 +331,33 @@ func (r *Reactor) handleAddressAdded(addr netip.Addr) bool {
 	return true
 }
 
-// handleAddressRemoved stops the listener for an address that was removed.
-// It runs on addressWatchWorker and MUST be called without reactor.mu held.
+// handleAddressRemoved stops every listener on an address that was removed,
+// at any port. Nothing can accept on an address the host no longer holds, so
+// the stop does not ask the configuration which ports it wants: a peer on a
+// port of its own loses its listener, and so does a listener a reload left
+// with no claimant (installDynamicGroupsLocked leaves a removed group's socket
+// open, because it may be shared with a peer and closing it is the
+// peer-removal path's decision). It runs on addressWatchWorker and MUST be
+// called without reactor.mu held.
 func (r *Reactor) handleAddressRemoved(addr netip.Addr) {
 	r.mu.Lock()
-	port := r.config.Port
-	// Use net.JoinHostPort for consistent key format with
-	// startListenerForAddressPort, which also uses net.JoinHostPort. This
-	// is critical for IPv6 addresses where JoinHostPort wraps the address
-	// in brackets: "[::1]:179".
-	lkey := net.JoinHostPort(addr.String(), strconv.Itoa(port))
-	listener, exists := r.listeners[lkey]
-	if exists {
+	defer r.mu.Unlock()
+	for lkey, listener := range r.listeners {
+		// startListenerForAddressPort builds every key with net.JoinHostPort,
+		// so each one parses back to the address and port it was bound to.
+		bound, err := netip.ParseAddrPort(lkey)
+		if err != nil {
+			reactorLogger().Error("iface: listener key is not an address and port, its listener is left running",
+				"key", lkey, "error", err,
+				"fix", "none: this is a ze defect, report it with this log line")
+			continue
+		}
+		if bound.Addr() != addr {
+			continue
+		}
 		reactorLogger().Info("iface: address removed, stopping listener",
-			"address", addr)
+			"address", addr, "port", bound.Port())
 		listener.Stop()
 		delete(r.listeners, lkey)
 	}
-	r.mu.Unlock()
 }

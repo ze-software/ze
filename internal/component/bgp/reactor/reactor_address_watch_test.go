@@ -104,7 +104,7 @@ func TestAddressWatchRunsWithoutEventBus(t *testing.T) {
 	table := &fakeAddressTable{}
 	table.install(t)
 
-	r := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
+	r := New(&Config{ListenAddr: "127.0.0.1:0", Port: freePort(t), Standalone: true})
 	require.Nil(t, r.eventBus, "the test needs a reactor with no event bus")
 	require.NoError(t, r.StartWithContext(context.Background()))
 	t.Cleanup(func() { stopAndWait(t, r) })

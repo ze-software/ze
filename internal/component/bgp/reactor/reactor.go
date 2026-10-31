@@ -1506,17 +1506,38 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 }
 
 // startMultiListeners starts one listener per unique (local address, port) pair
-// the configuration accepts connections on.
+// the configuration accepts connections on (listenerSpecs).
+// Caller MUST hold r.mu.
+func (r *Reactor) startMultiListeners() error {
+	for _, spec := range r.listenerSpecs() {
+		if err := r.startListenerForAddressPort(spec.addr, spec.port); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// listenerSpec is one (local address, port) pair the configuration accepts
+// connections on.
+type listenerSpec struct {
+	addr netip.Addr
+	port int
+}
+
+// listenerSpecs returns one listenerSpec per unique (local address, port) pair
+// the configuration accepts connections on: the local address of a passive
+// peer or dynamic group, at the port peerListenPort answers for it. A peer
+// that only dials out accepts nothing, so it contributes no pair.
 //
 // A dynamic group contributes a pair of its own. No configuration names the
 // peers it will serve. Without this, a route-server config that declares only
 // groups binds no socket, and the kernel refuses every member it exists for.
-// Caller MUST hold r.mu.
-func (r *Reactor) startMultiListeners() error {
-	type listenerSpec struct {
-		addr netip.Addr
-		port int
-	}
+//
+// The start (startMultiListeners) and an address the kernel adds
+// (handleAddressAdded, through listenPortsAt) both read it, so the two cannot
+// disagree on a peer's port or on whether the peer listens at all.
+// Caller MUST hold r.mu (read or write).
+func (r *Reactor) listenerSpecs() []listenerSpec {
 	seen := make(map[string]struct{})
 	var specs []listenerSpec
 	add := func(s *PeerSettings) {
@@ -1537,13 +1558,7 @@ func (r *Reactor) startMultiListeners() error {
 	for _, dg := range r.dynamicGroups {
 		add(dg.Settings)
 	}
-
-	for _, spec := range specs {
-		if err := r.startListenerForAddressPort(spec.addr, spec.port); err != nil {
-			return err
-		}
-	}
-	return nil
+	return specs
 }
 
 // startAPIServer creates or wires the plugin server, event dispatcher,
