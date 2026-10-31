@@ -78,6 +78,16 @@ func init() {
 		doctorRegistrationFailed("filter reference", err)
 	}
 
+	// A BGP daemon that cannot read the kernel neighbor table sends every RFC
+	// 2545 next hop naming another router without that router's link-local
+	// (neighbor_table_doctor.go).
+	for _, meta := range neighborTableDiagnosticCodes {
+		_ = diagnostic.Register(meta)
+	}
+	if err := diagnostic.RegisterDoctorCheck(neighborTableDoctorCheck); err != nil {
+		doctorRegistrationFailed("neighbor table", err)
+	}
+
 	// The peer resolution, TCP MD5, RFC 9234 role and capture directory checks
 	// read BGP configuration, so this package owns them (doctor_checks.go).
 	registerBGPDoctorChecks()

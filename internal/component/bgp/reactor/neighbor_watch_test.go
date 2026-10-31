@@ -141,8 +141,8 @@ func thirdPartyAnswer(peer *Peer) netip.Addr {
 // and stops the reactor to prove the watch ends with it.
 //
 // MUTATION: remove r.startNeighborWatch() from StartWithContext, or start the
-// watch only from subscribeInterfaceEvents (which returns without a bus): the
-// watch never starts and the router stays unpaired.
+// watch only when an event bus is set: the watch never starts and the router
+// stays unpaired.
 func TestNeighbourWatchRunsWithoutEventBus(t *testing.T) {
 	table := &fakeNeighborTable{entries: []network.Neighbor{
 		{Address: netip.MustParseAddr(thirdPartyGlobal), LinkAddress: thirdPartyMAC, Device: thirdPartyDevice, Binding: network.NeighborBindingValid},
@@ -320,7 +320,7 @@ func resetThirdPartyLinkLocalLog() {
 		w.nextAllowed.Store(0)
 		w.suppressed.Store(0)
 	}
-	reset(&thirdPartyLinkLocalLog.unread)
+	reset(&thirdPartyLinkLocalLog.otherOutcome)
 	reset(&thirdPartyLinkLocalLog.unwatched)
 	for i := range thirdPartyLinkLocalLog.outcomes {
 		reset(&thirdPartyLinkLocalLog.outcomes[i])

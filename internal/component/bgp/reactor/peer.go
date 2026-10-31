@@ -691,6 +691,15 @@ type Peer struct {
 	// refreshed with fwdFacts; nil means the interface table has not been read
 	// for this peer yet, which appends no link-local (link_scope.go).
 	llScope atomic.Pointer[linkScope]
+
+	// neighborTableUnreadWarned is set once this peer has warned that a
+	// third-party next hop went out without its router's Link-Local because
+	// the neighbor table cannot be read (no interface backend, a platform
+	// without one, or a build without a reader). The cause holds for every
+	// route until it is fixed, so the warning is once per peer; a scope built
+	// from a table that was read clears it (refreshLinkScopeWith), so a later
+	// failure warns again.
+	neighborTableUnreadWarned atomic.Bool
 }
 
 // NewPeer creates a new peer for the given settings.

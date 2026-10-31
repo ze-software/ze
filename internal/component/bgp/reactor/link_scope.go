@@ -6,6 +6,7 @@ package reactor
 
 import (
 	"net/netip"
+	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/clock"
@@ -72,6 +73,10 @@ type linkScope struct {
 	// without its router's Link-Local logs. A peer's scope carries the
 	// peer's clock (refreshLinkScopeWith), so a test on a fake clock drives it.
 	clock clock.Clock
+	// unreadWarned says whether the warning for an unreadable neighbor table
+	// was given. A peer's scope carries the peer's own flag
+	// (Peer.neighborTableUnreadWarned), so the warning is once per peer.
+	unreadWarned *atomic.Bool
 }
 
 // newLinkScope reads the host interface and neighbor tables and settles the
@@ -91,11 +96,12 @@ func newLinkScope(peerAddr netip.Addr) *linkScope {
 // are treated as immutable by every reader, so sharing them is safe.
 func newLinkScopeWith(connected []netip.Prefix, neighbors neighborView, peerAddr netip.Addr) *linkScope {
 	return &linkScope{
-		connected:  connected,
-		neighbors:  neighbors,
-		peer:       peerAddr.Unmap(),
-		peerOnLink: network.SharesSubnet(connected, peerAddr),
-		clock:      clock.RealClock{},
+		connected:    connected,
+		neighbors:    neighbors,
+		peer:         peerAddr.Unmap(),
+		peerOnLink:   network.SharesSubnet(connected, peerAddr),
+		clock:        clock.RealClock{},
+		unreadWarned: new(atomic.Bool),
 	}
 }
 
@@ -240,13 +246,14 @@ func (ls *linkScope) linkLocalNextHop(configured, globalNextHop netip.Addr, rout
 
 // thirdPartyLinkLocal returns the Link-Local of the router holding global, as
 // the neighbor table read with this scope names it, or the zero Addr with a
-// rate-limited warning that names the next hop and why none is known. The
+// warning that names the next hop and why none is known: once per peer for a
+// table that cannot be read, rate-limited for a table that names no router. The
 // caller has already established the common subnet, so a miss here is a field
 // sent with the global address alone where Section 3 asks for both.
 func (ls *linkScope) thirdPartyLinkLocal(global netip.Addr) netip.Addr {
 	linkLocal, outcome, err := ls.neighbors.linkLocalOf(global)
 	if err != nil {
-		warnNeighborTableUnread(ls.clock.Now().UnixNano(), ls.peer, global, err)
+		warnNeighborTableUnread(ls.unreadWarned, ls.peer, global, err)
 		return netip.Addr{}
 	}
 	switch outcome {
@@ -346,6 +353,12 @@ func (p *Peer) neighborWatchState() neighborWatchState {
 func (p *Peer) refreshLinkScopeWith(connected []netip.Prefix, neighbors neighborView) {
 	scope := newLinkScopeWith(connected, neighbors, p.settings.Address)
 	scope.clock = p.clock
+	scope.unreadWarned = &p.neighborTableUnreadWarned
+	if neighbors.links != nil {
+		// The table was read, so the cause of an earlier warning is gone; a
+		// later failure is a new one and warns again.
+		p.neighborTableUnreadWarned.Store(false)
+	}
 	p.llScope.Store(scope)
 }
 

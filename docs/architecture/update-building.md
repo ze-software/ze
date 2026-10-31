@@ -310,8 +310,14 @@ code. The table is read when a session's snapshot is built, and again on an
 interface address event or a signal from the neighbor table watch the reactor
 starts with itself (`neighborWatchWorker`), never per UPDATE. The watch needs
 no `interface` block, so a BGP-only config follows the table too.
-With no usable entry, two candidates, or no readable table, the field stays
-16 octets and a rate-limited warning names the next hop and the reason. When
+With no usable entry or two candidates, the field stays 16 octets and a
+rate-limited warning names the next hop and the reason. With no readable
+table (no interface backend on this platform, or no interface component in
+the build) the field stays 16 octets too, and the warning is given once per
+peer, because the cause holds for every route until it is fixed; a later read
+that succeeds re-arms it. `ze doctor` reports the same unreadable table before
+the daemon starts (`bgp-neighbor-table`, code `doctor-bgp-neighbor-table`),
+with the fix the warning names (`reactor.NeighborTableFix`). When
 no watch runs, the warning says the table it read is not watched and names
 why, rather than blaming the next-hop router for an entry that appeared after
 the read. The speaker's own Link-Local never substitutes for another router's.
@@ -351,6 +357,8 @@ link-local in `LabeledUnicastParams.LinkLocalNextHop`, and
 <!-- source: internal/component/bgp/message/update_build_vpn.go -- buildMPReachVPN, vpnNextHopOctets -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope, egressLinkLocal -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- linkScope.linkLocalNextHop, linkScope.thirdPartyLinkLocal -->
+<!-- source: internal/component/bgp/reactor/link_scope_neighbors.go -- warnNeighborTableUnread, NeighborTableFix -->
+<!-- source: internal/component/bgp/config/neighbor_table_doctor.go -- checkBGPNeighborTable -->
 <!-- source: internal/core/network/neighbors.go -- NewNeighborLinkLocals, ReadNeighbors -->
 <!-- test: internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go TestRFC2545ThirdPartyLinkLocalAnnounce -->
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop, precomputeVPNNextHop -->

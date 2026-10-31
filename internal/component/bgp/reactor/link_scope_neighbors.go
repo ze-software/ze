@@ -8,6 +8,7 @@ package reactor
 import (
 	"errors"
 	"net/netip"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/network"
@@ -66,9 +67,11 @@ func (s neighborWatchState) reason() error {
 	}
 }
 
-// neighborTableFix is the operator's next step for a neighbor table that
-// cannot be read because of err.
-func neighborTableFix(err error) string {
+// NeighborTableFix is the operator's next step for a neighbor table that
+// cannot be read because of err. The run-time warning and the bgp-neighbor-table
+// doctor check (internal/component/bgp/config) both name it, so the two say the
+// same thing.
+func NeighborTableFix(err error) string {
 	if errors.Is(err, network.ErrNeighborTableNotRegistered) {
 		return "use a ze build that includes the interface component, which reads and watches the kernel neighbor table"
 	}
@@ -79,7 +82,7 @@ func neighborTableFix(err error) string {
 // not watched because of err.
 func neighborWatchFix(err error) string {
 	if errors.Is(err, network.ErrNeighborTableNotRegistered) {
-		return neighborTableFix(err)
+		return NeighborTableFix(err)
 	}
 	if errors.Is(err, errNeighborWatchEnded) {
 		return "none if the watch starts again, which ze logs; if this repeats, look for the netlink error ze logged just before this line, and for kernel messages with: dmesg | grep -i -e netlink -e neigh"
@@ -167,26 +170,29 @@ func (v neighborView) equal(other neighborView) bool {
 const thirdPartyLinkLocalLogInterval = 10 * time.Second
 
 // thirdPartyLinkLocalLog holds one window per lookup outcome, one for an
-// unread table and one for a miss answered from a table nobody watches. The
-// set is closed, so a peer cannot grow it; the peer and next hop are named in
-// the line that does get logged.
+// outcome outside that set, and one for a miss answered from a table nobody
+// watches. The set is closed, so a peer cannot grow it; the peer and next hop
+// are named in the line that does get logged. An unreadable table is not
+// rate-limited here: it warns once per peer (warnNeighborTableUnread).
 var thirdPartyLinkLocalLog struct {
-	unread    logWindow
-	unwatched logWindow
-	outcomes  [network.LinkLocalAmbiguous + 1]logWindow
+	otherOutcome logWindow
+	unwatched    logWindow
+	outcomes     [network.LinkLocalAmbiguous + 1]logWindow
 }
 
 // warnNeighborTableUnread says that a third-party next hop on the common
 // subnet went out without its router's Link-Local because the neighbor table
-// could not be read, and what makes it readable.
-func warnNeighborTableUnread(now int64, peer, global netip.Addr, err error) {
-	emit, suppressed := thirdPartyLinkLocalLog.unread.allow(now, thirdPartyLinkLocalLogInterval)
-	if !emit {
+// could not be read, and what makes it readable. The cause is the host's, not
+// a route's, so it holds for every route to the peer until it is fixed: the
+// line is given once per peer (warned is the peer's flag), never once per
+// UPDATE.
+func warnNeighborTableUnread(warned *atomic.Bool, peer, global netip.Addr, err error) {
+	if !warned.CompareAndSwap(false, true) {
 		return
 	}
-	reactorLogger().Warn("RFC 2545 next hop sent without the link-local address of the router it names: the neighbor table cannot be read",
-		"peer", peer, "next-hop", global, "error", err, "suppressed", suppressed,
-		"fix", neighborTableFix(err))
+	reactorLogger().Warn("RFC 2545 next hop sent without the link-local address of the router it names: the neighbor table cannot be read, so every such next hop to this peer goes out as the global address alone until it can",
+		"peer", peer, "next-hop", global, "error", err,
+		"fix", NeighborTableFix(err))
 }
 
 // warnThirdPartyLinkLocalUnknown says that the neighbor table does not name
@@ -200,7 +206,7 @@ func warnThirdPartyLinkLocalUnknown(now int64, peer, global netip.Addr, outcome 
 		warnThirdPartyLinkLocalUnwatched(now, peer, global, outcome, watch)
 		return
 	}
-	window := &thirdPartyLinkLocalLog.unread
+	window := &thirdPartyLinkLocalLog.otherOutcome
 	if int(outcome) < len(thirdPartyLinkLocalLog.outcomes) {
 		window = &thirdPartyLinkLocalLog.outcomes[outcome]
 	}
