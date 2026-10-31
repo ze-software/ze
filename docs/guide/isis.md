@@ -363,7 +363,10 @@ redistribute {
 Each redistributed prefix is advertised with the default metric 100, unless the
 export chain sets one. `isis filter export` judges every redistributed route before
 it enters the LSP: a route the chain rejects is not advertised, and a `modify`
-instance's `set metric` replaces the default. This chain advertises only the /32
+instance's `set metric` replaces the default. A reload that changes the chain
+judges the routes already redistributed again, so the LSP follows the new chain
+without a restart. The chain cannot match on `level`, because the level is where
+IS-IS injects the route rather than a property it arrives with. This chain advertises only the /32
 loopbacks, at metric 10:
 
 ```

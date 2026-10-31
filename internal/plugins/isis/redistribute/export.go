@@ -23,7 +23,7 @@ var exportChain atomic.Pointer[exportPolicy]
 
 // SetExportChain installs chain as the IS-IS export chain. A nil chain clears
 // it. Safe for concurrent use with InjectRoute. A route already in an LSP is
-// not judged again by this call.
+// not judged again by this call: the caller MUST call Consumer.Rejudge after.
 func SetExportChain(chain ribpolicy.Chain) {
 	if chain == nil {
 		exportChain.Store(nil)

@@ -70,6 +70,33 @@ type Consumer struct {
 	// inject path's sourceLabel(entry.Source). Without this the withdrawn/failure
 	// metrics would always be labeled source="unknown".
 	source map[netip.Prefix]string
+
+	// offerMu serializes judging a route and writing the verdict into the LSP,
+	// so a re-judge after a reload and an inject from the orchestrator never
+	// interleave. It guards offered and is taken before srcMu, never after.
+	offerMu sync.Mutex
+	// offered holds, per masked prefix, the latest route the orchestrator
+	// handed this consumer and has not withdrawn, whether or not the export
+	// chain accepted it. Rejudge reads it when a reload changes the chain: a
+	// route the old chain rejected is still offered, so a chain that widens
+	// advertises it.
+	offered map[netip.Prefix]offer
+	// rejudging is set by Rejudge, under offerMu: each change then marks
+	// rejudgeChanged instead of re-originating, and Rejudge re-originates once
+	// at the end, so a reload costs one LSP regeneration and not one per route.
+	rejudging      bool
+	rejudgeChanged bool
+}
+
+// offer is one route the orchestrator handed the consumer: its family and
+// entry, judged again by Rejudge.
+type offer struct {
+	fam   family.Family
+	entry configredist.RouteEntry
+	// advertised says the route is in the LSP, at metric. Rejudge compares a
+	// new verdict with it and leaves an unchanged route alone.
+	advertised bool
+	metric     uint32
 }
 
 // NewConsumer constructs an IS-IS redistribution consumer writing into inj. inj
@@ -83,6 +110,7 @@ func NewConsumer(inj LSPInjector) *Consumer {
 		mWithdrawn:    nop.CounterVec("", "", nil),
 		mInjectFailed: nop.CounterVec("", "", nil),
 		source:        map[netip.Prefix]string{},
+		offered:       map[netip.Prefix]offer{},
 	}
 }
 
@@ -162,6 +190,65 @@ func sourceLabel(s string) string {
 // on first injection (set to 1 only when leaked to a lower level, RFC 2966, done
 // by isis-9 SPF leaking, not here).
 func (c *Consumer) InjectRoute(ctx context.Context, fam family.Family, entry configredist.RouteEntry) {
+	c.offerMu.Lock()
+	defer c.offerMu.Unlock()
+
+	metric, advertised := c.judgeRoute(ctx, fam, entry)
+	if prefix, err := netip.ParsePrefix(entry.Prefix); err == nil {
+		c.offered[prefix.Masked()] = offer{fam: fam, entry: entry, advertised: advertised, metric: metric}
+	}
+}
+
+// Rejudge judges every route the orchestrator offered again, against the
+// export chain installed now, and writes each new verdict into the LSP: a
+// route the chain now rejects is withdrawn, one it now accepts is advertised,
+// and a changed set metric replaces the advertised one. The config apply MUST
+// call it after SetExportChain, because a reload delivers no route again.
+// Safe for concurrent use with InjectRoute and WithdrawRoute.
+func (c *Consumer) Rejudge(ctx context.Context) {
+	c.offerMu.Lock()
+	defer c.offerMu.Unlock()
+
+	c.rejudging = true
+	c.rejudgeChanged = false
+	for prefix, o := range c.offered {
+		metric, accepted := exportVerdict(&o.entry)
+		if accepted == o.advertised && metric == o.metric {
+			continue // the verdict did not change: the LSP already holds it
+		}
+		o.metric, o.advertised = c.judgeRoute(ctx, o.fam, o.entry)
+		c.offered[prefix] = o
+	}
+	c.rejudging = false
+	if !c.rejudgeChanged {
+		return
+	}
+	if err := c.inj.Originate(); err != nil {
+		slog.Warn("isis redist consumer: re-origination failed after re-judging the export chain", "error", err)
+		c.mInjectFailed.With(sourceLabel("")).Inc()
+	}
+}
+
+// reoriginate re-originates the LSP set after one change to it, logging and
+// counting a failure (R-3: never swallow a failed re-origination). During
+// Rejudge it only marks the change, and Rejudge re-originates once.
+func (c *Consumer) reoriginate(after string, prefix netip.Prefix, src string) {
+	if c.rejudging {
+		c.rejudgeChanged = true
+		return
+	}
+	if err := c.inj.Originate(); err != nil {
+		slog.Warn("isis redist consumer: re-origination failed after "+after,
+			"prefix", prefix.String(), "source", src, "error", err)
+		c.mInjectFailed.With(src).Inc()
+	}
+}
+
+// judgeRoute is InjectRoute under offerMu: it judges entry against the export
+// chain and advertises or withdraws it, answering the metric and true when the
+// route is now in the LSP, and false when the chain rejected it or it could
+// not be advertised.
+func (c *Consumer) judgeRoute(ctx context.Context, fam family.Family, entry configredist.RouteEntry) (metric uint32, advertised bool) {
 	src := sourceLabel(entry.Source)
 	// The export chain judges every route before it enters the LSP: a rejected
 	// route is not advertised, and one this prefix advertised before is withdrawn.
@@ -169,24 +256,23 @@ func (c *Consumer) InjectRoute(ctx context.Context, fam family.Family, entry con
 	if !accepted {
 		slog.Debug("isis redist consumer: export chain rejected route",
 			"family", fam.String(), "prefix", entry.Prefix, "source", src)
-		c.WithdrawRoute(ctx, fam, entry.Prefix)
-		return
+		c.removeRoute(ctx, fam, entry.Prefix)
+		return 0, false
 	}
 	if fam.AFI == family.AFIIPv6 {
 		// IPv6 (isis-12): originate a TLV 236 entry. Handled in ipv6.go.
-		c.injectRouteV6(ctx, entry, metric)
-		return
+		return metric, c.injectRouteV6(ctx, entry, metric)
 	}
 	if fam.AFI != family.AFIIPv4 {
 		slog.Debug("isis redist consumer: skipping unsupported AFI inject",
 			"family", fam.String(), "prefix", entry.Prefix, "source", src)
-		return
+		return 0, false
 	}
 	prefix, err := netip.ParsePrefix(entry.Prefix)
 	if err != nil || !prefix.IsValid() || !prefix.Addr().Is4() {
 		slog.Warn("isis redist consumer: rejecting malformed IPv4 prefix",
 			"prefix", entry.Prefix, "source", src, "error", err)
-		return
+		return 0, false
 	}
 	prefix = prefix.Masked()
 
@@ -203,12 +289,8 @@ func (c *Consumer) InjectRoute(ctx context.Context, fam family.Family, entry con
 	c.rememberSource(prefix, src)
 	c.mInjected.With(src, afiIPv4Label).Inc()
 
-	if err := c.inj.Originate(); err != nil {
-		// R-3: never swallow a failed re-origination -- log and count it.
-		slog.Warn("isis redist consumer: re-origination failed after inject",
-			"prefix", prefix.String(), "source", src, "error", err)
-		c.mInjectFailed.With(src).Inc()
-	}
+	c.reoriginate("inject", prefix, src)
+	return metric, true
 }
 
 // WithdrawRoute removes the TLV 135 reachability entry for prefix from every
@@ -220,6 +302,19 @@ func (c *Consumer) InjectRoute(ctx context.Context, fam family.Family, entry con
 // it recorded at inject time (forgetSource), mirroring the inject path's
 // sourceLabel(entry.Source). A prefix it never injected resolves to "unknown".
 func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, prefixStr string) {
+	c.offerMu.Lock()
+	defer c.offerMu.Unlock()
+
+	if prefix, err := netip.ParsePrefix(prefixStr); err == nil {
+		delete(c.offered, prefix.Masked())
+	}
+	c.removeRoute(ctx, fam, prefixStr)
+}
+
+// removeRoute is WithdrawRoute under offerMu: it takes prefixStr out of the
+// LSP and leaves the offered route alone, so an export reject followed by a
+// widened chain can advertise it again.
+func (c *Consumer) removeRoute(ctx context.Context, fam family.Family, prefixStr string) {
 	if fam.AFI == family.AFIIPv6 {
 		// IPv6 (isis-12): withdraw the TLV 236 entry. Handled in ipv6.go.
 		c.withdrawRouteV6(ctx, fam, prefixStr)
@@ -254,11 +349,7 @@ func (c *Consumer) WithdrawRoute(ctx context.Context, fam family.Family, prefixS
 	}
 	c.mWithdrawn.With(src, afiIPv4Label).Inc()
 
-	if err := c.inj.Originate(); err != nil {
-		slog.Warn("isis redist consumer: re-origination failed after withdraw",
-			"prefix", prefix.String(), "source", src, "error", err)
-		c.mInjectFailed.With(src).Inc()
-	}
+	c.reoriginate("withdraw", prefix, src)
 }
 
 // compile-time assertion: *Consumer satisfies the generic RedistConsumer.

@@ -53,9 +53,14 @@ func init() {
 		[]policy.Field{policy.FieldDistance, policy.FieldTag})
 	// The import chain is compiled into the Loc-RIB gate by the policy plugin.
 	policy.MustRegisterRIBImport(policy.RIBImport{Attachment: "isis import", Root: configRoot, Scope: policy.RIBScopeSource, Protocol: componentName, Floods: true})
+	// The export chain judges a redistributed route before IS-IS injects it.
+	// The level is where IS-IS will inject the route, at every origination
+	// level, not a field the route arrives with, so the chain cannot match on
+	// it; and no filter sets a level the consumer could honour, so it is not
+	// settable either.
 	policy.MustRegisterAttachment(componentName, exportAttachment,
-		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldLevel, policy.FieldOriginAS},
-		[]policy.Field{policy.FieldMetric, policy.FieldLevel})
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldOriginAS},
+		[]policy.Field{policy.FieldMetric})
 	// `isis filter export filters` declares ze:reference "policy-filter"; this
 	// tells that source the chain compiles at "isis export".
 	policy.MustRegisterRouteChainPath(policy.ExportChainPath(configRoot), exportAttachment)
@@ -297,6 +302,10 @@ func runISISEngine(conn net.Conn) int {
 		// pendingExport is the export chain of pendingCfg's commit.
 		pendingExport exportChainConfig
 		havePending   bool
+		// redistConsumer is the redistribution consumer OnStarted registered,
+		// nil before it. A config apply that installs a new export chain
+		// re-judges the routes it already holds.
+		redistConsumer *isisredistribute.Consumer
 	)
 
 	// OnConfigVerify: parse-check only, rejecting malformed config (no NET, bad
@@ -349,13 +358,20 @@ func runISISEngine(conn net.Conn) int {
 	// changed interface metric does not flap unrelated circuits (AC-8).
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		cfgMu.Lock()
+		installed := havePending
 		if havePending {
 			activeCfg = pendingCfg
 			pendingExport.install()
 			havePending = false
 		}
 		cfg := activeCfg
+		consumer := redistConsumer
 		cfgMu.Unlock()
+		// A reload delivers no route again, so the routes already offered to
+		// IS-IS are judged against the chain just installed.
+		if installed && consumer != nil {
+			consumer.Rejudge(context.Background())
+		}
 		eng.reconcile(cfg)
 		return nil
 	})
@@ -388,6 +404,7 @@ func runISISEngine(conn net.Conn) int {
 		eng.wireRedistProducer(isisredistribute.NewSource(getEventBus()))
 
 		cfgMu.Lock()
+		redistConsumer = consumer
 		cfg := activeCfg
 		cfgMu.Unlock()
 		if !cfg.Present() {

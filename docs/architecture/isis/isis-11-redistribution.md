@@ -88,9 +88,18 @@ withdrawn. An accepting chain's `set metric` becomes the prefix metric of the
 TLV 135 or TLV 236 entry; a route no filter sets a metric for, or any route when
 no export chain is configured, takes the code constant `DefaultRedistMetric`
 (100). The chain is compiled at verify and installed at configure and apply
-(`export_chain.go`); a change to it judges the routes redistributed after it,
-not the ones already in the LSP.
+(`export_chain.go`). The consumer keeps every route the orchestrator offered and
+has not withdrawn, accepted or not, so a reload that changes the chain re-judges
+them all (`Consumer.Rejudge`, called from the config apply): a route the new
+chain rejects is withdrawn, one it now accepts is advertised, a changed `set
+metric` replaces the advertised metric, and the LSP set is re-originated once.
+The chain cannot match on `level`: the level is where IS-IS injects the route
+(every origination level), not a field the route arrives with, so the `isis
+export` attachment neither carries nor sets it and a `match level` there is
+refused at load.
 <!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict, SetExportChain -->
+<!-- source: internal/plugins/isis/redistribute/consumer.go -- Rejudge, judgeRoute -->
+<!-- source: internal/plugins/isis/register.go -- init, MustRegisterAttachment exportAttachment -->
 <!-- source: internal/plugins/isis/export_chain.go -- parseExportChain -->
 
 ## Trap: the generic withdraw carries no source

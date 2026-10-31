@@ -98,3 +98,69 @@ func TestISISExportNoChainDefaultMetric(t *testing.T) {
 		t.Fatalf("TLV 135 metric = %d, want DefaultRedistMetric %d", got[0].Metric.Value(), DefaultRedistMetric)
 	}
 }
+
+// acceptAll is an export chain that accepts every route and sets its metric.
+type acceptAll struct{ metric uint32 }
+
+func (c acceptAll) Evaluate(ribpolicy.Route) ribpolicy.Verdict {
+	return ribpolicy.Verdict{Action: ribpolicy.ActionAccept, Sets: ribpolicy.Sets{Metric: c.metric, HasMetric: true}}
+}
+
+// TestISISExportReloadRejudges proves a reload re-judges the routes already
+// handed to IS-IS: a chain that widens advertises the route it rejected before,
+// a changed set metric reaches the prefixes already in the LSP, a chain that
+// narrows withdraws them, and a route the orchestrator withdrew never returns.
+// Method: install a chain, inject, install another and call Rejudge, as the
+// config apply does, then read the fake LSP injector.
+func TestISISExportReloadRejudges(t *testing.T) {
+	SetExportChain(loopbackChain{metric: 10})
+	t.Cleanup(func() { SetExportChain(nil) })
+
+	inj := newFakeInjector(lsdb.Level2)
+	c := NewConsumer(inj)
+	ctx := context.Background()
+	v4 := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}
+	v6 := family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}
+
+	c.InjectRoute(ctx, v4, exportEntry("192.0.2.1/32"))
+	c.InjectRoute(ctx, v4, exportEntry("198.51.100.0/24"))
+	c.InjectRoute(ctx, v6, exportEntry("2001:db8::1/128"))
+	c.InjectRoute(ctx, v4, exportEntry("203.0.113.1/32"))
+	c.WithdrawRoute(ctx, v4, "203.0.113.1/32")
+
+	SetExportChain(acceptAll{metric: 30})
+	c.Rejudge(ctx)
+	got := inj.snapshot(lsdb.Level2)
+	if len(got) != 2 {
+		t.Fatalf("TLV 135 entries after the chain widened = %v, want 192.0.2.1/32 and 198.51.100.0/24", got)
+	}
+	for _, info := range got {
+		if info.Prefix == netip.MustParsePrefix("203.0.113.1/32") {
+			t.Fatal("the route the orchestrator withdrew came back on re-judge")
+		}
+		if info.Metric.Value() != 30 {
+			t.Fatalf("TLV 135 %s metric = %d, want the new chain's set metric 30", info.Prefix, info.Metric.Value())
+		}
+	}
+	gotV6 := inj.snapshotV6(lsdb.Level2)
+	if len(gotV6) != 1 || gotV6[0].Metric.Value() != 30 {
+		t.Fatalf("TLV 236 entries after the chain widened = %v, want 2001:db8::1/128 at metric 30", gotV6)
+	}
+
+	SetExportChain(rejectAll{})
+	c.Rejudge(ctx)
+	if got := inj.snapshot(lsdb.Level2); len(got) != 0 {
+		t.Fatalf("TLV 135 entries after the chain narrowed = %v, want none", got)
+	}
+	if got := inj.snapshotV6(lsdb.Level2); len(got) != 0 {
+		t.Fatalf("TLV 236 entries after the chain narrowed = %v, want none", got)
+	}
+
+	// The routes the narrowed chain withdrew are still offered: widening again
+	// advertises them, so a reject is never a forgotten route.
+	SetExportChain(nil)
+	c.Rejudge(ctx)
+	if got := inj.snapshot(lsdb.Level2); len(got) != 2 {
+		t.Fatalf("TLV 135 entries after the chain was removed = %v, want both offered routes", got)
+	}
+}

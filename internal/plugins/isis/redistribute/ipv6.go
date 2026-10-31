@@ -38,21 +38,22 @@ import (
 // prefix carries metric, the export chain's answer. The
 // external (X) bit is set: the prefix is distributed into IS-IS from another
 // protocol (RFC 5308 sec 2). The up/down bit is CLEAR on first injection (set
-// only on a down-level leak, RFC 2966).
-func (c *Consumer) injectRouteV6(_ context.Context, entry configredist.RouteEntry, metric uint32) {
+// only on a down-level leak, RFC 2966). It answers true when the entry is now
+// in the LSP, and false for a prefix it refused.
+func (c *Consumer) injectRouteV6(_ context.Context, entry configredist.RouteEntry, metric uint32) bool {
 	src := sourceLabel(entry.Source)
 	prefix, err := netip.ParsePrefix(entry.Prefix)
 	if err != nil || !prefix.IsValid() || !prefix.Addr().Is6() || prefix.Addr().Is4In6() {
 		slog.Warn("isis redist consumer: rejecting malformed IPv6 prefix",
 			"prefix", entry.Prefix, "source", src, "error", err)
-		return
+		return false
 	}
 	prefix = prefix.Masked()
 	if prefix.Addr().IsLinkLocalUnicast() {
 		// RFC 5308 sec 2: link-local prefixes MUST NOT be advertised in TLV 236.
 		slog.Debug("isis redist consumer: skipping link-local IPv6 prefix (RFC 5308 sec 2)",
 			"prefix", prefix.String(), "source", src)
-		return
+		return false
 	}
 
 	info := lsdb.PrefixInfoV6{
@@ -67,11 +68,8 @@ func (c *Consumer) injectRouteV6(_ context.Context, entry configredist.RouteEntr
 	c.rememberSource(prefix, src)
 	c.mInjected.With(src, afiIPv6Label).Inc()
 
-	if err := c.inj.Originate(); err != nil {
-		slog.Warn("isis redist consumer: re-origination failed after IPv6 inject",
-			"prefix", prefix.String(), "source", src, "error", err)
-		c.mInjectFailed.With(src).Inc()
-	}
+	c.reoriginate("IPv6 inject", prefix, src)
+	return true
 }
 
 // withdrawRouteV6 removes the TLV 236 entry for prefix from every origination
@@ -100,11 +98,7 @@ func (c *Consumer) withdrawRouteV6(_ context.Context, _ family.Family, prefixStr
 	}
 	c.mWithdrawn.With(src, afiIPv6Label).Inc()
 
-	if err := c.inj.Originate(); err != nil {
-		slog.Warn("isis redist consumer: re-origination failed after IPv6 withdraw",
-			"prefix", prefix.String(), "source", src, "error", err)
-		c.mInjectFailed.With(src).Inc()
-	}
+	c.reoriginate("IPv6 withdraw", prefix, src)
 }
 
 // ConnectedPrefixInfosV6 turns a list of NON-LINK-LOCAL IPv6 interface prefixes
