@@ -1,4 +1,5 @@
 // Design: docs/architecture/plugin/rib-storage-design.md -- source-policy lifecycle owner
+// RFC naming: untagged -- tests machinery RFC 8212 default reject relies on; rows RFC8212-3-1/3-2 are {gap}, which refuse a proof tag until the spec closes them (AC-11).
 // RFC: rfc/short/rfc8212.md -- Section 3 default import rejection
 // Related: source_policy.go -- the handler these tests drive
 

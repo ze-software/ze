@@ -1,4 +1,5 @@
 // Design: docs/architecture/behavior/peer-lifecycle.md -- in-place import invalidation owners.
+// RFC naming: untagged -- tests machinery RFC 8212 default reject relies on; rows RFC8212-3-1/3-2 are {gap}, which refuse a proof tag until the spec closes them (AC-11).
 // Related: rfc8212_downstream_settle_test.go -- the best-change settle these extend.
 package reactor
 

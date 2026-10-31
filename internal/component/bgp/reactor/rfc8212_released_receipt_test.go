@@ -1,4 +1,5 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- released receipts of an in-place import invalidation.
+// RFC naming: untagged -- tests machinery RFC 8212 default reject relies on; rows RFC8212-3-1/3-2 are {gap}, which refuse a proof tag until the spec closes them (AC-11).
 // Related: rfc8212_abort_restore_test.go -- the abort restore these records serve.
 // Related: policy_replay_identity_test.go -- the ADD-PATH recipient rail.
 package reactor

@@ -1,4 +1,5 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- source policy epoch at the final writer.
+// RFC naming: untagged -- tests machinery RFC 8212 default reject relies on; rows RFC8212-3-1/3-2 are {gap}, which refuse a proof tag until the spec closes them (AC-11).
 // Related: rfc8212_default_reject_test.go -- real ingress admission, dispatch and marker fixtures.
 package reactor
 
