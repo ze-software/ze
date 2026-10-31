@@ -180,6 +180,18 @@ empty.
 <!-- source: internal/le/interoplab/output.go -- OutputExcerpt, WithSearchedOutput, WithLastAnswer -->
 <!-- source: internal/le/interoplab/wait.go -- waitNotReadyError, waitValueExcerpt -->
 
+`Lab.Query` refuses a command that exited 0 and printed nothing with an
+`EmptyAnswerError`, kept apart from an exec that failed or was cut short. The
+BGP suite's positive waits (`waitContains`, `waitContainsFold`,
+`waitContainsAny`) read that refusal as a measured empty answer, so a route
+that never arrives times out with `last output: (the peer printed nothing)`.
+FRR's vtysh prints nothing for an empty `show ipv6 route ospf6`, and before
+this the red read "never measured peer state", which names a peer that never
+answered. An empty answer still satisfies no positive wait. A negative wait
+keeps the refusal, because there an empty answer would read as absence.
+<!-- source: internal/le/interoplab/lab.go -- EmptyAnswerError, Query -->
+<!-- source: internal/le/interoplab/bgp/check_engine.go -- queryAnswered, answered -->
+
 The FRR readiness producers are
 [`peer_unshut_after_cfg`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgpd.c),
 [`bgp_start`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgp_fsm.c), and

@@ -327,6 +327,32 @@ func rewriteOperation(network interoplab.Network, current *operation) {
 	}
 }
 
+// queryAnswered runs a positive wait's probe. A command that ran to its end and
+// printed nothing is a measured empty answer, not a failed probe: FRR's vtysh
+// prints nothing for an empty "show ipv6 route ospf6", so a route that never
+// arrives must time out naming the empty answer ("last output: (the peer
+// printed nothing)"), not as "never measured peer state", which reads as a
+// peer that never answered. An exec that failed or was cut short stays an
+// error. Only a positive wait may do this: its ready predicate also requires
+// answered output, so an empty answer can never pass it, and a negative wait
+// (waitAbsent) keeps Query's refusal, where empty would read as absence.
+func queryAnswered(ctx context.Context, lab interoplab.CheckerLab, peer string, command []string) (string, error) {
+	output, err := lab.Query(ctx, peer, command, queryEnvironment(peer, command))
+	var empty *interoplab.EmptyAnswerError
+	if errors.As(err, &empty) {
+		return "", nil
+	}
+	return output, err
+}
+
+// answered reports whether a probe printed anything. It guards the positive
+// waits' ready predicates: queryAnswered hands them an empty answer as a
+// measured value, and an empty answer satisfies no positive wait, even one
+// with no needle.
+func answered(output string) bool {
+	return strings.TrimSpace(output) != ""
+}
+
 func waitContains(ctx context.Context, lab interoplab.CheckerLab, peer string, command []string, timeout time.Duration, needles ...string) error {
 	if timeout <= 0 {
 		timeout = 90 * time.Second
@@ -337,9 +363,9 @@ func waitContains(ctx context.Context, lab interoplab.CheckerLab, peer string, c
 		Interval:    2 * time.Second,
 		Description: description.Str(peer).Str(" output").String(),
 	}, func(probeCtx context.Context) (string, error) {
-		return lab.Query(probeCtx, peer, command, queryEnvironment(peer, command))
+		return queryAnswered(probeCtx, lab, peer, command)
 	}, func(output string) bool {
-		return containsAll(output, needles)
+		return answered(output) && containsAll(output, needles)
 	})
 	return err
 }
@@ -358,9 +384,9 @@ func waitContainsFold(ctx context.Context, lab interoplab.CheckerLab, peer strin
 		Interval:    2 * time.Second,
 		Description: description.Str(peer).Str(" output").String(),
 	}, func(probeCtx context.Context) (string, error) {
-		return lab.Query(probeCtx, peer, command, queryEnvironment(peer, command))
+		return queryAnswered(probeCtx, lab, peer, command)
 	}, func(output string) bool {
-		return containsAll(strings.ToLower(output), lower)
+		return answered(output) && containsAll(strings.ToLower(output), lower)
 	})
 	return err
 }
@@ -375,8 +401,11 @@ func waitContainsAny(ctx context.Context, lab interoplab.CheckerLab, peer string
 		Interval:    2 * time.Second,
 		Description: description.Str(peer).Str(" output alternatives").String(),
 	}, func(probeCtx context.Context) (string, error) {
-		return lab.Query(probeCtx, peer, command, queryEnvironment(peer, command))
+		return queryAnswered(probeCtx, lab, peer, command)
 	}, func(output string) bool {
+		if !answered(output) {
+			return false
+		}
 		for _, needle := range needles {
 			if strings.Contains(output, needle) {
 				return true

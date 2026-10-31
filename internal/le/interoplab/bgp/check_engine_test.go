@@ -1,9 +1,12 @@
 package bgp
 
 import (
+	"context"
+	"errors"
 	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
@@ -95,5 +98,82 @@ func TestRewriteOperationJSONFieldsForNetwork(t *testing.T) {
 	}
 	if first.fields["peer_ip"] != "172.31.71.9" {
 		t.Errorf("second run mutated the first run: %v", first.fields)
+	}
+}
+
+// scriptedQueryLab answers every Query with one scripted reply and counts the
+// probes. Only Query is implemented: the positive waits call nothing else.
+type scriptedQueryLab struct {
+	interoplab.CheckerLab
+	output string
+	err    error
+	calls  int
+}
+
+func (l *scriptedQueryLab) Query(context.Context, string, []string, []interoplab.EnvironmentVariable) (string, error) {
+	l.calls++
+	return l.output, l.err
+}
+
+// TestPositiveWaitReadsAFinishedEmptyAnswerAsMeasured proves a positive wait
+// tells "the peer answered with nothing" from "the peer never answered".
+//
+// VALIDATES: waitContains, waitContainsFold and waitContainsAny time out with
+// "timed out before the peer became ready" and "(the peer printed nothing)" when
+// every probe finished empty, never pass on an empty answer (even with no
+// needle), still report "never measured peer state" for a failed exec, and still
+// pass when the needle arrives.
+// PREVENTS: the ospfv3-redist-frr red, where FRR's vtysh printed nothing for an
+// empty "show ipv6 route ospf6" on every probe and the red read "never measured
+// peer state: peer frr query returned no output; the final probe ... did not
+// finish within 30s", which named a hung vtysh instead of an absent prefix.
+func TestPositiveWaitReadsAFinishedEmptyAnswerAsMeasured(t *testing.T) {
+	t.Parallel()
+	command := []string{cmdVtysh, "-c", frrShowOSPF6Route}
+	const timeout = 50 * time.Millisecond
+	waits := map[string]func(interoplab.CheckerLab, ...string) error{
+		"contains": func(lab interoplab.CheckerLab, needles ...string) error {
+			return waitContains(t.Context(), lab, peerFRR, command, timeout, needles...)
+		},
+		"fold": func(lab interoplab.CheckerLab, needles ...string) error {
+			return waitContainsFold(t.Context(), lab, peerFRR, command, timeout, needles...)
+		},
+		"any": func(lab interoplab.CheckerLab, needles ...string) error {
+			return waitContainsAny(t.Context(), lab, peerFRR, command, timeout, needles...)
+		},
+	}
+	for name, wait := range waits {
+		empty := &scriptedQueryLab{err: &interoplab.EmptyAnswerError{Peer: peerFRR}}
+		err := wait(empty, "2001:db8:5e5::/48")
+		if err == nil {
+			t.Fatalf("%s: an empty answer must not satisfy a wait for a prefix", name)
+		}
+		for _, want := range []string{"timed out before the peer became ready", "(the peer printed nothing)"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("%s: empty-answer error lacks %q: %q", name, want, err.Error())
+			}
+		}
+		if strings.Contains(err.Error(), "never measured") {
+			t.Errorf("%s: a finished empty answer was reported as unmeasured: %q", name, err.Error())
+		}
+		if empty.calls == 0 {
+			t.Errorf("%s: the wait never probed", name)
+		}
+		if name != "any" {
+			if err := wait(&scriptedQueryLab{err: &interoplab.EmptyAnswerError{Peer: peerFRR}}); err == nil {
+				t.Errorf("%s: an empty answer must not satisfy a wait with no needle", name)
+			}
+		}
+
+		failed := &scriptedQueryLab{err: errors.New("docker exec ze-iop-frr vtysh did not finish within 30s")}
+		err = wait(failed, "2001:db8:5e5::/48")
+		if err == nil || !strings.Contains(err.Error(), "never measured peer state") || !strings.Contains(err.Error(), "did not finish") {
+			t.Errorf("%s: a failed exec must stay unmeasured and name its failure, got %v", name, err)
+		}
+
+		present := &scriptedQueryLab{output: "O>* 2001:db8:5e5::/48 [110/20] via fe80::1, eth0\n"}
+		if err := wait(present, "2001:db8:5e5::/48"); err != nil {
+			t.Errorf("%s: a present prefix must pass, got %v", name, err)
+		}
 	}
 }

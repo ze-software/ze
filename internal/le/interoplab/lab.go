@@ -657,7 +657,23 @@ func (l *Lab) ExecDetached(ctx context.Context, peer string, argv []string, envi
 	return l.docker.ExecDetached(ctx, config.Container, argv, environ)
 }
 
-// Query runs a peer command and rejects empty stdout as an unmeasured answer.
+// EmptyAnswerError reports a peer command that ran to its end, exited 0 and
+// printed nothing on stdout. It is distinct from an exec that failed or was cut
+// short: the peer answered, and its answer was empty. FRR's vtysh prints nothing
+// for an empty route table, so a wait for a route that never arrives meets this
+// error on every probe; a caller that can read empty as a measured state
+// (waitContains in the BGP checkers) tests for it with errors.As.
+type EmptyAnswerError struct {
+	Peer string
+}
+
+func (e *EmptyAnswerError) Error() string {
+	var tb textbuf.Buffer
+	return tb.Str("peer ").Str(e.Peer).Str(" query returned no output").String()
+}
+
+// Query runs a peer command and rejects empty stdout as an unmeasured answer,
+// with an *EmptyAnswerError so a caller can tell it from a failed exec.
 func (l *Lab) Query(ctx context.Context, peer string, argv []string, environ []EnvironmentVariable) (string, error) {
 	result, err := l.Exec(ctx, peer, argv, environ)
 	if err != nil {
@@ -666,8 +682,7 @@ func (l *Lab) Query(ctx context.Context, peer string, argv []string, environ []E
 	if strings.TrimSpace(result.Stdout) != "" {
 		return result.Stdout, nil
 	}
-	var tb textbuf.Buffer
-	return "", errors.New(tb.Str("peer ").Str(peer).Str(" query returned no output").String())
+	return "", &EmptyAnswerError{Peer: peer}
 }
 
 // Logs reads a bounded peer log tail and distinguishes readable empty logs.
