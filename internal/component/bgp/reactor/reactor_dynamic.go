@@ -7,11 +7,12 @@ package reactor
 
 import (
 	"errors"
+	"fmt"
 	"maps"
 	"net/netip"
-	"slices"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -282,25 +283,29 @@ type dynamicSwap struct {
 // gains a receive-only binding, a BFD opt-in or a filter chain the way a
 // configured peer does (owner, OQ-1 and OQ-2, option A).
 //
-// The undo restores the previous group set, recounts, and undoes each swap
-// from the snapshot taken before it, the dyn* template pair included
-// (hotSwappableSnapshot). A dynamic peer the step removed is not rebuilt:
+// The undo rolls back each swap (swapPeerJournaled, journaled in
+// dynamicSwapJournal) from the snapshot taken before it, the dyn* template
+// pair included (hotSwappableSnapshot), then restores the previous group set
+// and recounts. A dynamic peer the step removed is not rebuilt:
 // nothing names it, and its next connection is accepted under the restored
 // group.
 func (a *reactorAPIAdapter) reconcileDynamicGroupsJournaled(groups []*DynamicGroupConfig, label string, j configJournal) error {
 	r := a.r
 	var previous []*DynamicGroupConfig
-	var undone []dynamicSwap
+	// The swaps are journaled in swapped, which names j's transaction, so the
+	// whole step stays one entry of j: its undo rolls the swaps back first,
+	// then restores the group set.
+	inner := &internalJournal{}
+	var swapped configJournal = inner
+	if tx, ok := j.(sourcePolicyTransaction); ok {
+		txID, deadline := tx.SourcePolicyTransaction()
+		swapped = &dynamicSwapJournal{internalJournal: inner, txID: txID, deadline: deadline}
+	}
 	restore := func() error {
+		errs := inner.Rollback()
 		r.mu.Lock()
 		r.installDynamicGroupsLocked(previous)
 		r.mu.Unlock()
-		var errs []error
-		for _, swap := range slices.Backward(undone) {
-			if err := swap.peer.restoreHotSwappableSettings(swap.next, swap.apply); err != nil {
-				errs = append(errs, err)
-			}
-		}
 		return errors.Join(errs...)
 	}
 	return j.Record(
@@ -314,12 +319,12 @@ func (a *reactorAPIAdapter) reconcileDynamicGroupsJournaled(groups []*DynamicGro
 			for _, stop := range stops {
 				stop.run()
 			}
+			// An import decision that falls or rises takes the same
+			// transition a configured peer's does (swapPeerJournaled).
 			for _, swap := range swaps {
-				before := swap.peer.hotSwappableSnapshot(swap.apply)
-				undone = append(undone, dynamicSwap{peer: swap.peer, next: before, apply: swap.apply})
-				if err := swap.peer.applyHotSwappableSettings(swap.next, swap.apply); err != nil {
+				if err := a.swapPeerJournaled(swap.peer, swap.next, swap.apply, false, swapped); err != nil {
 					// Record does not keep the inverse of a failed apply.
-					return errors.Join(err, restore())
+					return errors.Join(fmt.Errorf("swap dynamic peer %s: %w", swap.peer.addrString, err), restore())
 				}
 			}
 			return nil
@@ -327,6 +332,18 @@ func (a *reactorAPIAdapter) reconcileDynamicGroupsJournaled(groups []*DynamicGro
 		restore,
 	)
 }
+
+// dynamicSwapJournal journals the swaps of one dynamic step, and names the
+// config transaction of the journal the step is recorded in, if any, so an
+// import transition there takes its transaction-bound route.
+type dynamicSwapJournal struct {
+	*internalJournal
+	txID     string
+	deadline time.Time
+}
+
+// SourcePolicyTransaction names the outer journal's transaction.
+func (j *dynamicSwapJournal) SourcePolicyTransaction() (string, time.Time) { return j.txID, j.deadline }
 
 // planDynamicGroupsLocked decides, for every dynamic peer, what the next group
 // set does to it: remove it (its group is gone, or no range covers it any more:

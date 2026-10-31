@@ -242,39 +242,50 @@ func (a *reactorAPIAdapter) swapPeerSettingsJournaled(swaps []peerSettingsSwap, 
 			continue
 		}
 
-		next := swap.next
-		apply := swap.apply
-		previous := peer.hotSwappableSnapshot(apply)
-		// RFC 8212 Section 3
-		falls, err := peer.importDecisionFalls(next, apply, swap.policyUnresolved)
-		if err != nil {
-			return fmt.Errorf("swap peer settings %s: %w", swap.key, err)
-		}
-		if falls {
-			if err := a.swapImportFalling(peer, next, apply, previous, j); err != nil {
-				return fmt.Errorf("swap peer settings %s: %w", swap.key, err)
-			}
-			continue
-		}
-		err = j.Record(
-			func() error {
-				if err := peer.applyHotSwappableSettings(next, apply); err != nil {
-					// A failed apply is not journaled, so undo this attempted
-					// transition before returning the failure to the transaction.
-					return errors.Join(err, peer.restoreHotSwappableSettings(previous, apply))
-				}
-				return nil
-			},
-			func() error {
-				return peer.restoreHotSwappableSettings(previous, apply)
-			},
-		)
-		if err != nil {
+		if err := a.swapPeerJournaled(peer, swap.next, swap.apply, swap.policyUnresolved, j); err != nil {
 			return fmt.Errorf("swap peer settings %s: %w", swap.key, err)
 		}
 	}
 
 	return nil
+}
+
+// swapPeerJournaled delivers one swap to its running peer, configured or
+// dynamic, and records its undo. The effective import decision routes it: one
+// that falls is the D-2 transition (swapImportFalling), one that rises is the
+// D-1 transition (swapImportRising), and anything else publishes and restores
+// the hot-swappable fields alone. The undo value is read before the apply.
+func (a *reactorAPIAdapter) swapPeerJournaled(peer *Peer, next *PeerSettings, apply settingsCopier, unresolved bool, j configJournal) error {
+	previous := peer.hotSwappableSnapshot(apply)
+	// RFC 8212 Section 3
+	falls, err := peer.importDecisionFalls(next, apply, unresolved)
+	if err != nil {
+		return err
+	}
+	if falls {
+		return a.swapImportFalling(peer, next, apply, previous, j)
+	}
+	// RFC 8212 Section 3
+	rises, err := peer.importDecisionRises(next, apply, unresolved)
+	if err != nil {
+		return err
+	}
+	if rises {
+		return a.swapImportRising(peer, next, apply, previous, j)
+	}
+	return j.Record(
+		func() error {
+			if err := peer.applyHotSwappableSettings(next, apply); err != nil {
+				// A failed apply is not journaled, so undo this attempted
+				// transition before returning the failure to the transaction.
+				return errors.Join(err, peer.restoreHotSwappableSettings(previous, apply))
+			}
+			return nil
+		},
+		func() error {
+			return peer.restoreHotSwappableSettings(previous, apply)
+		},
+	)
 }
 
 // swapImportInvalidating delivers a swap that removes the peer's last accepting

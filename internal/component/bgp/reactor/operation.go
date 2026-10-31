@@ -47,15 +47,24 @@ func (a *reactorAPIAdapter) verifyConfigOperation(txID string, op *rpc.ConfigOpe
 		if _, err := a.runningPeerSettings(op); err != nil {
 			return err
 		}
-		_, _, err := a.resolveOperationCandidate(txID, op)
-		return err
+		settings, policyResolved, err := a.resolveOperationCandidate(txID, op)
+		if err != nil {
+			return err
+		}
+		// RFC 8212 Section 3: D-1 refuses an import relaxation the session
+		// cannot recover from, before any plugin applies the transaction.
+		return a.verifyImportRelaxation(settings, policyResolved)
 	case configop.ReconcilePeers:
 		tree, err := operationBGPTree(op)
 		if err != nil {
 			return err
 		}
-		_, err = a.peerDiffCount(tree)
-		return err
+		loaded, err := a.loadPeersFullOrTree(tree)
+		if err != nil {
+			return err
+		}
+		// RFC 8212 Section 3
+		return a.verifyImportRelaxations(loaded)
 	default:
 		return fmt.Errorf("bgp operation %s not supported", op.Type)
 	}

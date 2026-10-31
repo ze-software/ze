@@ -1012,10 +1012,12 @@ func (a *reactorAPIAdapter) VerifyConfig(tree map[string]any) error {
 	if err != nil {
 		return err
 	}
-	if _, err := a.loadPeersFullOrTree(bgpTree); err != nil {
+	loaded, err := a.loadPeersFullOrTree(bgpTree)
+	if err != nil {
 		return err
 	}
-	return nil
+	// RFC 8212 Section 3
+	return a.verifyImportRelaxations(loaded)
 }
 
 // ApplyConfigDiff applies peer changes from config.

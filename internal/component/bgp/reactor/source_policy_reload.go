@@ -76,10 +76,14 @@ type sourceInvalidation struct {
 	window uint64
 	// aborted is set once the previous policy was restored. Input stays
 	// paused after it until the rejection receipt or the hold's expiry.
-	aborted  bool
-	released atomic.Bool
-	mu       sync.Mutex  // guards hold
-	hold     clock.Timer // the expiry of an aborted invalidation's pause
+	aborted bool
+	// relaxationUndo marks the invalidation an import relaxation's undo ran
+	// (undoImportRelaxation): its apply published the restored rejecting
+	// policy, so it IS the rollback, and the receipt finalizes it.
+	relaxationUndo bool
+	released       atomic.Bool
+	mu             sync.Mutex  // guards hold
+	hold           clock.Timer // the expiry of an aborted invalidation's pause
 }
 
 // importDecisionFalls reports the D-2 transition: an effective import
@@ -831,6 +835,17 @@ func (r *Reactor) CompleteSourcePolicyTx(ctx context.Context, txID string, accep
 			if accepted {
 				result = errors.Join(result, fmt.Errorf("peer %s: transaction %s accepted after its import invalidation was undone; the previous policy stays in effect", inv.peer.addrString, txID))
 			}
+			continue
+		}
+		if inv.relaxationUndo {
+			// RFC 8212 Section 3: the undo restored the rejecting policy, so
+			// the paths the relaxation admitted stay out of eligibility.
+			err := inv.finalize(ctx)
+			if accepted {
+				err = errors.Join(fmt.Errorf("peer %s: transaction %s accepted after its import policy relaxation "+
+					"was undone; the previous rejecting policy stays in effect", inv.peer.addrString, txID), err)
+			}
+			result = errors.Join(result, err)
 			continue
 		}
 		if accepted {

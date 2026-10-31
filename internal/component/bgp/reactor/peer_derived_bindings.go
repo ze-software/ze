@@ -7,6 +7,7 @@
 package reactor
 
 import (
+	"fmt"
 	"reflect"
 	"slices"
 
@@ -547,7 +548,10 @@ func (p *Peer) catchUpBoundProcesses(bindings []ProcessBinding, gained []string)
 		}
 	}
 	if refresh {
-		p.requestRouteRefreshAll(gained)
+		if err := p.requestRouteRefreshAll(session); err != nil {
+			peerLogger().Warn("bound process catch-up: route refresh not sent",
+				"peer", p.settings.Address, "processes", gained, "error", err)
+		}
 	}
 }
 
@@ -567,17 +571,46 @@ func (p *Peer) restartForBinding(target *Session, processes []string, why string
 	}
 }
 
-// requestRouteRefreshAll asks the peer to re-send its routes for every
-// negotiated family, so the processes a reload attached learn them. Every
-// consumer still fed receives them a second time, which is an implicit
-// replacement of routes it already holds (RFC 4271 Section 3.1).
-func (p *Peer) requestRouteRefreshAll(gained []string) {
+// sessionNegotiated answers what session negotiated, read from the peer's
+// published negotiation (peer_run.go stores it from the same OPEN exchange),
+// and refuses when session is no longer the peer's: the published value then
+// belongs to another session, or to none.
+func (p *Peer) sessionNegotiated(session *Session) (*NegotiatedCapabilities, error) {
+	if session == nil {
+		return nil, fmt.Errorf("peer %s: no session, so nothing was negotiated", p.addrString)
+	}
 	neg := p.negotiated.Load()
+	if p.currentSession() != session {
+		return nil, fmt.Errorf("peer %s: its session was replaced, so the negotiation judged is gone; commit again", p.addrString)
+	}
+	if neg == nil {
+		return nil, fmt.Errorf("peer %s: the session has not negotiated capabilities yet", p.addrString)
+	}
+	return neg, nil
+}
+
+// requestRouteRefreshAll asks the peer, on session, to re-send its routes for
+// every family that session negotiated. Two callers need it: a reload that
+// attached a process (catchUpBoundProcesses), and an import policy relaxation
+// (swapImportRising) whose recovery must reach the session it was judged on.
+// Every consumer still fed receives the routes a second time, which is an
+// implicit replacement of routes it already holds (RFC 4271 Section 3.1).
+//
+// The request is bound to session: a replacement session is a different
+// negotiation, so a write on it would answer for a session nobody judged. It
+// returns the first send failure, naming the family, after the requests before
+// it were written: the caller decides what a partial recovery costs. The
+// caller MUST NOT hold p.mu: a write can block on the socket.
+func (p *Peer) requestRouteRefreshAll(session *Session) error {
+	neg, err := p.sessionNegotiated(session)
+	if err != nil {
+		return err
+	}
 	// RFC 2918 Section 4: "A BGP speaker may send a ROUTE-REFRESH message to
 	// its peer only if it has received the Route Refresh Capability from its
-	// peer." feedCatchUp answered feedCatchUpRouteRefresh from that capability.
-	if neg == nil || !neg.RouteRefresh {
-		return
+	// peer."
+	if !neg.RouteRefresh {
+		return fmt.Errorf("peer %s: the session did not negotiate Route Refresh, so it cannot be sent ROUTE-REFRESH", p.addrString)
 	}
 	// RFC 2918 Section 3: the ROUTE-REFRESH names one <AFI, SAFI>, and the peer
 	// re-advertises its Adj-RIB-Out for that family, so each negotiated family
@@ -588,11 +621,10 @@ func (p *Peer) requestRouteRefreshAll(gained []string) {
 			SAFI:    fam.SAFI,
 			Subtype: message.RouteRefreshNormal,
 		}
-		if err := p.SendRawMessage(0, message.PackTo(rr, nil)); err != nil {
-			peerLogger().Warn("bound process catch-up: route refresh not sent",
-				"peer", p.settings.Address, "family", fam, "processes", gained, "error", err)
-			return
+		if err := session.SendRawMessage(0, message.PackTo(rr, nil)); err != nil {
+			return fmt.Errorf("peer %s: ROUTE-REFRESH for %s not sent: %w", p.addrString, fam, err)
 		}
 		p.incrRefreshSent()
 	}
+	return nil
 }
