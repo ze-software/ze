@@ -7,7 +7,7 @@
 | Release reason | Release-independent filter wire 0 umbrella work; historical findings do not establish a current product defect. |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-10-31 |
 
 ## Post-Compaction Recovery
 
@@ -333,3 +333,34 @@ umbrella stays open until every child closes.
 Deferred by rib-arch-2 (Option A DONE, learned 1127).
 
 Remove the text `Update` filter-IPC carrier entirely: rewrite the 7 text-parsing `filter_*` plugins to wire-decode attributes + rework the modify-delta apply (`applyFilterDelta`/`textDeltaToModOps`). The `.Raw` carrier is now binary `[]byte` (Option A, shipped); this is the remaining full text-path removal.
+
+## Disposition
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-10-31 |
+| Checked at | ca71630763 |
+| Verdict | REWORK |
+| Goal still holds | The external BGP filter chain is still a text round-trip: `PolicyFilterChain`, `applyFilterDelta`, `parseFilterAttrs`, `formatFilterAttrs`, `textDeltaToModOps`, `AppendUpdateForFilter`, `buildModifiedPayload` and the SDK `FilterUpdateHandler` all exist, and `FilterUpdateInput`/`FilterUpdateOutput` still carry `Update string` |
+| Landed since the design (c2b684d57e, 2026-07-16) | None of AC-1..AC-8. 6019dd0675 replaced `extractLegacyNLRIOverride` with `sectionNLRIDelta` (`reactor/filter_nlri_delta.go`), adding `nlri add/del` and `mp <family> add/del` to the text protocol, so MP_REACH rewrite already works over text: the Known Limitation and A-5 are stale |
+| Moved | `filterapi.FilterRef`/`FinalDisposition` are `policy.Ref`/`policy.Final` (`internal/component/policy/chain.go`, faf7c5c380); the filter registry is `policy.BuildRegistry`; the core-design pipeline section is now "Ingress Filter Pipeline" |
+| Ground shifted | The route-policy library (`plan/post-release/features/spec-route-policy-0-umbrella.md`) owns the field vocabulary (`MustRegisterField`, `MustRegisterFilterType`, `MustRegisterAttachment`), set actions (`RouteResult` sets), in-process evaluators (`MustRegisterRouteEvaluator`) and the load-time read/set check (`policy.CheckChain`), and its phase 4 folds this spec in |
+| Rule conflicts | Child specs listed at the `plan/` root, which `ai/META-DECISIONS.md` bans; Phase 1 has an agent run a benchmark, which only Thomas runs, on his Mac |
+
+As written, this spec would give BGP a second filter model beside the library:
+its own mod-op and intent vocabulary in the SDK, its own declared-attribute
+check, and chains composed in the reactor from `filterapi.Policy`. Route-policy
+phase 4 would then have to undo it. The goal (no text round-trip on the BGP
+filter path, wire-native zero copy) is unchanged and still owed.
+
+The smallest rework that fits main makes this spec route-policy phase 4's BGP
+half. It deletes the text machinery without inventing a composition model. It
+defines one lazy BGP route view over `WireUpdate`, which in-process library
+evaluators read and the external filter IPC carries as the raw update plus SDK
+field accessors. A filter's result is expressed as the library's registered set
+fields, each turned into a `ModAccumulator` op by a registered handler, with
+AS-path prepend and remove-private kept as typed intents. AC-7 becomes
+`policy.CheckChain` at load plus a runtime check over the same field codes.
+Current Behavior and AC-6 are rebuilt from `sectionNLRIDelta` and the `mp`
+sections, child specs move under `plan/post-release/`, and Phase 1 becomes a
+benchmark harness Thomas runs. The redesign runs through `/ze-spec`.
