@@ -28,9 +28,9 @@
     "unit-sha": "90f20f6a176e6ba3",
     "claim-sha": "7e9beb4de3e7a139",
     "route": "revert",
-    "producer": "internal/component/ike/engine/child.go::childPolicies",
-    "producer-sha": "9ec8a83798f6d2ca",
-    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
+    "producer-sha": "a9aea6ecf80d69d5",
+    "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-7.3-5",
@@ -39,8 +39,8 @@
     "unit-sha": "62d85993e231d51c",
     "claim-sha": "e2f9f56ce3479219",
     "route": "revert",
-    "producer": "internal/component/ike/engine/child.go::childPolicies",
-    "producer-sha": "9ec8a83798f6d2ca",
-    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
+    "producer-sha": "a9aea6ecf80d69d5",
+    "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
