@@ -50,6 +50,7 @@ func init() {
 	// One driver, two scenarios: the configs differ only by the `redistribute`
 	// block, and both must put the peer's route in the Adj-RIB-In.
 	Register("plugin/redistribute-block-does-not-gate-peer-routes", p12ObserveDriver("redist-blast-radius-test", redistChainPeerRouteReachesAdjRIBIn))
+	Register("plugin/redistribute-explicit-attach-kept", p12ObserveDriver("redist-explicit-attach-test", redistChainOperatorStateGrantServes))
 	Register("plugin/redistribute-late-consumer", p12ObserveDriver("redist-late-consumer-test", redistChainLateConsumer))
 	Register("plugin/redistribute-late-join-configadd", p12WaitForDaemonDriver("late-join-configadd-test", p12LateJoinConfigAdd))
 	Register("plugin/redistribute-late-join-configadd-trigger", p12LateJoinTrigger)

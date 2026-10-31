@@ -1,8 +1,8 @@
 // Design: docs/guide/redistribution.md -- the redistribute root, end to end
-// Related: plugin_fixture_12.go -- the init that registers these three drivers
+// Related: plugin_fixture_12.go -- the init that registers these four drivers
 // Related: internal/test/plugins/fakeredist/sink.go -- the synthetic consumer they drive
 
-// The three observers behind spec-fixit-redistribution-chain-drops-silently.
+// The four observers behind spec-fixit-redistribution-chain-drops-silently.
 //
 // The first two register a synthetic consumer through fakeredist and read back
 // what the orchestrator handed it. That is the one thing a .ci scenario cannot
@@ -12,6 +12,9 @@
 // The third reads the Adj-RIB-In instead, and its subject is a route
 // redistribution has nothing to do with: what a `redistribute` block must NOT
 // do to the routes a peer announces.
+//
+// The fourth reads the Loc-RIB's peer count, to show that an operator's own
+// narrower attach block survives a `redistribute` rule that derives a wider one.
 
 package fixture
 
@@ -298,5 +301,40 @@ func redistChainPeerRouteReachesAdjRIBIn(ctx context.Context, plugin *sdk.Plugin
 	var tb textbuf.Buffer
 	tb.Str("the peer announced ").Str(prefix).Str(" and the Adj-RIB-In never held it; `show bgp rib received` holds [")
 	tb.Join(held, " ").Byte(']')
+	return errors.New(tb.String())
+}
+
+// redistChainOperatorStateGrantServes is AC-4 at the process boundary: an
+// operator who wrote `attach process bgp-rib { receive [ state ]; }` on a peer
+// whose `redistribute` rule imports BGP keeps that grant, and is served by it.
+//
+// It waits until the Loc-RIB counts the peer as up, which only a state event
+// granted by the operator's own attach block can make it do. The other half of
+// AC-4, that the daemon says the grant is narrower than the Loc-RIB declared,
+// is the .ci's stderr assertion on the reconcile warning
+// (reconcileDelivery, internal/component/plugin/server/delivery_reconcile.go).
+func redistChainOperatorStateGrantServes(ctx context.Context, plugin *sdk.Plugin) error {
+	var status map[string]any
+	var pollErr error
+	reached := Poll(ctx, redistChainAttempts, redistChainDelay, func() bool {
+		found, err := plugin01DispatchMapOrEmpty(ctx, plugin, "show bgp rib status")
+		if err != nil {
+			pollErr = err
+			return true
+		}
+		status = found
+		peers, isNumber := found["peers"].(float64)
+		return isNumber && peers == 1
+	})
+	if pollErr != nil {
+		return pollErr
+	}
+	if reached {
+		fmt.Fprintln(os.Stderr, "OK: the operator's state grant brought the peer up in the Loc-RIB")
+		return nil
+	}
+	var tb textbuf.Buffer
+	tb.Str("the Loc-RIB never counted the peer as up through the operator's `receive [ state ]` grant; `show bgp rib status` answered ")
+	tb.Str(fmt.Sprint(status))
 	return errors.New(tb.String())
 }

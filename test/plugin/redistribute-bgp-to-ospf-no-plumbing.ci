@@ -120,3 +120,8 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=exit:code=0
+# AC-7: the derived binding is what attaches the Loc-RIB, so the startup
+# reconcile has no process to call unattached. Without the binding,
+# reconcileDelivery (internal/component/plugin/server/delivery_reconcile.go)
+# warns `no peer attaches it` for bgp-rib, and this line goes red with it.
+reject=stderr:pattern=no peer attaches it.*process=bgp-rib

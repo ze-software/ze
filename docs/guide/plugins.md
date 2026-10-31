@@ -796,7 +796,13 @@ block is required.
 The rules need no `attach process` plumbing either. Ze derives two bindings from
 the `redistribute` root, and they are the only bindings in the delivery index Ze
 writes for you. A peer whose config already names the process keeps its own
-binding unchanged.
+binding unchanged. When that grant is narrower than what the plugin declared,
+for example `attach process bgp-rib { receive [ state ]; }` beside an
+`import bgp` rule, the daemon logs `event delivery: the plugin declared an
+event the peer does not grant it` for each type left out, naming the peer and
+the process, as it does for any plugin fed less than it declared.
+
+<!-- source: internal/component/plugin/server/delivery_reconcile.go -- reconcileDelivery, edgeDisagreements -->
 
 | The rule | The derived binding |
 |----------|---------------------|

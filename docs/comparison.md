@@ -101,9 +101,9 @@ other daemons here were not checked for it.
 Ze advertises locally-originated routes from non-BGP protocols (connected,
 static, L2TP, IS-IS, OSPF) into BGP via the
 `redistribute-orchestrator` plugin. Operators enable it per-destination and per-source via
-`redistribute { destination <proto> { import <source> { family [...]; } } }`. The same config block
-also drives the intra-BGP `IngressFilter` ACL when the source is `ibgp` /
-`ebgp`. Per-peer NEXT_HOP substitution (`nhop self`) is automatic; explicit
+`redistribute { destination <proto> { import <source> { family [...]; } } }`.
+The block never gates the routes a BGP peer announces into ze: the ingress
+filter that once did was retired. Per-peer NEXT_HOP substitution (`nhop self`) is automatic; explicit
 producer-supplied NEXT_HOP is passed through verbatim.
 
 The block is the whole configuration, which is the behavior FRR and BIRD have.

@@ -1,0 +1,104 @@
+# Test: redistribute-explicit-attach-kept -- an operator's own attach block for
+#       the Loc-RIB survives a `redistribute` rule that derives a wider one, and
+#       the daemon says the two halves disagree.
+#
+# VALIDATES: spec-fixit-redistribution-chain-drops-silently AC-4, at the process
+# boundary. The config is AC-1's (a `redistribute` rule importing BGP, no plugin
+# block for bgp-rib) plus `attach process bgp-rib { receive [ state ]; }` on the
+# peer. Two things must hold:
+#
+#   1. the operator's grant is the one in force: the Loc-RIB counts the peer as
+#      up, which only the state event the operator granted can make it do (the
+#      observer asserts it through `show bgp rib status`)
+#   2. the daemon reports that the grant is narrower than what the Loc-RIB
+#      declared: bgp-rib declares update, and the peer grants it only state.
+#      That line is reconcileDelivery's reasonUngranted
+#      (internal/component/plugin/server/delivery_reconcile.go), the same report
+#      any plugin fed less than it declared gets
+#
+# PREVENTS: the derived binding silently widening the operator's grant (then no
+# disagreement exists to report), or replacing it with a second binding for the
+# same process. The unit half, exactly one binding carrying state alone, is
+# TestExplicitBindingWins (internal/component/bgp/config/redistribute_binding_test.go).
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+# Hold the session open: a closed peer is a session-down event, which takes the
+# peer out of the Loc-RIB's count the observer is reading.
+option=linger:value=true
+option=asn:value=65001
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external redist-explicit-attach-test {
+		run "le test fixture plugin/redistribute-explicit-attach-kept"
+		encoder json
+	}
+	# Declares the fakedest destination the rule names. Nothing here registers a
+	# consumer: the assertion is about the Loc-RIB's binding, not delivery.
+	internal fakeredist {
+		use fakeredist
+	}
+}
+
+redistribute {
+	destination fakedest {
+		import bgp {
+			family [ ipv4/unicast ];
+		}
+	}
+}
+
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process bgp-rib {
+			receive [ state ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=stderr:pattern=OK: the operator's state grant brought the peer up in the Loc-RIB
+# The daemon's report for the type the operator did not grant. The pattern pins
+# the peer and the process, so another plugin's line cannot satisfy it.
+expect=stderr:pattern=the plugin declared an event the peer does not grant it.*peer=127.0.0.1.*process=bgp-rib.*declared=[^ ]*update
+expect=exit:code=0
