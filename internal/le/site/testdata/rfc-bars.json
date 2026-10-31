@@ -45,7 +45,8 @@
         "segment": "os-verified",
         "label": "OS verified",
         "fields": [
-          "must.os-verified"
+          "must.os-verified",
+          "should.os-verified"
         ]
       },
       {
@@ -88,7 +89,8 @@
         "segment": "os-gap",
         "label": "OS testing gap",
         "fields": [
-          "must.os-gap"
+          "must.os-gap",
+          "should.os-gap"
         ]
       },
       {
@@ -122,8 +124,10 @@
       }
     },
     "should": {
-      "total": 10,
+      "total": 13,
       "proven": 1,
+      "os-verified": 1,
+      "os-gap": 2,
       "not-owed": 2,
       "not-ever": 1,
       "not-yet": 2,

@@ -84,7 +84,9 @@ func rfcStemFile(stem string, zeProven, osVerified, osGap, zeGap, mustNotOwed in
 		"must": map[string]any{"total": kept + mustNotOwed, "kept": kept, "ze-proven": zeProven,
 			"os-verified": osVerified, "os-gap": osGap, "ze-gap": zeGap, "not-owed": mustNotOwed,
 			"not-owed-by-kind": map[string]int{"not-applicable": mustNotOwed}},
-		"should": map[string]any{"total": should[0], "proven": should[1], "not-owed": should[2],
+		// No fixture holds an optional lower-layer row, so the SHOULD OS split
+		// is zero: the overview bar's OS segments then read the MUST rows only.
+		"should": map[string]any{"total": should[0], "proven": should[1], "os-verified": 0, "os-gap": 0, "not-owed": should[2],
 			"not-ever": should[3], "not-yet": should[4], "not-decided": should[5],
 			"not-owed-by-kind": map[string]int{"not-applicable": should[2]}},
 	})

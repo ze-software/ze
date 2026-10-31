@@ -19,8 +19,8 @@ import (
 // MUST: 20 rows owed; 5 lower-layer (2 OS verified, 3 OS gap), 4
 // not-applicable and 2 feature-declined left out of the attainable rows, so 9
 // attainable, 3 of them proven: Ze gap 6, MUST bar 3+2+3+6 = 14, not owed 6.
-// SHOULD: 10 rows; 1 proven, 2 not-applicable, then 2 not yet, 1 not ever and
-// 4 not decided, which sum back to 10.
+// SHOULD: 13 rows; 1 proven, 2 not-applicable, 3 lower-layer (1 OS verified,
+// 2 OS gap), then 2 not yet, 1 not ever and 4 not decided, which sum back to 13.
 func fixtureFigures() rfc.StemFigures {
 	return rfc.StemFigures{
 		Stem:   "rfc9999",
@@ -28,16 +28,19 @@ func fixtureFigures() rfc.StemFigures {
 		Mandatory: rfc.Figure{Proven: 3, Total: 20, Attainable: 9, Excluded: map[string]int{
 			rfc.AnnotationLowerLayer: 5, rfc.AnnotationNotApplicable: 4, rfc.AnnotationFeatureDeclined: 2,
 		}},
-		Optional: rfc.Figure{Proven: 1, Total: 10, Attainable: 8, Excluded: map[string]int{
-			rfc.AnnotationNotApplicable: 2,
+		Optional: rfc.Figure{Proven: 1, Total: 13, Attainable: 8, Excluded: map[string]int{
+			rfc.AnnotationNotApplicable: 2, rfc.AnnotationLowerLayer: 3,
 		}},
 		MandatoryByKind: map[string]int{"unit": 2, "functional": 1},
 		Unmet:           []string{"RFC9999-2-4"},
 		OSVerified:      2,
 		OSGap:           3,
-		NotYet:          2,
-		NotEver:         1,
-		NotDecided:      4,
+		// The optional OS rows (owner, 2026-10-31): split as the MUST ones are.
+		OptionalOSVerified: 1,
+		OptionalOSGap:      2,
+		NotYet:             2,
+		NotEver:            1,
+		NotDecided:         4,
 	}
 }
 
@@ -60,7 +63,7 @@ func TestPerRFCDataCountsEverySegment(t *testing.T) {
 			NotOwedByKind: map[string]int{rfc.AnnotationNotApplicable: 4, rfc.AnnotationFeatureDeclined: 2},
 		},
 		Should: &rfcShouldCounts{
-			Total: 10, Proven: 1, NotOwed: 2, NotEver: 1, NotYet: 2, NotDecided: 4,
+			Total: 13, Proven: 1, OSVerified: 1, OSGap: 2, NotOwed: 2, NotEver: 1, NotYet: 2, NotDecided: 4,
 			NotOwedByKind: map[string]int{rfc.AnnotationNotApplicable: 2},
 		},
 		ProvenByKind: map[string]int{"unit": 2, "functional": 1},
@@ -159,11 +162,12 @@ func TestFiguresThatDoNotAddUpAreRefused(t *testing.T) {
 		edit func(*rfc.StemFigures)
 		says string
 	}{
-		"OS split differs from the lower-layer rows":   {func(f *rfc.StemFigures) { f.OSGap++ }, "OS verified and OS gap"},
-		"proven exceeds the attainable rows":           {func(f *rfc.StemFigures) { f.Mandatory.Proven = 10 }, "Ze-proven MUST rows"},
-		"MUST sections differ from the MUST total":     {func(f *rfc.StemFigures) { f.Mandatory.Total++ }, "the MUST sections"},
-		"SHOULD states differ from the open rows":      {func(f *rfc.StemFigures) { f.NotDecided++ }, "not decided SHOULD rows"},
-		"SHOULD sections differ from the SHOULD total": {func(f *rfc.StemFigures) { f.Optional.Total++ }, "the SHOULD sections"},
+		"OS split differs from the lower-layer rows":        {func(f *rfc.StemFigures) { f.OSGap++ }, "OS verified and OS gap"},
+		"proven exceeds the attainable rows":                {func(f *rfc.StemFigures) { f.Mandatory.Proven = 10 }, "Ze-proven MUST rows"},
+		"MUST sections differ from the MUST total":          {func(f *rfc.StemFigures) { f.Mandatory.Total++ }, "the MUST sections"},
+		"SHOULD states differ from the open rows":           {func(f *rfc.StemFigures) { f.NotDecided++ }, "not decided SHOULD rows"},
+		"SHOULD OS split differs from the lower-layer rows": {func(f *rfc.StemFigures) { f.OptionalOSGap++ }, "OS verified and OS gap SHOULD rows"},
+		"SHOULD sections differ from the SHOULD total":      {func(f *rfc.StemFigures) { f.Optional.Total++ }, "the SHOULD sections"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			figures := fixtureFigures()
@@ -304,6 +308,8 @@ func TestDataIndexAndFilesAgree(t *testing.T) {
 		{"must.ze-gap", got.Must.ZeGap, model.Mandatory.Attainable - model.Mandatory.Proven},
 		{"should.total", got.Should.Total, model.Optional.Total},
 		{"should.proven", got.Should.Proven, model.Optional.Proven},
+		{"should.os-verified", got.Should.OSVerified, model.OptionalOSVerified},
+		{"should.os-gap", got.Should.OSGap, model.OptionalOSGap},
 		{"should.not-ever", got.Should.NotEver, model.NotEver},
 		{"should.not-yet", got.Should.NotYet, model.NotYet},
 		{"should.not-decided", got.Should.NotDecided, model.NotDecided},
@@ -425,8 +431,8 @@ func TestTheBarLayoutGoldenIsCurrent(t *testing.T) {
 
 // TestSplitExcludedKeepsTheOSRowsByKind proves splitExcluded answers the rows a
 // lower layer performs by their own annotation kind, apart from the rows not
-// owed, so a SHOULD file files each OS row under the kind that excluded it
-// rather than under one assumed kind.
+// owed, and that a SHOULD file counts those rows OS verified or OS gap, never
+// not owed (owner, 2026-10-31), while every other kind stays not owed.
 //
 // Method: one lower-layer and one not-applicable count; then the SHOULD split
 // of figures whose optional exclusions hold both.
@@ -448,12 +454,16 @@ func TestSplitExcludedKeepsTheOSRowsByKind(t *testing.T) {
 		rfc.AnnotationNotApplicable: 2, rfc.AnnotationLowerLayer: 3,
 	}}
 	figures.NotYet, figures.NotEver, figures.NotDecided = 2, 1, 1
+	figures.OptionalOSVerified, figures.OptionalOSGap = 1, 2
 	should, err := rfcShouldCountsOf("rfc9999", &figures)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]int{rfc.AnnotationNotApplicable: 2, rfc.AnnotationLowerLayer: 3}
-	if should.NotOwed != 5 || !reflect.DeepEqual(should.NotOwedByKind, want) {
-		t.Errorf("SHOULD not owed %d by kind %v, want 5 by kind %v", should.NotOwed, should.NotOwedByKind, want)
+	want := map[string]int{rfc.AnnotationNotApplicable: 2}
+	if should.NotOwed != 2 || !reflect.DeepEqual(should.NotOwedByKind, want) {
+		t.Errorf("SHOULD not owed %d by kind %v, want 2 by kind %v: a lower-layer row is never not owed", should.NotOwed, should.NotOwedByKind, want)
+	}
+	if should.OSVerified != 1 || should.OSGap != 2 {
+		t.Errorf("SHOULD OS verified %d and OS gap %d, want 1 and 2", should.OSVerified, should.OSGap)
 	}
 }

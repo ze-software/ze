@@ -167,9 +167,11 @@ func intentOnGatedRow(req *Requirement, where string) error {
 }
 
 // evaluateIntent refuses an {intent} marker that says nothing true: one on a
-// row its annotation leaves out of the attainable rows (ceilingExcluded), which
-// Ze does not owe, or on a row a proving record covers, whose state is computed
-// and never declared. proven is provenRequirements over the tree's verdicts.
+// row a layer under Ze performs (osMet), which the kernel already performs and
+// which counts OS verified or OS gap instead; one on a row its annotation
+// leaves out of the attainable rows (ceilingExcluded), which Ze does not owe;
+// or one on a row a proving record covers, whose state is computed and never
+// declared. proven is provenRequirements over the tree's verdicts.
 func evaluateIntent(requirements []Requirement, proven map[string]bool) []Finding {
 	var findings []Finding
 	for index := range requirements {
@@ -178,7 +180,13 @@ func evaluateIntent(requirements []Requirement, proven map[string]bool) []Findin
 			continue
 		}
 		var why string
+		fix := "remove the intent marker from that line"
 		switch {
+		case osMet(req):
+			// Owner, 2026-10-31: the kernel performs a lower-layer row, so
+			// it is OS verified or an OS gap, and nothing is left to intend.
+			why = "is annotated {" + req.Annotation.Kind + "}: a layer under Ze performs it, so the kernel already performs it and no intent applies"
+			fix += ", or reclassify the row if Ze's own code performs it"
 		case ceilingExcluded(req):
 			why = "is annotated {" + req.Annotation.Kind + "}, which leaves it out of the rows Ze owes, so no intent applies"
 		case proven[req.RID]:
@@ -190,7 +198,7 @@ func evaluateIntent(requirements []Requirement, proven map[string]bool) []Findin
 		findings = append(findings, requirementFinding(*req, "carries a stale {intent} marker",
 			tb.Str(requirementWhere(*req)).Str(": ").Str(req.RID).Str(" carries {").Str(IntentKind).Str(": ").
 				Str(req.Intent.State.String()).Str("} and ").Str(why).
-				Str(": remove the intent marker from that line").String()))
+				Str(": ").Str(fix).String()))
 	}
 	return findings
 }

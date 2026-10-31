@@ -117,6 +117,13 @@ type StemFigures struct {
 	// is the only OS a record speaks for, so neither has a per-version split.
 	OSVerified int
 	OSGap      int
+	// OptionalOSVerified and OptionalOSGap split the optional rows a layer
+	// under Ze performs the same way, with the same osVerified predicate and
+	// producer match: a kernel-met row is OS verified or an OS testing gap at
+	// every level, never "not owed" (owner, 2026-10-31). They sum to
+	// Optional.Excluded[lower-layer] and change no other count.
+	OptionalOSVerified int
+	OptionalOSGap      int
 	// NotYet, NotEver and NotDecided split the optional rows that are owed,
 	// not proven and not excluded (Optional.Attainable less Optional.Proven)
 	// by their {intent} marker: not yet, not ever, or no marker at all. They
@@ -242,8 +249,8 @@ func (e figureEvidence) unmet(requirement *Requirement) bool {
 //   - `{not-applicable}`, `{lower-layer}`, `{feature-declined}` and
 //     `{linux-limit}` stay in the denominator and are never proven by Ze,
 //     whatever records their tags carry: annotating a row may not raise its figure.
-//     A gated `{lower-layer}` row's proving record makes it OS verified
-//     instead (countOS), a count apart from Ze's proven rows.
+//     A `{lower-layer}` row's proving record makes it OS verified instead, at
+//     either level (countOS), a count apart from Ze's proven rows.
 //   - `{gap}` and `{partial}` stay in the denominator and are NEVER proven,
 //     whatever records their tags carry: the summary itself says the
 //     obligation is unmet. A test demonstrating a gap, or the half of a
@@ -272,8 +279,8 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 			listed[requirement.RID] = true
 			figures.Unmet = append(figures.Unmet, requirement.RID)
 		}
+		figures.countOS(requirement, evidence.osProofs)
 		if requirement.Gated() {
-			figures.countOS(requirement, evidence.osProofs)
 			figures.Mandatory.count(requirement, met)
 			if met {
 				figures.countKind(evidence.strongestKind(requirement.RID))
@@ -290,17 +297,24 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 	return out
 }
 
-// countOS adds one gated row a layer under Ze performs to OSVerified or
-// OSGap, and leaves every other row alone.
+// countOS adds one row a layer under Ze performs to the OS verified or OS gap
+// count of its level, gated (OSVerified, OSGap) or not (OptionalOSVerified,
+// OptionalOSGap), and leaves every other row alone. One predicate serves both
+// levels, so a kernel-met row is split the same way at every level (owner,
+// 2026-10-31).
 func (s *StemFigures) countOS(requirement *Requirement, proofs map[string][]string) {
 	if !osMet(requirement) {
 		return
 	}
+	verified, gap := &s.OptionalOSVerified, &s.OptionalOSGap
+	if requirement.Gated() {
+		verified, gap = &s.OSVerified, &s.OSGap
+	}
 	if osVerified(requirement, proofs) {
-		s.OSVerified++
+		*verified++
 		return
 	}
-	s.OSGap++
+	*gap++
 }
 
 // countIntent adds one owed optional row that is not proven and not excluded

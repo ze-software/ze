@@ -59,12 +59,15 @@ type rfcMustCounts struct {
 	NotOwedByKind map[string]int `json:"not-owed-by-kind"`
 }
 
-// rfcShouldCounts splits every SHOULD / MAY row: proven, left out by an
-// annotation (NotOwed, by kind), or open and declared not ever, not yet, or
-// not at all (not decided). The six add up to Total.
+// rfcShouldCounts splits every SHOULD / MAY row: proven, performed by a layer
+// under Ze (OS verified or OS gap, as a MUST row is), left out by an annotation
+// that says it does not bind Ze (NotOwed, by kind), or open and declared not
+// ever, not yet, or not at all (not decided). The seven add up to Total.
 type rfcShouldCounts struct {
 	Total         int            `json:"total"`
 	Proven        int            `json:"proven"`
+	OSVerified    int            `json:"os-verified"`
+	OSGap         int            `json:"os-gap"`
 	NotOwed       int            `json:"not-owed"`
 	NotEver       int            `json:"not-ever"`
 	NotYet        int            `json:"not-yet"`
@@ -104,13 +107,13 @@ var rfcBars = rfcBarLayout{
 	MustTotal: []string{"must.kept"},
 	Overview: []rfcBarSegment{
 		{"ze-proven", "Ze MUST proven", []string{"must.ze-proven"}},
-		{"os-verified", "OS verified", []string{"must.os-verified"}},
+		{"os-verified", "OS verified", []string{"must.os-verified", "should.os-verified"}},
 		{"should-proven", "SHOULD proven", []string{"should.proven"}},
 		{"not-owed", "Not owed", []string{"must.not-owed", "should.not-owed"}},
 		{"not-ever", "SHOULD not ever", []string{"should.not-ever"}},
 		{"not-yet", "SHOULD not yet", []string{"should.not-yet"}},
 		{"not-decided", "SHOULD not decided", []string{"should.not-decided"}},
-		{"os-gap", "OS testing gap", []string{"must.os-gap"}},
+		{"os-gap", "OS testing gap", []string{"must.os-gap", "should.os-gap"}},
 		{"ze-gap", "Ze correctness gap", []string{"must.ze-gap"}},
 	},
 	OverviewTotal: []string{"must.total", "should.total"},
@@ -302,20 +305,27 @@ func rfcMustCountsOf(stem string, figures *rfc.StemFigures) (*rfcMustCounts, err
 	return counts, nil
 }
 
-// rfcShouldCountsOf splits the SHOULD / MAY figure. Every exclusion kind is
-// not owed here, a lower layer's included, each under its own kind: no OS
-// split is kept for SHOULD rows.
+// rfcShouldCountsOf splits the SHOULD / MAY figure as rfcMustCountsOf splits
+// the MUST one: a row a layer under Ze performs (traits OSMet) is OS verified
+// or an OS gap, never "not owed" (owner, 2026-10-31); every other exclusion
+// kind is not owed.
 func rfcShouldCountsOf(stem string, figures *rfc.StemFigures) (*rfcShouldCounts, error) {
 	optional := &figures.Optional
 	osByKind, notOwed, err := splitExcluded(stem, optional.Excluded)
 	if err != nil {
 		return nil, err
 	}
-	for kind, count := range osByKind {
-		notOwed[kind] += count
+	osRows := 0
+	for _, count := range osByKind {
+		osRows += count
 	}
-	counts := &rfcShouldCounts{Total: optional.Total, Proven: optional.Proven, NotEver: figures.NotEver,
-		NotYet: figures.NotYet, NotDecided: figures.NotDecided, NotOwedByKind: notOwed}
+	if osRows != figures.OptionalOSVerified+figures.OptionalOSGap {
+		return nil, figuresRefusal(stem, "the OS verified and OS gap SHOULD rows (", figures.OptionalOSVerified+figures.OptionalOSGap,
+			") differ from the SHOULD rows a lower layer performs (", osRows)
+	}
+	counts := &rfcShouldCounts{Total: optional.Total, Proven: optional.Proven, OSVerified: figures.OptionalOSVerified,
+		OSGap: figures.OptionalOSGap, NotEver: figures.NotEver, NotYet: figures.NotYet, NotDecided: figures.NotDecided,
+		NotOwedByKind: notOwed}
 	for _, count := range notOwed {
 		counts.NotOwed += count
 	}
@@ -324,8 +334,8 @@ func rfcShouldCountsOf(stem string, figures *rfc.StemFigures) (*rfcShouldCounts,
 		return nil, figuresRefusal(stem, "the not ever, not yet and not decided SHOULD rows (",
 			counts.NotEver+counts.NotYet+counts.NotDecided, ") differ from the open SHOULD rows (", open)
 	}
-	if counts.Proven+counts.NotOwed+open != counts.Total {
-		return nil, figuresRefusal(stem, "the SHOULD sections (", counts.Proven+counts.NotOwed+open,
+	if counts.Proven+counts.OSVerified+counts.OSGap+counts.NotOwed+open != counts.Total {
+		return nil, figuresRefusal(stem, "the SHOULD sections (", counts.Proven+counts.OSVerified+counts.OSGap+counts.NotOwed+open,
 			") differ from the SHOULD rows counted (", counts.Total)
 	}
 	return counts, nil

@@ -195,14 +195,18 @@ whole on every build, so no file outlives the index that names it.
 | File | Holds |
 |------|-------|
 | `data/rfc/index.json` | `bars`: both bars' segments left to right, each with its class name (`segment`), its words (`label`) and the dotted `fields` whose sum is its count, and the fields each bar's segments must add up to (`must-total`, `overview-total`). Then `rfcs` (stem, file, title, walked, enrolment) and `profiles` (name, file, kind, title) |
-| `data/rfc/<stem>.json` | `stem`, `title`, `walked`; `must` (`total`, `kept`, `ze-proven`, `os-verified`, `os-gap`, `ze-gap`, `not-owed`, `not-owed-by-kind`); `should` (`total`, `proven`, `not-owed`, `not-ever`, `not-yet`, `not-decided`, `not-owed-by-kind`); `proven-by-kind`; `unmet`. `must`, `should` and `proven-by-kind` are `null` for an RFC no walk bounded |
+| `data/rfc/<stem>.json` | `stem`, `title`, `walked`; `must` (`total`, `kept`, `ze-proven`, `os-verified`, `os-gap`, `ze-gap`, `not-owed`, `not-owed-by-kind`); `should` (`total`, `proven`, `os-verified`, `os-gap`, `not-owed`, `not-ever`, `not-yet`, `not-decided`, `not-owed-by-kind`); `proven-by-kind`; `unmet`. `must`, `should` and `proven-by-kind` are `null` for an RFC no walk bounded |
 | `data/rfc/profiles/<name>.json` | `name`, `kind` (`use-case` or `technology`), `title`, `release`, and the two tiers `required` and `optional`, never merged. An aggregate's optional tier is the summaries whose `Aggregate tier` Meta row says `optional`. Both tiers come from `rfc.ProfileTiersOf` (`internal/le/rfc/priority.go`), the same membership `./le rfc tree` reads |
 
 `must.kept` is the MUST bar: `ze-proven + os-verified + os-gap + ze-gap`.
 `must.not-owed` is the rest of `must.total` (not applicable, declined, OS
-blocked). A SHOULD row a lower layer performs is `should.not-owed`, under its
-own annotation kind in `not-owed-by-kind`: the OS split is kept for MUST rows
-only.
+blocked). A SHOULD row a lower layer performs is split the same way, into
+`should.os-verified` and `should.os-gap`, and never counts as
+`should.not-owed`, which holds only the rows that do not bind Ze. On the
+overview bar the OS verified and OS gap segments sum MUST and SHOULD rows
+(`must.os-verified + should.os-verified`, `must.os-gap + should.os-gap`); the
+MUST bar counts MUST rows only.
+<!-- source: internal/le/site/rfcdata.go -- rfcShouldCountsOf, rfcBars -->
 
 A page marks a value with `data-ze-rfc="<subject>:<field>"` and a bar with
 `data-ze-rfc-bar="<subject>:<bar>"`, where the subject is a stem or a profile

@@ -483,8 +483,8 @@ annotation a row can be proven under, and only by a verifying record on its
 one side. A `{not-applicable}`,
 `{lower-layer}`, `{feature-declined}` or `{linux-limit}` row is never proven by Ze,
 whatever records its tags carry, so annotating a row cannot raise its figure; a
-proving record on a gated `{lower-layer}` row counts it OS verified instead, a
-count apart (see "OS verified"). A `{gap}`
+proving record on a `{lower-layer}` row, at any level, counts it OS verified
+instead, a count apart (see "OS verified"). A `{gap}`
 or `{partial}` row stays in and is never proven either, because the summary
 itself says the obligation is unmet: that is what keeps a requirement only
 unreached code meets at 0%.
@@ -778,11 +778,25 @@ truly decides nothing, the honest record is the `kernel-producer` escape,
 which proves nothing, so the row stays an OS gap.
 <!-- source: internal/le/rfc/profilecoverage.go -- osVerified, osProofsOf -->
 
-`StemFigures` carries the two counts per RFC, `OSVerified` and `OSGap`, over
-the gated rows only. They sum to the `lower-layer` count in
-`Mandatory.Excluded`, and they change no other count: an OS-verified row is
-still not proven by Ze. One shipped kernel (`internal/appliance/kernel.version`)
-is the only OS a record speaks for, so neither count has a per-version split.
+A SHOULD or MAY `{lower-layer}` row is split the same way, by the same
+predicate and the same producer match: a kernel-met row is OS verified or an
+OS testing gap at every level, never "not owed", which holds only the rows that
+do not bind Ze (not applicable, declined, OS blocked).
+
+`StemFigures` carries four counts per RFC. `OSVerified` and `OSGap` cover the
+gated rows and sum to the `lower-layer` count in `Mandatory.Excluded`;
+`OptionalOSVerified` and `OptionalOSGap` cover the other levels and sum to the
+`lower-layer` count in `Optional.Excluded`. They change no other count: an
+OS-verified row is still not proven by Ze, and an optional one is in none of
+the intent counts. One shipped kernel (`internal/appliance/kernel.version`) is
+the only OS a record speaks for, so no count has a per-version split.
+<!-- source: internal/le/rfc/profilecoverage.go -- countOS -->
+
+An `{intent}` marker on a `{lower-layer}` row is refused: the kernel already
+performs the row, so Ze has nothing to intend. Remove the marker, or
+reclassify the row if Ze's own code performs it (`evaluateIntent`,
+`internal/le/rfc/intent.go`).
+<!-- source: internal/le/rfc/intent.go -- evaluateIntent -->
 
 ## Clause-scoped evidence
 
