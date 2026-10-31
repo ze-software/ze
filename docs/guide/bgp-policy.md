@@ -438,6 +438,24 @@ direction nobody configured, so it never reads as a reject you wrote. Add
 `final accept` (or a filter chain) to that direction to let routes through.
 A dynamic peer's session type is known only once its OPEN arrives, so its
 absent direction stays `undetermined` until then.
+
+When an EBGP session reaches Established, Ze logs one warning for each
+direction RFC 8212 closes on it. The warning names the peer, the direction, and
+the editor command that adds an explicit policy at the level where the peer is
+configured:
+
+```text
+level=WARN msg="RFC 8212: this EBGP peer has no import policy, so Ze uses none of the routes it receives from it" subsystem=bgp.reactor.peer peer=transit-a address=192.0.2.1 direction=import fix="set bgp peer transit-a filter import final accept" then="commit now"
+level=WARN msg="RFC 8212: this EBGP peer has no export policy, so Ze sends it no routes" subsystem=bgp.reactor.peer peer=transit-a address=192.0.2.1 direction=export fix="set bgp peer transit-a filter export final accept" then="commit now"
+```
+
+A peer in a group gets `set bgp group <group> peer <name> ...`. A dynamic peer
+gets `set bgp group <group> ...`, because it exists only through its group.
+`final accept` passes every route: write the filters you want in front of it,
+or use `final reject` when that direction must stay closed, which also stops
+the warning. Every new session warns again while the direction stays absent.
+An IBGP session and a configured direction never warn.
+<!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- warnRFC8212AbsentPolicy, rfc8212Fix -->
 Policy dry-run applies the same final: absence rejects on EBGP and
 accepts on IBGP. With a rejecting final, a pure withdrawal remains `accept` with unchanged resulting
 text. A mixed announcement and withdrawal reports `modify`, with only its explicit

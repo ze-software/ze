@@ -1,0 +1,112 @@
+# Test: every repair command the RFC 8212 establishment warning prints is
+#       accepted by the configuration editor at the path it names, and commits.
+# VALIDATES: spec-bgp-rfc8212-ebgp-default-reject AC-9: the command in the
+#            warning's fix= field works as printed, for a standalone peer
+#            (`set bgp peer <name> ...`), a static group member
+#            (`set bgp group <group> peer <name> ...`) and a dynamic group
+#            (`set bgp group <group> ...`), each followed by `commit now`.
+#            The command text is the one rfc8212Fix
+#            (internal/component/bgp/reactor/rfc8212_warning.go) builds, and
+#            rfc8212_warning_test.go pins that text.
+# PREVENTS: a warning that tells the operator to type a command the editor
+#           refuses or applies somewhere else.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  peer absent-import {
+  	connection {
+  		local {
+  			ip 127.0.0.1
+  		}
+  		remote {
+  			ip 192.0.2.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
+  	}
+  }
+  group upstreams {
+  	session {
+  		asn {
+  			remote 65002
+  		}
+  	}
+  	peer transit-a {
+  		connection {
+  			local {
+  				ip 127.0.0.1
+  			}
+  			remote {
+  				ip 192.0.2.2
+  			}
+  		}
+  	}
+  }
+  group ix {
+  	connection {
+  		remote {
+  			ip dynamic
+  			connect false
+  			range 198.51.100.0/24
+  		}
+  		local {
+  			ip 127.0.0.1
+  			accept true
+  		}
+  	}
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Standalone peer, both directions, as the two warnings print them.
+input=type:text=set bgp peer absent-import filter import final accept
+input=enter
+expect=error:none
+expect=dirty:true
+input=type:text=set bgp peer absent-import filter export final accept
+input=enter
+expect=error:none
+
+# Static group member.
+input=type:text=set bgp group upstreams peer transit-a filter import final accept
+input=enter
+expect=error:none
+
+# Dynamic group: the warning names the group, never the generated dyn- peer.
+input=type:text=set bgp group ix filter export final accept
+input=enter
+expect=error:none
+
+input=type:text=commit now
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+
+# Each policy landed under the peer or group the command named.
+input=type:text=show bgp peer absent-import filter
+input=enter
+expect=viewport:contains=import
+expect=viewport:contains=export
+expect=viewport:contains=final accept
+
+input=type:text=show bgp group upstreams peer transit-a filter
+input=enter
+expect=viewport:contains=import
+expect=viewport:contains=final accept
+
+input=type:text=show bgp group ix filter
+input=enter
+expect=viewport:contains=export
+expect=viewport:contains=final accept

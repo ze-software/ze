@@ -505,6 +505,9 @@ func (p *Peer) runOnce() error {
 			}
 
 			peerLogger().Info("session established", "peer", addr, "localAS", p.settings.LocalAS, "peerAS", p.settings.PeerAS)
+			// RFC 8212 Section 3: say which direction the absent policy closes,
+			// once per session and after the dynamic AS is known.
+			p.warnRFC8212AbsentPolicy()
 
 			// Reset per-session API sync: NAME the processes whose routes
 			// belong to this peer's INITIAL routing update. Each reports

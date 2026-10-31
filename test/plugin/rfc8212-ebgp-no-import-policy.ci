@@ -1,0 +1,167 @@
+# Test: an EBGP session with no import policy at the bgp, group or peer layer
+#       contributes no route to the Decision Process (RFC 8212 Section 3,
+#       RFC8212-3-1: "Routes contained in an Adj-RIB-In associated with an EBGP
+#       peer SHALL NOT be considered eligible in the Decision Process if no
+#       explicit Import Policy has been applied.").
+#
+# VALIDATES: spec-bgp-rfc8212-ebgp-default-reject AC-1 (amended: eligible RIB
+#            and downstream output, not absence of every retained copy), AC-5
+#            and AC-9's import warning. Four sessions:
+#   127.0.0.1 EBGP 65001, NO import policy (export accept, so Ze's release route
+#             reaches it): announces 10.82.1.0/24 and 2001:db8:82::/48. Neither
+#             may be selected or reach the sink.
+#   127.0.0.3 EBGP 65003, explicit import and export `final accept`: the
+#             positive control. It announces 10.82.3.0/24 and 2001:db8:83::/48,
+#             both MUST be selected and reach the sink, then withdraws both,
+#             which MUST withdraw them downstream. Without it a dead sink or a
+#             dead forwarding path would pass the absence checks.
+#   127.0.0.4 EBGP 65004, explicit import `final reject`: a configured reject,
+#             announcing 10.82.4.0/24, which may not be selected either.
+#   127.0.0.2 IBGP sink (echo, no policy): every UPDATE Ze sends it comes back
+#             as a received UPDATE, so the observer's map of it is the wire.
+#             10.82.1.0/24, 10.82.4.0/24 and 2001:db8:82::/48 are forbidden
+#             there: one announcement fails the run even if later withdrawn.
+# The bgp level carries no filter: the absent direction is absent at every layer.
+# PREVENTS: an absent EBGP import direction behaving as `final accept`.
+#
+# The observer is the compiled fixture plugin/rfc8212-ebgp-no-import-policy
+# (internal/test/fixture/rfc8212_policy.go, rfc8212PolicyDriver("import")). It
+# checks the negotiated dual-stack capabilities and both End-of-RIBs, then
+# releases the rejected source, the accepted control and the absent source in
+# that order, each by an API route on its own socket, counting the source's
+# received UPDATE before any RIB or wire check.
+option=timeout:value=120s
+
+stdin=absent:terminator=EOF_ABSENT
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:contains=000201
+# AS_PATH 65001, NEXT_HOP 192.0.2.1: 10.82.1.0/24; MP_REACH 2001:db8:82::/48.
+expect=bgp:conn=1:seq=2:announced=18C0A801
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9400304C0000201180A5201
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020602010000FDE9800E1C0002011020010DB8000000000000000000000001003020010DB80082
+EOF_ABSENT
+
+stdin=accepted:terminator=EOF_ACCEPTED
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65003
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:contains=000201
+# AS_PATH 65003: 10.82.3.0/24 and 2001:db8:83::/48, then both withdrawn.
+expect=bgp:conn=1:seq=2:announced=18C0A801
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEB400304C0000201180A5203
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020602010000FDEB800E1C0002011020010DB8000000000000000000000001003020010DB80083
+expect=bgp:conn=1:seq=3:announced=18C0A802
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A52030000
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0024020000000D800F0A0002013020010DB80083
+EOF_ACCEPTED
+
+stdin=rejected:terminator=EOF_REJECTED
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65004
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# AS_PATH 65004: 10.82.4.0/24.
+expect=bgp:conn=1:seq=2:announced=18C0A801
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEC400304C0000201180A5204
+EOF_REJECTED
+
+stdin=sink:terminator=EOF_SINK
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65000
+EOF_SINK
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal adj-rib-in { use bgp-adj-rib-in; }
+    internal rs { use bgp-rs; }
+    internal rib { use bgp-rib; }
+    external rfc8212-policy { run "le test fixture plugin/rfc8212-ebgp-no-import-policy"; encoder json; }
+}
+bgp {
+    peer absent-import {
+        connection { remote { ip 127.0.0.1; } local { ip 127.0.0.5; accept false; } }
+        session {
+            asn { local 65000; remote 65001; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } ipv6/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        filter { export { final accept; } }
+        attach process rfc8212-policy { send [ update ]; }
+        attach process adj-rib-in { receive [ update-received state ]; }
+        attach process rs { receive [ update-received state open-received refresh ]; }
+        attach process rib { receive [ update state refresh ]; }
+    }
+    peer sink {
+        connection { remote { ip 127.0.0.2; } local { ip 127.0.0.5; accept false; } }
+        session {
+            asn { local 65000; remote 65000; }
+            aigp { enabled false; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } ipv6/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        attach process rfc8212-policy { receive [ update-received state ]; send [ update ]; }
+        attach process rs { receive [ state open-received refresh ]; send [ update ]; }
+        attach process rib { receive [ update-sent state refresh ]; send [ update ]; }
+    }
+    peer accepted {
+        connection { remote { ip 127.0.0.3; } local { ip 127.0.0.5; accept false; } }
+        session {
+            asn { local 65000; remote 65003; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } ipv6/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        filter { import { final accept; } export { final accept; } }
+        attach process rfc8212-policy { receive [ update-received state ]; send [ update ]; }
+        attach process adj-rib-in { receive [ update-received state ]; }
+        attach process rs { receive [ update-received state open-received refresh ]; }
+        attach process rib { receive [ update state refresh ]; }
+    }
+    peer rejected {
+        connection { remote { ip 127.0.0.4; } local { ip 127.0.0.5; accept false; } }
+        session {
+            asn { local 65000; remote 65004; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        filter { import { final reject; } export { final accept; } }
+        attach process rfc8212-policy { send [ update ]; }
+        attach process adj-rib-in { receive [ update-received state ]; }
+        attach process rs { receive [ update-received state open-received refresh ]; }
+        attach process rib { receive [ update state refresh ]; }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=absent
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT --mode echo:stdin=sink
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=accepted
+cmd=background:seq=4:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=rejected
+cmd=foreground:seq=5:exec=ze -:stdin=ze-bgp:timeout=120s
+
+expect=exit:code=0
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
+# AC-9: one warning per absent direction per session, naming the peer, the
+# direction, RFC 8212, what is blocked, and the editor command that repairs it
+# followed by `commit now` (rfc8212_warning.go, warnRFC8212AbsentPolicy). The
+# configured direction and the configured peers MUST NOT warn.
+expect=stderr:contains=RFC 8212
+expect=stderr:contains=no import policy
+expect=stderr:contains=peer=absent-import
+expect=stderr:contains=set bgp peer absent-import filter import final accept
+expect=stderr:contains=commit now
+reject=stderr:contains=set bgp peer absent-import filter export
+reject=stderr:pattern=set bgp peer (accepted|rejected|sink) filter
