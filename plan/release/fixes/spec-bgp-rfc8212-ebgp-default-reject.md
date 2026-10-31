@@ -372,6 +372,7 @@ over the closing commits.
 | `unwired-feature.md` | 2026-09-02 | Named automatic loop-filter references dispatch to a nonexistent external plugin |
 | `unwired-feature.md` | 2026-10-28 | Startup subscriptions discard every peer selector after the first |
 | `discarded-error-becomes-destructive.md` | 2026-10-30 | bgp-rib apply acknowledges a refused downstream withdrawal |
+| `test-asserts-superseded-behaviour.md` | 2026-10-31 | 10 adj-rib-in and redistribute plugin fixtures had no EBGP import policy (fixed) |
 
 ## Key Design Decisions
 
