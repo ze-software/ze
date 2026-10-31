@@ -701,38 +701,53 @@ func carriesAS4Attributes(wireUpdate *wireu.WireUpdate) bool {
 // the session end releases (Peer.announceNegotiated, joined by
 // endNegotiatedSession after Run returns). When openMu is held, the Event 18
 // delivery is left owed and the holder runs it as it releases (unlockOpen),
-// after its own action list, which is the order a wait would have given.
+// after its own action list and before any other waiter takes the lock, which
+// is the order a wait would have given.
 func (s *Session) handleConnectionClose() {
 	s.closeOwed.Store(true)
 	s.runOwedOpenWork()
 }
 
-// unlockOpen releases openMu and runs the end-of-session work the read loop
-// left owed while it was held. Every openMu holder MUST release through it:
-// a bare Unlock strands an owed Event 18 or timer stop.
+// unlockOpen runs the end-of-session work the read loop left owed, then
+// releases openMu. Every openMu holder MUST release through it: a bare Unlock
+// strands an owed Event 18 or timer retire. The owed work runs before the
+// Unlock, so no other waiter's action list can run ahead of an owed Event 18,
+// and a holder (stopSessionTimers included) returns only after it ran. The
+// trailing runOwedOpenWork catches a flag the read loop stored after the
+// holder's own check.
 func (s *Session) unlockOpen() {
-	s.openMu.Unlock()
+	s.runOwedAndUnlock()
 	s.runOwedOpenWork()
 }
 
 // runOwedOpenWork runs the owed work under openMu when the lock is free, and
 // otherwise leaves it to the holder. The owing side stores its flag before it
-// tries the lock, and a holder loads the flags after it unlocks, so one of the
-// two always sees the other: either the try succeeds, or the holder that made
-// it fail finds the flag. The loop ends when nothing is owed or the lock is
-// held, and each pass clears what it ran, so it runs at most twice.
+// tries the lock, and a holder loads the flags before it unlocks and again
+// after, so one of the two always sees the other: either the try succeeds, or
+// the holder that made it fail finds the flag. The loop ends when nothing is
+// owed or the lock is held, and each pass clears what it ran, so it runs at
+// most twice.
 func (s *Session) runOwedOpenWork() {
 	for s.closeOwed.Load() || s.retireOwed.Load() {
 		if !s.openMu.TryLock() {
 			return
 		}
-		if s.closeOwed.Swap(false) {
-			s.handleConnectionCloseLocked()
-		}
-		if s.retireOwed.Swap(false) {
-			s.timers.StopAll()
-		}
-		s.openMu.Unlock()
+		s.runOwedAndUnlock()
+	}
+}
+
+// runOwedAndUnlock runs the owed work and releases openMu, which the caller
+// MUST hold. The Unlock is deferred: Event 18 reaches the Peer's FSM callback,
+// and a panic there must not leave openMu locked, or the Peer's final
+// stopSessionTimers blocks for ever and the peer never reconnects. A panic
+// in the Event 18 delivery leaves the retire owed; stopSessionTimers runs it.
+func (s *Session) runOwedAndUnlock() {
+	defer s.openMu.Unlock()
+	if s.closeOwed.Swap(false) {
+		s.handleConnectionCloseLocked()
+	}
+	if s.retireOwed.Swap(false) {
+		s.retireTimers()
 	}
 }
 

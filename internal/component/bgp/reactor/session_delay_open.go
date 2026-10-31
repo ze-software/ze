@@ -63,23 +63,34 @@ func (s *Session) closeHeldForCollision() bool {
 	return true
 }
 
-// retireSessionTimers is Run's exit timer stop. Run MUST call it on exit. It
+// retireSessionTimers is Run's exit timer retire. Run MUST call it on exit. It
 // never waits for openMu (see handleConnectionClose): with the lock held, the
-// stop is owed and the holder runs it as it releases, after its action list,
-// so the action list cannot rearm a timer behind it. Transport closure alone
-// preserves the DelayOpen flag until the failure owner delivers Event 18.
+// retire is owed and the holder runs it as it releases, after its action
+// list. The retire seals the timers, so neither that action list nor a later
+// openMu holder can rearm one. Transport closure alone preserves the DelayOpen
+// flag until the failure owner delivers Event 18, which an owed pass runs
+// before the retire.
 func (s *Session) retireSessionTimers() {
 	s.retireOwed.Store(true)
 	s.runOwedOpenWork()
 }
 
-// stopSessionTimers joins any in-flight initial OPEN work before the final
-// timer stop; a callback cannot rearm HoldTimer after this finalizer returns.
-// The Peer that owns the session MUST call it only after the negotiated
-// publication is joined (endNegotiatedSession): that publication can hold
-// openMu until it returns.
+// retireTimers stops every session timer, the RFC 9687 Send Hold Timer
+// included, and seals them all: no arm path starts one afterwards. The caller
+// MUST hold openMu, so the retire lands after any in-flight OPEN-path action
+// list that could arm a timer.
+func (s *Session) retireTimers() {
+	s.timers.Retire()
+	s.retireSendHoldTimer()
+}
+
+// stopSessionTimers joins any in-flight initial OPEN work, runs the Event 18
+// and retire the read loop left owed, and retires the timers; no callback can
+// rearm a timer after this finalizer returns. The Peer that owns the session
+// MUST call it only after the negotiated publication is joined
+// (endNegotiatedSession): that publication can hold openMu until it returns.
 func (s *Session) stopSessionTimers() {
 	s.openMu.Lock()
 	defer s.unlockOpen()
-	s.timers.StopAll()
+	s.retireTimers()
 }

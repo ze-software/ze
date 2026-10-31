@@ -110,6 +110,11 @@ type Timers struct {
 	delayOpenRunning    bool
 	delayOpenGen        uint64
 
+	// retired seals the set once its session is over (Retire). Every arm path
+	// reads it under mu and arms nothing, so a callback still running on a
+	// dead session cannot rearm a timer behind the final stop.
+	retired bool
+
 	// BfdHoldTimer generation guard, the same ABA defense the hold timer
 	// carries below: a fired closure that captured an older generation
 	// declines to touch shared state.
@@ -282,6 +287,9 @@ func (t *Timers) StartHoldTimer() {
 // re-arm paths: nothing re-arms after an expiry, because RFC 4271 Section 8.2.2
 // Event 10 tears the session down on the first one. The caller must hold t.mu.
 func (t *Timers) armHoldTimerLocked(d time.Duration) {
+	if t.retired {
+		return
+	}
 	if d <= 0 {
 		// Self-enforcing invariant: never schedule a non-positive AfterFunc.
 		// All current callers already guard this (holdTime != 0, grace clamp),
@@ -405,6 +413,9 @@ func (t *Timers) StartKeepaliveTimer() {
 	if t.holdTime == 0 {
 		return // Disabled when hold time is 0
 	}
+	if t.retired {
+		return
+	}
 
 	t.stopKeepaliveTimerLocked()
 
@@ -476,6 +487,9 @@ func (t *Timers) StartConnectRetryTimer() {
 	defer t.mu.Unlock()
 
 	t.stopConnectRetryTimerLocked()
+	if t.retired {
+		return
+	}
 
 	t.connectRetryTimer = t.clock.AfterFunc(jitter(t.connectRetryTime, t.random), func() {
 		t.mu.Lock()
@@ -533,6 +547,24 @@ func (t *Timers) StopAll() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
+	t.stopHoldTimerLocked()
+	t.stopKeepaliveTimerLocked()
+	t.stopConnectRetryTimerLocked()
+	t.stopBfdHoldTimerLocked()
+	t.stopBfdHoldDownTimerLocked()
+	t.stopDelayOpenTimerLocked()
+}
+
+// Retire stops every timer and seals the set: no Start, Reset or periodic
+// re-arm arms a timer afterwards. The session MUST call it once it is over,
+// and MUST NOT expect a timer from this set after that. A bool-answering
+// start on a retired set answers that the caller must wait, so a dead session
+// never advances on a timer that was not armed. Safe for concurrent use.
+func (t *Timers) Retire() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.retired = true
 	t.stopHoldTimerLocked()
 	t.stopKeepaliveTimerLocked()
 	t.stopConnectRetryTimerLocked()
@@ -599,12 +631,17 @@ func (t *Timers) StartBfdHoldDownTimer() bool {
 // session has been Up", not how long ago the BGP session noticed, so a session
 // that came Up before this connection attempt owes only the remainder. A
 // non-positive duration arms nothing and answers false, so the caller advances
-// rather than waiting on a timer that would never fire.
+// rather than waiting on a timer that would never fire. A retired set (Retire)
+// arms nothing and answers true: the session is over and must not advance.
 func (t *Timers) StartBfdHoldDownTimerFor(interval time.Duration) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	t.stopBfdHoldDownTimerLocked()
+	if t.retired {
+		// The session is over: holding is the answer that cannot advance it.
+		return true
+	}
 	if interval <= 0 {
 		return false
 	}
@@ -699,6 +736,9 @@ func (t *Timers) StartBfdHoldTimer() {
 	defer t.mu.Unlock()
 
 	t.stopBfdHoldTimerLocked()
+	if t.retired {
+		return
+	}
 	t.bfdHoldGen++
 	gen := t.bfdHoldGen
 	t.bfdHoldTimer = t.clock.AfterFunc(t.bfdHoldTime, func() { t.fireBfdHold(gen) })

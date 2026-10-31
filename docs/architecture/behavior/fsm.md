@@ -384,12 +384,25 @@ zeroing clauses make the value go down, which a Prometheus counter may not do.
   there as an FSM callback, as long as the plugins take. The session end joins
   that publication only after `Session.Run` returns, so a read loop waiting for
   the lock would never return. On a closed socket the read loop marks Event 18
-  owed, and on exit the timer stop owed; when the lock is held, the holder runs
-  that work as it releases the lock, after its own action list. Peer cleanup's
-  final join comes after the publication join.
+  owed, and on exit the timer retire owed; when the lock is held, the holder
+  runs that work after its own action list and before it releases the lock, so
+  no other waiter acts ahead of the owed Event 18 and Peer cleanup's final join
+  returns only after it. The owed work releases the lock through a deferred
+  unlock, so a panic in the Event 18 delivery cannot leave it held. The retire
+  stops every protocol timer and the RFC 9687 Send Hold Timer, and seals them:
+  an arm after it (a release's Established branch, a late BFD event) arms
+  nothing, and a start that answers whether to wait answers that it must. Peer
+  cleanup's final join comes after the publication join. A negotiated session
+  that closes reports its close in this order: the publication is joined, the
+  lock holder is joined and the owed Event 18 moves the FSM out of
+  OpenConfirm, then the state dispatcher hears `OnPeerClosed`.
 
-<!-- source: internal/component/bgp/reactor/session_read.go -- handleConnectionClose, unlockOpen, runOwedOpenWork -->
-<!-- source: internal/component/bgp/reactor/session_delay_open.go -- retireSessionTimers -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- handleConnectionClose, unlockOpen, runOwedOpenWork, runOwedAndUnlock -->
+<!-- source: internal/component/bgp/reactor/session_delay_open.go -- retireSessionTimers, retireTimers, stopSessionTimers -->
+<!-- source: internal/component/bgp/fsm/timer.go -- Retire -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- startSendHoldTimer, retireSendHoldTimer -->
+<!-- source: internal/component/bgp/reactor/peer_session_end.go -- endNegotiatedSession -->
+<!-- source: internal/component/bgp/reactor/session_owed_work_test.go -- TestOwedEvent18PanicReleasesOpenMu, TestOwedRetireStopsSendHoldAndSeals -->
 <!-- source: internal/component/bgp/reactor/peer_run_test.go -- TestBFDNegotiatedPublicationJoinsSessionEnd -->
 
 <!-- source: internal/component/bgp/fsm/timer_delay_open.go -- StartDelayOpenTimer, StopDelayOpenTimer -->

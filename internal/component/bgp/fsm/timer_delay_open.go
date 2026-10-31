@@ -18,7 +18,9 @@ func (t *Timers) OnDelayOpenTimerExpires(cb TimerCallback) {
 	t.onDelayOpenExpires = cb
 }
 
-// StartDelayOpenTimer arms the configured delay and reports whether it is enabled.
+// StartDelayOpenTimer arms the configured delay and reports whether it is
+// enabled. A retired set (Retire) arms nothing and answers true, so the caller
+// holds the OPEN of a session that is over rather than send it.
 // RFC 4271 Section 8.2.2: "sets the DelayOpenTimer to the initial value".
 // The session MUST stop it on completion or teardown, including a fired callback.
 func (t *Timers) StartDelayOpenTimer() bool {
@@ -28,6 +30,10 @@ func (t *Timers) StartDelayOpenTimer() bool {
 		return false
 	}
 	t.stopDelayOpenTimerLocked()
+	if t.retired {
+		// The session is over: holding the OPEN is the answer that sends nothing.
+		return true
+	}
 	t.delayOpenGen++
 	gen := t.delayOpenGen
 	t.delayOpenRunning = true

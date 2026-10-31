@@ -325,6 +325,9 @@ func (s *Session) startSendHoldTimer() {
 	s.sendHoldMu.Lock()
 	defer s.sendHoldMu.Unlock()
 	s.stopSendHoldTimerLocked()
+	if s.sendHoldRetired {
+		return
+	}
 	s.sendHoldDeadline.Store(s.clock.Now().Add(d).UnixNano())
 	s.sendHoldTimer = s.clock.AfterFunc(d, s.sendHoldTimerCheck)
 }
@@ -366,6 +369,16 @@ func (s *Session) sendHoldTimerCheck() {
 func (s *Session) stopSendHoldTimer() {
 	s.sendHoldMu.Lock()
 	defer s.sendHoldMu.Unlock()
+	s.stopSendHoldTimerLocked()
+}
+
+// retireSendHoldTimer stops the Send Hold Timer and seals it: no later
+// startSendHoldTimer arms it. The session's final timer stop (retireTimers)
+// calls it; a session that is over sends nothing a timer could guard.
+func (s *Session) retireSendHoldTimer() {
+	s.sendHoldMu.Lock()
+	defer s.sendHoldMu.Unlock()
+	s.sendHoldRetired = true
 	s.stopSendHoldTimerLocked()
 }
 

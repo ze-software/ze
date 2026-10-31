@@ -247,9 +247,10 @@ type Session struct {
 	transportFailed bool
 
 	// closeOwed and retireOwed carry the read loop's end-of-session work when
-	// another goroutine held openMu: the Event 18 delivery and the timer stop.
-	// They are set before openMu is tried, and unlockOpen runs them, so the
-	// work lands after the holder's action list exactly as a wait would have.
+	// another goroutine held openMu: the Event 18 delivery and the timer
+	// retire. They are set before openMu is tried, and unlockOpen runs them
+	// before it releases the lock, so the work lands after the holder's action
+	// list and ahead of every other waiter, exactly as a wait would have.
 	closeOwed  atomic.Bool
 	retireOwed atomic.Bool
 
@@ -650,6 +651,10 @@ type Session struct {
 	sendHoldDeadline atomic.Int64
 	sendHoldTimer    clock.Timer
 	sendHoldMu       sync.Mutex // protects sendHoldTimer start/stop lifecycle
+	// sendHoldRetired seals the Send Hold Timer once the session is over
+	// (retireSendHoldTimer). Guarded by sendHoldMu; startSendHoldTimer reads
+	// it under that lock and arms nothing.
+	sendHoldRetired bool
 
 	// coalesce holds a pending IPv4 unicast UPDATE whose NLRIs may be extended
 	// by subsequent UPDATEs with identical path attributes. Only used when
@@ -1251,16 +1256,15 @@ func (s *Session) describeRead() taskguard.Context {
 func (s *Session) Run(ctx context.Context) (runErr error) {
 	defer close(s.done)
 
-	// When the read loop exits the session is finished, so stop its timers: no keepalive,
+	// When the read loop exits the session is finished, so retire its timers: no keepalive,
 	// hold, or send-hold goroutine may outlive Run. The message-driven teardown paths
 	// (handleConnectionClose, handleNotification, Close) already StopAll, but a plain
 	// ctx-cancel exit does not — which would leave the PERIODIC keepalive timer firing after
 	// the session is dead, its callback reading state (e.g. the package-global sessionLogger)
-	// long after Run returned. StopAll and stopSendHoldTimer are idempotent, so the redundant
-	// call on the paths that already stop timers is harmless. Not a hot path (once per session
-	// lifecycle). retireSessionTimers does not wait for an openMu holder; the
-	// holder stops the timers when it releases (retireSessionTimers).
-	defer s.stopSendHoldTimer()
+	// long after Run returned. The retire stops every timer, the Send Hold Timer included,
+	// and seals them, so it is idempotent and a later arm is a no-op. Not a hot path (once
+	// per session lifecycle). retireSessionTimers does not wait for an openMu holder; the
+	// holder retires the timers when it releases, after its own action list.
 	defer s.retireSessionTimers()
 
 	// Same discipline for the CONNECTION: when the read loop exits, the TCP

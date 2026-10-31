@@ -269,10 +269,17 @@ func (s *Session) finishNegotiatedPublication() bool {
 // Established observers require an established session (and may remove routes),
 // so only the state dispatcher is told down. runOnce calls this after delivery
 // drains and before it can start the next connection.
+//
+// The publication's holder keeps openMu past its Done, and the read loop's
+// Event 18 can be owed to it, so the session's FSM may still be in OpenConfirm
+// here. stopSessionTimers joins that holder and runs the owed Event 18 before
+// the dispatcher hears the close: the FSM leaves OpenConfirm first, then
+// OnPeerClosed reports it, the order a session without a held lock gives.
 func (p *Peer) endNegotiatedSession(session *Session) {
 	if !session.finishNegotiatedPublication() {
 		return
 	}
+	session.stopSessionTimers()
 	p.mu.RLock()
 	reactor := p.reactor
 	negotiated := p.upPhaseLocked(session) == sessionUpNegotiated
