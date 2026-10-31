@@ -1,11 +1,16 @@
 # Claude Hooks
 
-All registered hooks execute in the compiled root `le` command. The canonical
-configuration is `.claude/settings.json`; each entry invokes:
+Every hook that checks or blocks executes in the compiled root `le` command. The
+canonical configuration is `.claude/settings.json`; each such entry invokes:
 
 ```text
 $CLAUDE_PROJECT_DIR/le ai hooks <hook-name>
 ```
+
+One display-only hook is a shell script: `bash-timestamp.sh` prints a `▶ HH:MM:SS`
+line before a Bash call, at most once a minute per session (override the gap
+with `CLAUDE_BASH_STAMP_QUIET` in seconds). It never judges a command and never
+blocks.
 
 The runtime lives in `internal/le/hookruntime`. `internal/le/ai/hooks` owns the
 registered command surface, the 208 typed dispatcher fixtures, and the 607 typed
@@ -42,7 +47,7 @@ in-process rather than launching a second implementation.
 |---|---|---|
 | SessionStart | every | `session-start` |
 | UserPromptSubmit | every | `compaction-reminder` |
-| PreToolUse | `Bash` | `pretool-bash` |
+| PreToolUse | `Bash` | `pretool-bash`, `bash-timestamp.sh` |
 | PreToolUse | `Write\|Edit\|MultiEdit\|NotebookEdit` | `pretool-writeedit` |
 | PostToolUse | `LSP` | `mark-lsp-invoked` |
 | PostToolUse | `Read` | `mark-source-read` |
