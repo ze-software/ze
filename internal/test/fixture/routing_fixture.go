@@ -19,6 +19,7 @@ func init() {
 	Register("isis/isis-route-install", routingObserver("isis-route", isisRouteScenario))
 	Register("isis/isis-show", routingObserver("isis-show", isisShowScenario))
 	Register("isis/isis-redist-no-bgp", routingObserver("isis-redist-no-bgp", isisRedistNoBGPScenario))
+	Register("isis/isis-export-chain", routingObserver("isis-export-chain", isisExportChainScenario))
 	Register("ldp/ldp-convergence", routingObserver("ldp-converge", ldpConvergenceScenario))
 	Register("ldp/ldp-reload", routingObserver("ldp-reload", ldpReloadScenario))
 	Register("ldp/ldp-session", routingObserver("ldp-show", ldpSessionScenario))

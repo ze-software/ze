@@ -1,0 +1,73 @@
+# Test: the isis filter export chain judges redistributed routes before the LSP.
+#
+# VALIDATES: an `isis filter export` chain whose prefix-list accepts only /32s
+#            leaves only the /32 in this node's own LSP (AC-12). The synthetic
+#            fakeredist producer announces 10.78.3.0/24 and then 10.78.3.1/32;
+#            the import rule passes both, and the export chain rejects the /24.
+#            The fixture reads the LSDB through `show isis database detail` and
+#            looks for each prefix in a TLV 135 entry of the own LSP.
+# PREVENTS:  an export chain that parses and judges nothing, so every
+#            redistributed prefix reaches the LSP whatever the chain says.
+#
+# Modelled on test/isis/isis-redist-no-bgp.ci: a passive interface opens no raw
+# circuit, so IS-IS starts without CAP_NET_RAW and still originates its own LSP.
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external isis-export-chain {
+		run "le test fixture isis/isis-export-chain"
+		encoder json
+	}
+	internal fakeredist {
+		use fakeredist
+	}
+}
+
+isis {
+	net 49.0001.0000.0000.0003.00
+	level l1-l2
+	hostname ze-export
+	interfaces {
+		interface lo {
+			passive true
+		}
+	}
+	filter {
+		export {
+			filters [ loopbacks ];
+			final accept;
+		}
+	}
+}
+
+policy {
+	match redistribute-isis-fakeredist {
+		family [ ipv4/unicast ];
+	}
+	prefix-list loopbacks {
+		entry 0.0.0.0/0 {
+			ge 32;
+			le 32;
+			action accept;
+		}
+	}
+}
+redistribute {
+	destination isis {
+		import fakeredist {
+			filters [ redistribute-isis-fakeredist ];
+			final accept;
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.isis:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK: own LSP advertises 10.78.3.1/32 and not the rejected 10.78.3.0/24
+reject=stderr:pattern=no evaluator configured
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

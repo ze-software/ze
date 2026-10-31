@@ -68,3 +68,40 @@ func isisOwnLSPCarries(rows []map[string]any, tlvType float64, body string) bool
 	}
 	return false
 }
+
+// The TLV 135 entry bodies of the export-chain scenario (RFC 5305 Section 4):
+// the control octet carries the prefix length, the significant octets follow.
+const (
+	isisExportLoopbackTLV = "200a4e0301" // 10.78.3.1/32
+	isisExportSubnetTLV   = "180a4e03"   // 10.78.3.0/24
+)
+
+// isisExportChainScenario has fakeredist announce 10.78.3.0/24 and then
+// 10.78.3.1/32 under an `isis filter export` chain that accepts only /32s, and
+// waits until the own LSP advertises the /32. The /24 reached the consumer
+// first, through the same ordered dispatch, so once the /32 is in the LSP the
+// chain has judged the /24 too, and the scenario fails if the LSP carries it.
+func isisExportChainScenario(ctx context.Context, plugin *sdk.Plugin) error {
+	for _, prefix := range []string{"10.78.3.0/24", "10.78.3.1/32"} {
+		if _, err := routingValue(ctx, plugin, "request fakeredist emit add ipv4/unicast "+prefix); err != nil {
+			return err
+		}
+	}
+	var rows []map[string]any
+	var dispatchErr error
+	if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
+		rows, dispatchErr = routingRows(ctx, plugin, "show isis database detail", false)
+		return dispatchErr == nil && isisOwnLSPCarries(rows, 135, isisExportLoopbackTLV)
+	}) {
+		if dispatchErr != nil {
+			return dispatchErr
+		}
+		return fmt.Errorf("show isis database detail: no own LSP carries 10.78.3.1/32 in TLV 135 (want %q in its value): %#v",
+			isisExportLoopbackTLV, rows)
+	}
+	if isisOwnLSPCarries(rows, 135, isisExportSubnetTLV) {
+		return fmt.Errorf("show isis database detail: the own LSP carries 10.78.3.0/24, which the export chain rejects: %#v", rows)
+	}
+	fmt.Fprintln(os.Stderr, "OK: own LSP advertises 10.78.3.1/32 and not the rejected 10.78.3.0/24")
+	return nil
+}
