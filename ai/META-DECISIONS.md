@@ -356,7 +356,13 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   `ai/doors/system.md` and the door of every subsystem the work touches, and
   the tooling refuses the spec edit until it has, the same way it refuses a
   code edit. Recording a missed constraint in one spec does not fix the gate
-  that let it be missed.
+  that let it be missed. The gate covers every spec edit, bookkeeping
+  included: no section is exempt, because a status, dependency or evidence
+  row can carry a false design claim as easily as a design section. Its cost
+  is paid once per session, so spec bookkeeping is batched into a session or
+  agent that has already read the doors rather than spread across fresh
+  agents, and a spec whose edits need many doors is split into narrower
+  child specs.
 - A design starts from the mechanisms Ze already has. Before proposing a
   design, in a spec or in a reply to Thomas, the agent names the existing
   mechanisms that already do part of the job (found from the doors, the
