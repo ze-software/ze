@@ -25,12 +25,12 @@
     "rid": "RFC6793-4.1-7",
     "polarity": "positive",
     "unit": "test/plugin/rfc6793-no-as4path-from-new-speaker.ci",
-    "unit-sha": "7bf1f0bea4647e50",
+    "unit-sha": "47aea80879baa392",
     "claim-sha": "3051dd17aec1e3a3",
     "route": "revert",
     "producer": "internal/component/bgp/wireu/aspath_collapse.go::WriteTo",
     "producer-sha": "43141993ff1bbdf3",
-    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE9FA56EA7B40030401010101180A0000"
   }
 ]

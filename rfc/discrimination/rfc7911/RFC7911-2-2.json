@@ -202,12 +202,12 @@
     "rid": "RFC7911-2-2",
     "polarity": "positive",
     "unit": "test/plugin/adj-rib-in-replay-addpath-source.ci",
-    "unit-sha": "0741425dbd02e917",
+    "unit-sha": "1a3ccb33aa0e0b06",
     "claim-sha": "00d7767c71441802",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
     "producer-sha": "356be613feb08fba",
-    "break": "body of generatePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "break": "body of generatePath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDE94003040101010100000000180A0000"
   }
 ]
