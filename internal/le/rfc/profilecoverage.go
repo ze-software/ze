@@ -60,17 +60,6 @@ func (f *Figure) add(other Figure) {
 	}
 }
 
-// String renders the figure. A zero Total renders no percentage at all: 0 of 0
-// is neither 0% nor 100%, and either number would be read as a measurement.
-func (f Figure) String() string {
-	var tb textbuf.Buffer
-	if f.Total == 0 {
-		return noRowsCell
-	}
-	return tb.Int(int64(f.Proven)).Str(" of ").Int(int64(f.Total)).Str(" (").
-		Float(100*float64(f.Proven)/float64(f.Total), 1).Str("%)").String()
-}
-
 // StemFigures is one RFC's two figures.
 //
 // Exactly one of two states holds, and the cells say which: not Walked (a
@@ -125,20 +114,6 @@ type StemFigures struct {
 
 // notWalked is the cell an unwalked RFC renders in place of a figure.
 const notWalked = "not walked"
-
-// mandatoryCell renders the mandatory figure.
-func (s StemFigures) mandatoryCell() string { return s.cell(s.Mandatory) }
-
-// optionalCell renders the optional figure.
-func (s StemFigures) optionalCell() string { return s.cell(s.Optional) }
-
-// cell renders one figure in the state the RFC is in.
-func (s StemFigures) cell(figure Figure) string {
-	if !s.Walked {
-		return notWalked
-	}
-	return figure.String()
-}
 
 // StemFiguresOf answers both figures, the evidence kinds and the unmet ids of
 // every summary in one rendered corpus. It is the ONE derivation of per-RFC

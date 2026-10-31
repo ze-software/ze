@@ -77,9 +77,6 @@ func TestCoverageMandatoryOptional(t *testing.T) {
 	if !reflect.DeepEqual(one.Optional, Figure{Proven: 1, Total: 2, Attainable: 2}) {
 		t.Errorf("optional = %+v, want 1 proven of 2 owed", one.Optional)
 	}
-	if got := one.mandatoryCell(); got != "2 of 9 (22.2%)" {
-		t.Errorf("mandatory cell = %q", got)
-	}
 
 	// A {single-polarity} row is owed either way, and proven only by its
 	// verified record: the annotation alone proves nothing.
@@ -96,14 +93,15 @@ func TestCoverageMandatoryOptional(t *testing.T) {
 		}
 	}
 
-	// AC-8: a proven row on an unwalked RFC still renders no figure.
-	two := figures["rfc2"]
-	if two.mandatoryCell() != notWalked || two.optionalCell() != notWalked {
-		t.Errorf("unwalked cells = %q, %q, want %q", two.mandatoryCell(), two.optionalCell(), notWalked)
+	// AC-8: a proven row on an unwalked RFC still answers an unwalked figure,
+	// which the tree prints as not walked (sectionsCell, TestSectionsCellHasNoInventedMeasurement).
+	if figures["rfc2"].Walked {
+		t.Errorf("rfc2 is not walked, and its figures say it is: %+v", figures["rfc2"])
 	}
-	// A walked RFC with no row renders no percentage, never 0% or 100%.
-	if got := figures["rfc3"].mandatoryCell(); got != "no rows" {
-		t.Errorf("empty walked cell = %q, want no rows", got)
+	// A walked RFC with no row answers zero totals, which the tree prints as
+	// no rows, never 0% or 100%.
+	if empty := figures["rfc3"]; !empty.Walked || empty.Mandatory.Total != 0 || empty.Optional.Total != 0 {
+		t.Errorf("rfc3 is walked with no row, and its figures are %+v", empty)
 	}
 
 	rollup := rollupOf(figures, []string{"rfc1", "rfc2", "rfc3"})
@@ -369,26 +367,6 @@ func TestSectionsCellHasNoInventedMeasurement(t *testing.T) {
 	}
 	if text := (Rollup{RFCs: 1, NotWalked: 1}).String(); text != "no rows; 1 RFCs, 1 not walked" {
 		t.Errorf("empty rollup = %q, want no rows and its member counts", text)
-	}
-}
-
-// TestFigureRenderingBoundaries checks no rows, none proven and mixed proof
-// figures: a zero total renders no percentage.
-func TestFigureRenderingBoundaries(t *testing.T) {
-	for _, one := range []struct {
-		name   string
-		figure Figure
-		proof  string
-	}{
-		{"empty", Figure{}, "no rows"},
-		{"none proven", Figure{Total: 4, Attainable: 4}, "0 of 4 (0.0%)"},
-		{"mixed", Figure{Proven: 1, Total: 4, Attainable: 3}, "1 of 4 (25.0%)"},
-	} {
-		t.Run(one.name, func(t *testing.T) {
-			if got := one.figure.String(); got != one.proof {
-				t.Errorf("proof = %q, want %q", got, one.proof)
-			}
-		})
 	}
 }
 

@@ -344,16 +344,6 @@ func (c *priorityCorpus) treeRow(stem string, useCases []profileScope) *TreeRow 
 	return row
 }
 
-// Cells answers the row's two figure cells in the state the node is in. It
-// reads only the exported fields, so a row read back from JSON (the site's
-// published ledger) renders the cells `./le rfc tree` prints.
-func (r *TreeRow) Cells() (mandatory, optional string) {
-	if !r.Summary {
-		return noSummaryCell, noSummaryCell
-	}
-	return r.mandatoryCell(), r.optionalCell()
-}
-
 // Text renders the tree, one line per node, for a reader at a terminal: the
 // required rows under the profile's rollup, then the optional tier under its
 // own rollup, then the candidates.
