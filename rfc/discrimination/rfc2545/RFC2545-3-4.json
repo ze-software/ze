@@ -78,6 +78,39 @@
   },
   {
     "rid": "RFC2545-3-4",
+    "polarity": "positive",
+    "unit": "test/encode/new-v6.ci",
+    "unit-sha": "facaad02640abf6a",
+    "claim-sha": "2088865aa477dfa5",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/update_build.go::buildMPReach",
+    "producer-sha": "4d39aed49a7780ef",
+    "break": "line 700: \"linkLocal := unicastLinkLocalNextHop(p)\" -\u003e \"linkLocal := netip.MustParseAddr(\\\"fe80::1\\\")\"",
+    "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00590200000042800E26000201102A020B8000000002000000000000000100802A020B8000000001000000000000000140010100400200400504000000C8C008087814000078147814",
+    "paired": [
+      {
+        "producer": "internal/component/bgp/reactor/egress_inject_filter.go::normalizeOrdinaryNextHop",
+        "producer-sha": "e63c43dc48848eb9",
+        "break": "line 218: \"if scope.sharesNextHopSubnet(global) {\" -\u003e \"if _ = scope; true {\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/bgp/message/update_build.go::buildMPReach",
+        "break": "line 700: \"linkLocal := unicastLinkLocalNextHop(p)\" -\u003e \"linkLocal := netip.MustParseAddr(\\\"fe80::1\\\")\"",
+        "seconds": 72,
+        "green": "51 new-v6 3.0s (avg 1.5s)"
+      },
+      {
+        "producer": "internal/component/bgp/reactor/egress_inject_filter.go::normalizeOrdinaryNextHop",
+        "break": "line 218: \"if scope.sharesNextHopSubnet(global) {\" -\u003e \"if _ = scope; true {\"",
+        "seconds": 81,
+        "green": "51 new-v6 5.7s (avg 1.5s)"
+      }
+    ]
+  },
+  {
+    "rid": "RFC2545-3-4",
     "polarity": "negative",
     "unit": "test/exabgp-compat/encoding/conf-llnh-update.ci",
     "unit-sha": "4c1734e43fbc1d5d",
