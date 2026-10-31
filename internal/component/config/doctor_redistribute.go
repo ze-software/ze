@@ -55,9 +55,12 @@ var redistributeDoctorCheck = diagnostic.DoctorCheck{
 // is decidable here, and it is an ERROR. ExtractRedistributeRules refuses the
 // load on it, and `ze doctor` is where an operator finds out first.
 //
-// A destination is a protocol name whose consumer registers at plugin startup,
-// which is after this process reads anything. So the check asks the weaker
-// question it can answer honestly. Did any protocol register this name at all?
+// A destination's consumer registers at plugin startup, after this process
+// reads anything. A destination whose protocol has no block in the config is
+// refused at load from the protocol's static declaration
+// (config.RefuseRedistributeRules, redistribute.RegisterDestination). A name no
+// protocol registered at all is not refused there, so this check asks the
+// question it can answer honestly: did any protocol register this name?
 //
 // A name nothing registered can have no consumer under any startup order. The
 // YANG leaf carries no validation for it

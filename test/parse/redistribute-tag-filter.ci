@@ -54,7 +54,18 @@ expect=stdout:contains=configuration valid
 
 # --- Boundary: the route tag is a uint32, so 4294967295 is the last valid value
 # --- and 4294967296 is one past it. The schema refuses the second by name.
+# --- Each config carries an ospf block: `destination ospf` with none is refused
+# --- (test/parse/redistribute-ospf-without-ospf-block.ci), and the subject here
+# --- is the tag range alone.
 stdin=redist-tag-last:terminator=EOF_LAST
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+}
+
 redistribute {
 	destination ospf {
 		import static {
@@ -69,6 +80,14 @@ expect=exit:code=0
 expect=stdout:contains=configuration valid
 
 stdin=redist-tag-range:terminator=EOF_RANGE
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+}
+
 redistribute {
 	destination ospf {
 		import static {

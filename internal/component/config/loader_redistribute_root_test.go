@@ -1,12 +1,10 @@
 package config
 
 import (
-	"context"
 	"sync"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
-	"github.com/ze-software/ze/internal/core/family"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,19 +18,13 @@ const (
 	rootNeedRoot        = "rootneedproto"
 )
 
-// rootNeedConsumer is a consumer the test factory builds; it is never called.
-type rootNeedConsumer struct{}
-
-func (rootNeedConsumer) Name() string { return rootNeedDestination }
-
-func (rootNeedConsumer) InjectRoute(context.Context, family.Family, redistribute.RouteEntry) {}
-
-func (rootNeedConsumer) WithdrawRoute(context.Context, family.Family, string) {}
-
 var registerRootNeedOnce sync.Once
 
 // registerRootNeed registers a source and a destination that need the
 // rootNeedRoot root, and a source that needs no root, once per test binary.
+// The destination is a bare declaration with no consumer and no factory, the
+// shape IS-IS and OSPF register from init(): their consumers register only
+// when their plugin starts, after the config doors have run.
 func registerRootNeed(t *testing.T) {
 	t.Helper()
 	registerRootNeedOnce.Do(func() {
@@ -42,10 +34,9 @@ func registerRootNeed(t *testing.T) {
 		require.NoError(t, redistribute.RegisterSource(redistribute.RouteSource{
 			Name: rootNeedPlainSource, Protocol: rootNeedPlainSource,
 		}))
-		require.NoError(t, redistribute.RegisterConsumerFactory(redistribute.ConsumerFactory{
+		require.NoError(t, redistribute.RegisterDestination(redistribute.Destination{
 			Name:       rootNeedDestination,
 			ConfigRoot: rootNeedRoot,
-			New:        func(redistribute.RouteUpdater) redistribute.RedistConsumer { return rootNeedConsumer{} },
 		}))
 	})
 }
@@ -87,18 +78,26 @@ func TestRefuseRedistributeRulesNeedsTheSourceRoot(t *testing.T) {
 }
 
 // TestRefuseRedistributeRulesNeedsTheDestinationRoot proves the same for a
-// destination a consumer factory declares.
+// destination declared with RegisterDestination, with no consumer registered.
 //
-// VALIDATES: `destination bgp` in a config with no `bgp` block is refused
-// before startup. Before, it pulled in the BGP plugin, which stopped the daemon
-// with "missing required bgp { } block".
+// VALIDATES: `destination bgp`, `destination isis` and `destination ospf` in a
+// config with no block of their own are refused before startup. Before, `bgp`
+// pulled in the BGP plugin, which stopped the daemon with "missing required
+// bgp { } block", and `isis` and `ospf` booted and moved nothing, because the
+// check read only consumer factories and those two protocols have none.
 // PREVENTS: a destination nothing would receive the routes for.
 func TestRefuseRedistributeRulesNeedsTheDestinationRoot(t *testing.T) {
 	registerRootNeed(t)
 
+	_, hasConsumer := redistribute.LookupConsumer(rootNeedDestination)
+	require.False(t, hasConsumer, "the destination is judged from its declaration, with no consumer")
+	_, hasFactory := redistribute.LookupConsumerFactory(rootNeedDestination)
+	require.False(t, hasFactory, "the destination is judged from its declaration, with no factory")
+
 	err := RefuseRedistributeRules(rootNeedTree(rootNeedDestination, rootNeedPlainSource, false))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"destination rootneed-dest" needs rootneedproto configured, and this config has no rootneedproto { } block`)
+	assert.Contains(t, err.Error(), `fix: configure rootneedproto in a rootneedproto { } block, or remove "destination rootneed-dest" from the redistribute block`)
 
 	assert.NoError(t, RefuseRedistributeRules(rootNeedTree(rootNeedDestination, rootNeedPlainSource, true)))
 }
@@ -120,7 +119,8 @@ func TestRefuseRedistributeRulesAcceptsRulesWithNoRoot(t *testing.T) {
 // refuses.
 //
 // VALIDATES: `ze config validate` and an editor or API commit refuse a rule
-// whose protocol has no block, in the words LoadConfig uses.
+// whose source or destination protocol has no block, in the words LoadConfig
+// uses.
 func TestVerifyDoorRefusesRedistributeWithoutRoot(t *testing.T) {
 	registerRootNeed(t)
 
@@ -129,4 +129,10 @@ func TestVerifyDoorRefusesRedistributeWithoutRoot(t *testing.T) {
 	assert.Contains(t, JoinPluginConfigVerifyErrors(errs).Error(), `"import rootneed-src" under "destination isis" needs rootneedproto configured`)
 
 	assert.Empty(t, VerifyPluginConfigMapTransition(nil, rootNeedTree("isis", rootNeedSource, true).ToPluginMap()))
+
+	errs = VerifyPluginConfigMapTransition(nil, rootNeedTree(rootNeedDestination, rootNeedPlainSource, false).ToPluginMap())
+	require.NotEmpty(t, errs)
+	assert.Contains(t, JoinPluginConfigVerifyErrors(errs).Error(), `"destination rootneed-dest" needs rootneedproto configured`)
+
+	assert.Empty(t, VerifyPluginConfigMapTransition(nil, rootNeedTree(rootNeedDestination, rootNeedPlainSource, true).ToPluginMap()))
 }

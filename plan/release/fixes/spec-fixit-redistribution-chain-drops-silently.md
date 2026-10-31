@@ -57,6 +57,12 @@ Two findings carried into this spec from the investigation that commissioned it:
   filters end to end. It says nothing about the `redistribute` config root. That
   silence is what authorized this investigation.
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `silent-fall-through.md` | 2026-10-31 | `RefuseRedistributeRules` accepts a `destination` no protocol declares |
+
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->

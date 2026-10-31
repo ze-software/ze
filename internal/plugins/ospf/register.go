@@ -118,6 +118,18 @@ func registerOSPF() {
 	// ospfredistribute package import (its events sub-package init).
 	ospfredistribute.RegisterOSPFSources()
 
+	// Declare the "ospf" redistribution destination and the root it needs at
+	// init, for the same reason: the consumer registers only in OnStarted, so
+	// `ze config validate`, a commit and the boot load could not otherwise tell
+	// that `destination ospf` with no ospf block moves nothing. They refuse it
+	// (config.RefuseRedistributeRules).
+	if err := configredist.RegisterDestination(configredist.Destination{
+		Name:       ospfredistribute.ConsumerName,
+		ConfigRoot: Namespace,
+	}); err != nil {
+		panic("BUG: OSPF redistribute destination registration failed: " + err.Error())
+	}
+
 	registerOSPFDiagnosticCodes()
 	registerOSPFDoctor()
 	registerOSPFIPsecDoctor()

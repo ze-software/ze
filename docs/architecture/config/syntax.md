@@ -1313,8 +1313,10 @@ shapes fail, each naming what the operator typed: a source no component
 registered, a family name that is not a registered address family, a
 `destination` that imports nothing, and a rule naming a source or a destination
 whose protocol has no block in the config (`import bgp` or `destination bgp`
-with no `bgp { }` block). The root each source or destination needs is declared
-where it registers, so the check names no protocol.
+with no `bgp { }` block, and the same for `isis` and `ospf`). The root each
+source or destination needs is declared from the protocol's own `init()`
+(`RouteSource.ConfigRoot`, `Destination.ConfigRoot`), before any plugin starts,
+so the check names no protocol.
 
 The rules are installed by the redistribute orchestrator, the plugin that owns
 the `redistribute` root, from its own config section at startup and at each
@@ -1326,14 +1328,16 @@ disabled every redistribution rule in the file rather than the one line that was
 wrong, and its only trace was a startup log line. `ze doctor` reports the same
 two faults ahead of the daemon, under `doctor-redistribute-unknown-source` and
 `doctor-redistribute-unknown-destination`; the second is a warning, because a
-destination protocol registers its consumer at plugin startup and a build
-without that protocol is a legitimate reason for the name to be unknown.
+destination name no protocol in this build registers is not refused at load,
+and a build without that protocol is a legitimate reason for the name to be
+unknown.
 
 An empty rule list installs an EMPTY evaluator rather than leaving the previous
 one standing, so a reload that removed the last `redistribute` block stops
 redistributing.
 <!-- source: internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
 <!-- source: internal/component/config/loader_redistribute.go -- RefuseRedistributeRules -->
+<!-- source: internal/component/config/redistribute/destination.go -- Destination, RegisterDestination -->
 <!-- source: internal/plugins/redistribute/config.go -- ruleState -->
 <!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules -->
 

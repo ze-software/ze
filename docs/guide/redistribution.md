@@ -339,18 +339,25 @@ token first.
 | `as112`, `l2tp` | those plugins | the covering prefixes and the per-session routes they own |
 | `ipsec` | the IKE engine | the remote traffic selector of each established Child SA |
 
-A destination is the name of a protocol whose consumer registered: `bgp`, `ospf`
-and `isis` today. OSPF and IS-IS register their consumers from their own
-plugins. BGP declares a consumer factory, which the orchestrator builds over its
-own connection to the engine, so a build without BGP has no `bgp` destination.
+A destination is the name of a protocol that receives routes: `bgp`, `ospf`
+and `isis` today. Each protocol declares its destination when its package
+loads, with the config block it needs, so the config check knows `destination
+isis` needs an `isis { }` block before any plugin starts. The consumer that
+receives the routes comes later. OSPF and IS-IS register theirs when their
+plugins start. BGP declares a consumer factory, which the orchestrator builds
+over its own connection to the engine. A build without a protocol has neither,
+so a build without BGP has no `bgp` destination.
 
 **A protocol is never redistributed into itself.** `destination isis { import
 isis }` parses and moves nothing, at every guard: the config evaluator, the
 dispatch fan-out and the replay all ask one predicate.
 
 <!-- source: internal/component/config/redistribute/registry.go -- RegisterSource, LookupSource -->
+<!-- source: internal/component/config/redistribute/destination.go -- Destination, RegisterDestination -->
 <!-- source: internal/component/config/redistribute/consumer_factory.go -- ConsumerFactory -->
-<!-- source: internal/component/bgp/redistribute/register.go -- the BGP consumer factory -->
+<!-- source: internal/component/bgp/redistribute/register.go -- the BGP destination and consumer factory -->
+<!-- source: internal/plugins/isis/register.go -- registerISIS, the isis destination -->
+<!-- source: internal/plugins/ospf/register.go -- registerOSPF, the ospf destination -->
 <!-- source: internal/core/redistevents/registry.go -- WouldLoop, the one loop definition -->
 
 ### What the Rules Wire For You
@@ -403,16 +410,19 @@ and the error names what you typed:
 | `import rip`, and no component registers `rip` | the load fails: `redistribute: unknown source "rip" under destination "ospf"` |
 | `family [ ipv9/unicast ]` | the load fails naming the family |
 | `destination ospf { }` with no import | the load fails: the destination imports nothing |
-| `import bgp` or `destination bgp`, and no `bgp { }` block | the load, `ze config validate` and a commit fail: `redistribute: "import bgp" needs a bgp { } block, and this config has none`, with the fix on its own line |
+| `import bgp` or `destination bgp`, and no `bgp { }` block | the load, `ze config validate` and a commit fail: `redistribute: "destination bgp" needs bgp configured, and this config has no bgp { } block`, with the fix on its own line |
+| `import isis` or `destination isis`, and no `isis { }` block | the same refusal: `redistribute: "destination isis" needs isis configured, and this config has no isis { } block` |
+| `import ospf` or `destination ospf`, and no `ospf { }` block | the same refusal: `redistribute: "destination ospf" needs ospf configured, and this config has no ospf { } block` |
 
 A refusal is deliberate. Ze used to warn once and carry on with redistribution
 disabled for the WHOLE file. One mistyped word silently stopped rules that were
 written correctly.
 
-One fault is not refusable, because no code can judge it at load time. It is a
-`destination` naming a protocol whose consumer never registers. `ze doctor`
-reports it, under `doctor-redistribute-unknown-destination`, together with an
-unknown source under `doctor-redistribute-unknown-source`.
+One fault is not refused at load: a `destination` naming a protocol that no
+component in this build declares. `ze doctor` warns about it, under
+`doctor-redistribute-unknown-destination`, because a build without that
+protocol is a legitimate reason for the name to be unknown. It reports an
+unknown source too, under `doctor-redistribute-unknown-source`.
 
 ```
 ze doctor

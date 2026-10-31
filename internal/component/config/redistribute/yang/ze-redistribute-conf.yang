@@ -20,23 +20,23 @@ rules. To add a destination protocol, add a key here.";
 
         list destination {
             key "protocol";
-            description "Each entry names a consumer that registered itself, for example bgp
-or ospf.";
+            description "Each entry names a protocol that declared itself a destination, for
+example bgp or ospf.";
             ze:help "Destination protocol for redistributed routes.";
 
             leaf protocol {
                 type string;
-                // No ze:validate here. A consumer registers at plugin startup,
-                // which is after the YANG parse, so this leaf cannot be checked
-                // against the consumer registry at parse time. Nothing checks it
-                // at run time either: the orchestrator dispatches over the
-                // consumers that registered, and a destination naming a protocol
-                // nobody serves simply matches none of them. `ze doctor` reports
-                // it instead, under doctor-redistribute-unknown-destination
+                // No ze:validate here. Each protocol declares its destination
+                // name and the config root it needs from init()
+                // (configredist.RegisterDestination), and the config doors
+                // refuse a rule whose protocol has no block in the config
+                // (config.RefuseRedistributeRules). A name no protocol declares
+                // is not refused: the orchestrator dispatches over the consumers
+                // that registered, and such a name matches none of them. `ze
+                // doctor` reports it, under doctor-redistribute-unknown-destination
                 // (internal/component/config/doctor_redistribute.go).
-                description "bgp, ospf and isis are examples. The leaf carries no ze:validate,
-because a destination protocol registers its consumer at plugin startup, after the YANG
-parse. Ze resolves the name against that registry when it redistributes a route.";
+                description "bgp, ospf and isis are examples. A rule naming a destination whose
+protocol has no block in the config is refused at load, validate and commit.";
                 ze:help "Name of the protocol that receives the redistributed routes.";
             }
 

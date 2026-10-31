@@ -1,6 +1,6 @@
 // Design: docs/guide/redistribution.md -- sources and destinations
 // Related: consumer.go -- RedistConsumer and the consumer registry a built consumer joins
-// Related: registry.go -- RouteSource, whose ConfigRoot states the same need for a source
+// Related: destination.go -- Destination, which declares the config root the destination needs
 
 package redistribute
 
@@ -30,15 +30,12 @@ type RouteUpdater interface {
 //
 // The destination's own package registers it from init(), so the orchestrator
 // names no destination and imports no protocol: a build without that package
-// carries no factory, and the destination is absent from it.
+// carries no factory, and the destination is absent from it. The config root
+// the destination needs is declared beside it with RegisterDestination, the
+// one declaration the config doors read for every destination.
 type ConsumerFactory struct {
 	// Name is the destination name an operator writes after `destination`.
 	Name string
-	// ConfigRoot is the config root the destination's protocol runs from. A
-	// rule naming the destination in a config without that root is refused
-	// (config.RefuseRedistributeRules), because nothing would receive the
-	// routes. Empty means the destination needs no root.
-	ConfigRoot string
 	// New builds the consumer over the orchestrator's engine connection.
 	New func(RouteUpdater) RedistConsumer
 }
@@ -50,12 +47,20 @@ var (
 
 // RegisterConsumerFactory adds f to the factory registry. A second factory
 // under the same name is refused, as is one with no name or no constructor.
+//
+// A factory whose name no RegisterDestination call declared first is refused
+// too. The config doors judge a destination's root from that declaration
+// alone, so a factory without one would build a consumer whose missing config
+// block no door could refuse.
 func RegisterConsumerFactory(f ConsumerFactory) error {
 	if f.Name == "" {
 		return fmt.Errorf("%w: a factory with no name", ErrConsumerFactoryConflict)
 	}
 	if f.New == nil {
 		return fmt.Errorf("%w: factory %q has no constructor", ErrConsumerFactoryConflict, f.Name)
+	}
+	if _, declared := LookupDestination(f.Name); !declared {
+		return fmt.Errorf("%w: factory %q has no destination declared; call RegisterDestination first", ErrConsumerFactoryConflict, f.Name)
 	}
 	factoryMu.Lock()
 	defer factoryMu.Unlock()

@@ -101,12 +101,15 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 // so it cannot tell that a `bgp` block is missing, and BGP does not start at
 // all without one. Without this check `destination bgp` on a router with no
 // `bgp` block stopped the daemon at startup with "missing required bgp { }
-// block", and `import bgp` moved nothing and said nothing.
+// block", and `import bgp` moved nothing and said nothing. `destination isis`
+// or `destination ospf` with no block of its own booted and moved nothing.
 //
-// The root a source or a destination needs is declared where it is registered
-// (RouteSource.ConfigRoot, ConsumerFactory.ConfigRoot), so this check names no
-// protocol. Every rule that fails is reported, so the operator fixes them in
-// one pass.
+// The root a source or a destination needs is declared statically, from the
+// protocol's own init() (RouteSource.ConfigRoot, Destination.ConfigRoot), so
+// this check names no protocol and needs no plugin running. A destination's
+// consumer is no help here: IS-IS and OSPF register theirs only when their
+// plugin starts, after this check has run. Every rule that fails is reported,
+// so the operator fixes them in one pass.
 func RefuseRedistributeRules(tree *Tree) error {
 	rules, err := ExtractRedistributeRules(tree)
 	if err != nil {
@@ -125,8 +128,8 @@ func RefuseRedistributeRules(tree *Tree) error {
 		if refusedDestinations[rule.Destination] {
 			continue
 		}
-		if factory, ok := redistribute.LookupConsumerFactory(rule.Destination); ok {
-			if refusal := refuseAbsentRoot(tree, factory.ConfigRoot, `"destination `+rule.Destination+`"`, "destination "+rule.Destination); refusal != nil {
+		if dest, ok := redistribute.LookupDestination(rule.Destination); ok {
+			if refusal := refuseAbsentRoot(tree, dest.ConfigRoot, `"destination `+rule.Destination+`"`, "destination "+rule.Destination); refusal != nil {
 				refusedDestinations[rule.Destination] = true
 				refusals = append(refusals, refusal)
 			}

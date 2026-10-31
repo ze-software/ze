@@ -127,6 +127,7 @@ func TestFactoryConsumersAreBuiltOverTheOrchestratorConnection(t *testing.T) {
 	configredist.ResetConsumersForTest()
 	t.Cleanup(configredist.ResetConsumersForTest)
 	var lent configredist.RouteUpdater
+	require.NoError(t, configredist.RegisterDestination(configredist.Destination{Name: "factorytest"}))
 	require.NoError(t, configredist.RegisterConsumerFactory(configredist.ConsumerFactory{
 		Name: "factorytest",
 		New: func(u configredist.RouteUpdater) configredist.RedistConsumer {

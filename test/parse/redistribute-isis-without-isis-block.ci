@@ -1,0 +1,67 @@
+# Test: a redistribute rule that names IS-IS is refused when the config has no
+# isis block, at validate time and at daemon start, with the fix in the message.
+#
+# VALIDATES: RefuseRedistributeRules (internal/component/config/loader_redistribute.go)
+#            reads the root IS-IS declares at init: the "isis" destination
+#            (configredist.RegisterDestination in internal/plugins/isis/register.go)
+#            and the "isis" source (internal/plugins/isis/redistribute/source.go)
+#            each need an `isis { }` block. `ze config validate` (the commit
+#            door) and LoadConfig (boot) both refuse. The same rule with the
+#            isis block present validates.
+# PREVENTS:  `destination isis` with no isis block being accepted and moving
+#            nothing in silence. The IS-IS consumer registers only when its
+#            plugin starts, so a check that read consumers could not see it.
+
+stdin=dest-isis:terminator=EOF_DEST
+redistribute {
+	destination isis {
+		import connected
+	}
+}
+EOF_DEST
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=dest-isis
+expect=exit:code=1
+expect=stdout:contains=redistribute: "destination isis" needs isis configured, and this config has no isis { } block
+expect=stdout:contains=fix: configure isis in a isis { } block, or remove "destination isis" from the redistribute block
+
+cmd=foreground:seq=2:exec=ze -:stdin=dest-isis:timeout=15s
+expect=exit:code=1
+expect=stderr:contains=redistribute: "destination isis" needs isis configured, and this config has no isis { } block
+
+stdin=import-isis:terminator=EOF_IMPORT
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+}
+
+redistribute {
+	destination ospf {
+		import isis
+	}
+}
+EOF_IMPORT
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=import-isis
+expect=exit:code=1
+expect=stdout:contains=redistribute: "import isis" under "destination ospf" needs isis configured
+
+stdin=dest-isis-present:terminator=EOF_PRESENT
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+}
+
+redistribute {
+	destination isis {
+		import connected
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=dest-isis-present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

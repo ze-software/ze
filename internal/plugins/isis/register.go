@@ -130,6 +130,18 @@ func registerISIS() {
 	// the redistribute package import below); see isis-11 producer wiring.
 	isisredistribute.RegisterISISSources()
 
+	// Declare the "isis" redistribution destination and the root it needs at
+	// init, for the same reason: the consumer registers only in OnStarted, so
+	// `ze config validate`, a commit and the boot load could not otherwise tell
+	// that `destination isis` with no isis block moves nothing. They refuse it
+	// (config.RefuseRedistributeRules).
+	if err := configredist.RegisterDestination(configredist.Destination{
+		Name:       isisredistribute.ConsumerName,
+		ConfigRoot: configRoot,
+	}); err != nil {
+		panic("BUG: IS-IS redistribute destination registration failed: " + err.Error())
+	}
+
 	// Self-contained CLI completion for the NET and system-id leaves: the central
 	// config package owns the ValidateFn (config can't import isis without a
 	// cycle), but the completion guidance is registered here so the IS-IS package

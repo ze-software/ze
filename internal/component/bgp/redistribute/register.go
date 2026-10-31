@@ -17,10 +17,16 @@ func init() {
 	// The BGP destination is declared here, with BGP, so the protocol-neutral
 	// redistribute orchestrator names no destination: it builds this consumer
 	// over its own engine connection, and a build without BGP has no factory
-	// and no BGP destination.
-	if err := redistribute.RegisterConsumerFactory(redistribute.ConsumerFactory{
+	// and no BGP destination. The destination declaration carries the root the
+	// config doors check; the factory carries only the constructor.
+	if err := redistribute.RegisterDestination(redistribute.Destination{
 		Name:       bgpConsumerName,
 		ConfigRoot: bgpConfigRoot,
+	}); err != nil {
+		panic("BUG: BGP redistribute destination registration failed: " + err.Error())
+	}
+	if err := redistribute.RegisterConsumerFactory(redistribute.ConsumerFactory{
+		Name: bgpConsumerName,
 		New: func(updater redistribute.RouteUpdater) redistribute.RedistConsumer {
 			return NewBGPConsumer(updater)
 		},
