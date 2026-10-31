@@ -8,6 +8,7 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/network"
 )
@@ -67,6 +68,10 @@ type linkScope struct {
 	// peerOnLink reports whether the speaker shares a common subnet with the
 	// peer the route is being advertised to.
 	peerOnLink bool
+	// clock times the rate limit on the warning a third-party next hop sent
+	// without its router's Link-Local logs. A peer's scope carries the
+	// peer's clock (refreshLinkScopeWith), so a test on a fake clock drives it.
+	clock clock.Clock
 }
 
 // newLinkScope reads the host interface and neighbor tables and settles the
@@ -90,6 +95,7 @@ func newLinkScopeWith(connected []netip.Prefix, neighbors neighborView, peerAddr
 		neighbors:  neighbors,
 		peer:       peerAddr.Unmap(),
 		peerOnLink: network.SharesSubnet(connected, peerAddr),
+		clock:      clock.RealClock{},
 	}
 }
 
@@ -240,7 +246,7 @@ func (ls *linkScope) linkLocalNextHop(configured, globalNextHop netip.Addr, rout
 func (ls *linkScope) thirdPartyLinkLocal(global netip.Addr) netip.Addr {
 	linkLocal, outcome, err := ls.neighbors.linkLocalOf(global)
 	if err != nil {
-		warnNeighborTableUnread(ls.peer, global, err)
+		warnNeighborTableUnread(ls.clock.Now().UnixNano(), ls.peer, global, err)
 		return netip.Addr{}
 	}
 	switch outcome {
@@ -248,7 +254,7 @@ func (ls *linkScope) thirdPartyLinkLocal(global netip.Addr) netip.Addr {
 		return linkLocal
 	case network.LinkLocalNoGlobalEntry, network.LinkLocalGlobalUnbound,
 		network.LinkLocalNoCandidate, network.LinkLocalAmbiguous:
-		warnThirdPartyLinkLocalUnknown(ls.peer, global, outcome, ls.neighbors.watch)
+		warnThirdPartyLinkLocalUnknown(ls.clock.Now().UnixNano(), ls.peer, global, outcome, ls.neighbors.watch)
 		return netip.Addr{}
 	case network.LinkLocalOutcomeUnspecified:
 		panic("BUG: neighbor table lookup answered no outcome")
@@ -338,7 +344,9 @@ func (p *Peer) neighborWatchState() neighborWatchState {
 // read of each table across that fan-out costs one syscall each instead of one
 // per peer.
 func (p *Peer) refreshLinkScopeWith(connected []netip.Prefix, neighbors neighborView) {
-	p.llScope.Store(newLinkScopeWith(connected, neighbors, p.settings.Address))
+	scope := newLinkScopeWith(connected, neighbors, p.settings.Address)
+	scope.clock = p.clock
+	p.llScope.Store(scope)
 }
 
 // linkLocalNextHopFor returns the link-local address to append after

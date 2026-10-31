@@ -11,7 +11,6 @@ import (
 	"reflect"
 	"slices"
 	"strings"
-	"time"
 )
 
 // settingsCopier copies from src to dst the PeerSettings fields ONE swap decision
@@ -300,7 +299,7 @@ func (a *reactorAPIAdapter) swapImportInvalidating(peer *Peer, next *PeerSetting
 		return fmt.Errorf("peer %s: removing the last accepting import policy needs a transaction ID, and the operation carried none", peer.addrString)
 	}
 	if deadline.IsZero() {
-		deadline = time.Now().Add(sourcePolicyTxBudget)
+		deadline = a.r.clock.Now().Add(sourcePolicyTxBudget)
 	}
 	inv, err := a.r.prepareImportInvalidation(txID, deadline, peer)
 	if err != nil {

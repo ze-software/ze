@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/network"
 )
 
@@ -228,7 +229,7 @@ func TestNeighbourWatchRetryDoublesForAFailingSource(t *testing.T) {
 	table.install(t)
 	var delays []time.Duration
 	saved := waitNeighborWatch
-	waitNeighborWatch = func(_ context.Context, delay time.Duration) bool {
+	waitNeighborWatch = func(_ context.Context, _ clock.Clock, delay time.Duration) bool {
 		delays = append(delays, delay)
 		return len(delays) < 9
 	}

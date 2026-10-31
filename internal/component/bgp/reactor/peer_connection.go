@@ -212,5 +212,5 @@ func (p *Peer) finishCollisionHandoff(session *Session, conn net.Conn, remoteID 
 	p.mu.Unlock()
 	// Unlike the OPEN-less held loser, this connection already sent OPEN.
 	// RFC 4271 Section 6.8 requires Cease; no Peer lock is held while writing.
-	rejectConnectionCollision(conn)
+	rejectConnectionCollision(conn, p.clock)
 }

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/events"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/network"
@@ -134,7 +135,7 @@ func (r *Reactor) neighborWatchWorker(ctx context.Context) {
 	for {
 		changes, err := watchNeighborTable(ctx)
 		if err == nil {
-			started := time.Now()
+			started := r.clock.Now()
 			// The table may have moved while no watch ran, so read it again
 			// before waiting for the first signal.
 			published, _ = r.noteNeighborWatch(neighborWatchState{status: neighborWatchRunning})
@@ -150,7 +151,7 @@ func (r *Reactor) neighborWatchWorker(ctx context.Context) {
 			}
 			// A watch that ran a long time failed once, and starts again
 			// from the shortest delay.
-			if time.Since(started) >= neighborWatchRetryMax {
+			if r.clock.Now().Sub(started) >= neighborWatchRetryMax {
 				retry = neighborWatchRetryFirst
 			}
 			err = errNeighborWatchEnded
@@ -160,21 +161,22 @@ func (r *Reactor) neighborWatchWorker(ctx context.Context) {
 		if changed {
 			r.refreshPeerLinkScopes()
 		}
-		if !waitNeighborWatch(ctx, retry) {
+		if !waitNeighborWatch(ctx, r.clock, retry) {
 			return
 		}
 		retry = min(2*retry, neighborWatchRetryMax)
 	}
 }
 
-// waitNeighborWatchRetry waits delay, and reports false when ctx ended first.
-func waitNeighborWatchRetry(ctx context.Context, delay time.Duration) bool {
-	timer := time.NewTimer(delay)
+// waitNeighborWatchRetry waits delay on clk, and reports false when ctx ended
+// first.
+func waitNeighborWatchRetry(ctx context.Context, clk clock.Clock, delay time.Duration) bool {
+	timer := clk.NewTimer(delay)
 	defer timer.Stop()
 	select {
 	case <-ctx.Done():
 		return false
-	case <-timer.C:
+	case <-timer.C():
 		return true
 	}
 }

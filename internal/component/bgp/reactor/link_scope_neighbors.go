@@ -179,8 +179,8 @@ var thirdPartyLinkLocalLog struct {
 // warnNeighborTableUnread says that a third-party next hop on the common
 // subnet went out without its router's Link-Local because the neighbor table
 // could not be read, and what makes it readable.
-func warnNeighborTableUnread(peer, global netip.Addr, err error) {
-	emit, suppressed := thirdPartyLinkLocalLog.unread.allow(time.Now().UnixNano(), thirdPartyLinkLocalLogInterval)
+func warnNeighborTableUnread(now int64, peer, global netip.Addr, err error) {
+	emit, suppressed := thirdPartyLinkLocalLog.unread.allow(now, thirdPartyLinkLocalLogInterval)
 	if !emit {
 		return
 	}
@@ -195,16 +195,16 @@ func warnNeighborTableUnread(peer, global netip.Addr, err error) {
 // that first and names what makes the watch run: blaming the next-hop router
 // for an entry that appeared after the last read would send the operator to
 // the wrong machine.
-func warnThirdPartyLinkLocalUnknown(peer, global netip.Addr, outcome network.LinkLocalOutcome, watch neighborWatchState) {
+func warnThirdPartyLinkLocalUnknown(now int64, peer, global netip.Addr, outcome network.LinkLocalOutcome, watch neighborWatchState) {
 	if watch.status != neighborWatchRunning {
-		warnThirdPartyLinkLocalUnwatched(peer, global, outcome, watch)
+		warnThirdPartyLinkLocalUnwatched(now, peer, global, outcome, watch)
 		return
 	}
 	window := &thirdPartyLinkLocalLog.unread
 	if int(outcome) < len(thirdPartyLinkLocalLog.outcomes) {
 		window = &thirdPartyLinkLocalLog.outcomes[outcome]
 	}
-	emit, suppressed := window.allow(time.Now().UnixNano(), thirdPartyLinkLocalLogInterval)
+	emit, suppressed := window.allow(now, thirdPartyLinkLocalLogInterval)
 	if !emit {
 		return
 	}
@@ -215,8 +215,8 @@ func warnThirdPartyLinkLocalUnknown(peer, global netip.Addr, outcome network.Lin
 
 // warnThirdPartyLinkLocalUnwatched is warnThirdPartyLinkLocalUnknown for a
 // view read while no watch ran.
-func warnThirdPartyLinkLocalUnwatched(peer, global netip.Addr, outcome network.LinkLocalOutcome, watch neighborWatchState) {
-	emit, suppressed := thirdPartyLinkLocalLog.unwatched.allow(time.Now().UnixNano(), thirdPartyLinkLocalLogInterval)
+func warnThirdPartyLinkLocalUnwatched(now int64, peer, global netip.Addr, outcome network.LinkLocalOutcome, watch neighborWatchState) {
+	emit, suppressed := thirdPartyLinkLocalLog.unwatched.allow(now, thirdPartyLinkLocalLogInterval)
 	if !emit {
 		return
 	}
