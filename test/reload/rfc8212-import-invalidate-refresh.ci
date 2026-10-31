@@ -3,10 +3,14 @@
 #       (RFC 8212 Section 3, spec D-2, AC-12 refresh variant).
 # Method: identical to rfc8212-import-invalidate.ci (same compiled observer,
 #   same topology and wire assertions) except that every session negotiates
-#   Route Refresh. The observer's session check asserts that Ze sent the source
-#   no ROUTE-REFRESH: invalidation never asks the source to resend, refresh is
-#   only for restoring routes, and its availability must not change the
-#   in-place withdrawal and re-election.
+#   Route Refresh: each peer sets `route-refresh enable`, because an absent
+#   leaf advertises nothing (ze-bgp-conf.yang). The observer
+#   (`reload/rfc8212-import-invalidate-refresh`) runs the same scenario, whose
+#   session check asserts that Ze sent the source no ROUTE-REFRESH, then reads
+#   every peer's detail and fails unless each one negotiated Route Refresh, so
+#   the zero count is Ze's choice and not a missing capability. Invalidation
+#   never asks the source to resend: refresh is only for restoring routes, and
+#   its availability must not change the in-place withdrawal and re-election.
 # VALIDATES: AC-12.
 option=timeout:value=150s
 
@@ -62,7 +66,7 @@ plugin {
     internal adj-rib-in { use bgp-adj-rib-in; }
     internal rs { use bgp-rs; }
     internal rib { use bgp-rib; }
-    external rfc8212-reload { run "le test fixture reload/rfc8212-import-invalidate"; encoder json; }
+    external rfc8212-reload { run "le test fixture reload/rfc8212-import-invalidate-refresh"; encoder json; }
 }
 bgp {
     peer peer-1 {
@@ -71,7 +75,7 @@ bgp {
             asn { local 65000; remote 65001; }
             router-id 1.2.3.4;
             family { ipv4/unicast { prefix { maximum 10000; } } }
-            capability { graceful-restart disable; }
+            capability { graceful-restart disable; route-refresh enable; }
         }
         behavior { group-updates disable; }
         filter { import { final accept; } export { final accept; } }
@@ -91,7 +95,7 @@ bgp {
             aigp { enabled false; }
             router-id 1.2.3.4;
             family { ipv4/unicast { prefix { maximum 10000; } } }
-            capability { graceful-restart disable; }
+            capability { graceful-restart disable; route-refresh enable; }
         }
         behavior { group-updates disable; }
         attach process rfc8212-reload { receive [ update-received state ]; send [ update ]; }
@@ -107,7 +111,7 @@ bgp {
             asn { local 65000; remote 65003; }
             router-id 1.2.3.4;
             family { ipv4/unicast { prefix { maximum 10000; } } }
-            capability { graceful-restart disable; }
+            capability { graceful-restart disable; route-refresh enable; }
         }
         behavior { group-updates disable; }
         filter { import { final accept; } export { final accept; } }

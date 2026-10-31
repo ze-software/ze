@@ -13,6 +13,7 @@ func init() {
 	Register("reload/rfc8212-explicit-policy-reload", rfc8212ReloadDriver(rfc8212ReloadRecover))
 	Register("reload/rfc8212-import-no-refresh", rfc8212ReloadDriver(rfc8212ReloadNoRefresh))
 	Register("reload/rfc8212-import-invalidate", rfc8212ReloadDriver(rfc8212ReloadInvalidate))
+	Register("reload/rfc8212-import-invalidate-refresh", rfc8212ReloadDriver(rfc8212ReloadInvalidateRefresh))
 	Register("reload/rfc8212-import-inherited", rfc8212ReloadDriver(rfc8212ReloadInherited))
 	Register("reload/rfc8212-import-rollback", rfc8212ReloadDriver(rfc8212ReloadRollback))
 	Register("reload/rfc8212-import-owner-failure", rfc8212ReloadDriver(rfc8212ReloadOwner))

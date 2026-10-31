@@ -307,6 +307,30 @@ func rfc8212ReloadInvalidate(ctx context.Context, p *sdk.Plugin, wire *rfc8212Re
 	})
 }
 
+// rfc8212ReloadInvalidateRefresh runs the invalidation on sessions that
+// negotiated Route Refresh, then proves each one did. Without the capability Ze
+// could not send a ROUTE-REFRESH at all, so the zero-refresh check in the
+// session comparison would hold whatever invalidation chose to do.
+func rfc8212ReloadInvalidateRefresh(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWire, tree *config.Tree, schema *config.Schema) error {
+	if err := rfc8212ReloadInvalidate(ctx, p, wire, tree, schema); err != nil {
+		return err
+	}
+	rows, err := peerRows03(ctx, p, "*")
+	if err != nil {
+		return err
+	}
+	for _, address := range []string{addrLoopback, addrLoopbackSecond, addrLoopbackThird} {
+		capabilities, ok := rows[address]["capabilities"].(map[string]any)
+		if !ok {
+			return fmt.Errorf("%s detail omitted its capabilities: %v", address, rows[address])
+		}
+		if capabilities["route-refresh"] != true {
+			return fmt.Errorf("%s did not negotiate Route Refresh (capabilities %v), so no ROUTE-REFRESH could have been sent", address, capabilities)
+		}
+	}
+	return nil
+}
+
 // rfc8212ReloadInherited removes the import policy peer-1 inherits from its
 // group, so the same invalidation must follow a change at the group layer.
 func rfc8212ReloadInherited(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWire, tree *config.Tree, schema *config.Schema) error {
