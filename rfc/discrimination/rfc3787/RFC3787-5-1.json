@@ -3,7 +3,7 @@
     "rid": "RFC3787-5-1",
     "polarity": "positive",
     "unit": "internal/le/interoplab/bgp/check_isis_narrow.go::checkISISNarrowMetric",
-    "unit-sha": "42594431171eb3bf",
+    "unit-sha": "1e586c35ebcd3e54",
     "claim-sha": "6ea24ad397919b83",
     "route": "revert",
     "producer": "internal/plugins/isis/lsdb/encode.go::narrowISReachEntryBytes",
