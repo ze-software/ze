@@ -227,6 +227,8 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `silent-fall-through` | 2026-10-31 | static-route send error logged at DEBUG, later routes abandoned |
+| `reference-checked-claim-unchecked` | 2026-10-31 | new-v6.ci RFC2545-3-2 tag unprovable; proof owed in an attribute unit test |
 | `lock-held-across-a-join` | 2026-10-27 | handleBFDEvent holds openMu across negotiation publication |
 | `injected-route-never-announced` | 2026-10-30 | filter-modified route never reaches the egress peer |
 | `injected-route-never-announced` | 2026-10-30 | route added by a config reload never sent |
