@@ -696,11 +696,44 @@ func carriesAS4Attributes(wireUpdate *wireu.WireUpdate) bool {
 	return hasAS4Aggregator
 }
 
-// handleConnectionClose handles TCP connection close.
+// handleConnectionClose handles TCP connection close on the read loop. It
+// never waits for openMu: a holder may be inside a peer callback that only
+// the session end releases (Peer.announceNegotiated, joined by
+// endNegotiatedSession after Run returns). When openMu is held, the Event 18
+// delivery is left owed and the holder runs it as it releases (unlockOpen),
+// after its own action list, which is the order a wait would have given.
 func (s *Session) handleConnectionClose() {
-	s.openMu.Lock()
-	defer s.openMu.Unlock()
-	s.handleConnectionCloseLocked()
+	s.closeOwed.Store(true)
+	s.runOwedOpenWork()
+}
+
+// unlockOpen releases openMu and runs the end-of-session work the read loop
+// left owed while it was held. Every openMu holder MUST release through it:
+// a bare Unlock strands an owed Event 18 or timer stop.
+func (s *Session) unlockOpen() {
+	s.openMu.Unlock()
+	s.runOwedOpenWork()
+}
+
+// runOwedOpenWork runs the owed work under openMu when the lock is free, and
+// otherwise leaves it to the holder. The owing side stores its flag before it
+// tries the lock, and a holder loads the flags after it unlocks, so one of the
+// two always sees the other: either the try succeeds, or the holder that made
+// it fail finds the flag. The loop ends when nothing is owed or the lock is
+// held, and each pass clears what it ran, so it runs at most twice.
+func (s *Session) runOwedOpenWork() {
+	for s.closeOwed.Load() || s.retireOwed.Load() {
+		if !s.openMu.TryLock() {
+			return
+		}
+		if s.closeOwed.Swap(false) {
+			s.handleConnectionCloseLocked()
+		}
+		if s.retireOwed.Swap(false) {
+			s.timers.StopAll()
+		}
+		s.openMu.Unlock()
+	}
 }
 
 // handleConnectionCloseLocked owns transport-failure delivery. Caller holds

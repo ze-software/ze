@@ -379,6 +379,18 @@ zeroing clauses make the value go down, which a Prometheus counter may not do.
   share one Event 18 owner; transport closure must not erase the running-delay
   flag before that event. Peer cleanup joins initial OPEN work and stops timers
   even on failures before `Session.Run`; no callback can rearm after final cleanup.
+- **The read loop's end never waits for that serialization.** A BFD release
+  enters OpenConfirm on the BFD goroutine, and the negotiated publication runs
+  there as an FSM callback, as long as the plugins take. The session end joins
+  that publication only after `Session.Run` returns, so a read loop waiting for
+  the lock would never return. On a closed socket the read loop marks Event 18
+  owed, and on exit the timer stop owed; when the lock is held, the holder runs
+  that work as it releases the lock, after its own action list. Peer cleanup's
+  final join comes after the publication join.
+
+<!-- source: internal/component/bgp/reactor/session_read.go -- handleConnectionClose, unlockOpen, runOwedOpenWork -->
+<!-- source: internal/component/bgp/reactor/session_delay_open.go -- retireSessionTimers -->
+<!-- source: internal/component/bgp/reactor/peer_run_test.go -- TestBFDNegotiatedPublicationJoinsSessionEnd -->
 
 <!-- source: internal/component/bgp/fsm/timer_delay_open.go -- StartDelayOpenTimer, StopDelayOpenTimer -->
 <!-- source: internal/component/bgp/fsm/delay_open.go -- handleDelayOpen -->

@@ -236,11 +236,22 @@ type Session struct {
 	// openMu serializes initial OPEN processing, DelayOpen expiry, BFD
 	// releases, pre-established KEEPALIVEs, and the OPEN-less collision close.
 	// It precedes s.mu. Callers MUST NOT hold Peer.mu: callbacks may acquire it.
+	// A holder can sit in a peer callback for as long as a plugin takes
+	// (Peer.announceNegotiated), and the session end joins that callback, so
+	// the read loop's end never waits for openMu: it leaves its work owed
+	// (closeOwed, retireOwed) and every holder releases through unlockOpen.
 	openMu sync.Mutex
 
 	// transportFailed is guarded by openMu. A failed delayed OPEN write and
 	// the reader it wakes share one non-idempotent Event 18 delivery.
 	transportFailed bool
+
+	// closeOwed and retireOwed carry the read loop's end-of-session work when
+	// another goroutine held openMu: the Event 18 delivery and the timer stop.
+	// They are set before openMu is tried, and unlockOpen runs them, so the
+	// work lands after the holder's action list exactly as a wait would have.
+	closeOwed  atomic.Bool
+	retireOwed atomic.Bool
 
 	settings *PeerSettings
 	// bfdOptIn answers the BFD opt-in this session runs under. A reload swaps
@@ -720,7 +731,7 @@ func NewSession(settings *PeerSettings) *Session {
 		// Serialize the expiry with a strict OPEN entry or BFD release:
 		// a release must not send KEEPALIVE after this timer committed Idle.
 		s.openMu.Lock()
-		defer s.openMu.Unlock()
+		defer s.unlockOpen()
 		// RFC 4271 Section 8.2.2, HoldTimer_Expires (Event 10), bounds
 		// OpenSent, OpenConfirm and Established. Negotiated nonzero HoldTime
 		// also bounds the strict DelayOpen Connect/Active substates; those
@@ -1247,9 +1258,10 @@ func (s *Session) Run(ctx context.Context) (runErr error) {
 	// the session is dead, its callback reading state (e.g. the package-global sessionLogger)
 	// long after Run returned. StopAll and stopSendHoldTimer are idempotent, so the redundant
 	// call on the paths that already stop timers is harmless. Not a hot path (once per session
-	// lifecycle).
+	// lifecycle). retireSessionTimers does not wait for an openMu holder; the
+	// holder stops the timers when it releases (retireSessionTimers).
 	defer s.stopSendHoldTimer()
-	defer s.stopSessionTimers()
+	defer s.retireSessionTimers()
 
 	// Same discipline for the CONNECTION: when the read loop exits, the TCP
 	// connection is closed, whatever the exit path. Several error returns send

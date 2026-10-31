@@ -348,7 +348,7 @@ func (s *Session) handleBFDEvent(event fsm.Event) error {
 	// An Up arriving between the state snapshot and strict Event 20 entry
 	// must release that entry, not disappear in the non-pending Connect state.
 	s.openMu.Lock()
-	defer s.openMu.Unlock()
+	defer s.unlockOpen()
 	state := s.fsm.State()
 	pending := s.fsm.BfdSubState()
 

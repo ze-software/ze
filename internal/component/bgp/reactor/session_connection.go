@@ -149,7 +149,7 @@ func (s *Session) acceptWithOpen(conn net.Conn, peerOpen *message.Open, wire []b
 // Used by acceptWithOpen for collision resolution.
 func (s *Session) processOpen(open *message.Open) error {
 	s.openMu.Lock()
-	defer s.openMu.Unlock()
+	defer s.unlockOpen()
 	if s.onOpenRecv != nil {
 		s.onOpenRecv()
 	}
@@ -330,7 +330,7 @@ func tuneTCPConnectionForSettings(tcp *net.TCPConn, settings *PeerSettings) erro
 // connectionEstablished handles a new TCP connection (incoming or outgoing).
 func (s *Session) connectionEstablished(conn net.Conn) error {
 	s.openMu.Lock()
-	defer s.openMu.Unlock()
+	defer s.unlockOpen()
 	// Tune TCP socket for BGP:
 	// - TCP_NODELAY: BGP messages are application-framed and flushed
 	//   explicitly via bufio.Writer, so Nagle only adds latency.
@@ -460,7 +460,7 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 // attempt that failed, so zeroing there would erase a real retry history.
 func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode uint8) error {
 	s.openMu.Lock()
-	defer s.openMu.Unlock()
+	defer s.unlockOpen()
 	s.closeCollision(code, subcode, true)
 	return nil
 }
@@ -694,8 +694,8 @@ func (s *Session) closeConn() {
 	s.stopSendHoldTimer()
 	// Do not clear DelayOpen here: the cancel goroutine can close a failed
 	// writer's socket before Event 18 is delivered. Its failure owner must
-	// still see the running timer. stopSessionTimers joins OPEN work and
-	// stops all protocol timers when the Session finishes.
+	// still see the running timer. Run's retireSessionTimers and the Peer's
+	// stopSessionTimers stop all protocol timers when the Session finishes.
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

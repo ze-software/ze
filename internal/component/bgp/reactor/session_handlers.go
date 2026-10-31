@@ -52,7 +52,7 @@ func (s *Session) handleUnknownType(msgType msgtype.MessageType) error {
 // handleOpen processes a received OPEN message.
 func (s *Session) handleOpen(body []byte) error {
 	s.openMu.Lock()
-	defer s.openMu.Unlock()
+	defer s.unlockOpen()
 	// An OPEN is only legitimate while we are WAITING for the peer's OPEN. Once
 	// we have one, a further OPEN on the SAME connection must not be processed:
 	// without this gate handleOpen runs the whole path again on a live session,
@@ -297,7 +297,7 @@ func (s *Session) handleKeepalive() error {
 	state := s.fsm.State()
 	if state != fsm.StateEstablished {
 		s.openMu.Lock()
-		defer s.openMu.Unlock()
+		defer s.unlockOpen()
 		state = s.fsm.State()
 	}
 	// Established is the steady-state fast path: no extra lock or State read.
@@ -390,7 +390,7 @@ func updateIsUnexpected(state fsm.State) bool {
 // Communication included.
 func (s *Session) handleNotification(body []byte) error {
 	s.openMu.Lock()
-	defer s.openMu.Unlock()
+	defer s.unlockOpen()
 	notif, err := message.UnpackNotification(body)
 	if err != nil {
 		s.logFSMEvent(fsm.EventNotifMsgVerErr)
