@@ -6,9 +6,9 @@
   "note": "Re-judged 2026-10-19 (independent judge, after 12454d4ac5). Section 3.1: \"An NSSA border router whose NSSA's NSSATranslatorRole is set to Candidate must maintain a list of the NSSA's border routers that are reachable both over the NSSA and as ASBRs over the AS's transit topology.\" The row quotes the span through 'reachable both over the NSSA'. electNSSATranslator (nssa.go) still skips a border router for which reach.RouterReachable(list.nssa, r) is false, before any Nt or Router ID test, so an unreached router can disable nothing. The election now takes a translatorList (border = B-bit routers, nt = B|Nt routers, transit areas) and skips self explicitly; the reachability filter is unchanged in substance. TestRFC3101UnreachableBorderRouterIsNotListed / TestRFC3101ReachableBorderRouterIsListed remain an isolated pair: fixedReachability with asbr nil answers ASBRReachableIn true everywhere, so only NSSA reachability differs (1 vs 0 Type-5). Hand mutation: dropping the RouterReachable check turns the positive to 0. Both pass at HEAD. Finding (no verdict change): the tags on TestOSPFNSSATranslatorElection (positive/negative) and TestOSPFNSSANoTranslateWhenNotElected assert the Router-ID/Nt election rule under reachEvery, which is RFC3101-3.1-4's content, not list membership; the unreachable-higher assertion inside TestOSPFNSSATranslatorElection is untagged. The isolating pair carries the row. Records for all five units are panic-route reverts, which red any unit calling the producer; they do not by themselves prove this condition.",
   "requirement_sha": "d6068455a61452de",
   "tests": {
-    "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "8cac7b752edaf5e5",
-    "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection": "8cac7b752edaf5e5",
-    "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection#2": "8cac7b752edaf5e5",
+    "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "7b128765abbef4ad",
+    "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection": "7b128765abbef4ad",
+    "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection#2": "7b128765abbef4ad",
     "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed": "82bf396e202c5ea0",
     "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed": "82bf396e202c5ea0"
   },

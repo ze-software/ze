@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-09-29 (independent judge, continuation 2). Both LSA kinds that can carry an FA on an IPv4 AF are now proven both ways. NSSA-LSA origination: TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4 / TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress (records on forwardingAddressForAF). AS-external-LSA: Ze's redistributed Type-5 (v6OriginateExternalLSA) carries no FA, and the translated Type-5 copies the Type-7 FA; TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4 reads 192.0.2.7 in the translated Type-5 for both IPv4 AFs, TestRFC5838IPv4AFTranslatorRefusesIPv6ForwardingAddress feeds a Type-7 with FA 2001:db8:9::2 and finds no translated Type-5. Producer checked: nssa.go translatableForwardingAddressV6 (D-8 fix) gates the copy on the AF with the RFC 5838 s2.6 quote; revert records on it, observed red.",
   "requirement_sha": "6aab692a4b517197",
   "tests": {
-    "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "60f823dd52fcc1f1",
-    "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress": "60f823dd52fcc1f1",
+    "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "9fc341f7a23ecd51",
+    "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress": "9fc341f7a23ecd51",
     "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4": "943420c3b72e5888",
     "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatorRefusesIPv6ForwardingAddress": "943420c3b72e5888"
   },

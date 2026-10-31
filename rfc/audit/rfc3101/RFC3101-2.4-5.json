@@ -5,8 +5,8 @@
     "internal/le/interoplab/bgp/check_rfc.go::checkNSSADefault": "07ffe0ba5c7e0809",
     "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "49a610561289e458",
     "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAInternalRouterOriginatesNoBorderDefault": "49a610561289e458",
-    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e",
-    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "6e7d1420848b435e",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "27ef71771c12eb5c",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "27ef71771c12eb5c",
     "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
     "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc"
   },

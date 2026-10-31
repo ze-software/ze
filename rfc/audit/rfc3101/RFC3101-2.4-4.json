@@ -4,7 +4,7 @@
   "tests": {
     "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport": "fd88bfd481b29f72",
     "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "49a610561289e458",
-    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e"
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "27ef71771c12eb5c"
   },
   "units": {
     "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport": "e645ac7412a82308",

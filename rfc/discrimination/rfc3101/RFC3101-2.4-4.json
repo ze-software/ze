@@ -7,8 +7,8 @@
     "claim-sha": "31a46ac0f84c8b29",
     "route": "revert",
     "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
-    "producer-sha": "89fbd1b79067a688",
-    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "bfaf1f0269d1f2f4",
+    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3101-2.4-4",
@@ -18,8 +18,8 @@
     "claim-sha": "2a96e0889e3d88e5",
     "route": "revert",
     "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
-    "producer-sha": "89fbd1b79067a688",
-    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "bfaf1f0269d1f2f4",
+    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3101-2.4-4",
@@ -29,7 +29,7 @@
     "claim-sha": "b79ea17ec0bbbb72",
     "route": "revert",
     "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
-    "producer-sha": "89fbd1b79067a688",
-    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "bfaf1f0269d1f2f4",
+    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -4,8 +4,8 @@
   "tests": {
     "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "8d222a236fcd72a2",
     "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "8d222a236fcd72a2",
-    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress": "6e7d1420848b435e",
-    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "6e7d1420848b435e"
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress": "27ef71771c12eb5c",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "27ef71771c12eb5c"
   },
   "units": {
     "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "6e5aeb67d7c8c758",

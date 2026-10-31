@@ -7,8 +7,8 @@
     "claim-sha": "991acbf741cd3b35",
     "route": "revert",
     "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
-    "producer-sha": "89fbd1b79067a688",
-    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "bfaf1f0269d1f2f4",
+    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3101-x-5",
@@ -18,8 +18,8 @@
     "claim-sha": "5e05dd84270a185c",
     "route": "revert",
     "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
-    "producer-sha": "89fbd1b79067a688",
-    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "bfaf1f0269d1f2f4",
+    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3101-x-5",
@@ -29,8 +29,8 @@
     "claim-sha": "1357524be4b034b7",
     "route": "revert",
     "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
-    "producer-sha": "89fbd1b79067a688",
-    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "bfaf1f0269d1f2f4",
+    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3101-x-5",
@@ -40,8 +40,8 @@
     "claim-sha": "a222134fa9b4d3c2",
     "route": "revert",
     "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
-    "producer-sha": "89fbd1b79067a688",
-    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "bfaf1f0269d1f2f4",
+    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3101-x-5",

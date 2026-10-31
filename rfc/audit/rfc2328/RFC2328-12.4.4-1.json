@@ -2,8 +2,8 @@
   "note": "First verdict 2026-10-21 (round 4 judge). Split from 12.4-1. From InjectExternal/WithdrawExternal with 2.2.2.2 in Exchange: the withdrawn 10.6.0.0/16 AS-external-LSA is at MaxAge in the database and a MaxAge instance is flooded to the neighbor; the still-redistributed 10.8.0.0/16 stays below MaxAge and is not flooded at MaxAge. Records on origination.go::PurgeExternal.",
   "requirement_sha": "8a6abae29e3dd282",
   "tests": {
-    "internal/plugins/ospf/rfc2328_external_flush_test.go::TestRFC2328ReachableExternalNotFlushed": "bd72f16812202925",
-    "internal/plugins/ospf/rfc2328_external_flush_test.go::TestRFC2328UnreachableExternalFlushed": "bd72f16812202925"
+    "internal/plugins/ospf/rfc2328_external_flush_test.go::TestRFC2328ReachableExternalNotFlushed": "8c941d411d79654b",
+    "internal/plugins/ospf/rfc2328_external_flush_test.go::TestRFC2328UnreachableExternalFlushed": "8c941d411d79654b"
   },
   "units": {
     "internal/plugins/ospf/rfc2328_external_flush_test.go::TestRFC2328ReachableExternalNotFlushed": "19cf2f133fb45927",

@@ -2,8 +2,8 @@
   "note": "Forbidden: a no-summary NSSA default that is not a Type-3. spf/area_type_test.go TestOSPFNSSANoSummaryDefaultInjection requires the Type-3 default through OriginateSummaries (line 133); origination_v6_nssa_default_test.go TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA asserts no NSSA-LSA default in the no-summary NSSA (line 101) and the inter-area default (line 112). Negatives: a regular NSSA gets no Type-3 default (area_type_test.go lines 94, 154).",
   "requirement_sha": "a624fa41a2040d6a",
   "tests": {
-    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "6e7d1420848b435e",
-    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "6e7d1420848b435e",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "27ef71771c12eb5c",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "27ef71771c12eb5c",
     "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
     "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "cd0b5106bcb1bcdc",
     "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc",
