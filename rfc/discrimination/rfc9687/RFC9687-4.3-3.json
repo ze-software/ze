@@ -25,11 +25,11 @@
     "rid": "RFC9687-4.3-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc9687_rib_release_test.go::TestRFC9687Event29ReleasesTheLivePeersRIB",
-    "unit-sha": "7f694bc1b691fe6e",
+    "unit-sha": "d9854533d1f45fd6",
     "claim-sha": "72e61e2dc7102297",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_write.go::sendHoldTimerExpired",
     "producer-sha": "854d2b10e5fee31d",
-    "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of sendHoldTimerExpired replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

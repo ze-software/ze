@@ -36,12 +36,12 @@
     "rid": "RFC8669-3-1",
     "polarity": "positive",
     "unit": "test/plugin/prefixsid-malformed-receive.ci",
-    "unit-sha": "27b42fb9fcd7cef3",
+    "unit-sha": "a7b230daaf3de7f0",
     "claim-sha": "8596031873cf10dd",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_prefix_sid.go::clearLabelIndexTLVs",
     "producer-sha": "539539cdde15ec30",
-    "break": "body of clearLabelIndexTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "break": "body of clearLabelIndexTLVs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=2:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0054020000003D800E200001800C0000000000000000010101010070007D010000FDE9000000010A00074001010040020602010000FDE9C0280A010007AABBCC00000064"
   }
 ]

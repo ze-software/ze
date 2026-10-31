@@ -47,12 +47,12 @@
     "rid": "RFC8669-6-1",
     "polarity": "negative",
     "unit": "test/plugin/prefixsid-malformed-receive.ci",
-    "unit-sha": "27b42fb9fcd7cef3",
+    "unit-sha": "a7b230daaf3de7f0",
     "claim-sha": "a1019de1b8dcb135",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDValue",
     "producer-sha": "65bfdeb7db074a4d",
-    "break": "body of validatePrefixSIDValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "break": "body of validatePrefixSIDValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C800E1000010404010101010030003E810A00014001010040020602010000FDE9C0FC09280200000000000000"
   }
 ]

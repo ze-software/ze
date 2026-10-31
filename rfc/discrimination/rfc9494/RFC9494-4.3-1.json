@@ -117,7 +117,7 @@
     "claim-sha": "cd8bc30b03aa18d0",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-    "producer-sha": "592b84484b0d6b9b",
+    "producer-sha": "bfd2c3a92418d4c2",
     "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -128,7 +128,7 @@
     "claim-sha": "5d56b5993f6c9059",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-    "producer-sha": "592b84484b0d6b9b",
+    "producer-sha": "bfd2c3a92418d4c2",
     "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

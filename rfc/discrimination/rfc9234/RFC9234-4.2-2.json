@@ -3,12 +3,12 @@
     "rid": "RFC9234-4.2-2",
     "polarity": "negative",
     "unit": "test/plugin/peer-open-role-complement.ci",
-    "unit-sha": "b8cad03437996a4b",
+    "unit-sha": "f5ffdc89112ee751",
     "claim-sha": "300d6c0461b7672e",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/role/validate.go::validateOpenRolePair",
     "producer-sha": "d0851e2a01f45365",
-    "break": "body of validateOpenRolePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "break": "body of validateOpenRolePair replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000"
   },
   {

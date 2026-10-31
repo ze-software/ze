@@ -73,7 +73,7 @@
     "claim-sha": "126bc945209979b0",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_replay.go::collectGroupedRibOutRoutesFiltered",
-    "producer-sha": "d2902fd1d9cef084",
+    "producer-sha": "a4b984f9080d3d0e",
     "break": "body of collectGroupedRibOutRoutesFiltered replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -106,7 +106,7 @@
     "claim-sha": "f4725be004d336ba",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-    "producer-sha": "592b84484b0d6b9b",
+    "producer-sha": "bfd2c3a92418d4c2",
     "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -117,7 +117,7 @@
     "claim-sha": "64fef20d64b5360f",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-    "producer-sha": "592b84484b0d6b9b",
+    "producer-sha": "bfd2c3a92418d4c2",
     "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -128,7 +128,7 @@
     "claim-sha": "1244ebc65913cb73",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-    "producer-sha": "a3b261f7b099ffb2",
+    "producer-sha": "beadd10ffbd40582",
     "break": "body of reactorForwardRSSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -139,19 +139,8 @@
     "claim-sha": "6a23105db4110833",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-    "producer-sha": "a3b261f7b099ffb2",
+    "producer-sha": "beadd10ffbd40582",
     "break": "body of reactorForwardRSSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC9494-4.3-3",
-    "polarity": "positive",
-    "unit": "internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go::TestBuildRelayUpdateMarksRebuilt",
-    "unit-sha": "8707e2c204a33f70",
-    "claim-sha": "bcc7ad159853a2fa",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_api_relay.go::buildRelayUpdate",
-    "producer-sha": "92e608b47c438c2b",
-    "break": "body of buildRelayUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-3",
@@ -163,6 +152,17 @@
     "producer": "internal/component/bgp/reactor/reactor_api_relay.go::resolveRelaySource",
     "producer-sha": "486ef2b059c6fde4",
     "break": "body of resolveRelaySource replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go::TestBuildRelayUpdateMarksRebuilt",
+    "unit-sha": "8707e2c204a33f70",
+    "claim-sha": "bcc7ad159853a2fa",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_relay.go::buildRelayUpdate",
+    "producer-sha": "24f3585f9b9147c0",
+    "break": "body of buildRelayUpdate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-3",

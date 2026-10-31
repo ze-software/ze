@@ -7,8 +7,8 @@
     "claim-sha": "23dd79eda7163948",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
-    "producer-sha": "23941d17235a16d8",
-    "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b23b1e7669e68bf3",
+    "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9012-11-7",
@@ -18,7 +18,7 @@
     "claim-sha": "4583c65c74ce116d",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
-    "producer-sha": "23941d17235a16d8",
-    "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b23b1e7669e68bf3",
+    "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
