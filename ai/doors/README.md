@@ -35,6 +35,14 @@ names each unread door (`writeDesignDoorsRead`,
 `internal/le/hookruntime/writeedit.go`;
 `ai/rules/points/architecture/directives/read-the-design-doors-before-the-first-code-edit.md`).
 
+**A spec edit is gated the same way.** Before a Write, Edit or MultiEdit of a
+spec (`plan/**/spec-*.md`), the context must have read `system.md` and every
+door covering a repository path the spec names, in the spec on disk or in the
+proposed text: its Files to Modify and Files to Create, and any other path it
+cites. A brand-new spec that names no path owes `system.md` alone
+(`writeSpecDoorsRead`, `internal/le/hookruntime/specdoors.go`;
+`ai/rules/points/architecture/directives/read-the-design-doors-before-writing-a-spec.md`).
+
 **A new door joins the gate by its header alone.** The hook parses the
 `door-base` header of every page here at call time, so no list of doors exists
 to update. Every page here except this README owes one well-formed header: a

@@ -75,6 +75,8 @@ before putting it in front of the user (`ai/rules/evidence.md`).
 
 **Goal:** Understand existing code and architecture before designing anything.
 
+**The spec edit is gated:** the write hook refuses any Write or Edit of `plan/**/spec-*.md` until this context has read `ai/doors/system.md` and the door of every subsystem the spec names, each in full (`writeSpecDoorsRead`, `ai/doors/README.md`). Read them before the first spec edit, the status change included.
+
 **Status transition:** When starting research, edit the spec: set `Status` to `design`, `Updated` to today. Do this before reading any source files.
 
 #### Feature Surface Gate (BLOCKING)

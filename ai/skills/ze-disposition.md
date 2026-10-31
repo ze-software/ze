@@ -64,6 +64,8 @@ phase itself.
    door names (third-party plugins in any language, the process protocol, the
    public `pkg/` API) is not a fit for `main`, and the smallest redesign the
    verdict proposes MUST keep every one of them.
+   The write hook refuses recording the verdict in the spec until these doors
+   are read (`writeSpecDoorsRead`).
 3. **Answer four questions, each with evidence:**
 
    | Question | How to answer it |

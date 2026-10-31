@@ -311,26 +311,49 @@ func writeDesignDoorsRead(ctx context) *verdict {
 		// is not under this checkout's doors, so a scratch probe stays possible.
 		return nil
 	}
+	unread, refusal := unreadDoors(ctx, []string{file})
+	if refusal != nil {
+		return refusal
+	}
+	if len(unread) == 0 {
+		return nil
+	}
+	return &verdict{2, doorRefusal(file, unread, codeDoorReason)}
+}
+
+// codeDoorReason is why a code edit waits for the door covering its file.
+const codeDoorReason = "the covering door names\n" +
+	"  this subsystem's outside contracts, boundaries and traps. Code written before them is written from habit.\n"
+
+// unreadDoors answers the doors this context has not read whole, among those
+// owed before it edits a document that names files: ai/doors/system.md always,
+// then every door covering any one of files. A context with no usable id, a
+// doors directory or a door header that cannot be read, or a missing
+// system.md answers a refusal instead, never an empty list: the gate is
+// fail-closed. writeDesignDoorsRead and writeSpecDoorsRead both ask it.
+func unreadDoors(ctx context, files []string) ([]string, *verdict) {
 	if documentReadMarker(ctx, systemDoorPath) == "" {
-		return &verdict{2, "❌ BLOCKED: this session or agent has no usable id, so no read of " + systemDoorPath + " can be found.\n  The design-door gate is fail-closed.\n  ai/rules/architecture.md"}
+		return nil, &verdict{2, "❌ BLOCKED: this session or agent has no usable id, so no read of " + systemDoorPath + " can be found.\n  The design-door gate is fail-closed.\n  ai/rules/architecture.md"}
 	}
 	doors, err := loadDoors(ctx.root)
 	if header, ok := errors.AsType[*doorHeaderError](err); ok {
-		return &verdict{2, "❌ BLOCKED: " + header.page + " is not a usable design door: " + header.reason +
+		return nil, &verdict{2, "❌ BLOCKED: " + header.page + " is not a usable design door: " + header.reason +
 			".\n  Why: the gate reads each door's header to know which files it covers, and a door it cannot read would release them in silence.\n  Fix: give " + header.page + " one line `<!-- door-base: <path> <path> -->` naming the checkout paths it covers, then retry.\n  ai/doors/README.md, ai/rules/architecture.md"}
 	}
 	if err != nil {
-		return &verdict{2, "❌ BLOCKED: " + doorsDir + " cannot be read: " + err.Error() +
-			"\n  Why: every code edit needs " + systemDoorPath + " read first, and the gate cannot name the doors covering the file.\n  Fix: restore " + doorsDir + " from git, then read the doors and retry.\n  ai/rules/architecture.md"}
+		return nil, &verdict{2, "❌ BLOCKED: " + doorsDir + " cannot be read: " + err.Error() +
+			"\n  Why: every code or spec edit needs " + systemDoorPath + " read first, and the gate cannot name the doors covering the file.\n  Fix: restore " + doorsDir + " from git, then read the doors and retry.\n  ai/rules/architecture.md"}
 	}
 	if _, err := os.Stat(filepath.Join(ctx.root, filepath.FromSlash(systemDoorPath))); err != nil {
-		return &verdict{2, "❌ BLOCKED: " + systemDoorPath + " cannot be read: " + err.Error() +
-			"\n  Why: every code edit needs it read first, and this checkout does not hold it.\n  Fix: restore " + systemDoorPath + " from git, then read it and retry.\n  ai/rules/architecture.md"}
+		return nil, &verdict{2, "❌ BLOCKED: " + systemDoorPath + " cannot be read: " + err.Error() +
+			"\n  Why: every code or spec edit needs it read first, and this checkout does not hold it.\n  Fix: restore " + systemDoorPath + " from git, then read it and retry.\n  ai/rules/architecture.md"}
 	}
 	required := []string{systemDoorPath}
-	for _, page := range coveringDoors(doors, file) {
-		if !slices.Contains(required, page) {
-			required = append(required, page)
+	for _, file := range files {
+		for _, page := range coveringDoors(doors, file) {
+			if !slices.Contains(required, page) {
+				required = append(required, page)
+			}
 		}
 	}
 	var unread []string
@@ -339,24 +362,21 @@ func writeDesignDoorsRead(ctx context) *verdict {
 			unread = append(unread, page)
 		}
 	}
-	if len(unread) == 0 {
-		return nil
-	}
-	return &verdict{2, doorRefusal(file, unread)}
+	return unread, nil
 }
 
-// doorRefusal names the file, every unread door, why the doors come first,
+// doorRefusal names the file, every unread door, why the doors come first
+// (system.md's reason, then reason, which says why the other doors are owed),
 // and the read that clears the refusal.
-func doorRefusal(file string, unread []string) string {
+func doorRefusal(file string, unread []string, reason string) string {
 	var tb textbuf.Buffer
 	tb.Str("❌ BLOCKED: this session or agent has not read the design doors that cover ").Str(file).Str(":\n")
 	for _, page := range unread {
 		tb.Str("  - ").Str(page).Byte('\n')
 	}
 	tb.Str("  Why: ").Str(systemDoorPath).Str(" holds the design every change respects (third-party plugins, the process\n").
-		Str("  boundary, the public pkg/ API, registration over enumeration), and the covering door names\n").
-		Str("  this subsystem's outside contracts, boundaries and traps. Code written before them is written from habit.\n").
-		Str("  Fix: read each listed door whole with the Read tool (no offset, no limit short of its last line),\n").
+		Str("  boundary, the public pkg/ API, registration over enumeration), and ").Str(reason).
+		Str("  Fix:read each listed door whole with the Read tool (no offset, no limit short of its last line),\n").
 		Str("  or print it whole from Bash with cat and no pipe, then retry. A glob (`cat ai/doors/*.md`) records\n").
 		Str("  nothing: name each door.\n").
 		Str("  ai/rules/architecture.md")
