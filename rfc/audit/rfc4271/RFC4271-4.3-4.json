@@ -1,17 +1,17 @@
 {
-  "note": "Re-judged 2026-10-14 (independent auditor). RFC 4271 Section 4.3: \"They MUST be zero when sent and MUST be ignored when received.\" Receive clause: TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive asserts RFC7606ActionNone for ORIGIN/AS_PATH/NEXT_HOP flagged 0x4F; TestRFC4271RelayedLowNibbleClearedOnBothRails asserts ActionNone for the same plus unknown 241 at 0xCF and that the route is relayed; the .ci shows the route installed and relayed to an rs-client and an eBGP peer. Send clause: the same relay unit and .ci assert every relayed flags octet has bits 0-3 zero with exact octets (0x40, 0xE0), over writeUpdateBody's normalizeTransmittedUpdate, the funnel of every writer. Negative TestRFC4271AttrFlagsHighBitsNotIgnored: with the low nibble set, a wrong Optional or Transitive bit on ORIGIN still yields TreatAsWithdraw AttrCode 1, red on a validator that ignores the whole octet. Minor: that unit's comment says 0x4F carries Extended Length; it does not (0x4F &^ 0x10 == 0x4F), which changes no assertion. Re-judged again 2026-10-14 after 78f4d4e160 added a '# malformed-frame:' comment above the .ci send frame: comment only, skipped by the peer and runner readers, so the received frame (ORIGIN/AS_PATH/NEXT_HOP 0x4F, 241 0xCF) and both exact relay expectations are unchanged. A validator that stopped ignoring the low nibble would treat-as-withdraw on ORIGIN 0x4F and the conn 2/3 expectations would go red. The .ci shows acceptance through relay; it does not read the RIB itself. Verdict unchanged.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc4271): \"They MUST be zero when sent and MUST be ignored when received.\" The only edit to test/plugin/rfc4271-attr-flags-low-nibble-relay.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "c348224c8014594e",
   "tests": {
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsHighBitsNotIgnored": "abbe4d642c22df9a",
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive": "abbe4d642c22df9a",
     "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "7fcb9a72da7cbf62",
-    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "6cec11ab8ebd77f6"
+    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "7e451caf8dfda1f0"
   },
   "units": {
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsHighBitsNotIgnored": "a8e00216f929109e",
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive": "42bad8b4004bef8c",
     "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "4cc006b6bba6010d",
-    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "6cec11ab8ebd77f6"
+    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "7e451caf8dfda1f0"
   },
   "verdict": "enforced"
 }

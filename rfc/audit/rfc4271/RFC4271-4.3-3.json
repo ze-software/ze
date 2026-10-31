@@ -1,19 +1,19 @@
 {
-  "note": "Re-judged 2026-10-14 (independent auditor, spec-bgp-update-propagation-rfc-defects D1). RFC 4271 Section 4.3: \"The lower-order four bits of the Attribute Flags octet are unused. They MUST be zero when sent\". Producer: normalizeTransmittedUpdate (reactor/session_egress_normalize.go) clears 0x0F in the private write buffer from writeUpdateBody, which SendUpdate, sendRawUpdateBody, both SendRawMessage UPDATE modes (via writeOriginatedRawUpdate) and the AIGP-strip path all reach. Positive TestRFC4271WriteClearsLowNibbleEveryAttribute: ORIGIN/AS_PATH/NEXT_HOP 0x4F, unknown 241 0xCF, unknown 242 0xD5 (Extended Length) through the raw, parsed, filter-override and relay writers leave with flags&0xF0 exactly, values and NLRI unchanged, source bytes unedited; TestRFC4271RelayedLowNibbleClearedOnBothRails and the .ci assert zero low nibble on the general and route-server relay rails with exact octets (0x40, 0xE0); TestRFC4271AttributeFlagsLowNibbleZeroOnSend pins the local encoders. Negative TestRFC4271WriteLeavesCleanFlagsUnchanged: clean flags with Extended Length leave byte for byte, red on an over-broad mask. The earlier finding (relayed opaque attributes re-sent with the received nibble) is closed by the egress walk and its relay assertions. Re-judged again 2026-10-14 after 78f4d4e160 added a '# malformed-frame:' comment above the .ci send frame: the line is a comment the peer reader skips (internal/test/peer/expect.go ReadConfig, '#' prefix) and the runner skips (runner/parsing.go), so no frame, expectation or option changed. Re-decoded the .ci: sent flags 0x4F x3 and 0xCF; conn 2 expects 0x40 x3 and 0xE0 with values unchanged, conn 3 the same with AS_PATH [65000 65001]; exact octets, so a verbatim-copy writer is red. Verdict unchanged.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc4271): \"The lower-order four bits of the Attribute Flags octet are unused. They MUST be zero when sent\" The only edit to test/plugin/rfc4271-attr-flags-low-nibble-relay.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "b37ec5ac4690ae20",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteClearsLowNibbleEveryAttribute": "b3621d1829a570fa",
     "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteLeavesCleanFlagsUnchanged": "b3621d1829a570fa",
     "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "7fcb9a72da7cbf62",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "4d1e0cbb7558949b",
-    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "6cec11ab8ebd77f6"
+    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "7e451caf8dfda1f0"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteClearsLowNibbleEveryAttribute": "69e3fdadc3a4be72",
     "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteLeavesCleanFlagsUnchanged": "30c37d25913231c0",
     "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "4cc006b6bba6010d",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "64a11a9539271936",
-    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "6cec11ab8ebd77f6"
+    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "7e451caf8dfda1f0"
   },
   "verdict": "enforced"
 }

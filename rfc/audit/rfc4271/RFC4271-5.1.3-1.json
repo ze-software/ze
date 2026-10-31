@@ -1,5 +1,5 @@
 {
-  "note": "Re-judged 2026-10-04 after f93a30fbfc. Originated-route units (writeUpdateGated/SendAnnounce tests and originated-nexthop-peer-own.ci) assert the route naming the peer's own address is withheld from that peer while other next hops are written. The forward-rail units now assert the owner is written no NLRI and the exact withdrawal of the refused prefix, with the bystander receiving both halves, on both rails; they extend the refusal to relayed routes, which this sentence (originated routes) does not name, and the withdrawal is the owner's decision rather than an RFC 4271 obligation.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc4271): \"A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP.\" The only edit to test/plugin/originated-nexthop-peer-own.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "709993367485dd2d",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress": "8acb5d36c93abfec",
@@ -13,10 +13,10 @@
     "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop#2": "8acb5d36c93abfec",
     "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop": "8acb5d36c93abfec",
     "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop#2": "8acb5d36c93abfec",
-    "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "49a47285ee4a16ca",
-    "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "49a47285ee4a16ca",
-    "test/plugin/originated-nexthop-peer-own.ci": "6c87b12a0724809a",
-    "test/plugin/originated-nexthop-peer-own.ci#2": "6c87b12a0724809a"
+    "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "07ffe0ba5c7e0809",
+    "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "07ffe0ba5c7e0809",
+    "test/plugin/originated-nexthop-peer-own.ci": "de78b657166b8b86",
+    "test/plugin/originated-nexthop-peer-own.ci#2": "de78b657166b8b86"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress": "ca018b40b86e5b81",
@@ -32,8 +32,8 @@
     "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop#2": "d5f44c5890b3470d",
     "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "b5d635479a9b6635",
     "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "b5d635479a9b6635",
-    "test/plugin/originated-nexthop-peer-own.ci": "6c87b12a0724809a",
-    "test/plugin/originated-nexthop-peer-own.ci#2": "6c87b12a0724809a"
+    "test/plugin/originated-nexthop-peer-own.ci": "de78b657166b8b86",
+    "test/plugin/originated-nexthop-peer-own.ci#2": "de78b657166b8b86"
   },
   "verdict": "enforced"
 }

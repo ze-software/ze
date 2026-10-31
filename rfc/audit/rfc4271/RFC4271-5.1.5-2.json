@@ -1,5 +1,5 @@
 {
-  "note": "Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 4271 Section 5.1.5: \"A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065].\" 238bdb62e9 (spec-refuse-instead-of-defaulting) changed nlri.NewINET to take an explicit has-path-id flag; the unit passes false where it passed path id 0, which already meant no ADD-PATH identifier, so the input, the route and every assertion are byte-for-byte the same (TestAnnounceStripsLocalPrefTowardExternalPeer, the withdrawal NLRI). The absence assertion toward the external peer and the interop carrier checkLocalPrefStrip (byte-identical) are unchanged. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-01 (BGP c17 judge): TestRFC4271LocalPrefOmittedForExternalPeers changed only by losing its RFC4271-9.1.1-2 tag lines (D-15); its 5.1.5-2 positive claim and body are unchanged. Announce (WriteAnnounceUpdate), API batch and queued rails, forward rail and local-pref-strip-ebgp.ci assert no attribute 5 toward an external peer, including over a filter Set; ze has no confederation surface, so the exception is unreachable.",
+  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc4271): \"A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065].\" The only edit to test/plugin/local-pref-strip-ebgp.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "82f98f8417a1cee3",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStripBeatsAFilterSet": "33e3a14230a4a91e",
@@ -8,9 +8,9 @@
     "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "130297db967addd6",
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "33a499fb23a13b0e",
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "33a499fb23a13b0e",
-    "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "49a47285ee4a16ca",
-    "test/plugin/local-pref-strip-ebgp.ci": "5a4fff5cffb8e210",
-    "test/plugin/local-pref-strip-ebgp.ci#2": "5a4fff5cffb8e210"
+    "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "07ffe0ba5c7e0809",
+    "test/plugin/local-pref-strip-ebgp.ci": "a883dea4cd288662",
+    "test/plugin/local-pref-strip-ebgp.ci#2": "a883dea4cd288662"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStripBeatsAFilterSet": "c19c725eeb824ac2",
@@ -20,8 +20,8 @@
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "783191eb4bc341cf",
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "d9f9d0718c76e7d9",
     "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "a8c131ab25086c17",
-    "test/plugin/local-pref-strip-ebgp.ci": "5a4fff5cffb8e210",
-    "test/plugin/local-pref-strip-ebgp.ci#2": "5a4fff5cffb8e210"
+    "test/plugin/local-pref-strip-ebgp.ci": "a883dea4cd288662",
+    "test/plugin/local-pref-strip-ebgp.ci#2": "a883dea4cd288662"
   },
   "verdict": "enforced"
 }
