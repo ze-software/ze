@@ -291,7 +291,7 @@ import, and is refused on connected import because connected carries no tag.
 | AC-15 | `redistribute { destination ospf { import ebgp } }` | only eBGP-learned best paths move; iBGP-learned ones do not (fixes the journal row). Status: landed in 17a4d10511 (incremental path, BGP producer class) and 72ecbeef90 (replay path) |
 | AC-16 | A source with no chain and no central chain configured | insert performs zero allocations and the gate is one pointer load (alloc test) |
 | AC-18 | A config with only a `policy {}` section; a config with only `isis {}` (no policy section); a build without the `policy` plugin and an `isis filter import` | the first auto-loads `policy`; the second loads `policy` as a dependency of `isis`; the third is refused at load and by `ze config validate` with the missing-dependency message naming `policy` and the rebuild fix. A registry-derived test asserts every plugin with a filter attachment lists `policy` in `Dependencies` |
-| AC-17 | Phase 4: BGP import and export chains compile from the shared registry | every existing BGP policy `.ci` and interop scenario passes unchanged in expectation |
+| AC-17 | Phase 4: BGP import and export chains compile from the shared registry | every existing BGP policy `.ci` and interop scenario passes unchanged in expectation; BGP filters follow the two-transport plugin filter pattern, one evaluator per filter, called through a typed `DirectBridge` slot when its plugin runs internal and over the protocol when forked (`spec-filter-wire-0-umbrella`, D-12) |
 
 ## End-to-End User Stories
 
@@ -455,6 +455,7 @@ import, and is refused on connected import because connected carries no tag.
    - Tests: AC-17, every existing BGP policy `.ci` and `bgp-policy-*` interop scenario
    - Files: BGP filter chain compile through the library's registry; lazy route view over the wire UPDATE; sequenced with `spec-filter-wire-0-umbrella`
    - Verify: BGP throughput benchmark prepared for Thomas; no new text representation
+   - Note: BGP filters follow the two-transport plugin filter pattern (owner, 2026-10-31). A filter is owned by its plugin: running internal, it is called through a typed `DirectBridge` filter slot of the `DeliverStructured` shape (`pkg/plugin/rpc/bridge.go`) with the lazy wire view and no encoding; running forked, it answers the batched `filter-update` protocol; `filterapi.Register` merges into it. Design: `plan/post-release/engineering/spec-filter-wire-0-umbrella.md`, D-12 and D-13
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

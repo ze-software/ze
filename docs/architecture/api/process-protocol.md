@@ -2001,6 +2001,7 @@ not just a goroutine waiting for an uncancelled writer.
 | Plugin to Engine dispatch-command-args | JSON marshal `DispatchCommandArgsInput` -> RPC -> unmarshal -> exact command route | `bridge.DispatchCommandArgs(ctx, command, args, peer)` -> `dispatchCommandArgs()` directly (Go args slice, no tokenizer) |
 | Plugin to Engine emit-event | JSON marshal `EmitEventInput` -> RPC -> unmarshal -> deliver | `bridge.EmitEvent(namespace, eventType, ...)` -> `deliverEvent()` directly (Go strings, no JSON) |
 | Engine to Plugin callbacks | MuxConn RPC + 3-way select | `bridge.SendCallback()` -> callback channel -> `bridgeEventLoop` 2-way select |
+| Engine to Plugin `filter-update` | `CallFilterUpdate` -> `SendFilterUpdate` -> `CallRPC` -> MuxConn RPC | No typed slot: `CallRPC` marshals the text-subject `FilterUpdateInput` to JSON and calls the generic `bridge.SendCallback()`, so the callback skips the pipe but still pays for the text subject and JSON both ways |
 
 **Callback dispatch:** Both event loops (pipe and bridge) dispatch through a generic
 callback registry (`map[string]callbackHandler`). Each `On*` method registers a typed
