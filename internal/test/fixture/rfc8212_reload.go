@@ -123,7 +123,90 @@ func rfc8212ReloadSeed(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWi
 	return rfc8212ReloadBest(ctx, p, prefix72First, "")
 }
 
+// rfc8212ReloadExportPolicy sets or removes peer-1's export policy, creating
+// the filter container the fixture starts without.
+func rfc8212ReloadExportPolicy(tree *config.Tree, final string) error {
+	bgp := tree.GetContainer("bgp")
+	if bgp == nil {
+		return errors.New("fixture omitted bgp")
+	}
+	peer := bgp.GetList("peer")["peer-1"]
+	if peer == nil {
+		return errors.New("fixture omitted peer-1")
+	}
+	filter := peer.GetContainer("filter")
+	if final == "absent" {
+		if filter == nil {
+			return errors.New("peer-1 has no filter, so there is no export policy to remove")
+		}
+		filter.RemoveContainer("export")
+		return nil
+	}
+	if filter == nil {
+		filter = config.NewTree()
+		peer.SetContainer("filter", filter)
+	}
+	policy := config.NewTree()
+	policy.Set("final", final)
+	filter.SetContainer("export", policy)
+	return nil
+}
+
+// rfc8212ReloadExportStep applies one export transition by live reload, waits
+// for the marker the source's script writes when the expected UPDATE reaches
+// its ORIGINAL socket, and checks no session moved and no refresh was sent.
+func rfc8212ReloadExportStep(ctx context.Context, p *sdk.Plugin, tree *config.Tree, schema *config.Schema, final, marker string) error {
+	if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
+		if err == nil {
+			return fmt.Errorf("%s exists before the export %s reload: the UPDATE was sent early", marker, final)
+		}
+		return fmt.Errorf("export %s marker %s: %w", final, marker, err)
+	}
+	before, err := peerRows03(ctx, p, "*")
+	if err != nil {
+		return err
+	}
+	if err := rfc8212ReloadExportPolicy(tree, final); err != nil {
+		return err
+	}
+	if err := policyFinalReload(ctx, p, config.Serialize(tree, schema), "applied"); err != nil {
+		return err
+	}
+	if !waitForFile(ctx, marker, 80, liveStagesPollDelay) {
+		return fmt.Errorf("export %s reload: the source never wrote %s", final, marker)
+	}
+	effective := final
+	if final == "absent" {
+		effective = actionReject
+	}
+	if err := rfc8212ReloadFinal(ctx, p, "export-policy", effective); err != nil {
+		return err
+	}
+	return rfc8212ReloadSessions(ctx, p, before, 0)
+}
+
+// rfc8212ReloadExport is the AC-6 export and AC-7 stage. peer-1 starts with no
+// export policy, so its configured 192.168.0.0/24 is held back (RFC 8212
+// Section 3). An explicit accept announces it, removing the only export policy
+// withdraws it, and a second accept restores it for the import stage, all on
+// the source's original session.
+func rfc8212ReloadExport(ctx context.Context, p *sdk.Plugin, tree *config.Tree, schema *config.Schema) error {
+	if err := rfc8212ReloadFinal(ctx, p, "export-policy", "reject"); err != nil {
+		return err
+	}
+	if err := rfc8212ReloadExportStep(ctx, p, tree, schema, "accept", "export.announced"); err != nil {
+		return err
+	}
+	if err := rfc8212ReloadExportStep(ctx, p, tree, schema, "absent", "export.withdrawn"); err != nil {
+		return err
+	}
+	return rfc8212ReloadExportStep(ctx, p, tree, schema, "accept", "export.restored")
+}
+
 func rfc8212ReloadRecover(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWire, tree *config.Tree, schema *config.Schema) error {
+	if err := rfc8212ReloadExport(ctx, p, tree, schema); err != nil {
+		return err
+	}
 	if err := rfc8212ReloadSeed(ctx, p, wire, false); err != nil {
 		return err
 	}
@@ -322,16 +405,22 @@ func rfc8212ReloadInvalidateBy(ctx context.Context, p *sdk.Plugin, wire *rfc8212
 }
 
 func rfc8212ReloadRunning(ctx context.Context, p *sdk.Plugin, final string) error {
+	return rfc8212ReloadFinal(ctx, p, "import-policy", final)
+}
+
+// rfc8212ReloadFinal checks the source's effective final for one direction,
+// named by its peer detail key (import-policy or export-policy).
+func rfc8212ReloadFinal(ctx context.Context, p *sdk.Plugin, key, final string) error {
 	rows, err := peerRows03(ctx, p, addrLoopback)
 	if err != nil {
 		return err
 	}
-	policy, ok := rows[addrLoopback]["import-policy"].(map[string]any)
+	policy, ok := rows[addrLoopback][key].(map[string]any)
 	if !ok {
-		return fmt.Errorf("source detail omitted effective import policy: %v", rows)
+		return fmt.Errorf("source detail omitted effective %s: %v", key, rows)
 	}
 	if policy["final"] != final {
-		return fmt.Errorf("source import final=%v, want %s", policy, final)
+		return fmt.Errorf("source %s final=%v, want %s", key, policy, final)
 	}
 	return nil
 }
