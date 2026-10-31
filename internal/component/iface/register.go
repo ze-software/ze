@@ -748,6 +748,10 @@ func runEngine(conn net.Conn) int {
 				reconcilePPPoEClients(rollbackCfg, activePPPoE, b, log)
 				pppoeMu.Unlock()
 				if eb := GetEventBus(); eb != nil {
+					// A rollback re-applies the previous config through the
+					// same reconcile and holds dhcpMu just as long, so it is
+					// counted before the lock like the reload below.
+					countConfigApply()
 					dhcpMu.Lock()
 					reconcileDHCP(rollbackCfg, eb, activeDHCP, log)
 					suppressRAForConfig(rollbackCfg, suppressedRA, activeRouters, raRoutePriority, eb, log)
