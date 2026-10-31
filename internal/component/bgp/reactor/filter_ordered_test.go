@@ -78,7 +78,7 @@ func TestRunEgressPolicyChainNilAPIWithExportFiltersFailsClosed(t *testing.T) {
 		"the guard miss must be logged at Warn naming the peer")
 }
 
-// TestRunEgressPolicyChainNoExportFiltersAccepts pins the legitimate accept, and
+// TestRunEgressPolicyChainAbsentExportFollowsRFC8212Default pins the legitimate accept, and
 // the RFC 8212 default that an absent export policy gives an EBGP destination.
 //
 // VALIDATES: AC-2. A policy with no export filters is not a guard miss: an
@@ -90,7 +90,7 @@ func TestRunEgressPolicyChainNilAPIWithExportFiltersFailsClosed(t *testing.T) {
 // been applied."
 // PREVENTS: the fail-closed split over-firing and denying peers that simply have
 // no export filters, and an absent policy advertising to an EBGP peer.
-func TestRunEgressPolicyChainNoExportFiltersAccepts(t *testing.T) {
+func TestRunEgressPolicyChainAbsentExportFollowsRFC8212Default(t *testing.T) {
 	rec := captureWarnPeers(t)
 
 	r := &Reactor{}

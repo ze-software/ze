@@ -1184,7 +1184,9 @@ Checkpoint 2026-10-30, late (continuation agent):
 Checkpoint 2026-10-30, night (reactor class A/D agent):
 
 - Landed: d56664ed56 (judge-approved `TestRunEgressPolicyChainNoExportFiltersAccepts`;
-  its name no longer fits the EBGP case, and a rename owes a fresh judgement)
+  its name no longer fits the EBGP case, and a rename owes a fresh judgement;
+  renamed `TestRunEgressPolicyChainAbsentExportFollowsRFC8212Default`, body
+  unchanged)
   and bebc0d9cf2 (non-RFC reactor fixtures state accepting policies at their
   callers; `newSessionEndCase` and `addPathLiveRouter` keep the absent
   policy). `./le repo compiles check` OK.
