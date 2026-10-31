@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Priority | P1 |
 | Release reason | Configured redistribution must deliver routes and preserve unresolved NSSA and IS-IS proof ownership. |
 | Scope | plugin |
@@ -11,7 +11,18 @@
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Set aside 2026-10-09 (owner: "Also set aside 4 specs nobody is working on"): no session is working it. AC-2 (NSSA Type-7) and AC-3 (IS-IS readiness) are undiagnosed. Next, per "Current diagnosis boundary": diagnose the missing NSSA route through `v6OriginateNSSALSA`, and the `isis-redist-frr` readiness failure.
+Closure handed back 2026-10-31: see "Blocker" below. The implementation and
+its interop walks are complete (Goal Validation); three RFC proof records the
+IS-IS commit staled are owed by `/ze-implement` before `/ze-close` can land
+commits A and B.
+
+## Blocker
+
+| Field | Value |
+|-------|-------|
+| What blocks | `./le rfc check` (2026-10-31, log `tmp/session/2026-10-29-b253ee28-af02-45d1-a862-79a55bdba37c/scratch/close-rfc-check.log`) reports three discrimination records `producer-changed`: `RFC2966-2-4` positive (`internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NativePrefixesGoOutWithBitZero`), `RFC5305-4.1-2` negative (`internal/plugins/isis/redistribute/rfc5305_inject_test.go::TestRFC5305ConnectedInjectionClearsUpDown`), `RFC5308-2-3` negative (`internal/plugins/isis/redistribute/rfc5308_ipv6_test.go::TestRFC5308ConnectedIPv6ClearsExternalBit`) |
+| Producer | `ConnectedPrefixInfos` (`internal/plugins/isis/redistribute/source.go`) and `ConnectedPrefixInfosV6` (`internal/plugins/isis/redistribute/ipv6.go`), changed by `f17bea8930` (the unroutable-address drop). The three records date from `dcc219072a` and `a4ec93dd93` re-recorded other units but not these |
+| What clears it | `/ze-implement` re-records each with `./le rfc record` (the same panic-body break on the changed producer), `./le rfc check` shows none of the three, the records are committed; then `/ze-close` reruns. The Review Gate artifact below stays valid while the 44 reviewed files are unchanged |
 
 <!-- Scope remains plugin for the chain repair. The original investigation
      assumed all downstream originators were correct; the dated Goal Validation
@@ -325,9 +336,13 @@ Goal Validation table.
 - `test/plugin/redistribute-block-does-not-gate-peer-routes.ci` - the blast radius of the retired ingress filter, added during implementation
 - `test/plugin/redistribute-no-block-peer-route-reaches-rib.ci` - the control half of that pair
 
-The three interop scenario directories already exist and their `ze.conf` files
-are NOT modified. They are the statement of the defect: a config an operator
-would reasonably write, which the daemon must make work.
+The three interop scenario directories already exist and their `redistribute`
+and plugin plumbing is NOT modified. They are the statement of the defect: a
+config an operator would reasonably write, which the daemon must make work. One
+edit was made: `isis-redist-frr/ze.conf` moved its BGP peer from FRR to gobgp
+(`d5721a2b78`), because RFC 4271 Section 5.1.3 ("A route originated by a BGP
+speaker SHALL NOT be advertised to a peer using an address of that peer as
+NEXT_HOP.") meant an FRR BGP peer could never receive FRR's own IS-IS prefix.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -356,7 +371,7 @@ would reasonably write, which the daemon must make work.
 | 6 | Has a user guide page? | Yes | `docs/guide/redistribution.md` (today it covers route filters only), `docs/guide/ospf.md`, `docs/guide/isis.md` |
 | 7 | Wire format changed? | No | No encoder changes. The LSAs and TLVs are unchanged; they are simply originated where they were not |
 | 8 | Plugin SDK/protocol changed? | No | No SDK surface changes; the consumer-registration signal is internal to `internal/component/config/redistribute` |
-| 9 | RFC behavior implemented, changed, or newly proven? | No | No `rfc/short/` row changes. The origination code and its claims are untouched |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | The OSPFv3 origination code is untouched. The IS-IS level 2 fix (`f17bea8930`) newly proves `RFC1195-3.2-2` positive (`TestRFC1195Level2OneEntryPerPrefix`, record in `a4ec93dd93`), and its producer change staled three records (see Blocker) |
 | 10 | Test infrastructure changed? | No | No runner change. The three interop scenarios and their checkers are unchanged |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` - the redistribution row, if it claims a behavior this spec makes true for the first time. Verify the row before editing. DONE in `d58224423a`: the row claimed the retired `IngressFilter`, and that claim is removed |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md`, `docs/architecture/api/architecture.md`, `docs/architecture/plugin/rib-storage-design.md` |
@@ -447,7 +462,7 @@ would reasonably write, which the daemon must make work.
 | Leave the three scenario `ze.conf` files unchanged | Add the plugin and attach blocks to each, which would turn them green today | Editing them would make the tests pass and leave every operator's config broken. The scenarios state what an operator writes, and that is what has to work |
 
 ## Known Limitations
-- The doctor check reports a rule with no producer or no consumer. It cannot report a rule whose routes are all rejected by the evaluator's family filter, because that is a legitimate outcome.
+- `ze doctor` reports an unknown source or an undeclared destination through its config-parse diagnostic, because the load refuses both (the separate doctor check was removed in `092f86eec0`). Nothing reports a rule whose routes are all rejected by the evaluator's family filter, because that is a legitimate outcome.
 - A consumer that registers, unregisters and re-registers gets a replay each time. That is correct and cheap at startup, and it is not rate limited.
 - This spec does not merge with `plan/post-release/engineering/spec-review-redistribute-orchestrator.md`, which covers the producer side of the same asymmetry: a producer that registers after the orchestrator started is never subscribed. Phase 3 makes the consumer side right and leaves the producer side to that spec.
 
@@ -557,3 +572,137 @@ deadline, not a failure of the test.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Derived Loc-RIB and orchestrator bindings for a BGP-source rule: `wireRedistributeDelivery` (`internal/component/bgp/config/redistribute_binding.go`), called from `peers.go`; an operator's own binding is kept (`grantEveryPeer`).
+- The retired ingress filter (`redistribute_ingress`), which dropped every peer route under any `redistribute` block (A-2).
+- Consumer-registration replay: `replayCoordinator.onConsumerRegistered` (`internal/plugins/redistribute/replay.go`), fired from `redistribute.go`.
+- Load refusal: `RefuseRedistributeRules` (`internal/component/config/loader_redistribute.go`), from `LoadConfig` and `VerifyPluginConfigMapTransition`: unknown source or family, empty destination, absent protocol root, and (`82c2cb97a7`) an undeclared destination via `refuseUndeclaredDestination` and `DestinationNames`.
+- Found while walking the scenarios: IS-IS never advertises 0/8, 127/8, 224/4 or ::1 (`unroutableIPv4`, `ConnectedPrefixInfosV6`), and one level 2 entry per prefix (`level2Reachability`, `levelState`) (`f17bea8930`); connected never redistributes loopback, link-local, multicast or 0/8 (`redistributable` in `emitID`, `02517b544b`).
+- Harness: `EmptyAnswerError` and `queryAnswered` (`405f7063ec`, `83bc7b215b`); stress-repro builds with `zetest` (`ff2d2e527c`); `isis-redist-frr` exports to gobgp (`d5721a2b78`).
+
+### Bugs Found/Fixed
+- Ingress filter dropped every route: `redistribute-block-does-not-gate-peer-routes.ci`.
+- Undeclared destination loaded silently: `TestRefuseRedistributeRulesNamesAnUndeclaredDestination`, `redistribute-undeclared-destination-refused.ci`.
+- IS-IS advertised 127/8 and listed the link subnet twice in L2: `TestISISConnectedAdvertiseSkipsUnroutable`, `TestRFC1195Level2OneEntryPerPrefix`.
+- Connected exported 127/8, ::1, fe80::/64: `TestConnectedNeverRedistributesUnroutablePrefixes`.
+- Interop waits misreported an empty FRR answer as a hung vtysh: `TestPositiveWaitReadsAFinishedEmptyAnswerAsMeasured`.
+
+### Documentation Updates
+- `docs/guide/redistribution.md` (refusal, doctor, connected exclusions), `docs/guide/plugins.md`, `docs/comparison.md`, `docs/architecture/config/syntax.md`, `docs/guide/health-checks.md`, `docs/guide/isis.md`, `docs/architecture/isis/isis-9-spf-rib.md`, `isis-11-redistribution.md`, `docs/architecture/testing/interop.md`, `docs/architecture/plugin/feature-gates.md`, YANG prose in `ze-redistribute-conf.yang`.
+- `./le doc check all` 2026-10-31: fails on five anchors, none written by this spec (`transaction-protocol.md`; `interop.md` `assignLinkLocal`, from `dfa96ffa2e`; `rfc-conformance-gates.md`; `ipsec.md`).
+
+### Deviations from Plan
+- The doctor check was built, then removed (`092f86eec0`, judge-approved): every `ze doctor` entry reaches `runChecks`, which loads through `LoadConfig`, which refuses first, so the check was unreachable. `ze doctor` reports the refusal as `doctor-config-parse` (`TestRunChecksReportsTheRedistributeRefusal`).
+- The orchestrator lives in `internal/plugins/redistribute/`, not `bgp/plugins/redistribute_egress`; `initRedistribute` became the `RefuseRedistributeRules` door.
+- `isis-redist-frr/ze.conf` peer moved to gobgp (Files to Create note).
+- `TestBestChangeReachesRedistributeOrchestrator` not written (reason in the TDD table).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2: the derived binding alone would deliver | the ingress filter dropped every route | `routes-in 0` with the binding | filter retired |
+| approach | `f17bea8930` changed two IS-IS producers and `a4ec93dd93` re-recorded only the records it saw | three more records went `producer-changed` | `./le rfc check` at closure | Blocker: re-record |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `import bgp` alone moves peer routes into OSPF | Done | `redistribute_binding.go` `wireRedistributeDelivery` | AC-1, AC-2 |
+| `import static` reaches IS-IS at startup | Done | `replay.go` `onConsumerRegistered` | AC-3 |
+| A stage that cannot work refuses or says so | Done | `loader_redistribute.go` `RefuseRedistributeRules` | AC-5 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `ospfv3-redist-frr` walk | Goal Validation |
+| AC-2 | Done | `ospfv3-nssa-redist-frr` walk | Goal Validation |
+| AC-3 | Done | `isis-redist-frr` walk, `redistribute-late-consumer.ci` | |
+| AC-4 | Done | `redistribute-explicit-attach-kept.ci`, `TestExplicitBindingWins` | |
+| AC-5 | Done | `TestUnknownRedistributeSourceRefusesLoad`, `redistribute-undeclared-destination-refused.ci` | |
+| AC-6 | Done (unit) | `TestNoRedistributeNoBinding` | perf numbers are Thomas's run, command in Goal Validation |
+| AC-7 | Done | `reject` line in `redistribute-bgp-to-ospf-no-plumbing.ci` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| all unit tests in the TDD table but one | Done | as listed | `git grep "func <name>("` 2026-10-31 |
+| `TestBestChangeReachesRedistributeOrchestrator` | Changed | - | covered by `TestHandleBatchConsumerSourceDispatchesToOtherConsumers` |
+| the six `.ci` | Done | `test/plugin/`, `test/parse/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `reactor/config.go`, `loader_create.go`, `redistribute_egress/*` | Changed | the work landed in `bgp/config/redistribute_binding.go`, `config/loader_redistribute.go`, `internal/plugins/redistribute/` |
+| the docs list | Done | Documentation Updates |
+
+### Audit Summary
+- **Total items:** 3 requirements, 7 ACs
+- **Done:** all
+- **Partial:** none (AC-6 perf half is Thomas's by META-DECISIONS, not partial work)
+- **Skipped:** none
+- **Changed:** 2 (Deviations)
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | AC-6's perf run is Thomas's by rule; `connected-distance-raised-loses` red is not this spec's (journal row owned by `plan/release/validation/spec-fib-depth.md`) | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-redistribution-chain-drops-silently-b253ee28-af02-45d1-a862-79a55bdba37c.md` (44 files) |
+| `./le spec review check` | OK, 30 code files, hashes match |
+| Rounds | 1 |
+| Reviewer lenses used | wiring, removed behavior (doctor check, test renames), RFC quotes (RFC 1195 3.2, RFC 4271 5.1.3), FRR source parity, edge cases on the address filters, style pass on every changed Go file (no `panic` reachable from a socket: the two in `fakeredist` `init` are test-only registration) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | 0 BLOCKER, 0 ISSUE | - | - |
+
+NOTEs: `EmptyAnswerError`'s comment (`internal/le/interoplab/lab.go`) says callers use `errors.As`, the caller uses `errors.AsType`. Spec record defects (doc row 9, Known Limitations, scenario note) fixed in this edit. `./le repo check` 3 issues and `./le test weakened check base 682a078a6d^` clean; the repo-check issues are in `docs/contributing/ze-go-style.md`, not this diff.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| the six `test/plugin/redistribute-*.ci` and `test/parse/redistribute-undeclared-destination-refused.ci` | yes | `ls` 2026-10-31 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-3 | interop green and walked | `scratch/remote5/*.log` `pass`, `remote6/ze-isisredist-green.log` `pass (1m57s)`, `remote7/summary.txt` red exit=1, restored exit=0 |
+| AC-4..AC-7 | tests exist | `git grep "func <name>("` hits for every test named above |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `redistribute` with no plumbing | `redistribute-bgp-to-ospf-no-plumbing.ci` | read: driver `redistChainBGPSourceReachesConsumer` (`plugin_fixture_12.go`), plus the AC-7 `reject` |
+| late consumer | `redistribute-late-consumer.ci` | read: driver `redistChainLateConsumer`, `reject=stderr:pattern=ZE-OBSERVER-FAIL` |
+| unknown source | `redistribute-unknown-source-refused.ci` | read: `ze -` exits 1 with `unknown source "rip" under destination "bgp"` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Risks table |
+| A-2 | broken, resolved | ingress filter retired |
+| A-3 | confirmed | `TestLateConsumerReceivesProducerSet` |
+| A-4 | confirmed | `TestNoRedistributeNoBinding` |
+| A-5 | broken, harmless | `TestUnknownRedistributeFamilyRefusesLoad` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| connected exclusions (`redistribution.md`) | `redistributable`, `connected.go` | yes |
+| `ze doctor` reports via config-parse | `runChecks` calls `config.LoadConfig`, which calls `RefuseRedistributeRules` | yes |
+| replay metric HELP | `redistribute.go` `replayTotal` | yes |
