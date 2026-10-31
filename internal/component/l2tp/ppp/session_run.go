@@ -1933,24 +1933,75 @@ func (s *pppSession) sendTerminateAck(req LCPPacket) bool {
 // sendCodeReject replies with an LCP Code-Reject when an unknown or
 // unsupported Code is received in a valid LCP packet.
 //
-// RFC 1661 §5.7: "Reception of a Code-Reject of a code which is
-// fundamental to this version of the protocol indicates an
-// implementation which is running a catastrophically different
-// version... In this case, the implementation SHOULD report the
-// problem and drop the connection". The rejected packet's original
-// Code, Identifier, Length, and Data are included in the Rejected-
-// Packet field verbatim so the peer can identify what was rejected.
+// RFC 1661 Section 5.6: "Reception of a LCP packet with an unknown Code
+// indicates that the peer is operating with a different version. This MUST
+// be reported back to the sender of the unknown Code by transmitting a
+// Code-Reject."
 func (s *pppSession) sendCodeReject(req LCPPacket) bool {
-	body := make([]byte, lcpHeaderLen+len(req.Data))
-	body[0] = req.Code
-	body[1] = req.Identifier
-	binary.BigEndian.PutUint16(body[2:4], uint16(lcpHeaderLen+len(req.Data)))
-	copy(body[lcpHeaderLen:], req.Data)
+	// RFC 1661 Section 5.6: "The Identifier field MUST be changed for each
+	// Code-Reject sent."
+	s.lcpCodeRejectID++
+	return s.writeCodeReject(ProtoLCP, s.lcpCodeRejectID, req)
+}
+
+// writeCodeReject writes a Code-Reject of req on proto, with Identifier id,
+// and returns false on a fatal write error. LCP (sendCodeReject) and the
+// NCPs (sendNCPCodeReject) share it: RFC 1332 Section 2 and RFC 5072
+// Section 3 give IPCP and IPv6CP the LCP packet exchange, Code-Reject
+// included. The caller draws id from its own protocol's counter.
+//
+// Wire format (RFC 1661 Section 5.6), offsets from the start of the
+// Code-Reject, which itself starts 2 octets into the frame:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|     Code = 7  |  Identifier   |            Length             |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	| Rejected-Packet ...
+//	+-+-+-+-+-+-+-+-+
+//
+// Octet 0 Code, 1 Identifier, 2-3 Length, 4 onward the Rejected-Packet: the
+// rejected packet's own Code (octet 4), Identifier (5), Length (6-7) and Data
+// (8 onward). "The Rejected-Packet field contains a copy of the LCP packet
+// which is being rejected. It begins with the Information field, and does not
+// include any Data Link Layer headers nor an FCS." The rejected packet's
+// Length is written as it arrived, so a cut copy still tells the peer how
+// long the packet was.
+func (s *pppSession) writeCodeReject(proto uint16, id uint8, req LCPPacket) bool {
+	// RFC 1661 Section 5.6: "The Rejected-Packet MUST be truncated to comply
+	// with the peer's established MRU." The MRU bounds the Information field
+	// of the frame ze sends, and MaxFrameLen bounds the pooled buffer it is
+	// built in, so the copy of the rejected Data takes the smaller of the
+	// two, less the octets that precede it: the 2-octet Protocol field, the
+	// 4-octet Code-Reject header and the rejected packet's own 4-octet header.
+	s.mu.Lock()
+	mru := s.negotiatedMRU
+	s.mu.Unlock()
+	if mru == 0 {
+		// No MRU option was negotiated, so the PPP default stands
+		// (RFC 1661 Section 6.1).
+		mru = MaxFrameLen
+	}
+	limit := min(frameLen(int(mru)), MaxFrameBufLen)
+	room := max(limit-frameLen(lcpHeaderLen+lcpHeaderLen), 0)
+	rejected := req.Data
+	if len(rejected) > room {
+		rejected = rejected[:room]
+	}
 
 	buf := getFrameBuf()
 	defer putFrameBuf(buf)
-	off := WriteFrame(buf, 0, ProtoLCP, nil)
-	off += WriteLCPPacket(buf, off, LCPCodeReject, req.Identifier, body)
+	off := WriteFrame(buf, 0, proto, nil)
+	// The Rejected-Packet is written where WriteLCPPacket needs the Data
+	// field, so no scratch buffer is allocated. The copy that call then makes
+	// is onto itself and moves nothing.
+	data := buf[off+lcpHeaderLen:]
+	data[0] = req.Code
+	data[1] = req.Identifier
+	binary.BigEndian.PutUint16(data[2:4], uint16(lcpHeaderLen+len(req.Data)))
+	n := lcpHeaderLen + copy(data[lcpHeaderLen:], rejected)
+	off += WriteLCPPacket(buf, off, LCPCodeReject, id, data[:n])
 	return s.writeFrame(buf[:off])
 }
 

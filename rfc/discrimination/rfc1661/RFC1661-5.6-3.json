@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-5.6-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectKeptWhenItFits",
+    "unit-sha": "ce3d3026eddb7b78",
+    "claim-sha": "05d4ecd70d1f40db",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::writeCodeReject",
+    "producer-sha": "11648e10a133df5e",
+    "break": "line 1987: \"max(limit-frameLen(lcpHeaderLen+lcpHeaderLen), 0)\" -\u003e \"min(limit-frameLen(lcpHeaderLen+lcpHeaderLen), 0)\""
+  },
+  {
+    "rid": "RFC1661-5.6-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectTruncatedToMRU",
+    "unit-sha": "b3b4c591381e50c1",
+    "claim-sha": "31f0d8a4c0ec8c1c",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::writeCodeReject",
+    "producer-sha": "11648e10a133df5e",
+    "break": "line 1989: \"len(rejected) \u003e room\" -\u003e \"false\""
+  }
+]

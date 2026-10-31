@@ -1153,26 +1153,32 @@ func (s *pppSession) sendNCPTerminateAck(family AddressFamily, req LCPPacket) bo
 	return s.writeFrame(buf[:off])
 }
 
-// sendNCPCodeReject replies with a Code-Reject carrying the rejected
-// packet verbatim, matching sendCodeReject's format.
+// sendNCPCodeReject replies with a Code-Reject on the family's NCP, in
+// the format writeCodeReject (session_run.go) writes for LCP.
+//
+// RFC 1332 Section 2: "Other Codes should be treated as unrecognized and
+// should result in Code-Rejects." RFC 5072 Section 3 says the same of
+// IPv6CP.
 func (s *pppSession) sendNCPCodeReject(family AddressFamily, req LCPPacket) bool {
-	body := make([]byte, lcpHeaderLen+len(req.Data))
-	body[0] = req.Code
-	body[1] = req.Identifier
-	ncpSetLength(body, uint16(lcpHeaderLen+len(req.Data)))
-	copy(body[lcpHeaderLen:], req.Data)
-
-	buf := getFrameBuf()
-	defer putFrameBuf(buf)
-	off := WriteFrame(buf, 0, ncpProto(family), nil)
-	off += WriteLCPPacket(buf, off, LCPCodeReject, req.Identifier, body)
-	return s.writeFrame(buf[:off])
+	// RFC 1661 Section 5.6: "The Identifier field MUST be changed for each
+	// Code-Reject sent."
+	return s.writeCodeReject(ncpProto(family), s.nextNCPCodeRejectID(family), req)
 }
 
-// ncpSetLength writes a big-endian uint16 at body[2:4].
-func ncpSetLength(body []byte, length uint16) {
-	body[2] = byte(length >> 8)
-	body[3] = byte(length)
+// nextNCPCodeRejectID bumps the family's Code-Reject Identifier counter
+// and returns the new value, so each Code-Reject an NCP sends carries an
+// Identifier its last one did not.
+func (s *pppSession) nextNCPCodeRejectID(family AddressFamily) uint8 {
+	switch family {
+	case AddressFamilyIPv4:
+		s.ipcpCodeRejectID++
+		return s.ipcpCodeRejectID
+	case AddressFamilyIPv6:
+		s.ipv6cpCodeRejectID++
+		return s.ipv6cpCodeRejectID
+	default:
+		panic("BUG: unknown NCP address family")
+	}
 }
 
 // onNCPOpened runs per-family post-Opened side effects. IPv4 programs

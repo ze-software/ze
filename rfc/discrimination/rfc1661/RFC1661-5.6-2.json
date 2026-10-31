@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-5.6-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661LCPCodeRejectIdentifierChanges",
+    "unit-sha": "bfdff6f3bba0c77e",
+    "claim-sha": "98ef94bfd8c6660e",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::sendCodeReject",
+    "producer-sha": "2e521ac95a1b10ec",
+    "break": "line 1943: \"s.lcpCodeRejectID++\" -\u003e \"s.lcpCodeRejectID = req.Identifier\""
+  },
+  {
+    "rid": "RFC1661-5.6-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661NCPCodeRejectIdentifierChanges",
+    "unit-sha": "ef337d95eda417a5",
+    "claim-sha": "7b33ec98379e8507",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/ncp.go::sendNCPCodeReject",
+    "producer-sha": "8526e7974ebcb562",
+    "break": "line 1165: \"s.nextNCPCodeRejectID(family)\" -\u003e \"req.Identifier\""
+  }
+]

@@ -230,6 +230,14 @@ type pppSession struct {
 	// Protocol-Reject sent." Goroutine-owned; wraps at 256.
 	protocolRejectID uint8
 
+	// lcpCodeRejectID, ipcpCodeRejectID and ipv6cpCodeRejectID are the
+	// Identifiers of the last Code-Reject sent on LCP, IPCP and IPv6CP.
+	// RFC 1661 Section 5.6: "The Identifier field MUST be changed for each
+	// Code-Reject sent." Goroutine-owned; each wraps at 256.
+	lcpCodeRejectID    uint8
+	ipcpCodeRejectID   uint8
+	ipv6cpCodeRejectID uint8
+
 	// NCP state, goroutine-owned after session spawn; no lock needed
 	// because every writer is the session goroutine. Snapshot under
 	// mu if SessionByID grows NCP-aware in a later phase.
