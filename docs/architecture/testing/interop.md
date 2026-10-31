@@ -1252,7 +1252,9 @@ no entry runs every daemon on `eth0` alone, as before.
 10.77.1.0/24 and the control 10.77.2.0/24; Ze's `isis filter import` rejects
 the first. The checker requires both adjacencies; the control in Ze's
 `show rib` and kernel FIB and the hidden prefix absent from both, read beside
-the control; both prefixes in Ze's LSDB; the JSON of
+the control; both prefixes in Ze's `show isis route`, the SPF result the
+chain runs after (`show isis database detail` prints TLV values as hex, so it
+cannot be searched for a prefix); the JSON of
 `show rib candidates prefix <p>` with the hidden prefix's one IS-IS path
 `hidden`, `hidden-by` `source`, `chain` `isis import`, and the control's one
 path selected and not hidden; and last, FRR-B's `show ip route <p> json` with

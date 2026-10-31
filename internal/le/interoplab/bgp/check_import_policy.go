@@ -39,11 +39,11 @@ var (
 // checkISISImportPolicy proves that `isis filter import` decides what Ze
 // installs and nothing else. Assertions 1 and 2 are the two adjacencies, so a
 // dead link cannot pass what follows. Assertions 3 to 6 read Ze: the control
-// prefix installed, both prefixes in the LSDB, the hidden one absent from
-// `show rib` and the kernel FIB, each absence read beside the control's
-// presence. Assertion 7 binds the hidden path's verdict (hidden by the IS-IS
-// source chain) and the control path's (selected, not hidden) to their own
-// paths. Assertion 8 is the flooding proof: FRR-B, whose only neighbor is Ze,
+// prefix installed, both prefixes in IS-IS's own route table (its SPF result),
+// the hidden one absent from `show rib` and the kernel FIB, each absence read
+// beside the control's presence. Assertion 7 binds the hidden path's verdict
+// (hidden by the IS-IS source chain) and the control path's (selected, not
+// hidden) to their own paths. Assertion 8 is the flooding proof: FRR-B, whose only neighbor is Ze,
 // learns BOTH prefixes through Ze, so Ze flooded on the LSP whose prefix it
 // kept out of its own RIB.
 func checkISISImportPolicy(ctx context.Context, check *interoplab.CheckContext) error {
@@ -53,7 +53,10 @@ func checkISISImportPolicy(ctx context.Context, check *interoplab.CheckContext) 
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowISISNeighbor}, contains: []string{"Up"}, timeout: 60 * time.Second},
 		{kind: opWaitContains, peer: peerFRRSink, command: []string{cmdVtysh, "-c", frrShowISISNeighbor}, contains: []string{"Up"}, timeout: 60 * time.Second},
 		{kind: opWaitContains, peer: "ze", command: zeCommand("show rib"), contains: []string{isisImportControlPrefix}, timeout: importPolicyWait},
-		{kind: opRequireContains, peer: "ze", command: zeCommand("show isis database detail"), contains: []string{isisImportHiddenPrefix, isisImportControlPrefix}},
+		// `show isis route` is the SPF result, in CIDR text, which the import chain
+		// runs after and never filters. `show isis database detail` prints TLV
+		// values as hex, so a prefix can never be found in it.
+		{kind: opRequireContains, peer: "ze", command: zeCommand("show isis route"), contains: []string{isisImportHiddenPrefix, isisImportControlPrefix}},
 		{kind: opRequireAbsent, peer: "ze", command: zeCommand("show rib"), absent: []string{isisImportHiddenPrefix}, proof: []string{isisImportControlPrefix}},
 		{kind: opRequireAbsent, peer: "ze", command: []string{"ip", "-4", ipObjectRoute, ipActionShow}, absent: []string{isisImportHiddenPrefix}, proof: []string{isisImportControlPrefix}},
 	}

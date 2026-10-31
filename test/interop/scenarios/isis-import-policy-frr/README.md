@@ -10,8 +10,9 @@ An `isis filter import` chain decides what IS-IS installs, and nothing else:
 - Ze's chain rejects 10.77.1.0/24. `show rib` does not list it, the kernel FIB
   holds no route for it, and `show rib candidates prefix 10.77.1.0/24` lists
   its one IS-IS path hidden, hidden by the `source` chain `isis import`.
-- Ze's LSDB still holds the prefix (the chain runs at the Loc-RIB gate, after
-  SPF, and never touches the database Ze floods from), and FRR-B, whose only
+- Ze's IS-IS route table (`show isis route`, the SPF result) still holds the
+  prefix (the chain runs at the Loc-RIB gate, after SPF, and never touches the
+  database Ze floods from), and FRR-B, whose only
   neighbor is Ze, installs an IS-IS route for it through Ze. That is the proof
   that Ze floods on the LSP whose prefix it hid from its own RIB.
 - 10.77.2.0/24 passes the same chain, so it is in `show rib`, the kernel FIB
