@@ -1,6 +1,7 @@
 package iface
 
 import (
+	"context"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -138,6 +139,9 @@ func (m *mockMigrateBackend) StartMonitor(_ ze.EventBus) error {
 }
 func (m *mockMigrateBackend) StopMonitor() {}
 func (m *mockMigrateBackend) Close() error { return nil }
+func (m *mockMigrateBackend) WatchNeighbors(_ context.Context) (<-chan struct{}, error) {
+	return nil, fmt.Errorf("mock: not supported")
+}
 
 // stubEventBus is a minimal ze.EventBus used by migrate tests.
 // Subscribe records handlers; tests drive delivery explicitly via Emit.

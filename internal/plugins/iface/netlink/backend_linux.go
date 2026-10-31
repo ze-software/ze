@@ -11,10 +11,14 @@ import (
 )
 
 // netlinkBackend implements iface.Backend using Linux netlink. Its owner MUST
-// call Close before discarding it to release monitoring and counter sockets.
+// call Close before discarding it to release monitoring, neighbor watch and
+// counter sockets.
 type netlinkBackend struct {
 	mon      *monitor
 	counters counterSource
+	// closed ends every neighbor watch this backend started
+	// (neighbor_watch_linux.go), so no watch outlives its backend.
+	closed closeSignal
 }
 
 func newNetlinkBackend() (iface.Backend, error) {
@@ -22,9 +26,12 @@ func newNetlinkBackend() (iface.Backend, error) {
 }
 
 // Close MUST be called before discarding the backend. It permanently stops
-// counter reads and waits for any bounded snapshot already in progress.
+// counter reads and waits for any bounded snapshot already in progress. It
+// signals every neighbor watch to stop; each closes its channel once its
+// kernel subscription is released.
 func (b *netlinkBackend) Close() error {
 	b.StopMonitor()
+	b.closed.close()
 	b.counters.close()
 	return nil
 }

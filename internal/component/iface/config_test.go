@@ -1,6 +1,7 @@
 package iface
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2766,6 +2767,11 @@ func (b *fakeBackend) RemoveLCPPair(vppIface string) error {
 func (b *fakeBackend) StartMonitor(_ ze.EventBus) error { return nil }
 func (b *fakeBackend) StopMonitor()                     {}
 func (b *fakeBackend) Close() error                     { return nil }
+
+// WatchNeighbors refuses: no test here reads neighbor changes from the fake.
+func (b *fakeBackend) WatchNeighbors(_ context.Context) (<-chan struct{}, error) {
+	return nil, errors.New("fake backend: no neighbor watch")
+}
 
 // --- IPv6 Router Tracking Tests ---
 

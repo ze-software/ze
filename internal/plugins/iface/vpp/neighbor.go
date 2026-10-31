@@ -5,6 +5,8 @@
 package ifacevpp
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -35,6 +37,17 @@ const (
 	stateReachable  = "reachable"
 	stateIncomplete = "incomplete"
 )
+
+// errNoNeighborWatch is WatchNeighbors' answer: this backend subscribes to no
+// VPP neighbor event, so it cannot say when ListNeighbors' answer moved.
+var errNoNeighborWatch = errors.New("the vpp interface backend does not report neighbor table changes")
+
+// WatchNeighbors refuses with errNoNeighborWatch rather than handing back a
+// channel that never signals, so a consumer that needs the changes says the
+// table is not watched (iface.Backend).
+func (b *vppBackendImpl) WatchNeighbors(_ context.Context) (<-chan struct{}, error) {
+	return nil, errNoNeighborWatch
+}
 
 // ListNeighbors returns the VPP neighbor cache (IPv4 ARP + IPv6 ND) via
 // ip_neighbor_dump. `family` is one of iface.NeighborFamilyAny /

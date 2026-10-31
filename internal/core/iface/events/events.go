@@ -20,9 +20,4 @@ const (
 	EventRollback         = "rollback"
 	EventRouterDiscovered = "router-discovered"
 	EventRouterLost       = "router-lost"
-	// EventNeighborChanged reports an IPv6 neighbor entry that appeared, went
-	// away, changed its link-layer address, or crossed between a resolved and
-	// an unresolved state. BGP re-reads the neighbor table on it, for RFC 2545
-	// Section 3's third-party Link-Local.
-	EventNeighborChanged = "neighbor-changed"
 )

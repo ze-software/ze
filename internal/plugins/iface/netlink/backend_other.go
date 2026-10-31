@@ -6,6 +6,7 @@
 package ifacenetlink
 
 import (
+	"context"
 	"fmt"
 	"net/netip"
 	"runtime"
@@ -98,3 +99,8 @@ func (s *stubBackend) RemoveLCPPair(_ string) error     { return unsupported() }
 func (s *stubBackend) StartMonitor(_ ze.EventBus) error { return unsupported() }
 func (s *stubBackend) StopMonitor()                     {}
 func (s *stubBackend) Close() error                     { return nil }
+
+// WatchNeighbors refuses: this platform has no neighbor table to watch.
+func (s *stubBackend) WatchNeighbors(_ context.Context) (<-chan struct{}, error) {
+	return nil, unsupported()
+}

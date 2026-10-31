@@ -5,6 +5,7 @@
 package iface
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -212,6 +213,14 @@ type Backend interface {
 	// family is one of NeighborFamilyAny / NeighborFamilyIPv4 / NeighborFamilyIPv6
 	// declared in iface.go; backends translate to their native constants.
 	ListNeighbors(family int) ([]NeighborInfo, error)
+	// WatchNeighbors starts a watch of the IPv6 neighbor table ListNeighbors
+	// reads, with the channel contract of network.NeighborWatcher: one
+	// coalescing signal after a change, and the channel closed when ctx ends,
+	// when the watch fails, and when Close releases this backend, so a watch
+	// never outlives the backend whose table it reports. A backend that cannot
+	// report changes MUST answer an error that says so, never a channel that
+	// stays silent.
+	WatchNeighbors(ctx context.Context) (<-chan struct{}, error)
 
 	// RouteLookup performs a longest-prefix-match lookup for the given
 	// destination IP in the backend's FIB. Returns the matching route as
@@ -352,7 +361,11 @@ func RegisterBackend(name string, factory func() (Backend, error)) error {
 func LoadBackend(name string) error {
 	backendsMu.Lock()
 	defer backendsMu.Unlock()
+	return loadBackendLocked(name)
+}
 
+// loadBackendLocked is LoadBackend for a caller that holds backendsMu.
+func loadBackendLocked(name string) error {
 	factory, ok := backends[name]
 	if !ok {
 		registered := make([]string, 0, len(backends))
@@ -393,15 +406,22 @@ func GetBackend() Backend {
 // loaded, so an explicit `interface { backend vpp }` always wins. The default
 // name is empty on platforms with no OS backend (only the stub), where it
 // returns the same "no backend" error the caller would have hit anyway.
+//
+// The check and the load happen under one hold of backendsMu. BGP's neighbor
+// table watch calls this when the reactor starts, which can race the interface
+// component's own LoadBackend; checked apart from the load, the default could
+// replace the backend the config just chose.
 func EnsureBackend() error {
-	if GetBackend() != nil {
+	backendsMu.Lock()
+	defer backendsMu.Unlock()
+	if activeBackend != nil {
 		return nil
 	}
 	name := DefaultBackendName()
 	if name == "" {
 		return ErrNoBackendLoaded
 	}
-	return LoadBackend(name)
+	return loadBackendLocked(name)
 }
 
 // ActiveBackendName returns the registered name of the active iface backend

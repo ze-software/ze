@@ -391,18 +391,6 @@ type RouterEventPayload struct {
 	RouterIP string `json:"router-ip"` // link-local address of the router
 }
 
-// NeighborEventPayload is the JSON payload of (interface, neighbor-changed),
-// emitted by the netlink monitor for an IPv6 neighbor entry that appeared, went
-// away, changed its link-layer address, or crossed between a resolved state
-// (reachable, stale, delay, probe, permanent) and an unresolved one. A flip
-// inside one class emits nothing.
-type NeighborEventPayload struct {
-	Name        string `json:"name"`                   // interface name
-	Address     string `json:"address"`                // neighbor IPv6 address
-	LinkAddress string `json:"link-address,omitempty"` // hardware address, empty when unresolved
-	Resolved    bool   `json:"resolved"`               // false for a removed or unresolved entry
-}
-
 // InterfaceRate holds computed per-second rates and the raw stats snapshot
 // for a single interface. Produced by the rate tracker goroutine.
 type InterfaceRate struct {

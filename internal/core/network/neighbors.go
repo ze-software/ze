@@ -1,16 +1,19 @@
-// Design: docs/architecture/core-design.md — the kernel neighbor table, read through a registered reader
+// Design: docs/architecture/update-building.md — the kernel neighbor table, read and watched through a registered table
+// Design: docs/features/interfaces.md — Bus Topics: why neighbor changes come from a watch, not a bus topic
 // Overview: connected.go — locally connected subnets, the other half of RFC 2545 Section 3's host facts
 // RFC: rfc/short/rfc2545.md
 //
 // The neighbor table is how BGP learns the Link-Local of another router on a
 // shared subnet without importing the interface component. The component
-// registers one reader at init(); a caller asks ReadNeighbors and gets value
-// types. With no reader linked the answer is ErrNeighborReaderNotRegistered,
-// never an empty table (ai/rules/principles.md).
+// registers the table at init(): a reader that answers value types, and a
+// watcher that says when a read has gone stale. With no table linked both
+// answer ErrNeighborTableNotRegistered, never an empty table and never a watch
+// that stays silent (ai/rules/principles.md).
 
 package network
 
 import (
+	"context"
 	"errors"
 	"net/netip"
 	"sync"
@@ -45,38 +48,78 @@ type Neighbor struct {
 // NeighborReader reads the IPv6 entries of the kernel neighbor table.
 type NeighborReader func() ([]Neighbor, error)
 
-// ErrNeighborReaderNotRegistered is ReadNeighbors' answer in a build where no
-// component registered a reader, which is distinct from a table that is empty.
-var ErrNeighborReaderNotRegistered = errors.New("no neighbor table reader is registered: this build carries no interface component")
+// NeighborWatcher starts a watch of the IPv6 neighbor table, or answers why it
+// cannot. A started watch sends on the returned channel after each change that
+// can move a pairing NewNeighborLinkLocals derives: an entry that appears or
+// goes away, a changed link-layer address, or a crossing between a binding and
+// a non-binding state. The channel holds ONE pending signal and the watch never
+// blocks on it, so a burst coalesces: a signal says "read the table again",
+// never which entry moved.
+//
+// The watch closes the channel when ctx ends, and also when it stops on its own
+// (the kernel subscription failed, or the source it watched was replaced). A
+// close while ctx is live therefore means the table is no longer watched, and
+// the caller starts a new watch to hear changes again. The watcher owns the
+// goroutine behind the channel; that goroutine has exited once the channel is
+// closed.
+type NeighborWatcher func(ctx context.Context) (<-chan struct{}, error)
 
-var neighborReader struct {
+// ErrNeighborTableNotRegistered is the answer of ReadNeighbors and
+// WatchNeighbors in a build where no component registered the neighbor table,
+// which is distinct from a table that is empty or a watch that saw no change.
+var ErrNeighborTableNotRegistered = errors.New("no neighbor table is registered: this build carries no interface component")
+
+var neighborTable struct {
 	sync.Mutex
-	read NeighborReader
+	read  NeighborReader
+	watch NeighborWatcher
 }
 
-// RegisterNeighborReader installs the one reader of the neighbor table. The
-// interface component calls it from its init(), so this package imports no
-// component. A second registration is a build defect.
-func RegisterNeighborReader(read NeighborReader) {
-	neighborReader.Lock()
-	defer neighborReader.Unlock()
-	if neighborReader.read != nil {
-		panic("BUG: neighbor table reader registered twice")
+// RegisterNeighborTable installs the one reader and the one watcher of the
+// neighbor table. The interface component calls it from its init(), so this
+// package imports no component. Both halves come from one owner because a read
+// is only as current as the watch that says when to read again. A second
+// registration, or a missing half, is a build defect.
+func RegisterNeighborTable(read NeighborReader, watch NeighborWatcher) {
+	if read == nil {
+		panic("BUG: neighbor table registered without a reader")
 	}
-	neighborReader.read = read
+	if watch == nil {
+		panic("BUG: neighbor table registered without a watcher")
+	}
+	neighborTable.Lock()
+	defer neighborTable.Unlock()
+	if neighborTable.read != nil {
+		panic("BUG: neighbor table registered twice")
+	}
+	neighborTable.read = read
+	neighborTable.watch = watch
 }
 
 // ReadNeighbors reads the IPv6 neighbor table through the registered reader.
 // It reads the kernel, so it belongs at a session or configuration boundary,
-// or on a neighbor event, never on a per-message path. Safe for concurrent use.
+// or on a watch signal, never on a per-message path. Safe for concurrent use.
 func ReadNeighbors() ([]Neighbor, error) {
-	neighborReader.Lock()
-	read := neighborReader.read
-	neighborReader.Unlock()
+	neighborTable.Lock()
+	read := neighborTable.read
+	neighborTable.Unlock()
 	if read == nil {
-		return nil, ErrNeighborReaderNotRegistered
+		return nil, ErrNeighborTableNotRegistered
 	}
 	return read()
+}
+
+// WatchNeighbors starts a watch of the IPv6 neighbor table through the
+// registered watcher; NeighborWatcher states the channel contract. Each call
+// is a watch of its own. Safe for concurrent use.
+func WatchNeighbors(ctx context.Context) (<-chan struct{}, error) {
+	neighborTable.Lock()
+	watch := neighborTable.watch
+	neighborTable.Unlock()
+	if watch == nil {
+		return nil, ErrNeighborTableNotRegistered
+	}
+	return watch(ctx)
 }
 
 // LinkLocalOutcome is the answer to "which Link-Local does the router holding

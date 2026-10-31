@@ -1127,15 +1127,13 @@ It then runs `send bgp * update text ... nhop <frr-sink's global>` through
 `ze cli` and requires FRR to decode frr-sink's global then frr-sink's
 link-local, and to install the route through that link-local. Ze's `ze.conf`
 sets no `link-local` leaf, so the second address can only come from Ze's
-neighbor table. It carries `interface { backend netlink }`, because BGP
-re-reads that table only on the netlink monitor's `(interface,
-neighbor-changed)` event and the monitor starts only with an interface
-backend configured; without it the table read when the session came up,
-before frr-sink resolved, stays the answer (journal
-`subscriber-waits-on-an-event-another-feature-produces.md`). The announce is resent each round of the 60 second wait,
-because the neighbor-changed event that refreshes Ze's table read can race the
-first send; a resend is an implicit replace, and a Ze that never adds the
-router's link-local fails every round.
+neighbor table. The config is BGP-only, with no `interface` block, so the
+scenario also proves that Ze follows the table when no interface monitor
+runs: frr-sink resolves after the session is up, and only the reactor's
+neighbor table watch makes Ze read the table again. The announce is resent
+each round of the 60 second wait, because the watch signal that refreshes
+Ze's table read can race the first send; a resend is an implicit replace, and
+a Ze that never adds the router's link-local fails every round.
 <!-- source: internal/le/interoplab/bgp/check_rfc2545_third_party.go -- checkRFC2545ThirdPartyLinkLocal, thirdPartyIdentity, resolveThirdParty -->
 <!-- source: internal/le/interoplab/bgp/check_rfc2545_third_party_predicate.go -- onlyLinkLocal, requireNeighborPair, parseContainerMAC -->
 

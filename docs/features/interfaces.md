@@ -1116,15 +1116,45 @@ A `ze doctor` check (`doctor-iface-macvlan`) probes kernel macvlan capability
 | `interface/dhcp-acquired` | DHCPv4 ACK | name, unit, address, prefix-length, router, dns, lease-time |
 | `interface/dhcp-renewed` | Renewal success | name, unit, address, prefix-length, router, dns, lease-time |
 | `interface/dhcp-expired` | Lease timeout | name, unit, address, prefix-length, router, dns, lease-time |
-| `interface/neighbor-changed` | An IPv6 neighbor entry (global or link-local) appears, goes away, changes its link-layer address, or crosses between resolved (reachable, stale, delay, probe, permanent) and unresolved. A flip inside one class emits nothing | name, address, link-address, resolved |
-
-BGP re-reads the neighbor table on `neighbor-changed`, so a next hop naming
-another router on a shared subnet carries that router's link-local (RFC 2545
-Section 3) in the advertisements made after the change.
 
 <!-- source: internal/core/iface/events/events.go -- interface event names -->
-<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- event payloads, noteNeighborChange -->
-<!-- source: internal/component/iface/iface.go -- NeighborEventPayload -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- event payloads -->
+
+Neighbor table changes are not a bus topic. These topics come from the
+interface monitor, which starts only when an `interface` block configures a
+backend, and BGP needs neighbor changes in every config. The interface
+component registers the neighbor table in `internal/core/network` as a reader
+and a watcher (`network.RegisterNeighborTable`). The BGP reactor starts the
+watch when it starts, so a next hop naming another router on a shared subnet
+carries that router's link-local (RFC 2545 Section 3) in the advertisements
+made after the router's entry changes, with or without an `interface` block.
+
+The watch loads the default backend when none is loaded, as the reader does.
+The netlink backend watches with its own netlink subscription to neighbor
+changes, which starts with a dump of the table, so an entry that existed
+before the watch started is known and its deletion signals. If the kernel
+flags that dump as interrupted, a deletion of an entry the watch never saw
+signals too. It signals only when an IPv6 entry (global or link-local) appears,
+goes away, changes its link-layer address, or crosses between resolved
+(reachable, stale, delay, probe, permanent) and unresolved. A flip inside one
+class signals nothing. Closing the backend, at a reload or at boot when the
+interface component loads its backend a second time, ends that backend's
+watch, and the interface component moves the watch to the backend that
+replaced it and signals once, so BGP reads the new table and logs nothing. A
+watch that ends any other way (its netlink subscription failed, or the backend
+was closed with none in its place) is reported to BGP, which logs that the
+table is not watched and starts the watch again after a delay that doubles
+from one second to one minute. The
+VPP backend refuses the watch, because it subscribes to no VPP neighbor event.
+While no watch runs, BGP logs a warning that names the reason, and a next hop
+sent without its router's link-local says that the table it read is not
+watched.
+
+<!-- source: internal/core/network/neighbors.go -- RegisterNeighborTable, NeighborWatcher, WatchNeighbors -->
+<!-- source: internal/component/iface/neighbor_table.go -- watchIPv6Neighbors, followNeighborWatch -->
+<!-- source: internal/plugins/iface/netlink/neighbor_watch_linux.go -- WatchNeighbors, neighborWatch.note -->
+<!-- source: internal/plugins/iface/vpp/neighbor.go -- WatchNeighbors -->
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- neighborWatchWorker -->
 
 Each RTM_NEWLINK also emits the current `up` or `down` state, including the first
 update that emits `created`. An interface can exist before the monitor starts,

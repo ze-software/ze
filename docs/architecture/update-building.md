@@ -305,12 +305,16 @@ prefix receives that router's own Link-Local, as the kernel neighbor table
 names it: the global's entry gives a link-layer address on a device, and the
 one resolved `fe80::/10` entry with the same pair is that router's Link-Local
 (`network.NewNeighborLinkLocals`). The interface component registers the table
-reader in `internal/core/network`, so BGP imports no interface code. The
-table is read when a session's snapshot is built, and again on an interface
-address event or an `(interface, neighbor-changed)` event, never per UPDATE.
+reader and its watcher in `internal/core/network`, so BGP imports no interface
+code. The table is read when a session's snapshot is built, and again on an
+interface address event or a signal from the neighbor table watch the reactor
+starts with itself (`neighborWatchWorker`), never per UPDATE. The watch needs
+no `interface` block, so a BGP-only config follows the table too.
 With no usable entry, two candidates, or no readable table, the field stays
-16 octets and a rate-limited warning names the next hop and the reason. The
-speaker's own Link-Local never substitutes for another router's.
+16 octets and a rate-limited warning names the next hop and the reason. When
+no watch runs, the warning says the table it read is not watched and names
+why, rather than blaming the next-hop router for an entry that appeared after
+the read. The speaker's own Link-Local never substitutes for another router's.
 VPN-IPv6 takes a narrower condition. RFC 4659 Section 3.2.1.1 includes the
 link-local "if and only if the advertising BGP speaker shares a common subnet
 with the peer the route is being advertised to", naming the peer alone, so Ze

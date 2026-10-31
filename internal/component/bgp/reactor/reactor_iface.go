@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"time"
 
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
@@ -44,24 +45,18 @@ type bgpListenerReadyPayload struct {
 // subscription that lived in reactor_bus.go. Must be called after
 // SetEventBus and before StartWithContext.
 //
-// The reactor acts on addr-added, addr-removed and neighbor-changed in the
-// (interface, *) namespace. Other events (created, up, down, dhcp-*,
-// rollback, router-*) have no BGP-side reaction.
+// The reactor acts on addr-added and addr-removed in the (interface, *)
+// namespace. Other events (created, up, down, dhcp-*, rollback, router-*) have
+// no BGP-side reaction. Neighbor table changes do not come from the bus: they
+// come from the neighbor table watch (startNeighborWatch), which runs whether
+// or not an interface monitor does.
 func (r *Reactor) subscribeInterfaceEvents() {
 	if r.eventBus == nil {
 		return
 	}
 	unsubAdded := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrAdded, events.AsString(r.onInterfaceAddrAdded))
 	unsubRemoved := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrRemoved, events.AsString(r.onInterfaceAddrRemoved))
-	// The neighbor handler only signals: the bus calls it on the netlink
-	// monitor's read loop, which must not wait for a table dump
-	// (docs/architecture/iface/management.md), so one worker does the read.
-	pending := make(chan struct{}, 1)
-	unsubNeighbor := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventNeighborChanged,
-		events.AsString(func(string) { signalNeighborChange(pending) }))
-	r.eventBusUnsubs = append(r.eventBusUnsubs, unsubAdded, unsubRemoved, unsubNeighbor)
-	ctx := r.ctx
-	r.wg.Go(func() { r.neighborChangeWorker(ctx, pending) })
+	r.eventBusUnsubs = append(r.eventBusUnsubs, unsubAdded, unsubRemoved)
 }
 
 // refreshPeerLinkScopesMu serializes refreshPeerLinkScopes across its two
@@ -70,36 +65,153 @@ func (r *Reactor) subscribeInterfaceEvents() {
 // test can see.
 var refreshPeerLinkScopesMu sync.Mutex
 
-// signalNeighborChange records that the neighbor table moved. The channel holds
-// ONE pending signal: a second event while one is pending is already covered,
-// because the worker re-reads the whole table rather than the entry an event
-// names. It never blocks the emitter.
-func signalNeighborChange(pending chan<- struct{}) {
-	select {
-	case pending <- struct{}{}:
-	default:
+// watchNeighborTable is the watch neighborWatchWorker starts. It is
+// network.WatchNeighbors; a test replaces it and restores it in t.Cleanup,
+// because the table registry is a one-shot slot filled by the interface
+// component's init().
+var watchNeighborTable = network.WatchNeighbors
+
+// neighborWatchRetryFirst and neighborWatchRetryMax bound how soon a watch
+// that could not start, or that ended under a live reactor, is started again.
+// The delay doubles from the first to the max, so a source that keeps failing
+// costs one start, one stopped state and one warning per delay. It resets to
+// the first only after a watch ran neighborWatchRetryMax: a watch that starts
+// and then ends at once is the failing source the doubling exists for.
+const (
+	neighborWatchRetryFirst = time.Second
+	neighborWatchRetryMax   = time.Minute
+)
+
+// waitNeighborWatch is the wait between two watch starts. It is
+// waitNeighborWatchRetry; a test replaces it to record the delays without
+// sleeping through them, and restores it in t.Cleanup.
+var waitNeighborWatch = waitNeighborWatchRetry
+
+// errNeighborWatchEnded is the state of a watch that closed its channel while
+// the reactor ran. The interface component's watch follows a replaced backend
+// itself (watchIPv6Neighbors), so a close is a watch that failed: its kernel
+// subscription ended, or the backend was closed with nothing in its place.
+// The worker starts a new one after a delay.
+var errNeighborWatchEnded = errors.New("the neighbor table watch ended; ze starts it again")
+
+// startNeighborWatch starts neighborWatchWorker on the reactor's wait group.
+// MUST be called after r.ctx is set, from StartWithContext.
+func (r *Reactor) startNeighborWatch() {
+	ctx := r.ctx
+	r.wg.Go(func() { r.neighborWatchWorker(ctx) })
+}
+
+// neighborWatchWorker is the long-lived worker that keeps every live peer's
+// neighbor view current. The Link-Local of a third-party next hop is derived
+// from two entries (its global and the Link-Local with the same link-layer
+// address), so each watch signal re-reads the table whole, once for every
+// peer (refreshPeerLinkScopes). The refresh skip compares whole tables, so a
+// change anywhere in the neighbor table rebuilds every live peer's snapshot
+// once.
+//
+// The worker owns each watch it starts: it ranges over the watch's channel
+// until the watch closes it, so no watch goroutine outlives the worker. A
+// replaced interface backend never closes the channel, because the watch
+// moves to the backend that replaced it. A watch that cannot start, or that
+// closes while ctx is live, is published as stopped and started again after a
+// delay that doubles up to neighborWatchRetryMax; the loop has no count bound
+// because the reactor needs the watch for as long as it runs, and it ends only
+// with ctx, the reactor's run context. Every state it reaches is published
+// (noteNeighborWatch), so a next hop sent without its router's Link-Local
+// says whether the table it was answered from is watched.
+//
+// RFC 2545 Section 3 binds the form of each advertisement made after the
+// change, as for an address event; it states no obligation to re-advertise a
+// route already sent, so none is triggered here.
+func (r *Reactor) neighborWatchWorker(ctx context.Context) {
+	// published is the last state this worker stored. A later StartWithContext
+	// starts a new worker: leave no state of this run behind for views built
+	// before that worker publishes its own, and never erase the state the new
+	// worker already published.
+	var published *neighborWatchState
+	defer func() { r.neighborWatch.CompareAndSwap(published, nil) }()
+	retry := neighborWatchRetryFirst
+	for {
+		changes, err := watchNeighborTable(ctx)
+		if err == nil {
+			started := time.Now()
+			// The table may have moved while no watch ran, so read it again
+			// before waiting for the first signal.
+			published, _ = r.noteNeighborWatch(neighborWatchState{status: neighborWatchRunning})
+			r.refreshPeerLinkScopes()
+			for range changes {
+				if ctx.Err() != nil {
+					continue // draining until the watch closes the channel
+				}
+				r.refreshPeerLinkScopes()
+			}
+			if ctx.Err() != nil {
+				return
+			}
+			// A watch that ran a long time failed once, and starts again
+			// from the shortest delay.
+			if time.Since(started) >= neighborWatchRetryMax {
+				retry = neighborWatchRetryFirst
+			}
+			err = errNeighborWatchEnded
+		}
+		var changed bool
+		published, changed = r.noteNeighborWatch(neighborWatchState{status: neighborWatchStopped, err: err})
+		if changed {
+			r.refreshPeerLinkScopes()
+		}
+		if !waitNeighborWatch(ctx, retry) {
+			return
+		}
+		retry = min(2*retry, neighborWatchRetryMax)
 	}
 }
 
-// neighborChangeWorker is the long-lived worker behind (interface,
-// neighbor-changed). The Link-Local of a third-party next hop is derived from
-// two entries (its global and the Link-Local with the same link-layer
-// address), so each signal re-reads the table whole, once for every peer
-// (refreshPeerLinkScopes). The refresh skip compares whole tables, so a change
-// anywhere in the neighbor table rebuilds every live peer's snapshot once. It stops when ctx, the reactor's run context, is cancelled.
-//
-// RFC 2545 Section 3 binds the form of each advertisement made after the
-// event, as for an address event; it states no obligation to re-advertise a
-// route already sent, so none is triggered here.
-func (r *Reactor) neighborChangeWorker(ctx context.Context, pending <-chan struct{}) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-pending:
-			r.refreshPeerLinkScopes()
-		}
+// waitNeighborWatchRetry waits delay, and reports false when ctx ended first.
+func waitNeighborWatchRetry(ctx context.Context, delay time.Duration) bool {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
 	}
+}
+
+// noteNeighborWatch publishes state, logs it when it differs from the state
+// before, and answers the stored pointer and whether the state changed. The
+// caller then refreshes every live peer so each view carries the new state: a
+// view built while the table was watched would otherwise go on claiming it
+// is. The worker keeps the pointer to clear only its own state when it ends.
+func (r *Reactor) noteNeighborWatch(state neighborWatchState) (*neighborWatchState, bool) {
+	previous := r.neighborWatchState()
+	stored := &state
+	r.neighborWatch.Store(stored)
+	if previous.equal(state) {
+		return stored, false
+	}
+	switch state.status {
+	case neighborWatchRunning:
+		reactorLogger().Info("watching the kernel neighbor table for RFC 2545 third-party link-local next hops")
+	case neighborWatchStopped:
+		reactorLogger().Warn("the kernel neighbor table is not watched: a change to a router's neighbor entry is not seen until the watch runs again",
+			"error", state.err, "fix", neighborWatchFix(state.err))
+	case neighborWatchNotStarted:
+		panic("BUG: the neighbor watch worker published the not-started state")
+	default:
+		panic("BUG: invalid neighbor watch status")
+	}
+	return stored, true
+}
+
+// neighborWatchState answers the state the worker last published, or
+// not started before it published one.
+func (r *Reactor) neighborWatchState() neighborWatchState {
+	if state := r.neighborWatch.Load(); state != nil {
+		return *state
+	}
+	return neighborWatchState{status: neighborWatchNotStarted}
 }
 
 // onInterfaceAddrAdded is the EventBus handler for (interface, addr-added).
@@ -142,7 +254,7 @@ func (r *Reactor) onInterfaceAddrRemoved(payload string) {
 // re-advertise a route already sent, so no re-advertisement is triggered here.
 //
 // It runs on the EventBus delivery goroutine for an address event and on
-// neighborChangeWorker for a neighbor event; refreshPeerLinkScopesMu serializes
+// neighborWatchWorker for a neighbor change; refreshPeerLinkScopesMu serializes
 // the two so an older read never stores after a newer one. It MUST NOT hold
 // reactor.mu while refreshing, so the peer list is copied under the read lock and
 // the lock is released before any peer is touched. The kernel is read once for
@@ -172,7 +284,7 @@ func (r *Reactor) refreshPeerLinkScopes() {
 	}
 	// RFC 2545 Section 3: another router's Link-Local comes from the neighbor
 	// table, read once for the fan-out like the interface table.
-	neighbors := readNeighborView()
+	neighbors := readNeighborView(r.neighborWatchState())
 	for _, peer := range peers {
 		peer.mu.RLock()
 		session := peer.session

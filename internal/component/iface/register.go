@@ -143,9 +143,11 @@ func GetEventBus() ze.EventBus {
 func init() {
 	health.Register("iface", checkHealth)
 
-	// RFC 2545 Section 3: BGP reads another router's Link-Local from this table
-	// through internal/core/network, never by importing this component.
-	network.RegisterNeighborReader(readIPv6Neighbors)
+	// RFC 2545 Section 3: BGP reads another router's Link-Local from this table,
+	// and hears when to read it again, through internal/core/network, never by
+	// importing this component. The watch needs no interface config, so it runs
+	// where this component's monitor does not.
+	network.RegisterNeighborTable(readIPv6Neighbors, watchIPv6Neighbors)
 
 	_ = events.RegisterNamespace(ifaceevents.Namespace,
 		ifaceevents.EventCreated, ifaceevents.EventUp, ifaceevents.EventDown,
@@ -153,7 +155,6 @@ func init() {
 		ifaceevents.EventDHCPAcquired, ifaceevents.EventDHCPRenewed,
 		ifaceevents.EventDHCPExpired, ifaceevents.EventRollback,
 		ifaceevents.EventRouterDiscovered, ifaceevents.EventRouterLost,
-		ifaceevents.EventNeighborChanged,
 	)
 
 	d := slogutil.DiscardLogger()

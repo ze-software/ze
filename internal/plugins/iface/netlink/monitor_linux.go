@@ -44,20 +44,10 @@ type monitor struct {
 	known        sync.Map // map[int]struct{} — known link indices
 	linkNames    sync.Map // map[int]string — index to name, updated by link events
 	knownRouters sync.Map // map[neighKey]struct{} — neighbors seen with NTF_ROUTER
-	// neighbors holds the last link-layer address and resolved class of every
-	// IPv6 neighbor, so neighbor-changed fires only on a change that can move
-	// the Link-Local BGP derives (noteNeighborChange). An entry leaves with its
-	// RTM_DELNEIGH, so the map is bounded by the kernel neighbor table.
-	neighbors sync.Map // map[neighKey]neighborSeen
 }
 
-// neighborSeen is what noteNeighborChange compares between two updates.
-type neighborSeen struct {
-	linkAddress string
-	resolved    bool
-}
-
-// neighKey identifies a neighbor entry for NTF_ROUTER tracking.
+// neighKey identifies a neighbor entry, for NTF_ROUTER tracking here and for
+// the neighbor watch (neighbor_watch_linux.go).
 type neighKey struct {
 	linkIndex int
 	ip        string
@@ -363,9 +353,6 @@ func (m *monitor) handleNeighUpdate(nu netlink.NeighUpdate) {
 	if nu.IP == nil || nu.IP.To4() != nil {
 		return // only IPv6 neighbors
 	}
-	// Before the Link-Local filter: BGP pairs a GLOBAL neighbor with the
-	// Link-Local that shares its link-layer address, so both kinds count.
-	m.noteNeighborChange(nu)
 	if !nu.IP.IsLinkLocalUnicast() {
 		return // only link-local (fe80::) routers are default route gateways
 	}
@@ -412,58 +399,6 @@ func (m *monitor) handleNeighUpdate(nu netlink.NeighUpdate) {
 			})
 		}
 	}
-}
-
-// noteNeighborChange emits (interface, neighbor-changed) when an IPv6 neighbor
-// entry appears, goes away, changes its link-layer address, or crosses between
-// a resolved and an unresolved state (iface.NeighborStateResolved). A flip
-// inside one class, REACHABLE to STALE for instance, emits nothing, so the bus
-// does not carry one event per reachability transition of every neighbor.
-//
-// BGP re-reads the neighbor table on this event to keep RFC 2545 Section 3's
-// third-party Link-Local current.
-func (m *monitor) noteNeighborChange(nu netlink.NeighUpdate) {
-	nk := neighKey{linkIndex: nu.LinkIndex, ip: nu.IP.String()}
-	if nu.Type == unix.RTM_DELNEIGH {
-		// Forget the entry before the name lookup: a link deletion read first
-		// has already dropped the name, and the entry must still leave.
-		_, known := m.neighbors.LoadAndDelete(nk)
-		ifaceName, named := m.linkName(nu.LinkIndex)
-		if known && named {
-			m.emit(ifaceevents.EventNeighborChanged, iface.NeighborEventPayload{
-				Name:    ifaceName,
-				Address: nu.IP.String(),
-			})
-		}
-		return
-	}
-	ifaceName, named := m.linkName(nu.LinkIndex)
-	if !named {
-		return
-	}
-	seen := neighborSeen{resolved: iface.NeighborStateResolved(neighStateString(nu.State))}
-	if len(nu.HardwareAddr) > 0 {
-		seen.linkAddress = nu.HardwareAddr.String()
-	}
-	if previous, known := m.neighbors.Swap(nk, seen); known && previous == seen {
-		return
-	}
-	m.emit(ifaceevents.EventNeighborChanged, iface.NeighborEventPayload{
-		Name:        ifaceName,
-		Address:     nu.IP.String(),
-		LinkAddress: seen.linkAddress,
-		Resolved:    seen.resolved,
-	})
-}
-
-// linkName answers the interface name the link events recorded for index.
-func (m *monitor) linkName(index int) (string, bool) {
-	nameVal, ok := m.linkNames.Load(index)
-	if !ok {
-		return "", false
-	}
-	name, isStr := nameVal.(string)
-	return name, isStr
 }
 
 // emit marshals the payload and emits it on the interface namespace.

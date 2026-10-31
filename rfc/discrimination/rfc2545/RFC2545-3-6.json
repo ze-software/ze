@@ -1,17 +1,6 @@
 [
   {
     "rid": "RFC2545-3-6",
-    "polarity": "positive",
-    "unit": "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce",
-    "unit-sha": "88400bfac7bd928a",
-    "claim-sha": "c137288f01b55e50",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
-    "producer-sha": "51f87184ee1d05d7",
-    "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC2545-3-6",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce",
     "unit-sha": "88400bfac7bd928a",
@@ -24,12 +13,12 @@
   {
     "rid": "RFC2545-3-6",
     "polarity": "positive",
-    "unit": "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalForward",
-    "unit-sha": "7df16265974ad4d2",
-    "claim-sha": "1856b20b6976bfec",
+    "unit": "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce",
+    "unit-sha": "88400bfac7bd928a",
+    "claim-sha": "c137288f01b55e50",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
-    "producer-sha": "51f87184ee1d05d7",
+    "producer-sha": "5c996c319b02bb8e",
     "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -46,12 +35,23 @@
   {
     "rid": "RFC2545-3-6",
     "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalForward",
+    "unit-sha": "7df16265974ad4d2",
+    "claim-sha": "1856b20b6976bfec",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
+    "producer-sha": "5c996c319b02bb8e",
+    "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2545-3-6",
+    "polarity": "positive",
     "unit": "internal/le/interoplab/bgp/check_rfc2545_third_party.go::checkRFC2545ThirdPartyLinkLocal",
     "unit-sha": "ddbb2f9355e3a95a",
     "claim-sha": "a8aeda65593ab613",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
-    "producer-sha": "51f87184ee1d05d7",
+    "producer-sha": "5c996c319b02bb8e",
     "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "4"
   }

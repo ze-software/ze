@@ -205,7 +205,7 @@ func TestRFC2545ThirdPartyLinkLocalMisses(t *testing.T) {
 		{name: "no-candidate-on-device", view: noCandidate},
 		{name: "ambiguous", view: ambiguous},
 		{name: "no-backend", view: neighborView{err: errors.New("no interface backend is loaded")}},
-		{name: "no-reader", view: neighborView{err: network.ErrNeighborReaderNotRegistered}},
+		{name: "no-reader", view: neighborView{err: network.ErrNeighborTableNotRegistered}},
 		{name: "not-read", view: neighborView{}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -239,21 +239,19 @@ func TestRFC2545ThirdPartyLinkLocalScope(t *testing.T) {
 	assert.Equal(t, linkLocalConditionPeer, linkLocalConditionFor(family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}))
 }
 
-// TestRFC2545NeighbourChangeRefreshes proves a neighbor-changed signal re-reads
-// the neighbor table and moves a live peer's answer for a third-party next hop,
-// and that a signal over an unchanged table keeps the peer's snapshot. The
-// event payload is not read: the pairing spans two entries, so the worker
-// re-reads the table whole (neighborChangeWorker).
+// TestRFC2545NeighbourChangeRefreshes proves a neighbor table watch signal
+// re-reads the neighbor table and moves a live peer's answer for a third-party
+// next hop, and that a refresh over an unchanged table keeps the peer's
+// snapshot. The signal names no entry: the pairing spans two entries, so the
+// worker re-reads the table whole (neighborWatchWorker).
 //
 // MUTATION: drop the neighbor comparison from the refresh skip in
 // refreshPeerLinkScopes (the learned Link-Local never reaches the peer).
 func TestRFC2545NeighbourChangeRefreshes(t *testing.T) {
-	table := []network.Neighbor{
+	table := &fakeNeighborTable{entries: []network.Neighbor{
 		{Address: netip.MustParseAddr(thirdPartyGlobal), LinkAddress: thirdPartyMAC, Device: thirdPartyDevice, Binding: network.NeighborBindingValid},
-	}
-	saved := readNeighborTable
-	readNeighborTable = func() ([]network.Neighbor, error) { return table, nil }
-	t.Cleanup(func() { readNeighborTable = saved })
+	}}
+	table.install(t)
 
 	r := newIfaceTestReactor(t)
 	s := NewPeerSettings(netip.MustParseAddr("2001:db8:1::2"), 65000, 65001, 0x01010101)
@@ -268,7 +266,7 @@ func TestRFC2545NeighbourChangeRefreshes(t *testing.T) {
 	for i, address := range addresses {
 		hostTable[i] = address.Masked()
 	}
-	peer.refreshLinkScopeWith(hostTable, readNeighborView())
+	peer.refreshLinkScopeWith(hostTable, readNeighborView(r.neighborWatchState()))
 	peer.fwdFacts.Store(peer.buildForwardFacts())
 
 	// The answer is probed against 2001:db8:1::/64, which the host does not
@@ -284,21 +282,24 @@ func TestRFC2545NeighbourChangeRefreshes(t *testing.T) {
 	// The worker runs on its own goroutine; each signal is driven through it
 	// and waited for by the refresh it causes, never by a sleep.
 	ctx, cancel := context.WithCancel(context.Background())
-	pending := make(chan struct{}, 1)
 	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		r.neighborChangeWorker(ctx, pending)
-	}()
+	go runNeighborWatchWorker(ctx, r, done)
 	// Registered after the table restore, so it runs first: the worker has
 	// exited before readNeighborTable is put back.
 	t.Cleanup(func() {
 		cancel()
 		<-done
 	})
+	// The worker re-reads the table once when its watch starts. Wait for that
+	// read to reach the peer before the table changes, so only the signal
+	// below can carry the change.
+	require.Eventually(t, func() bool {
+		return peer.llScope.Load().neighbors.watch.status == neighborWatchRunning
+	}, 5*time.Second, time.Millisecond, "the started watch re-read the table")
+	require.False(t, answer().IsValid(), "the start read still names no Link-Local")
 
-	table = append(table, network.Neighbor{Address: netip.MustParseAddr(thirdPartyLinkLocal), LinkAddress: thirdPartyMAC, Device: thirdPartyDevice, Binding: network.NeighborBindingValid})
-	signalNeighborChange(pending)
+	table.add(network.Neighbor{Address: netip.MustParseAddr(thirdPartyLinkLocal), LinkAddress: thirdPartyMAC, Device: thirdPartyDevice, Binding: network.NeighborBindingValid})
+	table.latest().changes <- struct{}{}
 	require.Eventually(t, func() bool { return answer().IsValid() }, 5*time.Second, time.Millisecond, "the signal re-read the table")
 	assert.Equal(t, netip.MustParseAddr(thirdPartyLinkLocal), answer())
 
@@ -307,15 +308,4 @@ func TestRFC2545NeighbourChangeRefreshes(t *testing.T) {
 	before := peer.forwardFacts()
 	r.refreshPeerLinkScopes()
 	assert.Same(t, before, peer.forwardFacts(), "an unchanged table does not rebuild the peer")
-}
-
-// TestSignalNeighborChangeNeverBlocks proves the bus-side handler coalesces:
-// a burst of events while one signal is pending leaves exactly one pending
-// and never blocks the netlink monitor's read loop that delivers them.
-func TestSignalNeighborChangeNeverBlocks(t *testing.T) {
-	pending := make(chan struct{}, 1)
-	for range 100 {
-		signalNeighborChange(pending)
-	}
-	assert.Len(t, pending, 1)
 }

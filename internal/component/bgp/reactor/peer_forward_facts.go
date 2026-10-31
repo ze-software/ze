@@ -354,7 +354,7 @@ func rsRelayProcessName(bindings []ProcessBinding) string {
 // clearEncodingContexts stores nil on teardown (peer.go), and a plain store racing
 // it would resurrect the snapshot for a session that has gone.
 func (p *Peer) refreshForwardFactsIfLive() {
-	p.refreshForwardFactsIfLiveFrom(network.ConnectedPrefixes(), readNeighborView())
+	p.refreshForwardFactsIfLiveFrom(network.ConnectedPrefixes(), readNeighborView(p.neighborWatchState()))
 }
 
 // refreshForwardFactsIfLiveFrom is refreshForwardFactsIfLive against interface

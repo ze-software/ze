@@ -388,6 +388,12 @@ type Reactor struct {
 	eventBusUnsubs  []func()              // Active EventBus unsubscribe funcs (populated by SubscribeInterfaceEvents)
 	processSpawner  plugin.ProcessSpawner // PluginManager for process lifecycle (nil = Server self-manages)
 
+	// neighborWatch is the state of the kernel neighbor table watch
+	// neighborWatchWorker runs (reactor_iface.go). Nil until the worker
+	// publishes its first state, which neighborWatchState reports as
+	// not started rather than as running.
+	neighborWatch atomic.Pointer[neighborWatchState]
+
 	// Peer filter chains: collected from plugin registry at startup.
 	// Egress: the in-process egress filter funcs, still consumed directly by the
 	// RS fast path (forward_rs.go) and the forwardFacts/build sites.
@@ -1340,6 +1346,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// active when events arrive.
 	r.subscribeInterfaceEvents()
 	r.subscribeDaemonSignals()
+	// The neighbor table watch needs no event bus and no interface config:
+	// RFC 2545 Section 3's third-party Link-Local must follow the table in a
+	// BGP-only config, where no interface monitor runs.
+	r.startNeighborWatch()
 
 	// Start global listener if ListenAddr is configured.
 	if r.config.ListenAddr != "" {

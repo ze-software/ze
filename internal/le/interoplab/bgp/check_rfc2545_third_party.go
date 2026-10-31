@@ -67,7 +67,7 @@ func checkRFC2545ThirdPartyLinkLocal(ctx context.Context, check *interoplab.Chec
 
 	// Assertion 4. Ze announces a route through frr-sink's global, and FRR
 	// decodes frr-sink's global then frr-sink's link-local. The announce is
-	// repeated each round: the neighbor-changed event that refreshes Ze's
+	// repeated each round: the neighbor table watch signal that refreshes Ze's
 	// table read races the first send, and a resend is an implicit replace.
 	// A Ze that never adds the third party's link-local fails every round.
 	var announce textbuf.Buffer

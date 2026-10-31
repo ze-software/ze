@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"errors"
 	"net/netip"
 	"testing"
@@ -102,20 +103,24 @@ func TestNeighborLinkLocalsEqual(t *testing.T) {
 	}
 }
 
-// TestReadNeighborsUnregistered proves a build with no reader says so rather
-// than answering an empty table.
-func TestReadNeighborsUnregistered(t *testing.T) {
-	neighborReader.Lock()
-	saved := neighborReader.read
-	neighborReader.read = nil
-	neighborReader.Unlock()
+// TestNeighborTableUnregistered proves a build with no neighbor table says so
+// rather than answering an empty table, or a watch that never signals.
+func TestNeighborTableUnregistered(t *testing.T) {
+	neighborTable.Lock()
+	savedRead, savedWatch := neighborTable.read, neighborTable.watch
+	neighborTable.read, neighborTable.watch = nil, nil
+	neighborTable.Unlock()
 	t.Cleanup(func() {
-		neighborReader.Lock()
-		neighborReader.read = saved
-		neighborReader.Unlock()
+		neighborTable.Lock()
+		neighborTable.read, neighborTable.watch = savedRead, savedWatch
+		neighborTable.Unlock()
 	})
 	entries, err := ReadNeighbors()
-	if !errors.Is(err, ErrNeighborReaderNotRegistered) || entries != nil {
-		t.Fatalf("got %v, %v; want nil and ErrNeighborReaderNotRegistered", entries, err)
+	if !errors.Is(err, ErrNeighborTableNotRegistered) || entries != nil {
+		t.Fatalf("read: got %v, %v; want nil and ErrNeighborTableNotRegistered", entries, err)
+	}
+	changes, err := WatchNeighbors(context.Background())
+	if !errors.Is(err, ErrNeighborTableNotRegistered) || changes != nil {
+		t.Fatalf("watch: got %v, %v; want nil and ErrNeighborTableNotRegistered", changes, err)
 	}
 }

@@ -73,9 +73,11 @@ type linkScope struct {
 // peer half of the Section 3 condition for peerAddr.
 //
 // It reads the kernel, so it runs at session establishment and at a config
-// reload, never per UPDATE.
+// reload, never per UPDATE. It has no reactor to ask, so its neighbor view
+// says no watch was started; a peer builds its scope with the reactor's watch
+// state instead (refreshLinkScope).
 func newLinkScope(peerAddr netip.Addr) *linkScope {
-	return newLinkScopeWith(network.ConnectedPrefixes(), readNeighborView(), peerAddr)
+	return newLinkScopeWith(network.ConnectedPrefixes(), readNeighborView(neighborWatchState{}), peerAddr)
 }
 
 // newLinkScopeWith settles the peer half against interface and neighbor tables
@@ -246,7 +248,7 @@ func (ls *linkScope) thirdPartyLinkLocal(global netip.Addr) netip.Addr {
 		return linkLocal
 	case network.LinkLocalNoGlobalEntry, network.LinkLocalGlobalUnbound,
 		network.LinkLocalNoCandidate, network.LinkLocalAmbiguous:
-		warnThirdPartyLinkLocalUnknown(ls.peer, global, outcome)
+		warnThirdPartyLinkLocalUnknown(ls.peer, global, outcome, ls.neighbors.watch)
 		return netip.Addr{}
 	case network.LinkLocalOutcomeUnspecified:
 		panic("BUG: neighbor table lookup answered no outcome")
@@ -314,17 +316,27 @@ func applyLinkLocalNextHop(s *PeerSettings, f *peerForwardFacts, scope *linkScop
 // an interface comes up answers Section 3 against the table as it stands then,
 // rather than against the one that existed when the config was loaded.
 func (p *Peer) refreshLinkScope() {
-	p.refreshLinkScopeWith(network.ConnectedPrefixes(), readNeighborView())
+	p.refreshLinkScopeWith(network.ConnectedPrefixes(), readNeighborView(p.neighborWatchState()))
+}
+
+// neighborWatchState answers the state of the neighbor table watch of this
+// peer's reactor, or not started for a peer built outside one (tests).
+func (p *Peer) neighborWatchState() neighborWatchState {
+	if p.reactor == nil {
+		return neighborWatchState{}
+	}
+	return p.reactor.neighborWatchState()
 }
 
 // refreshLinkScopeWith re-settles this peer's snapshot against interface and
 // neighbor tables the caller has already read.
 //
 // The reactor refreshes every established peer when one address is added to or
-// removed from ANY interface, or a neighbor entry changes
-// (refreshPeerLinkScopes, reactor_iface.go), on the event-bus goroutine that
-// delivers the event. Sharing one read of each table across that fan-out costs
-// one syscall each instead of one per peer.
+// removed from ANY interface, on the event-bus goroutine that delivers the
+// event, and when the neighbor table watch signals a change, on
+// neighborWatchWorker (refreshPeerLinkScopes, reactor_iface.go). Sharing one
+// read of each table across that fan-out costs one syscall each instead of one
+// per peer.
 func (p *Peer) refreshLinkScopeWith(connected []netip.Prefix, neighbors neighborView) {
 	p.llScope.Store(newLinkScopeWith(connected, neighbors, p.settings.Address))
 }
