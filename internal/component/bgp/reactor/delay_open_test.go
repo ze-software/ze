@@ -277,8 +277,14 @@ func TestRFC4271DelayOpenBothSidesHold(t *testing.T) {
 				t.Fatal("third connection rejection did not finish")
 			}
 			delayOpenWrite(t, pending, delayOpenRemote(id))
+			// The dump can close the session's end before this line runs, and
+			// net.Pipe then refuses a deadline with io.ErrClosedPipe. That close
+			// is the outcome checked below, and the read still proves it: a
+			// remote close reads EOF at once, anything else fails the check.
 			if err := far.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
-				t.Fatal(err)
+				if !errors.Is(err, io.ErrClosedPipe) {
+					t.Fatal(err)
+				}
 			}
 			var octet [1]byte
 			n, err := far.Read(octet[:])
