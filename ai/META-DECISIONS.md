@@ -283,7 +283,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   readers are invited to report what is wrong. It says why the website has
   more mistakes than the code: whilst an RFC defines behaviour clearly and
   strictly enough for tests to check it, the same can not be said of the
-  website's free text.
+  website's free text. It also says that most of the site's information is
+  generated from the code, so the data reflects the software's real state.
 - Website screenshots use WebP, alongside lightweight terminal-event playback
   for application demonstrations. Encoded video assets are not published on the
   website or stored in the repository, and CI/CD does not generate videos.
