@@ -293,9 +293,9 @@ registrations it already carries.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `ospfv3-redist-frr` | `test/interop/scenarios/` | FRR + GoBGP | AC-1: a BGP prefix reaches FRR as an OSPFv3 AS-External in a normal area | GREEN at `137c2dcfcf`, walked (Goal Validation) |
-| `ospfv3-nssa-redist-frr` | `test/interop/scenarios/` | FRR + GoBGP | AC-2: the same prefix reaches FRR as a Type-7 in an NSSA | GREEN at `137c2dcfcf`, walked (Goal Validation) |
-| `isis-redist-frr` | `test/interop/scenarios/` | FRR + GoBGP | AC-3: a static prefix reaches FRR through IS-IS | PENDING: the scenario is being rebuilt (`d5721a2b78`, `f17bea8930`); its result is recorded here once the rebuilt image runs |
+| `ospfv3-redist-frr` | `test/interop/scenarios/` | FRR + GoBGP | AC-1: a BGP prefix reaches FRR as an OSPFv3 AS-External in a normal area | GREEN at `137c2dcfcf`, walked: red at assertion 4 with FRR answering an empty table (`e53efda478`), green restored (Goal Validation) |
+| `ospfv3-nssa-redist-frr` | `test/interop/scenarios/` | FRR + GoBGP | AC-2: the same prefix reaches FRR as a Type-7 in an NSSA | GREEN at `137c2dcfcf`, walked: red at assertion 4 with FRR answering an empty table (`e53efda478`), green restored (Goal Validation) |
+| `isis-redist-frr` | `test/interop/scenarios/` | FRR + GoBGP | AC-3: a static prefix reaches FRR through IS-IS | GREEN at `d5721a2b78`, walked: red at assertion 2 (consumer skips `SetRedistPrefix` for static) and at assertion 4 (`OnSPFChange` stops calling `emitDelta`), green after each restore (Goal Validation) |
 
 The forced-RED walk (`ai/rules/interop-and-goal-validation.md`) runs each
 scenario green, breaks the producer it proves inside the rebuilt image, confirms
@@ -486,14 +486,15 @@ its `rfc/short/` rows are untouched.
 
 ### Goal Validation
 
-**Measured 2026-10-31 at `137c2dcfcf`, on the `claude` host.** Logs:
-`tmp/session/2026-10-29-b253ee28-af02-45d1-a862-79a55bdba37c/scratch/remote5/`.
+**Measured 2026-10-31 on the `claude` host**, at `137c2dcfcf` (`remote5/`),
+`d5721a2b78` (`remote6/`) and `e53efda478` (`remote7/`). Logs under
+`tmp/session/2026-10-29-b253ee28-af02-45d1-a862-79a55bdba37c/scratch/`.
 
 | Goal | AC | Evidence | Status |
 |------|----|----------|--------|
-| A BGP prefix reaches a neighbor as an OSPFv3 AS-External in a normal area | AC-1 | `ospfv3-redist-frr`: green (`ospfv3-redist-frr.log`); red with `canType5` disabled in the image, at assertion 4, the wait on FRR's `show ipv6 route ospf6` (`ospfv3-redist-frr-red.log`); green after restore (`ospfv3-redist-frr-restored.log`) | GREEN and walked; the red's cause is unconfirmed (below) |
-| The same prefix reaches a neighbor as a Type-7 in an NSSA | AC-2 | `ospfv3-nssa-redist-frr`: green (`ospfv3-nssa-redist-frr.log`); red with `v6OriginateNSSALSA` disabled, at assertion 4, the same FRR query (`ospfv3-nssa-redist-frr-red.log`); green after restore (`ospfv3-nssa-redist-frr-restored.log`) | GREEN and walked; the red's cause is unconfirmed (below) |
-| A static prefix reaches a neighbor through IS-IS | AC-3 | `isis-redist-frr`, after the scenario fix (`d5721a2b78`) and the IS-IS fix (`f17bea8930`) | PENDING: the scenario image is being rebuilt; the run and its walk are owed |
+| A BGP prefix reaches a neighbor as an OSPFv3 AS-External in a normal area | AC-1 | `ospfv3-redist-frr`: green (`remote5/ospfv3-redist-frr.log`). Confirmed red at `e53efda478` (`remote7/`), `canType5` disabled in the image: assertion 4 timed out with FRR answering, `last output: (the peer printed nothing)` (`ospfv3-redist-frr-red.log`). FRR captured during that red, 25s after Full (`ospfv3-redist-frr-red-frr-capture.txt`): `show ipv6 ospf6 neighbor` Full/PointToPoint in 0.12s; `show ipv6 route ospf6` exit 0 in 0.11s, 0 bytes; `show ipv6 route ospf6 json` printed `{}`; `show ipv6 ospf6 database` answered in 0.12s with an empty AS Scoped database (no Type-5); GoBGP held `2001:db8:5e5::/48`. Green after restore (`ospfv3-redist-frr-restored.log`, 1m37s) | PROVEN |
+| The same prefix reaches a neighbor as a Type-7 in an NSSA | AC-2 | `ospfv3-nssa-redist-frr`: green (`remote5/ospfv3-nssa-redist-frr.log`). Confirmed red at `e53efda478` (`remote7/`), `v6OriginateNSSALSA` disabled: assertion 4 timed out with FRR answering, `last output: (the peer printed nothing)` (`ospfv3-nssa-redist-frr-red.log`). FRR captured during that red (`ospfv3-nssa-redist-frr-red-frr-capture.txt`): neighbor Full in 0.15s; `show ipv6 route ospf6` exit 0 in 0.12s, 0 bytes; json `{}`; the area 0.0.0.2 database held only Router, Intra-Area-Prefix and Link LSAs, no NSSA LSA for `2001:db8:7e5::/48`; GoBGP held the prefix. Green after restore (`ospfv3-nssa-redist-frr-restored.log`, 1m24s) | PROVEN |
+| A static prefix reaches a neighbor through IS-IS | AC-3 | `isis-redist-frr` at `d5721a2b78` (after the IS-IS fix `f17bea8930`), on `claude`, logs in `scratch/remote6/`: green (`ze-isisredist-green.log`, 1m57s). Red A, the IS-IS consumer's `InjectRoute` skipping `SetRedistPrefix` for `static`: assertion 2, the wait on FRR's IPv4 route table timed out with FRR answering, its table printed without the prefix (`ze-isisredist-redA.log`); green restored (`ze-isisredist-restoredA.log`). Red B, `Source.OnSPFChange` no longer calling `emitDelta`: assertion 4, GoBGP's IPv4 RIB answered `Network not in table` (`ze-isisredist-redB.log`); green restored (`ze-isisredist-restoredB.log`) | PROVEN |
 | An explicit narrower grant is kept, and the disagreement reported | AC-4 | `test/plugin/redistribute-explicit-attach-kept.ci`, in "redistribute: prove a narrower operator Loc-RIB grant is kept, reported" (`d58224423a`). The reporter is `reconcileDelivery` (`internal/component/plugin/server/delivery_reconcile.go`), reason `reasonUngranted`. Red with the ungranted finding suppressed, green restored. Unit: `TestExplicitBindingWins`, `TestOperatorOrchestratorBindingWins` | PROVEN |
 | An unknown source or destination refuses the load | AC-5 | Source: `TestUnknownRedistributeSourceRefusesLoad`, `test/plugin/redistribute-unknown-source-refused.ci`. Destination: "redistribute: refuse a destination no protocol declares" (`82c2cb97a7`), `test/parse/redistribute-undeclared-destination-refused.ci`, red with the refusal removed (`seq 1: expected exit code 1, got 0`) | PROVEN |
 | The per-UPDATE cost of a daemon with no redistribution is unchanged | AC-6 | `TestNoRedistributeNoBinding`, `TestNonBGPRedistributeSourceAddsNoBinding`: no binding is derived without a rule | Unit PROVEN. The perf half is owed to Thomas, on his Mac: `./le perf run dut ze` in a checkout at `1ec5b741f8^` and again at HEAD, then `./le perf compare` over the two result files |
@@ -506,17 +507,41 @@ its `rfc/short/` rows are untouched.
 | 2026-09-19 diagnosis boundary (source read only) | Superseded by the walk above: `v6OriginateNSSALSA` (`internal/plugins/ospf/origination_v6_nssa.go`) is the producer AC-2's scenario proves, and no missing prerequisite exists, so `Depends` stays empty |
 | Blast-radius `.ci` walk | With the retired filter restored, both blast-radius tests fail with `the peer announced 10.0.0.0/24 and the Adj-RIB-In never held it`, and pass with it gone. Unchanged |
 
-**The two OSPFv3 reds do not yet show which way they went red.** Both read, at
-assertion 4: `wait for frr output never measured peer state: peer frr query
-returned no output; the final probe ... vtysh -c show ipv6 route ospf6 did not
-finish within 30s (exit 124)`. "Never measured" means no FRR answer was read at
-all, so the log alone cannot tell "the prefix is absent" from "FRR's vtysh
-stopped answering" (the vacuity trap of a red the break did not cause,
-`docs/architecture/testing/interop.md`). The greens before and after pass the
-same assertion, so the break is the likely cause, but AC-1 and AC-2 count as
-proven only once one red run shows FRR answering without the prefix. Owed: rerun
-each break and capture `show ipv6 route ospf6` (or `show ipv6 ospf6 database`)
-from FRR before the wait ends.
+**The two OSPFv3 reds went red with the prefix absent, not with FRR hung.** The
+`remote5/` reds read `never measured peer state: peer frr query returned no
+output; the final probe, cut short by the wait's end: ... did not finish within
+30s`. The harness caused that wording: `Lab.Query` refused a vtysh that exited 0
+and printed nothing, and FRR prints nothing for an empty `show ipv6 route
+ospf6`, so every finished probe counted as unmeasured and only the last one,
+killed at the deadline, was named. `405f7063ec` makes the positive waits read a
+finished empty answer as measured (`EmptyAnswerError`, `queryAnswered`; test
+`TestPositiveWaitReadsAFinishedEmptyAnswerAsMeasured`, red with the change
+disabled through an overlay). The `remote7/` reds above show the new wording
+beside FRR's captured answers.
+
+**The connected tests in the QEMU guest (runtime kernel 7.3, `claude`).** At
+`e53efda478`, which carries `02517b544b` (the connected `redistributable`
+filter in `emitID`), `connected-distance-arbitration.ci` and
+`fsm-connected-events.ci` pass. `connected-distance-raised-loses.ci` fails twice
+the same way (`remote7/ze-redist2-q-connected.log`, `-connected2.log`), and fails
+the same way again at `02517b544b^` (`d3b9218a44`): fib-kernel logs `add route
+failed prefix=10.9.0.0/24 error="network is unreachable"`, so the observer finds
+no proto 250 route. The cause is the fixture, not this spec: the injected BGP
+next hop 198.51.100.1 is on no connected subnet, so the kernel refuses the
+route. `emitID` only feeds redistribution and never reaches fib-kernel. Journal
+row in `plan/journal/fixture-encodes-an-impossible-state.md` (`8387f14795`),
+owned by `plan/release/validation/spec-fib-depth.md`.
+
+**`./le test stress-repro` now runs a fakeredist test (`ff2d2e527c`).** At
+`e53efda478` on `claude`, `suite plugin test bgp-redistribute-burst`, 8 burners,
+`parallel 1`, `timeout 400`: 3 of 3 invocations pass, the peer-exchange and
+json-match steps included (`remote7/plugin-bgp-redistribute-burst-20261031-064902.log`).
+The test's config declares `internal fakeredist`, which a daemon built without
+the test-only plugins refuses at load, so a pass shows the daemon carried it.
+The first run (`...-062541.log`) used the default 120s deadline and was cut at
+120s; its log holds only the progress ticker, and on this host one invocation
+took about three minutes from clock start to clock start, so that cut was the
+deadline, not a failure of the test.
 
 ### TDD
 - [ ] Tests written
