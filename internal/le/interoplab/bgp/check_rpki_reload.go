@@ -80,7 +80,7 @@ func checkRPKIPolicyReload(ctx context.Context, check *interoplab.CheckContext) 
 	}, func(probeCtx context.Context) (rpkiReloadSource, error) {
 		return readRPKIReloadSource(probeCtx, check)
 	}, func(state rpkiReloadSource) bool {
-		return state.Counters["updates-received"] > 0 && state.Counters["eor-received"] > 0
+		return state.Counters[zeFieldUpdatesReceived] > 0 && state.Counters["eor-received"] > 0
 	})
 	if err != nil {
 		return err
@@ -329,7 +329,7 @@ func readRPKIReloadSource(ctx context.Context, check *interoplab.CheckContext) (
 		return result, fmt.Errorf("FRR source is not established: %v", peer)
 	}
 	result.Counters = make(map[string]int64, 8)
-	for _, key := range []string{"updates-received", "eor-received", zeFieldConnectionsEstablished, zeFieldConnectionsDropped} {
+	for _, key := range []string{zeFieldUpdatesReceived, "eor-received", zeFieldConnectionsEstablished, zeFieldConnectionsDropped} {
 		value, ok := number(peer[key])
 		if !ok || value < 0 {
 			return result, fmt.Errorf("FRR source has no %s counter", key)

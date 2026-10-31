@@ -409,10 +409,12 @@ const vpnSameAFIUnicastPrefix = "10.97.0.0/24"
 
 // The session counters in Ze's peer detail answer. A session that was reset
 // and re-established leaves connections-established above one and
-// connections-dropped above zero.
+// connections-dropped above zero. updates-received counts the UPDATEs the
+// session took in.
 const (
 	zeFieldConnectionsEstablished = "connections-established"
 	zeFieldConnectionsDropped     = "connections-dropped"
+	zeFieldUpdatesReceived        = "updates-received"
 )
 
 // The two prefixes bgp-path-asn-leak-frr sends on one FRR session. They differ

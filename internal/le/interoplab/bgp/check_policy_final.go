@@ -42,7 +42,7 @@ func checkPolicyFinalFRR(ctx context.Context, check *interoplab.CheckContext) er
 	// Neither reconciliation phase may solicit another source announcement.
 	sourceUnchanged := operation{kind: opRequireJSONFields, peer: "ze",
 		command: zeCommand("show bgp peer 172.30.0.9 detail"),
-		fields:  map[string]string{zeFieldConnectionsEstablished: "1", zeFieldConnectionsDropped: "0", "updates-received": "2"}}
+		fields:  map[string]string{zeFieldConnectionsEstablished: "1", zeFieldConnectionsDropped: "0", zeFieldUpdatesReceived: "2"}}
 	destinationUnchanged := operation{kind: opRequireJSONFields, peer: peerFRR,
 		command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON},
 		fields:  map[string]string{"connectionsEstablished": "1", "connectionsDropped": "0", frrSessionStateKey: stateEstablished}}
