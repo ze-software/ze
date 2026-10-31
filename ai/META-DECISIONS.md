@@ -332,6 +332,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   The spec moves to ready and is implemented, and any choice only he can make
   waits in a table for his return.
 - A hook checks what a command, path or file is, never how a message is worded.
+- A design is never written without the constraints it must keep. Before an
+  agent writes or edits a spec, or reports a design verdict, it reads
+  `ai/doors/system.md` and the door of every subsystem the work touches, and
+  the tooling refuses the spec edit until it has, the same way it refuses a
+  code edit. Recording a missed constraint in one spec does not fix the gate
+  that let it be missed.
 - Run a formatter, codemod or rewrite tool only on the files you edited in this
   task, never on every dirty file, a directory glob or the whole tree.
 - Many sessions share one Docker daemon: never run a host-wide destructive
