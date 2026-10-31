@@ -47,6 +47,11 @@ plugin {
     internal rs { use bgp-rs; }
 }
 bgp {
+    # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
     peer inject {
         connection {
             remote { ip 2001:db8:a::9; }
@@ -115,6 +120,11 @@ plugin {
     internal rs { use bgp-rs; }
 }
 bgp {
+    # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
     peer inject {
         connection {
             remote { ip 2001:db8:b::9; }
@@ -183,6 +193,11 @@ plugin {
     internal rs { use bgp-rs; }
 }
 bgp {
+    # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
     peer inject {
         connection {
             remote { ip 2001:db8:b::9; }
@@ -251,6 +266,11 @@ plugin {
     internal rs { use bgp-rs; }
 }
 bgp {
+    # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
     peer inject {
         connection {
             remote { ip 2001:db8:b::9; }
