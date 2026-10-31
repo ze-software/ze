@@ -178,7 +178,7 @@ var actions = leaction.New(area,
 			{Keyword: keyUnder, Kind: leaction.KindPath, Help: "the directory the proposal covers", Value: "dir", Requirement: leaction.Optional},
 		},
 		AnswerArgs: renameAnswer},
-	leaction.Action{Verb: "tree", Does: doesReport, Summary: "print the RFC dependency tree with the section counts of both bars",
+	leaction.Action{Verb: "tree", Does: doesReport, Summary: "print the RFC dependency tree with its section counts",
 		Why: "print the dependency graph of the RFC texts roots to leaves: one row per RFC or draft with its " +
 			"level, aggregate, builds-on and updated-by edges, and its section counts: the MUST bar (Ze proven " +
 			"by a recorded break, OS verified, OS testing gap, Ze correctness gap, and their sum, the MUST rows " +
