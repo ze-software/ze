@@ -1,0 +1,100 @@
+# Test: redistribute-chain-narrow-reload -- an import's policy chain decides
+#       which routes move, and a reload that narrows it withdraws the held
+#       route it now rejects.
+#
+# VALIDATES: spec-route-policy-0-umbrella AC-14 at the process boundary. The
+# import `filters [ WIDE ]; final accept;` passes 10.1.0.0/24 and 10.2.0.0/24
+# and the prefix-list rejects 10.3.0.0/24, so the fakedest consumer holds the
+# first two only. The scenario then writes config-narrow.conf over the running
+# config and sends SIGHUP: the chain becomes `filters [ NARROW ]`, which passes
+# 10.1.0.0/24 alone, and the reload re-judges every held route
+# (withdrawRejectedHeld, internal/plugins/redistribute/held.go), withdrawing
+# 10.2.0.0/24 and keeping 10.1.0.0/24.
+#
+# PREVENTS: a chain parsed and never applied, and a narrowing reload that only
+# stops new routes while the consumer keeps the ones it was handed before.
+#
+# The observer (redistChainNarrowReload,
+# internal/test/fixture/plugin_fixture_12_redistribute_chain.go) waits on what
+# the consumer holds at each step, never on time. No peer and no port:
+# `destination fakedest` puts nothing on a BGP session.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external redist-chain-narrow-test {
+		run "le test fixture plugin/redistribute-chain-narrow-reload"
+		encoder json
+	}
+	internal fakeredist {
+		use fakeredist
+	}
+}
+
+policy {
+	prefix-list WIDE {
+		entry 10.1.0.0/24 { action accept; }
+		entry 10.2.0.0/24 { action accept; }
+	}
+}
+redistribute {
+	destination fakedest {
+		import fakeredist {
+			filters [ WIDE ];
+			final accept;
+		}
+	}
+}
+
+bgp {
+	router-id 203.0.113.253
+	session {
+		asn {
+			local 65000
+		}
+	}
+}
+EOF_CONF
+
+# The reload's config: the same import, narrowed to 10.1.0.0/24.
+tmpfs=config-narrow.conf:terminator=EOF_NARROW
+plugin {
+	external redist-chain-narrow-test {
+		run "le test fixture plugin/redistribute-chain-narrow-reload"
+		encoder json
+	}
+	internal fakeredist {
+		use fakeredist
+	}
+}
+
+policy {
+	prefix-list NARROW {
+		entry 10.1.0.0/24 { action accept; }
+	}
+}
+redistribute {
+	destination fakedest {
+		import fakeredist {
+			filters [ NARROW ];
+			final accept;
+		}
+	}
+}
+
+bgp {
+	router-id 203.0.113.253
+	session {
+		asn {
+			local 65000
+		}
+	}
+}
+EOF_NARROW
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: only the prefixes the chain passes reached the consumer: [10.1.0.0/24 10.2.0.0/24]
+expect=stderr:contains=OK: the narrowing reload withdrew 10.2.0.0/24 and kept 10.1.0.0/24
+# The verdict is the observer's: a failed observer can still let the daemon
+# shut down cleanly, so its sentinel is rejected here as well.
+reject=stderr:pattern=ZE-OBSERVER-FAIL

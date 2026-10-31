@@ -52,6 +52,7 @@ func init() {
 	Register("plugin/redistribute-block-does-not-gate-peer-routes", p12ObserveDriver("redist-blast-radius-test", redistChainPeerRouteReachesAdjRIBIn))
 	Register("plugin/redistribute-explicit-attach-kept", p12ObserveDriver("redist-explicit-attach-test", redistChainOperatorStateGrantServes))
 	Register("plugin/redistribute-late-consumer", p12ObserveDriver("redist-late-consumer-test", redistChainLateConsumer))
+	Register("plugin/redistribute-chain-narrow-reload", p12ObserveDriver("redist-chain-narrow-test", redistChainNarrowReload))
 	Register("plugin/redistribute-late-join-configadd", p12WaitForDaemonDriver("late-join-configadd-test", p12LateJoinConfigAdd))
 	Register("plugin/redistribute-late-join-configadd-trigger", p12LateJoinTrigger)
 	Register("plugin/relay-withdraw-nexthop-self", p12ObserveDriver("relay-nhself", p12RelayWithdraw(false)))

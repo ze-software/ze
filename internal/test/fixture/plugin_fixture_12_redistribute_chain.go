@@ -2,7 +2,8 @@
 // Related: plugin_fixture_12.go -- the init that registers these four drivers
 // Related: internal/test/plugins/fakeredist/sink.go -- the synthetic consumer they drive
 
-// The four observers behind spec-fixit-redistribution-chain-drops-silently.
+// The four observers behind spec-fixit-redistribution-chain-drops-silently,
+// and the chain narrowing one behind spec-route-policy-0-umbrella AC-14.
 //
 // The first two register a synthetic consumer through fakeredist and read back
 // what the orchestrator handed it. That is the one thing a .ci scenario cannot
@@ -337,4 +338,91 @@ func redistChainOperatorStateGrantServes(ctx context.Context, plugin *sdk.Plugin
 	tb.Str("the Loc-RIB never counted the peer as up through the operator's `receive [ state ]` grant; `show bgp rib status` answered ")
 	tb.Str(fmt.Sprint(status))
 	return errors.New(tb.String())
+}
+
+// The three prefixes redistChainNarrowReload emits. The first config's chain
+// passes kept and dropped; the reload's chain passes kept alone; neither
+// passes refused.
+const (
+	redistNarrowKept    = "10.1.0.0/24"
+	redistNarrowDropped = "10.2.0.0/24"
+	redistNarrowRefused = "10.3.0.0/24"
+)
+
+// redistNarrowConfig is the narrowed configuration the scenario swaps in
+// before it signals the reload: the .ci writes it beside the running one.
+const redistNarrowConfig = "config-narrow.conf"
+
+// redistChainNarrowReload is AC-14 of spec-route-policy-0-umbrella end to end:
+// an import's `filters [ ... ]; final accept;` moves only the prefixes its
+// chain passes, and a reload that narrows the chain withdraws from the
+// consumer the held route the new chain rejects, keeping the one it still
+// accepts. Every step waits on what the consumer holds, never on time.
+func redistChainNarrowReload(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := redistChainConsume(ctx, plugin, redistChainSink); err != nil {
+		return err
+	}
+	for _, prefix := range []string{redistNarrowRefused, redistNarrowKept, redistNarrowDropped} {
+		if err := redistChainEmit(ctx, plugin, prefix); err != nil {
+			return err
+		}
+	}
+	for _, prefix := range []string{redistNarrowKept, redistNarrowDropped} {
+		if err := redistChainWait(ctx, plugin, redistChainSink, prefix); err != nil {
+			return err
+		}
+	}
+	// The refused prefix was emitted first and is judged on the same ordered
+	// path, so once the later two are held its verdict has been given.
+	held, err := redistChainHeld(ctx, plugin, redistChainSink)
+	if err != nil {
+		return err
+	}
+	if slices.Contains(held, redistNarrowRefused) {
+		return fmt.Errorf("the chain rejects %s and it reached %s anyway: %v", redistNarrowRefused, redistChainSink, held)
+	}
+	fmt.Fprintln(os.Stderr, "OK: only the prefixes the chain passes reached the consumer:", held)
+
+	narrowed, err := os.ReadFile(redistNarrowConfig)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", redistNarrowConfig, err)
+	}
+	if err := os.WriteFile(fileBGPConf, narrowed, 0o600); err != nil {
+		return fmt.Errorf("write %s: %w", fileBGPConf, err)
+	}
+	// The runner writes daemon.pid once the daemon reports ready, which can
+	// come after every plugin is up and this scenario has started.
+	if !Poll(ctx, redistChainAttempts, redistChainDelay, func() bool {
+		_, err := os.Stat("daemon.pid")
+		return err == nil
+	}) {
+		return errors.New("the runner never wrote daemon.pid, so no reload can be sent")
+	}
+	if err := plugin01SignalDaemonReload(); err != nil {
+		return err
+	}
+	var pollErr error
+	withdrawn := Poll(ctx, redistChainAttempts, redistChainDelay, func() bool {
+		holds, err := redistChainHolds(ctx, plugin, redistChainSink, redistNarrowDropped)
+		if err != nil {
+			pollErr = err
+			return true
+		}
+		return !holds
+	})
+	if pollErr != nil {
+		return pollErr
+	}
+	held, err = redistChainHeld(ctx, plugin, redistChainSink)
+	if err != nil {
+		return err
+	}
+	if !withdrawn {
+		return fmt.Errorf("the reload narrowed the chain and %s still holds %s: %v", redistChainSink, redistNarrowDropped, held)
+	}
+	if !slices.Contains(held, redistNarrowKept) {
+		return redistChainMissing(redistChainSink, redistNarrowKept, held)
+	}
+	fmt.Fprintln(os.Stderr, "OK: the narrowing reload withdrew", redistNarrowDropped, "and kept", redistNarrowKept)
+	return nil
 }
