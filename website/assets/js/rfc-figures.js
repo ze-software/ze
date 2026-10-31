@@ -119,13 +119,13 @@
         });
     }
 
-    // addCounts adds every count of source into target: numbers, and the
-    // per-kind maps one level down.
     // isCounts answers whether a level of a per-RFC file is a counts object.
     function isCounts(value) {
         return value !== null && typeof value === "object" && !Array.isArray(value);
     }
 
+    // addCounts adds every count of source into target: numbers, and the
+    // per-kind maps one level down.
     function addCounts(target, source) {
         Object.keys(source).forEach(function (key) {
             var value = source[key];
