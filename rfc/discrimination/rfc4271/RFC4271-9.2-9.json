@@ -18,7 +18,7 @@
     "claim-sha": "4f0b39466ec0a2c0",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_api_batch.go::WithdrawNLRIBatch",
-    "producer-sha": "3367c6b906eb1af3",
-    "break": "body of WithdrawNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d9f22d1c1e3ac6e2",
+    "break": "body of WithdrawNLRIBatch replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
