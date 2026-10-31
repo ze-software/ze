@@ -1,0 +1,169 @@
+# Test: redistribute-chain-static-ospf -- an import's policy chain decides which
+#       static routes OSPF originates, and a reload that narrows it flushes the
+#       AS-external-LSA of the route it now rejects.
+#
+# VALIDATES: spec-route-policy-0-umbrella AC-14 with a real producer (static)
+# and a real consumer (OSPF), the companion of redistribute-chain-narrow-reload,
+# which proves the same chain through fakeredist and fakedest. The import
+# `filters [ WIDE ]; final accept;` passes 10.81.1.0/24 and 10.81.2.0/24, and
+# the prefix-list rejects 10.81.3.0/24, so the LSDB holds AS-external-LSAs for
+# the first two only. The scenario then writes config-narrow-ospf.conf over the
+# running config and sends SIGHUP: the chain becomes `filters [ NARROW ]`, which
+# passes 10.81.1.0/24 alone, and OSPF must flush the LSA for 10.81.2.0/24.
+#
+# PREVENTS: a chain the orchestrator applies to fakedest and not to the OSPF
+# consumer, and a narrowing reload that leaves an originated LSA in the LSDB.
+#
+# The observer (ospfRedistChainStaticScenario,
+# internal/test/fixture/ospf_redist_chain_fixture.go) reads `show ospf database
+# external` and waits on the LSAs it lists, never on time. An LSA at MaxAge
+# counts as flushed.
+#
+# OSPF opens a raw socket on its interface, so this runs on Linux only.
+option=needs-linux:caps=net-admin
+option=netns-link:name=eth1
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external redist-chain-static-ospf {
+		run "le test fixture plugin/redistribute-chain-static-ospf"
+		encoder json
+	}
+}
+
+static {
+	table default {
+		route 10.81.1.0/24 {
+			blackhole { }
+		}
+		route 10.81.2.0/24 {
+			blackhole { }
+		}
+		route 10.81.3.0/24 {
+			blackhole { }
+		}
+	}
+}
+
+policy {
+	prefix-list WIDE {
+		entry 10.81.1.0/24 { action accept; }
+		entry 10.81.2.0/24 { action accept; }
+	}
+}
+
+ospf {
+	router-id 10.0.0.1
+	redistribute {
+		static {
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth1 {
+			area 0.0.0.0
+			network-type point-to-point
+		}
+	}
+}
+
+redistribute {
+	destination ospf {
+		import static {
+			filters [ WIDE ];
+			final accept;
+		}
+	}
+}
+
+# The `redistribute` root auto-loads the orchestrator, which lives in the BGP
+# engine and refuses to build a reactor with no `bgp` block.
+bgp {
+	router-id 10.0.0.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+}
+EOF_CONF
+
+# The reload's config: the same import, narrowed to 10.81.1.0/24.
+tmpfs=config-narrow-ospf.conf:terminator=EOF_NARROW
+plugin {
+	external redist-chain-static-ospf {
+		run "le test fixture plugin/redistribute-chain-static-ospf"
+		encoder json
+	}
+}
+
+static {
+	table default {
+		route 10.81.1.0/24 {
+			blackhole { }
+		}
+		route 10.81.2.0/24 {
+			blackhole { }
+		}
+		route 10.81.3.0/24 {
+			blackhole { }
+		}
+	}
+}
+
+policy {
+	prefix-list NARROW {
+		entry 10.81.1.0/24 { action accept; }
+	}
+}
+
+ospf {
+	router-id 10.0.0.1
+	redistribute {
+		static {
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth1 {
+			area 0.0.0.0
+			network-type point-to-point
+		}
+	}
+}
+
+redistribute {
+	destination ospf {
+		import static {
+			filters [ NARROW ];
+			final accept;
+		}
+	}
+}
+
+# The `redistribute` root auto-loads the orchestrator, which lives in the BGP
+# engine and refuses to build a reactor with no `bgp` block.
+bgp {
+	router-id 10.0.0.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+}
+EOF_NARROW
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=40s
+expect=exit:code=0
+expect=stderr:contains=OK: OSPF originates only the static prefixes the chain passes
+expect=stderr:contains=OK: the narrowing reload flushed 10.81.2.0 and kept 10.81.1.0
+# The verdict is the observer's: a failed observer can still let the daemon
+# shut down cleanly, so its sentinel is rejected here as well.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic

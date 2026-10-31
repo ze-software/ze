@@ -33,6 +33,7 @@ func init() {
 	Register("ospf/ospf-ldp-sync-show", routingObserver("ospf-ldp-sync-show", ospfLDPSyncShowScenario))
 	Register("ospf/ospf-multiaf-reconcile", routingObserver("ospf-multiaf-reconcile", ospfMultiAFReconcileScenario))
 	Register("ospf/ospf-multiaf-show", routingObserver("ospf-multiaf-show", ospfMultiAFShowScenario))
+	Register("plugin/redistribute-chain-static-ospf", routingObserver("redistribute-chain-static-ospf", ospfRedistChainStaticScenario))
 	Register("ospf/ospf-multiaf-v4-route", routingObserver("ospf-multiaf-v4-route", ospfMultiAFV4RouteScenario))
 	Register("ospf/ospf-multiaf", routingObserver("ospf-multiaf", ospfMultiAFScenario))
 	Register("ospf/ospf-nbma", routingObserver("ospf-nbma", ospfNBMAScenario))
