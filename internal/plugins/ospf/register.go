@@ -474,6 +474,9 @@ func runOSPFEngine(conn net.Conn) int {
 		// Source OnStarted wired last, nil before it. OnStarted re-fires on an
 		// SDK reconnect with a fresh Source, which replaces the old one.
 		redistReplayUnsub func()
+		// enginesLost is true from an apply that failed and could not put the
+		// engines back to the running config until the rollback repairs them.
+		enginesLost bool
 	)
 	defer func() {
 		cfgMu.Lock()
@@ -548,9 +551,20 @@ func runOSPFEngine(conn net.Conn) int {
 		return nil
 	})
 
+	// applyEngines reconciles the OSPFv2 instances and the OSPFv3 address
+	// families to cfg live.
+	applyEngines := func(cfg ospfConfig) error {
+		if err := instances.reconcile(cfg); err != nil {
+			return err
+		}
+		return v6set.apply(cfg.v6Families(), cfg.multiAF())
+	}
+
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		cfgMu.Lock()
 		installed := havePending
+		previous := activeCfg
+		enginesLost = false
 		exports.disarm()
 		if havePending {
 			activeCfg = pendingCfg
@@ -565,22 +579,55 @@ func runOSPFEngine(conn net.Conn) int {
 		if installed && consumer != nil {
 			consumer.Rejudge(context.Background())
 		}
-		if err := instances.reconcile(cfg); err != nil {
-			return err
+		applyErr := applyEngines(cfg)
+		if applyErr == nil {
+			return nil
 		}
-		return v6set.apply(cfg.v6Families(), cfg.multiAF())
+		// A failing apply MUST undo its own partial work before it answers:
+		// the transaction's rollback does not reach a plugin whose own apply
+		// failed (pkg/plugin/sdk/config_tx_gate.go). Put the running config,
+		// its export chain and the engines back.
+		cfgMu.Lock()
+		activeCfg = previous
+		restored := exports.restore()
+		consumer = redistConsumer
+		cfgMu.Unlock()
+		if restored && consumer != nil {
+			consumer.Rejudge(context.Background())
+		}
+		if undoErr := applyEngines(previous); undoErr != nil {
+			// The engines could not be put back either: say so, which opens
+			// the rollback gate so OnConfigRollback tries again, and answers
+			// the error that restarts the plugin when that fails too.
+			cfgMu.Lock()
+			enginesLost = true
+			cfgMu.Unlock()
+			return fmt.Errorf("ospf: %w; putting the running config back failed: %w: %w", applyErr, undoErr, sdk.ErrRunningConfigLost)
+		}
+		return applyErr
 	})
 
 	// OnConfigRollback: a transaction that fails after this plugin applied it
 	// takes its export chain back, so the chain of the config still running
-	// judges the routes OSPF holds again.
+	// judges the routes OSPF holds again. After an apply that failed with
+	// ErrRunningConfigLost it reconciles the engines to the running config
+	// again, and a failure answers the error that restarts the plugin.
 	p.OnConfigRollback(func(_ string) error {
 		cfgMu.Lock()
 		restored := exports.restore()
 		consumer := redistConsumer
+		repair := enginesLost
+		enginesLost = false
+		cfg := activeCfg
 		cfgMu.Unlock()
 		if restored && consumer != nil {
 			consumer.Rejudge(context.Background())
+		}
+		if !repair {
+			return nil
+		}
+		if err := applyEngines(cfg); err != nil {
+			return fmt.Errorf("ospf: rollback could not put the running config back: %w", err)
 		}
 		return nil
 	})
