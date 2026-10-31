@@ -117,7 +117,7 @@ func (s *ruleState) configure(sections []sdk.ConfigSection) error {
 	if err != nil {
 		return err
 	}
-	configredist.SetGlobal(configredist.NewEvaluator(rules))
+	consumerHeld.install(configredist.NewEvaluator(rules))
 	return nil
 }
 
@@ -136,9 +136,10 @@ func (s *ruleState) verify(sections []sdk.ConfigSection) error {
 	return nil
 }
 
-// apply installs the verified rules and keeps the evaluator it replaced for a
-// rollback. An apply with no verified candidate changes nothing: the
-// transaction did not touch this plugin's root.
+// apply installs the verified rules, keeps the evaluator it replaced for a
+// rollback, and reconciles every consumer with the new rules
+// (reconcileConsumers). An apply with no verified candidate changes nothing:
+// the transaction did not touch this plugin's root.
 func (s *ruleState) apply() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -148,26 +149,40 @@ func (s *ruleState) apply() error {
 	}
 	s.previous, s.replaced = configredist.Global(), true
 	ev := configredist.NewEvaluator(s.pending)
-	configredist.SetGlobal(ev)
+	consumerHeld.install(ev)
 	s.pending, s.verified = nil, false
-	// The new rules judge what each consumer already holds: a route the new
-	// chain rejects is withdrawn now, not left until its source next changes
-	// it. The apply stage carries no context, and the withdraw is the same
-	// dispatch an accepted Remove makes.
-	withdrawRejectedHeld(context.Background(), ev)
+	reconcileConsumers(ev)
 	return nil
 }
 
-// rollback restores the evaluator the last apply replaced.
+// rollback restores the evaluator the last apply replaced, and puts every
+// consumer back to what those rules decide: the routes the apply withdrew are
+// sent again, and the ones it admitted are withdrawn.
 func (s *ruleState) rollback() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.replaced {
-		configredist.SetGlobal(s.previous)
+		consumerHeld.install(s.previous)
+		reconcileConsumers(s.previous)
 	}
 	s.previous, s.replaced = nil, false
 	s.pending, s.verified = nil, false
 	return nil
+}
+
+// reconcileConsumers makes what each consumer holds agree with ev, the rules
+// just installed, without waiting for any source to announce again. A held
+// route ev rejects is withdrawn now. Then every registered consumer is
+// replayed (replayConsumers): each producer re-sends its current set, which ev
+// judges, so a route ev newly accepts is dispatched and a route whose chain now
+// sets another tag or metric is sent again with it. The withdraw runs first,
+// so the replay never races a withdraw of the route it re-sends.
+//
+// The config stages carry no context, and the withdraw is the same dispatch an
+// accepted Remove makes.
+func reconcileConsumers(ev *configredist.Evaluator) {
+	withdrawRejectedHeld(context.Background(), ev)
+	replayConsumers(getEventBus(), getReplayCoordinator())
 }
 
 // committed drops the undo state once the transaction holds.

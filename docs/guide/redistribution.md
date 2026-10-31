@@ -301,8 +301,9 @@ A file written before the chain, with `family [ ... ]` or `tag N` directly under
 `ze config migrate -o <new-file> <file>`, which moves the two leaves into a
 `match redistribute-<destination>-<source>` instance named in the rule's
 `filters` with `final accept`. `tag 0` becomes `tag [ 0 ]` and keeps selecting
-the untagged routes.
-<!-- source: internal/plugins/redistribute/migrate.go -- migrateImportLeaves -->
+the untagged routes. A rule that names neither leaf, a bare `import <source>`
+included, is already current and is left as written.
+<!-- source: internal/plugins/redistribute/migrate.go -- migrateImportLeaves, importNeedsMigration -->
 
 ```
 policy {
@@ -337,6 +338,21 @@ that destination even if its rule would reject the withdrawal itself, for
 instance because the rules changed since the route was announced.
 <!-- source: internal/plugins/redistribute/held.go -- removeReplacedRoute -->
 <!-- source: internal/plugins/static/inject.go -- applyRouteLocked -->
+
+A reload that changes an import's `filters` or `final` judges the routes each
+destination already holds again, at once, rather than when each source next
+announces them: a route the new chain rejects is withdrawn, a route it now
+accepts is dispatched, and a route whose chain now sets a different tag or
+metric is sent again with the new value. The orchestrator withdraws first, then
+asks every producer to re-send its current set, which the new rules judge (the
+replay described under "Startup Order Does Not Decide the Outcome"). When
+another plugin refuses the same transaction and it rolls back, the previous
+rules return and the same reconciliation puts back what the apply changed. A
+route that was being dispatched while the reload applied is judged again under
+the new rules before the destination keeps it.
+<!-- source: internal/plugins/redistribute/config.go -- reconcileConsumers -->
+<!-- source: internal/plugins/redistribute/held.go -- withdrawRejectedHeld, heldRoutes.settleAdd -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- replayConsumers, settleDispatchedAdd -->
 
 ### Setting the metric
 
@@ -510,7 +526,8 @@ A replay reflects what the producer holds NOW rather than what it once sent. A
 route withdrawn before the consumer registered is therefore absent.
 
 The same mechanism covers a BGP peer that establishes after an injection, where
-the replay reaches that one peer.
+the replay reaches that one peer, and a reload of the import rules, where every
+consumer is replayed under the new rules.
 
 <!-- source: internal/plugins/redistribute/replay.go -- onPeerUp, onConsumerRegistered -->
 <!-- source: internal/plugins/redistribute/redistribute.go -- watchConsumers -->
@@ -555,9 +572,9 @@ ze doctor
 |---------|----------------|
 | `ze_bgp_redistribute_events_received` | route-change batches the orchestrator received |
 | `ze_bgp_redistribute_announcements` | accepted add entries dispatched to a consumer |
-| `ze_bgp_redistribute_withdrawals` | withdrawals dispatched to a consumer: accepted remove entries, and held routes a rejected entry removes |
+| `ze_bgp_redistribute_withdrawals` | withdrawals dispatched to a consumer: accepted remove entries, and held routes a rejected entry or a reload removes |
 | `ze_bgp_redistribute_filtered_protocol_total` | batches skipped by the loop guard |
 | `ze_redistribute_chain_rejected_total{destination,source}` | routes an import rule covers whose `filters` chain rejected them, by destination and source protocol. A route no import rule names is not counted |
-| `ze_bgp_redistribute_replay_total{source}` | routes replayed, to a new peer or to a consumer that registered late |
+| `ze_bgp_redistribute_replay_total{source}` | routes replayed, to a new peer, to a consumer that registered late, or to every consumer after a reload changed the import rules |
 
 <!-- source: internal/plugins/redistribute/redistribute.go -- setMetricsRegistry -->

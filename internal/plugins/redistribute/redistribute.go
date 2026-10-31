@@ -93,10 +93,10 @@ func setMetricsRegistry(reg metrics.Registry) {
 	m := &pluginMetrics{
 		eventsReceived:        reg.Counter("ze_bgp_redistribute_events_received", "Route-change batches received from the EventBus."),
 		announcements:         reg.Counter("ze_bgp_redistribute_announcements", "Accepted add entries dispatched to consumers as announcements."),
-		withdrawals:           reg.Counter("ze_bgp_redistribute_withdrawals", "Withdrawals dispatched to consumers: accepted remove entries, and held routes a rejected entry retires."),
+		withdrawals:           reg.Counter("ze_bgp_redistribute_withdrawals", "Withdrawals dispatched to consumers: accepted remove entries, and held routes a rejected entry or a reload retires."),
 		filteredProtocolTotal: reg.Counter("ze_bgp_redistribute_filtered_protocol_total", "Batches filtered by the consumer-protocol skip."),
 		chainRejectedTotal:    reg.CounterVec("ze_redistribute_chain_rejected_total", "Routes an import rule covers and its policy chain rejected, by destination and source protocol.", []string{"destination", "source"}),
-		replayTotal:           reg.CounterVec("ze_bgp_redistribute_replay_total", "Redistribute routes replayed to a BGP peer whose session just established or to a destination consumer that just registered, by source.", []string{"source"}),
+		replayTotal:           reg.CounterVec("ze_bgp_redistribute_replay_total", "Redistribute routes replayed to a BGP peer whose session just established, to a destination consumer that just registered, or to every consumer after a reload changed the import rules, by source.", []string{"source"}),
 	}
 	metricsPtr.Store(m)
 }
@@ -166,10 +166,19 @@ func watchConsumers(bus ze.EventBus, coord *replayCoordinator) func() {
 		consumerHeld.forgetConsumer(name)
 		coord.onConsumerRegistered(bus, name)
 	})
+	replayConsumers(bus, coord)
+	return func() { configredist.SetConsumerObserver(nil) }
+}
+
+// replayConsumers fires one consumer replay for every registered consumer an
+// import feeds (replayCoordinator.onConsumerRegistered): each producer re-sends
+// its current set, judged under the installed rules. The startup sweep and a
+// reload of the import rules both take it. Without a running coordinator or
+// bus, as in a unit test of the dispatch alone, it fires nothing.
+func replayConsumers(bus ze.EventBus, coord *replayCoordinator) {
 	for _, name := range configredist.ConsumerNames() {
 		coord.onConsumerRegistered(bus, name)
 	}
-	return func() { configredist.SetConsumerObserver(nil) }
 }
 
 func subscribe(ctx context.Context, bus ze.EventBus, skipIDs map[redistevents.ProtocolID]bool) []func() {
@@ -221,7 +230,9 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 		logger().Debug(Name+": source protocol has a consumer; skipping only that consumer", "source", name)
 	}
 
-	ev := configredist.Global()
+	// The generation travels with the evaluator, so an Add this batch judges
+	// under rules a reload has since replaced is judged again when it settles.
+	ev, gen := consumerHeld.evaluator()
 	if ev == nil {
 		logger().Warn(Name+": no evaluator configured, dropping batch", "source", name)
 		return
@@ -260,13 +271,54 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 			if !accepted {
 				logger().Debug(Name+": evaluator rejected", "source", name, "consumer", cname, "origin", route.Origin, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)
 				countChainRejected(ev, &route, cname, name)
-				removeReplacedRoute(ctx, consumer, key, entry.Action)
-				continue
 			}
-			// Empty peer selector: the incremental path fans out to all peers.
-			dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry, &route, sets)
-			recordDispatched(key, entry.Action, &route)
+			// The action comes from a producer plugin, so the set is open: an
+			// action this orchestrator does not know is dispatched to nobody.
+			switch entry.Action {
+			case redistevents.ActionAdd:
+				// Empty peer selector: the incremental path fans out to all peers.
+				if accepted {
+					dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry, &route, sets)
+				}
+				settleDispatchedAdd(ctx, consumer, key, gen, accepted, &route, entry, "", b.OriginASN, b.Community)
+			case redistevents.ActionRemove:
+				if !accepted {
+					removeReplacedRoute(ctx, consumer, key)
+					continue
+				}
+				dispatchEntryToConsumer(ctx, consumer, famVal, name, "", b.OriginASN, b.Community, entry, &route, sets)
+				consumerHeld.release(key)
+			case redistevents.ActionUnspecified:
+				logger().Warn(Name+": skipping entry with no action", "source", name, "prefix", entry.Prefix)
+			default:
+				logger().Warn(Name+": skipping entry with invalid action", "source", name, "action", entry.Action, "prefix", entry.Prefix)
+			}
 		}
+	}
+}
+
+// settleDispatchedAdd records an Add the batch judged, accepted or not, under
+// the evaluator of generation gen, and sends the consumer what a reload that
+// landed in between makes owed: the route again with the installed rules'
+// sets, or its withdraw (heldRoutes.settleAdd). An entry with an invalid prefix
+// reached no consumer (dispatchEntryToConsumer), so it changes nothing.
+func settleDispatchedAdd(ctx context.Context, consumer configredist.RedistConsumer, key heldKey, gen uint64, accepted bool, view *configredist.RedistRoute, produced *redistevents.RouteChangeEntry, peer string, originASN uint32, community []uint32) {
+	if !key.prefix.IsValid() {
+		return
+	}
+	outcome, sets := consumerHeld.settleAdd(key, view, accepted, gen)
+	switch outcome {
+	case settlementSettled:
+	case settlementResend:
+		logger().Debug(Name+": reloaded rules resend the route", "source", key.source, "consumer", key.consumer, "family", key.family.String(), "prefix", key.prefix)
+		dispatchEntryToConsumer(ctx, consumer, key.family, key.source, peer, originASN, community, produced, view, sets)
+	case settlementWithdraw:
+		logger().Debug(Name+": rejected entry withdraws the route", "source", key.source, "consumer", key.consumer, "family", key.family.String(), "prefix", key.prefix)
+		withdrawHeld(ctx, consumer, key)
+	case settlementUnspecified:
+		panic("BUG: redistribute: settleAdd answered no settlement")
+	default:
+		panic("BUG: redistribute: settleAdd answered an unknown settlement")
 	}
 }
 

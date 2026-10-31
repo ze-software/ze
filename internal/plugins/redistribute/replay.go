@@ -2,10 +2,13 @@
 //
 // This file implements the two triggers of the late-join replay and the
 // targeting of each. A producer emits once, and whoever was not listening at
-// that moment holds nothing, so each trigger names a party that arrived late:
+// that moment holds nothing, so each trigger names a party that arrived late.
+// A reload of the import rules reuses the consumer trigger for every consumer,
+// because each holds only what the replaced rules let through:
 //
 //	BGP peer down->up edge      --> replayCoordinator.onPeerUp
 //	consumer becomes registered --> replayCoordinator.onConsumerRegistered
+//	import rules reloaded       --> replayConsumers -> onConsumerRegistered
 //	   -> allocate monotonic replayID, record replayID -> target (bounded + TTL)
 //	   -> emit redistevents.ReplayRequest{replayID}
 //	producers re-emit RouteChangeBatch{ReplayID: replayID}
@@ -205,6 +208,10 @@ func (c *replayCoordinator) onPeerUp(bus ze.EventBus, peer string) (uint64, bool
 // Startup order decides which case a deployment lands in. The static plugin and
 // the IS-IS plugin start in the same tier, and nothing orders them.
 //
+// A reload of the import rules takes the same path for every registered
+// consumer (reconcileConsumers, config.go): the consumer holds what the old
+// rules let through, and the replay is how it receives what the new ones do.
+//
 // The evaluator gate is R-2. A consumer no rule imports into gains nothing from
 // a replay, and firing anyway would storm every producer once per consumer on
 // every startup.
@@ -360,7 +367,7 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		return
 	}
 
-	ev := configredist.Global()
+	ev, gen := consumerHeld.evaluator()
 	if ev == nil {
 		logger().Warn("redistribute-orchestrator: no evaluator configured, dropping replay batch", "source", name)
 		return
@@ -379,24 +386,29 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 			continue // a replay reflects the current live set; only adds are meaningful
 		}
 		// Destination-scoped, and decided for each route: only sources imported
-		// under this destination replay, and an import rule naming a tag or a
-		// BGP class replays only the routes carrying it. The incremental path decides the same way.
+		// under this destination replay, and an import rule whose chain selects
+		// routes (by tag, family, BGP class) replays only the routes it accepts.
+		// The incremental path decides the same way.
 		route := redistRoute(name, b.Protocol, famVal, entry)
 		sets, accepted := ev.Accept(&route, destination)
 		if !accepted {
 			logger().Debug("redistribute-orchestrator: evaluator rejected replay entry", "source", name, "destination", destination, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)
 			countChainRejected(ev, &route, destination, name)
-			continue
 		}
-		dispatchEntryToConsumer(ctx, consumer, famVal, name, peer, b.OriginASN, b.Community, entry, &route, sets)
-		// A consumer replay is what the newly registered consumer holds. A peer
-		// replay feeds one BGP peer a route the consumer already holds from the
-		// incremental path, so it changes nothing the held set records.
+		if accepted {
+			dispatchEntryToConsumer(ctx, consumer, famVal, name, peer, b.OriginASN, b.Community, entry, &route, sets)
+			if m := getMetrics(); m != nil && m.replayTotal != nil {
+				m.replayTotal.With(name).Inc()
+			}
+		}
+		// A consumer replay is what that consumer holds, whether it just
+		// registered or a reload changed its rules, so it settles in the held
+		// set as an incremental Add does. A peer replay feeds one BGP peer a
+		// route the consumer already holds from the incremental path, so it
+		// changes nothing the held set records.
 		if target.kind == replayKindConsumer {
-			recordDispatched(heldKey{consumer: destination, source: name, family: famVal, prefix: entry.Prefix}, entry.Action, &route)
-		}
-		if m := getMetrics(); m != nil && m.replayTotal != nil {
-			m.replayTotal.With(name).Inc()
+			key := heldKey{consumer: destination, source: name, family: famVal, prefix: entry.Prefix}
+			settleDispatchedAdd(ctx, consumer, key, gen, accepted, &route, entry, peer, b.OriginASN, b.Community)
 		}
 	}
 	logger().Debug("redistribute-orchestrator: replayed source", "source", name, "destination", destination, "peer", peer, "entries", len(b.Entries))

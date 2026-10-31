@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/migration"
+	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/family"
 	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
@@ -95,12 +96,63 @@ func TestMigrateImportLeavesToFilters(t *testing.T) {
 	assert.Equal(t, ribpolicy.ActionReject, verdict("ospf", "connected", v4(0)), "family alone, another family")
 	assert.Equal(t, ribpolicy.ActionAccept, verdict("bgp", "static", v4(0)), "tag 0 keeps selecting the untagged routes")
 	assert.Equal(t, ribpolicy.ActionReject, verdict("bgp", "static", v4(9)), "tag 0 rejects a tagged route")
-	assert.Empty(t, rule("bgp", "connected").GetMultiValues("filters"), "a rule with neither leaf names no filter")
-	assert.Equal(t, ribpolicy.ActionAccept, verdict("bgp", "connected", v4(9)), "a rule with neither leaf imports every route")
+	// A rule with neither leaf was already a current shape: the migration
+	// leaves it as written, and the loader reads it as a rule with no chain,
+	// which imports every route of its source.
+	bare := rule("bgp", "connected")
+	assert.Empty(t, bare.GetMultiValues("filters"), "a rule with neither leaf names no filter")
+	_, bareFinal := bare.Get("final")
+	assert.False(t, bareFinal, "a rule with neither leaf is left as written, with no final")
+	for _, source := range []string{"static", "connected"} {
+		require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: source, Protocol: source}))
+	}
+	rules, err := config.ExtractRedistributeRules(reparsed)
+	require.NoError(t, err)
+	require.NoError(t, compileRuleChains(rules, policyCfg))
+	ev := configredist.NewEvaluator(rules)
+	for _, route := range []ribpolicy.Route{v4(9), v4(0), v6} {
+		_, accepted := ev.Accept(&configredist.RedistRoute{Origin: "connected", Source: "connected", Route: route}, "bgp")
+		assert.True(t, accepted, "a rule with neither leaf imports every route (%s tag %d)", route.Prefix, route.Tag)
+	}
 
 	again, err := migration.Migrate(reparsed)
 	require.NoError(t, err)
 	assert.NotContains(t, again.Applied, importLeavesTransformationName, "a migrated file needs no second pass")
+}
+
+// TestMigrateLeavesCurrentImportsAlone proves `ze config migrate`, and the
+// commit path's NeedsMigration that reads the same Detect, finds nothing to
+// rewrite in an import that names no retired leaf: a bare import, which
+// imports every route of its source, and one with a chain.
+//
+// VALIDATES: Detect answers only for the retired family and tag leaves.
+// PREVENTS: a current config rewritten by every migrate, or a commit told its
+// config needs migrating when it does not.
+func TestMigrateLeavesCurrentImportsAlone(t *testing.T) {
+	const current = `
+policy { match T42 { tag [ 42 ]; } }
+redistribute {
+	destination bgp {
+		import static {
+		}
+		import connected {
+			filters [ T42 ];
+			final reject;
+		}
+	}
+}
+`
+	schema := mustSchema(t, config.YANGSchema)
+	tree, err := config.NewParser(schema).Parse(current)
+	require.NoError(t, err, "a bare import and a chained one are current shapes")
+	assert.False(t, hasImportToMigrate(tree), "an import naming no retired leaf needs no migration")
+	assert.False(t, migration.NeedsMigration(tree), "the commit path does not ask for a migration")
+	before := config.Serialize(tree, schema)
+
+	result, err := migration.Migrate(tree)
+	require.NoError(t, err)
+	assert.NotContains(t, result.Applied, importLeavesTransformationName)
+	assert.Equal(t, before, config.Serialize(result.Tree, schema), "a current config is left as written")
 }
 
 // TestMigrateImportLeavesRefusesNameClash proves the migration refuses, rather
