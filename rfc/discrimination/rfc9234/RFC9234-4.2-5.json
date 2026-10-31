@@ -14,7 +14,7 @@
     "rid": "RFC9234-4.2-5",
     "polarity": "positive",
     "unit": "test/plugin/role-strict-enforcement.ci",
-    "unit-sha": "14617793e8619488",
+    "unit-sha": "335906ee18c98d79",
     "claim-sha": "960647921d746ba9",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/role/validate.go::validateOpenRolePair",

@@ -1,5 +1,5 @@
 {
-  "note": "RFC 9234 Section 5: \"If a route is to be advertised to a Customer, a Peer, or an RS-Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS.\" role/otc.go::OTCEgressFilter checks payloadAdvertisesNLRI, destination role and absent OTC, then queues AttrModSet code 35 with dest.LocalAS; reactor forwardUpdateCore consumes mandatory filter operations before the terminal export final. TestRFC9234OTCStampedToEveryDownstreamDestination checks exactly one four-octet set operation with 65000 for Customer, Peer and RS-Client; TestRFC9234OTCNotStampedOutsideTheDownstreamScope covers Provider/RS with real NLRI and existing OTC toward Customer. Other tagged units TestOTCEgressStampMod, TestOTCEgressNoStampProvider, TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig, TestOTCEgressNoStampOnPureWithdrawal, TestOTCEgressNoStampOnMPUnreachOnly and TestOTCEgressStampsMixedWithdrawAndAnnounce retain their scoped assertions. role-otc-fwd-withdraw.ci pins C023040000FDE8 in the complete advertisement and an exact attribute-free withdrawal; role-otc-rs-withdraw-eor.ci additionally pins the empty EoR; role-otc-rs-client-dest-stamp.ci negotiates local RS/remote RS-Client and requires the same exact local-AS OTC. internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal independently reads FRR OTC 65001, route removal and session survival. Supplemental no-config-source count assertion is narrower than a complete stamp proof; the exact unit/wire carriers supply the code/value proof. No withdrawal or EoR is mistaken for an advertised route. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.",
+  "note": "Rejudged 2026-10-31 by an auditor who authored none of the change. The only change to test/plugin/role-otc-fwd-withdraw.ci, role-otc-rs-client-dest-stamp.ci and role-otc-rs-withdraw-eor.ci since the last stamp is cabb706c11 moving the policy block from inside bgp {} to the top-level policy root, the same lines re-indented; every action, expect, reject and option line is byte-identical, so the carriers drive the same inputs and assert the same outcomes. Verdict unchanged. RFC 9234 Section 5: \"If a route is to be advertised to a Customer, a Peer, or an RS-Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS.\" role/otc.go::OTCEgressFilter checks payloadAdvertisesNLRI, destination role and absent OTC, then queues AttrModSet code 35 with dest.LocalAS; reactor forwardUpdateCore consumes mandatory filter operations before the terminal export final. TestRFC9234OTCStampedToEveryDownstreamDestination checks exactly one four-octet set operation with 65000 for Customer, Peer and RS-Client; TestRFC9234OTCNotStampedOutsideTheDownstreamScope covers Provider/RS with real NLRI and existing OTC toward Customer. Other tagged units TestOTCEgressStampMod, TestOTCEgressNoStampProvider, TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig, TestOTCEgressNoStampOnPureWithdrawal, TestOTCEgressNoStampOnMPUnreachOnly and TestOTCEgressStampsMixedWithdrawAndAnnounce retain their scoped assertions. role-otc-fwd-withdraw.ci pins C023040000FDE8 in the complete advertisement and an exact attribute-free withdrawal; role-otc-rs-withdraw-eor.ci additionally pins the empty EoR; role-otc-rs-client-dest-stamp.ci negotiates local RS/remote RS-Client and requires the same exact local-AS OTC. internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal independently reads FRR OTC 65001, route removal and session survival. Supplemental no-config-source count assertion is narrower than a complete stamp proof; the exact unit/wire carriers supply the code/value proof. No withdrawal or EoR is mistaken for an advertised route. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.",
   "requirement_sha": "0fea82648a38f9f0",
   "tests": {
     "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCNotStampedOutsideTheDownstreamScope": "790b5f8818e8d37c",
@@ -10,13 +10,13 @@
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod": "7b0a9e434ba435f3",
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampsMixedWithdrawAndAnnounce": "7b0a9e434ba435f3",
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig": "7b0a9e434ba435f3",
-    "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal": "49a47285ee4a16ca",
-    "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal#2": "49a47285ee4a16ca",
-    "test/plugin/role-otc-fwd-withdraw.ci": "b757343b23f6ff09",
-    "test/plugin/role-otc-fwd-withdraw.ci#2": "b757343b23f6ff09",
-    "test/plugin/role-otc-rs-client-dest-stamp.ci": "2b9b1333740da253",
-    "test/plugin/role-otc-rs-withdraw-eor.ci": "230bab7bd8384083",
-    "test/plugin/role-otc-rs-withdraw-eor.ci#2": "230bab7bd8384083"
+    "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal": "07ffe0ba5c7e0809",
+    "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal#2": "07ffe0ba5c7e0809",
+    "test/plugin/role-otc-fwd-withdraw.ci": "99105990687d4b5d",
+    "test/plugin/role-otc-fwd-withdraw.ci#2": "99105990687d4b5d",
+    "test/plugin/role-otc-rs-client-dest-stamp.ci": "179d0da314f7824d",
+    "test/plugin/role-otc-rs-withdraw-eor.ci": "4c1aa45617c58a0c",
+    "test/plugin/role-otc-rs-withdraw-eor.ci#2": "4c1aa45617c58a0c"
   },
   "units": {
     "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCNotStampedOutsideTheDownstreamScope": "3dc6ad863e0079f3",
@@ -29,11 +29,11 @@
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig": "f8ee3316acf05809",
     "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal": "fdbdab55868be9af",
     "internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal#2": "fdbdab55868be9af",
-    "test/plugin/role-otc-fwd-withdraw.ci": "b757343b23f6ff09",
-    "test/plugin/role-otc-fwd-withdraw.ci#2": "b757343b23f6ff09",
-    "test/plugin/role-otc-rs-client-dest-stamp.ci": "2b9b1333740da253",
-    "test/plugin/role-otc-rs-withdraw-eor.ci": "230bab7bd8384083",
-    "test/plugin/role-otc-rs-withdraw-eor.ci#2": "230bab7bd8384083"
+    "test/plugin/role-otc-fwd-withdraw.ci": "99105990687d4b5d",
+    "test/plugin/role-otc-fwd-withdraw.ci#2": "99105990687d4b5d",
+    "test/plugin/role-otc-rs-client-dest-stamp.ci": "179d0da314f7824d",
+    "test/plugin/role-otc-rs-withdraw-eor.ci": "4c1aa45617c58a0c",
+    "test/plugin/role-otc-rs-withdraw-eor.ci#2": "4c1aa45617c58a0c"
   },
   "verdict": "enforced"
 }

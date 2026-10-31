@@ -1,6 +1,17 @@
 [
   {
     "rid": "RFC1195-3.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc1195_level2_reach_test.go::TestRFC1195Level2OneEntryPerPrefix",
+    "unit-sha": "11685c8e90be444d",
+    "claim-sha": "4431174f628a1ca6",
+    "route": "mutant",
+    "producer": "internal/plugins/isis/lsdb_wiring.go::level2Reachability",
+    "producer-sha": "079beca4fd0a36c4",
+    "break": "line 1020: \"best[prefix] == i\" -\u003e \"best[prefix] \u003e= 0 || i \u003c 0\""
+  },
+  {
+    "rid": "RFC1195-3.2-2",
     "polarity": "negative",
     "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SpecificLeakKeepsOnlyMinimum",
     "unit-sha": "410608d84dc35635",

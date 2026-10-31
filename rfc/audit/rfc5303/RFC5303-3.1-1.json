@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: a Point-to-Point IIH without TLV 240. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption: the IIH buildP2PHello emits (the builder sendP2PHello always uses) must decode with TLV 240 (absent is Fatal); negative: a LAN IIH never carries it.",
+  "note": "Rejudged 2026-10-31 by an auditor who authored none of the change. RFC 5303 Section 3.1: \"Any system that supports this mechanism SHALL include this option in its Point-to-Point IIH packets.\" b77067bc31 changed only the call sites in this unit: threeWayTLV and buildP2PHello now take a p2pNeighbor (systemID, extendedCircuitID) instead of a bare SystemID, with the zero value where none was passed before; every assertion is byte-identical and an independent judge approved the change. Verdict unchanged. Earlier judgment follows. Forbidden: a Point-to-Point IIH without TLV 240. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption: the IIH buildP2PHello emits (the builder sendP2PHello always uses) must decode with TLV 240 (absent is Fatal); negative: a LAN IIH never carries it.",
   "requirement_sha": "bcf7d94811f2a0be",
   "tests": {
-    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption": "d32edc6561822cd6",
-    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption#2": "d32edc6561822cd6"
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption": "418f2f0d23778457",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption#2": "418f2f0d23778457"
   },
   "units": {
-    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption": "ac0bb789323a694c",
-    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption#2": "ac0bb789323a694c"
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption": "7bd2d5495d383423",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption#2": "7bd2d5495d383423"
   },
   "verdict": "enforced"
 }

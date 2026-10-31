@@ -46,6 +46,8 @@ func tlv135Metrics(t *testing.T, lsp *packet.LSP, prefix netip.Prefix) []uint32 
 // same two prefixes up from level 1, one cheaper through the leak and one
 // cheaper directly, then decodes the stored L2 LSP. Each prefix MUST appear
 // once, at the lower of its two metrics.
+//
+// RFC requirement: RFC1195-3.2-2 positive -- a prefix an L1L2 router reaches directly and also learns through a level 1 leak appears exactly once in the TLV 135 entries of its stored level 2 LSP, at the lower metric, whichever side is cheaper (direct 10 against leaked 20, leaked 20 against direct 50).
 func TestRFC1195Level2OneEntryPerPrefix(t *testing.T) {
 	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"metric":"10"}}}}}`)
 	defer eng.shutdown()

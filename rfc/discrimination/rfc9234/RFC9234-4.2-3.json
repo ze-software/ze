@@ -3,7 +3,7 @@
     "rid": "RFC9234-4.2-3",
     "polarity": "positive",
     "unit": "test/plugin/role-multiple-roles-notification.ci",
-    "unit-sha": "df1b7ebb4da91351",
+    "unit-sha": "689b4cb903a74924",
     "claim-sha": "75bf849506386a0c",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/role/validate.go::validateOpenRolePair",

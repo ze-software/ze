@@ -1,21 +1,21 @@
 {
-  "note": "Re-judged 2026-10-27 by an independent judge (authored none of the change). Section 3: \"A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability.\" The only change to test/plugin/paths-limit-live.ci is the daemon's container-level config line `limit 9` -> `limit { receive 9; }`: that is ze's own receive request, incidental to this row, while the bound under test comes from the peer script's OPEN (option=open paths-limit ipv4/unicast limit=1, ipv6/unicast limit=2), which is unchanged. Every expect hex, sequence group, sentinel and action line is byte-identical to HEAD, so the negative (an excess identifier absent before the next different-prefix sentinel, admitted only after withdrawal and explicit retry) and the positive (admitted, replaced and reused identifiers reach the wire, per family) read exactly as before. The two Go units are unchanged. Ran green on the current tree, which carries phase 3's move of the send filter into pathsLimitAdmission: ./le test bgp plugin paths-limit-live 1/1 PASS. Separately, ./le rfc check reports this row's discrimination records producer-gone because phase 3 moved pathsLimitSection; that is a stale proof record owed a re-record, not a change to what the tests assert. Enforced stands.",
+  "note": "Rejudged 2026-10-31 by an auditor who authored none of the change. Draft Section 3: \"A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability.\" test/plugin/paths-limit-live.ci changed since the last stamp only in setup: 5cf82621ba added the system authorization profile admin block, and 7c22ceb0d0 added a bgp-level filter {import {final accept;} export {final accept;}} so RFC 8212 default-reject does not withhold the routes the assertions read. The bound under test still comes from the peer script's OPEN (paths-limit ipv4/unicast limit=1, ipv6/unicast limit=2); every expect hex, sequence group, sentinel and action line is unchanged, so the negative and positive read as before. Verdict unchanged. Earlier judgment follows. Re-judged 2026-10-27 by an independent judge (authored none of the change). Section 3: \"A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability.\" The only change to test/plugin/paths-limit-live.ci is the daemon's container-level config line `limit 9` -> `limit { receive 9; }`: that is ze's own receive request, incidental to this row, while the bound under test comes from the peer script's OPEN (option=open paths-limit ipv4/unicast limit=1, ipv6/unicast limit=2), which is unchanged. Every expect hex, sequence group, sentinel and action line is byte-identical to HEAD, so the negative (an excess identifier absent before the next different-prefix sentinel, admitted only after withdrawal and explicit retry) and the positive (admitted, replaced and reused identifiers reach the wire, per family) read exactly as before. The two Go units are unchanged. Ran green on the current tree, which carries phase 3's move of the send filter into pathsLimitAdmission: ./le test bgp plugin paths-limit-live 1/1 PASS. Separately, ./le rfc check reports this row's discrimination records producer-gone because phase 3 moved pathsLimitSection; that is a stale proof record owed a re-record, not a change to what the tests assert. Enforced stands.",
   "requirement_sha": "269b2ebb1239d058",
   "tests": {
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState": "523e558a407aacb5",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState#2": "523e558a407aacb5",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates": "523e558a407aacb5",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates#2": "523e558a407aacb5",
-    "test/plugin/paths-limit-live.ci": "e09e5ff357bd6b8d",
-    "test/plugin/paths-limit-live.ci#2": "e09e5ff357bd6b8d"
+    "test/plugin/paths-limit-live.ci": "47f56e03ed77e42f",
+    "test/plugin/paths-limit-live.ci#2": "47f56e03ed77e42f"
   },
   "units": {
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState": "c5e97c978335c423",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState#2": "c5e97c978335c423",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates": "3340041aa1ba498d",
     "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates#2": "3340041aa1ba498d",
-    "test/plugin/paths-limit-live.ci": "e09e5ff357bd6b8d",
-    "test/plugin/paths-limit-live.ci#2": "e09e5ff357bd6b8d"
+    "test/plugin/paths-limit-live.ci": "47f56e03ed77e42f",
+    "test/plugin/paths-limit-live.ci#2": "47f56e03ed77e42f"
   },
   "verdict": "enforced"
 }

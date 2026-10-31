@@ -18,7 +18,7 @@
     "claim-sha": "ad1204d88f8e21da",
     "route": "revert",
     "producer": "internal/plugins/isis/lsdb_wiring.go::levelState",
-    "producer-sha": "3a25a6b2e7d74162",
-    "break": "body of levelState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "e48af99273efb0c4",
+    "break": "body of levelState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
