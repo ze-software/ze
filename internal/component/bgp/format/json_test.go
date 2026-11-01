@@ -1287,7 +1287,8 @@ func createTestEVPNType2(rdBytes, esiBytes, ethTagBytes, macBytes, ipBytes, labe
 // TestJSONEncoderLabeledUnicast verifies labeled unicast NLRI JSON format.
 //
 // RFC 8277: Labeled Unicast NLRI includes MPLS labels.
-// JSON format: {"prefix":"10.0.0.0/24", "labels":[100]}
+// JSON format: {"labels":[[100,1601]],"path-id":N,"prefix":"10.0.0.0/24"},
+// path-id only when the NLRI carries an RFC 7911 Path Identifier.
 //
 // VALIDATES: Labels appear in structured JSON format.
 // PREVENTS: Labels being lost or incorrectly formatted.
@@ -1322,7 +1323,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 			labels:     []uint32{300},
 			pathID:     42,
 			wantLabels: `"labels":[[300,4801]]`,
-			wantPathID: false, // path-id is transport-level (ADD-PATH), not in decoder output
+			wantPathID: true, // RFC 7911: carried under ADD-PATH, as DecodeNLRIHex writes it
 		},
 	}
 
@@ -1356,7 +1357,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 					"JSON should contain path-id")
 			} else {
 				assert.NotContains(t, output, `"path-id"`,
-					"JSON should not contain path-id when zero")
+					"JSON should not contain path-id without ADD-PATH")
 			}
 
 			// Verify valid JSON
@@ -1511,7 +1512,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 					"JSON should contain path-id")
 			} else {
 				assert.NotContains(t, output, `"path-id"`,
-					"JSON should not contain path-id when zero")
+					"JSON should not contain path-id without ADD-PATH")
 			}
 
 			// Verify valid JSON

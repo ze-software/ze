@@ -475,6 +475,17 @@ class and the bottom-of-stack bit. The entry is dropped when it is zero, the one
 case where it says nothing the label did not. Label 200 above is the bottom of
 the stack, so its entry is `200 << 4 | 1`.
 
+Under ADD-PATH the announcement also carries the route's Path Identifier, zero
+included, as unicast does:
+
+```json
+"nlri": [{"labels": [[100, 1601]], "path-id": 7, "prefix": "10.0.0.0/24"}]
+```
+
+The in-process writer and the RPC decoder write the same keys in the same
+order, so a policy filter's prefix remove can echo the member back to name that
+one path.
+
 <!-- source: internal/component/bgp/plugins/nlri/labeled/json.go -- AppendJSON -->
 <!-- source: internal/component/bgp/plugins/nlri/labeled/encode.go -- labelPairs -->
 

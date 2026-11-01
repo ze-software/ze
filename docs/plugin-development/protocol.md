@@ -733,7 +733,7 @@ the value in the field's shape:
 | `extended-community` | `add`, `remove` | one extended community string, in the form the UPDATE event writes | `{"field":"extended-community","action":"add","value":"target:65000:100"}` |
 | `as-path` | `prepend` | a count of local AS copies, 1 to 32 | `{"field":"as-path","action":"prepend","value":2}` |
 | `as-path` | `remove` | `"private"` removes the private-use AS numbers; `"private-peer-as"` replaces each with the peer AS | `{"field":"as-path","action":"remove","value":"private"}` |
-| `prefix` | `remove` | one announced unicast, multicast or labeled-unicast NLRI, in the shape the `prefix` field is sent: the prefix string, under ADD-PATH `{"prefix":...,"path-id":...}`, and for labeled unicast `{"labels":[[label,entry],...],"prefix":...}` | `{"field":"prefix","action":"remove","value":"10.0.9.0/24"}` |
+| `prefix` | `remove` | one announced unicast, multicast or labeled-unicast NLRI, in the shape the `prefix` field is sent: the prefix string, under ADD-PATH `{"prefix":...,"path-id":...}`, and for labeled unicast `{"labels":[[label,entry],...],"prefix":...}`, with `"path-id"` between them under ADD-PATH | `{"field":"prefix","action":"remove","value":"10.0.9.0/24"}` |
 | `family` | `remove` | one family name | `{"field":"family","action":"remove","value":"ipv6/unicast"}` |
 
 - A later filter of the chain is sent the value an earlier filter's sets
