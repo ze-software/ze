@@ -5,6 +5,10 @@
 #           in ExtractTelemetryConfig that silently dropped extra listeners.
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	router-id 10.0.0.1;
 	session { asn { local 65533; } }
 	peer peer1 {

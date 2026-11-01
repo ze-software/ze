@@ -1,6 +1,14 @@
 # Valid config: graceful-restart with long-lived-stale-time (RFC 9494)
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	peer peer1 {
 		connection {
 			remote {

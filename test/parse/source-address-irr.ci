@@ -9,6 +9,10 @@ policy {
 }
 
 bgp {
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
     router-id 198.51.100.1
     peer test {
         connection {

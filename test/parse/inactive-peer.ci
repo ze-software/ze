@@ -3,6 +3,14 @@
 # and that the inactive: prefix sugar is also valid.
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	session {
 		asn {
 			local 65000

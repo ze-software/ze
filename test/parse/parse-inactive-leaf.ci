@@ -3,6 +3,14 @@
 # prefix loads cleanly through `ze config validate`.
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	inactive: router-id 10.0.0.1
 	session {
 		asn {

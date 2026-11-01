@@ -2,6 +2,14 @@
 # Validates YANG container: bgp/multipath with maximum-paths and relax-as-path
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 1.1.1.1
 	multipath {
 		maximum-paths 8

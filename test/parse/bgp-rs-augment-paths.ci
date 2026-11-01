@@ -9,6 +9,14 @@
 #   any single augment makes one leaf below a rejected unknown field.
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 1.1.1.1
 	session {
 		asn {

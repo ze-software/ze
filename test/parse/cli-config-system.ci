@@ -6,6 +6,14 @@ system {
 	domain dc1.example.com
 }
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 10.0.0.1
 	session {
 		asn {

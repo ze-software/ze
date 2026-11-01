@@ -2,6 +2,14 @@
 
 stdin=config:terminator=EOF_CONF
 bgp {
+    filter {
+        import {
+            final accept
+        }
+        export {
+            final accept
+        }
+    }
     router-id 198.51.100.1
     rpki {
         cache-server 192.0.2.200 {

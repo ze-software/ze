@@ -2,6 +2,14 @@
 # Validates YANG leaves: route-reflector-client, cluster-id, next-hop
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 1.1.1.1
 	session {
 		asn {

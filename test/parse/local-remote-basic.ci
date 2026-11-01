@@ -2,6 +2,14 @@
 # Exercises: peer keyed by name, remote {ip, as}, local {as, ip}, global local {as}
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 10.0.0.1
 	session {
 		asn {

@@ -2,6 +2,14 @@
 # VALIDATES: AC-7 — valid complete config produces no errors
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 1.2.3.4
 	session {
 		asn {

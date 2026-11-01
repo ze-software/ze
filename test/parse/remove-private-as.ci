@@ -28,6 +28,7 @@ bgp {
 			}
 		}
 		filter {
+			import { final accept; }
 			export { filters [ remove-private-as:STRIP remove-private-as:REPLACE ]; final accept; }
 		}
 	}

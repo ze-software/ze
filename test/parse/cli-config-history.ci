@@ -3,6 +3,14 @@
 # PREVENTS: the empty-history path being hidden behind missing-store refusal.
 tmpfs=test.conf:terminator=EOF_FILE
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 10.0.0.1
 	session {
 		asn {

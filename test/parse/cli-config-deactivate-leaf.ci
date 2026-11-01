@@ -5,6 +5,14 @@
 # global one inactive (a mandatory leaf, RFC 7950 Section 7.6.5).
 tmpfs=test.conf:terminator=EOF_FILE
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 10.0.0.1
 	session {
 		asn {

@@ -3,6 +3,14 @@
 # VALIDATES: AC-11 — added peer subtree appears in diff output
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 1.1.1.1
 	session {
 		asn {
@@ -29,6 +37,14 @@ EOF_CONF
 
 tmpfs=old.conf:terminator=EOF_OLD
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 1.1.1.1
 	session {
 		asn {
@@ -55,6 +71,14 @@ EOF_OLD
 
 tmpfs=new.conf:terminator=EOF_NEW
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 1.1.1.1
 	session {
 		asn {

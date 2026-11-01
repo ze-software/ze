@@ -1,6 +1,14 @@
 # Test: ze config validate accepts peer with all required fields present
 stdin=config:terminator=EOF_CONF
 bgp {
+    filter {
+        import {
+            final accept
+        }
+        export {
+            final accept
+        }
+    }
     router-id 1.2.3.4
     session {
         asn {

@@ -124,6 +124,10 @@ bgp {
 	}
 	group RS-MONITOR {
 		timer { receive-hold-time 180; }
+		filter {
+			import { final accept; }
+			export { final accept; }
+		}
 		session {
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }

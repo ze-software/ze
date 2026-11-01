@@ -2,6 +2,14 @@
 # VALIDATES: AC-9 — identical files produce "No differences", exit 0
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 1.1.1.1
 	session {
 		asn {
@@ -28,6 +36,14 @@ EOF_CONF
 
 tmpfs=file1.conf:terminator=EOF_FILE1
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 1.1.1.1
 	session {
 		asn {
@@ -54,6 +70,14 @@ EOF_FILE1
 
 tmpfs=file2.conf:terminator=EOF_FILE2
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 1.1.1.1
 	session {
 		asn {

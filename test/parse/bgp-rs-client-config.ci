@@ -2,6 +2,14 @@
 # Validates: session { rs-client true; } accepted on a peer
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 1.1.1.1
 	session {
 		asn {

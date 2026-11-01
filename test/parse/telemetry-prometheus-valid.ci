@@ -2,6 +2,14 @@
 # VALIDATES: AC-1 — telemetry { prometheus { enabled true; } } accepted by YANG validation
 stdin=config:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 10.0.0.1
 	session {
 		asn {

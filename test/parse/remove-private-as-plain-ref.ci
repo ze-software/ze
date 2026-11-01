@@ -25,6 +25,7 @@ bgp {
 			}
 		}
 		filter {
+			import { final accept; }
 			export { filters [ DROP_PRIVATE_AS ]; final accept; }
 		}
 	}
