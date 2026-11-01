@@ -545,6 +545,16 @@ the address checks.
 Promotion refreshes that path from the old SA: a COOKIE2 check started while an
 IKE replacement awaited Delete is reissued under the new keys and Message ID.
 
+The original initiator finds its new source on each tick: while the current local
+address is still held by an interface it keeps it, and otherwise it asks the
+routing table for the source toward the peer (`routeSourceTo`). On Linux that is
+an `RTM_GETROUTE` request, as strongSwan's kernel-netlink `get_source_addr` does,
+and never a connected socket: a UDP connect is an output route lookup the kernel
+runs through the SPD, its ephemeral port matches no IKE bypass, and under the
+catch-all DISCARD (`vpn ipsec unmatched`, discard by default) it fails with EPERM,
+so a moved initiator would never send `UPDATE_SA_ADDRESSES`
+(`TestMOBIKERouteSourceUnderTheCatchAllDiscard`).
+
 Authenticated reply tuples are transient. A valid request receives its answer at
 the observed source, but an ordinary packet cannot replace the stored MOBIKE
 endpoint. `NO_NATS_ALLOWED` is checked against the actual IP addresses and UDP
@@ -573,6 +583,7 @@ movement leaves configuration untouched. A configuration edit still follows the
 restart path above.
 
 <!-- source: internal/component/ike/engine/mobike.go -- mobikeState, startMobikeRequest, handleMobikeResponse, validateMobikeRequest -->
+<!-- source: internal/component/ike/engine/mobike_route_linux.go -- routeSourceTo -->
 <!-- source: internal/component/ike/engine/inbound.go -- handleOwnedInbound, handleInformationalOwned -->
 <!-- source: internal/component/ike/engine/sa.go -- inheritSendPath -->
 

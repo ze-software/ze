@@ -614,17 +614,11 @@ func mobikeRouteSource(sa *SA, tr *transport.UDPTransport) (*net.UDPAddr, error)
 	if remote == nil {
 		return nil, fmt.Errorf("ike: MOBIKE has no peer address")
 	}
-	conn, err := net.DialUDP("udp4", nil, remote)
+	source, err := routeSourceTo(remote.IP)
 	if err != nil {
 		return nil, err
 	}
-	local, ok := conn.LocalAddr().(*net.UDPAddr)
-	if err := conn.Close(); err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, fmt.Errorf("ike: MOBIKE route has no UDP source")
-	}
+	local := &net.UDPAddr{IP: source}
 	out, _ := sa.sendPath(tr)
 	if out == nil {
 		return nil, fmt.Errorf("ike: MOBIKE has no send socket")
