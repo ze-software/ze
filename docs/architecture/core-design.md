@@ -1721,8 +1721,11 @@ later member reads; a text delta and NLRI sets that both rewrite the NLRI are re
   path's `subsetNLRI` shares through `wireu.CIDRCursor`. An offset that starts no
   entry, a drop from a section the UPDATE lacks, and a drop from a family
   whose NLRI is not a CIDR prefix drop the route. A stripped section is
-  rewritten empty, which drops an MP attribute whole: the body
-  `filter_family`'s raw rewrite produces. The prepend joins the path's
+  rewritten empty, which drops an MP attribute whole and leaves every other
+  family's attribute in place. `bgp-filter-family` answers its remove action
+  with this intent (`judgeFamily`), and rejects the UPDATE itself when the
+  family is all it carries (`carriesOnlyFamily`), because the strip would
+  leave an UPDATE with no NLRI. The prepend joins the path's
   leading AS_SEQUENCE while it has room for 255 AS numbers, and opens a new
   AS_SEQUENCE in front of an AS_SET, an empty path or a full sequence
   (`aspathHandler`, RFC 4271 Section 5.1.2), on both paths. A later member

@@ -1,4 +1,4 @@
-// Design: docs/architecture/wire/nlri.md -- family extraction + MP attribute surgery
+// Design: docs/architecture/wire/nlri.md -- family extraction + whether a family is all an UPDATE carries
 // Related: config.go -- family-filter instance parsing
 // RFC: rfc/short/rfc4271.md -- UPDATE message body layout (Section 4.3)
 // RFC: rfc/short/rfc4760.md -- MP_REACH/MP_UNREACH NLRI, AFI/SAFI (Section 3, 6)
@@ -56,64 +56,57 @@ func familyFromPayload(payload []byte) (fam family.Family, fromMP, ok bool) {
 	return family.IPv4Unicast, false, true
 }
 
-// stripMPAttrs removes the MP_REACH_NLRI (14) and MP_UNREACH_NLRI (15) attributes
-// from an UPDATE body, preserving withdrawn routes, every other path attribute,
-// and the legacy IPv4 NLRI tail. emptied is true when the result carries no
-// reachability (no withdrawn routes and no legacy NLRI) — the caller then
-// suppresses the whole UPDATE rather than send an empty one. ok is false on a
-// malformed body.
-func stripMPAttrs(payload []byte) (newPayload []byte, emptied, ok bool) {
+// carriesOnlyFamily reports whether fam is all the reachability an UPDATE
+// body carries: no withdrawn routes, no legacy IPv4 NLRI, and every
+// MP_REACH_NLRI (14) and MP_UNREACH_NLRI (15) attribute of fam. Stripping fam
+// then empties the UPDATE, and the caller suppresses it whole rather than
+// have an UPDATE with no NLRI sent (RFC 4760 Section 2: the family leaves with
+// its MP attributes). ok is false on a malformed body.
+func carriesOnlyFamily(payload []byte, fam family.Family) (only, ok bool) {
 	wdLen, attrStart, attrEnd, valid := payloadSections(payload)
 	if !valid {
-		return nil, false, false
+		return false, false
 	}
-
-	kept := make([]byte, 0, attrEnd-attrStart)
+	only = wdLen == 0 && attrEnd == len(payload)
+	// The walk is bounded by the attribute section the length field declared.
 	off := attrStart
 	for off < attrEnd {
 		if off+2 > attrEnd {
-			return nil, false, false // malformed attribute header
+			return false, false // malformed attribute header
 		}
 		flags := payload[off]
 		code := payload[off+1]
 		var hdrLen, dataLen int
 		if flags&0x10 == 0 {
 			if off+3 > attrEnd {
-				return nil, false, false
+				return false, false
 			}
 			dataLen = int(payload[off+2])
 			hdrLen = 3
 		} else { // Extended length.
 			if off+4 > attrEnd {
-				return nil, false, false
+				return false, false
 			}
 			dataLen = int(binary.BigEndian.Uint16(payload[off+2 : off+4]))
 			hdrLen = 4
 		}
-		total := hdrLen + dataLen
-		if off+total > attrEnd {
-			return nil, false, false
+		if off+hdrLen+dataLen > attrEnd {
+			return false, false
 		}
-		if code != attrMPReachNLRI && code != attrMPUnreachNLRI {
-			kept = append(kept, payload[off:off+total]...)
+		if code == attrMPReachNLRI || code == attrMPUnreachNLRI {
+			// RFC 4760 Section 3: the attribute opens with its AFI (2 octets)
+			// and SAFI (1 octet).
+			if dataLen < 3 {
+				return false, false
+			}
+			value := payload[off+hdrLen:]
+			afi := family.AFI(binary.BigEndian.Uint16(value[0:2]))
+			safi := family.SAFI(value[2])
+			if (family.Family{AFI: afi, SAFI: safi}) != fam {
+				only = false
+			}
 		}
-		off += total
+		off += hdrLen + dataLen
 	}
-
-	keptLen := len(kept)
-	if keptLen > 0xFFFF {
-		return nil, false, false // cannot happen (only removed); fail-safe
-	}
-	nlri := payload[attrEnd:]
-	var lenBuf [2]byte
-	binary.BigEndian.PutUint16(lenBuf[:], uint16(keptLen)) //nolint:gosec // bounded above
-
-	out := make([]byte, 0, 2+wdLen+2+keptLen+len(nlri))
-	out = append(out, payload[:2+wdLen]...) // withdrawn-routes-length + withdrawn routes
-	out = append(out, lenBuf[:]...)         // new total path attribute length
-	out = append(out, kept...)
-	out = append(out, nlri...)
-
-	emptied = wdLen == 0 && len(nlri) == 0
-	return out, emptied, true
+	return only, true
 }

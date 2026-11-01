@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -52,43 +51,41 @@ func TestFamilyFromPayload(t *testing.T) {
 	assert.False(t, ok)
 }
 
-// TestStripMPAttrs validates the MP_REACH/MP_UNREACH surgery.
+// TestCarriesOnlyFamily validates the emptied check behind the whole-UPDATE
+// suppress.
 //
-// VALIDATES: AC-2/AC-3 -- pure MP UPDATE empties (suppress); mixed keeps legacy NLRI.
-// PREVENTS: removing the wrong attribute or corrupting the legacy NLRI tail.
-func TestStripMPAttrs(t *testing.T) {
-	// Pure MP-only flowspec: stripping the MP attr empties the UPDATE.
-	_, emptied, ok := stripMPAttrs(buildUpdate(mpFlowReachAttr(), nil))
+// VALIDATES: AC-2/AC-3 -- pure MP UPDATE of the family empties (suppress); a
+// legacy NLRI tail, a withdrawn route or another MP family keeps the UPDATE.
+// PREVENTS: suppressing an UPDATE that still carries other routes, or sending
+// one the strip left with no NLRI.
+func TestCarriesOnlyFamily(t *testing.T) {
+	flow, _ := family.LookupFamily("ipv4/flow")
+	only, ok := carriesOnlyFamily(buildUpdate(mpFlowReachAttr(), nil), flow)
 	require.True(t, ok)
-	assert.True(t, emptied)
+	assert.True(t, only, "MP-only flowspec UPDATE")
 
-	// Mixed: ORIGIN + MP flowspec + legacy NLRI. Strip MP, keep ORIGIN and NLRI.
-	nlri := []byte{24, 10, 0, 0} // 10.0.0.0/24
 	attrs := append(append([]byte{}, originAttr...), mpFlowReachAttr()...)
-	out, emptied, ok := stripMPAttrs(buildUpdate(attrs, nlri))
+	only, ok = carriesOnlyFamily(buildUpdate(attrs, []byte{24, 10, 0, 0}), flow)
 	require.True(t, ok)
-	assert.False(t, emptied)
+	assert.False(t, only, "legacy NLRI tail remains")
 
-	// The MP family must be gone, the legacy NLRI preserved.
-	stillHasMP := familyFromMPOnly(out)
-	assert.False(t, stillHasMP, "MP_REACH must be removed")
-	assert.Equal(t, nlri, legacyNLRI(t, out), "legacy NLRI must be intact")
+	withdrawn := append([]byte{0x00, 0x04, 24, 10, 0, 0}, buildUpdate(mpFlowReachAttr(), nil)[2:]...)
+	only, ok = carriesOnlyFamily(withdrawn, flow)
+	require.True(t, ok)
+	assert.False(t, only, "withdrawn routes remain")
+
+	two := append(append([]byte{}, mpFlowReachAttr()...), mpIPv6UnreachAttr()...)
+	only, ok = carriesOnlyFamily(buildUpdate(two, nil), flow)
+	require.True(t, ok)
+	assert.False(t, only, "another MP family remains")
+
+	_, ok = carriesOnlyFamily(buildUpdate([]byte{0x80, 14, 2, 0x00, 0x01}, nil), flow)
+	assert.False(t, ok, "an MP attribute too short for AFI and SAFI is malformed")
 }
 
-// familyFromMPOnly reports whether the payload still carries an MP family.
-func familyFromMPOnly(payload []byte) bool {
-	_, attrStart, attrEnd, ok := payloadSections(payload)
-	if !ok {
-		return false
-	}
-	_, found := message.ExtractMPFamily(payload[attrStart:attrEnd])
-	return found
-}
-
-// legacyNLRI returns the legacy IPv4 NLRI tail of an UPDATE body.
-func legacyNLRI(t *testing.T, payload []byte) []byte {
-	t.Helper()
-	_, _, attrEnd, ok := payloadSections(payload)
-	require.True(t, ok)
-	return payload[attrEnd:]
+// mpIPv6UnreachAttr builds an MP_UNREACH_NLRI (code 15) withdrawing
+// 2001:db8::/32 in ipv6/unicast.
+func mpIPv6UnreachAttr() []byte {
+	val := []byte{0x00, 0x02, 0x01, 32, 0x20, 0x01, 0x0d, 0xb8}
+	return append([]byte{0x80, 15, byte(len(val))}, val...)
 }
