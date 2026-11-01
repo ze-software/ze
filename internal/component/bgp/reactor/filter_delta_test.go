@@ -637,7 +637,9 @@ func TestExtractASPathPrependOps(t *testing.T) {
 
 // TestAspathHandler verifies AS_PATH handler supports both Set and Prepend.
 //
-// VALIDATES: Prepend inserts new segment before existing AS_PATH.
+// VALIDATES: Prepend joins the leading AS_SEQUENCE of the existing AS_PATH
+// (RFC 4271 Section 5.1.2 b 1); TestAspathHandlerPrependJoinsLeadingSequence
+// covers AS_SET, empty, overflow and two prepends.
 // PREVENTS: Prepend clobbering existing path or wrong segment format.
 func TestAspathHandler(t *testing.T) {
 	handler := aspathHandler()
@@ -658,14 +660,13 @@ func TestAspathHandler(t *testing.T) {
 
 		out, ok := planHandlerBytes(handler, code, src, ops)
 		require.True(t, ok, "handler planned an emitted attribute")
-		// Header(3) + prepend(6) + existing(6) = 15
-		require.Len(t, out, 15)
+		// Header(3) + one AS_SEQUENCE header(2) + two AS numbers(8) = 13
+		require.Len(t, out, 13)
 		assert.Equal(t, byte(0x40), out[0])
 		assert.Equal(t, byte(attribute.AttrASPath), out[1])
-		assert.Equal(t, byte(12), out[2]) // value length
-		// Prepended segment first, then existing.
-		assert.Equal(t, prependVal, out[3:9])
-		assert.Equal(t, srcVal, out[9:15])
+		assert.Equal(t, byte(10), out[2]) // value length
+		// One AS_SEQUENCE: the prepended AS first, then the existing one.
+		assert.Equal(t, []byte{byte(attribute.ASSequence), 2, 0, 0, 0xFD, 0xE8, 0, 0, 0xFD, 0xEA}, out[3:13])
 	})
 
 	t.Run("prepend_to_empty", func(t *testing.T) {
@@ -707,10 +708,10 @@ func TestAspathHandler(t *testing.T) {
 
 		out, ok := planHandlerBytes(handler, code, nil, ops)
 		require.True(t, ok, "handler planned an emitted attribute")
-		require.Len(t, out, 15)
-		assert.Equal(t, byte(12), out[2])
-		assert.Equal(t, prependVal, out[3:9])
-		assert.Equal(t, setVal, out[9:15])
+		require.Len(t, out, 13)
+		assert.Equal(t, byte(10), out[2])
+		// The prepend joins the Set value's leading AS_SEQUENCE.
+		assert.Equal(t, []byte{byte(attribute.ASSequence), 2, 0, 0, 0xFD, 0xE8, 0, 0, 0xFD, 0xEA}, out[3:13])
 	})
 }
 
@@ -1562,14 +1563,15 @@ func TestEncodeValuesIntoScratch(t *testing.T) {
 
 		// End to end: the AS_PATH handler plans a fragment per prepend and the
 		// write materializes both, so both carved windows must still hold their
-		// own bytes when the payload is built.
+		// own bytes when the payload is built. Both join the source's leading
+		// AS_SEQUENCE (RFC 4271 Section 5.1.2 b 1), in plan order.
 		source := buildModTestPayload(makeAttr(0x40, byte(attribute.AttrASPath),
 			[]byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xEA}), []byte{24, 10, 0, 0})
 		result, _, fail := buildModifiedPayload(source, &mods, attrModHandlersWithDefaults(), nil, nil)
 		require.Equal(t, modifyFailureNone, fail)
 		require.NotNil(t, result)
 		assert.Contains(t, hex.EncodeToString(result),
-			"02020000fde80000fde802020000fde90000fde902010000fdea",
+			"02050000fde80000fde80000fde90000fde90000fdea",
 			"both prepends and the original path, in plan order")
 	})
 
@@ -1663,10 +1665,10 @@ func attrValueFromPayload(t *testing.T, payload []byte, code attribute.Attribute
 }
 
 // flatASNs returns every AS number of a decoded path, in path order. The policy
-// prepend is recorded as its OWN AS_SEQUENCE segment, because aspathHandler
-// splices it in FRONT of the source value rather than merging into the source
-// segment, so this is the path a receiving peer computes and Segments[0] alone
-// is only its leading half.
+// prepend joins a leading AS_SEQUENCE but opens its own segment in front of an
+// AS_SET or a full sequence, so this is the path a receiving peer computes
+// whatever the segment layout, and Segments[0] alone can be only its leading
+// half.
 func flatASNs(path *attribute.ASPath) []uint32 {
 	var out []uint32
 	for _, seg := range path.Segments {

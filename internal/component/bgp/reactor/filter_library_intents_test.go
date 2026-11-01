@@ -242,9 +242,9 @@ func TestLibraryASPathIntentsMatchText(t *testing.T) {
 	t.Run("import-two-octet", func(t *testing.T) {
 		// AS_PATH AS_SEQUENCE 3 64512 174 at two octets; 64512 is private.
 		received := nlriHex(t, "0000 0016 40010100 4002080203 0003 fc00 00ae 40030401010101 180a0001")
-		// AS_SEQUENCE 65000 65000, then AS_SEQUENCE 3 174: the prepend lands
-		// as its own segment, as aspathHandler writes every prepend.
-		want := nlriHex(t, "0000 001a 40010100 40020c 0202 fde8 fde8 0202 0003 00ae 40030401010101 180a0001")
+		// AS_SEQUENCE 65000 65000 3 174: the prepend joins the leading
+		// AS_SEQUENCE (RFC 4271 Section 5.1.2 b 1).
+		want := nlriHex(t, "0000 0018 40010100 40020a 0204 fde8 fde8 0003 00ae 40030401010101 180a0001")
 		if text := textBody(t, received, false, 65000, 65001); !bytes.Equal(text, want) {
 			t.Fatalf("text path = %x, want %x", text, want)
 		}
@@ -261,8 +261,8 @@ func TestLibraryASPathIntentsMatchText(t *testing.T) {
 	received := nlriHex(t, "0000 0018 40010100 40020a0202 00000d1c fa56ea00 40030401010101 180a0001")
 
 	t.Run("export-external-four-octet", func(t *testing.T) {
-		// AS_SEQUENCE 65000 65000, then AS_SEQUENCE 3356.
-		want := nlriHex(t, "0000 001e 40010100 400210 0202 0000fde8 0000fde8 0201 00000d1c 40030401010101 180a0001")
+		// AS_SEQUENCE 65000 65000 3356, one segment.
+		want := nlriHex(t, "0000 001c 40010100 40020e 0203 0000fde8 0000fde8 00000d1c 40030401010101 180a0001")
 		if text := textBody(t, received, true, 65000, 65002); !bytes.Equal(text, want) {
 			t.Fatalf("text path = %x, want %x", text, want)
 		}
