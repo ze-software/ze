@@ -75,7 +75,10 @@ func TestConvertFamilySyntaxUsesRegistryNames(t *testing.T) {
 }
 
 // TestMigrateImplicitFamilies preserves ExaBGP's all-known-families default by
-// migrating omitted, empty, and explicit family blocks independently of fixtures.
+// migrating omitted, empty, `all`, and explicit family blocks independently of
+// fixtures. ExaBGP's `family { all; }` appends every NLRI.known_families()
+// pair (exabgp 5.0 configuration/neighbor/family.py, ParseFamily.all), the
+// same set an omitted block means.
 func TestMigrateImplicitFamilies(t *testing.T) {
 	family.RegisterTestFamilies()
 	for _, tc := range []struct {
@@ -85,6 +88,7 @@ func TestMigrateImplicitFamilies(t *testing.T) {
 	}{
 		{name: "omitted", all: true},
 		{name: "empty", block: "family { }", all: true},
+		{name: "all", block: "family { all; }", all: true},
 		{name: "explicit", block: "family { ipv4 unicast; }"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

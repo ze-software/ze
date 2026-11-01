@@ -16,18 +16,24 @@ import (
 const (
 	safiNLRIMPLS = "nlri-mpls"
 	safiVPLS     = "vpls"
+
+	// exabgpFamilyAll is ExaBGP's `family { all; }` keyword: every family it knows.
+	exabgpFamilyAll = "all"
 )
 
 // convertFamilyToList converts ExaBGP family syntax to ZeBGP list entries.
 // ExaBGP: "ipv4 unicast;" -> ZeBGP: session > family list: key="ipv4/unicast".
 // An omitted or empty block means every registered family, matching ExaBGP's
 // default of all known NLRI families rather than Ze's IPv4-unicast default.
+// `family { all; }` means the same set: ExaBGP's ParseFamily.all appends every
+// NLRI.known_families() pair (configuration/neighbor/family.py), and ExaBGP
+// refuses `all` beside any other family, so it is never one entry of several.
 func convertFamilyToList(src, dst *config.Tree) {
 	var keys []string
 	if src != nil {
 		keys = src.Values()
 	}
-	if len(keys) == 0 {
+	if len(keys) == 0 || slices.Contains(keys, exabgpFamilyAll) {
 		keys = family.RegisteredFamilyNames()
 	}
 	// Registry enumeration and source values both need deterministic output.
