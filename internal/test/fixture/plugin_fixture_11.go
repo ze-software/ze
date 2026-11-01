@@ -685,13 +685,20 @@ func policyAS4Suppress(ctx context.Context, _ []string) error {
 		}
 		changes, _ := data["wire-changes"].([]any)
 		fmt.Printf("OK: action=%v wire-changes=%v\n", data["action"], changes)
-		for _, change := range changes {
-			if change == "AS4_PATH suppressed" {
-				fmt.Println("OK: AS4_PATH suppressed surfaced in dry-run wire-changes")
-				return nil
-			}
+		// The two-octet paste is merged into the four-octet form first, as the
+		// live import does, so 4200000000 (carried in AS4_PATH) is removed
+		// from the merged AS_PATH, and no AS4_PATH reaches the chain.
+		if before, _ := data["text-before"].(string); !strings.Contains(before, "as-path [64500 4200000000]") {
+			return fmt.Errorf("text-before %q does not carry the merged as-path [64500 4200000000]", before)
 		}
-		return fmt.Errorf("AS4_PATH suppressed not in wire-changes: %v", changes)
+		if after, _ := data["text-after"].(string); !strings.Contains(after, "as-path 64500 ") {
+			return fmt.Errorf("text-after %q still carries the private ASN 4200000000", after)
+		}
+		if len(changes) != 1 || changes[0] != "AS_PATH set" {
+			return fmt.Errorf("wire-changes = %v, want [AS_PATH set]", changes)
+		}
+		fmt.Println("OK: the AS4_PATH-carried private ASN removed from the merged AS_PATH in wire-changes")
+		return nil
 	})
 }
 

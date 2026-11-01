@@ -1,6 +1,9 @@
-# Test: show policy test surfaces AS4_PATH suppression in the wire-changes section
-# VALIDATES: spec-pol-4-explain AC-10 -- AS4_PATH suppressed by remove-private-as
-#            appears in the dry-run wire-diff section
+# Test: show policy test over a two-octet UPDATE whose private ASN sits in
+#       AS4_PATH explains the route the live import produces
+# VALIDATES: spec-pol-4-explain AC-10 -- the paste is merged into the four-octet
+#            form (RFC 6793 Section 4.2.3), remove-private-as removes the
+#            AS4_PATH-carried 4200000000 from the merged as-path, and the
+#            wire-changes section names the AS_PATH rewrite
 # PREVENTS: AS4_PATH (RFC 6793) effects being invisible because the flat filter
 #           text only carries the merged "as-path"
 
