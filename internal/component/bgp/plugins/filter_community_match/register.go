@@ -1,9 +1,13 @@
 package filter_community_match
 
 import (
+	"log/slog"
+	"os"
+
 	cmyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_community_match/yang"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 )
@@ -33,7 +37,7 @@ func init() {
 	// through this source (community_match_reference.go).
 	yang.RegisterReferenceSource(communityMatchReferenceSource, communityMatchReference)
 
-	_ = registry.Register(registry.Registration{
+	reg := registry.Registration{
 		Name:         "bgp-filter-community-match",
 		Description:  "Named community match filter (ordered entries, first match wins, accept/reject)",
 		ConfigRoots:  []string{configRootBGP},
@@ -41,6 +45,16 @@ func init() {
 		Dependencies: []string{configRootBGP, policy.PluginName},
 		YANG:         cmyang.ZeFilterCommunityMatchYANG,
 		RunEngine:    runFilterCommunityMatch,
-		CLIHandler:   func(_ []string) int { return 0 },
-	})
+	}
+	// The forked form (`ze plugin <name>`) runs the engine over TLS
+	// connect-back, as every external plugin does.
+	reg.CLIHandler = func(args []string) int {
+		cfg := cli.BaseConfig(&reg)
+		cfg.GetYANG = func() string { return cmyang.ZeFilterCommunityMatchYANG }
+		return cli.RunPlugin(cfg, args)
+	}
+	if err := registry.Register(reg); err != nil {
+		slog.Error(reg.Name+": registration failed", "error", err)
+		os.Exit(1)
+	}
 }

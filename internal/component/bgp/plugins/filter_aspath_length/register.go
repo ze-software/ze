@@ -1,9 +1,13 @@
 package filter_aspath_length
 
 import (
+	"log/slog"
+	"os"
+
 	falyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_aspath_length/yang"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 )
@@ -33,7 +37,7 @@ func init() {
 	// through this source (as_path_length_reference.go).
 	yang.RegisterReferenceSource(asPathLengthReferenceSource, asPathLengthReference)
 
-	_ = registry.Register(registry.Registration{
+	reg := registry.Registration{
 		Name:         "bgp-filter-aspath-length",
 		Description:  "Named AS-path length filter (accept/reject based on hop count)",
 		ConfigRoots:  []string{configRootBGP},
@@ -41,6 +45,16 @@ func init() {
 		Dependencies: []string{configRootBGP, policy.PluginName},
 		YANG:         falyang.ZeFilterAsPathLengthYANG,
 		RunEngine:    RunFilterAsPathLength,
-		CLIHandler:   func(_ []string) int { return 0 },
-	})
+	}
+	// The forked form (`ze plugin <name>`) runs the engine over TLS
+	// connect-back, as every external plugin does.
+	reg.CLIHandler = func(args []string) int {
+		cfg := cli.BaseConfig(&reg)
+		cfg.GetYANG = func() string { return falyang.ZeFilterAsPathLengthYANG }
+		return cli.RunPlugin(cfg, args)
+	}
+	if err := registry.Register(reg); err != nil {
+		slog.Error(reg.Name+": registration failed", "error", err)
+		os.Exit(1)
+	}
 }

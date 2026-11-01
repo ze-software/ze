@@ -1,10 +1,14 @@
 package filter_path_asn
 
 import (
+	"log/slog"
+	"os"
+
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	fpayang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_path_asn/yang"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -39,7 +43,7 @@ func init() {
 	// through this source (reject_asn_reference.go).
 	yang.RegisterReferenceSource(rejectASNReferenceSource, rejectASNReference)
 
-	_ = registry.Register(registry.Registration{
+	reg := registry.Registration{
 		Name:         "bgp-filter-path-asn",
 		Description:  "Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position",
 		ConfigRoots:  []string{configRootBGP},
@@ -48,9 +52,19 @@ func init() {
 		YANG:         fpayang.ZeFilterPathAsnYANG,
 		RunEngine:    runFilterPathASN,
 		Commands:     commandDecls(),
-		CLIHandler:   func(_ []string) int { return 0 },
 		ConfigureMetrics: func(reg metrics.Registry) {
 			setMetricsRegistry(reg)
 		},
-	})
+	}
+	// The forked form (`ze plugin <name>`) runs the engine over TLS
+	// connect-back, as every external plugin does.
+	reg.CLIHandler = func(args []string) int {
+		cfg := cli.BaseConfig(&reg)
+		cfg.GetYANG = func() string { return fpayang.ZeFilterPathAsnYANG }
+		return cli.RunPlugin(cfg, args)
+	}
+	if err := registry.Register(reg); err != nil {
+		slog.Error(reg.Name+": registration failed", "error", err)
+		os.Exit(1)
+	}
 }
