@@ -61,10 +61,16 @@ func encapNetns(t *testing.T) {
 	}
 }
 
-// encapStat reads one counter out of the namespace's own /proc/net/xfrm_stat.
+// encapStat reads one counter out of the namespace's own xfrm_stat.
+//
+// It reads /proc/thread-self, never /proc/net. encapNetns moved only this goroutine's
+// locked THREAD into the probe's namespace, and /proc/net resolves through /proc/self to
+// the thread-group leader, which stays in the namespace userns.Enter made. Whenever the
+// test goroutine runs on any thread but the leader, /proc/net reports the other
+// namespace's counters, which no probe datagram moves.
 func encapStat(t *testing.T, name string) int {
 	t.Helper()
-	raw, err := os.ReadFile("/proc/net/xfrm_stat")
+	raw, err := os.ReadFile("/proc/thread-self/net/xfrm_stat")
 	if err != nil {
 		t.Fatalf("read xfrm_stat: %v", err)
 	}
@@ -78,7 +84,7 @@ func encapStat(t *testing.T, name string) int {
 			return n
 		}
 	}
-	t.Fatalf("%s absent from /proc/net/xfrm_stat", name)
+	t.Fatalf("%s absent from /proc/thread-self/net/xfrm_stat", name)
 	return 0
 }
 

@@ -5,7 +5,7 @@
 // the kernel rather than with the kernel. The defect they cover is that outbound traffic
 // left the box in the clear, and only a kernel can answer whether it did.
 //
-// The instrument is /proc/net/xfrm_stat, never a write result. XfrmOutNoStates rises once
+// The instrument is the namespace's xfrm_stat, never a write result. XfrmOutNoStates rises once
 // per outbound datagram that MATCHED a PROTECT policy whose template resolved to no state
 // (net/xfrm/xfrm_policy.c, the -EAGAIN arm of xfrm_lookup_with_ifid). Every policy below is
 // installed WITHOUT a state, so that counter answers exactly one question: did a policy
@@ -119,10 +119,16 @@ func delListPolicies(t *testing.T) []string {
 	return out
 }
 
-// delStat reads one counter out of the namespace's own /proc/net/xfrm_stat.
+// delStat reads one counter out of the namespace's own xfrm_stat.
+//
+// It reads /proc/thread-self, never /proc/net. delNetns moved only this goroutine's
+// locked THREAD into the probe's namespace, and /proc/net resolves through /proc/self to
+// the thread-group leader, which stays in the namespace userns.Enter made. Whenever the
+// test goroutine runs on any thread but the leader, /proc/net reports the other
+// namespace's counters, which no probe datagram moves, and the positive control fails.
 func delStat(t *testing.T, name string) int {
 	t.Helper()
-	raw, err := os.ReadFile("/proc/net/xfrm_stat")
+	raw, err := os.ReadFile("/proc/thread-self/net/xfrm_stat")
 	if err != nil {
 		t.Fatalf("read xfrm_stat: %v", err)
 	}
@@ -136,7 +142,7 @@ func delStat(t *testing.T, name string) int {
 			return n
 		}
 	}
-	t.Fatalf("%s absent from /proc/net/xfrm_stat", name)
+	t.Fatalf("%s absent from /proc/thread-self/net/xfrm_stat", name)
 	return 0
 }
 
