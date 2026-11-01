@@ -55,6 +55,12 @@ compiled yet (`docs/plugin-development/schema.md`, "What works today").
   (`rpc.DirectBridge.SetFilterSlot`, installed by `sdk.OnFilter`): one
   evaluator, called through the slot internal and over the batched message
   forked (`docs/plugin-development/handlers.md`, "Route filters").
+- **A filter a plugin places itself is a declared insertion.**
+  `Registration.FilterInsertions` is judged at Stage 1 by
+  `registry.CheckFilterInsertions` and `config.CheckFilterInsertionPaths`
+  (the condition path is a compiled schema node; a compiled-in plugin's names
+  config its own module adds), and config load applies it
+  (`process-protocol.md`, "Filter Insertion").
 - **A role one plugin takes from another is a claim, not an import.** Declare
   `Claims`. The other plugin reads `ClaimActive` in `OnConfigure`
   (`plugin-system.md`, "Exclusive role claims").

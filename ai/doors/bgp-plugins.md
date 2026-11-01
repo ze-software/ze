@@ -38,7 +38,7 @@ talks to the engine is in `ai/digests/plugin-transport.md`.
 
 | Outside party | Contract | Page |
 |---------------|----------|------|
-| A third-party BGP plugin author | The process protocol, the Stage 1 `declare-registration` (families, filters, cache consumer, claims, `signals-session-ready`), capability injection, the event and command formats. The in-tree plugins are the examples such an author reads | `docs/plugin-development/protocol.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/api/capability-contract.md` |
+| A third-party BGP plugin author | The process protocol, the Stage 1 `declare-registration` (families, filters, filter insertions, cache consumer, claims, `signals-session-ready`), capability injection, the event and command formats. The in-tree plugins are the examples such an author reads | `docs/plugin-development/protocol.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/api/capability-contract.md` |
 | An operator | Each plugin's YANG config, its commands, the `<type>:<name>` filter reference of a type that serves a filter role (`Registration.FilterTypes`), the `match` conditions through which a BGP chain reaches the `prefix-list`, `as-path-list`, `as-path-length`, `community-match` and `reject-asn` types, and the alias form `internal rs { use bgp-rs }` | `docs/guide/plugins.md`, `docs/guide/configuration.md` |
 | Another plugin | Route metadata keys a plugin sets or reads, and the dependency order on state events (`bgp-gr` before `bgp-rib`) | `docs/architecture/meta/README.md`, `docs/architecture/plugin/plugin-relationships.md` |
 | A protocol peer or server | The RFCs these plugins implement: a GR peer, an RPKI cache, a BMP collector, a route-server client | `rfc/short/`, `docs/guide/graceful-restart.md`, `docs/guide/rpki.md`, `docs/guide/bmp.md` |
@@ -65,6 +65,13 @@ talks to the engine is in `ai/digests/plugin-transport.md`.
 | `filterapi.Register` filters | Yes, Go function pointers. An external filter uses `filter-update` | `internal/component/bgp/filterapi/filterapi.go` `Register` |
 | `InProcessNLRIDecoder`, `InProcessNLRIEncoder` and the other `InProcess*` fields | Fast path. An external plugin answers through `OnDecodeNLRI`/`OnEncodeNLRI` | `registry.Registration` comments |
 
+- **A procedure a feature's config implies is a filter-list member its plugin
+  inserts.** The plugin declares `FilterInsertions` (`rpc.FilterInsertion`)
+  and the config loader places the member on the peers whose config meets the
+  condition; no engine or config code names the feature. A compiled-in
+  plugin's condition names config its own YANG module adds
+  (`config.CheckFilterInsertionPaths`, `process-protocol.md`, "Filter
+  Insertion").
 - **A barrier or a report is about timing, never about permission.** The
   peer-up barrier holds the End-of-RIB at most 2 s. The session-ready report
   never holds it (owner ruling, 2026-09-18). Both are in `plugin-system.md`,
