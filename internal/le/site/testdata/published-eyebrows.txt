@@ -122,6 +122,7 @@ labs/pppoe-interop/architecture/index.html	Lab details
 legal/index.html	Legal
 license/index.html	License
 performance/bgp/index.html	Performance
+project/ai-development/index.html	Documentation
 project/history/index.html	Documentation
 project/index.html	Project
 project/roadmap/index.html	Release path

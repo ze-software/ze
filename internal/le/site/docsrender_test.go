@@ -177,11 +177,11 @@ func readSource(t *testing.T, source string) []byte {
 	return content
 }
 
-// publishedEyebrows answers the eyebrow each of this producer's 149 pages
+// publishedEyebrows answers the eyebrow each of this producer's 150 pages
 // carried at gh-pages 2fa8fa2ad, the last commit the retired renderers made.
-// legal/ is the one page added since; its line is the eyebrow the first local
-// build that rendered it carried, so it guards against drift rather than
-// answering from a published page.
+// legal/ and project/ai-development/ are the pages added since; each line is
+// the eyebrow the first local build that rendered it carried, so it guards
+// against drift rather than answering from a published page.
 //
 // It is committed rather than read from the sibling worktree so the answer key
 // is the PUBLISHED page rather than whatever a later build left there.
@@ -195,8 +195,8 @@ func publishedEyebrows(t *testing.T) map[string]string {
 		}
 		labels[destination] = label
 	}
-	if len(labels) != 149 {
-		t.Fatalf("the eyebrow fixture names %d pages, want the producer's 149", len(labels))
+	if len(labels) != 150 {
+		t.Fatalf("the eyebrow fixture names %d pages, want the producer's 150", len(labels))
 	}
 	return labels
 }
