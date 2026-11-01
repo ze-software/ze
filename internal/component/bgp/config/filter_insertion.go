@@ -52,8 +52,13 @@ func insertDeclaredFilters(bgpTree map[string]any, peers []*reactor.PeerSettings
 }
 
 // declaredInsertions collects every compiled-in registration's insertions,
-// each judged by the same rules as at Stage 1, sorted by priority then
-// reference so the order never depends on registration order.
+// each judged by the same rules as at Stage 1, and those a third-party
+// plugin declared at Stage 1 (registry.RuntimeFilterInsertions, already
+// judged there), sorted by priority then reference so the order never
+// depends on registration order. The daemon loads its config before any
+// plugin reaches Stage 1, so a third party's insertions are absent from that
+// first load and land through the tree reload the BGP plugin runs before its
+// peers start (spec-filter-wire-6-stage-filters A-12).
 func declaredInsertions() ([]rpc.FilterInsertion, error) {
 	var insertions []rpc.FilterInsertion
 	for _, r := range registry.All() {
@@ -67,6 +72,9 @@ func declaredInsertions() ([]rpc.FilterInsertion, error) {
 			return nil, err
 		}
 		insertions = append(insertions, r.FilterInsertions...)
+	}
+	for _, runtime := range registry.RuntimeFilterInsertions() {
+		insertions = append(insertions, runtime.Insertions...)
 	}
 	slices.SortStableFunc(insertions, func(a, b rpc.FilterInsertion) int {
 		if c := cmp.Compare(a.Priority, b.Priority); c != 0 {

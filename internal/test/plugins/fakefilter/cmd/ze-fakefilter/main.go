@@ -33,10 +33,13 @@ func run() int {
 		log.Error("ze-fakefilter: read the trigger", "error", err)
 		return 1
 	}
+	// ze names the process after its config entry (ZE_PLUGIN_NAME), and
+	// authenticates it by that name; a copy run under another name serves,
+	// and inserts, <name>:judge. Query mode runs with no name and declares
+	// fakefilter's own.
+	name := os.Getenv("ZE_PLUGIN_NAME")
+	tr.Process = name
 	return sdk.RunOrDeclare(fakefilter.Registration(tr), func() int {
-		// ze names the process after its config entry (ZE_PLUGIN_NAME), and
-		// authenticates it by that name.
-		name := os.Getenv("ZE_PLUGIN_NAME")
 		if name == "" {
 			log.Error("ze-fakefilter: ZE_PLUGIN_NAME is not set; run it from a ze `plugin { external <name> { run ... } }` entry")
 			return 1

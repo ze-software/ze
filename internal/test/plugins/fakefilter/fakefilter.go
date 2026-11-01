@@ -218,12 +218,14 @@ type Trigger struct {
 	// generation's startup is done.
 	Restart       bool
 	RespawnedFile string
-	// Insert sends FilterInsertions in the Stage 1 registration. It is asked
-	// for, not implied, because a forked copy run under another name (an
-	// alias such as fakefilter-forked) serves fakefilter-forked:judge, and
-	// the judge refuses an insertion of a reference the process does not
-	// serve.
+	// Insert sends FilterInsertions(Process) in the Stage 1 registration.
+	// It is asked for, not implied, so a test that does not read insertions
+	// sees the plain filter plugin.
 	Insert bool
+	// Process is the name ze runs this process under ("" means Name): a copy
+	// forked under another name serves <Process>:judge, so its insertion
+	// names that reference (FilterInsertions).
+	Process string
 	// generation is set by startGeneration, never by the environment.
 	generation int
 }
@@ -249,20 +251,37 @@ func startGeneration(tr Trigger) Trigger {
 // carries fakefilter:judge in its import list without naming it.
 var InsertCondition = []string{"fakefilter", "insert"}
 
-// FilterInsertions is the plugin's one auto-insertion
-// (spec-filter-wire-6-stage-filters AC-1): fakefilter:judge, first in the
-// import list of every peer whose resolved config sets InsertCondition true.
-// Like FilterDecls it has two readers and MUST stay one function:
-// compiledin's registry.Registration, which config load reads, and the
-// Stage 1 registration Run sends when the trigger asks for it.
-func FilterInsertions() []rpc.FilterInsertion {
-	return []rpc.FilterInsertion{{
-		Filter:    Name + ":" + FilterName,
+// InsertCopyCondition is the config path, under a peer, of the leaf a copy
+// of fakefilter forked under another name conditions on: a peer that sets it
+// to the copy's process name carries <name>:judge in its import list. The
+// copy has no compiled registration, so it is a third-party plugin, and a
+// third party may condition on any compiled path (docs/architecture/api/
+// process-protocol.md, "Filter Insertion"). It is not InsertCondition, which
+// the compiled registration's own insertion reads: a peer meeting that one
+// would also carry fakefilter:judge, for a process that is not running.
+var InsertCopyCondition = []string{"fakefilter", "insert-copy"}
+
+// FilterInsertions is the one auto-insertion of the process ze runs under
+// the name process (spec-filter-wire-6-stage-filters AC-1, A-12): its judge,
+// first in the import list of every peer that asks for it. Run under Name it
+// conditions on InsertCondition true; a copy run under another name
+// conditions on InsertCopyCondition equal to that name. Like FilterDecls it
+// has two readers and MUST stay one function: compiledin's
+// registry.Registration, which config load reads, and the Stage 1
+// registration Run sends when the trigger asks for it.
+func FilterInsertions(process string) []rpc.FilterInsertion {
+	insertion := rpc.FilterInsertion{
+		Filter:    process + ":" + FilterName,
 		Direction: rpc.FilterImport,
 		Priority:  100,
 		Config:    InsertCondition,
 		Values:    []string{"true"},
-	}}
+	}
+	if process != Name {
+		insertion.Config = InsertCopyCondition
+		insertion.Values = []string{process}
+	}
+	return []rpc.FilterInsertion{insertion}
 }
 
 // Registration is what the plugin declares at Stage 1: its filter, its
@@ -271,7 +290,11 @@ func FilterInsertions() []rpc.FilterInsertion {
 func Registration(tr Trigger) *sdk.Registration {
 	reg := &sdk.Registration{Filters: FilterDecls()}
 	if tr.Insert {
-		reg.FilterInsertions = FilterInsertions()
+		process := tr.Process
+		if process == "" {
+			process = Name
+		}
+		reg.FilterInsertions = FilterInsertions(process)
 	}
 	if tr.Restart {
 		reg.FailurePolicy = sdk.FailureRestart

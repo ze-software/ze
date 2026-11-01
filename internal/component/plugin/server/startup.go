@@ -1207,6 +1207,7 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		SignalsSessionReady: input.SignalsSessionReady,
 		FailurePolicy:       input.FailurePolicy,
 		ResolverCaches:      slices.Clone(input.ResolverCaches),
+		FilterInsertions:    slices.Clone(input.FilterInsertions),
 		Done:                true,
 	}
 

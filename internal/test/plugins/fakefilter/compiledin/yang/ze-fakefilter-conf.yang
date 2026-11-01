@@ -21,6 +21,15 @@ module ze-fakefilter-conf {
         description "When true, fakefilter inserts fakefilter:judge first in the
                      peer's import filter list.";
       }
+      leaf insert-copy {
+        type string {
+          length "1..64";
+        }
+        description "The process name of a fakefilter copy forked under
+                     another name: that copy, a third-party plugin, inserts
+                     its <name>:judge first in this peer's import filter
+                     list.";
+      }
     }
   }
 

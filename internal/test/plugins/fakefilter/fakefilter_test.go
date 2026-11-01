@@ -237,3 +237,28 @@ func TestFakeFilterTriggerFrom(t *testing.T) {
 		}
 	}
 }
+
+// TestFilterInsertionsFollowProcessName checks that the insertion a copy of
+// fakefilter declares names the filter the process serves: a copy forked
+// under another name serves <name>:judge, and an insertion of
+// fakefilter:judge would be refused at its Stage 1 (CheckFilterInsertions).
+// The copy conditions on its own name in fakefilter's insert-copy leaf, so
+// the compiled registration's insertion, which reads fakefilter insert, never
+// places a member for a process that is not running.
+func TestFilterInsertionsFollowProcessName(t *testing.T) {
+	own := FilterInsertions(Name)
+	if len(own) != 1 || own[0].Filter != "fakefilter:judge" || !slices.Equal(own[0].Config, InsertCondition) {
+		t.Fatalf("fakefilter's own insertion: got %+v", own)
+	}
+	copied := FilterInsertions("fakefilter-copy")
+	if len(copied) != 1 || copied[0].Filter != "fakefilter-copy:judge" {
+		t.Fatalf("a copy's insertion must name the filter it serves: got %+v", copied)
+	}
+	if !slices.Equal(copied[0].Config, InsertCopyCondition) || !slices.Equal(copied[0].Values, []string{"fakefilter-copy"}) {
+		t.Fatalf("a copy's insertion must condition on its own name in insert-copy: got %+v", copied)
+	}
+	reg := Registration(Trigger{Insert: true, Process: "fakefilter-copy"})
+	if len(reg.FilterInsertions) != 1 || reg.FilterInsertions[0].Filter != "fakefilter-copy:judge" {
+		t.Fatalf("Registration must declare the process's own reference: got %+v", reg.FilterInsertions)
+	}
+}

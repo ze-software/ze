@@ -121,6 +121,13 @@ type PluginRegistration struct {
 	// Route filter declarations (filter chain protocol)
 	Filters []FilterRegistration // Named filters this plugin offers
 
+	// FilterInsertions are the members the plugin declared at Stage 1 for
+	// config load to insert (rpc.DeclareRegistrationInput.FilterInsertions),
+	// judged before they were stored. For a third-party plugin this is the
+	// only record of them: no compiled registration carries them
+	// (registry.RuntimeFilterInsertions).
+	FilterInsertions []rpc.FilterInsertion
+
 	// Doctor check declarations (runtime health checks)
 	DoctorChecks []DoctorCheckRegistration // Doctor checks this plugin provides
 

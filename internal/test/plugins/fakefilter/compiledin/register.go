@@ -46,7 +46,7 @@ func init() {
 		Filters: fakefilter.FilterDecls(),
 		// The insertion config load applies: its condition names the leaf
 		// fakefilteryang adds, so it lands only where a peer sets it.
-		FilterInsertions: fakefilter.FilterInsertions(),
+		FilterInsertions: fakefilter.FilterInsertions(fakefilter.Name),
 		YANG:             fakefilteryang.ZeFakefilterConfYANG,
 	}
 	reg.CLIHandler = func(args []string) int {
@@ -67,5 +67,6 @@ func runEngine(conn net.Conn) int {
 		log.Error("fakefilter: read the trigger", "error", err)
 		return 1
 	}
+	tr.Process = fakefilter.Name
 	return fakefilter.Run(sdk.NewWithConn(fakefilter.Name, conn), tr, log)
 }

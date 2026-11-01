@@ -65,3 +65,23 @@ func (a *reactorAPIAdapter) loadPeersFromConfig(tree map[string]any) (loadedConf
 // errNoTreeReload refuses a config apply on a reactor that holds no
 // configuration pipeline (SetTreeReloadFunc was never called).
 var errNoTreeReload = errors.New("bgp: cannot apply the configuration: this reactor holds no configuration pipeline to build its peers (SetTreeReloadFunc was never called); build the reactor with CreateReactorFromTree")
+
+// RebuildRunningPeers rebuilds the peers of the running configuration
+// through the tree reload (loadPeersFromConfig) and reconciles the reactor
+// against them, as a config apply of the unchanged tree does: a peer whose
+// rebuilt settings are equal stays as it is, one that differs is replaced.
+//
+// The BGP plugin calls it before StartPeers when a third-party plugin
+// declared filter insertions at Stage 1. The daemon built its peers from the
+// config before any plugin reached Stage 1, so those members are absent from
+// the first build, and only a rebuild after Stage 1 places them
+// (spec-filter-wire-6-stage-filters A-12). Peers are still held by the start
+// barrier then (Reactor.peersStarted), so a replaced peer opens no session
+// twice. The caller MUST NOT hold r.mu.
+func (r *Reactor) RebuildRunningPeers() error {
+	r.mu.RLock()
+	running := r.configTree
+	r.mu.RUnlock()
+
+	return (&reactorAPIAdapter{r: r}).ApplyConfigDiff(running)
+}

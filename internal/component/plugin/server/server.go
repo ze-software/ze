@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -660,6 +661,50 @@ func (s *Server) declaredFilters(process string) ([]registry.DeclaredFilter, boo
 	return declared, true
 }
 
+// thirdPartyFilterInsertions answers the Stage 1 filter insertions of every
+// running process that no compiled registration describes
+// (registry.RuntimeFilterInsertions). A process whose config names a compiled
+// registration, under its own name or an alias's `use`, is left out: config
+// load reads that registration's insertions from registry.All() already, and
+// counting them twice would insert the member twice. Sorted by process name,
+// so the answer never depends on map order.
+func (s *Server) thirdPartyFilterInsertions() []registry.ProcessFilterInsertions {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return nil
+	}
+	var answer []registry.ProcessFilterInsertions
+	for _, proc := range pm.AllProcesses() {
+		reg := proc.Registration()
+		if reg == nil {
+			continue
+		}
+		if len(reg.FilterInsertions) == 0 {
+			continue
+		}
+		if hasCompiledRegistration(proc.Config()) {
+			continue
+		}
+		answer = append(answer, registry.ProcessFilterInsertions{
+			Process:    proc.Name(),
+			Insertions: slices.Clone(reg.FilterInsertions),
+		})
+	}
+	slices.SortFunc(answer, func(a, b registry.ProcessFilterInsertions) int { return strings.Compare(a.Process, b.Process) })
+	return answer
+}
+
+// hasCompiledRegistration reports whether a compiled registration describes
+// the process cfg configures, under any name it may be filed by.
+func hasCompiledRegistration(cfg plugin.PluginConfig) bool {
+	for _, name := range plugin.RegistryNames(cfg) {
+		if registry.Lookup(name) != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // Running returns true if the server is running.
 func (s *Server) Running() bool {
 	return s.running.Load()
@@ -687,6 +732,10 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	// A config reload judges a chain naming an external filter against what
 	// that plugin declared at Stage 1 (D-10).
 	registry.SetRuntimeFilterDeclarations(s.declaredFilters)
+	// Config load inserts the members a third-party plugin declared at
+	// Stage 1, which no compiled registration carries
+	// (spec-filter-wire-6-stage-filters A-12).
+	registry.SetRuntimeFilterInsertions(s.thirdPartyFilterInsertions)
 
 	// Start plugin phases asynchronously (non-blocking)
 	// Phase 1: Explicit plugins

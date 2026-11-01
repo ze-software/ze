@@ -445,9 +445,16 @@ exactly those peers, group inheritance included. The path must be a node the
 daemon compiled. Your plugin's own YANG is not compiled yet
 (`schema.md`, "What works today"), so a third-party plugin conditions on a
 path one of ze's modules defines; a plugin compiled into ze conditions only on
-config its own module adds. The fields and refusals are in
+config its own module adds. Declare the insertions in the `Registration` you
+pass to `p.Run`: that Stage 1 declaration is all ze knows of a third-party
+plugin, and ze places the members before any peer starts. Name your filter by
+the process name ze runs you under (`<name>:<filter>`, the name your
+`plugin external <name>` entry gives), because that is the reference you
+serve. The fields and refusals are in
 `docs/architecture/api/process-protocol.md`, "Filter Insertion", and
-`internal/test/plugins/fakefilter` (`FilterInsertions`) is a worked example.
+`internal/test/plugins/fakefilter` (`FilterInsertions`) is a worked example:
+run under another name, it inserts `<name>:judge` where a peer sets
+`fakefilter { insert-copy <name>; }`.
 <!-- source: pkg/plugin/rpc/types.go -- FilterInsertion, FilterInsertionSchemaPath -->
 <!-- source: internal/component/config/schema_origin.go -- CheckFilterInsertionPaths -->
 

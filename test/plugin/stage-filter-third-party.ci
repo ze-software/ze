@@ -1,0 +1,134 @@
+# Test: a third-party plugin's filter insertion, declared only at its Stage 1,
+# places its member on exactly the peers whose config asks for it
+#
+# VALIDATES: spec-filter-wire-6-stage-filters A-12 (and AC-1 for a third
+# party): ze-fakefilter forked under the name fakefilter-copy, which no
+# compiled registration describes, declares at Stage 1 one insertion
+# (fakefilter-copy:judge, import, priority 100, condition
+# `fakefilter insert-copy fakefilter-copy`, a compiled path another module
+# adds, which a third party may name). The daemon built its peers before that
+# Stage 1, so the member lands only through the rebuild the BGP plugin runs
+# before its peers start. peer1 sets the leaf and names no fakefilter member
+# in its chain; peer2 does not set it. Both carry an explicit import and
+# export policy. fakefilter-copy rejects 10.99.0.0/24.
+# PREVENTS: a third-party insertion that is judged at Stage 1 and then
+# dropped (peer1's 10.99.0.0/24 installed), one that lands on every peer, and
+# a forked copy whose insertion names fakefilter:judge, a filter it does not
+# serve.
+#
+# Flow:
+# 1. peer1 (127.0.0.1, AS 65001, `fakefilter { insert-copy fakefilter-copy; }`)
+#    sends 10.0.0.0/24 then 10.99.0.0/24, then an End-of-RIB.
+# 2. peer2 (127.0.0.2, AS 65002, no fakefilter config) sends 10.1.0.0/24 then
+#    10.99.0.0/24, then an End-of-RIB.
+# 3. The observer (internal/test/fixture/plugin_fixture_stage_filter.go) waits
+#    for both End-of-RIBs and checks the RIB holds exactly 10.0.0.0/24,
+#    10.1.0.0/24 and 10.99.0.0/24 (peer2's copy).
+
+option=env:var=ze_fakefilter_reject_prefix:value=10.99.0.0/24
+option=env:var=ze_fakefilter_insert:value=true
+option=env:var=ze_log_fakefilter:value=info
+# The forked copy logs to its own stderr. The relay passes its INFO lines on
+# (ze.log.relay), and the daemon's relay logger writes them (ze.log.plugin.relay).
+option=env:var=ze.log.relay:value=info
+option=env:var=ze.log.plugin.relay:value=info
+
+stdin=peer1:terminator=EOF_PEER1
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+# UPDATE: ORIGIN=IGP, AS_PATH=AS_SEQ[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+# UPDATE: ORIGIN=IGP, AS_PATH=AS_SEQ[65001], NEXT_HOP=1.1.1.2, NLRI=10.99.0.0/24
+# A distinct NEXT_HOP, so the session does not coalesce the two UPDATEs.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010102180A6300
+# End-of-RIB (IPv4 unicast): counted only after the UPDATEs' import verdicts.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER1
+
+stdin=peer2:terminator=EOF_PEER2
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+# UPDATE: ORIGIN=IGP, AS_PATH=AS_SEQ[65002], NEXT_HOP=1.1.1.1, NLRI=10.1.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA40030401010101180A0100
+# UPDATE: ORIGIN=IGP, AS_PATH=AS_SEQ[65002], NEXT_HOP=1.1.1.2, NLRI=10.99.0.0/24
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA40030401010102180A6300
+# End-of-RIB (IPv4 unicast): counted only after the UPDATEs' import verdicts.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER2
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external fakefilter-copy {
+		run "ze-fakefilter"
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+	external observer {
+		run "le test fixture plugin/stage-filter-inserted 2 10.0.0.0/24 10.1.0.0/24 10.99.0.0/24"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		fakefilter { insert-copy fakefilter-copy; }
+		filter {
+			export { final accept; }
+			import { final accept; }
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+	peer peer2 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		filter {
+			export { final accept; }
+			import { final accept; }
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer1
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0
+# The inserted member judged peer1's routes, from the batched filter-update.
+expect=stderr:pattern=fakefilter judged a route.*peer=127\.0\.0\.1.*prefix=10\.0\.0\.0/24.*transport=batch.*verdict=accept
+expect=stderr:pattern=fakefilter judged a route.*peer=127\.0\.0\.1.*prefix=10\.99\.0\.0/24.*transport=batch.*verdict=reject
+# It was never called for peer2, whose config does not set the leaf.
+reject=stderr:pattern=fakefilter judged a route.*peer=127\.0\.0\.2
+expect=stderr:contains=OK: the RIB holds exactly 10.0.0.0/24 10.1.0.0/24 10.99.0.0/24
+reject=stderr:pattern=policy filter failed
+reject=stderr:pattern=fakefilter: run
+reject=stderr:pattern=ze-fakefilter:
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=placing the filter insertions third-party plugins declared failed

@@ -187,6 +187,11 @@ type BGPReactorHandle interface {
 	SetRestartUntil(t time.Time)
 	ReactorLifecycleAdapter() any // Returns ReactorLifecycle (any to avoid importing plugin types)
 	StartPeers() error
+	// RebuildRunningPeers rebuilds the running config's peers and reconciles
+	// the reactor against them. Called before StartPeers when a third-party
+	// plugin declared filter insertions at Stage 1, which the first build
+	// could not see.
+	RebuildRunningPeers() error
 	AddPeerLifecycleCallback(cb PeerLifecycleCallback)
 	AddMessageCallback(cb MessageCallback)
 	// Transaction protocol: verify config and return peer change count for budget estimation.

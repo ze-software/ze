@@ -199,3 +199,30 @@ func TestCompiledInsertionMustConditionOnOwnConfig(t *testing.T) {
 		})
 	}
 }
+
+// TestThirdPartyInsertionAppliesFromStageOne checks
+// spec-filter-wire-6-stage-filters A-12 at the loader: the insertion a
+// third-party plugin declared at Stage 1, which no compiled registration
+// carries, lands on the peers whose config meets its condition, and only
+// there. Method: no compiled inserter; the runtime seam answers one process
+// whose insertion conditions on a compiled path another module adds (a
+// third party may name any compiled path); A inherits the condition, B does
+// not carry it.
+func TestThirdPartyInsertionAppliesFromStageOne(t *testing.T) {
+	t.Cleanup(configyang.RegisterModuleForTest("ze-test-inserter-conf.yang", insertionTestYANG))
+	registry.SetRuntimeFilterInsertions(func() []registry.ProcessFilterInsertions {
+		return []registry.ProcessFilterInsertions{{
+			Process: "third-party",
+			Insertions: []rpc.FilterInsertion{{Filter: "third-party:judge", Direction: rpc.FilterImport,
+				Priority: 100, Config: rrClient, Values: []string{"on"}}},
+		}}
+	})
+	t.Cleanup(func() { registry.SetRuntimeFilterInsertions(nil) })
+
+	peers, err := insertionPeers(t, "")
+	require.NoError(t, err)
+	require.Equal(t, []string{"third-party:judge"}, refNames(peers["A"].ImportPolicy.Filters()),
+		"peer A meets the third party's condition, so its import list carries the member the plugin declared at Stage 1")
+	require.NotContains(t, refNames(peers["B"].ImportPolicy.Filters()), "third-party:judge",
+		"peer B does not meet the condition, so nothing is inserted")
+}

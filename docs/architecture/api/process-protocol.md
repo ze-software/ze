@@ -392,6 +392,21 @@ as for a loop-detection default; naming a required member in any form is
 refused at verify with the plugin's reason, naming the peer, the list and the
 reference.
 
+A third-party plugin's insertions apply like a compiled-in plugin's. Its
+Stage 1 declaration is the only record of them: the engine stores them with
+the process's registration, and config load reads them, for every running
+process no compiled registration describes, beside the compiled
+registrations' own. The daemon builds its peers from the config before any
+plugin reaches Stage 1, so when a third-party plugin declared an insertion,
+the BGP subsystem rebuilds its peers from the running config once every
+plugin finished startup and before the first peer starts; a peer whose
+filter lists did not change is left as it is. A refusal there (an operator
+naming a required member, say) starts no peer and logs the reason. A later
+reload reads the same insertions, so it keeps the members in place.
+<!-- source: internal/component/plugin/server/server.go -- thirdPartyFilterInsertions -->
+<!-- source: internal/component/bgp/config/filter_insertion.go -- declaredInsertions -->
+<!-- source: internal/component/bgp/reactor/reload_tree.go -- RebuildRunningPeers -->
+
 The declared reads and sets are what config load judges. A chain at `bgp
 import` or `bgp export` naming `<plugin>:<filter>` fails when no declared name
 or pattern covers the filter (the refusal lists what the plugin declares), when

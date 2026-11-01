@@ -262,6 +262,17 @@ func runBGPEngine(conn net.Conn) int {
 		// calls this when SignalPluginStartupComplete fires (after all tiers
 		// and explicit plugins finish their 5-stage protocol).
 		coord.OnPostStartup(func() {
+			// A third-party plugin's filter insertions arrive at its Stage 1,
+			// after the peers were built from the config, so the peers are
+			// rebuilt once before they start (spec-filter-wire-6-stage-filters
+			// A-12). A compiled-in plugin's insertions were in the first build.
+			if len(registry.RuntimeFilterInsertions()) > 0 {
+				if rebuildErr := bgpReactor.RebuildRunningPeers(); rebuildErr != nil {
+					log.Error("bgp: peers not started: placing the filter insertions third-party plugins declared failed",
+						"error", rebuildErr)
+					return
+				}
+			}
 			if peerErr := bgpReactor.StartPeers(); peerErr != nil {
 				log.Error("bgp: start peers failed", "error", peerErr)
 				return

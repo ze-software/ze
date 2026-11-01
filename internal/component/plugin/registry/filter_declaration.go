@@ -132,6 +132,9 @@ var filterDeclarations struct {
 	mu       sync.RWMutex
 	check    func(pluginName string, declared []DeclaredFilter) error
 	declared func(process string) ([]DeclaredFilter, bool)
+	// insertions answers the Stage 1 insertions of the running processes
+	// no compiled registration describes (SetRuntimeFilterInsertions).
+	insertions func() []ProcessFilterInsertions
 }
 
 // SetFilterDeclarationCheck installs the judge of Stage 1 filter
@@ -209,4 +212,37 @@ func RuntimeFilterDeclarations(process string) ([]DeclaredFilter, bool) {
 		return nil, false
 	}
 	return declared(process)
+}
+
+// ProcessFilterInsertions is the filter insertions one running process
+// declared at Stage 1, already judged there (CheckFilterInsertions and the
+// condition-path judge), under the process name its references use.
+type ProcessFilterInsertions struct {
+	Process    string
+	Insertions []rpc.FilterInsertion
+}
+
+// SetRuntimeFilterInsertions installs the seam that answers the Stage 1
+// filter insertions of every running process that no compiled registration
+// describes: a third-party plugin, whose insertions no registry.All() entry
+// carries. Called once at plugin server startup; nil removes it.
+func SetRuntimeFilterInsertions(fn func() []ProcessFilterInsertions) {
+	filterDeclarations.mu.Lock()
+	defer filterDeclarations.mu.Unlock()
+	filterDeclarations.insertions = fn
+}
+
+// RuntimeFilterInsertions answers the Stage 1 filter insertions of the
+// running processes no compiled registration describes. Config load adds
+// them to the compiled registrations' own (spec-filter-wire-6-stage-filters
+// A-12). Nil when no seam is installed: no plugin server runs, so no
+// third-party process declared anything.
+func RuntimeFilterInsertions() []ProcessFilterInsertions {
+	filterDeclarations.mu.RLock()
+	insertions := filterDeclarations.insertions
+	filterDeclarations.mu.RUnlock()
+	if insertions == nil {
+		return nil
+	}
+	return insertions()
 }
