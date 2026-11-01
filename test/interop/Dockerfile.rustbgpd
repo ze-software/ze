@@ -1,14 +1,22 @@
 # rustbgpd daemon for performance testing.
 # Builds the latest stable release tag from GitHub source.
-# v0.79.0 declares rust-version 1.95.
+# v0.81.0 declares rust-version 1.95.
 
 FROM rust:1.99.1-trixie AS builder
 
 RUN apt-get update && apt-get install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
 
+# Upstream's release profile is fat LTO with one codegen unit (Cargo.toml,
+# [profile.release]). Its whole-program link of the rustbgpd binary needs more
+# memory than an 8 GB Docker VM with no swap holds: the kernel killed rustc
+# (SIGKILL, "cannot allocate memory", cargo exit 101) with nothing else
+# building. Thin LTO keeps cross-crate optimisation and links in far less
+# memory, so the benchmark measures a thin-LTO build, not upstream's fat one.
+# Only the daemon binary is built, the one artifact copied out.
+ENV CARGO_PROFILE_RELEASE_LTO=thin
 WORKDIR /src
-RUN git clone --depth 1 --branch v0.79.0 https://github.com/lance0/rustbgpd.git . && \
-    cargo build --release
+RUN git clone --depth 1 --branch v0.81.0 https://github.com/lance0/rustbgpd.git . && \
+    cargo build --release --locked -p rustbgpd --bin rustbgpd
 
 FROM debian:trixie-slim
 

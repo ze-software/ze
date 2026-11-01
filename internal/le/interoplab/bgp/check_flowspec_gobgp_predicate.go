@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- fail-closed FlowSpec observations.
 // Related: extended_relay.go -- records complete frames after delivery, no UPDATE edits.
-// GoBGP v4.10.0 JSON: https://github.com/osrg/gobgp/blob/v4.10.0/pkg/apiutil/util.go
-// Components/actions: https://github.com/osrg/gobgp/blob/v4.10.0/pkg/packet/bgp/bgp.go
+// GoBGP v4.11.0 JSON: https://github.com/osrg/gobgp/blob/v4.11.0/pkg/apiutil/util.go
+// Components/actions: https://github.com/osrg/gobgp/blob/v4.11.0/pkg/packet/bgp/bgp.go
 package bgp
 
 import (
@@ -198,7 +198,7 @@ func flowSpecWireUpdate(body []byte) (bool, bool, error) {
 	return matched, present, nil
 }
 
-// These raw DTOs follow GoBGP v4.10.0 apiutil.Destination/Path and the packet
+// These raw DTOs follow GoBGP v4.11.0 apiutil.Destination/Path and the packet
 // package's MarshalJSON methods. v4 names the path's sending peer
 // "peer-address" (Path.PeerAddress, filled from the API's NeighborIp by
 // NewDestination), where v3.31.0 named it "neighbor-ip". Required zero-valued

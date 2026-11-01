@@ -3,27 +3,28 @@
 
 FROM golang:1.25-alpine AS builder
 
-RUN go install github.com/osrg/gobgp/v4/cmd/gobgpd@v4.10.0 && \
-    go install github.com/osrg/gobgp/v4/cmd/gobgp@v4.10.0
+RUN go install github.com/osrg/gobgp/v4/cmd/gobgpd@v4.11.0 && \
+    go install github.com/osrg/gobgp/v4/cmd/gobgp@v4.11.0
 
 # gobgp-paths prints the global RIB of one numeric AFI/SAFI, one path per
 # line: the NLRI then every path attribute, each through GoBGP's own String().
-# The gobgp CLI cannot do this for SR Policy: v4.10.0 names no SAFI 73 family
+# The gobgp CLI cannot do this for SR Policy: v4.11.0 names no SAFI 73 family
 # in its -a switch (cmd/gobgp/common.go, checkAddressFamily), so
 # `gobgp global rib -a ipv4-srpolicy` answers "unsupported address family".
 # The daemon still holds the paths and serves them over gRPC ListPath, which
 # is what this reads.
 # It asks for the wire form only (EnableOnlyBinary) and decodes it with
 # GoBGP's packet decoder (bgp.NLRIFromSlice, bgp.GetPathAttribute), never
-# through apiutil: in v4.10.0 apiutil's round trip through the API form still
-# corrupts the SR Policy NLRI. MarshalNLRI copies the NLRI Length, which
+# through apiutil: in v4.11.0 apiutil's round trip through the API form still
+# cannot carry an SR Policy NLRI. MarshalNLRI copies the NLRI Length, which
 # SRPolicyNLRI holds in octets, into the API field unchanged, and
-# UnmarshalNLRI rebuilds it with bgp.NewSRPolicy, which divides that octet
-# count by 8 again, so a 12-octet IPv4 NLRI reads "Length: 1"
+# UnmarshalNLRI rebuilds it with bgp.NewSRPolicy, which now accepts only the
+# bit lengths 96 and 192, so a 12-octet IPv4 NLRI is refused with "invalid SR
+# Policy NLRI length 12" (v4.10.0 divided by 8 again and read "Length: 1")
 # (pkg/apiutil/attribute.go, MarshalNLRI and UnmarshalNLRI;
 # pkg/packet/bgp/sr_policy.go, NewSRPolicy). The Binding SID shift that v3
-# also suffered is fixed in v4.10.0: MarshalSRBSID shifts a 4-octet SID back
-# 12 bits before NewBSID shifts it forward (pkg/apiutil/attribute.go).
+# also suffered stays fixed in v4.11.0: MarshalSRBSID shifts a 4-octet SID
+# back 12 bits before NewBSID shifts it forward (pkg/apiutil/attribute.go).
 # An Extended Communities attribute is also printed through GoBGP's own
 # MarshalJSON, after its String(): String() writes an IPv4-address-specific
 # community as "172.30.0.5:0" whatever its sub-type, so a Route Target and a
@@ -128,7 +129,7 @@ func run(args []string) error {
 }
 EOF
 RUN go mod init gobgp-paths && \
-    go get github.com/osrg/gobgp/v4@v4.10.0 && \
+    go get github.com/osrg/gobgp/v4@v4.11.0 && \
     go mod tidy && \
     CGO_ENABLED=0 go build -o /go/bin/gobgp-paths .
 

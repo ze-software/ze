@@ -28,7 +28,7 @@ const (
 // srPolicyRouteTargetGoBGP is the Route Target every SR Policy scenario
 // configures, target:172.30.0.5:0, as gobgp-paths prints it through GoBGP's
 // IPv4AddressSpecificExtended.MarshalJSON (test/interop/Dockerfile.gobgp,
-// GoBGP v4.10.0 pkg/packet/bgp/bgp.go): type 1 is transitive
+// GoBGP v4.11.0 pkg/packet/bgp/bgp.go): type 1 is transitive
 // IPv4-address-specific and sub-type 2 is Route Target (RFC 4360 Sections 3.2
 // and 4). GoBGP's String() prints a Route Origin with the same value the same
 // way, so only this typed form tells the two apart.
@@ -133,7 +133,7 @@ var scenarioExtras = map[string][]operation{
 	// a 13-octet NLRI is treat-as-withdraw, then B without attribute 23 is.
 	// Each absence carries C as its proof, so a dead Ze-GoBGP session or a
 	// reset injector session (Ze withdraws C with it, and the injector takes
-	// one connection only) fails the step instead of passing it. GoBGP v4.10.0
+	// one connection only) fails the step instead of passing it. GoBGP v4.11.0
 	// refuses an NLRI of a length other than 96 or 192 bits (SRPolicyNLRI.
 	// DecodeFromBytes, pkg/packet/bgp/sr_policy.go), maps the MP_REACH error to
 	// AFI/SAFI disable and then turns that into a session reset
@@ -214,7 +214,7 @@ var scenarioExtras = map[string][]operation{
 	// GoBGP 3.31 was recorded keeping one Multiprotocol capability per AFI, so
 	// of ipv4-unicast and l3vpn-ipv4-unicast (both AFI 1) only one family
 	// carried routes. Ze's VPN routes and its unicast route both reaching
-	// GoBGP's RIB prove v4.10.0 negotiated both families.
+	// GoBGP's RIB prove v4.11.0 negotiated both families.
 	scenarioVPNGoBGP: {
 		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "vpnv4", "-j"}, contains: []string{peerPrefixFirst, peerPrefixSecond}, timeout: 30 * time.Second},
 		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, "-j"}, contains: []string{vpnSameAFIUnicastPrefix}, timeout: 30 * time.Second},

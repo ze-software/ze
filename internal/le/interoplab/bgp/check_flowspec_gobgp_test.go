@@ -22,7 +22,7 @@ func flowSpecCheckerBranches(t *testing.T) {
 	t.Run("no source readvertisement", TestFlowSpecSourceComplete)
 }
 
-// TestFlowSpecForeignEvidence pins GoBGP's actual v4.10.0 JSON schema. A rate on
+// TestFlowSpecForeignEvidence pins GoBGP's actual v4.11.0 JSON schema. A rate on
 // another path, stale/unselected route, failed query or absent AS0/rate0 field
 // cannot certify either usable state or unauthorized absence.
 func TestFlowSpecForeignEvidence(t *testing.T) {
