@@ -1260,6 +1260,14 @@ func TestOwedKeyPartialRoundSkipsBackoff(t *testing.T) {
 			t.Fatalf("stalled round %d asked for %d keys, want %d", round+1, got, want)
 		}
 		if round == 0 {
+			// A's withdrawal UPDATEs stay in the received-update cache, each
+			// holding its read buffer, until every plugin consumer has
+			// acknowledged it, and C's owe does not wait for those
+			// acknowledgements. A buffer released after the drain below would
+			// be lent to a later round, which would then ask for more than one
+			// key. The drain waits until the cache holds none of them.
+			lowEventually(t, func() bool { return a.peer.reactor.recentUpdates.Len() == 0 },
+				"every received UPDATE released its read buffer")
 			held = drainReadPool(t)
 		}
 		step.proceed <- struct{}{}

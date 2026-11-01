@@ -56,9 +56,15 @@ func BenchmarkReactorForwardRSMixedRetry(b *testing.B) {
 			h.update.receivedPeer = source
 			h.update.receivedGeneration = source.forwardGeneration.Load()
 			h.update.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
+			// The destinations become EBGP route-server clients, and RFC 8212
+			// Section 3 refuses every route to an EBGP peer with no explicit
+			// export policy, so each states the accepting one the measured
+			// retry relies on.
+			accept := mustPolicy(b, nil, routepolicy.FinalAccept)
 			for _, peer := range h.dests {
 				peer.settings.RSClient = true
 				peer.settings.PeerAS = 65002
+				peer.settings.ExportPolicy = accept
 				peer.negotiated.Load().families[family.IPv6Unicast] = true
 				peer.refreshForwardFacts()
 				peer.llScope.Store(newLinkScopeFrom(nil, peer.Settings().Address))
