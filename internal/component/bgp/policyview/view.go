@@ -59,11 +59,13 @@ type View struct {
 	// run numbers the Reset calls. A cached slot is current only when it
 	// carries this run's number, so Reset invalidates every slot in O(1).
 	// It starts at 1 on the first Reset, so a zero slot is never current.
-	run     uint64
-	slots   [slotsMax]slot
-	nlri    shared // prefix, family and next-hop share one NLRI decode
-	asPath  sharedPath
-	decodes Decodes
+	run    uint64
+	slots  [slotsMax]slot
+	nlri   shared // prefix, family and next-hop share one NLRI decode
+	asPath sharedPath
+	// asPathText is the AS path as text, for ASPathText (aspath_text.go).
+	asPathText sharedText
+	decodes    Decodes
 }
 
 // slot caches one registered reader's answer for one run.

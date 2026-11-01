@@ -55,3 +55,16 @@ func evaluateASPath(entries []aspathEntry, asPathStr string) action {
 	}
 	return actionReject
 }
+
+// evaluateASPathText is evaluateASPath over the text as bytes, the form the
+// BGP view answers (condition.go): the same entries in the same order, so
+// both judge one path alike, and no string is built for the regex.
+func evaluateASPathText(entries []aspathEntry, text []byte) action {
+	for i := range entries {
+		e := &entries[i]
+		if e.regex.Match(text) {
+			return e.action
+		}
+	}
+	return actionReject
+}

@@ -889,6 +889,18 @@ Chain references: `bgp-filter-aspath:NAME`, `as-path-list:NAME`, or bare
 `NAME`. Config authors should use `[0-9]` instead of `\d` in regex strings
 because ze's config parser interprets backslash as an escape character.
 
+The plugin also registers the `as-path` condition of a `match` instance:
+`policy { match FROM-65001 { as-path TRANSIT; } }` passes an UPDATE the
+`TRANSIT` list accepts and rejects any other, the same regexes over the same
+AS-path string the list judges as a chain member. Only a BGP chain judges it:
+a Loc-RIB route carries no AS path, so a match naming `as-path` there is
+refused. The editor completes the configured lists, and a commit naming any
+other is refused.
+
+<!-- source: internal/component/bgp/plugins/filter_aspath/condition.go -- compileBGPCondition -->
+<!-- source: internal/component/bgp/plugins/filter_aspath/register.go -- MustRegisterMatchCondition -->
+<!-- source: internal/component/bgp/policyview/aspath_text.go -- ASPathText -->
+
 **The AS-path string every filter matches against.** One reader produces it,
 `filtertext.ASPath`, and every AS-path filter takes it from there. It is the
 space-separated decimal ASNs with no brackets, for example `65001 65002 65003`.

@@ -2,6 +2,8 @@ package filter_aspath
 
 import (
 	fayang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_aspath/yang"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
+	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 )
@@ -16,6 +18,16 @@ func init() {
 	policy.MustRegisterFilterType(filterTypeName,
 		[]policy.Field{policy.FieldASPath},
 		nil)
+
+	// The as-path condition of a match instance (condition.go), keyed by
+	// the field it reads and judged at a BGP chain only: a Loc-RIB route
+	// carries no AS path, so a match naming it there is refused.
+	asPathCondition := policy.MustRegisterMatchCondition(policy.FieldASPath.String(),
+		[]policy.Field{policy.FieldASPath}, false)
+	policychain.MatchConditions.MustAdd(asPathCondition, compileBGPCondition)
+	// The match leaf naming a list completes and is checked at commit
+	// through this source (as_path_list_reference.go).
+	yang.RegisterReferenceSource(asPathListReferenceSource, asPathListReference)
 
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-aspath",

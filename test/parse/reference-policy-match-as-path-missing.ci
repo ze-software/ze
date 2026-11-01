@@ -1,0 +1,43 @@
+# Test: a policy match instance naming an as-path-list no instance declares is refused
+#
+# VALIDATES: the match as-path leaf declares
+#            `ze:reference "policy-as-path-list"` (ze-filter-aspath.yang), whose
+#            source is filter_aspath.asPathListReference, so `ze config
+#            validate` refuses an undeclared as-path-list, naming the value,
+#            the declared lists and the leaf, and accepts a declared one.
+# PREVENTS: a match instance whose as-path is a typo passing validation and
+#           failing only when a chain compiles it.
+
+stdin=missing:terminator=EOF_MISSING
+policy {
+	as-path-list FROM-65001 {
+		entry "^65001( |$)" { action accept; }
+	}
+	as-path-list TRANSIT {
+		entry "(^| )64512( |$)" { action reject; }
+	}
+	match CUSTOMER {
+		as-path CUSTOMERS
+	}
+}
+EOF_MISSING
+
+stdin=present:terminator=EOF_PRESENT
+policy {
+	as-path-list FROM-65001 {
+		entry "^65001( |$)" { action accept; }
+	}
+	match CUSTOMER {
+		as-path FROM-65001
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=missing
+expect=exit:code=1
+expect=stdout:contains="CUSTOMERS"
+expect=stdout:contains=name one of "FROM-65001 TRANSIT"
+expect=stdout:contains=match[CUSTOMER]/as-path
+cmd=foreground:seq=2:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

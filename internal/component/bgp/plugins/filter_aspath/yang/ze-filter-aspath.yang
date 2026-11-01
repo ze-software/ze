@@ -17,6 +17,20 @@ module ze-filter-aspath {
         description "Initial revision";
     }
 
+    augment "/policy:policy/policy:match" {
+        description "The as-path condition of a match instance: the AS-path filter registers
+                     it, so a build without BGP has no such condition.";
+        leaf as-path {
+            type string { length "1..max"; }
+            ze:reference "policy-as-path-list";
+            description "The UPDATE passes this condition when the named as-path-list accepts its AS path,
+                         read as the space-separated decimal string. The as-path-list is a policy
+                         as-path-list instance: the editor completes the configured ones, and a commit
+                         naming any other is refused. Only a BGP chain judges it.";
+            ze:help "Match routes whose AS path the named as-path-list accepts";
+        }
+    }
+
     augment "/policy:policy" {
         list as-path-list {
             ze:filter;
