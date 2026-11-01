@@ -3197,7 +3197,7 @@ func TestWriteThroughSetUnknownPath(t *testing.T) {
 	// "nonexistent" is not a valid schema path element.
 	err = ed.SetValue([]string{"nonexistent"}, "key", "value")
 	require.Error(t, err, "set on unknown path should error")
-	assert.Contains(t, err.Error(), "unknown path element")
+	assert.Contains(t, err.Error(), "has no setting named nonexistent", "the refusal names the unknown element")
 
 	// Draft should NOT be created (error before write).
 	draftPath := DraftPath(configPath)
@@ -3662,7 +3662,7 @@ func TestWriteThroughPreviousTracksCommits(t *testing.T) {
 func TestDisconnectDeletesNewlyAddedValue(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	// Session 1 (alice) adds "listen" -- a leaf not in committed config.
+	// Session 1 (alice) adds peer1's description -- a leaf not in committed config.
 	store := newTestTreeStore(t, configPath)
 	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
@@ -3670,7 +3670,7 @@ func TestDisconnectDeletesNewlyAddedValue(t *testing.T) {
 
 	session1 := NewEditSession("alice", "ssh")
 	ed1.SetSession(session1)
-	err = ed1.SetValue([]string{"bgp"}, "listen", "0.0.0.0")
+	err = ed1.SetValue([]string{"bgp", "peer", "peer1"}, "description", "alice-added")
 	require.NoError(t, err)
 
 	// Session 2 (thomas) also makes a change (so draft survives disconnect).
@@ -3698,8 +3698,8 @@ func TestDisconnectDeletesNewlyAddedValue(t *testing.T) {
 	require.NoError(t, err, "thomas's change file should survive")
 
 	changeContent := string(changeData)
-	// alice's "listen" is gone (her change file deleted).
-	assert.NotContains(t, changeContent, "listen", "alice's newly added value should be gone after disconnect")
+	// alice's description is gone (her change file deleted).
+	assert.NotContains(t, changeContent, "alice-added", "alice's newly added value should be gone after disconnect")
 	// thomas's change should remain.
 	assert.Contains(t, changeContent, "65001", "thomas's value should remain in his change file")
 }
@@ -3712,7 +3712,7 @@ func TestDisconnectDeletesNewlyAddedValue(t *testing.T) {
 func TestDiscardDeletesNewlyAddedValue(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	// Session 1 (alice) adds "listen" -- not in committed config.
+	// Session 1 (alice) adds peer1's description -- not in committed config.
 	store := newTestTreeStore(t, configPath)
 	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
@@ -3720,7 +3720,7 @@ func TestDiscardDeletesNewlyAddedValue(t *testing.T) {
 
 	session1 := NewEditSession("alice", "ssh")
 	ed1.SetSession(session1)
-	err = ed1.SetValue([]string{"bgp"}, "listen", "0.0.0.0")
+	err = ed1.SetValue([]string{"bgp", "peer", "peer1"}, "description", "alice-added")
 	require.NoError(t, err)
 
 	// Session 2 (thomas) also makes a change (so draft survives discard).
@@ -3748,8 +3748,8 @@ func TestDiscardDeletesNewlyAddedValue(t *testing.T) {
 	require.NoError(t, err, "thomas's change file should survive after alice discards")
 
 	changeContent := string(changeData)
-	// alice's "listen" is gone (her change file deleted).
-	assert.NotContains(t, changeContent, "listen", "alice's newly added value should be gone after discard")
+	// alice's description is gone (her change file deleted).
+	assert.NotContains(t, changeContent, "alice-added", "alice's newly added value should be gone after discard")
 	// thomas's change should remain.
 	assert.Contains(t, changeContent, "65001", "thomas's value should remain in his change file")
 }
