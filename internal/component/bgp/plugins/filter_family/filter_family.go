@@ -53,9 +53,9 @@ func runFilterFamily(conn net.Conn) int {
 
 	newFamilyConfigTx().Register(p)
 
-	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
-		return handleFilterUpdate(in), nil
-	})
+	// One evaluator for both transports (D-12): the typed bridge slot when
+	// the plugin runs internal, the filter-update batch when it runs forked.
+	p.OnFilter(evaluateFamilyFilter)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()

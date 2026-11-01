@@ -12,10 +12,13 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// dirImport is the RPC FilterUpdateInput.Direction value for received UPDATEs.
+// dirImport is the route direction (rpc.FilterRoute.Direction) of a received UPDATE.
 const dirImport = "import"
 
-// handleFilterUpdate evaluates one filter-update RPC against the named instance.
+// evaluateFamilyFilter judges one route against the named instance, on
+// either transport, from the raw body it declared. It reads only the
+// instance set installFamilyFilters swaps whole, so it is safe for
+// concurrent use and never blocks. It answers every case with a verdict:
 //
 //   - unknown instance / configure-before-load: reject (fail-closed).
 //   - missing or malformed raw body: accept (cannot inspect; BGP-layer validation
@@ -27,21 +30,26 @@ const dirImport = "import"
 //   - tear-down + match (import only): reject + Teardown with a Cease / Connection
 //     Rejected NOTIFICATION (RFC 4271, RFC 4486). On export it is accepted
 //     (defensive; config validation already forbids tear-down in export, AC-7).
-func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
+func evaluateFamilyFilter(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
+	return judgeFamily(route), nil
+}
+
+// judgeFamily is evaluateFamilyFilter's verdict.
+func judgeFamily(in *sdk.FilterRoute) *sdk.FilterUpdateOutput {
 	instP := instancesByName.Load()
 	if instP == nil {
-		logger().Warn("filter-update before configure", "filter", in.Filter, "peer", in.Peer)
+		logger().Warn("filter-update before configure", "filter", in.Filter(), "peer", in.Peer())
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
-	inst, ok := (*instP)[in.Filter]
+	inst, ok := (*instP)[in.Filter()]
 	if !ok {
-		logger().Warn("unknown family-filter", "filter", in.Filter, "peer", in.Peer)
+		logger().Warn("unknown family-filter", "filter", in.Filter(), "peer", in.Peer())
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
-	payload := in.Raw
+	payload := in.Raw()
 	if len(payload) < 4 {
-		logger().Debug("filter-family: missing/short raw body, accepting", "filter", in.Filter, "peer", in.Peer)
+		logger().Debug("filter-family: missing/short raw body, accepting", "filter", in.Filter(), "peer", in.Peer())
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}
 
@@ -54,10 +62,10 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	}
 
 	if inst.action == actionTearDown {
-		if in.Direction != dirImport {
+		if in.Direction() != dirImport {
 			return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept} // export: forbidden, accept defensively
 		}
-		logger().Info("filter-family tear-down", "filter", in.Filter, "peer", in.Peer, "family", fam.String())
+		logger().Info("filter-family tear-down", "filter", in.Filter(), "peer", in.Peer(), "family", fam.String())
 		return &sdk.FilterUpdateOutput{
 			Action:        sdk.FilterReject,
 			Teardown:      true,
@@ -70,7 +78,7 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	if !fromMP {
 		// Matched ipv4/unicast: a no-MP UPDATE is entirely this family, so removing
 		// it empties the UPDATE — suppress it whole.
-		logger().Info("filter-family remove (suppress unicast)", "filter", in.Filter, "peer", in.Peer, "family", fam.String())
+		logger().Info("filter-family remove (suppress unicast)", "filter", in.Filter(), "peer", in.Peer(), "family", fam.String())
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 	newPayload, emptied, ok := stripMPAttrs(payload)
@@ -78,9 +86,9 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept} // malformed; leave untouched
 	}
 	if emptied {
-		logger().Info("filter-family remove (suppress)", "filter", in.Filter, "peer", in.Peer, "family", fam.String())
+		logger().Info("filter-family remove (suppress)", "filter", in.Filter(), "peer", in.Peer(), "family", fam.String())
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
-	logger().Info("filter-family remove (strip MP)", "filter", in.Filter, "peer", in.Peer, "family", fam.String())
+	logger().Info("filter-family remove (strip MP)", "filter", in.Filter(), "peer", in.Peer(), "family", fam.String())
 	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Raw: newPayload}
 }
