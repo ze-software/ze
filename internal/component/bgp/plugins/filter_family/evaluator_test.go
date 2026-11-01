@@ -31,5 +31,7 @@ func TestFamilyFilterConformance(t *testing.T) {
 		{Input: rpc.FilterUpdateInput{Filter: "Kill", Direction: "import", Raw: buildUpdate(mpFlowReachAttr(), nil)}},
 		{Input: rpc.FilterUpdateInput{Filter: "NoFlow", Direction: "import", Raw: buildUpdate(originAttr, []byte{24, 10, 0, 0})}},
 	}
-	sdk.CheckFilterConformance(t, "family-filter", evaluateFamilyFilter, routes)
+	if !sdk.CheckFilterConformance(t, "family-filter", evaluateFamilyFilter, routes) {
+		t.Fatal("family-filter breaks the fast-path filter contract; the clause is reported above")
+	}
 }

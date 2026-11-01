@@ -25,8 +25,20 @@ func TestSRMetricsUpdateFromConfig(t *testing.T) {
 	m.observeLabelsInstalled("ipv4", "push", 3)
 }
 
+// TestSRMetricsNilRegistry proves newSRMetrics tolerates a nil registry: it
+// falls back to the Nop registry, so every one of the seven series is a usable
+// value rather than a nil interface the first observation would panic on.
 func TestSRMetricsNilRegistry(t *testing.T) {
-	// newSRMetrics tolerates a nil registry (uses the Nop registry).
 	m := newSRMetrics(nil)
+	series := map[string]any{
+		"enabled": m.enabled, "prefixSIDs": m.prefixSIDs, "adjSIDs": m.adjSIDs,
+		"labelsInstalled": m.labelsInstalled, "computeErrors": m.computeErrors,
+		"srlbInUse": m.srlbInUse, "malformedTLVs": m.malformedTLVs,
+	}
+	for name, vec := range series {
+		if vec == nil {
+			t.Errorf("series %s is nil with a nil registry, want the Nop fallback", name)
+		}
+	}
 	m.updateFromConfig("ipv6", sr.SRConfig{}, 0)
 }

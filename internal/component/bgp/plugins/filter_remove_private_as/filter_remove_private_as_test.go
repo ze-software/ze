@@ -112,7 +112,9 @@ func TestRemovePrivateASConformance(t *testing.T) {
 		{Input: rpc.FilterUpdateInput{Filter: "STRIP", Fields: json.RawMessage(`{"as-path":[64496]}`)}},
 		{Input: rpc.FilterUpdateInput{Filter: "STRIP", Fields: json.RawMessage(`{"as-path":[23456]}`), Raw: buildRawPayloadWithAS4Path(4200000000)}},
 	}
-	sdk.CheckFilterConformance(t, "remove-private-as", evaluateRemovePrivateAS, routes)
+	if !sdk.CheckFilterConformance(t, "remove-private-as", evaluateRemovePrivateAS, routes) {
+		t.Fatal("remove-private-as breaks the fast-path filter contract; the clause is reported above")
+	}
 }
 
 func buildRawPayloadWithAS4Path(asn uint32) []byte {
