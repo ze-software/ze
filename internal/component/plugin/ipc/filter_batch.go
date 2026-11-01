@@ -174,6 +174,7 @@ func (b *filterBatcher) exchange(pc *PluginConn) {
 	for _, req := range b.requests {
 		b.routes = append(b.routes, *req.input)
 	}
+	observeFilterBatch(len(b.routes))
 	ctx, cancel := context.WithTimeout(context.Background(), rpc.FilterUpdateTimeout)
 	result, err := pc.CallRPC(ctx, methodFilterUpdate, &rpc.FilterUpdateBatchInput{Routes: b.routes})
 	cancel()

@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
+	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/env"
@@ -263,6 +264,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 			wd.With(transport).Inc()
 		})
 		setPluginPanicMetrics(config.MetricsRegistry)
+		pluginipc.SetFilterMetrics(config.MetricsRegistry)
 	}
 
 	// Register plugin-declared event and send types before any subscriptions.
@@ -469,6 +471,7 @@ func (s *Server) SetMetricsRegistry(reg metrics.Registry) {
 	}
 	if reg != nil {
 		setPluginPanicMetrics(reg)
+		pluginipc.SetFilterMetrics(reg)
 	}
 	if setter, ok := s.spawner.(interface{ SetMetricsRegistry(metrics.Registry) }); ok && reg != nil {
 		setter.SetMetricsRegistry(reg)

@@ -39,6 +39,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/config"
@@ -1327,6 +1328,9 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// these counters dead. filterapi hands the registry to each filter's
 		// Filter.ConfigureMetrics.
 		filterapi.SetMetricsRegistry(r.metricsRegistry)
+		// The library chains' refused-set counter, for the same reason: a chain
+		// is compiled from config, not run as a plugin (policychain/metrics.go).
+		policychain.SetMetricsRegistry(r.metricsRegistry)
 		// The announce size guard's counter, for the same reason: both drop sites
 		// are free functions with no Reactor to read rmetrics off
 		// (announce_metrics.go).

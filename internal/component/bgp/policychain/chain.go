@@ -533,6 +533,7 @@ func (c *Chain) failure(m *member, onError rpc.OnErrorPolicy, err error, record 
 		return closed
 	}
 	c.refused.Add(1)
+	countSetRefusal(m.name, err)
 	chainLogger().Warn("policy filter failed, its on-error decides the route",
 		"attachment", c.attachment, "filter", m.name, "type", m.filterType, "on-error", onError.String(), "error", err)
 	return onError != rpc.OnErrorAccept

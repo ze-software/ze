@@ -164,7 +164,7 @@ func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, sett
 			return rawAnswer(verdict, out, decl)
 		}
 		if err := applyExternalSets(sets, decl, settable, out.Sets, target); err != nil {
-			return verdict, err
+			return verdict, refusedSet{err: err}
 		}
 		verdict.decision = DecisionPass
 		return verdict, nil
