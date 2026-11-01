@@ -21,9 +21,7 @@
 #
 # OSPF opens a raw socket on its interface, so this runs on Linux only. OSPFv2
 # refuses to open an interface with no IPv4 address, so the link carries one.
-# The routes forward to 10.0.0.2 on that link: static redistributes only a
-# forwarding route (routeManager.programRouteLocked emits no route change for
-# a blackhole or reject route, internal/plugins/static/inject.go).
+# The routes forward to 10.0.0.2 on that link, so they need its next hop up.
 option=needs-linux:caps=net-admin
 option=netns-link:name=eth1:address=10.0.0.1/24
 
