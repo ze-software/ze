@@ -205,3 +205,7 @@ tokens per agent than the default (`ai/rules/context-economy.md`).
 - DO NOT report a grep hit without reading the code around it.
 - DO NOT report the known false positives above.
 - DO NOT claim a class is clean without actually running its hunt over the scope.
+
+## Done when
+
+Done when the report holds its four sections (Candidates, Cleared classes, Ruled out, Recommended next detector), every candidate was read in its code, and no file was modified.

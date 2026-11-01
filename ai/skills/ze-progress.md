@@ -126,3 +126,7 @@ Pick exactly ONE action based on the reported stage. Do not chain recommendation
 - **Never tick `[ ]` to `[x]`** in the spec file. Checkbox state is not a truth source; grep the code.
 - **Do not edit the spec.** If the Status field is wrong, note it in the report but do not change it -- the user decides when to update spec metadata.
 - **Respect the two-commit rule.** Stage 4 and stage 5 are separate commits. Never recommend squashing them.
+
+## Done when
+
+Done when the `## Progress: <spec-name>` report is presented, stops at the first unsatisfied stage, and names one next action from the decision table.

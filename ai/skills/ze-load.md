@@ -108,3 +108,7 @@ ai/patterns/functional-test.md
 - If a file does not exist, note it as missing but continue.
 - Do not summarize the content. Just read it silently and confirm completion.
 - This skill exists because rules only work when they are in context.
+
+## Done when
+
+Done when the report states how many files were read and lists any that were missing.

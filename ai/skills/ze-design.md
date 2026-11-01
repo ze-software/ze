@@ -85,3 +85,7 @@ in a format ready for spec or implementation.
   naming the rule and explaining why it should be reconsidered.
 - When you catch yourself reaching for a generic pattern, stop.
   Search the codebase for how this project handles the same situation.
+
+## Done when
+
+Done when every branch is resolved or explicitly deferred and the final decision log is output.

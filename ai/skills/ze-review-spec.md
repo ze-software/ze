@@ -58,3 +58,7 @@ phase itself.
 - Do NOT review code quality, edge cases, or security -- that is `/ze-review`.
 - After the user reviews your list, they will tell you which to fix.
 - No cap on the NUMBER of passes, a hard bound on each one's SCOPE. Fixes can break spec alignment, so every change earns a fresh pass, over the fixes that changed it: round 1 the whole spec, round N+1 only round N's fixes. Stop when a pass finds no BLOCKER and no ISSUE within its own scope (`ai/rules/planning.md`, "Work Phases and the Review Loop").
+
+## Done when
+
+Done when the findings are reported as a numbered list with BLOCKER, ISSUE or NOTE on each, and nothing was fixed.

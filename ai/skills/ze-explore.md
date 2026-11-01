@@ -58,3 +58,7 @@ phase itself.
 5. **Propose a plan:** Based on what exists, suggest what to change and how -- extending existing code, not duplicating
 
 Do NOT edit anything. Summarize and propose only. Wait for user approval before making any changes.
+
+## Done when
+
+Done when the step 4 summary, with every page-versus-code disagreement, and the step 5 plan are presented, and nothing was edited.

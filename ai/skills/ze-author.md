@@ -230,3 +230,7 @@ Then read it once as a reader, paragraph by paragraph. For each one, name its po
 Then check the draft has not been over-corrected, which is the failure that survives every check above. Count the sentences under fifteen words: a run of them, or a paragraph closing on a flat judgement three times over, means the subtraction went too far and the prose needs its explanations back. Read every sentence where Thomas is the one acting and confirm he is the grammatical subject, since a dangling modifier or an abstraction doing human work is what appears when he has been engineered out.
 
 Finally look for: a paragraph that exists only to bridge two others, a run of sentences all the same length, a list that wants to be prose, an ending that trails off into a summary, and any opinion Thomas would not recognise as his own. Cut what fails.
+
+## Done when
+
+Done when the draft has passed every step of the final check above and only then is shown to Thomas.

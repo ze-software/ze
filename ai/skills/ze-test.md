@@ -142,3 +142,7 @@ none of them.
 - Every `time.sleep(` in a changed `.ci` must carry a comment justifying it, and
   the repo-wide count is ratcheted (`test/.ci-sleep-baseline`). Prefer deleting
   the sleep.
+
+## Done when
+
+Done when the draft has passed the step 6 stress run, sits at `test/<suite>/<name>.ci` after step 7, and `./le test <suite> -a` has run on it there.

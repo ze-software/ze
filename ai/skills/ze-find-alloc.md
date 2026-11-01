@@ -150,3 +150,7 @@ Rank files by impact (hot-path frequency x allocation count):
 - DO NOT report test file allocations (they are expected)
 - DO NOT report pool/writer infrastructure allocations
 - DO NOT count the same allocation twice (e.g., Pack() calling PackHeader())
+
+## Done when
+
+Done when the report holds every section of the Report Format above and no file was modified.

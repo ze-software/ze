@@ -289,3 +289,7 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
 - **The Review Gate (step 5) is BLOCKING and is not optional.** Step 6 may not prepare the commit script until the spec's **Review Gate** section shows a final `/ze-review` run with 0 BLOCKER and 0 ISSUE.
 - If the spec is missing a **Deliverables Checklist**, **Security Review Checklist**, or **Documentation Update Checklist**, STOP and inform the user that the spec needs updating before it can be closed.
 - Before reporting done, re-read the spec and confirm each item is actually implemented in the code.
+
+## Done when
+
+Done when commits A and B have landed, `./le spec release` has run, and the report names both SHAs and `./le verify changed` as owed; or, when blocked, the spec has `Status` `blocked`, a `## Blocker` section, and its handback commit SHA is reported.

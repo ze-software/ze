@@ -77,3 +77,7 @@ A `.ci` unit is named `<dir>.<stem>` (`docs/functional-tests.md`).
 
 One row per unit: unit, APPROVE or REFUSE, the verdict sentence, and the
 command you ran (or the proof lost, for a refusal).
+
+## Done when
+
+Done when the report has one row per unit with APPROVE or REFUSE, the verdict sentence, and the approval command that ran or the proof lost.

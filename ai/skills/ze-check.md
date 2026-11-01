@@ -102,3 +102,7 @@ For every modified file in the diff, check whether it is a generated file
 - Do NOT fix anything. Report findings only.
 - Do NOT prepare a commit script.
 - After presenting the report, ask the user what to address.
+
+## Done when
+
+Done when the `## Check Results` table is presented with "N issues found." or "Clean -- no issues.", nothing is fixed or committed, and the user is asked what to address.

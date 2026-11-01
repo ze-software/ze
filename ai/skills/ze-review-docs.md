@@ -288,3 +288,7 @@ Each agent runs steps 3-6 for its scope. Results are merged in step 7.
 - Does not review `rfc/` (those are reference material, not project docs)
 - Does not review code comments or `// Design:` annotations (covered by `/ze-review` and `/ze-review-deep`)
 - For change-scoped doc accuracy (do docs match a specific diff?), use `/ze-review-deep docs` instead
+
+## Done when
+
+Done when the `## Doc Review` report with its Summary table is presented and, unless the `inventory` argument was given, each fix the user selected is applied and the mechanical check for its file was run again.

@@ -246,3 +246,7 @@ in a commit.
 | Clear a `shifted` verdict | `./le rfc reseal stem <rfc>` (only the RFC named is written), then `./le rfc update` |
 | Write or re-author a summary | `/ze-rfc <rfc>` |
 | Public support claims | The `Support` rows of `rfc/short/<stem>.md`; `./le rfc update` renders `docs/features/rfc-status.md` from them |
+
+## Done when
+
+Done when every gated requirement of the stem has a verdict that `./le rfc audit-stamp` wrote under `rfc/audit/<stem>/`, and `./le rfc check` has run.

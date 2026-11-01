@@ -65,3 +65,7 @@ EDIT 2: [file:lines]
 - Line numbers from current file state, not original.
 - Maximum 5 edits. Split into phases if more remain.
 - Include what this spec will not do, so the next session knows what was intentionally left and which spec now owns it.
+
+## Done when
+
+Done when the handoff is presented in the format above, with at most five self-contained edits and a verification command, and nothing was edited.

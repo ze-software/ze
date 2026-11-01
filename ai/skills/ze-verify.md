@@ -115,3 +115,7 @@ Report whichever stages completed and which one stopped the run. This gives part
 - Never say "pre-existing" or "unrelated" to justify ignoring a failure.
 - The user decides what to do about failures.
 - If another session is running verify, wait for it instead of starting a duplicate run.
+
+## Done when
+
+Done when the `## Verify` report shows PASS, or FAIL with its failures table, and on a failure the user is asked how to proceed.

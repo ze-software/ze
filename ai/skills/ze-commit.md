@@ -68,3 +68,7 @@ See also: `/ze-commit-check` (commit with verification only when needed)
 - Protect unrelated work: include only explicit paths. Ask one narrow question if scope cannot be determined from context and the concise file list.
 - Same system = one commit. Disjoint systems = separate commit scripts.
 - Never suggest, ask about, or hint at committing. Complete ALL work first. The user decides when.
+
+## Done when
+
+Done when the script that `./le commit create` printed has run, and the report shows the commit SHA(s), the included files, and that verification was skipped.

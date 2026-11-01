@@ -206,3 +206,7 @@ After making changes:
 - DO NOT modify test files unless tests need updating for new signatures
 - DO NOT fix more than the specified target -- one function per invocation
 - DO NOT add `WriteTo` to the `Attribute` interface itself (it's separate: `wire.BufWriter`)
+
+## Done when
+
+Done when the one target allocation is fixed by its category's pattern, or left as a Category E cached encoding, the Verification steps above have run, and the pages it made wrong are updated in the same diff.

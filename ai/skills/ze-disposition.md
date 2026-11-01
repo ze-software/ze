@@ -128,3 +128,7 @@ OBSOLETE spec, with the verdict, the deciding evidence in one line, and what
 closing it would drop. Then one line of counts per verdict, and the specs moved
 back to `design`. Under 15 lines (`ai/META-DECISIONS.md`, "Reports and
 messages").
+
+## Done when
+
+Done when each judged spec carries one verdict in its `## Disposition` section, the spec edits are in one docs-only commit, and the report opens with the table of decisions Thomas owns.

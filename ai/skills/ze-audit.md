@@ -55,3 +55,7 @@ phase itself.
 7. **Summarize:** Count done/partial/missing. Recommend which items to implement first based on dependencies. List every page-versus-code disagreement separately: those are defects the implementation repairs, not spec items.
 
 Do NOT implement anything. Report the audit only. Wait for user to decide what to build.
+
+## Done when
+
+Done when the audit table gives every spec requirement as Done, Partial or Missing with its location, the counts and the page-versus-code disagreements follow it, and nothing was implemented.

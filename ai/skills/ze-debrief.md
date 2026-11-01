@@ -60,3 +60,7 @@ See also: `/ze-status` (wider cross-project view), `/ze-handoff` (prepare for ne
 - Do NOT propose next steps or a plan. Just report the state.
 - If no spec is selected and no session state exists, say so plainly and summarize only git state.
 - Keep it concise. The goal is orientation, not a full spec re-read.
+
+## Done when
+
+Done when the debrief is presented in the format above, every section is filled or says "none", and nothing was edited.

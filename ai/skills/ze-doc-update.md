@@ -159,3 +159,7 @@ git -C ../wiki push
 | Feature was added then modified in the same delta | Document the final state only. |
 | `git push` rejected as non-fast-forward | Another machine pushed its own sync. `git fetch origin` then `git rebase origin/master`. Do not merge. Where two runs describe the same code, resolve against the source, and keep the further `.source-commit`. |
 | `go run bin/gen-llms-txt.go` fails | Check that `_Sidebar.md` links are valid slugs. Fix broken links first. |
+
+## Done when
+
+Done when the wiki commit has landed and been pushed with `.source-commit` at HEAD, `ai/CODE-TO-DOCS.md` is regenerated, and the report names the `docs/` files changed for the user to commit.

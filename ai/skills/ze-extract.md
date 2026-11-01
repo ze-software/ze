@@ -53,3 +53,7 @@ If extraction fails or produces broken code:
 - Read both files to understand the damage
 - The source file may have had lines removed -- check `git diff` to understand what changed
 - Fix manually or `git checkout` the source to restore
+
+## Done when
+
+Done when the symbols are in the destination file, both files carry their `// Design:` and `// Related:` annotations, `go vet` passes on the package, and the report gives what moved and the line count of both files.

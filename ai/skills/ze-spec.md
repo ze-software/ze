@@ -332,3 +332,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 - All research findings go into spec exhaustively (`ai/rules/planning.md`)
 - Append-only editing for existing specs (`ai/rules/planning.md`)
 - One spec at a time -- this session's marker (`./le spec current`) tracks which
+
+## Done when
+
+Done when the user approved the spec at the Step 4 gate and it is saved at its bucket path with `Status` `ready` and `Updated` set to today.

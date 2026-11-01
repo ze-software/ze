@@ -279,3 +279,7 @@ Report only grounded facts:
 - any intentionally skipped drift item, with the reason.
 
 Do not say the update is done unless the Discord post, archive, generated site, homepage card, feed, and native site checks are all accounted for.
+
+## Done when
+
+Done when the Phase 5 report accounts for the Discord post, the archive, the generated site, the homepage card, the feed, and the `./le site build` and `./le site check` results.

@@ -72,3 +72,7 @@ Only show items that actually apply. If nothing needs attention, say "Nothing pe
 - Do NOT propose a plan or start working. Just report status and suggest commands.
 - Keep it concise -- this is a dashboard, not a narrative.
 - Attention items should be actionable: each one links to the command that resolves it.
+
+## Done when
+
+Done when the `## Status` report from step 6 is presented, with its Attention list or "Nothing pending."

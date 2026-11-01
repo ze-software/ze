@@ -70,3 +70,7 @@ See also: `./le test mutation` (report combination and history actions)
 - Follow `ai/rules/testing.md` for test placement and style.
 - Skip equivalent mutants without guilt -- they are a known limitation of mutation testing.
 - Report the final score and stop. Do not iterate indefinitely.
+
+## Done when
+
+Done when the report gives the before and after mutation scores and lists each surviving mutant as fixed or skipped.

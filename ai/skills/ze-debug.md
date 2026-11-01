@@ -74,3 +74,7 @@ Then ask the user for guidance (3-fix rule: 3 failed approaches -> stop and ask)
 - Do NOT modify test expectations unless the tests are genuinely wrong per the spec
 - If multiple hypotheses find real issues, fix all of them
 - If none of the 4 hypotheses explain the failure, report what was ruled out and ask the user for guidance
+
+## Done when
+
+Done when each failure is fixed at its source and the report gives its Diagnosis and the targeted rerun that went green, or the report lists what each hypothesis ruled out and asks the user for guidance.

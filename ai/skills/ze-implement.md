@@ -324,3 +324,7 @@ Thomas's to start").
 - **"Implemented" is not "done".** This skill produces a clean diff, not a closed spec. Do not say done, complete, or ready to commit at step 11 -- say the implementation is green and closure is next (`ai/rules/completion.md`).
 - **"Green" is a claim about the DIFF, never about the gates.** Requirement 10 in `ai/rules/completion.md` binds this word: say it only after you have read the diff hunk by hunk, your own and every phase agent's. A gate covers what somebody thought to check, so a defect on a surface no gate reads passes every target. When you have run the gates and not read the change, say exactly that instead. It is one line, and it tells the reader which claim they are getting. Reporting "green" and leaving the reading to the Review Gate inverts the order: the review then establishes what you already announced.
 - **The Review Gate is BLOCKING and lives in `/ze-close`.** The inline reviews in steps 7-10 do NOT satisfy it: they check the spec's own checklists, `/ze-review` checks what nobody planned for. This is the Review Gate from `ai/rules/planning.md`.
+
+## Done when
+
+Done when steps 7-9 find nothing, every target is green, you have read the whole diff, the phase handoff is in the per-spec state file, and the report hands off to `/ze-close`; with `Handoff` `verify`, the spec is at `verification` and the report gives the commit SHA.

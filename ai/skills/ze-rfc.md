@@ -692,3 +692,7 @@ Step-by-step, pseudocode if RFC provides it.
 | Read one RFC's requirement → test rows | Read `rfc/requirements/<stem>.md` after `./le rfc update` |
 | Re-audit that tests still enforce letter and spirit | `/ze-rfc-audit <rfc>` |
 | Public per-RFC row | Declare its place and area in the summary's `## Meta` `Support` and `Support area` rows. Its Proof, Evidence and Unmet cells are derived: `./le rfc tree` prints the coverage figures and `./le rfc update` renders the whole row into `docs/features/rfc-status.md`. An unmet obligation is disclosed only as an annotated requirement row (`{gap}`, `{partial}`, `{linux-limit}`) |
+
+## Done when
+
+Done when `rfc/short/<stem>.md` gives every requirement with a unique id and its verbatim quote, `./le rfc update` has rendered it, the step 7 checks hold, and before enrolment `./le rfc check` accepts its extraction sign-off.
