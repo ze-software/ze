@@ -89,8 +89,13 @@ var (
 		"which a chain holding in-process members does not send; declare the fields it reads")
 	errExternalAnsweredText = errors.New("the filter answered a text update; a chain holding in-process members " +
 		"applies only sets")
-	errExternalAnsweredRaw = errors.New("the filter answered a raw rewrite, which a chain holding in-process " +
-		"members does not apply")
+	errExternalRawUndeclared = errors.New("the filter answered a raw rewrite but does not declare it reads raw")
+	errExternalRawBesideSets = errors.New("the filter answered a raw rewrite beside sets; a rewrite replaces the " +
+		"whole body, so it carries no sets")
+	errExternalRawMalformed = errors.New("the filter answered a raw rewrite shorter than the 4 octets of an " +
+		"UPDATE body's two length fields")
+	errExternalRawAfterSets = errors.New("the filter answered a raw rewrite of the received body after an " +
+		"earlier filter of the chain set fields, which the rewrite would discard")
 	errExternalAction = errors.New("the filter answered an action that is neither accept, reject nor modify")
 	errExternalSetsOn = errors.New("the filter answered sets without action modify")
 )
@@ -102,6 +107,8 @@ type externalVerdict struct {
 	decision              Decision
 	teardown              bool
 	notifyCode, notifySub uint8
+	// raw is a whole-body rewrite (D-4): terminal, it ends the chain.
+	raw []byte
 }
 
 // judgeExternal sends m's filter the route view holds and folds its answer's
@@ -154,7 +161,7 @@ func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, sett
 		return verdict, nil
 	case rpc.FilterModify:
 		if len(out.Raw) > 0 {
-			return verdict, errExternalAnsweredRaw
+			return rawAnswer(verdict, out, decl)
 		}
 		if err := applyExternalSets(sets, decl, settable, out.Sets, target); err != nil {
 			return verdict, err
@@ -164,6 +171,27 @@ func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, sett
 	case rpc.FilterUnspecified:
 	}
 	return verdict, errExternalAction
+}
+
+// rawAnswer checks a whole-body rewrite (D-4): the filter declared raw, the
+// answer carries no sets, and the body holds at least its two length fields.
+//
+// RFC 4271 Section 4.3: "Withdrawn Routes Length:" and "Total Path Attribute
+// Length:" are each a 2-octet unsigned integer, so an UPDATE body is at least
+// 4 octets. The reactor pairs the check (decodeFilterRawOverride).
+func rawAnswer(verdict externalVerdict, out *rpc.FilterUpdateOutput, decl *ExternalDeclaration) (externalVerdict, error) {
+	if !slices.Contains(decl.Reads, rpc.FilterFieldRaw) {
+		return verdict, errExternalRawUndeclared
+	}
+	if len(out.Sets) > 0 {
+		return verdict, errExternalRawBesideSets
+	}
+	if len(out.Raw) < 4 {
+		return verdict, errExternalRawMalformed
+	}
+	verdict.decision = DecisionPass
+	verdict.raw = out.Raw
+	return verdict, nil
 }
 
 // applyExternalSets writes a reply's sets through the Sets methods an

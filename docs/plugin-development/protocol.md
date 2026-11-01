@@ -746,10 +746,19 @@ the value in the field's shape:
   `ipv4/unicast`). Prepends add up across the chain to at most 32. A prefix
   the route does not announce, or one with host bits set, fails the route.
 - The route fails the same way when the answer carries `sets` beside `accept`
-  or `reject`, a text `update`, or a `raw` rewrite.
+  or `reject`, or a text `update`.
+- A filter that declares `raw` among its reads may answer `"action":"modify"`
+  with a whole-body `raw` rewrite and no `sets`. The rewrite is terminal: the
+  later filters of the chain are not called, the chain's final still decides
+  the route, and the rewrite is sent in place of the received body. The route
+  fails under the filter's `on-error` when the filter did not declare `raw`,
+  when the rewrite is shorter than the 4 octets of an UPDATE body's two length
+  fields, and when an earlier filter of the chain already set a field: the
+  rewrite was made from the received body, so it would discard that change.
 - `teardown` on an import route closes the session, as in a chain of plugin
   filters only; on export it is ignored and the action stands.
-<!-- source: internal/component/bgp/policychain/external.go -- externalAnswer, applyExternalSets -->
+<!-- source: internal/component/bgp/policychain/external.go -- externalAnswer, applyExternalSets, rawAnswer -->
+<!-- source: internal/component/bgp/policychain/chain.go -- rawOutcome -->
 <!-- source: internal/component/bgp/policychain/external_intents.go -- applyASPathIntent, applyPrefixIntent, applyFamilyIntent -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterSet, FilterSetAction -->
 

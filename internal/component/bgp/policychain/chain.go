@@ -252,6 +252,9 @@ type RunSets struct {
 	communityNext uint8
 	// prefix holds the NLRI the prefix overlay answers a later member.
 	prefix prefixOverlay
+	// raw is the whole UPDATE body an external member's terminal rewrite
+	// answered (D-4), set only when the run accepts with it (Raw).
+	raw []byte
 	// route is what an external member is sent beside the view; fields the
 	// fields object it is sent, kept across runs.
 	route  ExternalRoute
@@ -287,6 +290,7 @@ func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
 func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrace)) Outcome {
 	sets.folded.Reset()
 	sets.prefix.receivedSet = false
+	sets.raw = nil
 	for i := range c.members {
 		m := &c.members[i]
 		sets.member.Reset()
@@ -301,6 +305,12 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 				traceStep(record, m, TraceReject, nil, nil)
 				return Outcome{Action: OutcomeReject, Member: m.name, Teardown: true,
 					NotifyCode: verdict.notifyCode, NotifySubcode: verdict.notifySub}
+			}
+			if err == nil && verdict.raw != nil {
+				if sets.folded.Empty() {
+					return c.rawOutcome(m, verdict.raw, sets, record)
+				}
+				err = errExternalRawAfterSets
 			}
 		} else {
 			decision, err = m.evaluate(view, &sets.member)
@@ -351,6 +361,27 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 	}
 	// Compile accepts only a verified final; anything else is a Ze defect,
 	// and the run fails closed on it.
+	return Outcome{Action: OutcomeReject, Failed: true}
+}
+
+// Raw answers the whole UPDATE body the last run accepted with, nil when no
+// member rewrote it. The caller sends it in place of the received body and
+// applies no sets; it is valid until the next run.
+func (s *RunSets) Raw() []byte { return s.raw }
+
+// rawOutcome ends the run on a member's whole-body rewrite: later members
+// are not judged, and the chain's final still decides the route, as on the
+// text chain (PolicyFilterChain).
+func (c *Chain) rawOutcome(m *member, raw []byte, sets *RunSets, record func(MemberTrace)) Outcome {
+	traceStep(record, m, TracePass, nil, nil)
+	switch c.final {
+	case policy.FinalAccept:
+		sets.raw = raw
+		return Outcome{Action: OutcomeAccept}
+	case policy.FinalReject:
+		sets.folded.Reset()
+		return Outcome{Action: OutcomeReject}
+	}
 	return Outcome{Action: OutcomeReject, Failed: true}
 }
 

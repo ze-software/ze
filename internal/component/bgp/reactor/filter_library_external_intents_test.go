@@ -152,3 +152,40 @@ func TestExternalIntentsBytesEqualInProcess(t *testing.T) {
 		})
 	}
 }
+
+// TestRawRewriteTerminal proves AC-27 through the import step of a mixed
+// chain: an external filter declaring raw is sent the received body, and its
+// whole-body rewrite is the body the step accepts, with no sets applied; a
+// rewrite too short to be an UPDATE body drops the route under the filter's
+// on-error (reject).
+func TestRawRewriteTerminal(t *testing.T) {
+	addr := netip.MustParseAddr("10.0.0.4")
+	received := libraryTestBody(100)
+	rewrite := nlriHex(t, "0000 0007 40010100 40030401010101 080a")
+	for _, tc := range []struct {
+		name   string
+		raw    []byte
+		accept bool
+	}{
+		{"rewrite", rewrite, true},
+		{"too short", []byte{0, 0, 0}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			transport := &externalTransport{reads: []string{"local-preference", rpc.FilterFieldRaw}, sets: []string{"local-preference"},
+				reply: rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: tc.raw}}
+			r := &Reactor{attrModHandlers: attrModHandlersWithDefaults(), filterTransportSeam: transport}
+			peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
+				ImportPolicy: mixedPolicy(t, "", policychain.Member{Name: "f", Plugin: "probe"})})
+			got := r.runIngressPolicyChain(peer, addr, testWireUpdate(received), received)
+			if got.accept != tc.accept {
+				t.Fatalf("import accept = %v, want %v", got.accept, tc.accept)
+			}
+			if tc.accept && !bytes.Equal(got.modifiedPayload, rewrite) {
+				t.Fatalf("import body = %x, want the rewrite %x", got.modifiedPayload, rewrite)
+			}
+			if len(transport.sent) != 1 || !bytes.Equal(transport.sent[0].Raw, received) {
+				t.Fatalf("the filter was sent %d calls, want one carrying the received body", len(transport.sent))
+			}
+		})
+	}
+}

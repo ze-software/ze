@@ -102,6 +102,16 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 	if outcome.Action != policychain.OutcomeAccept {
 		return libraryResult{outcome: outcome}
 	}
+	if raw := run.sets.Raw(); raw != nil {
+		// A member's whole-body rewrite is terminal (D-4): it replaces the
+		// body and carries no sets. The chain checked it under the member's
+		// on-error; this pairs the check with the text chain's.
+		override, malformed := decodeFilterRawOverride(raw)
+		if malformed {
+			return libraryResult{outcome: outcome, failed: true}
+		}
+		return libraryResult{outcome: outcome, modifiedPayload: override}
+	}
 	var mods filterapi.ModAccumulator
 	if err := chain.Apply(&run.view, &run.sets, &mods); err != nil {
 		if record != nil {

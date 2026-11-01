@@ -1601,10 +1601,17 @@ the text subject is still what every configured BGP filter reads.
   reads what earlier members set; its answer's `sets` fold through the same
   `Sets` methods an in-process member calls, so both produce the same bytes.
   A set it did not declare, a field the attachment does not let a filter set,
-  a wrong action or value shape, a text delta, a raw rewrite, and no plugin
-  server each fail the route under its on-error (`policychain/external.go`).
+  a wrong action or value shape, a text delta, and no plugin server each
+  fail the route under its on-error (`policychain/external.go`). A plugin
+  member that declared `raw` may answer a whole-body rewrite (D-4): it is
+  terminal, as on the text chain, so `rawOutcome` ends the run, the chain's
+  final still decides, and `runLibraryChain` sends `RunSets.Raw` in place of
+  the body, checked again by `decodeFilterRawOverride`. A rewrite after an
+  earlier member's set fails under on-error, because it was made from the
+  received body and would discard that set (`rawAnswer`).
   The reactor reaches the plugin through `libraryCaller` over the same
-  transport as the text chain, one route per call bounded by
+  transport as the text chain: the route joins the `filter-update` batch the
+  plugin connection forms (`filterBatcher`), bounded by one
   `rpc.FilterUpdateTimeout`.
 
 - **Checked by the library, compiled by BGP.** `policychain.Compile` refuses
