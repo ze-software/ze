@@ -36,6 +36,14 @@ EOF_PEER
 #   ipv6/unicast  maximum 5, teardown true  -> stop the session
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	peer peer1 {
 		connection {
 			remote {

@@ -49,6 +49,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
+			export { final accept; }
 			import { filters [ STRIP ]; final accept; }
 		}
 	}

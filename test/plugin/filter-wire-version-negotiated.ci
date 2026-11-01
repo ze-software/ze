@@ -191,6 +191,7 @@ bgp {
 			family { ipv4/unicast { prefix { maximum 10000; } } }
 		}
 		filter {
+			export { final accept; }
 			import { filters [ pynewer:prefix-only pyexact:prefix-only ]; final accept; }
 		}
 	}

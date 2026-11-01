@@ -61,6 +61,7 @@ bgp {
 		}
 
 		filter {
+			export { final accept; }
 			import { filters [ as-path-length-REJECT-LONG ]; final accept; }
 		}
 

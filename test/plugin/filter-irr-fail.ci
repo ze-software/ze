@@ -68,6 +68,7 @@ bgp {
 		}
 
 		filter {
+			export { final accept; }
 			import { filters [ bgp-filter-irr:65100 ]; final accept; }
 		}
 

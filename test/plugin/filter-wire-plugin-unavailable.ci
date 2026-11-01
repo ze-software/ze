@@ -74,6 +74,7 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		filter {
+			export { final accept; }
 			import { filters [ fakefilter:judge ]; final accept; }
 		}
 		attach process bgp-rib {
@@ -93,6 +94,7 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		filter {
+			export { final accept; }
 			import { filters [ fakefilter:judge ]; final accept; }
 		}
 		attach process bgp-rib {

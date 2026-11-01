@@ -29,6 +29,9 @@ bgp {
         import { filters [ filter-reject-test:reject-all ]; final accept; }
     }
     peer peer1 {
+        filter {
+            export { final accept; }
+        }
         connection {
             remote {
                 ip 127.0.0.1

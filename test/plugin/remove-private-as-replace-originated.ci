@@ -75,6 +75,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
+			import { final accept; }
 			export { filters [ remove-private-as:REPLACE ]; final accept; }
 		}
 		attach process remove-private-as-replace-originated {

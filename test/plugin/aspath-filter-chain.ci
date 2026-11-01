@@ -75,6 +75,7 @@ bgp {
 		}
 
 		filter {
+			export { final accept; }
 			import { filters [ as-path-list-ALLOW-AS prefix-list-ALLOW-PREFIX ]; final accept; }
 		}
 

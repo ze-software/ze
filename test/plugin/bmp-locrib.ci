@@ -41,6 +41,10 @@ EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
     router-id 1.2.3.5;
     session {
         asn {

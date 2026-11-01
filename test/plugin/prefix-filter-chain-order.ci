@@ -78,6 +78,7 @@ bgp {
 		}
 
 		filter {
+			export { final accept; }
 			import { filters [ prefix-list-ALLOW prefix-list-DENY ]; final accept; }
 		}
 	}

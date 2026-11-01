@@ -30,6 +30,14 @@ EOF_PEER
 # ze bgp configuration -- an ordinary eBGP peer with no migration AS
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	peer peer1 {
 		connection {
 			remote {

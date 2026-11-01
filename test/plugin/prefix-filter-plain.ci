@@ -63,6 +63,7 @@ bgp {
 		# its prefix-list condition in-process, and its decision line names
 		# the list it read.
 		filter {
+			export { final accept; }
 			import { filters [ prefix-list-GLOBALLY_UNIQUE_NAME ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {

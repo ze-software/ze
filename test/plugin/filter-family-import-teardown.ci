@@ -60,6 +60,7 @@ bgp {
 		}
 
 		filter {
+			export { final accept; }
 			import { filters [ bgp-filter-family:Kill ]; final accept; }
 		}
 

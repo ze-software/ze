@@ -62,6 +62,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
+			import { final accept; }
 			export { filters [ remove-private-as:STRIP ]; final accept; }
 		}
 		attach process remove-private-as-export-originated {

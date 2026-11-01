@@ -81,6 +81,7 @@ bgp {
 			}
 		}
 		filter {
+			export { final accept; }
 			import { filters [ bgp-filter-irr:65001 ]; final accept; }
 		}
 		attach process test-filter-irr-unresolved {

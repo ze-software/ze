@@ -40,6 +40,14 @@ EOF_PEER
 # That is the shape of every peer config that never mentions the leaf.
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	peer peer1 {
 		connection {
 			remote {

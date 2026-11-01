@@ -189,6 +189,7 @@ bgp {
 			family { ipv4/unicast { prefix { maximum 10000; } } }
 		}
 		filter {
+			export { final accept; }
 			import { filters [ pyread:prefix-only pyraw:raw-reader ]; final accept; }
 		}
 	}

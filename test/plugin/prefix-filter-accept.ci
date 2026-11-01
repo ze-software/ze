@@ -75,6 +75,7 @@ bgp {
 		}
 
 		filter {
+			export { final accept; }
 			import { filters [ prefix-list-CUSTOMERS ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {

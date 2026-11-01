@@ -79,6 +79,7 @@ bgp {
 		}
 
 		filter {
+			export { final accept; }
 			import { filters [ prefix-list-ORDERED ]; final accept; }
 		}
 

@@ -76,6 +76,7 @@ bgp {
 		}
 
 		filter {
+			export { final accept; }
 			import { filters [ reject-asn-NO-TRANSIT ]; final accept; }
 		}
 

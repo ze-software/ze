@@ -55,6 +55,7 @@ bgp {
 			}
 		}
 		filter {
+			export { final accept; }
 			import { filters [ remove-private-as:STRIP ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {

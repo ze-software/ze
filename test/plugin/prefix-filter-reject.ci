@@ -67,6 +67,7 @@ bgp {
 		}
 
 		filter {
+			export { final accept; }
 			import { filters [ prefix-list-ONLY_V6 ]; final accept; }
 		}
 

@@ -66,6 +66,7 @@ bgp {
 		}
 
 		filter {
+			export { final accept; }
 			import { filters [ remove-private-as:CUSTOMERS ]; final accept; }
 		}
 

@@ -32,6 +32,14 @@ plugin {
 	}
 }
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	peer peer-src {
 		connection {
 			remote {

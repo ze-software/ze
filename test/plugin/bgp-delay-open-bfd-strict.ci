@@ -23,6 +23,14 @@ bfd {
     }
 }
 bgp {
+    filter {
+        import {
+            final accept
+        }
+        export {
+            final accept
+        }
+    }
     timer {
         delay-open 60
     }

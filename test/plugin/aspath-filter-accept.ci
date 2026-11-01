@@ -75,6 +75,7 @@ bgp {
 		}
 
 		filter {
+			export { final accept; }
 			import { filters [ as-path-list-ALLOW-PEER ]; final accept; }
 		}
 

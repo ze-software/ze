@@ -65,6 +65,7 @@ bgp {
 
 		# Filter-type prefix form: `modify` resolves to bgp-filter-modify.
 		filter {
+			export { final accept; }
 			import { filters [ modify:CUSTOMERS ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {

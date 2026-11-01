@@ -57,6 +57,14 @@ EOF_PEER
 # other and are refused at parse (parsePrefixReconnect, config_prefix.go).
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	peer peer1 {
 		connection {
 			remote {
