@@ -421,12 +421,15 @@ func filterIRRUnresolved07(ctx context.Context, _ []string) error {
 			if message["direction"] != directionReceived {
 				return nil
 			}
-			update, isUpdate := bgp["update"].(map[string]any)
-			if !isUpdate {
-				return nil
+			// Only UPDATE events are subscribed, so a received event with no
+			// update object is a defect of the event: it reaches the scenario
+			// as its own text, which then names it in the failure.
+			observed := "no update object in the received event: " + event
+			if update, isUpdate := bgp["update"].(map[string]any); isUpdate {
+				observed = text07(update)
 			}
 			select {
-			case updates <- text07(update):
+			case updates <- observed:
 			default:
 			}
 			return nil
