@@ -1,7 +1,11 @@
 package filter_modify
 
 import (
+	"log/slog"
+	"os"
+
 	fmyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_modify/yang"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 )
@@ -24,7 +28,7 @@ func init() {
 	policy.MustRegisterInstanceFields(filterTypeName, modifyInstanceFields)
 	policy.MustRegisterRouteEvaluator(filterTypeName, compileRouteEvaluator)
 
-	_ = registry.Register(registry.Registration{
+	reg := registry.Registration{
 		Name:         "bgp-filter-modify",
 		Description:  "Named route attribute modifier (set local-preference, med, origin, next-hop)",
 		ConfigRoots:  []string{configRootBGP},
@@ -33,6 +37,16 @@ func init() {
 		YANG:         fmyang.ZeFilterModifyYANG,
 		FilterTypes:  []string{filterTypeName},
 		RunEngine:    runFilterModify,
-		CLIHandler:   func(_ []string) int { return 0 },
-	})
+	}
+	// The forked form (`ze plugin <name>`) runs the engine over TLS
+	// connect-back, as every external plugin does.
+	reg.CLIHandler = func(args []string) int {
+		cfg := cli.BaseConfig(&reg)
+		cfg.GetYANG = func() string { return fmyang.ZeFilterModifyYANG }
+		return cli.RunPlugin(cfg, args)
+	}
+	if err := registry.Register(reg); err != nil {
+		slog.Error(reg.Name+": registration failed", "error", err)
+		os.Exit(1)
+	}
 }

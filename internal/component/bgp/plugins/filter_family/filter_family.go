@@ -30,6 +30,7 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -60,7 +61,11 @@ func runFilterFamily(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{configRootBGP},
+		// The policy root is listed although the registry's ConfigReads names
+		// it: a forked process has no registry row (registryRow refuses an
+		// external program), so Stage 1 is the only declaration it carries,
+		// and without it the definitions under policy never arrive.
+		WantsConfig: []string{configRootBGP, policy.RootName},
 		Filters: []sdk.FilterDecl{{
 			NamePattern: ".+",
 			Direction:   sdk.FilterBoth,
