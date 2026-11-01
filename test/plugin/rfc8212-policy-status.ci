@@ -163,6 +163,8 @@ cmd=background:seq=3:exec=le test peer --mode sink --bind 127.0.0.3 --port $PORT
 cmd=background:seq=4:exec=le test peer --mode sink --bind 127.0.0.4 --port $PORT:stdin=p4
 cmd=foreground:seq=5:exec=ze -:stdin=ze-bgp:timeout=60s
 expect=exit:code=0
+expect=stderr:contains=RFC 8212: this EBGP peer has no import policy
+expect=stderr:contains=RFC 8212: this EBGP peer has no export policy
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error

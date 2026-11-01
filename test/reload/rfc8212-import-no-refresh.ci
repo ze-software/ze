@@ -127,6 +127,7 @@ cmd=background:seq=3:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=alter
 cmd=foreground:seq=4:exec=ze -:stdin=ze-bgp:timeout=150s
 
 expect=exit:code=0
+expect=stderr:contains=RFC 8212: this EBGP peer has no import policy
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=peer restart required
 reject=stderr:pattern=panic recovered
