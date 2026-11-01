@@ -49,6 +49,10 @@ func (f *fakeFilterTransport) FilterInfo(_, _ string) ([]string, bool) { return 
 
 // FilterReads answers no route field: these tests drive the text and raw
 // branches, and the fields object is TestFilterMessageFieldShapes's.
+func (f *fakeFilterTransport) FilterDeclaration(_, _ string) ([]string, []string, rpc.OnErrorPolicy, bool) {
+	return nil, nil, rpc.OnErrorReject, false
+}
+
 func (f *fakeFilterTransport) FilterReads(_, _ string) []string { return nil }
 
 func (f *fakeFilterTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy { return f.onError }

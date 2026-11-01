@@ -48,7 +48,7 @@ func libraryPolicy(t *testing.T, attachment, filterType string, final routepolic
 	if err != nil {
 		t.Fatalf("registry: %v", err)
 	}
-	chain, err := policychain.Compile(attachment, reg, []string{"member"}, final, policychain.Bases{LocalPreference: 100})
+	chain, err := policychain.Compile(attachment, reg, []policychain.Member{{Name: "member"}}, final, policychain.Bases{LocalPreference: 100})
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}

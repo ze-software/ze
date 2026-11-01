@@ -572,6 +572,23 @@ func (s *Server) FilterReads(pluginName, filterName string) []string {
 	return nil
 }
 
+// FilterDeclaration answers what the declaration serving filterName reads
+// and sets, in vocabulary field names (rpc.FilterFieldRaw among the reads for
+// the raw UPDATE body), and its on-error. ok is false when no running plugin
+// declares the filter. A BGP chain holding in-process members reaches a
+// plugin's filter through it (policychain.ExternalDeclaration).
+func (s *Server) FilterDeclaration(pluginName, filterName string) (reads, sets []string, onError rpc.OnErrorPolicy, ok bool) {
+	f := s.filterRegistration(pluginName, filterName)
+	if f == nil {
+		return nil, nil, rpc.OnErrorReject, false
+	}
+	onError = rpc.OnErrorReject
+	if f.OnError == rpc.OnErrorAccept {
+		onError = rpc.OnErrorAccept
+	}
+	return f.Reads, f.Sets, onError, true
+}
+
 // filterRegistration answers the declaration of a running plugin that serves
 // filterName, nil when the plugin is not running or declares no such filter.
 func (s *Server) filterRegistration(pluginName, filterName string) *plugin.FilterRegistration {

@@ -158,12 +158,15 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, wireUpd
 		return ingressPolicyWithdrawals(payload)
 	}
 	if library := policy.Library(); library != nil {
-		// The in-process chain needs no API server: no member is reached
-		// over filter-update (config load refuses a mixed chain).
+		// An external member reaches its plugin through the API server; with
+		// none it fails under its on-error (runLibraryChain).
 		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 		intent := libraryIntentContext{asn4: srcCtx != nil && srcCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: true}
 		res := r.runLibraryChain(library, wireUpdate, payload, policyview.Session{EBGP: external}, intent,
-			modifySiteImportChain, peerAddr.String())
+			directionImport, modifySiteImportChain, peerAddr.String())
+		if res.outcome.Teardown {
+			return ingressStepResult{teardown: true, notifyCode: res.outcome.NotifyCode, notifySubcode: res.outcome.NotifySubcode}
+		}
 		if res.outcome.Action != policychain.OutcomeAccept {
 			// RFC 8212 Section 3: the same withdrawals rule as the text chain.
 			if !res.outcome.Failed && !policy.AcceptsAtEnd(external) {
@@ -339,10 +342,10 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 		return egressStepResult{accept: exportPolicy.AcceptsAtEnd(!destInternal)}
 	}
 	if library := exportPolicy.Library(); library != nil {
-		// In process: no API server is involved (see the import step).
+		// External members reach their plugin as on the import step.
 		intent := libraryIntentContext{asn4: asn4, localAS: destLocalAS, peerAS: destPeerAS, asPathEditable: !destInternal}
 		res := r.runLibraryChain(library, wireUpdate, wireUpdate.Payload(), policyview.Session{EBGP: !destInternal}, intent,
-			modifySiteExportChain, destAddrStr)
+			directionExport, modifySiteExportChain, destAddrStr)
 		if res.outcome.Action != policychain.OutcomeAccept {
 			return egressStepResult{failed: res.outcome.Failed} // accept == false: suppress for this peer
 		}

@@ -1204,6 +1204,12 @@ no route field, and `raw` is sent only to a filter that declared the `raw` read.
 A field Ze cannot read (a malformed attribute) applies the filter's `on-error`
 instead of sending the message. The value shapes are in
 `docs/plugin-development/protocol.md`, "The Route Fields of filter-update".
+A filter in a chain that also holds an in-process filter is a member of the
+in-process chain (`policychain`): it is sent the fields as the earlier members
+left them and no text `update`, and answers its changes in `sets`, which fold
+with the in-process members' changes (protocol.md, "The Sets of a
+filter-update answer").
+<!-- source: internal/component/bgp/policychain/external.go -- judgeExternal -->
 <!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
 

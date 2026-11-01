@@ -136,11 +136,11 @@ func compile(t *testing.T, final policy.Final, instances ...policy.Instance) *Ch
 	if err != nil {
 		t.Fatalf("registry: %v", err)
 	}
-	names := make([]string, len(instances))
+	members := make([]Member, len(instances))
 	for i, inst := range instances {
-		names[i] = inst.Name
+		members[i] = Member{Name: inst.Name}
 	}
-	chain, err := Compile(testAttachment, reg, names, final, Bases{})
+	chain, err := Compile(testAttachment, reg, members, final, Bases{})
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}
@@ -346,7 +346,11 @@ func TestCompileRefuses(t *testing.T) {
 		{"unregistered attachment", "no attachment", []string{"lp"}, policy.FinalAccept, "policychain-test nowhere"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := Compile(tc.attachment, reg, tc.names, tc.final, Bases{})
+			members := make([]Member, len(tc.names))
+			for i, name := range tc.names {
+				members[i] = Member{Name: name}
+			}
+			_, err := Compile(tc.attachment, reg, members, tc.final, Bases{})
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("err = %v, want it to say %q", err, tc.want)
 			}

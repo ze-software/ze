@@ -1,7 +1,6 @@
 package bgpconfig
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -29,7 +28,8 @@ func init() {
 // chain may name a type with an in-process evaluator (bgpServesFilterType),
 // its policy then carries the compiled library chain, a chain naming no such
 // type carries none, and a chain mixing a library member with a plugin filter
-// is refused naming both filters and what to do.
+// compiles into one library chain that holds both (FR-1, D-12): the plugin
+// filter is no longer reached over the text chain.
 func TestLibraryChainAtPeerLoad(t *testing.T) {
 	reg, err := policy.NewRegistry(policy.Instance{Name: "lp", Type: libraryTestType})
 	if err != nil {
@@ -67,14 +67,15 @@ func TestLibraryChainAtPeerLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = compileLibraryChain(mixed, reg, policychain.Bases{}, "bgp import", "peer p import filters")
-	if err == nil {
-		t.Fatal("a chain mixing a library member and a plugin filter was accepted")
+	got, err := compileLibraryChain(mixed, reg, policychain.Bases{}, "bgp import", "peer p import filters")
+	if err != nil {
+		t.Fatalf("a chain mixing a library member and a plugin filter was refused: %v", err)
 	}
-	for _, want := range []string{"peer p import filters", `"lp"`, `"ext:other"`, "chain of its own"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("refusal %q does not name %q", err, want)
-		}
+	if got.Library() == nil {
+		t.Fatal("a mixed chain carries no library chain")
+	}
+	if got.ActiveExternal(1) {
+		t.Fatal("the plugin filter of a mixed chain is still reached over the text chain")
 	}
 }
 

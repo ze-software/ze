@@ -81,10 +81,9 @@ func (p Policy) InProcess(i int) bool {
 }
 
 // ActiveExternal reports whether the per-peer RPC chain must execute ref i.
-// i MUST index Filters. A policy with a library chain has no RPC member: config
-// load refuses a chain that mixes library members with plugin filters reached
-// over filter-update, until phase 3b runs plugin members on the library chain
-// and removes that refusal (bgp/config, refuseMixedLibraryChain).
+// i MUST index Filters. A policy with a library chain has no member on the
+// text chain: its plugin filters are external members of the library chain,
+// which reaches them itself (bgp/config compileLibraryChain).
 func (p Policy) ActiveExternal(i int) bool {
 	if p.library != nil {
 		return false

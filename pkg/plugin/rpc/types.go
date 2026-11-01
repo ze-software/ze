@@ -618,6 +618,15 @@ type FilterUpdateOutput struct {
 	// raw). []byte so encoding/json base64-encodes it on the wire (see the input
 	// field above).
 	Raw []byte `json:"raw,omitempty"`
+	// Sets holds the route fields the filter changes, on action=modify
+	// (docs/plugin-development/protocol.md, "The Sets of a filter-update
+	// answer"). Each names a field the filter declared in its Sets; a set of
+	// an undeclared or unsettable field, an action the field does not take, or
+	// a value of the wrong shape fails the route under the filter's on-error,
+	// and none of that route's sets apply. The engine reads Sets for a filter
+	// in a chain that also holds in-process members; the text Update serves
+	// the others until the text contract is removed.
+	Sets []FilterSet `json:"sets,omitempty"`
 
 	// Teardown requests the engine terminate the BGP session after the import
 	// filter chain, sending a NOTIFICATION with the given code/subcode. Honored
@@ -628,6 +637,34 @@ type FilterUpdateOutput struct {
 	NotifyCode    uint8 `json:"notify-code,omitempty"`
 	NotifySubcode uint8 `json:"notify-subcode,omitempty"`
 }
+
+// FilterSet is one change a filter answers for one route: the vocabulary
+// field it changes, how, and the value in the field's shape (a JSON number
+// for local-preference and med, a community string such as "65000:100" for
+// community).
+type FilterSet struct {
+	Field  string          `json:"field"`
+	Action FilterSetAction `json:"action"`
+	Value  json.RawMessage `json:"value"`
+}
+
+// FilterSetAction names how a FilterSet changes its field. The set is open:
+// it arrives from a plugin, so a value outside the constants fails the route.
+type FilterSetAction string
+
+const (
+	// FilterSetActionSet replaces the value (local-preference, med).
+	FilterSetActionSet FilterSetAction = "set"
+	// FilterSetActionIncrement adds to the current value, or to the
+	// configured default when the route carries none (local-preference, med).
+	FilterSetActionIncrement FilterSetAction = "increment"
+	// FilterSetActionDecrement subtracts from it, the same way.
+	FilterSetActionDecrement FilterSetAction = "decrement"
+	// FilterSetActionAdd adds one value to a list field (community).
+	FilterSetActionAdd FilterSetAction = "add"
+	// FilterSetActionRemove removes one value from a list field (community).
+	FilterSetActionRemove FilterSetAction = "remove"
+)
 
 // ConfigSection is a single config section delivered to the plugin.
 type ConfigSection struct {

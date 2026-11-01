@@ -661,13 +661,50 @@ For example, a filter that declared `community`, `as-path` and
 - Stage 1 refuses a declared BGP field this binary cannot write: the
   community fields need `bgp-filter-community`, `originator-id` and
   `cluster-list` need `bgp-rr`, and `aigp` needs `bgp-aigp`.
-- The values are the route as the chain received it. A modify an earlier
-  filter in the chain answered reaches this filter in the text `update` only,
-  as it does for `raw`.
+- In a chain that holds only plugin filters, the values are the route as the
+  chain received it: a modify an earlier filter answered reaches this filter
+  in the text `update` only, as it does for `raw`.
+- In a chain that also holds an in-process filter, the values are the route
+  as the earlier members left it: a local-preference, med or community an
+  earlier member set, in process or in a plugin, is what this filter reads.
+  `raw` is still the received body. Such a chain sends no text `update`, so a
+  filter that declared no `reads` fails the route under its `on-error`.
 <!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
 <!-- source: internal/component/bgp/policyview/register_writers.go -- the field writers -->
 <!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
+<!-- source: internal/component/bgp/policychain/external.go -- judgeExternal -->
+
+### The Sets of a filter-update answer
+
+A filter in a chain that also holds an in-process filter answers its changes
+in `FilterUpdateOutput.Sets` (`sets` on the wire), with `"action":"modify"`.
+Each entry names one field the filter declared in `sets`, how it changes, and
+the value in the field's shape:
+
+| Field | Actions | Value | Example |
+|-------|---------|-------|---------|
+| `local-preference` | `set`, `increment`, `decrement` | a number from 0 to 4294967295 | `{"field":"local-preference","action":"set","value":200}` |
+| `med` | `set`, `increment`, `decrement` | a number from 0 to 4294967295 | `{"field":"med","action":"increment","value":10}` |
+| `community` | `add`, `remove` | one community string | `{"field":"community","action":"add","value":"65000:100"}` |
+
+- An increment or decrement starts from the route's value, or from
+  `bgp defaults attribute` when the route carries none, and stays within 0 and
+  4294967295. The changes fold in chain order with the in-process filters'
+  changes and produce the same UPDATE bytes.
+- The route fails under the filter's `on-error`, logged and counted, with none
+  of its sets applied, when an entry names a field the filter did not declare,
+  a field the chain's attachment does not let a filter set, or a field no BGP
+  chain sets; when the action is not one the field takes; or when the value has
+  the wrong shape. The other routes are judged on their own.
+- The route fails the same way when the answer carries `sets` beside `accept`
+  or `reject`, a text `update`, or a `raw` rewrite. The AS-path, prefix and
+  family intents are not carried by `filter-update` yet: an in-process filter
+  sets them.
+- `teardown` on an import route closes the session, as in a chain of plugin
+  filters only; on export it is ignored and the action stands.
+<!-- source: internal/component/bgp/policychain/external.go -- externalAnswer, applyExternalSets -->
+<!-- source: pkg/plugin/rpc/types.go -- FilterSet, FilterSetAction -->
 
 ### The Filter Text an `OnFilterUpdate` Handler Reads
 

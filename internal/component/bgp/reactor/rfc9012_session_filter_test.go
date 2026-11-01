@@ -186,6 +186,10 @@ func (teSessionFilterTransport) FilterInfo(_, _ string) ([]string, bool) {
 }
 
 // FilterReads answers the raw read FilterInfo reports.
+func (teSessionFilterTransport) FilterDeclaration(_, _ string) ([]string, []string, rpc.OnErrorPolicy, bool) {
+	return nil, nil, rpc.OnErrorReject, false
+}
+
 func (teSessionFilterTransport) FilterReads(_, _ string) []string {
 	return []string{rpc.FilterFieldRaw}
 }

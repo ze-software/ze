@@ -8,6 +8,7 @@
 package reactor
 
 import (
+	"context"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -16,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // libraryRun is the scratch one library chain run owns: the route view and
@@ -61,7 +63,11 @@ type libraryResult struct {
 // builder the text delta reaches. The view never leaves this call: it is
 // Cleared before its scratch returns to the pool. site and peer name the
 // modify-failure counter's labels.
-func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wireu.WireUpdate, payload []byte, session policyview.Session, intent libraryIntentContext, site, peer string) libraryResult {
+//
+// direction ("import" or "export") and peer are what an external member's
+// filter-update names; payload is the raw body a member that declared raw is
+// sent, borrowed for the run only.
+func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wireu.WireUpdate, payload []byte, session policyview.Session, intent libraryIntentContext, direction, site, peer string) libraryResult {
 	chain, ok := library.(*policychain.Chain)
 	if !ok {
 		panic("BUG: reactor: a policy's library chain is not a *policychain.Chain")
@@ -74,6 +80,13 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 
 	run.view.Reset(wireUpdate, session)
 	defer run.view.Clear()
+
+	route := policychain.ExternalRoute{Direction: direction, Peer: peer, PeerAS: intent.peerAS, Raw: payload}
+	if api := r.filterAPI(); api != nil {
+		route.Caller = libraryCaller{api: api}
+	}
+	run.sets.SetRoute(route)
+	defer run.sets.SetRoute(policychain.ExternalRoute{})
 
 	outcome := chain.Run(&run.view, &run.sets)
 	if outcome.Action != policychain.OutcomeAccept {
@@ -112,6 +125,24 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 		return libraryResult{outcome: outcome, failed: true}
 	}
 	return libraryResult{outcome: outcome, modifiedPayload: modPayload}
+}
+
+// libraryCaller reaches an external member's plugin through the transport
+// the text chain talks to. A nil transport leaves the route's Caller nil, and
+// the member then fails under its on-error (fail-closed by default), as the
+// text chain does with no API server.
+type libraryCaller struct{ api filterTransport }
+
+func (c libraryCaller) FilterDeclaration(plugin, filter string) (policychain.ExternalDeclaration, bool) {
+	reads, sets, onError, ok := c.api.FilterDeclaration(plugin, filter)
+	return policychain.ExternalDeclaration{Reads: reads, Sets: sets, OnError: onError}, ok
+}
+
+// CallFilter bounds the call by rpc.FilterUpdateTimeout, as the text chain does.
+func (c libraryCaller) CallFilter(plugin string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), rpc.FilterUpdateTimeout)
+	defer cancel()
+	return c.api.CallFilterUpdate(ctx, plugin, input)
 }
 
 // libraryASPathOps resolves the AS-path intents through the cores the text

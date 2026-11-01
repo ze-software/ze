@@ -7,6 +7,7 @@ package bgpconfig
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
@@ -38,11 +39,15 @@ func compileLibraryChains(settings []*reactor.PeerSettings, reg *policy.Registry
 }
 
 // compileLibraryChain answers p with its library chain, p itself when the
-// chain names no library member. A chain that mixes a library member with a
-// plugin filter reached over filter-update is refused (refuseMixedLibraryChain).
+// chain names no library member. A plugin filter in the same chain becomes an
+// external member of the library chain, in chain order: it is sent the
+// fields it declared through the chain's view, so it reads what an earlier
+// member set, and its sets fold beside theirs (policychain external.go). The
+// reference splits at its colon into plugin and filter, as the text chain
+// splits it (PolicyFilterChain).
 func compileLibraryChain(p filterapi.Policy, reg *policy.Registry, bases policychain.Bases, attachment, context string) (filterapi.Policy, error) {
-	var names []string
-	var plugin, library string
+	var members []policychain.Member
+	library := false
 	for i, ref := range p.Filters() {
 		if ref.Inactive {
 			continue
@@ -52,39 +57,21 @@ func compileLibraryChain(p filterapi.Policy, reg *policy.Registry, bases policyc
 		}
 		entry, ok := reg.Lookup(filterInstanceName(ref.Name))
 		if ok && policychain.HasEvaluator(entry.Type) {
-			names = append(names, entry.Name)
-			library = entry.Name
+			members = append(members, policychain.Member{Name: entry.Name})
+			library = true
 			continue
 		}
-		if plugin == "" {
-			plugin = ref.Name
-		}
+		pluginName, filterName, _ := strings.Cut(ref.Name, ":")
+		members = append(members, policychain.Member{Name: filterName, Plugin: pluginName})
 	}
-	if len(names) == 0 {
+	if !library {
 		return p, nil
 	}
-	if err := refuseMixedLibraryChain(context, library, plugin); err != nil {
-		return p, err
-	}
-	chain, err := policychain.Compile(attachment, reg, names, p.Final(), bases)
+	chain, err := policychain.Compile(attachment, reg, members, p.Final(), bases)
 	if err != nil {
 		return p, fmt.Errorf("%s: %w", context, err)
 	}
 	return p.WithLibrary(chain), nil
-}
-
-// refuseMixedLibraryChain refuses a chain holding both a library member and a
-// plugin filter reached over filter-update. A text member cannot see what a
-// library member set, nor the reverse, so the chain would not run as written.
-// Phase 3b runs plugin members on the library chain and removes this refusal.
-func refuseMixedLibraryChain(context, library, plugin string) error {
-	if plugin == "" {
-		return nil
-	}
-	return fmt.Errorf("%s: filter %q runs in process and filter %q runs in a plugin, and one chain cannot "+
-		"run both kinds yet, because neither would see the other's changes; "+
-		"put the plugin filter in a chain of its own (bgp, group or peer level) or replace it with an in-process filter",
-		context, library, plugin)
 }
 
 // parseAttributeBases reads bgp { defaults { attribute { } } }, each leaf's

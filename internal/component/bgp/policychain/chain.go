@@ -10,9 +10,9 @@
 // when its read fails (a malformed attribute, AC-28) or when it sets a field
 // it did not declare (D-9), and decides the rest with the chain's final.
 //
-// Plugin filter types are not members of this chain: they still run over the
-// filter-update path until the typed bridge slot and the batched protocol
-// replace it (spec phase 3b).
+// A member may also be a filter a plugin runs (external.go): it is sent the
+// fields it declared over filter-update, read through the same view, and its
+// sets fold beside the in-process members' sets.
 
 package policychain
 
@@ -111,7 +111,11 @@ type member struct {
 	onError    rpc.OnErrorPolicy
 	// settable holds the set kinds the member declared (policy.InstanceSets),
 	// which policy.CheckChain already bounded by what the attachment allows.
+	// For an external member it holds what the attachment allows, and its
+	// reply's sets are checked against its declaration as well.
 	settable setMask
+	// external is set for a filter a plugin runs; evaluate is nil then.
+	external *externalMember
 }
 
 // Chain is one compiled in-process BGP chain. Immutable after Compile, so safe
@@ -129,20 +133,29 @@ type Chain struct {
 	refused atomic.Uint64
 }
 
-// Compile checks the chain names at attachment through the route-policy
-// library and compiles each member with its type's registered evaluator.
+// Compile checks the chain's members at attachment through the route-policy
+// library and compiles each instance member with its type's registered
+// evaluator. An external member (Member.Plugin set) was judged against its
+// plugin's declaration when the plugin declared (Stage 1), so Compile
+// records it with what the attachment lets a filter set.
 // A name the registry does not hold, a type with no evaluator, a field the
 // attachment does not carry or allow, and a missing final are each refused by
 // name. bases is what an increment or decrement of an absent attribute starts
 // from (bgp defaults attribute).
-func Compile(attachment string, reg *policy.Registry, names []string, final policy.Final, bases Bases) (*Chain, error) {
+func Compile(attachment string, reg *policy.Registry, members []Member, final policy.Final, bases Bases) (*Chain, error) {
 	if final != policy.FinalAccept && final != policy.FinalReject {
 		return nil, fmt.Errorf("%s: missing or invalid final; write filters [ NAME ]; final accept; or final reject", attachment)
+	}
+	names := make([]string, 0, len(members))
+	for _, m := range members {
+		if m.Plugin == "" {
+			names = append(names, m.Name)
+		}
 	}
 	if err := policy.CheckChain(attachment, reg, names); err != nil {
 		return nil, err
 	}
-	chain := &Chain{attachment: attachment, members: make([]member, 0, len(names)), final: final, bases: bases}
+	chain := &Chain{attachment: attachment, members: make([]member, 0, len(members)), final: final, bases: bases}
 	var err error
 	if chain.localPreference, err = policyview.ReaderFor(policy.FieldLocalPreference); err != nil {
 		return nil, fmt.Errorf("BUG: policychain: %w", err)
@@ -153,8 +166,16 @@ func Compile(attachment string, reg *policy.Registry, names []string, final poli
 	if chain.community, err = policyview.ReaderFor(policy.FieldCommunity); err != nil {
 		return nil, fmt.Errorf("BUG: policychain: %w", err)
 	}
-	for _, name := range names {
-		compiled, err := compileMember(attachment, reg, name)
+	for _, m := range members {
+		if m.Plugin != "" {
+			reference := m.Plugin + ":" + m.Name
+			chain.members = append(chain.members, member{
+				name: reference, filterType: m.Plugin, settable: externalSettable(attachment, reference),
+				external: &externalMember{plugin: m.Plugin, filter: m.Name},
+			})
+			continue
+		}
+		compiled, err := compileMember(attachment, reg, m.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -201,10 +222,16 @@ const (
 // rather than treating it as a policy reject (withdrawals stay under a final
 // reject only when Failed is false). Member names the member that rejected or
 // failed, empty when the final decided.
+//
+// Teardown is set when an external member asked the session be closed on an
+// import route (NotifyCode and NotifySubcode as it answered them); the route
+// is rejected. It is never set on export.
 type Outcome struct {
-	Action OutcomeAction
-	Failed bool
-	Member string
+	Action                    OutcomeAction
+	Failed                    bool
+	Member                    string
+	Teardown                  bool
+	NotifyCode, NotifySubcode uint8
 }
 
 // RunSets is the per-run scratch a caller owns beside its view: one member's
@@ -218,6 +245,21 @@ type RunSets struct {
 	// member adds, and keeps its storage across runs.
 	communityWire [2][]byte
 	communityNext uint8
+	// route is what an external member is sent beside the view; fields the
+	// fields object it is sent, kept across runs.
+	route  ExternalRoute
+	fields []byte
+}
+
+// SetRoute records what external members are sent for the next runs. The
+// caller MUST clear it (SetRoute(ExternalRoute{})) before the RunSets is
+// reused for another route's caller or returned to a pool, because Raw is
+// borrowed.
+func (r *RunSets) SetRoute(route ExternalRoute) {
+	r.route = route
+	if r.fields == nil {
+		r.fields = make([]byte, 0, fieldsOctets)
+	}
 }
 
 // Folded answers the sets the chain asked, valid until the next Run.
@@ -231,7 +273,20 @@ func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
 	for i := range c.members {
 		m := &c.members[i]
 		sets.member.Reset()
-		decision, err := m.evaluate(view, &sets.member)
+		onError := m.onError
+		var decision Decision
+		var err error
+		if m.external != nil {
+			var verdict externalVerdict
+			verdict, onError, err = judgeExternal(m, view, sets)
+			decision = verdict.decision
+			if err == nil && verdict.teardown && sets.route.Direction == directionImport {
+				return Outcome{Action: OutcomeReject, Member: m.name, Teardown: true,
+					NotifyCode: verdict.notifyCode, NotifySubcode: verdict.notifySub}
+			}
+		} else {
+			decision, err = m.evaluate(view, &sets.member)
+		}
 		if err == nil {
 			err = m.refuseUndeclared(&sets.member)
 		}
@@ -239,7 +294,7 @@ func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
 			err = decisionError(decision)
 		}
 		if err != nil {
-			if c.fail(m, err) {
+			if c.fail(m, onError, err) {
 				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
 			}
 			continue // fail-open: the member passes, and none of its sets apply
@@ -252,13 +307,13 @@ func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
 			err = c.overlayCommunity(view, sets)
 		}
 		if err != nil {
-			if c.fail(m, err) {
+			if c.fail(m, onError, err) {
 				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
 			}
 			continue // fail-open: none of the member's sets apply
 		}
 		if err := sets.folded.merge(&sets.member); err != nil {
-			if c.fail(m, err) {
+			if c.fail(m, onError, err) {
 				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
 			}
 		}
@@ -380,9 +435,13 @@ func decisionError(decision Decision) error {
 
 // fail logs and counts a member failure and answers whether the route is
 // rejected (fail-closed) rather than passed on (fail-open).
-func (c *Chain) fail(m *member, err error) bool {
+func (c *Chain) fail(m *member, onError rpc.OnErrorPolicy, err error) bool {
 	c.refused.Add(1)
 	chainLogger().Warn("policy filter failed, its on-error decides the route",
-		"attachment", c.attachment, "filter", m.name, "type", m.filterType, "on-error", m.onError.String(), "error", err)
-	return m.onError != rpc.OnErrorAccept
+		"attachment", c.attachment, "filter", m.name, "type", m.filterType, "on-error", onError.String(), "error", err)
+	return onError != rpc.OnErrorAccept
 }
+
+// directionImport is the direction an ExternalRoute names for a received
+// route, the only one on which a teardown is honoured.
+const directionImport = "import"

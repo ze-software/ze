@@ -1594,10 +1594,18 @@ the text subject is still what every configured BGP filter reads.
   and sets from a pool and Clears the view before it returns. A reject keeps
   the text chain's RFC 8212 withdrawals rule, and a failed member drops the
   route.
-- **No mixed chain yet.** A chain that names a library member and a plugin
-  filter reached over `filter-update` is refused at load, naming both
-  (`refuseMixedLibraryChain`): neither kind would see the other's changes.
-  Phase 3b runs plugin members on this chain and removes the refusal.
+- **Plugin filters join the chain.** A chain that names a library member
+  and a plugin filter compiles both into one chain, in chain order
+  (`policychain.Member`, `Plugin` set). The plugin member is sent, over
+  `filter-update`, the fields it declared read through the same view, so it
+  reads what earlier members set; its answer's `sets` fold through the same
+  `Sets` methods an in-process member calls, so both produce the same bytes.
+  A set it did not declare, a field the attachment does not let a filter set,
+  a wrong action or value shape, a text delta, a raw rewrite, and no plugin
+  server each fail the route under its on-error (`policychain/external.go`).
+  The reactor reaches the plugin through `libraryCaller` over the same
+  transport as the text chain, one route per call bounded by
+  `rpc.FilterUpdateTimeout`.
 
 - **Checked by the library, compiled by BGP.** `policychain.Compile` refuses
   the chain with `policy.CheckChain`, exactly as `validateChainNames` does, then
@@ -1672,7 +1680,9 @@ the text subject is still what every configured BGP filter reads.
 <!-- source: internal/component/bgp/policychain/sets.go -- Sets, numericSet.resolve, Sets.ApplyTo -->
 <!-- source: internal/component/bgp/policychain/apply.go -- Bases, Chain.Apply -->
 <!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, libraryASPathOps, libraryNLRIOps -->
-<!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChains, refuseMixedLibraryChain, parseAttributeBases -->
+<!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChains, compileLibraryChain, parseAttributeBases -->
+<!-- source: internal/component/bgp/policychain/external.go -- judgeExternal, applyExternalSets -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- libraryCaller -->
 <!-- source: internal/component/policy/fields.go -- InstanceSets -->
 
 ---

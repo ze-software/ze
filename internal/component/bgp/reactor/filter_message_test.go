@@ -30,6 +30,10 @@ func (f *fieldsTransport) FilterInfo(_, filterName string) ([]string, bool) {
 	return nil, false
 }
 
+func (f *fieldsTransport) FilterDeclaration(_, _ string) ([]string, []string, rpc.OnErrorPolicy, bool) {
+	return nil, nil, rpc.OnErrorReject, false
+}
+
 func (f *fieldsTransport) FilterReads(_, filterName string) []string { return f.reads[filterName] }
 
 func (f *fieldsTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy { return rpc.OnErrorReject }

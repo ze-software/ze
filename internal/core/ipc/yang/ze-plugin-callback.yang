@@ -543,6 +543,33 @@ to the single document the record path would have carried.";
                      field. The engine reads it on a modify answer alone.";
                 ze:help "Base64-encoded full raw UPDATE body replacement (action=modify with raw)";
             }
+            list sets {
+                description
+                    "Read on action=modify for a filter in a chain that also holds in-process
+                     members. A set of a field the filter did not declare in its sets, an action
+                     the field does not take, or a value of the wrong shape fails the route under
+                     the filter's on-error, and none of the route's sets apply.";
+                ze:help "Route fields the filter changes (action=modify)";
+                leaf field {
+                    type string;
+                    mandatory true;
+                    ze:help "Vocabulary field name (local-preference, med, community)";
+                }
+                leaf action {
+                    type enumeration {
+                        enum set { ze:help "Replace the value"; }
+                        enum increment { ze:help "Add to the current value"; }
+                        enum decrement { ze:help "Subtract from the current value"; }
+                        enum add { ze:help "Add one value to a list field"; }
+                        enum remove { ze:help "Remove one value from a list field"; }
+                    }
+                    mandatory true;
+                    ze:help "How the field changes";
+                }
+                anyxml value {
+                    ze:help "The value in the field's shape: a number, or a community string";
+                }
+            }
         }
     }
 

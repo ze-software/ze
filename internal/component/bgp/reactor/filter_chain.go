@@ -640,6 +640,9 @@ type filterTransport interface {
 	// FilterReads answers what the filter's declaration reads: vocabulary
 	// field names, and rpc.FilterFieldRaw for the raw UPDATE body.
 	FilterReads(pluginName, filterName string) []string
+	// FilterDeclaration answers the declaration's reads, sets and on-error,
+	// ok false when no running plugin declares the filter.
+	FilterDeclaration(pluginName, filterName string) (reads, sets []string, onError rpc.OnErrorPolicy, ok bool)
 	FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy
 	CallFilterUpdate(ctx context.Context, pluginName string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error)
 }
