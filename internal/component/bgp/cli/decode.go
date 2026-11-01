@@ -4,20 +4,17 @@
 // Detail: decode_mp.go — MP_REACH/MP_UNREACH NLRI decoding
 // Detail: decode_plugin.go — plugin invocation for decode
 // Detail: decode_human.go — human-readable output formatting
+// Detail: decode_answer.go — the show bgp decode handler and its answer
 
 package cli
 
 import (
 	"encoding/hex"
 	"encoding/json"
-	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/core/cliio"
-	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 // Message type constants.
@@ -41,126 +38,6 @@ const (
 
 // capNameUnknown is the capability name used when the code has no decoder.
 const capNameUnknown = "unknown"
-
-// cmdDecode handles the 'decode' subcommand.
-// Decodes BGP messages from hex and outputs Ze-format JSON.
-func cmdDecode(args []string) int {
-	fs := flag.NewFlagSet("decode", flag.ExitOnError)
-
-	openMsg := fs.Bool("open", false, "decode as OPEN message")
-	updateMsg := fs.Bool("update", false, "decode as UPDATE message")
-	notifMsg := fs.Bool("notification", false, "decode as NOTIFICATION message")
-	keepaliveMsg := fs.Bool("keepalive", false, "decode as KEEPALIVE message")
-	nlriFamily := fs.String("nlri", "", "decode as NLRI with family (e.g., 'ipv4/flow')")
-	fam := fs.String("f", "", "address family for UPDATE (e.g., 'ipv4/unicast', 'l2vpn/evpn')")
-	fs.StringVar(fam, "family", "", "address family for UPDATE (long form of -f)")
-	outputJSON := fs.Bool("json", false, "output JSON instead of human-readable format")
-	var plugins pluginFlags
-	fs.Var(&plugins, "plugin", "plugin for capability/NLRI decoding (e.g., ze.hostname, flowspec)")
-
-	fs.Usage = func() {
-		p := helpfmt.Page{
-			Command:   "ze bgp decode",
-			ShortHelp: "Decode BGP message from hexadecimal and output Ze-format JSON",
-			Usage: []string{
-				"ze bgp decode [options] <hex-payload>",
-				"ze bgp decode [options] -                Read one hex message for each line of standard input",
-				"ze bgp decode [options] pcap <file>      Decode every BGP message in a capture",
-				"ze bgp decode [options] pcap -           Read the capture from standard input",
-			},
-			Sections: []helpfmt.HelpSection{
-				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
-					{Name: "--open", Desc: "Decode as OPEN message"},
-					{Name: "--update", Desc: "Decode as UPDATE message"},
-					{Name: "--notification", Desc: "Decode as NOTIFICATION message"},
-					{Name: "--keepalive", Desc: "Decode as KEEPALIVE message"},
-					{Name: "--nlri <family>", Desc: "Decode as NLRI with family (e.g., 'ipv4/flow')"},
-					{Name: "-f <family>", Desc: "Address family for UPDATE (e.g., 'ipv4/unicast', 'l2vpn/evpn')"},
-					{Name: "--json", Desc: "Output JSON instead of human-readable format"},
-					{Name: "--plugin <name>", Desc: "Plugin for capability/NLRI decoding (e.g., ze.hostname, flowspec)"},
-				}},
-			},
-			Examples: []string{
-				"ze bgp decode --open FFFF...                          Decode OPEN message",
-				"ze bgp decode --update FFFF...                        Decode UPDATE message",
-				"ze bgp decode --plugin ze.hostname --open FFFF...     Decode with hostname plugin",
-				"ze bgp decode --nlri l2vpn/evpn 02...                 Decode NLRI with family",
-				"ze bgp decode --plugin flowspec --nlri ipv4/flow 07...  Decode NLRI via plugin",
-				"ze bgp decode pcap session.pcap                       Decode a tcpdump or ze capture",
-				"tcpdump -w - port 179 | ze bgp decode pcap -           Decode a capture from a pipe",
-			},
-		}
-		p.WriteErr()
-		fmt.Fprintf(os.Stderr, "\nThe hex payload can include colons or spaces which will be stripped.\n")
-	}
-
-	if err := fs.Parse(args); err != nil {
-		return 1
-	}
-
-	if fs.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "error: missing hex payload\n")
-		fs.Usage()
-		return 1
-	}
-
-	// Determine message type from flags
-	var msgType string
-	switch {
-	case *openMsg:
-		msgType = msgTypeOpen
-	case *updateMsg:
-		msgType = msgTypeUpdate
-	case *notifMsg:
-		msgType = msgTypeNotification
-	case *keepaliveMsg:
-		msgType = msgTypeKeepalive
-	case *nlriFamily != "":
-		msgType = msgTypeNLRI
-	}
-
-	// Use nlriFamily for NLRI mode, fall back to -f flag
-	familyStr := *fam
-	if *nlriFamily != "" {
-		familyStr = *nlriFamily
-	}
-
-	// Three input forms, and the keyword decides between them before any value
-	// is read (`ai/rules/cli.md`). A capture is named after `pcap`, hexadecimal
-	// lines arrive on standard input under the "-" token, and a bare word is
-	// the single hex payload this command has always taken.
-	if fs.Arg(0) == inputKeywordPcap {
-		return decodePcapInput(fs.Args()[1:], msgType, familyStr, *outputJSON)
-	}
-	if cliio.IsStdin(fs.Arg(0)) {
-		if fs.NArg() > 1 {
-			fmt.Fprintf(os.Stderr, "error: %q reads every message from standard input, so it takes no further argument, and %s given\n",
-				cliio.StdinToken, countWord(fs.NArg()-1))
-			return 1
-		}
-		return decodeHexStdin(msgType, familyStr, *outputJSON)
-	}
-
-	output, err := decodeHexPacket(fs.Arg(0), msgType, familyStr, *outputJSON)
-	if err != nil {
-		if *outputJSON {
-			// Return valid JSON error
-			errJSON := map[string]any{
-				"error":       err.Error(),
-				jsonKeyParsed: false,
-			}
-			data, _ := json.Marshal(errJSON)
-			fmt.Println(string(data))
-		} else {
-			// Human-readable error
-			fmt.Println("Error:", err.Error())
-		}
-		return 1
-	}
-
-	fmt.Println(output)
-	return 0
-}
 
 // decodeHexPacket decodes a hex BGP packet and returns formatted output.
 // If outputJSON is true, returns JSON; otherwise returns human-readable format.

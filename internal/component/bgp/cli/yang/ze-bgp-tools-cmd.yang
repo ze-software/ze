@@ -6,6 +6,7 @@ module ze-bgp-tools-cmd {
     // show bgp decode and show bgp encode.
     // See ai/rules/plugin-self-containment.md.
     description "Offline BGP protocol tools: show bgp decode and show bgp encode.";
+    revision 2026-11-01 { description "Declared the leaves that select what show bgp decode and show bgp encode answer."; }
     revision 2026-06-02 { description "Relocated show bgp decode/encode out of the central show schema (plugin self-containment)."; }
 
     container show {
@@ -26,6 +27,48 @@ or l2vpn.";
 NLRI, and withdrawn prefixes. Use it to read pcap captures or to debug wire
 issues. The web UI carries the same tool under tools.";
                 ze:help "Decode a hex-encoded BGP message into readable JSON.";
+
+                leaf type {
+                    type enumeration {
+                        enum open;
+                        enum update;
+                        enum notification;
+                        enum keepalive;
+                    }
+                    description "Reads the message as this type. Without it, a message with a BGP header
+is read as the type its header names, and one without a header as an UPDATE
+body.";
+                    ze:help "Message type to decode as";
+                }
+                leaf nlri {
+                    type string {
+                        length "3..64";
+                        pattern '[a-zA-Z0-9-]+/[a-zA-Z0-9-]+';
+                    }
+                    description "Reads the payload as NLRI alone, of this address family (afi/safi).";
+                    ze:help "Decode as NLRI of this family";
+                }
+                leaf family {
+                    type string {
+                        length "3..64";
+                        pattern '[a-zA-Z0-9-]+/[a-zA-Z0-9-]+';
+                    }
+                    description "The address family an UPDATE body is decoded under (afi/safi).";
+                    ze:help "Address family of an UPDATE";
+                }
+                leaf pcap {
+                    type string { length "1..4096"; }
+                    description "A packet capture to read every BGP message from, in the order the
+messages completed on the wire.";
+                    ze:help "Capture file to decode";
+                }
+                leaf message {
+                    type string { length "1..262144"; }
+                    ze:rest-of-line;
+                    description "The message in hexadecimal. Colons and spaces between the digits are
+stripped, so it may span several words.";
+                    ze:help "Hexadecimal message";
+                }
             }
 
             container encode {
@@ -35,6 +78,63 @@ issues. The web UI carries the same tool under tools.";
 as a hex string. Use it to build a test payload, to feed ze-test, or to verify
 that an announcement encodes correctly.";
                 ze:help "Turn a route announcement into wire-format hex.";
+
+                leaf family {
+                    type string {
+                        length "3..64";
+                        pattern '[a-zA-Z0-9-]+/[a-zA-Z0-9-]+';
+                    }
+                    description "The address family the route is encoded for (afi/safi). Without it,
+ipv4/unicast.";
+                    ze:help "Address family of the route";
+                }
+                leaf local-as {
+                    type uint32 { range "1..4294967295"; }
+                    description "The local AS number the UPDATE is built for. Without it, 65533.";
+                    ze:help "Local AS number";
+                }
+                leaf peer-as {
+                    type uint32 { range "1..4294967295"; }
+                    description "The peer AS number. Equal to local-as, the UPDATE is built for an iBGP
+session. Without it, 65533.";
+                    ze:help "Peer AS number";
+                }
+                leaf path-id {
+                    type enumeration {
+                        enum include;
+                        enum omit;
+                    }
+                    description "Whether each NLRI carries an ADD-PATH path identifier (RFC 7911).
+Without it, omit.";
+                    ze:help "ADD-PATH path identifier";
+                }
+                leaf part {
+                    type enumeration {
+                        enum message;
+                        enum body;
+                        enum nlri;
+                    }
+                    description "Which part of the UPDATE the answer carries: the whole message with
+its 19-octet header, the body without the header, or the NLRI alone. Without
+it, message.";
+                    ze:help "Part of the UPDATE to answer";
+                }
+                leaf asn-width {
+                    type enumeration {
+                        enum two-octet;
+                        enum four-octet;
+                    }
+                    description "How AS numbers are encoded: in two octets (RFC 4271) or in four
+(RFC 6793). Without it, four-octet.";
+                    ze:help "AS number encoding width";
+                }
+                leaf announcement {
+                    type string { length "1..65535"; }
+                    ze:rest-of-line;
+                    description "The route in the API announcement syntax, such as route 10.0.0.0/24
+next-hop 192.0.2.1.";
+                    ze:help "Route to encode";
+                }
             }
         }
     }

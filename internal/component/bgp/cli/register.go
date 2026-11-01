@@ -74,12 +74,19 @@ func init() {
 		Section:   registry.SectionSystem,
 		Subs:      subcommands(),
 	})
-	command.MustRegisterLocal("show bgp decode", func(validated command.ValidatedArgs) int {
-		args := validated.Tokens()
-		return Run(append([]string{bgpCmdDecode}, args...))
-	})
-	command.MustRegisterLocal("show bgp encode", func(validated command.ValidatedArgs) int {
-		args := validated.Tokens()
-		return Run(append([]string{bgpCmdEncode}, args...))
-	})
+	// The paths are literals because the YANG contract gate reads them from
+	// this source (internal/le/doc/yangcontract); pathDecode and pathEncode
+	// spell the same paths for the refusals that name them.
+	// Both commands answer DATA, so their answers reach the pipe layer; the
+	// drawings give the text route the output these tools always printed.
+	command.MustRegisterTextRenderer(keyDecode, drawDecodeText)
+	command.MustRegisterTextRenderer(keyEncode, drawEncodeText)
+	command.MustRegisterLocalData("show bgp decode", dataDecode, registry.Meta{
+		ShortHelp: "Decode a hex-encoded BGP message into readable JSON.",
+		Mode:      "offline",
+	}, renderDecode)
+	command.MustRegisterLocalData("show bgp encode", dataEncode, registry.Meta{
+		ShortHelp: "Turn a route announcement into wire-format hex.",
+		Mode:      "offline",
+	}, command.RenderLocalAnswer)
 }

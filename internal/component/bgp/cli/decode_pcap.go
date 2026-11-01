@@ -1,20 +1,22 @@
 // Design: docs/architecture/diagnostics/packet-capture.md — reading a capture back
-// Overview: decode.go — cmdDecode, which routes an input form here
+// Overview: decode_answer.go — answerDecode, which routes an input form here
 // Related: internal/core/pcap — the reader and the TCP reassembly this drives
 
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/pcap"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // inputKeywordPcap precedes a capture path, so args[0] is always a keyword and
@@ -38,38 +40,48 @@ type framedMessage struct {
 // positional words after the `pcap` keyword, which must be exactly one path or
 // the stdin token.
 //
-// It returns the process exit code. A capture with no BGP in it exits non-zero
-// with a line naming what was examined, because an operator reads empty output
-// as "there is no BGP here" and that is the one answer this must never give
-// silently (`ai/rules/evidence.md`).
-func decodePcapInput(args []string, msgType, family string, outputJSON bool) int {
+// A capture with no BGP in it is refused with a line naming what was
+// examined, because an operator reads empty output as "there is no BGP here"
+// and that is the one answer this must never give silently
+// (`ai/rules/evidence.md`).
+func decodePcapInput(args []string, request *decodeRequest, route inputRoute) command.LocalAnswer {
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "error: %s needs a capture path, or %q for standard input\n", inputKeywordPcap, cliio.StdinToken)
-		return 1
+		var tb textbuf.Buffer
+		tb.Str("error: ").Str(inputKeywordPcap).Str(" needs a capture path, or ").
+			Quoted(cliio.StdinToken).Str(" for standard input\n")
+		return command.LocalRefusal(1, tb.String())
 	}
 	if len(args) > 1 {
-		fmt.Fprintf(os.Stderr, "error: %s takes one input, and %s given: %s\n",
-			inputKeywordPcap, countWord(len(args)), strings.Join(quoteAll(args), " and "))
-		return 1
+		var tb textbuf.Buffer
+		tb.Str("error: ").Str(inputKeywordPcap).Str(" takes one input, and ").Str(countWord(len(args))).
+			Str(" given: ").Str(strings.Join(quoteAll(args), " and ")).Byte('\n')
+		return command.LocalRefusal(1, tb.String())
+	}
+	if cliio.IsStdin(args[0]) && !route.readsStdin() {
+		return stdinRefusal(pathDecode + " " + inputKeywordPcap + " " + cliio.StdinToken)
 	}
 
 	source, err := cliio.OpenReader(args[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: open %s: %v\n", args[0], err)
-		return 1
+		var tb textbuf.Buffer
+		tb.Str("error: open ").Str(args[0]).Str(": ").Err(err).Byte('\n')
+		return command.LocalRefusal(1, tb.String())
 	}
 	defer func() { _ = source.Close() }()
 
-	return decodePcapStream(source, args[0], msgType, family, outputJSON)
+	return decodePcapStream(source, args[0], request)
 }
 
 // decodePcapStream reassembles a capture and decodes every BGP message in it,
-// in the order the messages completed on the wire.
-func decodePcapStream(source io.Reader, name, msgType, family string, outputJSON bool) int {
+// in the order the messages completed on the wire. A message that does not
+// decode stays in the answer with its reason, and the reason is also a
+// Diagnostic line, which is where the operator has always read it.
+func decodePcapStream(source io.Reader, name string, request *decodeRequest) command.LocalAnswer {
 	streams, report, err := pcap.Reassemble(source, bgpPort)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: read %s: %v\n", name, err)
-		return 1
+		var tb textbuf.Buffer
+		tb.Str("error: read ").Str(name).Str(": ").Err(err).Byte('\n')
+		return command.LocalRefusal(1, tb.String())
 	}
 
 	var messages []framedMessage
@@ -86,54 +98,66 @@ func decodePcapStream(source io.Reader, name, msgType, family string, outputJSON
 	// is the moment the receiver could read it.
 	sort.SliceStable(messages, func(i, j int) bool { return messages[i].timestamp.Before(messages[j].timestamp) })
 
-	reportAnomalies(report, skipped, incomplete)
+	var diag textbuf.Buffer
+	writeAnomalies(&diag, report, skipped, incomplete)
 
 	if len(messages) == 0 {
-		fmt.Fprintf(os.Stderr, "error: no BGP message found in %s: %s\n", name, report)
-		return 1
+		diag.Str("error: no BGP message found in ").Str(name).Str(": ").Str(report.String()).Byte('\n')
+		return command.LocalRefusal(1, diag.String())
 	}
 
+	decoded := make([]decodedMessage, 0, len(messages))
 	failures := 0
 	for i := range messages {
 		m := &messages[i]
-		if !outputJSON {
-			fmt.Printf("# %s  %s\n", m.timestamp.Format(time.RFC3339Nano), m.flow)
+		entry := decodedMessage{
+			Time: m.timestamp.Format(time.RFC3339Nano),
+			Flow: m.flow.String(),
+			Hex:  hexOf(m.bytes),
 		}
-		output, err := decodeHexPacket(hexOf(m.bytes), msgType, family, outputJSON)
+		event, err := decodeHexPacket(entry.Hex, request.msgType, request.family, true)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: decode the message at %s from %s: %v\n",
-				m.timestamp.Format(time.RFC3339Nano), m.flow, err)
+			diag.Str("error: decode the message at ").Str(entry.Time).Str(" from ").Str(entry.Flow).
+				Str(": ").Err(err).Byte('\n')
+			entry.Error = err.Error()
+			decoded = append(decoded, entry)
 			failures++
 			continue
 		}
-		fmt.Println(output)
+		entry.Decoded = json.RawMessage(event)
+		decoded = append(decoded, entry)
 	}
+	code := 0
 	if failures > 0 {
-		return 1
+		code = 1
 	}
-	return 0
+	return request.answer(inputFormPcap, decoded, code, diag.String())
 }
 
-// reportAnomalies writes to standard error everything the reassembly could not
-// account for. It is written whether or not messages came out, because a
-// partial answer that looks whole is the failure this reporting exists to
-// prevent.
-func reportAnomalies(report *pcap.Report, skipped, incomplete int) {
+// writeAnomalies writes into diag everything the reassembly could not account
+// for. It is written whether or not messages came out, because a partial
+// answer that looks whole is the failure this reporting exists to prevent.
+func writeAnomalies(diag *textbuf.Buffer, report *pcap.Report, skipped, incomplete int) {
 	for _, gap := range report.Gaps {
-		fmt.Fprintf(os.Stderr, "warning: %s is missing %d bytes after %d reassembled bytes; the stream is not read across the hole\n",
-			gap.Flow, gap.Bytes, gap.AfterOffset)
+		diag.Str("warning: ").Str(gap.Flow.String()).Str(" is missing ").Int(int64(gap.Bytes)).
+			Str(" bytes after ").Int(int64(gap.AfterOffset)).
+			Str(" reassembled bytes; the stream is not read across the hole\n")
 	}
 	for _, flow := range report.Truncated {
-		fmt.Fprintf(os.Stderr, "warning: %s reached the %d-byte reassembly limit; its later bytes were not read\n", flow, pcap.FlowBytesMax)
+		diag.Str("warning: ").Str(flow.String()).Str(" reached the ").Int(int64(pcap.FlowBytesMax)).
+			Str("-byte reassembly limit; its later bytes were not read\n")
 	}
 	if report.RecordsDropped > 0 {
-		fmt.Fprintf(os.Stderr, "warning: %d records past the %d-flow limit were not read\n", report.RecordsDropped, pcap.FlowMax)
+		diag.Str("warning: ").Int(int64(report.RecordsDropped)).Str(" records past the ").
+			Int(int64(pcap.FlowMax)).Str("-flow limit were not read\n")
 	}
 	if skipped > 0 {
-		fmt.Fprintf(os.Stderr, "warning: %d bytes carried no BGP header and were skipped to find the next message\n", skipped)
+		diag.Str("warning: ").Int(int64(skipped)).
+			Str(" bytes carried no BGP header and were skipped to find the next message\n")
 	}
 	if incomplete > 0 {
-		fmt.Fprintf(os.Stderr, "warning: %d bytes at the end of a stream are a message the capture does not hold whole\n", incomplete)
+		diag.Str("warning: ").Int(int64(incomplete)).
+			Str(" bytes at the end of a stream are a message the capture does not hold whole\n")
 	}
 }
 
@@ -213,43 +237,51 @@ func hexOf(data []byte) string {
 }
 
 // decodeHexStdin decodes hexadecimal messages read from standard input, one for
-// each non-empty line, which is the form exabgp's decode accepts.
+// each non-empty line, which is the form exabgp's decode accepts. The caller
+// MUST have established that the route reads standard input.
 //
 // A line that fails decodes nothing and the walk continues, because an operator
 // who pasted twenty lines wants the nineteen that worked. The exit code is
 // non-zero when any line failed.
-func decodeHexStdin(msgType, family string, outputJSON bool) int {
+func decodeHexStdin(request *decodeRequest) command.LocalAnswer {
 	data, err := cliio.ReadFile(cliio.StdinToken)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: read standard input: %v\n", err)
-		return 1
+		var tb textbuf.Buffer
+		tb.Str("error: read standard input: ").Err(err).Byte('\n')
+		return command.LocalRefusal(1, tb.String())
 	}
 
 	lines := strings.Split(string(data), "\n")
+	var diag textbuf.Buffer
+	messages := make([]decodedMessage, 0, len(lines))
 	decoded, failures := 0, 0
 	for i, line := range lines {
 		payload := strings.TrimSpace(line)
-		if payload == "" || strings.HasPrefix(payload, "#") {
+		if payload == "" {
 			continue
 		}
-		output, err := decodeHexPacket(payload, msgType, family, outputJSON)
+		if strings.HasPrefix(payload, "#") {
+			continue
+		}
+		event, err := decodeHexPacket(payload, request.msgType, request.family, true)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: line %d: %v\n", i+1, err)
+			diag.Str("error: line ").Int(int64(i + 1)).Str(": ").Err(err).Byte('\n')
+			messages = append(messages, decodedMessage{Hex: payload, Error: err.Error()})
 			failures++
 			continue
 		}
-		fmt.Println(output)
+		messages = append(messages, decodedMessage{Hex: payload, Decoded: json.RawMessage(event)})
 		decoded++
 	}
 
 	if decoded == 0 && failures == 0 {
-		fmt.Fprintf(os.Stderr, "error: standard input carried no hexadecimal message\n")
-		return 1
+		return command.LocalRefusal(1, "error: standard input carried no hexadecimal message\n")
 	}
+	code := 0
 	if failures > 0 {
-		return 1
+		code = 1
 	}
-	return 0
+	return request.answer(inputFormStdin, messages, code, diag.String())
 }
 
 // countWord spells a small count for an error message, so "1 were given" never

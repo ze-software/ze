@@ -349,10 +349,39 @@ ze bgp encode <route-command>    # Encode route command to BGP hex
 ze bgp plugin cli                # Plugin debug shell (5-stage handshake + interactive)
 ze bgp plugin cli --name <name>  # Debug shell with custom plugin name
 
-# Also available via YANG verb dispatch (same behavior, no daemon needed):
+# Also available via YANG verb dispatch (no daemon needed), answering data:
 ze show bgp decode <hex>
+ze show bgp decode type open <hex>
 ze show bgp encode <route-command>
+ze show bgp encode family ipv6/unicast part nlri <route-command>
 ```
+
+`ze show bgp decode` and `ze show bgp encode` answer data, so a pipe applies to
+them (`ze cli -c "show bgp decode <hex> | json"`), and their text rendering is
+the output `ze bgp decode` and `ze bgp encode` print. A decode answers each
+message as its hexadecimal and its decoding in the Ze event format; an encode
+answers the family, the part of the UPDATE it carries and the hexadecimal. The
+options keep working on both spellings, and each option that selects what is
+answered also has a keyword, which is the form a remote surface takes:
+
+| Command | Option | Keyword |
+|---------|--------|---------|
+| decode | `--open`, `--update`, `--notification`, `--keepalive` | `type <open\|update\|notification\|keepalive>` |
+| decode | `--nlri <family>` | `nlri <family>` |
+| decode | `-f`, `--family <family>` | `family <family>` |
+| decode | `pcap <file>` | `pcap <file>` |
+| encode | `-f <family>` | `family <family>` |
+| encode | `-a <asn>`, `-z <asn>` | `local-as <asn>`, `peer-as <asn>` |
+| encode | `-i` | `path-id include` |
+| encode | `-n`, `--no-header` | `part nlri`, `part body` |
+| encode | `--asn4=false` | `asn-width two-octet` |
+
+A choice given both ways is refused. `--json` on decode is a rendering option of
+the local command only. The forms that read standard input (`decode -`,
+`decode pcap -`, and `encode` with no route) need the local `ze` process.
+<!-- source: internal/component/bgp/cli/decode_answer.go -- answerDecode, applyDecodeLeaves, inputRoute -->
+<!-- source: internal/component/bgp/cli/encode.go -- answerEncode, applyEncodeLeaves -->
+<!-- source: internal/component/bgp/cli/yang/ze-bgp-tools-cmd.yang -- decode, encode -->
 
 The `pcap` keyword precedes the path, so the first word after `decode` is always
 a keyword or a hex payload and never an ambiguous file name. A capture may be
