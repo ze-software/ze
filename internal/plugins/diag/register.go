@@ -13,9 +13,12 @@ import (
 )
 
 func init() {
-	command.MustRegisterLocalMeta("request wireguard keypair", runWgKeypair, registry.Meta{
+	// The keypair is answered as DATA, so it reaches the pipe layer; the
+	// drawing gives the text route the two lines the command always printed.
+	command.MustRegisterTextRenderer(keyWireguardKeypair, drawWgKeypair)
+	command.MustRegisterLocalData("request wireguard keypair", runWgKeypair, registry.Meta{
 		ShortHelp: "Generate a WireGuard keypair with the system wg binary.",
 		Description: "The private key is written on the first line and the public key on the second. " +
 			"The wg binary must be installed on this host.",
-	})
+	}, command.RenderLocalAnswer)
 }

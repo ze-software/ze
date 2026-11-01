@@ -5,8 +5,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
@@ -20,30 +22,19 @@ import (
 //            End-to-end dispatch through the ze binary:
 //            test/parse/cli-generate-wireguard-keypair.ci
 
-// silenceStderr redirects os.Stderr to /dev/null for the duration of
-// the test. Restores on cleanup.
-func silenceStderr(t *testing.T) {
-	t.Helper()
-	old := os.Stderr
-	devnull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
-	if err != nil {
-		t.Fatalf("open devnull: %v", err)
-	}
-	os.Stderr = devnull
-	t.Cleanup(func() {
-		os.Stderr = old
-		if err := devnull.Close(); err != nil {
-			t.Logf("close devnull: %v", err)
-		}
-	})
-}
-
-// TestRunWgKeypair_RejectsArgs ensures stray arguments exit 1 without
-// attempting to exec `wg`.
+// TestRunWgKeypair_RejectsArgs ensures stray arguments are refused with exit
+// code 1, as a returned diagnostic, without attempting to exec `wg`.
 func TestRunWgKeypair_RejectsArgs(t *testing.T) {
-	silenceStderr(t)
-	if rc := runWgKeypair(commandtest.Args("extra")); rc != 1 {
-		t.Errorf("runWgKeypair(extra) = %d, want 1", rc)
+	t.Setenv("PATH", t.TempDir())
+	answer, written := captureOutput(t, func() command.LocalAnswer { return runWgKeypair(commandtest.Args("extra")) })
+	if answer.Code != 1 || answer.Payload != nil {
+		t.Errorf("runWgKeypair(extra) = code %d payload %v, want a refusal with code 1", answer.Code, answer.Payload)
+	}
+	if want := "request wireguard keypair: no arguments accepted\n" + wgKeypairUsage; answer.Diagnostic != want {
+		t.Errorf("runWgKeypair(extra) diagnostic = %q, want %q", answer.Diagnostic, want)
+	}
+	if written != "" {
+		t.Errorf("runWgKeypair(extra) wrote %q, want nothing", written)
 	}
 }
 
@@ -92,59 +83,76 @@ func installWgFixture(t *testing.T) {
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
-// captureStdout runs fn with os.Stdout replaced by a pipe and returns what it
-// wrote. runWgKeypair prints through os.Stdout directly, so this is the only
-// place its output can be read.
-func captureStdout(t *testing.T, fn func() int) (int, string) {
+// captureOutput runs fn with os.Stdout and os.Stderr replaced by one pipe and
+// answers its answer and everything written to either stream.
+func captureOutput(t *testing.T, fn func() command.LocalAnswer) (command.LocalAnswer, string) {
 	t.Helper()
-	old := os.Stdout
+	oldOut, oldErr := os.Stdout, os.Stderr
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("pipe: %v", err)
 	}
-	os.Stdout = w
-	rc := fn()
+	os.Stdout, os.Stderr = w, w
+	answer := fn()
 	if err := w.Close(); err != nil {
 		t.Logf("close pipe writer: %v", err)
 	}
-	os.Stdout = old
+	os.Stdout, os.Stderr = oldOut, oldErr
 	buf, err := io.ReadAll(r)
 	if err != nil {
 		t.Fatalf("read pipe: %v", err)
 	}
-	return rc, string(buf)
+	return answer, string(buf)
 }
 
 // TestRunWgKeypair_PipesGenkeyIntoPubkey is the success path: `wg genkey` runs,
-// its output is fed to `wg pubkey` on stdin, and both keys reach stdout in the
-// documented two-line form.
+// its output is fed to `wg pubkey` on stdin, the handler answers both keys
+// without writing, and the local route prints them in the documented two-line
+// form.
 func TestRunWgKeypair_PipesGenkeyIntoPubkey(t *testing.T) {
 	installWgFixture(t)
-	silenceStderr(t)
 
-	rc, out := captureStdout(t, func() int { return runWgKeypair(commandtest.Args()) })
-	if rc != 0 {
-		t.Fatalf("runWgKeypair() = %d, want 0; stdout=%q", rc, out)
+	answer, written := captureOutput(t, func() command.LocalAnswer { return runWgKeypair(commandtest.Args()) })
+	if answer.Code != 0 || answer.Diagnostic != "" {
+		t.Fatalf("runWgKeypair() = code %d diagnostic %q, want 0", answer.Code, answer.Diagnostic)
+	}
+	if written != "" {
+		t.Errorf("runWgKeypair() wrote %q, want nothing", written)
+	}
+	keypair, ok := answer.Payload.(wgKeypairAnswer)
+	if !ok {
+		t.Fatalf("payload %T, want wgKeypairAnswer", answer.Payload)
+	}
+	if keypair.Keypair.PrivateKey != fixturePrivateKey || keypair.Keypair.PublicKey != fixturePublicKey {
+		t.Errorf("keypair = %+v, want the fixture keys", keypair.Keypair)
 	}
 
+	var code int
+	_, out := captureOutput(t, func() command.LocalAnswer {
+		code = command.RenderLocalAnswer("request wireguard keypair", answer.Payload)
+		return command.LocalAnswer{}
+	})
 	want := "private: " + fixturePrivateKey + "\npublic:  " + fixturePublicKey + "\n"
-	if out != want {
-		t.Errorf("runWgKeypair() stdout =\n%q\nwant\n%q", out, want)
+	if code != 0 || out != want {
+		t.Errorf("local route printed (code %d)\n%q\nwant\n%q", code, out, want)
 	}
 }
 
 // TestRunWgKeypair_ReportsMissingWg checks the documented failure: with no `wg`
-// on PATH the command exits 1 rather than printing an empty or partial keypair.
+// on PATH the command refuses with exit code 1 rather than answering an empty
+// or partial keypair.
 func TestRunWgKeypair_ReportsMissingWg(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
-	silenceStderr(t)
 
-	rc, out := captureStdout(t, func() int { return runWgKeypair(commandtest.Args()) })
-	if rc != 1 {
-		t.Errorf("runWgKeypair() with no wg = %d, want 1", rc)
+	answer, written := captureOutput(t, func() command.LocalAnswer { return runWgKeypair(commandtest.Args()) })
+	if answer.Code != 1 || answer.Payload != nil {
+		t.Errorf("runWgKeypair() with no wg = code %d payload %v, want a refusal with code 1", answer.Code, answer.Payload)
 	}
-	if out != "" {
-		t.Errorf("runWgKeypair() with no wg wrote %q to stdout, want nothing", out)
+	if !strings.HasPrefix(answer.Diagnostic, "request wireguard keypair: wg genkey failed: ") {
+		t.Errorf("diagnostic %q does not name the failed step", answer.Diagnostic)
+	}
+	if written != "" {
+		t.Errorf("runWgKeypair() with no wg wrote %q, want nothing", written)
 	}
 	if _, err := exec.LookPath("wg"); err == nil {
 		t.Fatal("PATH override failed: wg is still resolvable, so this test proved nothing")

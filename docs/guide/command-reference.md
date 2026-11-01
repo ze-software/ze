@@ -2334,6 +2334,17 @@ fails on a local command it finds with no node.
 
 `show debug profile name <name>` reads a stored profile (offline). To see the daemon's
 actual live state, use `show debug` (YANG-dispatched RPC, requires a running daemon).
+
+These debug commands, and `show diagnostic`, `show skills`, `show skill` and
+`request wireguard keypair`, answer data rather than printed text. `ze <command>`
+prints the same text as before, and `ze cli -c "<command> | json"` (or any other
+pipe) applies the operator to the answer's fields: `show debug profile name default | json`
+gives one `module`, `level`, `flags`, `scopes` object per row. `--json` on
+`show diagnostic` and `show skill(s)` stays a local spelling of the same output.
+<!-- source: internal/plugins/debug/show.go -- debugModulesAnswer, drawDebugModules -->
+<!-- source: internal/plugins/explain/main.go -- Run, render, drawText -->
+<!-- source: internal/plugins/skills/main.go -- showSkills, showSkill, render -->
+<!-- source: internal/plugins/diag/diag.go -- runWgKeypair, drawWgKeypair -->
 <!-- source: internal/plugins/debug/debug.go -- runSetModule, runDeleteModule, applyProfile -->
 <!-- source: internal/plugins/debug/register.go -- set/delete/show/clear debug registrations -->
 <!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
@@ -2341,7 +2352,7 @@ actual live state, use `show debug` (YANG-dispatched RPC, requires a running dae
 
 ### ze pipe
 
-Apply pipe formatting to stdin. Offline commands (like `ze show debug profile`) do not pass
+Apply pipe formatting to stdin. Offline commands that print text rather than answer data do not pass
 through the YANG-dispatched pipe infrastructure. `ze pipe` provides the same
 operators as a standalone filter.
 
