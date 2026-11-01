@@ -139,9 +139,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - The Linux host is too busy for full test runs: there, run scoped package
   tests only, and never run `./le verify worktree`, a full functional suite or
   a full `./le go lint run`. Full runs happen on another host.
-- Performance is measured only on Thomas's Mac, whose hardware is known. No
-  perf run of any kind, not even a smoke run, happens on the Linux host: agents
-  prepare the harness and Thomas runs it. A Linux-only harness runs on the Mac
+- Performance is measured only on Thomas's Mac, whose hardware is known: a
+  number that is reported, compared or recorded comes from there. An agent may
+  run a perf harness or benchmark on the Linux host to check that it works
+  (it builds, runs and produces output), and never reports or compares the
+  figures such a run prints. A Linux-only harness is measured on the Mac
   inside a Linux QEMU guest.
 - Kernel work uses the architecture of the machine the agent is on. Never
   cross-compile or emulate the other architecture's kernel locally; its proof
