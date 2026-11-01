@@ -1,0 +1,136 @@
+# Test: a filter plugin running internal that stops and is started again
+# answers through its new slot once the respawn reaches Stage 5
+#
+# VALIDATES: spec-filter-wire-0-umbrella AC-33 (FR-11), the respawn leg:
+# fakefilter (internal/test/plugins/fakefilter), told to restart
+# (ze.fakefilter.restart), declares the restart failure policy at Stage 1.
+# Its first generation judges peer1's route and stops; ze starts it again;
+# the second generation finds the stopped file, never stops, and once its
+# startup is done creates the respawned file. peer2 holds its route until
+# that file exists, so its route meets the new slot, which judges it. Every
+# judged route is logged with the generation that judged it.
+# PREVENTS: a respawned plugin whose slot is never swapped in (peer2's route
+# then takes on-error reject as "unavailable", or is judged by the stopped
+# generation), and a route judged by a mix of the two generations.
+#
+# Flow:
+# 1. peer1 (127.0.0.1, AS 65001) sends 10.0.0.0/24, then an End-of-RIB.
+#    Generation 1 accepts the route and stops (ze.fakefilter.stop.after=1),
+#    then creates fakefilter.stopped.
+# 2. ze starts fakefilter again (failure policy restart). Generation 2 runs
+#    Stage 1 to 5, and from OnStarted creates fakefilter.respawned.
+# 3. peer2 (127.0.0.2, AS 65002) waits for fakefilter.respawned, then sends
+#    10.1.0.0/24 and an End-of-RIB. Generation 2 accepts the route.
+# 4. The observer (internal/test/fixture/plugin_fixture_filter_thirdparty.go,
+#    the same check as filter-wire-thirdparty-compiled-in: exactly
+#    10.0.0.0/24 and 10.1.0.0/24) waits for both End-of-RIBs, each counted
+#    only after the import verdicts of the UPDATEs before it, and checks the
+#    RIB holds both accepted routes.
+
+option=env:var=ze.fakefilter.restart:value=true
+option=env:var=ze.fakefilter.stop.after:value=1
+option=env:var=ze.fakefilter.stopped.file:value=fakefilter.stopped
+option=env:var=ze.fakefilter.respawned.file:value=fakefilter.respawned
+option=env:var=ze.log.fakefilter:value=info
+
+stdin=peer1:terminator=EOF_PEER1
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+# UPDATE: ORIGIN=IGP, AS_PATH=AS_SEQ[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+# End-of-RIB (IPv4 unicast): counted only after the UPDATE's import verdict.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER1
+
+stdin=peer2:terminator=EOF_PEER2
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+# Hold the route until the second generation's startup is done.
+option=await-file:path=fakefilter.respawned
+# UPDATE: ORIGIN=IGP, AS_PATH=AS_SEQ[65002], NEXT_HOP=1.1.1.1, NLRI=10.1.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA40030401010101180A0100
+# End-of-RIB (IPv4 unicast): counted only after the UPDATE's import verdict.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER2
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal fakefilter {
+		use fakefilter
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+	external observer {
+		run "le test fixture plugin/filter-wire-thirdparty-compiled-in"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		filter {
+			export { final accept; }
+			import { filters [ fakefilter:judge ]; final accept; }
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+	peer peer2 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		filter {
+			export { final accept; }
+			import { filters [ fakefilter:judge ]; final accept; }
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer1
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0
+# Generation 1 judged peer1's route, then stopped.
+expect=stderr:pattern=fakefilter judged a route.*generation=1.*peer=127\.0\.0\.1.*prefix=10\.0\.0\.0/24.*transport=slot.*verdict=accept
+expect=stderr:contains=fakefilter stopped
+# ze started it again, and the second generation finished its startup.
+expect=stderr:pattern=plugin exited, starting it again.*plugin=fakefilter
+expect=stderr:pattern=fakefilter started again.*generation=2
+# The new slot judged peer2's route; the stopped generation judged nothing
+# of peer2's, and no route of peer2's met an unavailable slot.
+expect=stderr:pattern=fakefilter judged a route.*generation=2.*peer=127\.0\.0\.2.*prefix=10\.1\.0\.0/24.*transport=slot.*verdict=accept
+reject=stderr:pattern=fakefilter judged a route.*generation=1.*peer=127\.0\.0\.2
+reject=stderr:pattern=fakefilter judged a route.*generation=2.*peer=127\.0\.0\.1
+reject=stderr:pattern=policy filter failed
+reject=stderr:pattern=is unavailable
+# The RIB outcome: both accepted routes installed.
+expect=stderr:contains=OK: the RIB holds the 2 routes fakefilter accepted, none it rejected
+reject=stderr:pattern=fakefilter: run
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
