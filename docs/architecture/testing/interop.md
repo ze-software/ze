@@ -1107,7 +1107,8 @@ A scenario's prestart is Go, not a scenario file: its register file adds an
 interpreted helper (`TestInteropTreeUsesOnlyCompiledHelpers`), so the harness
 compiled into `le` holds it. The fragment's link-local placeholders render as
 they do in the scenario's files, and it runs inside that owner's wrapper, under
-`sh -e`, after the `eth0` assignment and before the exec. It is where a
+`sh -e`, after the `eth0` assignment and the owner's lab links (below), and
+before the exec. It is where a
 scenario builds what must exist before its daemon sends a packet: a second
 link, a link-local on it, an nft table. A prestart for an owner whose
 placeholder no scenario file carries would never run, so preparation refuses
@@ -1123,7 +1124,7 @@ the on-link route via that owned link-local address. A second prefix uses an
 off-link global next hop and must decode as global-only; the IPv6 session must
 remain established after both assertions. These are two routes on one session,
 not identical UPDATEs differing only in their next-hop length.
-<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, needsIPv6, linkLocalOwners, linkLocalAt, assignLinkLocal, ownerPrestarts, scenarioPrestarts, renderPrestarts -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, needsIPv6, linkLocalOwners, linkLocalAt, wrapStart, ownerPrestarts, scenarioPrestarts, renderPrestarts -->
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkRFC2545NextHops -->
 
 `bgp-rfc2545-third-party-linklocal-frr` is the same sentence for a next hop that
@@ -1640,7 +1641,7 @@ with the code as it is and failed at assertion 2, FRR's peer on `eth1` still
 unchanged, and `sendZone` returning `""` with `pinsToLink` returning false
 (Ze then logs `sendmsg: invalid argument` for every send).
 <!-- source: internal/le/interoplab/bgp/check_bfd_link_local.go -- checkBFDLinkLocal, checkBFDLinkLocalTwoLinks, checkBFDLinkLocalOn, zeLinkLocalLinks, zeLinkLocalSession, requireCrossedDiscriminators -->
-<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPrestarts, renderPrestarts, assignLinkLocal -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPrestarts, renderPrestarts, wrapStart -->
 <!-- source: test/interop/scenarios/bfd-link-local-frr/ -- ze.conf, frr.conf -->
 <!-- source: test/interop/scenarios/bfd-link-local-two-links-frr/ -- ze.conf, frr.conf -->
 <!-- source: internal/le/interoplab/bgp/prepare_bfd_link_local.go -- bfdLinkLocalTwoLinksZePrestart, bfdLinkLocalTwoLinksFRRPrestart -->

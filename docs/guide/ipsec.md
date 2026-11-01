@@ -122,7 +122,7 @@ If the protected ping receives `Destination Net Unreachable` from the local
 router, inspect the committed route and kernel route lookup before changing
 selectors or proposals.
 <!-- source: internal/component/cli/editor_draft.go -- writeThroughCreate -->
-<!-- source: internal/component/cli/editor_create_entry.go -- creationReplayOps -->
+<!-- source: internal/component/cli/editor_create_entry.go -- creationReplayPlan -->
 
 If the routes exist but a protected-host ping still loses every packet, compare
 SA counters with the receiving router's `/proc/net/xfrm_stat` and
