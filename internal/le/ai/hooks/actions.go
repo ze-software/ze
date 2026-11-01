@@ -33,6 +33,7 @@ var actions = func() leaction.Area {
 		"pre-compact-save", "block-premature-stop", "rule-coverage-report", "session-end-summary",
 		categorySubagentContext, "mark-lsp-invoked", categoryMarkSourceRead,
 		"mark-agent-spawned", categoryValidateSpec, "posttool-writeedit", "posttool-bash", categorySessionID,
+		"bash-timestamp",
 	}
 	list := make([]leaction.Action, 0, 1+len(verbs))
 	list = append(list, leaction.Action{

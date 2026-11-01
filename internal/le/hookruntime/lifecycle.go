@@ -65,6 +65,8 @@ func runLifecycleHook(kind string, ctx context, out, errOut io.Writer) (int, boo
 		return writeSessionMarker(ctx, ".agent-spawned-", ""), true
 	case "validate-spec":
 		return hookValidateSpec(ctx, errOut), true
+	case "bash-timestamp":
+		return hookBashTimestamp(ctx, out), true
 	default:
 		return 0, false
 	}
