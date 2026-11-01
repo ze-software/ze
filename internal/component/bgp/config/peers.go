@@ -346,7 +346,8 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 	// nothing, and Ze says so in one aggregated line rather than passing silently.
 	roles := peerRoles(bgpTree, peers, groups)
 	if err := validateLeakFilterObligations(roles, filterReg,
-		registry.FilterTypesDischarging(filterapi.ObligationTransitLeak)); err != nil {
+		registry.FilterTypesDischarging(filterapi.ObligationTransitLeak),
+		policy.MatchConditionsDischarging(filterapi.ObligationTransitLeak)); err != nil {
 		return nil, nil, err
 	}
 	warnPeersWithoutRole(rolelessPeers(roles))
@@ -877,21 +878,24 @@ func declaredRole(resolved map[string]any) string {
 // the config file sees which was made.
 //
 // declaring holds the filter types that discharge the obligation, read off the
-// plugin registry by the caller. This function never names a filter type, so
-// the type lives only in the plugin that implements it.
-func validateLeakFilterObligations(pairs []peerRole, reg *policy.Registry, declaring []string) error {
-	// GUARD: no filter type in this binary can discharge the obligation, so
-	// enforcing it would refuse every config that declares a role. A build with
-	// the implementing plugin's feature tag off must still load every config it
-	// loaded before. The empty set disables the rule ON PURPOSE; it is not an
-	// incidental consequence of an empty loop (ai/rules/principles.md).
-	if len(declaring) == 0 {
+// plugin registry by the caller, and conditions the match conditions that do,
+// read off the condition registry: a match instance naming one discharges it
+// too. This function never names a filter type or a condition, so each lives
+// only in the plugin that implements it.
+func validateLeakFilterObligations(pairs []peerRole, reg *policy.Registry, declaring, conditions []string) error {
+	// GUARD: no filter type and no match condition in this binary can
+	// discharge the obligation, so enforcing it would refuse every config that
+	// declares a role. A build with the implementing plugin's feature tag off
+	// must still load every config it loaded before. The empty sets disable
+	// the rule ON PURPOSE; it is not an incidental consequence of an empty loop
+	// (ai/rules/principles.md).
+	if len(declaring) == 0 && len(conditions) == 0 {
 		return nil
 	}
 
-	declaringTypes := make(map[string]bool, len(declaring))
+	discharging := leakDischargers{types: make(map[string]bool, len(declaring)), conditions: conditions}
 	for _, filterType := range declaring {
-		declaringTypes[filterType] = true
+		discharging.types[filterType] = true
 	}
 
 	for _, pair := range pairs {
@@ -899,12 +903,12 @@ func validateLeakFilterObligations(pairs []peerRole, reg *policy.Registry, decla
 		if !bound {
 			continue
 		}
-		missingImport := obligation.importChain && !chainNamesFilterType(pair.settings.ImportPolicy.Filters(), reg, declaringTypes)
-		missingExport := obligation.exportChain && !chainNamesFilterType(pair.settings.ExportPolicy.Filters(), reg, declaringTypes)
+		missingImport := obligation.importChain && !chainDischarges(pair.settings.ImportPolicy.Filters(), reg, discharging)
+		missingExport := obligation.exportChain && !chainDischarges(pair.settings.ExportPolicy.Filters(), reg, discharging)
 		if !missingImport && !missingExport {
 			continue
 		}
-		return leakFilterRefusal(pair, missingImport, missingExport, declaring)
+		return leakFilterRefusal(pair, missingImport, missingExport, declaring, conditions)
 	}
 	return nil
 }
@@ -913,7 +917,7 @@ func validateLeakFilterObligations(pairs []peerRole, reg *policy.Registry, decla
 // the role that bound it, the chain that is missing the filter, and BOTH ways
 // to satisfy the obligation, because a message that reports only what is wrong
 // leaves the operator to guess what to write.
-func leakFilterRefusal(pair peerRole, missingImport, missingExport bool, declaring []string) error {
+func leakFilterRefusal(pair peerRole, missingImport, missingExport bool, declaring, conditions []string) error {
 	chains := "import and export filter chains"
 	switch {
 	case !missingExport:
@@ -921,10 +925,46 @@ func leakFilterRefusal(pair peerRole, missingImport, missingExport bool, declari
 	case !missingImport:
 		chains = "export filter chain"
 	}
+	what := "a filter of type " + textbuf.Join(declaring, " or ")
+	if len(conditions) > 0 {
+		what += ", or a match instance with a " + textbuf.Join(conditions, " or ") + " condition,"
+	}
 	return fmt.Errorf(
 		"peer %s: role %s requires a filter against a transit leak in the %s\n"+
-			"  name a filter of type %s in it, or name one prefixed with `inactive:` to record that this session runs without the check",
-		pair.settings.Name, pair.role, chains, textbuf.Join(declaring, " or "))
+			"  name %s in it, or name one prefixed with `inactive:` to record that this session runs without the check",
+		pair.settings.Name, pair.role, chains, what)
+}
+
+// leakDischargers is what discharges the transit-leak obligation: a filter
+// of one of types, or a match instance naming one of conditions.
+type leakDischargers struct {
+	types      map[string]bool
+	conditions []string
+}
+
+// chainDischarges reports whether a filter chain names a filter that
+// discharges the obligation: a filter of a discharging type, or a match
+// instance whose config names a discharging condition. A deactivated ref
+// counts, as in chainNamesFilterType.
+func chainDischarges(chain []policy.Ref, reg *policy.Registry, d leakDischargers) bool {
+	if chainNamesFilterType(chain, reg, d.types) {
+		return true
+	}
+	for _, ref := range chain {
+		entry, ok := reg.Lookup(filterInstanceName(ref.Name))
+		if !ok {
+			continue
+		}
+		if entry.Type != policy.MatchFilterType {
+			continue
+		}
+		for _, key := range d.conditions {
+			if _, named := entry.Config[key]; named {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // chainNamesFilterType reports whether a filter chain names a filter of one of

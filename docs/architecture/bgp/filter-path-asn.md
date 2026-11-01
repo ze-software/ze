@@ -155,6 +155,25 @@ format has no second `as4-path` keyword to write a rule against.
 <!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter, attrForFilter -->
 <!-- source: internal/core/bgp/attribute/as4.go -- MergeAS4Path -->
 
+## The `reject-asn` match condition
+
+The package also registers the `reject-asn` condition of a `match` instance.
+`policy { match GUARD { reject-asn NO-TRANSIT; } }` passes a route the
+`NO-TRANSIT` list rejects on neither arm. It is compiled from the list's own
+config, never from the plugin's process, and judges the same AS-path text
+with the same two arms; the sender comes from the view's session, which
+knows it on import only, as `senderOf` reads the direction. A reject is
+counted in `ze_filter_path_asn_rejects_total` under its direction and slot.
+The condition declares the transit-leak obligation, so a match naming it
+discharges the filter a declared RFC 9234 role requires
+(`validateLeakFilterObligations` reads `policy.MatchConditionsDischarging`).
+The `show ... reject-asn` commands are unchanged.
+
+<!-- source: internal/component/bgp/plugins/filter_path_asn/condition.go -- compileBGPCondition -->
+<!-- source: internal/component/policy/match.go -- MustDeclareMatchConditionObligation, MatchConditionsDischarging -->
+<!-- source: internal/component/bgp/config/peers.go -- chainDischarges -->
+<!-- source: internal/component/bgp/policyview/view.go -- Session -->
+
 ## The two arms of a list
 
 A list is one reject set with two arms, and a route matching either is rejected.

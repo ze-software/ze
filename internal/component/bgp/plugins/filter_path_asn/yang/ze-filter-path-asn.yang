@@ -21,6 +21,23 @@ module ze-filter-path-asn {
         description "Initial revision";
     }
 
+    augment "/policy:policy/policy:match" {
+        description "The reject-asn condition of a match instance: the reject-asn filter registers
+                     it, so a build without BGP has no such condition.";
+        leaf reject-asn {
+            type string { length "1..max"; }
+            ze:reference "policy-reject-asn";
+            description "The route passes this condition when the named reject-asn list rejects it on
+                         neither arm: no listed ASN at a listed position of its AS path, and no
+                         pattern matching the whole path. The sender is known on import only, as for
+                         the list as a chain member. A match naming it discharges the transit-leak
+                         filter a declared RFC 9234 role requires. The list is a policy reject-asn
+                         instance: the editor completes the configured ones, and a commit naming any
+                         other is refused. A BGP chain judges it; a Loc-RIB chain refuses it.";
+            ze:help "Match routes the named reject-asn list does not reject";
+        }
+    }
+
     augment "/policy:policy" {
         list reject-asn {
             ze:filter;

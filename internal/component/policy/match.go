@@ -37,6 +37,9 @@ type conditionDecl struct {
 	condition MatchCondition
 	reads     []Field
 	source    bool // a source condition: modify carries it too
+	// obligations are the config obligations a match naming the condition
+	// discharges (MustDeclareMatchConditionObligation).
+	obligations []string
 }
 
 // conditionDecls is the condition registry: every declared condition, sorted
@@ -81,6 +84,41 @@ func MustRegisterMatchCondition(key string, reads []Field, source bool) MatchCon
 
 // declaredConditions answers the registered conditions, sorted by key. The
 // caller MUST NOT change the slice.
+// MustDeclareMatchConditionObligation declares that a match instance naming
+// cond discharges obligation, a config rule's name the policy library does not
+// interpret: the rule asks MatchConditionsDischarging which conditions meet it,
+// so it names no condition. It MUST be called from init() after cond is
+// registered; a condition never registered is a programming error.
+func MustDeclareMatchConditionObligation(cond MatchCondition, obligation string) {
+	if obligation == "" {
+		panic("BUG: policy: match condition " + cond.key + " declares an empty obligation")
+	}
+	conditionDecls.mu.Lock()
+	defer conditionDecls.mu.Unlock()
+	at, found := slices.BinarySearchFunc(conditionDecls.byKey, cond.key, func(d conditionDecl, k string) int {
+		return strings.Compare(d.condition.key, k)
+	})
+	if !found {
+		panic("BUG: policy: obligation declared on unregistered match condition " + cond.key)
+	}
+	decl := &conditionDecls.byKey[at]
+	if !slices.Contains(decl.obligations, obligation) {
+		decl.obligations = append(decl.obligations, obligation)
+	}
+}
+
+// MatchConditionsDischarging answers the keys of the match conditions that
+// discharge obligation, sorted; none when no condition in this binary does.
+func MatchConditionsDischarging(obligation string) []string {
+	var keys []string
+	for _, d := range declaredConditions() {
+		if slices.Contains(d.obligations, obligation) {
+			keys = append(keys, d.condition.key)
+		}
+	}
+	return keys
+}
+
 func declaredConditions() []conditionDecl {
 	conditionDecls.mu.RLock()
 	defer conditionDecls.mu.RUnlock()

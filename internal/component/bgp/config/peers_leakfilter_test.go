@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -330,7 +331,7 @@ func TestNoDeclaringFilterTypeMeansNoEnforcement(t *testing.T) {
 	peers, err := reactor.PeersFromTree(bgpTree)
 	require.NoError(t, err)
 
-	assert.NoError(t, validateLeakFilterObligations(peerRoles(bgpTree, peers, nil), nil, nil),
+	assert.NoError(t, validateLeakFilterObligations(peerRoles(bgpTree, peers, nil), nil, nil, nil),
 		"no declaring filter type means no enforcement")
 }
 
@@ -362,4 +363,34 @@ func TestFilterInstanceNameStripsEveryPrefixForm(t *testing.T) {
 	} {
 		assert.Equal(t, "NO-TRANSIT", filterInstanceName(ref))
 	}
+}
+
+// TestTransitLeakDischargedByCondition proves a match instance naming the
+// reject-asn condition discharges the transit-leak obligation (R-16), with
+// the condition read off the condition registry rather than named here.
+//
+// VALIDATES: a peer with an RFC 9234 role whose chains name a match carrying
+// the reject-asn condition loads; the same peer whose match names only a
+// prefix-list is refused as before.
+// PREVENTS: the obligation finding no discharger once reject-asn stops being
+// a filter type (phase 4f).
+func TestTransitLeakDischargedByCondition(t *testing.T) {
+	conditions := policy.MatchConditionsDischarging(filterapi.ObligationTransitLeak)
+	require.Equal(t, []string{"reject-asn"}, conditions,
+		"the reject-asn condition declares the transit-leak obligation")
+	withMatch := func(body string) string {
+		return strings.Replace(leakPeerConfig("peer", leakChains{importChain: "GUARD", exportChain: "GUARD"}),
+			"policy {\n", "policy {\n    match GUARD {\n        "+body+"\n    }\n", 1)
+	}
+
+	tree, err := config.ParseTreeWithYANG(withMatch(conditions[0]+" NO-TRANSIT"), nil)
+	require.NoError(t, err)
+	_, err = PeersFromConfigTree(tree)
+	require.NoError(t, err, "a match with the reject-asn condition discharges the obligation")
+
+	tree, err = config.ParseTreeWithYANG(withMatch("prefix-list CUSTOMERS"), nil)
+	require.NoError(t, err)
+	_, err = PeersFromConfigTree(tree)
+	require.Error(t, err, "a match without the condition does not discharge it")
+	assert.Contains(t, err.Error(), "a match instance with a reject-asn condition")
 }

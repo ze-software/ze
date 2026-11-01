@@ -162,7 +162,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, wireUpd
 		// none it fails under its on-error (runLibraryChain).
 		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 		intent := libraryIntentContext{asn4: srcCtx != nil && srcCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: true}
-		res := r.runLibraryChain(library, wireUpdate, payload, policyview.Session{EBGP: external}, intent,
+		res := r.runLibraryChain(library, wireUpdate, payload, policyview.Session{EBGP: external, Sender: peerAS, SenderKnown: true}, intent,
 			directionImport, modifySiteImportChain, peerAddr.String(), nil)
 		if res.outcome.Teardown {
 			return ingressStepResult{teardown: true, notifyCode: res.outcome.NotifyCode, notifySubcode: res.outcome.NotifySubcode}

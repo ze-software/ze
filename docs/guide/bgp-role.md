@@ -174,7 +174,9 @@ When strict mode is off (default), ze proceeds even if the peer does not adverti
 Declaring a role states a business relationship, and ze holds the config to it.
 A peer whose role implies the transit-leak check must NAME, in each chain that
 role binds, a filter of a type that can refuse a path running through a transit
-provider (RFC 7454 Section 9). `reject-asn` is such a type. A config that omits
+provider (RFC 7454 Section 9). `reject-asn` is such a type, and a `match`
+instance naming the `reject-asn` condition meets it the same way
+(`docs/guide/route-policy.md`, "The `match` conditions"). A config that omits
 it is REFUSED at load, at `ze config validate`, at `ze doctor` and at the config
 editor's `commit`, naming the peer, the role and the chain.
 

@@ -44,6 +44,11 @@ var ErrNoUpdate = errors.New("policy view holds no UPDATE")
 type Session struct {
 	// EBGP is true when the peer is in another AS (the protocol field).
 	EBGP bool
+	// Sender is the AS of the peer that sent the route, valid only when
+	// SenderKnown is set: on import, where the route arrived from the peer.
+	// On export the session's peer is the destination, so no sender is known.
+	Sender      uint32
+	SenderKnown bool
 }
 
 // View is one route's lazy view during one synchronous chain run.
@@ -201,6 +206,10 @@ func (v *View) current(field policy.Field) *slot {
 	}
 	return s
 }
+
+// Session answers what the view knows about the session the UPDATE came
+// from (Reset).
+func (v *View) Session() Session { return v.session }
 
 // AddPath reports whether the session the UPDATE came from negotiated
 // ADD-PATH for fam on receive, so its NLRI carry a path identifier: the
