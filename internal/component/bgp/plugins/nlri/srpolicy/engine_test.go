@@ -67,5 +67,5 @@ func TestEngineDeclaresFamiliesAtStage1(t *testing.T) {
 		{Name: IPv4SRPolicy.String(), Mode: "decode", AFI: 1, SAFI: 73},
 		{Name: IPv6SRPolicy.String(), Mode: "decode", AFI: 2, SAFI: 73},
 	}, input.Families)
-	require.NoError(t, mux.SendOK(ctx, req.ID))
+	require.NoError(t, mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 }

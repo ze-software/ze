@@ -167,12 +167,24 @@ it holds, and each peer added or accepted later, is named in an error log
 
 | Stage | Direction | RPC Method | Input Type |
 |-------|-----------|-----------|------------|
-| 1. Registration | Plugin to Engine | `ze-plugin-engine:declare-registration` | `DeclareRegistrationInput` |
+| 1. Registration | Plugin to Engine | `ze-plugin-engine:declare-registration` | `DeclareRegistrationInput`, answered with `DeclareRegistrationOutput` |
 | 2. Config | Engine to Plugin | `ze-plugin-callback:configure` | `ConfigureInput` |
 | 3. Capability | Plugin to Engine | `ze-plugin-engine:declare-capabilities` | `DeclareCapabilitiesInput` |
 | 4. Registry | Engine to Plugin | `ze-plugin-callback:share-registry` | `ShareRegistryInput` |
 | 5. Ready | Plugin to Engine | `ze-plugin-engine:ready` | `ReadyInput` |
 | Post | Engine to Plugin | `ze-plugin-callback:post-startup` | (empty) |
+
+**Protocol version.** Every `declare-registration` carries `protocol-version`,
+the highest plugin protocol version the plugin speaks, and the engine's Stage 1
+answer, `{"protocol-version":N}`, is the version both sides speak from then on:
+the lower of the two (`rpc.NegotiateProtocolVersion`). One plugin-level version
+serves every contract change, filters included. A declaration with none is the
+text era, and the stage driver refuses it before any sink sees the
+declaration, with one error naming the plugin, the version to declare and
+`docs/plugin-development/protocol.md`. This engine speaks version 1
+(`rpc.ProtocolVersion`).
+<!-- source: pkg/plugin/rpc/declaration.go -- NegotiateProtocolVersion -->
+<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
 
 **A Stage 2 error response is a REFUSAL, and a dead transport is not.** A
 plugin that cannot take the configuration it was sent answers `#<id> error`
@@ -2543,8 +2555,8 @@ Ze Engine                              GR Plugin
 
 STAGE 1: REGISTRATION
                        <--- #1 ze-plugin-engine:declare-registration
-                            {"wants-config":["bgp"]}
-#1 ok                  --->
+                            {"protocol-version":1,"wants-config":["bgp"]}
+#1 ok {"protocol-version":1}  --->
 
 STAGE 2: CONFIG DELIVERY
 #1 ze-plugin-callback:configure
@@ -2591,12 +2603,12 @@ Ze Engine                              RIB Plugin
 
 STAGE 1: REGISTRATION
                        <--- #1 ze-plugin-engine:declare-registration
-                            {"commands":[
+                            {"protocol-version":1,"commands":[
                               {"name":"rib adjacent status"},
                               {"name":"rib adjacent inbound show"},
                               {"name":"rib adjacent outbound resend"}
                             ]}
-#1 ok                  --->
+#1 ok {"protocol-version":1}  --->
 
 STAGE 2: CONFIG DELIVERY
 #1 ze-plugin-callback:configure {"sections":[]}  --->

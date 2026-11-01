@@ -234,7 +234,7 @@ func startSysRIB(ctx context.Context, t *testing.T, bus ze.EventBus, section rpc
 			if request.Method != method {
 				t.Fatalf("startup: the plugin called %q, want %q", request.Method, method)
 			}
-			if err := engine.SendOK(ctx, request.ID); err != nil {
+			if err := engine.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 				t.Fatalf("startup: answer %s: %v", method, err)
 			}
 		case <-time.After(withholdWait):

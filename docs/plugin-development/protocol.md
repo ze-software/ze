@@ -137,10 +137,10 @@ reader goroutine routes incoming lines by verb: `ok`/`error` responses go to the
 
 ```
 # Plugin sends declare-registration (Stage 1)
-#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
+#1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
 
-# Engine responds OK
-#1 ok
+# Engine answers the protocol version both sides speak
+#1 ok {"protocol-version":1}
 
 # Engine sends configure to plugin (Stage 2)
 #1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{...}"}]}
@@ -170,6 +170,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `protocol-version` | `int` | REQUIRED. The highest plugin protocol version the plugin speaks (this engine speaks `1`) |
 | `families` | `[]FamilyDecl` | Address families the plugin handles (name, mode, AFI, and SAFI) |
 | `commands` | `[]CommandDecl` | Commands the plugin provides |
 | `dependencies` | `[]string` | Plugin names that must also be loaded |
@@ -281,9 +282,21 @@ Set `afi` and `safi` for a custom family. A built-in family can omit both numeri
 **Wire example:**
 
 ```
-#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","short-help":"Show FlowSpec status"}],"wants-config":["bgp"]}
-#1 ok
+#1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","short-help":"Show FlowSpec status"}],"wants-config":["bgp"]}
+#1 ok {"protocol-version":1}
 ```
+
+**The protocol version.** The engine answers Stage 1 with the version both
+sides speak from then on: the lower of the plugin's `protocol-version` and its
+own. A plugin declaring a version above the engine's speaks the answered
+version. A declaration with no `protocol-version` is from the text era, before
+filters declared the route fields they read, and the engine refuses it with
+one error that names the plugin and the version to declare; the startup tier
+then stops, as for any plugin failure. Version `1` is the first versioned
+contract. The Go SDK declares it and refuses an engine that answers any other.
+<!-- source: pkg/plugin/rpc/declaration.go -- NegotiateProtocolVersion -->
+<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
+<!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
 
 ### Stage 2: Config (Engine to Plugin)
 

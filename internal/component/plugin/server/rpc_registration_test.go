@@ -130,6 +130,7 @@ func TestRPCRegistrationToRegistry(t *testing.T) {
 	registry := plugin.NewPluginRegistry()
 
 	input := &rpc.DeclareRegistrationInput{
+		ProtocolVersion: rpc.ProtocolVersion,
 		Families: []rpc.FamilyDecl{
 			{Name: "ipv4/unicast", Mode: "both"},
 			{Name: "ipv4/flow", Mode: "decode"},
@@ -237,8 +238,9 @@ func TestRPCRegistrationConflictThroughConversion(t *testing.T) {
 
 	// First plugin registers via RPC
 	input1 := &rpc.DeclareRegistrationInput{
-		Commands: []rpc.CommandDecl{{Name: "show fixture rib"}},
-		Families: []rpc.FamilyDecl{{Name: "ipv4/flow", Mode: "decode"}},
+		ProtocolVersion: rpc.ProtocolVersion,
+		Commands:        []rpc.CommandDecl{{Name: "show fixture rib"}},
+		Families:        []rpc.FamilyDecl{{Name: "ipv4/flow", Mode: "decode"}},
 	}
 	reg1 := registrationFromRPC(input1)
 	reg1.Name = "rib"
@@ -246,7 +248,8 @@ func TestRPCRegistrationConflictThroughConversion(t *testing.T) {
 
 	// Second plugin tries same command
 	input2 := &rpc.DeclareRegistrationInput{
-		Commands: []rpc.CommandDecl{{Name: "show fixture rib"}},
+		ProtocolVersion: rpc.ProtocolVersion,
+		Commands:        []rpc.CommandDecl{{Name: "show fixture rib"}},
 	}
 	reg2 := registrationFromRPC(input2)
 	reg2.Name = "rib2"
@@ -256,7 +259,8 @@ func TestRPCRegistrationConflictThroughConversion(t *testing.T) {
 
 	// Third plugin tries same decode family
 	input3 := &rpc.DeclareRegistrationInput{
-		Families: []rpc.FamilyDecl{{Name: "ipv4/flow", Mode: "decode"}},
+		ProtocolVersion: rpc.ProtocolVersion,
+		Families:        []rpc.FamilyDecl{{Name: "ipv4/flow", Mode: "decode"}},
 	}
 	reg3 := registrationFromRPC(input3)
 	reg3.Name = "flowspec"

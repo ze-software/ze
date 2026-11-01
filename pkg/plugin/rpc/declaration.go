@@ -39,3 +39,28 @@ func WriteDeclaration(out io.Writer, reg *DeclareRegistrationInput) error {
 	}
 	return nil
 }
+
+// DeclareRegistrationOutput is the engine's answer to MethodDeclareRegistration.
+type DeclareRegistrationOutput struct {
+	// ProtocolVersion is the plugin protocol version both sides speak from
+	// here on: the lower of the plugin's declared version and the engine's.
+	ProtocolVersion int `json:"protocol-version"`
+}
+
+// protocolPage is where a plugin author reads the versioned contract.
+const protocolPage = "docs/plugin-development/protocol.md"
+
+// NegotiateProtocolVersion answers the protocol version the engine speaks with
+// plugin, which declared declared at Stage 1: the lower of the two. A plugin
+// that declared no version (zero or negative) speaks the text-era contract,
+// which this engine no longer speaks, so it is refused with an error naming
+// the plugin, the version it must declare and the page that documents it.
+func NegotiateProtocolVersion(plugin string, declared int) (int, error) {
+	if declared < 1 {
+		return 0, fmt.Errorf("plugin %s declared no protocol version in declare-registration, "+
+			"so it speaks the text-era filter contract this engine refused: "+
+			"declare \"protocol-version\": %d and speak that version (%s)",
+			plugin, ProtocolVersion, protocolPage)
+	}
+	return min(declared, ProtocolVersion), nil
+}

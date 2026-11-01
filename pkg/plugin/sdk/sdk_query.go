@@ -57,7 +57,9 @@ func runOrDeclare(out io.Writer, reg *Registration, activate func() int) int {
 		return activate()
 	}
 
-	if err := rpc.WriteDeclaration(out, reg); err != nil {
+	answer := *reg
+	answer.ProtocolVersion = rpc.ProtocolVersion
+	if err := rpc.WriteDeclaration(out, &answer); err != nil {
 		var message textbuf.Buffer
 		message.Str("error: declaration query: ").Err(err).Byte('\n')
 		_ = message.StdErr() //nolint:errcheck // the answer already failed; the exit code carries it

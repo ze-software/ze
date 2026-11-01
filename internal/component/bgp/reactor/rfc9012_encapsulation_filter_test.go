@@ -51,7 +51,7 @@ func teConfigureCommunityFilter(t *testing.T) {
 	request, err := conn.ReadRequest(ctx)
 	require.NoError(t, err)
 	require.Equal(t, rpc.MethodDeclareRegistration, request.Method)
-	require.NoError(t, conn.SendOK(ctx, request.ID))
+	require.NoError(t, conn.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 	peer := func(address, direction, strip string) map[string]any {
 		return map[string]any{
 			"connection": map[string]any{"remote": map[string]any{"ip": address}},

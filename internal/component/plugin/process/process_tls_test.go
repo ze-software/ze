@@ -61,7 +61,7 @@ func TestProcessSingleConnInitConns(t *testing.T) {
 	}()
 
 	// Engine side: respond via ConnA.
-	require.NoError(t, conn.SendOK(ctx, req.ID))
+	require.NoError(t, conn.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Plugin side: verify the response arrived.
 	select {

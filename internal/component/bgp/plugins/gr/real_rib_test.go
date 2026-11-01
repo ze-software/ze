@@ -56,11 +56,11 @@ func newGRWithRealRIB(t *testing.T) (*grPlugin, *realGRRIB) {
 		}
 	}
 	request := next()
-	require.NoError(t, mux.SendOK(ctx, request.ID))
+	require.NoError(t, mux.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 	_, err := mux.CallRPC(ctx, "ze-plugin-callback:configure", &rpc.ConfigureInput{})
 	require.NoError(t, err)
 	request = next()
-	require.NoError(t, mux.SendOK(ctx, request.ID))
+	require.NoError(t, mux.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 	_, err = mux.CallRPC(ctx, "ze-plugin-callback:share-registry", &rpc.ShareRegistryInput{})
 	require.NoError(t, err)
 	request = next()

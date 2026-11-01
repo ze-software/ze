@@ -41,7 +41,7 @@ func TestDispatchCommandReadsWarningTerminator(t *testing.T) {
 
 	req := readEngineRequest(t, ctx, engine.mux)
 	require.Equal(t, rpc.MethodDeclareRegistration, req.Method)
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	completeStartupFromStage2(t, ctx, engine)
 

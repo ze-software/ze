@@ -71,6 +71,9 @@ type startupSink interface {
 	// conn returns the connection the handshake runs over. Called once, first.
 	conn() *pluginipc.PluginConn
 
+	// pluginName names the plugin in a refusal the driver itself makes.
+	pluginName() string
+
 	// onRegistration processes the decoded declare-registration input after the
 	// driver validated the method string and before it responds OK. A non-nil
 	// error aborts startup: the driver sends err.Error() to the plugin via
@@ -145,11 +148,18 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 		_ = conn.SendError(ctx, req.ID, tb.Str("invalid registration: ").Err(err).String())
 		return fmt.Errorf("stage 1 parse: %w", err)
 	}
+	// The version is negotiated before the sink sees the declaration: a
+	// text-era plugin gets this one refusal and no other (D-2).
+	version, err := rpc.NegotiateProtocolVersion(sink.pluginName(), regInput.ProtocolVersion)
+	if err != nil {
+		_ = conn.SendError(ctx, req.ID, err.Error())
+		return err
+	}
 	if err := sink.onRegistration(&regInput); err != nil {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err
 	}
-	if err := conn.SendResult(ctx, req.ID, nil); err != nil {
+	if err := conn.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: version}); err != nil {
 		return fmt.Errorf("stage 1 respond: %w", err)
 	}
 

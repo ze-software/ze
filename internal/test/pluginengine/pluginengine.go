@@ -159,24 +159,24 @@ func runPlugin(run func(net.Conn) int, conn net.Conn, exited chan<- int) {
 // startup answers the five stages over the MuxConn, which carries startup on
 // both transports.
 func (e *Engine) startup(ctx context.Context) error {
-	if err := e.expectAndAnswer(ctx, rpc.MethodDeclareRegistration); err != nil {
+	if err := e.expectAndAnswer(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 		return err
 	}
 	if _, err := e.mux.CallRPC(ctx, methodConfigure, &rpc.ConfigureInput{Sections: []rpc.ConfigSection{}}); err != nil {
 		return errors.New("stage 2 configure: " + err.Error())
 	}
-	if err := e.expectAndAnswer(ctx, methodDeclareCapabilities); err != nil {
+	if err := e.expectAndAnswer(ctx, methodDeclareCapabilities, nil); err != nil {
 		return err
 	}
 	if _, err := e.mux.CallRPC(ctx, methodShareRegistry, &rpc.ShareRegistryInput{Commands: []rpc.RegistryCommand{}}); err != nil {
 		return errors.New("stage 4 share-registry: " + err.Error())
 	}
-	return e.expectAndAnswer(ctx, methodReady)
+	return e.expectAndAnswer(ctx, methodReady, nil)
 }
 
 // expectAndAnswer reads the plugin's next startup request, refuses any other
-// method than want, and answers it OK.
-func (e *Engine) expectAndAnswer(ctx context.Context, want string) error {
+// method than want, and answers it with result, or OK when result is nil.
+func (e *Engine) expectAndAnswer(ctx context.Context, want string, result any) error {
 	select {
 	case req, ok := <-e.mux.Requests():
 		if !ok {
@@ -185,7 +185,10 @@ func (e *Engine) expectAndAnswer(ctx context.Context, want string) error {
 		if req.Method != want {
 			return errors.New("the plugin sent " + req.Method + " where startup expects " + want)
 		}
-		return e.mux.SendOK(ctx, req.ID)
+		if result == nil {
+			return e.mux.SendOK(ctx, req.ID)
+		}
+		return e.mux.SendResult(ctx, req.ID, result)
 	case <-ctx.Done():
 		return errors.New("no " + want + " from the plugin: " + ctx.Err().Error())
 	}

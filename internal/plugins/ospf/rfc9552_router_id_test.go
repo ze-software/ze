@@ -453,7 +453,7 @@ func rfc9552ExportNativeCommands(t *testing.T, bus *fakeBus, count int) []string
 			if request == nil {
 				t.Fatal("exporter startup connection closed")
 			}
-			if err := mux.SendOK(ctx, request.ID); err != nil {
+			if err := mux.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 				t.Fatal(err)
 			}
 		case <-ctx.Done():

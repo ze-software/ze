@@ -29,6 +29,7 @@ func TestRegistrationFromRPCWantsValidateOpen(t *testing.T) {
 			t.Parallel()
 
 			input := &rpc.DeclareRegistrationInput{
+				ProtocolVersion:   rpc.ProtocolVersion,
 				WantsValidateOpen: tt.input,
 			}
 			reg := registrationFromRPC(input)

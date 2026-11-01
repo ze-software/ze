@@ -59,7 +59,7 @@ func startTestHandler(t *testing.T, name string, mock *mockPluginCommands) *Subs
 		defer close(protocolDone)
 
 		// Stage 1: Send declare-registration
-		reg := &rpc.DeclareRegistrationInput{}
+		reg := &rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion}
 		if mock != nil {
 			reg.Commands = mock.decls
 		}
@@ -70,7 +70,7 @@ func startTestHandler(t *testing.T, name string, mock *mockPluginCommands) *Subs
 		// Stage 2: Receive configure, respond OK
 		select {
 		case req := <-pluginMux.Requests():
-			if err := pluginMux.SendOK(ctx, req.ID); err != nil {
+			if err := pluginMux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 				return
 			}
 		case <-ctx.Done():

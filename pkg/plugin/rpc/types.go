@@ -308,8 +308,20 @@ const (
 // plugin started in query mode writes it to stdout.
 const MethodDeclareRegistration = "ze-plugin-engine:declare-registration"
 
+// ProtocolVersion is the plugin protocol version this engine and this SDK
+// speak. Version 1 is the first versioned contract: a filter declares the
+// route fields it reads and sets, and its filter-update message carries those
+// fields by name (docs/architecture/api/process-protocol.md, "Protocol
+// version"). A plugin that declares no version is from the text era and is
+// refused at Stage 1 (NegotiateProtocolVersion).
+const ProtocolVersion = 1
+
 // DeclareRegistrationInput is the input for MethodDeclareRegistration (Stage 1).
 type DeclareRegistrationInput struct {
+	// ProtocolVersion is the highest plugin protocol version the plugin
+	// speaks. The engine answers, in DeclareRegistrationOutput, the version
+	// both sides then speak. Zero, the field absent, is refused.
+	ProtocolVersion  int                   `json:"protocol-version,omitempty"`
 	Families         []FamilyDecl          `json:"families,omitempty"`
 	Commands         []CommandDecl         `json:"commands,omitempty"`
 	Dependencies     []string              `json:"dependencies,omitempty"`

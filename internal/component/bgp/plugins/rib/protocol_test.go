@@ -82,7 +82,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	// Zero-copy forward-handle fast path (rib-arch-6)
 	assert.Contains(t, commandNames, "request bgp rib fastpath")
 
-	require.NoError(t, mux.SendOK(ctx, stage1.ID))
+	require.NoError(t, mux.SendResult(ctx, stage1.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// ── Stage 2: configure ──────────────────────────────────────────────
 	// Rib plugin has no OnConfigure handler, so empty config is fine.
@@ -175,7 +175,7 @@ func TestRIBPluginStageOrdering(t *testing.T) {
 	stage1 := readMuxRequestTimeout(t, ctx, mux)
 	assert.Equal(t, rpc.MethodDeclareRegistration, stage1.Method,
 		"Stage 1 must be declare-registration (first message on plugin-initiated)")
-	require.NoError(t, mux.SendOK(ctx, stage1.ID))
+	require.NoError(t, mux.SendResult(ctx, stage1.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Stage 2: Engine sends configure on engine-initiated.
 	// Plugin waits for this — it blocks until configure arrives.

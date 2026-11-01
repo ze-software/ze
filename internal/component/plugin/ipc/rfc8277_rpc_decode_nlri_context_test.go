@@ -185,7 +185,7 @@ func startDecodeNLRITransport(t *testing.T, ctx context.Context) (*ipc.PluginCon
 		if req.Method != stage.request {
 			t.Fatalf("startup request = %q, want %q", req.Method, stage.request)
 		}
-		if err := engine.SendOK(ctx, req.ID); err != nil {
+		if err := engine.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := engine.CallRPC(ctx, stage.callback, stage.input); err != nil {

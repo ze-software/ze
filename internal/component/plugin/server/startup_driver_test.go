@@ -31,6 +31,8 @@ func (r *recordingSink) conn() *ipc.PluginConn {
 	return r.pc
 }
 
+func (r *recordingSink) pluginName() string { return "widget" }
+
 func (r *recordingSink) onRegistration(*rpc.DeclareRegistrationInput) error {
 	r.order = append(r.order, "OnRegistration")
 	return r.regErr
@@ -88,14 +90,15 @@ func newDriverPipe(t *testing.T) (*ipc.PluginConn, *rpc.MuxConn) {
 // callbacks. Runs in its own goroutine.
 func drivePluginHandshake(ctx context.Context, pluginMux *rpc.MuxConn) {
 	if _, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{
-		Commands: []rpc.CommandDecl{{Name: "widget show"}},
+		ProtocolVersion: rpc.ProtocolVersion,
+		Commands:        []rpc.CommandDecl{{Name: "widget show"}},
 	}); err != nil {
 		return
 	}
 	// Stage 2: receive configure, respond OK.
 	select {
 	case req := <-pluginMux.Requests():
-		if err := pluginMux.SendOK(ctx, req.ID); err != nil {
+		if err := pluginMux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 			return
 		}
 	case <-ctx.Done():
@@ -185,7 +188,7 @@ func TestSharedStartupDriverMethodMismatch(t *testing.T) {
 
 	go func() {
 		// Plugin sends the wrong method for Stage 1; expects an error response.
-		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:not-registration", &rpc.DeclareRegistrationInput{}); err != nil {
+		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:not-registration", &rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 			return
 		}
 	}()
@@ -214,7 +217,7 @@ func TestSharedStartupDriverRegistrationErrorAborts(t *testing.T) {
 
 	callErr := make(chan error, 1)
 	go func() {
-		_, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{})
+		_, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion})
 		callErr <- err
 	}()
 

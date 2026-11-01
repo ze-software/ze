@@ -51,7 +51,7 @@ func TestRIBPluginSentEventsSurviveReplay(t *testing.T) {
 	// Stage 1: Read declare-registration from plugin-to-engine, send OK.
 	stage1Req := readMuxRequestTimeout(t, ctx, mux)
 	require.Equal(t, rpc.MethodDeclareRegistration, stage1Req.Method)
-	require.NoError(t, mux.SendOK(ctx, stage1Req.ID))
+	require.NoError(t, mux.SendResult(ctx, stage1Req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Stage 2: Send configure on engine-to-plugin (empty config is fine).
 	configInput := &rpc.ConfigureInput{Sections: []rpc.ConfigSection{}}

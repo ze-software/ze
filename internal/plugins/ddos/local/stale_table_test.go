@@ -234,7 +234,7 @@ func sweepRequest(t *testing.T, ctx context.Context, mux *rpc.MuxConn, method st
 		if req == nil || req.Method != method {
 			t.Fatalf("waiting for %s, got %+v", method, req)
 		}
-		if err := mux.SendOK(ctx, req.ID); err != nil {
+		if err := mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 			t.Fatal(err)
 		}
 	case <-ctx.Done():

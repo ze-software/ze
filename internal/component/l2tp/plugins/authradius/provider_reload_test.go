@@ -50,7 +50,7 @@ func startAuthProvider(t *testing.T, name, config string) (context.Context, *rpc
 			if request == nil {
 				t.Fatal("provider startup connection closed")
 			}
-			if err := mux.SendOK(ctx, request.ID); err != nil {
+			if err := mux.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 				t.Fatal(err)
 			}
 		case <-ctx.Done():

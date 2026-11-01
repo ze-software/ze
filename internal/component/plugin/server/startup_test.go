@@ -446,7 +446,8 @@ func TestOnRegistrationRollsBackPipesOnLaterFailure(t *testing.T) {
 	sink := &engineStartupSink{s: s, proc: proc}
 
 	err := sink.onRegistration(&rpc.DeclareRegistrationInput{
-		Commands: []rpc.CommandDecl{{Name: commandName}},
+		ProtocolVersion: rpc.ProtocolVersion,
+		Commands:        []rpc.CommandDecl{{Name: commandName}},
 		Pipes: []rpc.PipeDecl{{
 			Command:     commandName,
 			Name:        "totals",
@@ -930,6 +931,7 @@ func TestShapeWriteUnwindsWithStageOne(t *testing.T) {
 	sink := &engineStartupSink{s: s, proc: proc}
 
 	err := sink.onRegistration(&rpc.DeclareRegistrationInput{
+		ProtocolVersion: rpc.ProtocolVersion,
 		Commands: []rpc.CommandDecl{{
 			Name:          commandName,
 			Shape:         "tab",
@@ -981,7 +983,8 @@ func TestOnRegistrationRefusesConflictingShapeDeclaration(t *testing.T) {
 	var err error
 	require.NotPanics(t, func() {
 		err = sink.onRegistration(&rpc.DeclareRegistrationInput{
-			Commands: []rpc.CommandDecl{{Name: commandName, Shape: "tab"}},
+			ProtocolVersion: rpc.ProtocolVersion,
+			Commands:        []rpc.CommandDecl{{Name: commandName, Shape: "tab"}},
 		})
 	})
 	require.Error(t, err)

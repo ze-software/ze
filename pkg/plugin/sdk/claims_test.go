@@ -80,7 +80,7 @@ func TestStartupClaimsPrecedeReady(t *testing.T) {
 	// Stage 1.
 	req := readEngineRequest(t, ctx, engine.mux)
 	require.Equal(t, rpc.MethodDeclareRegistration, req.Method)
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Stage 2: the engine delivers the claim set alongside the config sections.
 	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:configure",

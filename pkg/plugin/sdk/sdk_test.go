@@ -156,7 +156,7 @@ func TestSDKStartup(t *testing.T) {
 	assert.Equal(t, []string{"bgp"}, regInput.WantsConfig)
 
 	// Respond
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// === Stage 2: Engine sends configure ===
 	sections := []ConfigSection{
@@ -325,7 +325,7 @@ func completeStartup(t *testing.T, ctx context.Context, engine *engineSide) {
 	// Stage 1: read and respond to declare-registration
 	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Stage 2: send configure
 	configInput := struct {
@@ -489,7 +489,7 @@ func TestSDKCapabilities(t *testing.T) {
 	// Stage 1: read declare-registration
 	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Stage 2: send configure
 	configInput := struct {
@@ -1411,7 +1411,7 @@ func TestSDKStage5ConnectionCloseCleanShutdown(t *testing.T) {
 	// Stage 1: read and respond to declare-registration
 	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Stage 2: send configure
 	configInput := struct {
@@ -1480,7 +1480,7 @@ func TestSDKDispatchValidateOpen(t *testing.T) {
 	var regInput rpc.DeclareRegistrationInput
 	require.NoError(t, json.Unmarshal(req.Params, &regInput))
 	assert.True(t, regInput.WantsValidateOpen, "WantsValidateOpen should be auto-set")
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Complete remaining startup stages (2-5)
 	configInput := struct {
@@ -2320,7 +2320,7 @@ func TestSDKSingleConnStartup(t *testing.T) {
 	// Stage 1: Read declare-registration from plugin.
 	req := readMuxRequest(t, ctx, engineMux)
 	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
-	require.NoError(t, engineMux.SendOK(ctx, req.ID))
+	require.NoError(t, engineMux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Stage 2: Send configure to plugin.
 	configInput := struct {
@@ -2409,7 +2409,7 @@ func TestRegistrationWantsConfig(t *testing.T) {
 	var regInput rpc.DeclareRegistrationInput
 	require.NoError(t, json.Unmarshal(req.Params, &regInput))
 	assert.Equal(t, []string{"bgp", "interface"}, regInput.WantsConfig)
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Complete remaining stages and shutdown
 	completeStartupFromStage2(t, ctx, engine)
@@ -2446,7 +2446,7 @@ func TestRegistrationBudgets(t *testing.T) {
 	require.NoError(t, json.Unmarshal(req.Params, &regInput))
 	assert.Equal(t, 5, regInput.VerifyBudget)
 	assert.Equal(t, 30, regInput.ApplyBudget)
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Complete remaining stages and shutdown
 	completeStartupFromStage2(t, ctx, engine)
@@ -2585,7 +2585,7 @@ func TestSDKOnAllPluginsReadyFires(t *testing.T) {
 	// Stage 1: declare-registration
 	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Complete stages 2-5.
 	completeStartupFromStage2(t, ctx, engine)
@@ -2645,7 +2645,7 @@ func TestSDKOnAllPluginsReadyPropagatesError(t *testing.T) {
 
 	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	completeStartupFromStage2(t, ctx, engine)
 
@@ -2684,7 +2684,7 @@ func TestSDKOnAllPluginsReadyNoHandlerIsNoop(t *testing.T) {
 
 	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	completeStartupFromStage2(t, ctx, engine)
 
@@ -2729,7 +2729,7 @@ func TestPluginAnswersRecordsWithoutDeclaringAShape(t *testing.T) {
 	// Stage 1: declare-registration.
 	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, rpc.MethodDeclareRegistration, req.Method)
-	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Stage 2: configure.
 	configInput := struct {

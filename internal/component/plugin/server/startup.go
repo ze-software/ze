@@ -658,6 +658,8 @@ func (e *engineStartupSink) lifetime() context.Context {
 
 func (e *engineStartupSink) conn() *plugipc.PluginConn { return e.proc.Conn() }
 
+func (e *engineStartupSink) pluginName() string { return e.proc.Config().Name }
+
 // OnRegistration validates and applies the plugin's declare-registration:
 // doctor-check and enricher declarations, cache-consumer state, dependency
 // checks, the PluginRegistry row, declared runtime families (rolled back on

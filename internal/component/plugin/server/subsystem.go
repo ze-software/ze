@@ -190,6 +190,8 @@ type hubStartupSink struct {
 
 func (hs *hubStartupSink) conn() *pluginipc.PluginConn { return hs.h.proc.Conn() }
 
+func (hs *hubStartupSink) pluginName() string { return hs.h.config.Name }
+
 // onRegistration harvests the declared commands and YANG schema into the
 // handler-local fields that FindHandler and RegisterSchemas read.
 func (hs *hubStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) error {

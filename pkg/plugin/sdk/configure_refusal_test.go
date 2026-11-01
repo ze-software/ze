@@ -58,7 +58,7 @@ func TestConfigureHandlerErrorReachesEngineAsAResponse(t *testing.T) {
 	// Stage 1: the plugin declares itself.
 	req := readMuxRequest(t, ctx, engineMux)
 	require.Equal(t, rpc.MethodDeclareRegistration, req.Method)
-	require.NoError(t, engineMux.SendOK(ctx, req.ID))
+	require.NoError(t, engineMux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// Stage 2: the engine delivers the configuration and the plugin refuses it.
 	_, err := engineMux.CallRPC(ctx, "ze-plugin-callback:configure", struct {

@@ -99,7 +99,7 @@ func TestPluginConnBridgeBatchCutover(t *testing.T) {
 		if request.Method != stage.request {
 			t.Fatalf("startup request = %q, want %q", request.Method, stage.request)
 		}
-		if err := engine.SendOK(ctx, request.ID); err != nil {
+		if err := engine.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := engine.CallRPC(ctx, stage.callback, struct{}{}); err != nil {

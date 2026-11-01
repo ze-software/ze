@@ -13,6 +13,7 @@ func TestRegistrationFromRPCDoctorChecks(t *testing.T) {
 	t.Parallel()
 
 	input := &rpc.DeclareRegistrationInput{
+		ProtocolVersion: rpc.ProtocolVersion,
 		DoctorChecks: []rpc.DoctorCheckDecl{
 			{
 				Name:         "rpki-cache-reachable",
@@ -41,7 +42,8 @@ func TestRegistrationFromRPCDoctorChecksEmpty(t *testing.T) {
 	t.Parallel()
 
 	input := &rpc.DeclareRegistrationInput{
-		Commands: []rpc.CommandDecl{{Name: "test-cmd"}},
+		ProtocolVersion: rpc.ProtocolVersion,
+		Commands:        []rpc.CommandDecl{{Name: "test-cmd"}},
 	}
 
 	reg := registrationFromRPC(input)
@@ -53,6 +55,7 @@ func TestRegistrationFromRPCDoctorChecksDefaultPlatform(t *testing.T) {
 	t.Parallel()
 
 	input := &rpc.DeclareRegistrationInput{
+		ProtocolVersion: rpc.ProtocolVersion,
 		DoctorChecks: []rpc.DoctorCheckDecl{
 			{
 				Name:  "my-check",

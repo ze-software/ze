@@ -720,7 +720,7 @@ func eofNoSpin(ctx context.Context, _ []string) error {
 	if err != nil || request.Method != rpc.MethodDeclareRegistration {
 		return fmt.Errorf("stage 1: request=%v: %w", request, err)
 	}
-	if err := engine.SendOK(ctx, request.ID); err != nil {
+	if err := engine.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 		return err
 	}
 	if _, err := engine.CallRPC(ctx, "ze-plugin-callback:configure", struct {

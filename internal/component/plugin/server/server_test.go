@@ -135,8 +135,9 @@ func TestHandleProcessStartupRPC(t *testing.T) {
 
 		// Stage 1: Send declare-registration
 		if _, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{
-			Families:    []rpc.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
-			WantsConfig: []string{"bgp"},
+			ProtocolVersion: rpc.ProtocolVersion,
+			Families:        []rpc.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
+			WantsConfig:     []string{"bgp"},
 		}); err != nil {
 			return
 		}
@@ -144,7 +145,7 @@ func TestHandleProcessStartupRPC(t *testing.T) {
 		// Stage 2: Receive configure, respond OK
 		select {
 		case req := <-pluginMux.Requests():
-			_ = pluginMux.SendOK(ctx, req.ID)
+			_ = pluginMux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion})
 		case <-ctx.Done():
 			return
 		}
@@ -229,7 +230,8 @@ func TestStartupRPC_DependencyValidation(t *testing.T) {
 	go func() {
 		defer close(pluginDone)
 		if _, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{
-			Dependencies: []string{"bgp-adj-rib-in"},
+			ProtocolVersion: rpc.ProtocolVersion,
+			Dependencies:    []string{"bgp-adj-rib-in"},
 		}); err != nil {
 			return // expected: server rejects
 		}
@@ -286,14 +288,15 @@ func TestStartupRPC_DependencySatisfied(t *testing.T) {
 		defer close(pluginDone)
 
 		if _, err := pluginMux.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{
-			Dependencies: []string{"bgp-adj-rib-in"},
+			ProtocolVersion: rpc.ProtocolVersion,
+			Dependencies:    []string{"bgp-adj-rib-in"},
 		}); err != nil {
 			return
 		}
 
 		select {
 		case req := <-pluginMux.Requests():
-			_ = pluginMux.SendOK(ctx, req.ID) //nolint:errcheck // test
+			_ = pluginMux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}) //nolint:errcheck // test
 		case <-ctx.Done():
 			return
 		}
@@ -329,6 +332,7 @@ func TestRegistrationFromRPC(t *testing.T) {
 	t.Parallel()
 
 	input := &rpc.DeclareRegistrationInput{
+		ProtocolVersion: rpc.ProtocolVersion,
 		Families: []rpc.FamilyDecl{
 			{Name: "ipv4/unicast", Mode: "both"},
 			{Name: "ipv4/flow", Mode: "decode"},
@@ -407,7 +411,8 @@ func TestRegistrationFromRPCEdgeCases(t *testing.T) {
 	t.Run("nil_schema", func(t *testing.T) {
 		t.Parallel()
 		input := &rpc.DeclareRegistrationInput{
-			Commands: []rpc.CommandDecl{{Name: "status"}},
+			ProtocolVersion: rpc.ProtocolVersion,
+			Commands:        []rpc.CommandDecl{{Name: "status"}},
 		}
 		reg := registrationFromRPC(input)
 		assert.Nil(t, reg.PluginSchema)
@@ -417,7 +422,7 @@ func TestRegistrationFromRPCEdgeCases(t *testing.T) {
 
 	t.Run("empty_input", func(t *testing.T) {
 		t.Parallel()
-		input := &rpc.DeclareRegistrationInput{}
+		input := &rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion}
 		reg := registrationFromRPC(input)
 		assert.True(t, reg.Done)
 		assert.Empty(t, reg.Families)
@@ -430,6 +435,7 @@ func TestRegistrationFromRPCEdgeCases(t *testing.T) {
 	t.Run("unknown_mode_defaults_to_encode", func(t *testing.T) {
 		t.Parallel()
 		input := &rpc.DeclareRegistrationInput{
+			ProtocolVersion: rpc.ProtocolVersion,
 			Families: []rpc.FamilyDecl{
 				{Name: "ipv4/unicast", Mode: "unknown-mode"},
 			},
@@ -443,6 +449,7 @@ func TestRegistrationFromRPCEdgeCases(t *testing.T) {
 	t.Run("empty_mode_defaults_to_encode", func(t *testing.T) {
 		t.Parallel()
 		input := &rpc.DeclareRegistrationInput{
+			ProtocolVersion: rpc.ProtocolVersion,
 			Families: []rpc.FamilyDecl{
 				{Name: "ipv6/unicast", Mode: ""},
 			},
@@ -455,6 +462,7 @@ func TestRegistrationFromRPCEdgeCases(t *testing.T) {
 	t.Run("multi_word_commands", func(t *testing.T) {
 		t.Parallel()
 		input := &rpc.DeclareRegistrationInput{
+			ProtocolVersion: rpc.ProtocolVersion,
 			Commands: []rpc.CommandDecl{
 				{Name: "show fixture rib"},
 				{Name: "request fixture refresh"},

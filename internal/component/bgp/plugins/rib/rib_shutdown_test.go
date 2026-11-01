@@ -59,7 +59,7 @@ func TestRIBShutdownDrainsStructuredPeerDown(t *testing.T) {
 	})
 	for stage := range 3 {
 		req := readMuxRequestTimeout(t, ctx, mux)
-		if err := mux.SendOK(ctx, req.ID); err != nil {
+		if err := mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 			t.Fatal(err)
 		}
 		switch stage {

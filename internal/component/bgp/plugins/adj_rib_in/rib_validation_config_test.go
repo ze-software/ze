@@ -265,7 +265,7 @@ func TestLateReflectorClaimsExistingReplayOwner(t *testing.T) {
 		}
 	}
 	req := request(rpc.MethodDeclareRegistration)
-	require.NoError(t, mux.SendOK(ctx, req.ID))
+	require.NoError(t, mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 	_, err := mux.CallRPC(ctx, "ze-plugin-callback:configure", map[string]any{})
 	require.NoError(t, err)
 	req = request("ze-plugin-engine:declare-capabilities")

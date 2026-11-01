@@ -108,6 +108,17 @@ module ze-plugin-engine {
         description "Called during Stage 1 of the 5-stage startup protocol.";
         ze:help "Plugin declares families, commands, config wants, and YANG schema.";
         input {
+            leaf protocol-version {
+                type uint32 {
+                    range "1..max";
+                }
+                mandatory true;
+                description
+                    "The highest plugin protocol version the plugin speaks. A declaration
+                     without it is from the text era and is refused at Stage 1, naming the
+                     version to declare.";
+                ze:help "Highest plugin protocol version the plugin speaks";
+            }
             leaf config-completion {
                 type boolean;
                 default false;
@@ -345,6 +356,17 @@ module ze-plugin-engine {
                          other alias.";
                     ze:help "The operator chain the name stands for, for example: display kind vrp-count";
                 }
+            }
+        }
+        output {
+            leaf protocol-version {
+                type uint32 {
+                    range "1..max";
+                }
+                description
+                    "The version both sides speak from here on: the lower of the
+                     plugin's declared version and the engine's.";
+                ze:help "Plugin protocol version both sides speak";
             }
         }
     }

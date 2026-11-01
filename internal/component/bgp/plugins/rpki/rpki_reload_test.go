@@ -200,7 +200,7 @@ func startRPKIReloadReceiver(t *testing.T, ctx context.Context) *rpc.DirectBridg
 			if request == nil {
 				t.Fatal("startup connection closed")
 			}
-			if err := mux.SendOK(ctx, request.ID); err != nil {
+			if err := mux.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 				t.Fatal(err)
 			}
 		case <-ctx.Done():
@@ -458,7 +458,7 @@ func startRPKIReloadPlugin(t *testing.T, ctx context.Context, adj *rpc.DirectBri
 			if request == nil {
 				t.Fatal("startup connection closed")
 			}
-			if err := mux.SendOK(ctx, request.ID); err != nil {
+			if err := mux.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 				t.Fatal(err)
 			}
 		case <-ctx.Done():
@@ -762,7 +762,7 @@ func startRPKIPublicationDecorator(t *testing.T, ctx context.Context, events cha
 			if request == nil {
 				t.Fatal("decorator startup connection closed")
 			}
-			if err := mux.SendOK(ctx, request.ID); err != nil {
+			if err := mux.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 				t.Fatal(err)
 			}
 		case <-ctx.Done():
