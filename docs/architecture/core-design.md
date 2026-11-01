@@ -1694,7 +1694,12 @@ the text subject is still what every configured BGP filter reads.
   `PolicyDryRun` runs a library chain through `runLibraryChain` in that mode
   (`traceLibraryChain`), so the dry-run's decision, final and rewritten
   UPDATE are the live path's, and `Sets.AppendText` renders a member's sets
-  for its trace entry: a display, never a transport (D-11).
+  for its trace entry: a display, never a transport (D-11). Each entry's
+  text-after is the UPDATE as rewritten up to that member:
+  `MemberTrace.Apply` writes the sets folded so far, and
+  `libraryTraceText` rebuilds them through `rewriteLibrary`, the builder
+  `runLibraryChain` takes for the route. A single-filter override runs the
+  one member through `Chain.Only` under the policy's final.
 - **Allocation-free per route.** The compiled chain is immutable and shared;
   each goroutine brings one view and one `policychain.RunSets`, reused across
   runs, and neither escapes the synchronous run.
@@ -1702,8 +1707,9 @@ the text subject is still what every configured BGP filter reads.
 <!-- source: internal/component/bgp/policychain/chain.go -- Compile, Chain.Run, MustRegisterEvaluator, refuseUndeclared, overlayNumeric, overlayCommunity -->
 <!-- source: internal/component/bgp/policyview/view.go -- View.SetNumber, View.SetWire, View.SetPrefix, View.AddPath -->
 <!-- source: internal/component/bgp/policychain/prefix_overlay.go -- overlayPrefix, receivedDrops -->
-<!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Sets.AppendText -->
-<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain -->
+<!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Chain.Only, MemberTrace.Apply, Sets.AppendText -->
+<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain, libraryTraceText -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- rewriteLibrary -->
 <!-- source: internal/component/bgp/wireu/nlri_cidr.go -- CIDRCursor, DropCIDREntries -->
 <!-- source: internal/component/bgp/policychain/intents.go -- PrependASPath, RemovePrivateAS, DropNLRI, StripFamily -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- prependASPathOps, removePrivateASOps -->

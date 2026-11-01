@@ -5,8 +5,10 @@
 package policychain
 
 import (
+	"errors"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 )
 
@@ -36,6 +38,25 @@ type MemberTrace struct {
 	// Sets is what a passing member asked, resolved as it folded; nil for
 	// every other step. It is the run's scratch: valid only during the call.
 	Sets *Sets
+	// chain, view and run are the run this step belongs to, for Apply.
+	chain *Chain
+	view  *policyview.View
+	run   *RunSets
+}
+
+// errTraceOutsideRun is answered by Apply on a MemberTrace no Trace recorded.
+var errTraceOutsideRun = errors.New("policychain: a member trace applied outside the run that recorded it")
+
+// Apply writes the sets the chain folded up to this step as ModAccumulator
+// operations, as Chain.Apply writes them after an accepting run, and answers
+// those folded sets: a passing member's included, a failed member's none. It
+// is display only (show policy test renders each member's rewritten UPDATE),
+// and valid only during the record call, as Sets is.
+func (t MemberTrace) Apply(acc *filterapi.ModAccumulator) (*Sets, error) {
+	if t.chain == nil {
+		return nil, errTraceOutsideRun
+	}
+	return &t.run.folded, t.chain.Apply(t.view, t.run, acc)
 }
 
 // Trace judges the route view holds exactly as Run does, and hands record
@@ -46,7 +67,10 @@ func (c *Chain) Trace(view *policyview.View, sets *RunSets, record func(MemberTr
 	if record == nil {
 		panic("BUG: policychain: Trace without a recorder")
 	}
-	return c.run(view, sets, record)
+	return c.run(view, sets, func(step MemberTrace) {
+		step.chain, step.view, step.run = c, view, sets
+		record(step)
+	})
 }
 
 // Only answers a chain of c's one member named name, under c's final, for

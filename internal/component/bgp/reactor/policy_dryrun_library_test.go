@@ -44,6 +44,11 @@ func TestPolicyDryRunRunsLibraryChain(t *testing.T) {
 				"192.0.2.1", directionImport, "", libraryTestBody(100), true)
 			require.NoError(t, err)
 			require.Equal(t, tc.action, result.Action)
+			if tc.textAfter != "" {
+				// A passing member's entry carries the UPDATE as rewritten
+				// up to it: here the whole chain's result.
+				tc.entry.TextAfter = result.TextAfter
+			}
 			require.Equal(t, []plugin.PolicyTraceEntry{tc.entry}, result.Trace)
 			if tc.textAfter != "" {
 				require.True(t, strings.Contains(result.TextAfter, tc.textAfter), "text-after %q lacks %q", result.TextAfter, tc.textAfter)
@@ -101,4 +106,30 @@ func TestPolicyDryRunLibraryFilterOverride(t *testing.T) {
 	chain, ok := settings.ImportPolicy.Library().(*policychain.Chain)
 	require.True(t, ok)
 	require.Zero(t, chain.Refused(), "a dry-run refuses no route")
+}
+
+// TestPolicyDryRunLibraryEntryTextAfter proves each library member's trace
+// entry carries the UPDATE as rewritten up to that member, as a text filter's
+// entry carries the text after its delta: a passing member's rewrite, and no
+// text for the member that rejected, as the text path's rejecting entry.
+//
+// Method: the first member sets local-preference 200, the second rejects.
+// The first entry must render LOCAL_PREF 200 and not the received 100; an
+// entry left empty, or rendered from the received UPDATE, fails.
+func TestPolicyDryRunLibraryEntryTextAfter(t *testing.T) {
+	r := New(&Config{})
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	settings.ImportPolicy = twoMemberLibraryPolicy(t, libraryTypeLP200, libraryTypeReject)
+	r.peers[settings.PeerKey()] = NewPeer(settings)
+
+	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun("192.0.2.1", directionImport, "", libraryTestBody(100), true)
+	require.NoError(t, err)
+	require.Equal(t, dryRunActionReject, result.Action)
+	require.Len(t, result.Trace, 2)
+	first := result.Trace[0].TextAfter
+	require.Contains(t, first, "local-preference 200")
+	require.NotContains(t, first, "local-preference 100")
+	require.Equal(t, strings.Replace(result.TextBefore, "local-preference 100", "local-preference 200", 1), first,
+		"the first entry is the received UPDATE with only LOCAL_PREF rewritten")
+	require.Empty(t, result.Trace[1].TextAfter, "a rejecting member's entry carries no text, as the text path's")
 }

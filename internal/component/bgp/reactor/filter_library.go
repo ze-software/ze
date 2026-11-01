@@ -111,7 +111,46 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 			"peer", peer, "site", site, "error", err)
 		return libraryResult{outcome: outcome, failed: true}
 	}
-	folded := run.sets.Folded()
+	rewrite := r.rewriteLibrary(&mods, run.sets.Folded(), wireUpdate, payload, intent)
+	if rewrite.nlriRefused {
+		if record != nil {
+			return libraryResult{outcome: outcome, failed: true}
+		}
+		fwdLogger().Warn("policy filter: the chain's NLRI changes cannot be applied -- route dropped",
+			"peer", peer, "site", site, "family", rewrite.refusal.family, "reason", rewrite.refusal.reason)
+		return libraryResult{outcome: outcome, failed: true}
+	}
+	// recordModifyFailure counts and logs, rate limited, so this site adds no
+	// line of its own; a display-only run counts nothing.
+	if record == nil {
+		r.recordModifyFailure(rewrite.modFail, site, peer)
+	}
+	if rewrite.modFail.failed() {
+		return libraryResult{outcome: outcome, failed: true}
+	}
+	return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload}
+}
+
+// libraryRewrite is the body a chain's folded sets rewrite a route to.
+type libraryRewrite struct {
+	// payload is the rewritten body, nil when the sets change nothing or
+	// cannot be applied.
+	payload []byte
+	// nlriRefused is set when an NLRI intent cannot be applied (refusal says
+	// why); modFail when buildModifiedPayload could not apply the operations.
+	nlriRefused bool
+	refusal     nlriRefusal
+	modFail     modifyFailure
+}
+
+// rewriteLibrary turns folded sets, whose attribute operations Chain.Apply
+// already wrote into mods, into the rewritten body through
+// buildModifiedPayload, the builder the text delta reaches: the AS-path
+// intents, then the NLRI intents. runLibraryChain calls it once per route;
+// show policy test once per member, for the entry's text-after
+// (libraryTraceEntryText). The payload it answers is buildModifiedPayload's
+// own copy.
+func (r *Reactor) rewriteLibrary(mods *filterapi.ModAccumulator, folded *policychain.Sets, wireUpdate *wireu.WireUpdate, payload []byte, intent libraryIntentContext) libraryRewrite {
 	// The intents' values are carved from one arena, released once
 	// buildModifiedPayload has copied them into the payload it returns.
 	values := acquireValueScratch()
@@ -119,30 +158,17 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 
 	if folded.RemovePrivate() != policychain.RemovePrivateUnspecified || folded.ASPathPrepend() > 0 {
 		attrs, _ := wireUpdate.Attrs() //nolint:errcheck // a nil section is what both AS-path cores refuse to edit
-		libraryASPathOps(values, folded, attrs, intent, &mods)
+		libraryASPathOps(values, folded, attrs, intent, mods)
 	}
-	override, refusal, ok := libraryNLRIOps(values, folded, wireUpdate, &mods)
+	override, refusal, ok := libraryNLRIOps(values, folded, wireUpdate, mods)
 	if !ok {
-		if record != nil {
-			return libraryResult{outcome: outcome, failed: true}
-		}
-		fwdLogger().Warn("policy filter: the chain's NLRI changes cannot be applied -- route dropped",
-			"peer", peer, "site", site, "family", refusal.family, "reason", refusal.reason)
-		return libraryResult{outcome: outcome, failed: true}
+		return libraryRewrite{nlriRefused: true, refusal: refusal}
 	}
 	if mods.Len() == 0 && override == nil && mods.WithdrawnRewrite() == nil {
-		return libraryResult{outcome: outcome}
+		return libraryRewrite{}
 	}
-	modPayload, _, modFail := buildModifiedPayload(payload, &mods, r.attrModHandlers, nil, override)
-	// recordModifyFailure counts and logs, rate limited, so this site adds no
-	// line of its own; a display-only run counts nothing.
-	if record == nil {
-		r.recordModifyFailure(modFail, site, peer)
-	}
-	if modFail.failed() {
-		return libraryResult{outcome: outcome, failed: true}
-	}
-	return libraryResult{outcome: outcome, modifiedPayload: modPayload}
+	modPayload, _, modFail := buildModifiedPayload(payload, mods, r.attrModHandlers, nil, override)
+	return libraryRewrite{payload: modPayload, modFail: modFail}
 }
 
 // libraryCaller reaches an external member's plugin through the transport
