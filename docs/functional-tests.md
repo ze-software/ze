@@ -297,7 +297,10 @@ le test bgp plugin -a                       # 4. now it is real
 
 **`./le test stress-repro run` builds the `ze` it drives from the working
 tree**, unless `ZE_BIN` pins one, so its verdict is about the code in hand and
-never about a `bin/ze` some earlier build left behind. A run in which every
+never about a `bin/ze` some earlier build left behind. It builds the
+`ze-fakefilter` test plugin beside that `ze`, as `./le test` does, so a test
+that forks `run "ze-fakefilter"` finds it; a `ZE_BIN` you pin needs it beside
+it too. A run in which every
 finished invocation failed, or none finished, answers exit 2 with no verdict
 rather than "not reproduced": nothing passed, so nothing was tested. Pass
 `any-failure` when that failure is the reproduction.

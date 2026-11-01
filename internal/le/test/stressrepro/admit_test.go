@@ -55,6 +55,14 @@ func (r *admittingRunner) build(_ context.Context, _, output, _ string, _ bool) 
 	return processResult{}
 }
 
+// buildPlugin writes the binary a real test plugin build would leave.
+func (r *admittingRunner) buildPlugin(_ context.Context, _, output, _ string) processResult {
+	if err := os.WriteFile(output, []byte("built"), 0o755); err != nil {
+		return processResult{code: 2, err: err}
+	}
+	return processResult{}
+}
+
 // TestStressIterationsEachRunInsideOneSlot drives admitRun with N parallel
 // admitting children and a test process that holds no parent job. Every child
 // MUST be answered KindInside: a claim or an attach means the child ran as its

@@ -125,9 +125,17 @@ type processResult struct {
 	err    error
 }
 
+// succeeded reports whether the process started and exited 0.
+func (r processResult) succeeded() bool {
+	return r.err == nil && r.code == 0
+}
+
 type processRunner interface {
 	Invoke(context.Context, invocation) processResult
 	build(ctx context.Context, root, output, tags string, race bool) processResult
+	// buildPlugin compiles the test plugin main package pkg to output. It
+	// takes no feature tag: a test plugin links the SDK alone.
+	buildPlugin(ctx context.Context, root, output, pkg string) processResult
 }
 
 type runDependencies struct {
@@ -432,7 +440,10 @@ func pinnedBinary(key string) (string, bool) {
 // buildDaemon compiles ze from the working tree into a directory of its own
 // under outDir and answers the binary's path. The binary sits in a bin/
 // directory because ze derives its other directories from that parent. The
-// caller MUST remove the directory two levels above the answer when done.
+// ze-fakefilter test plugin is built beside it, as runner.Build does, because
+// the runner puts ze's directory on every child's PATH and a .ci forks it from
+// there. The caller MUST remove the directory two levels above the answer when
+// done.
 func buildDaemon(ctx context.Context, root, outDir string, opts Options, deps runDependencies) (string, error) {
 	tags, err := daemonTags(root, opts.Tags)
 	if err != nil {
@@ -448,15 +459,25 @@ func buildDaemon(ctx context.Context, root, outDir string, opts Options, deps ru
 	}
 	output := filepath.Join(binDir, "ze")
 	build := deps.runner.build(ctx, root, output, tags, opts.Race)
-	if build.err == nil && build.code == 0 {
-		return output, nil
+	if !build.succeeded() {
+		return "", buildFailure(binDir, build)
 	}
+	plugin := deps.runner.buildPlugin(ctx, root, filepath.Join(binDir, runner.FakeFilterBinary), runner.FakeFilterPackage)
+	if !plugin.succeeded() {
+		return "", buildFailure(binDir, plugin)
+	}
+	return output, nil
+}
+
+// buildFailure removes the build directory above binDir and answers the
+// failed build's error, its output or, when it printed none, its error.
+func buildFailure(binDir string, build processResult) error {
 	_ = os.RemoveAll(filepath.Dir(binDir))
 	message := strings.TrimSpace(build.output)
 	if message == "" && build.err != nil {
 		message = build.err.Error()
 	}
-	return "", fmt.Errorf("stress build failed: %s", message)
+	return fmt.Errorf("stress build failed: %s", message)
 }
 
 // daemonBase is the personality a repro compiles, before the gates

@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 func TestOldOptionTableMapsExactlyToKeywords(t *testing.T) {
@@ -141,9 +142,11 @@ type fakeRunner struct {
 	buildOutput string
 	buildTags   string
 	buildRace   bool
-	waitForStop bool
-	started     chan struct{}
-	stopped     chan struct{}
+	// pluginBuilds holds each test plugin build, its output then its package.
+	pluginBuilds [][2]string
+	waitForStop  bool
+	started      chan struct{}
+	stopped      chan struct{}
 }
 
 func (f *fakeRunner) Invoke(ctx context.Context, spec invocation) processResult {
@@ -189,6 +192,18 @@ func (f *fakeRunner) build(_ context.Context, root, output, tags string, race bo
 		}
 	}
 	return f.buildResult
+}
+
+// buildPlugin records a test plugin build and writes the binary a real build
+// would leave.
+func (f *fakeRunner) buildPlugin(_ context.Context, _, output, pkg string) processResult {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pluginBuilds = append(f.pluginBuilds, [2]string{output, pkg})
+	if err := os.WriteFile(output, []byte("built"), 0o755); err != nil {
+		return processResult{code: 2, err: err}
+	}
+	return processResult{}
 }
 
 func (f *fakeRunner) count() int {
@@ -391,6 +406,10 @@ func (r *orderedRunner) build(ctx context.Context, root, output, tags string, ra
 	return r.first.build(ctx, root, output, tags, race)
 }
 
+func (r *orderedRunner) buildPlugin(ctx context.Context, root, output, pkg string) processResult {
+	return r.first.buildPlugin(ctx, root, output, pkg)
+}
+
 func TestCancellationStopsInvocationsAndBurners(t *testing.T) {
 	root := stressTree(t)
 	fake := &fakeRunner{waitForStop: true, started: make(chan struct{}, 1), stopped: make(chan struct{}, 1)}
@@ -548,6 +567,29 @@ func TestDefaultDaemonIsBuiltFromTheTree(t *testing.T) {
 	}
 	if _, err := os.Stat(fake.buildOutput); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("built daemon survived cleanup: %v", err)
+	}
+}
+
+// TestTheBuiltDaemonHasTheFakeFilterPluginBesideIt proves that a run which
+// builds its daemon also builds the ze-fakefilter test plugin into the same
+// directory, where the runner's child PATH finds it.
+//
+// VALIDATES: an unpinned run builds runner.FakeFilterPackage to
+// runner.FakeFilterBinary beside the ze it drives.
+// PREVENTS: a stress run of a .ci that forks `run "ze-fakefilter"` failing at
+// startup with "ze-fakefilter: not found" while the same test passes under
+// `./le test`, whose runner builds the plugin.
+func TestTheBuiltDaemonHasTheFakeFilterPluginBesideIt(t *testing.T) {
+	root := stressTree(t)
+	fake := &fakeRunner{results: []processResult{{}}}
+	deps, _ := testDependencies(fake)
+	report, code := run(context.Background(), root, baseOptions(), deps)
+	if code != 1 {
+		t.Fatalf("report/code = %#v/%d", report, code)
+	}
+	want := [2]string{filepath.Join(filepath.Dir(fake.buildOutput), runner.FakeFilterBinary), runner.FakeFilterPackage}
+	if !slices.Contains(fake.pluginBuilds, want) {
+		t.Fatalf("plugin builds %q do not build %q beside the daemon %q", fake.pluginBuilds, want, fake.buildOutput)
 	}
 }
 

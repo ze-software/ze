@@ -67,6 +67,12 @@ func (realProcessRunner) build(ctx context.Context, root, output, tags string, r
 	return runCommand(ctx, root, env, "go", argv...)
 }
 
+// buildPlugin compiles the test plugin main package pkg from the working tree
+// in root to output, with the caller's environment and no feature tag.
+func (realProcessRunner) buildPlugin(ctx context.Context, root, output, pkg string) processResult {
+	return runCommand(ctx, root, os.Environ(), "go", "build", "-o", output, pkg)
+}
+
 func runCommand(ctx context.Context, dir string, env []string, program string, argv ...string) processResult {
 	cmd := exec.CommandContext(ctx, program, argv...) //nolint:gosec // program and argv come only from the closed tool grammar
 	cmd.Dir = dir
