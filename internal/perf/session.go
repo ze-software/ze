@@ -5,10 +5,12 @@ package perf
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/netip"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -259,6 +261,26 @@ func WriteMessage(conn net.Conn, msg []byte) error {
 	return nil
 }
 
+// errClosedBeforeOpen marks a handshake the DUT ended by closing the
+// connection before it sent its OPEN, with no NOTIFICATION: the DUT refused
+// the session at that moment rather than failing it (dialSession).
+var errClosedBeforeOpen = errors.New("the DUT closed the connection before sending its OPEN")
+
+// closedByPeer reports whether err is the remote end closing or resetting the
+// TCP connection.
+func closedByPeer(err error) bool {
+	if errors.Is(err, io.EOF) {
+		return true
+	}
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	if errors.Is(err, syscall.ECONNRESET) {
+		return true
+	}
+	return errors.Is(err, syscall.EPIPE)
+}
+
 // doHandshake performs the client side of a BGP OPEN/KEEPALIVE handshake.
 // Sends OPEN, reads peer's OPEN, sends KEEPALIVE, reads peer's KEEPALIVE.
 // Returns the time taken for the handshake. The caller MUST set a deadline
@@ -271,11 +293,17 @@ func doHandshake(conn net.Conn, cfg SessionConfig) (time.Duration, error) {
 		return 0, err
 	}
 	if err := WriteMessage(conn, open); err != nil {
+		if closedByPeer(err) {
+			return 0, fmt.Errorf("sending OPEN: %w: %w", errClosedBeforeOpen, err)
+		}
 		return 0, fmt.Errorf("sending OPEN: %w", err)
 	}
 
 	msgType, rawMsg, err := ReadMessage(conn)
 	if err != nil {
+		if closedByPeer(err) {
+			return 0, fmt.Errorf("reading peer OPEN: %w: %w", errClosedBeforeOpen, err)
+		}
 		return 0, fmt.Errorf("reading peer OPEN: %w", err)
 	}
 

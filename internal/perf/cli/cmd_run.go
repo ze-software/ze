@@ -43,6 +43,7 @@ func cmdRun(args []string) int {
 	warmup := fs.Duration("warmup", 2*time.Second, "Warmup delay after session establishment")
 	connectTimeout := fs.Duration("connect-timeout", 10*time.Second, "TCP connection timeout")
 	duration := fs.Duration("duration", 60*time.Second, "Maximum time to wait for convergence per iteration")
+	reconnectWait := fs.Duration("reconnect-wait", 0, "How long to keep dialing a DUT that closes a new connection before its OPEN, as one holding the peer idle after the previous iteration's reset does (0 = fail at once)")
 
 	// Iteration flags.
 	repeat := fs.Int("repeat", 5, "Number of benchmark iterations")
@@ -148,6 +149,7 @@ func cmdRun(args []string) int {
 		Warmup:         *warmup,
 		ConnectTimeout: *connectTimeout,
 		Duration:       *duration,
+		ReconnectWait:  *reconnectWait,
 		Repeat:         *repeat,
 		WarmupRuns:     *warmupRuns,
 		IterDelay:      *iterDelay,

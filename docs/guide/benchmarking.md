@@ -94,9 +94,22 @@ least `--repeat 10`:
 | `--connect-timeout` | `10s` | TCP connection timeout |
 | `--duration` | `60s` | Maximum wait time for convergence per iteration |
 | `--iter-delay` | `3s` | Delay between iterations |
+| `--reconnect-wait` | `0` | How long to keep dialing a DUT that refuses the next iteration's session |
 
 The `--iter-delay` flag controls whether iterations run back-to-back or with
 a pause. Longer delays give the DUT time to settle between measurements.
+
+Every iteration ends its sessions with a Cease and opens new ones. A DUT may
+hold a peer in Idle after a reset, as RFC 4271 Section 8.1.1 allows: OpenBGPD
+holds it 30 s after the second reset and doubles the hold after each later
+one, closing every connection the peer opens meanwhile. With
+`--reconnect-wait`, `le perf send` dials such a DUT again every second until
+it accepts the session or the wait runs out; timing starts only once the
+session is up, so the wait is not measured. With the default `0`, the run
+fails at the first connection the DUT closes before its OPEN, and the error
+names the flag. `./le perf run` passes `--reconnect-wait 10m`.
+<!-- source: internal/perf/benchmark.go -- dialSession -->
+<!-- source: internal/test/perfrunner/run.go -- Runner.runPerf -->
 
 ## Cross-Implementation Comparison
 

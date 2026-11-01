@@ -2623,6 +2623,7 @@ measures how quickly they propagate through to the receiver.
 | `--repeat` | int | `5` | Number of benchmark iterations |
 | `--warmup-runs` | int | `1` | Warmup iterations (discarded from results) |
 | `--iter-delay` | duration | `3s` | Delay between iterations |
+| `--reconnect-wait` | duration | `0` | How long to keep dialing a DUT that closes a new connection before sending its OPEN, as a DUT holding the peer idle after the previous iteration's reset does (OpenBGPD). `0` fails the run at the first such close |
 | `--batch-size` | int | `0` | UPDATE batch size (0 = single UPDATE per prefix) |
 
 **Output flags:**

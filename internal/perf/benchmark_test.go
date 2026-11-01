@@ -452,3 +452,191 @@ func bgpMessage(msgType msgtype.MessageType, body ...byte) []byte {
 	msg[18] = byte(msgType)
 	return append(msg, body...)
 }
+
+// VALIDATES: le perf send --reconnect-wait dials again when the DUT closes a
+// new connection before its OPEN, and without the wait fails naming the flag.
+// METHOD: an idle-holding proxy in front of the in-process test forwarder
+// closes its first three accepted connections at once, as OpenBGPD closes
+// every connection from a peer it holds in Idle after a session reset, then
+// relays later connections to the forwarder.
+// PREVENTS: OpenBGPD failing every ./le perf run at iteration 3 with "receiver
+// handshake: reading peer OPEN: reading header: EOF", because le perf treated
+// a peer held idle (RFC 4271 Section 8.1.1) as a failed session.
+func TestRunRedialsADUTHoldingThePeerIdle(t *testing.T) {
+	cases := []struct {
+		name          string
+		reconnectWait time.Duration
+		wantErr       []string
+	}{
+		{"redials within the wait", 10 * time.Second, nil},
+		{"fails at once without a wait", 0, []string{"closed the connection before sending its OPEN", "--reconnect-wait"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			defer cancel()
+
+			fwd := perf.NewTestForwarder(t)
+			proxy := newIdleHoldProxy(t, fwd.Addr(), 3)
+
+			var wg sync.WaitGroup
+			wg.Go(func() { fwd.Run(ctx) })
+			wg.Go(func() { proxy.run(ctx) })
+			defer wg.Wait()
+			defer cancel()
+
+			host, portText, err := net.SplitHostPort(proxy.addr())
+			if err != nil {
+				t.Fatalf("splitting proxy address %q: %v", proxy.addr(), err)
+			}
+			port, err := strconv.Atoi(portText)
+			if err != nil {
+				t.Fatalf("parsing port %q: %v", portText, err)
+			}
+
+			cfg := perf.BenchmarkConfig{
+				DUTAddr:        host,
+				DUTPort:        port,
+				DUTASN:         65000,
+				DUTName:        "idle-hold",
+				SenderAddr:     "127.0.0.1",
+				SenderASN:      65001,
+				ReceiverAddr:   "127.0.0.1",
+				ReceiverASN:    65002,
+				Routes:         10,
+				Family:         "ipv4/unicast",
+				Seed:           42,
+				Warmup:         100 * time.Millisecond,
+				ConnectTimeout: 5 * time.Second,
+				Duration:       10 * time.Second,
+				Repeat:         1,
+				ReconnectWait:  tc.reconnectWait,
+			}
+
+			result, err := perf.RunBenchmark(ctx, cfg, io.Discard)
+			if tc.wantErr != nil {
+				if err == nil {
+					t.Fatalf("RunBenchmark with no reconnect wait succeeded, want a refusal")
+				}
+				for _, want := range tc.wantErr {
+					if !strings.Contains(err.Error(), want) {
+						t.Errorf("error %q lacks %q", err.Error(), want)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("RunBenchmark against a DUT holding the peer idle: %v", err)
+			}
+			if result.RoutesReceived != cfg.Routes {
+				t.Errorf("routes received = %d, want %d (lost %d)", result.RoutesReceived, cfg.Routes, result.RoutesLost)
+			}
+			if got := proxy.refusedCount(); got != 3 {
+				t.Errorf("the proxy refused %d connections, want 3: the wait was not exercised", got)
+			}
+		})
+	}
+}
+
+// idleHoldProxy closes its first refuse accepted connections with no byte
+// written, as a DUT holding the peer in Idle does, then relays every later
+// connection to target. run stops when ctx is canceled.
+type idleHoldProxy struct {
+	t        *testing.T
+	listener net.Listener
+	target   string
+
+	mu      sync.Mutex
+	refuse  int
+	refused int
+}
+
+// newIdleHoldProxy listens on a free loopback port. The caller MUST call run.
+func newIdleHoldProxy(t *testing.T, target string, refuse int) *idleHoldProxy {
+	t.Helper()
+
+	var lc net.ListenConfig
+
+	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("proxy listen: %v", err)
+	}
+
+	return &idleHoldProxy{t: t, listener: ln, target: target, refuse: refuse}
+}
+
+// addr is the proxy's host:port.
+func (p *idleHoldProxy) addr() string {
+	return p.listener.Addr().String()
+}
+
+// refusedCount is how many connections the proxy closed unanswered.
+func (p *idleHoldProxy) refusedCount() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.refused
+}
+
+// run accepts until ctx is canceled, then closes the listener.
+func (p *idleHoldProxy) run(ctx context.Context) {
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	wg.Go(func() {
+		<-ctx.Done()
+		_ = p.listener.Close()
+	})
+
+	for {
+		conn, err := p.listener.Accept()
+		if err != nil {
+			return
+		}
+
+		p.mu.Lock()
+		hold := p.refused < p.refuse
+		if hold {
+			p.refused++
+		}
+		p.mu.Unlock()
+
+		if hold {
+			_ = conn.Close()
+			continue
+		}
+
+		wg.Go(func() { p.relay(ctx, conn) })
+	}
+}
+
+// relay copies bytes both ways between conn and a new connection to target
+// until either side closes or ctx is canceled.
+func (p *idleHoldProxy) relay(ctx context.Context, conn net.Conn) {
+	var dialer net.Dialer
+
+	upstream, err := dialer.DialContext(ctx, "tcp", p.target)
+	if err != nil {
+		p.t.Logf("proxy dial %s: %v", p.target, err)
+		_ = conn.Close()
+		return
+	}
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		_, _ = io.Copy(upstream, conn)
+		_ = upstream.Close()
+		_ = conn.Close()
+	})
+	wg.Go(func() {
+		_, _ = io.Copy(conn, upstream)
+		_ = upstream.Close()
+		_ = conn.Close()
+	})
+	wg.Go(func() {
+		<-ctx.Done()
+		_ = upstream.Close()
+		_ = conn.Close()
+	})
+	wg.Wait()
+}

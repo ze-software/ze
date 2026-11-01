@@ -82,6 +82,10 @@ type BenchmarkConfig struct {
 	BatchSize      int
 	PassiveListen  bool // Listen on port 179 for inbound DUT connections (requires root)
 	SenderFirst    bool // Connect sender before receiver (measures RIB propagation)
+	// ReconnectWait is how long le perf keeps dialing a DUT that closes a new
+	// connection before sending its OPEN (a peer held in Idle). Zero fails at
+	// the first such close.
+	ReconnectWait time.Duration
 
 	// senderListenPort and receiverListenPort replace 179 as the passive-listen
 	// port of each role. Only tests set them (export_test.go), so the passive
@@ -134,7 +138,7 @@ func RunBenchmark(ctx context.Context, cfg BenchmarkConfig, progress io.Writer) 
 
 		_, _ = fmt.Fprintf(progress, "%s\n", label) //nolint:errcheck // output
 
-		iter, err := runIteration(ctx, cfg, prefixes)
+		iter, err := runIteration(ctx, cfg, prefixes, progress)
 		if err != nil {
 			return Result{}, fmt.Errorf("%s: %w", label, err)
 		}
@@ -216,7 +220,7 @@ func generatePrefixes(family string, seed uint64, count int) ([]netip.Prefix, er
 // ze production and minimizes syscall overhead.
 //
 //nolint:cyclop,funlen // Sequential orchestration of a multi-step benchmark iteration.
-func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Prefix) (IterationResult, error) {
+func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Prefix, progress io.Writer) (IterationResult, error) {
 	receiverPort := cfg.DUTPort
 	if cfg.ReceiverPort > 0 {
 		receiverPort = cfg.ReceiverPort
@@ -238,8 +242,24 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	var receiverConn net.Conn
 	var senderConn net.Conn
 	var receiverSetup time.Duration
+	var senderSetup time.Duration
 	var sendStart time.Time
 	var err error
+
+	// Both connections are closed on every return. In sender-first mode the
+	// receiver is set up later, so the deferred function reads the variables
+	// at return.
+	defer func() {
+		if senderConn != nil {
+			senderConn.Close() //nolint:errcheck // cleanup
+		}
+		if receiverConn != nil {
+			receiverConn.Close() //nolint:errcheck // cleanup
+		}
+	}()
+
+	senderCfg := sessionConfigFor(cfg.SenderASN, cfg.SenderAddr, cfg.Family)
+	receiverCfg := sessionConfigFor(cfg.ReceiverASN, cfg.ReceiverAddr, cfg.Family)
 
 	switch { //nolint:gocritic // ifElseChain: intentional, each branch has distinct connection setup logic
 	case cfg.PassiveListen:
@@ -257,81 +277,48 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		}()
 
 		senderRes := <-senderCh
+		receiverRes := <-receiverCh
+		senderConn = senderRes.conn
+		receiverConn = receiverRes.conn
 		if senderRes.err != nil {
-			receiverRes := <-receiverCh
-			if receiverRes.conn != nil {
-				receiverRes.conn.Close() //nolint:errcheck // cleanup
-			}
 			return IterationResult{}, fmt.Errorf("connecting sender: %w", senderRes.err)
 		}
-		senderConn = senderRes.conn
-
-		receiverRes := <-receiverCh
 		if receiverRes.err != nil {
-			senderConn.Close() //nolint:errcheck // cleanup
 			return IterationResult{}, fmt.Errorf("connecting receiver: %w", receiverRes.err)
 		}
-		receiverConn = receiverRes.conn
-	case cfg.SenderFirst:
-		senderConn, err = connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout)
-		if err != nil {
-			return IterationResult{}, fmt.Errorf("connecting sender: %w", err)
+
+		// In receiver-first mode, handshake receiver before sender, as the
+		// dialed modes do. A connection the DUT opened owes the same
+		// handshake as one le perf dialed: the DUT has sent its OPEN and
+		// waits for ours.
+		if !cfg.SenderFirst {
+			receiverSetup, err = handshakeSession(receiverConn, receiverCfg, cfg.ConnectTimeout, "receiver")
+			if err != nil {
+				return IterationResult{}, err
+			}
 		}
-	default:
-		receiverConn, err = connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout)
-		if err != nil {
-			return IterationResult{}, fmt.Errorf("connecting receiver: %w", err)
-		}
 
-		senderConn, err = connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout)
-		if err != nil {
-			receiverConn.Close() //nolint:errcheck // cleanup
-			return IterationResult{}, fmt.Errorf("connecting sender: %w", err)
-		}
-	}
-
-	if senderConn != nil {
-		defer senderConn.Close() //nolint:errcheck // cleanup
-	}
-
-	senderCfg := SessionConfig{
-		ASN:      uint32(cfg.SenderASN), //nolint:gosec // CLI-validated range
-		RouterID: mustRouterID(cfg.SenderAddr),
-		HoldTime: 90,
-		Family:   cfg.Family,
-	}
-
-	// The receiver connection is closed on every return, including the
-	// handshake failures below. In sender-first mode without passive listen it
-	// is dialed later, so the deferred function reads the variable at return.
-	defer func() {
-		if receiverConn != nil {
-			receiverConn.Close() //nolint:errcheck // cleanup
-		}
-	}()
-
-	// In receiver-first mode, handshake receiver before sender (matches
-	// the test forwarder's accept-handshake-accept-handshake sequence). A
-	// connection the DUT opened (passive listen) owes the same handshake as
-	// one le perf dialed: the DUT has sent its OPEN and waits for ours.
-	if !cfg.SenderFirst {
-		receiverSetup, err = handshakeReceiver(receiverConn, cfg)
+		senderSetup, err = handshakeSession(senderConn, senderCfg, cfg.ConnectTimeout, "sender")
 		if err != nil {
 			return IterationResult{}, err
 		}
-	}
+	case cfg.SenderFirst:
+		senderConn, senderSetup, err = dialSession(ctx, cfg, cfg.SenderAddr, senderDUTAddr, senderCfg, "sender", progress)
+		if err != nil {
+			return IterationResult{}, err
+		}
+	default:
+		// Receiver before sender (matches the test forwarder's
+		// accept-handshake-accept-handshake sequence).
+		receiverConn, receiverSetup, err = dialSession(ctx, cfg, cfg.ReceiverAddr, receiverAddr, receiverCfg, "receiver", progress)
+		if err != nil {
+			return IterationResult{}, err
+		}
 
-	if err := senderConn.SetDeadline(time.Now().Add(cfg.ConnectTimeout)); err != nil {
-		return IterationResult{}, fmt.Errorf("setting sender deadline: %w", err)
-	}
-
-	senderSetup, err := doHandshake(senderConn, senderCfg)
-	if err != nil {
-		return IterationResult{}, fmt.Errorf("sender handshake: %w", err)
-	}
-
-	if err := senderConn.SetDeadline(time.Time{}); err != nil {
-		return IterationResult{}, fmt.Errorf("clearing sender deadline: %w", err)
+		senderConn, senderSetup, err = dialSession(ctx, cfg, cfg.SenderAddr, senderDUTAddr, senderCfg, "sender", progress)
+		if err != nil {
+			return IterationResult{}, err
+		}
 	}
 
 	sender := NewSender(SenderConfig{
@@ -441,14 +428,11 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		// opened the receiver connection before the routes were sent; its
 		// handshake still waits until now, so the DUT holds every route
 		// before the receiver session is established.
-		if !cfg.PassiveListen {
-			receiverConn, err = connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout)
-			if err != nil {
-				return IterationResult{}, fmt.Errorf("connecting receiver: %w", err)
-			}
+		if cfg.PassiveListen {
+			receiverSetup, err = handshakeSession(receiverConn, receiverCfg, cfg.ConnectTimeout, "receiver")
+		} else {
+			receiverConn, receiverSetup, err = dialSession(ctx, cfg, cfg.ReceiverAddr, receiverAddr, receiverCfg, "receiver", progress)
 		}
-
-		receiverSetup, err = handshakeReceiver(receiverConn, cfg)
 		if err != nil {
 			return IterationResult{}, err
 		}
@@ -649,30 +633,93 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	}, nil
 }
 
-// handshakeReceiver runs the receiver's OPEN/KEEPALIVE exchange on conn under
-// the connect timeout and returns how long it took.
-func handshakeReceiver(conn net.Conn, cfg BenchmarkConfig) (time.Duration, error) {
-	rcfg := SessionConfig{
-		ASN:      uint32(cfg.ReceiverASN), //nolint:gosec // CLI-validated range
-		RouterID: mustRouterID(cfg.ReceiverAddr),
+// sessionConfigFor is the OPEN le perf sends for one role.
+func sessionConfigFor(asn int, addr, family string) SessionConfig {
+	return SessionConfig{
+		ASN:      uint32(asn), //nolint:gosec // CLI-validated range
+		RouterID: mustRouterID(addr),
 		HoldTime: 90,
-		Family:   cfg.Family,
+		Family:   family,
+	}
+}
+
+// handshakeSession runs the OPEN/KEEPALIVE exchange on conn within timeout and
+// returns how long it took. role names the session in the error.
+func handshakeSession(conn net.Conn, scfg SessionConfig, timeout time.Duration, role string) (time.Duration, error) {
+	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+		return 0, fmt.Errorf("setting %s deadline: %w", role, err)
 	}
 
-	if err := conn.SetDeadline(time.Now().Add(cfg.ConnectTimeout)); err != nil {
-		return 0, fmt.Errorf("setting receiver deadline: %w", err)
-	}
-
-	setup, err := doHandshake(conn, rcfg)
+	setup, err := doHandshake(conn, scfg)
 	if err != nil {
-		return 0, fmt.Errorf("receiver handshake: %w", err)
+		return 0, fmt.Errorf("%s handshake: %w", role, err)
 	}
 
 	if err := conn.SetDeadline(time.Time{}); err != nil {
-		return 0, fmt.Errorf("clearing receiver deadline: %w", err)
+		return 0, fmt.Errorf("clearing %s deadline: %w", role, err)
 	}
 
 	return setup, nil
+}
+
+// reconnectPoll is how long dialSession waits before it dials a DUT again
+// that closed the last connection before sending its OPEN.
+const reconnectPoll = time.Second
+
+// dialSession dials the DUT from localAddr and runs the handshake, returning
+// the established connection and how long the handshake took.
+//
+// A DUT that accepts the TCP connection and closes it before sending its OPEN
+// is holding the peer in Idle. RFC 4271 Section 8.1.1 allows it: "The
+// IdleHoldTimer is used to keep the BGP peer in Idle for a particular
+// duration." OpenBGPD does this after each session reset, doubling the hold
+// from 30 s, because le perf ends every iteration with a Cease. dialSession
+// dials again every reconnectPoll until cfg.ReconnectWait has passed, so the
+// next iteration starts once the DUT accepts the peer again. Any other failure
+// is returned at once.
+func dialSession(
+	ctx context.Context, cfg BenchmarkConfig, localAddr, remoteAddr string,
+	scfg SessionConfig, role string, progress io.Writer,
+) (net.Conn, time.Duration, error) {
+	start := time.Now()
+	retried := false
+
+	for {
+		conn, err := connectBGP(ctx, localAddr, remoteAddr, cfg.ConnectTimeout)
+		if err != nil {
+			return nil, 0, fmt.Errorf("connecting %s: %w", role, err)
+		}
+
+		setup, err := handshakeSession(conn, scfg, cfg.ConnectTimeout, role)
+		if err == nil {
+			if retried {
+				_, _ = fmt.Fprintf(progress, "  %s session established after %s\n", role, time.Since(start).Round(time.Second)) //nolint:errcheck // output
+			}
+			return conn, setup, nil
+		}
+
+		conn.Close() //nolint:errcheck // a failed attempt
+
+		if !errors.Is(err, errClosedBeforeOpen) {
+			return nil, 0, err
+		}
+
+		waited := time.Since(start)
+		if waited >= cfg.ReconnectWait {
+			return nil, 0, fmt.Errorf("%w; still refused after %s: the DUT may be holding the peer idle after the previous session reset (OpenBGPD doubles that hold from 30 s on each reset); rerun with a longer --reconnect-wait, such as --reconnect-wait 5m", err, waited.Round(time.Second))
+		}
+
+		if !retried {
+			_, _ = fmt.Fprintf(progress, "  the DUT closed the %s connection before its OPEN; dialing again for up to %s\n", role, cfg.ReconnectWait) //nolint:errcheck // output
+			retried = true
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, 0, ctx.Err()
+		case <-time.After(reconnectPoll):
+		}
+	}
 }
 
 // writeSendBatches writes pre-built UPDATE batches to the sender, recording per-prefix send times.

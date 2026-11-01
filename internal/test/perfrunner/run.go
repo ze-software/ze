@@ -550,7 +550,13 @@ func (runner *Runner) runPerf(ctx context.Context, dut DUT, pass perf.Pass) (str
 		runner.prepareSender(ctx, container, "ethtool", "-K", "eth0", "tx", "off")
 	}
 	convergence := max(30, (runner.Routes/1000)*4+30)
-	args := []string{containerLe, "perf", "send", "--dut-addr", dut.IP.String(), "--dut-port", strconv.Itoa(dut.Port), "--dut-asn", "65000", "--dut-name", dut.Name, "--sender-addr", senderIP.String(), "--sender-asn", "65001", "--receiver-addr", receiverIP.String(), "--receiver-asn", "65002", "--routes", strconv.Itoa(runner.Routes), "--seed", strconv.Itoa(runner.Seed), "--repeat", strconv.Itoa(runner.Repeat), "--warmup-runs", "1", "--iter-delay", "8s", "--warmup", "2s", "--connect-timeout", "20s", "--duration", strconv.Itoa(convergence) + "s", "--output", "/results/" + result}
+	// OpenBGPD holds a peer in Idle after each session reset, 30 s after the
+	// second and doubling after each later one, and closes every connection
+	// the peer opens meanwhile. le perf ends every iteration with a Cease, so
+	// iteration 3 of 4 waits about 30 s and iteration 4 about 60 s. Ten
+	// minutes covers DUT_REPEAT=5 (a 240 s hold before iteration 6).
+	reconnectWait := "10m"
+	args := []string{containerLe, "perf", "send", "--dut-addr", dut.IP.String(), "--dut-port", strconv.Itoa(dut.Port), "--dut-asn", "65000", "--dut-name", dut.Name, "--sender-addr", senderIP.String(), "--sender-asn", "65001", "--receiver-addr", receiverIP.String(), "--receiver-asn", "65002", "--routes", strconv.Itoa(runner.Routes), "--seed", strconv.Itoa(runner.Seed), "--repeat", strconv.Itoa(runner.Repeat), "--warmup-runs", "1", "--iter-delay", "8s", "--warmup", "2s", "--connect-timeout", "20s", "--reconnect-wait", reconnectWait, "--duration", strconv.Itoa(convergence) + "s", "--output", "/results/" + result}
 	if dut.SenderPort != 0 {
 		args = append(args, "--sender-port", strconv.Itoa(dut.SenderPort))
 	}

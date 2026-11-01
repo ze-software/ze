@@ -395,6 +395,7 @@ pass, with the pass named in one declaration.
 | `same-bytes-decoded-once-per-accessor.md` | 2026-11-01 | `adjOutWrite.filter` and `record` derive every NLRI key twice, with per-NLRI recovery lookup and allocation |
 | `key-omits-a-fact-the-builder-uses.md` | 2026-11-01 | `latestComparisonResults` keys omit the perf pass |
 | `expected-message-never-sent.md` | 2026-11-01 | `le perf send --passive-listen` never handshakes the receiver, so rustbgpd is unmeasurable |
+| `transient-failure-treated-as-fatal.md` | 2026-11-01 | `le perf send` fails openbgpd at iteration 3: a peer OpenBGPD holds in Idle after a reset is treated as fatal |
 
 ## Key Design Decisions
 
