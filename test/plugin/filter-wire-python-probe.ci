@@ -1,0 +1,34 @@
+# Test: the daemon forks a Python 3 plugin under the functional runner
+#
+# VALIDATES: spec-filter-wire-0-umbrella A-7: the runner hosts a ze daemon that
+# forks an external plugin written in Python 3, started isolated (python3 -I),
+# and the plugin receives the connect-back variables of the process protocol
+# (ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT, ZE_PLUGIN_HUB_TOKEN, ZE_PLUGIN_CA_PEM,
+# ZE_PLUGIN_NAME), which is all a plugin needs to speak the contract with no Go SDK.
+# PREVENTS: the Python filter test (filter-wire-python-plugin, AC-11) being
+# written against a runner or a host that cannot start it.
+#
+# Method: the probe prints the interpreter version, the isolation flag and which
+# connect-back variables it holds, then exits before Stage 1. The daemon then
+# refuses to start, which proves it forked the plugin and waited on it; the
+# assertions read the probe's own line, so a daemon that never ran it fails.
+
+tmpfs=pyprobe.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env -S python3 -I
+import os, sys
+names = ["ZE_PLUGIN_HUB_HOST", "ZE_PLUGIN_HUB_PORT", "ZE_PLUGIN_HUB_TOKEN", "ZE_PLUGIN_CA_PEM", "ZE_PLUGIN_NAME"]
+held = [n for n in names if os.environ.get(n)]
+print("PYPROBE python=%d isolated=%d held=%s" % (sys.version_info[0], sys.flags.isolated, ",".join(held)), file=sys.stderr)
+sys.exit(0)
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external pyprobe {
+		run ./pyprobe.run
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=stderr:contains=PYPROBE python=3 isolated=1 held=ZE_PLUGIN_HUB_HOST,ZE_PLUGIN_HUB_PORT,ZE_PLUGIN_HUB_TOKEN,ZE_PLUGIN_CA_PEM,ZE_PLUGIN_NAME
