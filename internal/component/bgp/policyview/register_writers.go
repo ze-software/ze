@@ -25,6 +25,7 @@ const (
 // registers is reached without naming the plugin here.
 func init() {
 	mustRegisterWriter(policy.FieldPrefix, writePrefix, 0, "")
+	mustRegisterWriter(policy.FieldWithdrawn, writeWithdrawn, 0, "")
 	mustRegisterWriter(policy.FieldFamily, writeFamily, 0, "")
 	mustRegisterWriter(policy.FieldProtocol, writeProtocol, 0, "")
 	mustRegisterWriter(policy.FieldNextHop, writeNextHop, 0, "")

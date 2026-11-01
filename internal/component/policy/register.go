@@ -49,7 +49,10 @@ var (
 	FieldDistance  = MustRegisterField("distance", RouteView{Written: func(s *ribpolicy.Sets) bool { return s.HasDistance }})
 	// The BGP path fields: a ribpolicy.Route holds none of them, so only a BGP
 	// attachment carries them.
-	FieldOriginAS          = MustRegisterField("origin-as", RouteView{})
+	FieldOriginAS = MustRegisterField("origin-as", RouteView{})
+	// FieldWithdrawn is the NLRI a BGP UPDATE withdraws, read-only: no
+	// attachment lets a filter set it.
+	FieldWithdrawn         = MustRegisterField("withdrawn", RouteView{})
 	FieldCommunity         = MustRegisterField("community", RouteView{})
 	FieldLargeCommunity    = MustRegisterField("large-community", RouteView{})
 	FieldExtendedCommunity = MustRegisterField("extended-community", RouteView{})

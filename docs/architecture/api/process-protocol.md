@@ -1214,7 +1214,8 @@ Beside the text `update`, the request carries `fields`: one JSON object holding
 exactly the route fields the filter declared in `reads`, keyed by vocabulary
 field name, each value in the UPDATE event's `attr` shape. A declared field the
 route does not carry is left out, `fields` is absent for a filter that declared
-no route field, and `raw` is sent only to a filter that declared the `raw` read.
+no route field, the announced NLRI are the `prefix` field and the withdrawn
+ones the read-only `withdrawn` field, and `raw` is sent only to a filter that declared the `raw` read.
 A field Ze cannot read (a malformed attribute) applies the filter's `on-error`
 instead of sending the message. The value shapes are in
 `docs/plugin-development/protocol.md`, "The Route Fields of filter-update".

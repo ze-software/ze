@@ -43,6 +43,16 @@ func prefixValue(body []byte, mpReach wireu.MPReachWire) Value {
 	return Value{present: len(body) > 0 || mpReach != nil, wire: body, mpReach: mpReach}
 }
 
+// readWithdrawn serves withdrawn: the body Withdrawn Routes and the
+// MP_UNREACH_NLRI attribute, as received (View.Withdrawn).
+func readWithdrawn(v *View) (Value, error) {
+	body, mpUnreach, err := v.Withdrawn()
+	if err != nil {
+		return Value{}, err
+	}
+	return Value{present: len(body) > 0 || mpUnreach != nil, wire: body, mpUnreach: mpUnreach}, nil
+}
+
 // readFamily serves family: IPv4 unicast for the body NLRI (RFC 4271 carries
 // only that family there), and the MP_REACH_NLRI family through MPReach.
 func readFamily(v *View) (Value, error) {

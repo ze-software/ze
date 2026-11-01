@@ -1,12 +1,14 @@
 // Design: docs/plugin-development/protocol.md -- The Route Fields of filter-update
 // Related: text_update.go -- appendIPv4PrefixesFromWire, the body NLRI writer it shares
 // Related: text_json.go -- appendNLRIJSONValue, the per-NLRI value writer it shares
+// Related: ../policyview/fields_json.go -- writePrefix and writeWithdrawn, its callers
 
 package format
 
 import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -22,6 +24,45 @@ import (
 // field that does not split into routes answers an error and buf as it was,
 // never a partial list, which would read as the whole field.
 func AppendAnnouncedNLRIJSON(buf, body []byte, mpReach wireu.MPReachWire, ctx *bgpctx.EncodingContext) ([]byte, error) {
+	if mpReach == nil {
+		return appendNLRIObjectJSON(buf, body, false, family.Family{}, nil, false, ctx)
+	}
+	reachFamily := mpReach.Family()
+	nlris, err := mpReach.NLRIs(addPathFor(ctx, reachFamily))
+	if err != nil {
+		return buf, err
+	}
+	return appendNLRIObjectJSON(buf, body, true, reachFamily, nlris, false, ctx)
+}
+
+// AppendWithdrawnNLRIJSON appends the NLRI an UPDATE withdraws, in the object
+// AppendAnnouncedNLRIJSON writes for the announced ones: the body Withdrawn
+// Routes under ipv4/unicast, then the MP_UNREACH_NLRI routes under their
+// family, each in the shape the UPDATE event writes a withdrawal. The same
+// ctx and error contract apply.
+//
+// RFC 4760 Section 4: "A variable-length field that lists NLRI for the routes that are
+// being withdrawn from service."
+func AppendWithdrawnNLRIJSON(buf, body []byte, mpUnreach wireu.MPUnreachWire, ctx *bgpctx.EncodingContext) ([]byte, error) {
+	if mpUnreach == nil {
+		return appendNLRIObjectJSON(buf, body, false, family.Family{}, nil, true, ctx)
+	}
+	unreachFamily := mpUnreach.Family()
+	nlris, err := mpUnreach.NLRIs(addPathFor(ctx, unreachFamily))
+	if err != nil {
+		return buf, err
+	}
+	return appendNLRIObjectJSON(buf, body, true, unreachFamily, nlris, true, ctx)
+}
+
+// appendNLRIObjectJSON writes the family-keyed object of the two writers
+// above: body, the IPv4 unicast field of the UPDATE body, under ipv4/unicast,
+// then, when the UPDATE carries the multiprotocol attribute (hasMP), nlris,
+// its routes of family mpFamily, under mpFamily. withdraw says which
+// half of the UPDATE the routes come from, which decides their shape.
+func appendNLRIObjectJSON(buf, body []byte, hasMP bool, mpFamily family.Family, nlris []nlri.NLRI, withdraw bool,
+	ctx *bgpctx.EncodingContext,
+) ([]byte, error) {
 	mark := len(buf)
 	buf = append(buf, '{')
 	ipv4Open := false
@@ -36,31 +77,26 @@ func AppendAnnouncedNLRIJSON(buf, body []byte, mpReach wireu.MPReachWire, ctx *b
 		}
 		ipv4Open = true
 	}
-	if mpReach == nil {
+	if !hasMP {
 		if ipv4Open {
 			buf = append(buf, ']')
 		}
 		return append(buf, '}'), nil
 	}
-	reachFamily := mpReach.Family()
-	nlris, err := mpReach.NLRIs(addPathFor(ctx, reachFamily))
-	if err != nil {
-		return buf[:mark], err
-	}
 	// The body routes are already open under ipv4/unicast: an IPv4 unicast
-	// MP_REACH_NLRI continues that list rather than stating the key twice,
-	// which a reader decoding into a map would lose.
+	// multiprotocol attribute continues that list rather than stating the key
+	// twice, which a reader decoding into a map would lose.
 	first := true
 	switch {
-	case ipv4Open && reachFamily == family.IPv4Unicast:
+	case ipv4Open && mpFamily == family.IPv4Unicast:
 		first = false
 	case ipv4Open:
 		buf = append(buf, `],"`...)
-		buf = reachFamily.AppendTo(buf)
+		buf = mpFamily.AppendTo(buf)
 		buf = append(buf, `":[`...)
 	default:
 		buf = append(buf, '"')
-		buf = reachFamily.AppendTo(buf)
+		buf = mpFamily.AppendTo(buf)
 		buf = append(buf, `":[`...)
 	}
 	for _, n := range nlris {
@@ -68,7 +104,7 @@ func AppendAnnouncedNLRIJSON(buf, body []byte, mpReach wireu.MPReachWire, ctx *b
 			buf = append(buf, ',')
 		}
 		first = false
-		buf = appendNLRIJSONValue(buf, n, reachFamily, false)
+		buf = appendNLRIJSONValue(buf, n, mpFamily, withdraw)
 	}
 	return append(buf, "]}"...), nil
 }

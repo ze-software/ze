@@ -241,6 +241,21 @@ func writePrefix(buf []byte, v *View, value Value) ([]byte, bool, error) {
 	return out, true, nil
 }
 
+// writeWithdrawn writes the withdrawn NLRI by family, in the object
+// writePrefix writes for the announced ones and the event's withdrawal
+// shapes.
+func writeWithdrawn(buf []byte, v *View, value Value) ([]byte, bool, error) {
+	ctx, err := v.context()
+	if err != nil {
+		return buf, false, err
+	}
+	out, err := format.AppendWithdrawnNLRIJSON(buf, value.Wire(), value.MPUnreach(), ctx)
+	if err != nil {
+		return buf, false, errors.Join(ErrMalformed, err)
+	}
+	return out, true, nil
+}
+
 // writeFamily writes the families the UPDATE announces, as a list of family
 // names: ipv4/unicast for the body NLRI, then the MP_REACH_NLRI family.
 func writeFamily(buf []byte, _ *View, value Value) ([]byte, bool, error) {

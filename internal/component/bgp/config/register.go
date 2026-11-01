@@ -37,7 +37,7 @@ func init() {
 	// carried field has a BGP view reader (internal/component/bgp/policyview).
 	// metric is not carried: BGP names that fact med, one name per fact, and
 	// the synonym makes a chain reading metric here name med in its refusal.
-	carries := []policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldASPath, policy.FieldLocalPreference, policy.FieldOrigin, policy.FieldAIGP, policy.FieldMED,
+	carries := []policy.Field{policy.FieldPrefix, policy.FieldWithdrawn, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldASPath, policy.FieldLocalPreference, policy.FieldOrigin, policy.FieldAIGP, policy.FieldMED,
 		policy.FieldAtomicAggregate, policy.FieldAggregator, policy.FieldOriginatorID, policy.FieldClusterList}
 	for _, field := range carries {
 		if _, err := policyview.ReaderFor(field); err != nil {

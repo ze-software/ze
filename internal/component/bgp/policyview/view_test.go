@@ -55,9 +55,18 @@ func fourOctet(t *testing.T) bgpctx.ContextID {
 		&capability.EncodingCaps{ASN4: true}, bgpctx.DirectionRecv))
 }
 
-// fullUpdate carries one body prefix and every attribute the view reads.
+// withdrawing answers payload, an UPDATE body with no withdrawn routes, with
+// routes as its Withdrawn Routes field.
+func withdrawing(payload, routes []byte) []byte {
+	out := binary.BigEndian.AppendUint16(nil, uint16(len(routes)))
+	out = append(out, routes...)
+	return append(out, payload[2:]...)
+}
+
+// fullUpdate carries one body prefix, one body withdrawal and every attribute
+// the view reads.
 func fullUpdate() []byte {
-	return updatePayload([][]byte{
+	return withdrawing(updatePayload([][]byte{
 		pathAttr(0x40, attribute.AttrOrigin, []byte{0}),
 		pathAttr(0x40, attribute.AttrASPath, asSequence(65001, 4200000000)),
 		pathAttr(0x40, attribute.AttrNextHop, []byte{192, 0, 2, 1}),
@@ -71,7 +80,7 @@ func fullUpdate() []byte {
 		pathAttr(0xc0, attribute.AttrExtCommunity, []byte{0, 2, 0xfd, 0xe9, 0, 0, 0, 1}),
 		pathAttr(0x80, attribute.AttrAIGP, []byte{1, 0, 11, 0, 0, 0, 0, 0, 0, 0, 7}),
 		pathAttr(0xc0, attribute.AttrLargeCommunity, []byte{0, 0, 0xfd, 0xe9, 0, 0, 0, 1, 0, 0, 0, 2}),
-	}, []byte{24, 203, 0, 113})
+	}, []byte{24, 203, 0, 113}), []byte{24, 198, 51, 100})
 }
 
 func mustReader(t *testing.T, field policy.Field) Reader {

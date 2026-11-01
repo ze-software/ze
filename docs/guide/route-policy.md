@@ -130,7 +130,7 @@ is refused rather than matching nothing.
 | `isis filter export` | prefix, family, protocol, next-hop, metric, tag | metric |
 | `ospf filter export` | prefix, family, protocol, next-hop, metric, tag | tag, metric, metric-type |
 | `redistribute destination D import S` | prefix, family, protocol, next-hop, metric, tag | tag, metric |
-| `bgp filter import`, `bgp filter export` (bgp, group and peer) | prefix, family, protocol, next-hop, origin-as, community, large-community, extended-community, as-path, local-preference, origin, aigp, med, atomic-aggregate, aggregator, originator-id, cluster-list | as-path, local-preference, community, large-community, extended-community, med, origin, next-hop, aigp |
+| `bgp filter import`, `bgp filter export` (bgp, group and peer) | prefix, withdrawn, family, protocol, next-hop, origin-as, community, large-community, extended-community, as-path, local-preference, origin, aigp, med, atomic-aggregate, aggregator, originator-id, cluster-list | as-path, local-preference, community, large-community, extended-community, med, origin, next-hop, aigp |
 
 BGP names a route's metric `med` and carries no `metric` field, so each fact
 has one name. A `match` instance with a `metric` condition is refused on a BGP

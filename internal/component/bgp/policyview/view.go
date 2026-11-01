@@ -260,14 +260,16 @@ func (v *View) raw(code attribute.AttributeCode) ([]byte, error) {
 // Value is one field's value on the view. It borrows the received bytes, so it
 // is valid only during the run that read it (see View).
 type Value struct {
-	present  bool
-	wire     []byte
-	mpReach  wireu.MPReachWire
-	path     *attribute.ASPath
-	number   uint64
-	numbered bool
-	ebgp     bool
-	family   family.Family
+	present bool
+	wire    []byte
+	mpReach wireu.MPReachWire
+	// mpUnreach is the MP_UNREACH_NLRI attribute withdrawn reads.
+	mpUnreach wireu.MPUnreachWire
+	path      *attribute.ASPath
+	number    uint64
+	numbered  bool
+	ebgp      bool
+	family    family.Family
 	// overlaid marks a value SetWire wrote: a chain member's set, which the
 	// UPDATE's own attributes do not carry (formatted writes it from wire).
 	overlaid bool
@@ -279,13 +281,17 @@ func (x Value) Present() bool { return x.present }
 
 // Wire answers the field's bytes as the peer sent them, borrowed: the
 // attribute value for an attribute field, the body NLRI section for prefix,
-// the NEXT_HOP value for next-hop, the aggregating router's address for
+// the body Withdrawn Routes for withdrawn, the NEXT_HOP value for next-hop, the aggregating router's address for
 // aggregator.
 func (x Value) Wire() []byte { return x.wire }
 
 // MPReach answers the MP_REACH_NLRI attribute for prefix, family and
 // next-hop, nil when the UPDATE carries none.
 func (x Value) MPReach() wireu.MPReachWire { return x.mpReach }
+
+// MPUnreach answers the MP_UNREACH_NLRI attribute for withdrawn, nil when the
+// UPDATE carries none.
+func (x Value) MPUnreach() wireu.MPUnreachWire { return x.mpUnreach }
 
 // ASPath answers the reconstructed AS path for as-path. It is shared by the
 // run and MUST NOT be modified.

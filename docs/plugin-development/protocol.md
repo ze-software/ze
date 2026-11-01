@@ -681,6 +681,7 @@ shapes:
 | Field | Shape | Example |
 |-------|-------|---------|
 | `prefix` | object: family to the list of announced NLRI, in the event's NLRI shapes (ADD-PATH adds `path-id`) | `{"ipv4/unicast":["10.0.0.0/24"]}` |
+| `withdrawn` | object: family to the list of withdrawn NLRI (the body Withdrawn Routes, then MP_UNREACH_NLRI), in the event's withdrawal shapes (ADD-PATH adds `path-id`); the sections as received, whatever an earlier filter dropped. Read-only: no attachment lets a filter set it | `{"ipv4/unicast":["10.9.0.0/24"]}` |
 | `family` | list of the announced families | `["ipv4/unicast","ipv6/unicast"]` |
 | `next-hop` | object: family to the next hop of its announced routes | `{"ipv4/unicast":"192.0.2.1"}` |
 | `protocol` | `"ebgp"` or `"ibgp"`: the session the route came from (import) or goes to (export) | `"ebgp"` |
@@ -708,7 +709,7 @@ For example, a filter that declared `community`, `as-path` and
   filter that declared no `reads` fails the route under its `on-error`.
 <!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
 <!-- source: internal/component/bgp/policyview/register_writers.go -- the field writers -->
-<!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON -->
+<!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON, AppendWithdrawnNLRIJSON -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
 <!-- source: internal/component/bgp/policychain/external.go -- judgeExternal -->
 

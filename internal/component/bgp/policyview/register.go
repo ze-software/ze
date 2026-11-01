@@ -11,6 +11,7 @@ import "github.com/ze-software/ze/internal/component/policy"
 // metric has no reader: BGP names that fact med (spec D-8).
 func init() {
 	MustRegisterReader(policy.FieldPrefix, readPrefix)
+	MustRegisterReader(policy.FieldWithdrawn, readWithdrawn)
 	MustRegisterReader(policy.FieldFamily, readFamily)
 	MustRegisterReader(policy.FieldProtocol, readProtocol)
 	MustRegisterReader(policy.FieldNextHop, readNextHop)
