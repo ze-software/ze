@@ -216,11 +216,21 @@ func (p Policy) Prepend(ref policy.Ref, inProcess bool) Policy {
 
 // AcceptsAtEnd applies the final disposition for a known session type.
 // The caller MUST supply the external classification from the policy's snapshot.
-// RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated with an EBGP peer SHALL NOT be considered eligible in the Decision Process if no explicit Import Policy has been applied."
-// RFC 8212 Section 3: "Routes SHALL NOT be added to an Adj-RIB-Out associated with an EBGP peer if no explicit Export Policy has been applied."
 func (p Policy) AcceptsAtEnd(external bool) bool {
 	if !p.Configured() {
-		return !external
+		return UnconfiguredAccepts(external) // RFC 8212 Section 3
 	}
 	return p.chain.Final() == policy.FinalAccept
+}
+
+// UnconfiguredAccepts answers the end disposition of a policy the operator
+// never configured, whose list holds only members plugins inserted or none:
+// accept on an internal session, reject on an external one. It is the one
+// statement of that rule; AcceptsAtEnd and a library chain compiled for such
+// a policy (policychain.CompileUnconfigured) both read it, so an inserted
+// member never changes what the session does at the end of its list.
+// RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated with an EBGP peer SHALL NOT be considered eligible in the Decision Process if no explicit Import Policy has been applied."
+// RFC 8212 Section 3: "Routes SHALL NOT be added to an Adj-RIB-Out associated with an EBGP peer if no explicit Export Policy has been applied."
+func UnconfiguredAccepts(external bool) bool {
+	return !external
 }

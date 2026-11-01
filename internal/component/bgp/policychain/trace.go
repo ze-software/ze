@@ -84,7 +84,7 @@ func (c *Chain) Only(name string) (*Chain, bool) {
 		if traceName(&c.members[i]) != name {
 			continue
 		}
-		return &Chain{attachment: c.attachment, members: c.members[i : i+1 : i+1], final: c.final, bases: c.bases,
+		return &Chain{attachment: c.attachment, members: c.members[i : i+1 : i+1], final: c.final, unconfigured: c.unconfigured, bases: c.bases,
 			localPreference: c.localPreference, med: c.med, community: c.community, prefix: c.prefix}, true
 	}
 	return nil, false

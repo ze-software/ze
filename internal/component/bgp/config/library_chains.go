@@ -78,11 +78,23 @@ func compileLibraryChain(p filterapi.Policy, reg *policy.Registry, bases policyc
 	if len(members) == 0 {
 		return p, nil
 	}
-	chain, err := policychain.Compile(attachment, reg, members, p.Final(), bases)
+	chain, err := compileMembers(p, attachment, reg, members, bases)
 	if err != nil {
 		return p, fmt.Errorf("%s: %w", context, err)
 	}
 	return p.WithLibrary(chain), nil
+}
+
+// compileMembers compiles members under p's final, or, for a policy the
+// operator never configured whose members plugins inserted
+// (insertDeclaredFilters), under the session's end disposition, so an
+// inserted member never makes the peer's list "configured" (RFC 8212
+// Section 3).
+func compileMembers(p filterapi.Policy, attachment string, reg *policy.Registry, members []policychain.Member, bases policychain.Bases) (*policychain.Chain, error) {
+	if !p.Configured() {
+		return policychain.CompileUnconfigured(attachment, reg, members, bases)
+	}
+	return policychain.Compile(attachment, reg, members, p.Final(), bases)
 }
 
 // templatedMembers indexes the refs of p that name their filter through a

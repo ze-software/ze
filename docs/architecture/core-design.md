@@ -1480,7 +1480,30 @@ operator policy rejects at exhaustion on EBGP (RFC 8212 Section 3), but
 preserves acceptance on IBGP, including migration-AS sessions. Automatic and
 inactive references do not establish operator policy presence.
 <!-- source: internal/component/policy/chain.go -- Ref, Final, Chain, ExtractChain, ConcatChains, CanonicalName -->
-<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, Policy.InProcess, Policy.WithBoundFilters -->
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, UnconfiguredAccepts, Policy.InProcess, Policy.WithBoundFilters -->
+
+**Auto-inserted members.** A plugin can ask the config loader to insert a
+member into the list of each peer whose config needs it: its Stage 1
+registration carries `filter-insertions` (`rpc.FilterInsertion`: the
+reference it serves, `import` or `export`, a priority 0-9999, a config path
+of the peer, optionally with values, and `required` with its reason;
+`docs/architecture/api/process-protocol.md`, "Filter Insertion"). After the
+chains are canonical, the loader judges each insertion against the peer's
+resolved config (bgp, group and peer, a dynamic group's template) and
+prepends the members whose condition holds, in ascending priority then
+reference, ahead of the operator's members and behind loop detection. The
+loader names no plugin, feature or path: it reads only the declarations. A
+non-required member the operator names (plainly, to place it, or
+`inactive:`, to switch it off) is not inserted again, the rule loop
+detection already follows. A required one named in any form is refused with
+the plugin's reason, naming the peer and the list. An inserted member never
+configures the operator's policy: a peer whose list holds only inserted
+members keeps the RFC 8212 Section 3 default, because its library chain is
+compiled with no final and the session decides the end
+(`policychain.CompileUnconfigured`, `filterapi.UnconfiguredAccepts`).
+<!-- source: internal/component/bgp/config/filter_insertion.go -- insertDeclaredFilters, insertForPeer, requiredInsertionRefusal -->
+<!-- source: internal/component/bgp/config/library_chains.go -- compileMembers -->
+<!-- source: internal/component/bgp/policychain/chain.go -- CompileUnconfigured, Chain.endFinal -->
 <!-- source: internal/component/bgp/reactor/loopdetect/binding.go -- BindLoopDetection, OwnsChainMembers -->
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- buildOrderedIngressSteps -->
 

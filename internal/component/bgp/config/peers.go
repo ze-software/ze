@@ -297,8 +297,13 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 		ps.ExportPolicy = ps.ExportPolicy.WithBoundFilters(canonicalizeFilterRefs(ps.ExportPolicy.Filters(), filterReg))
 	}
 
-	// Step 3b3: Prepend default filter names to each peer's import chain.
-	// Default filters (loop-detection) auto-populate unless already referenced.
+	// Step 3b3: Insert the members plugins declare for the peers whose config
+	// needs them (filter_insertion.go), then prepend the operator's default
+	// filters (loop-detection) unless already referenced, so loop detection
+	// stays at the head of every import chain.
+	if err := insertDeclaredFilters(bgpTree, peers, groups, filterReg); err != nil {
+		return nil, nil, err
+	}
 	prependDefaultFilters(policyTree, settings, filterReg)
 
 	// Step 3b4: Compile the chains of the members that evaluate in process

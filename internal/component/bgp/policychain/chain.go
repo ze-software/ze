@@ -26,6 +26,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -127,6 +128,10 @@ type Chain struct {
 	attachment string
 	members    []member
 	final      policy.Final
+	// unconfigured marks a chain compiled for a policy the operator never
+	// configured (CompileUnconfigured): final is zero, and the session ends
+	// the run (endFinal).
+	unconfigured bool
 	// bases and the two readers serve Apply's increment and decrement.
 	bases                Bases
 	localPreference, med policyview.Reader
@@ -154,6 +159,26 @@ func Compile(attachment string, reg *policy.Registry, members []Member, final po
 	if final != policy.FinalAccept && final != policy.FinalReject {
 		return nil, fmt.Errorf("%s: missing or invalid final; write filters [ NAME ]; final accept; or final reject", attachment)
 	}
+	return compileChain(attachment, reg, members, final, bases)
+}
+
+// CompileUnconfigured compiles the chain of a policy the operator never
+// configured, whose members plugins inserted (bgp/config
+// insertDeclaredFilters): it has no final, so a run that reaches the end is
+// decided by the session as filterapi.UnconfiguredAccepts says (RFC 8212
+// Section 3), the same answer the peer gives with no member at all.
+func CompileUnconfigured(attachment string, reg *policy.Registry, members []Member, bases Bases) (*Chain, error) {
+	chain, err := compileChain(attachment, reg, members, 0, bases)
+	if err != nil {
+		return nil, err
+	}
+	chain.unconfigured = true
+	return chain, nil
+}
+
+// compileChain is Compile past the final's check; final is zero only for
+// CompileUnconfigured, which marks the chain before any run.
+func compileChain(attachment string, reg *policy.Registry, members []Member, final policy.Final, bases Bases) (*Chain, error) {
 	names := make([]string, 0, len(members))
 	for _, m := range members {
 		if m.Plugin == "" {
@@ -346,7 +371,7 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 			}
 			if err == nil && verdict.raw != nil {
 				if sets.folded.Empty() {
-					return c.rawOutcome(m, verdict.raw, sets, record)
+					return c.rawOutcome(m, verdict.raw, view, sets, record)
 				}
 				err = errExternalRawAfterSets
 			}
@@ -397,7 +422,7 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		}
 		traceStep(record, m, TracePass, nil, &sets.member)
 	}
-	switch c.final {
+	switch c.endFinal(view) {
 	case policy.FinalAccept:
 		return Outcome{Action: OutcomeAccept}
 	case policy.FinalReject:
@@ -409,6 +434,19 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 	return Outcome{Action: OutcomeReject, Failed: true}
 }
 
+// endFinal answers the final that decides a run reaching the end of the
+// chain: the configured one, or for an unconfigured policy the session's
+// (RFC 8212 Section 3, filterapi.UnconfiguredAccepts).
+func (c *Chain) endFinal(view *policyview.View) policy.Final {
+	if !c.unconfigured {
+		return c.final
+	}
+	if filterapi.UnconfiguredAccepts(view.Session().EBGP) {
+		return policy.FinalAccept
+	}
+	return policy.FinalReject
+}
+
 // Raw answers the whole UPDATE body the last run accepted with, nil when no
 // member rewrote it. The caller sends it in place of the received body and
 // applies no sets; it is valid until the next run.
@@ -417,9 +455,9 @@ func (s *RunSets) Raw() []byte { return s.raw }
 // rawOutcome ends the run on a member's whole-body rewrite: later members
 // are not judged, and the chain's final still decides the route, as on the
 // text chain (PolicyFilterChain).
-func (c *Chain) rawOutcome(m *member, raw []byte, sets *RunSets, record func(MemberTrace)) Outcome {
+func (c *Chain) rawOutcome(m *member, raw []byte, view *policyview.View, sets *RunSets, record func(MemberTrace)) Outcome {
 	traceStep(record, m, TracePass, nil, nil)
-	switch c.final {
+	switch c.endFinal(view) {
 	case policy.FinalAccept:
 		sets.raw = raw
 		return Outcome{Action: OutcomeAccept}
