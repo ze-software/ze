@@ -113,7 +113,7 @@ func Run(args []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	// The caller has already removed the quotes: a .ci exec= value is split by
-	// runner.splitCommand and a shell strips its own. Only the environment is
+	// runner.SplitCommand and a shell strips its own. Only the environment is
 	// expanded here, so `$ZE_REPO_ROOT` reaches a driver as a path.
 	driverArgs := make([]string, len(args)-1)
 	for index, argument := range args[1:] {

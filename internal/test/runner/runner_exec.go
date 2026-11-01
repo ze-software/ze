@@ -704,10 +704,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 		execStr := ExpandPorts(cmd.Exec, rec.Port)
 
-		// Parse command and args. splitCommand keeps a quoted span whole, so
+		// Parse command and args. SplitCommand keeps a quoted span whole, so
 		// `ze cli -c "show config validation bad.conf | json"` reaches ze as three
 		// arguments and -c carries the whole pipeline.
-		cmdParts, splitErr := splitCommand(execStr)
+		cmdParts, splitErr := SplitCommand(execStr)
 		if splitErr != nil {
 			rec.Error = fmt.Errorf("cmd seq=%d: %w", cmd.Seq, splitErr)
 			return false
@@ -761,7 +761,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				if args[i] != "--" || filepath.Base(args[i+1]) != binNameZe {
 					continue
 				}
-				if zeDaemonConfigArgIndex(args[i+2:]) >= 0 {
+				if DaemonConfigArg(args[i+2:]) >= 0 {
 					wrappedDaemon = true
 				}
 				break

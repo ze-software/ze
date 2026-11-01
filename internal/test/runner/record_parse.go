@@ -109,6 +109,13 @@ func (et *EncodingTests) Discover(dir string) error {
 	return nil
 }
 
+// ParseCIFile reads one .ci file exactly as discovery does and answers its
+// record, for a tool that needs what a test declares (its commands, stdin
+// blocks and files) without running it.
+func ParseCIFile(ciFile string) (*Record, error) {
+	return NewEncodingTests(filepath.Dir(ciFile)).parseAndAdd(ciFile)
+}
+
 // parseAndAdd parses a .ci file and adds it as a test. It returns the record it
 // created so a caller can mark it failed on error (the record is added to the
 // collection as soon as the file name is known, before line parsing). The

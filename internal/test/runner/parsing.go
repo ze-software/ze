@@ -754,7 +754,7 @@ func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci
 		return false
 	}
 
-	parts, splitErr := splitCommand(cmdLine)
+	parts, splitErr := SplitCommand(cmdLine)
 	if splitErr != nil {
 		test.Error = fmt.Errorf("seq %d: parse command %q: %w", ci.Seq, ci.Exec, splitErr)
 		return false
@@ -772,15 +772,15 @@ func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci
 	// before it read one line of config. `test/parse/tacacs-key-required.ci` is
 	// what that cost: its `expect=exit:code=1` was satisfied by the usage error,
 	// so the file read as proof of a security guard that never ran. The generic
-	// runner reads the same zeDaemonConfigArgIndex to insert the verb
+	// runner reads the same DaemonConfigArg to insert the verb
 	// (runner_exec.go); this one never got it.
 	//
 	// A `-` that is a SUBCOMMAND value (`ze config validate -`) is unaffected:
-	// zeDaemonConfigArgIndex answers on the first non-flag token, so it returns
+	// DaemonConfigArg answers on the first non-flag token, so it returns
 	// -1 for every quick-exit verb and the path is substituted in place.
 	daemonCfgIdx := -1
 	if parts[0] == r.zePath {
-		daemonCfgIdx = zeDaemonConfigArgIndex(parts[1:])
+		daemonCfgIdx = DaemonConfigArg(parts[1:])
 	}
 	for i, p := range parts {
 		if p != "-" || ci.StdinName == "" {

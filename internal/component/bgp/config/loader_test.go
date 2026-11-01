@@ -314,7 +314,7 @@ func TestParseAllConfigFiles(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, r)
 			})
-		case exabgpnative.KindLegacy:
+		case exabgpnative.KindLegacy, exabgpnative.KindPluginOnly:
 			t.Run(name, func(t *testing.T) {
 				t.Logf("excluded from native parser coverage: %s", class.Reason)
 			})

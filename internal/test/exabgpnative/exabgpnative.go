@@ -6,7 +6,8 @@
 //
 // Most of those files predate Ze's native syntax and are kept as examples of
 // the ExaBGP shapes they show. A few are curated: written in Ze's native
-// syntax, so they must load. Every file is one or the other, and an
+// syntax, so they must load, and a few more configure only plugins, so they
+// validate but build no BGP reactor. Every file is in one class, and an
 // unclassified file is a defect its reader reports. The classification is
 // declared once, here, so every reader (the BGP loader's parse test and the
 // repository config sweep) judges a fixture the same way.
@@ -30,6 +31,11 @@ const (
 	// KindLegacy is an example kept in an older syntax: it is not loaded,
 	// and its reader names the reason.
 	KindLegacy
+	// KindPluginOnly is a fixture in Ze's native syntax that configures
+	// plugins and no bgp block: `ze config validate` accepts it, and it
+	// starts no BGP reactor, so a reader that builds a reactor names the
+	// reason instead.
+	KindPluginOnly
 )
 
 // Class is the classification of one fixture: its kind, and for a legacy
@@ -51,11 +57,25 @@ var curated = map[string]bool{
 	"parse-ttl.conf":              true,
 }
 
+// pluginOnly names the native fixtures that configure plugins and no bgp
+// block, with the api- prefix of the legacy examples.
+var pluginOnly = map[string]bool{
+	"api-no-neighbor.conf":    true,
+	"api-peer-lifecycle.conf": true,
+	"api-simple.conf":         true,
+}
+
+// pluginOnlyReason is why a reactor reader does not load a plugin-only fixture.
+const pluginOnlyReason = "native plugin-only config: it validates, and it has no bgp block to build a reactor from"
+
 // Classify answers the class of the fixture with this file name (the base
 // name, not a path). A name it does not know answers KindUnclassified.
 func Classify(name string) Class {
 	if curated[name] {
 		return Class{Kind: KindCurated}
+	}
+	if pluginOnly[name] {
+		return Class{Kind: KindPluginOnly, Reason: pluginOnlyReason}
 	}
 	if reason, ok := legacyReason(name); ok {
 		return Class{Kind: KindLegacy, Reason: reason}

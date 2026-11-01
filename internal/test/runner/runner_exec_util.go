@@ -27,12 +27,12 @@ import (
 
 var errEmptyExecCommand = errors.New("empty exec command")
 
-// splitCommand splits an exec= value into argv on space and tab, and keeps a
+// SplitCommand splits an exec= value into argv on space and tab, and keeps a
 // quoted span as one argument. Every suite runs through it, so one .ci line
 // produces one argv: `ze cli -c "show config validation bad.conf | json"` hands -c the
 // whole pipeline rather than the word `"validate`.
 // Backslash escapes are not handled; no exec= value uses one.
-func splitCommand(s string) ([]string, error) {
+func SplitCommand(s string) ([]string, error) {
 	var args []string
 	var current textbuf.Buffer
 	var inQuote rune
@@ -707,7 +707,12 @@ func waitReady(ctx context.Context, path string, timeout time.Duration) {
 	}
 }
 
-func zeDaemonConfigArgIndex(args []string) int {
+// DaemonConfigArg answers the index in args (the words after `ze`) of the
+// operand a ze daemon reads as its configuration, "-" for stdin included, and
+// -1 when the invocation starts no daemon (a subcommand such as `config
+// validate`). The runner routes a stdin block to the daemon by it, and the
+// repository config sweep finds the daemon configs a .ci carries by it.
+func DaemonConfigArg(args []string) int {
 	explicitStart := false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -772,7 +777,7 @@ const (
 // is the exception: the `-` that IS a ze daemon's config argument. That daemon
 // re-reads its config on SIGHUP, a fixture rewrites it by bare name, a restart
 // reuses it and a rollback assertion reads the directory beside it, so the
-// block has to be a FILE the child can open twice. zeDaemonConfigArgIndex is
+// block has to be a FILE the child can open twice. DaemonConfigArg is
 // the question that separates the two, and it answers on the first non-flag
 // token: 0 for `ze -`, 2 for `ze --plugin ./p.run -`, and -1 for every verb
 // (`ze config validate -`, `ze bgp decode pcap -`), whose `-` is the cliio
@@ -794,7 +799,7 @@ const (
 func routeStdinBlock(binName string, args []string) (stdinRoute, int) {
 	switch binName {
 	case binNameZe:
-		idx := zeDaemonConfigArgIndex(args)
+		idx := DaemonConfigArg(args)
 		if idx >= 0 && args[idx] == "-" {
 			return stdinRouteDaemonConfig, idx
 		}
@@ -822,7 +827,7 @@ func zeDaemonUsesWeb(args []string) bool {
 // offline/one-shot subcommands (config, show, bgp decode, format, doctor,
 // explain, ...) that run to completion and exit. Config-file and web-server
 // invocations (`ze -`, `ze x.conf`, `ze --web 8080 ...`) are also daemons; those
-// are detected structurally (zeDaemonConfigArgIndex / zeDaemonUsesWeb) rather
+// are detected structurally (DaemonConfigArg / zeDaemonUsesWeb) rather
 // than by verb. cli/monitor block on stdin or stream continuously.
 // zeVerbStart is the `ze start <config>` verb: it precedes a config path and it
 // starts a daemon.
@@ -860,7 +865,7 @@ func firstZeSubcommand(args []string) string {
 //
 // The classification is by exclusion, so it covers every offline subcommand
 // without enumerating them: a foreground ze is quick-exit unless it is a daemon.
-// It is a daemon when it carries a config-file argument (zeDaemonConfigArgIndex
+// It is a daemon when it carries a config-file argument (DaemonConfigArg
 // >= 0: `ze -`, `ze x.conf`, `ze --plugin ... -`), runs a web server
 // (zeDaemonUsesWeb: `ze --web 8080 --insecure-web`, with HTTP checks polling
 // it), or names an explicit daemon verb (zeDaemonVerbs: hub/start/cli/monitor).
@@ -869,7 +874,7 @@ func firstZeSubcommand(args []string) string {
 // daemon as quick-exit would block the loop forever, so the daemon guards come
 // first.
 func isQuickExitZeCommand(args []string) bool {
-	if zeDaemonConfigArgIndex(args) >= 0 || zeDaemonUsesWeb(args) {
+	if DaemonConfigArg(args) >= 0 || zeDaemonUsesWeb(args) {
 		return false
 	}
 	if zeCLIRunsOneCommand(args) {

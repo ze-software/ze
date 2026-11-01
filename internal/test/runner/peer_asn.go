@@ -386,12 +386,12 @@ func peerASConfigInputs(r *Record) (map[string][]byte, error) {
 		if cmd.Exec == "" {
 			continue // Stop actions launch no process and consume no configuration.
 		}
-		parts, err := splitCommand(cmd.Exec)
+		parts, err := SplitCommand(cmd.Exec)
 		if err != nil {
 			return nil, fmt.Errorf("cmd seq=%d: %w", cmd.Seq, err)
 		}
 		args := peerASDaemonArgs(parts)
-		index := zeDaemonConfigArgIndex(args)
+		index := DaemonConfigArg(args)
 		if index < 0 {
 			continue
 		}

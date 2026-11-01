@@ -168,8 +168,8 @@ func TestZeDaemonConfigArgIndexExplicitStart(t *testing.T) {
 		{name: "decode remains piped", args: []string{"bgp", "decode", "-"}, want: -1},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := zeDaemonConfigArgIndex(tt.args); got != tt.want {
-				t.Fatalf("zeDaemonConfigArgIndex(%v) = %d, want %d", tt.args, got, tt.want)
+			if got := DaemonConfigArg(tt.args); got != tt.want {
+				t.Fatalf("DaemonConfigArg(%v) = %d, want %d", tt.args, got, tt.want)
 			}
 		})
 	}

@@ -229,7 +229,7 @@ func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (execText
 	if !strings.HasPrefix(execText, decodeProgram+" ") {
 		return "", nil, "", fmt.Errorf("cmd=foreground: exec=%q does not run %s, the only program the decode suite runs", execText, decodeProgram)
 	}
-	argv, err := splitCommand(execText)
+	argv, err := SplitCommand(execText)
 	if err != nil {
 		return "", nil, "", fmt.Errorf("cmd=foreground: exec=%q: %w", execText, err)
 	}
