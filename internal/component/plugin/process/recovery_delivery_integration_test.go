@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgprib "github.com/ze-software/ze/internal/component/bgp/plugins/rib"
@@ -27,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -608,6 +610,15 @@ func recoveryDeliveryRouter(t *testing.T, ctx context.Context) (*reactor.Reactor
 		settings.NextHopMode = reactor.NextHopUnchanged
 		settings.RSClient = true
 		settings.RSFastPath = true
+		// The sessions are EBGP, and RFC 8212 Section 3 rejects every route
+		// of one with no explicit policy, so the fixture states the accepting
+		// import and export policies its forwarding and recovery rely on.
+		accept, err := filterapi.NewPolicy(nil, routepolicy.FinalAccept)
+		if err != nil {
+			t.Fatal(err)
+		}
+		settings.ImportPolicy = accept
+		settings.ExportPolicy = accept
 		settings.Capabilities = []capability.Capability{&capability.ASN4{ASN: 65000}, &capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}}
 		for _, binding := range []struct{ name, receive string }{
 			{"bgp-rib", "update state refresh"},
