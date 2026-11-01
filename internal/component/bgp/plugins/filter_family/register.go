@@ -2,7 +2,6 @@ package filter_family
 
 import (
 	ffyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_family/yang"
-	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 )
@@ -19,9 +18,6 @@ func init() {
 		nil)
 	// The in-process evaluator the Loc-RIB import gate runs (rib_evaluator.go).
 	policy.MustRegisterRouteEvaluator(filterTypeName, compileRouteEvaluator)
-	// At a BGP chain the plugin answers from the raw body over the route
-	// view, so a chain naming the type compiles to the library chain (D-12).
-	policychain.MustRegisterViewFilter(filterTypeName)
 
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-family",

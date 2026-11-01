@@ -1624,7 +1624,6 @@ chain's own pieces (the rendering, `policyFilterFunc`, `applyFilterDelta`), and
 `rewriteLibrary` applies its delta through `textDeltaOps`, the extractors the text
 chain's steps share. A text member reads no earlier member's sets and writes none a
 later member reads; a text delta and NLRI sets that both rewrite the NLRI are refused.
-`policychain.MustRegisterViewFilter` no longer decides the compilation.
 
 - **Wired at peer load and on both policy steps.** `bgpServesFilterType`
   admits a type with an evaluator (`policychain.HasEvaluator`) at `bgp import`
@@ -1783,7 +1782,6 @@ later member reads; a text delta and NLRI sets that both rewrite the NLRI are re
 <!-- source: internal/component/bgp/policychain/apply.go -- Bases, Chain.Apply -->
 <!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, libraryASPathOps, libraryNLRIOps -->
 <!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChains, compileLibraryChain, parseAttributeBases -->
-<!-- source: internal/component/bgp/policychain/plugin_filters.go -- MustRegisterViewFilter, AnswersOverView -->
 <!-- source: internal/component/bgp/policychain/external_text.go -- TextCaller, judgeText -->
 <!-- source: internal/component/bgp/reactor/filter_library_text.go -- libraryText, textDeltaOps -->
 <!-- source: internal/component/bgp/policychain/external.go -- judgeExternal, applyExternalSets -->

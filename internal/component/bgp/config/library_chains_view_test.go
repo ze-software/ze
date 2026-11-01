@@ -10,21 +10,18 @@ import (
 )
 
 // viewTestType stands for a filter type whose plugin answers over the route
-// view (policychain.MustRegisterViewFilter): it reads and sets
-// local-preference.
+// view: it reads and sets local-preference.
 const viewTestType = "bgpconfig-view-test"
 
 func init() {
 	policy.MustRegisterFilterType(viewTestType,
 		[]policy.Field{policy.FieldLocalPreference}, []policy.Field{policy.FieldLocalPreference})
-	policychain.MustRegisterViewFilter(viewTestType)
 }
 
 // TestViewFilterChainCompilesToLibrary proves that a chain of plugin filters
-// alone compiles to the library chain when one of them names a type whose
-// plugin answers over the view (D-12): the text chain then runs none of its
-// refs, and the library chain calls the plugin by its plugin and filter name
-// with the fields it declared.
+// alone compiles to the library chain (D-12): the text chain then runs none of
+// its refs, and the library chain calls the plugin by its plugin and filter
+// name with the fields it declared.
 func TestViewFilterChainCompilesToLibrary(t *testing.T) {
 	reg, err := policy.NewRegistry(policy.Instance{Name: "pref", Type: viewTestType})
 	if err != nil {
