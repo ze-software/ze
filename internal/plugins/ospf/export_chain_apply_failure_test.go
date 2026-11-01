@@ -41,6 +41,8 @@ func (e *ospfRollbackEngine) serveFailingIncrements(ctx context.Context, failInc
 				_ = e.mux.SendResult(ctx, req.ID, rpc.StateOutput{Status: rpc.StateOK, Value: 1})
 			case rpc.MethodStateGet:
 				_ = e.mux.SendResult(ctx, req.ID, rpc.StateOutput{Status: rpc.StateAbsent})
+			case rpc.MethodDeclareRegistration:
+				_ = e.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion})
 			default:
 				_ = e.mux.SendOK(ctx, req.ID)
 			}

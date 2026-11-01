@@ -686,7 +686,8 @@ func startReloadEngine(t *testing.T, bp *BMPPlugin, startupBGP string) *reloadEn
 }
 
 // expectRequest reads the next plugin-to-engine request, requires it to be the
-// stage the handshake is at, and answers it.
+// stage the handshake is at, and answers it: Stage 1 with the protocol
+// version, every other stage with OK.
 func (e *reloadEngine) expectRequest(t *testing.T, method string) {
 	t.Helper()
 
@@ -695,7 +696,13 @@ func (e *reloadEngine) expectRequest(t *testing.T, method string) {
 		if request.Method != method {
 			t.Fatalf("startup: got request %q, want %q", request.Method, method)
 		}
-		if err := e.mux.SendOK(e.ctx, request.ID); err != nil {
+		var err error
+		if method == rpc.MethodDeclareRegistration {
+			err = e.mux.SendResult(e.ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion})
+		} else {
+			err = e.mux.SendOK(e.ctx, request.ID)
+		}
+		if err != nil {
 			t.Fatalf("startup: answer %s: %v", method, err)
 		}
 	case <-time.After(5 * time.Second):

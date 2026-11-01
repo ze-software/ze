@@ -26,8 +26,8 @@ type ospfRollbackEngine struct {
 }
 
 // serve answers each plugin request until the connection closes: runtime state
-// is absent and a boot count increments to one, and every other request is
-// acknowledged.
+// is absent, a boot count increments to one, Stage 1 is answered with the
+// protocol version, and every other request is acknowledged.
 func (e *ospfRollbackEngine) serve(ctx context.Context) {
 	for {
 		select {
@@ -42,6 +42,8 @@ func (e *ospfRollbackEngine) serve(ctx context.Context) {
 				_ = e.mux.SendResult(ctx, req.ID, rpc.StateOutput{Status: rpc.StateOK, Value: 1})
 			case rpc.MethodStateGet:
 				_ = e.mux.SendResult(ctx, req.ID, rpc.StateOutput{Status: rpc.StateAbsent})
+			case rpc.MethodDeclareRegistration:
+				_ = e.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion})
 			default:
 				_ = e.mux.SendOK(ctx, req.ID)
 			}

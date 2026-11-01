@@ -57,6 +57,10 @@ func flowSpecEngineRequest(t *testing.T, ctx context.Context, mux *rpc.MuxConn, 
 	case req := <-mux.Requests():
 		require.NotNil(t, req)
 		require.Equal(t, method, req.Method)
+		if method == rpc.MethodDeclareRegistration {
+			require.NoError(t, mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
+			return
+		}
 		require.NoError(t, mux.SendOK(ctx, req.ID))
 	case <-ctx.Done():
 		t.Fatalf("waiting for %s: %v", method, ctx.Err())
