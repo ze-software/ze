@@ -56,6 +56,13 @@ Related, not the same defect: `plan/journal/gate-excludes-part-of-its-population
 2026-08-25 (`Server.ReloadConfig` verifies only plugins already running, so a
 config root a reload adds is verified by nothing).
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `unwired-feature.md` | 2026-10-11 | `autoLoadForNewConfigPaths` never starts a reload-declared `external` program |
+| `unwired-feature.md` | 2026-11-01 | a reload adding `plugin { external X }` and a chain naming X leaves the reference pending |
+
 ## Data Flow (MANDATORY)
 
 ### Entry Point
