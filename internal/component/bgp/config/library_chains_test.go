@@ -1,13 +1,17 @@
 package bgpconfig
 
 import (
+	"encoding/binary"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -28,8 +32,9 @@ func init() {
 // chain may name a type with an in-process evaluator (bgpServesFilterType),
 // its policy then carries the compiled library chain, a chain naming no such
 // type carries none, and a chain mixing a library member with a plugin filter
-// compiles into one library chain that holds both (FR-1, D-12): the plugin
-// filter is no longer reached over the text chain.
+// compiles into one library chain that holds both, in chain order (FR-1,
+// D-12): run, it calls the plugin filter by its plugin and filter name after
+// the library member, which it reads the set of.
 func TestLibraryChainAtPeerLoad(t *testing.T) {
 	reg, err := policy.NewRegistry(policy.Instance{Name: "lp", Type: libraryTestType})
 	if err != nil {
@@ -71,12 +76,70 @@ func TestLibraryChainAtPeerLoad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a chain mixing a library member and a plugin filter was refused: %v", err)
 	}
-	if got.Library() == nil {
-		t.Fatal("a mixed chain carries no library chain")
-	}
 	if got.ActiveExternal(1) {
 		t.Fatal("the plugin filter of a mixed chain is still reached over the text chain")
 	}
+	chain, ok := got.Library().(*policychain.Chain)
+	if !ok {
+		t.Fatalf("a mixed chain carries library %T, want *policychain.Chain", got.Library())
+	}
+
+	// Run the compiled chain: the plugin member must be called as filter
+	// "other" of plugin "ext", after lp, so it reads lp's set (200, not the
+	// route's 100). A dropped plugin member, a reversed order or a swapped
+	// plugin/filter split each fail one assertion below.
+	caller := &recordingCaller{decl: policychain.ExternalDeclaration{
+		Reads: []string{"local-preference"}, OnError: rpc.OnErrorAccept,
+	}}
+	view := new(policyview.View)
+	view.Reset(updateWithLocalPref(t, 100), policyview.Session{})
+	defer view.Clear()
+	sets := new(policychain.RunSets)
+	sets.SetRoute(policychain.ExternalRoute{Caller: caller, Direction: "import"})
+	outcome := chain.Run(view, sets)
+	if outcome.Action != policychain.OutcomeAccept || outcome.Failed {
+		t.Fatalf("mixed chain outcome = %+v, want accept", outcome)
+	}
+	if len(caller.calls) != 1 {
+		t.Fatalf("plugin filter calls = %v, want exactly one call of ext:other", caller.calls)
+	}
+	if caller.calls[0] != `ext:other {"local-preference":200}` {
+		t.Fatalf("plugin filter call = %s, want ext:other sent the local-preference 200 lp set", caller.calls[0])
+	}
+}
+
+// recordingCaller declares every filter of every plugin with decl, accepts
+// each route, and records each call as "<plugin>:<filter> <fields>".
+type recordingCaller struct {
+	decl  policychain.ExternalDeclaration
+	calls []string
+}
+
+func (c *recordingCaller) FilterDeclaration(string, string) (policychain.ExternalDeclaration, bool) {
+	return c.decl, true
+}
+
+func (c *recordingCaller) CallFilter(plugin string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+	c.calls = append(c.calls, plugin+":"+input.Filter+" "+string(input.Fields))
+	return &rpc.FilterUpdateOutput{Action: rpc.FilterAccept}, nil
+}
+
+// updateWithLocalPref builds an UPDATE for 203.0.113.0/24 carrying ORIGIN
+// IGP and LOCAL_PREF lp.
+func updateWithLocalPref(t *testing.T, lp uint32) *wireu.WireUpdate {
+	t.Helper()
+	attrs := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x05, 0x04}
+	attrs = binary.BigEndian.AppendUint32(attrs, lp)
+	payload := binary.BigEndian.AppendUint16([]byte{0, 0}, uint16(len(attrs)))
+	payload = append(payload, attrs...)
+	payload = append(payload, 24, 203, 0, 113)
+	id, err := bgpctx.Registry.Register(bgpctx.NewEncodingContext(
+		&capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001},
+		&capability.EncodingCaps{ASN4: true}, bgpctx.DirectionRecv))
+	if err != nil {
+		t.Fatalf("register context: %v", err)
+	}
+	return wireu.NewWireUpdate(payload, id)
 }
 
 // TestParseAttributeBases proves the library chain's arithmetic bases come
