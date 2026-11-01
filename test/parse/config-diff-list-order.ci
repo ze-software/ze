@@ -44,12 +44,14 @@ bgp {
     router-id 1.1.1.1
     session { asn { local 65000; } }
     peer zulu {
-        connection { remote { ip 10.0.0.1; } md5 { password order-secret-old; } }
+        connection { remote { ip 10.0.0.1; } local { ip auto; } md5 { password order-secret-old; } }
         session { asn { remote 65001; } }
+        filter { import { final accept; } export { final accept; } }
     }
     peer alpha {
-        connection { remote { ip 10.0.0.2; } }
+        connection { remote { ip 10.0.0.2; } local { ip auto; } }
         session { asn { remote 65001; } }
+        filter { import { final accept; } export { final accept; } }
     }
 }
 EOF_PEERS_BEFORE
@@ -59,12 +61,14 @@ bgp {
     router-id 1.1.1.1
     session { asn { local 65000; } }
     peer alpha {
-        connection { remote { ip 10.0.0.2; } }
+        connection { remote { ip 10.0.0.2; } local { ip auto; } }
         session { asn { remote 65001; } }
+        filter { import { final accept; } export { final accept; } }
     }
     peer zulu {
-        connection { remote { ip 10.0.0.1; } md5 { password order-secret-old; } }
+        connection { remote { ip 10.0.0.1; } local { ip auto; } md5 { password order-secret-old; } }
         session { asn { remote 65001; } }
+        filter { import { final accept; } export { final accept; } }
     }
 }
 EOF_PEERS_AFTER
@@ -74,12 +78,14 @@ bgp {
     router-id 1.1.1.1
     session { asn { local 65000; } }
     peer alpha {
-        connection { remote { ip 10.0.0.2; } }
+        connection { remote { ip 10.0.0.2; } local { ip auto; } }
         session { asn { remote 65001; } }
+        filter { import { final accept; } export { final accept; } }
     }
     peer zulu {
-        connection { remote { ip 10.0.0.1; } md5 { password order-secret-new; } }
+        connection { remote { ip 10.0.0.1; } local { ip auto; } md5 { password order-secret-new; } }
         session { asn { remote 65001; } }
+        filter { import { final accept; } export { final accept; } }
     }
 }
 EOF_PEERS_ROTATED

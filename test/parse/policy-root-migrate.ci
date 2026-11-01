@@ -33,6 +33,7 @@ bgp {
 		}
 		filter {
 			import { filters [ prefix-list-CUSTOMERS ]; final accept; }
+			export { final accept; }
 		}
 	}
 }

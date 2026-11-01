@@ -12,6 +12,9 @@ bgp {
 			remote {
 				ip 10.0.0.3
 			}
+			local {
+				ip auto
+			}
 			md5 {
 				password abc123
 			}
@@ -19,6 +22,14 @@ bgp {
 		session {
 			asn {
 				remote 65534
+			}
+		}
+		filter {
+			import {
+				final accept
+			}
+			export {
+				final accept
 			}
 		}
 	}
@@ -38,6 +49,9 @@ bgp {
 			remote {
 				ip 10.0.0.3
 			}
+			local {
+				ip auto
+			}
 			md5 {
 				password abc123
 			}
@@ -45,6 +59,14 @@ bgp {
 		session {
 			asn {
 				remote 65534
+			}
+		}
+		filter {
+			import {
+				final accept
+			}
+			export {
+				final accept
 			}
 		}
 	}

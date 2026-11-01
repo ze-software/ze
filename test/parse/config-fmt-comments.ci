@@ -28,6 +28,17 @@ bgp {
 				# the provider's router
 				ip 192.0.2.1
 			}
+			local {
+				ip auto
+			}
+		}
+		filter {
+			import {
+				final accept
+			}
+			export {
+				final accept
+			}
 		}
 		# closing comment of p1
 	}
@@ -41,6 +52,27 @@ bgp {
 			asn {
 				remote 65002
 			}
+		}
+		connection {
+			remote {
+				ip 192.0.2.2
+			}
+			local {
+				ip auto
+			}
+		}
+		filter {
+			import {
+				final accept
+			}
+			export {
+				final accept
+			}
+		}
+	}
+	session {
+		asn {
+			local 65000
 		}
 	}
 }

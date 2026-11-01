@@ -24,15 +24,17 @@
 tmpfs=unclaimed.conf:terminator=EOF_UNCLAIMED
 pki {
 	ca test-ca {
-		certificate "cGxhY2Vob2xkZXI=";
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
 	}
 }
 EOF_UNCLAIMED
 
 tmpfs=claimed.conf:terminator=EOF_CLAIMED
 static {
-	route 10.0.0.0/8 {
-		next-hop 192.0.2.1;
+	table default {
+		route 10.0.0.0/8 {
+			next { hop 192.0.2.1 { } }
+		}
 	}
 }
 EOF_CLAIMED

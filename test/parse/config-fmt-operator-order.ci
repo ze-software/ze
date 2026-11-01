@@ -16,10 +16,21 @@ bgp {
 			remote {
 				ip 192.0.2.26
 			}
+			local {
+				ip auto
+			}
 		}
 		session {
 			asn {
 				remote 65026
+			}
+		}
+		filter {
+			import {
+				final accept
+			}
+			export {
+				final accept
 			}
 		}
 	}
@@ -28,10 +39,21 @@ bgp {
 			remote {
 				ip 192.0.2.1
 			}
+			local {
+				ip auto
+			}
 		}
 		session {
 			asn {
 				remote 65001
+			}
+		}
+		filter {
+			import {
+				final accept
+			}
+			export {
+				final accept
 			}
 		}
 	}
@@ -40,10 +62,21 @@ bgp {
 			remote {
 				ip 192.0.2.13
 			}
+			local {
+				ip auto
+			}
 		}
 		session {
 			asn {
 				remote 65013
+			}
+		}
+		filter {
+			import {
+				final accept
+			}
+			export {
+				final accept
 			}
 		}
 	}

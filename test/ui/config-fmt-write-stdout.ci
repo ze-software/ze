@@ -34,6 +34,17 @@ connection {
 remote {
 ip 127.0.0.1
 }
+local {
+ip auto
+}
+}
+filter {
+import {
+final accept
+}
+export {
+final accept
+}
 }
 
 session {
@@ -51,7 +62,16 @@ stdin=formatted:terminator=EOF_FORMATTED
 bgp {
 	peer peer2 {
 		connection {
+			local ip auto
 			remote ip 127.0.0.2
+		}
+		filter {
+			export {
+				final accept
+			}
+			import {
+				final accept
+			}
 		}
 		session {
 			asn {

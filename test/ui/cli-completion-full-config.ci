@@ -65,6 +65,11 @@ bgp {
 		role {
 			import customer
 		}
+		# Graceful restart needs a process that may send UPDATEs for the peer.
+		attach process bgp-rib {
+			receive [ update state ]
+			send [ update ]
+		}
 	}
 	peer peer1-2 {
 		connection {

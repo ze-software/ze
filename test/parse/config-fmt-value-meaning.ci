@@ -15,16 +15,33 @@
 
 tmpfs=meaning.conf:terminator=EOF_CONF
 bgp {
+	router-id 192.0.2.254
+	session {
+		asn {
+			local 65000
+		}
+	}
 	peer p1 {
 		description "x]y(z"
 		connection {
 			remote {
 				ip 192.0.2.1
 			}
+			local {
+				ip auto
+			}
 		}
 		session {
 			asn {
 				remote 65001
+			}
+		}
+		filter {
+			import {
+				final accept
+			}
+			export {
+				final accept
 			}
 		}
 	}
@@ -34,10 +51,21 @@ bgp {
 			remote {
 				ip 192.0.2.2
 			}
+			local {
+				ip auto
+			}
 		}
 		session {
 			asn {
 				remote 65002
+			}
+		}
+		filter {
+			import {
+				final accept
+			}
+			export {
+				final accept
 			}
 		}
 	}
@@ -47,10 +75,21 @@ bgp {
 			remote {
 				ip 192.0.2.3
 			}
+			local {
+				ip auto
+			}
 		}
 		session {
 			asn {
 				remote 65003
+			}
+		}
+		filter {
+			import {
+				final accept
+			}
+			export {
+				final accept
 			}
 		}
 	}
