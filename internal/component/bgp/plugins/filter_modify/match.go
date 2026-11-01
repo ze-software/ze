@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- route attribute modifier
 // Related: config.go -- parseMatchBlock, which builds the condition
-// Related: filter_modify.go -- handleFilterUpdate, which gates on it
+// Related: filter_modify.go -- evaluateModify, which gates on it
 //
 // The condition under which a modify definition applies.
 //
@@ -11,13 +11,29 @@
 // that meets the condition, and every other route leaves the filter unchanged.
 package filter_modify
 
-import "github.com/ze-software/ze/internal/component/bgp/filtertext"
+import (
+	"bytes"
+
+	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+)
 
 // matchCommunity is one community value the route may carry, in one of the
-// three community attributes.
+// three community attributes, held as the bytes the route's fields carry it
+// in: key is the field's JSON key with its colon (`"community":`), and
+// needle the value as a quoted JSON string (`"65000:100"`), the canonical
+// text the community formatter writes. Both are built once at config time,
+// so a match allocates nothing per route.
 type matchCommunity struct {
-	kind  filtertext.CommunityKind
-	value string
+	key    []byte
+	needle []byte
+}
+
+// newMatchCommunity builds the match of canonical, a value already in the
+// formatter's canonical text, in the field of kind.
+func newMatchCommunity(kind filtertext.CommunityKind, canonical string) matchCommunity {
+	key := append(append([]byte{'"'}, kind.FieldName()...), '"', ':')
+	needle := append(append([]byte{'"'}, canonical...), '"')
+	return matchCommunity{key: key, needle: needle}
 }
 
 // matchCond is the condition a route meets before the operations apply.
@@ -36,17 +52,39 @@ func (c matchCond) empty() bool {
 	return len(c.communities) == 0
 }
 
-// matches reports whether updateText satisfies the condition. An empty
-// condition matches every route.
-func (c matchCond) matches(updateText string) bool {
+// matches reports whether fields, the route's fields object as the engine
+// writes it (compact JSON, each community field a list of strings), satisfies
+// the condition. An empty condition matches every route.
+func (c matchCond) matches(fields []byte) bool {
 	if c.empty() {
 		return true
 	}
 	for i := range c.communities {
-		m := &c.communities[i]
-		if filtertext.HasCommunity(updateText, m.kind, m.value) {
+		if c.communities[i].in(fields) {
 			return true
 		}
 	}
 	return false
+}
+
+// in reports whether the field m names lists m's value. The value is looked
+// for between the field's opening bracket and the first closing one, which a
+// community string cannot hold, and as a quoted string, so "65000:1" never
+// matches "65000:10". A key cannot match inside a longer key either: it opens
+// with its quote, which a key like "large-community" holds only before
+// "large".
+func (m *matchCommunity) in(fields []byte) bool {
+	at := bytes.Index(fields, m.key)
+	if at < 0 {
+		return false
+	}
+	list := fields[at+len(m.key):]
+	if len(list) == 0 || list[0] != '[' {
+		return false
+	}
+	end := bytes.IndexByte(list, ']')
+	if end < 0 {
+		return false
+	}
+	return bytes.Contains(list[:end], m.needle)
 }

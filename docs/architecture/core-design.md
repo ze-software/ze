@@ -1519,19 +1519,18 @@ FlowSpec-origin validation.
 <!-- source: internal/component/bgp/policychain/match.go -- evaluate -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/condition.go -- compileBGPCondition -->
 
-The route attribute modifier (`bgp-filter-modify`) computes an `increment` or a
-`decrement` from the value the subject carries. When the subject carries none,
-the value it starts from comes from `bgp { defaults { attribute { } } }`, read
-at each config delivery rather than per route. Each modifier definition carries
-the base of the delivery it came from, so a reload installs modifiers and base
-with one store and a route never computes one config's modifier from another
-config's base. The two leaves and their RFC
-reasoning are declared there, in `ze-bgp-conf.yang`, and the plugin holds no
-number of its own. The operator-facing table is "Route Attribute Modifier" in
-`docs/guide/plugins.md`.
+The route attribute modifier (`bgp-filter-modify`) answers an `increment` or a
+`decrement` as a filter set, built once at config time, and the chain resolves
+it: against the value the route carries, or, when the route carries none,
+against the chain's base, which the chain compile reads from
+`bgp { defaults { attribute { } } }`. A reload compiles chain and base
+together, so a route never computes one config's modifier from another
+config's base. The two leaves and their RFC reasoning are declared there, in
+`ze-bgp-conf.yang`, and the plugin holds no number of its own. The
+operator-facing table is "Route Attribute Modifier" in `docs/guide/plugins.md`.
 
-<!-- source: internal/component/bgp/plugins/filter_modify/config.go -- parseAttributeDefaults -->
-<!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- absentBaseFor, currentForArithmetic -->
+<!-- source: internal/component/bgp/plugins/filter_modify/config.go -- parseModifyDef, buildSets -->
+<!-- source: internal/component/bgp/policychain/apply.go -- Bases, Apply -->
 
 A filter may declare `overrides` to remove a default filter from the chain for
 peers where it is configured (e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as`).

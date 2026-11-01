@@ -217,8 +217,7 @@ A definition with no `match` block applies to every route that reaches it. See
 `internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang` for the
 full leaf reference.
 <!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond -->
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/filtertext/community.go -- HasCommunity -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- evaluateModify -->
 
 ### Filters Cannot Override the RFC 4271 Egress Rules
 

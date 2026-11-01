@@ -29,7 +29,6 @@ type fixture10Driver struct {
 func init() {
 	observers := map[string]fixture10Driver{
 		"plugin/modify-community-add":        {pluginName: "test-modify-comm", scenario: fixture10WaitAdjRIBIn},
-		"plugin/modify-increment-localpref":  {pluginName: "test-modify-inc", scenario: fixture10WaitAdjRIBIn},
 		"plugin/modify-oversize-suppress":    {pluginName: "test-oversize", scenario: fixture10OversizeSuppress},
 		"plugin/monitor-basic":               {pluginName: "monitor-basic-test", scenario: fixture10MonitorBasic},
 		"plugin/monitor-events":              {pluginName: "monitor-events-test", scenario: fixture10MonitorEvents},

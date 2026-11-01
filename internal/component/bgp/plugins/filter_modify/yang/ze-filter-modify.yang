@@ -146,8 +146,8 @@ and keeps every other attribute unchanged.";
                 leaf next-hop {
                     type zt:ip-address;
                     description "NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address
-only. An IPv6 next-hop travels in the MP_REACH attribute instead, so this leaf does not
-set one.";
+only. An IPv6 next-hop travels in the MP_REACH attribute instead, which this leaf does
+not set, so an IPv6 address here is refused when the config is read.";
                     ze:help "Set the NEXT_HOP attribute of the route.";
                 }
 

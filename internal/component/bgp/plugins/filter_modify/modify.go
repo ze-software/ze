@@ -1,242 +1,85 @@
 // Design: docs/architecture/core-design.md -- route attribute modifier
 // Related: config.go -- modify definition config parsing
-// Related: filter_modify.go -- SDK entry point and handleFilterUpdate
+// Related: filter_modify.go -- SDK entry point and evaluateModify
 // RFC: rfc/short/rfc4271.md -- Sections 9.1.1 and 9.1.2.2 decide the absent-attribute bases
 // RFC: rfc/short/rfc7311.md -- Sections 3.4.1 and 4.1 are why aigp gets no base
 //
-// The modifier builds a text delta containing only the declared attributes.
-// The engine handles merging via applyFilterDelta (text-level overlay) and
-// textDeltaToModOps -> buildModifiedPayload (wire-level rewriting).
-//
-// Static operations (set) produce a pre-built delta at config time.
-// Dynamic operations (increment, decrement) read the current value from
-// the update text at runtime and compute the new absolute value.
-// Community operations (community-add, community-remove) emit dedicated
-// text directives that textDeltaToModOps maps to AttrModAdd/AttrModRemove.
+// A definition answers its operations as filter sets (rpc.FilterSet), built
+// once at config time, so a route costs the plugin no formatting. The engine
+// applies them (policychain Sets): a set writes the value, an increment or a
+// decrement resolves against the route's value, or, for an absent
+// LOCAL_PREF or MULTI_EXIT_DISC, against the chain's base from
+// bgp { defaults { attribute { } } }. An AIGP increment of a route with no
+// AIGP changes nothing, since RFC 7311 gives no number that could stand in
+// for an absent metric.
 //
 // The plugin returns "modify" for a route that meets the definition's match
 // condition, and "accept" for one that does not. See filter_modify.go,
-// handleFilterUpdate. An earlier match filter in the chain stays available:
+// evaluateModify. An earlier match filter in the chain stays available:
 // "filter { import { filters [ prefix-list:X modify:Y ]; final accept; } }".
 package filter_modify
 
 import (
-	"math"
+	"encoding/json"
 	"strconv"
-	"strings"
-	"sync"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// modifyDef is a named modifier definition loaded from config.
+// modifyDef is a named modifier definition loaded from config. Every field is
+// written by parseModifyDefs before the definition is installed, and read
+// only after (defsByName), so it is safe for concurrent use.
 type modifyDef struct {
-	name       string
-	match      matchCond // when stated, the condition a route meets to be modified
-	delta      string    // pre-built delta for static set operations
-	increments []incdec  // runtime: increment operations
-	decrements []incdec  // runtime: decrement operations
-	commOps    []commOp  // runtime: community add/remove directives
-	// medRemove emits the med-remove directive, which is RFC 4271 Section
-	// 5.1.4's configured MULTI_EXIT_DISC removal. It is not part of delta
-	// because the engine honors it on an import chain only, and the direction
-	// is known per call rather than at config time (handleFilterUpdate).
-	medRemove bool
-	// absentBase is the base of the delivery this definition came from: the
-	// value the arithmetic starts from for an attribute the route does not
-	// carry. Holding it here makes a delivery's definitions and its base one
-	// snapshot behind defsByName, so a reload cannot pair one delivery's
-	// modifier with another delivery's base. nil only for a definition no
-	// delivery built, which absentBaseFor answers from the schema.
-	absentBase map[string]uint32
+	name  string
+	match matchCond // when stated, the condition a route meets to be modified
+	// sets are the operations every route the definition applies to gets.
+	sets []rpc.FilterSet
+	// importSets are sets plus the med remove set, the operations an import
+	// route gets when medRemove holds. The removal is RFC 4271 Section 5.1.4's
+	// configured MULTI_EXIT_DISC removal, honored on an import chain only, and
+	// the direction is known per call rather than at config time
+	// (medRemoveFor).
+	importSets []rpc.FilterSet
+	medRemove  bool
+	// delta and importDelta are the operations as text, for the "modify apply"
+	// log line, in the same two variants.
+	delta       string
+	importDelta string
 }
 
-// isDynamic returns true if this modifier needs the update text at runtime.
-func (d *modifyDef) isDynamic() bool {
-	return len(d.increments) > 0 || len(d.decrements) > 0 || len(d.commOps) > 0
+// setNumber answers the set of a numeric field: set, increment or decrement.
+func setNumber(field string, action rpc.FilterSetAction, value uint32) rpc.FilterSet {
+	return rpc.FilterSet{Field: field, Action: action, Value: json.RawMessage(strconv.AppendUint(nil, uint64(value), 10))}
 }
 
-type incdec struct {
-	attr  string // "local-preference", "med", "aigp"
-	value uint32
-}
-
-type commOp struct {
-	directive string // text directive: "community-add", "large-community-remove", etc.
-	values    string // space-separated values: "65000:100 65000:200"
-}
-
-// buildDelta constructs the static text delta from the set block leaves.
-func buildDelta(setBlock map[string]any) string {
-	var parts []string
-
-	if v, ok := readOptionalUint32(setBlock[localPreferenceAttr]); ok {
-		parts = append(parts, textbuf.StrInt(localPreferenceAttr+" ", int64(v)))
-	}
-	if v, ok := readOptionalUint32(setBlock[medAttr]); ok {
-		parts = append(parts, textbuf.StrInt(medAttr+" ", int64(v)))
-	}
-	if s, ok := setBlock[originAttr].(string); ok && s != "" {
-		parts = append(parts, originAttr+" "+s)
-	}
-	if s, ok := setBlock[nextHopAttr].(string); ok && s != "" {
-		parts = append(parts, nextHopAttr+" "+s)
-	}
-	if v, ok := readOptionalUint32(setBlock[asPathPrependAttr]); ok && v >= 1 && v <= 32 {
-		parts = append(parts, textbuf.StrInt(asPathPrependAttr+" ", int64(v)))
-	}
-
-	return textbuf.Join(parts, " ")
-}
-
-// buildDynamicDelta computes the full delta text at runtime, combining the
-// static delta with dynamically computed inc/dec values and community ops.
-func buildDynamicDelta(def *modifyDef, updateText string) string {
-	buf := textbuf.Get()
-	defer buf.Release()
-
-	if def.delta != "" {
-		buf.Str(def.delta)
-	}
-
-	for i := range def.increments {
-		op := &def.increments[i]
-		current, run := currentForArithmetic(def.absentBase, updateText, op.attr)
-		if !run {
-			continue
-		}
-		sum := min(uint64(current)+uint64(op.value), math.MaxUint32)
-		if buf.Len() > 0 {
-			buf.Byte(' ')
-		}
-		buf.Str(op.attr).Byte(' ').Int(int64(sum))
-	}
-
-	for i := range def.decrements {
-		op := &def.decrements[i]
-		current, run := currentForArithmetic(def.absentBase, updateText, op.attr)
-		if !run {
-			continue
-		}
-		if buf.Len() > 0 {
-			buf.Byte(' ')
-		}
-		if current <= op.value {
-			buf.Str(op.attr).Str(" 0")
-		} else {
-			buf.Str(op.attr).Byte(' ').Int(int64(current - op.value))
-		}
-	}
-
-	for i := range def.commOps {
-		cop := &def.commOps[i]
-		if buf.Len() > 0 {
-			buf.Byte(' ')
-		}
-		buf.Str(cop.directive).Byte(' ').Str(cop.values)
-	}
-
-	return buf.String()
-}
-
-// attrReading says what the subject holds for one attribute name. A single
-// uint32 cannot: a returned 0 would mean "the route carries 0", "the route
-// carries nothing" and "the value did not parse" at once, and the three want
-// different answers (ai/rules/principles.md).
-type attrReading uint8
-
-const (
-	attrAbsent     attrReading = iota // the subject does not name the attribute
-	attrPresent                       // named, and the value parsed as a uint32
-	attrUnreadable                    // named, but the value did not parse
-)
-
-// absentBaseFor returns the value the arithmetic starts from when the route
-// carries no such attribute, and whether one is declared for it. An attribute
-// with NO ENTRY has no base, and its arithmetic is refused rather than computed
-// from a zero nobody chose.
-//
-// The values are the operator's, and the numbers behind them are declared in
-// ze-bgp-conf.yang at bgp/defaults/attribute. Each leaf's ze:help carries the
-// RFC reasoning for its own number, and the container's description says why
-// aigp has no leaf at all. Nothing here restates those sentences
-// (ai/rules/principles.md).
-//
-// base is the definition's delivery base. A definition no delivery built has
-// none, and the answer is then the schema's own defaults: declaredAbsentBase
-// reads the same container with no operator value over it, so such a
-// definition computes from the declared number rather than from a zero nobody
-// chose.
-func absentBaseFor(base map[string]uint32, attrName string) (uint32, bool) {
-	if base == nil {
-		declaredBase := declaredAbsentBase()
-		if declaredBase == nil {
-			return 0, false
-		}
-		base = *declaredBase
-	}
-	value, declared := base[attrName]
-	return value, declared
-}
-
-// declaredAbsentBase reads the schema defaults once, for a definition no
-// delivery built.
-//
-// It answers nil when the schema cannot be read. Refusing the arithmetic is
-// what an attribute with no declared base already gets, and it is the only safe
-// answer: a substituted zero would write a metric the route never had.
-var declaredAbsentBase = sync.OnceValue(func() *map[string]uint32 {
-	base, err := parseAttributeDefaults(nil)
+// setText answers the set of a field whose value is one string. value is a
+// config leaf already validated by its parser, so its JSON encoding cannot
+// fail.
+func setText(field string, action rpc.FilterSetAction, value string) rpc.FilterSet {
+	quoted, err := json.Marshal(value)
 	if err != nil {
-		logger().Error("filter-modify: attribute defaults unreadable, arithmetic on an absent attribute is refused",
-			"error", err)
-		return nil
+		panic("BUG: filter-modify: a string has no JSON encoding: " + err.Error())
 	}
-	return &base
-})
-
-// readUint32Attr reads one attribute's value out of the update text, and says
-// which of the three cases it found.
-func readUint32Attr(updateText, attrName string) (uint32, attrReading) {
-	prefix := attrName + " "
-	_, rest, ok := strings.Cut(updateText, prefix)
-	if !ok {
-		return 0, attrAbsent
-	}
-	token, _, _ := strings.Cut(rest, " ")
-	v, err := strconv.ParseUint(token, 10, 32)
-	if err != nil {
-		return 0, attrUnreadable
-	}
-	return uint32(v), attrPresent //nolint:gosec // G115: bounded by ParseUint 32-bit
+	return rpc.FilterSet{Field: field, Action: action, Value: quoted}
 }
 
-// currentForArithmetic returns the value an increment or a decrement computes
-// from, and whether the operation runs at all.
-//
-// It runs on the value the route carries, or on the declared base for an
-// attribute the route does not carry. It does NOT run when no base is declared,
-// and it does NOT run on a value ze rendered and cannot read back: computing
-// from a substituted 0 there would write a metric the route never had.
-// base is the definition's delivery base (modifyDef.absentBase).
-func currentForArithmetic(base map[string]uint32, updateText, attrName string) (uint32, bool) {
-	value, reading := readUint32Attr(updateText, attrName)
-	switch reading {
-	case attrPresent:
-		return value, true
-	case attrAbsent:
-		value, declared := absentBaseFor(base, attrName)
-		if !declared {
-			return 0, false
-		}
-		return value, true
-	case attrUnreadable:
-		logger().Warn("filter-modify: attribute value did not parse, arithmetic skipped",
-			"attribute", attrName)
-		return 0, false
-	default:
-		panic("BUG: invalid attribute reading")
+// medRemoveSet is the removal of MULTI_EXIT_DISC, whose value is null.
+func medRemoveSet() rpc.FilterSet {
+	return rpc.FilterSet{Field: medAttr, Action: rpc.FilterSetActionRemove, Value: json.RawMessage("null")}
+}
+
+// deltaText writes the delta text of one operation into buf: the leaf name,
+// a space and the value, with a sign for an increment or a decrement.
+func deltaText(buf *textbuf.Buffer, leaf string, sign byte, value string) {
+	if buf.Len() > 0 {
+		buf.Byte(' ')
 	}
+	buf.Str(leaf).Byte(' ')
+	if sign != 0 {
+		buf.Byte(sign)
+	}
+	buf.Str(value)
 }
 
 // readBool coerces a config presence value to a boolean. Config delivery uses

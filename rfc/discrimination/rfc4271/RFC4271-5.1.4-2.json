@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-5.1.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly",
+    "unit-sha": "153c7b570ffe55ad",
+    "claim-sha": "d267d3beebc94fce",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/filter_modify/filter_modify.go::medRemoveFor",
+    "producer-sha": "3544d4d78964c4db",
+    "break": "body of medRemoveFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly",
+    "unit-sha": "153c7b570ffe55ad",
+    "claim-sha": "40efda9dadf84e60",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/filter_modify/filter_modify.go::medRemoveFor",
+    "producer-sha": "3544d4d78964c4db",
+    "break": "body of medRemoveFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

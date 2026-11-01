@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-5.1.4-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestParseModifyDefsMEDRemove",
+    "unit-sha": "80aa9aa18f6731f1",
+    "claim-sha": "8ea737486cfda998",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/filter_modify/config.go::parseModifyDef",
+    "producer-sha": "f391c1649a04ab54",
+    "break": "body of parseModifyDef replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.4-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestParseModifyDefsMEDRemove",
+    "unit-sha": "80aa9aa18f6731f1",
+    "claim-sha": "38fd636ec1b6dd68",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/filter_modify/config.go::parseModifyDef",
+    "producer-sha": "f391c1649a04ab54",
+    "break": "body of parseModifyDef replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

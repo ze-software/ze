@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- route modify filter config parsing
-// Related: config.go -- parseAttributeDefaults, the reader of bgp/defaults/attribute
+// Related: config.go -- parseModifyDefs, the reader of policy/modify
 // Related: config_tx.go -- newModifyConfigTx, the transaction a delivery runs through
 
 package filter_modify
@@ -7,26 +7,13 @@ package filter_modify
 import (
 	"encoding/json"
 	"maps"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/config"
-	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
-
-// VALIDATES: AC-7 -- a reload of bgp { defaults { attribute { } } } governs the
-//
-//	routes that arrive after it, and one delivery installs its base and
-//	its modifiers together or installs neither.
-//
-// PREVENTS: a base that latches on the first delivery and never moves again; a
-//
-//	refused delivery leaving the modifiers of one config computing from
-//	the base of another.
 
 // bgpSections splits a test tree written as one bgp subtree into the delivery
 // the SDK hands the plugin: the bgp section first, then a policy section
@@ -53,14 +40,20 @@ func bgpSections(t *testing.T, cfg map[string]any) []sdk.ConfigSection {
 }
 
 // attributeDefaultsTree wraps one bgp { defaults { attribute { } } } block in
-// the config subtree the plugin is delivered, beside the modifier the tests
-// below drive. The local-preference value is a string, which is the form a YANG
-// leaf arrives in. extraModifiers is merged into the policy block, so a test
-// can add a definition the parser refuses.
+// the config subtree the plugin is delivered, beside an INC-LP modifier that
+// increments local-preference by 50. The plugin reads only the policy half:
+// the base is the engine's (bgp/config parseAttributeBases). extraModifiers is
+// merged into the policy block, so a test can add a definition the parser
+// refuses.
 func attributeDefaultsTree(localPreference string, extraModifiers map[string]any) map[string]any {
+	return incrementTree(localPreference, 50, extraModifiers)
+}
+
+// incrementTree is attributeDefaultsTree with the INC-LP increment given.
+func incrementTree(localPreference string, increment float64, extraModifiers map[string]any) map[string]any {
 	modifiers := map[string]any{
 		"INC-LP": map[string]any{
-			"increment": map[string]any{localPreferenceAttr: float64(50)},
+			"increment": map[string]any{localPreferenceAttr: increment},
 		},
 	}
 	maps.Copy(modifiers, extraModifiers)
@@ -73,133 +66,74 @@ func attributeDefaultsTree(localPreference string, extraModifiers map[string]any
 	}
 }
 
-// TestAttributeDefaultsReloadTakesEffect covers AC-7. A reload is one more
-// delivery of the config subtree, so a changed default governs the routes that
-// arrive after it and nothing else.
-//
-// The route is driven through handleFilterUpdate rather than through
-// buildDynamicDelta, because the RPC is where a route reaches this plugin, and
-// each delivery runs through the plugin's config transaction.
-func TestAttributeDefaultsReloadTakesEffect(t *testing.T) {
-	previousDefs := defsByName.Load()
-	t.Cleanup(func() { defsByName.Store(previousDefs) })
-	tx := newModifyConfigTx()
-
-	update := func() string {
-		out := handleFilterUpdate(&sdk.FilterUpdateInput{
-			Filter:    "INC-LP",
-			Direction: directionImport,
-			Peer:      "10.0.0.1",
-			Update:    absentSubject,
-		})
-		require.Equal(t, sdk.FilterModify, out.Action)
-		return out.Update
-	}
-
-	require.NoError(t, tx.Configure(bgpSections(t, attributeDefaultsTree("100", nil))))
-	require.Equal(t, "local-preference 150", update(), "100 plus 50")
-
-	require.NoError(t, tx.Verify(bgpSections(t, attributeDefaultsTree("80", nil))))
-	require.Equal(t, "local-preference 150", update(), "verify installed the candidate before apply")
-	require.NoError(t, tx.Apply())
-	require.Equal(t, "local-preference 130", update(), "the reload moved the base to 80")
-
-	// And back, because a reload that only ever moves one way would pass the
-	// two lines above with a base that latched on the first delivery.
-	require.NoError(t, tx.Verify(bgpSections(t, attributeDefaultsTree("100", nil))))
-	require.NoError(t, tx.Apply())
-	require.Equal(t, "local-preference 150", update(), "the base follows every delivery")
-
-	// A rollback reinstalls the replaced definitions with their own base.
-	require.NoError(t, tx.Rollback())
-	require.Equal(t, "local-preference 130", update(), "rollback restored the 80 base with its modifiers")
+// incLPAnswer answers the sets the running INC-LP definition gives a route.
+func incLPAnswer(t *testing.T) []string {
+	t.Helper()
+	route := modifyRoute("INC-LP", directionImport, `{}`)
+	out, err := evaluateModify(&route)
+	require.NoError(t, err)
+	require.Equal(t, sdk.FilterModify, out.Action)
+	return setsText(out.Sets)
 }
 
-// TestAttributeDefaultsRefusedConfigInstallsNothing covers the failure half of
-// one delivery. A subtree the plugin cannot parse leaves the previous
-// configuration running rather than half of the new one.
-func TestAttributeDefaultsRefusedConfigInstallsNothing(t *testing.T) {
+// TestModifyReloadTakesEffect covers AC-7's plugin half. A reload is one more
+// delivery of the config subtree, so a changed modifier governs the routes
+// that arrive after the apply and nothing else, and a rollback reinstalls the
+// replaced definitions. The base half (a reload moving the absent-attribute
+// base) is the engine's: the chain compile reads bgp defaults attribute on
+// each load (bgp/config TestParseAttributeBases).
+func TestModifyReloadTakesEffect(t *testing.T) {
 	previousDefs := defsByName.Load()
 	t.Cleanup(func() { defsByName.Store(previousDefs) })
 	tx := newModifyConfigTx()
 
-	require.NoError(t, tx.Configure(bgpSections(t, attributeDefaultsTree("80", nil))))
+	require.NoError(t, tx.Configure(bgpSections(t, incrementTree("100", 50, nil))))
+	require.Equal(t, []string{"local-preference increment 50"}, incLPAnswer(t))
 
-	// The base moves too, so a delivery that installed the base and then
-	// refused the modifiers would be caught by the assertion below.
-	refused := attributeDefaultsTree("42", map[string]any{
+	require.NoError(t, tx.Verify(bgpSections(t, incrementTree("100", 30, nil))))
+	require.Equal(t, []string{"local-preference increment 50"}, incLPAnswer(t), "verify installed the candidate before apply")
+	require.NoError(t, tx.Apply())
+	require.Equal(t, []string{"local-preference increment 30"}, incLPAnswer(t), "the reload installed the new modifier")
+
+	// And back, because a reload that only ever moves one way would pass the
+	// two lines above with a definition that latched on the first delivery.
+	require.NoError(t, tx.Verify(bgpSections(t, incrementTree("100", 50, nil))))
+	require.NoError(t, tx.Apply())
+	require.Equal(t, []string{"local-preference increment 50"}, incLPAnswer(t), "the modifier follows every delivery")
+
+	// A rollback reinstalls the replaced definitions.
+	require.NoError(t, tx.Rollback())
+	require.Equal(t, []string{"local-preference increment 30"}, incLPAnswer(t), "rollback restored the replaced modifier")
+}
+
+// TestModifyRefusedConfigInstallsNothing covers the failure half of one
+// delivery. A subtree the plugin cannot parse leaves the previous
+// configuration running rather than half of the new one.
+func TestModifyRefusedConfigInstallsNothing(t *testing.T) {
+	previousDefs := defsByName.Load()
+	t.Cleanup(func() { defsByName.Store(previousDefs) })
+	tx := newModifyConfigTx()
+
+	require.NoError(t, tx.Configure(bgpSections(t, incrementTree("80", 30, nil))))
+
+	// The INC-LP increment moves too, so a delivery that installed the good
+	// definition and then refused the bad one is caught below.
+	refused := incrementTree("42", 50, map[string]any{
 		"BAD": map[string]any{"increment": map[string]any{"no-such-attribute": float64(1)}},
 	})
 	require.Error(t, tx.Verify(bgpSections(t, refused)))
-
-	out := handleFilterUpdate(&sdk.FilterUpdateInput{
-		Filter:    "INC-LP",
-		Direction: directionImport,
-		Peer:      "10.0.0.1",
-		Update:    absentSubject,
-	})
-	require.Equal(t, sdk.FilterModify, out.Action)
-	require.Equal(t, "local-preference 130", out.Update, "the accepted delivery is still the running one")
-}
-
-// TestAigpDefaultLeafDoesNotExist covers AC-6. There is no aigp default and
-// there must not be one: RFC 7311 Section 4.1 removes a route with no AIGP TLV
-// from consideration rather than scoring it, so no number stands in for the
-// absence, and Section 3.4.1 forbids ze to create the attribute outside the
-// AIGP administrative domain.
-//
-// The reason is asserted at the container, because that is where somebody about
-// to add the leaf would read it. It is read out of the container's ze:help,
-// which is the long text the ? box prints.
-//
-// It is not read out of the description. A description is the one-line summary
-// a completion row renders, and command.MaxSummaryChars bounds it at 96
-// characters. Two RFC citations do not fit in that.
-//
-// The spec's TDD plan named internal/component/config/yang/validator_test.go
-// for this test. That package cannot host it: the schema lookup needs the bgp
-// module, ze-bgp-conf registers from internal/component/bgp/yang, and that
-// package imports internal/component/config/yang, so an in-package test there
-// would be an import cycle.
-func TestAigpDefaultLeafDoesNotExist(t *testing.T) {
-	schema, err := config.YANGSchema()
-	require.NoError(t, err)
-
-	_, err = schema.Lookup(attributeDefaultsPath + "/" + aigpAttr)
-	require.Error(t, err, "an aigp default leaf must not exist")
-
-	node, err := schema.Lookup(attributeDefaultsPath)
-	require.NoError(t, err)
-	container, ok := node.(*config.ContainerNode)
-	require.True(t, ok)
-	require.ElementsMatch(t, []string{medAttr, localPreferenceAttr}, container.Children(),
-		"the container declares the two attributes that have a base, and no third")
-	help := containerHelp(t, attributeDefaultsPath)
-	require.Contains(t, help, "RFC 7311",
-		"the reason for the absence belongs where somebody would add the leaf")
-	require.Contains(t, help, aigpAttr)
-
-	// A tree that names it anyway is refused rather than obeyed. YANG
-	// validation refuses the key at config load, and this is the plugin's own
-	// half of that pair: a hand-written or migrated tree never passed it.
-	_, err = parseAttributeDefaults(map[string]any{
-		"defaults": map[string]any{
-			"attribute": map[string]any{aigpAttr: float64(10)},
-		},
-	})
-	require.ErrorContains(t, err, aigpAttr)
+	require.Equal(t, []string{"local-preference increment 30"}, incLPAnswer(t), "the accepted delivery is still the running one")
 }
 
 // TestReadOptionalUint32RefusesAnIntAboveUint32 covers the coercion every
-// attribute default passes through on its way out of parseAttributeDefaults.
+// numeric leaf of a modify definition passes through.
 //
 // VALIDATES: each numeric form the config tree can carry is refused above the
 // uint32 range rather than truncated, and 4294967295 itself is accepted.
 //
 // PREVENTS: the int branch reading its lower bound alone. int is 64 bits here,
-// so 4294967296 wrapped to 0 and reported true, and a med default of that value
-// reached the arithmetic as 0. Restore the missing upper bound check and the
-// first subtest fails.
+// so 4294967296 wrapped to 0 and reported true. Restore the missing upper
+// bound check and the first subtest fails.
 func TestReadOptionalUint32RefusesAnIntAboveUint32(t *testing.T) {
 	const aboveRange = 4294967296
 
@@ -223,76 +157,4 @@ func TestReadOptionalUint32RefusesAnIntAboveUint32(t *testing.T) {
 	top, ok := readOptionalUint32(int(4294967295))
 	require.True(t, ok)
 	require.Equal(t, uint32(4294967295), top)
-}
-
-// TestAttributeDefaultLeafRangeHoldsAtTheBoundaries covers the spec's numeric
-// boundary table for both leaves. ValidateLeafValue is the check the config file
-// parse path runs (parser_list.go), so the refusal an operator meets is the one
-// asserted here.
-//
-// 0 is VALID for both, and it is med's declared default, so the range cannot be
-// written as 1..4294967295 the way an increment value is.
-func TestAttributeDefaultLeafRangeHoldsAtTheBoundaries(t *testing.T) {
-	schema, err := config.YANGSchema()
-	require.NoError(t, err)
-
-	for _, name := range []string{medAttr, localPreferenceAttr} {
-		t.Run(name, func(t *testing.T) {
-			node, err := schema.Lookup(attributeDefaultsPath + "/" + name)
-			require.NoError(t, err)
-			leaf, ok := node.(*config.LeafNode)
-			require.True(t, ok)
-			require.NotEmpty(t, leaf.Ranges, "the leaf states its bound rather than leaving it to the type")
-
-			require.NoError(t, config.ValidateLeafValue(leaf, "0"), "0 is a value an operator can write")
-			require.NoError(t, config.ValidateLeafValue(leaf, "4294967295"), "the top of the range")
-			require.Error(t, config.ValidateLeafValue(leaf, "4294967296"), "one above the range")
-			require.Error(t, config.ValidateLeafValue(leaf, "-1"), "below the range")
-		})
-	}
-}
-
-// containerHelp answers the long explanation the YANG container at path
-// declares in its description statement.
-//
-// config.ContainerNode carries a node's ze:help summary and not its
-// description, so the schema cannot answer this. Nothing reads the long text
-// through the schema. The ? box the operator opens reads it straight off the
-// YANG entry (entryDescription, internal/component/cli/completer.go). A copy on
-// the schema node would be a second declaration of one paragraph, with no
-// reader of its own.
-//
-// A module the binary never registered would turn the walk into an empty string,
-// and the caller would read that as an absent explanation. So each step of the
-// walk is required rather than skipped.
-func containerHelp(t *testing.T, path string) string {
-	t.Helper()
-
-	loader, err := configyang.DefaultLoader()
-	require.NoError(t, err)
-
-	entry := loader.GetEntry("ze-bgp-conf")
-	require.NotNil(t, entry, "ze-bgp-conf is not registered in this test binary, so the walk below would read a schema no build has")
-
-	for name := range strings.SplitSeq(path, "/") {
-		require.NotNil(t, entry.Dir, "%s has no children, so %q cannot be reached", entry.Name, name)
-		entry = entry.Dir[name]
-		require.NotNil(t, entry, "the YANG tree declares no %q under %s", name, path)
-	}
-	return entry.Description
-}
-
-// parseModifyDefsOf splits a test config written as one map into the two
-// roots parseModifyDefs reads: its "policy" entry is the policy root, and the
-// rest is the bgp root whose defaults give the absent-attribute base.
-func parseModifyDefsOf(cfg map[string]any) (map[string]*modifyDef, error) {
-	policyCfg, _ := cfg[policy.RootName].(map[string]any)
-	bgpCfg := make(map[string]any, len(cfg))
-	for k, v := range cfg {
-		if k == policy.RootName {
-			continue
-		}
-		bgpCfg[k] = v
-	}
-	return parseModifyDefs(policyCfg, bgpCfg)
 }

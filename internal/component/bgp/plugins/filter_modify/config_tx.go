@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- route modify filter
 // Related: filter_modify.go -- defsByName, the state an install replaces
-// Related: config.go -- parseModifyDefs, which attaches the delivery's base
+// Related: config.go -- parseModifyDefs, which builds each definition's sets
 
 package filter_modify
 
@@ -10,12 +10,11 @@ import (
 )
 
 // newModifyConfigTx is the filter's side of the config transaction: the
-// modify definitions, each carrying its delivery's absent-attribute base, are
-// its config, and an install stores them with one pointer, so a filter-update
-// reads the modifiers and the base of one config and never a mix. Before any
-// install none is defined and every filter-update is rejected.
+// modify definitions are its config, and an install stores them with one
+// pointer, so a route reads the modifiers of one config and never a mix.
+// Before any install none is defined and every route fails (evaluateModify).
 func newModifyConfigTx() *sdk.ConfigTx[map[string]*modifyDef] {
-	parse := policy.SectionsParser("filter-modify", errFilterModifyInvalidBgpConfigJson, configRootBGP, parseModifyDefs)
+	parse := policy.SectionParser("filter-modify", errFilterModifyInvalidBgpConfigJson, parseModifyDefs)
 	return sdk.NewConfigTx(map[string]*modifyDef(nil), parse, installModifyDefs)
 }
 

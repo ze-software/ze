@@ -4,45 +4,32 @@
 //
 // Config parsing for the bgp-filter-modify plugin.
 //
-// Reads named modify definitions out of the policy root, and the
-// absent-attribute base out of bgp { defaults { attribute { } } }:
+// Reads named modify definitions out of the policy root:
 //
 //	policy { modify NAME { set { local-preference 200; } } }
 //	policy { modify NAME { increment { local-preference 50; } } }
 //	policy { modify NAME { set { community-add [ 65000:200 ]; } } }
 //	policy { modify NAME { del { med; } } }
 //
-// Static set operations produce pre-built delta strings.
-// Increment/decrement operations are computed at runtime from current values.
-// Community add/remove operations emit text directives for the engine.
+// Each definition's operations become the filter sets it answers (modify.go),
+// built here once. The absent-attribute base an increment starts from is the
+// engine's, read from bgp { defaults { attribute { } } } by the chain compile.
 package filter_modify
 
 import (
 	"fmt"
-	"maps"
+	"net/netip"
+	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
-	// The schema lookup in parseAttributeDefaults needs the bgp module in the
-	// loader, and the module puts itself there from this package's init
-	// (configyang.RegisterModule, bgp/yang/register.go). The daemon links it for
-	// other reasons; this package's own test binary does not.
-	_ "github.com/ze-software/ze/internal/component/bgp/yang"
-	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-const (
-	maxNameLen = 256
-	// attributeDefaultsPath is the schema container that DECLARES the value the
-	// arithmetic starts from for an attribute the route does not carry. The
-	// numbers live there and nowhere else (ai/rules/principles.md), and the RFC
-	// reasoning for each one is the description on its leaf.
-	attributeDefaultsPath = "bgp/defaults/attribute"
-)
+const maxNameLen = 256
 
 var setBlockAllowedKeys = map[string]bool{
 	localPreferenceAttr:              true,
@@ -64,97 +51,8 @@ var incDecAttrs = map[string]bool{
 	aigpAttr:            true,
 }
 
-// attributeDefaultsContainer resolves the schema container ONCE for the life of
-// the process.
-//
-// The YANG modules are compiled into the binary, so the answer cannot change
-// while the daemon runs, and config.YANGSchema puts every module through the
-// loader and the resolver. Paying that on each config delivery would put a
-// whole-schema resolve on the reload path for two numbers, and a plugin that
-// reloads is a plugin an operator is waiting on.
-var attributeDefaultsContainer = sync.OnceValues(func() (*config.ContainerNode, error) {
-	schema, err := config.YANGSchema()
-	if err != nil {
-		return nil, fmt.Errorf("attribute defaults: load schema: %w", err)
-	}
-	node, err := schema.Lookup(attributeDefaultsPath)
-	if err != nil {
-		return nil, fmt.Errorf("attribute defaults: resolve %s: %w", attributeDefaultsPath, err)
-	}
-	container, ok := node.(*config.ContainerNode)
-	if !ok {
-		return nil, fmt.Errorf("attribute defaults: %s is not a container", attributeDefaultsPath)
-	}
-	return container, nil
-})
-
-// parseAttributeDefaults reads bgp { defaults { attribute { } } }, the value an
-// increment or a decrement starts from for an attribute the route does not
-// carry. One entry per leaf the container declares, so an attribute the
-// container does not name gets no arithmetic at all (currentForArithmetic).
-//
-// A leaf the operator left out arrives here from the schema itself:
-// ApplyDefaults writes the YANG default into the map, which is how a default
-// reaches a section that is not a peer entry (config/schema_defaults.go, and
-// sysrib.parseAdminDistanceConfig does the same for rib { distance { } }).
-//
-// An unreadable schema is an ERROR rather than an empty map. An empty map
-// refuses every arithmetic on an absent attribute and looks exactly like a
-// route that carried its own value, so the operator would read a metric that
-// silently stopped being adjusted.
-func parseAttributeDefaults(bgpCfg map[string]any) (map[string]uint32, error) {
-	declared := map[string]any{}
-	if defaultsBlock, ok := bgpCfg["defaults"].(map[string]any); ok {
-		if attrBlock, ok := defaultsBlock["attribute"].(map[string]any); ok {
-			// Copied rather than used in place: ApplyDefaults writes into the map
-			// it is given, and the config tree this section arrived in belongs to
-			// the caller.
-			maps.Copy(declared, attrBlock)
-		}
-	}
-
-	container, err := attributeDefaultsContainer()
-	if err != nil {
-		return nil, err
-	}
-
-	// A key the container does not declare is REFUSED rather than kept. YANG
-	// validation already refuses one at config load, and this is the second
-	// check the pair rule asks for: a hand-written or migrated tree reaches the
-	// plugin without passing that validation, and an `aigp` key that survived
-	// would give the arithmetic a base RFC 7311 Section 4.1 says no number can
-	// stand in for. The allowed set is the container's own children, so it
-	// cannot disagree with the schema.
-	for key := range declared {
-		if !container.Has(key) {
-			return nil, fmt.Errorf("attribute defaults: unknown key %q (declared: %s)",
-				key, strings.Join(container.Children(), ", "))
-		}
-	}
-
-	config.ApplyDefaults(declared, container)
-
-	base := make(map[string]uint32, len(declared))
-	for attr, raw := range declared {
-		value, ok := readOptionalUint32(raw)
-		if !ok {
-			return nil, fmt.Errorf("attribute defaults: %s: %v is not an unsigned 32-bit value", attr, raw)
-		}
-		base[attr] = value
-	}
-	return base, nil
-}
-
-// parseModifyDefs reads policy/modify definitions out of policyCfg, each
-// carrying the absent-attribute base read from bgpCfg's defaults.
-func parseModifyDefs(policyCfg, bgpCfg map[string]any) (map[string]*modifyDef, error) {
-	// The base is read first and refused first: a delivery whose defaults do
-	// not parse installs no modifier, so it cannot leave one config's modifiers
-	// computing from another's base.
-	base, err := parseAttributeDefaults(bgpCfg)
-	if err != nil {
-		return nil, err
-	}
+// parseModifyDefs reads policy/modify definitions out of policyCfg.
+func parseModifyDefs(policyCfg map[string]any) (map[string]*modifyDef, error) {
 	result := make(map[string]*modifyDef)
 
 	modBlock, ok := policyCfg["modify"].(map[string]any)
@@ -170,80 +68,195 @@ func parseModifyDefs(policyCfg, bgpCfg map[string]any) (map[string]*modifyDef, e
 		if !ok {
 			return nil, fmt.Errorf("modify %q: not a map", name)
 		}
-
-		def := &modifyDef{name: name}
-
-		for key := range defMap {
-			switch key {
-			case "match", "set", "del", "increment", "decrement":
-			default:
-				return nil, fmt.Errorf("modify %q: unknown key %q", name, key)
-			}
-		}
-
-		if matchBlock, ok := defMap["match"].(map[string]any); ok {
-			cond, err := parseMatchBlock(matchBlock)
-			if err != nil {
-				return nil, fmt.Errorf("modify %q: %w", name, err)
-			}
-			def.match = cond
-		}
-
-		if setBlock, ok := defMap["set"].(map[string]any); ok {
-			for key := range setBlock {
-				// A Loc-RIB set (distance, tag) is judged by the route
-				// evaluator; the field check refuses it on a BGP chain.
-				if ribSetKeys[key] {
-					continue
-				}
-				if !setBlockAllowedKeys[key] {
-					return nil, fmt.Errorf("modify %q: set: unknown key %q", name, key)
-				}
-			}
-			def.delta = buildDelta(setBlock)
-			if err := parseCommOps(setBlock, def); err != nil {
-				return nil, fmt.Errorf("modify %q: %w", name, err)
-			}
-		}
-
-		if delBlock, ok := defMap["del"].(map[string]any); ok {
-			for key := range delBlock {
-				if key != medAttr {
-					return nil, fmt.Errorf("modify %q: del: unknown key %q", name, key)
-				}
-			}
-			def.medRemove = readBool(delBlock[medAttr])
-		}
-
-		if incBlock, ok := defMap["increment"].(map[string]any); ok {
-			ops, err := parseIncDecBlock(incBlock, "increment")
-			if err != nil {
-				return nil, fmt.Errorf("modify %q: %w", name, err)
-			}
-			def.increments = ops
-		}
-
-		if decBlock, ok := defMap["decrement"].(map[string]any); ok {
-			ops, err := parseIncDecBlock(decBlock, "decrement")
-			if err != nil {
-				return nil, fmt.Errorf("modify %q: %w", name, err)
-			}
-			def.decrements = ops
-		}
-
-		if err := validateNoConflict(def); err != nil {
+		def, err := parseModifyDef(name, defMap)
+		if err != nil {
 			return nil, fmt.Errorf("modify %q: %w", name, err)
 		}
-
-		if def.delta == "" && len(def.increments) == 0 && len(def.decrements) == 0 &&
-			len(def.commOps) == 0 && !def.medRemove && !hasRIBSet(defMap) {
-			return nil, fmt.Errorf("modify %q: no operations defined", name)
-		}
-
-		def.absentBase = base
 		result[name] = def
 	}
 	return result, nil
+}
+
+// modifyOps is one definition's operations as config states them, the input
+// to the conflict check and to the sets.
+type modifyOps struct {
+	setBlock   map[string]any
+	increments []incdec
+	decrements []incdec
+	medRemove  bool
+}
+
+type incdec struct {
+	attr  string // "local-preference", "med", "aigp"
+	value uint32
+}
+
+// parseModifyDef reads one definition and builds the sets it answers.
+func parseModifyDef(name string, defMap map[string]any) (*modifyDef, error) {
+	def := &modifyDef{name: name}
+	var ops modifyOps
+
+	for key := range defMap {
+		switch key {
+		case "match", "set", "del", "increment", "decrement":
+		default:
+			return nil, fmt.Errorf("unknown key %q", key)
+		}
+	}
+
+	if matchBlock, ok := defMap["match"].(map[string]any); ok {
+		cond, err := parseMatchBlock(matchBlock)
+		if err != nil {
+			return nil, err
+		}
+		def.match = cond
+	}
+
+	if setBlock, ok := defMap["set"].(map[string]any); ok {
+		for key := range setBlock {
+			// A Loc-RIB set (distance, tag) is judged by the route
+			// evaluator; the field check refuses it on a BGP chain.
+			if ribSetKeys[key] {
+				continue
+			}
+			if !setBlockAllowedKeys[key] {
+				return nil, fmt.Errorf("set: unknown key %q", key)
+			}
+		}
+		ops.setBlock = setBlock
+	}
+
+	if delBlock, ok := defMap["del"].(map[string]any); ok {
+		for key := range delBlock {
+			if key != medAttr {
+				return nil, fmt.Errorf("del: unknown key %q", key)
+			}
+		}
+		ops.medRemove = readBool(delBlock[medAttr])
+	}
+
+	if incBlock, ok := defMap["increment"].(map[string]any); ok {
+		parsed, err := parseIncDecBlock(incBlock, "increment")
+		if err != nil {
+			return nil, err
+		}
+		ops.increments = parsed
+	}
+
+	if decBlock, ok := defMap["decrement"].(map[string]any); ok {
+		parsed, err := parseIncDecBlock(decBlock, "decrement")
+		if err != nil {
+			return nil, err
+		}
+		ops.decrements = parsed
+	}
+
+	if err := validateNoConflict(&ops); err != nil {
+		return nil, err
+	}
+	if err := buildSets(def, &ops); err != nil {
+		return nil, err
+	}
+
+	if len(def.sets) == 0 && !ops.medRemove && !hasRIBSet(defMap) {
+		return nil, fmt.Errorf("no operations defined")
+	}
+	return def, nil
+}
+
+// buildSets writes the sets and the delta text of def from ops: the set
+// leaves first, then the increments, the decrements and the community
+// operations, and last the med removal of the import variant.
+func buildSets(def *modifyDef, ops *modifyOps) error {
+	delta := textbuf.Get()
+	defer delta.Release()
+
+	setBlock := ops.setBlock
+	for _, attr := range [...]string{localPreferenceAttr, medAttr} {
+		if v, ok := readOptionalUint32(setBlock[attr]); ok {
+			def.sets = append(def.sets, setNumber(attr, rpc.FilterSetActionSet, v))
+			deltaText(delta, attr, 0, string(strconv.AppendUint(nil, uint64(v), 10)))
+		}
+	}
+	if text, ok := setBlock[nextHopAttr].(string); ok && text != "" {
+		if err := validateNextHop(text); err != nil {
+			return err
+		}
+	}
+	for _, attr := range [...]string{originAttr, nextHopAttr} {
+		if text, ok := setBlock[attr].(string); ok && text != "" {
+			def.sets = append(def.sets, setText(attr, rpc.FilterSetActionSet, text))
+			deltaText(delta, attr, 0, text)
+		}
+	}
+	if v, ok := readOptionalUint32(setBlock[asPathPrependAttr]); ok {
+		// The YANG range is 1 to 32; a hand-written tree reaches here without
+		// it, and a count outside it is refused rather than dropped.
+		if v < 1 || v > 32 {
+			return fmt.Errorf("set: %s %d is outside 1 to 32", asPathPrependAttr, v)
+		}
+		def.sets = append(def.sets, setNumber(policy.FieldASPath.String(), rpc.FilterSetActionPrepend, v))
+		deltaText(delta, asPathPrependAttr, 0, string(strconv.AppendUint(nil, uint64(v), 10)))
+	}
+	for _, op := range ops.increments {
+		def.sets = append(def.sets, setNumber(op.attr, rpc.FilterSetActionIncrement, op.value))
+		deltaText(delta, op.attr, '+', string(strconv.AppendUint(nil, uint64(op.value), 10)))
+	}
+	for _, op := range ops.decrements {
+		def.sets = append(def.sets, setNumber(op.attr, rpc.FilterSetActionDecrement, op.value))
+		deltaText(delta, op.attr, '-', string(strconv.AppendUint(nil, uint64(op.value), 10)))
+	}
+	if err := buildCommunitySets(def, delta, setBlock); err != nil {
+		return err
+	}
+	def.delta = delta.String()
+
+	def.medRemove = ops.medRemove
+	if def.medRemove {
+		def.importSets = append(append(make([]rpc.FilterSet, 0, len(def.sets)+1), def.sets...), medRemoveSet())
+		deltaText(delta, medRemoveText, 0, "")
+		def.importDelta = strings.TrimSuffix(delta.String(), " ")
+	}
+	return nil
+}
+
+// communitySetLeaf is one community leaf of the set block: the field and the
+// action of the sets it builds, and the parser that refuses a value the
+// engine could not apply.
+type communitySetLeaf struct {
+	leaf     string
+	field    string
+	action   rpc.FilterSetAction
+	validate func(string) error
+}
+
+// communitySetLeaves are the community leaves in the order their sets are
+// built.
+var communitySetLeaves = [...]communitySetLeaf{
+	{communityAddDirective, "community", rpc.FilterSetActionAdd, validateStdCommunity},
+	{communityRemoveDirective, "community", rpc.FilterSetActionRemove, validateStdCommunity},
+	{largeCommunityAddDirective, "large-community", rpc.FilterSetActionAdd, validateLargeCommunity},
+	{largeCommunityRemoveDirective, "large-community", rpc.FilterSetActionRemove, validateLargeCommunity},
+	{extendedCommunityAddDirective, "extended-community", rpc.FilterSetActionAdd, validateExtCommunity},
+	{extendedCommunityRemoveDirective, "extended-community", rpc.FilterSetActionRemove, validateExtCommunity},
+}
+
+// buildCommunitySets appends one set per configured community value.
+func buildCommunitySets(def *modifyDef, delta *textbuf.Buffer, setBlock map[string]any) error {
+	for i := range communitySetLeaves {
+		leaf := &communitySetLeaves[i]
+		values := readStringList(setBlock[leaf.leaf])
+		for _, v := range values {
+			if err := leaf.validate(v); err != nil {
+				return fmt.Errorf("%s: %w", leaf.leaf, err)
+			}
+			def.sets = append(def.sets, setText(leaf.field, leaf.action, v))
+		}
+		if len(values) > 0 {
+			deltaText(delta, leaf.leaf, 0, textbuf.Join(values, " "))
+		}
+	}
+	return nil
 }
 
 // parseMatchBlock reads the condition a route meets before the operations
@@ -272,17 +285,33 @@ func parseMatchBlock(block map[string]any) (matchCond, error) {
 	} {
 		field := kind.FieldName()
 		for _, text := range readStringList(block[field]) {
-			canonical, err := filtertext.CanonicalCommunity(text, kind)
+			canonical, err := matchValueText(text, kind)
 			if err != nil {
 				return matchCond{}, fmt.Errorf("match: %s %q: %w", field, text, err)
 			}
-			cond.communities = append(cond.communities, matchCommunity{
-				kind: kind, value: canonical,
-			})
+			cond.communities = append(cond.communities, newMatchCommunity(kind, canonical))
 		}
 	}
 
 	return cond, nil
+}
+
+// matchValueText answers text, one configured community, in the form the
+// route's fields carry it: the community formatter's text. That is the
+// canonical text for a standard or a large community, and the decoded form
+// (AppendDecoded, "target:65000:100") for an extended one, whose canonical
+// text is hex.
+func matchValueText(text string, kind filtertext.CommunityKind) (string, error) {
+	if kind != filtertext.CommunityExtended {
+		return filtertext.CanonicalCommunity(text, kind)
+	}
+	wire, _, err := filtertext.CommunityWire(text, kind)
+	if err != nil {
+		return "", err
+	}
+	var community attribute.ExtendedCommunity
+	copy(community[:], wire[:len(community)])
+	return string(community.AppendDecoded(nil)), nil
 }
 
 func parseIncDecBlock(block map[string]any, kind string) ([]incdec, error) {
@@ -300,38 +329,24 @@ func parseIncDecBlock(block map[string]any, kind string) ([]incdec, error) {
 	return ops, nil
 }
 
-func parseCommOps(setBlock map[string]any, def *modifyDef) error {
-	type commDef struct {
-		key       string
-		directive string
-		validate  func(string) error
+// validateNextHop refuses a next-hop the engine's next-hop set cannot write:
+// that set writes the NEXT_HOP attribute (policychain Sets.NextHop), whose
+// value is one IPv4 address, so an IPv6 address is refused when the config is
+// read rather than failing every route it meets. An IPv6 next hop travels in
+// MP_REACH_NLRI, which a modify does not set. The text path before the sets
+// refused it too, logging "next-hop must be IPv4" and dropping the operation.
+//
+// RFC 4271 Section 4.3: "This is a well-known mandatory attribute that defines
+// the (unicast) IP address of the router that SHOULD be used as the next hop
+// to the destinations listed in the Network Layer Reachability Information
+// field of the UPDATE message."
+func validateNextHop(s string) error {
+	addr, err := netip.ParseAddr(s)
+	if err != nil {
+		return fmt.Errorf("set: next-hop %q is not an IP address", s)
 	}
-
-	defs := []commDef{
-		{communityAddDirective, communityAddDirective, validateStdCommunity},
-		{communityRemoveDirective, communityRemoveDirective, validateStdCommunity},
-		{largeCommunityAddDirective, largeCommunityAddDirective, validateLargeCommunity},
-		{largeCommunityRemoveDirective, largeCommunityRemoveDirective, validateLargeCommunity},
-		{extendedCommunityAddDirective, extendedCommunityAddDirective, validateExtCommunity},
-		{extendedCommunityRemoveDirective, extendedCommunityRemoveDirective, validateExtCommunity},
-	}
-
-	for _, cd := range defs {
-		values := readStringList(setBlock[cd.key])
-		if len(values) == 0 {
-			continue
-		}
-		if cd.validate != nil {
-			for _, v := range values {
-				if err := cd.validate(v); err != nil {
-					return fmt.Errorf("%s: %w", cd.key, err)
-				}
-			}
-		}
-		def.commOps = append(def.commOps, commOp{
-			directive: cd.directive,
-			values:    joinValues(values),
-		})
+	if !addr.Is4() {
+		return fmt.Errorf("set: next-hop %s is not an IPv4 address: the NEXT_HOP attribute (RFC 4271 Section 4.3) carries IPv4 only, and an IPv6 next hop travels in MP_REACH_NLRI, which modify does not set; write an IPv4 address", s)
 	}
 	return nil
 }
@@ -346,9 +361,11 @@ func validateLargeCommunity(s string) error {
 	return err
 }
 
+// validateExtCommunity refuses a value the engine's extended community set
+// cannot apply (policychain applyAttributeSet parses one value the same way).
 func validateExtCommunity(s string) error {
-	b := attribute.NewBuilder()
-	return b.ParseExtCommunity(s)
+	_, err := attribute.ParseSingleExtCommunity(s)
+	return err
 }
 
 func readStringList(v any) []string {
@@ -372,22 +389,19 @@ func readStringList(v any) []string {
 	return nil
 }
 
-func joinValues(values []string) string {
-	return textbuf.Join(values, " ")
-}
-
 // validateNoConflict checks that set, del, and increment/decrement don't target
 // the same attribute.
-func validateNoConflict(def *modifyDef) error {
+func validateNoConflict(ops *modifyOps) error {
+	_, setsMED := readOptionalUint32(ops.setBlock[medAttr])
 	// Deleting MULTI_EXIT_DISC and writing one are opposite instructions about
 	// the same attribute. Refuse the pair rather than let their processing order
 	// decide what reaches the wire.
-	if def.medRemove {
-		if containsAttrName(def.delta, medAttr) {
+	if ops.medRemove {
+		if setsMED {
 			return fmt.Errorf("del med conflicts with set med (mutually exclusive)")
 		}
-		for _, ops := range [][]incdec{def.increments, def.decrements} {
-			for _, op := range ops {
+		for _, list := range [][]incdec{ops.increments, ops.decrements} {
+			for _, op := range list {
 				if op.attr == medAttr {
 					return fmt.Errorf("del med conflicts with increment/decrement med (mutually exclusive)")
 				}
@@ -395,31 +409,15 @@ func validateNoConflict(def *modifyDef) error {
 		}
 	}
 
-	setAttrs := map[string]bool{}
-	if def.delta != "" {
-		for _, attr := range []string{localPreferenceAttr, medAttr, aigpAttr} {
-			// containsAttrName ANCHORS on a token boundary, so it answers for
-			// a set of any value including 0. The value read that used to sit
-			// beside it added nothing this cannot see and matched unanchored.
-			if containsAttrName(def.delta, attr) {
-				setAttrs[attr] = true
-			}
-		}
-	}
-	for _, op := range def.increments {
-		if setAttrs[op.attr] {
+	for _, op := range ops.increments {
+		if _, set := readOptionalUint32(ops.setBlock[op.attr]); set {
 			return fmt.Errorf("increment %s conflicts with set %s (mutually exclusive)", op.attr, op.attr)
 		}
 	}
-	for _, op := range def.decrements {
-		if setAttrs[op.attr] {
+	for _, op := range ops.decrements {
+		if _, set := readOptionalUint32(ops.setBlock[op.attr]); set {
 			return fmt.Errorf("decrement %s conflicts with set %s (mutually exclusive)", op.attr, op.attr)
 		}
 	}
 	return nil
-}
-
-func containsAttrName(delta, attr string) bool {
-	prefix := attr + " "
-	return strings.HasPrefix(delta, prefix) || strings.Contains(delta, " "+prefix)
 }

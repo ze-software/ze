@@ -123,6 +123,34 @@ func TestExternalAIGPIncrementOfAbsentMetricLeavesTheRoute(t *testing.T) {
 	}
 }
 
+// TestExternalAIGPDecrementOfAbsentMetricLeavesTheRoute proves an AIGP
+// decrement of a route that carries no AIGP writes nothing either, the
+// decrement half filter_modify's TestAigpArithmeticOnAbsentAttributeCreatesNothing
+// carried. RFC 7311 Section 3.4.1: "A BGP speaker MUST NOT add the AIGP
+// attribute to any route whose path leads outside the AIGP administrative
+// domain to which the BGP speaker belongs." A decrement clamped at zero would
+// otherwise add an AIGP of 0, which Section 4.1 scores as the best metric.
+// A route that does carry one is decremented as usual.
+func TestExternalAIGPDecrementOfAbsentMetricLeavesTheRoute(t *testing.T) {
+	caller := &fakeCaller{filters: map[string]fakeFilter{"ext:aigp": {
+		decl:   ExternalDeclaration{Reads: []string{"origin"}, Sets: []string{"aigp"}, OnError: rpc.OnErrorReject},
+		answer: modify(set("aigp", rpc.FilterSetActionDecrement, "30")),
+	}}}
+	chain := compileMembers(t, testAttachmentAttributes, []Member{{Name: "aigp", Plugin: "ext"}})
+	outcome, got := runApplied(t, chain, caller, "import", originIGP())
+	if outcome.Action != OutcomeAccept || len(got) != 0 {
+		t.Fatalf("absent: outcome = %+v ops = %+v, want accept with no op", outcome, got)
+	}
+
+	var value [attribute.AIGPWireLen]byte
+	attribute.WriteAIGPMetric(value[:], 0, 12)
+	outcome, got = runApplied(t, chain, caller, "import", originIGP(), aigpAttr(42))
+	want := []filterapi.AttrOp{{Code: uint8(attribute.AttrAIGP), Action: filterapi.AttrModSet, Buf: value[:]}}
+	if outcome.Action != OutcomeAccept || !reflect.DeepEqual(got, want) {
+		t.Fatalf("carried: outcome = %+v ops = %+v, want accept with %+v", outcome, got, want)
+	}
+}
+
 // TestExternalMEDRemove proves RFC 4271 Section 5.1.4's configured removal
 // through a filter's answer: on import a route carrying MULTI_EXIT_DISC gets
 // one suppression of attribute 4, a route without one gets no op, and on

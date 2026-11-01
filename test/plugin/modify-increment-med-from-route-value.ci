@@ -2,20 +2,19 @@
 # receiver reads the route's own metric plus 50.
 #
 # VALIDATES: AC-4 -- an import chain running bgp-filter-modify with
-#            increment { med 50 } over a route carrying MULTI_EXIT_DISC 100 produces the
-#            delta "med 150", and the wire modification sets the attribute to 150.
-# PREVENTS:  the increment computing from an absent attribute. appendSingleAttr named
-#            *attribute.MED, knownAttrParsers boxes attribute.MED, so no arm matched and
-#            the subject named no metric. currentForArithmetic then took the absent base
-#            of 0 (RFC 4271 Section 9.1.2.2) and the same configuration wrote "med 50" on
-#            every route, whatever the route carried.
+#            increment { med 50 } over a route carrying MULTI_EXIT_DISC 100 answers the
+#            set "med increment 50" (delta "med +50"), and the engine, resolving it against
+#            the route's own metric, sets the attribute to 150 on the wire.
+# PREVENTS:  the increment computing from an absent attribute: from the absent base of
+#            0 (RFC 4271 Section 9.1.2.2) the same configuration writes 50 on every route,
+#            whatever the route carried.
 #
 # Flow:
 # 1. The source peer announces 10.0.0.0/24 carrying MULTI_EXIT_DISC 100.
-# 2. The import chain calls bgp-filter-modify:INC-MED, which reads "med 100" out of the
-#    subject and answers the delta "med 150".
-# 3. textDeltaToModOps turns the delta into a wire modification, and the receiver reads
-#    the source frame with attribute 4 carrying 150.
+# 2. The import chain calls bgp-filter-modify:INC-MED, which answers the set
+#    "med increment 50".
+# 3. The engine resolves it against the route's MULTI_EXIT_DISC of 100 (policychain
+#    Sets), and the receiver reads the source frame with attribute 4 carrying 150.
 #
 # THE RECEIVER IS A ROUTE SERVER CLIENT, AND THAT IS WHAT LETS THE METRIC BE READ AT ALL.
 # RFC 4271 Section 5.1.4 keeps a received metric off a route re-announced to another AS,
@@ -176,7 +175,7 @@ cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-modify -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 expect=stderr:pattern=filter=INC-MED
-expect=stderr:pattern=delta="med 150"
+expect=stderr:pattern=delta="med \+50"
 reject=stderr:pattern=delta="med 50"
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error

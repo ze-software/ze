@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- route attribute modifier plugin
-// Detail: modify.go -- delta building and attribute encoding
+// Detail: modify.go -- the sets a definition answers, built at config time
 // Detail: config.go -- policy/modify config parsing
 // RFC: rfc/short/rfc4271.md -- Sections 5.1.4 and 9.1.2.2 govern the med-remove directive
 //
@@ -8,19 +8,21 @@
 // The plugin loads named modifier definitions from
 // policy { modify NAME { set { local-preference 200; } } }
 // at Stage 2 and on every reload (config_tx.go). At runtime, peer filter chains reference a
-// modifier as bgp-filter-modify:NAME or modify:NAME. The engine dispatches
-// each call via CallFilterUpdate (filter-update RPC); the plugin returns
-// action "modify" with a pre-built text delta. The engine merges the delta
-// via applyFilterDelta (text overlay) and textDeltaToModOps ->
-// buildModifiedPayload (wire-level rewriting).
+// modifier as bgp-filter-modify:NAME or modify:NAME. One evaluator answers the
+// route on both transports (sdk.OnFilter): the typed bridge slot when the
+// plugin runs internal, the filter-update batch when it runs forked. It answers
+// action "modify" with the definition's sets, built at config time, and the
+// engine applies them (policychain Sets): an increment or a decrement resolves
+// there against the route's value, or, for a route that carries none, against
+// the chain's base from bgp { defaults { attribute { } } }.
 //
 // A definition CAN state its own condition in a match container. A route that
 // meets it gets action "modify"; a route that does not gets "accept" and passes
 // through unchanged. A definition that states no condition matches every route,
 // which is what every definition written before the match container did.
 //
-// The plugin declares ZERO filters at Stage 1: modifier names come from
-// config (Stage 2).
+// The plugin declares one filter pattern at Stage 1: modifier names come from
+// config (Stage 2), and a name the config does not define fails the route.
 package filter_modify
 
 import (
@@ -28,7 +30,9 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -36,10 +40,10 @@ const (
 	// directionImport is the wire form the engine passes on an ingress chain
 	// (rpc.FilterUpdateInput.Direction, "import" or "export").
 	directionImport = "import"
-	// medRemoveDirective is the delta token the engine converts into one
-	// filterapi.AttrModSuppress on attribute 4 (ExtractMEDRemoveOps,
-	// reactor/filter_delta.go). It carries no operand.
-	medRemoveDirective = "med-remove"
+	// medRemoveText names the MULTI_EXIT_DISC removal in the delta text the
+	// "modify apply" log line carries. The removal itself is the med remove
+	// set (modifyDef.importSets).
+	medRemoveText = "med-remove"
 )
 
 // The attribute names of the modify vocabulary. Each one is a YANG leaf under
@@ -56,9 +60,9 @@ const (
 	asPathPrependAttr   = "as-path-prepend"
 )
 
-// The community delta directives. Each token is both the YANG leaf under the
-// `set` block and the directive the engine parses out of the delta string, so
-// the two spellings cannot drift apart.
+// The community leaves under the `set` block. Each one names the field and
+// the action of the sets it builds (communitySetLeaves), and the delta text
+// of the log line writes the leaf name.
 const (
 	communityAddDirective            = "community-add"
 	communityRemoveDirective         = "community-remove"
@@ -68,16 +72,19 @@ const (
 	extendedCommunityRemoveDirective = "extended-community-remove"
 )
 
-var errFilterModifyInvalidBgpConfigJson = errors.New("filter-modify: invalid bgp config JSON")
+var (
+	errFilterModifyInvalidBgpConfigJson = errors.New("filter-modify: invalid bgp config JSON")
+	errFilterBeforeConfigure            = errors.New("filter-modify: a route arrived before the configuration")
+	errUnknownModify                    = errors.New("filter-modify: no modify of this name is configured")
+)
 
 var logger = slogutil.LazyLogger("bgp.filter.modify")
 
 const configRootBGP = "bgp"
 
 // defsByName is the installed set of modify definitions, stored whole by
-// installModifyDefs (Stage 2 and each reload's apply and rollback). Each
-// definition carries its delivery's absent-attribute base, so one load reads
-// the modifiers and the base of one config.
+// installModifyDefs (Stage 2 and each reload's apply and rollback), so one
+// load reads the modifiers of one config.
 var defsByName atomic.Pointer[map[string]*modifyDef]
 
 // runFilterModify runs the route modify plugin using the SDK RPC protocol.
@@ -87,14 +94,29 @@ func runFilterModify(conn net.Conn) int {
 
 	newModifyConfigTx().Register(p)
 
-	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
-		return handleFilterUpdate(in), nil
-	})
+	// One evaluator for both transports (D-12): the typed bridge slot when
+	// the plugin runs internal, the filter-update batch when it runs forked.
+	p.OnFilter(evaluateModify)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{configRootBGP},
+		Filters: []sdk.FilterDecl{{
+			NamePattern: ".+",
+			Direction:   sdk.FilterBoth,
+			// The match condition reads the three community fields, and a
+			// declaration with no read would be served as a text member. The
+			// sets need no read: the engine resolves an increment against the
+			// route's own value.
+			Reads: []string{policy.FieldCommunity.String(), policy.FieldLargeCommunity.String(),
+				policy.FieldExtendedCommunity.String()},
+			Sets: []string{policy.FieldLocalPreference.String(), policy.FieldMED.String(),
+				policy.FieldOrigin.String(), policy.FieldNextHop.String(), policy.FieldASPath.String(),
+				policy.FieldCommunity.String(), policy.FieldLargeCommunity.String(),
+				policy.FieldExtendedCommunity.String(), policy.FieldAIGP.String()},
+			OnError: sdk.OnErrorReject,
+		}},
 	}); err != nil {
 		logger().Error("filter-modify plugin failed", "error", err)
 		return 1
@@ -102,48 +124,51 @@ func runFilterModify(conn net.Conn) int {
 	return 0
 }
 
-// handleFilterUpdate dispatches a single filter-update RPC.
-// Static modifiers return the pre-built delta. Dynamic modifiers (inc/dec,
-// community ops) read the current update text and compute the delta at runtime.
-// Unknown modifier names fail closed with "reject".
-func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
+// evaluateModify answers one route: the definition's sets for a route that
+// meets its condition, accept for one that does not. A name the config does
+// not define, or a route before the first configuration, is an error, so the
+// route meets the declaration's on-error rather than passing unchanged. It
+// reads only the configured definitions, swapped whole by the config
+// transaction (defsByName), so it is safe for concurrent use and never blocks.
+func evaluateModify(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
 	defsP := defsByName.Load()
 	if defsP == nil {
-		logger().Warn("filter-update before configure", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+		return nil, errFilterBeforeConfigure
 	}
-	defs := *defsP
-	def, ok := defs[in.Filter]
+	def, ok := (*defsP)[route.Filter()]
 	if !ok {
-		logger().Warn("unknown modify", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+		return nil, errUnknownModify
 	}
 
 	// A route that does not meet the definition's condition passes through
 	// UNCHANGED. Accept, never reject: the chain drops a rejected route, and a
 	// conditional modifier exists precisely so the routes it does not touch keep
-	// flowing. A definition that states no condition matches every route, which
-	// is what every definition written before the match container did.
-	if !def.match.matches(in.Update) {
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
+	// flowing.
+	if !def.match.empty() {
+		fields, err := route.Fields()
+		if err != nil {
+			return nil, err
+		}
+		if !def.match.matches(fields) {
+			return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
+		}
 	}
 
-	var delta string
-	if def.isDynamic() {
-		delta = buildDynamicDelta(def, in.Update)
-	} else {
-		delta = def.delta
-	}
+	sets, delta := def.sets, def.delta
 	if def.medRemove {
-		delta = appendMEDRemove(delta, in.Filter, in.Direction)
+		sets, delta = medRemoveFor(def, route)
+	}
+	if len(sets) == 0 {
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
 	}
 
-	logger().Info("modify apply", "filter", in.Filter, "peer", in.Peer, "delta", delta)
-	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: delta}
+	logger().Info("modify apply", "filter", route.Filter(), "peer", route.Peer(), "delta", delta)
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: sets}, nil
 }
 
-// appendMEDRemove adds RFC 4271 Section 5.1.4's removal directive to the delta,
-// and only on an import chain.
+// medRemoveFor answers the sets and the delta text of a definition that
+// removes MULTI_EXIT_DISC (RFC 4271 Section 5.1.4), and the removal rides
+// only on an import chain.
 //
 // Section 5.1.4 requires the removal to happen "prior to determining the degree
 // of preference of the route and prior to performing route selection (Decision
@@ -153,19 +178,16 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 // MULTI_EXIT_DISC and afterwards advertising the route without it "has been
 // proven to cause route loops".
 //
-// The engine enforces this by converting the directive at the import site alone
-// (ExtractMEDRemoveOps, reactor/filter_delta.go). This function is the half the
-// operator can see: silence would leave a configured removal that never happens
+// The engine fails an export route that answers the removal
+// (policychain errMEDRemoveOnExport), so the export chain gets the other sets
+// and a warning: silence would leave a configured removal that never happens
 // and never says why.
-func appendMEDRemove(delta, filter, direction string) string {
-	if direction != directionImport {
-		logger().Warn("del { med; } is ignored on export",
-			"filter", filter, "direction", direction,
-			"rfc", "RFC 4271 Section 5.1.4 requires configured removal before decision process phases 1 and 2")
-		return delta
+func medRemoveFor(def *modifyDef, route *sdk.FilterRoute) ([]rpc.FilterSet, string) {
+	if route.Direction() == directionImport {
+		return def.importSets, def.importDelta
 	}
-	if delta == "" {
-		return medRemoveDirective
-	}
-	return joinValues([]string{delta, medRemoveDirective})
+	logger().Warn("del { med; } is ignored on export",
+		"filter", route.Filter(), "direction", route.Direction(),
+		"rfc", "RFC 4271 Section 5.1.4 requires configured removal before decision process phases 1 and 2")
+	return def.sets, def.delta
 }

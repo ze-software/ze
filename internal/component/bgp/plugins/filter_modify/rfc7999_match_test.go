@@ -14,15 +14,27 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// communityFields is the route's fields object as the engine writes it for
+// one community field: a list of the values the event formatter writes, each
+// value produced by the attribute type's own text (filter_community json.go
+// writes Community.String, LargeCommunity.String and
+// ExtendedCommunity.AppendDecoded).
+func communityFields(field string, values ...string) string {
+	out := `{"` + field + `":[`
+	for i, v := range values {
+		if i > 0 {
+			out += ","
+		}
+		out += `"` + v + `"`
+	}
+	return out + "]}"
+}
+
 // modifyDefsFromConfig parses one modify definition out of the config shape the
 // plugin receives, so each test states its input as the operator writes it.
 func modifyDefsFromConfig(t *testing.T, name string, def map[string]any) *modifyDef {
 	t.Helper()
-	defs, err := parseModifyDefsOf(map[string]any{
-		"policy": map[string]any{
-			"modify": map[string]any{name: def},
-		},
-	})
+	defs, err := parseModifyDefs(map[string]any{"modify": map[string]any{name: def}})
 	if err != nil {
 		t.Fatalf("parseModifyDefs: %v", err)
 	}
@@ -35,14 +47,12 @@ func modifyDefsFromConfig(t *testing.T, name string, def map[string]any) *modify
 
 func TestParseModifyMatch(t *testing.T) {
 	t.Run("an unknown key inside match is refused", func(t *testing.T) {
-		_, err := parseModifyDefsOf(map[string]any{
-			"policy": map[string]any{"modify": map[string]any{
-				"M": map[string]any{
-					"match": map[string]any{"prefix": "10.0.0.0/8"},
-					"set":   map[string]any{"med": 10},
-				},
-			}},
-		})
+		_, err := parseModifyDefs(map[string]any{"modify": map[string]any{
+			"M": map[string]any{
+				"match": map[string]any{"prefix": "10.0.0.0/8"},
+				"set":   map[string]any{"med": 10},
+			},
+		}})
 		if err == nil {
 			t.Fatal("an unknown match key was accepted; a condition nobody evaluates reads as in force and is not")
 		}
@@ -57,14 +67,12 @@ func TestParseModifyMatch(t *testing.T) {
 		{"extended-community", "0002fde8000000gg"},
 	} {
 		t.Run("invalid "+tc.field+" "+tc.value, func(t *testing.T) {
-			_, err := parseModifyDefsOf(map[string]any{
-				"policy": map[string]any{"modify": map[string]any{
-					"M": map[string]any{
-						"match": map[string]any{tc.field: tc.value},
-						"set":   map[string]any{"med": 10},
-					},
-				}},
-			})
+			_, err := parseModifyDefs(map[string]any{"modify": map[string]any{
+				"M": map[string]any{
+					"match": map[string]any{tc.field: tc.value},
+					"set":   map[string]any{"med": 10},
+				},
+			}})
 			if err == nil {
 				t.Fatal("an unparseable community match was accepted")
 			}
@@ -72,11 +80,9 @@ func TestParseModifyMatch(t *testing.T) {
 	}
 
 	t.Run("a match with no operations is still refused", func(t *testing.T) {
-		_, err := parseModifyDefsOf(map[string]any{
-			"policy": map[string]any{"modify": map[string]any{
-				"M": map[string]any{"match": map[string]any{"community": "blackhole"}},
-			}},
-		})
+		_, err := parseModifyDefs(map[string]any{"modify": map[string]any{
+			"M": map[string]any{"match": map[string]any{"community": "blackhole"}},
+		}})
 		if err == nil {
 			t.Fatal("a modify with a condition and nothing to do was accepted")
 		}
@@ -87,24 +93,19 @@ func TestConfiguredMatchModifiesOnlyMatchingRoute(t *testing.T) {
 	target20 := attribute.ExtendedCommunity{0, 2, 0xfd, 0xe8, 0, 0, 0, 20}
 	target10 := attribute.ExtendedCommunity{0, 2, 0xfd, 0xe8, 0, 0, 0, 10}
 	origin20 := attribute.ExtendedCommunity{0, 3, 0xfd, 0xe8, 0, 0, 0, 20}
-	targetText := string(attribute.ExtendedCommunities{target20}.AppendText(nil))
-	otherTargetText := string(attribute.ExtendedCommunities{target10}.AppendText(nil))
-	previous := defsByName.Load()
-	t.Cleanup(func() { defsByName.Store(previous) })
+	decoded := func(e attribute.ExtendedCommunity) string { return string(e.AppendDecoded(nil)) }
 
 	for _, tc := range []struct {
 		name, field, configured, matching, other string
 	}{
 		{"numeric well-known", "community", "65535:666",
-			string(attribute.Communities{0xffff029a}.AppendText(nil)),
-			string(attribute.Communities{0xffffff01}.AppendText(nil))},
+			attribute.Community(0xffff029a).String(), attribute.Community(0xffffff01).String()},
 		{"large decimal", "large-community", "065001:00100:00200",
-			string(attribute.LargeCommunities{{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 200}}.AppendText(nil)),
-			string(attribute.LargeCommunities{{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 201}}.AppendText(nil))},
-		{"route target", "extended-community", "target:65000:20", targetText, otherTargetText},
-		{"site of origin", "extended-community", "origin:65000:20",
-			string(attribute.ExtendedCommunities{origin20}.AppendText(nil)), targetText},
-		{"raw extended hex", "extended-community", "0002FDE800000014", targetText, otherTargetText},
+			attribute.LargeCommunity{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 200}.String(),
+			attribute.LargeCommunity{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 201}.String()},
+		{"route target", "extended-community", "target:65000:20", decoded(target20), decoded(target10)},
+		{"site of origin", "extended-community", "origin:65000:20", decoded(origin20), decoded(target20)},
+		{"raw extended hex", "extended-community", "0002FDE800000014", decoded(target20), decoded(target10)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			defs := map[string]*modifyDef{
@@ -113,20 +114,14 @@ func TestConfiguredMatchModifiesOnlyMatchingRoute(t *testing.T) {
 					"set":   map[string]any{"next-hop": "192.0.2.1"},
 				}),
 			}
-			defsByName.Store(&defs)
-			out := handleFilterUpdate(&sdk.FilterUpdateInput{
-				Filter: "SERVICE",
-				Update: "origin igp next-hop 192.0.2.2 " + tc.matching + " nlri ipv4 unicast add 198.51.100.0/24",
-			})
-			if out.Action != sdk.FilterModify || out.Update != "next-hop 192.0.2.1" {
-				t.Fatalf("matching route was not rewritten: %+v", out)
+			out, err := evaluate(t, defs, modifyRoute("SERVICE", directionImport, communityFields(tc.field, tc.matching)))
+			if err != nil || out.Action != sdk.FilterModify {
+				t.Fatalf("matching route was not rewritten: %+v, %v", out, err)
 			}
-			out = handleFilterUpdate(&sdk.FilterUpdateInput{
-				Filter: "SERVICE",
-				Update: "origin igp next-hop 192.0.2.2 " + tc.other + " nlri ipv4 unicast add 198.51.100.0/24",
-			})
-			if out.Action != sdk.FilterAccept || out.Update != "" {
-				t.Fatalf("nonmatching route did not pass unchanged: %+v", out)
+			wantSets(t, out.Sets, `next-hop set "192.0.2.1"`)
+			out, err = evaluate(t, defs, modifyRoute("SERVICE", directionImport, communityFields(tc.field, tc.other)))
+			if err != nil || out.Action != sdk.FilterAccept || len(out.Sets) != 0 {
+				t.Fatalf("nonmatching route did not pass unchanged: %+v, %v", out, err)
 			}
 		})
 	}
@@ -134,24 +129,25 @@ func TestConfiguredMatchModifiesOnlyMatchingRoute(t *testing.T) {
 
 func TestMatchCondMatches(t *testing.T) {
 	cond := matchCond{communities: []matchCommunity{
-		{kind: filtertext.CommunityStandard, value: "blackhole"},
-		{kind: filtertext.CommunityLarge, value: "65001:1:2"},
+		newMatchCommunity(filtertext.CommunityStandard, "blackhole"),
+		newMatchCommunity(filtertext.CommunityLarge, "65001:1:2"),
 	}}
 
 	for _, tt := range []struct {
-		name string
-		text string
-		want bool
+		name   string
+		fields string
+		want   bool
 	}{
-		{"standard value present", "community [blackhole no-export] med 10", true},
-		{"large value present", "large-community 65001:1:2", true},
-		{"neither present", "community 65001:100 med 10", false},
-		{"no community attribute at all", "origin igp med 10", false},
-		{"standard value present only in the large attribute", "large-community blackhole", false},
+		{"standard value present", `{"community":["blackhole","no-export"],"med":10}`, true},
+		{"large value present", `{"large-community":["65001:1:2"]}`, true},
+		{"neither present", `{"community":["65001:100"],"med":10}`, false},
+		{"no community attribute at all", `{"med":10}`, false},
+		{"standard value present only in the large attribute", `{"large-community":["blackhole"]}`, false},
+		{"a value is matched whole, never as a prefix", `{"large-community":["65001:1:20"]}`, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := cond.matches(tt.text); got != tt.want {
-				t.Fatalf("matches(%q) = %v, want %v", tt.text, got, tt.want)
+			if got := cond.matches([]byte(tt.fields)); got != tt.want {
+				t.Fatalf("matches(%s) = %v, want %v", tt.fields, got, tt.want)
 			}
 		})
 	}
@@ -162,7 +158,7 @@ func TestMatchCondMatches(t *testing.T) {
 	if !none.empty() {
 		t.Fatal("a zero matchCond must read as absent")
 	}
-	if !none.matches("origin igp") {
+	if !none.matches([]byte(`{}`)) {
 		t.Fatal("an absent condition must apply to every route")
 	}
 }
@@ -181,19 +177,16 @@ func TestBlackholeCommunityRewritesNextHopWhenAgreed(t *testing.T) {
 		"match": map[string]any{"community": "blackhole"},
 		"set":   map[string]any{"next-hop": "192.0.2.1"},
 	})
-	defsByName.Store(&defs)
 
-	out := handleFilterUpdate(&sdk.FilterUpdateInput{
-		Filter: "RTBH",
-		Peer:   "10.0.0.2",
-		Update: "origin igp next-hop 10.0.0.2 community blackhole nlri ipv4 unicast add 10.100.0.1/32",
-	})
+	out, err := evaluate(t, defs, modifyRoute("RTBH", directionImport,
+		communityFields("community", attribute.Community(0xffff029a).String())))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if out.Action != sdk.FilterModify {
 		t.Fatalf("action = %v, want modify", out.Action)
 	}
-	if out.Update != "next-hop 192.0.2.1" {
-		t.Fatalf("delta = %q, want %q", out.Update, "next-hop 192.0.2.1")
-	}
+	wantSets(t, out.Sets, `next-hop set "192.0.2.1"`)
 }
 
 // RFC requirement: RFC7999-4-1 positive -- without an explicit configuration
@@ -206,18 +199,17 @@ func TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement(t *testing.T) {
 		"match": map[string]any{"community": "65001:100"},
 		"set":   map[string]any{"next-hop": "192.0.2.1"},
 	})
-	defsByName.Store(&defs)
 
-	out := handleFilterUpdate(&sdk.FilterUpdateInput{
-		Filter: "RTBH",
-		Peer:   "10.0.0.2",
-		Update: "origin igp next-hop 10.0.0.2 community blackhole nlri ipv4 unicast add 10.100.0.1/32",
-	})
+	out, err := evaluate(t, defs, modifyRoute("RTBH", directionImport,
+		communityFields("community", attribute.Community(0xffff029a).String())))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if out.Action != sdk.FilterAccept {
 		t.Fatalf("action = %v, want accept", out.Action)
 	}
-	if out.Update != "" {
-		t.Fatalf("delta = %q, want empty: an accept carries no change", out.Update)
+	if len(out.Sets) != 0 || out.Update != "" {
+		t.Fatalf("answer = %+v, want no change: an accept carries none", out)
 	}
 }
 
@@ -230,19 +222,15 @@ func TestOperatorOwnCommunityRewritesNextHop(t *testing.T) {
 		"match": map[string]any{"community": "65001:666"},
 		"set":   map[string]any{"next-hop": "192.0.2.1"},
 	})
-	defsByName.Store(&defs)
 
-	out := handleFilterUpdate(&sdk.FilterUpdateInput{
-		Filter: "RTBH",
-		Peer:   "10.0.0.2",
-		Update: "origin igp next-hop 10.0.0.2 community 65001:666 nlri ipv4 unicast add 10.100.0.1/32",
-	})
+	out, err := evaluate(t, defs, modifyRoute("RTBH", directionImport, communityFields("community", "65001:666")))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if out.Action != sdk.FilterModify {
 		t.Fatalf("action = %v, want modify", out.Action)
 	}
-	if out.Update != "next-hop 192.0.2.1" {
-		t.Fatalf("delta = %q, want %q", out.Update, "next-hop 192.0.2.1")
-	}
+	wantSets(t, out.Sets, `next-hop set "192.0.2.1"`)
 }
 
 // A definition with no match container keeps applying to every route. Existing
@@ -253,17 +241,13 @@ func TestModifyWithoutMatchStillAppliesToEveryRoute(t *testing.T) {
 	defs["LP"] = modifyDefsFromConfig(t, "LP", map[string]any{
 		"set": map[string]any{"local-preference": 200},
 	})
-	defsByName.Store(&defs)
 
-	out := handleFilterUpdate(&sdk.FilterUpdateInput{
-		Filter: "LP",
-		Peer:   "10.0.0.2",
-		Update: "origin igp next-hop 10.0.0.2 nlri ipv4 unicast add 10.100.0.1/32",
-	})
+	out, err := evaluate(t, defs, modifyRoute("LP", directionImport, `{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if out.Action != sdk.FilterModify {
 		t.Fatalf("action = %v, want modify", out.Action)
 	}
-	if out.Update != "local-preference 200" {
-		t.Fatalf("delta = %q", out.Update)
-	}
+	wantSets(t, out.Sets, "local-preference set 200")
 }
