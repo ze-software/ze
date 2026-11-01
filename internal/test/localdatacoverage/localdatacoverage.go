@@ -35,7 +35,7 @@ const envConfigDirDotted = "ze.config.dir"
 // this walk was never run against.
 const pluginNameRIB = "rib"
 
-const CompletionMarker = "OK: 20/20 local-data commands and local one-shot save"
+const CompletionMarker = "OK: 39/39 local-data commands and local one-shot save"
 
 // Marker returns the terminal-delimited evidence emitted after a local command
 // has successfully run and answered JSON.
@@ -74,6 +74,26 @@ func Evidence() []Invocation {
 		{Command: "show plugin list | json compact", Evidence: "show plugin list"},
 		{Command: "show plugin declarations | json compact", Evidence: "show plugin declarations"},
 		{Command: "show plugin declarations config %s | json compact", Evidence: "show plugin declarations config"},
+		{Command: "show config cat pipe-local.conf | json compact", Evidence: "show config cat"},
+		{Command: "show config fmt %s | json compact", Evidence: "show config fmt"},
+		{Command: "show config graph %s | json compact", Evidence: "show config graph"},
+		{Command: "show data cat --path %s meta/instance/name | json compact", Evidence: "show data cat"},
+		{Command: "show yang doc --list | json compact", Evidence: "show yang doc"},
+		{Command: "set debug module coverage.local flag f | json compact", Evidence: "set debug module"},
+		{Command: "set debug timeout 90s | json compact", Evidence: "set debug timeout"},
+		{Command: "set debug profile name p1 | json compact", Evidence: "set debug profile name"},
+		{Command: "show debug profile | json compact", Evidence: "show debug profile"},
+		{Command: "show debug profile name default | json compact", Evidence: "show debug profile"},
+		{Command: "set debug active name p1 | json compact", Evidence: "set debug active name"},
+		{Command: "delete debug module coverage.local | json compact", Evidence: "delete debug module"},
+		{Command: "delete debug profile name p1 | json compact", Evidence: "delete debug profile name"},
+		{Command: "clear debug | json compact", Evidence: "clear debug"},
+		{Command: "show diagnostic config-parse | json compact", Evidence: "show diagnostic"},
+		{Command: "show skills | json compact", Evidence: "show skills"},
+		{Command: "show skill ze | json compact", Evidence: "show skill"},
+		{Command: "request wireguard keypair | json compact", Evidence: "request wireguard keypair"},
+		{Command: "show bgp encode route 10.0.0.0/24 next-hop 192.168.1.1 | json compact", Evidence: "show bgp encode"},
+		{Command: "show bgp decode %s | json compact", Evidence: "show bgp decode"},
 	}
 }
 
@@ -399,6 +419,82 @@ func inPrivateWorkspace(scenario func(string) error) (result error) {
 	return scenario(work)
 }
 
+// blobContent runs a command whose answer is a command.Blob through
+// `| json compact` and answers the text the envelope carried. The fixtures
+// are text, so an encoding other than utf-8 is a defect in the answer.
+func blobContent(command, evidence string, output io.Writer) (string, error) {
+	payload, err := localJSON(command, evidence, output)
+	if err != nil {
+		return "", err
+	}
+	document, err := exactObject(payload, evidence, "blob")
+	if err != nil {
+		return "", err
+	}
+	wire, err := exactObject(document["blob"], evidence+" blob", "content", "encoding")
+	if err != nil {
+		return "", err
+	}
+	if wire["encoding"] != "utf-8" {
+		return "", fmt.Errorf("%s answered encoding %v for a text fixture: %#v", evidence, wire["encoding"], payload)
+	}
+	content, isText := wire["content"].(string)
+	if !isText {
+		return "", fmt.Errorf("%s answered no text content: %#v", evidence, payload)
+	}
+	return content, nil
+}
+
+// runBlobCommands covers the five commands that answer text or bytes as they
+// are. Each content is checked against the fixture it was read from, so an
+// answer of the wrong file, or of nothing, is refused.
+func runBlobCommands(output io.Writer, configPath, blobPath string) error {
+	stored, err := os.ReadFile(configPath) //nolint:gosec // G304: the fixture this scenario wrote
+	if err != nil {
+		return err
+	}
+	content, err := blobContent("show config cat pipe-local.conf | json compact", "show config cat", output)
+	if err != nil {
+		return err
+	}
+	if err := require(content == string(stored), "show config cat answered %q, want the stored %q", content, stored); err != nil {
+		return err
+	}
+
+	content, err = blobContent(fmt.Sprintf("show config fmt %s | json compact", configPath), "show config fmt", output)
+	if err != nil {
+		return err
+	}
+	if err := require(strings.Contains(content, "router-id 203.0.113.253") && strings.HasSuffix(content, "\n"),
+		"show config fmt did not answer the formatted fixture: %q", content); err != nil {
+		return err
+	}
+
+	content, err = blobContent(fmt.Sprintf("show config graph %s | json compact", configPath), "show config graph", output)
+	if err != nil {
+		return err
+	}
+	var graph map[string]any
+	if err := json.Unmarshal([]byte(content), &graph); err != nil {
+		return fmt.Errorf("show config graph content is not a JSON object: %w: %q", err, content)
+	}
+
+	content, err = blobContent(
+		fmt.Sprintf("show data cat --path %s meta/instance/name | json compact", blobPath), "show data cat", output)
+	if err != nil {
+		return err
+	}
+	if err := require(content == "router-a", "show data cat answered %q, want the seeded router-a", content); err != nil {
+		return err
+	}
+
+	content, err = blobContent("show yang doc --list | json compact", "show yang doc", output)
+	if err != nil {
+		return err
+	}
+	return require(strings.Contains(content, "show "), "show yang doc --list listed no command: %q", content)
+}
+
 func runScenario(output io.Writer, work string) error {
 
 	configPath := filepath.Join(work, "pipe-local.conf")
@@ -432,6 +528,19 @@ func runScenario(output io.Writer, work string) error {
 		return err
 	}
 	if err := seedData("meta/instance/name", blobInput, "--path", blobPath); err != nil {
+		return err
+	}
+
+	if err := runBlobCommands(output, configPath, blobPath); err != nil {
+		return err
+	}
+	if err := runDebugCommands(output); err != nil {
+		return err
+	}
+	if err := runToolCommands(output, work); err != nil {
+		return err
+	}
+	if err := runBGPToolCommands(output); err != nil {
 		return err
 	}
 

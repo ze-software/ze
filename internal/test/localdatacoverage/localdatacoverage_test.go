@@ -337,11 +337,31 @@ func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 		{Command: "show plugin list | json compact", Evidence: "show plugin list"},
 		{Command: "show plugin declarations | json compact", Evidence: "show plugin declarations"},
 		{Command: "show plugin declarations config %s | json compact", Evidence: "show plugin declarations config"},
+		{Command: "show config cat pipe-local.conf | json compact", Evidence: "show config cat"},
+		{Command: "show config fmt %s | json compact", Evidence: "show config fmt"},
+		{Command: "show config graph %s | json compact", Evidence: "show config graph"},
+		{Command: "show data cat --path %s meta/instance/name | json compact", Evidence: "show data cat"},
+		{Command: "show yang doc --list | json compact", Evidence: "show yang doc"},
+		{Command: "set debug module coverage.local flag f | json compact", Evidence: "set debug module"},
+		{Command: "set debug timeout 90s | json compact", Evidence: "set debug timeout"},
+		{Command: "set debug profile name p1 | json compact", Evidence: "set debug profile name"},
+		{Command: "show debug profile | json compact", Evidence: "show debug profile"},
+		{Command: "show debug profile name default | json compact", Evidence: "show debug profile"},
+		{Command: "set debug active name p1 | json compact", Evidence: "set debug active name"},
+		{Command: "delete debug module coverage.local | json compact", Evidence: "delete debug module"},
+		{Command: "delete debug profile name p1 | json compact", Evidence: "delete debug profile name"},
+		{Command: "clear debug | json compact", Evidence: "clear debug"},
+		{Command: "show diagnostic config-parse | json compact", Evidence: "show diagnostic"},
+		{Command: "show skills | json compact", Evidence: "show skills"},
+		{Command: "show skill ze | json compact", Evidence: "show skill"},
+		{Command: "request wireguard keypair | json compact", Evidence: "request wireguard keypair"},
+		{Command: "show bgp encode route 10.0.0.0/24 next-hop 192.168.1.1 | json compact", Evidence: "show bgp encode"},
+		{Command: "show bgp decode %s | json compact", Evidence: "show bgp decode"},
 	}
 	if got := Evidence(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("Evidence() = %#v, want %#v", got, want)
 	}
-	if CompletionMarker != "OK: 20/20 local-data commands and local one-shot save" {
+	if CompletionMarker != "OK: 39/39 local-data commands and local one-shot save" {
 		t.Fatalf("CompletionMarker = %q", CompletionMarker)
 	}
 	for _, invocation := range want {
