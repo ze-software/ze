@@ -1,0 +1,194 @@
+# Test: a BGP import chain of `match` instances judges each UPDATE with each of
+# the five BGP match conditions, and only the UPDATE every condition meets is
+# relayed
+# VALIDATES: spec-filter-wire-0-umbrella Wiring Test row "filter { import {
+#            filters [ <match instance with as-path, as-path-length,
+#            community, reject-asn and prefix-list conditions> ]; final
+#            accept; } } on a peer": each condition, registered by its own
+#            package, runs in the daemon over the BGP view at the peer's
+#            import chain. One `match` instance per condition (AC-30): a
+#            rejecting instance stops the chain, so each rejected UPDATE's
+#            decision line names the condition that judged it.
+# PREVENTS: a condition that accepts every route (the UPDATE it should drop is
+#           relayed to dest-peer ahead of the accepted one, and the wire
+#           expectation fails), a condition that rejects every route (the
+#           accepted UPDATE never reaches dest-peer), and a condition whose
+#           decision line is lost.
+#
+# Flow:
+# 1. source-peer (AS65001) sends six UPDATEs, one per case, the five rejected
+#    ones first:
+#    U1 192.168.1.0/24 AS_PATH [65001]               -> prefix-list PL rejects
+#    U2 10.0.2.0/24    AS_PATH [65001 64999]         -> as-path AP rejects
+#    U3 10.0.3.0/24    AS_PATH [65001 1 2 3]         -> as-path-length LEN rejects (4 > 3)
+#    U4 10.0.4.0/24    AS_PATH [65001], 65001:666    -> community COM rejects
+#    U5 10.0.5.0/24    AS_PATH [65001 3356]          -> reject-asn RA rejects
+#    U6 10.0.1.0/24    AS_PATH [65001], 65001:100    -> every condition accepts
+#    Every UPDATE but U4 carries COMMUNITY 65001:100; U4 carries 65001:666 only.
+#    U4 does not use no-export: RFC 1997 keeps a NO_EXPORT route from an eBGP
+#    peer whatever the chain says, so a leaked U4 would never reach the wire.
+# 2. source-peer's import chain [ M-PL M-AP M-LEN M-COM M-RA ], final accept.
+# 3. bgp-rs relays what survives, in per-source FIFO order: dest-peer's first
+#    and only UPDATE must be U6 byte for byte. A leaked U1 to U5 would arrive
+#    first and fail the expectation.
+# Each source UPDATE: Marker(16) Len Type=02 WdLen=0000 AttrLen
+#   ORIGIN 40010100 (IGP), AS_PATH 4002.., NEXT_HOP 40030401010101 (1.1.1.1),
+#   COMMUNITY C00804FDE90064 (65001:100) or C00804FDE9029A (65001:666), NLRI.
+
+option=env:var=ze.log.bgp.filter.prefix:value=info
+option=env:var=ze.log.bgp.filter.aspath:value=info
+option=env:var=ze.log.bgp.filter.aspath-length:value=info
+option=env:var=ze.log.bgp.filter.community.match:value=info
+option=env:var=ze.log.bgp.filter.path.asn:value=info
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+# U1: 192.168.1.0/24, AS_PATH [65001], COMMUNITY 65001:100
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE9006418C0A801
+# U2: 10.0.2.0/24, AS_PATH [65001 64999], COMMUNITY 65001:100
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE90000FDE740030401010101C00804FDE90064180A0002
+# U3: 10.0.3.0/24, AS_PATH [65001 1 2 3], COMMUNITY 65001:100
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004202000000274001010040021202040000FDE900000001000000020000000340030401010101C00804FDE90064180A0003
+# U4: 10.0.4.0/24, AS_PATH [65001], COMMUNITY 65001:666
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE9029A180A0004
+# U5: 10.0.5.0/24, AS_PATH [65001 3356], COMMUNITY 65001:100
+action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE900000D1C40030401010101C00804FDE90064180A0005
+# U6: 10.0.1.0/24, AS_PATH [65001], COMMUNITY 65001:100
+action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE90064180A0001
+EOF_SOURCE
+
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=20s
+# The relayed U6: AS_PATH [65000 65001] (40020A02020000FDE80000FDE9),
+# NEXT_HOP 1.1.1.1 kept, COMMUNITY 65001:100 kept, NLRI 180A0001
+# (10.0.1.0/24); attribute length 001F (31), message length 003A (58).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE940030401010101C00804FDE90064180A0001
+EOF_DEST
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	# The relay observer: it waits until dest-peer was sent the route.
+	external test-strip {
+		run "le test fixture plugin/prefix-filter-modify-mp"
+		encoder json
+	}
+}
+policy {
+	prefix-list PL {
+		entry 10.0.0.0/8 { ge 24; le 24; action accept; }
+	}
+	as-path-list AP {
+		entry "^65001 64999" { action reject; }
+		entry "^65001" { action accept; }
+	}
+	as-path-length LEN {
+		max 3
+	}
+	community-match COM {
+		entry 65001:666 { type standard; action reject; }
+		entry 65001:100 { type standard; action accept; }
+	}
+	reject-asn RA {
+		indirect [ 3356 ]
+	}
+	match M-PL {
+		prefix-list PL
+	}
+	match M-AP {
+		as-path AP
+	}
+	match M-LEN {
+		as-path-length LEN
+	}
+	match M-COM {
+		community COM
+	}
+	match M-RA {
+		reject-asn RA
+	}
+}
+
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source-peer {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+		filter {
+			import { filters [ M-PL M-AP M-LEN M-COM M-RA ]; final accept; }
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+	peer dest-peer {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+		# bgp-rs asks adj-rib-in to replay the stored route here when this
+		# session establishes, so adj-rib-in needs the send permission.
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:pattern=OK: dest peer was sent the re-advertised route
+# Each rejected UPDATE names the condition that judged it.
+expect=stderr:pattern=prefix-list reject.*filter=PL.*nlri=192\.168\.1\.0/24
+expect=stderr:pattern=as-path-list reject.*filter=AP.*as-path="65001 64999"
+expect=stderr:pattern=as-path-length reject.*filter=LEN.*length=4
+expect=stderr:pattern=community-match reject.*filter=COM
+expect=stderr:pattern=reject-asn reject.*filter=RA.*direction=import.*asn=3356
+# The accepted UPDATE passes every condition that writes an accept line.
+expect=stderr:pattern=prefix-list accept.*filter=PL.*nlri=10\.0\.1\.0/24
+expect=stderr:pattern=as-path-list accept.*filter=AP.*as-path=65001
+expect=stderr:pattern=community-match accept.*filter=COM
+# No condition judges the wrong way.
+reject=stderr:pattern=prefix-list accept.*nlri=192\.168\.1\.0/24
+reject=stderr:pattern=prefix-list reject.*nlri=10\.0\.
+reject=stderr:pattern=as-path-list reject.*as-path=65001( |$)
+reject=stderr:pattern=as-path-length reject.*length=[12]( |$)
+reject=stderr:pattern=reject-asn reject.*as-path=65001( |$)
+reject=stderr:pattern=policy filter failed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
