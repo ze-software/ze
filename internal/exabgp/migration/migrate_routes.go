@@ -174,12 +174,21 @@ func convertFlowToUpdate(flow, dst *config.Tree, result *MigrateResult) error {
 		// Parse match criteria and detect IPv6.
 		isIPv6 := false
 		var nlriCriteria []string
+		// The notes of a rewritten traffic-class, said only once the route is migrated.
+		var notes []string
 		if match := route.GetContainer("match"); match != nil {
 			for _, key := range match.Values() {
 				val, _ := match.Get(key)
 				criterion, value := parseFlowMatchEntry(key, val)
 				if criterion == "" {
 					continue
+				}
+				if criterion == flowspec.KwTrafficClass {
+					var note string
+					value, note = flowTrafficClassDSCP(entry.Key, value)
+					if note != "" {
+						notes = append(notes, note)
+					}
 				}
 				// Detect IPv6 by address content.
 				if (criterion == "source" || criterion == "destination") && strings.Contains(value, ":") {
@@ -195,6 +204,7 @@ func convertFlowToUpdate(flow, dst *config.Tree, result *MigrateResult) error {
 			result.Warnings = append(result.Warnings, "flow route "+entry.Key+" is not migrated: "+err.Error())
 			continue
 		}
+		result.Warnings = append(result.Warnings, notes...)
 
 		// Parse scope block → interface-set extended communities. They are
 		// written BEFORE the then block's traffic actions because ExaBGP sorts

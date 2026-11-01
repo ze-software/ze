@@ -254,6 +254,19 @@ it at load with the warning `flow.unmatchable`. The migration drops it too and
 adds a warning naming the route, so the rest of the config migrates.
 <!-- source: internal/exabgp/migration/migrate_routes.go -- convertFlowToUpdate, flowRouteMatchable -->
 
+### Traffic class above 63
+
+ExaBGP 4.2 and 5.0 accept a `traffic-class` value up to 255 and send it as one
+octet unchanged, so `traffic-class 101` goes out as 0x65. RFC 8955 Section
+4.2.2.11 reads the DSCP from the six least significant bits of that octet and
+treats the other bits as 0, as ExaBGP 6.0 does when it decodes one. Ze refuses
+a DSCP above 63, so the migration writes the DSCP the remote router reads:
+`traffic-class 101` becomes `traffic-class 37`. Each operand is rewritten and
+its operator kept (`[ =101 >200 ]` becomes `[ =37 >8 ]`), and a warning names
+the route and both values. A value above 255 fits no octet and ExaBGP does not
+send it, so the migration leaves it and ze refuses the config.
+<!-- source: internal/exabgp/migration/migrate_flow_traffic_class.go -- flowTrafficClassDSCP -->
+
 ### Redirect and copy
 
 Two drafts define a redirect to an address. The IETF one
