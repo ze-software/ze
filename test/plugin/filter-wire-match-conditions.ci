@@ -9,9 +9,9 @@
 #            import chain. One `match` instance per condition (AC-30): a
 #            rejecting instance stops the chain, so each rejected UPDATE's
 #            decision line names the condition that judged it.
-# PREVENTS: a condition that accepts every route (the UPDATE it should drop is
-#           relayed to dest-peer ahead of the accepted one, and the wire
-#           expectation fails), a condition that rejects every route (the
+# PREVENTS: a condition that accepts every route (its decision line goes
+#           missing, and the UPDATE it should drop is announced to
+#           dest-peer), a condition that rejects every route (the
 #           accepted UPDATE never reaches dest-peer), and a condition whose
 #           decision line is lost.
 #
@@ -28,9 +28,11 @@
 #    U4 does not use no-export: RFC 1997 keeps a NO_EXPORT route from an eBGP
 #    peer whatever the chain says, so a leaked U4 would never reach the wire.
 # 2. source-peer's import chain [ M-PL M-AP M-LEN M-COM M-RA ], final accept.
-# 3. bgp-rs relays what survives, in per-source FIFO order: dest-peer's first
-#    and only UPDATE must be U6 byte for byte. A leaked U1 to U5 would arrive
-#    first and fail the expectation.
+# 3. dest-peer's first UPDATE must be U6 byte for byte, and no refused NLRI
+#    may be announced to it (reject=bgp). The source's routes usually reach
+#    dest-peer through bgp-rs's peer-up replay, whose order is not the send
+#    order, so a leak can arrive after U6: the reject=bgp lines catch it when
+#    it lands before shutdown, and the decision lines catch it always.
 # Each source UPDATE: Marker(16) Len Type=02 WdLen=0000 AttrLen
 #   ORIGIN 40010100 (IGP), AS_PATH 4002.., NEXT_HOP 40030401010101 (1.1.1.1),
 #   COMMUNITY C00804FDE90064 (65001:100) or C00804FDE9029A (65001:666), NLRI.
@@ -66,6 +68,12 @@ option=timeout:value=20s
 # NEXT_HOP 1.1.1.1 kept, COMMUNITY 65001:100 kept, NLRI 180A0001
 # (10.0.1.0/24); attribute length 001F (31), message length 003A (58).
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE940030401010101C00804FDE90064180A0001
+# No refused UPDATE is announced to dest-peer, whenever it would arrive.
+reject=bgp:conn=1:scope=announced:pattern=18C0A801
+reject=bgp:conn=1:scope=announced:pattern=180A0002
+reject=bgp:conn=1:scope=announced:pattern=180A0003
+reject=bgp:conn=1:scope=announced:pattern=180A0004
+reject=bgp:conn=1:scope=announced:pattern=180A0005
 EOF_DEST
 
 stdin=ze-bgp:terminator=EOF_CONF

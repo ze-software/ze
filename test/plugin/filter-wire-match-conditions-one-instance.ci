@@ -1,0 +1,201 @@
+# Test: ONE `match` instance carrying all five BGP match conditions accepts
+# only the UPDATE that meets every one of them
+# VALIDATES: spec-filter-wire-0-umbrella Wiring Test row "filter { import {
+#            filters [ <match instance with as-path, as-path-length,
+#            community, reject-asn and prefix-list conditions> ]; final
+#            accept; } } on a peer", in its literal shape: one instance names
+#            the five conditions. The conditions of one instance combine with
+#            AND (policy.Match.Matches: a route matches only when every check
+#            holds; with action accept, Rejects refuses any other route).
+#            Each of U1 to U5 fails exactly one condition and meets the other
+#            four, so only AND refuses all five. Sibling of
+#            filter-wire-match-conditions.ci (one instance per condition).
+# PREVENTS: conditions combined with OR (U1 to U5 accepted and relayed), a
+#           condition dropped from a multi-condition instance or accepting
+#           every route (its UPDATE relayed), a condition rejecting every
+#           route (U6 never relayed).
+#
+# Flow:
+# 1. source-peer (AS65001) sends six UPDATEs, one per case, the five rejected
+#    ones first:
+#    U1 192.168.1.0/24 AS_PATH [65001]               -> fails prefix-list PL only
+#    U2 10.0.2.0/24    AS_PATH [65001 64999]         -> fails as-path AP only
+#    U3 10.0.3.0/24    AS_PATH [65001 1 2 3]         -> fails as-path-length LEN only (4 > 3)
+#    U4 10.0.4.0/24    AS_PATH [65001], 65001:666    -> fails community COM only
+#    U5 10.0.5.0/24    AS_PATH [65001 3356]          -> fails reject-asn RA only
+#    U6 10.0.1.0/24    AS_PATH [65001], 65001:100    -> meets every condition
+#    Every UPDATE but U4 carries COMMUNITY 65001:100; U4 carries 65001:666 only.
+#    U4 does not use no-export: RFC 1997 keeps a NO_EXPORT route from an eBGP
+#    peer whatever the chain says, so a leaked U4 would never reach the wire.
+# 2. source-peer's import chain [ M-ALL ], final accept. M-ALL names PL, AP,
+#    LEN, COM and RA.
+# 3. dest-peer's first UPDATE must be U6 byte for byte, and no refused NLRI
+#    may be announced to it (reject=bgp). The source's routes usually reach
+#    dest-peer through bgp-rs's peer-up replay, whose order is not the send
+#    order, so a leak can arrive after U6: the reject=bgp lines catch it when
+#    it lands before shutdown, and the decision lines catch it always.
+# Each source UPDATE: Marker(16) Len Type=02 WdLen=0000 AttrLen
+#   ORIGIN 40010100 (IGP), AS_PATH 4002.., NEXT_HOP 40030401010101 (1.1.1.1),
+#   COMMUNITY C00804FDE90064 (65001:100) or C00804FDE9029A (65001:666), NLRI.
+
+option=env:var=ze.log.bgp.filter.prefix:value=info
+option=env:var=ze.log.bgp.filter.aspath:value=info
+option=env:var=ze.log.bgp.filter.aspath-length:value=info
+option=env:var=ze.log.bgp.filter.community.match:value=info
+option=env:var=ze.log.bgp.filter.path.asn:value=info
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+# U1: 192.168.1.0/24, AS_PATH [65001], COMMUNITY 65001:100
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE9006418C0A801
+# U2: 10.0.2.0/24, AS_PATH [65001 64999], COMMUNITY 65001:100
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE90000FDE740030401010101C00804FDE90064180A0002
+# U3: 10.0.3.0/24, AS_PATH [65001 1 2 3], COMMUNITY 65001:100
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004202000000274001010040021202040000FDE900000001000000020000000340030401010101C00804FDE90064180A0003
+# U4: 10.0.4.0/24, AS_PATH [65001], COMMUNITY 65001:666
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE9029A180A0004
+# U5: 10.0.5.0/24, AS_PATH [65001 3356], COMMUNITY 65001:100
+action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE900000D1C40030401010101C00804FDE90064180A0005
+# U6: 10.0.1.0/24, AS_PATH [65001], COMMUNITY 65001:100
+action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE90064180A0001
+EOF_SOURCE
+
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=20s
+# The relayed U6: AS_PATH [65000 65001] (40020A02020000FDE80000FDE9),
+# NEXT_HOP 1.1.1.1 kept, COMMUNITY 65001:100 kept, NLRI 180A0001
+# (10.0.1.0/24); attribute length 001F (31), message length 003A (58).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE940030401010101C00804FDE90064180A0001
+# No refused UPDATE is announced to dest-peer, whenever it would arrive.
+reject=bgp:conn=1:scope=announced:pattern=18C0A801
+reject=bgp:conn=1:scope=announced:pattern=180A0002
+reject=bgp:conn=1:scope=announced:pattern=180A0003
+reject=bgp:conn=1:scope=announced:pattern=180A0004
+reject=bgp:conn=1:scope=announced:pattern=180A0005
+EOF_DEST
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	# The relay observer: it waits until dest-peer was sent the route.
+	external test-strip {
+		run "le test fixture plugin/prefix-filter-modify-mp"
+		encoder json
+	}
+}
+policy {
+	prefix-list PL {
+		entry 10.0.0.0/8 { ge 24; le 24; action accept; }
+	}
+	as-path-list AP {
+		entry "^65001 64999" { action reject; }
+		entry "^65001" { action accept; }
+	}
+	as-path-length LEN {
+		max 3
+	}
+	community-match COM {
+		entry 65001:666 { type standard; action reject; }
+		entry 65001:100 { type standard; action accept; }
+	}
+	reject-asn RA {
+		indirect [ 3356 ]
+	}
+	# One match instance carrying all five conditions: a route passes only
+	# when it meets every one of them.
+	match M-ALL {
+		prefix-list PL
+		as-path AP
+		as-path-length LEN
+		community COM
+		reject-asn RA
+	}
+}
+
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source-peer {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+		filter {
+			import { filters [ M-ALL ]; final accept; }
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+	peer dest-peer {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+		# bgp-rs asks adj-rib-in to replay the stored route here when this
+		# session establishes, so adj-rib-in needs the send permission.
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:pattern=OK: dest peer was sent the re-advertised route
+# One instance answers one verdict per UPDATE, and every condition it names
+# writes that verdict on its own decision line: the prefix-list line names
+# the UPDATE's NLRI, so it witnesses each verdict. U1 to U5 are each refused
+# whole, though four of the five conditions accept each of them.
+expect=stderr:pattern=prefix-list reject.*filter=PL.*nlri=192\.168\.1\.0/24
+expect=stderr:pattern=prefix-list reject.*filter=PL.*nlri=10\.0\.2\.0/24
+expect=stderr:pattern=prefix-list reject.*filter=PL.*nlri=10\.0\.3\.0/24
+expect=stderr:pattern=prefix-list reject.*filter=PL.*nlri=10\.0\.4\.0/24
+expect=stderr:pattern=prefix-list reject.*filter=PL.*nlri=10\.0\.5\.0/24
+expect=stderr:pattern=as-path-list reject.*filter=AP.*as-path="65001 64999"
+expect=stderr:pattern=as-path-length reject.*filter=LEN.*length=4
+expect=stderr:pattern=reject-asn reject.*filter=RA.*direction=import.*asn=3356
+# U6 meets every condition, so the instance accepts it.
+expect=stderr:pattern=prefix-list accept.*filter=PL.*nlri=10\.0\.1\.0/24
+expect=stderr:pattern=as-path-list accept.*filter=AP.*as-path=65001
+expect=stderr:pattern=community-match accept.*filter=COM
+# No UPDATE gets the other verdict: an OR of the conditions would accept U1
+# to U5, and a condition refusing everything would reject U6.
+reject=stderr:pattern=prefix-list accept.*nlri=(192\.168\.1|10\.0\.[2-5])\.0/24
+reject=stderr:pattern=prefix-list reject.*nlri=10\.0\.1\.0/24
+reject=stderr:pattern=policy filter failed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
