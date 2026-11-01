@@ -212,6 +212,15 @@ func TestChainFoldsNumericSets(t *testing.T) {
 	if ops := applied(t, &absent, Current{MEDBase: 40, HasMEDBase: true}); !bytes.Equal(ops[0].Buf, []byte{0, 0, 0, 50}) {
 		t.Fatalf("increment 10 of an absent med with base 40 = %v, want 50", ops[0].Buf)
 	}
+
+	// The upper clamp: an increment past 4294967295 stops there, never wraps.
+	var high Sets
+	if err := high.LocalPreference(NumericActionIncrement, 100); err != nil {
+		t.Fatal(err)
+	}
+	if ops := applied(t, &high, Current{LocalPreference: 4294967290, HasLocalPreference: true}); !bytes.Equal(ops[0].Buf, []byte{0xff, 0xff, 0xff, 0xff}) {
+		t.Fatalf("increment 100 of local-preference 4294967290 = %v, want clamped to 4294967295", ops[0].Buf)
+	}
 }
 
 // TestChainCommunityOps proves the community half of AC-25 in process: an add

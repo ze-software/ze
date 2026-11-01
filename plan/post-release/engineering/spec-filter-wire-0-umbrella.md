@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P3 |
 | Release reason | Release-independent filter wire 0 umbrella work; historical findings do not establish a current product defect. |
 | Depends | Route-policy phases 1-3, landed (490618ef43). This builds on their library in `internal/component/policy/`: `policy.CompileRouteChain`, `policy.RouteChain` and `policy.CheckChain`; the field registry, `policy.MustRegisterField` with a `policy.RouteView` (`Read`, `Written`); `policy.MustRegisterRouteAttachment`; and `ribpolicy.Route` and `ribpolicy.Sets` (`internal/core/rib/policy`) |
-| Phase | - |
-| Updated | 2026-10-31 |
+| Phase | 3/5 |
+| Updated | 2026-11-01 |
 
 ## Read this first
 
@@ -448,7 +448,7 @@ design question is open.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every BGP field in the vocabulary can be decoded from `AttributesWire` on demand without copying the wire bytes | `AttributesWire.Get`, `GetRaw`, `ForEach` (`internal/core/bgp/attribute/wire.go`); `WireUpdate` lazy fields under `sync.Once` (`wireu/wire_update.go`) | the view allocates per read and the fast path regresses | a unit test per field reader with `testing.AllocsPerRun` | unvalidated |
+| A-1 | Every BGP field in the vocabulary can be decoded from `AttributesWire` on demand without copying the wire bytes | `AttributesWire.Get`, `GetRaw`, `ForEach` (`internal/core/bgp/attribute/wire.go`); `WireUpdate` lazy fields under `sync.Once` (`wireu/wire_update.go`) | the view allocates per read and the fast path regresses | a unit test per field reader with `testing.AllocsPerRun` | confirmed by `TestWireViewEveryReaderAllocationFree` (each of the 17 readers allocates nothing) |
 | A-2 | Every plain set field maps onto existing `AttrModHandler`s (`genericAttrSetHandler`, `aspathHandler`, the community handlers, `mpReachNextHopHandler`) | `attrModHandlersWithDefaults`; `textDeltaToModOps` already emits ops per attribute | a field needs a new handler, registered per code | a test per settable field asserting the wire bytes | unvalidated |
 | A-3 | Prepend and remove-private need reactor-side state (local AS, peer AS, ASN4 width) a plugin cannot know | `ExtractASPathPrependOps` takes `localAS`; `ExtractRemovePrivateASOps` takes `asn4` and `peerAS` | the plugin could compute them and the intents collapse to set fields | reading both signatures and their callers in `filter_ordered.go` | validated by reading at 544f8f930c |
 | A-4 | BGP chains already run `policy.CheckChain` for named instances, so the fast path inherits a working load-time check | `validateChainNames` in `internal/component/bgp/config/peers.go`; attachments registered in `bgp/config/register.go` | the check must be wired first | reading at 544f8f930c | validated by reading |
@@ -456,7 +456,7 @@ design question is open.
 | A-6 | A JSON message with only the declared fields, batched, is no slower per route than today's text subject | FR-6; today a modified UPDATE pays render, two parses and a diff | the slow path regresses for small filters | the throughput harness on Thomas's Mac (FR-7) | unvalidated |
 | A-7 | The functional runner and the QEMU guest can fork a Python 3 plugin | no `.py` plugin exists under `test/plugin` or `test/reload` today; Python scripts exist only under `test/exabgp-compat` | the non-Go AC needs another language the runner already has | a runner probe `.ci` forking `python3 -I` | unvalidated |
 | A-8 | Non-CIDR families (EVPN, VPN, FlowSpec beyond its destination prefix, BGP-LS, ...) can keep today's rule: per-NLRI decisions need raw | `CIDRFamily` (`filtertext/cidr.go`); "Non-CIDR Families in the Filter Text Protocol" | the decoded NLRI field must cover family-specific encodings | `spec-filter-wire-1-contract`: under D-1 the `prefix` field takes the event's NLRI shapes (json-format.md "NLRI Formats") for CIDR families, and under D-4 a filter that decides on another family declares `raw`; the child confirms each registered non-CIDR family is reachable that way | unvalidated |
-| A-9 | The BGP fields the view reads can register their readers from the BGP side while their names stay declared in `internal/component/policy/register.go` | D-7; the BGP fields there carry an empty `RouteView{}` today | the library would learn a BGP type, which D-7 forbids | `spec-filter-wire-2-view` reading `MustRegisterField` and registering one reader from `internal/component/bgp/` | unvalidated |
+| A-9 | The BGP fields the view reads can register their readers from the BGP side while their names stay declared in `internal/component/policy/register.go` | D-7; the BGP fields there carry an empty `RouteView{}` today | the library would learn a BGP type, which D-7 forbids | `spec-filter-wire-2-view` reading `MustRegisterField` and registering one reader from `internal/component/bgp/` | confirmed by `policyview.MustRegisterReader` (keyed by `policy.Field`; the library holds no reader seam) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
