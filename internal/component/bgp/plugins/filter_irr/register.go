@@ -22,6 +22,7 @@ func init() {
 		Dependencies: []string{configRootBGP, policy.PluginName},
 		RunEngine:    runFilterIRR,
 		Commands:     commandDecls(),
+		Filters:      filterDecls(), // the Stage 1 declaration: config load knows irr serves filters
 		ConfigureMetrics: func(reg metrics.Registry) {
 			SetMetricsRegistry(reg)
 		},

@@ -1829,7 +1829,9 @@ final decision; a drop does not grant acceptance.
 Filter instance names are globally unique under the `policy` root. A BGP peer
 chain names the `match` instance (`CUSTOMERS-IN` above), never the prefix-list:
 a BGP chain naming `CUSTOMERS` or `prefix-list:CUSTOMERS` is refused at
-commit, because no BGP filter serves the prefix-list type. A Loc-RIB import chain judges a
+commit, because no BGP filter serves the prefix-list type, and
+`bgp-filter-prefix:CUSTOMERS` is refused at config load (`ze config validate`
+included), because that compiled-in plugin serves no policy filter. A Loc-RIB import chain judges a
 prefix-list itself ([Route Policy at the Loc-RIB](route-policy.md)).
 
 <!-- source: internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang -- prefix-list YANG container -->

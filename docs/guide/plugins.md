@@ -853,7 +853,9 @@ A BGP peer chain reaches a list through a `match` instance:
 `filters [ FROM-CUSTOMERS ]`. The daemon judges the match in process over the
 UPDATE, so the plugin answers no `filter-update`. A BGP chain that names the
 list itself, as `CUSTOMERS` or `prefix-list:CUSTOMERS`, is refused at commit:
-no BGP filter serves the prefix-list type.
+no BGP filter serves the prefix-list type. The plugin-qualified
+`bgp-filter-prefix:CUSTOMERS` is refused at config load, as is any
+`<plugin>:<name>` naming a compiled-in plugin that declares no filter.
 
 A prefix-list can also run in a Loc-RIB import chain, named there by its bare
 instance name. It judges one route at a time with the same entry matching: the
@@ -1061,6 +1063,9 @@ only to the routes that meet it. The operations are:
 
 **Set** (absolute value): `set { local-preference 200; med 50; origin igp;
 next-hop 10.0.0.1; as-path-prepend 3; }`. Only present leaves are applied.
+`next-hop` writes the NEXT_HOP attribute, which carries an IPv4 address only,
+so an IPv6 address there is refused when the config loads. `as-path-prepend`
+takes 1 to 32.
 
 **Increment/Decrement** (relative adjustment): `increment { local-preference 50; }`
 or `decrement { med 30; }`. Supported attributes: local-preference, med, aigp.

@@ -354,10 +354,18 @@ starts the plugin (its config root is new), the reference is judged at that
 plugin's Stage 1, and a refusal refuses the whole reload before anything is
 applied: the running config stays in force, ze keeps running, and the error
 names the reference and the fix.
+
+A reference to a plugin compiled into ze needs no Stage 1 to be judged when
+that plugin serves no filter at all: no `Filters` and no `FilterTypes` on its
+`registry.Registration`, and no in-process filter with a policy type. Config
+load refuses it at once, `ze config validate` included, naming the reference,
+the plugin and the `match` instance that reaches its lists. A compiled-in
+plugin that declares filters (`bgp-filter-irr` carries its Stage 1 declaration
+in `Registration.Filters`) is judged at its Stage 1 as above.
 <!-- source: internal/component/plugin/registry/filter_declaration.go -- CompileFilterDeclarations, CheckFilterDeclarations, ErrLoadedChainRefused -->
 <!-- source: internal/component/plugin/server/startup.go -- refuseStartupOnLoadedChain -->
 <!-- source: internal/component/plugin/server/startup_autoload.go -- reloadChainRefusal -->
-<!-- source: internal/component/bgp/config/external_filters.go -- checkExternalChainRef, checkFilterDeclarations -->
+<!-- source: internal/component/bgp/config/external_filters.go -- checkExternalChainRef, servesNoFilter, refuseFilterlessPlugin, checkFilterDeclarations -->
 <!-- source: internal/component/policy/declared_fields.go -- CheckDeclaredFilter -->
 
 Config references filters as `<plugin>:<filter>` in nested direction policies:

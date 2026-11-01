@@ -1,0 +1,68 @@
+# Test: a BGP chain naming a compiled-in plugin that serves no filter is refused
+#
+# VALIDATES: `ze config validate` refuses `bgp-filter-prefix:CUSTOMERS` in a BGP
+#            import chain: the prefix-list plugin is compiled in and declares
+#            no policy filter (a BGP chain reaches a prefix-list through a
+#            match instance), so the refusal names the reference, the plugin
+#            and the match fix. The same list reached through its match
+#            instance is valid.
+# PREVENTS: a plugin-qualified member passing load as if it named an external
+#           plugin still to declare, then never running.
+
+stdin=qualified:terminator=EOF_QUALIFIED
+policy {
+	prefix-list CUSTOMERS {
+		entry 10.0.0.0/8 { le 24; action accept; }
+	}
+}
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; }
+		}
+		session {
+			asn { local 65533; remote 65533; }
+		}
+		filter {
+			import { filters [ bgp-filter-prefix:CUSTOMERS ]; final accept; }
+		}
+	}
+}
+EOF_QUALIFIED
+
+stdin=match:terminator=EOF_MATCH
+policy {
+	prefix-list CUSTOMERS {
+		entry 10.0.0.0/8 { le 24; action accept; }
+	}
+	match FROM-CUSTOMERS {
+		prefix-list CUSTOMERS
+	}
+}
+bgp {
+	router-id 203.0.113.253
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; }
+		}
+		session {
+			asn { local 65533; remote 65533; }
+		}
+		filter {
+			import { filters [ FROM-CUSTOMERS ]; final accept; }
+		}
+	}
+}
+EOF_MATCH
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=qualified
+expect=exit:code=1
+expect=stdout:contains="bgp-filter-prefix:CUSTOMERS"
+expect=stdout:contains=plugin "bgp-filter-prefix" serves no policy filter
+expect=stdout:contains=policy { match
+cmd=foreground:seq=2:exec=ze config validate -:stdin=match
+expect=exit:code=0
+expect=stdout:contains=configuration valid

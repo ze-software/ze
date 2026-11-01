@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
@@ -52,6 +53,9 @@ func checkExternalChainRef(reference, attachment, context string) error {
 	if ok {
 		return judgeExternalChainRef(pluginName, declared, ref)
 	}
+	if reg := registry.Lookup(pluginName); reg != nil && servesNoFilter(reg) {
+		return refuseFilterlessPlugin(reg.Name, ref)
+	}
 	pendingExternal.mu.Lock()
 	defer pendingExternal.mu.Unlock()
 	if pendingExternal.refs == nil {
@@ -62,6 +66,36 @@ func checkExternalChainRef(reference, attachment, context string) error {
 	}
 	pendingExternal.refs[pluginName][ref] = struct{}{}
 	return nil
+}
+
+// servesNoFilter reports whether a compiled-in plugin serves no chain member
+// through any seam: no Registration.Filters declaration (judged at its Stage 1,
+// as bgp-filter-irr's pattern is), no Registration.FilterTypes instance, and
+// no filterapi filter with a policy type (answered in process, as loop:NAME
+// is). Such a plugin never reaches Stage 1 with a filter, so a member naming
+// it would wait for a declaration that never comes.
+func servesNoFilter(reg *registry.Registration) bool {
+	if len(reg.Filters) > 0 {
+		return false
+	}
+	if len(reg.FilterTypes) > 0 {
+		return false
+	}
+	return !filterapi.ServesChainMembers(reg.Name)
+}
+
+// refuseFilterlessPlugin refuses at config load a member naming a compiled-in
+// plugin that serves no filter (servesNoFilter). The prefix-list,
+// as-path-list, as-path-length, community-match and reject-asn plugins are
+// reached from a BGP chain through a match instance, so the refusal names
+// that fix.
+func refuseFilterlessPlugin(pluginName string, ref externalChainRef) error {
+	var tb textbuf.Buffer
+	tb.Str(ref.context).Str(": chain names ").Quoted(ref.reference).Str(", and plugin ").Quoted(pluginName).
+		Str(" serves no policy filter, so the member would never run; name a match instance instead, ").
+		Str("for instance policy { match FROM-").Str(ref.filter).Str(" { <condition> ").Str(ref.filter).
+		Str("; } } and filters [ FROM-").Str(ref.filter).Str(" ]")
+	return errors.New(tb.String())
 }
 
 // judgeExternalChainRef refuses a reference no declared name or pattern

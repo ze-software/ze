@@ -777,6 +777,18 @@ func Register(f Filter) error {
 	return nil
 }
 
+// ServesChainMembers reports whether the compiled-in filter registered under
+// name owns a policy type, and so answers a `<name>:<instance>` chain member
+// in process (BindInProcess). Config load reads it to tell a compiled-in
+// plugin that serves chain members from one that serves none. Safe for
+// concurrent use.
+func ServesChainMembers(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	f, ok := filters[name]
+	return ok && f.PolicyType != ""
+}
+
 // NotifyPeerRemoved tells every registered filter that the reactor removed
 // peer (Filter.PeerRemoved). The reactor MUST call it on every path that takes
 // a peer out of its peer table, in the critical section that removes the peer

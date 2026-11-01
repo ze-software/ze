@@ -226,6 +226,15 @@ type Registration struct {
 	// plugins; duplicate registration aborts startup.
 	FilterTypes []string
 
+	// Filters lists the filters this plugin answers for by name or pattern
+	// rather than through a FilterTypes instance: the same declarations its
+	// sdk.Registration carries at Stage 1, as Commands mirrors its commands.
+	// Config load reads it before any plugin runs: a `<plugin>:<filter>`
+	// chain member naming a compiled-in plugin that declares neither Filters
+	// nor FilterTypes (and no in-process filter) is refused there, while a
+	// declared one waits for the Stage 1 judgement.
+	Filters []rpc.FilterDecl
+
 	// Optional handlers.
 	ConfigureEngineLogger func(loggerName string)               // Configure logger for in-process engine mode
 	InProcessDecoder      func(input, output *bytes.Buffer) int // Decode function for CLI fallback
