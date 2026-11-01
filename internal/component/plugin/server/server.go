@@ -544,20 +544,8 @@ func (s *Server) FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy 
 	if reg == nil {
 		return rpc.OnErrorReject
 	}
-	var wildcard *plugin.FilterRegistration
-	for i := range reg.Filters {
-		f := &reg.Filters[i]
-		if f.Name == filterName {
-			if f.OnError == rpc.OnErrorAccept {
-				return rpc.OnErrorAccept
-			}
-			return rpc.OnErrorReject
-		}
-		if f.Name == "*" {
-			wildcard = f
-		}
-	}
-	if wildcard != nil && wildcard.OnError == rpc.OnErrorAccept {
+	f := findFilterRegistration(reg.Filters, filterName)
+	if f != nil && f.OnError == rpc.OnErrorAccept {
 		return rpc.OnErrorAccept
 	}
 	return rpc.OnErrorReject
@@ -578,20 +566,50 @@ func (s *Server) FilterInfo(pluginName, filterName string) (declaredAttrs []stri
 	if reg == nil {
 		return nil, false
 	}
-	var wildcard *plugin.FilterRegistration
-	for i := range reg.Filters {
-		f := &reg.Filters[i]
-		if f.Name == filterName {
-			return f.Attributes, f.Raw
-		}
-		if f.Name == "*" {
-			wildcard = f
-		}
-	}
-	if wildcard != nil {
-		return wildcard.Attributes, wildcard.Raw
+	if f := findFilterRegistration(reg.Filters, filterName); f != nil {
+		return f.Attributes, f.Raw
 	}
 	return nil, false
+}
+
+// findFilterRegistration answers the filter that serves filterName: the one
+// declaring it exactly, else the first whose name pattern covers it; nil when
+// none does.
+func findFilterRegistration(filters []plugin.FilterRegistration, filterName string) *plugin.FilterRegistration {
+	var covering *plugin.FilterRegistration
+	for i := range filters {
+		f := &filters[i]
+		if f.Pattern == nil && f.Name == filterName {
+			return f
+		}
+		if covering == nil && f.Pattern != nil && f.Pattern.MatchString(filterName) {
+			covering = f
+		}
+	}
+	return covering
+}
+
+// declaredFilters answers the Stage 1 filter declarations of a running
+// process (registry.RuntimeFilterDeclarations); false while the process has
+// not declared.
+func (s *Server) declaredFilters(process string) ([]registry.DeclaredFilter, bool) {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return nil, false
+	}
+	proc := pm.GetProcess(process)
+	if proc == nil {
+		return nil, false
+	}
+	reg := proc.Registration()
+	if reg == nil {
+		return nil, false
+	}
+	declared := make([]registry.DeclaredFilter, len(reg.Filters))
+	for i := range reg.Filters {
+		declared[i] = reg.Filters[i].DeclaredFilter
+	}
+	return declared, true
 }
 
 // Running returns true if the server is running.
@@ -618,6 +636,9 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	registry.SetRuntimeSessionReady(s.declaresSessionReady)
 	// The replay fence asks the same alias question (registry.FencesLiveForwards).
 	registry.SetRuntimeRegistryNames(s.processRegistryNames)
+	// A config reload judges a chain naming an external filter against what
+	// that plugin declared at Stage 1 (D-10).
+	registry.SetRuntimeFilterDeclarations(s.declaredFilters)
 
 	// Start plugin phases asynchronously (non-blocking)
 	// Phase 1: Explicit plugins

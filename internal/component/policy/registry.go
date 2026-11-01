@@ -157,8 +157,9 @@ func (r *Registry) IsNonFilterEntry(name string) bool {
 
 // ValidateName refuses a chain reference that names no filter instance.
 // context prefixes the error with where the chain is attached. A name holding
-// ":" is an external plugin filter (plugin:filter or type:name), resolved at
-// runtime because plugins register at stage 1, after config parsing.
+// ":" is an external plugin filter (plugin:filter or type:name): the
+// attaching subsystem judges it against what the plugin declared at Stage 1,
+// which may come after config parsing.
 func (r *Registry) ValidateName(name, context string) error {
 	if strings.Contains(name, ":") {
 		return nil

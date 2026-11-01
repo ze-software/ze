@@ -404,7 +404,7 @@ func filterSubjectPlugin(t *testing.T, r *Reactor) {
 			})
 			if err := p.Run(context.Background(), &sdk.Registration{Filters: []sdk.FilterDecl{
 				{Name: "text", Direction: sdk.FilterBoth, Attributes: []string{policyAttrLocalPreference}, OnError: sdk.OnErrorReject},
-				{Name: "raw", Direction: sdk.FilterBoth, Attributes: []string{policyAttrLocalPreference}, Raw: true, OnError: sdk.OnErrorReject},
+				{Name: "raw", Direction: sdk.FilterBoth, Attributes: []string{policyAttrLocalPreference}, Reads: []string{sdk.FilterFieldRaw}, OnError: sdk.OnErrorReject},
 			}}); err != nil {
 				return 1
 			}

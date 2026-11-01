@@ -12,7 +12,7 @@
 // at Stage 2 and on every reload (config_tx.go). At runtime, peer filter chains reference an instance as
 // bgp-filter-family:NAME. The engine dispatches each match via CallFilterUpdate
 // (filter-update RPC); the plugin handles it in OnFilterUpdate by extracting the
-// UPDATE's address family from the raw wire body (declared raw=true) and applying
+// UPDATE's address family from the raw wire body (the declared raw read) and applying
 // the instance's action:
 //
 //   - remove: strip the family's MP_REACH/MP_UNREACH NLRI; if that empties the
@@ -20,7 +20,7 @@
 //     full-payload replacement (RFC 4760 §6).
 //   - tear-down (import only): request a NOTIFICATION + session close (RFC 4271).
 //
-// The plugin declares a single wildcard filter ("*") with raw=true so every
+// The plugin declares one filter with the name pattern ".+" and the raw read, so every
 // referenced instance receives the wire payload; filter names come from config,
 // not compile-time registration (same model as filter_remove_private_as).
 package filter_family
@@ -62,10 +62,10 @@ func runFilterFamily(conn net.Conn) int {
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{configRootBGP},
 		Filters: []sdk.FilterDecl{{
-			Name:      "*",
-			Direction: sdk.FilterBoth,
-			Raw:       true,
-			OnError:   sdk.OnErrorReject,
+			NamePattern: ".+",
+			Direction:   sdk.FilterBoth,
+			Reads:       []string{sdk.FilterFieldRaw},
+			OnError:     sdk.OnErrorReject,
 		}},
 	}); err != nil {
 		logger().Error("filter-family plugin failed", "error", err)

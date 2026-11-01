@@ -370,7 +370,7 @@ func runRawMEDFilter(name string) error {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Raw: stripped}, nil
 	})
 	return plugin.Run(context.Background(), &sdk.Registration{Filters: []sdk.FilterDecl{{
-		Name: "drop-med-raw", Direction: sdk.FilterExport, Raw: true, OnError: sdk.OnErrorReject,
+		Name: "drop-med-raw", Direction: sdk.FilterExport, Reads: []string{sdk.FilterFieldRaw}, OnError: sdk.OnErrorReject,
 	}}})
 }
 

@@ -182,7 +182,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `wants-validate-open` | `bool` | Whether plugin wants OPEN validation callbacks |
 | `cache-consumer` | `bool` | Whether plugin consumes cached events |
 | `cache-consumer-unordered` | `bool` | Whether unordered cache delivery is acceptable |
-| `filters` | `[]FilterDecl` | Named route filters the plugin provides |
+| `filters` | `[]FilterDecl` | Named route filters the plugin provides: each a `name` or a `name-pattern`, and the route fields it `reads` (`raw` for the UPDATE body) and `sets`; Stage 1 and config load judge them (`docs/architecture/api/process-protocol.md`, "Filter Declaration") |
 | `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides |
 | `resolver-caches` | `[]string` | Resolver caches the plugin holds clients for: `peeringdb`, `irr`, `cymru`. Set by `OnResolverCacheClear`; any other name is refused |
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |

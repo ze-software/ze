@@ -558,15 +558,29 @@ type SchemaDecl struct {
 }
 
 // FilterDecl declares a named route filter the plugin offers.
+//
+// A declaration names its filter exactly (Name) or covers a family of names
+// (NamePattern), never both: a plugin whose filter names are made at run time,
+// such as one filter per AS number, declares the pattern. Reads and Sets name
+// route fields from the policy vocabulary (docs/architecture/api/process-protocol.md,
+// "Filter Declaration"); FilterFieldRaw in Reads asks for the raw UPDATE body.
+// What a filter reads is what Ze sends it, and what Ze checks at config load.
 type FilterDecl struct {
-	Name       string          `json:"name"`                 // Filter name (config references as <plugin>:<name>)
-	Direction  FilterDirection `json:"direction"`            // import / export / both
-	Attributes []string        `json:"attributes,omitempty"` // Attribute names to receive
-	NLRI       *bool           `json:"nlri,omitempty"`       // Include NLRI list (default true)
-	Raw        bool            `json:"raw,omitempty"`        // Include raw wire bytes
-	OnError    OnErrorPolicy   `json:"on-error,omitempty"`   // reject (fail-closed) or accept (fail-open)
-	Overrides  []string        `json:"overrides,omitempty"`  // Default filters this filter replaces
+	Name        string          `json:"name,omitempty"`         // Filter name (config references as <plugin>:<name>)
+	NamePattern string          `json:"name-pattern,omitempty"` // RE2 expression a whole filter name matches, in place of Name
+	Direction   FilterDirection `json:"direction"`              // import / export / both
+	Reads       []string        `json:"reads,omitempty"`        // Route fields the filter reads; "raw" for the UPDATE body
+	Sets        []string        `json:"sets,omitempty"`         // Route fields the filter may set
+	Attributes  []string        `json:"attributes,omitempty"`   // Attribute names of the text Update
+	NLRI        *bool           `json:"nlri,omitempty"`         // Include NLRI list (default true)
+	OnError     OnErrorPolicy   `json:"on-error,omitempty"`     // reject (fail-closed) or accept (fail-open)
+	Overrides   []string        `json:"overrides,omitempty"`    // Default filters this filter replaces
 }
+
+// FilterFieldRaw is the declarable read that asks for the raw UPDATE body
+// (RFC 4271 Section 4.3, without the 19-byte header) in FilterUpdateInput.Raw.
+// It is the only read that is not a route field of the policy vocabulary.
+const FilterFieldRaw = "raw"
 
 // FilterUpdateTimeout is the reactor's deadline for one filter-update call.
 // When it expires the reactor applies the filter's on-error policy without the
@@ -582,7 +596,7 @@ type FilterUpdateInput struct {
 	PeerAS    uint32 `json:"peer-as"`   // Peer ASN
 	Update    string `json:"update"`    // Text-format attributes and NLRI
 	// Raw is the raw BGP UPDATE body (RFC 4271 Section 4.3, without the 19-byte
-	// header) delivered when the filter declared raw=true. A []byte field so
+	// header) delivered when the filter declared the FilterFieldRaw read. A []byte field so
 	// encoding/json base64-encodes it on the wire (newline-safe, ~33% expansion)
 	// instead of the former hex string (2x) with hand-rolled encode/decode -- see
 	// InjectWireRouteInput.UpdateBody for the same idiom.

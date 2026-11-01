@@ -104,7 +104,7 @@ func (ledger *srv6IdentityPolicyLedger) snapshot() srv6IdentityPolicyReceipt {
 // checker owns teardown, after both independent recipients pass their fences.
 func runSRv6IdentityPolicy(name string) error {
 	registration := sdk.Registration{
-		Filters: []sdk.FilterDecl{{Name: "change-hop", Direction: sdk.FilterExport, Raw: true, OnError: sdk.OnErrorReject}},
+		Filters: []sdk.FilterDecl{{Name: "change-hop", Direction: sdk.FilterExport, Reads: []string{sdk.FilterFieldRaw}, OnError: sdk.OnErrorReject}},
 		Commands: []rpc.CommandDecl{
 			{Name: srv6IdentityRelease, ShortHelp: "Release the received SRv6 fixture source"},
 			{Name: srv6IdentityState, ShortHelp: "Read actual SRv6 export callback receipts"},

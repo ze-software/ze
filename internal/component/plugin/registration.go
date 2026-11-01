@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -146,12 +147,16 @@ type PluginRegistration struct {
 // Filter Text Protocol" and
 // `internal/component/bgp/filtertext/cidr.go` (`CIDRFamily`) for
 // the full contract.
+//
+// The embedded registry.DeclaredFilter carries the name or name pattern and
+// the declared reads and sets; Raw is derived from the reads (the
+// rpc.FilterFieldRaw read), never declared beside them.
 type FilterRegistration struct {
-	Name       string              // Filter name (referenced in filter { import/export } blocks)
+	registry.DeclaredFilter
 	Direction  rpc.FilterDirection // import / export / both
-	Attributes []string            // Attribute names to receive
+	Attributes []string            // Attribute names of the text Update
 	NLRI       bool                // Include NLRI list (default true)
-	Raw        bool                // Include raw wire bytes; REQUIRED for non-CIDR families
+	Raw        bool                // The filter reads the raw UPDATE body; REQUIRED for non-CIDR families
 	OnError    rpc.OnErrorPolicy   // reject (fail-closed) or accept (fail-open)
 	Overrides  []string            // Default filters this filter replaces
 }

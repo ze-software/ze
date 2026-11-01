@@ -244,7 +244,7 @@ func medRawDrop09(ctx context.Context, _ []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, &sdk.Registration{Filters: []sdk.FilterDecl{{Name: "drop-med-raw", Direction: sdk.FilterExport, Raw: true, OnError: sdk.OnErrorReject}}})
+	runErr := plugin.Run(ctx, &sdk.Registration{Filters: []sdk.FilterDecl{{Name: "drop-med-raw", Direction: sdk.FilterExport, Reads: []string{sdk.FilterFieldRaw}, OnError: sdk.OnErrorReject}}})
 	select {
 	case scenarioErr := <-result:
 		if scenarioErr != nil {

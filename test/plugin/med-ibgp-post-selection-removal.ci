@@ -2,7 +2,7 @@
 # before an internal readvertisement.
 #
 # VALIDATES: the common egress guard keeps MULTI_EXIT_DISC present when the
-# route-server egress rail runs a raw=true export filter that returns a full
+# route-server egress rail runs an export filter declaring the raw read that returns a full
 # UPDATE body with attribute 4 removed.
 # VALIDATES: the route source carries MED, and the filter callback proves it
 # removed MED from the destination base. A daemon that never runs the raw filter

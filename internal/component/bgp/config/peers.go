@@ -374,6 +374,8 @@ func policyRegistryOf(tree *config.Tree, schema *config.Schema) (*policy.Registr
 // policy root, an instance whose filter type no BGP filter serves, and an
 // instance that reads or sets a route field the BGP attachment does not carry
 // or allow (policy.CheckChain at attachment, "bgp import" or "bgp export").
+// A reference to an external plugin's filter gets the same judgement of the
+// fields that plugin declared at Stage 1 (checkExternalChainRef).
 // A deactivated reference is checked like an active one, because deactivation
 // is a flag on policy.Ref and not part of its name.
 func validateChainNames(reg *policy.Registry, refs []policy.Ref, attachment, context string) error {
@@ -385,7 +387,12 @@ func validateChainNames(reg *policy.Registry, refs []policy.Ref, attachment, con
 		}
 		entry, ok := policyChainInstance(reg, ref, typesMap)
 		if !ok {
-			continue // an external plugin's filter, validated by that plugin at runtime
+			// An external plugin's filter: judged against what the plugin
+			// declared at Stage 1, now or when it declares (D-10).
+			if err := checkExternalChainRef(ref.Name, attachment, context); err != nil {
+				return err
+			}
+			continue
 		}
 		if err := bgpServesFilterType(ref, entry, typesMap, attachment, context); err != nil {
 			return err

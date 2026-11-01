@@ -217,6 +217,9 @@ type DoctorCheckDiagnostic = rpc.DoctorCheckDiagnostic
 // FilterDecl declares a named route filter the plugin offers.
 type FilterDecl = rpc.FilterDecl
 
+// FilterFieldRaw is the declarable read for the raw UPDATE body.
+const FilterFieldRaw = rpc.FilterFieldRaw
+
 // FilterUpdateInput is the input for filter-update (runtime callback).
 type FilterUpdateInput = rpc.FilterUpdateInput
 

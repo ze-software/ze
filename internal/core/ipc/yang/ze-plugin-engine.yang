@@ -251,19 +251,47 @@ module ze-plugin-engine {
                 }
             }
             list filter {
-                key "name";
                 description
                     "Config references a filter by name, in a filter block for
-                     the import direction or the export direction.";
+                     the import direction or the export direction. Each entry
+                     carries exactly one of name and name-pattern.";
                 ze:help
                     "Named route filters this plugin offers.";
                 leaf name {
                     type string;
                     description
                         "The engine looks the name up when a peer's filter chain reaches this
-                         plugin. The name * declares a wildcard filter that answers for any name
-                         the plugin did not declare.";
+                         plugin. A name declared exactly wins over a matching name-pattern.";
                     ze:help "Filter name (the part after : in <plugin>:<filter>)";
+                }
+                leaf name-pattern {
+                    type string {
+                        length "1..256";
+                    }
+                    description
+                        "An RE2 expression that a whole filter name must match, for a plugin
+                         whose filter names are made at run time (one per AS number, say).
+                         Stage 1 refuses an expression that does not compile, and an entry
+                         carrying both name and name-pattern, or neither.";
+                    ze:help "Pattern covering the filter names this entry answers for";
+                }
+                leaf-list reads {
+                    type string;
+                    description
+                        "Route fields of the policy vocabulary the filter reads; the engine
+                         sends exactly these in each filter-update call, keyed by field name.
+                         The read raw asks for the raw UPDATE body instead. Stage 1 refuses a
+                         name the vocabulary does not hold and a field this build cannot
+                         encode, and config load refuses a chain whose attachment does not
+                         carry a field the filter reads.";
+                    ze:help "Route fields the filter reads (raw for the UPDATE body)";
+                }
+                leaf-list sets {
+                    type string;
+                    description
+                        "Route fields of the policy vocabulary the filter may set. Config load
+                         refuses a chain whose attachment does not allow setting one of them.";
+                    ze:help "Route fields the filter may set";
                 }
                 leaf direction {
                     type enumeration {
@@ -291,15 +319,6 @@ module ze-plugin-engine {
                         "The engine stores the flag with the filter declaration. An absent value
                          is read as true.";
                     ze:help "Whether to include NLRI list in filter input";
-                }
-                leaf raw {
-                    type boolean;
-                    default false;
-                    description
-                        "When true, each filter-update call carries the raw UPDATE body in its raw
-                         field, and a default-originate check reads the flag too. When false, the
-                         raw field is absent.";
-                    ze:help "Whether to include raw wire bytes";
                 }
                 leaf on-error {
                     type enumeration {

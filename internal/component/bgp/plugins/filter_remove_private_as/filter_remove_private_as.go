@@ -36,11 +36,11 @@ func runFilterRemovePrivateAS(conn net.Conn) int {
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{configRootBGP},
 		Filters: []sdk.FilterDecl{{
-			Name:       "*",
-			Direction:  sdk.FilterBoth,
-			Attributes: []string{"as-path", removePrivateASDirective},
-			Raw:        true,
-			OnError:    sdk.OnErrorReject,
+			NamePattern: ".+",
+			Direction:   sdk.FilterBoth,
+			Reads:       []string{sdk.FilterFieldRaw},
+			Attributes:  []string{"as-path", removePrivateASDirective},
+			OnError:     sdk.OnErrorReject,
 		}},
 	}); err != nil {
 		logger().Error("filter-remove-private-as plugin failed", "error", err)

@@ -19,6 +19,7 @@ import (
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -152,6 +153,13 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	// text-era plugin gets this one refusal and no other (D-2).
 	version, err := rpc.NegotiateProtocolVersion(sink.pluginName(), regInput.ProtocolVersion)
 	if err != nil {
+		_ = conn.SendError(ctx, req.ID, err.Error())
+		return err
+	}
+	// The filters are judged before the sink stores them: a name the
+	// vocabulary does not hold, or a chain the declared fields do not fit,
+	// fails the plugin here (D-10).
+	if err := registry.CheckFilterDeclarations(sink.pluginName(), regInput.Filters); err != nil {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err
 	}

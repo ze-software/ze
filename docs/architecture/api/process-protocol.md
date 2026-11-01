@@ -314,19 +314,40 @@ successful readiness.
 **Filter Declaration (Stage 1):**
 
 Plugins may include a `filters` list in their `declare-registration` to offer named
-route filters. Each entry declares a filter name, direction (import/export/both),
-requested attributes, NLRI/raw payload needs, failure mode, and optional overrides
-of default filters.
+route filters. Each entry declares a filter name or a name pattern, direction
+(import/export/both), the route fields it reads and sets, failure mode, and
+optional overrides of default filters.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `filters[].name` | string | Filter name (referenced in config as `<plugin>:<name>`) |
+| `filters[].name-pattern` | string | RE2 expression a whole filter name matches, in place of `name`, for names made at run time (one per AS number) |
 | `filters[].direction` | enum | `import`, `export`, or `both` |
-| `filters[].attributes` | list | Attribute names to receive (e.g., `as-path`, `community`) |
+| `filters[].reads` | list | Route fields of the policy vocabulary the filter reads (`prefix`, `as-path`, `community`, ...); `raw` asks for the raw UPDATE body in `filter-update`'s `raw` |
+| `filters[].sets` | list | Route fields of the policy vocabulary the filter may set |
+| `filters[].attributes` | list | Attribute names of the text `update` (the text era's subject) |
 | `filters[].nlri` | bool | Include parsed NLRI text; defaults to true |
-| `filters[].raw` | bool | Include raw UPDATE body hex for wire-format filters |
 | `filters[].on-error` | enum | `reject` (fail-closed) or `accept` (fail-open) |
 | `filters[].overrides` | list | Default filters this filter replaces (e.g., `rfc:no-self-as`) |
+
+Stage 1 refuses an entry carrying both `name` and `name-pattern`, or neither,
+the text era's wildcard name `*` (declare `"name-pattern": ".+"` instead), a
+pattern that does not compile, a read or set the policy vocabulary does not
+hold, and `raw` declared as a set. An exact name wins over a pattern that also
+covers it. A build that links no subsystem running filters (no `ze_bgp`)
+refuses any plugin declaring one.
+
+The declared reads and sets are what config load judges. A chain at `bgp
+import` or `bgp export` naming `<plugin>:<filter>` fails when no declared name
+or pattern covers the filter (the refusal lists what the plugin declares), when
+the filter reads a field that attachment does not carry, or when it sets one
+that attachment does not allow: the same check a named policy instance gets.
+The daemon loads its config before an external plugin reaches Stage 1, so at
+startup a reference is judged when its plugin declares, and a refusal then
+fails that plugin's Stage 1; a reload judges it at once.
+<!-- source: internal/component/plugin/registry/filter_declaration.go -- CompileFilterDeclarations, CheckFilterDeclarations -->
+<!-- source: internal/component/bgp/config/external_filters.go -- checkExternalChainRef, checkFilterDeclarations -->
+<!-- source: internal/component/policy/declared_fields.go -- CheckDeclaredFilter -->
 
 Config references filters as `<plugin>:<filter>` in nested direction policies:
 `filter { import { filters [ name ]; final accept; } export { final reject; } }`.
@@ -1679,7 +1700,7 @@ traversed on every session. There is no `as4-path` token: one attribute name
 carries one fact.
 
 A filter that must see the AS_PATH and AS4_PATH attributes as encoded MUST
-declare `raw=true` and read the wire payload from `FilterUpdateInput.Raw`.
+declare the `raw` read and read the wire payload from `FilterUpdateInput.Raw`.
 <!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter, attrForFilter -->
 <!-- source: internal/core/bgp/attribute/as4.go -- MergeAS4Path -->
 
@@ -1701,7 +1722,7 @@ format.
 <!-- source: internal/component/bgp/filtertext/cidr.go — CIDRFamily -->
 
 A filter plugin that needs per-NLRI decisions on a non-CIDR family MUST
-declare `raw=true` in its `FilterRegistration` and parse the wire payload
+declare the `raw` read in its filter declaration and parse the wire payload
 itself from `FilterUpdateInput.Raw`. A `raw=false` filter attached to a
 session carrying non-CIDR families sees only the marker block and is
 advisory for those families -- it cannot distinguish individual
@@ -1711,7 +1732,7 @@ destinations within the family.
 | Family set | Filter text protocol emits | Filter requirement |
 |------------|----------------------------|---------------------|
 | CIDR (ipv4/ipv6 unicast / multicast / mpls-label) | `mp <family> <op> <prefix>...` (prefixes inline) | `raw=false` works for text-mode per-prefix decisions |
-| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, ...) | `mp <family> <op>` (marker only; FlowSpec inlines its destination prefix) | `raw=true` required for per-NLRI decisions; text-only is advisory |
+| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, ...) | `mp <family> <op>` (marker only; FlowSpec inlines its destination prefix) | the `raw` read required for per-NLRI decisions; text-only is advisory |
 
 ### NLRI Blocks and the Modify Answer
 
@@ -1757,7 +1778,7 @@ each section from its own block:
   `nlri add|del` nor `mp <family> add|del`, makes the engine drop the route and
   log the family and the reason under `ze.log.bgp.reactor.forward`. Such a
   filter declares
-  `raw=true` and returns the rewritten body, or rejects the whole UPDATE.
+  the `raw` read and returns the rewritten body, or rejects the whole UPDATE.
 <!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta, mpSectionDelta, subsetNLRI -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler, mpUnreachNLRIHandler -->
 

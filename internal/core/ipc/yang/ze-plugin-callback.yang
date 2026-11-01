@@ -460,8 +460,8 @@ to the single document the record path would have carried.";
                 mandatory true;
                 description
                     "The name is the one the peer's filter block references, without the
-                     plugin prefix. The engine reads the on-error policy and the raw flag from
-                     the declaration of this name, or from a * declaration when none matches.";
+                     plugin prefix. The engine reads the on-error policy and the declared reads from
+                     the declaration of this name, or from a name-pattern it matches when none does.";
                 ze:help "Filter name (declared at stage 1)";
             }
             leaf direction {

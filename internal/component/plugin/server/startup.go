@@ -1236,7 +1236,14 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		}
 	}
 
-	for _, f := range input.Filters {
+	// runStartupHandshake refused a declaration that does not compile
+	// (registry.CheckFilterDeclarations) before the sink saw it, so a failure
+	// here is a Ze defect.
+	declared, err := registry.CompileFilterDeclarations("", input.Filters)
+	if err != nil {
+		panic("BUG: filter declarations reached the registration unchecked: " + err.Error())
+	}
+	for i, f := range input.Filters {
 		nlri := true
 		if f.NLRI != nil {
 			nlri = *f.NLRI
@@ -1246,13 +1253,13 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 			onError = f.OnError
 		}
 		reg.Filters = append(reg.Filters, plugin.FilterRegistration{
-			Name:       f.Name,
-			Direction:  f.Direction,
-			Attributes: f.Attributes,
-			NLRI:       nlri,
-			Raw:        f.Raw,
-			OnError:    onError,
-			Overrides:  f.Overrides,
+			DeclaredFilter: declared[i],
+			Direction:      f.Direction,
+			Attributes:     f.Attributes,
+			NLRI:           nlri,
+			Raw:            declared[i].ReadsRaw(),
+			OnError:        onError,
+			Overrides:      f.Overrides,
 		})
 	}
 
