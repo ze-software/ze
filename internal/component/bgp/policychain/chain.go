@@ -321,6 +321,7 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 	for i := range c.members {
 		m := &c.members[i]
 		sets.member.Reset()
+		sets.member.display = record != nil
 		onError := m.onError
 		var decision Decision
 		var err error

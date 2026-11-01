@@ -172,6 +172,10 @@ type Sets struct {
 	// evaluator's stack so a check's pointer to it allocates nothing
 	// (match.go). It is scratch: no reader of the sets sees it.
 	matchRoute MatchRoute
+	// display is set for a member judged in a display-only run
+	// (Chain.Trace), so a match's conditions neither count nor log a route
+	// they refuse (MatchRoute.Reports). It is scratch, as matchRoute is.
+	display bool
 }
 
 // Reset forgets every change, so one Sets serves the next member or route.

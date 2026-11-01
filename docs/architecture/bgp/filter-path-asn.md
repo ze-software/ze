@@ -162,14 +162,19 @@ The package also registers the `reject-asn` condition of a `match` instance.
 `NO-TRANSIT` list rejects on neither arm. It is compiled from the list's own
 config, never from the plugin's process, and judges the same AS-path text
 with the same two arms; the sender comes from the view's session, which
-knows it on import only, as `senderOf` reads the direction. A reject is
-counted in `ze_filter_path_asn_rejects_total` under its direction and slot.
+knows it on import only, as `senderOf` reads the direction. A reject that
+refuses the route on a live run is counted in
+`ze_filter_path_asn_rejects_total` under its direction and slot. Under
+`action reject` a list rejecting the route lets it pass, so nothing is
+counted; neither is a reject in `show policy test`, a display-only
+run that refuses no route (`MatchRoute.Reports`).
 The condition declares the transit-leak obligation, so a match naming it
 discharges the filter a declared RFC 9234 role requires
 (`validateLeakFilterObligations` reads `policy.MatchConditionsDischarging`).
 The `show ... reject-asn` commands are unchanged.
 
 <!-- source: internal/component/bgp/plugins/filter_path_asn/condition.go -- compileBGPCondition -->
+<!-- source: internal/component/bgp/policychain/match.go -- MatchRoute -->
 <!-- source: internal/component/policy/match.go -- MustDeclareMatchConditionObligation, MatchConditionsDischarging -->
 <!-- source: internal/component/bgp/config/peers.go -- chainDischarges -->
 <!-- source: internal/component/bgp/policyview/view.go -- Session -->

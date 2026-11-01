@@ -21,10 +21,13 @@ import (
 
 // compileBGPCondition compiles a match instance's reject-asn value, the name
 // of one reject-asn instance, into its check over a BGP UPDATE. The route
-// passes when the list rejects it on neither arm; a reject is counted under
-// the direction and the slot that decided it, as handleFilterUpdate counts
-// it. An AS_PATH the view refuses as malformed is an error, so the member
-// fails closed.
+// passes when the list rejects it on neither arm. A reject that refuses the
+// route on a live run (MatchRoute.Reports: action accept, not a display-only
+// trace) is counted under the direction and the slot that decided it, as
+// handleFilterUpdate counts every route it refuses. A list rejecting a
+// route under action reject lets it pass, so nothing is refused and nothing
+// is counted. An AS_PATH the view refuses as malformed is an error, so the
+// member fails closed.
 //
 // RFC 7454 Section 9: "This loose policy could be combined with filters for
 // specific 2-byte or 4-byte AS paths that must not be accepted if advertised by
@@ -50,11 +53,15 @@ func compileBGPCondition(value any, resolve policy.InstanceResolver) (policy.Con
 			sender = senderASN{asn: session.Sender, known: true}
 		}
 		if found, ok := matchPositions(asPath, sender, list.positions, list.nth); ok {
-			recordReject(direction, rejectSlot(found.at))
+			if r.Reports {
+				recordReject(direction, rejectSlot(found.at))
+			}
 			return false, nil
 		}
 		if _, ok := matchPattern(asPath, list.patterns); ok {
-			recordReject(direction, slotPattern)
+			if r.Reports {
+				recordReject(direction, slotPattern)
+			}
 			return false, nil
 		}
 		return true, nil

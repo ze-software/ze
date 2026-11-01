@@ -30,6 +30,11 @@ import (
 type MatchRoute struct {
 	View   *policyview.View
 	Prefix netip.Prefix
+	// Reports is set when a check answering false refuses the route on a
+	// live run: the match's action is accept and the run is not display
+	// only (Chain.Trace). A condition that counts the routes it refuses,
+	// as its filter did, does so only when Reports is set.
+	Reports bool
 }
 
 // MatchConditions holds the checks of the match conditions a BGP chain can
@@ -48,6 +53,9 @@ type matchEvaluator struct {
 	// perPrefix is set when a condition reads prefix: the match then judges
 	// each NLRI entry rather than the UPDATE once.
 	perPrefix bool
+	// rejectsUnmatched is the match's action accept: a failed condition
+	// refuses the route (MatchRoute.Reports).
+	rejectsUnmatched bool
 }
 
 // compileMatchEvaluator compiles a match instance over MatchConditions. A
@@ -62,7 +70,8 @@ func compileMatchEvaluator(_ string, instance map[string]any, resolve policy.Ins
 		return nil, fmt.Errorf("BUG: policychain: %w", err)
 	}
 	e := &matchEvaluator{match: match, prefix: reader,
-		perPrefix: slices.Contains(policy.MatchFields(instance, false), policy.FieldPrefix)}
+		perPrefix:        slices.Contains(policy.MatchFields(instance, false), policy.FieldPrefix),
+		rejectsUnmatched: match.RejectsUnmatched()}
 	return e.evaluate, nil
 }
 
@@ -73,7 +82,7 @@ func compileMatchEvaluator(_ string, instance map[string]any, resolve policy.Ins
 // a section a drop cannot rewrite (FlowSpec). Otherwise it passes and drops
 // each rejected entry (DropNLRI), announced and withdrawn.
 func (e *matchEvaluator) evaluate(view *policyview.View, sets *Sets) (Decision, error) {
-	sets.matchRoute = MatchRoute{View: view}
+	sets.matchRoute = MatchRoute{View: view, Reports: e.rejectsUnmatched && !sets.display}
 	decision, err := e.judge(view, sets)
 	sets.matchRoute = MatchRoute{} // the view MUST NOT outlive the run
 	return decision, err

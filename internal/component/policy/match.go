@@ -270,6 +270,12 @@ func CompileMatch[V any](set *Conditions[V], cfg map[string]any, sourceOnly bool
 	return m, nil
 }
 
+// RejectsUnmatched reports whether a route failing a condition is rejected,
+// which is the match instance's action accept. Under action reject a failed
+// condition lets the route pass, so a condition that counts the routes it
+// refuses counts only when this holds.
+func (m *Match[V]) RejectsUnmatched() bool { return !m.rejectMatching }
+
 // Named reports whether the match names any condition.
 func (m *Match[V]) Named() bool { return len(m.checks) > 0 }
 

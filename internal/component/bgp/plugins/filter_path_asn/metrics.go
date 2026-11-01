@@ -1,6 +1,7 @@
 // Design: docs/plugin-development/metrics.md -- reject-asn operator signal
 // Detail: config.go -- the position vocabulary the position label names
-// Related: filter_path_asn.go -- handleFilterUpdate, the only caller of recordReject
+// Related: filter_path_asn.go -- handleFilterUpdate, a caller of recordReject
+// Related: condition.go -- compileBGPCondition, the other caller of recordReject
 //
 // The one counter this filter publishes.
 //
@@ -184,7 +185,8 @@ func fmetrics() *filterMetrics {
 }
 
 // recordReject counts one refused route. It is the single counting seam, so
-// every reject handleFilterUpdate returns passes through here.
+// every reject handleFilterUpdate returns, and every route the reject-asn
+// match condition refuses on a live run, passes through here.
 func recordReject(direction string, slot rejectSlot) {
 	fmetrics().rejects[flowOf(direction)][slot].Inc()
 }
