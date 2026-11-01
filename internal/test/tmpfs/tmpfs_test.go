@@ -594,3 +594,34 @@ func TestIOReaderInterface(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "hello world", string(data))
 }
+
+// TestTmpfsRefusedDeclaration reads the refused= key of a tmpfs or stdin block.
+//
+// VALIDATES: tmpfs=<path>:refused=<code> records the diagnostic code the test
+// declares the file refused with, a block without it records none, and a value
+// that is not a diagnostic code is refused.
+// PREVENTS: a config the test feeds Ze to refuse being validated as one Ze
+// must accept, and a misspelled declaration passing unnoticed.
+func TestTmpfsRefusedDeclaration(t *testing.T) {
+	input := "tmpfs=bad.conf:refused=config-parse:terminator=EOF_BAD\nbgp { this; }\nEOF_BAD\n" +
+		"tmpfs=good.conf:terminator=EOF_GOOD\nbgp { }\nEOF_GOOD\n"
+	v, err := Parse(strings.NewReader(input))
+	require.NoError(t, err)
+	require.Len(t, v.Files, 2)
+	assert.Equal(t, "config-parse", v.Files[0].Refused)
+	assert.Empty(t, v.Files[1].Refused)
+
+	_, err = Parse(strings.NewReader("tmpfs=bad.conf:refused=Not A Code:terminator=EOF_BAD\nx\nEOF_BAD\n"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "refused")
+
+	v, err = Parse(strings.NewReader("stdin=ze-bgp:refused=config-plugin-verify:terminator=EOF_ZE\nbgp { }\nEOF_ZE\n" +
+		"stdin=peer:terminator=EOF_PEER\nx\nEOF_PEER\n"))
+	require.NoError(t, err)
+	assert.Equal(t, "config-plugin-verify", v.StdinRefused["ze-bgp"])
+	assert.Equal(t, "bgp { }\n", string(v.StdinBlocks["ze-bgp"]))
+	assert.Empty(t, v.StdinRefused["peer"])
+
+	_, err = Parse(strings.NewReader("stdin=ze-bgp:refused=BAD:terminator=EOF_ZE\nx\nEOF_ZE\n"))
+	require.Error(t, err)
+}

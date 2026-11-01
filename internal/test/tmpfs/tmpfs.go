@@ -4,7 +4,7 @@
 //
 // Tmpfs format:
 //
-//	tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
+//	tmpfs=<path>[:mode=<octal>][:encoding=<type>][:refused=<code>]:terminator=<TERM>
 //	<content>
 //	<TERM>
 //
@@ -47,7 +47,17 @@ type File struct {
 	Path    string
 	Mode    fs.FileMode
 	Content []byte
+	// Refused is the diagnostic code `ze config validate` refuses this file
+	// with, when the test declares the file a config Ze must refuse
+	// (tmpfs=<path>:refused=<code>:terminator=<TERM>), and "" otherwise. The
+	// runner writes the file as it does any other; the repository config sweep
+	// asserts the refusal instead of reporting it.
+	Refused string
 }
+
+// diagnosticCode matches the shape of a diagnostic code: lower-case words
+// joined by hyphens, as internal/core/diagnostic registers them.
+var diagnosticCode = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 // Reader returns an io.Reader for the file content.
 func (f *File) Reader() io.Reader {
@@ -69,7 +79,11 @@ type Line struct {
 type Tmpfs struct {
 	Files       []*File
 	StdinBlocks map[string][]byte // stdin= blocks: name -> content
-	OtherLines  []Line            // Non-Tmpfs/stdin lines (cmd=, option=, expect=, run=, etc.)
+	// StdinRefused names, for each stdin block a test declares a config Ze
+	// must refuse (stdin=<name>:refused=<code>:...), the diagnostic code it is
+	// refused with. It means nothing at run time; the config sweep asserts it.
+	StdinRefused map[string]string
+	OtherLines   []Line // Non-Tmpfs/stdin lines (cmd=, option=, expect=, run=, etc.)
 }
 
 // New creates an empty Tmpfs for programmatic construction.
@@ -142,7 +156,8 @@ func Parse(r io.Reader) (*Tmpfs, error) {
 // ParseWithLimits reads Tmpfs blocks with custom limits.
 func parseWithLimits(r io.Reader, limits Limits) (*Tmpfs, error) {
 	v := &Tmpfs{
-		StdinBlocks: make(map[string][]byte),
+		StdinBlocks:  make(map[string][]byte),
+		StdinRefused: make(map[string]string),
 	}
 	scanner := bufio.NewScanner(r)
 	seenPaths := make(map[string]bool)
@@ -196,6 +211,13 @@ func parseWithLimits(r io.Reader, limits Limits) (*Tmpfs, error) {
 			if err != nil {
 				return nil, fmt.Errorf("line %d: %w", lineNum, err)
 			}
+			refused, err := stdinRefused(trimmed)
+			if err != nil {
+				return nil, fmt.Errorf("line %d: %w", lineNum, err)
+			}
+			if refused != "" {
+				v.StdinRefused[name] = refused
+			}
 			lineNum = endLineNum
 
 			// Check for duplicate names
@@ -222,7 +244,7 @@ var validTerminator = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 
 // parseTmpfsBlock parses a single Tmpfs block starting from the header line.
 func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limits Limits, seenTerminators map[string]bool) (*File, int, error) {
-	// Parse header: tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
+	// Parse header: tmpfs=<path>[:mode=<octal>][:encoding=<type>][:refused=<code>]:terminator=<TERM>
 	// Remove "tmpfs=" prefix
 	rest := strings.TrimPrefix(header, "tmpfs=")
 
@@ -250,6 +272,7 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 	// Parse remaining key=value pairs
 	var terminator string
 	var modeStr string
+	var refused string
 	encoding := "text"
 
 	for _, part := range parts[1:] {
@@ -270,6 +293,11 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 			modeStr = value
 		case "encoding":
 			encoding = value
+		case "refused":
+			if !diagnosticCode.MatchString(value) {
+				return nil, startLine, fmt.Errorf("invalid refused %q: name the diagnostic code the config is refused with, such as config-parse", value)
+			}
+			refused = value
 		default:
 			return nil, startLine, fmt.Errorf("unknown key: %q", key)
 		}
@@ -342,10 +370,27 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 	}
 
 	return &File{
+		Refused: refused,
 		Path:    path,
 		Mode:    mode,
 		Content: contentBytes,
 	}, lineNum, nil
+}
+
+// stdinRefused answers the refused=<code> a stdin= header declares, "" when
+// it declares none, and an error for a value that is not a diagnostic code.
+func stdinRefused(header string) (string, error) {
+	for part := range strings.SplitSeq(strings.TrimPrefix(header, "stdin="), ":") {
+		value, ok := strings.CutPrefix(part, "refused=")
+		if !ok {
+			continue
+		}
+		if !diagnosticCode.MatchString(value) {
+			return "", fmt.Errorf("invalid refused %q: name the diagnostic code the config is refused with, such as config-parse", value)
+		}
+		return value, nil
+	}
+	return "", nil
 }
 
 // parseStdinBlock parses a stdin= block.

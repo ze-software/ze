@@ -229,6 +229,7 @@ stdin=<name>:text=<text-value>
 | `terminator` | End marker for multi-line content |
 | `hex` | Hex-encoded content (single-line) |
 | `text` | Plain text content (single-line, newline appended) |
+| `refused` | The diagnostic code `ze config validate` refuses this block with, when the test hands ze a config it must refuse (see `refused` under Tmpfs) |
 <!-- source: internal/test/tmpfs/tmpfs.go -- StdinBlocks map, parseStdinBlock -->
 
 ### Examples
@@ -287,7 +288,7 @@ already writes: no new directive chooses between them.
 | every other line, `ze bgp decode -`, `ze config validate -`, `le test replay -`, `sh -c ...` included | PIPED | `-` is the `cliio` stdin token (`ai/rules/cli.md`), and the command reads standard input |
 
 The daemon `-` is recognized by POSITION, not by a list of verbs: the runner
-asks `zeDaemonConfigArgIndex` which argument is the config, and substitutes only
+asks `DaemonConfigArg` which argument is the config, and substitutes only
 when that argument is the `-`. A `-` belonging to a verb is left in argv and the
 block is piped, so `ze config validate -` and `ze bgp decode pcap -` test the
 form the operator types.
@@ -360,7 +361,7 @@ into a completion marker without making either file a daemon configuration.
 ### Syntax
 
 ```
-tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
+tmpfs=<path>[:mode=<octal>][:encoding=<type>][:refused=<code>]:terminator=<TERM>
 <content>
 <TERM>
 ```
@@ -373,7 +374,16 @@ tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 | `mode` | No | Auto | File permissions (octal: 644, 755) |
 | `encoding` | No | `text` | Content encoding: `text` or `base64` |
 | `terminator` | Yes | - | End marker (alone on line) |
+| `refused` | No | - | The diagnostic code `ze config validate` refuses this file with (`config-parse`, `config-yang-reference`, ...): the test feeds Ze a config it must refuse |
 <!-- source: internal/test/tmpfs/tmpfs.go -- File struct, Tmpfs.AddFile -->
+
+`refused=` changes nothing at run time: the runner writes the file like any
+other. It is the test's declaration that the body is a Ze config Ze refuses on
+purpose. The repository config sweep (`TestRepositoryConfigsValidate`,
+`internal/component/config/cli`) validates every config a `.ci` carries, and
+for a declared file it asserts the opposite: the body must be refused with
+that code, and a declared body that validates, or is refused for another
+reason, is a finding.
 
 ### Mode Defaults
 
@@ -490,7 +500,7 @@ all-block tokenizer incorrectly refused the apostrophe in
 publishes its marker only after the subject withdrawal and permitted fence
 arrive; classification must not rewrite or weaken those receiver checks.
 <!-- source: internal/test/runner/peer_asn.go -- peerASConfigInputs, peerASRewriteSources, configuredPeerAS -->
-<!-- source: internal/test/runner/runner_exec_util.go -- zeDaemonConfigArgIndex -->
+<!-- source: internal/test/runner/runner_exec_util.go -- DaemonConfigArg -->
 <!-- test: internal/test/runner/peer_asn_test.go -- TestDeclarePeerASClassifiesConfigConsumers, TestDeclarePeerASRefusesMalformedConfigInputs, TestPathASNExportFenceParsesWithDerivedAS -->
 
 The native derivation corpus gate rejects **every** native `.ci` parse failure,
@@ -927,7 +937,7 @@ published here, so four `test/ui` tests were written against it. `-c` received
 only the first word of the quoted command, `ze cli` fell through to its SSH
 client, and each test failed with `no credentials for 127.0.0.1:2222`.
 
-<!-- source: internal/test/runner/runner_exec_util.go -- splitCommand -->
+<!-- source: internal/test/runner/runner_exec_util.go -- SplitCommand -->
 <!-- source: internal/test/runner/runner_exec.go -- runExecCommands argv construction and binary resolution -->
 <!-- source: internal/test/runner/runner.go -- setupBinShims -->
 <!-- source: internal/test/runner/parsing.go -- runOneCommand, the parse suite's own execution -->
