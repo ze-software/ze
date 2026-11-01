@@ -1,0 +1,135 @@
+# Test: a match naming a prefix-list judges each prefix on a BGP peer's import
+# and export chains, and the relayed UPDATE carries only the prefixes both kept
+# VALIDATES: spec-filter-wire-0-umbrella phase 4 (4b): a `policy match`
+#            instance whose condition is `prefix-list` runs at a BGP peer
+#            chain (policychain matchEvaluator) and drops each rejected NLRI
+#            entry in place: the import chain drops 192.168.1.0/24, the export
+#            chain to dest-peer drops 10.0.2.0/24, and dest-peer is sent
+#            10.0.1.0/24 alone, asserted as wire hex.
+# PREVENTS: a match at a BGP chain answering the whole UPDATE (all three
+#           prefixes relayed, or none), or a chain of library members never
+#           reaching the daemon's import or export path.
+#
+# Flow:
+# 1. source-peer (AS65001) sends one UPDATE carrying 10.0.1.0/24, 10.0.2.0/24
+#    and 192.168.1.0/24.
+# 2. source-peer's import chain [ CUSTOMER-IN ]: prefix-list CUSTOMERS accepts
+#    10.0.0.0/8 ge 16 le 24, so 192.168.1.0/24 is dropped.
+# 3. bgp-rs relays the rest; dest-peer's export chain [ NOT-TWO ]: prefix-list
+#    NO-TEN-TWO rejects 10.0.2.0/24 and accepts the rest.
+# 4. dest-peer expects the relayed UPDATE byte for byte, 10.0.1.0/24 only.
+
+# Marker(16) + Len=0037(55) + Type=02 + WdLen=0000 + AttrLen=0014(20)
+#   ORIGIN: 40010100 (IGP)
+#   AS_PATH: 40020602010000FDE9 (AS_SEQ [65001])
+#   NEXT_HOP: 40030401010101 (1.1.1.1)
+#   NLRI: 180A0001 180A0002 18C0A801 (10.0.1.0/24 10.0.2.0/24 192.168.1.0/24)
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000144001010040020602010000FDE940030401010101180A0001180A000218C0A801
+EOF_SOURCE
+
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=20s
+# The relayed UPDATE: AS_PATH [65000 65001] (40020A02020000FDE80000FDE9),
+# NEXT_HOP 1.1.1.1 kept, NLRI 180A0001 (10.0.1.0/24) only; attribute length
+# 0018 (24), message length 0033 (51).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0001
+EOF_DEST
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	# The relay observer: it waits until dest-peer was sent the route.
+	external test-strip {
+		run "le test fixture plugin/prefix-filter-modify-mp"
+		encoder json
+	}
+}
+policy {
+	prefix-list CUSTOMERS {
+		entry 10.0.0.0/8 { ge 16; le 24; action accept; }
+	}
+	prefix-list NO-TEN-TWO {
+		entry 10.0.2.0/24 { action reject; }
+		entry 0.0.0.0/0 { le 32; action accept; }
+	}
+	match CUSTOMER-IN {
+		prefix-list CUSTOMERS
+	}
+	match NOT-TWO {
+		prefix-list NO-TEN-TWO
+	}
+}
+
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source-peer {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+		filter {
+			import { filters [ CUSTOMER-IN ]; final accept; }
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+		filter {
+			export { filters [ NOT-TWO ]; final accept; }
+		}
+		# bgp-rs asks adj-rib-in to replay the stored route here when this
+		# session establishes, so adj-rib-in needs the send permission.
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:pattern=OK: dest peer was sent the re-advertised route
+reject=stderr:pattern=policy filter failed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

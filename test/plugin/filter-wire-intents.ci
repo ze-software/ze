@@ -1,0 +1,252 @@
+# Test: an external filter's intents reach the wire on a library chain
+#
+# VALIDATES: spec-filter-wire-0-umbrella AC-7 and AC-26: an external plugin
+# filter answering intents (as-path prepend, prefix remove, family remove)
+# in a chain that holds a library member ([ ALL pyint:intents ], ALL a match
+# naming a prefix-list) has each intent resolved by Ze and applied to the
+# relayed UPDATE: the local AS prepended twice, 10.0.9.0/24 dropped from the
+# body NLRI, and the ipv6/unicast MP_REACH_NLRI removed, asserted as wire hex
+# at dest-peer, which negotiated ipv6/unicast too.
+# PREVENTS: a plugin's sets ignored on the daemon path (the text chain drops
+# them), or an intent applied to the view but never to the forwarded bytes.
+#
+# Method: a Python 3 plugin speaking the process protocol with no Go SDK
+# answers every filter-update with the three intents; source-peer sends one
+# UPDATE carrying 10.0.1.0/24, 10.0.9.0/24 and an ipv6/unicast MP_REACH_NLRI
+# of 2001:db8::/32; bgp-rs relays it to dest-peer.
+
+tmpfs=pyplug.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env -S python3 -I
+# A filter plugin in Python 3 speaking the documented process protocol with no
+# Go SDK: TLS connect-back, #0 auth, then the five startup stages
+# (docs/plugin-development/protocol.md). argv[1] picks the Stage 1 declaration.
+import json, os, socket, ssl, sys
+
+def log(msg):
+    print("PYPLUG " + msg, file=sys.stderr, flush=True)
+
+MODES = {
+    # An import filter that reads the prefix and family of each route and
+    # answers with intents Ze resolves itself: prepend the local AS twice,
+    # remove one announced prefix, and remove the ipv6/unicast family.
+    "intents": {"protocol-version": 1, "filters": [
+        {"name": "intents", "direction": "import", "reads": ["prefix", "family"], "sets": ["as-path"]}]},
+}
+STAY = ("intents",)
+ANSWER = {"action": "modify", "sets": [
+    {"field": "as-path", "action": "prepend", "value": 2},
+    {"field": "prefix", "action": "remove", "value": "10.0.9.0/24"},
+    {"field": "family", "action": "remove", "value": "ipv6/unicast"}]}
+
+mode = sys.argv[1]
+decl = MODES[mode]
+host = os.environ["ZE_PLUGIN_HUB_HOST"]
+ctx = ssl.create_default_context(cadata=os.environ["ZE_PLUGIN_CA_PEM"])
+ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+raw = socket.create_connection((host, int(os.environ["ZE_PLUGIN_HUB_PORT"])), timeout=30)
+conn = ctx.wrap_socket(raw, server_hostname=host)
+conn.settimeout(None)
+reader = conn.makefile("rb")
+
+def send(line):
+    conn.sendall(line.encode() + b"\n")
+
+def recv():
+    line = reader.readline()
+    if not line:
+        return None
+    return line.decode().rstrip("\n")
+
+def split(line):
+    ident, _, rest = line.partition(" ")
+    verb, _, payload = rest.partition(" ")
+    return ident, verb, payload
+
+def answer(line):
+    # An engine request carries a method (it holds a colon); answer it OK.
+    ident, verb, payload = split(line)
+    if ":" not in verb:
+        return
+    if verb == "ze-plugin-callback:filter-update":
+        # A batch of routes (D-3): one intents verdict per route, in order.
+        routes = json.loads(payload)["routes"]
+        log("filter-update routes=%d" % len(routes))
+        send(ident + " ok " + json.dumps({"verdicts": [ANSWER] * len(routes)}, separators=(",", ":")))
+        return
+    send(ident + " ok")
+    if verb == "ze-plugin-callback:bye":
+        sys.exit(0)
+
+def await_request(method):
+    # The engine drives Stages 2 and 4: wait for its request and answer it.
+    while True:
+        line = recv()
+        if line is None:
+            log("eof awaiting " + method)
+            sys.exit(1)
+        answer(line)
+        if split(line)[1] == method:
+            return
+
+def call(n, method, params):
+    send("#%d %s %s" % (n, method, json.dumps(params, separators=(",", ":"))))
+    while True:
+        line = recv()
+        if line is None:
+            log("eof awaiting #%d %s" % (n, method))
+            sys.exit(1)
+        ident, verb, payload = split(line)
+        if ident == "#%d" % n and verb in ("ok", "error"):
+            return verb, payload
+        answer(line)
+
+verb, _ = call(0, "auth", {"token": os.environ["ZE_PLUGIN_HUB_TOKEN"], "name": os.environ["ZE_PLUGIN_NAME"]})
+if verb != "ok":
+    log("auth refused")
+    sys.exit(1)
+
+verb, payload = call(1, "ze-plugin-engine:declare-registration", decl)
+if verb != "ok":
+    # The daemon states the refusal itself; the plugin reports only that one came.
+    log("stage1 refused")
+    sys.exit(1)
+speaks = json.loads(payload)["protocol-version"]
+log("stage1 answer protocol-version=%d" % speaks)
+
+await_request("ze-plugin-callback:configure")
+verb, _ = call(2, "ze-plugin-engine:declare-capabilities", {"capabilities": []})
+log("stage3 " + verb)
+await_request("ze-plugin-callback:share-registry")
+verb, _ = call(3, "ze-plugin-engine:ready", {})
+log("stage5 %s speaking version %d" % (verb, speaks))
+if mode not in STAY:
+    send('#4 ze-plugin-engine:dispatch-command {"command":"request shutdown"}')
+while True:
+    line = recv()
+    if line is None:
+        sys.exit(0)
+    answer(line)
+EOF_RUN
+
+option=env:var=ze.log.bgp.filter:value=info
+
+# UPDATE: ORIGIN IGP 40010100, AS_PATH AS_SEQ[65001] 40020602010000FDE9,
+# NEXT_HOP 1.1.1.1 40030401010101, MP_REACH_NLRI ipv6/unicast
+# 800E1A 0002 01 10 2001:db8::1 00 2020010DB8 (2001:db8::/32),
+# NLRI 180A0001 180A0009 (10.0.1.0/24 10.0.9.0/24); attribute length 0031
+# (49), message length 0050 (80).
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005002000000314001010040020602010000FDE940030401010101800E1A0002011020010DB8000000000000000000000001002020010DB8180A0001180A0009
+EOF_SOURCE
+
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=20s
+# The relayed UPDATE: AS_PATH AS_SEQ[65000 65000 65000 65001]
+# (40021202040000FDE80000FDE80000FDE80000FDE9): two copies of the local AS
+# from the prepend intent, one from the EBGP export; NEXT_HOP 1.1.1.1; NLRI
+# 180A0001 (10.0.1.0/24) only, and no MP_REACH_NLRI. Attribute length 0020
+# (32), message length 003B (59).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040021202040000FDE80000FDE80000FDE80000FDE940030401010101180A0001
+EOF_DEST
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	external pyint {
+		run "./pyplug.run intents"
+	}
+	# The relay observer: it waits until dest-peer was sent the route.
+	external test-strip {
+		run "le test fixture plugin/prefix-filter-modify-mp"
+		encoder json
+	}
+}
+policy {
+	prefix-list ANY {
+		entry 0.0.0.0/0 { le 32; action accept; }
+		entry ::/0 { le 128; action accept; }
+	}
+	match ALL {
+		prefix-list ANY
+	}
+}
+
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source-peer {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+		}
+		filter {
+			import { filters [ ALL pyint:intents ]; final accept; }
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+		}
+		# bgp-rs asks adj-rib-in to replay the stored route here when this
+		# session establishes, so adj-rib-in needs the send permission.
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:pattern=PYPLUG filter-update routes=1
+expect=stderr:pattern=OK: dest peer was sent the re-advertised route
+# The adj-RIB-In holds what the import chain kept: 10.0.1.0/24 alone, so the
+# ipv6/unicast route and 10.0.9.0/24 were never relayed in an UPDATE of their own.
+expect=stderr:pattern=INFO: adj-rib-in total=1
+reject=stderr:pattern=policy filter failed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
