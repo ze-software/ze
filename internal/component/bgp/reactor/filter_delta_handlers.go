@@ -423,21 +423,42 @@ func mpUnreachNLRIHandler() filterapi.AttrModHandler {
 }
 
 // aspathHandler handles AS_PATH (type 2) with support for AttrModPrepend.
-// Prepend inserts a new AS_SEQUENCE segment before the existing AS_PATH value.
+// Prepend adds the AS numbers of every prepend operation to the front of the
+// base path: the Set value when one is present, otherwise the source value.
 // Set replaces the entire attribute (via genericAttrSetHandler fallback).
+//
+// Each prepend operation is one AS_SEQUENCE segment as prependASPathOps writes
+// it, encoded at the width of the payload it joins. The handler takes only the
+// AS numbers out of it and lays them out the way attribute.ASPath.Prepend does
+// one AS at a time, which is what the AS4_PATH derivation beside it
+// (prependAS4PathValue) uses, so the two attributes agree on the segments.
+//
+// RFC 4271 Section 5.1.2: "if the first path segment of the AS_PATH is of type
+// AS_SEQUENCE, the local system prepends its own AS number as the last element
+// of the sequence (put it in the leftmost position with respect to the position
+// of octets in the protocol message).  If the act of prepending will cause an
+// overflow in the AS_PATH segment (i.e., more than 255 ASes), it SHOULD prepend
+// a new segment of type AS_SEQUENCE and prepend its own AS number to this new
+// segment."
+//
+// RFC 4271 Section 5.1.2: "if the first path segment of the AS_PATH is of type
+// AS_SET, the local system prepends a new path segment of type AS_SEQUENCE to
+// the AS_PATH, including its own AS number in that segment."
+//
+// RFC 4271 Section 5.1.2: "if the AS_PATH is empty, the local system creates a
+// path segment of type AS_SEQUENCE, places its own AS into that segment, and
+// places that segment into the AS_PATH."
 func aspathHandler() filterapi.AttrModHandler {
 	setHandler := genericAttrSetHandler(0x40, byte(attribute.AttrASPath))
 
 	return func(p *filterapi.AttrPlan) {
 		ops := p.Ops()
-		hasPrepend := false
-		for i := range ops {
-			if ops[i].Action == filterapi.AttrModPrepend && len(ops[i].Buf) > 0 {
-				hasPrepend = true
-				break
-			}
+		count, width, ok := prependASNCount(ops)
+		if !ok {
+			p.Fail()
+			return
 		}
-		if !hasPrepend {
+		if count == 0 {
 			// No prepend: delegate to the generic set handler.
 			setHandler(p)
 			return
@@ -449,21 +470,127 @@ func aspathHandler() filterapi.AttrModHandler {
 			return
 		}
 
-		// Prepend: the new segments first, then the base path. The base is the
-		// Set value when one is present, otherwise the source value where it
-		// already sits.
-		for i := range ops {
-			if ops[i].Action == filterapi.AttrModPrepend && len(ops[i].Buf) > 0 {
-				p.Op(i)
-			}
-		}
+		// The base path: the Set value when one is present, otherwise the
+		// source value where it already sits. A generator Set has no bytes to
+		// read here, so its first segment cannot be joined.
+		var base []byte
+		baseKnown := true
 		if setIdx >= 0 {
-			p.Op(setIdx)
-		} else if val := p.Value(); len(val) > 0 {
-			p.Keep(0, len(val))
+			base = ops[setIdx].Buf
+			baseKnown = ops[setIdx].GenIdx == 0
+		} else {
+			base = p.Value()
+		}
+
+		room := 0
+		if baseKnown && leadingSequence(base, width) {
+			room = attribute.MaxASPathSegmentLength - int(base[1])
+		}
+		joined := min(count, room)
+
+		// The AS numbers that do not fit the leading sequence go into new
+		// AS_SEQUENCE segments in front of it. Prepending one AS at a time
+		// fills each new segment to 255 before the next one opens to its left,
+		// so the leftmost segment is the partial one.
+		rest := count - joined
+		emitted := 0
+		for rest > 0 {
+			n := (rest-1)%attribute.MaxASPathSegmentLength + 1
+			p.NewByte(byte(attribute.ASSequence))
+			p.NewByte(byte(n))
+			emitPrependASNs(p, ops, width, emitted, n)
+			emitted += n
+			rest -= n
+		}
+
+		if joined > 0 {
+			p.NewByte(byte(attribute.ASSequence))
+			p.NewByte(byte(int(base[1]) + joined))
+			emitPrependASNs(p, ops, width, emitted, joined)
+			emitBase(p, setIdx, 2, len(base)-2)
+		} else {
+			emitBase(p, setIdx, 0, len(base))
 		}
 		p.Emit(0x40, byte(attribute.AttrASPath)) // Well-known, Transitive
 	}
+}
+
+// prependASNCount sums the AS numbers of every prepend operation and reads the
+// width they are encoded at. Every one is a single AS_SEQUENCE segment at one
+// width; anything else is not what prependASPathOps writes, and ok false makes
+// the handler refuse the plan rather than splice bytes it cannot read.
+func prependASNCount(ops []filterapi.AttrOp) (count, width int, ok bool) {
+	for i := range ops {
+		if ops[i].Action != filterapi.AttrModPrepend || len(ops[i].Buf) == 0 {
+			continue
+		}
+		buf := ops[i].Buf
+		if len(buf) < 2 || buf[0] != byte(attribute.ASSequence) || buf[1] == 0 {
+			return 0, 0, false
+		}
+		w := (len(buf) - 2) / int(buf[1])
+		if w != 2 && w != 4 {
+			return 0, 0, false
+		}
+		if len(buf) != 2+int(buf[1])*w {
+			return 0, 0, false
+		}
+		if width != 0 && w != width {
+			return 0, 0, false
+		}
+		width = w
+		count += int(buf[1])
+	}
+	return count, width, true
+}
+
+// leadingSequence reports whether the base path opens with a well-formed
+// AS_SEQUENCE segment at width, the only first segment a prepend joins.
+func leadingSequence(base []byte, width int) bool {
+	if len(base) < 2 {
+		return false
+	}
+	if base[0] != byte(attribute.ASSequence) || base[1] == 0 {
+		return false
+	}
+	return len(base) >= 2+int(base[1])*width
+}
+
+// emitPrependASNs emits n AS numbers of the prepend operations, skipping the
+// first skip, in operation order: the first operation's AS numbers are the
+// leftmost, as the segments they came in were.
+func emitPrependASNs(p *filterapi.AttrPlan, ops []filterapi.AttrOp, width, skip, n int) {
+	for i := range ops {
+		if n == 0 {
+			return
+		}
+		if ops[i].Action != filterapi.AttrModPrepend || len(ops[i].Buf) == 0 {
+			continue
+		}
+		have := int(ops[i].Buf[1])
+		if skip >= have {
+			skip -= have
+			continue
+		}
+		take := min(have-skip, n)
+		p.OpRange(i, 2+skip*width, take*width)
+		skip = 0
+		n -= take
+	}
+}
+
+// emitBase emits n bytes of the base path from off: the Set operation's buffer
+// when setIdx names one, otherwise the source value.
+func emitBase(p *filterapi.AttrPlan, setIdx, off, n int) {
+	if setIdx < 0 {
+		p.Keep(off, n)
+		return
+	}
+	if off == 0 {
+		p.Op(setIdx)
+		return
+	}
+	p.OpRange(setIdx, off, n)
 }
 
 // tombstoneHandler handles ATTR_TOMBSTONE (type 252,

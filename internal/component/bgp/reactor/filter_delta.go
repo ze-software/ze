@@ -505,9 +505,10 @@ func stripAttrHeader(wire []byte) []byte {
 // passes the destination's sendASN4, because the session write path has already
 // encoded that body in the destination's send context. It is the same fact
 // ExtractRemovePrivateASOps takes under the same name, for the same reason:
-// aspathHandler splices these bytes in front of the AS_PATH value where it
-// already sits, so a segment encoded at any other width leaves an attribute
-// that does not decode as one AS_PATH.
+// aspathHandler splices these AS numbers into the AS_PATH value where it
+// already sits (into its leading AS_SEQUENCE when that has room), so a segment
+// encoded at any other width leaves an attribute that does not decode as one
+// AS_PATH.
 //
 // Does nothing if the modified attributes do not contain as-path-prepend.
 // The text names the count; prependASPathOps, which the library chain's

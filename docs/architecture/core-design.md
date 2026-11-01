@@ -1643,7 +1643,16 @@ the text subject is still what every configured BGP filter reads.
   entry, a drop from a section the UPDATE lacks, and a drop from a family
   whose NLRI is not a CIDR prefix drop the route. A stripped section is
   rewritten empty, which drops an MP attribute whole: the body
-  `filter_family`'s raw rewrite produces.
+  `filter_family`'s raw rewrite produces. The prepend joins the path's
+  leading AS_SEQUENCE while it has room for 255 AS numbers, and opens a new
+  AS_SEQUENCE in front of an AS_SET, an empty path or a full sequence
+  (`aspathHandler`, RFC 4271 Section 5.1.2), on both paths. A later member
+  that reads `as-path` reads the received path, not the prepended one, which
+  is what a later text filter reads too: the text delta carries
+  `as-path-prepend N` as a directive beside the `as-path` field, and the wire
+  rebuild applies it. A later member that reads `prefix` after a `DropNLRI`
+  still reads the received NLRI, while a later text filter reads the subset
+  an earlier one returned; that overlay is not built yet.
 - **A failed member applies its on-error.** A read that answers an error (a
   malformed attribute, `policyview.ErrMalformed`) and a write to a field the
   member did not declare (`policy.InstanceSets`) each fail the route under the
@@ -1658,6 +1667,7 @@ the text subject is still what every configured BGP filter reads.
 <!-- source: internal/component/bgp/policyview/view.go -- View.SetNumber, View.SetWire -->
 <!-- source: internal/component/bgp/policychain/intents.go -- PrependASPath, RemovePrivateAS, DropNLRI, StripFamily -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- prependASPathOps, removePrivateASOps -->
+<!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- aspathHandler -->
 <!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- nlriSectionOf, recordNLRIRewrite, dropNLRI, subsetNLRI -->
 <!-- source: internal/component/bgp/policychain/sets.go -- Sets, numericSet.resolve, Sets.ApplyTo -->
 <!-- source: internal/component/bgp/policychain/apply.go -- Bases, Chain.Apply -->

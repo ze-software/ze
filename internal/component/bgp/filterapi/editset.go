@@ -392,6 +392,35 @@ func (p *AttrPlan) Op(i int) {
 	p.appendFragment(fragOp, 0, len(buf), uint8(i)) //nolint:gosec // G115: bounded by the i > 255 check above
 }
 
+// OpRange appends n bytes of the i-th operation's buffer, from offset off, as a
+// fragment. It is Op for a handler that splices only part of an operation: the
+// AS_PATH handler takes the AS numbers of a prepended segment without its
+// header, so they join the leading AS_SEQUENCE of the base path.
+//
+// A generator operation has no buffer to slice, and a range outside the buffer
+// names bytes that do not exist: both refuse the whole plan.
+func (p *AttrPlan) OpRange(i, off, n int) {
+	if p.closed {
+		return
+	}
+	if i < 0 || i >= len(p.ops) || i > 255 {
+		p.Fail()
+		return
+	}
+	if p.set.generator(p.ops[i].GenIdx) != nil {
+		p.Fail()
+		return
+	}
+	if n == 0 {
+		return
+	}
+	if off < 0 || n < 0 || off+n > len(p.ops[i].Buf) {
+		p.Fail()
+		return
+	}
+	p.appendFragment(fragOp, off, n, uint8(i)) //nolint:gosec // G115: bounded by the i > 255 check above
+}
+
 // New copies bytes into the arena and appends a fragment over them.
 //
 // It is for bytes that exist nowhere else: a length field a rewrite recomputes,
