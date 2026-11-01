@@ -1,3 +1,0 @@
-2026-10-29T16:20:01Z store-trim pid 60397: run started
-automatic trim: on, at most once an hour
-SKIP /Users/thomas/Code/github.com/ze-software/ze/gh-pages is not the Ze checkout (it lacks go.mod or feature-gates.txt), so no store under it is trimmed: every row judges Ze's own layout, and elsewhere it would remove the repository's own files. ZE_REPO_ROOT named this root; run ./le scratch trim from the Ze checkout to trim its stores
