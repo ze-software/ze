@@ -5,7 +5,7 @@
 #
 # Flow:
 # 1. ze-peer sends UPDATE with LARGE_COMMUNITY=65001:100:200, NLRI=10.0.0.0/24
-# 2. Filter chain calls bgp-filter-community-match:ALLOW-LARGE
+# 2. Filter chain calls community-ALLOW-LARGE
 # 3. community-match ALLOW-LARGE has entry "65001:100:200" type large action accept
 # 4. Large community 65001:100:200 found in route -> accept
 # 5. Assertions on stderr confirm the decision log.
@@ -35,6 +35,9 @@ policy {
 			action accept
 		}
 	}
+	match community-ALLOW-LARGE {
+		community ALLOW-LARGE
+	}
 }
 
 bgp {
@@ -60,7 +63,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ community-match:ALLOW-LARGE ]; final accept; }
+			import { filters [ community-ALLOW-LARGE ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]

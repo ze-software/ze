@@ -85,6 +85,9 @@ policy {
     reject-asn NO-TRANSIT {
         indirect [ 3356 ];
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT;
+    }
 }
 
 bgp {
@@ -165,7 +168,7 @@ bgp {
             send [ update ];
         }
         filter {
-            export { filters [ NO-TRANSIT ]; final accept; }
+            export { filters [ reject-asn-NO-TRANSIT ]; final accept; }
         }
     }
 }

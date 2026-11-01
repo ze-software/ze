@@ -39,6 +39,9 @@ stdin=config:terminator=EOF_CONF
 				action reject
 			}
 		}
+		match community-NO-EXPORT {
+			community NO-EXPORT
+		}
 		modify IXP-IN {
 			set {
 				local-preference 200
@@ -67,7 +70,7 @@ bgp {
 			}
 		}
 		filter {
-			import { filters [ bgp-filter-prefix:V4-BOGON as-path-list:BOGON-ASN community-match:NO-EXPORT modify:IXP-IN ]; final accept; }
+			import { filters [ bgp-filter-prefix:V4-BOGON as-path-list:BOGON-ASN community-NO-EXPORT modify:IXP-IN ]; final accept; }
 			export { filters [ bgp-filter-prefix:V4-BOGON modify:IXP-OUT ]; final accept; }
 		}
 		peer rs-v4-a {

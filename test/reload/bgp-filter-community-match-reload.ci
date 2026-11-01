@@ -1,7 +1,7 @@
 # Test: a reload that edits a community-match entry's action makes
 #       bgp-filter-community-match answer with the new definition.
 # Initial config: one dynamic group (iBGP, AS 65533) whose import chain is
-#                 `bgp-filter-community-match:NOEXP`. The test peer dials Ze.
+#                 `community-NOEXP`. The test peer dials Ze.
 # Live change:    the staged fixture (reload/live-stages, run inside the
 #                 daemon) rewrites the action of NOEXP's one entry (accept ->
 #                 reject) and sends SIGHUP. Nothing else changes.
@@ -51,6 +51,9 @@ plugin {
 				action accept
 			}
 		}
+		match community-NOEXP {
+			community NOEXP
+		}
 	}
 
 bgp {
@@ -87,7 +90,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import { filters [ bgp-filter-community-match:NOEXP ]; final accept; }
+			import { filters [ community-NOEXP ]; final accept; }
 		}
 	}
 }
@@ -111,6 +114,9 @@ plugin {
 				action reject
 			}
 		}
+		match community-NOEXP {
+			community NOEXP
+		}
 	}
 
 bgp {
@@ -147,7 +153,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import { filters [ bgp-filter-community-match:NOEXP ]; final accept; }
+			import { filters [ community-NOEXP ]; final accept; }
 		}
 	}
 }

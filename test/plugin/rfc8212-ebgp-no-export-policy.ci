@@ -98,6 +98,7 @@ policy {
     }
     # Named by the rs-client control below as inactive: never applied.
     reject-asn NO-TRANSIT { indirect [ 3356 ]; }
+    match reject-asn-NO-TRANSIT { reject-asn NO-TRANSIT; }
     # The echo returns Ze's own UPDATEs, whose AS_PATH holds 65000: the
     # RFC 4271 Section 9.1.2 own-AS loop check drops every echo before the
     # observer sees it. The control below names this instance as inactive,
@@ -162,8 +163,8 @@ bgp {
         # RFC 9234 requires a transit-leak filter on an rs-client session; this
         # control runs without one, recorded with the `inactive:` prefix.
         filter {
-            import { filters [ inactive:ECHO-OWN-AS inactive:NO-TRANSIT ]; final accept; }
-            export { filters [ inactive:NO-TRANSIT ]; final accept; }
+            import { filters [ inactive:ECHO-OWN-AS inactive:reject-asn-NO-TRANSIT ]; final accept; }
+            export { filters [ inactive:reject-asn-NO-TRANSIT ]; final accept; }
         }
         update {
             attribute { origin igp; next-hop 192.0.2.1; }

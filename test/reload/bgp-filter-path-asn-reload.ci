@@ -1,7 +1,7 @@
 # Test: a reload that edits a reject-asn definition's ASN list makes
 #       bgp-filter-path-asn answer with the new definition.
 # Initial config: one dynamic group (iBGP, AS 65533) whose import chain is
-#                 `bgp-filter-path-asn:NO-ASN`. The test peer dials Ze.
+#                 `reject-asn-NO-ASN`. The test peer dials Ze.
 # Live change:    the staged fixture (reload/live-stages, run inside the
 #                 daemon) rewrites the anywhere list of NO-ASN (3356 -> 65001)
 #                 and sends SIGHUP. Nothing else changes.
@@ -48,6 +48,9 @@ plugin {
 		reject-asn NO-ASN {
 			anywhere [ 3356 ]
 		}
+		match reject-asn-NO-ASN {
+			reject-asn NO-ASN
+		}
 	}
 
 bgp {
@@ -84,7 +87,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import { filters [ bgp-filter-path-asn:NO-ASN ]; final accept; }
+			import { filters [ reject-asn-NO-ASN ]; final accept; }
 		}
 	}
 }
@@ -105,6 +108,9 @@ plugin {
 		reject-asn NO-ASN {
 			anywhere [ 65001 ]
 		}
+		match reject-asn-NO-ASN {
+			reject-asn NO-ASN
+		}
 	}
 
 bgp {
@@ -141,7 +147,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import { filters [ bgp-filter-path-asn:NO-ASN ]; final accept; }
+			import { filters [ reject-asn-NO-ASN ]; final accept; }
 		}
 	}
 }

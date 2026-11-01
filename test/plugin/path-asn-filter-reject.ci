@@ -42,6 +42,9 @@ policy {
 	reject-asn NO-TRANSIT {
 		indirect [ 3356 ]
 	}
+	match reject-asn-NO-TRANSIT {
+		reject-asn NO-TRANSIT
+	}
 }
 
 bgp {
@@ -67,7 +70,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ NO-TRANSIT ]; final accept; }
+			import { filters [ reject-asn-NO-TRANSIT ]; final accept; }
 		}
 
 		attach process test-path-asn-reject {

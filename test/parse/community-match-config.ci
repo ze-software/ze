@@ -10,6 +10,9 @@ stdin=config:terminator=EOF_CONF
 				action reject
 			}
 		}
+		match community-BLOCK-NO-EXPORT {
+			community BLOCK-NO-EXPORT
+		}
 		community-match ALLOW-CUSTOMER {
 			entry 65001:100 {
 				type standard
@@ -40,7 +43,7 @@ bgp {
 			}
 		}
 		filter {
-			import { filters [ community-match:BLOCK-NO-EXPORT ]; final accept; }
+			import { filters [ community-BLOCK-NO-EXPORT ]; final accept; }
 		}
 	}
 }

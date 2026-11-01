@@ -5,7 +5,7 @@
 #
 # Flow:
 # 1. ze-peer sends UPDATE with COMMUNITY=no-export (0xFFFFFF01), NLRI=10.0.0.0/24
-# 2. Filter chain calls bgp-filter-community-match:BLOCK-NO-EXPORT
+# 2. Filter chain calls community-BLOCK-NO-EXPORT
 # 3. community-match BLOCK-NO-EXPORT has entry "no-export" type standard action reject
 # 4. Community no-export found in route -> reject
 # 5. Assertions on stderr confirm the decision log.
@@ -38,6 +38,9 @@ policy {
 			action reject
 		}
 	}
+	match community-BLOCK-NO-EXPORT {
+		community BLOCK-NO-EXPORT
+	}
 }
 
 bgp {
@@ -63,7 +66,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ community-match:BLOCK-NO-EXPORT ]; final accept; }
+			import { filters [ community-BLOCK-NO-EXPORT ]; final accept; }
 		}
 
 		attach process test-cm-reject {

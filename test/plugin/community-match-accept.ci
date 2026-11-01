@@ -5,7 +5,7 @@
 #
 # Flow:
 # 1. ze-peer sends UPDATE with COMMUNITY=65001:100, NLRI=10.0.0.0/24
-# 2. Filter chain calls bgp-filter-community-match:ALLOW-CUSTOMER
+# 2. Filter chain calls community-ALLOW-CUSTOMER
 # 3. community-match ALLOW-CUSTOMER has entry "65001:100" type standard action accept
 # 4. Community 65001:100 found in route -> accept
 # 5. Assertions on stderr confirm the decision log.
@@ -35,6 +35,9 @@ policy {
 			action accept
 		}
 	}
+	match community-ALLOW-CUSTOMER {
+		community ALLOW-CUSTOMER
+	}
 }
 
 bgp {
@@ -60,7 +63,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ community-match:ALLOW-CUSTOMER ]; final accept; }
+			import { filters [ community-ALLOW-CUSTOMER ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]
