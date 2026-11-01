@@ -223,6 +223,17 @@ and is outside the population. The investigation's note that `rs` declared no
 - Each population plugin's reload: takes effect, or is refused at verify naming the leaf
 - The SDK's answer for a participant with no apply handler: refusal instead of OK
 
+## Existing Mechanisms (MANDATORY)
+
+Recorded after implementation, from the source files read above; the design this spec carried already extended each of them.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| SDK config callbacks | `pkg/plugin/sdk/sdk_callbacks.go` `initCallbackDefaults`, `OnConfigApply`, `configApplyCallback` | Binds each plugin's config-verify and config-apply answers | Extends: the default apply now refuses instead of answering OK, and `DeclareAppliesNothing` is the explicit opt-out |
+| Config transaction rollback gate | `pkg/plugin/sdk/config_tx_gate.go` (`applied`, `rollbackOwed`, `committed`) | Decides whether a rollback is owed after apply | Does not apply: preserved unchanged, each plugin's apply and rollback run through it |
+| Reload participant selection | `internal/component/plugin/server/reload.go` `reloadConfigSections` | Delivers every root a plugin reads, whole, when any of them changed | Does not apply: unchanged; the per-plugin verify/apply handlers answer what it delivers |
+| Per-plugin config transaction | e.g. `internal/component/bgp/plugins/filter_irr/config_tx.go` (`verify`, `apply`, `rollback`) | Parses the candidate at verify, swaps at apply, restores at rollback | Extends: the pattern each population plugin's reload handler follows |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -583,6 +594,15 @@ Documents that only `<!-- source: -->` mention a changed file (advisory, from `.
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `plan/journal/test-asserts-superseded-behaviour.md` | 2026-11-01 | `bgp-bfd-profile-reload-deleted` expects the old BGP verify refusal text (red since 3c8c2ae886, route-policy-0-umbrella) |
+| `plan/journal/test-asserts-superseded-behaviour.md` | 2026-11-01 | `pki-reference-reload-broken` expects the dotted leaf path (red since 05646d85eb, route-policy-0-umbrella) |
+| `plan/journal/test-asserts-superseded-behaviour.md` | 2026-11-01 | `bgp-filter-irr-loaded-over-ssh` commit refused without Route Refresh (red since e9385df360) |
+| `plan/journal/expected-message-never-sent.md` | 2026-11-01 | `bgp-role-export-reload`: U2 never reaches B after the export reload (red since 30ff1fce91) |
 
 ## Design Insights
 
