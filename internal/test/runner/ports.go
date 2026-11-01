@@ -8,6 +8,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"syscall"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -147,10 +149,51 @@ func ReservePorts(base, count int) (*PortReservation, bool, error) {
 }
 
 // TestPortSpan is the number of consecutive ports one .ci test owns: Record.Port
-// is $PORT and Record.Port+1 is $PORT2 (runner_exec.go substitutes both).
-const TestPortSpan = 2
+// is $PORT, Record.Port+1 is $PORT2 and Record.Port+2 is $PORT3 (ExpandPorts).
+// A placeholder past the span is refused at discovery (checkPortPlaceholders),
+// so every port a test names is one its lease holds.
+const TestPortSpan = 3
 
-// The band LeaseTestPorts falls back to when a test's preferred pair is taken.
+// portPlaceholder matches every $PORT spelling a .ci file can write, with the
+// digits that follow it.
+var portPlaceholder = regexp.MustCompile(`\$PORT([0-9]*)`)
+
+// ExpandPorts replaces $PORT, $PORT2 and $PORT3 in text with the first, second
+// and third port of a lease that starts at port. It is the one expansion every
+// consumer of a .ci text uses (tmpfs content, exec strings, stdin blocks, env
+// values, http URLs, and the config sweep in internal/component/config/cli),
+// so they cannot disagree about what a placeholder means. A placeholder past
+// TestPortSpan is never expanded: discovery refused its file already.
+func ExpandPorts(text string, port int) string {
+	return portPlaceholder.ReplaceAllStringFunc(text, func(placeholder string) string {
+		switch placeholder {
+		case "$PORT":
+			return strconv.Itoa(port)
+		case "$PORT2":
+			return strconv.Itoa(port + 1)
+		case "$PORT3":
+			return strconv.Itoa(port + 2)
+		}
+		return placeholder
+	})
+}
+
+// checkPortPlaceholders refuses a .ci text naming a $PORT<n> the lease does not
+// reserve. Without it, $PORT4 expanded as $PORT followed by "4", a port no lease
+// holds, which a parallel test could bind at the same time.
+func checkPortPlaceholders(text string) error {
+	for _, match := range portPlaceholder.FindAllStringSubmatch(text, -1) {
+		switch match[1] {
+		case "", "2", "3":
+			continue
+		}
+		return fmt.Errorf("%s names a port the test does not reserve: a test owns $PORT, $PORT2 and $PORT3 only; "+
+			"use one of those, or have a compiled fixture reserve more with runner.ReservePorts", match[0])
+	}
+	return nil
+}
+
+// The band LeaseTestPorts falls back to when a test's preferred span is taken.
 // It sits above every base a suite prefers (1790 for the .ci runners, 10200 for
 // web, 21790 for vpp) and below the lowest ephemeral range of a supported host
 // (32768 on Linux, 49152 on Darwin), so a lease is never handed a port the
@@ -160,15 +203,15 @@ const (
 	leasePortLimit = 32760
 )
 
-var errNoLeasablePortPair = errors.New("no free test port pair in the lease band")
+var errNoLeasablePortSpan = errors.New("no free test port span in the lease band")
 
 // LeaseTestPorts leases the port span one .ci test owns and holds advisory locks.
 // The owner MUST call Release after its use of the leased ports ends, so the
 // lease covers exactly the test that binds the ports.
 //
 // preferred is the port the suite would like this test to have. It is honored
-// when the pair is both unlocked and bindable AT LEASE TIME; otherwise the test
-// gets a pair from the lease band instead. This is the whole mechanism against
+// when the span is both unlocked and bindable AT LEASE TIME; otherwise the test
+// gets a span from the lease band instead. This is the whole mechanism against
 // parallel copies colliding on a deterministic port: every .ci suite numbers its
 // tests from the same base (EncodingTests.parseAndAdd), so the Nth test of every
 // suite prefers the same port, and two le test processes running different
@@ -191,7 +234,7 @@ func LeaseTestPorts(preferred int) (*PortReservation, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("%w: %d-%d", errNoLeasablePortPair, leasePortBase, leasePortLimit-1)
+	return nil, fmt.Errorf("%w: %d-%d", errNoLeasablePortSpan, leasePortBase, leasePortLimit-1)
 }
 
 // checkPortAvailable checks if a single port is available.
@@ -325,4 +368,18 @@ func checkPortLockDir(lockDir string) error {
 func isWouldBlock(err error) bool {
 	var errno syscall.Errno
 	return errors.As(err, &errno) && (errno == syscall.EWOULDBLOCK || errno == syscall.EAGAIN)
+}
+
+// checkPortPlaceholdersInFile applies checkPortPlaceholders to a whole .ci
+// file, comments included: a placeholder in a comment describes a port the
+// test means to use, so it is held to the same span.
+func checkPortPlaceholdersInFile(ciFile string) error {
+	text, err := os.ReadFile(ciFile)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", ciFile, err)
+	}
+	if err := checkPortPlaceholders(string(text)); err != nil {
+		return fmt.Errorf("parse %s: %w", ciFile, err)
+	}
+	return nil
 }

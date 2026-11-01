@@ -67,10 +67,7 @@ func startBackgroundLifetime(ctx context.Context, cmd *RunCommand, proc *exec.Cm
 func tmpfsForRecord(rec *Record) *tmpfs.Tmpfs {
 	v := tmpfs.New()
 	for path, file := range rec.TmpfsFiles {
-		// Expand $PORT2 before $PORT in tmpfs content (scripts, configs)
-		s := string(file.Content)
-		s = strings.ReplaceAll(s, "$PORT2", strconv.Itoa(rec.Port+1))
-		s = strings.ReplaceAll(s, "$PORT", strconv.Itoa(rec.Port))
+		s := ExpandPorts(string(file.Content), rec.Port)
 		// AddFileMode, not AddFile: the record already carries the mode the
 		// block declared, and deriving one here would discard it.
 		v.AddFileMode(path, []byte(s), file.Mode)
@@ -111,9 +108,9 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	rec.Begin(StateStarting)
 
-	// Lease this test's port pair NOW, and hold the lease until the test is
+	// Lease this test's port span NOW, and hold the lease until the test is
 	// done. Every consumer of rec.Port below this line reads the leased value:
-	// the tmpfs $PORT/$PORT2 expansion, the ze-peer --port argument, the
+	// the tmpfs port placeholder expansion, the ze-peer --port argument, the
 	// ze_test_bgp_port child env, the option=env expansion, the exec strings in
 	// runOrchestrated, and the http= URLs in runner_validate.go.
 	//
@@ -347,12 +344,10 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		clientEnv = append(clientEnv, storeEnv)
 	}
 
-	// Add test-specific environment variables ($PORT/$PORT2 expand like exec
-	// strings so per-test ports work in env knobs too).
+	// Add test-specific environment variables (the port placeholders expand
+	// like exec strings so per-test ports work in env knobs too).
 	for _, kv := range rec.EnvVars {
-		kv = strings.ReplaceAll(kv, "$PORT2", strconv.Itoa(rec.Port+1))
-		kv = strings.ReplaceAll(kv, "$PORT", strconv.Itoa(rec.Port))
-		clientEnv = append(clientEnv, kv)
+		clientEnv = append(clientEnv, ExpandPorts(kv, rec.Port))
 	}
 
 	// Add syslog destination if syslog server is running.
@@ -707,9 +702,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			continue
 		}
 
-		// Expand $PORT2 before $PORT to avoid partial match ("$PORT2" contains "$PORT")
-		execStr := strings.ReplaceAll(cmd.Exec, "$PORT2", strconv.Itoa(rec.Port+1))
-		execStr = strings.ReplaceAll(execStr, "$PORT", strconv.Itoa(rec.Port))
+		execStr := ExpandPorts(cmd.Exec, rec.Port)
 
 		// Parse command and args. splitCommand keeps a quoted span whole, so
 		// `ze cli -c "show config validation bad.conf | json"` reaches ze as three
@@ -748,11 +741,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				rec.Error = fmt.Errorf("stdin block %q not found", cmd.Stdin)
 				return false
 			}
-			// Expand $PORT2 before $PORT in stdin content (config files, scripts)
-			s := string(stdinContent)
-			s = strings.ReplaceAll(s, "$PORT2", strconv.Itoa(rec.Port+1))
-			s = strings.ReplaceAll(s, "$PORT", strconv.Itoa(rec.Port))
-			stdinContent = []byte(s)
+			stdinContent = []byte(ExpandPorts(string(stdinContent), rec.Port))
 		}
 
 		// Where the block goes is decided once, before argv is touched, and the
@@ -928,12 +917,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			proc.Env = append(proc.Env, storeEnv)
 		}
 		// Add test-specific environment variables (option=env:var=KEY:value=VALUE).
-		// $PORT/$PORT2 expand like exec strings so per-test ports work in env
-		// knobs too (e.g. ze.test.ike.port shared by a two-daemon IKE pair).
+		// The port placeholders expand like exec strings so per-test ports work
+		// in env knobs too (e.g. ze.test.ike.port shared by a two-daemon IKE pair).
 		for _, kv := range rec.EnvVars {
-			kv = strings.ReplaceAll(kv, "$PORT2", strconv.Itoa(rec.Port+1))
-			kv = strings.ReplaceAll(kv, "$PORT", strconv.Itoa(rec.Port))
-			proc.Env = append(proc.Env, kv)
+			proc.Env = append(proc.Env, ExpandPorts(kv, rec.Port))
 		}
 		// Tell ze daemons to write a readiness file after signal handlers are
 		// registered. The test runner waits for this file before writing

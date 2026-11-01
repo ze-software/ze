@@ -133,17 +133,24 @@ not `conn=1:seq=1` and `conn=1:seq=2`.
 
 ### Port Substitution
 
-Each test owns a pair of ports, exposed as variables in commands, `tmpfs=`
-content, `option=env` values, and URLs:
+Each test owns three consecutive ports, exposed as variables in commands,
+`tmpfs=` content, stdin blocks, `option=env` values, and URLs:
 
 | Variable | Meaning |
 |----------|---------|
 | `$PORT` | BGP peer port (leased by the runner, used by `le test peer --port $PORT`) |
 | `$PORT2` | Secondary port, `$PORT`+1 (web UI, looking glass, plugin acceptor) |
+| `$PORT3` | Third port, `$PORT`+2 (an RTR cache, a second listener, a session editor) |
+
+One function expands all three wherever a `.ci` text is read
+(`runner.ExpandPorts`), and the config sweep in
+`internal/component/config/cli` calls the same one. Any other `$PORT<n>`
+fails the file at discovery, naming the placeholder: it would name a port the
+lease does not hold.
 
 Never hardcode port numbers. Use `$PORT` in `cmd=` exec values and `$PORT2` in `http=` URLs.
 
-The pair is LEASED when the test starts, not when the suite discovers it
+The span is LEASED when the test starts, not when the suite discovers it
 (`runner.LeaseTestPorts`, `internal/test/runner/ports.go`). Discovery numbers the
 Nth test of every suite from the same base, so the preference alone collides
 whenever two le test processes run at once. The lease takes per-port advisory
@@ -159,11 +166,11 @@ runners using `le-port-locks` under their temporary directory do not coordinate
 with this namespace; there is no fallback or hybrid locking mode.
 
 While holding the locks, the runner probes `127.0.0.1` with TCP/IPv4 and `::1`
-with TCP/IPv6 for both ports, keeping all probe listeners open until the whole
-pair has been checked. IPv6 is omitted only when its family, protocol, or
+with TCP/IPv6 for every port, keeping all probe listeners open until the whole
+span has been checked. IPv6 is omitted only when its family, protocol, or
 loopback address is unavailable, not when its port is occupied. Probe listeners
 close before children bind; the advisory locks remain until the test releases
-its lease. A preferred pair that is locked or occupied moves to 25000-32759.
+its lease. A preferred span that is locked or occupied moves to 25000-32759.
 
 The locks coordinate participating same-user processes on the same host that
 share `/tmp`; they do not provide universal port exclusivity across users or
@@ -174,13 +181,16 @@ why the rule above is a rule.
 <!-- source: internal/test/runner/ports.go -- LeaseTestPorts -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest leases before any $PORT expansion -->
 
-There is no `$PORT3` placeholder. A compiled fixture that starts additional
-listeners MUST reserve their ports with `runner.ReservePorts` or
-`runner.LeaseTestPorts`, and MUST retain the reservation until every child using
-those ports has stopped and been reaped. An offset from `$PORT` or `$PORT2` is
-only a preferred allocation address, never a reservation.
+There is no `$PORT4` placeholder. A compiled fixture that starts more
+listeners than the three placeholders cover MUST reserve their ports with
+`runner.ReservePorts` or `runner.LeaseTestPorts`, and MUST retain the
+reservation until every child using those ports has stopped and been reaped. An
+offset from a placeholder is only a preferred allocation address, never a
+reservation.
 
-The live managed-client restore fixture uses the runner's pair for the hub's
+<!-- source: internal/test/runner/ports.go -- TestPortSpan, ExpandPorts, checkPortPlaceholders -->
+
+The live managed-client restore fixture uses the runner's first two ports for the hub's
 SSH and plugin listeners and reserves a third port for its managed listener.
 Its hub and client configs declare no BGP peers or dynamic groups, so they bind
 no BGP listeners and need no BGP port offsets.

@@ -81,7 +81,7 @@ the runner treats as authoritative (`ai/rules/evidence.md`).
 
 ## Step 5 — Take a port from the runner, never a literal
 
-`$PORT` and `$PORT2` expand in exec strings, env knobs, config bodies AND tmpfs
+`$PORT`, `$PORT2` and `$PORT3` expand in exec strings, env knobs, config bodies AND tmpfs
 file bodies. A hardcoded port sits outside the per-test range the runner hands
 out, so a sibling whose shifted range covers it collides, and the failure reads
 as something else entirely.

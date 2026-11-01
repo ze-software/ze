@@ -1204,7 +1204,7 @@ that race fails the test rather than passing it.
 <!-- source: internal/component/firewall/legacy_tables.go -- legacyTables, the names any ze daemon removes once -->
 
 Related: a test that binds a *chosen* port must take it from the runner's per-test
-range (`$PORT`, `$PORT2`), never a literal. `bfd-echo-handshake` hardcoded
+range (`$PORT`, `$PORT2`, `$PORT3`), never a literal. `bfd-echo-handshake` hardcoded
 telemetry port 19274, which sits outside every range the runner hands out, so a
 sibling whose shifted range covered it collided and ze logged `metrics server
 failed to start: address already in use` -- a red with nothing to do with the

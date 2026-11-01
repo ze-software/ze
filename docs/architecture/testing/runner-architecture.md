@@ -208,7 +208,7 @@ display.
 
 ### Port leases
 
-`.ci` execution leases `$PORT` and `$PORT2` through `LeaseTestPorts` before
+`.ci` execution leases `$PORT`, `$PORT2` and `$PORT3` through `LeaseTestPorts` before
 expanding commands. `ReservePorts` uses the same per-port advisory lock mechanism
 for web cases. The stable directory is `/tmp/le-port-locks-<effective-uid>`, not
 a directory under the caller's `TMPDIR`, checkout, or session. A flat per-user

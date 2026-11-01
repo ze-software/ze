@@ -19,7 +19,6 @@ import (
 	"regexp"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -600,8 +599,7 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 	for i := range checks {
 		chk := &checks[i]
 		client := r.httpClientForCheck(chk)
-		url := strings.ReplaceAll(chk.URL, "$PORT2", strconv.Itoa(rec.Port+1))
-		url = strings.ReplaceAll(url, "$PORT", strconv.Itoa(rec.Port))
+		url := ExpandPorts(chk.URL, rec.Port)
 		// Resolve bodyfile and sendfile paths relative to .ci file directory.
 		if chk.BodyFile != "" && !filepath.IsAbs(chk.BodyFile) {
 			chk.BodyFile = filepath.Join(ciDir, chk.BodyFile)
@@ -785,8 +783,7 @@ func (r *Runner) executeHTTPWaits(ctx context.Context, rec *Record) error {
 	for i := range waits {
 		w := &waits[i]
 		client := r.httpClientForCheck(w)
-		url := strings.ReplaceAll(w.URL, "$PORT2", strconv.Itoa(rec.Port+1))
-		url = strings.ReplaceAll(url, "$PORT", strconv.Itoa(rec.Port))
+		url := ExpandPorts(w.URL, rec.Port)
 		if err := r.executeOneHTTPWait(ctx, client, w, url); err != nil {
 			return err
 		}

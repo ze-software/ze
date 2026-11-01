@@ -1,6 +1,11 @@
 package runner
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 func TestZeDaemonConfigArgIndex(t *testing.T) {
 	// VALIDATES: daemon config arguments are separated from verb operands,
@@ -110,5 +115,40 @@ func TestNetnsChildIDs(t *testing.T) {
 				t.Fatalf("netnsChildIDs() = (%d, %d), want (%d, %d)", uid, gid, tt.wantUID, tt.wantGID)
 			}
 		})
+	}
+}
+
+// TestRecordPortExpansionRefusesUnreservedPort pins the port placeholders a .ci
+// test may write to the ports its lease reserves.
+//
+// VALIDATES: $PORT, $PORT2 and $PORT3 expand to the first, second and third port
+// of the test's lease, the lease spans all three, and a .ci naming any other
+// $PORT<n> fails discovery with a refusal naming the file, the placeholder and
+// the placeholders it may use instead.
+// PREVENTS: $PORT3 expanding as $PORT followed by "3" (port 1790 became 17903),
+// a port no lease reserved, which parallel tests could bind at the same time.
+func TestRecordPortExpansionRefusesUnreservedPort(t *testing.T) {
+	if got, want := ExpandPorts("a $PORT b $PORT2 c $PORT3 d", 1790), "a 1790 b 1791 c 1792 d"; got != want {
+		t.Errorf("ExpandPorts = %q, want %q", got, want)
+	}
+	if TestPortSpan != 3 {
+		t.Errorf("TestPortSpan = %d, want 3: the lease must reserve every port a placeholder names", TestPortSpan)
+	}
+
+	dir := t.TempDir()
+	ciFile := filepath.Join(dir, "port-four.ci")
+	content := "cmd=foreground:seq=1:exec=le mock rtr --port $PORT4\n" +
+		"expect=exit:code=0\n"
+	if err := os.WriteFile(ciFile, []byte(content), 0o600); err != nil {
+		t.Fatalf("write .ci: %v", err)
+	}
+	_, err := NewEncodingTests(dir).parseAndAdd(ciFile)
+	if err == nil {
+		t.Fatal("parseAndAdd accepted $PORT4, a port no lease reserves")
+	}
+	for _, want := range []string{"port-four.ci", "$PORT4", "$PORT3"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q does not name %q", err.Error(), want)
+		}
 	}
 }

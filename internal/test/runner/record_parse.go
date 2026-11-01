@@ -121,6 +121,9 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse %s: %w", ciFile, err)
 	}
+	if err := checkPortPlaceholdersInFile(ciFile); err != nil {
+		return nil, err
+	}
 
 	name := strings.TrimSuffix(filepath.Base(ciFile), ".ci")
 	r := et.Add(name)

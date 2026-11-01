@@ -87,7 +87,7 @@ func zeTestVppMain(args []string) error {
 	r.Report().SetLabel("vpp")
 	r.Display().Header()
 
-	// One test owns TestPortSpan ports ($PORT and $PORT2), so the stride is that
+	// One test owns TestPortSpan ports ($PORT, $PORT2 and $PORT3), so the stride is that
 	// span and not 1: a stride of 1 gave every test the NEXT test's port as its
 	// $PORT2. --port only moves the preferred base; the port a test binds is
 	// leased when that test runs (runner.LeaseTestPorts).
