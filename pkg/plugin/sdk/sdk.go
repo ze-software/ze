@@ -98,7 +98,8 @@ type Plugin struct {
 	// onEvent is also captured by the deliver-event/deliver-batch map entries.
 	onEvent           EventHandler
 	onStructuredEvent StructuredEventHandler
-	onFilter          FilterEvaluator // installed as the bridge filter slot when internal (OnFilter)
+	onFilter          FilterEvaluator   // installed as the bridge filter slot when internal (OnFilter)
+	filterSerial      *filterSerializer // the OnFilterUpdate adapter's worker, stopped by Close
 	onExecuteCommand  ExecuteCommandHandler
 
 	// onDrain is the stop drain handler, run on the connection's drain
@@ -420,6 +421,12 @@ func DialTLSEnvRaw(name string) (net.Conn, error) {
 func (p *Plugin) Close() error {
 	if p.bridge != nil {
 		p.bridge.CloseCallbacks()
+	}
+	p.mu.Lock()
+	serial := p.filterSerial
+	p.mu.Unlock()
+	if serial != nil {
+		serial.stop()
 	}
 	// Close MuxConn first -- its background reader must stop before
 	// closing the underlying engineConn (which it reads from).

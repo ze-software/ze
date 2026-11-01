@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -896,22 +895,24 @@ func answerFilterBatch(eval FilterEvaluator, params json.RawMessage) (json.RawMe
 // OnFilterUpdate installs fn as the plugin's filter evaluator through
 // OnFilter, for a filter written against the filter-update input. It is the
 // same registration, adapted: fn receives the route as one input (a fast-path
-// route's fields encoded for it), and its calls are serialized by a mutex, as
-// the plugin's callback loop serialized them before the fast path, so a
-// handler that keeps unsnapshotted state stays race-free. A filter that
-// meets the fast-path contract registers with OnFilter instead and is called
-// concurrently with nothing encoded.
+// route's fields encoded for it), and its calls run one at a time on one
+// worker, as the plugin's callback loop ran them before the fast path, so a
+// handler that keeps unsnapshotted state stays race-free. Each call waits at
+// most rpc.FilterUpdateTimeout, the deadline of a filter-update exchange: a
+// handler that blocks fails the routes waiting on it under the filter's
+// on-error instead of holding the engine's goroutine (filterSerializer). A
+// filter that meets the fast-path contract registers with OnFilter instead
+// and is called concurrently with nothing encoded.
 func (p *Plugin) OnFilterUpdate(fn FilterUpdateHandler) {
-	var serial sync.Mutex
-	p.OnFilter(func(route *FilterRoute) (*FilterUpdateOutput, error) {
-		input, err := route.Input()
-		if err != nil {
-			return nil, err
-		}
-		serial.Lock()
-		defer serial.Unlock()
-		return fn(&input)
-	})
+	serial := newFilterSerializer(fn)
+	p.mu.Lock()
+	previous := p.filterSerial
+	p.filterSerial = serial
+	p.mu.Unlock()
+	if previous != nil {
+		previous.stop()
+	}
+	p.OnFilter(serial.call)
 }
 
 // OnDoctorCheck sets the handler for doctor check requests.

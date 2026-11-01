@@ -386,10 +386,17 @@ each report naming the filter and the clause.
 
 `p.OnFilterUpdate(fn)` is the same registration, adapted for a handler
 written against `*sdk.FilterUpdateInput`: the SDK encodes a fast-path route's
-fields for it and serializes its calls with a mutex, so a handler that keeps
-unsnapshotted state stays race-free. It is removed once every filter
-registers with `OnFilter`.
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter -->
+fields for it and runs its calls one at a time on one worker goroutine, so a
+handler that keeps unsnapshotted state stays race-free. Each call waits at
+most `rpc.FilterUpdateTimeout` (5 s), as a filter-update exchange does: while
+the handler blocks, the route it holds and every route waiting behind it take
+the filter's `on-error` once that deadline passes, and a route whose deadline
+passed before the worker took it is never judged late. After the plugin
+closes, a call answers `rpc.ErrBridgeClosed` ("unavailable"). The adapter is
+removed once every filter registers with `OnFilter`.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, OnFilterUpdate -->
+<!-- source: pkg/plugin/sdk/filter_serial.go -- filterSerializer -->
+<!-- source: pkg/plugin/sdk/filter_serial.go -- filterUpdateWait -->
 <!-- source: pkg/plugin/sdk/filter_conformance.go -- CheckFilterConformance -->
 
 ### OnBye
