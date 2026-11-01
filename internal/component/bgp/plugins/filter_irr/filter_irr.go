@@ -32,23 +32,6 @@ const (
 	perASNRefreshTimeout = 30 * time.Second
 
 	configRootBGP = "bgp"
-
-	// firstResolveWait bounds how long handleFilterUpdate blocks an IRR-filtered
-	// UPDATE that arrives before the ASN's first background resolution has
-	// finished. It closes the startup-resolution race (the UPDATE waits for the
-	// list instead of getting a spurious "no-prefix-list" reject) without ever
-	// gating ze startup: configure returns immediately and only this one filtered
-	// UPDATE waits. It is comfortably above a typical IRR round-trip yet short
-	// enough that a genuinely-unreachable IRR server fails the UPDATE closed
-	// promptly rather than hanging the route's processing. It sits one second
-	// below rpc.FilterUpdateTimeout, the deadline of the whole filter-update
-	// batch that carries this UPDATE: the verdict given when the wait expires,
-	// the fail-closed reject, only counts if the batch is answered before that
-	// deadline. The routes of a batch share the budget, so when the wait runs
-	// out for one route, the batch's later routes waiting on the same ASN take
-	// the filter's on-error, which is the same fail-closed reject (R-8: phase 4
-	// deletes the wait).
-	firstResolveWait = rpc.FilterUpdateTimeout - time.Second
 )
 
 var logger = slogutil.LazyLogger("bgp.filter.irr")
@@ -93,29 +76,16 @@ type asnState struct {
 	v4Count       int
 	v6Count       int
 	peerAddrs     []string
-
-	// firstDone is closed exactly once, by signalFirstResolved, when this ASN's
-	// FIRST resolution attempt completes (whether it succeeded, failed, or found
-	// nothing). A filter UPDATE that arrives while list is still nil waits on
-	// this channel (bounded) before deciding -- so the spurious "no-prefix-list"
-	// reject of the startup-resolution race becomes a short wait, while a
-	// genuinely-empty list after resolution still fails closed. closeOnce guards
-	// the close so the periodic and manual refreshes that re-resolve the same ASN
-	// never close it twice.
-	firstDone chan struct{}
-	closeOnce sync.Once
 }
 
-// newASNState builds an enrolled ASN's state with its first-resolution signal
-// armed (open). Every ASN the configure path enrolls goes through here so
-// handleFilterUpdate always has a non-nil channel to wait on, and a lookups
-// context a reload can cancel.
+// newASNState builds an enrolled ASN's state, unresolved. Every ASN the
+// configure path enrolls goes through here, so each holds a lookups context a
+// reload can cancel.
 func newASNState(asn uint32, configured string) *asnState {
 	lookups, cancel := context.WithCancel(context.Background())
 	return &asnState{
 		asn: asn, configured: configured, asSet: configured,
 		lookups: lookups, cancelLookups: cancel,
-		firstDone: make(chan struct{}),
 	}
 }
 
@@ -138,26 +108,29 @@ func (st *asnState) supersede() {
 	}
 }
 
-// signalFirstResolved closes firstDone the first time the ASN's resolution
-// completes; later refreshes are no-ops. Safe when firstDone is nil (test
-// states constructed as literals): the close is simply skipped.
-func (st *asnState) signalFirstResolved() {
-	if st == nil || st.firstDone == nil {
-		return
-	}
-	st.closeOnce.Do(func() { close(st.firstDone) })
+// irrSnapshot is what the filter evaluator reads: one immutable value per
+// publish, swapped whole, so a route is judged wholly by one config and one
+// set of lists (AC-34). It holds every enrolled ASN, mapped to its list, nil
+// while unresolved. The goroutines that write byASN under mu publish it
+// (publishLocked); the evaluator takes no lock and never waits.
+type irrSnapshot struct {
+	asns map[uint32]irrSnapshotEntry
 }
 
-// isClosed reports whether ch has been closed, without blocking. Used to skip
-// the first-resolution wait in the steady state (the common case once the first
-// resolution finished long ago).
-func isClosed(ch chan struct{}) bool {
-	select {
-	case <-ch:
-		return true
-	default:
-		return false
+// irrSnapshotEntry is one enrolled ASN in a snapshot.
+type irrSnapshotEntry struct {
+	list   *irrPrefixList // nil while the ASN has no list: unresolved
+	failed bool           // the last lookup failed (the list, if any, is the last good one)
+}
+
+// lookup answers asn's entry and whether this config enrolls it. Safe on a
+// nil snapshot, which enrolls nothing: the plugin before its first configure.
+func (snap *irrSnapshot) lookup(asn uint32) (irrSnapshotEntry, bool) {
+	if snap == nil {
+		return irrSnapshotEntry{}, false
 	}
+	entry, ok := snap.asns[asn]
+	return entry, ok
 }
 
 type irrPlugin struct {
@@ -173,8 +146,11 @@ type irrPlugin struct {
 	// resolution itself. Guarded by mu.
 	started bool
 
-	mu          sync.RWMutex
-	byASN       map[uint32]*asnState
+	mu    sync.RWMutex
+	byASN map[uint32]*asnState
+	// snapshot is byASN as the evaluator reads it, republished by every
+	// writer of byASN or of a state's list (publishLocked).
+	snapshot    atomic.Pointer[irrSnapshot]
 	config      *irrConfig
 	nextRefresh time.Time
 	lastRefresh time.Time
@@ -205,9 +181,9 @@ func runFilterIRR(conn net.Conn) int {
 	// pair is what makes a commit reach the filter (config_tx.go).
 	newIRRConfigTx(plug).Register(p)
 
-	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
-		return plug.handleFilterUpdate(in), nil
-	})
+	// The one evaluator registration (FR-8): the typed bridge slot when the
+	// plugin runs internal, the filter-update batch when it runs forked.
+	p.OnFilter(plug.evaluate)
 
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return plug.handleCommand(command, args)
@@ -241,6 +217,7 @@ func runFilterIRR(conn net.Conn) int {
 	if err := p.Run(ctx, &sdk.Registration{
 		Commands:    commandDecls(),
 		WantsConfig: []string{configRootBGP},
+		Filters:     filterDecls(),
 	}); err != nil {
 		logger().Error("filter-irr plugin failed", "error", err)
 		return 1
@@ -324,7 +301,7 @@ func (plug *irrPlugin) handleConfigure(delivery irrDelivery) {
 		newSt := newByASN[asn]
 		// A list resolved for another AS-SET answers a question the operator
 		// no longer asks. Carrying it over would filter against the old set,
-		// with firstDone already signaled, until the next refresh: the edit
+		// until the next refresh: the edit
 		// would be accepted and not enforced. Deleting the configured set is
 		// a change too, because PeeringDB chooses the set again. The old
 		// state's lookups are canceled, so one in flight commits nothing
@@ -341,12 +318,6 @@ func (plug *irrPlugin) handleConfigure(delivery irrDelivery) {
 		newSt.lastErr = oldSt.lastErr
 		newSt.v4Count = oldSt.v4Count
 		newSt.v6Count = oldSt.v6Count
-		// A reconfigure that carries over a resolved list has already cleared the
-		// first-resolution window for this ASN: a filter UPDATE must not wait for
-		// the upcoming re-resolution. Arm the new state as already-resolved.
-		if newSt.list != nil {
-			newSt.signalFirstResolved()
-		}
 	}
 	// The purge runs before the new states are published: a refresh that reads
 	// a new state must find the store already without the entries it drops, or
@@ -354,6 +325,7 @@ func (plug *irrPlugin) handleConfigure(delivery irrDelivery) {
 	// takes only its own lock and never calls back, so holding plug.mu is safe.
 	forgetUnconfigured(ps, oldByASN, newByASN)
 	plug.byASN = newByASN
+	plug.publishLocked() // a changed as-set publishes its ASN unresolved
 	plug.prefixStore = ps
 	plug.config = cfg
 	if plug.refreshStop != nil {
@@ -393,11 +365,11 @@ func (plug *irrPlugin) handleConfigure(delivery irrDelivery) {
 	// server would fail the configure stage and bring the whole BGP plugin set
 	// down -- even for a config that has BGP peers but no IRR import filter.
 	// Startup must never depend on external IRR reachability, so the first
-	// resolution is detached. The startup-resolution race (an UPDATE arriving for
-	// an IRR-filtered peer before this finishes) is closed at the filter layer:
-	// handleFilterUpdate waits (bounded) on each ASN's firstDone signal, which
-	// refreshAll closes per ASN below. The periodic refreshLoop keeps the list
-	// fresh thereafter.
+	// resolution is detached. An UPDATE arriving for an IRR-filtered peer before
+	// it finishes is judged at once against the unresolved list: its announced
+	// prefixes take the filter's on-error reject, are held, and the readmitter
+	// asks the peer for them again once the list is published (AC-32). The
+	// periodic refreshLoop keeps the list fresh thereafter.
 	if started {
 		go plug.initialResolve()
 		go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
@@ -450,11 +422,8 @@ func forgetUnconfigured(ps *store.PrefixStore, oldByASN, newByASN map[uint32]*as
 // initialResolve performs the first background resolution of every enrolled
 // ASN. It runs detached from the configure path (so startup never blocks on IRR
 // network I/O) and, unlike refreshAll, does NOT honor the refreshing CAS guard:
-// it must always do the work, because each ASN's firstDone signal (which
-// handleFilterUpdate waits on) is only closed by a completed resolution attempt.
-// signalFirstResolved is also called as a backstop for every enrolled ASN, so an
-// ASN whose live state vanished mid-refresh (e.g. a concurrent reconfigure) can
-// never leave a filter UPDATE blocked for the full wait timeout.
+// it must always do the work, because until it does every enrolled ASN is
+// unresolved and its announced prefixes are rejected and held.
 func (plug *irrPlugin) initialResolve() {
 	plug.mu.RLock()
 	asns := make([]uint32, 0, len(plug.byASN))
@@ -466,17 +435,24 @@ func (plug *irrPlugin) initialResolve() {
 	for _, asn := range asns {
 		plug.refreshASN(asn)
 	}
-
-	// Backstop: refreshASN signals firstDone on its own completion paths, but a
-	// reconfigure between the snapshot above and now may have replaced the state;
-	// signal whatever is live so no ASN is left with an open firstDone.
-	plug.mu.RLock()
-	for _, st := range plug.byASN {
-		st.signalFirstResolved()
-	}
-	plug.mu.RUnlock()
 }
 
+// evaluate is the plugin's filter evaluator, on both transports (OnFilter).
+// It honors the fast-path contract: it reads only the published snapshot,
+// never waits, and keeps nothing of route past its return.
+func (plug *irrPlugin) evaluate(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
+	in, err := route.Input()
+	if err != nil {
+		return nil, err
+	}
+	return plug.handleFilterUpdate(&in), nil
+}
+
+// handleFilterUpdate judges one UPDATE against the snapshot entry of the ASN
+// its filter name carries. It never waits: an ASN with no list yet rejects its
+// announced prefixes, the filter's on-error verdict, keeps the withdrawals,
+// and holds the prefixes for the readmitter, which asks the peer for them
+// again once refreshASNCtx publishes the list (FR-10, AC-32).
 func (plug *irrPlugin) handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	asn := extractASNFromFilter(in.Filter)
 	if asn == 0 {
@@ -484,40 +460,8 @@ func (plug *irrPlugin) handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.Filter
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
-	plug.mu.RLock()
-	st := plug.byASN[asn]
-	var list *irrPrefixList
-	var firstDone chan struct{}
-	if st != nil {
-		list = st.list
-		firstDone = st.firstDone
-	}
-	plug.mu.RUnlock()
-
-	// Startup-resolution race: the first IRR resolution runs in the background
-	// (configure never blocks on IRR network I/O), so the first UPDATE for an
-	// IRR-filtered peer can arrive before that resolution has produced a
-	// prefix-list. The list is held in memory only, so after a restart every
-	// enrolled ASN starts here with no list. Until the first resolution completes
-	// (firstDone closed), wait (bounded) for it instead of evaluating against
-	// nothing; the background refresh closes firstDone on completion and the
-	// now-resolved list is re-read below. On timeout (IRR slow/unreachable) we
-	// fall through with no list, and the fail-closed reject holds each announced
-	// prefix for re-admission by ROUTE-REFRESH once the list arrives. This blocks
-	// only this one IRR-filtered UPDATE; peers without an IRR import never reach
-	// here, and startup is never gated.
-	if firstDone != nil && !isClosed(firstDone) {
-		select {
-		case <-firstDone:
-		case <-time.After(firstResolveWait):
-		case <-plug.stopCh:
-		}
-		plug.mu.RLock()
-		if st = plug.byASN[asn]; st != nil {
-			list = st.list
-		}
-		plug.mu.RUnlock()
-	}
+	entry, enrolled := plug.snapshot.Load().lookup(asn)
+	list := entry.list
 
 	nlriField := extractNLRIField(in.Update)
 	var partition partitionResult
@@ -527,26 +471,26 @@ func (plug *irrPlugin) handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.Filter
 		// is not here yet. The worker holds each one for when it arrives.
 		var none irrPrefixList
 		partition = none.partitionUpdate(nlriField)
-		out = judgeUnlisted(in, nlriField, &partition)
+		out = judgeUnlisted(in, nlriField, &partition, entry.failed)
 	} else {
 		partition = list.partitionUpdate(nlriField)
 		out = judgeListed(in, nlriField, &partition)
 	}
 	// A whole reject drops every announced prefix, the admitted ones too, so
 	// every one is held for the next pass to ask for again.
-	plug.trackVerdict(in.Peer, asn, st != nil, &partition, out.Action == sdk.FilterReject)
+	plug.trackVerdict(in.Peer, asn, enrolled, &partition, out.Action == sdk.FilterReject)
 	return out
 }
 
 // judgeUnlisted decides an UPDATE for an ASN that has no list yet: every
 // announced prefix is rejected, and the withdrawals still go through.
-func judgeUnlisted(in *sdk.FilterUpdateInput, nlriField string, partition *partitionResult) *sdk.FilterUpdateOutput {
+func judgeUnlisted(in *sdk.FilterUpdateInput, nlriField string, partition *partitionResult, lookupFailed bool) *sdk.FilterUpdateOutput {
 	if out, kept := keepWithdrawals(partition); kept {
 		logger().Info("irr filter keeps the withdrawals", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField,
-			"verdict", out.Action, "reason", "no-prefix-list")
+			"verdict", out.Action, "reason", "no-prefix-list", "lookup-failed", lookupFailed)
 		return out
 	}
-	logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "reason", "no-prefix-list")
+	logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "reason", "no-prefix-list", "lookup-failed", lookupFailed)
 	return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 }
 
@@ -758,12 +702,11 @@ func (plug *irrPlugin) refreshASN(asn uint32) {
 	plug.refreshASNCtx(ctx, asn)
 }
 
-// refreshASNCtx is refreshASN with a caller-supplied deadline. Every completion
-// path signals the live ASN state's firstDone so handleFilterUpdate's bounded
-// wait is released as soon as the first resolution attempt finishes -- whether
-// it succeeded, failed, or could not run (no store). periodic and manual
-// refreshes use the per-ASN timeout via refreshASN. The list lives in memory
-// only: an UPDATE waiting on firstDone waits on the IRR answer and nothing else.
+// refreshASNCtx is refreshASN with a caller-supplied deadline. The success and
+// failure arms publish the snapshot under the same lock that writes the
+// state, so the evaluator sees the new list, or the failed lookup, at once.
+// Periodic and manual refreshes use the per-ASN timeout via refreshASN. The
+// list lives in memory only.
 func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	plug.mu.RLock()
 	st := plug.byASN[asn]
@@ -775,9 +718,8 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	}
 	plug.mu.RUnlock()
 	if st == nil || ps == nil {
-		// No live state, or no store to resolve against: the first-resolution
-		// attempt is over for this ASN (it will fail closed). Release any waiter.
-		st.signalFirstResolved()
+		// No live state, or no store to resolve against: nothing to resolve,
+		// and the ASN stays unresolved (it fails closed).
 		return
 	}
 
@@ -845,7 +787,7 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	if err != nil {
 		st.lastErr = err.Error()
 		queried := st.asSet
-		st.signalFirstResolved()
+		plug.publishLocked()
 		plug.mu.Unlock()
 		logger().Warn("irr: lookup failed", "asn", asn, "as-set", queried, "error", err)
 		incRefreshOutcome("error")
@@ -857,7 +799,7 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	st.lastErr = ""
 	st.v4Count = len(pl.IPv4)
 	st.v6Count = len(pl.IPv6)
-	st.signalFirstResolved()
+	plug.publishLocked()
 	plug.lastRefresh = now
 	plug.mu.Unlock()
 
@@ -870,6 +812,19 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	logger().Info("irr: refreshed", "asn", asn, "as-set", entry.ASSet, "v4", len(pl.IPv4), "v6", len(pl.IPv6))
 	incRefreshOutcome("success")
 	updateMetricsGauges(plug)
+}
+
+// publishLocked publishes byASN as the snapshot the evaluator reads. Every
+// writer of byASN, or of a state's list or lastErr, calls it before releasing
+// mu, so the snapshot never lags the state show bgp irr reports. A list is
+// never written after it is stored in a state, so the snapshot shares it.
+// The caller MUST hold plug.mu for writing.
+func (plug *irrPlugin) publishLocked() {
+	snap := &irrSnapshot{asns: make(map[uint32]irrSnapshotEntry, len(plug.byASN))}
+	for asn, st := range plug.byASN {
+		snap.asns[asn] = irrSnapshotEntry{list: st.list, failed: st.lastErr != ""}
+	}
+	plug.snapshot.Store(snap)
 }
 
 // asnName renders an ASN as its canonical "AS<n>" name, the PrefixStore key the
@@ -946,4 +901,37 @@ func commandDecls() []sdk.CommandDecl {
 		{Name: "update bgp irr asn", ShortHelp: "Refresh IRR prefix-list for a specific ASN", Args: []string{"<asn>"}},
 		{Name: "update bgp irr as-set", ShortHelp: "Refresh IRR prefix-list for a specific AS-SET", Args: []string{"<as-set>"}},
 	}
+}
+
+// asnFilterNamePattern covers the filter names this plugin answers, one per
+// AS number: a decimal ASN from 1 to 4294967295 with no leading zero, the
+// form extractASNFromFilter reads. AS 0 is refused: it is reserved (RFC 7607)
+// and no peer's remote AS, and extractASNFromFilter answers 0 for a name it
+// cannot read. The ten-digit alternatives bound the value to 32 bits,
+// which a digit count alone cannot, so a reference such as
+// bgp-filter-irr:4294967296 fails config load instead of rejecting every
+// route at run time (D-10).
+const asnFilterNamePattern = `[1-9][0-9]{0,8}` +
+	`|[1-3][0-9]{9}` +
+	`|4[01][0-9]{8}` +
+	`|42[0-8][0-9]{7}` +
+	`|429[0-3][0-9]{6}` +
+	`|4294[0-8][0-9]{5}` +
+	`|42949[0-5][0-9]{4}` +
+	`|429496[0-6][0-9]{3}` +
+	`|4294967[01][0-9]{2}` +
+	`|42949672[0-8][0-9]` +
+	`|429496729[0-5]`
+
+// filterDecls is the plugin's Stage 1 filter declaration: one filter per AS
+// number, on import, failing closed. It reads no route field: it judges the
+// text UPDATE the text chain sends it, so a chain that holds an in-process
+// member refuses it at run time (policychain errExternalTextUpdate) until it
+// reads the prefix field.
+func filterDecls() []sdk.FilterDecl {
+	return []sdk.FilterDecl{{
+		NamePattern: asnFilterNamePattern,
+		Direction:   sdk.FilterImport,
+		OnError:     sdk.OnErrorReject,
+	}}
 }

@@ -121,9 +121,10 @@ func TestFilterIRRRefusesApplyWithoutVerify(t *testing.T) {
 }
 
 // VALIDATES: a reload that changes a peer's as-set does not carry the list
-// resolved for the old one. The new state waits for its own first resolution.
-// PREVENTS: an as-set edit filtering against the old set, with firstDone
-// already closed, until the next periodic refresh.
+// resolved for the old one: the snapshot the evaluator reads publishes the ASN
+// unresolved until its own first resolution.
+// PREVENTS: an as-set edit filtering against the old set until the next
+// periodic refresh.
 func TestFilterIRRDropsTheListOfAReplacedAsSet(t *testing.T) {
 	tx := newTestTx(t)
 	if err := tx.Configure(irrSection("AS-OLD")); err != nil {
@@ -132,7 +133,7 @@ func TestFilterIRRDropsTheListOfAReplacedAsSet(t *testing.T) {
 	tx.plug.mu.Lock()
 	old := tx.plug.byASN[65001]
 	old.list = &irrPrefixList{}
-	old.signalFirstResolved()
+	tx.plug.publishLocked()
 	tx.plug.mu.Unlock()
 
 	if err := tx.Verify(irrSection("AS-NEW")); err != nil {
@@ -147,7 +148,11 @@ func TestFilterIRRDropsTheListOfAReplacedAsSet(t *testing.T) {
 	if st.list != nil {
 		t.Fatal("the list resolved for AS-OLD was carried over to AS-NEW")
 	}
-	if isClosed(st.firstDone) {
-		t.Fatal("firstDone closed for AS-NEW before any resolution")
+	entry, enrolled := tx.plug.snapshot.Load().lookup(65001)
+	if !enrolled {
+		t.Fatal("the snapshot does not enroll AS65001 after the reload")
+	}
+	if entry.list != nil {
+		t.Fatal("the snapshot carries the list resolved for AS-OLD to AS-NEW")
 	}
 }

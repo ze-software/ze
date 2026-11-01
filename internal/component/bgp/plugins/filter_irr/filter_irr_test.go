@@ -223,6 +223,8 @@ func TestHandleConfigureEnrollsIRRFilteredPeer(t *testing.T) {
 		// Past OnStarted, so handleConfigure starts the resolution itself.
 		started: true,
 	}
+	// No worker runs it: its wake is how the test sees the list published.
+	plug.readmit = newReadmitter(nil, plug, time.Hour)
 	t.Cleanup(func() { close(plug.stopCh) })
 
 	// An explicit as-set keeps this hermetic: store.resolve only calls PeeringDB
@@ -246,19 +248,21 @@ func TestHandleConfigureEnrollsIRRFilteredPeer(t *testing.T) {
 	if st == nil {
 		t.Fatal("ASN 65001 not enrolled: an IRR-filtered peer must be resolved")
 	}
-	// initialResolve runs detached; wait on its per-ASN completion signal rather
-	// than on a duration. The product bounds this wait itself: refreshASN gives
-	// the lookup a perASNRefreshTimeout context, the IRR client puts that
-	// deadline on the connection, and every completion path, the timeout
-	// included, closes firstDone. A test-side deadline shorter than that one
-	// failed on a loaded machine while the lookup was still inside its own
-	// budget; a lookup that overruns it closes firstDone with lastErr set, which
-	// the check below reports. The test's own bound sits past the product's, so
-	// it fires only when firstDone is never closed, never on a slow lookup.
+	// initialResolve runs detached; wait on the readmitter wake a published
+	// list sends rather than on a duration. The product bounds this wait
+	// itself: refreshASN gives the lookup a perASNRefreshTimeout context, and
+	// the IRR client puts that deadline on the connection. A test-side
+	// deadline shorter than that one failed on a loaded machine while the
+	// lookup was still inside its own budget. The test's own bound sits past
+	// the product's, so it fires only when no list is ever published; a
+	// lookup that failed instead sets lastErr, which the timeout reports.
 	select {
-	case <-st.firstDone:
+	case <-plug.readmit.wake:
 	case <-time.After(perASNRefreshTimeout + 10*time.Second):
-		t.Fatal("first resolution did not complete within the product's refresh bound")
+		plug.mu.RLock()
+		lastErr := st.lastErr
+		plug.mu.RUnlock()
+		t.Fatalf("first resolution published no list within the product's refresh bound (lastErr %q)", lastErr)
 	}
 	plug.mu.RLock()
 	defer plug.mu.RUnlock()

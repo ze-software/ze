@@ -585,9 +585,10 @@ const FilterFieldRaw = "raw"
 // FilterUpdateTimeout is the deadline of one filter-update exchange, which
 // carries a batch of routes (FilterUpdateBatchInput). When it expires the
 // engine applies the filter's on-error policy to every route of the batch, so
-// a plugin MUST answer the whole batch within it: a handler that waits on its
-// own data bounds that wait well below it, since the routes of one batch share
-// the budget.
+// a plugin MUST answer the whole batch within it. The routes of one batch,
+// up to FilterUpdateBatchMax, share the budget, so an evaluator MUST NOT wait
+// on its own data: it answers from what it holds and lets a late answer
+// re-judge the route (docs/plugin-development/handlers.md, "Route filters").
 const FilterUpdateTimeout = 5 * time.Second
 
 // FilterUpdateBatchMax bounds the routes of one filter-update exchange. The

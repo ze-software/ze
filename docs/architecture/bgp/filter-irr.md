@@ -91,8 +91,9 @@ the replaced config; the filter supplies only the parse of the bgp subtree and
 list over a reconfigure only while the ASN's as-set is the same, and
 `forgetUnconfigured` purges the store's entry for it, so the store holds only
 the sets the config names (`store.commit` already refuses to merge another
-AS-SET's family into an answer). The first UPDATE after the edit waits, bounded,
-for the new set's resolution rather than being judged against the old one.
+AS-SET's family into an answer). The reload publishes the ASN unresolved, so
+an UPDATE after the edit is rejected and held until the new set resolves,
+never judged against the old one.
 The same pass purges the entry of an ASN the new config no longer enrolls.
 
 **Deleting the configured as-set is a change.** `asnState` keeps two fields:
@@ -113,7 +114,7 @@ cached entry's AS-SET when PeeringDB fails, would hand the deleted set back.
 The plugin builds its `PrefixStore` with no persistence, never asks the SDK for
 its state store, and writes nothing to disk. The disk copy it used to keep cost
 more than it gave: the daemon state write took the SDK's full 5 s under disk
-load, which made an UPDATE's first-resolution wait expire
+load, which made the first-resolution wait the filter then had expire
 (`plan/journal/startup-wait-expires-under-load.md`). The store is created by the
 first configure and kept for the plugin's life; a later configure points it at
 the configured servers with `UseClients`, so a reload loses no resolved entry
@@ -121,19 +122,40 @@ and the per-family last-known-good still has the entry to merge into.
 
 A restart therefore starts from no list. `OnStarted` sets `started` and runs
 `initialResolve`, which resolves every enrolled ASN from the IRR server. An
-UPDATE that arrives before an ASN's first resolution waits for it, for at most
-`firstResolveWait`. That bound sits one second below `rpc.FilterUpdateTimeout`,
-the reactor's deadline for a filter-update call, so the verdict given when it
-expires still reaches the reactor. An UPDATE still without a list then has its
-announcements rejected and held, and the re-admission path below asks the peer
-for them by ROUTE-REFRESH once the list arrives. An IRR server unreachable at
+UPDATE that arrives before an ASN's first resolution is judged at once, with
+no wait: its announcements take the filter's on-error verdict, reject, its
+withdrawals still apply (`keepWithdrawals`), and the announced prefixes are
+held. The re-admission path below asks the peer for them by ROUTE-REFRESH
+once the list arrives. An IRR server unreachable at
 startup has no cached list to fall back to: the announcements stay rejected,
 and the worker retries the lookup every `readmitRetryInterval`.
 
 A configure that runs before `OnStarted`, inside the startup handshake, starts
 no resolution, because startup must not depend on the IRR server; only a
 reload configure, after `started` is set, starts it itself.
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- firstResolveWait, handleConfigure, forgetUnconfigured, refreshASNCtx -->
+**The evaluator reads a snapshot.** The plugin registers one evaluator with
+`sdk.OnFilter` (`evaluate`), called through the typed bridge slot when the
+plugin runs internal and once per route of a `filter-update` batch when it
+runs forked, concurrently on the engine's goroutines. It takes no lock and
+never waits: it reads `irrSnapshot`, one immutable value holding every
+enrolled ASN's list (nil while unresolved) and whether its last lookup
+failed, swapped whole through an atomic pointer. `publishLocked` builds it
+under `plug.mu` wherever `byASN` or a state's list changes: the end of
+`handleConfigure` and the success and failure arms of `refreshASNCtx`. A
+route is therefore judged wholly by one config and one set of lists, and
+`show bgp irr` and the re-admission worker keep reading `byASN` under the
+lock. The evaluator still judges the text UPDATE the text chain sends, so it
+declares no route field to read; a chain that also holds an in-process member
+(the library chain) refuses it at run time, because that chain sends only the
+declared fields.
+
+**Its filter names are declared.** At Stage 1 the plugin declares one filter
+name pattern, `asnFilterNamePattern`, covering a decimal AS number from 1 to
+4294967295, on import, failing closed. The config load judges every
+`bgp-filter-irr:<asn>` reference against it, so a reference whose suffix is
+not an AS number fails the load instead of rejecting every route at run time;
+`extractASNFromFilter` still reads the number from the name of each call.
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- irrSnapshot, publishLocked, evaluate, handleFilterUpdate, filterDecls, asnFilterNamePattern, handleConfigure, forgetUnconfigured, refreshASNCtx -->
 
 A resolved prefix list over the entry cap is refused whole, never cut: the
 refresh fails with an error naming the IPv4 and IPv6 counts and the cap, and

@@ -85,17 +85,19 @@ func (e *fakeReadmitEngine) setSession(sess peerSession) {
 
 const readmitTestPeer = "127.0.0.1"
 
-// readmitPlugin builds a plugin enrolled for AS65001 / AS-TEST whose first
-// resolution window is already over, so handleFilterUpdate decides at once.
+// readmitPlugin builds a plugin enrolled for AS65001 / AS-TEST, published to
+// the snapshot the evaluator reads, unresolved until a refresh runs.
 func readmitPlugin(t *testing.T, irrAddr string, engine readmitEngine, interval time.Duration) *irrPlugin {
 	t.Helper()
 	st := newASNState(65001, "AS-TEST")
-	st.signalFirstResolved()
 	plug := &irrPlugin{
 		byASN:       map[uint32]*asnState{65001: st},
 		prefixStore: store.New(irr.NewIRR(irrAddr), nil, nil),
 		stopCh:      make(chan struct{}),
 	}
+	plug.mu.Lock()
+	plug.publishLocked()
+	plug.mu.Unlock()
 	plug.readmit = newReadmitter(engine, plug, interval)
 	t.Cleanup(func() { close(plug.stopCh) })
 	stop := make(chan struct{})
