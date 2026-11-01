@@ -19,6 +19,14 @@ EOF_PEER
 # ze bgp configuration written as a tmpfs file
 tmpfs=start-router.conf:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	group default {
 		peer peer1 {
 			connection {

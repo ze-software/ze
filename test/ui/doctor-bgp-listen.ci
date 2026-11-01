@@ -12,6 +12,14 @@
 
 tmpfs=bgp-listen.conf:terminator=EOF_CONF
 bgp {
+    filter {
+        import {
+            final accept
+        }
+        export {
+            final accept
+        }
+    }
     router-id 1.2.3.4
     session {
         asn {
