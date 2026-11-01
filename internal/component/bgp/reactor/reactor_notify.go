@@ -522,9 +522,22 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 	// filters (loop, community, redistribute, OTC) and the reactor-bound per-peer
 	// policy chain (FilterStagePeerChain, which sorts LAST -- after OTC). This
 	// replaces the former two back-to-back blocks; the cross-system order is now a
-	// declared Stage, not code position. Only for received UPDATEs.
+	// declared Stage, not code position. Only for received UPDATEs, and never
+	// for an End-of-RIB marker.
+	//
+	// RFC 4724 Section 2: "An UPDATE message with no reachable Network Layer
+	// Reachability Information (NLRI) and empty withdrawn NLRI is specified as
+	// the End-of-RIB marker that can be used by a BGP speaker to indicate to its
+	// peer the completion of the initial routing update after the session is
+	// established." The marker carries no route for a filter to judge: judged,
+	// an import member that rejects or fails closed would drop it, and the
+	// plugins attached to the peer would never see its initial update complete.
+	endOfRIB := false
+	if wireUpdate != nil {
+		_, endOfRIB = wireUpdate.IsEOR()
+	}
 	var routeMeta map[string]any
-	if direction == rpc.DirectionReceived && wireUpdate != nil && len(r.orderedIngressSteps) > 0 {
+	if direction == rpc.DirectionReceived && wireUpdate != nil && !endOfRIB && len(r.orderedIngressSteps) > 0 {
 		src := filterapi.PeerFilterInfo{
 			Address:  peerAddr,
 			PeerAS:   peerAS,

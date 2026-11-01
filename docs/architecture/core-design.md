@@ -1241,6 +1241,10 @@ then string keys are produced off the forward critical path.
 
 Per-peer inbound filtering runs in the reactor on every received UPDATE,
 **before** the bytes are cached and **before** the StructuredEvent is dispatched.
+An End-of-RIB marker (RFC 4724 Section 2) skips the pass
+(`notifyMessageReceiver`, `reactor_notify.go`): it carries no route, so no
+filter judges it, and an import member that rejects or fails closed cannot keep
+it from the plugins attached to the peer.
 
 The payload it runs over is already reconciled. `Session.collapseASPathFamily`
 (`session_read.go`) rewrites the AS-path family of every received UPDATE into
