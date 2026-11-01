@@ -1,0 +1,178 @@
+# Test: a plugin speaking the text-era contract is refused at Stage 1
+#
+# VALIDATES: spec-filter-wire-0-umbrella AC-9 (D-2): a plugin whose
+# declare-registration carries no protocol version is refused at Stage 1 with
+# one error naming the plugin, saying it declared no protocol version, naming
+# the version it must speak and pointing at docs/plugin-development/protocol.md;
+# it is the only refusal for that plugin, and the daemon stops as for any
+# plugin failure. The plugin is Python 3 over TLS connect-back, no Go SDK.
+# PREVENTS: a text-era filter plugin starting against an engine that no longer
+# speaks its contract, so its filters silently never run.
+#
+# Method: the plugin declares a text-era filter and no version. It prints only
+# that a refusal came, so every assertion on the refusal text reads the daemon's
+# own log line, never an echo by the plugin.
+
+tmpfs=pyplug.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env -S python3 -I
+# A filter plugin in Python 3 speaking the documented process protocol with no
+# Go SDK: TLS connect-back, #0 auth, then the five startup stages
+# (docs/plugin-development/protocol.md). argv[1] picks the Stage 1 declaration.
+import json, os, socket, ssl, sys
+
+def log(msg):
+    print("PYPLUG " + msg, file=sys.stderr, flush=True)
+
+MODES = {
+    # The text era: no protocol version, a filter naming text attributes.
+    "noversion": {"filters": [{"name": "legacy", "direction": "import", "attributes": ["as-path"]}]},
+    # A newer plugin: it speaks up to version 2 and accepts what Ze answers.
+    "v2": {"protocol-version": 2},
+    # Exactly Ze's version.
+    "v1": {"protocol-version": 1},
+    # A filter family by name pattern (<plugin>:<asn>) beside one named filter.
+    "pattern": {"protocol-version": 1, "filters": [
+        {"name-pattern": "[0-9]+", "direction": "import", "reads": ["prefix"]},
+        {"name": "status", "direction": "import", "reads": ["prefix"]}]},
+    # The same pattern, reading a field bgp import routes do not carry.
+    "pattern-tag": {"protocol-version": 1, "filters": [
+        {"name-pattern": "[0-9]+", "direction": "import", "reads": ["prefix", "tag"]}]},
+    # Export filters: one reading a field bgp export routes do not carry, one
+    # setting a field a bgp export filter may not set, one that fits.
+    "export": {"protocol-version": 1, "filters": [
+        {"name": "reads-tag", "direction": "export", "reads": ["prefix", "tag"]},
+        {"name": "sets-prefix", "direction": "export", "reads": ["prefix"], "sets": ["prefix"]},
+        {"name": "fits", "direction": "export", "reads": ["prefix", "raw"], "sets": ["local-preference"]}]},
+    # Import filters that stay up and print what each filter-update carries:
+    # one declaring it reads the prefix only, one the prefix and the raw UPDATE.
+    "reads-prefix": {"protocol-version": 1, "filters": [
+        {"name": "prefix-only", "direction": "import", "reads": ["prefix"]}]},
+    "reads-raw": {"protocol-version": 1, "filters": [
+        {"name": "raw-reader", "direction": "import", "reads": ["prefix", "raw"]}]},
+    # A plugin newer than Ze (version 2) that stays up and runs its filter.
+    "v2-reads-prefix": {"protocol-version": 2, "filters": [
+        {"name": "prefix-only", "direction": "import", "reads": ["prefix"]}]},
+}
+# The modes whose plugin stays up for filter-update; every other one asks the
+# daemon to shut down once it has started.
+STAY = ("reads-prefix", "reads-raw", "v2-reads-prefix")
+
+mode = sys.argv[1]
+decl = MODES[mode]
+host = os.environ["ZE_PLUGIN_HUB_HOST"]
+ctx = ssl.create_default_context(cadata=os.environ["ZE_PLUGIN_CA_PEM"])
+ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+raw = socket.create_connection((host, int(os.environ["ZE_PLUGIN_HUB_PORT"])), timeout=30)
+conn = ctx.wrap_socket(raw, server_hostname=host)
+conn.settimeout(None)
+reader = conn.makefile("rb")
+
+def send(line):
+    conn.sendall(line.encode() + b"\n")
+
+def recv():
+    line = reader.readline()
+    if not line:
+        return None
+    return line.decode().rstrip("\n")
+
+def split(line):
+    ident, _, rest = line.partition(" ")
+    verb, _, payload = rest.partition(" ")
+    return ident, verb, payload
+
+def answer(line):
+    # An engine request carries a method (it holds a colon); answer it OK.
+    ident, verb, payload = split(line)
+    if ":" not in verb:
+        return
+    if verb == "ze-plugin-callback:filter-update":
+        # Every key the request carries, nested objects included, so a test
+        # asserts which fields were sent without matching the encoding.
+        keys = []
+        def walk(obj, path):
+            for k, v in obj.items():
+                keys.append(path + k)
+                if isinstance(v, dict):
+                    walk(v, path + k + ".")
+        walk(json.loads(payload), "")
+        log("filter-update to " + os.environ["ZE_PLUGIN_NAME"] + " keys=" + ",".join(sorted(keys)) + ";")
+        send(ident + ' ok {"action":"accept"}')
+        return
+    send(ident + " ok")
+    if verb == "ze-plugin-callback:bye":
+        sys.exit(0)
+
+def await_request(method):
+    # The engine drives Stages 2 and 4: wait for its request and answer it.
+    while True:
+        line = recv()
+        if line is None:
+            log("eof awaiting " + method)
+            sys.exit(1)
+        answer(line)
+        if split(line)[1] == method:
+            return
+
+def call(n, method, params):
+    send("#%d %s %s" % (n, method, json.dumps(params, separators=(",", ":"))))
+    while True:
+        line = recv()
+        if line is None:
+            log("eof awaiting #%d %s" % (n, method))
+            sys.exit(1)
+        ident, verb, payload = split(line)
+        if ident == "#%d" % n and verb in ("ok", "error"):
+            return verb, payload
+        answer(line)
+
+verb, _ = call(0, "auth", {"token": os.environ["ZE_PLUGIN_HUB_TOKEN"], "name": os.environ["ZE_PLUGIN_NAME"]})
+if verb != "ok":
+    log("auth refused")
+    sys.exit(1)
+
+verb, payload = call(1, "ze-plugin-engine:declare-registration", decl)
+if verb != "ok":
+    # The daemon states the refusal itself; the plugin reports only that one came.
+    log("stage1 refused")
+    sys.exit(1)
+speaks = json.loads(payload)["protocol-version"]
+log("stage1 answer protocol-version=%d" % speaks)
+
+await_request("ze-plugin-callback:configure")
+verb, _ = call(2, "ze-plugin-engine:declare-capabilities", {"capabilities": []})
+log("stage3 " + verb)
+await_request("ze-plugin-callback:share-registry")
+verb, _ = call(3, "ze-plugin-engine:ready", {})
+log("stage5 %s speaking version %d" % (verb, speaks))
+if mode not in STAY:
+    send('#4 ze-plugin-engine:dispatch-command {"command":"request shutdown"}')
+while True:
+    line = recv()
+    if line is None:
+        sys.exit(0)
+    answer(line)
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external pylegacy {
+		run "./pyplug.run noversion"
+	}
+}
+EOF_CONF
+
+# The plugin declares no failure policy, so the daemon logs the failure and
+# carries on without it (docs/plugin-development/protocol.md, failure policy):
+# the assertions read the refusal, never an exit.
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=explicit plugin startup failed:then=stop
+expect=stderr:contains=PYPLUG stage1 refused
+expect=stderr:pattern=msg="plugin startup failed" subsystem=plugin.server plugin=pylegacy stage=Registration error="plugin pylegacy failed during startup at stage Registration: plugin pylegacy declared no protocol version in declare-registration
+expect=stderr:pattern=declare \\"protocol-version\\": 1 and speak that version \(docs/plugin-development/protocol\.md\)
+expect=stderr:pattern=msg="explicit plugin startup failed" subsystem=plugin.server error="plugin pylegacy failed during startup at stage Registration
+# The version refusal is the only one: no later stage runs, and no other
+# Stage 1 judgement refuses the plugin.
+reject=stderr:pattern=PYPLUG stage[35]
+reject=stderr:pattern=msg="plugin startup failed".*stage=[^R]
+reject=stderr:pattern=names route field

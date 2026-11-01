@@ -1,0 +1,229 @@
+# Test: an external filter whose declared reads or sets misfit its chain is refused
+#
+# VALIDATES: spec-filter-wire-0-umbrella AC-5 (D-10), the external half: a chain
+# at bgp export naming an external filter whose Stage 1 declaration reads a
+# field bgp export routes do not carry, or sets one a bgp export filter may not
+# set, is refused naming the filter, the field and the attachment; a filter
+# whose declaration fits is accepted.
+# PREVENTS: an external filter being chained where its declared fields cannot
+# be sent or applied, which the text era let through to fail per route.
+#
+# Method: three Python 3 plugins over TLS connect-back declare the same three
+# export filters; each peer's export chain names one of them. The config loads
+# before Stage 1, so each reference is judged when its plugin declares. A
+# refused reference fails daemon startup, so ze exits 1 naming the reference
+# and the fix; the startup tier stops with it, so pyfit then fails with
+# "startup barrier aborted", which is not a refusal of its own.
+
+tmpfs=pyplug.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env -S python3 -I
+# A filter plugin in Python 3 speaking the documented process protocol with no
+# Go SDK: TLS connect-back, #0 auth, then the five startup stages
+# (docs/plugin-development/protocol.md). argv[1] picks the Stage 1 declaration.
+import json, os, socket, ssl, sys
+
+def log(msg):
+    print("PYPLUG " + msg, file=sys.stderr, flush=True)
+
+MODES = {
+    # The text era: no protocol version, a filter naming text attributes.
+    "noversion": {"filters": [{"name": "legacy", "direction": "import", "attributes": ["as-path"]}]},
+    # A newer plugin: it speaks up to version 2 and accepts what Ze answers.
+    "v2": {"protocol-version": 2},
+    # Exactly Ze's version.
+    "v1": {"protocol-version": 1},
+    # A filter family by name pattern (<plugin>:<asn>) beside one named filter.
+    "pattern": {"protocol-version": 1, "filters": [
+        {"name-pattern": "[0-9]+", "direction": "import", "reads": ["prefix"]},
+        {"name": "status", "direction": "import", "reads": ["prefix"]}]},
+    # The same pattern, reading a field bgp import routes do not carry.
+    "pattern-tag": {"protocol-version": 1, "filters": [
+        {"name-pattern": "[0-9]+", "direction": "import", "reads": ["prefix", "tag"]}]},
+    # Export filters: one reading a field bgp export routes do not carry, one
+    # setting a field a bgp export filter may not set, one that fits.
+    "export": {"protocol-version": 1, "filters": [
+        {"name": "reads-tag", "direction": "export", "reads": ["prefix", "tag"]},
+        {"name": "sets-prefix", "direction": "export", "reads": ["prefix"], "sets": ["prefix"]},
+        {"name": "fits", "direction": "export", "reads": ["prefix", "raw"], "sets": ["local-preference"]}]},
+    # Import filters that stay up and print what each filter-update carries:
+    # one declaring it reads the prefix only, one the prefix and the raw UPDATE.
+    "reads-prefix": {"protocol-version": 1, "filters": [
+        {"name": "prefix-only", "direction": "import", "reads": ["prefix"]}]},
+    "reads-raw": {"protocol-version": 1, "filters": [
+        {"name": "raw-reader", "direction": "import", "reads": ["prefix", "raw"]}]},
+    # A plugin newer than Ze (version 2) that stays up and runs its filter.
+    "v2-reads-prefix": {"protocol-version": 2, "filters": [
+        {"name": "prefix-only", "direction": "import", "reads": ["prefix"]}]},
+}
+# The modes whose plugin stays up for filter-update; every other one asks the
+# daemon to shut down once it has started.
+STAY = ("reads-prefix", "reads-raw", "v2-reads-prefix")
+
+mode = sys.argv[1]
+decl = MODES[mode]
+host = os.environ["ZE_PLUGIN_HUB_HOST"]
+ctx = ssl.create_default_context(cadata=os.environ["ZE_PLUGIN_CA_PEM"])
+ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+raw = socket.create_connection((host, int(os.environ["ZE_PLUGIN_HUB_PORT"])), timeout=30)
+conn = ctx.wrap_socket(raw, server_hostname=host)
+conn.settimeout(None)
+reader = conn.makefile("rb")
+
+def send(line):
+    conn.sendall(line.encode() + b"\n")
+
+def recv():
+    line = reader.readline()
+    if not line:
+        return None
+    return line.decode().rstrip("\n")
+
+def split(line):
+    ident, _, rest = line.partition(" ")
+    verb, _, payload = rest.partition(" ")
+    return ident, verb, payload
+
+def answer(line):
+    # An engine request carries a method (it holds a colon); answer it OK.
+    ident, verb, payload = split(line)
+    if ":" not in verb:
+        return
+    if verb == "ze-plugin-callback:filter-update":
+        # Every key the request carries, nested objects included, so a test
+        # asserts which fields were sent without matching the encoding.
+        keys = []
+        def walk(obj, path):
+            for k, v in obj.items():
+                keys.append(path + k)
+                if isinstance(v, dict):
+                    walk(v, path + k + ".")
+        walk(json.loads(payload), "")
+        log("filter-update to " + os.environ["ZE_PLUGIN_NAME"] + " keys=" + ",".join(sorted(keys)) + ";")
+        send(ident + ' ok {"action":"accept"}')
+        return
+    send(ident + " ok")
+    if verb == "ze-plugin-callback:bye":
+        sys.exit(0)
+
+def await_request(method):
+    # The engine drives Stages 2 and 4: wait for its request and answer it.
+    while True:
+        line = recv()
+        if line is None:
+            log("eof awaiting " + method)
+            sys.exit(1)
+        answer(line)
+        if split(line)[1] == method:
+            return
+
+def call(n, method, params):
+    send("#%d %s %s" % (n, method, json.dumps(params, separators=(",", ":"))))
+    while True:
+        line = recv()
+        if line is None:
+            log("eof awaiting #%d %s" % (n, method))
+            sys.exit(1)
+        ident, verb, payload = split(line)
+        if ident == "#%d" % n and verb in ("ok", "error"):
+            return verb, payload
+        answer(line)
+
+verb, _ = call(0, "auth", {"token": os.environ["ZE_PLUGIN_HUB_TOKEN"], "name": os.environ["ZE_PLUGIN_NAME"]})
+if verb != "ok":
+    log("auth refused")
+    sys.exit(1)
+
+verb, payload = call(1, "ze-plugin-engine:declare-registration", decl)
+if verb != "ok":
+    # The daemon states the refusal itself; the plugin reports only that one came.
+    log("stage1 refused")
+    sys.exit(1)
+speaks = json.loads(payload)["protocol-version"]
+log("stage1 answer protocol-version=%d" % speaks)
+
+await_request("ze-plugin-callback:configure")
+verb, _ = call(2, "ze-plugin-engine:declare-capabilities", {"capabilities": []})
+log("stage3 " + verb)
+await_request("ze-plugin-callback:share-registry")
+verb, _ = call(3, "ze-plugin-engine:ready", {})
+log("stage5 %s speaking version %d" % (verb, speaks))
+if mode not in STAY:
+    send('#4 ze-plugin-engine:dispatch-command {"command":"request shutdown"}')
+while True:
+    line = recv()
+    if line is None:
+        sys.exit(0)
+    answer(line)
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external pytag {
+		run "./pyplug.run export"
+	}
+	external pyset {
+		run "./pyplug.run export"
+	}
+	external pyfit {
+		run "./pyplug.run export"
+	}
+}
+bgp {
+	peer tag {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+		filter {
+			export { filters [ pytag:reads-tag ]; final accept; }
+		}
+	}
+	peer set {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+		filter {
+			export { filters [ pyset:sets-prefix ]; final accept; }
+		}
+	}
+	peer fit {
+		connection {
+			remote { ip 127.0.0.4; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+		filter {
+			export { filters [ pyfit:fits ]; final accept; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=40s
+# A refused reference is the loaded config's defect: ze does not start with
+# it, whatever the plugin's failure policy, and says how to fix it. The
+# daemon ends by itself, with no fence: a fence would tear it down and hide
+# the exit code. The runner then waits out its daemon.ready poll (5s, scaled
+# for a parallel run), which a refused start never writes, so the budget is
+# wider than the start needs.
+expect=exit:code=1
+expect=stderr:pattern=error: plugin (pytag|pyset) failed during startup at stage Registration: .*; ze does not start with a config whose filter chain names a filter its plugin refuses: correct the chain reference in the config, or the plugin's filter declaration, then start ze again
+expect=stderr:pattern=plugin pytag failed during startup at stage Registration: .*peer tag.*: bgp export filter \\"pytag:reads-tag\\" reads tag, which bgp export routes do not carry
+expect=stderr:pattern=plugin pyset failed during startup at stage Registration: .*peer set.*: bgp export filter \\"pyset:sets-prefix\\" sets prefix, which a filter at bgp export may not set
+expect=stderr:pattern=PYPLUG stage1 answer protocol-version=1" subsystem=plugin.relay plugin=pyfit
+reject=stderr:pattern=plugin pyfit failed during startup at stage Registration: .*(declares no filter|do not carry|may not set)
