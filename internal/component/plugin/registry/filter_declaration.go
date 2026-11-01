@@ -137,12 +137,34 @@ var filterDeclarations struct {
 // SetFilterDeclarationCheck installs the judge of Stage 1 filter
 // declarations: the vocabulary of what a filter reads and sets belongs to the
 // subsystem that runs the filters, which the plugin server cannot import.
-// Called from init() by that subsystem; nil removes it.
-func SetFilterDeclarationCheck(fn func(pluginName string, declared []DeclaredFilter) error) {
+// Called from init() by that subsystem; nil removes it. It answers the judge
+// it replaced, so a test that installs its own restores the one before it.
+func SetFilterDeclarationCheck(fn func(pluginName string, declared []DeclaredFilter) error) func(string, []DeclaredFilter) error {
 	filterDeclarations.mu.Lock()
 	defer filterDeclarations.mu.Unlock()
+	previous := filterDeclarations.check
 	filterDeclarations.check = fn
+	return previous
 }
+
+// ErrLoadedChainRefused marks a Stage 1 refusal of a chain reference that a
+// loaded config already holds, as distinct from a refusal of the declaration
+// alone. The config holding that chain cannot be applied, so the plugin
+// server fails daemon startup on it, whatever the plugin's failure policy,
+// the way a config reload refuses the same chain at load.
+var ErrLoadedChainRefused = errors.New("a chain in the loaded config names a filter its plugin's declaration refuses")
+
+// RefuseLoadedChain marks err, the judge's refusal of a chain reference a
+// loaded config holds, as ErrLoadedChainRefused. The message stays the
+// judge's own.
+func RefuseLoadedChain(err error) error { return loadedChainRefusal{err: err} }
+
+// loadedChainRefusal is the error RefuseLoadedChain answers: the judge's
+// message, matching both the judge's error and ErrLoadedChainRefused.
+type loadedChainRefusal struct{ err error }
+
+func (r loadedChainRefusal) Error() string   { return r.err.Error() }
+func (r loadedChainRefusal) Unwrap() []error { return []error{r.err, ErrLoadedChainRefused} }
 
 // CheckFilterDeclarations compiles a plugin's Stage 1 filters and hands them
 // to the installed judge. A build with no judge links no subsystem that runs

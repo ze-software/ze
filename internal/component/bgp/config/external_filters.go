@@ -127,9 +127,12 @@ func checkFilterDeclarations(pluginName string, declared []registry.DeclaredFilt
 	refs := pendingExternal.refs[pluginName]
 	delete(pendingExternal.refs, pluginName)
 	pendingExternal.mu.Unlock()
+	// A refused reference is the loaded config's defect, not the plugin's:
+	// marked so, it fails daemon startup the way a reload refuses it at load
+	// (registry.ErrLoadedChainRefused).
 	for ref := range refs {
 		if err := judgeExternalChainRef(pluginName, declared, ref); err != nil {
-			return err
+			return registry.RefuseLoadedChain(err)
 		}
 	}
 	return nil

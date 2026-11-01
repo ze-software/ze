@@ -1,6 +1,7 @@
 package bgpconfig
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -92,7 +93,13 @@ func TestCheckChainExternalDeclaration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		requireRefusal(t, checkFilterDeclarations("late", declared), ctx, "late:reads-tag", "tag", "bgp export")
+		err = checkFilterDeclarations("late", declared)
+		requireRefusal(t, err, ctx, "late:reads-tag", "tag", "bgp export")
+		// The refusal judges the loaded config, so it fails daemon startup
+		// rather than the plugin alone (plugin/server refuseStartupOnLoadedChain).
+		if !errors.Is(err, registry.ErrLoadedChainRefused) {
+			t.Fatalf("a refused loaded chain must be marked registry.ErrLoadedChainRefused, got %v", err)
+		}
 	})
 }
 
@@ -138,7 +145,13 @@ func TestFilterDeclarationVocabulary(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			requireRefusal(t, checkFilterDeclarations("p", declared), `plugin "p"`, tc.want)
+			err = checkFilterDeclarations("p", declared)
+			requireRefusal(t, err, `plugin "p"`, tc.want)
+			// A refused declaration holds no loaded chain: the plugin's failure
+			// policy decides, so it is not marked as a refused config.
+			if errors.Is(err, registry.ErrLoadedChainRefused) {
+				t.Fatalf("a refused declaration must not be marked as a refused loaded chain: %v", err)
+			}
 		})
 	}
 }

@@ -343,9 +343,15 @@ or pattern covers the filter (the refusal lists what the plugin declares), when
 the filter reads a field that attachment does not carry, or when it sets one
 that attachment does not allow: the same check a named policy instance gets.
 The daemon loads its config before an external plugin reaches Stage 1, so at
-startup a reference is judged when its plugin declares, and a refusal then
-fails that plugin's Stage 1; a reload judges it at once.
-<!-- source: internal/component/plugin/registry/filter_declaration.go -- CompileFilterDeclarations, CheckFilterDeclarations -->
+startup a reference is judged when its plugin declares. A refusal then fails
+that plugin's Stage 1 and fails daemon startup with it, whatever the plugin's
+failure policy: the config cannot be applied as written, so ze exits naming the
+reference and the fix, as a reload refuses the same chain at load. A
+declaration refused on its own (an unknown field, `raw` as a set) holds no
+loaded chain, and the plugin's failure policy decides what ze does. A reload
+judges a reference at once.
+<!-- source: internal/component/plugin/registry/filter_declaration.go -- CompileFilterDeclarations, CheckFilterDeclarations, ErrLoadedChainRefused -->
+<!-- source: internal/component/plugin/server/startup.go -- refuseStartupOnLoadedChain -->
 <!-- source: internal/component/bgp/config/external_filters.go -- checkExternalChainRef, checkFilterDeclarations -->
 <!-- source: internal/component/policy/declared_fields.go -- CheckDeclaredFilter -->
 

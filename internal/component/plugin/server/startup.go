@@ -248,6 +248,30 @@ func (s *Server) refuseBootAutoLoad(trigger string, err error) {
 	s.signalStartupComplete()
 }
 
+// refuseStartupOnLoadedChain fails daemon startup when a plugin was refused at
+// Stage 1 because a chain the loaded config holds names a filter its
+// declaration does not cover or fit (registry.ErrLoadedChainRefused). The
+// config cannot be applied as written, so ze does not start with it, whatever
+// the plugin's failure policy: a reload refuses the same chain at config load,
+// and startup refuses it here, where the reference is first judged.
+//
+// It records the first such refusal only, and only before startup completes:
+// WaitForStartupComplete answers it, and cmd/ze/hub exits on it.
+func (s *Server) refuseStartupOnLoadedChain(err error) {
+	if !errors.Is(err, registry.ErrLoadedChainRefused) {
+		return
+	}
+	if s.startupComplete() {
+		return
+	}
+	if s.startupErr != nil {
+		return
+	}
+	s.startupErr = fmt.Errorf("%w; ze does not start with a config whose filter chain names a filter "+
+		"its plugin refuses: correct the chain reference in the config, or the plugin's filter declaration, "+
+		"then start ze again", err)
+}
+
 // selectedPluginGraph resolves registration edges (implementation names) to
 // selected process labels. Every alias of a prerequisite must finish before
 // its consumers. registryRow uses the engine's RegistryName producer and gives
@@ -501,6 +525,7 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 			// plugins, which is right for a plugin that said nothing about its
 			// own failure and wrong for one that did (failure_policy.go).
 			s.stopDaemonOnStartupFailure(proc, err)
+			s.refuseStartupOnLoadedChain(err)
 		}
 
 		logger().Debug("tier handshake complete", "tier", tierIdx)
