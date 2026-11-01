@@ -1,7 +1,8 @@
-# Test: prefix-list filter chain ref using plain (unprefixed) filter name
-# VALIDATES: ISSUE 6 fix -- user can write plain names in import filters.
-#   with no `<type>:` or `<plugin>:` prefix; the framework resolves plain
-#   names via the FilterRegistry + FilterTypes map at parse time.
+# Test: a chain names a match instance judging a prefix-list by its plain name
+# VALIDATES: ISSUE 6 fix -- user can write plain names in import filters,
+#   with no `<type>:` or `<plugin>:` prefix; the framework finds a plain
+#   name in the policy registry at parse time, and a match instance runs
+#   in-process through the evaluator registered for the match type.
 # PREVENTS: Regression where plain names are silently rejected or dispatched
 #   to a non-existent plugin.
 
@@ -57,10 +58,10 @@ bgp {
 		}
 
 		# Plain name -- no `<type>:` or `<plugin>:` prefix. The framework
-		# resolves GLOBALLY_UNIQUE_NAME via BuildFilterRegistry to type
-		# "prefix-list", then via FilterTypes map to plugin "bgp-filter-prefix",
-		# and rewrites the ref to "bgp-filter-prefix:GLOBALLY_UNIQUE_NAME"
-		# before runtime dispatch.
+		# finds prefix-list-GLOBALLY_UNIQUE_NAME in the policy registry as a
+		# match instance and keeps the bare name: the match evaluator judges
+		# its prefix-list condition in-process, and its decision line names
+		# the list it read.
 		filter {
 			import { filters [ prefix-list-GLOBALLY_UNIQUE_NAME ]; final accept; }
 		}

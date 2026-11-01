@@ -1,5 +1,5 @@
-# Test: a reload that edits a community-match entry's action makes
-#       bgp-filter-community-match answer with the new definition.
+# Test: a reload that edits a community-match entry's action makes the
+#       match instance community-NOEXP judge with the new definition.
 # Initial config: one dynamic group (iBGP, AS 65533) whose import chain is
 #                 `community-NOEXP`. The test peer dials Ze.
 # Live change:    the staged fixture (reload/live-stages, run inside the
@@ -8,17 +8,18 @@
 # Expected:       the same UPDATE (COMMUNITY NO_EXPORT, 10.0.0.0/24) evaluated
 #                 against the peer's live chain answers "action":"accept"
 #                 before the reload and "action":"reject" after it, which it
-#                 can only do when the plugin installed the edited definition
-#                 at config-apply.
+#                 can only do when the reload recompiled the match instance's
+#                 condition from the edited list and installed the new chain.
 #
-# VALIDATES: spec-plugin-reload-applies-or-refuses AC-1 for
-#            bgp-filter-community-match.
-# PREVENTS: the silent reload: with OnConfigure alone the SDK answered
-#           config-apply OK and the plugin kept its startup definitions.
+# VALIDATES: spec-plugin-reload-applies-or-refuses AC-1 for a community-match
+#            list a chain reaches through a match instance.
+# PREVENTS: the silent reload: the peer judged unchanged and kept its
+#           startup chain, the list edit never reaching it.
 #
-# DISCRIMINATION: with newCommunityMatchConfigTx().Register(p) replaced by
-# p.OnConfigure(newCommunityMatchConfigTx().Configure), the after-reload policy
-# test still answers "action":"accept" and the stage fails.
+# DISCRIMINATION: with peerSettingsEqual (reactor_api.go) clearing the
+# compiled library chain of both ImportPolicy values before it compares them,
+# the after-reload policy test still answers "action":"accept" and the stage
+# fails (observed 2026-11-01).
 option=timeout:value=60s
 option=env:var=ze.log.bgp.reactor:value=info
 

@@ -1,6 +1,6 @@
 # Test: ze config validate accepts as-path-list config
 # VALIDATES: AC-9 -- as-path-list YANG config parses correctly
-# VALIDATES: Filter chain reference as-path-list:NAME resolves
+# VALIDATES: a chain reaches an as-path-list through a match instance naming it
 # PREVENTS: YANG schema or augment regression breaking as-path-list parsing
 stdin=config:terminator=EOF_CONF
 	policy {
