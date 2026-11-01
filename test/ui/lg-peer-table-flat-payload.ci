@@ -32,6 +32,14 @@ environment {
 }
 
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	router-id 192.0.2.254
 	session {
 		asn {

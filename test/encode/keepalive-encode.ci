@@ -7,6 +7,14 @@ EOF_PEER
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	group default {
 		peer peer1 {
 			connection {
