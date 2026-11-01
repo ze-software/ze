@@ -53,21 +53,20 @@ type attachment struct {
 // countAttachments counts, for each list name a peer chain references, the peers
 // that reference it on import and on export.
 //
-// A chain reference reaches this plugin as the bare list name, as
-// reject-asn:NAME or as bgp-filter-path-asn:NAME, and the engine concatenates
-// the bgp-level, group-level and peer-level chains into the peer's effective one
-// (policy.ConcatChains, internal/component/policy/chain.go). So a peer counts when
-// the name appears at any of the three levels, and the instance name is read
-// after the prefix rather than compared whole.
+// A chain does not name a reject-asn list: it names a match instance whose
+// reject-asn condition names the list, and matchLists maps each such instance
+// to its list, so the peer counts for the list. A chain member that names no
+// match instance counts under its own name (chainLists). The engine concatenates the
+// bgp-level, group-level and peer-level chains into the peer's effective one
+// (policy.ConcatChains, internal/component/policy/chain.go), so a peer counts
+// when the instance appears at any of the three levels, read after any prefix
+// (instanceName); a peer reaching one list through several instances or levels
+// counts once.
 //
 // A dynamic group's template counts as one attachment. Its members do not exist
 // in the config document (configjson.ForEachPeer), so the template is the only
 // thing there is to count, and reporting zero for a listen-range group would say
 // the list is attached to nothing.
-//
-// A chain naming a match instance whose reject-asn condition names a list
-// reaches that list as surely as a chain naming it, so it counts for the list
-// (matchLists); a peer reaching one list both ways counts once.
 func countAttachments(policyCfg, bgpCfg map[string]any) map[string]attachment {
 	counts := make(map[string]attachment)
 	lists := matchLists(policyCfg)
