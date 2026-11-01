@@ -27,12 +27,15 @@ policy {
 	prefix-list loopbacks {
 		entry 0.0.0.0/0 { ge 32; le 32; action accept; }
 	}
+	match prefix-list-loopbacks {
+		prefix-list loopbacks;
+	}
 }
 isis {
 	net 49.0001.0000.0000.0001.00
 	filter {
 		export {
-			filters [ loopbacks ];
+			filters [ prefix-list-loopbacks ];
 			final accept;
 		}
 	}

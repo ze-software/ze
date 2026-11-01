@@ -3,10 +3,10 @@
 #       route it now rejects.
 #
 # VALIDATES: spec-route-policy-0-umbrella AC-14 at the process boundary. The
-# import `filters [ WIDE ]; final accept;` passes 10.1.0.0/24 and 10.2.0.0/24
+# import `filters [ prefix-list-WIDE ]; final accept;` passes 10.1.0.0/24 and 10.2.0.0/24
 # and the prefix-list rejects 10.3.0.0/24, so the fakedest consumer holds the
 # first two only. The scenario then writes config-narrow.conf over the running
-# config and sends SIGHUP: the chain becomes `filters [ NARROW ]`, which passes
+# config and sends SIGHUP: the chain becomes `filters [ prefix-list-NARROW ]`, which passes
 # 10.1.0.0/24 alone, and the reload re-judges every held route
 # (withdrawRejectedHeld, internal/plugins/redistribute/held.go), withdrawing
 # 10.2.0.0/24 and keeping 10.1.0.0/24.
@@ -35,11 +35,14 @@ policy {
 		entry 10.1.0.0/24 { action accept; }
 		entry 10.2.0.0/24 { action accept; }
 	}
+	match prefix-list-WIDE {
+		prefix-list WIDE;
+	}
 }
 redistribute {
 	destination fakedest {
 		import fakeredist {
-			filters [ WIDE ];
+			filters [ prefix-list-WIDE ];
 			final accept;
 		}
 	}
@@ -71,11 +74,14 @@ policy {
 	prefix-list NARROW {
 		entry 10.1.0.0/24 { action accept; }
 	}
+	match prefix-list-NARROW {
+		prefix-list NARROW;
+	}
 }
 redistribute {
 	destination fakedest {
 		import fakeredist {
-			filters [ NARROW ];
+			filters [ prefix-list-NARROW ];
 			final accept;
 		}
 	}

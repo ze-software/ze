@@ -45,12 +45,18 @@ stdin=ze-bgp:terminator=EOF_CONF
 				action accept
 			}
 		}
+		match prefix-list-ALLOW {
+			prefix-list ALLOW
+		}
 		prefix-list DENY {
 			entry 10.0.0.0/8 {
 				ge 16
 				le 24
 				action reject
 			}
+		}
+		match prefix-list-DENY {
+			prefix-list DENY
 		}
 	}
 
@@ -83,7 +89,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ bgp-filter-prefix:ALLOW ]; final accept; }
+			import { filters [ prefix-list-ALLOW ]; final accept; }
 		}
 
 		update {
@@ -110,12 +116,18 @@ tmpfs=config2.conf:terminator=EOF_CONF2
 				action accept
 			}
 		}
+		match prefix-list-ALLOW {
+			prefix-list ALLOW
+		}
 		prefix-list DENY {
 			entry 10.0.0.0/8 {
 				ge 16
 				le 24
 				action reject
 			}
+		}
+		match prefix-list-DENY {
+			prefix-list DENY
 		}
 	}
 
@@ -148,7 +160,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ bgp-filter-prefix:DENY ]; final accept; }
+			import { filters [ prefix-list-DENY ]; final accept; }
 		}
 
 		update {

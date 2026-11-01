@@ -5,10 +5,10 @@
 # VALIDATES: spec-route-policy-0-umbrella AC-14 with a real producer (static)
 # and a real consumer (OSPF), the companion of redistribute-chain-narrow-reload,
 # which proves the same chain through fakeredist and fakedest. The import
-# `filters [ WIDE ]; final accept;` passes 10.81.1.0/24 and 10.81.2.0/24, and
+# `filters [ prefix-list-WIDE ]; final accept;` passes 10.81.1.0/24 and 10.81.2.0/24, and
 # the prefix-list rejects 10.81.3.0/24, so the LSDB holds AS-external-LSAs for
 # the first two only. The scenario then writes config-narrow-ospf.conf over the
-# running config and sends SIGHUP: the chain becomes `filters [ NARROW ]`, which
+# running config and sends SIGHUP: the chain becomes `filters [ prefix-list-NARROW ]`, which
 # passes 10.81.1.0/24 alone, and OSPF must flush the LSA for 10.81.2.0/24.
 #
 # PREVENTS: a chain the orchestrator applies to fakedest and not to the OSPF
@@ -52,6 +52,9 @@ policy {
 		entry 10.81.1.0/24 { action accept; }
 		entry 10.81.2.0/24 { action accept; }
 	}
+	match prefix-list-WIDE {
+		prefix-list WIDE;
+	}
 }
 
 ospf {
@@ -75,7 +78,7 @@ ospf {
 redistribute {
 	destination ospf {
 		import static {
-			filters [ WIDE ];
+			filters [ prefix-list-WIDE ];
 			final accept;
 		}
 	}
@@ -120,6 +123,9 @@ policy {
 	prefix-list NARROW {
 		entry 10.81.1.0/24 { action accept; }
 	}
+	match prefix-list-NARROW {
+		prefix-list NARROW;
+	}
 }
 
 ospf {
@@ -143,7 +149,7 @@ ospf {
 redistribute {
 	destination ospf {
 		import static {
-			filters [ NARROW ];
+			filters [ prefix-list-NARROW ];
 			final accept;
 		}
 	}

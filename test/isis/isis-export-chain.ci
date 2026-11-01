@@ -34,7 +34,7 @@ isis {
 	}
 	filter {
 		export {
-			filters [ loopbacks ];
+			filters [ prefix-list-loopbacks ];
 			final accept;
 		}
 	}
@@ -50,6 +50,9 @@ policy {
 			le 32;
 			action accept;
 		}
+	}
+	match prefix-list-loopbacks {
+		prefix-list loopbacks;
 	}
 }
 redistribute {
