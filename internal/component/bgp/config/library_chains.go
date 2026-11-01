@@ -50,7 +50,15 @@ func compileLibraryChains(settings []*reactor.PeerSettings, reg *policy.Registry
 // served the text update (policychain external_text.go, transitional until
 // phase 5). The reference splits at its colon into plugin and filter, as the
 // text chain splits it (PolicyFilterChain).
+//
+// A dynamic group's chain naming a member through a config variable compiles
+// no library here: the instance is known only once a peer resolves the
+// variable, so the policy is marked templated and each peer compiles its own
+// (templatedChain.CompileResolved, from reactor resolveDynamicPolicy).
 func compileLibraryChain(p filterapi.Policy, reg *policy.Registry, bases policychain.Bases, attachment, context string) (filterapi.Policy, error) {
+	if templated := templatedMembers(p); templated != nil {
+		return p.WithTemplated(&templatedChain{reg: reg, bases: bases, attachment: attachment, context: context, members: templated}), nil
+	}
 	var members []policychain.Member
 	for i, ref := range p.Filters() {
 		if ref.Inactive {
@@ -75,6 +83,20 @@ func compileLibraryChain(p filterapi.Policy, reg *policy.Registry, bases policyc
 		return p, fmt.Errorf("%s: %w", context, err)
 	}
 	return p.WithLibrary(chain), nil
+}
+
+// templatedMembers indexes the refs of p that name their filter through a
+// config variable, nil when none does. An inactive ref is indexed too: its
+// name is resolved with the rest, and the check after resolution skips nothing
+// the load would have checked (validateChainNames checks inactive refs).
+func templatedMembers(p filterapi.Policy) []int {
+	var templated []int
+	for i, ref := range p.Filters() {
+		if isTemplatedMember(ref.Name) {
+			templated = append(templated, i)
+		}
+	}
+	return templated
 }
 
 // parseAttributeBases reads bgp { defaults { attribute { } } }, each leaf's

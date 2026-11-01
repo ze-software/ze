@@ -270,14 +270,16 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 	// Step 3b2: Validate policy filter names in peer filter chains.
 	// Names without ":" must exist in the policy registry. Names with ":" are
 	// external plugin filters validated at runtime (plugins register at stage 1).
+	// A dynamic group's name holding a variable is judged per peer once the
+	// peer resolves it (checkTemplatedMember, templatedChain).
 	var tb textbuf.Buffer
 	for _, ps := range settings {
 		tb.Reset()
-		if err := validateChainNames(filterReg, ps.ImportPolicy.Filters(), "bgp import", tb.Str("peer ").Str(ps.Name).Str(" import filters").String()); err != nil {
+		if err := validateChainNames(filterReg, ps.ImportPolicy.Filters(), ps.IsDynamic, "bgp import", tb.Str("peer ").Str(ps.Name).Str(" import filters").String()); err != nil {
 			return nil, nil, err
 		}
 		tb.Reset()
-		if err := validateChainNames(filterReg, ps.ExportPolicy.Filters(), "bgp export", tb.Str("peer ").Str(ps.Name).Str(" export filters").String()); err != nil {
+		if err := validateChainNames(filterReg, ps.ExportPolicy.Filters(), ps.IsDynamic, "bgp export", tb.Str("peer ").Str(ps.Name).Str(" export filters").String()); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -389,11 +391,19 @@ func policyRegistryOf(tree *config.Tree, schema *config.Schema) (*policy.Registr
 // A reference to an external plugin's filter gets the same judgement of the
 // fields that plugin declared at Stage 1 (checkExternalChainRef).
 // A deactivated reference is checked like an active one, because deactivation
-// is a flag on policy.Ref and not part of its name.
-func validateChainNames(reg *policy.Registry, refs []policy.Ref, attachment, context string) error {
+// is a flag on policy.Ref and not part of its name. A reference naming its
+// filter through a config variable is judged by checkTemplatedMember, which
+// refuses it unless dynamic (the chain is a dynamic group's template).
+func validateChainNames(reg *policy.Registry, refs []policy.Ref, dynamic bool, attachment, context string) error {
 	typesMap := registry.FilterTypesMap()
 	names := make([]string, 0, len(refs))
 	for _, ref := range refs {
+		if isTemplatedMember(ref.Name) {
+			if err := checkTemplatedMember(reg, ref.Name, dynamic, attachment, context); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := reg.ValidateName(ref.Name, context); err != nil {
 			return err
 		}

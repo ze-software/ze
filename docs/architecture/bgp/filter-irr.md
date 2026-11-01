@@ -68,7 +68,9 @@ so the plugin fails closed. The withdrawals are lost with the rejected UPDATE.
 **The operator writes
 `import { filters [ bgp-filter-irr:$remote_as ]; final accept; }`. Nothing is
 auto-injected.** The reactor has no dynamic filter injection API, and
-`$remote_as` already resolves through the existing filter variable mechanism.
+`$remote_as` already resolves through the existing filter variable mechanism,
+which serves a dynamic group's members only: a static peer naming a variable is
+refused at load (`docs/guide/bgp-peering.md`, dynamic groups).
 
 **`refresh-interval` is `uint32`.** The YANG range is 60 to 86400, which exceeds
 the `uint16` maximum of 65535.

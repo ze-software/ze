@@ -53,7 +53,9 @@ func init() {
 		policy.MustRegisterFieldSynonym(attachment, policy.FieldMetric, policy.FieldMED)
 		direction := strings.TrimPrefix(attachment, attachmentOwnerBGP+" ")
 		policy.MustRegisterChainLeaf(attachmentOwnerBGP, direction, attachment, func(reg *policy.Registry, member, context string) error {
-			return validateChainNames(reg, []policy.Ref{{Name: member}}, attachment, context)
+			// The editor cannot tell a dynamic group's chain from a peer's
+			// here; the load judges a templated member against its owner.
+			return validateChainNames(reg, []policy.Ref{{Name: member}}, true, attachment, context)
 		})
 	}
 

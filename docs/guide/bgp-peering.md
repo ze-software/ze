@@ -234,6 +234,13 @@ Seven values diverge, and only these seven.
 | Connection mode | Passive |
 | Dynamic flag | Set |
 
+A filter chain on a dynamic group can name a filter per member through a variable: `$remote_as` (the AS the member announces in its OPEN), `$local_as` or `$remote_ip`. With `import { filters [ ALLOW-$remote_as ]; final accept; }`, a member that announces AS 65010 runs the filter `ALLOW-65010`. The name is judged twice:
+
+- When the configuration loads, every variable must be one of the three, and at least one filter under `policy` must match the pattern. Otherwise the configuration is refused. A static peer naming a variable is refused too, because only a dynamic group resolves one.
+- When a member establishes, and again when a reload changes its group's chain, the resolved name is judged as a static peer's chain is at load. A member whose resolved name no filter has, or names a filter the attachment refuses, rejects every route in that direction. Ze logs an error naming the member and the reason, and the next reload that defines the filter brings the member back to normal filtering.
+<!-- source: internal/component/bgp/config/templated_chain.go -- checkTemplatedMember, templatedChain.CompileResolved -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- resolveDynamicPolicy -->
+
 A dynamic group is held to the same rules as a static peer. A family with no prefix maximum is refused (RFC 4486). A hold time RFC 4271 Section 4.2 refuses is refused here too.
 
 The group opens its own listening socket on `connection/local/ip` and the group's listen port. A configuration that names no static peer is enough to accept members. When a static peer and a dynamic group share one socket, Ze attributes each connection by remote address, so a static peer inside the group's range keeps its own session and its own settings.

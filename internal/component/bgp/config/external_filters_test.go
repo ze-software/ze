@@ -76,17 +76,17 @@ func TestCheckChainExternalDeclaration(t *testing.T) {
 
 	t.Run("declared before load", func(t *testing.T) {
 		declareRuntime(t, "ext", filters)
-		err := validateChainNames(reg, []policy.Ref{{Name: "ext:reads-tag"}}, "bgp export", ctx)
+		err := validateChainNames(reg, []policy.Ref{{Name: "ext:reads-tag"}}, false, "bgp export", ctx)
 		requireRefusal(t, err, ctx, "ext:reads-tag", "tag", "bgp export")
-		err = validateChainNames(reg, []policy.Ref{{Name: "ext:sets-prefix"}}, "bgp export", ctx)
+		err = validateChainNames(reg, []policy.Ref{{Name: "ext:sets-prefix"}}, false, "bgp export", ctx)
 		requireRefusal(t, err, "ext:sets-prefix", "sets prefix", "bgp export")
-		if err := validateChainNames(reg, []policy.Ref{{Name: "ext:fits"}}, "bgp export", ctx); err != nil {
+		if err := validateChainNames(reg, []policy.Ref{{Name: "ext:fits"}}, false, "bgp export", ctx); err != nil {
 			t.Fatalf("a filter whose declaration fits bgp export was refused: %v", err)
 		}
 	})
 
 	t.Run("declared after load", func(t *testing.T) {
-		if err := validateChainNames(reg, []policy.Ref{{Name: "late:reads-tag"}}, "bgp export", ctx); err != nil {
+		if err := validateChainNames(reg, []policy.Ref{{Name: "late:reads-tag"}}, false, "bgp export", ctx); err != nil {
 			t.Fatalf("a reference to a plugin that has not declared must wait for Stage 1, got %v", err)
 		}
 		declared, err := registry.CompileFilterDeclarations("late", filters)
@@ -116,13 +116,13 @@ func TestCheckChainExternalNamePattern(t *testing.T) {
 		{Name: "status", Direction: rpc.FilterImport, Reads: []string{"prefix"}},
 	})
 
-	err := validateChainNames(reg, []policy.Ref{{Name: "irr:65001"}}, "bgp import", ctx)
+	err := validateChainNames(reg, []policy.Ref{{Name: "irr:65001"}}, false, "bgp import", ctx)
 	requireRefusal(t, err, "irr:65001", "tag", "bgp import")
 
-	err = validateChainNames(reg, []policy.Ref{{Name: "irr:as-set"}}, "bgp import", ctx)
+	err = validateChainNames(reg, []policy.Ref{{Name: "irr:as-set"}}, false, "bgp import", ctx)
 	requireRefusal(t, err, ctx, "irr:as-set", `plugin "irr"`, "pattern [0-9]+", "status")
 
-	if err := validateChainNames(reg, []policy.Ref{{Name: "irr:status"}}, "bgp import", ctx); err != nil {
+	if err := validateChainNames(reg, []policy.Ref{{Name: "irr:status"}}, false, "bgp import", ctx); err != nil {
 		t.Fatalf("an exactly declared name that fits was refused: %v", err)
 	}
 }

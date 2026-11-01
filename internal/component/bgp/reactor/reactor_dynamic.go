@@ -561,7 +561,8 @@ func (r *Reactor) installDynamicGroupsLocked(groups []*DynamicGroupConfig) {
 }
 
 // resolveDynamicPeerSettings sets PeerAS from the OPEN message and resolves
-// config variables ($remote_as, $remote_ip) in the filter chains. Called in the
+// config variables ($remote_as, $remote_ip) in the filter chains, compiling a
+// chain whose member a variable named (resolveDynamicPolicy). Called in the
 // Established callback before sendInitialRoutes. Idempotent: it resolves from
 // the unresolved template pair (dynImportPolicy, dynExportPolicy) that NewPeer
 // captured and a reload's dynamic swap replaces.
@@ -599,8 +600,8 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 	// operator issues during one establishment.
 	for {
 		read := p.readDynamicTemplate()
-		newImport := read.importTemplate.WithBoundFilters(resolveFilterVars(read.importTemplate.Filters(), localAS, remoteAS, remoteIP), read.importTemplate.Bindings())
-		newExport := read.exportTemplate.WithBoundFilters(resolveFilterVars(read.exportTemplate.Filters(), localAS, remoteAS, remoteIP), read.exportTemplate.Bindings())
+		newImport := resolveDynamicPolicy(read.importTemplate, localAS, remoteAS, remoteIP, "import")
+		newExport := resolveDynamicPolicy(read.exportTemplate, localAS, remoteAS, remoteIP, "export")
 		if p.publishDynamicResolution(read, remoteAS, newImport, newExport) {
 			break
 		}
@@ -666,7 +667,8 @@ func (p *Peer) publishDynamicResolution(read dynamicTemplateRead, remoteAS uint3
 // unresolved chains. A peer that has not learned its AS keeps them unresolved,
 // the state createDynamicPeer leaves, and its establishment resolves them from
 // the new pair. This runs on the reload goroutine, not a hot path, so the
-// allocation under p.mu is accepted.
+// allocation and the per-peer chain compile (resolveDynamicPolicy) under p.mu
+// are accepted.
 //
 // The caller MUST hold p.mu for writing, and MUST have run the copier onto
 // p.settings first.
@@ -680,8 +682,26 @@ func (p *Peer) writeDynamicTemplateLocked(next *PeerSettings) {
 	}
 	localAS := p.settings.LocalAS
 	remoteIP := p.settings.Address.String()
-	p.settings.ImportPolicy = next.ImportPolicy.WithBoundFilters(resolveFilterVars(next.ImportPolicy.Filters(), localAS, remoteAS, remoteIP), next.ImportPolicy.Bindings())
-	p.settings.ExportPolicy = next.ExportPolicy.WithBoundFilters(resolveFilterVars(next.ExportPolicy.Filters(), localAS, remoteAS, remoteIP), next.ExportPolicy.Bindings())
+	p.settings.ImportPolicy = resolveDynamicPolicy(next.ImportPolicy, localAS, remoteAS, remoteIP, "import")
+	p.settings.ExportPolicy = resolveDynamicPolicy(next.ExportPolicy, localAS, remoteAS, remoteIP, "export")
+}
+
+// resolveDynamicPolicy answers a dynamic peer's chain from its group's
+// template: the variables in its refs resolved (resolveFilterVars), then,
+// when a member named its instance through a variable, judged and compiled
+// over the resolved refs (Policy.CompileResolved), since only now is the
+// instance known. A resolved name the config does not define answers the
+// fail-closed policy CompileResolved returns, logged with the peer: the peer
+// rejects every route in that direction until a reload defines the name, as
+// a plugin filter answering an unknown name rejected it.
+func resolveDynamicPolicy(template filterapi.Policy, localAS, remoteAS uint32, remoteIP, direction string) filterapi.Policy {
+	resolved := template.WithBoundFilters(resolveFilterVars(template.Filters(), localAS, remoteAS, remoteIP), template.Bindings())
+	compiled, err := resolved.CompileResolved()
+	if err != nil {
+		reactorLogger().Error("dynamic peer filter chain names no usable filter; rejecting every route",
+			"peer", remoteIP, "direction", direction, "error", err)
+	}
+	return compiled
 }
 
 // scheduleDynamicPeerCleanup starts a timer that removes a dynamic peer after

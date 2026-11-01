@@ -1629,7 +1629,14 @@ later member reads; a text delta and NLRI sets that both rewrite the NLRI are re
   admits a type with an evaluator (`policychain.HasEvaluator`) at `bgp import`
   and `bgp export`. After the refs are canonical, `compileLibraryChains`
   compiles each peer's and dynamic template's library members and records the
-  chain on the policy (`filterapi.Policy.WithLibrary`).
+  chain on the policy (`filterapi.Policy.WithLibrary`). A dynamic template
+  whose member names its filter through a variable (`ALLOW-$remote_as`)
+  compiles no library at load: it is marked templated
+  (`filterapi.Policy.WithTemplated`), and each member's chain is judged and
+  compiled from its resolved names when it establishes or a reload swaps its
+  template (`reactor` `resolveDynamicPolicy`, `filterapi.Policy.CompileResolved`).
+  A resolved name the config does not define fails closed: the member's library
+  rejects every route in that direction.
   `runIngressPolicyChain` and `runEgressPolicyChainASN4` then run it in
   process, with no API server, through `runLibraryChain`, which takes its view
   and sets from a pool and Clears the view before it returns. A reject keeps

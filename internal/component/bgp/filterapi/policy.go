@@ -19,12 +19,33 @@ import (
 // library is the compiled chain of the policy's library members, the filters
 // that evaluate in process over the BGP route view (WithLibrary). It is nil
 // when the chain names none.
+//
+// templated is set on a dynamic group's template whose chain names a member
+// through a config variable ($remote_as, $local_as, $remote_ip): such a
+// template has no library, because the instance a member names is known only
+// once a peer's OPEN resolves the variable. CompileResolved compiles it then.
 // Safe for concurrent use: callers MUST NOT mutate borrowed refs or bindings.
 type Policy struct {
 	chain           policy.Chain
 	inProcess       []bool
 	requiresIngress bool
 	library         LibraryChain
+	templated       TemplatedChain
+}
+
+// TemplatedChain judges and compiles, for one dynamic peer, the chain of a
+// template whose members name instances through config variables, once the
+// peer resolved them. bgp/config implements it (it holds the policy registry
+// and the attribute bases the reactor does not import). An implementation is
+// a comparable value: a reload compares templates with reflect.DeepEqual, so
+// it MUST hold no func, and two built from the same config MUST be equal.
+type TemplatedChain interface {
+	// CompileResolved answers resolved, the template with its variables
+	// replaced, judged as a static peer's chain is at load and compiled. A
+	// resolved name that no instance matches, or that the attachment refuses,
+	// answers an error AND a policy whose chain rejects every route (fail
+	// closed); the caller MUST install that policy, never the unresolved one.
+	CompileResolved(resolved Policy) (Policy, error)
 }
 
 // LibraryChain is a policy's compiled in-process chain over the BGP route
@@ -91,6 +112,33 @@ func (p Policy) ActiveExternal(i int) bool {
 	return !p.chain.Refs()[i].Inactive && !p.InProcess(i)
 }
 
+// WithTemplated records that the policy is a template whose chain is
+// compiled per dynamic peer by templated (Policy.CompileResolved). The caller
+// MUST NOT also record a library: the template's names are not instances.
+func (p Policy) WithTemplated(templated TemplatedChain) Policy {
+	p.templated = templated
+	return p
+}
+
+// Templated reports whether the policy is a template that CompileResolved
+// still has to compile for a dynamic peer.
+func (p Policy) Templated() bool { return p.templated != nil }
+
+// CompileResolved answers p, whose variables the caller already resolved
+// (WithBoundFilters over the resolved refs), compiled by the template's
+// TemplatedChain; p unchanged when the template named no member through a
+// variable, since its library already names the same instances. On error the
+// returned policy fails closed and the caller MUST install it
+// (TemplatedChain.CompileResolved). The answer is never templated again.
+func (p Policy) CompileResolved() (Policy, error) {
+	if p.templated == nil {
+		return p, nil
+	}
+	templated := p.templated
+	p.templated = nil
+	return templated.CompileResolved(p)
+}
+
 // Library answers the compiled library chain, nil when the policy has none.
 func (p Policy) Library() LibraryChain { return p.library }
 
@@ -110,7 +158,10 @@ func (p Policy) RequiresIngress() bool { return p.requiresIngress }
 // Every replacement ref is unbound: a caller that keeps stage ownership across
 // the replacement uses WithBoundFilters. The library chain is kept: a library
 // member is a policy instance name, which variable resolution
-// (resolveFilterVars) and canonicalization leave naming the same member.
+// (resolveFilterVars) and canonicalization leave naming the same member. A
+// chain naming a member through a variable has no library to keep: it is
+// compiled after resolution (CompileResolved), and the templated mark is kept
+// for that.
 // The caller MUST keep filters immutable for the lifetime of every derived policy.
 func (p Policy) WithFilters(filters []policy.Ref) Policy {
 	p.chain = p.chain.WithRefs(filters)
