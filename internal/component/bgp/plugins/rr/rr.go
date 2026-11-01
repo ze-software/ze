@@ -95,7 +95,10 @@ type peerState struct {
 // The reactor handles RFC 4456 forwarding rules, ORIGINATOR_ID injection,
 // CLUSTER_LIST prepend, and next-hop rewriting.
 type routeReflector struct {
-	plugin   *sdk.Plugin
+	plugin *sdk.Plugin
+	// retained holds bgp-gr's retention verdict per peer, recorded from the
+	// bgp-gr/retention event and taken by handleStateDown for that peer.
+	retained retention.Ledger
 	peers    map[string]*peerState
 	mu       sync.RWMutex
 	buf      textbuf.Buffer
@@ -144,16 +147,14 @@ func runRouteReflector(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-rr", conn)
 	defer func() { _ = p.Close() }()
 
-	// handleStateDown asks retention.Family whether bgp-gr retains a departed
-	// source's family. That is a same-process call: bgp-gr publishes its
-	// answer into the daemon's memory, so a forked bgp-rr finds no owner and
-	// reads every family as not retained. It would then send the departure
-	// recovery for routes RFC 4724 Section 4.2 requires kept, with no error
-	// and no log line. Refuse to start rather than answer wrong.
+	// bgp-rr runs internal only until the stage-filters spec's phase 7 lifts
+	// this refusal with its forked tests. Retention no longer needs it: the
+	// verdict arrives as the bgp-gr/retention event, which crosses the
+	// process split (rr.retained).
 	if !p.IsInternal() {
 		logger().Error("bgp-rr: refusing to start as an external plugin process -- " +
-			"the graceful-restart retention decision (retention.Family) is a same-process call, " +
-			"so a forked route reflector would withdraw routes a restarting peer's neighbors must keep; " +
+			"the graceful-restart retention decision is not yet proven on a forked route reflector, " +
+			"which could withdraw routes a restarting peer's neighbors must keep; " +
 			"configure it as plugin { internal <name> { use bgp-rr } }")
 		return 1
 	}
@@ -250,6 +251,10 @@ func serveRouteReflector(p *sdk.Plugin) int {
 	}, nil, "")
 
 	p.SetEncoding("text")
+	// bgp-gr's per-DOWN retention verdict, enveloped so dispatchText tells it
+	// from the BGP text events. RFC 4724 Section 4.2 (handleStateDown).
+	p.AddStartupSubscriptionsIn(retention.Namespace, []string{retention.EventType})
+	p.SetEnvelope(true)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -413,6 +418,9 @@ func (rr *routeReflector) handleStateDown(peerAddr string, generation uint64) {
 	delete(rr.withdrawals, peerAddr)
 	rr.dropSourcePolicyLocked(peerAddr)
 	rr.withdrawalMu.Unlock()
+	// Taken before any return: every DOWN consumes its verdict, so no later
+	// DOWN of this peer reads it.
+	retained := rr.retained.Take(peerAddr)
 
 	if len(entries) == 0 {
 		return
@@ -426,14 +434,9 @@ func (rr *routeReflector) handleStateDown(peerAddr string, generation uint64) {
 	// retained family's routes and their eventual purge, so a retained route
 	// MUST NOT reach the engine as a departure: the recovery would withdraw
 	// it from every destination during the restart window.
-	retained := make(map[family.Family]bool)
+	// RFC 4724 Section 4.2: the families bgp-gr's verdict for this DOWN retains.
 	for key, info := range entries {
-		keep, seen := retained[info.Family]
-		if !seen {
-			keep = retention.Family(peerAddr, info.Family)
-			retained[info.Family] = keep
-		}
-		if keep {
+		if retained[info.Family] {
 			delete(entries, key)
 			continue
 		}
@@ -653,6 +656,13 @@ func (rr *routeReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgp
 // dispatchText routes text-format events to handlers (fork-mode fallback).
 func (rr *routeReflector) dispatchText(text string) {
 	if rr.stopping.Load() {
+		return
+	}
+	// bgp-gr's verdict, delivered ahead of the DOWN it decides.
+	if envelope, ok := retention.Accepts(text); ok {
+		if err := rr.retained.Record(envelope); err != nil {
+			logger().Warn("bgp-rr: retention verdict refused", "err", err)
+		}
 		return
 	}
 

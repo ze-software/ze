@@ -22,8 +22,9 @@ import (
 // TestPeerDownRetainedFamilies checks the real DOWN handler's outgoing commands
 // and detached inventory. The hook observes updateRouteSel before its SDK call;
 // newTestRouteServer supplies a closed SDK connection, not a replacement sender.
-// Multiple routes and wire forms share families to require one synchronous
-// retention query per family, including negative decisions.
+// Multiple routes and wire forms share families, and bgp-gr's verdict reaches
+// bgp-rs as the bgp-gr/retention event through the same event handler the
+// DOWN arrives on, before it. The DOWN consumes the verdict.
 func TestPeerDownRetainedFamilies(t *testing.T) {
 	const source = "192.0.2.1"
 	const other = "192.0.2.2"
@@ -65,28 +66,20 @@ func TestPeerDownRetainedFamilies(t *testing.T) {
 			wantCommands: []string{v4Command, v6Command, opaqueCommand, opaquePathCommand},
 		},
 		{
-			name:         "no in-process provider preserves ordinary withdrawals",
+			name:         "no verdict preserves ordinary withdrawals",
 			wantEntries:  []withdrawalKey{v4a, v4b, v6, opaque, opaquePath},
 			wantCommands: []string{v4Command, v6Command, opaqueCommand, opaquePathCommand},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rs := newTestRouteServer(t)
-			queries := make(map[family.Family]int)
-			var queriedPeers []string
 			if tc.provider {
-				owner := retention.Publish(func(peer string, fam family.Family) bool {
-					queriedPeers = append(queriedPeers, peer)
-					queries[fam]++
-					return peer == tc.retainedPeer && fam == tc.retainedFam
-				})
-				t.Cleanup(owner.Close)
-			} else {
-				// Close the publication before DOWN to exercise an absent owner,
-				// rather than a provider that merely returns false.
-				owner := retention.Publish(nil)
-				owner.Close()
+				payload, err := retention.Encode(tc.retainedPeer, []family.Family{tc.retainedFam})
+				require.NoError(t, err)
+				rs.dispatchText(`{"namespace":"` + retention.Namespace + `","event":"` +
+					retention.EventType + `","payload":` + payload + `}`)
 			}
+			// With no provider no verdict is delivered: bgp-gr holds no state.
 
 			entries := map[withdrawalKey]withdrawalEntry{v4a: {}, v4b: {}, v6: {}, opaque: {}, opaquePath: {}}
 			otherEntries := map[withdrawalKey]withdrawalEntry{v4a: {}}
@@ -105,12 +98,7 @@ func TestPeerDownRetainedFamilies(t *testing.T) {
 
 			// These assertions run immediately, without awaiting the sender:
 			// retention belongs to the DOWN event, not its asynchronous RPCs.
-			if tc.provider {
-				require.Equal(t, map[family.Family]int{
-					family.IPv4Unicast: 1, family.IPv6Unicast: 1, linkState: 1,
-				}, queries)
-				require.Equal(t, []string{source, source, source}, queriedPeers)
-			}
+			require.Empty(t, rs.retained.Take(source), "the DOWN did not consume its verdict")
 			require.NotContains(t, rs.withdrawals, source)
 			require.Equal(t, otherEntries, rs.withdrawals[other])
 			require.False(t, rs.peers[source].Up)

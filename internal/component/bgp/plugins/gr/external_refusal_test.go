@@ -1,4 +1,4 @@
-// Design: docs/guide/graceful-restart.md -- the retention decision is a same-process call.
+// Design: docs/guide/graceful-restart.md -- the forked refusal kept until its forked tests land.
 package gr
 
 import (
@@ -8,10 +8,10 @@ import (
 )
 
 // VALIDATES: bgp-gr refuses to start when its engine runs as a forked process.
-// runGRPlugin publishes the retention answer (retention.Publish) and the LLGR
-// egress state (setEgressState) into its own process's memory. Forked, the
-// daemon's bgp-rr and bgp-rs read every family as not retained and withdraw
-// routes RFC 4724 Section 4.2 requires kept.
+// runGRPlugin stores the LLGR egress state (setEgressState) into its own
+// process's memory. Forked, the daemon reads every neighbor as LLGR-incapable.
+// The retention verdict travels as the bgp-gr/retention event and is not a
+// reason for the refusal.
 // PREVENTS: an operator running bgp-gr with `run` getting a daemon whose route
 // reflector or route server withdraws a restarting peer's routes from every
 // other peer, with no error.

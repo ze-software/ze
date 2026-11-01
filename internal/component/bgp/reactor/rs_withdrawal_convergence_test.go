@@ -258,6 +258,21 @@ func purgeRIBCommand(t *testing.T, r *Reactor, command string, args ...string) {
 	}
 }
 
+// emitRetentionVerdict emits the bgp-gr/retention verdict bgp-gr emits on a
+// DOWN of peer retaining families, ahead of that DOWN, and requires a
+// forwarding owner to be subscribed to it.
+func emitRetentionVerdict(t *testing.T, r *Reactor, peer string, families ...string) {
+	t.Helper()
+	delivered, err := r.api.Emit(retention.Namespace, retention.EventType,
+		&retention.Verdict{PeerAddress: peer, Families: families})
+	if err != nil {
+		t.Fatalf("emit %s/%s: %v", retention.Namespace, retention.EventType, err)
+	}
+	if delivered == 0 {
+		t.Fatalf("no process is subscribed to %s/%s", retention.Namespace, retention.EventType)
+	}
+}
+
 // grRetainedPeers asks bgp-rib to retain source's IPv4 unicast routes for
 // graceful restart and answers the retained-peers count bgp-rib reports.
 func grRetainedPeers(t *testing.T, r *Reactor, source string) int {
@@ -1696,12 +1711,10 @@ func grPurgeRecovers(t *testing.T, how grPurge, withB bool) {
 	lowEventually(t, func() bool {
 		return grRetainedPeers(t, r, source) == 1
 	}, "bgp-rib retaining "+source+"'s routes")
-	// bgp-gr publishes which families it retains; bgp-rs asks it at
-	// departure and leaves a retained family to bgp-rib's purge.
-	retained := retention.Publish(func(peer string, fam family.Family) bool {
-		return peer == source && fam == family.IPv4Unicast
-	})
-	t.Cleanup(retained.Close)
+	// bgp-gr's verdict, as the bgp-gr/retention event it emits on the DOWN:
+	// bgp-rs decides the departure from it and leaves a retained family to
+	// bgp-rib's purge.
+	emitRetentionVerdict(t, r, source, "ipv4/unicast")
 	_ = a.remote.Close() //nolint:errcheck // A departure: the session ends with no NOTIFICATION.
 	lowEventually(t, func() bool { return a.peer.SessionState() != fsm.StateEstablished }, "A's session ended")
 	restart := "0"

@@ -1013,6 +1013,20 @@ func (p *Plugin) SetStartupSubscriptionsIn(namespace string, events, peers []str
 	}
 }
 
+// AddStartupSubscriptionsIn adds a startup subscription in a further namespace,
+// beside the one SetStartupSubscriptions[In] sets. The engine registers it in
+// the same ready RPC, so the plugin hears these events from its first event
+// onward, as it hears the main block's. Format, encoding and envelope stay the
+// main block's: they are per process. Must be called before Run().
+func (p *Plugin) AddStartupSubscriptionsIn(namespace string, events []string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.startupSubscriptionsMore = append(p.startupSubscriptionsMore, &rpc.SubscribeEventsInput{
+		Namespace: namespace,
+		Events:    events,
+	})
+}
+
 // SetEnvelope opts this plugin into enveloped event delivery: each delivered
 // event string becomes an rpc.EventEnvelope ({namespace, event, payload}) so a
 // plugin subscribed to several event types can discriminate which one arrived

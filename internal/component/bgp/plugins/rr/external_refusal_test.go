@@ -1,4 +1,4 @@
-// Design: docs/guide/graceful-restart.md -- the retention decision is a same-process call.
+// Design: docs/guide/graceful-restart.md -- the forked refusal kept until its forked tests land.
 package rr
 
 import (
@@ -8,9 +8,9 @@ import (
 )
 
 // VALIDATES: bgp-rr refuses to start when its engine runs as a forked process.
-// handleStateDown asks retention.Family, a same-process call that a forked
-// route reflector answers with "not retained" for every family, so it would withdraw
-// routes RFC 4724 Section 4.2 requires kept.
+// The refusal stands until a forked route reflector is proven to keep the routes
+// RFC 4724 Section 4.2 requires kept; the verdict itself now arrives as the
+// bgp-gr/retention event, which crosses the process split.
 // PREVENTS: an operator running bgp-rr with `run` getting a route reflector that
 // withdraws a restarting peer's routes from every other peer.
 //

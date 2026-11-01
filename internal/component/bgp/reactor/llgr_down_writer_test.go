@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"slices"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -43,6 +45,18 @@ func TestLLGRActualDownKeepsWriterOwner(t *testing.T) {
 					peer.peer.reactor.notifyPeerClosed(peer.peer, closeWithReason(rpc.ReasonPeerRemoved))
 				}
 			})
+			// bgp-gr's verdict on the DOWN, as bgp-rr and bgp-rs receive it.
+			var verdict atomic.Pointer[retention.Verdict]
+			stopVerdicts := source.peer.reactor.api.Subscribe(retention.Namespace, retention.EventType, func(payload any) {
+				if v, ok := payload.(*retention.Verdict); ok && v.PeerAddress == source.peer.addrString {
+					verdict.Store(v)
+				}
+			})
+			t.Cleanup(stopVerdicts)
+			retainsUnicast := func() bool {
+				v := verdict.Load()
+				return v != nil && slices.Contains(v.Families, family.IPv4Unicast.String())
+			}
 			raw := []byte{24, 10, 0, 3}
 			source.send(t, message.PackTo(&message.Update{
 				PathAttributes: []byte{
@@ -71,8 +85,8 @@ func TestLLGRActualDownKeepsWriterOwner(t *testing.T) {
 			// ordered GR/RS/RIB DOWN delivery and GR's own restart timer.
 			require.NoError(t, source.remote.Close())
 			lowEventually(t, func() bool {
-				return source.peer.State() != PeerStateEstablished && retention.Family(source.peer.addrString, family.IPv4Unicast)
-			}, "authoritative GR retention after actual TCP DOWN")
+				return source.peer.State() != PeerStateEstablished && retainsUnicast()
+			}, "bgp-gr's retention verdict after actual TCP DOWN")
 			lowEventually(t, func() bool {
 				_, stale, withdrawn := llgrDownWire(t, receiver, raw)
 				require.Zero(t, withdrawn, "a later stale announcement cannot excuse a transient withdrawal")
@@ -81,7 +95,7 @@ func TestLLGRActualDownKeepsWriterOwner(t *testing.T) {
 			rows := llgrWriterRoutes(t, rib, "received", source.peer.addrString)
 			require.Len(t, rows, 1)
 			require.Equal(t, uint8(2), rows[0].StaleLevel)
-			require.True(t, retention.Family(source.peer.addrString, family.IPv4Unicast))
+			require.True(t, retainsUnicast(), "the DOWN's retention verdict stands through LLGR entry")
 			require.Equal(t, receipt, llgrWriterReceipt(t, writer, raw, 0, source.peer),
 				"LLGR resend preserves the actual Session owner's receipt")
 			require.Equal(t, PeerStateEstablished, receiver.peer.State())

@@ -67,10 +67,11 @@ func TestStateDependencyOrderUsesImplementationIdentity(t *testing.T) {
 
 // TestStateDownReachesGRBeforeForwarders proves the order a DOWN is delivered
 // in: bgp-gr, which records whether it retains each family of the departed
-// peer, before bgp-rr and bgp-rs, which ask that question (retention.Family)
-// from their own DOWN handler to decide which routes to withdraw. Delivery is
-// sequential and waits for each plugin's acknowledgement (deliverPeerState),
-// so this order is what makes the decision exist when the forwarder asks.
+// peer and emits that verdict as the bgp-gr/retention event, before bgp-rr and
+// bgp-rs, which decide from it in their own DOWN handler which routes to
+// withdraw. Delivery is sequential and waits for each plugin's acknowledgement
+// (deliverPeerState), so this order is what queues the verdict ahead of the
+// forwarder's DOWN.
 // RFC 4724 Section 4.2: the receiving speaker "MUST retain the routes received
 // from the peer for all the address families that were previously received in
 // the Graceful Restart Capability".

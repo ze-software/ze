@@ -293,26 +293,57 @@ func (p *Process) sendBatch(batch []EventDelivery, events []string, timeout time
 	return p.deliverViaConn(events, timeout)
 }
 
-// deliverMixedBatch handles batches with both structured and text events.
+// deliverMixedBatch handles batches with both structured and text events. It
+// delivers them in batch order, one run of consecutive same-kind items per
+// bridge call: the FIFO of the process's one event channel is what orders a
+// bus event a plugin emitted inside its state handler (a text item, such as
+// bgp-gr/retention) ahead of the state event the engine delivers next (a
+// structured item), and gathering each kind into one call would reverse them.
 func (p *Process) deliverMixedBatch(batch []EventDelivery) error {
 	var structuredBuf []any
 	var textBuf []string
 	for _, req := range batch {
 		if req.Event != nil {
+			if err := p.flushTextRun(&textBuf); err != nil {
+				return err
+			}
 			structuredBuf = append(structuredBuf, req.Event)
-		} else if req.Output != "" {
-			textBuf = append(textBuf, req.Output)
+			continue
 		}
-	}
-	if len(structuredBuf) > 0 {
-		if err := safeBridgeCall(func() error { return p.bridge.DeliverStructured(structuredBuf) }); err != nil {
+		if req.Output == "" {
+			continue
+		}
+		if err := p.flushStructuredRun(&structuredBuf); err != nil {
 			return err
 		}
+		textBuf = append(textBuf, req.Output)
 	}
-	if len(textBuf) > 0 {
-		return safeBridgeCall(func() error { return p.bridge.DeliverEvents(textBuf) })
+	if err := p.flushStructuredRun(&structuredBuf); err != nil {
+		return err
 	}
-	return nil
+	return p.flushTextRun(&textBuf)
+}
+
+// flushStructuredRun hands deliverMixedBatch's pending structured run to the
+// bridge and empties it. An empty run costs no call.
+func (p *Process) flushStructuredRun(run *[]any) error {
+	if len(*run) == 0 {
+		return nil
+	}
+	events := *run
+	*run = nil
+	return safeBridgeCall(func() error { return p.bridge.DeliverStructured(events) })
+}
+
+// flushTextRun hands deliverMixedBatch's pending text run to the bridge and
+// empties it. An empty run costs no call.
+func (p *Process) flushTextRun(run *[]string) error {
+	if len(*run) == 0 {
+		return nil
+	}
+	events := *run
+	*run = nil
+	return safeBridgeCall(func() error { return p.bridge.DeliverEvents(events) })
 }
 
 // deliverViaConn sends events through the socket connection.

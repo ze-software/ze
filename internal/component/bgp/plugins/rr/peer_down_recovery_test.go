@@ -6,7 +6,6 @@ package rr
 import (
 	"context"
 	"encoding/hex"
-	"maps"
 	"net"
 	"slices"
 	"testing"
@@ -123,11 +122,11 @@ func TestPeerDownIsSourceOwnedRecovery(t *testing.T) {
 
 // TestPeerDownSkipsRetainedFamilies takes down an ADD-PATH source holding two
 // unicast paths and two VPNv4 paths while an in-process bgp-gr owner retains
-// one of the two families for that source.
+// one of the two families for that source, as bgp-gr's bgp-gr/retention
+// event delivered ahead of the DOWN says.
 //
 // VALIDATES: the retained family's routes reach the engine as no departure at
-// all, the other family's routes still do, retention is asked once per family
-// and synchronously inside handleStateDown, and a retention decision for a
+// all, the other family's routes still do, and a retention verdict for a
 // different peer suppresses nothing.
 // PREVENTS: a GR or LLGR source's routes withdrawn from every destination at
 // the DOWN, during the restart window. RFC 4724 Section 4.2: "it MUST
@@ -156,28 +155,15 @@ func TestPeerDownSkipsRetainedFamilies(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			queries := make(map[family.Family]int)
-			owner := retention.Publish(func(peer string, fam family.Family) bool {
-				if peer != source {
-					t.Errorf("retention asked about peer %s, want %s", peer, source)
-				}
-				queries[fam]++
-				return peer == tt.retainedPeer && fam == tt.retainedFam
-			})
-			t.Cleanup(owner.Close)
-
 			rr, requests := newPeerDownReflector(t)
+			// bgp-gr's verdict reaches bgp-rr as the bgp-gr/retention event,
+			// through the same event handler the DOWN arrives on, before it.
+			rr.dispatchText(retentionEvent(t, tt.retainedPeer, tt.retainedFam))
 			origin := []byte{0x40, 1, 1, 0}
 			rr.updateWithdrawalMapWire(source, rrAddPathUpdate(t, nil, origin, append(append([]byte{}, path11...), path12...)))
 			rrApplyVPN(t, rr, vpn.IPv4VPN, true, 14, append(append([]byte{}, vpn11...), vpn12...))
 			rr.handleStateDown(source, 7)
 
-			// Read before the departure worker is stopped: retention belongs
-			// to the DOWN event, not to its asynchronous requests.
-			want := map[family.Family]int{family.IPv4Unicast: 1, vpn.IPv4VPN: 1}
-			if !maps.Equal(queries, want) {
-				t.Fatalf("retention queries = %v, want one per family %v", queries, want)
-			}
 			rr.stopDepartures()
 			close(requests)
 			var got []string
@@ -194,5 +180,50 @@ func TestPeerDownSkipsRetainedFamilies(t *testing.T) {
 				t.Fatalf("peer-down commands = %q, want %q", got, wantCommands)
 			}
 		})
+	}
+}
+
+// retentionEvent renders bgp-gr's verdict retaining fam for peer as the
+// enveloped bgp-gr/retention event bgp-rr's event handler receives.
+func retentionEvent(t *testing.T, peer string, fams ...family.Family) string {
+	t.Helper()
+	payload, err := retention.Encode(peer, fams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return `{"namespace":"` + retention.Namespace + `","event":"` + retention.EventType + `","payload":` + payload + `}`
+}
+
+// TestRetentionVerdictConsumedPerDown proves bgp-rr decides each DOWN from the
+// verdict bgp-gr emitted for that DOWN and clears it: a second DOWN with no
+// new verdict retains nothing, and a verdict recorded for one peer survives
+// another peer's DOWN.
+// PREVENTS: R-10, a stale verdict from an earlier DOWN kept at a later one,
+// which would keep routes RFC 4724 Section 4.2 no longer covers.
+func TestRetentionVerdictConsumedPerDown(t *testing.T) {
+	const source = "192.0.2.1"
+	const other = "192.0.2.2"
+	path11 := []byte{0, 0, 0, 11, 8, 10}
+	unicastCommand := "update hex nlri ipv4/unicast addpath del " + hex.EncodeToString(path11)
+	origin := []byte{0x40, 1, 1, 0}
+
+	rr, requests := newPeerDownReflector(t)
+	rr.dispatchText(retentionEvent(t, source, family.IPv4Unicast))
+	rr.dispatchText(retentionEvent(t, other, family.IPv4Unicast))
+	rr.updateWithdrawalMapWire(source, rrAddPathUpdate(t, nil, origin, path11))
+	rr.handleStateDown(source, 7)
+	rr.updateWithdrawalMapWire(source, rrAddPathUpdate(t, nil, origin, path11))
+	rr.handleStateDown(source, 8)
+	if retained := rr.retained.Take(other); !retained[family.IPv4Unicast] {
+		t.Fatal("another peer's DOWN consumed this peer's verdict")
+	}
+	rr.stopDepartures()
+	close(requests)
+	var got []string
+	for request := range requests {
+		got = append(got, request.command)
+	}
+	if !slices.Equal(got, []string{unicastCommand}) {
+		t.Fatalf("peer-down commands = %q, want only the second DOWN's %q", got, unicastCommand)
 	}
 }

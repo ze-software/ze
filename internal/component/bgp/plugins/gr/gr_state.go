@@ -7,6 +7,8 @@
 package gr
 
 import (
+	"cmp"
+	"slices"
 	"sync"
 	"time"
 
@@ -98,13 +100,34 @@ func newGRStateManager(onExpired func(peerAddr string)) *grStateManager {
 	}
 }
 
-// familyRetained answers the forwarding owner's query using the authoritative
-// GR/LLGR family set. Safe for concurrent use; callers MUST NOT hold m.mu.
+// familyRetained answers whether one family of peerAddr is retained, from the
+// authoritative GR/LLGR family set retainedFamilies also reads. Safe for
+// concurrent use; callers MUST NOT hold m.mu.
 func (m *grStateManager) familyRetained(peerAddr string, fam family.Family) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	state := m.peers[peerAddr]
 	return state != nil && state.staleFamilies[fam]
+}
+
+// retainedFamilies answers the families whose routes are retained for
+// peerAddr now, sorted so a verdict renders the same for the same state. No
+// peer state answers none: the peer is in neither GR nor LLGR.
+func (m *grStateManager) retainedFamilies(peerAddr string) []family.Family {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state := m.peers[peerAddr]
+	if state == nil {
+		return nil
+	}
+	retained := make([]family.Family, 0, len(state.staleFamilies))
+	for fam, stale := range state.staleFamilies {
+		if stale {
+			retained = append(retained, fam)
+		}
+	}
+	slices.SortFunc(retained, func(a, b family.Family) int { return cmp.Compare(a.String(), b.String()) })
+	return retained
 }
 
 // peerActive returns true if the peer is in GR or LLGR.

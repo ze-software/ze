@@ -212,13 +212,13 @@ process, and the engine refuses to start that way: the refusal is logged as
 `bgp-gr: refusing to start as an external plugin process` and the daemon does
 not start. An internal `bgp-gr` beside the forked one does not change this.
 
-The engine writes two answers the daemon reads. The RFC 9494 egress filter runs
-in the daemon and reads the peer capability state the engine records, and
-`bgp-rr` and `bgp-rs` ask the engine which families of a departed peer it
-retains (described below). From a child process neither answer reaches the
+The RFC 9494 egress filter runs in the daemon and reads the peer capability
+state the engine records. From a child process that state never reaches the
 daemon, so the filter would treat every neighbor as one from which the LLGR
-Capability was never received, and the reflector or route server would withdraw routes RFC 4724
-Section 4.2 requires kept.
+Capability was never received. The families the engine retains for a departed
+peer are not part of the reason: `bgp-rr` and `bgp-rs` receive them as the
+`bgp-gr/retention` event (described below), which reaches them from a child
+process too.
 
 `ze doctor` reports the arrangement from the config, before the daemon starts,
 as `doctor-bgp-gr-out-of-process`. Run
@@ -244,25 +244,36 @@ holds back only its own worker. One source's departures are sent one at a
 time, and a source that goes down again before its waiting departure was sent
 is merged into it. At shutdown each plugin cancels its outstanding departure
 requests, then stops the workers once they have handled every queued
-departure; a plugin that never queued a departure has no workers to stop. `bgp-gr` orders itself against both owners so
-its retention decision for a DOWN is delivered before either handler asks:
-`bgp-rs` is an optional dependency of `bgp-gr`, and `bgp-rr` is named in its
-`StartAfter` (order only, since a GR configuration does not load the
-reflector). When the Restart Time expires without a reconnect, the retained
+departure; a plugin that never queued a departure has no workers to stop.
+
+`bgp-gr` tells both owners its decision on the bus. On every DOWN it handles,
+it emits a `bgp-gr/retention` event before its DOWN handler returns, carrying
+the departed peer's address and the families it retains (`<afi>/<safi>`), an
+empty list after a NOTIFICATION close, for a peer with no GR capability, or for
+a removed peer. The engine delivers a DOWN to one plugin at a time, in reverse
+dependency order, and waits for each plugin's handler to return, so `bgp-gr`'s
+event is queued to both owners before their DOWN. Each process receives its
+events in the order they were queued. `bgp-rs` is an optional dependency of
+`bgp-gr`, and `bgp-rr` is named in its `StartAfter` (order only, since a GR
+configuration does not load the reflector). Each owner subscribes to the event
+at startup, records the latest verdict for each peer, and takes it when it
+handles that peer's DOWN, so a later DOWN never reads an earlier one; a DOWN
+with no verdict retains nothing, because `bgp-gr` holds no state for that peer.
+A verdict that names an unknown family is refused and logged. When the Restart
+Time expires without a reconnect, the retained
 routes are deleted and the reflector's other peers are sent their withdrawal,
-under the Path Identifier each was sent. The query reads GR's existing family
-state; it does not keep a second route inventory. The query is a same-process
-call, so it answers only where `bgp-gr` runs in the same process as the asker.
-`bgp-rr` and `bgp-rs` therefore refuse to start as a child process (`run "ze
-plugin bgp-rr"`): no `bgp-gr` there ever publishes an answer, every family would
-read as not retained, and the restarting peer's routes would be withdrawn from
-every other peer. The refusal is logged as `refusing to start as an external
-plugin process` and the daemon does not start. A child-process `bgp-gr` cannot
-publish into the daemon either, so it refuses to start the same way (see
+under the Path Identifier each was sent. The verdict comes from GR's existing
+family state; no second route inventory is kept. The event crosses a process
+boundary, but `bgp-rr`, `bgp-rs` and `bgp-gr` still refuse to start as a child
+process (`run "ze plugin bgp-rr"`) until their forked runs are proven: the
+refusal is logged as `refusing to start as an external plugin process` and the
+daemon does not start (see
 [Keep the bgp-gr engine in the daemon process](#keep-the-bgp-gr-engine-in-the-daemon-process)).
 Use internal `bgp-gr`, `bgp-rib`, and `bgp-rs` or `bgp-rr` for the coordinated
 lifecycle described here.
-<!-- source: internal/component/bgp/retention/retention.go -- Publish, Family -->
+<!-- source: internal/component/bgp/retention/retention.go -- Event, Verdict, Ledger -->
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- emitRetention -->
+<!-- source: internal/component/plugin/process/delivery.go -- deliverMixedBatch -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- runRouteReflector, IsInternal refusal, stopDepartures -->
 <!-- source: internal/component/bgp/plugins/rs/server.go -- RunRouteServer, IsInternal refusal -->
 <!-- source: test/plugin/rr-external-refuses.ci -- a forked bgp-rr refuses to start -->

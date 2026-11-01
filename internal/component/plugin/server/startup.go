@@ -855,6 +855,15 @@ func (e *engineStartupSink) onReady(input *rpc.ReadyInput) error {
 		logger().Debug("rpc startup: registered startup subscriptions",
 			"plugin", proc.Name(), "events", input.Subscribe.Events)
 	}
+	// Further namespaces' blocks register at the same moment, for the same reason.
+	for _, more := range input.Subscriptions {
+		if more == nil || s.subscriptions == nil {
+			continue
+		}
+		s.registerSubscriptions(proc, more)
+		logger().Debug("rpc startup: registered startup subscriptions",
+			"plugin", proc.Name(), "namespace", more.Namespace, "events", more.Events)
+	}
 
 	// Wire direct bridge dispatch BEFORE the OK is sent (in the driver), so the
 	// engine's DispatchRPC handler is registered before the SDK calls SetReady()

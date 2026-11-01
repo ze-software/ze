@@ -19,7 +19,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rr"
-	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -388,8 +387,8 @@ func rrAttrValue(t *testing.T, attrs []byte, code attribute.AttributeCode) []byt
 // TestRRDepartureHonoursRetention proves AC-10 (c) and Q-5 for bgp-rr, with
 // the round 9 NOTE's three-label departure withdrawal. A owns 10.9.0.0/24 at
 // client C and alone announces a three-label ipv4/mpls-vpn route; bgp-gr
-// retains A's ipv4/unicast and not its VPN family (retain-routes, then
-// retention.Publish, as bgp-gr does before the session drops). A's session
+// retains A's ipv4/unicast and not its VPN family (retain-routes, then the
+// bgp-gr/retention verdict, as bgp-gr does on the DOWN). A's session
 // ends:
 //
 //   - the retained unicast route is not withdrawn from C: nothing is written
@@ -435,10 +434,7 @@ func TestRRDepartureHonoursRetention(t *testing.T) {
 	lowEventually(t, func() bool {
 		return grRetainedPeers(t, r, source) == 1
 	}, "bgp-rib retaining "+source+"'s routes")
-	retained := retention.Publish(func(peer string, fam family.Family) bool {
-		return peer == source && fam == family.IPv4Unicast
-	})
-	t.Cleanup(retained.Close)
+	emitRetentionVerdict(t, r, source, "ipv4/unicast")
 	_ = a.remote.Close() //nolint:errcheck // A departure: the session ends with no NOTIFICATION.
 	lowEventually(t, func() bool { return a.peer.SessionState() != fsm.StateEstablished }, "A's session ended")
 	purgeRIBCommand(t, r, "request bgp rib mark-stale", source, "0", "1", "ipv4/unicast")
@@ -533,10 +529,7 @@ func rrGRPurgeRecovers(t *testing.T, how grPurge, withB bool) {
 	lowEventually(t, func() bool {
 		return grRetainedPeers(t, r, source) == 1
 	}, "bgp-rib retaining "+source+"'s routes")
-	retained := retention.Publish(func(peer string, fam family.Family) bool {
-		return peer == source && fam == family.IPv4Unicast
-	})
-	t.Cleanup(retained.Close)
+	emitRetentionVerdict(t, r, source, "ipv4/unicast")
 	_ = a.remote.Close() //nolint:errcheck // A departure: the session ends with no NOTIFICATION.
 	lowEventually(t, func() bool { return a.peer.SessionState() != fsm.StateEstablished }, "A's session ended")
 	restart := "0"

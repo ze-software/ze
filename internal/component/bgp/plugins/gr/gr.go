@@ -121,6 +121,11 @@ type grPlugin struct {
 	// The sibling RIB plugin carries the same field for the same reason
 	// (RIBManager.dispatchHook, rib.go).
 	dispatchHook func(command string, args ...string)
+
+	// emitHook, when non-nil, intercepts emitRetention's event for test
+	// inspection instead of emitting it. Production leaves it nil, as it does
+	// dispatchHook.
+	emitHook func(payload string)
 }
 
 // runGRPlugin runs the GR plugin using the SDK RPC protocol.
@@ -132,18 +137,18 @@ func runGRPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-gr", conn)
 	defer func() { _ = p.Close() }()
 
-	// retention.Publish and setEgressState below store into the daemon's
-	// memory: bgp-rr and bgp-rs ask retention.Family on a DOWN, and the
-	// daemon's LLGREgressFilter reads the egress state. A forked bgp-gr stores
-	// both into its own process, so the daemon reads every family as not
-	// retained and withdraws routes RFC 4724 Section 4.2 requires kept, and
-	// reads every neighbor as LLGR-incapable, with no error. Refuse to start
-	// rather than leave the daemon answering wrong.
+	// setEgressState below stores into the daemon's memory: the daemon's
+	// LLGREgressFilter reads the egress state. A forked bgp-gr stores it into
+	// its own process, so the daemon reads every neighbor as LLGR-incapable
+	// and sends LLGR_STALE routes RFC 9494 Section 4.3 withholds from it, with
+	// no error. Refuse to start rather than leave the daemon answering wrong.
+	// The retention verdict is not a reason: it travels as the
+	// bgp-gr/retention event (emitRetention), which crosses the process split.
 	if !p.IsInternal() {
 		slogutil.Logger(grSubsystem).Error("bgp-gr: refusing to start as an external plugin process -- " +
-			"its graceful-restart state (retention.Publish, setEgressState) must live in the daemon's process, " +
-			"so a forked engine would let the route reflector and route server withdraw the routes " +
-			"of a restarting peer that must be kept; " +
+			"its graceful-restart state for long-lived graceful-restart egress (setEgressState) must live in the daemon's process, " +
+			"so a forked engine would let the daemon send stale routes to a neighbor that did not " +
+			"negotiate long-lived graceful restart; " +
 			"replace the `external <name> { run ... }` block with `plugin { internal <name> { use bgp-gr } }`")
 		return 1
 	}
@@ -156,9 +161,6 @@ func runGRPlugin(conn net.Conn) int {
 	}
 
 	gp.wireStateCallbacks()
-	retentionOwner := retention.Publish(gp.state.familyRetained)
-	// Run returns after event delivery stops; only this publication is removed.
-	defer retentionOwner.Close()
 
 	// The same refusal at the two points a configuration arrives, because
 	// only one of them is in front of the operator.
@@ -454,6 +456,9 @@ func (gp *grPlugin) retainPeerFamilies(peerAddr string) {
 func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionState, reason string) {
 	switch state {
 	case rpc.SessionStateDown:
+		// Every DOWN this handler takes ends with its verdict on the bus, an
+		// empty one included, so the askers never read an earlier DOWN's.
+		defer gp.emitRetention(peerAddr)
 		// Peer deconfigured: release GR state + per-peer metrics, do not retain.
 		if reason == rpc.ReasonPeerRemoved {
 			gp.onPeerRemoved(peerAddr)
@@ -641,6 +646,8 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 
 	switch state {
 	case "down":
+		// handleStructuredState's reason: every DOWN ends with its verdict.
+		defer gp.emitRetention(peerAddr)
 		reason, _ := payload["reason"].(string)
 		// Peer deconfigured: release GR state + per-peer metrics, do not retain.
 		if reason == rpc.ReasonPeerRemoved {
@@ -747,6 +754,38 @@ func (gp *grPlugin) releaseRoutes(peerAddr string) {
 	delete(gp.peerLLGRCaps, peerAddr)
 	delete(gp.sentLLGRFamilies, peerAddr)
 	gp.mu.Unlock()
+}
+
+// emitRetention emits the bgp-gr/retention verdict for the DOWN of peerAddr
+// that the caller has just handled: the families whose routes this DOWN
+// retains, read after every transition the DOWN made (GR entry, immediate LLGR
+// entry). The engine delivers the DOWN to bgp-rr and bgp-rs only after this
+// handler returns, and each process's deliveries are FIFO, so the verdict
+// reaches them first; they decide the DOWN from it (retention.Ledger.Take).
+//
+// RFC 4724 Section 4.2: "the Receiving Speaker MUST retain the routes
+// received from the peer for all the address families that were previously
+// received in the Graceful Restart Capability and MUST mark them as stale
+// routing information." The forwarding owners hold copies of those routes,
+// so they are told which families to keep rather than send a departure for.
+func (gp *grPlugin) emitRetention(peerAddr string) {
+	payload, err := retention.Encode(peerAddr, gp.state.retainedFamilies(peerAddr))
+	if err != nil {
+		logger().Error("gr: retention verdict not encoded; route reflector and route server will withdraw this peer's routes",
+			"peer", peerAddr, "err", err)
+		return
+	}
+	if gp.emitHook != nil {
+		gp.emitHook(payload)
+		return
+	}
+	if gp.sdk == nil {
+		return // unit test without a hook -- no SDK available
+	}
+	if _, err := gp.sdk.EmitEvent(context.Background(), retention.Namespace, retention.EventType, "", "", payload); err != nil {
+		logger().Error("gr: retention verdict not emitted; route reflector and route server will withdraw this peer's routes",
+			"peer", peerAddr, "err", err)
+	}
 }
 
 // dispatchCommand sends a command to the engine for inter-plugin coordination.

@@ -118,6 +118,9 @@ type Plugin struct {
 	// registers them atomically before SignalAPIReady, avoiding the race
 	// between reactor sending routes and the plugin subscribing.
 	startupSubscription *rpc.SubscribeEventsInput
+	// startupSubscriptionsMore holds the further namespaces' startup blocks
+	// (AddStartupSubscriptionsIn), carried in the same ready RPC.
+	startupSubscriptionsMore []*rpc.SubscribeEventsInput
 
 	// capabilities is the Stage 3 declaration. Its one writer is
 	// handleStartupConfigure, which runs the extractor capabilitySource holds;
@@ -532,6 +535,7 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	if p.startupSubscription != nil {
 		readyInput.Subscribe = p.startupSubscription
 	}
+	readyInput.Subscriptions = p.startupSubscriptionsMore
 	if p.bridge != nil {
 		readyInput.Transport = "bridge"
 	}

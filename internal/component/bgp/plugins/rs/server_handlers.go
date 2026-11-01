@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
@@ -171,20 +170,16 @@ func (rs *routeServer) handleStateDown(peerAddr string, generation uint64) {
 	// refused rather than applied to a successor session (source_policy.go).
 	delete(rs.sourcePolicy, peerAddr)
 	rs.withdrawalMu.Unlock()
+	retained := rs.retained.Take(peerAddr)
 
 	// Resolve retention synchronously: a reconnect or expiry must not change
-	// this DOWN decision before the asynchronous withdrawals run. Query once
-	// per distinct family, without holding RS locks. The RIB owns retained
+	// this DOWN decision before the asynchronous withdrawals run. RFC 4724
+	// Section 4.2: the families bgp-gr's bgp-gr/retention verdict for this
+	// DOWN retains, taken on every DOWN so no later one reads it. The RIB owns retained
 	// source/output inventory and its eventual purge withdrawals; this
 	// transient forwarding inventory must not become a second stale store.
-	retained := make(map[family.Family]bool)
 	for wk := range entries {
-		keep, seen := retained[wk.fam]
-		if !seen {
-			keep = retention.Family(peerAddr, wk.fam)
-			retained[wk.fam] = keep
-		}
-		if keep {
+		if retained[wk.fam] {
 			delete(entries, wk)
 			continue
 		}

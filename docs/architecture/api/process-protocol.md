@@ -174,6 +174,15 @@ it holds, and each peer added or accepted later, is named in an error log
 | 5. Ready | Plugin to Engine | `ze-plugin-engine:ready` | `ReadyInput` |
 | Post | Engine to Plugin | `ze-plugin-callback:post-startup` | (empty) |
 
+`ReadyInput.subscribe` carries the startup subscriptions of one namespace.
+`ReadyInput.subscriptions` carries further blocks, each naming its own
+`namespace`, which the engine registers in the same step, before any event
+flows (`sdk.Plugin.AddStartupSubscriptionsIn`). `bgp-rr` and `bgp-rs` use it to
+hear `bgp-gr/retention` beside their `bgp` events. Format, encoding and
+envelope stay per process, set by the first block.
+<!-- source: internal/component/plugin/server/startup.go -- onReady -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- AddStartupSubscriptionsIn -->
+
 **Protocol version.** Every `declare-registration` carries `protocol-version`,
 the highest plugin protocol version the plugin speaks, and the engine's Stage 1
 answer, `{"protocol-version":N}`, is the version both sides speak from then on:
@@ -1516,7 +1525,14 @@ it alone. A changed grant is a down, then an `attached` up.
 Events that pass both halves are enqueued into a per-process channel.
 The delivery goroutine drains all available events into a batch and sends them
 in a single `deliver-batch` RPC, reducing syscalls and goroutine churn. Single
-events are delivered as a batch of 1.
+events are delivered as a batch of 1. An internal plugin with a structured
+handler receives a batch holding both structured and text events as one bridge
+call per run of same-kind events, in queue order, so a process always handles
+its events in the order they were queued. That order is what lets a bus event
+a plugin emits inside its state handler (`bgp-gr/retention` inside `bgp-gr`'s
+DOWN handler) reach another plugin ahead of the state event the engine
+delivers after it.
+<!-- source: internal/component/plugin/process/delivery.go -- deliverMixedBatch, flushStructuredRun, flushTextRun -->
 
 ### Batched Delivery
 

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -191,11 +192,14 @@ type withdrawalEntry struct {
 // UPDATEs are dispatched to per-source-peer workers for parallel processing
 // while preserving FIFO ordering within each source peer.
 type routeServer struct {
-	plugin  *sdk.Plugin
-	peers   map[string]*PeerState
-	mu      sync.RWMutex
-	workers *workerPool
-	downCtx context.Context // Canceled before stopDepartures; no command deadline owns DOWN.
+	plugin *sdk.Plugin
+	// retained holds bgp-gr's retention verdict per peer, recorded from the
+	// bgp-gr/retention event and taken by handleStateDown for that peer.
+	retained retention.Ledger
+	peers    map[string]*PeerState
+	mu       sync.RWMutex
+	workers  *workerPool
+	downCtx  context.Context // Canceled before stopDepartures; no command deadline owns DOWN.
 
 	// departures holds the workers that send each departed source's routes
 	// to the engine (sendBatchedWithdrawals), up to departureWorkers sources
@@ -319,16 +323,14 @@ func RunRouteServer(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-rs", conn)
 	defer func() { _ = p.Close() }()
 
-	// handleStateDown asks retention.Family whether bgp-gr retains a departed
-	// source's family. That is a same-process call: bgp-gr publishes its
-	// answer into the daemon's memory, so a forked bgp-rs finds no owner and
-	// reads every family as not retained. It would then withdraw routes
-	// RFC 4724 Section 4.2 requires kept, with no error and no log line.
-	// Refuse to start rather than answer wrong.
+	// bgp-rs runs internal only until the stage-filters spec's phase 7 lifts
+	// this refusal with its forked tests. Retention no longer needs it: the
+	// verdict arrives as the bgp-gr/retention event, which crosses the
+	// process split (rs.retained).
 	if !p.IsInternal() {
 		logger().Error("bgp-rs: refusing to start as an external plugin process -- " +
-			"the graceful-restart retention decision (retention.Family) is a same-process call, " +
-			"so a forked route server would withdraw routes a restarting peer's neighbors must keep; " +
+			"the graceful-restart retention decision is not yet proven on a forked route server, " +
+			"which could withdraw routes a restarting peer's neighbors must keep; " +
 			"configure it as plugin { internal <name> { use bgp-rs } }")
 		return 1
 	}
@@ -485,6 +487,10 @@ func RunRouteServer(conn net.Conn) int {
 
 	// Request text encoding — strings.Fields parsing instead of json.Unmarshal.
 	p.SetEncoding("text")
+	// bgp-gr's per-DOWN retention verdict, enveloped so dispatchText tells it
+	// from the BGP text events. RFC 4724 Section 4.2 (handleStateDown).
+	p.AddStartupSubscriptionsIn(retention.Namespace, []string{retention.EventType})
+	p.SetEnvelope(true)
 
 	ctx := context.Background()
 	defer rs.stopping.Store(true)
@@ -681,6 +687,13 @@ func (rs *routeServer) dispatchText(text string) {
 	// Guard against delivery after shutdown: the engine's deliveryLoop goroutine
 	// can call bridge callbacks concurrently with bgp-rs cleanup (workers.Stop()).
 	if rs.stopping.Load() {
+		return
+	}
+	// bgp-gr's verdict, delivered ahead of the DOWN it decides.
+	if envelope, ok := retention.Accepts(text); ok {
+		if err := rs.retained.Record(envelope); err != nil {
+			logger().Warn("bgp-rs: retention verdict refused", "err", err)
+		}
 		return
 	}
 
