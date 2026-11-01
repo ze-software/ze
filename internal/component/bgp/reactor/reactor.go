@@ -387,7 +387,7 @@ type Reactor struct {
 	connCallback    connectionCallback
 	messageReceiver MessageReceiver       // Receives raw BGP messages
 	eventBus        ze.EventBus           // Namespaced pub/sub for cross-component notifications (nil until SetEventBus)
-	eventBusUnsubs  []func()              // Active EventBus unsubscribe funcs (populated by subscribeDaemonSignals)
+	eventBusUnsubs  []func()              // Active EventBus unsubscribe funcs (populated by subscribeDaemonSignals and subscribeValidationGate)
 	processSpawner  plugin.ProcessSpawner // PluginManager for process lifecycle (nil = Server self-manages)
 
 	// neighborWatch is the state of the kernel neighbor table watch
@@ -1352,6 +1352,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// an address that moves while they start is a change it applies.
 	r.startAddressWatch()
 	r.subscribeDaemonSignals()
+	r.subscribeValidationGate()
 	// The neighbor table watch needs no event bus and no interface config:
 	// RFC 2545 Section 3's third-party Link-Local must follow the table in a
 	// BGP-only config, where no interface monitor runs.
@@ -1685,7 +1686,7 @@ func (r *Reactor) startSignalHandler() {
 }
 
 // releaseEventSubscriptions unsubscribes every EventBus handler registered by
-// subscribeDaemonSignals and clears the slice. The bus unregister func only
+// subscribeDaemonSignals and subscribeValidationGate and clears the slice. The bus unregister func only
 // deletes the handler from the subscriber map under the bus's own lock and
 // never waits for an in-flight handler (dispatch copies handlers and releases
 // the bus lock before invoking them), so this is safe to call whether or not

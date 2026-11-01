@@ -1269,6 +1269,26 @@ retained path carries its original `MsgID`.
 <!-- source: internal/component/bgp/plugins/rib/rib_validation.go -- validationChanged, validationEligible -->
 <!-- source: internal/core/bgp/ribevents/validation.go -- RouteEligible, ValidationChange -->
 
+The eligibility lookup is a Go function, registered only in the process the
+receive store runs in, and only when that is the daemon. Every
+`enable-validation` and `disable-validation` therefore also announces the
+gate's state as `bgp-rib/validation-gate` (`{"enabled": true}`), through
+`emit-event` on both transports. A process that receives it and holds no
+lookup of its own (the daemon while `bgp-adj-rib-in` runs forked, or a forked
+`bgp-rib`) fails closed while the gate is enabled: `ValidationEnabled` answers
+true and `RouteEligible` refuses every path, with one error logged naming the
+cause and the fix (run `bgp-adj-rib-in` internal). The daemon applies it from
+the reactor's subscription, taken before the plugins that depend on BGP start,
+and a forked `bgp-rib` from its SDK subscription. A registered lookup is never
+replaced or removed by an announcement. A failed announcement fails the
+command, so `bgp-rpki` reports that validation is not in force. Answering the
+lookup itself across the boundary, so a forked store's verdicts reach the
+forward path, is not built yet: until it is, a forked store with validation
+enabled advertises nothing.
+<!-- source: internal/core/bgp/ribevents/validation.go -- NoteValidationGate, DecodeValidationGate, ValidationGate -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- announcedGateCommand, emitValidationGateEvent -->
+<!-- source: internal/component/bgp/reactor/reactor_validation_gate.go -- subscribeValidationGate -->
+
 ### Mandatory FlowSpec authorization
 
 FlowSpec feasibility is independent of optional RPKI validation. Enabling

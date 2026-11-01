@@ -57,9 +57,9 @@ func (r *AdjRIBInManager) handleCommand(command string, args []string, peer stri
 	case "request bgp adj-rib-in claim-replay":
 		return r.claimReplayCommand()
 	case "request bgp adj-rib-in enable-validation":
-		return r.enableValidationCommand(args)
+		return r.announcedGateCommand(r.enableValidationCommand(args))
 	case "request bgp adj-rib-in disable-validation":
-		return r.disableValidationCommand()
+		return r.announcedGateCommand(r.disableValidationCommand())
 	case "request bgp adj-rib-in accept-routes":
 		return r.acceptRoutesCommand(args)
 	case "request bgp adj-rib-in reject-routes":

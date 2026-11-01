@@ -39,6 +39,13 @@ func startValidationReceiver(t *testing.T, bus *testEventBus) (*rpc.DirectBridge
 	// The engine's part of Adj-RIB-In's emit-event: decode the payload and
 	// emit the typed event on the bus the selecting RIB subscribes to.
 	bridge.SetEmitEvent(func(namespace, eventType, _, _, event string) (int, error) {
+		if namespace == ribevents.Namespace && eventType == ribevents.EventValidationGate {
+			var state ribevents.ValidationGateState
+			if err := json.Unmarshal([]byte(event), &state); err != nil {
+				return 0, err
+			}
+			return ribevents.ValidationGate.Emit(bus, state)
+		}
 		if namespace != ribevents.Namespace || eventType != ribevents.EventValidationChange {
 			return 0, errors.New("unexpected emitted event " + namespace + "/" + eventType)
 		}

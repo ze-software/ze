@@ -224,14 +224,18 @@ func (e *Engine) dispatchBridged(_ context.Context, method string, params json.R
 	return json.Marshal(result)
 }
 
-// answer records one engine RPC and builds its answer. Only update-route has
-// a fake answer: every other method is refused, and stays visible in RPCs.
+// answer records one engine RPC and builds its answer. Only update-route and
+// emit-event have a fake answer (an emit reaches no subscriber here): every
+// other method is refused, and stays visible in RPCs.
 func (e *Engine) answer(method string, params json.RawMessage) (any, error) {
 	e.mu.Lock()
 	e.rpcs = append(e.rpcs, EngineRPC{Method: method, Params: append(json.RawMessage(nil), params...)})
 	e.mu.Unlock()
 	if method == rpc.MethodUpdateRoute {
 		return &rpc.UpdateRouteOutput{}, nil
+	}
+	if method == rpc.MethodEmitEvent {
+		return &rpc.EmitEventOutput{}, nil
 	}
 	return nil, errors.New("pluginengine: no fake engine answer for " + method)
 }

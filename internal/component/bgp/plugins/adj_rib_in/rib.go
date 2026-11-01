@@ -177,6 +177,12 @@ type AdjRIBInManager struct {
 	// emit-event in a running plugin (emitValidationEvent). Nil emits nothing,
 	// so a test manager with no engine notes no change.
 	emitValidation func([]ribevents.ValidationRoute) error
+	// announceGate tells every process that reads ribevents.RouteEligible
+	// the gate's state (emitValidationGateEvent in a running plugin), so a
+	// process this store's lookup cannot reach fails closed rather than
+	// answering every route eligible. Nil announces nothing: a test manager
+	// with no engine has no other process to tell.
+	announceGate func(ribevents.ValidationGateState) error
 	// validationGate is set, under mu, once this store's eligibility lookup is
 	// registered with ribevents. Only then does the forward path and selection
 	// consult this store, so only then can a store change alter a verdict
@@ -376,6 +382,7 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 		ingestTracked: p.IsInternal(),
 	}
 	r.emitValidation = r.emitValidationEvent
+	r.announceGate = r.emitValidationGateEvent
 	defer ribevents.RegisterValidationLookup(nil, nil)
 
 	// Structured event handler for DirectBridge delivery.

@@ -753,8 +753,11 @@ func runRIBPlugin(conn net.Conn) int {
 	p.SetStartupSubscriptions([]string{"update direction sent", "update direction received", "state", "refresh"}, nil, "full")
 	// The receive store's eligibility change, through the SDK so a forked
 	// bgp-rib hears it too: the daemon's own bus never reaches a subprocess.
-	// Enveloped, so dispatchText tells it from the BGP events.
-	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange})
+	// Enveloped, so dispatchText tells it from the BGP events. The gate's
+	// state comes the same way: a forked bgp-rib cannot reach the receive
+	// store's lookup, so it must learn the gate exists to refuse selection
+	// (ribevents.NoteValidationGate) rather than select every path.
+	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange, ribevents.EventValidationGate})
 	p.SetEnvelope(true)
 
 	// Start compaction scheduler after 5-stage startup completes.

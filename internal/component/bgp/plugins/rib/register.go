@@ -27,7 +27,7 @@ func init() {
 
 	_ = events.RegisterNamespace(ribevents.Namespace,
 		ribevents.EventCache, ribevents.EventRoute, ribevents.EventBestChange, ribevents.EventReplayRequest,
-		ribevents.EventValidationChange, "flowspec-change",
+		ribevents.EventValidationChange, ribevents.EventValidationGate, "flowspec-change",
 	)
 
 	reg := registry.Registration{

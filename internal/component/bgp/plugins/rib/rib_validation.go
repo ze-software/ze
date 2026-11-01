@@ -35,8 +35,8 @@ func (r *RIBManager) validationEligible(peer netip.Addr, routes *storage.PeerRIB
 }
 
 // dispatchText handles one event delivered as text: an enveloped
-// bgp-rib/validation-change from the receive store, or a BGP event. Safe for
-// the SDK's one event goroutine only.
+// bgp-rib/validation-change or bgp-rib/validation-gate from the receive
+// store, or a BGP event. Safe for the SDK's one event goroutine only.
 func (r *RIBManager) dispatchText(jsonStr string) {
 	routes, matched, err := ribevents.DecodeValidationChange(jsonStr)
 	if err != nil {
@@ -45,6 +45,15 @@ func (r *RIBManager) dispatchText(jsonStr string) {
 	}
 	if matched {
 		r.validationChanged(routes)
+		return
+	}
+	gate, matched, err := ribevents.DecodeValidationGate(jsonStr)
+	if err != nil {
+		logger().Warn("bgp-rib: validation-gate refused", "error", err)
+		return
+	}
+	if matched {
+		ribevents.NoteValidationGate(gate)
 		return
 	}
 	event, err := parseEvent([]byte(jsonStr))

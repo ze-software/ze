@@ -115,8 +115,10 @@ func (r *AdjRIBInManager) routePresent(key ribevents.ValidationRoute) bool {
 // unlockValidation, never mu.Unlock, so downstream selection sees the change.
 //
 // Nothing is noted until the eligibility gate is registered. Without it,
-// ribevents.RouteEligible answers true for every path, so the live forward
-// already carried each route and no verdict changed. A ValidationChange then
+// ribevents.RouteEligible answers true for every path while validation is
+// off, so the live forward already carried each route and no verdict changed;
+// and while validation is on in a forked store, every other process refuses
+// every path (announcedGateCommand), so again no verdict changed. A ValidationChange then
 // makes the route server and reflector replay the path to every target, which
 // sends each UPDATE a second time and re-announces a route the next UPDATE
 // withdraws.
@@ -212,6 +214,45 @@ func (r *AdjRIBInManager) emitValidationEvent(changes []ribevents.ValidationRout
 		return fmt.Errorf("emit validation-change: %w", err)
 	}
 	return nil
+}
+
+// emitValidationGateEvent hands the gate's state to the engine as
+// bgp-rib/validation-gate through the SDK, the path emitValidationEvent takes,
+// so it reaches the daemon and every forked subscriber alike.
+func (r *AdjRIBInManager) emitValidationGateEvent(state ribevents.ValidationGateState) error {
+	payload, err := json.Marshal(state)
+	if err != nil {
+		return fmt.Errorf("encode validation-gate: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), validationEmitTimeout)
+	defer cancel()
+	if _, err := r.plugin.EmitEvent(ctx, ribevents.Namespace, ribevents.EventValidationGate, "", "", string(payload)); err != nil {
+		return fmt.Errorf("emit validation-gate: %w", err)
+	}
+	return nil
+}
+
+// announcedGateCommand announces the state an enable-validation or
+// disable-validation command left, once the command returned and so released
+// the store lock. A command that failed announces nothing. An announcement
+// that fails fails the command: the caller (bgp-rpki) then reports that
+// validation is not in force, where a silent success would leave a process
+// that cannot reach this store's lookup forwarding every route.
+func (r *AdjRIBInManager) announcedGateCommand(status string, data any, err error) (string, any, error) {
+	if err != nil {
+		return status, data, err
+	}
+	// refuse-by-default: guards emitValidationGateEvent -- a nil announcer is a test manager with no engine, and no other process exists to tell
+	if r.announceGate == nil {
+		return status, data, nil
+	}
+	r.mu.RLock()
+	state := ribevents.ValidationGateState{Enabled: r.validationEnabled}
+	r.mu.RUnlock()
+	if announceErr := r.announceGate(state); announceErr != nil {
+		return statusError, "", announceErr
+	}
+	return status, data, nil
 }
 
 // removeInstalled also invalidates a replaced path before its replacement has

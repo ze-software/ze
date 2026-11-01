@@ -194,8 +194,13 @@ path whose `nlri` is not hex refuses the whole batch
 `emit-event` (`sdk.Plugin.EmitEvent`), so it holds no EventBus of its own.
 It emits only while its eligibility gate is registered, which happens only in
 the daemon process, so a forked `bgp-adj-rib-in` announces no change.
+It also emits `bgp-rib/validation-gate`, `{"enabled": <bool>}`, after each
+`enable-validation` and `disable-validation`, so a process that cannot reach
+its lookup refuses routes while validation is enabled
+(`ribevents.NoteValidationGate`, `docs/architecture/plugin/rib-storage-design.md`).
+`bgp-rib` subscribes to it beside `bgp-rib/validation-change`.
 <!-- source: internal/core/bgp/ribevents/validation.go -- ValidationRoute.MarshalJSON, DecodeValidationChange -->
-<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- emitValidationEvent -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- emitValidationEvent, emitValidationGateEvent -->
 
 **Protocol version.** Every `declare-registration` carries `protocol-version`,
 the highest plugin protocol version the plugin speaks, and the engine's Stage 1

@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -85,8 +86,84 @@ func RegisterValidationLookup(fn ValidationLookup, present func(ValidationRoute)
 	validationLookup.Store(&validationProvider{eligible: fn, present: present})
 }
 
+// gateLogger reports a receive gate this process cannot reach.
+var gateLogger = slogutil.LazyLogger("bgp.ribevents")
+
+// unservedValidation is the provider a process holds when the receive gate's
+// owner enabled validation in another process: the lookup function lives
+// there, so nothing here can answer it. It refuses every route (fail closed),
+// because answering eligible would forward and select routes RPKI and ASPA
+// never judged, with no error anywhere. The first refusal is logged, so an
+// operator learns why nothing is advertised.
+var unservedValidation = &validationProvider{
+	eligible: refuseUnservedRoute,
+	present:  func(ValidationRoute) bool { return false },
+}
+
+// unservedRefusalLogged makes refuseUnservedRoute log once per unserved period.
+var unservedRefusalLogged atomic.Bool
+
+func refuseUnservedRoute(route ValidationRoute, _ uint64) bool {
+	if unservedRefusalLogged.CompareAndSwap(false, true) {
+		gateLogger().Error("route refused: the receive validation gate is enabled in another process and cannot be read from this one",
+			"peer", route.Peer, "family", route.Family.String(), "prefix", route.Prefix,
+			"fix", "run bgp-adj-rib-in internal (in the daemon), where its eligibility lookup is reachable")
+	}
+	return false
+}
+
+// EventValidationGate announces the receive gate's state. The gate's owner
+// emits it whenever validation is enabled or disabled, on both transports, so
+// every process that reads RouteEligible learns that a gate exists even when
+// the lookup function itself lives in another process.
+const EventValidationGate = "validation-gate"
+
+// ValidationGateState is the EventValidationGate payload.
+type ValidationGateState struct {
+	Enabled bool `json:"enabled"`
+}
+
+// ValidationGate is the typed handle of EventValidationGate.
+var ValidationGate = events.Register[ValidationGateState](Namespace, EventValidationGate)
+
+// NoteValidationGate applies an EventValidationGate announcement to this
+// process. A process that holds the owner's lookup (RegisterValidationLookup
+// ran here) keeps it: the announcement changes nothing. A process that holds
+// none fails closed while the gate is enabled, and returns to "no validation"
+// when it is disabled. It never replaces or removes a registered lookup.
+// Safe for concurrent use.
+func NoteValidationGate(state ValidationGateState) {
+	if !state.Enabled {
+		validationLookup.CompareAndSwap(unservedValidation, nil)
+		return
+	}
+	if validationLookup.CompareAndSwap(nil, unservedValidation) {
+		unservedRefusalLogged.Store(false)
+		gateLogger().Error("receive validation gate unreachable: every route is refused until it is",
+			"reason", "validation was enabled in another process, and its eligibility lookup does not cross the process boundary",
+			"fix", "run bgp-adj-rib-in internal (in the daemon)")
+	}
+}
+
+// DecodeValidationGate reads an enveloped delivered EventValidationGate, as
+// DecodeValidationChange reads its event: matched reports the event, and err
+// refuses a payload that does not decode.
+func DecodeValidationGate(delivered string) (state ValidationGateState, matched bool, err error) {
+	payload, matched := envelopedPayload(delivered, EventValidationGate)
+	if !matched {
+		return ValidationGateState{}, false, nil
+	}
+	if err := json.Unmarshal(payload, &state); err != nil {
+		return ValidationGateState{}, true, err
+	}
+	return state, true, nil
+}
+
 // ValidationEnabled reports whether a receive validator has enabled its gate.
-// The owner registers its lookup when enabling validation and unregisters at stop.
+// The owner registers its lookup when enabling validation and unregisters at
+// stop. A gate enabled in another process (NoteValidationGate) also counts:
+// the forward path and selection must then consult RouteEligible, which
+// refuses.
 func ValidationEnabled() bool {
 	return validationLookup.Load() != nil
 }
@@ -135,21 +212,35 @@ var ValidationChange = events.Register[[]ValidationRoute](Namespace, EventValida
 // with SetEnvelope) receives it this way on both transports, where the
 // typed Subscribe reaches only a subscriber holding the daemon's own bus.
 func DecodeValidationChange(delivered string) (routes []ValidationRoute, matched bool, err error) {
-	if delivered == "" || delivered[0] != '{' {
+	payload, matched := envelopedPayload(delivered, EventValidationChange)
+	if !matched {
 		return nil, false, nil
 	}
-	envelope, err := rpc.ParseEventEnvelope(delivered)
-	if err != nil {
-		return nil, false, nil //nolint:nilerr // a text event is not an envelope: not this event, nothing refused
-	}
-	if envelope.Namespace != Namespace {
-		return nil, false, nil
-	}
-	if envelope.Event != EventValidationChange {
-		return nil, false, nil
-	}
-	if err := json.Unmarshal(envelope.Payload, &routes); err != nil {
+	if err := json.Unmarshal(payload, &routes); err != nil {
 		return nil, true, err
 	}
 	return routes, true, nil
+}
+
+// envelopedPayload returns the payload of delivered when it is the enveloped
+// event eventType of this namespace. A text event, another namespace or
+// another event is not matched; nothing is refused.
+func envelopedPayload(delivered, eventType string) (json.RawMessage, bool) {
+	if delivered == "" {
+		return nil, false
+	}
+	if delivered[0] != '{' {
+		return nil, false
+	}
+	envelope, err := rpc.ParseEventEnvelope(delivered)
+	if err != nil {
+		return nil, false //nolint:nilerr // a text event is not an envelope: not this event, nothing refused
+	}
+	if envelope.Namespace != Namespace {
+		return nil, false
+	}
+	if envelope.Event != eventType {
+		return nil, false
+	}
+	return envelope.Payload, true
 }
