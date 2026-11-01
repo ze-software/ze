@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -58,7 +59,7 @@ func Enter(t *testing.T) bool {
 	}
 	out, err := childCommand(t, t.Name()).CombinedOutput()
 	if err != nil {
-		t.Fatalf("%s\n%s", childFailure(err), out)
+		t.Fatalf("%s\nNamespace output:\n%s", childFailure(t.Name(), err, out), out)
 	}
 	switch childResult(t.Name(), out) {
 	case childPassed:
@@ -200,11 +201,78 @@ func childResult(name string, out []byte) childOutcome {
 	panic("BUG: the result-line pattern admits only PASS, SKIP and FAIL")
 }
 
-// childFailure reports the error without guessing which startup stage failed.
-// Namespace policy is one possible cause, so its setup guidance is conditional.
-func childFailure(err error) string {
-	return "test in its own namespace failed: " + err.Error() +
-		"\nIf namespace creation was denied, run `./le setup install` and see its `userns-unrestricted` check."
+// setupFailureLine matches the line childSetup's t.Fatalf writes: the caller's
+// file and line, then a message that opens with "userns: ".
+var setupFailureLine = regexp.MustCompile(`(?m)^\s+[\w.-]+\.go:\d+: (userns: .*)$`)
+
+// failedTestLine matches a result line `-test.v` writes for a failed test or
+// subtest, at any indentation.
+var failedTestLine = regexp.MustCompile(`(?m)^\s*--- FAIL: (\S+) \(`)
+
+// childFailure answers the headline of a failed child, cause first, read from
+// the child's own output. It tells three cases apart:
+//   - the child never ran the test (no `=== RUN   <name>` line): clone or exec
+//     failed, and Go reports both through one error, so namespace policy is
+//     named only as a possible cause;
+//   - childSetup failed: the headline is its step and errno, and the guidance
+//     names the host policy that refuses a namespace its privilege;
+//   - the test body failed: the headline names every failed test and subtest,
+//     and nothing blames the namespace.
+//
+// Enter prints the full child output after the headline, so nothing is lost
+// when the output matches none of these shapes.
+func childFailure(name string, err error, out []byte) string {
+	if !strings.Contains(string(out), "=== RUN   "+name+"\n") {
+		return "the test could not start in a namespace of its own: " + err.Error() +
+			"\nIf namespace creation was denied, run `./le setup install` and see its `userns-unrestricted` check."
+	}
+	if match := setupFailureLine.FindSubmatch(out); match != nil {
+		return "the namespace the test runs in could not be set up: " + string(match[1]) +
+			"\n" + usernsPolicyHint(os.Getuid(), apparmorUsernsKnob)
+	}
+	var failed []string
+	for _, match := range failedTestLine.FindAllSubmatch(out, -1) {
+		failed = append(failed, string(match[1]))
+	}
+	if len(failed) == 0 {
+		return "the test in its own namespace ended with " + err.Error() +
+			" before it reported a result; the namespace output below shows where it stopped."
+	}
+	return "failed in its own namespace: " + strings.Join(failed, ", ") +
+		"\nEach failure message is in the namespace output below."
+}
+
+// apparmorUsernsKnob is where an AppArmor kernel publishes its restriction on
+// unprivileged user namespaces (Ubuntu 23.10 and later set it to 1).
+const apparmorUsernsKnob = "/proc/sys/kernel/apparmor_restrict_unprivileged_userns"
+
+// usernsPolicyHint answers the guidance for a namespace whose setup was refused,
+// for the parent's uid and the AppArmor knob at knob. Under the restriction the
+// kernel creates the namespace but gives it no capability, so the first mount
+// in childSetup fails with EPERM: the knob is then the cause to name. The
+// restriction does not bind root.
+func usernsPolicyHint(uid int, knob string) string {
+	const general = "If the host's policy refused the namespace its privilege, " +
+		"run `./le setup install` and see its `userns-unrestricted` check."
+	if uid == 0 {
+		return general
+	}
+	raw, err := os.ReadFile(knob)
+	if errors.Is(err, os.ErrNotExist) {
+		return general
+	}
+	if err != nil {
+		return "Ze could not read " + knob + " to check for the AppArmor restriction: " + err.Error() +
+			"\n" + general
+	}
+	if strings.TrimSpace(string(raw)) != "1" {
+		return general
+	}
+	return "AppArmor restricts unprivileged user namespaces on this host " +
+		"(kernel.apparmor_restrict_unprivileged_userns=1), so the namespace holds no privilege " +
+		"and the test cannot run. Lift the restriction:\n" +
+		"    sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0\n" +
+		"`./le setup install` makes it permanent (its `userns-unrestricted` check)."
 }
 
 // childSetup prepares the child before the test body runs: a mount tree whose
@@ -286,9 +354,9 @@ func loopbackUp(t *testing.T) {
 	t.Helper()
 	lo, err := netlink.LinkByName("lo")
 	if err != nil {
-		t.Fatalf("lo lookup: %v", err)
+		t.Fatalf("userns: lo lookup: %v", err)
 	}
 	if err := netlink.LinkSetUp(lo); err != nil {
-		t.Fatalf("lo up: %v", err)
+		t.Fatalf("userns: lo up: %v", err)
 	}
 }

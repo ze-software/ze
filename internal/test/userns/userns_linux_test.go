@@ -354,11 +354,109 @@ func TestEnterRejectsAnInvalidExecutableName(t *testing.T) {
 // TestEnterRefusalNamesTheFix proves the failure diagnostic retains the kernel
 // error and names the setup step to use when namespace policy caused it.
 func TestEnterRefusalNamesTheFix(t *testing.T) {
-	text := childFailure(syscall.EPERM)
+	text := childFailure(t.Name(), syscall.EPERM, nil)
 	for _, want := range []string{syscall.EPERM.Error(), "./le setup install", "userns-unrestricted"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("failure text %q does not contain %q", text, want)
 		}
+	}
+}
+
+// TestChildFailureLeadsWithTheSetupStep feeds childFailure the output of a
+// child whose namespace setup failed, as evidence-nightly run 41298258262
+// printed it for the TFTP tests on a host where AppArmor restricted
+// unprivileged user namespaces.
+//
+// VALIDATES: the first line names the setup step that failed and its errno,
+// not the bare exit status, and the policy guidance follows it.
+// PREVENTS: a headline of "exit status 1" with the cause buried in the dump.
+func TestChildFailureLeadsWithTheSetupStep(t *testing.T) {
+	out := []byte("=== RUN   TestTFTP\n" +
+		"    rfc1350_socket_integration_linux_test.go:159: userns: make the mount tree private: permission denied\n" +
+		"--- FAIL: TestTFTP (0.00s)\nFAIL\n")
+	text := childFailure("TestTFTP", errors.New("exit status 1"), out)
+	headline, _, _ := strings.Cut(text, "\n")
+	if !strings.Contains(headline, "userns: make the mount tree private: permission denied") {
+		t.Errorf("the headline %q does not name the setup step that failed", headline)
+	}
+	if !strings.Contains(text, "userns-unrestricted") {
+		t.Errorf("failure text %q does not name the setup check to run", text)
+	}
+}
+
+// TestChildFailureNamesTheFailedTestsNotTheNamespace feeds childFailure the
+// output of a child whose namespace came up and whose test body then failed,
+// as evidence-nightly run 41298258262 printed it for the MPLS path MTU test.
+//
+// VALIDATES: the headline names each failed test, and the namespace-policy
+// guidance is absent, because the namespace was not the cause.
+// PREVENTS: sending the reader to `./le setup install` for a product failure.
+func TestChildFailureNamesTheFailedTestsNotTheNamespace(t *testing.T) {
+	out := []byte("=== RUN   TestPathMTU\n" +
+		"=== RUN   TestPathMTU/push/local-link\n" +
+		"    mplsmtu_integration_linux_test.go:164: \n" +
+		"        \tError:      \t\"0\" is not greater than \"1\"\n" +
+		"=== RUN   TestPathMTU/transit/local-link\n" +
+		"--- FAIL: TestPathMTU (7.26s)\n" +
+		"    --- PASS: TestPathMTU/push/downstream-path (0.96s)\n" +
+		"    --- FAIL: TestPathMTU/push/local-link (3.14s)\n" +
+		"    --- FAIL: TestPathMTU/transit/local-link (3.10s)\nFAIL\n")
+	text := childFailure("TestPathMTU", errors.New("exit status 1"), out)
+	headline, _, _ := strings.Cut(text, "\n")
+	for _, want := range []string{"TestPathMTU/push/local-link", "TestPathMTU/transit/local-link"} {
+		if !strings.Contains(headline, want) {
+			t.Errorf("the headline %q does not name the failed test %q", headline, want)
+		}
+	}
+	if strings.Contains(headline, "downstream-path") {
+		t.Errorf("the headline %q names a test that passed", headline)
+	}
+	if strings.Contains(text, "userns-unrestricted") {
+		t.Errorf("failure text %q blames namespace policy for a failure inside the test", text)
+	}
+}
+
+// TestUsernsPolicyHintNamesTheAppArmorRestriction drives the guidance for a
+// failed namespace setup over the AppArmor knob's states.
+//
+// VALIDATES: an unprivileged run on a host whose knob reads 1 is told that
+// AppArmor is the cause and given the sysctl that lifts it; root, whom the
+// restriction does not bind, a knob at 0 and a host with no knob get the
+// general guidance; an unreadable knob says it could not be read.
+// PREVENTS: "permission denied" with no word on the policy that caused it.
+func TestUsernsPolicyHintNamesTheAppArmorRestriction(t *testing.T) {
+	dir := t.TempDir()
+	restricted := filepath.Join(dir, "restricted")
+	lifted := filepath.Join(dir, "lifted")
+	if err := os.WriteFile(restricted, []byte("1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lifted, []byte("0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	const fix = "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0"
+	if hint := usernsPolicyHint(1000, restricted); !strings.Contains(hint, fix) {
+		t.Errorf("restricted knob, uid 1000: hint %q does not give %q", hint, fix)
+	}
+	for _, tc := range []struct {
+		name string
+		uid  int
+		knob string
+	}{
+		{name: "root", uid: 0, knob: restricted},
+		{name: "lifted", uid: 1000, knob: lifted},
+		{name: "absent", uid: 1000, knob: filepath.Join(dir, "absent")},
+	} {
+		hint := usernsPolicyHint(tc.uid, tc.knob)
+		if strings.Contains(hint, fix) {
+			t.Errorf("%s: hint %q blames AppArmor", tc.name, hint)
+		}
+		if !strings.Contains(hint, "userns-unrestricted") {
+			t.Errorf("%s: hint %q does not name the setup check", tc.name, hint)
+		}
+	}
+	if hint := usernsPolicyHint(1000, dir); !strings.Contains(hint, "could not read") {
+		t.Errorf("unreadable knob: hint %q does not say the knob could not be read", hint)
 	}
 }
 

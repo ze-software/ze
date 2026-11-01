@@ -828,14 +828,22 @@ unprivileged parent maps only its own uid and gid into the child; a root parent
 (`sudo ./le test integration`) maps every id to itself (`idMappings`), so a test
 binary under a `0750` home another user owns stays reachable to the child's root. Go reports
 clone and exec errors through the same channel, so `Enter` cannot safely
-classify an errno as a namespace refusal. The diagnostic retains the error
-and names `./le setup install` and its `userns-unrestricted` check as the fix
-when namespace policy caused it. `Enter` is the first
+classify an errno as a namespace refusal. A failed child's headline comes
+from its own output, and the full output follows it. When the child never
+started the test, the headline retains the error and names `./le setup install`
+and its `userns-unrestricted` check as the fix when namespace policy caused it.
+When the namespace setup failed, the headline is the failed step and its errno.
+On an unprivileged run where
+`kernel.apparmor_restrict_unprivileged_userns` reads 1, the guidance names
+that AppArmor restriction and the `sysctl` that lifts it: the kernel then
+creates the namespace without privilege, so the first mount fails with
+`permission denied`. When the test body failed, the headline names each
+failed test and subtest and does not blame the namespace. `Enter` is the first
 statement of a top-level test, and such a test never calls `t.Parallel`,
 because the child re-runs that one named test in a fresh process. A well-known
 port bound there never collides with a ze running on the host or with a
 parallel run of the same package.
-<!-- source: internal/test/userns/userns_linux.go -- Enter, childFailure, idMappings -->
+<!-- source: internal/test/userns/userns_linux.go -- Enter, childFailure, usernsPolicyHint, idMappings -->
 
 The child runs with `-test.run '^<Name>$' -test.v -test.count=1`, and the
 parent reads the child's own top-level result line, `--- PASS: <Name> (` or

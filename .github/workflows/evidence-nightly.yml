@@ -54,6 +54,19 @@ jobs:
       # names; the action runs its own sudo steps.
       - name: Load Ze's AppArmor profile for the kernel probe
         run: ./le setup docker kernel apparmor confirm ze-kernel-probe
+      # The action runs each package's whole test set, not only its docker
+      # tests, and the tftpserver socket tests run in a namespace of their own
+      # (internal/test/userns). Ubuntu 24.04 restricts unprivileged user
+      # namespaces through AppArmor: the namespace is created without privilege,
+      # so its first mount fails, and three TFTP tests failed "userns: make the
+      # mount tree private: permission denied" (evidence-nightly run
+      # 41298258262). The action runs unprivileged, so the restriction is lifted
+      # here as verify.yml and the integration job do.
+      - name: Lift the AppArmor user namespace restriction
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
       - name: Package tests against real servers in Docker
         run: ./le test integration docker-peers
 
