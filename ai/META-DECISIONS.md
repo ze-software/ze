@@ -96,6 +96,13 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   proof could prove it later, and that route is planned in a kernel spec of its
   own.
 - An agreed design answers the questions that follow from it.
+- Every operator command runs through the daemon on every command surface
+  (MCP, REST, gRPC, SSH, web) with the same output as the local `ze` command,
+  including the ones that answer without a daemon (`ze doctor`, `show config`,
+  `show yang` and the rest), so a remote operator or AI can debug the box. The
+  local route stays for when the daemon is unreachable. A command whose result
+  lives on the caller's side gets a daemon form designed for it, never an
+  exclusion.
 
 ## ExaBGP compatibility
 
