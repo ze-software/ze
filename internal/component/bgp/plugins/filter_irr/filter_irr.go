@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -449,10 +448,13 @@ func (plug *irrPlugin) evaluate(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput
 }
 
 // handleFilterUpdate judges one UPDATE against the snapshot entry of the ASN
-// its filter name carries. It never waits: an ASN with no list yet rejects its
-// announced prefixes, the filter's on-error verdict, keeps the withdrawals,
-// and holds the prefixes for the readmitter, which asks the peer for them
-// again once refreshASNCtx publishes the list (FR-10, AC-32).
+// its filter name carries, from the prefix and withdrawn fields. It never
+// waits: an ASN with no list yet rejects its announced prefixes, the filter's
+// on-error verdict, keeps the withdrawals, and holds the prefixes for the
+// readmitter, which asks the peer for them again once refreshASNCtx publishes
+// the list (FR-10, AC-32). A rejected prefix beside an admitted one, or beside
+// a withdrawal, is dropped alone by a prefix remove, which the engine applies
+// to the body NLRI and to MP_REACH_NLRI (spec D-5).
 func (plug *irrPlugin) handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	asn := extractASNFromFilter(in.Filter)
 	if asn == 0 {
@@ -462,86 +464,66 @@ func (plug *irrPlugin) handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.Filter
 
 	entry, enrolled := plug.snapshot.Load().lookup(asn)
 	list := entry.list
-
-	nlriField := extractNLRIField(in.Update)
-	var partition partitionResult
-	var out *sdk.FilterUpdateOutput
-	if list == nil || len(list.entries) == 0 {
-		// Every announced prefix is rejected: the list that may authorize it
-		// is not here yet. The worker holds each one for when it arrives.
-		var none irrPrefixList
-		partition = none.partitionUpdate(nlriField)
-		out = judgeUnlisted(in, nlriField, &partition, entry.failed)
-	} else {
-		partition = list.partitionUpdate(nlriField)
-		out = judgeListed(in, nlriField, &partition)
+	if list != nil && len(list.entries) == 0 {
+		list = nil
 	}
-	// A whole reject drops every announced prefix, the admitted ones too, so
-	// every one is held for the next pass to ask for again.
-	plug.trackVerdict(in.Peer, asn, enrolled, &partition, out.Action == sdk.FilterReject)
+	judged, err := judgeNLRI(in.Fields, list)
+	if err != nil {
+		// Fail closed, and hold nothing: nothing in the route can be judged
+		// again.
+		logger().Warn("irr filter reject", "filter", in.Filter, "peer", in.Peer, "reason", "fields", "error", err)
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+	}
+	var out *sdk.FilterUpdateOutput
+	if list == nil {
+		out = judgeUnlisted(in, &judged, entry.failed)
+	} else {
+		out = judgeListed(in, &judged)
+	}
+	// A whole reject admits no announced prefix (judgeUnlisted admits none,
+	// judgeListed rejects whole only when none is in list), so the per-prefix
+	// verdicts are the whole account of what the update held.
+	plug.trackVerdict(in.Peer, asn, enrolled, &judged)
 	return out
 }
 
 // judgeUnlisted decides an UPDATE for an ASN that has no list yet: every
 // announced prefix is rejected, and the withdrawals still go through.
-func judgeUnlisted(in *sdk.FilterUpdateInput, nlriField string, partition *partitionResult, lookupFailed bool) *sdk.FilterUpdateOutput {
-	if out, kept := keepWithdrawals(partition); kept {
-		logger().Info("irr filter keeps the withdrawals", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField,
-			"verdict", out.Action, "reason", "no-prefix-list", "lookup-failed", lookupFailed)
+func judgeUnlisted(in *sdk.FilterUpdateInput, judged *routeNLRI, lookupFailed bool) *sdk.FilterUpdateOutput {
+	if out, kept := keepWithdrawals(judged); kept {
+		logger().Info("irr filter keeps the withdrawals", "filter", in.Filter, "peer", in.Peer,
+			"verdict", out.Action, "rejected", judged.rejected, "reason", "no-prefix-list", "lookup-failed", lookupFailed)
 		return out
 	}
-	logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "reason", "no-prefix-list", "lookup-failed", lookupFailed)
+	logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "rejected", judged.rejected,
+		"reason", "no-prefix-list", "lookup-failed", lookupFailed)
 	return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 }
 
 // judgeListed decides an UPDATE against the ASN's list.
-func judgeListed(in *sdk.FilterUpdateInput, nlriField string, partition *partitionResult) *sdk.FilterUpdateOutput {
-	// No prefixes (attrs-only update): accept -- nothing reachable to filter.
-	if len(partition.accepted) == 0 && len(partition.rejected) == 0 && !partition.hadParseError {
-		logger().Info("irr filter accept", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
+func judgeListed(in *sdk.FilterUpdateInput, judged *routeNLRI) *sdk.FilterUpdateOutput {
+	// Every judged prefix in list, or none to judge: accept unmodified.
+	if judged.rejected == 0 {
+		logger().Info("irr filter accept", "filter", in.Filter, "peer", in.Peer, "accepted", judged.accepted)
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}
 
-	// Malformed prefix in the text protocol -> fail-closed.
-	if partition.hadParseError {
-		logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField, "reason", "parse-error")
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
-	}
-
-	// Every announced prefix out of list: drop the announcements, keep the
-	// withdrawals when the engine can, else reject the whole update.
-	if len(partition.accepted) == 0 {
-		if out, kept := keepWithdrawals(partition); kept {
-			logger().Info("irr filter keeps the withdrawals", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField,
-				"verdict", out.Action, "rejected", len(partition.rejected))
+	// Every announced prefix out of list: drop the announcements and keep the
+	// withdrawals, else reject the whole update.
+	if judged.accepted == 0 {
+		if out, kept := keepWithdrawals(judged); kept {
+			logger().Info("irr filter keeps the withdrawals", "filter", in.Filter, "peer", in.Peer,
+				"verdict", out.Action, "rejected", judged.rejected)
 			return out
 		}
-		logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
+		logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "rejected", judged.rejected)
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
-	// Every prefix in list: accept unmodified.
-	if len(partition.rejected) == 0 {
-		logger().Info("irr filter accept", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
-	}
-
-	// Mixed, with a rejected prefix the engine cannot drop: it rewrites the
-	// legacy NLRI and the MP_REACH_NLRI of a CIDR family, and refuses a changed
-	// block of any other family, so a rejected FlowSpec destination, say, has no
-	// modify that drops it. Fail closed.
-	if !partition.rewritable() {
-		logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField,
-			"reason", "rejected-prefix-in-unrewritable-block")
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
-	}
-
-	// Mixed: keep the in-list prefixes, drop the unauthorized ones via a modify
-	// delta carrying only the accepted subset.
-	delta := buildModifyDelta(*partition)
+	// Mixed: keep the in-list prefixes and drop the unauthorized ones.
 	logger().Info("irr filter modify", "filter", in.Filter, "peer", in.Peer,
-		"accepted", len(partition.accepted), "rejected", len(partition.rejected), "nlri", nlriField)
-	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: delta}
+		"accepted", judged.accepted, "rejected", judged.rejected)
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: judged.rejectedRemoves()}
 }
 
 // RFC 4271 Section 9: "If the UPDATE message contains a non-empty WITHDRAWN
@@ -550,50 +532,34 @@ func judgeListed(in *sdk.FilterUpdateInput, nlriField string, partition *partiti
 // from the Adj-RIB-In."
 //
 // keepWithdrawals answers an UPDATE that announces no prefix the filter
-// accepts, and reports false when it carries no withdrawal to keep or the
-// engine cannot keep it. The engine drops a rejected UPDATE whole, its
-// withdrawals with it. A withdrawal alone is accepted. Beside rejected
-// announcements it is kept by a modify whose delta holds the withdraw blocks
-// alone, which the engine reads as an empty legacy NLRI section and an
-// MP_REACH_NLRI with no prefix left, which it removes (reactor
-// filter_nlri_delta.go, sectionNLRIDelta). A rejected prefix in a block the
-// engine cannot rewrite, an MP_REACH_NLRI of a non-CIDR family (rewritable),
-// keeps the UPDATE a whole reject. Callers MUST have ruled out a parse error
-// and an accepted prefix first.
-func keepWithdrawals(partition *partitionResult) (*sdk.FilterUpdateOutput, bool) {
-	if partition.hadParseError {
+// accepts, and reports false when it carries no withdrawal to keep. The
+// engine drops a rejected UPDATE whole, its withdrawals with it. A withdrawal
+// alone is accepted. Beside rejected announcements it is kept by removing
+// every rejected prefix: the engine drops those entries, removes an
+// MP_REACH_NLRI left empty, and sends the withdrawals on (policychain
+// applyPrefixIntent). Callers MUST have ruled out an accepted prefix first.
+func keepWithdrawals(judged *routeNLRI) (*sdk.FilterUpdateOutput, bool) {
+	if !judged.withdraws {
 		return nil, false
 	}
-	if !slices.ContainsFunc(partition.blocks, func(block nlriBlock) bool { return block.withdraws() }) {
-		return nil, false
-	}
-	if len(partition.rejected) == 0 {
+	if judged.rejected == 0 {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, true
 	}
-	if !partition.rewritable() {
-		return nil, false
-	}
-	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: buildModifyDelta(*partition)}, true
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: judged.rejectedRemoves()}, true
 }
 
 // trackVerdict tells the re-admission worker what one UPDATE's verdict did to
 // the prefixes it holds. A withdrawal drops them, an accepted prefix is no
 // longer held, and a rejected one is held until its ASN's list authorizes it.
-// rejectWhole marks an UPDATE the filter rejected whole, whose admitted
-// prefixes were dropped too and are held with the rest. Only an ASN this
-// config enrolls holds anything: no refresh of any other ASN ever runs, so its
-// hold could only leak. An UPDATE the filter could not parse holds nothing,
-// because nothing in it can be evaluated again.
-func (plug *irrPlugin) trackVerdict(peerAddr string, asn uint32, enrolled bool, partition *partitionResult, rejectWhole bool) {
+// Only an ASN this config enrolls holds anything: no refresh of any other ASN
+// ever runs, so its hold could only leak.
+func (plug *irrPlugin) trackVerdict(peerAddr string, asn uint32, enrolled bool, judged *routeNLRI) {
 	if plug.readmit == nil {
-		return
-	}
-	if partition.hadParseError {
 		return
 	}
 	// The path almost every UPDATE takes: nothing to hold and nothing held. The
 	// count is atomic, so this path takes no lock.
-	holds := enrolled && (len(partition.rejected) > 0 || rejectWhole && len(partition.accepted) > 0)
+	holds := enrolled && judged.rejected > 0
 	if !holds && plug.readmit.heldCount() == 0 {
 		return
 	}
@@ -604,8 +570,8 @@ func (plug *irrPlugin) trackVerdict(peerAddr string, asn uint32, enrolled bool, 
 		logger().Debug("irr: filter UPDATE names no peer address, nothing held", "peer", peerAddr)
 		return
 	}
-	for i := range partition.blocks {
-		plug.readmit.track(peer, asn, enrolled, &partition.blocks[i], rejectWhole)
+	for i := range judged.families {
+		plug.readmit.track(peer, asn, enrolled, &judged.families[i])
 	}
 }
 
@@ -924,14 +890,15 @@ const asnFilterNamePattern = `[1-9][0-9]{0,8}` +
 	`|429496729[0-5]`
 
 // filterDecls is the plugin's Stage 1 filter declaration: one filter per AS
-// number, on import, failing closed. It reads no route field: it judges the
-// text UPDATE the text chain sends it, so a chain that holds an in-process
-// member refuses it at run time (policychain errExternalTextUpdate) until it
-// reads the prefix field.
+// number, on import, failing closed. It reads the announced and the withdrawn
+// NLRI, and answers a rejected prefix as a prefix remove, which needs no set
+// declared (docs/plugin-development/protocol.md, "The Sets of a filter-update
+// answer").
 func filterDecls() []sdk.FilterDecl {
 	return []sdk.FilterDecl{{
 		NamePattern: asnFilterNamePattern,
 		Direction:   sdk.FilterImport,
+		Reads:       []string{fieldPrefix, fieldWithdrawn},
 		OnError:     sdk.OnErrorReject,
 	}}
 }

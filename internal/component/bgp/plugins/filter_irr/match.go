@@ -1,14 +1,19 @@
 // Design: docs/architecture/bgp/filter-irr.md -- prefix matching for IRR-derived filter lists
+// Related: filter_irr.go -- handleFilterUpdate, the verdict built from what this file reads
 
 package filter_irr
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"maps"
 	"net/netip"
 	"slices"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 type prefixEntry struct {
@@ -44,26 +49,6 @@ func evaluatePrefix(entries []prefixEntry, route netip.Prefix) bool {
 	return false
 }
 
-func (l *irrPrefixList) evaluateUpdate(nlriField string) bool {
-	if nlriField == "" {
-		return true
-	}
-	tokens := strings.Fields(nlriField)
-	if len(tokens) < 2 {
-		return true
-	}
-	for _, tok := range tokens[2:] {
-		route, err := netip.ParsePrefix(tok)
-		if err != nil {
-			return false
-		}
-		if !evaluatePrefix(l.entries, route) {
-			return false
-		}
-	}
-	return true
-}
-
 func findMatchingEntry(entries []prefixEntry, route netip.Prefix) string {
 	routeBits := uint8(route.Bits())
 	routeIs4 := route.Addr().Is4()
@@ -87,229 +72,159 @@ func findMatchingEntry(entries []prefixEntry, route netip.Prefix) string {
 	return ""
 }
 
-// extractNLRIField returns the NLRI value of an update text: everything from
-// its first "nlri" or "mp" keyword, keyword included, or "" when it has none.
-// The reactor renders the NLRI blocks last (filter_format.go).
-func extractNLRIField(updateText string) string {
-	for i := 0; i < len(updateText); {
-		for i < len(updateText) && updateText[i] == ' ' {
-			i++
-		}
-		end := strings.IndexByte(updateText[i:], ' ')
-		if end < 0 {
-			end = len(updateText) - i
-		}
-		if isNLRIKeyword(updateText[i : i+end]) {
-			return updateText[i:]
-		}
-		i += end
-	}
-	return ""
-}
-
-// nlriOpWithdraw is the operation token of a withdrawn NLRI block in the filter
-// text (reactor filter_format.go). Every other operation announces.
-const nlriOpWithdraw = "del"
-
-// legacyFamily is the family of every "nlri" block: the legacy NLRI and
-// Withdrawn Routes are IPv4 unicast (RFC 4271). nlriOpAnnounce on an "nlri"
-// block names the legacy NLRI section. The engine rewrites that section and
-// the mp block of a CIDR family from a modify answer (reactor
-// filter_nlri_delta.go), and rewritable below admits exactly those.
+// The route fields the filter reads (filterDecls): the NLRI the UPDATE
+// announces, which the list judges, and the NLRI it withdraws, which decide
+// whether a route that announces nothing the list admits still has
+// withdrawals to keep (docs/plugin-development/protocol.md, "The Route Fields
+// of filter-update").
 const (
-	legacyFamily   = "ipv4/unicast"
-	nlriOpAnnounce = "add"
+	fieldPrefix    = "prefix"
+	fieldWithdrawn = "withdrawn"
 )
 
-// nlriKeyword opens a legacy block, "nlri add|del <prefix>...", and mpKeyword
-// a block rendered from an MP_REACH_NLRI or MP_UNREACH_NLRI attribute,
-// "mp <family> add|del <prefix>...", so IPv4 unicast carried in MP_REACH_NLRI is
-// told apart from the legacy NLRI field (reactor filter_format.go).
-const (
-	nlriKeyword = "nlri"
-	mpKeyword   = "mp"
-)
+// errNLRIValue is answered for an NLRI element of the prefix or withdrawn
+// field that names no prefix.
+var errNLRIValue = errors.New("an NLRI element names no prefix")
 
-// isNLRIKeyword reports whether token opens an NLRI block.
-func isNLRIKeyword(token string) bool {
-	return token == nlriKeyword || token == mpKeyword
-}
-
-// nlriBlock is one "nlri <op> <prefix>..." or "mp <family> <op> <prefix>..."
-// block of the filter text; family is legacyFamily on an "nlri" block.
-// tokens and prefixes hold the same prefixes, as written and parsed. admitted
-// marks, for an announce block, which prefixes the IRR list authorizes; a
-// withdraw block is never judged, so its admitted is nil.
-type nlriBlock struct {
-	mp       bool // rendered from MP_REACH_NLRI / MP_UNREACH_NLRI ("mp ...")
+// familyNLRI is the NLRI of one family that one UPDATE announces or
+// withdraws, as the prefix or withdrawn field carries them. prefixes holds
+// each NLRI's prefix. For an announced family, values holds each NLRI in the
+// field's shape, the value a prefix remove names, and admitted marks the
+// ones the ASN's list authorizes. A withdrawn family is never judged, so its
+// values and admitted are nil.
+type familyNLRI struct {
 	family   string
-	op       string
-	tokens   []string
+	withdraw bool
 	prefixes []netip.Prefix
+	values   []json.RawMessage
 	admitted []bool
 }
 
-func (b *nlriBlock) withdraws() bool {
-	return b.op == nlriOpWithdraw
+// routeNLRI is the judged NLRI of one UPDATE. Only a CIDR family
+// (filtertext.CIDRFamily: unicast, multicast, labeled unicast) is judged and
+// listed in families; the NLRI of every other family passes as received.
+// accepted and rejected count the judged announced NLRI the list does and
+// does not authorize; they decide the verdict. withdraws is set when the
+// UPDATE withdraws any NLRI, of any family.
+type routeNLRI struct {
+	families  []familyNLRI
+	accepted  int
+	rejected  int
+	withdraws bool
 }
 
-// partitionResult carries the per-prefix classification of one UPDATE, block by
-// block. The reactor renders the legacy NLRI and Withdrawn Routes sections and
-// each MP_REACH_NLRI and MP_UNREACH_NLRI attribute as a block of its own
-// (filter_format.go), so one UPDATE can carry several.
-//
-// accepted and rejected hold the announced prefix tokens the list does and does
-// not authorize, across every announce block: they decide the verdict. A
-// withdrawn prefix is in neither, because withdrawing a route the list never
-// authorized removes nothing it admitted. hadParseError is set when any prefix
-// token of any block failed to parse, so callers fail closed.
-type partitionResult struct {
-	blocks        []nlriBlock
-	accepted      []string
-	rejected      []string
-	hadParseError bool
-}
-
-// partitionUpdate walks every block of an nlri text field and classifies each
-// announced prefix as accepted (in the IRR list) or rejected. Unlike
-// evaluateUpdate, which short-circuits on the first rejection, it consumes the
-// whole field so the modify path can emit only the accepted subset.
-//
-// The field is the NLRI value, keyword first: "nlri add|del <prefix>..." and
-// "mp <family> add|del <prefix>..." blocks in any number. A block whose head is
-// malformed is a parse error, so callers fail closed. The loop is bounded by
-// the token count of the field.
-func (l *irrPrefixList) partitionUpdate(nlriField string) partitionResult {
-	var out partitionResult
-	tokens := strings.Fields(nlriField)
-	for start := 0; start < len(tokens); {
-		end := start + 1
-		for end < len(tokens) && !isNLRIKeyword(tokens[end]) {
-			end++
-		}
-		mp := tokens[start] == mpKeyword
-		head, family := start+1, legacyFamily
-		if mp {
-			head++
-		}
-		switch {
-		case !isNLRIKeyword(tokens[start]):
-			out.hadParseError = true // the field does not open with a block
-		case end <= head:
-			out.hadParseError = true // the block ends before its op token
-		case mp:
-			out.addBlock(l, true, tokens[start+1], tokens[head], tokens[head+1:end])
-		default:
-			out.addBlock(l, false, family, tokens[head], tokens[head+1:end])
-		}
-		start = end
+// judgeNLRI reads the prefix and withdrawn fields and judges each announced
+// NLRI of a CIDR family against list; a nil list, an ASN whose list is not
+// here yet, admits nothing. Families are visited in name order, so one route
+// always answers the same removes in the same order. A field that is not
+// the shape the engine writes answers an error, never a partial judgment.
+func judgeNLRI(fields []byte, list *irrPrefixList) (routeNLRI, error) {
+	var out routeNLRI
+	if len(fields) == 0 {
+		return out, nil
 	}
-	return out
-}
-
-// addBlock parses one block's prefix tokens and classifies them.
-func (out *partitionResult) addBlock(l *irrPrefixList, mp bool, family, op string, tokens []string) {
-	block := nlriBlock{mp: mp, family: family, op: op, tokens: tokens, prefixes: make([]netip.Prefix, 0, len(tokens))}
-	if !block.withdraws() {
-		block.admitted = make([]bool, 0, len(tokens))
+	var decoded struct {
+		Prefix    map[string][]json.RawMessage `json:"prefix"`
+		Withdrawn map[string][]json.RawMessage `json:"withdrawn"`
 	}
-	for _, tok := range tokens {
-		route, err := netip.ParsePrefix(tok)
-		if err != nil {
-			out.hadParseError = true
-			return
+	if err := json.Unmarshal(fields, &decoded); err != nil {
+		return out, fmt.Errorf("the route fields do not decode: %w", err)
+	}
+	for _, name := range slices.Sorted(maps.Keys(decoded.Withdrawn)) {
+		values := decoded.Withdrawn[name]
+		if len(values) > 0 {
+			out.withdraws = true
 		}
-		block.prefixes = append(block.prefixes, route)
-		if block.withdraws() {
+		if !judgedFamily(name) {
 			continue
 		}
-		admitted := evaluatePrefix(l.entries, route)
-		block.admitted = append(block.admitted, admitted)
-		if admitted {
-			out.accepted = append(out.accepted, tok)
-		} else {
-			out.rejected = append(out.rejected, tok)
+		block := familyNLRI{family: name, withdraw: true, prefixes: make([]netip.Prefix, len(values))}
+		for i, value := range values {
+			prefix, err := nlriPrefix(value)
+			if err != nil {
+				return routeNLRI{}, fmt.Errorf("withdrawn %s element %d: %w", name, i+1, err)
+			}
+			block.prefixes[i] = prefix
 		}
+		out.families = append(out.families, block)
 	}
-	out.blocks = append(out.blocks, block)
-}
-
-// rewritable reports whether a modify delta can drop every rejected prefix of
-// the UPDATE. The engine rewrites the legacy announce block and the mp block of
-// a CIDR family (filtertext.CIDRFamily: unicast, multicast and mpls-label, whose
-// label stacks it keeps), and refuses a changed block of any other family
-// (reactor filter_nlri_delta.go, sectionNLRIDelta). An UPDATE with a rejected
-// prefix in any other block, such as a FlowSpec destination, or in a block whose
-// family this process does not know, is rejected whole: fail closed.
-func (p *partitionResult) rewritable() bool {
-	for i := range p.blocks {
-		block := &p.blocks[i]
-		if block.withdraws() {
+	for _, name := range slices.Sorted(maps.Keys(decoded.Prefix)) {
+		if !judgedFamily(name) {
 			continue
 		}
-		if !slices.Contains(block.admitted, false) {
-			continue
-		}
-		if !block.mp && block.op == nlriOpAnnounce {
-			continue
-		}
-		if !block.mp {
-			return false
-		}
-		fam, known := family.LookupFamily(block.family)
-		if !known {
-			return false
-		}
-		if !filtertext.CIDRFamily(fam) {
-			return false
-		}
-	}
-	return true
-}
-
-// buildModifyDelta renders the modify delta returned to the engine when some
-// announced prefixes pass and some don't. It carries only the rewritten nlri
-// field, so the engine leaves every other attribute untouched. Every block is
-// rebuilt in order: an announce block keeps its accepted prefixes and is left
-// out when it held prefixes and the list admits none, and a withdraw block is
-// kept whole. A block with no prefix at all, the marker the engine renders for
-// a non-CIDR family (reactor filter_format.go, appendMPBlock), is echoed
-// unchanged: left out it reads as a changed block of a family the engine cannot
-// rewrite, which drops the whole UPDATE, legitimate prefixes included.
-func buildModifyDelta(partition partitionResult) string {
-	size := 0
-	for i := range partition.blocks {
-		block := &partition.blocks[i]
-		size += len(nlriKeyword) + len(block.family) + len(block.op) + 3
-		for _, tok := range block.tokens {
-			size += len(tok) + 1
-		}
-	}
-	text := make([]byte, 0, size)
-	for i := range partition.blocks {
-		block := &partition.blocks[i]
-		if !block.withdraws() && len(block.tokens) > 0 && !slices.Contains(block.admitted, true) {
-			continue
-		}
-		if len(text) > 0 {
-			text = append(text, ' ')
-		}
-		if block.mp {
-			text = append(text, mpKeyword...)
-			text = append(text, ' ')
-			text = append(text, block.family...)
-		} else {
-			text = append(text, nlriKeyword...)
-		}
-		text = append(text, ' ')
-		text = append(text, block.op...)
-		for j, tok := range block.tokens {
-			if !block.withdraws() && !block.admitted[j] {
+		values := decoded.Prefix[name]
+		block := familyNLRI{family: name, prefixes: make([]netip.Prefix, len(values)), values: values,
+			admitted: make([]bool, len(values))}
+		for i, value := range values {
+			prefix, err := nlriPrefix(value)
+			if err != nil {
+				return routeNLRI{}, fmt.Errorf("prefix %s element %d: %w", name, i+1, err)
+			}
+			block.prefixes[i] = prefix
+			if list != nil && evaluatePrefix(list.entries, prefix) {
+				block.admitted[i] = true
+				out.accepted++
 				continue
 			}
-			text = append(text, ' ')
-			text = append(text, tok...)
+			out.rejected++
+		}
+		out.families = append(out.families, block)
+	}
+	return out, nil
+}
+
+// judgedFamily reports whether the IRR list judges the NLRI of the family
+// named name: a CIDR family this process knows. Any other family's NLRI is
+// not a prefix the list can authorize, and passes unjudged.
+func judgedFamily(name string) bool {
+	fam, known := family.LookupFamily(name)
+	return known && filtertext.CIDRFamily(fam)
+}
+
+// nlriPrefix reads the prefix of one NLRI element in the event's NLRI shape:
+// the prefix string, or an object whose "prefix" member is that string, as
+// under ADD-PATH ({"prefix":...,"path-id":...}) and for labeled unicast
+// ({"labels":...,"prefix":...}).
+func nlriPrefix(value json.RawMessage) (netip.Prefix, error) {
+	var text string
+	if len(value) > 0 && value[0] == '"' {
+		if err := json.Unmarshal(value, &text); err != nil {
+			return netip.Prefix{}, errNLRIValue
+		}
+	} else {
+		var shaped struct {
+			Prefix *string `json:"prefix"`
+		}
+		if err := json.Unmarshal(value, &shaped); err != nil {
+			return netip.Prefix{}, errNLRIValue
+		}
+		if shaped.Prefix == nil {
+			return netip.Prefix{}, errNLRIValue
+		}
+		text = *shaped.Prefix
+	}
+	prefix, err := netip.ParsePrefix(text)
+	if err != nil {
+		return netip.Prefix{}, fmt.Errorf("%q is not a prefix", text)
+	}
+	return prefix, nil
+}
+
+// rejectedRemoves answers one prefix remove for each announced NLRI the
+// list does not authorize, each naming the NLRI in the shape the prefix
+// field carried it, so the engine drops exactly those entries and keeps the
+// rest of the UPDATE (policychain applyPrefixIntent).
+func (n *routeNLRI) rejectedRemoves() []rpc.FilterSet {
+	removes := make([]rpc.FilterSet, 0, n.rejected)
+	for i := range n.families {
+		block := &n.families[i]
+		for j, admitted := range block.admitted {
+			if admitted {
+				continue
+			}
+			removes = append(removes, rpc.FilterSet{Field: fieldPrefix, Action: rpc.FilterSetActionRemove,
+				Value: block.values[j]})
 		}
 	}
-	return string(text)
+	return removes
 }

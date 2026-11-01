@@ -8,110 +8,136 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// VALIDATES: an UPDATE whose filter text carries more than one
-// "nlri <family> <op> ..." block (announce and withdraw in one UPDATE, or
-// MP_REACH beside MP_UNREACH: reactor filter_format.go emits one block each)
-// is judged block by block, and a withdrawal is never filtered.
-// PREVENTS: the second block's "nlri" keyword failing to parse as a prefix, so
-// the whole UPDATE was rejected as parse-error, including its valid route.
+// VALIDATES: an UPDATE that announces and withdraws in several families is
+// judged family by family from the prefix and withdrawn fields, a withdrawal is
+// never filtered, and a rejected NLRI is answered as a prefix remove naming it
+// in the shape the prefix field carried it (unicast, multicast, ADD-PATH and
+// labeled unicast alike). The NLRI of a family the list cannot judge (FlowSpec,
+// EVPN) passes as received.
+// PREVENTS: one family's rejected prefix rejecting the UPDATE whole and its
+// valid routes with it, and a withdrawal dropped with a rejected announcement.
 func TestFilterIRRMultiBlockVerdict(t *testing.T) {
 	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), newFakeReadmitEngine(), time.Hour)
 	plug.refreshASN(65001)
 
+	type nlri = map[string][]string
 	tests := []struct {
-		name   string
-		update string
-		action sdk.FilterAction
-		delta  string
+		name      string
+		announced nlri
+		withdrawn nlri
+		action    sdk.FilterAction
+		removes   []string
 	}{
 		{
-			name:   "accepted announce beside a withdrawal",
-			update: "origin igp nlri add 10.0.0.0/24 nlri del 192.0.2.0/24",
-			action: sdk.FilterAccept,
+			name:      "accepted announce beside a withdrawal",
+			announced: nlri{"ipv4/unicast": {"10.0.0.0/24"}},
+			withdrawn: nlri{"ipv4/unicast": {"192.0.2.0/24"}},
+			action:    sdk.FilterAccept,
 		},
 		{
-			name:   "mixed announce beside a withdrawal keeps the withdrawal whole",
-			update: "origin igp nlri add 10.0.0.0/24 192.0.2.0/24 nlri del 198.51.100.0/24",
-			action: sdk.FilterModify,
-			delta:  "nlri add 10.0.0.0/24 nlri del 198.51.100.0/24",
+			name:      "mixed announce beside a withdrawal keeps the withdrawal whole",
+			announced: nlri{"ipv4/unicast": {"10.0.0.0/24", "192.0.2.0/24"}},
+			withdrawn: nlri{"ipv4/unicast": {"198.51.100.0/24"}},
+			action:    sdk.FilterModify,
+			removes:   []string{`"192.0.2.0/24"`},
 		},
 		{
-			// The engine refuses a changed block of a non-CIDR family
-			// (reactor filter_nlri_delta.go, refuseNonCIDR), so a modify
-			// cannot drop the rejected FlowSpec destination.
-			name:   "legacy announce beside a rejected non-CIDR MP announce fails closed",
-			update: "origin igp nlri add 10.0.0.0/24 mp ipv4/flow add 192.0.2.0/24",
-			action: sdk.FilterReject,
+			name:      "an admitted announce beside a FlowSpec rule is accepted",
+			announced: nlri{"ipv4/unicast": {"10.0.0.0/24"}, "ipv4/flow": {`{"destination":[["192.0.2.0/24"]]}`}},
+			action:    sdk.FilterAccept,
 		},
 		{
-			// The engine rewrites an MP_REACH_NLRI of a CIDR family from its
-			// own block (reactor filter_nlri_delta.go), so the block is left
-			// out and the MP_REACH_NLRI dropped.
-			name:   "legacy announce beside a rejected CIDR MP announce is a modify",
-			update: "origin igp nlri add 10.0.0.0/24 mp ipv6/unicast add 2001:db8::/32",
-			action: sdk.FilterModify,
-			delta:  "nlri add 10.0.0.0/24",
+			name:      "an admitted announce beside a rejected IPv6 announce is a modify",
+			announced: nlri{"ipv4/unicast": {"10.0.0.0/24"}, "ipv6/unicast": {"2001:db8::/32"}},
+			action:    sdk.FilterModify,
+			removes:   []string{`"2001:db8::/32"`},
 		},
 		{
-			name:   "a mixed CIDR MP announce keeps its admitted prefix",
-			update: "origin igp nlri add 10.0.0.0/24 mp ipv4/multicast add 192.0.2.0/24 10.0.0.0/24",
-			action: sdk.FilterModify,
-			delta:  "nlri add 10.0.0.0/24 mp ipv4/multicast add 10.0.0.0/24",
+			name:      "a mixed multicast announce keeps its admitted prefix",
+			announced: nlri{"ipv4/unicast": {"10.0.0.0/24"}, "ipv4/multicast": {"192.0.2.0/24", "10.0.0.0/24"}},
+			action:    sdk.FilterModify,
+			removes:   []string{`"192.0.2.0/24"`},
 		},
 		{
-			// A labeled (RFC 8277) section is rewritten with its label stacks
-			// (reactor filter_nlri_delta.go, subsetNLRI).
-			name:   "a mixed labeled MP announce keeps its admitted prefix",
-			update: "origin igp mp ipv4/mpls-label add 192.0.2.0/24 10.0.0.0/24",
-			action: sdk.FilterModify,
-			delta:  "mp ipv4/mpls-label add 10.0.0.0/24",
+			// RFC 8277 Section 2.2: the remove names the NLRI with its label
+			// stack, the shape the prefix field carried it.
+			name: "a mixed labeled announce keeps its admitted prefix",
+			announced: nlri{"ipv4/mpls-label": {
+				`{"labels":[[100,1601]],"prefix":"192.0.2.0/24"}`,
+				`{"labels":[[200,3201]],"prefix":"10.0.0.0/24"}`,
+			}},
+			action:  sdk.FilterModify,
+			removes: []string{`{"labels":[[100,1601]],"prefix":"192.0.2.0/24"}`},
 		},
 		{
-			// A non-CIDR family renders as a block with no prefix (reactor
-			// filter_format.go, appendMPBlock); left out of the answer it reads
-			// as a changed block, which the engine refuses whole.
-			name:   "a marker-only MP block is echoed unchanged",
-			update: "origin igp nlri add 10.0.0.0/24 192.0.2.0/24 mp l2vpn/evpn add",
-			action: sdk.FilterModify,
-			delta:  "nlri add 10.0.0.0/24 mp l2vpn/evpn add",
+			// RFC 7911 Section 3: under ADD-PATH the remove names one path.
+			name: "a mixed ADD-PATH labeled announce removes the refused path",
+			announced: nlri{"ipv4/mpls-label": {
+				`{"labels":[[100,1601]],"path-id":7,"prefix":"192.0.2.0/24"}`,
+				`{"labels":[[100,1601]],"path-id":8,"prefix":"10.0.0.0/24"}`,
+			}},
+			action:  sdk.FilterModify,
+			removes: []string{`{"labels":[[100,1601]],"path-id":7,"prefix":"192.0.2.0/24"}`},
 		},
 		{
-			name:   "a mixed legacy announce beside an MP withdrawal is a modify",
-			update: "origin igp nlri add 10.0.0.0/24 192.0.2.0/24 nlri del 198.51.100.0/24 mp ipv6/unicast del 2001:db8::/32",
-			action: sdk.FilterModify,
-			delta:  "nlri add 10.0.0.0/24 nlri del 198.51.100.0/24 mp ipv6/unicast del 2001:db8::/32",
+			name: "a mixed ADD-PATH unicast announce removes the refused path",
+			announced: nlri{"ipv4/unicast": {
+				`{"path-id":0,"prefix":"10.0.0.0/24"}`,
+				`{"path-id":1,"prefix":"192.0.2.0/24"}`,
+			}},
+			action:  sdk.FilterModify,
+			removes: []string{`{"path-id":1,"prefix":"192.0.2.0/24"}`},
+		},
+		{
+			name:      "an EVPN route beside a mixed announce passes unjudged",
+			announced: nlri{"ipv4/unicast": {"10.0.0.0/24", "192.0.2.0/24"}, "l2vpn/evpn": {`{"route-type":"mac-ip-advertisement"}`}},
+			action:    sdk.FilterModify,
+			removes:   []string{`"192.0.2.0/24"`},
+		},
+		{
+			name:      "a mixed announce beside an IPv4 and an IPv6 withdrawal is a modify",
+			announced: nlri{"ipv4/unicast": {"10.0.0.0/24", "192.0.2.0/24"}},
+			withdrawn: nlri{"ipv4/unicast": {"198.51.100.0/24"}, "ipv6/unicast": {"2001:db8::/32"}},
+			action:    sdk.FilterModify,
+			removes:   []string{`"192.0.2.0/24"`},
 		},
 		{
 			// RFC 4271 Section 9: the withdrawal SHALL remove the route from
 			// the Adj-RIB-In, so rejecting the announcement keeps it.
-			name:   "rejected announce beside a withdrawal keeps the withdrawal",
-			update: "origin igp nlri add 192.0.2.0/24 nlri del 10.0.0.0/24",
-			action: sdk.FilterModify,
-			delta:  "nlri del 10.0.0.0/24",
+			name:      "rejected announce beside a withdrawal keeps the withdrawal",
+			announced: nlri{"ipv4/unicast": {"192.0.2.0/24"}},
+			withdrawn: nlri{"ipv4/unicast": {"10.0.0.0/24"}},
+			action:    sdk.FilterModify,
+			removes:   []string{`"192.0.2.0/24"`},
 		},
 		{
-			// The engine refuses a changed block of a non-CIDR family
-			// (reactor filter_nlri_delta.go, refuseNonCIDR), so this one stays
-			// a whole reject.
-			name:   "rejected non-CIDR MP announce beside a withdrawal fails closed",
-			update: "origin igp mp ipv4/flow add 192.0.2.0/24 nlri del 10.0.0.0/24",
-			action: sdk.FilterReject,
+			name:      "a FlowSpec rule beside a withdrawal is accepted",
+			announced: nlri{"ipv4/flow": {`{"destination":[["192.0.2.0/24"]]}`}},
+			withdrawn: nlri{"ipv4/unicast": {"10.0.0.0/24"}},
+			action:    sdk.FilterAccept,
 		},
 		{
-			name:   "rejected CIDR MP announce beside a withdrawal keeps the withdrawal",
-			update: "origin igp mp ipv6/unicast add 2001:db8::/32 nlri del 10.0.0.0/24",
-			action: sdk.FilterModify,
-			delta:  "nlri del 10.0.0.0/24",
+			name:      "rejected IPv6 announce beside a withdrawal keeps the withdrawal",
+			announced: nlri{"ipv6/unicast": {"2001:db8::/32"}},
+			withdrawn: nlri{"ipv4/unicast": {"10.0.0.0/24"}},
+			action:    sdk.FilterModify,
+			removes:   []string{`"2001:db8::/32"`},
 		},
 		{
-			name:   "a withdrawal alone is not filtered",
-			update: "nlri del 192.0.2.0/24",
-			action: sdk.FilterAccept,
+			name:      "a withdrawal alone is not filtered",
+			withdrawn: nlri{"ipv4/unicast": {"192.0.2.0/24"}},
+			action:    sdk.FilterAccept,
 		},
 		{
-			name:   "a malformed prefix in the second block still fails closed",
-			update: "nlri add 10.0.0.0/24 nlri del not-a-prefix",
-			action: sdk.FilterReject,
+			name:      "a malformed withdrawn prefix still fails closed",
+			announced: nlri{"ipv4/unicast": {"10.0.0.0/24"}},
+			withdrawn: nlri{"ipv4/unicast": {"not-a-prefix"}},
+			action:    sdk.FilterReject,
+		},
+		{
+			name:      "a malformed announced element fails closed",
+			announced: nlri{"ipv4/unicast": {"10.0.0.0/24", `{"path-id":1}`}},
+			action:    sdk.FilterReject,
 		},
 	}
 	for _, tt := range tests {
@@ -119,13 +145,13 @@ func TestFilterIRRMultiBlockVerdict(t *testing.T) {
 			out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 				Filter: "bgp-filter-irr:65001",
 				Peer:   readmitTestPeer,
-				Update: tt.update,
+				Fields: routeFields(tt.announced, tt.withdrawn),
 			})
 			if out.Action != tt.action {
 				t.Fatalf("action = %v, want %v", out.Action, tt.action)
 			}
-			if out.Update != tt.delta {
-				t.Errorf("delta = %q, want %q", out.Update, tt.delta)
+			if got := removedValues(t, out); !slices.Equal(got, tt.removes) && (len(got) != 0 || len(tt.removes) != 0) {
+				t.Errorf("removes = %v, want %v", got, tt.removes)
 			}
 		})
 	}
@@ -183,52 +209,56 @@ func TestPeersMissingRefreshGrant(t *testing.T) {
 func TestFilterIRRNoListKeepsWithdrawals(t *testing.T) {
 	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), newFakeReadmitEngine(), time.Hour)
 
+	type nlri = map[string][]string
 	tests := []struct {
-		name   string
-		update string
-		action sdk.FilterAction
-		delta  string
+		name      string
+		announced nlri
+		withdrawn nlri
+		action    sdk.FilterAction
+		removes   []string
 	}{
 		{
-			name:   "a withdrawal alone is accepted",
-			update: "nlri del 192.0.2.0/24",
-			action: sdk.FilterAccept,
+			name:      "a withdrawal alone is accepted",
+			withdrawn: nlri{"ipv4/unicast": {"192.0.2.0/24"}},
+			action:    sdk.FilterAccept,
 		},
 		{
-			name:   "an MP withdrawal alone is accepted",
-			update: "mp ipv6/unicast del 2001:db8::/32",
-			action: sdk.FilterAccept,
+			name:      "an IPv6 withdrawal alone is accepted",
+			withdrawn: nlri{"ipv6/unicast": {"2001:db8::/32"}},
+			action:    sdk.FilterAccept,
 		},
 		{
-			name:   "a legacy announce beside a withdrawal keeps the withdrawal",
-			update: "origin igp nlri add 10.0.0.0/24 nlri del 198.51.100.0/24",
-			action: sdk.FilterModify,
-			delta:  "nlri del 198.51.100.0/24",
+			name:      "an announce beside a withdrawal keeps the withdrawal",
+			announced: nlri{"ipv4/unicast": {"10.0.0.0/24"}},
+			withdrawn: nlri{"ipv4/unicast": {"198.51.100.0/24"}},
+			action:    sdk.FilterModify,
+			removes:   []string{`"10.0.0.0/24"`},
 		},
 		{
-			name:   "an announce alone is rejected",
-			update: "origin igp nlri add 10.0.0.0/24",
-			action: sdk.FilterReject,
+			name:      "an announce alone is rejected",
+			announced: nlri{"ipv4/unicast": {"10.0.0.0/24"}},
+			action:    sdk.FilterReject,
 		},
 		{
-			name:   "a non-CIDR MP announce beside a withdrawal fails closed",
-			update: "origin igp mp ipv4/flow add 192.0.2.0/24 nlri del 198.51.100.0/24",
-			action: sdk.FilterReject,
+			name:      "a FlowSpec rule beside a withdrawal is accepted",
+			announced: nlri{"ipv4/flow": {`{"destination":[["192.0.2.0/24"]]}`}},
+			withdrawn: nlri{"ipv4/unicast": {"198.51.100.0/24"}},
+			action:    sdk.FilterAccept,
 		},
 		{
-			name:   "a CIDR MP announce beside a withdrawal keeps the withdrawal",
-			update: "origin igp mp ipv6/unicast add 2001:db8::/32 nlri del 198.51.100.0/24",
-			action: sdk.FilterModify,
-			delta:  "nlri del 198.51.100.0/24",
+			name:      "an IPv6 announce beside a withdrawal keeps the withdrawal",
+			announced: nlri{"ipv6/unicast": {"2001:db8::/32"}},
+			withdrawn: nlri{"ipv4/unicast": {"198.51.100.0/24"}},
+			action:    sdk.FilterModify,
+			removes:   []string{`"2001:db8::/32"`},
 		},
 		{
-			name:   "a malformed withdrawal fails closed",
-			update: "nlri del not-a-prefix",
-			action: sdk.FilterReject,
+			name:      "a malformed withdrawal fails closed",
+			withdrawn: nlri{"ipv4/unicast": {"not-a-prefix"}},
+			action:    sdk.FilterReject,
 		},
 		{
 			name:   "an UPDATE with no prefix is rejected",
-			update: "origin igp",
 			action: sdk.FilterReject,
 		},
 	}
@@ -237,13 +267,13 @@ func TestFilterIRRNoListKeepsWithdrawals(t *testing.T) {
 			out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 				Filter: "bgp-filter-irr:65001",
 				Peer:   readmitTestPeer,
-				Update: tt.update,
+				Fields: routeFields(tt.announced, tt.withdrawn),
 			})
 			if out.Action != tt.action {
 				t.Fatalf("action = %v, want %v", out.Action, tt.action)
 			}
-			if out.Update != tt.delta {
-				t.Errorf("delta = %q, want %q", out.Update, tt.delta)
+			if got := removedValues(t, out); !slices.Equal(got, tt.removes) && (len(got) != 0 || len(tt.removes) != 0) {
+				t.Errorf("removes = %v, want %v", got, tt.removes)
 			}
 		})
 	}

@@ -3,6 +3,7 @@ package filter_irr
 import (
 	"net/netip"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -14,23 +15,24 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// irrRoute is one route as the text chain hands it to the evaluator.
-func irrRoute(update string) rpc.FilterRoute {
+// irrRoute is one route as the chain hands it to the evaluator, carrying the
+// route fields the filter reads.
+func irrRoute(fields []byte) rpc.FilterRoute {
 	return rpc.InputFilterRoute(&rpc.FilterUpdateInput{
-		Filter: "65001", Direction: "import", Peer: readmitTestPeer, PeerAS: 65001, Update: update,
+		Filter: "65001", Direction: "import", Peer: readmitTestPeer, PeerAS: 65001, Fields: fields,
 	})
 }
 
 // evaluateWithin calls the evaluator on its own goroutine and fails the test
 // when it has not answered within bound: the evaluator never waits.
-func evaluateWithin(t *testing.T, plug *irrPlugin, update string, bound time.Duration) *sdk.FilterUpdateOutput {
+func evaluateWithin(t *testing.T, plug *irrPlugin, fields []byte, bound time.Duration) *sdk.FilterUpdateOutput {
 	t.Helper()
 	answered := make(chan *sdk.FilterUpdateOutput, 1)
 	go func() {
-		route := irrRoute(update)
+		route := irrRoute(fields)
 		out, err := plug.evaluate(&route)
 		if err != nil {
-			t.Errorf("evaluate(%q): %v", update, err)
+			t.Errorf("evaluate(%s): %v", fields, err)
 		}
 		answered <- out
 	}()
@@ -38,7 +40,7 @@ func evaluateWithin(t *testing.T, plug *irrPlugin, update string, bound time.Dur
 	case out := <-answered:
 		return out
 	case <-time.After(bound):
-		t.Fatalf("evaluate(%q) did not answer within %v: the evaluator waited", update, bound)
+		t.Fatalf("evaluate(%s) did not answer within %v: the evaluator waited", fields, bound)
 		return nil
 	}
 }
@@ -65,9 +67,13 @@ func TestIRRUnresolvedTakesOnError(t *testing.T) {
 
 	// The lookup is held by the server until release, longer than the bound:
 	// the old evaluator waited on it, this one must not.
-	out := evaluateWithin(t, plug, "origin igp nlri add 10.0.0.0/24 nlri del 198.51.100.0/24", time.Second)
-	if out.Action != sdk.FilterModify || out.Update != "nlri del 198.51.100.0/24" {
-		t.Fatalf("unresolved verdict = %v %q, want modify keeping the withdrawal alone", out.Action, out.Update)
+	out := evaluateWithin(t, plug, routeFields(map[string][]string{"ipv4/unicast": {"10.0.0.0/24"}},
+		map[string][]string{"ipv4/unicast": {"198.51.100.0/24"}}), time.Second)
+	if out.Action != sdk.FilterModify {
+		t.Fatalf("unresolved verdict = %v, want modify keeping the withdrawal alone", out.Action)
+	}
+	if got := removedValues(t, out); !slices.Equal(got, []string{`"10.0.0.0/24"`}) {
+		t.Fatalf("removes = %v, want the unjudged announcement 10.0.0.0/24 alone", got)
 	}
 	if got := plug.readmit.heldCount(); got != 1 {
 		t.Fatalf("held = %d, want the rejected announcement held", got)
@@ -87,7 +93,7 @@ func TestIRRUnresolvedTakesOnError(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("no ROUTE-REFRESH after the list was published")
 	}
-	if out := evaluateWithin(t, plug, "origin igp nlri add 10.0.0.0/24", time.Second); out.Action != sdk.FilterAccept {
+	if out := evaluateWithin(t, plug, announceFields("10.0.0.0/24"), time.Second); out.Action != sdk.FilterAccept {
 		t.Fatalf("re-sent in-list prefix = %v, want accept", out.Action)
 	}
 }
@@ -138,7 +144,7 @@ func TestIRRSnapshotSwap(t *testing.T) {
 					return
 				default:
 				}
-				route := irrRoute("origin igp nlri add 10.0.0.0/24 10.1.0.0/24")
+				route := irrRoute(announceFields("10.0.0.0/24", "10.1.0.0/24"))
 				out, err := tx.plug.evaluate(&route)
 				if err != nil {
 					t.Errorf("evaluate: %v", err)
@@ -150,7 +156,7 @@ func TestIRRSnapshotSwap(t *testing.T) {
 				case sdk.FilterReject:
 					rejected.Store(worker, true)
 				case sdk.FilterModify, sdk.FilterUnspecified:
-					t.Errorf("verdict %v %q: one route was judged by two snapshots", out.Action, out.Update)
+					t.Errorf("verdict %v %+v: one route was judged by two snapshots", out.Action, out.Sets)
 					return
 				}
 			}
@@ -160,7 +166,7 @@ func TestIRRSnapshotSwap(t *testing.T) {
 		if i%2 == 0 {
 			resolveAs("AS-NEW")
 			// The reload itself swapped the snapshot: AS-NEW has no list yet.
-			route := irrRoute("origin igp nlri add 10.0.0.0/24 10.1.0.0/24")
+			route := irrRoute(announceFields("10.0.0.0/24", "10.1.0.0/24"))
 			if out, err := tx.plug.evaluate(&route); err != nil || out.Action != sdk.FilterReject {
 				t.Fatalf("after the reload to AS-NEW: %v %v, want reject: the reload did not swap the snapshot", out, err)
 			}
@@ -172,7 +178,7 @@ func TestIRRSnapshotSwap(t *testing.T) {
 	wg.Wait()
 
 	// After the last reload (AS-OLD, resolved) the snapshot is the new one.
-	route := irrRoute("origin igp nlri add 10.0.0.0/24 10.1.0.0/24")
+	route := irrRoute(announceFields("10.0.0.0/24", "10.1.0.0/24"))
 	if out, err := tx.plug.evaluate(&route); err != nil || out.Action != sdk.FilterAccept {
 		t.Fatalf("after the last swap: %v %v, want accept by AS-OLD's list", out, err)
 	}

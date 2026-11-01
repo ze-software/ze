@@ -5,52 +5,46 @@ import (
 	"testing"
 )
 
-// TestMPMarkerBlocksAreNotTheLegacyBlock proves the plugin reads the mp marker
-// of an MP_REACH_NLRI block, so IPv4 unicast carried in MP_REACH_NLRI is not
-// mistaken for the legacy NLRI block it may rewrite.
+// TestJudgeNLRIOnlyCIDRFamilies proves the list judges only the NLRI of a CIDR
+// family (unicast, multicast, labeled unicast) and lets every other family's
+// NLRI pass as received.
 //
-// VALIDATES: the marker block parses (no parse error) under its own family and
-// op; a rejected prefix in it is dropped from that block by the modify delta,
-// never kept by echoing the block, and a rejected prefix in a block of a family
-// the engine cannot rewrite makes the UPDATE not rewritable; the modify delta
-// keeps the marker on the block it echoes.
-// PREVENTS: an "nlri add" block from MP_REACH_NLRI judged rewritable as if it
-// were the legacy block, which let a refused prefix reach the RIB through the
-// MP attribute.
-func TestMPMarkerBlocksAreNotTheLegacyBlock(t *testing.T) {
+// VALIDATES: judgeNLRI lists and counts the ipv4/unicast NLRI alone when the
+// prefix field also carries FlowSpec, L3VPN, EVPN and an unknown family; their
+// elements, which are no prefix the list can authorize, are not parsed, so
+// they neither fail the route nor count as rejected.
+// PREVENTS: a non-CIDR element read as a prefix, which failed or rejected the
+// whole UPDATE and its admitted routes with it.
+func TestJudgeNLRIOnlyCIDRFamilies(t *testing.T) {
 	list := &irrPrefixList{entries: []prefixEntry{{prefix: netip.MustParsePrefix("10.0.0.0/8"), ge: 8, le: 24}}}
-
-	p := list.partitionUpdate("nlri add 10.0.1.0/24 mp ipv4/unicast add 192.168.1.0/24 10.0.2.0/24")
-	if p.hadParseError {
-		t.Fatal("an mp block must parse")
+	fields := routeFields(map[string][]string{
+		"ipv4/unicast":        {"10.0.1.0/24", "192.168.1.0/24"},
+		"ipv4/flow":           {`{"destination":[["192.168.2.0/24"]]}`},
+		"ipv4/mpls-vpn":       {`{"rd":"0:65000:1","prefix":"192.168.3.0/24"}`},
+		"l2vpn/evpn":          {`{"route-type":"mac-ip-advertisement"}`},
+		"ipv4/no-such-family": {"192.168.4.0/24"},
+		"ipv4/multicast":      {"10.0.2.0/24"},
+		"ipv4/mpls-label":     {`{"labels":[[100,1601]],"prefix":"192.168.5.0/24"}`},
+	}, nil)
+	judged, err := judgeNLRI(fields, list)
+	if err != nil {
+		t.Fatalf("judgeNLRI: %v", err)
 	}
-	if len(p.blocks) != 2 || p.blocks[0].mp || !p.blocks[1].mp || p.blocks[1].family != "ipv4/unicast" || p.blocks[1].op != "add" {
-		t.Fatalf("blocks = %+v, want a legacy block then an mp ipv4/unicast add block", p.blocks)
+	var families []string
+	for _, block := range judged.families {
+		families = append(families, block.family)
 	}
-	if !p.rewritable() {
-		t.Fatal("a refused prefix in an MP_REACH_NLRI block of a CIDR family is rewritable")
+	want := []string{"ipv4/mpls-label", "ipv4/multicast", "ipv4/unicast"}
+	if len(families) != len(want) {
+		t.Fatalf("judged families = %v, want %v", families, want)
 	}
-	if got, want := buildModifyDelta(p), "nlri add 10.0.1.0/24 mp ipv4/unicast add 10.0.2.0/24"; got != want {
-		t.Errorf("buildModifyDelta = %q, want %q", got, want)
-	}
-
-	for _, field := range []string{
-		"nlri add 10.0.1.0/24 mp ipv4/flow add 192.168.1.0/24",
-		"nlri add 10.0.1.0/24 mp ipv4/mpls-vpn add 192.168.1.0/24",
-		"nlri add 10.0.1.0/24 mp ipv4/no-such-family add 192.168.1.0/24",
-	} {
-		refused := list.partitionUpdate(field)
-		if refused.rewritable() {
-			t.Errorf("%q: a refused prefix in a block the engine cannot rewrite must make the UPDATE not rewritable", field)
+	for i := range want {
+		if families[i] != want[i] {
+			t.Fatalf("judged families = %v, want %v", families, want)
 		}
 	}
-
-	p = list.partitionUpdate("nlri add 10.0.1.0/24 192.168.1.0/24 mp ipv6/unicast del 2001:db8::/32")
-	if !p.rewritable() {
-		t.Fatal("a refused prefix in the legacy block alone is rewritable")
-	}
-	want := "nlri add 10.0.1.0/24 mp ipv6/unicast del 2001:db8::/32"
-	if got := buildModifyDelta(p); got != want {
-		t.Errorf("buildModifyDelta = %q, want %q", got, want)
+	if judged.accepted != 2 || judged.rejected != 2 {
+		t.Errorf("accepted=%d rejected=%d, want 2 and 2 (10.0.1.0/24, 10.0.2.0/24 in; 192.168.1.0/24, 192.168.5.0/24 out)",
+			judged.accepted, judged.rejected)
 	}
 }

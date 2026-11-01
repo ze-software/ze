@@ -8,8 +8,8 @@ import (
 )
 
 // TestMain registers the address families, which a test binary of this package
-// does not link: rewritable looks an mp block's family up by name to learn
-// whether the engine can rewrite it, and fails closed on a name it cannot find.
+// does not link: judgedFamily looks a field's family up by name to learn
+// whether the list judges its NLRI, and judges nothing of a name it cannot find.
 func TestMain(m *testing.M) {
 	family.RegisterTestFamilies()
 	os.Exit(m.Run())

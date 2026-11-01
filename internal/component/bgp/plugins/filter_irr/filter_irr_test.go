@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -351,10 +352,10 @@ func TestPrefixListFromIRRAcceptReject(t *testing.T) {
 	entries := mustPrefixListFromIRR(t, pl)
 	list := &irrPrefixList{entries: entries}
 
-	if !list.evaluateUpdate("nlri add 10.0.0.0/24") {
+	if !admitsAll(t, list, "10.0.0.0/24") {
 		t.Error("matching prefix should be accepted")
 	}
-	if list.evaluateUpdate("nlri add 192.168.0.0/24") {
+	if admitsAll(t, list, "192.168.0.0/24") {
 		t.Error("non-matching prefix should be rejected")
 	}
 }
@@ -364,7 +365,7 @@ func TestPrefixListFromIRREmpty(t *testing.T) {
 	entries := mustPrefixListFromIRR(t, irr.PrefixList{})
 	list := &irrPrefixList{entries: entries}
 
-	if list.evaluateUpdate("nlri add 10.0.0.0/24") {
+	if admitsAll(t, list, "10.0.0.0/24") {
 		t.Error("empty IRR result should reject all")
 	}
 }
@@ -447,40 +448,59 @@ func TestUpdateASSetUnused(t *testing.T) {
 	}
 }
 
-// VALIDATES: a mixed UPDATE (one in-list prefix, one out-of-list) is partitioned
-// so only the in-list prefix is kept and the modify delta carries just that
-// subset. PREVENTS: a single unauthorized prefix collaterally dropping the
-// legitimate routes that share the same UPDATE (all-or-nothing reject).
-func TestPartitionUpdateMixed(t *testing.T) {
+// VALIDATES: a mixed UPDATE (one in-list prefix, one out-of-list) is judged
+// so only the in-list prefix is kept: one accepted, one rejected, and the
+// answer's Sets remove just the out-of-list prefix, in the shape the prefix
+// field carried it. PREVENTS: a single unauthorized prefix collaterally
+// dropping the legitimate routes that share the same UPDATE (all-or-nothing
+// reject).
+func TestJudgeNLRIMixed(t *testing.T) {
 	list := &irrPrefixList{entries: mustPrefixListFromIRR(t, irr.PrefixList{
 		IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})}
-	p := list.partitionUpdate("nlri add 10.0.0.0/24 192.168.0.0/24")
-	if len(p.accepted) != 1 || p.accepted[0] != "10.0.0.0/24" {
-		t.Errorf("accepted = %v, want [10.0.0.0/24]", p.accepted)
+	judged, err := judgeNLRI(announceFields("10.0.0.0/24", "192.168.0.0/24"), list)
+	if err != nil {
+		t.Fatalf("judgeNLRI: %v", err)
 	}
-	if len(p.rejected) != 1 || p.rejected[0] != "192.168.0.0/24" {
-		t.Errorf("rejected = %v, want [192.168.0.0/24]", p.rejected)
+	if judged.accepted != 1 || judged.rejected != 1 {
+		t.Errorf("accepted=%d rejected=%d, want 1 and 1", judged.accepted, judged.rejected)
 	}
-	if got := buildModifyDelta(p); got != "nlri add 10.0.0.0/24" {
-		t.Errorf("delta = %q, want %q", got, "nlri add 10.0.0.0/24")
+	out := judgeListed(&sdk.FilterUpdateInput{Filter: "bgp-filter-irr:65001"}, &judged)
+	if out.Action != sdk.FilterModify {
+		t.Fatalf("action = %v, want FilterModify", out.Action)
+	}
+	if got := removedValues(t, out); !slices.Equal(got, []string{`"192.168.0.0/24"`}) {
+		t.Errorf("removes = %v, want [\"192.168.0.0/24\"]", got)
 	}
 }
 
-// VALIDATES: an UPDATE whose prefixes are all out-of-list yields an empty
-// accepted set (whole-update reject), and an all-in-list UPDATE yields no
-// rejected entries (accept unmodified).
-func TestPartitionUpdateAllOrNone(t *testing.T) {
+// VALIDATES: an UPDATE whose prefixes are all out-of-list yields no accepted
+// prefix and answers a whole-update reject, and an all-in-list UPDATE yields no
+// rejected prefix and answers accept unmodified.
+func TestJudgeNLRIAllOrNone(t *testing.T) {
 	list := &irrPrefixList{entries: mustPrefixListFromIRR(t, irr.PrefixList{
 		IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})}
-	allBad := list.partitionUpdate("nlri add 192.168.0.0/24 203.0.113.0/24")
-	if len(allBad.accepted) != 0 || len(allBad.rejected) != 2 {
-		t.Errorf("all-out-of-list: accepted=%v rejected=%v, want 0 accepted / 2 rejected", allBad.accepted, allBad.rejected)
+	in := &sdk.FilterUpdateInput{Filter: "bgp-filter-irr:65001"}
+	allBad, err := judgeNLRI(announceFields("192.168.0.0/24", "203.0.113.0/24"), list)
+	if err != nil {
+		t.Fatalf("judgeNLRI: %v", err)
 	}
-	allGood := list.partitionUpdate("nlri add 10.0.0.0/24")
-	if len(allGood.accepted) != 1 || len(allGood.rejected) != 0 {
-		t.Errorf("all-in-list: accepted=%v rejected=%v, want 1 accepted / 0 rejected", allGood.accepted, allGood.rejected)
+	if allBad.accepted != 0 || allBad.rejected != 2 {
+		t.Errorf("all-out-of-list: accepted=%d rejected=%d, want 0 accepted / 2 rejected", allBad.accepted, allBad.rejected)
+	}
+	if out := judgeListed(in, &allBad); out.Action != sdk.FilterReject || len(out.Sets) != 0 {
+		t.Errorf("all-out-of-list: answer %+v, want FilterReject with no Sets", out)
+	}
+	allGood, err := judgeNLRI(announceFields("10.0.0.0/24"), list)
+	if err != nil {
+		t.Fatalf("judgeNLRI: %v", err)
+	}
+	if allGood.accepted != 1 || allGood.rejected != 0 {
+		t.Errorf("all-in-list: accepted=%d rejected=%d, want 1 accepted / 0 rejected", allGood.accepted, allGood.rejected)
+	}
+	if out := judgeListed(in, &allGood); out.Action != sdk.FilterAccept || len(out.Sets) != 0 {
+		t.Errorf("all-in-list: answer %+v, want FilterAccept with no Sets", out)
 	}
 }
 
@@ -584,7 +604,7 @@ func TestFilterJudgesBeforeFirstResolution(t *testing.T) {
 	in := &sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   "127.0.0.1",
-		Update: "ipv4/unicast announce nlri add 10.0.0.0/24",
+		Fields: announceFields("10.0.0.0/24"),
 	}
 	if out := plug.handleFilterUpdate(in); out.Action != sdk.FilterReject {
 		t.Fatalf("before the first resolution: action = %v, want FilterReject (on-error, no wait)", out.Action)
@@ -637,7 +657,7 @@ func TestRefreshEmptyAnswerKeepsFilterList(t *testing.T) {
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   "127.0.0.1",
-		Update: "ipv4/unicast announce nlri add 10.0.0.0/24",
+		Fields: announceFields("10.0.0.0/24"),
 	})
 	if out.Action != sdk.FilterAccept {
 		t.Errorf("action = %v, want FilterAccept: the peer's prefix is still in the last-known-good list", out.Action)
@@ -666,7 +686,7 @@ func TestFilterFailClosedAfterEmptyResolution(t *testing.T) {
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65002",
 		Peer:   "127.0.0.1",
-		Update: "ipv4/unicast announce nlri add 10.0.0.0/24",
+		Fields: announceFields("10.0.0.0/24"),
 	})
 	if out.Action != sdk.FilterReject {
 		t.Errorf("action = %v, want FilterReject (fail-closed on empty list)", out.Action)
@@ -694,7 +714,7 @@ func TestFilterAnswersWithoutWaiting(t *testing.T) {
 		done <- plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 			Filter: "bgp-filter-irr:65003",
 			Peer:   "127.0.0.1",
-			Update: "ipv4/unicast announce nlri add 10.0.0.0/24",
+			Fields: announceFields("10.0.0.0/24"),
 		})
 	}()
 
@@ -1090,10 +1110,10 @@ func TestRemovingConfiguredASSetRediscoversThroughPeeringDB(t *testing.T) {
 	if asSet != "AS-PDB" {
 		t.Errorf("as-set after the refresh = %q, want AS-PDB from PeeringDB", asSet)
 	}
-	if list == nil || !list.evaluateUpdate("nlri add 192.0.2.0/24") {
+	if list == nil || !admitsAll(t, list, "192.0.2.0/24") {
 		t.Error("192.0.2.0/24 is not accepted: the AS-PDB list is not live")
 	}
-	if list != nil && list.evaluateUpdate("nlri add 10.0.0.0/24") {
+	if list != nil && admitsAll(t, list, "10.0.0.0/24") {
 		t.Error("10.0.0.0/24 is accepted: the removed AS-OLD list is still live")
 	}
 }

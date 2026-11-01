@@ -139,19 +139,17 @@ func (r *readmitter) notify() {
 
 // track applies one NLRI block's verdict: a withdrawn or accepted prefix is no
 // longer held, and a rejected one is held when its ASN is enrolled.
-// rejectWhole marks a block of an UPDATE the filter rejected whole, where an
-// admitted prefix was rejected too and is held like the others.
-func (r *readmitter) track(peer netip.Addr, asn uint32, enrolled bool, block *nlriBlock, rejectWhole bool) {
+func (r *readmitter) track(peer netip.Addr, asn uint32, enrolled bool, block *familyNLRI) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for i, prefix := range block.prefixes {
 		key := heldKey{peer: peer, family: block.family, prefix: prefix}
 		delete(r.taking, key)
-		if block.withdraws() {
+		if block.withdraw {
 			delete(r.held, key)
 			continue
 		}
-		if block.admitted[i] && !rejectWhole {
+		if block.admitted[i] {
 			delete(r.held, key)
 			continue
 		}

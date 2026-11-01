@@ -29,40 +29,36 @@ extraction to `filter_common/`.
 **Fail closed on an empty result or an error.** Accepting unvalidated routes is
 worse than rejecting valid ones for a while. RPKI behaves the same way.
 
-**An UPDATE is judged block by block, and only its announcements are judged.**
-The reactor renders the legacy NLRI and Withdrawn Routes sections and each
-MP_REACH_NLRI and MP_UNREACH_NLRI attribute as a block of its own, `nlri
-add|del <prefix>...` for the legacy sections and `mp <family> add|del
-<prefix>...` for the attributes (`reactor/filter_format.go`), so one UPDATE can
-carry several. `partitionUpdate` splits the field at each `nlri` and `mp`
-keyword and classifies the prefixes of every `add` block; a `del` block is
-parsed but never judged, because withdrawing a route the list never authorized removes nothing
-it admitted. All announced prefixes accepted is accept, and a mix is a modify
-whose delta rebuilds every block in order: an announce block keeps its
-accepted prefixes and is left out when the list admits none of them, and a
-withdraw block is kept whole. A block with no prefix at all, the `mp <family>
-add` marker the reactor renders for a non-CIDR family such as `l2vpn/evpn`, is
-echoed unchanged: the engine reads a block left out as a changed one, refuses a
-changed block of a non-CIDR family, and drops the UPDATE whole, legitimate
-legacy prefixes included.
+**An UPDATE is judged from its route fields, and only its announcements are
+judged.** The filter declares the `prefix` and `withdrawn` reads, so each call
+carries the NLRI the UPDATE announces and the NLRI it withdraws, each an
+object from family to NLRI list in the UPDATE event's shapes
+(`docs/plugin-development/protocol.md`, "The Route Fields of filter-update").
+`judgeNLRI` judges every announced NLRI of a family `filtertext.CIDRFamily`
+declares: IPv4 and IPv6 unicast, multicast and mpls-label. The NLRI of every
+other family, a FlowSpec rule or an EVPN route, is not a prefix the list can
+authorize, and passes unjudged. A withdrawal is never judged, because
+withdrawing a route the list never authorized removes nothing it admitted. All
+judged prefixes accepted, or none to judge, is accept. A mix is a modify whose
+`sets` hold one prefix remove per rejected NLRI, naming it in the shape the
+`prefix` field carried it; the engine drops exactly those entries from the
+body NLRI and MP_REACH_NLRI, a labeled entry with its label field
+(`policychain/external_intents.go`, `applyPrefixIntent`), and keeps the rest of
+the UPDATE.
 
 None accepted is a reject only when the UPDATE withdraws nothing. RFC 4271
 Section 9 says the withdrawn routes "SHALL be removed from the Adj-RIB-In", and
 the engine drops a rejected UPDATE whole, withdrawals included. So an UPDATE
 that only withdraws is accepted, even for an ASN with no list yet, and one
-that also announces is a modify whose delta holds its withdraw blocks alone.
+that also announces is a modify removing every rejected prefix, which leaves
+the withdrawals.
 
-A prefix that does not parse, in any block, rejects the whole UPDATE. So does a
-rejected prefix in an announce block the engine cannot rewrite
-(`partitionResult.rewritable`). The engine rewrites the legacy `nlri add` block
-and the `mp <family> add` block of a CIDR family, which `filtertext.CIDRFamily`
-declares once for the engine and the filters: IPv4 and IPv6 unicast, multicast
-and mpls-label, whose label stacks it keeps (`reactor/filter_nlri_delta.go`,
-`sectionNLRIDelta`). Any other family, a FlowSpec destination for one, or a
-family name this process does not know, has no modify that drops the prefix,
-so the plugin fails closed. The withdrawals are lost with the rejected UPDATE.
+A `prefix` or `withdrawn` element that names no prefix rejects the whole
+UPDATE and holds nothing. A labeled-unicast route under ADD-PATH cannot be
+named by a remove yet: the event's labeled shape carries no `path-id`, so the
+engine refuses the remove and the filter's `on-error` rejects the UPDATE.
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- judgeListed, judgeUnlisted, keepWithdrawals -->
-<!-- source: internal/component/bgp/plugins/filter_irr/match.go -- partitionUpdate, rewritable, buildModifyDelta -->
+<!-- source: internal/component/bgp/plugins/filter_irr/match.go -- judgeNLRI, judgedFamily, nlriPrefix, rejectedRemoves -->
 <!-- source: internal/component/bgp/filtertext/cidr.go -- CIDRFamily -->
 
 **The operator writes
@@ -146,10 +142,8 @@ under `plug.mu` wherever `byASN` or a state's list changes: the end of
 `handleConfigure` and the success and failure arms of `refreshASNCtx`. A
 route is therefore judged wholly by one config and one set of lists, and
 `show bgp irr` and the re-admission worker keep reading `byASN` under the
-lock. The evaluator still judges the text UPDATE the text chain sends, so it
-declares no route field to read; a chain that also holds an in-process member
-(the library chain) refuses it at run time, because that chain sends only the
-declared fields.
+lock. The evaluator reads only the `prefix` and `withdrawn` fields it
+declares, through the library chain every BGP chain runs as.
 
 **Its filter names are declared.** At Stage 1 the plugin declares one filter
 name pattern, `asnFilterNamePattern`, covering a decimal AS number from 1 to
@@ -275,5 +269,8 @@ that path.
 the TTL is a silent no-op. A test that must see a lookup failure needs a fresh
 client pointed at an unreachable server.
 
-**`strings.Cut(text, "nlri ")` matches a substring.** A test case that means to
-lack the token must not contain it anywhere, and `"no nlri here"` does.
+**A test feeds the route fields, never the text form.** The evaluator reads
+only `prefix` and `withdrawn`, so an input carrying the old `update` text and no
+fields judges an UPDATE that announces nothing, and its assertion passes
+whatever the list holds. The helpers in `route_fields_test.go` write the fields
+in the shape the engine sends.

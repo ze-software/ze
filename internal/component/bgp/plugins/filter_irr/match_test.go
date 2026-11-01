@@ -80,48 +80,49 @@ func TestEvaluatePrefixBoundary(t *testing.T) {
 	}
 }
 
-func TestEvaluateNLRI(t *testing.T) {
-	entries := []prefixEntry{
+// TestJudgeNLRI checks the verdict counts judgeNLRI reads from the prefix
+// field: an in-list prefix is accepted, an out-of-list one rejected, a route
+// announcing nothing judges nothing, and an element naming no prefix is an
+// error, never a partial judgment. It carries the cases the text evaluator's
+// test held (evaluateUpdate), on the field input that replaced it.
+func TestJudgeNLRI(t *testing.T) {
+	list := &irrPrefixList{entries: []prefixEntry{
 		{prefix: netip.MustParsePrefix("10.0.0.0/8"), ge: 16, le: 24},
-	}
-	list := &irrPrefixList{entries: entries}
-
+	}}
 	tests := []struct {
-		name   string
-		nlri   string
-		accept bool
+		name     string
+		fields   []byte
+		accepted int
+		rejected int
+		err      bool
 	}{
-		{"matching prefix", "nlri add 10.0.0.0/24", true},
-		{"non-matching prefix", "nlri add 192.168.0.0/24", false},
-		{"empty nlri", "", true},
-		{"short nlri", "ipv4/unicast", true},
-		{"malformed prefix", "nlri add not-a-prefix", false},
-		{"multiple all match", "nlri add 10.0.0.0/24 10.0.1.0/24", true},
-		{"multiple one no match", "nlri add 10.0.0.0/24 192.168.0.0/24", false},
+		{"matching prefix", announceFields("10.0.0.0/24"), 1, 0, false},
+		{"non-matching prefix", announceFields("192.168.0.0/24"), 0, 1, false},
+		{"no fields", nil, 0, 0, false},
+		{"a family with no NLRI", routeFields(map[string][]string{"ipv4/unicast": {}}, nil), 0, 0, false},
+		{"malformed prefix", announceFields("not-a-prefix"), 0, 0, true},
+		{"an object naming no prefix", routeFields(map[string][]string{"ipv4/unicast": {`{"path-id":1}`}}, nil), 0, 0, true},
+		{"fields that do not decode", []byte(`{"prefix":[]}`), 0, 0, true},
+		{"multiple all match", announceFields("10.0.0.0/24", "10.0.1.0/24"), 2, 0, false},
+		{"multiple one no match", announceFields("10.0.0.0/24", "192.168.0.0/24"), 1, 1, false},
+		{"ADD-PATH shape", routeFields(map[string][]string{"ipv4/unicast": {`{"path-id":0,"prefix":"10.0.0.0/24"}`}}, nil), 1, 0, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := list.evaluateUpdate(tt.nlri)
-			if got != tt.accept {
-				t.Errorf("evaluateUpdate(%q) = %v, want %v", tt.nlri, got, tt.accept)
+			judged, err := judgeNLRI(tt.fields, list)
+			if tt.err {
+				if err == nil {
+					t.Fatalf("judgeNLRI(%s) = %+v, want an error", tt.fields, judged)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("judgeNLRI(%s): %v", tt.fields, err)
+			}
+			if judged.accepted != tt.accepted || judged.rejected != tt.rejected {
+				t.Errorf("judgeNLRI(%s): accepted=%d rejected=%d, want %d and %d",
+					tt.fields, judged.accepted, judged.rejected, tt.accepted, tt.rejected)
 			}
 		})
-	}
-}
-
-func TestExtractNLRIField(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"origin igp as-path [65001] next-hop 1.1.1.1 nlri add 10.0.0.0/24", "nlri add 10.0.0.0/24"},
-		{"origin igp as-path [65001] next-hop 1.1.1.1", ""},
-		{"", ""},
-	}
-	for _, tt := range tests {
-		got := extractNLRIField(tt.input)
-		if got != tt.want {
-			t.Errorf("extractNLRIField(%q) = %q, want %q", tt.input, got, tt.want)
-		}
 	}
 }

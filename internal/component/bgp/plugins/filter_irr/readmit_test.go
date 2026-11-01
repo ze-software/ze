@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -127,7 +128,7 @@ func announce(plug *irrPlugin, prefix string) sdk.FilterAction {
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   readmitTestPeer,
-		Update: "ipv4/unicast announce nlri add " + prefix,
+		Fields: announceFields(prefix),
 	})
 	return out.Action
 }
@@ -258,7 +259,7 @@ func TestReadmitHeldPrefixDropped(t *testing.T) {
 	plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   readmitTestPeer,
-		Update: "ipv4/unicast withdraw nlri del 192.0.2.0/24",
+		Fields: withdrawFields("192.0.2.0/24"),
 	})
 	if got := plug.readmit.heldCount(); got != 0 {
 		t.Errorf("held after the withdrawal = %d, want 0", got)
@@ -395,7 +396,7 @@ func TestReadmitUnenrolledASNHoldsNothing(t *testing.T) {
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65099",
 		Peer:   readmitTestPeer,
-		Update: "nlri add 10.0.0.0/24",
+		Fields: announceFields("10.0.0.0/24"),
 	})
 	if out.Action != sdk.FilterReject {
 		t.Fatalf("action = %v, want reject", out.Action)
@@ -453,9 +454,9 @@ func TestReadmitPeerDownDuringRefresh(t *testing.T) {
 	waitHeld(t, plug, 0, "a peer that went down during the refresh")
 }
 
-// VALIDATES: an UPDATE carrying an announce block and a withdraw block is
-// tracked block by block: the withdrawal forgets what it names, and the
-// announced prefix the list rejects is held.
+// VALIDATES: an UPDATE that announces and withdraws is tracked family by
+// family: the withdrawal forgets what it names, the announced prefix the list
+// rejects is removed by the answer and held.
 func TestReadmitMultiBlockUpdate(t *testing.T) {
 	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), newFakeReadmitEngine(), time.Hour)
 	plug.refreshASN(65001)
@@ -466,10 +467,14 @@ func TestReadmitMultiBlockUpdate(t *testing.T) {
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   readmitTestPeer,
-		Update: "origin igp nlri add 10.0.0.0/24 192.0.2.0/24 nlri del 198.51.100.0/24",
+		Fields: routeFields(map[string][]string{"ipv4/unicast": {"10.0.0.0/24", "192.0.2.0/24"}},
+			map[string][]string{"ipv4/unicast": {"198.51.100.0/24"}}),
 	})
 	if out.Action != sdk.FilterModify {
 		t.Fatalf("action = %v, want modify", out.Action)
+	}
+	if got := removedValues(t, out); !slices.Equal(got, []string{`"192.0.2.0/24"`}) {
+		t.Fatalf("removes = %v, want the rejected 192.0.2.0/24 alone", got)
 	}
 	plug.readmit.mu.Lock()
 	_, stillWithdrawn := plug.readmit.held[withdrawn]
@@ -497,8 +502,8 @@ func TestReadmitRestoreSkipsAcceptedDuringRefresh(t *testing.T) {
 	holdPrefixes(plug.readmit, peer, "ipv4/unicast", []netip.Prefix{prefix})
 	engine.refreshErr = context.DeadlineExceeded
 	engine.duringRefresh = func() {
-		accepted := nlriBlock{family: "ipv4/unicast", op: nlriOpAnnounce, prefixes: []netip.Prefix{prefix}, admitted: []bool{true}}
-		plug.readmit.track(peer, 65001, true, &accepted, false)
+		accepted := familyNLRI{family: "ipv4/unicast", prefixes: []netip.Prefix{prefix}, admitted: []bool{true}}
+		plug.readmit.track(peer, 65001, true, &accepted)
 	}
 	key := heldKey{peer: peer, family: "ipv4/unicast", prefix: prefix}
 	plug.readmit.readmit(peerFamily{peer: peer, family: "ipv4/unicast"}, []heldKey{key})
@@ -540,52 +545,69 @@ func TestReadmitConfirmReadFailureKeepsHeld(t *testing.T) {
 	}
 }
 
-// VALIDATES: an UPDATE rejected whole holds every prefix it announced, the
-// ones the list admits too, so the next pass asks the peer for them again.
-// PREVENTS: the admitted prefix of a whole reject (an MP_REACH_NLRI prefix the
-// list rejects beside it) being dropped from the held set as if accepted, so
-// nothing asked for it again.
-// METHOD: the list admits 10.0.0.0/24 only; the UPDATE announces it beside a
-// FlowSpec rule whose destination the list rejects, a block the engine cannot
-// rewrite from a modify (non-CIDR family), so the filter rejects the UPDATE; a
-// pass must then ask for ipv4/unicast.
+// VALIDATES: an UPDATE the filter rejects whole, from an enrolled ASN whose
+// list has not arrived, holds every prefix it announced, so a pass can ask for
+// them once the list authorizes them.
+// PREVENTS: an announced prefix of a whole reject going unheld, so nothing
+// asked the peer for it again.
+// METHOD: ASN 65001 is enrolled and never resolved; the UPDATE announces
+// 10.0.0.0/24 and 192.0.2.0/24 and withdraws nothing, so the answer is the
+// on-error reject.
 func TestReadmitWholeRejectHoldsEveryAnnounced(t *testing.T) {
-	engine := newFakeReadmitEngine()
-	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), engine, time.Hour)
+	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), newFakeReadmitEngine(), time.Hour)
+	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
+		Filter: "bgp-filter-irr:65001",
+		Peer:   readmitTestPeer,
+		Fields: announceFields("10.0.0.0/24", "192.0.2.0/24"),
+	})
+	if out.Action != sdk.FilterReject || len(out.Sets) != 0 {
+		t.Fatalf("answer %+v, want FilterReject with no Sets", out)
+	}
+	peer := netip.MustParseAddr(readmitTestPeer)
+	plug.readmit.mu.Lock()
+	held := len(plug.readmit.held)
+	_, heldA := plug.readmit.held[heldKey{peer: peer, family: "ipv4/unicast", prefix: netip.MustParsePrefix("10.0.0.0/24")}]
+	_, heldB := plug.readmit.held[heldKey{peer: peer, family: "ipv4/unicast", prefix: netip.MustParsePrefix("192.0.2.0/24")}]
+	plug.readmit.mu.Unlock()
+	if held != 2 || !heldA || !heldB {
+		t.Fatalf("held = %d (10.0.0.0/24 %v, 192.0.2.0/24 %v), want both announced prefixes", held, heldA, heldB)
+	}
+}
+
+// VALIDATES: the NLRI of a family the list cannot judge (FlowSpec) passes as
+// received: beside an admitted prefix the UPDATE is accepted unmodified and
+// nothing is held.
+// PREVENTS: a FlowSpec rule's destination judged as if it were an announced
+// prefix, which rejected the UPDATE and its admitted routes with it.
+func TestReadmitNonCIDRFamilyPassesUnjudged(t *testing.T) {
+	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"}), newFakeReadmitEngine(), time.Hour)
 	plug.refreshASN(65001)
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   readmitTestPeer,
-		Update: "origin igp nlri add 10.0.0.0/24 mp ipv4/flow add 192.0.2.0/24",
+		Fields: routeFields(map[string][]string{
+			"ipv4/unicast": {"10.0.0.0/24"},
+			"ipv4/flow":    {`{"destination":[["192.0.2.0/24"]]}`},
+		}, nil),
 	})
-	if out.Action != sdk.FilterReject {
-		t.Fatalf("action = %v, want reject", out.Action)
+	if out.Action != sdk.FilterAccept || len(out.Sets) != 0 {
+		t.Fatalf("answer %+v, want FilterAccept with no Sets", out)
 	}
-	plug.readmit.notify()
-	if pf := waitRefresh(t, engine); pf.family != "ipv4/unicast" {
-		t.Fatalf("refresh asked for %q, want ipv4/unicast", pf.family)
-	}
-	peer := netip.MustParseAddr(readmitTestPeer)
-	flow := heldKey{peer: peer, family: "ipv4/flow", prefix: netip.MustParsePrefix("192.0.2.0/24")}
-	plug.readmit.mu.Lock()
-	_, heldFlow := plug.readmit.held[flow]
-	plug.readmit.mu.Unlock()
-	if !heldFlow {
-		t.Error("the rejected FlowSpec destination is not held")
+	if got := plug.readmit.heldCount(); got != 0 {
+		t.Errorf("held = %d, want 0", got)
 	}
 }
 
-// VALIDATES: an UPDATE announcing an admitted legacy prefix beside an
-// MP_REACH_NLRI block of a CIDR family that holds one refused prefix is a
-// modify whose delta keeps the admitted MP prefix and drops the refused one,
+// VALIDATES: an UPDATE announcing admitted ipv4/unicast prefixes (in the body
+// and in MP_REACH_NLRI, which the prefix field carries as one family) beside
+// one refused prefix is a modify whose Sets remove the refused prefix alone,
 // and only the refused prefix is held, so no pass asks the peer again.
 // PREVENTS: the whole reject such an UPDATE used to get, which held the
 // admitted legacy prefix; the list admitted it, so every pass asked the peer
 // for ipv4/unicast, the peer resent the same UPDATE, and it was rejected again,
 // once a minute for as long as the session lasted.
 // METHOD: the list admits 10.0.0.0/24 and 10.1.0.0/24; the UPDATE announces
-// 10.0.0.0/24 legacy and 10.1.0.0/24 plus 192.0.2.0/24 in MP_REACH_NLRI; a
-// pass is forced and no ROUTE-REFRESH may follow.
+// those and 192.0.2.0/24; a pass is forced and no ROUTE-REFRESH may follow.
 func TestReadmitMixedMPModifyHoldsOnlyRefused(t *testing.T) {
 	engine := newFakeReadmitEngine()
 	plug := readmitPlugin(t, fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24 10.1.0.0/24"}), engine, time.Hour)
@@ -593,13 +615,13 @@ func TestReadmitMixedMPModifyHoldsOnlyRefused(t *testing.T) {
 	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
 		Filter: "bgp-filter-irr:65001",
 		Peer:   readmitTestPeer,
-		Update: "origin igp nlri add 10.0.0.0/24 mp ipv4/unicast add 10.1.0.0/24 192.0.2.0/24",
+		Fields: announceFields("10.0.0.0/24", "10.1.0.0/24", "192.0.2.0/24"),
 	})
 	if out.Action != sdk.FilterModify {
 		t.Fatalf("action = %v, want modify", out.Action)
 	}
-	if want := "nlri add 10.0.0.0/24 mp ipv4/unicast add 10.1.0.0/24"; out.Update != want {
-		t.Fatalf("delta = %q, want %q", out.Update, want)
+	if got := removedValues(t, out); !slices.Equal(got, []string{`"192.0.2.0/24"`}) {
+		t.Fatalf("removes = %v, want the refused 192.0.2.0/24 alone", got)
 	}
 	peer := netip.MustParseAddr(readmitTestPeer)
 	refused := heldKey{peer: peer, family: "ipv4/unicast", prefix: netip.MustParsePrefix("192.0.2.0/24")}
