@@ -435,6 +435,9 @@ type PolicyTraceEntry struct {
 	Action    string `json:"action"`
 	Delta     string `json:"delta,omitempty"`
 	TextAfter string `json:"text-after"`
+	// Error is why a library chain member failed; its on-error decided the
+	// action. Empty for a member that answered.
+	Error string `json:"error,omitempty"`
 }
 
 // PolicyDryRunResult holds the external-policy stage's dry-run output.

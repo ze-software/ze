@@ -67,7 +67,12 @@ type libraryResult struct {
 // direction ("import" or "export") and peer are what an external member's
 // filter-update names; payload is the raw body a member that declared raw is
 // sent, borrowed for the run only.
-func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wireu.WireUpdate, payload []byte, session policyview.Session, intent libraryIntentContext, direction, site, peer string) libraryResult {
+//
+// record, when not nil, makes the run display only (show policy test): the
+// chain hands it each member's step (policychain.Chain.Trace), and neither the
+// chain nor this function counts or logs a failure, because no route is
+// refused. A live run passes nil.
+func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wireu.WireUpdate, payload []byte, session policyview.Session, intent libraryIntentContext, direction, site, peer string, record func(policychain.MemberTrace)) libraryResult {
 	chain, ok := library.(*policychain.Chain)
 	if !ok {
 		panic("BUG: reactor: a policy's library chain is not a *policychain.Chain")
@@ -88,12 +93,20 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 	run.sets.SetRoute(route)
 	defer run.sets.SetRoute(policychain.ExternalRoute{})
 
-	outcome := chain.Run(&run.view, &run.sets)
+	var outcome policychain.Outcome
+	if record != nil {
+		outcome = chain.Trace(&run.view, &run.sets, record)
+	} else {
+		outcome = chain.Run(&run.view, &run.sets)
+	}
 	if outcome.Action != policychain.OutcomeAccept {
 		return libraryResult{outcome: outcome}
 	}
 	var mods filterapi.ModAccumulator
 	if err := chain.Apply(&run.view, &run.sets, &mods); err != nil {
+		if record != nil {
+			return libraryResult{outcome: outcome, failed: true}
+		}
 		fwdLogger().Warn("policy filter: the chain's changes cannot be applied -- route dropped",
 			"peer", peer, "site", site, "error", err)
 		return libraryResult{outcome: outcome, failed: true}
@@ -110,6 +123,9 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 	}
 	override, refusal, ok := libraryNLRIOps(values, folded, wireUpdate, &mods)
 	if !ok {
+		if record != nil {
+			return libraryResult{outcome: outcome, failed: true}
+		}
 		fwdLogger().Warn("policy filter: the chain's NLRI changes cannot be applied -- route dropped",
 			"peer", peer, "site", site, "family", refusal.family, "reason", refusal.reason)
 		return libraryResult{outcome: outcome, failed: true}
@@ -119,8 +135,10 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 	}
 	modPayload, _, modFail := buildModifiedPayload(payload, &mods, r.attrModHandlers, nil, override)
 	// recordModifyFailure counts and logs, rate limited, so this site adds no
-	// line of its own.
-	r.recordModifyFailure(modFail, site, peer)
+	// line of its own; a display-only run counts nothing.
+	if record == nil {
+		r.recordModifyFailure(modFail, site, peer)
+	}
 	if modFail.failed() {
 		return libraryResult{outcome: outcome, failed: true}
 	}

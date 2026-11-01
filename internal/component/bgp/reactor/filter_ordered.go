@@ -163,7 +163,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, wireUpd
 		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 		intent := libraryIntentContext{asn4: srcCtx != nil && srcCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: true}
 		res := r.runLibraryChain(library, wireUpdate, payload, policyview.Session{EBGP: external}, intent,
-			directionImport, modifySiteImportChain, peerAddr.String())
+			directionImport, modifySiteImportChain, peerAddr.String(), nil)
 		if res.outcome.Teardown {
 			return ingressStepResult{teardown: true, notifyCode: res.outcome.NotifyCode, notifySubcode: res.outcome.NotifySubcode}
 		}
@@ -345,7 +345,7 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 		// External members reach their plugin as on the import step.
 		intent := libraryIntentContext{asn4: asn4, localAS: destLocalAS, peerAS: destPeerAS, asPathEditable: !destInternal}
 		res := r.runLibraryChain(library, wireUpdate, wireUpdate.Payload(), policyview.Session{EBGP: !destInternal}, intent,
-			directionExport, modifySiteExportChain, destAddrStr)
+			directionExport, modifySiteExportChain, destAddrStr, nil)
 		if res.outcome.Action != policychain.OutcomeAccept {
 			return egressStepResult{failed: res.outcome.Failed} // accept == false: suppress for this peer
 		}

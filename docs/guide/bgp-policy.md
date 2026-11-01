@@ -467,6 +467,11 @@ text. A mixed announcement and withdrawal reports `modify`, with only its explic
 withdrawals in the resulting text. A filter execution failure or teardown still
 reports `reject` without resulting text; neither is a successful withdrawal.
 
+A chain that names a library filter instance runs in the dry-run exactly as on
+the session, without counting or logging a failure: a member's trace entry
+shows what it set in `delta` (for example `local-preference 200`), and why it
+failed in `error`.
+
 The dry-run covers the per-peer external-policy stage, not the full ingress
 protocol pipeline. An active named in-process check appears in `trace` with
 `action: not-evaluated` and empty `text-after`; it is not an accepting filter

@@ -276,6 +276,12 @@ func (r *RunSets) Folded() *Sets { return &r.folded }
 // the caller Clears it after it has applied the folded sets. Run allocates
 // nothing on the pass and reject paths.
 func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
+	return c.run(view, sets, nil)
+}
+
+// run is Run, and Trace when record is not nil: a display-only run that hands
+// record each member's step and neither counts nor logs a failure.
+func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrace)) Outcome {
 	sets.folded.Reset()
 	sets.prefix.receivedSet = false
 	for i := range c.members {
@@ -289,6 +295,7 @@ func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
 			verdict, onError, err = judgeExternal(m, view, sets)
 			decision = verdict.decision
 			if err == nil && verdict.teardown && sets.route.Direction == directionImport {
+				traceStep(record, m, TraceReject, nil, nil)
 				return Outcome{Action: OutcomeReject, Member: m.name, Teardown: true,
 					NotifyCode: verdict.notifyCode, NotifySubcode: verdict.notifySub}
 			}
@@ -302,12 +309,13 @@ func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
 			err = decisionError(decision)
 		}
 		if err != nil {
-			if c.fail(m, onError, err) {
+			if c.failure(m, onError, err, record) {
 				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
 			}
 			continue // fail-open: the member passes, and none of its sets apply
 		}
 		if decision == DecisionReject {
+			traceStep(record, m, TraceReject, nil, nil)
 			return Outcome{Action: OutcomeReject, Member: m.name}
 		}
 		err = c.overlayNumeric(view, &sets.member)
@@ -318,16 +326,18 @@ func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
 			err = c.overlayPrefix(view, sets)
 		}
 		if err != nil {
-			if c.fail(m, onError, err) {
+			if c.failure(m, onError, err, record) {
 				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
 			}
 			continue // fail-open: none of the member's sets apply
 		}
 		if err := sets.folded.merge(&sets.member); err != nil {
-			if c.fail(m, onError, err) {
+			if c.failure(m, onError, err, record) {
 				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
 			}
+			continue
 		}
+		traceStep(record, m, TracePass, nil, &sets.member)
 	}
 	switch c.final {
 	case policy.FinalAccept:
@@ -444,9 +454,19 @@ func decisionError(decision Decision) error {
 	return fmt.Errorf("BUG: evaluator answered decision %d, neither pass nor reject", decision)
 }
 
-// fail logs and counts a member failure and answers whether the route is
-// rejected (fail-closed) rather than passed on (fail-open).
-func (c *Chain) fail(m *member, onError rpc.OnErrorPolicy, err error) bool {
+// failure answers whether a member failure rejects the route (fail-closed)
+// rather than passing it on (fail-open). A live run (record nil) logs and
+// counts it; a display-only run hands it to record instead.
+func (c *Chain) failure(m *member, onError rpc.OnErrorPolicy, err error, record func(MemberTrace)) bool {
+	closed := onError != rpc.OnErrorAccept
+	if record != nil {
+		step := TraceFailOpen
+		if closed {
+			step = TraceFailClosed
+		}
+		traceStep(record, m, step, err, nil)
+		return closed
+	}
 	c.refused.Add(1)
 	chainLogger().Warn("policy filter failed, its on-error decides the route",
 		"attachment", c.attachment, "filter", m.name, "type", m.filterType, "on-error", onError.String(), "error", err)

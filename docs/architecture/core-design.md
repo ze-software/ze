@@ -1676,6 +1676,14 @@ the text subject is still what every configured BGP filter reads.
   member's on-error, logged and counted (`Chain.Refused`). Fail-closed rejects
   the route as a failure rather than a policy decision; fail-open passes it on
   with none of that member's sets.
+- **A display-only run for show policy test.** `Chain.Trace` judges a route
+  as `Chain.Run` does and hands a recorder each member's step (pass with the
+  member's resolved sets, reject, fail-closed or fail-open with the error),
+  while a failure is neither counted in `Chain.Refused` nor logged.
+  `PolicyDryRun` runs a library chain through `runLibraryChain` in that mode
+  (`traceLibraryChain`), so the dry-run's decision, final and rewritten
+  UPDATE are the live path's, and `Sets.AppendText` renders a member's sets
+  for its trace entry: a display, never a transport (D-11).
 - **Allocation-free per route.** The compiled chain is immutable and shared;
   each goroutine brings one view and one `policychain.RunSets`, reused across
   runs, and neither escapes the synchronous run.
@@ -1683,6 +1691,8 @@ the text subject is still what every configured BGP filter reads.
 <!-- source: internal/component/bgp/policychain/chain.go -- Compile, Chain.Run, MustRegisterEvaluator, refuseUndeclared, overlayNumeric, overlayCommunity -->
 <!-- source: internal/component/bgp/policyview/view.go -- View.SetNumber, View.SetWire, View.SetPrefix, View.AddPath -->
 <!-- source: internal/component/bgp/policychain/prefix_overlay.go -- overlayPrefix, receivedDrops -->
+<!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Sets.AppendText -->
+<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain -->
 <!-- source: internal/component/bgp/wireu/nlri_cidr.go -- CIDRCursor, DropCIDREntries -->
 <!-- source: internal/component/bgp/policychain/intents.go -- PrependASPath, RemovePrivateAS, DropNLRI, StripFamily -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- prependASPathOps, removePrivateASOps -->

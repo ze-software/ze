@@ -3,6 +3,7 @@
 // Related: filter_chain.go -- PolicyFilterChain (runtime execution)
 // Related: filter_format.go -- AppendUpdateForFilter (text rendering)
 // Related: filter_delta.go -- textDeltaToModOps (wire diff extraction)
+// Related: policy_dryrun_library.go -- traceLibraryChain (a library chain's dry-run)
 // RFC: rfc/short/rfc4271.md -- Section 5.1.4, the direction the med-remove directive is honored on
 
 package reactor
@@ -237,11 +238,21 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	buf = AppendUpdateForFilter(buf, attrs, wu, nil)
 	textBefore := string(buf)
 
-	// Run the trace chain using the real filter function (calls plugins via IPC).
-	callFilter := r.policyFilterFunc(wu, updateBody, policyview.Session{EBGP: !internal})
-	result, trace := tracePolicyFilterChain(
-		policy, !internal, direction, peerAddr, peerAS, textBefore, callFilter,
-	)
+	var result PolicyChainResult
+	var trace []plugin.PolicyTraceEntry
+	if library := policy.Library(); library != nil && filterOverride == "" {
+		// D-11: a library chain runs as it runs live, display only, its
+		// plugin members reached through the chain (traceLibraryChain).
+		dry := libraryDryRun{wireUpdate: wu, payload: updateBody, ctxID: ctxID, direction: direction, peer: peerAddr, internal: internal,
+			intent: libraryIntentContext{asn4: asn4, localAS: localAS, peerAS: peerAS, asPathEditable: direction == directionImport || !internal}}
+		result, trace = r.traceLibraryChain(library, dry, textBefore)
+	} else {
+		// Run the trace chain using the real filter function (calls plugins via IPC).
+		callFilter := r.policyFilterFunc(wu, updateBody, policyview.Session{EBGP: !internal})
+		result, trace = tracePolicyFilterChain(
+			policy, !internal, direction, peerAddr, peerAS, textBefore, callFilter,
+		)
+	}
 	// A policy rejection removes announcements, not explicit withdrawals.
 	// Execution failures and teardown still drop the entire UPDATE.
 	if result.Action == PolicyReject && !policy.AcceptsAtEnd(!internal) && !result.Failed && !result.Teardown {

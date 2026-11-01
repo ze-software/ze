@@ -273,6 +273,19 @@ filter-update RPC was made for it. Selecting such a check as a single-filter
 override is refused with instructions to test it on the peer session.
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- tracePolicyFilterChain, PolicyDryRun -->
 
+A chain with a library member (an in-process filter instance) runs in the
+dry-run as it runs live, through the same chain, display only: no failure is
+counted or logged. Its plugin members are reached through the chain, and no
+filter-update is sent for a library member. Each member's trace entry has
+`action` accept, modify or reject, `delta` the sets a passing member asked as
+text (`local-preference 200`), `error` why a failed member failed (its
+on-error decided the action), and an empty `text-after`, because a library
+member reads the route, not a text subject; the result's `text-after` is the
+rewritten UPDATE. A single-filter override on such a chain still takes the
+text path.
+<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain, libraryTraceEntry -->
+<!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Sets.AppendText -->
+
 An unresolved remote AS returns `action: "undetermined"` with a `reason` telling
 the operator to wait for establishment and repeat `show policy test`. No filter
 executes, including a single-filter override. Trace, input and resulting text
