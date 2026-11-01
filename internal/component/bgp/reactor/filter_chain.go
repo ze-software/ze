@@ -778,11 +778,10 @@ func filterOnErrorResponse(api filterTransport, pluginName, filterName, what str
 }
 
 // errNoRouteForFields is answered for a filter that declared route fields
-// when the route is synthetic (the default-originate check) and carries no
-// UPDATE to read them from. Sending the message without them would read as a
+// when the caller supplied no UPDATE to read them from. The default-originate
+// check supplies the default route's own UPDATE (defaultRouteWire). Sending the message without them would read as a
 // route that carries none of them.
-var errNoRouteForFields = errors.New("the route has no UPDATE to read the declared fields from; " +
-	"a filter that reads route fields cannot gate a synthetic route such as default-originate")
+var errNoRouteForFields = errors.New("the route has no UPDATE to read the declared fields from")
 
 // filterViews holds the route views the policy step reads declared fields
 // through. The step runs on many goroutines (session readers, forward

@@ -362,7 +362,7 @@ func TestRFC8212DefaultOriginateGuard(t *testing.T) {
 				}
 				return PolicyResponse{Action: action}
 			}}
-			got := peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), netip.MustParseAddr("192.0.2.254"))
+			got := peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), netip.MustParseAddr("192.0.2.254"), nil)
 			if got != (final == routepolicy.FinalAccept && action == PolicyAccept) || calls != 1 {
 				t.Fatalf("final=%d action=%d accepts=%v calls=%d", final, action, got, calls)
 			}
@@ -380,7 +380,7 @@ func TestRFC8212DefaultOriginateGuard(t *testing.T) {
 			t.Fatal("synthetic guard hid unsupported export ownership before its callback")
 			return PolicyResponse{Action: PolicyAccept}
 		}}
-		if peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), netip.MustParseAddr("192.0.2.254")) {
+		if peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), netip.MustParseAddr("192.0.2.254"), nil) {
 			t.Fatal("synthetic condition bypassed unsupported export ownership")
 		}
 	})

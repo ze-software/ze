@@ -14,9 +14,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -469,7 +473,7 @@ func TestDefaultOriginateFilterFailsClosedWithoutReactor(t *testing.T) {
 	prefix := netip.MustParsePrefix("0.0.0.0/0")
 	nh := netip.MustParseAddr("10.0.0.1")
 
-	ok := peer.defaultOriginateFilterAccepts("policy:drop-all", fam, prefix, nh)
+	ok := peer.defaultOriginateFilterAccepts("policy:drop-all", fam, prefix, nh, nil)
 	assert.False(t, ok, "missing reactor must fail closed to prevent unfiltered origination")
 }
 
@@ -492,7 +496,7 @@ func TestDefaultOriginateFilterFailsClosedOnMalformedRef(t *testing.T) {
 	prefix := netip.MustParsePrefix("0.0.0.0/0")
 	nh := netip.MustParseAddr("10.0.0.1")
 
-	ok := peer.defaultOriginateFilterAccepts("missing-colon", fam, prefix, nh)
+	ok := peer.defaultOriginateFilterAccepts("missing-colon", fam, prefix, nh, nil)
 	assert.False(t, ok, "malformed filter ref must fail closed")
 }
 
@@ -982,5 +986,43 @@ func TestDefaultOriginateFilterTextNamesTheSection(t *testing.T) {
 			got := appendDefaultOriginateFilterText(nil, tc.fam, netip.MustParsePrefix(tc.prefix), netip.MustParseAddr(tc.nextHop))
 			assert.Equal(t, tc.want, string(got))
 		})
+	}
+}
+
+// TestDefaultOriginateFilterReadsDeclaredFields proves a default-originate
+// filter that declared route fields judges the default route like any other
+// route: it is sent the prefix and next hop of the UPDATE the peer would be
+// sent (defaultRouteWire), and its accept lets the route go, where before the
+// synthetic route carried no UPDATE and the filter's on-error decided.
+func TestDefaultOriginateFilterReadsDeclaredFields(t *testing.T) {
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65000, 65001, 1)
+	settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+	peer := NewPeer(settings)
+	transport := &fieldsTransport{reads: map[string][]string{"guard": {"prefix", "next-hop"}}}
+	peer.reactor = &Reactor{api: liveFilterServer(t), filterTransportSeam: transport}
+
+	prefix, nextHop := netip.MustParsePrefix("0.0.0.0/0"), netip.MustParseAddr("192.0.2.254")
+	ub := message.GetUpdateBuilder(65000, false, true, false)
+	defer message.PutUpdateBuilder(ub)
+	update, err := ub.BuildUnicast(&message.UnicastParams{Prefix: prefix, NextHop: nextHop, Origin: attribute.OriginIGP})
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	sendCtxID, err := bgpctx.Registry.Register(bgpctx.NewEncodingContext(
+		&capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001},
+		&capability.EncodingCaps{ASN4: true}, bgpctx.DirectionSend))
+	if err != nil {
+		t.Fatalf("register context: %v", err)
+	}
+	wire := defaultRouteWire(update, sendCtxID)
+	if !peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, prefix, nextHop, wire) {
+		t.Fatalf("the default route was refused; the filter was sent %+v", transport.sent)
+	}
+	if len(transport.sent) != 1 {
+		t.Fatalf("the filter was called %d times, want 1", len(transport.sent))
+	}
+	want := `{"prefix":{"ipv4/unicast":["0.0.0.0/0"]},"next-hop":{"ipv4/unicast":"192.0.2.254"}}`
+	if got := string(transport.sent[0].Fields); got != want {
+		t.Fatalf("fields = %s, want %s", got, want)
 	}
 }

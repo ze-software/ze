@@ -17,8 +17,10 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -1048,16 +1050,6 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 		}
 		nextHop = resolvedNextHop
 
-		// Per-family conditional filter check (dry-run).
-		// An empty filter name means unconditional origination.
-		if filterName := p.settings.DefaultOriginateFilter[familyKey]; filterName != "" {
-			if !p.defaultOriginateFilterAccepts(filterName, fam, defaultPrefix, nextHop) {
-				routesLogger().Debug("default-originate: filter rejected",
-					"peer", addr, "family", familyKey, "filter", filterName)
-				continue
-			}
-		}
-
 		// Build a default route UPDATE: 0.0.0.0/0 for IPv4, ::/0 for IPv6.
 		addPath := p.addPathFor(fam)
 		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
@@ -1081,6 +1073,21 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 			// peer, which the operator must see at the default log level.
 			p.warnDefaultOriginateRefused(familyKey, defaultPrefix, nextHop, err)
 			continue
+		}
+		// Per-family conditional filter check (dry-run) over the UPDATE this
+		// peer is about to be sent, so a filter that declared route fields
+		// reads them from it as from any route (spec-filter-wire-0-umbrella
+		// D-1). An empty filter name means unconditional origination.
+		if filterName := p.settings.DefaultOriginateFilter[familyKey]; filterName != "" {
+			p.mu.RLock()
+			sendCtxID := p.sendCtxID
+			p.mu.RUnlock()
+			if !p.defaultOriginateFilterAccepts(filterName, fam, defaultPrefix, nextHop, defaultRouteWire(update, sendCtxID)) {
+				message.PutUpdateBuilder(ub)
+				routesLogger().Debug("default-originate: filter rejected",
+					"peer", addr, "family", familyKey, "filter", filterName)
+				continue
+			}
 		}
 		err = p.SendUpdate(update)
 		message.PutUpdateBuilder(ub)
@@ -1113,7 +1120,10 @@ func (p *Peer) warnDefaultOriginateRefused(familyKey string, prefix netip.Prefix
 // reference all return false. This matches the existing policy filter chain
 // behavior (filter_chain.go policyFilterFunc) and the principle that an
 // unreachable filter must not silently emit unfiltered routes.
-func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Family, prefix netip.Prefix, nextHop netip.Addr) bool {
+//
+// wire is the default route's UPDATE as this peer is sent it
+// (defaultRouteWire), the route the filter's declared fields are read from.
+func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Family, prefix netip.Prefix, nextHop netip.Addr, wire *wireu.WireUpdate) bool {
 	// Reject malformed filter ref -- expect "<plugin>:<filter>".
 	// Checked first so operators learn about typos before any transport lookup.
 	if !strings.Contains(filterName, ":") {
@@ -1158,9 +1168,21 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 		p.settings.Address.String(),
 		peerAS,
 		updateText,
-		p.reactor.policyFilterFunc(nil, nil, policyview.Session{EBGP: external}), // synthetic update: no wire, no payload
+		// The raw body stays unsent: defaultOriginateRejectsRawFilter refused
+		// a raw filter above.
+		p.reactor.policyFilterFunc(wire, nil, policyview.Session{EBGP: external}),
 	)
 	return res.Action != PolicyReject
+}
+
+// defaultRouteWire answers the default route's UPDATE body as a WireUpdate
+// under the peer's send context, which a filter's declared fields are read
+// through. The body is the route's own copy: it runs once per family at
+// session establishment, and the builder's buffer returns to its pool.
+func defaultRouteWire(update *message.Update, sendCtxID bgpctx.ContextID) *wireu.WireUpdate {
+	msg := make([]byte, update.Len(nil))
+	n := update.WriteTo(msg, 0, nil)
+	return wireu.NewWireUpdate(msg[message.HeaderLen:n], sendCtxID)
 }
 
 // appendDefaultOriginateFilterText appends the update text a filter sees for a
