@@ -354,7 +354,7 @@ func (plug *irrPlugin) handleConfigure(delivery irrDelivery) {
 	for _, name := range peersMissingRouteRefresh(cfg) {
 		logger().Warn("irr: a route this peer sends before its IRR list authorizes it stays rejected until the peer sends it again: ze does not advertise Route Refresh to this peer, so the capability is never negotiated and bgp-filter-irr cannot ask the peer for its routes",
 			"peer", name,
-			"action", "add `capability { route-refresh enable }` to this peer, or to its group, and enable Route Refresh on the peer's side too; the capability is negotiated when the session next comes up")
+			"action", "add `session { capability { route-refresh enable } }` to this peer, or to its group, and enable Route Refresh on the peer's side too; the capability is negotiated when the session next comes up")
 	}
 
 	// Resolve every enrolled ASN ONCE in the background, NOT inline. configure

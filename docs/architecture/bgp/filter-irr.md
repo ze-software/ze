@@ -193,7 +193,7 @@ ROUTE-REFRESH is the only path. The worker first reads `show bgp peer <peer>
 detail`: a peer that is not established, or that the answer no longer names,
 has its held prefixes dropped, because a session that comes back sends
 everything again. Route Refresh must be negotiated with the peer: ze
-advertises it only with `capability { route-refresh enable }`
+advertises it only with `session { capability { route-refresh enable } }`
 (`reactor/config_capabilities.go`), and the peer must advertise it too. A peer
 without it, or whose refresh the engine refuses with `errSendNotPermitted`
 because its binding grants neither `send [ refresh ]` nor `send [ * ]`, gets
@@ -212,8 +212,8 @@ Configure warns once for each enrolled peer whose binding lacks the grant, and
 once for each enrolled peer to which ze does not advertise Route Refresh. The
 peer's binding decides the grant when it states a `send` list, and its group's
 otherwise, because `send` is not cumulative across levels
-(`bgp/config/resolve.go`); the peer's `capability > route-refresh` decides the
-capability the same way.
+(`bgp/config/resolve.go`); the peer's `session > capability > route-refresh`
+decides the capability the same way (`configjson.GetCapability`).
 
 The worker is one goroutine for the plugin's life, started in `OnStarted` and
 stopped by `stopCh`. Its wake channel has depth one, so a burst of refreshes is

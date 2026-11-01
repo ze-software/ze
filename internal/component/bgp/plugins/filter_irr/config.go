@@ -54,7 +54,7 @@ type peerIRRConfig struct {
 	RefreshGrant bool
 
 	// RouteRefresh reports whether ze advertises the Route Refresh capability
-	// to the peer: its `capability > route-refresh`, or its group's, is enable
+	// to the peer: its `session > capability > route-refresh`, or its group's, is enable
 	// or require (reactor config_capabilities.go). Without it the capability
 	// is never negotiated and the re-admission worker cannot ask the peer.
 	RouteRefresh bool
@@ -183,13 +183,13 @@ func grantsRefreshWord(send []string) bool {
 }
 
 // advertisesRouteRefresh reports whether ze advertises Route Refresh to the
-// peer. The peer's `capability > route-refresh` decides when it is set, and
-// its group's otherwise, as ResolveBGPTree merges the capability container key
-// by key. Absent means disabled (reactor config_capabilities.go).
+// peer. The peer's `session > capability > route-refresh` decides when it is
+// set, and its group's otherwise, as ResolveBGPTree merges the capability
+// container key by key. Absent means disabled (reactor config_capabilities.go).
 func advertisesRouteRefresh(peerMap, groupMap map[string]any) bool {
 	for _, level := range []map[string]any{peerMap, groupMap} {
-		capabilities, ok := level["capability"].(map[string]any)
-		if !ok {
+		capabilities := configjson.GetCapability(level)
+		if capabilities == nil {
 			continue
 		}
 		mode, stated := capabilities["route-refresh"].(string)

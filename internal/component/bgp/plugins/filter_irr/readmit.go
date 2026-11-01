@@ -316,9 +316,9 @@ func (r *readmitter) readmit(pf peerFamily, keys []heldKey) {
 		// The detail answer reports the negotiated capability: ze advertises
 		// Route Refresh only when the config enables it, and the peer must
 		// advertise it too (reactor config_capabilities.go).
-		r.warnOnce(pf.peer, "capability", "irr: a route the IRR list now authorizes stays rejected: Route Refresh is not negotiated with this peer (ze advertises it only with `capability { route-refresh enable }`, and the peer must advertise it too), so ze cannot ask the peer to send the route again",
+		r.warnOnce(pf.peer, "capability", "irr: a route the IRR list now authorizes stays rejected: Route Refresh is not negotiated with this peer (ze advertises it only with `session { capability { route-refresh enable } }`, and the peer must advertise it too), so ze cannot ask the peer to send the route again",
 			"peer", pf.peer, "family", pf.family, "prefixes", len(keys),
-			"action", "add `capability { route-refresh enable }` to this peer in ze and enable Route Refresh on the peer's side, then reset the session with `request peer <peer> teardown`; the reset alone also makes the peer send its routes again")
+			"action", "add `session { capability { route-refresh enable } }` to this peer in ze and enable Route Refresh on the peer's side, then reset the session with `request peer <peer> teardown`; the reset alone also makes the peer send its routes again")
 		r.dropKeys(keys)
 		return
 	}

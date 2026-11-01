@@ -323,38 +323,44 @@ func TestRefreshGrantPeerBindingDecides(t *testing.T) {
 }
 
 // VALIDATES: configure names every IRR-filtered peer to which ze does not
-// advertise Route Refresh, reading the peer's capability and then its group's.
+// advertise Route Refresh, reading the peer's session capability and then
+// its group's.
 // PREVENTS: re-admission failing on such a peer with nothing said until a
 // list changes: ze advertises Route Refresh only when the config enables it
 // (reactor config_capabilities.go), and RFC 2918 Section 4 lets a speaker send
 // a ROUTE-REFRESH only to a peer whose capability it received.
 func TestPeersMissingRouteRefresh(t *testing.T) {
-	session := func() map[string]any {
-		return map[string]any{
+	// The capability container sits under session, as the YANG peer config
+	// places it (configjson.GetCapability).
+	session := func(mode string) map[string]any {
+		s := map[string]any{
 			"asn": map[string]any{"remote": float64(65001)},
 			"irr": map[string]any{"as-set": "AS-TEST"},
 		}
-	}
-	capability := func(mode string) map[string]any {
-		return map[string]any{"route-refresh": mode}
+		if mode != "" {
+			s["capability"] = map[string]any{"route-refresh": mode}
+		}
+		return s
 	}
 	cfg := parseIRRConfigOf(map[string]any{
 		"peer": map[string]any{
-			"enabled":  map[string]any{"session": session(), "capability": capability("enable")},
-			"required": map[string]any{"session": session(), "capability": capability("require")},
-			"disabled": map[string]any{"session": session(), "capability": capability("disable")},
-			"refused":  map[string]any{"session": session(), "capability": capability("refuse")},
-			"absent":   map[string]any{"session": session()},
+			"enabled":  map[string]any{"session": session("enable")},
+			"required": map[string]any{"session": session("require")},
+			"disabled": map[string]any{"session": session("disable")},
+			"refused":  map[string]any{"session": session("refuse")},
+			"absent":   map[string]any{"session": session("")},
 			"unfiltered": map[string]any{"session": map[string]any{
 				"asn": map[string]any{"remote": float64(65002)},
 			}},
 		},
 		"group": map[string]any{
 			"g": map[string]any{
-				"capability": capability("enable"),
+				"session": map[string]any{
+					"capability": map[string]any{"route-refresh": "enable"},
+				},
 				"peer": map[string]any{
-					"member":   map[string]any{"session": session()},
-					"optedout": map[string]any{"session": session(), "capability": capability("disable")},
+					"member":   map[string]any{"session": session("")},
+					"optedout": map[string]any{"session": session("disable")},
 				},
 			},
 		},
