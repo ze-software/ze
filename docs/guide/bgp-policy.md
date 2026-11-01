@@ -187,7 +187,7 @@ Each plugin declares whether an internal error fails open or closed. Security fi
 Ze ships filters for:
 
 - AS path matching and length;
-- transit-leak rejection by ASN and position (`reject-asn`);
+- rejection of a path through listed ASNs, by position (`reject-asn`);
 - prefix lists;
 - standard, large, and extended communities;
 - route attribute modification;
@@ -236,10 +236,12 @@ Seven keywords say where: `direct`, `indirect`, `transit`, `origin`, `anywhere`,
 excludes the sending peer's own leading run and catches the ASN everywhere else.
 The [configuration reference](../config-reference.md) carries the whole table.
 
-Declaring an RFC 9234 role makes this check mandatory on the chains that role
-binds: the config is refused unless each bound chain names a `reject-asn`
-filter, or names one prefixed with `inactive:` to record the decision to run
-without it. See [BGP roles](bgp-role.md).
+A peer that declares an RFC 9234 role needs no list for its upstream
+providers: `bgp-role` inserts `bgp-role:upstream-asn` in the chains that role
+binds and rejects a path through the remote ASN of every `role import
+customer` peer, plus any `role transit-asns` set. A `reject-asn` list is for
+the ASNs you choose beyond that. See [BGP roles](bgp-role.md), "The Upstream
+Check a Role Inserts".
 
 `show bgp reject-asn` prints every list with the effective position set per ASN.
 `show bgp reject-asn known transit-free` prints a pasteable block of well-known

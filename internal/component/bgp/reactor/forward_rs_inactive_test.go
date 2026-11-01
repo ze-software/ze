@@ -29,11 +29,9 @@ import (
 // applies no policy, so the policy-agnostic rail stays correct for that peer.
 //
 // VALIDATES: `inactive:` means the filter never runs, on the fast path too.
-// PREVENTS: an operator losing the RS fast path by recording a decision and
-// switching it off. A declared RFC 9234 role now requires the peer's chains to
-// NAME a leak filter (bgpconfig.validateLeakFilterObligations), and `inactive:`
-// is how that decision is recorded, so every such peer would have left the fast
-// path for a filter that never executes.
+// PREVENTS: an operator losing the RS fast path by switching a filter off with
+// `inactive:`: the peer would leave the fast path for a filter that never
+// executes.
 func TestReactorForwardRSDeactivatedExportFilterKeepsTheFastPath(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)

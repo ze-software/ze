@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	fpayang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_path_asn/yang"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/config/yang"
@@ -34,11 +33,6 @@ func init() {
 	// Its decision line, the one the filter writes (condition.go).
 	policychain.MustAddMatchReporter(rejectASNCondition,
 		policychain.MatchReporter{Enabled: bgpReportEnabled, Compile: compileBGPReport})
-	// RFC 7454 Section 9: a match naming the condition discharges the
-	// transit-leak obligation a declared RFC 9234 role carries. The config
-	// rule that makes the check mandatory reads this declaration, so the rule
-	// holds no condition name.
-	policy.MustDeclareMatchConditionObligation(rejectASNCondition, filterapi.ObligationTransitLeak)
 	// The match leaf naming a list completes and is checked at commit
 	// through this source (reject_asn_reference.go).
 	yang.RegisterReferenceSource(rejectASNReferenceSource, rejectASNReference)

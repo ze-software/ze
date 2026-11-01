@@ -5,8 +5,7 @@
 #            blocked, and is not left to discover the gap on their own
 # PREVENTS:  goal 7 being met silently. warnPeersWithoutRole
 #            (internal/component/bgp/config/peers.go) is the loud half; a rule
-#            that bound an undeclared peer would refuse this config instead, and a
-#            rule that said nothing would leave the operator with no signal at all.
+#            that said nothing would leave the operator with no signal at all.
 #
 # Two eBGP peers declare no role, so the count in the line is the discriminating
 # assertion: a warning built per peer would print two lines, and one built from
@@ -19,8 +18,6 @@
 # startup (infra.ValidateBGPPeers -> PeersFromConfigTree), reached through the
 # command an operator runs before an upgrade, and it answers in one shot rather
 # than holding a session open for a decision that was already taken at load.
-# The daemon half of this claim is carried by the 17 role-bearing .ci files that
-# now name the filter, role-otc-rs-withdraw-eor.ci among them.
 
 stdin=peer:terminator=EOF_PEER
 EOF_PEER
@@ -88,5 +85,3 @@ expect=stderr:contains=peers and dynamic groups declare no RFC 9234 role
 # The count, not just the sentence. Both peers are unbound, and both are named.
 expect=stderr:pattern=peers=2
 expect=stderr:pattern=first="?peer1, peer2
-# An undeclared role obliges nothing, so this config must not be refused.
-reject=stderr:pattern=requires a filter against a transit leak

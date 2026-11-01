@@ -684,7 +684,7 @@ entries. The two agree only while no other session holds a saved draft, so
 `validateStagedTree` runs at each of the two commit writes and makes the checked
 config and the staged config the same config.
 
-<!-- source: internal/component/bgp/config/peers.go -- peersAndDynamicGroups, validatePeerProcessCaps, validateLeakFilterObligations -->
+<!-- source: internal/component/bgp/config/peers.go -- peersAndDynamicGroups, validatePeerProcessCaps -->
 <!-- source: internal/component/config/infra/bgp.go -- ValidateBGPPeers -->
 <!-- source: internal/component/cli/validator.go -- bgpPeerErrors -->
 <!-- source: internal/component/cli/editor_commit.go -- validateStagedTree -->

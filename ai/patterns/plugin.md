@@ -237,18 +237,13 @@ instance naming it. `filter_prefix`, `filter_aspath`, `filter_aspath_length`,
 `filter_community_match` and `filter_path_asn` take this route
 (`docs/guide/route-policy.md`, "The `match` conditions").
 
-**A match condition that discharges a config obligation declares which one.** A
-config rule can require a peer to name a filter that performs a given check, and
-the rule must not spell a condition: it asks which conditions carry the
-obligation (`policy.MatchConditionsDischarging`). The plugin declares it with
-`policy.MustDeclareMatchConditionObligation` from its `register.go`, which
-keeps the condition name inside the plugin and lets a second implementation
-qualify later.
-
-The obligation names are constants in the domain that defines them. The one
-obligation today is the transit-leak check RFC 7454 Section 9
-recommends, required of a peer that declares an RFC 9234 role
-(`internal/component/bgp/config/peers.go`, `validateLeakFilterObligations`).
+**A check a feature's config implies is inserted, never required of the
+operator.** No config rule refuses a peer for omitting a filter from its
+chain. The plugin that owns the procedure declares the member as a filter
+insertion (below), and the config loader places it: the RFC 7454 Section 9
+upstream check a declared RFC 9234 role implies is `bgp-role:upstream-asn`,
+inserted by `bgp-role` (`internal/component/bgp/plugins/role/upstream.go`,
+`upstreamInsertions`).
 
 **A filter the plugin's own config implies is a declared insertion.** The
 plugin sets `FilterInsertions` (`rpc.FilterInsertion`: the reference it

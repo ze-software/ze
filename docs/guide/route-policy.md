@@ -63,7 +63,7 @@ either there is refused.
 <!-- source: internal/component/bgp/plugins/filter_aspath/register.go -- MustRegisterMatchCondition -->
 <!-- source: internal/component/bgp/plugins/filter_aspath_length/register.go -- MustRegisterMatchCondition -->
 <!-- source: internal/component/bgp/plugins/filter_community_match/register.go -- MustRegisterMatchCondition -->
-<!-- source: internal/component/bgp/plugins/filter_path_asn/register.go -- MustRegisterMatchCondition, MustDeclareMatchConditionObligation -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/register.go -- MustRegisterMatchCondition -->
 
 | Condition | Met when |
 |-----------|----------|

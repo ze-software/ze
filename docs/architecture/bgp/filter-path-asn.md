@@ -172,15 +172,10 @@ refuses the route on a live run is counted in
 `action reject` a list rejecting the route lets it pass, so nothing is
 counted; neither is a reject in `show policy test`, a display-only
 run that refuses no route (`MatchRoute.Reports`).
-The condition declares the transit-leak obligation, so a match naming it
-discharges the filter a declared RFC 9234 role requires
-(`validateLeakFilterObligations` reads `policy.MatchConditionsDischarging`).
 The `show ... reject-asn` commands are unchanged.
 
 <!-- source: internal/component/bgp/plugins/filter_path_asn/condition.go -- compileBGPCondition -->
 <!-- source: internal/component/bgp/policychain/match.go -- MatchRoute -->
-<!-- source: internal/component/policy/match.go -- MustDeclareMatchConditionObligation, MatchConditionsDischarging -->
-<!-- source: internal/component/bgp/config/peers.go -- chainDischarges -->
 <!-- source: internal/component/bgp/policyview/view.go -- Session -->
 
 ## The two arms of a list
@@ -258,15 +253,13 @@ discovers each instance from the `ze:filter` marker on the YANG list. This is
 the route `filter_aspath` takes, and it is not the `filterapi.Register` route,
 which is for a filter whose name is known at compile time.
 
-**The plugin declares the config obligation its filter type discharges.** A
-peer that declares an RFC 9234 role must name a filter that can refuse a path
-through a transit provider, and the rule that enforces that
-(`validateLeakFilterObligations`, `internal/component/bgp/config/peers.go`) must
-not spell `reject-asn`: it asks the registry which filter types declare
-`filterapi.ObligationTransitLeak`. The type name therefore lives in this plugin
-alone, and a second implementation of the same check qualifies by declaring the
-same obligation. A `grep` for `reject-asn` under
-`internal/component/bgp/config/` returns nothing outside the tests.
+**A declared RFC 9234 role needs no `reject-asn` list.** The RFC 7454
+Section 9 check a role implies is `bgp-role:upstream-asn`, which `bgp-role`
+inserts on the role's sessions and evaluates against the upstream ASNs it
+derives from config (`docs/guide/bgp-role.md`, "The Upstream Check a Role
+Inserts"). A `reject-asn` list stays the operator's own position rule, and
+no config rule requires one.
+<!-- source: internal/component/bgp/plugins/role/upstream.go -- upstreamInsertions -->
 
 **Ze ships NO ASN set.** Curated data feeds completion and a `show` annotation
 column, never a decision. A network that leaves the Tier-1 club would otherwise

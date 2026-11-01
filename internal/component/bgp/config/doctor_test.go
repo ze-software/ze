@@ -122,7 +122,7 @@ func TestRolelessDynamicGroupIsReported(t *testing.T) {
 }
 
 // TestDynamicGroupWithRoleIsNotReported is the other half: a group that states
-// the relationship is bound by the obligation and owes no report.
+// the relationship owes no report.
 //
 // VALIDATES: the role a dynamic group declares is read off its template
 // (peerRoles, declaredRole), so declaring one silences the report.

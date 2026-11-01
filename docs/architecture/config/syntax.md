@@ -1470,7 +1470,7 @@ filter {
 A deactivated member stays in the chain and never executes. It is how an
 operator records a decision to run a session without a check, and the config
 layer reads it as a decision rather than as an absence: `filterChainContains`
-counts it, and so does the transit-leak obligation below.
+counts it.
 
 There is no mandatory filter an operator cannot configure, and no `overrides`
 keyword. RFC 9234 Only-To-Customer marking is applied by the `bgp-role` plugin
@@ -1480,27 +1480,29 @@ final. Config and runtime carry a single validated policy value so references
 and disposition belong to the same generation.
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy, NewPolicy, InternalPolicy -->
 
-### The transit-leak obligation
+### The upstream check a role inserts
 
-A peer that declares an RFC 9234 role must name, in the chains that role binds,
-a filter of a type that can refuse a path through a transit provider
-(RFC 7454 Section 9). `reject-asn` is such a type. A config that omits it is
-REFUSED, naming the peer, the role and the chain.
+A peer that declares an RFC 9234 role gets the RFC 7454 Section 9 upstream
+check as a chain member the `bgp-role` plugin inserts,
+`bgp-role:upstream-asn`, with no line in the operator's chain:
 
 | Local role | Remote is | Import chain | Export chain |
 |------------|-----------|--------------|--------------|
-| `peer` | a settlement-free peer | REQUIRED | REQUIRED |
-| `provider` | our customer | REQUIRED | not required |
-| `customer` | our transit provider | not required | REQUIRED |
-| `rs` | a client of the route server we run | REQUIRED | REQUIRED |
-| `rs-client` | the route server we are a client of | REQUIRED | REQUIRED |
-| absent | undeclared | not required | not required |
+| `peer` | a settlement-free peer | inserted | inserted |
+| `provider` | our customer | inserted | not inserted |
+| `customer` | our transit provider | not inserted | not inserted |
+| `rs` | a client of the route server we run | inserted | not inserted |
+| `rs-client` | the route server we are a client of | not inserted | inserted |
+| absent | undeclared | not inserted | not inserted |
 
 RFC 9234 names the LOCAL speaker's position, so `customer` means the remote is
-our upstream. A deactivated member satisfies the obligation: naming the filter
-and switching it off records the decision. A peer or a dynamic group that declares
-no role is accepted, and `ze doctor` enumerates them under
-`doctor-bgp-peer-no-role`.
+our upstream. The ASNs it rejects are derived from config: the remote ASN of
+every `role import customer` peer, plus any `role transit-asns` set
+(`docs/guide/bgp-role.md`, "The Upstream Check a Role Inserts"). Naming the
+member as `inactive:bgp-role:upstream-asn` in a chain runs that session
+without it. A peer or a dynamic group that declares no role is accepted, and
+`ze doctor` enumerates them under `doctor-bgp-peer-no-role`.
+<!-- source: internal/component/bgp/plugins/role/upstream.go -- upstreamImportRoles, upstreamExportRoles, deriveUpstreamSet -->
 
 Validation checks local policy filter names against the filter types of the
 top-level `policy` root (the lists marked `ze:filter`, `policy.BuildRegistry`),
@@ -1514,7 +1516,6 @@ on the selected plugin.
 <!-- source: internal/component/bgp/config/redistribution.go -- redistribution config parsing -->
 <!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
 <!-- source: internal/component/plugin/registry/registry.go -- FilterTypes registry -->
-<!-- source: internal/component/bgp/config/peers.go -- validateLeakFilterObligations -->
 
 ---
 

@@ -1,6 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md -- the model is the schema
 //
-// Related: peers.go -- leakFilterByRole, the table held here
 // Related: internal/core/bgp/attribute/origin.go -- originTextNames, held here
 //	because internal/core MUST NOT import a component package
 // Related: internal/core/bgp/asn/asn.go -- the notation tokens, held here for
@@ -89,23 +88,6 @@ func yangEnumValues(t *testing.T, module string, path ...string) []string {
 	values := slices.Clone(entry.Type.Enum.Names())
 	slices.Sort(values)
 	return values
-}
-
-// TestLeakFilterRolesMatchTheYANGModel proves leakFilterByRole carries a row for
-// every role the model declares.
-//
-// PREVENTS: a role added to the model that obliges no leak filter, so a peer
-// configured with it silently gets no import or export chain at all.
-func TestLeakFilterRolesMatchTheYANGModel(t *testing.T) {
-	declared := yangEnumValues(t, "ze-bgp-conf", "bgp", "group", "peer", "role", "import")
-
-	keyed := make([]string, 0, len(leakFilterByRole))
-	for role := range leakFilterByRole {
-		keyed = append(keyed, role)
-	}
-	slices.Sort(keyed)
-
-	require.Equal(t, declared, keyed)
 }
 
 // TestOriginTextNamesMatchTheYANGModel proves the attribute package's origin

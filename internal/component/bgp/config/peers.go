@@ -347,16 +347,10 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 		return nil, nil, err
 	}
 
-	// Step 6: A declared RFC 9234 role carries a config obligation. A peer whose
-	// role implies the transit-leak check (RFC 7454 Section 9) and whose matching
-	// chain names no filter that can perform it REFUSES the config, so the file
-	// states the decision either way. A peer that declares no role is bound by
-	// nothing, and Ze says so in one aggregated line rather than passing silently.
+	// Step 6: A peer that declares no RFC 9234 role gets none of the checks a
+	// role inserts (bgp-role's upstream check, RFC 7454 Section 9), and Ze says
+	// so in one aggregated line rather than passing silently.
 	roles := peerRoles(bgpTree, peers, groups)
-	if err := validateLeakFilterObligations(roles, filterReg,
-		policy.MatchConditionsDischarging(filterapi.ObligationTransitLeak)); err != nil {
-		return nil, nil, err
-	}
 	warnPeersWithoutRole(rolelessPeers(roles))
 	// Step 0a: Refuse a `bgp update-delay` container the reactor could not honor.
 	// The VALUE is read in CreateReactorFromTree; this call is here for the
@@ -807,43 +801,6 @@ func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 	return nil
 }
 
-// roleChainObligation says which of a peer's two filter chains must name a
-// filter that can catch a transit leak, for one RFC 9234 role.
-type roleChainObligation struct {
-	importChain bool
-	exportChain bool
-}
-
-// leakFilterByRole is the obligation matrix RFC 7454 Section 9 implies for each
-// RFC 9234 role.
-//
-// RFC 9234 names the LOCAL speaker's position, so `customer` means the remote
-// is our transit provider and `provider` means the remote is our customer. Read
-// the other way round, every cell inverts.
-//
-//   - peer, rs, rs-client: both chains. A settlement-free peer must not hand us
-//     transit and must not be handed any, and a route server relays between
-//     members that owe each other the same.
-//   - provider: import only. The remote is our customer, so a path of theirs
-//     running through their other upstream is the leak RFC 7454 Section 9 names.
-//     We sell them transit, so everything goes out.
-//   - customer: export only. The remote is our upstream and legitimately sends
-//     us the whole table. We must not offer it transit for a network we do not
-//     carry.
-//
-// The five keys are the whole role/import enumeration
-// (internal/component/bgp/plugins/role/yang/ze-role.yang). A role absent from
-// this table obliges nothing, which is the answer a peer that declares no role
-// gets: no relationship is stated, so none is implied.
-// enumeration: gated by TestLeakFilterRolesMatchTheYANGModel
-var leakFilterByRole = map[string]roleChainObligation{
-	"peer":      {importChain: true, exportChain: true},
-	"provider":  {importChain: true},
-	"customer":  {exportChain: true},
-	"rs":        {importChain: true, exportChain: true},
-	"rs-client": {importChain: true, exportChain: true},
-}
-
 // peerRole pairs a peer's settings with an RFC 9234 role its config declares.
 // The role is NOT on PeerSettings: the role plugin owns the leaf, and the peer
 // pipeline reads it off the resolved tree.
@@ -886,84 +843,6 @@ func declaredRole(resolved map[string]any) string {
 	return role
 }
 
-// validateLeakFilterObligations refuses a peer whose declared RFC 9234 role
-// implies the transit-leak check (RFC 7454 Section 9) and whose matching filter
-// chain names no filter that can perform it. Declaring a relationship is what
-// binds the peer: the operator states the decision either way, and a reader of
-// the config file sees which was made.
-//
-// conditions holds the match conditions that discharge the obligation, read
-// off the condition registry by the caller: a match instance naming one
-// discharges it. This function never names a condition, so each lives only in
-// the plugin that implements it.
-func validateLeakFilterObligations(pairs []peerRole, reg *policy.Registry, conditions []string) error {
-	// GUARD: no match condition in this binary can discharge the obligation,
-	// so enforcing it would refuse every config that declares a role. A build
-	// with the implementing plugin's feature tag off must still load every
-	// config it loaded before. The empty set disables the rule ON PURPOSE; it
-	// is not an incidental consequence of an empty loop
-	// (ai/rules/principles.md).
-	if len(conditions) == 0 {
-		return nil
-	}
-
-	for _, pair := range pairs {
-		obligation, bound := leakFilterByRole[pair.role]
-		if !bound {
-			continue
-		}
-		missingImport := obligation.importChain && !chainDischarges(pair.settings.ImportPolicy.Filters(), reg, conditions)
-		missingExport := obligation.exportChain && !chainDischarges(pair.settings.ExportPolicy.Filters(), reg, conditions)
-		if !missingImport && !missingExport {
-			continue
-		}
-		return leakFilterRefusal(pair, missingImport, missingExport, conditions)
-	}
-	return nil
-}
-
-// leakFilterRefusal builds the refusal an operator reads. It names the peer,
-// the role that bound it, the chain that is missing the filter, and BOTH ways
-// to satisfy the obligation, because a message that reports only what is wrong
-// leaves the operator to guess what to write.
-func leakFilterRefusal(pair peerRole, missingImport, missingExport bool, conditions []string) error {
-	chains := "import and export filter chains"
-	switch {
-	case !missingExport:
-		chains = "import filter chain"
-	case !missingImport:
-		chains = "export filter chain"
-	}
-	what := "a match instance with a " + textbuf.Join(conditions, " or ") + " condition"
-	return fmt.Errorf(
-		"peer %s: role %s requires a filter against a transit leak in the %s\n"+
-			"  name %s in it, or name one prefixed with `inactive:` to record that this session runs without the check",
-		pair.settings.Name, pair.role, chains, what)
-}
-
-// chainDischarges reports whether a filter chain names a match instance whose
-// config names a discharging condition. A DEACTIVATED ref counts: `inactive:`
-// records a decision the operator made about this session, which is what the
-// obligation asks for, and it is the reading filterChainContains already takes
-// for a default filter.
-func chainDischarges(chain []policy.Ref, reg *policy.Registry, conditions []string) bool {
-	for _, ref := range chain {
-		entry, ok := reg.Lookup(filterInstanceName(ref.Name))
-		if !ok {
-			continue
-		}
-		if entry.Type != policy.MatchFilterType {
-			continue
-		}
-		for _, key := range conditions {
-			if _, named := entry.Config[key]; named {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // filterInstanceName strips the prefix a chain ref can carry, leaving the
 // instance name that keys the policy registry. The plain form carries no
 // prefix; the filter-type form, the plugin form and the canonical form each
@@ -976,8 +855,8 @@ func filterInstanceName(ref string) string {
 }
 
 // rolelessPeers names the peers and the dynamic groups that declare no RFC 9234
-// role, in config order. They are accepted: the obligation binds only a peer
-// that declares a relationship. This is the ONE declaration of that set, read
+// role, in config order. They are accepted, and the checks a role inserts do
+// not run on them. This is the ONE declaration of that set, read
 // by the warning logged at config load and by the `ze doctor` check, so the two
 // never enumerate different peers.
 func rolelessPeers(pairs []peerRole) []string {
@@ -1035,7 +914,7 @@ func warnPeersWithoutRole(names []string) {
 	if len(shown) > rolelessPeersNamed {
 		shown = shown[:rolelessPeersNamed]
 	}
-	configLogger().Warn("peers and dynamic groups declare no RFC 9234 role, so no transit-leak filter is required of them",
+	configLogger().Warn("peers and dynamic groups declare no RFC 9234 role, so no check a role inserts runs on them",
 		"peers", len(names),
 		"first", textbuf.Join(shown, ", "))
 }

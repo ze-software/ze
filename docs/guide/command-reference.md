@@ -2866,6 +2866,15 @@ with no policy, and `undetermined` an absent direction whose session type is not
 known yet.
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 
+The chain `show policy chain` and `show policy test` read is the peer's
+effective chain, so it carries the members a plugin inserted as well as the
+ones the operator named: on a peer with an RFC 9234 role, the upstream check
+`bgp-role:upstream-asn` appears in the import chain of a `provider`, `peer` or
+`rs` session and in the export chain of a `peer` or `rs-client` session
+([BGP roles](bgp-role.md), "The Upstream Check a Role Inserts").
+<!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- toPolicyChain -->
+<!-- source: internal/component/bgp/config/filter_insertion.go -- insertForPeer -->
+
 `text-before` and `text-after` name every attribute the UPDATE carries. Five of
 those names first appeared on 2026-09-04: `origin`, `med`, `local-preference`,
 `atomic-aggregate` and `cluster-list`. The renderer named a Go type no parser

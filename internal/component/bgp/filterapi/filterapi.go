@@ -35,16 +35,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// ObligationTransitLeak names the config obligation a match condition
-// discharges when it can refuse a route whose AS_PATH runs through a transit
-// provider (RFC 7454 Section 9). A plugin declares it with
-// policy.MustDeclareMatchConditionObligation, and the config rule that makes
-// the check mandatory for a peer with a declared RFC 9234 role asks
-// policy.MatchConditionsDischarging which conditions carry it. One
-// declaration, read by both sides: the rule never spells a condition, and the
-// plugin never spells the rule.
-const ObligationTransitLeak = "transit-leak"
-
 // MetaKeyRebuilt is the route-metadata key the reactor sets, to true, on a
 // route it rebuilt from stored bytes (reactor buildRelayUpdate: the
 // bgp-adj-rib-in peer-up replay and relay recovery). It says no ingress step ran

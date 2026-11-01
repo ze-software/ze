@@ -165,10 +165,11 @@ func doctorCheckBGPPeerConfig(ctx diagnostic.DoctorCheckContext) []diagnostic.Di
 }
 
 // doctorCheckBGPPeersWithoutRole enumerates the peers and the dynamic groups
-// that declare no RFC 9234 role. Such a peer is accepted -- the transit-leak
-// filter obligation (RFC 7454 Section 9) binds only a peer that declares a
-// relationship -- so the operator is told which sessions no relationship was
-// stated for, and the gap is a decision they can see rather than a silence.
+// that declare no RFC 9234 role. Such a peer is accepted, but the checks a role
+// inserts (bgp-role's RFC 7454 Section 9 upstream check) run only on a peer
+// that declares a relationship, so the operator is told which sessions no
+// relationship was stated for, and the gap is a decision they can see rather
+// than a silence.
 //
 // A WARNING, not an error: the config loads and the daemon starts on it. The
 // engine names the same peers in one aggregated line at config load; this check
@@ -189,7 +190,7 @@ func doctorCheckBGPPeersWithoutRole(ctx diagnostic.DoctorCheckContext) []diagnos
 	return []diagnostic.Diagnostic{{
 		Code:     diagnosticBGPPeerNoRole,
 		Severity: diagnostic.SeverityWarning,
-		Message: tb.Str("peers and dynamic groups declare no RFC 9234 role, so no transit-leak filter is required of them: ").
+		Message: tb.Str("peers and dynamic groups declare no RFC 9234 role, so no check a role inserts runs on them: ").
 			Str(textbuf.Join(names, ", ")).String(),
 	}}
 }
