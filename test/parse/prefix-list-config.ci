@@ -15,6 +15,9 @@ stdin=config:terminator=EOF_CONF
 				action reject
 			}
 		}
+		match prefix-list-CUSTOMERS {
+			prefix-list CUSTOMERS
+		}
 		prefix-list V6 {
 			entry 2001:db8::/32 {
 				ge 32
@@ -42,7 +45,7 @@ bgp {
 			}
 		}
 		filter {
-			import { filters [ bgp-filter-prefix:CUSTOMERS ]; final accept; }
+			import { filters [ prefix-list-CUSTOMERS ]; final accept; }
 		}
 	}
 }

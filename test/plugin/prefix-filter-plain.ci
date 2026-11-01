@@ -29,6 +29,9 @@ policy {
 			action accept
 		}
 	}
+	match prefix-list-GLOBALLY_UNIQUE_NAME {
+		prefix-list GLOBALLY_UNIQUE_NAME
+	}
 }
 
 bgp {
@@ -59,7 +62,7 @@ bgp {
 		# and rewrites the ref to "bgp-filter-prefix:GLOBALLY_UNIQUE_NAME"
 		# before runtime dispatch.
 		filter {
-			import { filters [ GLOBALLY_UNIQUE_NAME ]; final accept; }
+			import { filters [ prefix-list-GLOBALLY_UNIQUE_NAME ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]

@@ -40,12 +40,18 @@ policy {
 			action accept
 		}
 	}
+	match prefix-list-ALLOW {
+		prefix-list ALLOW
+	}
 	prefix-list DENY {
 		entry 10.0.0.0/8 {
 			ge 16
 			le 24
 			action reject
 		}
+	}
+	match prefix-list-DENY {
+		prefix-list DENY
 	}
 }
 
@@ -72,7 +78,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ bgp-filter-prefix:ALLOW bgp-filter-prefix:DENY ]; final accept; }
+			import { filters [ prefix-list-ALLOW prefix-list-DENY ]; final accept; }
 		}
 	}
 }

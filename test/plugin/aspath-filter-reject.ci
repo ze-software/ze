@@ -43,6 +43,9 @@ policy {
 			action accept
 		}
 	}
+	match as-path-list-ALLOW-PEER {
+		as-path ALLOW-PEER
+	}
 }
 
 bgp {
@@ -68,7 +71,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ bgp-filter-aspath:ALLOW-PEER ]; final accept; }
+			import { filters [ as-path-list-ALLOW-PEER ]; final accept; }
 		}
 
 		attach process test-aspath-reject {

@@ -9,6 +9,9 @@ stdin=config:terminator=EOF_CONF
 				action accept
 			}
 		}
+		match as-path-list-ALLOW-PEER {
+			as-path ALLOW-PEER
+		}
 		as-path-list TRANSIT {
 			entry "^[0-9]+( [0-9]+)+" {
 				action accept
@@ -37,7 +40,7 @@ bgp {
 			}
 		}
 		filter {
-			import { filters [ as-path-list:ALLOW-PEER ]; final accept; }
+			import { filters [ as-path-list-ALLOW-PEER ]; final accept; }
 		}
 	}
 }

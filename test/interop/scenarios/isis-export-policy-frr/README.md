@@ -9,8 +9,9 @@ own LSP, and at what metric, as FRR sees it:
 
 - Ze redistributes three static routes into IS-IS: 10.66.0.1/32 (tag 300),
   10.66.0.2/32 and 10.66.1.0/24.
-- The chain is `filters [ loopbacks tagged-loopback-metric ]; final accept;`.
-  `loopbacks` is a prefix-list that accepts only /32s, so it rejects the /24.
+- The chain is `filters [ prefix-list-loopbacks tagged-loopback-metric ]; final accept;`.
+  `prefix-list-loopbacks` is a match on the prefix-list `loopbacks`, which
+  accepts only /32s, so the match rejects the /24.
   `tagged-loopback-metric` is a modify that matches tag 300 and sets metric 77.
 - FRR installs 10.66.0.1/32 through Ze at metric 87, its own link metric to Ze
   (10) plus the 77 Ze advertised, and 10.66.0.2/32 at 110, the link metric plus

@@ -7,11 +7,20 @@ stdin=config:terminator=EOF_CONF
 			entry 10.0.0.0/8 { ge 16; le 24; action accept; }
 			entry 172.16.0.0/12 { ge 16; le 24; action accept; }
 		}
+		match prefix-list-CUSTOMERS-V4 {
+			prefix-list CUSTOMERS-V4;
+		}
 		prefix-list CUSTOMERS-V6 {
 			entry 2001:db8:100::/40 { ge 48; le 64; action accept; }
 		}
+		match prefix-list-CUSTOMERS-V6 {
+			prefix-list CUSTOMERS-V6;
+		}
 		as-path-list CUSTOMER-ASN {
 			entry "^[0-9]+$" { action accept; }
+		}
+		match as-path-list-CUSTOMER-ASN {
+			as-path CUSTOMER-ASN;
 		}
 		community-match CUSTOMER-TAG {
 			entry 65000:300 { type standard; action accept; }
@@ -40,8 +49,8 @@ bgp {
 			family { ipv4/unicast { prefix { maximum 50000; warning 45000; } } }
 		}
 		filter {
-			import { filters [ as-path-list:CUSTOMER-ASN bgp-filter-prefix:CUSTOMERS-V4 modify:CUSTOMER-IN ]; final accept; }
-			export { filters [ bgp-filter-prefix:CUSTOMERS-V4 modify:CUSTOMER-OUT ]; final accept; }
+			import { filters [ as-path-list-CUSTOMER-ASN prefix-list-CUSTOMERS-V4 modify:CUSTOMER-IN ]; final accept; }
+			export { filters [ prefix-list-CUSTOMERS-V4 modify:CUSTOMER-OUT ]; final accept; }
 		}
 		peer cust-v4-01 { connection { remote { ip 192.0.2.11; } local { ip 192.0.2.1; } } session { asn { remote 65101; } } }
 		peer cust-v4-02 { connection { remote { ip 192.0.2.12; } local { ip 192.0.2.1; } } session { asn { remote 65102; } } }
@@ -59,8 +68,8 @@ bgp {
 			family { ipv6/unicast { prefix { maximum 50000; warning 45000; } } }
 		}
 		filter {
-			import { filters [ as-path-list:CUSTOMER-ASN bgp-filter-prefix:CUSTOMERS-V6 modify:CUSTOMER-IN ]; final accept; }
-			export { filters [ bgp-filter-prefix:CUSTOMERS-V6 modify:CUSTOMER-OUT ]; final accept; }
+			import { filters [ as-path-list-CUSTOMER-ASN prefix-list-CUSTOMERS-V6 modify:CUSTOMER-IN ]; final accept; }
+			export { filters [ prefix-list-CUSTOMERS-V6 modify:CUSTOMER-OUT ]; final accept; }
 		}
 		peer cust-v6-01 { connection { remote { ip 2001:db8:1::11; } local { ip 2001:db8:1::1; } } session { asn { remote 65201; } } }
 		peer cust-v6-02 { connection { remote { ip 2001:db8:1::12; } local { ip 2001:db8:1::1; } } session { asn { remote 65202; } } }

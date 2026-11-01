@@ -1,11 +1,13 @@
 # Test: a filter chain completes the policy filters its attachment accepts
 # VALIDATES: AC-3 -- Tab on `isis filter import filters [ ` offers the
-#            prefix-list P, whose fields IS-IS routes carry, and not the
+#            prefix-list P and the match prefix-list-P naming it, whose fields
+#            IS-IS routes carry, and not the
 #            community-match C, which reads a community IS-IS routes never
 #            carry (ze:reference "policy-filter", policy filterReference).
 # VALIDATES: AC-4 -- Tab on a BGP peer's `filters [ ` offers every instance
-#            the bgp import attachment accepts: P and C, not the match
-#            TAGGED, because no BGP filter serves the match type.
+#            the bgp import attachment accepts: P, C and the match
+#            prefix-list-P, not the match TAGGED, because a BGP chain cannot
+#            judge its tag condition.
 # PREVENTS: completion offering a filter that commit then refuses, or a
 #           chain completing only a type hint.
 
@@ -21,6 +23,9 @@ policy {
 			type standard
 			action reject
 		}
+	}
+	match prefix-list-P {
+		prefix-list P
 	}
 	match TAGGED {
 		tag [ 100 ]
@@ -54,6 +59,7 @@ expect=context:path=isis/filter/import
 input=type:text=set filters [
 input=space
 expect=completion:contains=P
+expect=completion:contains=prefix-list-P
 expect=completion:excludes=C
 expect=completion:excludes=TAGGED
 input=ctrl:key=u
@@ -67,4 +73,5 @@ expect=context:path=bgp/peer/peer1/filter/import
 input=type:text=set filters [
 input=space
 expect=completion:contains=C,P
+expect=completion:contains=prefix-list-P
 expect=completion:excludes=TAGGED

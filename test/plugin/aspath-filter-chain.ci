@@ -37,12 +37,18 @@ policy {
 			action accept
 		}
 	}
+	match as-path-list-ALLOW-AS {
+		as-path ALLOW-AS
+	}
 	prefix-list ALLOW-PREFIX {
 		entry 10.0.0.0/8 {
 			ge 16
 			le 24
 			action accept
 		}
+	}
+	match prefix-list-ALLOW-PREFIX {
+		prefix-list ALLOW-PREFIX
 	}
 }
 
@@ -69,7 +75,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ as-path-list:ALLOW-AS bgp-filter-prefix:ALLOW-PREFIX ]; final accept; }
+			import { filters [ as-path-list-ALLOW-AS prefix-list-ALLOW-PREFIX ]; final accept; }
 		}
 
 		attach process bgp-adj-rib-in {

@@ -47,6 +47,9 @@ policy {
 			action accept
 		}
 	}
+	match prefix-list-CUSTOMERS {
+		prefix-list CUSTOMERS
+	}
 }
 
 bgp {
@@ -72,7 +75,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ bgp-filter-prefix:CUSTOMERS ]; final accept; }
+			import { filters [ prefix-list-CUSTOMERS ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]

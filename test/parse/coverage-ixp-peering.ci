@@ -18,12 +18,18 @@ stdin=config:terminator=EOF_CONF
 				action accept
 			}
 		}
+		match prefix-list-V4-BOGON {
+			prefix-list V4-BOGON
+		}
 		prefix-list V6-BOGON {
 			entry 2001:db8::/32 {
 				ge 32
 				le 48
 				action accept
 			}
+		}
+		match prefix-list-V6-BOGON {
+			prefix-list V6-BOGON
 		}
 		as-path-list BOGON-ASN {
 			entry ".* 0 .*" {
@@ -32,6 +38,9 @@ stdin=config:terminator=EOF_CONF
 			entry "^$" {
 				action accept
 			}
+		}
+		match as-path-list-BOGON-ASN {
+			as-path BOGON-ASN
 		}
 		community-match NO-EXPORT {
 			entry no-export {
@@ -70,8 +79,8 @@ bgp {
 			}
 		}
 		filter {
-			import { filters [ bgp-filter-prefix:V4-BOGON as-path-list:BOGON-ASN community-NO-EXPORT modify:IXP-IN ]; final accept; }
-			export { filters [ bgp-filter-prefix:V4-BOGON modify:IXP-OUT ]; final accept; }
+			import { filters [ prefix-list-V4-BOGON as-path-list-BOGON-ASN community-NO-EXPORT modify:IXP-IN ]; final accept; }
+			export { filters [ prefix-list-V4-BOGON modify:IXP-OUT ]; final accept; }
 		}
 		peer rs-v4-a {
 			connection { remote { ip 192.0.2.11; } local { ip 192.0.2.1; } }
@@ -89,8 +98,8 @@ bgp {
 			}
 		}
 		filter {
-			import { filters [ bgp-filter-prefix:V6-BOGON as-path-list:BOGON-ASN modify:IXP-IN ]; final accept; }
-			export { filters [ bgp-filter-prefix:V6-BOGON modify:IXP-OUT ]; final accept; }
+			import { filters [ prefix-list-V6-BOGON as-path-list-BOGON-ASN modify:IXP-IN ]; final accept; }
+			export { filters [ prefix-list-V6-BOGON modify:IXP-OUT ]; final accept; }
 		}
 		peer rs-v6-a {
 			connection { remote { ip 2001:db8::11; } local { ip 2001:db8::1; } }
@@ -105,7 +114,7 @@ bgp {
 			}
 		}
 		filter {
-			import { filters [ as-path-list:BOGON-ASN modify:IXP-IN ]; final accept; }
+			import { filters [ as-path-list-BOGON-ASN modify:IXP-IN ]; final accept; }
 			export { filters [ modify:IXP-OUT ]; final accept; }
 		}
 		peer transit-a {

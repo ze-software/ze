@@ -62,6 +62,9 @@ policy {
 			action accept
 		}
 	}
+	match prefix-list-CUSTOMERS {
+		prefix-list CUSTOMERS
+	}
 }
 
 bgp {
@@ -95,7 +98,7 @@ bgp {
 			}
 		}
 		filter {
-			import { filters [ bgp-filter-prefix:CUSTOMERS ]; final accept; }
+			import { filters [ prefix-list-CUSTOMERS ]; final accept; }
 		}
 		behavior {
 			group-updates disable
@@ -126,4 +129,4 @@ expect=stderr:contains=session established
 # another filter would not satisfy it, and it names both counts, so a chain that
 # accepted everything or rejected everything would not either.
 expect=stderr:pattern=prefix-list modify.*filter=CUSTOMERS.*accepted=1 rejected=1
-expect=stderr:pattern=nlri="nlri add 10\.0\.0\.0/24 192\.0\.2\.0/24"
+expect=stderr:pattern=nlri="10\.0\.0\.0/24 192\.0\.2\.0/24"

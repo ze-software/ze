@@ -11,6 +11,9 @@ bgp {
 			action accept
 		}
 	}
+		match prefix-list-CUSTOMERS {
+			prefix-list CUSTOMERS
+		}
 	}
 
 	router-id 203.0.113.1
@@ -30,7 +33,7 @@ bgp {
 			}
 		}
 		filter {
-			import { filters [ CUSTOMERS ]; final accept; }
+			import { filters [ prefix-list-CUSTOMERS ]; final accept; }
 		}
 	}
 }

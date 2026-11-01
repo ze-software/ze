@@ -8,8 +8,8 @@
 # (4-octet, the injector's ASN pinned in inject-args). An IPv6 next hop is
 # ::ffff:172.30.0.9 and an IPv4 one 172.30.0.9.
 #
-# Ze's import chain on this peer is `bgp-filter-prefix:INJECT-IN`, which
-# accepts 2001:db8:1::/48, 10.61.1.0/24 and everything under 2001:db8:100::/48,
+# Ze's import chain on this peer is `prefix-list-INJECT-IN`, a match on
+# prefix-list INJECT-IN, which accepts 2001:db8:1::/48, 10.61.1.0/24 and everything under 2001:db8:100::/48,
 # and rejects every other prefix by the implicit deny (ze.conf).
 option=tcp_connections:value=1
 # Bind all interfaces: the default is loopback only, which Ze cannot dial from

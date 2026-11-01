@@ -33,6 +33,9 @@ policy {
 	as-path-length REJECT-LONG {
 		max 3
 	}
+	match as-path-length-REJECT-LONG {
+		as-path-length REJECT-LONG
+	}
 }
 
 bgp {
@@ -58,7 +61,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ as-path-length:REJECT-LONG ]; final accept; }
+			import { filters [ as-path-length-REJECT-LONG ]; final accept; }
 		}
 
 		attach process test-aspath-len {

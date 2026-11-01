@@ -23,6 +23,9 @@ policy {
 			action accept
 		}
 	}
+	match prefix-list-CUSTOMERS {
+		prefix-list CUSTOMERS
+	}
 }
 
 bgp {
@@ -43,7 +46,7 @@ bgp {
 			}
 		}
 		filter {
-			import { filters [ CUSTOMERS ]; final accept; }
+			import { filters [ prefix-list-CUSTOMERS ]; final accept; }
 		}
 	}
 }

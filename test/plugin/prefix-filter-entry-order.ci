@@ -51,6 +51,9 @@ policy {
 			action accept
 		}
 	}
+	match prefix-list-ORDERED {
+		prefix-list ORDERED
+	}
 }
 
 bgp {
@@ -76,7 +79,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ bgp-filter-prefix:ORDERED ]; final accept; }
+			import { filters [ prefix-list-ORDERED ]; final accept; }
 		}
 
 		attach process test-prefix-order {
