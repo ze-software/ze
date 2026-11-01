@@ -1264,7 +1264,7 @@ kinds of executor, ordered by declared Stage, then Priority, then name -- never 
 code position:
 
 1. **In-process ingress filters**: the engine's own loop detection
-   (`reactor/filter` `LoopIngress`, an RFC 4271 Section 9.1.2 and RFC 4456
+   (`reactor/loopdetect` `LoopIngress`, an RFC 4271 Section 9.1.2 and RFC 4456
    Section 8 protocol check the reactor names as its Protocol-stage step in
    `buildOrderedIngressSteps`, never a registered filter), and the filters
    registered via `filterapi.Register`. Both sort by `filterapi` Stage:
@@ -1291,7 +1291,7 @@ code position:
    plugin members are sent their declared `fields` and no update text, and
    still reach the plugin through the API server (`libraryCaller`).
    A named `loop-detection` instance (`loop:<name>`) is bound to the engine's
-   loop step by `reactor/filter` `BindLoopDetection` during configuration. It
+   loop step by `reactor/loopdetect` `BindLoopDetection` during configuration. It
    remains in `Policy.Filters` but executes only at the loop step, never again
    as an RPC; no other type is bound in process. `Reject` drops the route; `Teardown`
    closes the session (import only). A raw override stops later filters but
@@ -1471,7 +1471,7 @@ deactivation), `policy.Final`, `policy.Chain`, `policy.ExtractChain` for a
 inheritance rule, and `policy.CanonicalName` for the plugin, filter-type and
 plain reference forms. BGP compiles the chain into `filterapi.Policy`, which
 adds what only BGP has: the binding of each `loop-detection` ref to the
-engine's loop step (`reactor/filter` `BindLoopDetection`, kept as a slice parallel
+engine's loop step (`reactor/loopdetect` `BindLoopDetection`, kept as a slice parallel
 to the refs and set once at config time, so the UPDATE path reads an index and
 allocates nothing), whether the policy therefore requires ingress, and the RFC
 8212 default. `filterapi.Policy` carries both together through
@@ -1481,7 +1481,7 @@ preserves acceptance on IBGP, including migration-AS sessions. Automatic and
 inactive references do not establish operator policy presence.
 <!-- source: internal/component/policy/chain.go -- Ref, Final, Chain, ExtractChain, ConcatChains, CanonicalName -->
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, Policy.InProcess, Policy.WithBoundFilters -->
-<!-- source: internal/component/bgp/reactor/filter/binding.go -- BindLoopDetection, OwnsChainMembers -->
+<!-- source: internal/component/bgp/reactor/loopdetect/binding.go -- BindLoopDetection, OwnsChainMembers -->
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- buildOrderedIngressSteps -->
 
 Filters respond accept/reject/modify with delta-only output. Accept continues;

@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- registered stage ownership of policy references.
 
-package filter
+package loopdetect
 
 import (
 	"testing"
@@ -17,7 +17,7 @@ import (
 func TestBindLoopDetection(t *testing.T) {
 	for _, name := range []string{"CHECK", "loop-detection:CHECK", "loop:CHECK"} {
 		for _, inactive := range []bool{false, true} {
-			ref, bound := BindLoopDetection(routepolicy.Ref{Name: name, Inactive: inactive}, loopFilterType)
+			ref, bound := BindLoopDetection(routepolicy.Ref{Name: name, Inactive: inactive}, FilterType)
 			bindings := []bool{bound}
 			owned := filterapi.InternalPolicy(nil).WithBoundFilters([]routepolicy.Ref{ref}, bindings)
 			if ref.Name != "loop:CHECK" || !owned.InProcess(0) || owned.ActiveExternal(0) || ref.Inactive != inactive {
@@ -25,12 +25,12 @@ func TestBindLoopDetection(t *testing.T) {
 			}
 		}
 	}
-	ref, bound := BindLoopDetection(routepolicy.Ref{Name: "loop"}, loopFilterType)
+	ref, bound := BindLoopDetection(routepolicy.Ref{Name: "loop"}, FilterType)
 	if ref.Name != "loop:loop" || !bound {
 		t.Fatalf("plain instance matching its owner's name = %+v", ref)
 	}
 	for _, tc := range []struct{ name, policyType string }{
-		{"external:CHECK", loopFilterType},
+		{"external:CHECK", FilterType},
 		{"loop:CHECK", "other-policy"},
 		{"CHECK", ""},
 	} {

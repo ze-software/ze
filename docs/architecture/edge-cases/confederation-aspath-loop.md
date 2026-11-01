@@ -64,7 +64,7 @@ segment-splitting (255+255+...) while blocking pathological growth.
 
 ### Loop detection covers all segment types
 
-The ingress loop filter (`reactor/filter/loop.go:LoopIngress`) iterates all
+The ingress loop filter (`reactor/loopdetect/loop.go:LoopIngress`) iterates all
 AS_PATH segments when checking for the local ASN, including AS_CONFED_SEQUENCE
 and AS_CONFED_SET. The `Contains()` method on ASPath similarly checks every
 segment type. There is no code path where confederation segments are skipped

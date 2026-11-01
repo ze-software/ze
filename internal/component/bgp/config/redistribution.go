@@ -4,7 +4,7 @@
 package bgpconfig
 
 import (
-	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/filter"
+	"github.com/ze-software/ze/internal/component/bgp/reactor/loopdetect"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
@@ -64,7 +64,7 @@ func validatePolicyLayer(tree *config.Tree, path string) error {
 // bound) for filterapi.Policy.WithBoundFilters.
 //
 // A configured loop-detection instance receives the loop step's ownership
-// and the owner-qualified name bgpfilter.BindLoopDetection gives it; a matching prefix alone
+// and the owner-qualified name loopdetect.BindLoopDetection gives it; a matching prefix alone
 // never grants it. Every other ref is rewritten by policy.CanonicalName, which
 // accepts the plugin, filter-type and plain forms, and keeps RPC dispatch.
 // Deactivation state (policy.Ref.Inactive) is carried structurally and
@@ -80,7 +80,7 @@ func canonicalizeFilterRefs(chain []policy.Ref, reg *policy.Registry) ([]policy.
 		out[i] = ref
 		if reg != nil {
 			if entry, ok := reg.Lookup(filterInstanceName(ref.Name)); ok {
-				if named, inProcess := bgpfilter.BindLoopDetection(ref, entry.Type); inProcess {
+				if named, inProcess := loopdetect.BindLoopDetection(ref, entry.Type); inProcess {
 					out[i] = named
 					if bound == nil {
 						bound = make([]bool, len(chain))

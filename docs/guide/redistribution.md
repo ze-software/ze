@@ -75,7 +75,7 @@ detection (RFC 4271 Section 9) and cluster-list loop detection (RFC 4456 Section
 | allow-own-as | uint8 (0-10) | 0 | Own-AS occurrences to tolerate before rejecting |
 | cluster-id | ipv4-address | (router-id) | Override Router ID for CLUSTER_LIST loop check |
 
-<!-- source: internal/component/bgp/reactor/filter/loop.go -- LoopIngress -->
+<!-- source: internal/component/bgp/reactor/loopdetect/loop.go -- LoopIngress -->
 
 ### External plugin filters
 

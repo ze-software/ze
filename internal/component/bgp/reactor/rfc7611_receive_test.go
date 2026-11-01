@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
-	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/filter"
+	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/loopdetect"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/wire"

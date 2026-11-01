@@ -1,4 +1,4 @@
-package filter
+package loopdetect
 
 import (
 	"encoding/binary"

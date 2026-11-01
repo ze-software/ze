@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md — loop-filter Prometheus metrics
 
-package filter
+package loopdetect
 
 import (
 	"sync/atomic"

@@ -158,7 +158,7 @@ run on the session read path before the UPDATE reaches the filter pipeline.
 A route failing any check is dropped silently (no NOTIFICATION, session stays up).
 Cluster ID defaults to Router ID per RFC 4456 Section 7.
 
-<!-- source: internal/component/bgp/reactor/filter/loop.go -- LoopIngress -->
+<!-- source: internal/component/bgp/reactor/loopdetect/loop.go -- LoopIngress -->
 <!-- source: internal/component/bgp/filterapi/filterapi.go -- FilterStageProtocol -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- enforceRFC7606; internal/component/bgp/reactor/session_prefix.go -- checkPrefixLimits -->
 

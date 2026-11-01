@@ -216,7 +216,7 @@ copy-on-modify: only peers that need changes pay for a copy; unmodified
 peers use the shared source buffer.
 
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload -->
-<!-- source: internal/component/bgp/reactor/filter/loop.go -- LoopIngress -->
+<!-- source: internal/component/bgp/reactor/loopdetect/loop.go -- LoopIngress -->
 
 | Path | Buffer source | Copy? | When |
 |------|--------------|-------|------|

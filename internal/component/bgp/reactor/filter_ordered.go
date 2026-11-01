@@ -18,7 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
-	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/filter"
+	"github.com/ze-software/ze/internal/component/bgp/reactor/loopdetect"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -86,7 +86,7 @@ type egressStepResult struct {
 
 // buildOrderedIngressSteps merges the registered in-process ingress filters with
 // the engine's own steps into one stage-ordered pass: loop detection at
-// FilterStageProtocol (bgpfilter.LoopIngress, an RFC 4271 Section 9.1.2 and
+// FilterStageProtocol (loopdetect.LoopIngress, an RFC 4271 Section 9.1.2 and
 // RFC 4456 Section 8 protocol check the engine owns) and the reactor-bound
 // per-peer policy chain at FilterStagePeerChain. Called once from
 // startAPIServer.
@@ -94,9 +94,9 @@ func buildOrderedIngressSteps() []orderedIngressStep {
 	ordered := filterapi.IngressOrdered()
 	steps := make([]orderedIngressStep, 0, len(ordered)+2)
 	steps = append(steps, orderedIngressStep{
-		name:   bgpfilter.LoopName,
+		name:   loopdetect.LoopName,
 		stage:  filterapi.FilterStageProtocol,
-		inproc: bgpfilter.LoopIngress,
+		inproc: loopdetect.LoopIngress,
 	})
 	for _, f := range ordered {
 		steps = append(steps, orderedIngressStep{

@@ -18,7 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/filter"
+	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/loopdetect"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/clock"

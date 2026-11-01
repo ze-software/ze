@@ -30,7 +30,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/bgp/reactor/filter"
+	"github.com/ze-software/ze/internal/component/bgp/reactor/loopdetect"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -909,7 +909,7 @@ func TestReceiveCollapseLogsDiscardedMalformedAS4Path(t *testing.T) {
 // TestLoopIngressSeesReconstructedASPath is AC-13, and it is about what the
 // ingress filter can SEE rather than about what the collapse writes.
 //
-// LoopIngress (internal/component/bgp/reactor/filter/loop.go) scans the AS_PATH
+// LoopIngress (internal/component/bgp/reactor/loopdetect/loop.go) scans the AS_PATH
 // for ze's own AS at the width its PeerFilterInfo carries, and it never reads
 // an AS4_PATH. So before the collapse, a route whose real path crosses ze's own
 // four-octet AS arrived carrying AS_TRANS in AS_PATH and the real number in
@@ -934,7 +934,7 @@ func TestLoopIngressSeesReconstructedASPath(t *testing.T) {
 	body := makeUpdateBody(nil, collapseMixedWidthAttrs(), fwdTestNLRI)
 
 	received := filterapi.PeerFilterInfo{LocalAS: collapseRealAS, ASN4: false}
-	accept, _ := filter.LoopIngress(received, body, nil)
+	accept, _ := loopdetect.LoopIngress(received, body, nil)
 	assert.True(t, accept,
 		"the received bytes hide ze's own AS behind AS_TRANS, which is why the collapse is needed")
 
@@ -950,7 +950,7 @@ func TestLoopIngressSeesReconstructedASPath(t *testing.T) {
 	assert.NotEqual(t, recvCtxID, dispatched.SourceCtxID(),
 		"the relabel gave the collapsed payload a context of its own")
 
-	accept, _ = filter.LoopIngress(src, dispatched.Payload(), nil)
+	accept, _ = loopdetect.LoopIngress(src, dispatched.Payload(), nil)
 	assert.False(t, accept,
 		"ze's own AS is in the reconstructed path, so the route is a loop and the filter says so")
 }

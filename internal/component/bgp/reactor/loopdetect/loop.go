@@ -2,10 +2,14 @@
 // RFC: rfc/short/rfc4271.md
 // RFC: rfc/short/rfc4456.md
 //
-// Package filter implements protocol-mandated ingress filters for the BGP reactor.
-// They are engine code: the reactor names LoopIngress as the protocol-stage step
-// of its ordered ingress pass and calls it for each received UPDATE.
-package filter
+// Package loopdetect implements the protocol-mandated loop checks of the BGP
+// reactor's ingress. It is engine code, registers nothing, and holds no plugin:
+// the reactor names LoopIngress as the protocol-stage step of its ordered
+// ingress pass and calls it for each received UPDATE, and config resolution
+// binds loop-detection chain members through BindLoopDetection. The registered
+// loop plugin (reactor/filter) carries only the loop-detection YANG and filter
+// type, and depends on this package, never the reverse.
+package loopdetect
 
 import (
 	"encoding/binary"

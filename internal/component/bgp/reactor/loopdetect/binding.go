@@ -1,7 +1,8 @@
 // Design: docs/architecture/core-design.md -- registered stage ownership of policy references.
-// Related: register.go -- the loop-detection filter type and the loop registration.
+// Related: loop.go -- the loop step a bound chain member runs.
+// Related: ../filter/register.go -- the loop-detection filter type and the loop registration.
 
-package filter
+package loopdetect
 
 import (
 	"strings"
@@ -15,6 +16,12 @@ import (
 // prefix of a bound `loop:<instance>` chain member.
 const LoopName = "loop"
 
+// FilterType is the ze:filter list loop detection owns under the policy root
+// (reactor/filter/yang/ze-loop-detection.yang). The loop registration
+// registers it into the policy library, and BindLoopDetection binds only
+// instances of it.
+const FilterType = "loop-detection"
+
 // BindLoopDetection resolves a configured loop-detection instance to the
 // engine's loop step, answering the ref under its owner-qualified name
 // (`loop:<instance>`) and whether the loop step owns it. The caller MUST obtain
@@ -26,7 +33,7 @@ const LoopName = "loop"
 // Called during config resolution, never on the UPDATE path. Safe for
 // concurrent use.
 func BindLoopDetection(ref policy.Ref, policyType string) (policy.Ref, bool) {
-	if policyType != loopFilterType {
+	if policyType != FilterType {
 		return ref, false
 	}
 	prefix, instance, qualified := strings.Cut(ref.Name, ":")
@@ -35,7 +42,7 @@ func BindLoopDetection(ref policy.Ref, policyType string) (policy.Ref, bool) {
 		prefix = ""
 	}
 	if qualified {
-		if prefix != LoopName && prefix != loopFilterType {
+		if prefix != LoopName && prefix != FilterType {
 			return ref, false
 		}
 	}

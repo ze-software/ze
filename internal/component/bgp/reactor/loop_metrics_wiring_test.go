@@ -16,7 +16,7 @@ import (
 // the engine's own protocol step, not a registered filter, so no filter hook
 // reaches it: the reactor hands the registry to it directly.
 //
-// VALIDATES: the metrics-enable block calls bgpfilter.SetMetricsRegistry.
+// VALIDATES: the metrics-enable block calls loopdetect.SetMetricsRegistry.
 // PREVENTS: ze_bgp_as_path_loop_detected_total silently dead.
 func TestLoopMetricsWiredByTheReactor(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.conf")
