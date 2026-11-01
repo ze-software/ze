@@ -44,7 +44,7 @@ func init() {
 	policy.MustRegisterAttachment("bgp", testAttachmentNLRIViews,
 		[]policy.Field{prefix, fam, nextHop}, []policy.Field{prefix, fam})
 	policy.MustRegisterFilterType(typeNLRIRecorder, []policy.Field{fam, nextHop}, nil)
-	MustRegisterEvaluator(typeNLRIRecorder, rpc.OnErrorReject, func(string, map[string]any) (Evaluator, error) {
+	MustRegisterEvaluator(typeNLRIRecorder, rpc.OnErrorReject, func(string, map[string]any, policy.InstanceResolver) (Evaluator, error) {
 		famReader, err := policyview.ReaderFor(fam)
 		if err != nil {
 			return nil, err
