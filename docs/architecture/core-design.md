@@ -1275,9 +1275,13 @@ code position:
 2. **The external-plugin per-peer policy** (`peer.settings.ImportPolicy`,
    resolved via `filter { import { filters [ name ]; final accept; } }`), which
    the reactor binds as ONE ordered step at `filterapi.FilterStagePeerChain`
-   (300), after every in-process filter, including OTC. Active external
-   references need the API server and text serialization; an empty,
-   inactive-only or in-process-only policy applies its final without either.
+   (300), after every in-process filter, including OTC. On the text chain,
+   active external references need the API server and text serialization; an
+   empty, inactive-only or in-process-only policy applies its final without
+   either. A chain that also names a library member (`Policy.Library`, "The
+   in-process BGP chain" below) runs through `runLibraryChain` instead: its
+   plugin members are sent their declared `fields` and no update text, and
+   still reach the plugin through the API server (`libraryCaller`).
    Named in-process references are bound through `filterapi.Filter.PolicyType`
    during configuration. They remain in `Policy.Filters` but execute only at
    their registered stage, never again as an RPC. `Reject` drops the route; `Teardown`
@@ -1539,9 +1543,13 @@ peers where it is configured (e.g., `allow-own-as:relaxed` overrides `rfc:no-sel
 #### The BGP route view
 
 `internal/component/bgp/policyview` is the lazy view a BGP chain member reads
-in place of the text subject. The chain does not run over it yet: the move of
-the chain onto the view is the next phase of `spec-filter-wire-0-umbrella`,
-and until it lands the text subject above is what filters read.
+in place of the text subject. `policychain` runs over it (`runLibraryChain`,
+below), and the text chain reads it too: a plugin filter there is sent the
+`fields` its declared reads name, written from the view (`filterFields`,
+`policyview.AppendFields`). A chain runs on the view in place of the text
+subject only when it names a member whose filter type registered an in-process
+BGP evaluator, and no shipped type registers one yet, so every chain an
+operator configures today still runs the text subject above.
 
 - **One reader per field, registered from the BGP side.** The field names stay
   declared in the policy library (`internal/component/policy/register.go`);
@@ -1575,14 +1583,18 @@ and until it lands the text subject above is what filters read.
 <!-- source: internal/component/bgp/policyview/register.go -- init -->
 <!-- source: internal/component/bgp/config/register.go -- init, the attachment carries and the reader check -->
 <!-- source: internal/component/policy/fields.go -- MustRegisterFieldSynonym, synonymHint -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
 
 #### The in-process BGP chain
 
 `internal/component/bgp/policychain` compiles and runs a BGP chain whose
 members are filter types with an in-process BGP evaluator, over the view
-above. No shipped filter type registers a BGP evaluator yet: the plugin filters
-move onto it in `spec-filter-wire-0-umbrella` phases 3b and 4, so until then
-the text subject is still what every configured BGP filter reads.
+above. No shipped filter type registers a BGP evaluator yet
+(`policychain.MustRegisterEvaluator` has no caller outside tests), so no
+configured chain compiles to one: `compileLibraryChain` leaves a chain with no
+library member on the text chain, where a plugin filter is sent the update
+text beside its declared `fields`. A plugin filter in a chain that does hold a
+library member joins that chain as a member (below).
 
 - **Wired at peer load and on both policy steps.** `bgpServesFilterType`
   admits a type with an evaluator (`policychain.HasEvaluator`) at `bgp import`

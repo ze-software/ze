@@ -660,12 +660,13 @@ position of its route.
   normally.
 - **A route the filter cannot judge.** A verdict carrying `error` (a string)
   fails that route alone under its filter's `on-error`; the other routes of
-  the batch keep their verdicts. The Go SDK answers a handler's returned error
-  this way: `OnFilterUpdate` calls the handler once per route, in request
-  order, so a Go filter is written for one route.
+  the batch keep their verdicts. The Go SDK answers this way when the
+  evaluator fails: `answerFilterBatch` calls the evaluator `OnFilter`
+  installed once per route, in request order, and an error it returns or a
+  nil verdict fails that route alone, so a Go filter is written for one route.
 <!-- source: pkg/plugin/rpc/types.go -- FilterUpdateBatchMax, FilterUpdateBatchInput, FilterUpdateBatchOutput -->
 <!-- source: internal/component/plugin/ipc/filter_batch.go -- SendFilterUpdate, filterBatcher -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch -->
 
 ### The Route Fields of filter-update
 

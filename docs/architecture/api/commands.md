@@ -1333,6 +1333,17 @@ update text mp ipv4/flow del \
 
 The engine sends `filter-update` callbacks to external plugin filters during
 UPDATE processing. This is a callback RPC (engine to plugin), not a user command.
+One exchange carries a batch: the request is `{"routes":[...]}`
+(`rpc.FilterUpdateBatchInput`), at most `rpc.FilterUpdateBatchMax` (64) routes
+in the order the engine queued them, and the answer is `{"verdicts":[...]}`
+(`rpc.FilterUpdateBatchOutput`), one verdict per route in request order, all
+within one `rpc.FilterUpdateTimeout` (5 s). A reply with more or fewer verdicts
+than routes is malformed: the engine applies none of it, and every route of the
+batch takes its filter's on-error. A plugin running internal that registered
+with `sdk.OnFilter` is called through its typed filter slot instead, with the
+same verdict and no JSON (`PluginConn.CallFilter`).
+
+Each route of `routes`:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -1340,10 +1351,24 @@ UPDATE processing. This is a callback RPC (engine to plugin), not a user command
 | `direction` | string | `import` or `export` |
 | `peer` | string | The peer that SENT the route on import, the DESTINATION peer on export |
 | `peer-as` | uint32 | That peer's ASN, with the same meaning as `peer` |
-| `update` | string | Text-format attributes and NLRI (only declared attributes) |
+| `update` | string | Text-format attributes and NLRI (only declared attributes). Empty in a chain that also holds in-process members, which sends `fields` only |
+| `fields` | object | The route fields the filter declared in `reads`, keyed by vocabulary field name, in the UPDATE event's attr-map shape. A field the route does not carry is left out, and the key is absent when the filter declared no route field |
+| `raw` | bytes (base64) | The UPDATE body after the 19-byte header, sent when the filter declared the `raw` read |
 
-Response: `{"action":"accept"}`, `{"action":"reject"}`, or
-`{"action":"modify","update":"<delta>"}` with only changed fields.
+Each verdict of `verdicts`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `action` | string | `accept`, `reject` or `modify` |
+| `update` | string | A text delta of the changed attributes, on `modify`. Refused in a chain that holds in-process members |
+| `sets` | list | The route fields the filter changes, on `modify`: each a `field`, an `action` and a `value`. Read in a chain that holds in-process members |
+| `raw` | bytes (base64) | A whole-body replacement, on `modify`, from a filter that declared the `raw` read. It ends the chain |
+| `teardown`, `notify-code`, `notify-subcode` | bool, uint8 | Close the session after the import chain. Honored on import only |
+| `error` | string | The filter could not judge this route: the engine applies its on-error to this route alone and reads nothing else of the verdict |
+
+<!-- source: pkg/plugin/rpc/types.go -- FilterUpdateBatchInput, FilterUpdateBatchOutput, FilterUpdateInput, FilterUpdateOutput -->
+<!-- source: internal/component/bgp/policychain/external.go -- judgeExternal, externalAnswer -->
+<!-- source: internal/component/plugin/ipc/filter_slot.go -- CallFilter -->
 
 **`peer` and `peer-as` change meaning with the direction, and the callback says
 so only through `direction`.** The import chain passes the sending peer
@@ -1361,7 +1386,7 @@ one direction only tests `direction` itself.
 <!-- source: internal/component/plugin/server/startup.go -- the one writer of FilterRegistration.Direction -->
 
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate builds the filter-update request -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate handles it plugin-side -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch handle it plugin-side -->
 
 ---
 

@@ -1227,7 +1227,7 @@ filter-update answer").
 <!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
 
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch -->
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filter-update caller -->
 

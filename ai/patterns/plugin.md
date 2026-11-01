@@ -224,8 +224,9 @@ filter's module adds with `augment "/policy:policy"`. `policy.BuildRegistry`
 `<plugin>:NAME`. The plugin registers `ConfigRoots [policy.RootName]` and lists
 `policy.PluginName` in `Dependencies`; a filter type that also reads BGP
 settings adds `ConfigReads ["bgp"]` and parses both roots with
-`policy.SectionsParser`. The plugin answers each dispatch in `OnFilterUpdate`. This is
-the route `filter_aspath`, `filter_prefix` and `filter_path_asn` take:
+`policy.SectionsParser`. The plugin answers each dispatch through its filter
+evaluator (below). This is the route `filter_aspath`, `filter_prefix` and
+`filter_path_asn` take:
 
 ```go
 FilterTypes: []string{"as-path-list"},   // the YANG list name under the policy root
@@ -247,11 +248,32 @@ The one obligation today is the transit-leak check RFC 7454 Section 9
 recommends, required of a peer that declares an RFC 9234 role
 (`internal/component/bgp/config/peers.go`, `validateLeakFilterObligations`).
 
+**A plugin filter registers one evaluator for both transports**, with
+`p.OnFilter(eval)`. Running internal, the SDK installs `eval` as the typed
+`DirectBridge` filter slot at Stage 5, and the engine calls it on its own
+goroutines with its lazy view of the route. Running forked, `answerFilterBatch`
+calls it once per route of each `filter-update` batch, in request order. An
+error `eval` returns, or a nil verdict, fails that route alone under the
+filter's `on-error`:
+
 ```go
-p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
-    return handleFilterUpdate(in), nil
+p.OnFilter(func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
+    return judge(route) // reads route.Fields(), route.Raw()
 })
 ```
+
+`eval` honors the fast-path contract: non-blocking and bounded, safe for
+concurrent calls, keeping no route or slice past its return, and reading its
+state from an atomically swapped snapshot. Its test passes
+`sdk.CheckFilterConformance(t, name, eval, routes)` under `-race`, which
+checks each clause on both transports
+(`docs/plugin-development/handlers.md`, "Route filters").
+
+`p.OnFilterUpdate(fn)` is the adapter for a filter written against the
+`filter-update` input: it registers `fn` through `OnFilter`, and calls it one
+route at a time on one worker, each call bounded by `rpc.FilterUpdateTimeout`.
+Phase 4 of `spec-filter-wire-0-umbrella` removes it, so a new filter uses
+`OnFilter`.
 
 **A filter whose name is fixed at COMPILE time registers with `filterapi`.** It
 lives in the BGP-owned seam package `internal/component/bgp/filterapi`, not in

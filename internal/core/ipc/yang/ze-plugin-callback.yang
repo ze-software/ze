@@ -501,17 +501,20 @@ to the single document the record path would have carried.";
                     description
                         "The text is the chain's running result, so a modify an earlier filter
                          answered is already applied when this filter reads it. A modify this filter
-                         answers is applied before the next filter runs.";
-                    ze:help "Text-format attributes and NLRI (only declared attributes)";
+                         answers is applied before the next filter runs. A chain that also holds
+                         in-process filters sends the empty string: its filters read fields.";
+                    ze:help "Text-format attributes and NLRI (only declared attributes; empty in a mixed chain)";
                 }
                 anyxml fields {
                     description
                         "A JSON object holding the route fields the filter declared it reads, keyed
                          by vocabulary field name, each value in the shape the UPDATE event's attr map
                          uses. A declared field the route does not carry is left out, and the member
-                         is absent when the filter declared no route field. The values are the route
-                         as the chain received it: a modify an earlier filter answered reaches this
-                         filter in update alone.";
+                         is absent when the filter declared no route field. In a chain of plugin
+                         filters alone, the values are the route as the chain received it: a modify
+                         an earlier filter answered reaches this filter in update alone. In a chain
+                         that also holds in-process filters, the values are the route as the earlier
+                         members left it, their sets applied.";
                     ze:help "Declared route fields keyed by field name (JSON object)";
                 }
                 leaf raw {
@@ -519,8 +522,8 @@ to the single document the record path would have carried.";
                     description
                         "The bytes are the UPDATE body after the 19-byte header, base64 encoded
                          because the field is bytes on the wire. It is present when the filter
-                         declared raw true and the engine holds the body.";
-                    ze:help "Base64-encoded raw UPDATE body (if filter declared raw=true)";
+                         declared the raw entry in its reads and the engine holds the body.";
+                    ze:help "Base64-encoded raw UPDATE body (if the filter's reads hold raw)";
                 }
             }
         }

@@ -34,8 +34,9 @@ How a session and an UPDATE flow is in `ai/digests/bgp-reactor.md` and
   to the Coordinator, rather than through `Engine.RegisterSubsystem`. Peers start only after every plugin phase finished
   (`ai/digests/hub-engine.md`, step 7).
 - **Two tiers of package.** `internal/core/bgp/{attribute,nlri,capability,context,wire}`
-  are core leaves with no config lifecycle. `internal/component/bgp/{reactor,fsm,message,wireu,attrpool,filterapi,server}`
-  are the engine. `filterapi` stays a near-leaf so plugins, the reactor and
+  are core leaves with no config lifecycle. `internal/component/bgp/{reactor,fsm,message,wireu,attrpool,filterapi,policychain,policyview,server}`
+  are the engine. `policyview` is the lazy route view a chain member reads,
+  and `policychain` compiles and runs a chain over it. `filterapi` stays a near-leaf so plugins, the reactor and
   protocol filters import it without cycles (`filterapi.go` package doc).
 
 ## Who depends on it from outside
@@ -46,7 +47,7 @@ How a session and an UPDATE flow is in `ai/digests/bgp-reactor.md` and
 | A plugin, ours or third-party, in any language | The UPDATE event: JSON with optional raw wire hex per attribute and family, in the format and encoding the process asked for | `docs/architecture/api/json-format.md`, `docs/architecture/api/architecture.md` ("Wire Bytes in Events") |
 | The same plugin, sending | `send bgp <selector> update text ...`, the flat keyword grammar | `docs/architecture/api/update-syntax.md`, `docs/architecture/api/commands.md` ("Route Commands") |
 | A forwarding plugin (route server, reflector) | The cache: `bgp cache retain/release/expire`, `send bgp <selector> cached <id>`, and the typed SDK pair for high rates. An ack is cumulative | `docs/architecture/api/commands.md`, `docs/architecture/api/architecture.md` ("BGP Cache Control") |
-| A policy plugin | The `filter-update` RPC (`FilterUpdateInput`, `FilterUpdateOutput` in `pkg/plugin/rpc`) and the `<plugin>:<filter>` chain reference | `docs/architecture/api/process-protocol.md`, `docs/architecture/core-design.md` ("Policy Filter Chain") |
+| A policy plugin | The batched `filter-update` RPC (`FilterUpdateBatchInput` of `FilterUpdateInput` routes, `FilterUpdateBatchOutput` of `FilterUpdateOutput` verdicts, in `pkg/plugin/rpc`) and the `<plugin>:<filter>` chain reference | `docs/architecture/api/process-protocol.md`, `docs/architecture/core-design.md` ("Policy Filter Chain") |
 | A capability plugin | OPEN injection through `rpc.CapabilityDecl` | `docs/architecture/api/capability-contract.md` |
 | A migrated ExaBGP script | The bridge turns each ExaBGP line into `send bgp ... update text`, so the text grammar is its contract too | `docs/architecture/exabgp-bridge.md`, `docs/exabgp/exabgp-differences.md` |
 | An operator | Which process sees which peer is the peer's `attach process` block | `docs/architecture/api/architecture.md` ("Attaching a Process to a Peer") |

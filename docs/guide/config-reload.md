@@ -169,6 +169,18 @@ If a plugin reload fails:
 - The daemon logs the error
 - In-process BGP continues with the old plugin state
 
+A reload whose filter chain names a plugin filter the plugin does not declare,
+or one whose declared reads or sets the attachment refuses, is refused before
+anything is applied, and the running configuration stays in force. When the
+plugin is already running, the chain is judged at config load and the message
+names the chain, as in "A chain that names a plugin filter" in
+`docs/guide/bgp-policy.md`. When the reload starts the plugin, the plugin's
+first stage judges it, and the message ends with `; the reload is refused and
+the running config stays in force: correct the chain reference in the config,
+or the plugin's filter declaration, then reload again`.
+<!-- source: internal/component/bgp/config/external_filters.go -- checkExternalChainRef, judgeExternalChainRef -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- reloadChainRefusal -->
+
 ## Signals
 
 | Signal | Effect |
