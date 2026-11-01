@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Release validation: no run today starts every registered plugin on a config that wakes its workers, so a plugin that panics, races or exits once its timers fire can ship with every suite green |
@@ -22,9 +22,15 @@ the smoke step of the BAMA skill set: start every background timer and observer
 for a few seconds, and fail on a crash. He also agreed that each plugin carries
 its own small config file, and that a check rejects a registered plugin without
 one, rather than picking configs out of the existing functional tests. This
-spec is second in that order and is implemented in its own later session; the
-implementing session takes it through the `/ze-spec` approval gate, because only
-the direction is approved, not this text.
+spec is second in that order and is implemented in its own later session.
+On 2026-11-01 Thomas approved this spec for implementation ("ok we want to fix
+this gap, make sure the specs are ready"), and the open decisions D-1, D-3 and
+D-4 were resolved from his words and Ze's rules (Key Design Decisions). The same
+day he set the owner rule that every operator command runs through the daemon
+on every command surface (MCP, REST, gRPC, SSH, web) with the same output as
+the local `ze` command, so a remote operator or AI can debug the box
+(`ai/META-DECISIONS.md`, Goal and scope). D-4 follows it: what the harness
+reads to know a plugin is running is a daemon command, not a log line.
 
 The problem: coverage of plugins by the functional suites is incidental and
 recorded nowhere. 389 `.ci` files opt in to a `reject=stderr` panic pattern, no
@@ -59,6 +65,9 @@ the smoke run catches there could not be debugged from its report.
 - [ ] `docs/architecture/diagnostics/crash-capture.md` - "Recovered panics"
   → Decision: `taskguard.Task.Contain` logs one ERROR line, increments `ze_task_panics_total` and writes `crash-<time>-recovered.log`; the crash directory comes from `ze.crash.dir`
 - [ ] `docs/architecture/plugin/plugin-system.md` - registration fields, startup phases, the process boundary
+- [ ] `docs/architecture/api/commands.md` - where a command is served (daemon dispatcher, offline fallback, local data) and `system subsystem list`
+  → Decision: the started check reads a daemon-dispatched command, so it is the same answer MCP, REST, gRPC, SSH and web give; a local-data command (`show plugin list`) cannot answer it
+  → Constraint: the row keys are kebab-case and additive; the existing `name`, `stage`, `running`, `command-count` keys keep their spelling
 - [ ] `plan/learned/DESIGN-HISTORY.md` - Plugin system, load-bearing invariants
   → Constraint: any plugin failure aborts the whole startup tier, by owner ruling; one case per plugin is what lets a failure name the plugin
 - [ ] `ai/rules/testing.md`, `ai/rules/goroutine-lifecycle.md`, `ai/rules/commands.md`
@@ -67,7 +76,7 @@ the smoke run catches there could not be debugged from its report.
 **Key insights:**
 - The verdict rests on evidence the product already writes (crash records, the exit status, the runtime's own crash lines), not on a new list of log strings.
 - Four recover sites sit outside `taskguard` and write no crash record; the harness cannot judge them without a string list unless they move onto the boundary.
-- No daemon command answers which plugins are running: `show plugin list` reads the compiled registry and works with no daemon.
+- `show plugin list` reads the compiled registry and answers with no daemon, so it cannot say what runs. The daemon already has the running-set answer: `system subsystem list` and `show system subsystem list` list every process the process manager started, with its stage and a running flag. They do not say whether a plugin runs internal or forked, and two handlers build the same row (D-4).
 
 ## Current Behavior (MANDATORY)
 
@@ -90,7 +99,11 @@ the smoke run catches there could not be debugged from its report.
 - [ ] `internal/le/test/functional/suitemap.go` - `selectSuites` (180) intersects the published package scope with the recorded map (there is no `suitesFor` function)
 - [ ] `internal/le/test/functional/binaries.go` - the functional DUT builds with `ze_core ze_distro ze_setup zetest` and the feature tags, `-cover` under `ZE_COVER`, no `-race`
 - [ ] `internal/le/test/stressrepro/run.go` - `crashSignatures` (32) already declares the stderr crash signatures
-- [ ] `internal/component/plugin/yang/ze-plugin-show-cmd.yang` - `show plugin list` answers the compiled registry, not the running set
+- [ ] `internal/component/plugin/yang/ze-plugin-show-cmd.yang` - `show plugin list` answers the compiled registry, not the running set; `internal/component/plugin/register.go` registers it with `command.MustRegisterLocalData`, so no daemon serves it today
+- [ ] `internal/core/ipc/yang/ze-system-cmd.yang` - `system subsystem list` (`ze-plugin:system-subsystem-list`): "A subsystem is a plugin process the daemon started, and the process manager owns that set"; each row carries the process name, its stage, a running flag and a command count
+- [ ] `internal/component/plugin/server/system.go` - `handleSystemSubsystemList` (326) builds one row per `ProcessManager().AllProcesses()` entry from `Name`, `Stage`, `Running` and the dispatcher's `CommandCountsByProcess`
+- [ ] `internal/component/cmd/show/system.go` - `handleShowSystemSubsystemList` (72), the handler of `show system subsystem list` (`internal/component/cmd/show/yang/ze-cli-show-cmd.yang`), builds the same row a second time, line for line
+- [ ] `internal/component/plugin/process/process.go` - `Name` (393), `Stage` (150), `Running` (245); `config.Internal` decides `startInternal` against the fork (515); a forked plugin's pid is held in its `pluginGroup` (714), and no accessor exposes either the mode or the pid
 - [ ] `cmd/ze/plugins_zetest.go`, `internal/test/plugins/` - test-only plugins under the `zetest` tag (`fakeas112`, `fakeddos`, `fakedrain`, `fakeenrich`, `fakefib`, `fakel2tp`, `fakeredist`)
 
 **Behavior to preserve:**
@@ -103,6 +116,7 @@ the smoke run catches there could not be debugged from its report.
 - `bridgeCallbackPanicError` keeps the panic value in the error and the stack in a log line or crash record
 - The internal recover sites outside `taskguard` produce the same evidence the boundary produces (Key Design Decisions, D-3)
 - `crashSignatures` moves to one declaration that stress-repro and the smoke run both read
+- Each `system subsystem list` and `show system subsystem list` row also carries the process mode (`internal` or `external`) and, for a forked plugin, its process id; both commands build the row through one shared builder, so they cannot drift (D-4)
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -124,7 +138,9 @@ the smoke run catches there could not be debugged from its report.
 | Stand-in servers | `internal/le/mock/*` (`rtr`, `radius`, `tacacs`, `syslog`, `irr`, ...) | Mock peers a `.ci` starts as background steps | Extends: fixtures for plugins that need a peer start one, on loopback |
 | External engine runner | `./le mock plugin-external <name>` | Runs one engine through real TLS connect-back with no daemon config | Does not apply: the forked case goes through the daemon's own `external` block, so the real fork, token and reload path run |
 | Chaos run | `./le chaos run` | Fault injection for the BGP route server | Does not apply: one plugin, one role |
-| Doctor checks | `ze doctor`, `DoctorCheckPlugins` | Readiness probes on a running daemon | Does not apply: they start nothing |
+| Doctor checks | `ze doctor`, `DoctorCheckPlugins` | Readiness probes on a running daemon | Does not apply: they start nothing. A doctor check can read the extended running-set rows later; this spec adds none |
+| Running-set command | `ze-system-cmd.yang` `system subsystem list`; `server/system.go` `handleSystemSubsystemList`; `cmd/show/system.go` `handleShowSystemSubsystemList` | The daemon lists every plugin process it started with stage, running flag and command count, through the shared dispatcher, so SSH, web, MCP, REST and gRPC all reach it | Extends (D-4): the row gains the process mode and a forked plugin's pid, built once for both commands; the harness reads it to judge "started" and "really forked". No new command beside it |
+| Compiled-plugin list | `ze-plugin-show-cmd.yang` `show plugin list`; `plugin/register.go` `MustRegisterLocalData` | Answers what the binary carries, in the caller's process | Does not apply: it cannot answer what runs. Its daemon form under the new owner rule is owned by `plan/release/fixes/spec-command-surface-parity.md` (gap G1), not by this spec |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -136,7 +152,7 @@ the smoke run catches there could not be debugged from its report.
 1. Population: le enumerates `registry.All()` from its link of `plugin/all` and locates each fixture under `pluginPackageDir(reg)/testdata/`.
 2. Selection: named plugins; or `all`; or the published scope; or `./le repo changed packages`. A plugin's case is selected when a selected package is in its package's `go list -deps` closure, under the tag set the DUT builds with. A selected package under `internal/component/plugin/` or `cmd/ze` selects every case, because every case runs through it and no plugin's closure need contain it.
 3. Build: one `ze` with the DUT tags plus `-race` into the run's scratch, once per run.
-4. Per case, per mode (internal, then forked): a scratch directory, a fresh `ze.crash.dir` under it, the Runner executes the fixture; the harness waits for the plugin to report started, holds for the hold time, sends SIGTERM, waits for exit within a bound.
+4. Per case, per mode (internal, then forked): a scratch directory, a fresh `ze.crash.dir` under it, the Runner executes the fixture; the harness asks the case's daemon `show system subsystem list | json` (with `ze cli -c`, through the daemon's dispatcher) until the plugin's row reads stage running with the running flag set, and in forked mode `external` with a live pid, or the start bound passes; then it holds for the hold time, asks once more (a plugin gone from the running set fails AC-9), sends SIGTERM, waits for exit within a bound.
 5. Verdict per case: the failure classes in AC-3 to AC-9, each named in the failure line with the plugin, the mode and the evidence path.
 6. One combined case: every selected fixture's config together, in the full run only (D-5).
 7. Report through the shared `Display` and failure index, so verify's failure routing reads it.
@@ -148,18 +164,20 @@ the smoke run catches there could not be debugged from its report.
 | Engine to plugin, internal | In-memory pipe and DirectBridge | No |
 | Engine to plugin, forked | `external { run "ze plugin <name>" }`, TLS connect-back | No |
 | Daemon to harness evidence | Exit status, stderr, crash directory files | No |
+| Harness to daemon command | `show system subsystem list | json` through the daemon dispatcher, the same path MCP, REST, gRPC, SSH and web use | No |
 
 ### Integration Points
 - `internal/le/test/functional` `Suites` and `Gating` - one new entry
 - `internal/test/runner` - executes each fixture; the harness supplies discovery and the crash verdict
 - `internal/le/repo/inventory` `pluginPackageDir` - exported or moved so the smoke package can call it
 - `internal/core/crashlog` - the per-case crash directory the harness reads
+- `internal/component/plugin/server` - one subsystem row builder, called by `handleSystemSubsystemList` and by `internal/component/cmd/show` `handleShowSystemSubsystemList`; `process.Process` gains read accessors for its mode and its forked pid
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes, by design | Plugins start through config autoload or plugin blocks, as an operator starts them |
-| No unintended coupling (components stay isolated) | Yes, by design | New code sits in `internal/le/test/smoke` and test-only `internal/test/plugins/fakecrash`; the product changes are the recover sites only |
+| No unintended coupling (components stay isolated) | Yes, by design | New code sits in `internal/le/test/smoke` and test-only `internal/test/plugins/fakecrash`; the product changes are the recover sites and two added fields on the existing running-set rows |
 | No duplicated functionality (extends existing, does not recreate) | Yes, by design | Runner, crash records, crash signatures and change selection reused; no second runner or signature list |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | Tooling, no wire path |
 | Registration over hardcoding, outbound | Yes, by design | A new plugin adds only its own `testdata/` fixture |
@@ -175,7 +193,8 @@ the smoke run catches there could not be debugged from its report.
 | A-3 | An `external` block for a plugin its config root would autoload replaces the autoload rather than starting it twice | `getConfigPathPlugins` skips `hasConfiguredPlugin` names | Two copies start and claim the same roots | Unit test over `getConfigPathPlugins` with both present | unvalidated |
 | A-4 | le's link of `plugin/all` registers the shipped population and no `zetest` plugin | `ai/doors/le-tooling.md`; `plugins_zetest.go` is under `cmd/ze` | The fake plugins demand fixtures, or gated plugins are missing | `./le test smoke check` population compared with the plugin inventory | unvalidated |
 | A-5 | A few seconds wake most workers when the fixture sets the shortest timers the YANG allows | Owner's words: "runs for a few seconds" | A worker whose period exceeds the hold never runs | Per-fixture review, recorded in the fixture's comment | unvalidated |
-| A-6 | A started plugin is observable without a new daemon command | No running-set command exists (`show plugin list` is compile-time) | The harness needs an observable, which is new product surface | D-4 picks the evidence at the approval gate | unvalidated |
+| A-6 | A started plugin is observable through an existing daemon command | `system subsystem list` answers `ProcessManager().AllProcesses()` with stage and running flag (`server/system.go` `handleSystemSubsystemList`); D-4 decided | The harness cannot tell started from absent, and AC-5 is vacuous | `TestSubsystemListRowCarriesMode`; the `fakecrash` mode C case goes red through it | unvalidated |
+| A-7 | Every plugin the daemon starts, internal ones included, is a `Process` in `AllProcesses` | `Process.Start` branches on `config.Internal` to `startInternal` inside the same type (`process.go` 515) | An internal plugin is missing from the running set and every internal case fails as absent | The internal-mode `fakecrash` clean case passes (AC-10), and `test/plugin/subsystem-list-mode.ci` lists an internal plugin | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -185,12 +204,13 @@ the smoke run catches there could not be debugged from its report.
 | R-3 | A Linux-only plugin cannot run on macOS | Visible SKIP | `option=needs-linux`; it runs under `./le test qemu` |
 | R-4 | A fixture that never wakes the plugin's workers passes vacuously | Coverage of the plugin package near its `init` only | Each fixture names the workers it wakes; review reads the plugin and checks the claim |
 | R-5 | The first full run finds many crashes at once | Many red cases | Each is a defect fixed under `ai/rules/completion.md`, never a fixture opt-out |
+| R-6 | The two added row fields change an answer every command surface serves, and the two handlers drift again | A surface or test that pins the old row keys; the two commands answer different rows | Fields are additive, kebab-case and declared in the YANG description; one row builder serves both commands, and `TestShowSystemSubsystemListMatchesSystemSubsystemList` pins that they agree |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | Tooling only, except the recover-site changes: a wrong change there could end a unit that used to continue, or lose a log line |
+| What breaks if this is wrong? | Tooling only, except the recover-site changes (a wrong change there could end a unit that used to continue, or lose a log line) and the running-set rows (a wrong mode or pid misleads an operator or AI debugging the box remotely) |
 | How is it reverted? | Single commit revert per phase |
 | Who else touches this path? | `internal/test/runner` (every `.ci` suite), `internal/le/test/functional` (verify), `pkg/plugin/sdk` (every plugin, third-party included) |
 
@@ -202,6 +222,8 @@ the smoke run catches there could not be debugged from its report.
 | `./le test smoke check` | → | fixture check over `registry.All()` | `TestSmokeCheckRefusesPluginWithoutFixture` |
 | verify gating run | → | `smoke` in `Suites` and `Gating`, cases from `ZE_VERIFY_SCOPE_PACKAGES` | `TestSmokeSelectsCasesFromPublishedScope` |
 | A panic in a bridge callback | → | `bridgeCallbackPanicError` | `TestBridgeCallbackPanicKeepsValueAndStack` |
+| `show system subsystem list | json` on a running daemon | → | the shared subsystem row builder, mode and pid | `test/plugin/subsystem-list-mode.ci`, `TestSubsystemListRowCarriesMode` |
+| The harness's started check | → | `internal/le/test/smoke` reading the running-set rows | `TestSmokeVerdictFailsOnAbsentPlugin`, `TestSmokeSelftestEveryModeRed` (mode C) |
 
 ## Acceptance Criteria
 
@@ -225,6 +247,31 @@ the smoke run catches there could not be debugged from its report.
 | AC-16 | A panic recovered by `handleBridgeCallback` | The error carries the panic value, still matches `rpc.ErrBridgeFailed` under `errors.Is`, and the stack is logged |
 | AC-17 | A panic recovered by `safeBridgeCall`, `safeDeliverBatch`, `invokeEngineHandler` or `sourcePolicyWorker.call` | A crash record is written in the case's crash directory (D-3) |
 | AC-18 | A Linux-only plugin's fixture on a non-Linux host | A visible SKIP naming the requirement, never a pass |
+| AC-19 | `show system subsystem list | json` on a daemon running one internal and one forked plugin | Each row carries `mode` (`internal` or `external`); the forked row carries `pid`, a positive integer naming a live process; the internal row carries no `pid`; the existing keys (`name`, `stage`, `running`, `command-count`) are unchanged |
+| AC-20 | The same daemon asked `system subsystem list` and `show system subsystem list` | Both answers carry the same rows, built by one function |
+| AC-21 | The same command sent through a remote command surface (the daemon dispatcher a `ze cli -c` session reaches, which SSH, web, MCP, REST and gRPC share) | The same rows as AC-19; the command is not a local-data command and needs no `ze` binary on the caller's side |
+| AC-22 | A smoke case | Its "started" judgement comes only from the running-set rows of AC-19: a plugin with no row, a row not at stage running, or (forked mode) a row not `external` with a live pid fails the case naming which, and no log line is read for it |
+
+## End-to-End User Stories
+
+| # | User does | Path through system | Test proving it works |
+|---|-----------|--------------------|-----------------------|
+| 1 | A developer runs `./le test smoke <plugin>` after changing a plugin | le registry population, fixture under the plugin's `testdata/`, Runner, `ze` daemon with `-race`, running-set rows, crash directory, verdict, `Display` | `./le test smoke selftest` over `fakecrash`, `TestSmokeSelftestEveryModeRed` |
+| 2 | A remote operator or AI asks the box which plugins run and how, over MCP, SSH or the web | surface, daemon dispatcher, `show system subsystem list`, shared row builder, `ProcessManager().AllProcesses()` | `test/plugin/subsystem-list-mode.ci` |
+| 3 | Verify runs a gating pass over a change that reaches one plugin | `publishChangeScope`, `ZE_VERIFY_SCOPE_PACKAGES`, `smoke` in `Gating`, closure selection, that plugin's cases | `TestSmokeSelectsCasesFromPublishedScope` |
+
+## Goal Validation (BLOCKING)
+
+Planned evidence for each goal in the Task section; `/ze-close` fills the
+Concrete Evidence column with the outputs.
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Each registered plugin starts from its own fixture, held a few seconds, stopped | functional | `./le test smoke check` exits 0 over the whole population; one named real plugin's case run through `./le test smoke <plugin>`, output pasted |
+| Any crash, recovered panic, race, refusal, unclean exit or never-started plugin fails the case | functional, with a forced red per class | `./le test smoke selftest` output: every `fakecrash` mode red with its own reason in both process modes, the clean mode green (AC-3 to AC-11), and `TestSmokeSelftestEveryModeRed` |
+| Day to day only the reached cases run; every case only on release | unit | `TestSmokeSelectsCasesFromPublishedScope`, `TestSmokeSelectsEveryCaseForPluginHost`, `TestSmokeSelectsNothingForDocsOnlyChange` outputs |
+| A crash caught in the SDK bridge can be debugged from its report | unit plus functional | `TestBridgeCallbackPanicKeepsValueAndStack`; the `fakecrash` mode B report quoting the panic value |
+| A remote operator or AI can see which plugins run, and how, through the daemon | functional | `test/plugin/subsystem-list-mode.ci` with explicit JSON assertions on `mode` and `pid`, run red with the fields removed and green with them |
 
 ## 🧪 TDD Test Plan
 
@@ -243,6 +290,9 @@ the smoke run catches there could not be debugged from its report.
 | `TestBridgeCallbackPanicKeepsValueAndStack` | `pkg/plugin/sdk/sdk_dispatch_test.go` | AC-16 | |
 | `TestRecoveredPanicSitesWriteCrashRecord` | one test per site's package | AC-17 | |
 | `TestStressReproReadsSharedCrashSignatures` | `internal/le/test/stressrepro/` | the crash signatures have one source | |
+| `TestSubsystemListRowCarriesMode` | `internal/component/plugin/server/system_test.go` | AC-19: `mode` for an internal and a forked process, `pid` only on the forked one, old keys unchanged | |
+| `TestShowSystemSubsystemListMatchesSystemSubsystemList` | `internal/component/cmd/show/system_test.go` | AC-20 | |
+| `TestSmokeStartedCheckReadsRunningSet` | `internal/le/test/smoke/verdict_test.go` | AC-22: no row, a row not running, and a forked row without `external` and a pid each fail with their own reason | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -255,6 +305,7 @@ the smoke run catches there could not be debugged from its report.
 | `./le test smoke selftest` | `internal/test/plugins/fakecrash/testdata/` | Each failure mode goes red with its named reason, the clean mode green, in both process modes (AC-3 to AC-11) | |
 | `TestSmokeSelftestEveryModeRed` | `internal/le/test/smoke/selftest_test.go` | The selftest itself, so a selftest that stops discriminating fails the build, as `TestCIMustFailFixturesAllFail` does for the runner | |
 | `./le test smoke <plugin>` over one real fixture | the plugin's `testdata/` | A developer runs the case their change reaches | |
+| `subsystem-list-mode` | `test/plugin/subsystem-list-mode.ci` | An operator asks a daemon running one internal and one external plugin `show system subsystem list | json` and `system subsystem list | json`, and reads `mode` and `pid` (AC-19 to AC-21) | |
 
 ### Interop Tests (Scope: protocol)
 N-A: tooling, no protocol peer.
@@ -266,6 +317,12 @@ N-A: tooling, no protocol peer.
 - `pkg/plugin/sdk/sdk_dispatch.go` - `bridgeCallbackPanicError` keeps value and stack
 - `pkg/plugin/sdk/sdk_source_policy.go` - the stack reaches the report (D-3)
 - `internal/component/plugin/process/delivery.go`, `internal/component/plugin/server/engine_event.go` - recover with the boundary's evidence (D-3)
+- `internal/component/plugin/process/process.go` - read accessors for the mode and the forked pid (D-4)
+- `internal/component/plugin/server/system.go` - the shared subsystem row builder with `mode` and `pid`; `handleSystemSubsystemList` calls it (D-4)
+- `internal/component/cmd/show/system.go` - `handleShowSystemSubsystemList` calls the shared builder instead of its own copy (D-4)
+- `internal/core/ipc/yang/ze-system-cmd.yang`, `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` - the subsystem list descriptions name the two new fields, with a revision
+- `docs/architecture/api/commands.md`, `docs/architecture/api/ipc_protocol.md`, `docs/architecture/hub-api-commands.md` - the subsystem list rows and their fields
+- `docs/guide/command-catalogue.md` - declared by `internal/component/cmd/show/system.go`; checked at implementation, and edited only if it describes the subsystem list rows (it does not name them on 2026-11-01)
 - `docs/functional-tests.md`, `docs/contributing/testing.md` - the new suite and when to run it
 - `docs/architecture/testing/ci-format.md` - declared by `cmd/ze/plugins_zetest.go`; names the smoke fixtures as a `.ci` population that lives in plugin `testdata/` rather than under `test/`, and the `fakecrash` test-only plugin
 - `docs/architecture/diagnostics/crash-capture.md` - the recover sites now covered
@@ -277,19 +334,20 @@ N-A: tooling, no protocol peer.
 - `internal/test/plugins/fakecrash/` - the selftest plugin with its modes and fixtures, linked through `internal/test/plugins/all`
 - `<plugin package>/testdata/smoke.ci` - one per registered plugin (103 non-test source files call `registry.Register` today)
 - `docs/architecture/testing/smoke-run.md` - the design page
+- `test/plugin/subsystem-list-mode.ci` - the running-set rows through the daemon (AC-19 to AC-21)
 - one shared crash-signature declaration that stress-repro and smoke both read, placed by the implementing session under `internal/le` or `internal/test`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | No | D-4 may add one; decided at the gate |
+| YANG schema (new RPCs/config) | Yes | No new RPC (D-4 extends an existing command); `ze-system-cmd.yang` and `ze-cli-show-cmd.yang` subsystem list descriptions name `mode` and `pid`, with a revision |
 | YANG validation constraints | N-A | No new leaf |
 | YANG custom validators | N-A | No new leaf |
 | CLI commands/flags | Yes | `le test smoke` and its keywords, through `leroot.Register` |
 | CLI grammar (keyword before value) | Yes | `./le cli grammar`; keywords `all`, `check`, `selftest`, plugin names |
 | Editor autocomplete | N-A | le only |
-| Functional test for new RPC/API | N-A | No RPC |
-| Pipe completeness | N-A | Harness output |
+| Functional test for new RPC/API | Yes | `test/plugin/subsystem-list-mode.ci` for the extended answer |
+| Pipe completeness | Yes | The extended rows through `| json` and `| table` in `subsystem-list-mode.ci`; the harness output goes through the shared `Display` |
 | Env var registration | N-A | Reads the existing `ze.crash.dir` and `ZE_VERIFY_SCOPE_PACKAGES` |
 | Doctor check for runtime dependencies | N-A | Tooling |
 | Prometheus counters/metrics | N-A | Reads none; `ze_task_panics_total` already exists |
@@ -300,8 +358,8 @@ N-A: tooling, no protocol peer.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | No | Tooling |
 | 2 | Config syntax changed? | No | None |
-| 3 | CLI command added/changed? | No | An le command, documented by its help and `docs/functional-tests.md` |
-| 4 | API/RPC added/changed? | No | None |
+| 3 | CLI command added/changed? | Yes | `show system subsystem list` and `system subsystem list` gain `mode` and `pid`: `docs/architecture/api/commands.md`; the new le command is documented by its help and `docs/functional-tests.md` |
+| 4 | API/RPC added/changed? | Yes | The same answer on every surface: `docs/architecture/api/ipc_protocol.md`, `docs/architecture/hub-api-commands.md` |
 | 5 | Plugin added/changed? | Yes | `docs/plugin-development/testing.md` (fixture owed); `fakecrash` is test-only |
 | 6 | Has a user guide page? | No | None |
 | 7 | Wire format changed? | No | None |
@@ -314,7 +372,7 @@ N-A: tooling, no protocol peer.
 | 14 | Prometheus counters? | No | None |
 | 15 | Registered plugin or inventory changed? | No | `fakecrash` is under `zetest` only |
 | 16 | Changed source files with doc anchors? | Yes | Derived at implementation with `./le spec citation anchors spec plan/release/validation/spec-plugin-smoke-run.md` |
-| 17 | Existing docs show examples for this area? | Yes | `docs/functional-tests.md` suite table |
+| 17 | Existing docs show examples for this area? | Yes | `docs/functional-tests.md` suite table; `docs/architecture/api/commands.md` `system subsystem list` example |
 
 ## Implementation Steps
 
@@ -322,17 +380,20 @@ N-A: tooling, no protocol peer.
    - Tests: `TestSmokeSelftestEveryModeRed`, `TestSmokeCheckRefusesPluginWithoutFixture` (red: stubs)
    - Files: `internal/le/test/smoke/register.go`, `internal/test/plugins/fakecrash/`
    - Verify: the commands answer, the tests fail on the stubs
-2. **Phase: Verdict and case runner** -- build with `-race`, per-case crash directory, Runner execution, hold, stop, the failure classes
+2. **Phase: Running-set rows (D-4)** -- one row builder for both subsystem list commands, `mode` and `pid` from new `Process` accessors, the YANG descriptions and the API pages
+   - Tests: `TestSubsystemListRowCarriesMode`, `TestShowSystemSubsystemListMatchesSystemSubsystemList`, `test/plugin/subsystem-list-mode.ci` (red before the fields exist)
+   - Verify: AC-19 to AC-21 through `./le test functional plugin` naming the one test; this phase lands as its own commit, before the harness reads it
+3. **Phase: Verdict and case runner** -- build with `-race`, per-case crash directory, Runner execution, the started check over the running-set rows (AC-22), hold, stop, the failure classes
    - Tests: the verdict tests, the selftest
    - Verify: every `fakecrash` mode red with its own reason in both process modes, clean green
-3. **Phase: Recover sites (D-3) and the journal row** -- value and stack kept, crash records written
+4. **Phase: Recover sites (D-3) and the journal row** -- value and stack kept, crash records written
    - Tests: `TestBridgeCallbackPanicKeepsValueAndStack`, `TestRecoveredPanicSitesWriteCrashRecord`
    - Verify: AC-4 and AC-17 pass through the selftest; the journal row marked `fixed:`
-4. **Phase: Selection and the suite entry** -- named, `all`, published scope, change set; `smoke` in `Gating`
+5. **Phase: Selection and the suite entry** -- named, `all`, published scope, change set; `smoke` in `Gating`
    - Tests: the selection tests
-5. **Phase: Fixtures** -- one per registered plugin, in batches by door (system plugins, BGP plugins, routing protocols, components), each batch run as named cases only
+6. **Phase: Fixtures** -- one per registered plugin, in batches by door (system plugins, BGP plugins, routing protocols, components), each batch run as named cases only
    - Verify: `./le test smoke check` green; each batch's cases run by name; a crash found is fixed, never opted out
-6. **Phase: Docs** -- the pages listed above, in the same commits as the behavior they describe
+7. **Phase: Docs** -- the pages listed above, in the same commits as the behavior they describe
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -343,6 +404,8 @@ N-A: tooling, no protocol peer.
 | Data flow | The case list derives from `registry.All()`; no plugin name appears in harness code |
 | Rule: testing | Selftest red before the verdict exists; no fixture opt-out for a plugin that crashes |
 | Rule: owner rules | No path runs every case unless `all` or the full population asked for it |
+| Rule: owner rules, daemon parity | The running-set answer is daemon-served on every surface; no local-data command and no log line decides "started" |
+| Rule: principles, one declaration | One subsystem row builder; the two handlers keep no copy of the row |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -351,6 +414,7 @@ N-A: tooling, no protocol peer.
 | A fixture for every registered plugin | `./le test smoke check` exits 0 |
 | Each failure class discriminates | `./le test smoke selftest` output pasted |
 | SDK panic carries its value | `TestBridgeCallbackPanicKeepsValueAndStack` |
+| Running-set rows carry mode and pid on every surface | `test/plugin/subsystem-list-mode.ci` output |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -358,6 +422,7 @@ N-A: tooling, no protocol peer.
 | Input validation | Plugin names given on the command line are looked up in the registry, never used as paths |
 | Resource exhaustion | Every case's daemon, mocks and forked plugins end with the case (defer, cancel, `Pdeathsig`) |
 | Error leakage | A panic value in an error that reaches a third-party plugin says only what the value says; nothing secret is added to it |
+| Information exposure | The running-set rows add only the mode and a pid, behind the same command authorization as the rest of the row; no argv, environment or token of a forked plugin is shown |
 
 ### Failure Routing
 
@@ -386,10 +451,10 @@ N-A: tooling, no protocol peer.
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| D-1 (for the approval gate): the fixture is `<plugin package>/testdata/smoke.ci`, a `.ci` whose stdin block is the plugin's small config, run by the existing Runner | A bare `smoke.conf` with a new header format for needs, mocks and hold time | The `.ci` format already declares `needs-linux`, background mocks, `await`, `reject`, timeouts and port leases; a new format would duplicate it. Thomas agreed to "its own small config file": this reads it as a config carried in a `.ci`, which he confirms or refuses at the gate |
+| D-1 (decided 2026-11-01): the fixture is `<plugin package>/testdata/smoke.ci`, a `.ci` whose config block is the plugin's own small config, run by the existing Runner | A bare `smoke.conf` with a new header format for needs, mocks and hold time | Thomas agreed that each plugin carries its own small config file, and approved this spec for implementation. The `.ci` format already carries needs (`option=needs-linux`), mocks, `await`, `reject`, timeouts and port leases, so a new header format would duplicate it |
 | D-2: the population is le's link of `plugin/all`, the shipped set | Walk `register.go` files; a hand list | The registry is the one declaration; `zetest` plugins stay outside the population by construction |
-| D-3: the internal recover sites outside `taskguard` move onto it, and the SDK pair keeps value and stack | Keep them and scan for their log strings | One evidence source for every recovered panic; a string list drifts from the messages it copies. Moving them changes product logging, so the gate confirms it |
-| D-4 (for the approval gate): how the harness knows a plugin started | A debug log line per plugin reaching the running stage; a new read-only command listing running plugins | No existing answer: `show plugin list` is compile-time. A log line needs no new surface; a command is reusable by `ze doctor` and operators |
+| D-3 (decided 2026-11-01): the internal recover sites outside `taskguard` move onto it, and the SDK pair keeps the panic value and stack | Keep them and scan for their log strings | A recovered panic that loses its cause is a defect (the owned journal row, `recovered-panic-loses-its-value.md`), and Ze's principle is that code which cannot answer must say so (`ai/rules/principles.md`); fixing a defect is not a question (`ai/META-DECISIONS.md`). It also gives one evidence source for every recovered panic, where a string list would drift from the messages it copies |
+| D-4 (decided 2026-11-01): the harness knows a plugin started by reading the daemon's read-only running-set command, `show system subsystem list` (and its twin `system subsystem list`), extended so each row also carries the process mode and a forked plugin's pid, with one row builder serving both. The harness reads that command and nothing else for "started" (AC-22) | A debug log line per plugin reaching the running stage; a brand-new command listing running plugins | The owner rule of 2026-11-01: every operator command runs through the daemon on every surface, so a remote operator or AI must be able to see what runs, which a log line does not give. The running-set command already exists and is daemon-served (`handleSystemSubsystemList` over `AllProcesses`), so a new command beside it would be a second declaration of one fact (`ai/rules/principles.md`; `ai/META-DECISIONS.md`, "A design starts from the mechanisms Ze already has"). What it lacks for the harness, and for a remote debugger, is the mode and the pid; the extension adds exactly those. `ze doctor` and operators reach the same rows |
 | D-5: one case per plugin per mode, plus one combined case in the full run only | Only the combined case; only per-plugin cases | Fail-closed startup means a combined failure names no plugin; per-plugin cases name it, and the combined case catches interaction |
 | D-6: an opt-out is a line in the plugin's own fixture with a non-empty reason, judged at review | An exemption list in the harness | A list in the harness is a central enumeration; `Register` already refuses a plugin with no engine, so an opt-out is rare and stays beside the plugin |
 | D-7: day-to-day selection is by dependency closure of the plugin package; the plugin host and `cmd/ze` select all | The suite map alone | The map is per suite; within the suite, closure picks the cases the change reaches, as the owner rule requires |
@@ -415,7 +480,8 @@ N-A: tooling, no protocol peer.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-18 all demonstrated
+- [ ] AC-1..AC-22 all demonstrated
+- [ ] Goal Validation table filled with the outputs it plans
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass: the scoped package tests and `./le verify changed` over the closing commits. The run of every smoke case belongs to the release check (`./le verify current`, run by Thomas or CI); no agent runs it on the Linux host
 - [ ] Feature code integrated, not library-only

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Development tooling that proposes refactors; the release ships without it and no shipped behavior changes. |
@@ -23,7 +23,14 @@ collecting defects; it proposes graded refactors, and an agent left running
 alone acts only on the strongest". He then agreed that the check-in takes over
 the existing 1,000-line size check: a file both oversized and recently changed
 comes up for a check-in, and every other oversized file is reported for
-information only.
+information only. On 2026-11-01 he approved this spec for implementation ("ok
+we want to fix this gap, make sure the specs are ready"). No decision in it was
+left for an approval gate.
+
+The dependency on `spec-journal-resolution` does not hold back Phases 1 to 6:
+they need nothing from it. Only Phase 7's status change to `standing` waits
+for that spec's Phase 3 to add the status to `Vocabulary`; the first pass
+itself does not.
 
 Today the size check is `checkFileSizes` in `./le doc consistency`. It reports
 an ERROR on 143 non-test Go files at HEAD (counted 2026-11-01), and no gate,
@@ -430,7 +437,28 @@ N-A: tooling, no protocol peer.
 
 ## Design Insights
 
+- The size check has been red on 143 files with no reader, because no gate runs `./le doc consistency`; moving it next to the churn signal turns an unread error into a short due list.
+- The session-start hook cannot afford a fixed history window, so the base is the last pass and the over-budget case prints a count instead of measuring.
+- A refactor is neither a defect nor an RFC requirement, so no rule lets an agent apply one alone: every proposal ends as a skeleton Thomas approves or drops.
+
+## Goal Validation (BLOCKING)
+
+Planned evidence for each goal in the Task section; each tooling phase fills
+the Concrete Evidence column with its outputs, and each pass with its Pass Log
+row.
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A structural problem is noticed when its signal appears | unit plus functional | `TestOversizedChurnIsDue`, `TestDefectAreaGroupsSurfacePaths`, `TestFanOutCountsPackages`, `TestSessionStartPrintsStructureLine`; the `le-arch-hotspots` functional test over an owned scratch repository |
+| Every signal the tooling raises reaches a graded proposal | process record | The first Pass Log row: due items seen against cards per grade, every due item accounted for |
+| Each proposal Thomas could act on exists as a spec skeleton | process record | The skeleton paths under `plan/proposals/` named in the Pass Log row, each with Existing Mechanisms filled |
+| No refactor runs without his decision | process record plus gate | No pass commit carries a `.go` file (AC-13), checked over the pass's `Spec-work: structure-checkin` commits |
+| The size check is judged once, in hotspots | unit | `TestConsistencyReportsNoFileSize`, `TestSizeBoundary`; a grep showing `fileSizeMax` declared once |
+
 ## Owned journal rows
+
+None: this spec fixes no recorded defect.
+
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 
@@ -465,6 +493,7 @@ N-A: tooling, no protocol peer.
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-14 all demonstrated
+- [ ] Goal Validation table filled with the outputs it plans
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass: the scoped package tests under `./le job run`, the le functional test, and `./le verify changed` over the phase commits; the full verification is Thomas's release check
 - [ ] Integration and Documentation checklists answered with evidence
