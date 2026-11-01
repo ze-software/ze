@@ -250,6 +250,17 @@ obligation today is the transit-leak check RFC 7454 Section 9
 recommends, required of a peer that declares an RFC 9234 role
 (`internal/component/bgp/config/peers.go`, `validateLeakFilterObligations`).
 
+**A filter the plugin's own config implies is a declared insertion.** The
+plugin sets `FilterInsertions` (`rpc.FilterInsertion`: the reference it
+serves, `import` or `export`, a priority 0-9999, one condition, and a reason
+when `Required`) on both `registry.Registration` and the `sdk.Registration`.
+The condition is a `config` path under a peer, optionally with values, and for
+a compiled-in plugin it MUST name config its own YANG module augments
+(`config.CheckFilterInsertionPaths`). Config load places the member on the
+peers whose resolved config meets it; no engine or config code names the
+plugin (`docs/architecture/api/process-protocol.md`, "Filter Insertion";
+`internal/test/plugins/fakefilter` is the worked example).
+
 **A plugin filter registers one evaluator for both transports**, with
 `p.OnFilter(eval)`. Running internal, the SDK installs `eval` as the typed
 `DirectBridge` filter slot at Stage 5, and the engine calls it on its own

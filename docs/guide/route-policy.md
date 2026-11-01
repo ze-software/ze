@@ -195,6 +195,27 @@ attachment carries", above).
 <!-- source: internal/plugins/isis/register.go -- MustRegisterRouteAttachment exportAttachment -->
 <!-- source: internal/plugins/ospf/register.go -- MustRegisterRouteAttachment exportAttachment -->
 
+### Members a plugin inserts for you
+
+A BGP peer's `import` and `export` lists can hold members you did not write.
+A plugin declares an insertion: a filter it serves, a direction, a priority and
+one condition on the peer's config. When the peer's resolved config (`bgp`,
+then its group, then the peer) meets the condition, config load places the
+member ahead of your own members, in ascending priority. A peer whose config
+does not meet it carries no member, and the plugin is never called for its
+routes. An inserted member leaves the list's end disposition yours: a list
+holding only inserted members is still unconfigured for RFC 8212, so an eBGP
+peer with no `final` of your own still rejects at the end.
+
+A plugin compiled into Ze conditions an insertion only on config its own YANG
+module adds, so the member appears exactly where you configured that plugin.
+Naming an inserted member yourself places it where you wrote it, or switches it
+off with `inactive:`, unless the plugin marked it required: a required member
+named in a chain is refused at load with the reason the plugin declared.
+<!-- source: internal/component/bgp/config/filter_insertion.go -- insertDeclaredFilters, insertForPeer, requiredInsertionRefusal -->
+<!-- source: internal/component/config/schema_origin.go -- CheckFilterInsertionPaths -->
+<!-- source: internal/component/bgp/filterapi/policy.go -- UnconfiguredAccepts -->
+
 ## How a chain decides
 
 A chain is an ordered `filters` list and a mandatory `final`. Each filter

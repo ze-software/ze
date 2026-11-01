@@ -1700,7 +1700,11 @@ Configure `final accept` only where route exchange is intended, with any filters
 that the routing agreement requires. Loop-detection entries are prepended unless
 the chain already names them. `inactive: filters NAME;` retains a reference but
 disables its execution without changing an explicitly configured final.
+A plugin can also insert a member of its own on the peers whose config asks
+for it, ahead of yours; an inserted member does not establish operator policy
+either ([Route Policy](route-policy.md), "Members a plugin inserts for you").
 <!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
+<!-- source: internal/component/bgp/config/filter_insertion.go -- insertDeclaredFilters -->
 <!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
 
 See [Route Filters](redistribution.md) for details.
