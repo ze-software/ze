@@ -495,8 +495,10 @@ func (g *countingIOGuard) WriteFile(name string, data []byte, mode fs.FileMode) 
 
 // TestSessionLoadLargeInputBatched verifies A-3 without a clock: a session
 // load of 1250 new peers, the 5000 leaves A-3 names, records every leaf as
-// its own change entry, yet reads the change file and the committed config at most once and
-// writes the change file exactly once. A load that re-read either file for
+// its own change entry and every new peer as its create-entry (shown as the
+// value-less `set bgp peer <name>`, docs/architecture/config/
+// change-file-structural-ops.md), yet reads the change file and the committed
+// config at most once and writes the change file exactly once. A load that re-read either file for
 // each leaf did work that grew with the square of the input (1000 peers took
 // about 50s). The time is logged for the record, never asserted.
 func TestSessionLoadLargeInputBatched(t *testing.T) {
@@ -531,5 +533,13 @@ func TestSessionLoadLargeInputBatched(t *testing.T) {
 	assert.LessOrEqual(t, store.changeReads, 1, "the change file is read at most once per load")
 	assert.Equal(t, 1, store.changeWrites, "the change file is written once per load")
 	assert.LessOrEqual(t, store.configReads, 1, "the committed config is read at most once per load")
-	assert.Len(t, ed.PendingChanges(session.ID), peers*4, "one change entry per loaded leaf")
+	pending := ed.PendingChanges(session.ID)
+	assert.Len(t, pending, peers*5, "one change entry per loaded leaf and one per created peer")
+	created := 0
+	for i := range pending {
+		if pending[i].Kind == config.PendingChangeSet && pending[i].Value == "" && strings.Count(pending[i].Path, " ") == 2 {
+			created++
+		}
+	}
+	assert.Equal(t, peers, created, "each new peer is recorded once as its own creation")
 }

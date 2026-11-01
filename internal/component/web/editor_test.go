@@ -130,7 +130,10 @@ func TestEditorManagerRenameListEntry(t *testing.T) {
 	value, ok := remote.Get("ip")
 	assert.True(t, ok)
 	assert.Equal(t, "10.0.0.1", value)
-	assert.Equal(t, 2, mgr.ChangeCount("alice"))
+	// Three pending changes: the creation of london (create-entry, shown as
+	// `set bgp peer london`), its remote ip, and the rename
+	// (docs/architecture/config/change-file-structural-ops.md).
+	assert.Equal(t, 3, mgr.ChangeCount("alice"))
 }
 
 // TestEditorManagerConcurrentAccess verifies that multiple goroutines calling

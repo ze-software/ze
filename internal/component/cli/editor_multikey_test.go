@@ -217,11 +217,20 @@ func TestRenameAndCopyOfMultiLeafKeyEntryChangeOnlyTheFirstValue(t *testing.T) {
 		require.NoError(t, err)
 		_, _, ops, err := config.ParseChangeFile(string(changeData), config.NewSetParser(ed.schema))
 		require.NoError(t, err)
-		require.Len(t, ops, 2, "%s", changeData)
-		assert.Equal(t, "fe80::b interface zbl0", ops[0].OldKey)
-		assert.Equal(t, "fe80::c interface zbl0", ops[0].NewKey)
-		assert.Equal(t, "fe80::b interface zbl1", ops[1].OldKey)
-		assert.Equal(t, "fe80::d interface zbl1", ops[1].NewKey)
+		// The two ensureListEntry calls record their create-entry lines first
+		// (docs/architecture/config/change-file-structural-ops.md), then the
+		// rename and the copy; the refused rename records nothing.
+		require.Len(t, ops, 4, "%s", changeData)
+		for i, created := range []string{"bfd single-hop-session fe80::b interface zbl0", "bfd single-hop-session fe80::b interface zbl1"} {
+			assert.Equal(t, config.StructuralOpCreateEntry, ops[i].Type)
+			assert.Equal(t, created, ops[i].SourcePath(ed.schema))
+		}
+		assert.Equal(t, config.StructuralOpRename, ops[2].Type)
+		assert.Equal(t, "fe80::b interface zbl0", ops[2].OldKey)
+		assert.Equal(t, "fe80::c interface zbl0", ops[2].NewKey)
+		assert.Equal(t, config.StructuralOpCopyEntry, ops[3].Type)
+		assert.Equal(t, "fe80::b interface zbl1", ops[3].OldKey)
+		assert.Equal(t, "fe80::d interface zbl1", ops[3].NewKey)
 		assert.Equal(t, []string{"fe80::b interface zbl1", "fe80::c interface zbl0", "fe80::d interface zbl1"}, sessionKeys(t, ed))
 	})
 
