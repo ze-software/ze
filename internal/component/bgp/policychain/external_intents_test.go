@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -77,7 +78,8 @@ func TestExternalIntentsFoldLikeInProcess(t *testing.T) {
 // TestExternalIntentsRefused proves AC-20 for the named intents: a count out
 // of 1..32, an unknown remove-private mode, a prefix the route does not
 // announce, one with host bits set, a path identifier where the session has
-// no ADD-PATH, an unknown family, and an action the field does not take each
+// no ADD-PATH, a label stack that is empty, disagrees with its entries or
+// names a unicast NLRI, an unknown family, and an action the field does not take each
 // fail the route under on-error, counted, with none of its sets applied.
 func TestExternalIntentsRefused(t *testing.T) {
 	cases := []struct {
@@ -95,6 +97,12 @@ func TestExternalIntentsRefused(t *testing.T) {
 		{"prefix path-id without ADD-PATH", set("prefix", rpc.FilterSetActionRemove,
 			`{"prefix":"203.0.113.0/24","path-id":1}`), "announces no NLRI"},
 		{"prefix not a prefix", set("prefix", rpc.FilterSetActionRemove, `"203.0.113.0"`), "not a prefix"},
+		{"prefix labels empty", set("prefix", rpc.FilterSetActionRemove,
+			`{"labels":[],"prefix":"203.0.113.0/24"}`), "empty label stack"},
+		{"prefix label not its entry", set("prefix", rpc.FilterSetActionRemove,
+			`{"labels":[[7,1601]],"prefix":"203.0.113.0/24"}`), "carries 100"},
+		{"prefix labels on unicast", set("prefix", rpc.FilterSetActionRemove,
+			`{"labels":[[100,1601]],"prefix":"203.0.113.0/24"}`), "announces no NLRI"},
 		{"prefix add", set("prefix", rpc.FilterSetActionAdd, `"203.0.113.0/24"`), "takes remove"},
 		{"family unknown", set("family", rpc.FilterSetActionRemove, `"ipv9/unicast"`), "no registered family"},
 		{"family add", set("family", rpc.FilterSetActionAdd, `"ipv4/unicast"`), "takes remove"},
@@ -127,5 +135,66 @@ func TestExternalIntentsRefused(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// labeledReach is an IPv4 labeled-unicast MP_REACH_NLRI announcing
+// 192.0.2.0/24 under label 100 at offset 0, then 10.0.0.0/24 under label 200.
+//
+// RFC 8277 Section 2.2: "The Length field consists of a single octet.  It specifies the
+// length in bits of the remainder of the NLRI field."
+//
+//	+0 Length(1) +1 Label(3: 20-bit label, TC, S) +4 Prefix(ceil((Length-24)/8))
+func labeledReach() []byte {
+	value := []byte{0, 1, byte(family.SAFIMPLSLabel), 4, 192, 0, 2, 254, 0}
+	value = append(value, 48, 0x00, 0x06, 0x41, 192, 0, 2) // label 100, S set
+	value = append(value, 48, 0x00, 0x0c, 0x81, 10, 0, 0)  // label 200, S set
+	return pathAttr(0x80, attribute.AttrMPReachNLRI, value)
+}
+
+// TestExternalPrefixRemoveLabeled proves a prefix remove reaches a
+// labeled-unicast route: the value the UPDATE event writes for it
+// ({"labels":[[label,entry]],"prefix":...}) drops that one entry of
+// MP_REACH_NLRI at its offset, leaving the other entry and the route. A value
+// whose label stack differs from the entry's, and a plain prefix string,
+// which names a unicast NLRI, name no labeled entry and fail the route.
+func TestExternalPrefixRemoveLabeled(t *testing.T) {
+	family.RegisterTestFamilies()
+	cases := []struct {
+		name  string
+		value string
+		drops []uint16
+	}{
+		{"labeled shape", `{"labels":[[100,1601]],"prefix":"192.0.2.0/24"}`, []uint16{0}},
+		{"second entry", `{"labels":[[200,3201]],"prefix":"10.0.0.0/24"}`, []uint16{7}},
+		{"other label", `{"labels":[[101,1617]],"prefix":"192.0.2.0/24"}`, nil},
+		{"plain prefix", `"192.0.2.0/24"`, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			caller := &fakeCaller{filters: map[string]fakeFilter{"ext:f": {
+				decl: ExternalDeclaration{Reads: []string{"prefix"}, Sets: []string{"as-path", "prefix", "family"},
+					OnError: rpc.OnErrorReject},
+				answer: modify(set("prefix", rpc.FilterSetActionRemove, tc.value)),
+			}}}
+			chain := compileMembers(t, testAttachmentIntents, []Member{{Name: "f", Plugin: "ext"}})
+			outcome, sets := runRoute(t, chain, caller, "import", labeledReach())
+			if tc.drops == nil {
+				want := Outcome{Action: OutcomeReject, Failed: true, Member: "ext:f"}
+				if outcome != want || chain.Refused() != 1 {
+					t.Fatalf("outcome = %+v refused %d, want %+v refused 1", outcome, chain.Refused(), want)
+				}
+				return
+			}
+			if outcome.Action != OutcomeAccept || chain.Refused() != 0 {
+				t.Fatalf("outcome = %+v refused %d, want accept", outcome, chain.Refused())
+			}
+			if got := sets.Folded().NLRIDrops(NLRISectionMPReach); !slices.Equal(got, tc.drops) {
+				t.Fatalf("MP_REACH_NLRI drops = %v, want %v", got, tc.drops)
+			}
+			if got := sets.Folded().NLRIDrops(NLRISectionAnnounce); len(got) != 0 {
+				t.Fatalf("body NLRI drops = %v, want none", got)
+			}
+		})
 	}
 }

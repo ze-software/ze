@@ -732,7 +732,7 @@ the value in the field's shape:
 | `extended-community` | `add`, `remove` | one extended community string, in the form the UPDATE event writes | `{"field":"extended-community","action":"add","value":"target:65000:100"}` |
 | `as-path` | `prepend` | a count of local AS copies, 1 to 32 | `{"field":"as-path","action":"prepend","value":2}` |
 | `as-path` | `remove` | `"private"` removes the private-use AS numbers; `"private-peer-as"` replaces each with the peer AS | `{"field":"as-path","action":"remove","value":"private"}` |
-| `prefix` | `remove` | one announced prefix, in the shape the `prefix` field is sent: the prefix string, or under ADD-PATH `{"prefix":...,"path-id":...}` | `{"field":"prefix","action":"remove","value":"10.0.9.0/24"}` |
+| `prefix` | `remove` | one announced unicast, multicast or labeled-unicast NLRI, in the shape the `prefix` field is sent: the prefix string, under ADD-PATH `{"prefix":...,"path-id":...}`, and for labeled unicast `{"labels":[[label,entry],...],"prefix":...}` | `{"field":"prefix","action":"remove","value":"10.0.9.0/24"}` |
 | `family` | `remove` | one family name | `{"field":"family","action":"remove","value":"ipv6/unicast"}` |
 
 - A later filter of the chain is sent the value an earlier filter's sets
@@ -756,8 +756,12 @@ the value in the field's shape:
   drops the entry from the body NLRI and from MP_REACH_NLRI (an MP_REACH_NLRI
   left empty leaves the UPDATE), and a family remove drops that family's
   MP_REACH_NLRI and MP_UNREACH_NLRI (the body NLRI and withdrawn routes for
-  `ipv4/unicast`). Prepends add up across the chain to at most 32. A prefix
-  the route does not announce, or one with host bits set, fails the route.
+  `ipv4/unicast`). Prepends add up across the chain to at most 32. A labeled
+  remove drops the entry whose prefix and whole label stack match, label
+  field included (RFC 8277 Section 2.3). A prefix the route does not
+  announce, one with host bits set, or a value whose shape names another
+  kind of NLRI (a label stack for a unicast entry, a plain prefix for a
+  labeled one) fails the route.
 - The route fails the same way when the answer carries `sets` beside `accept`
   or `reject`, or a text `update`.
 - A filter that declares `raw` among its reads may answer `"action":"modify"`

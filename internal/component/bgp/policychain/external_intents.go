@@ -22,6 +22,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -96,6 +98,11 @@ type announcedPrefix struct {
 	prefix    netip.Prefix
 	pathID    uint32
 	hasPathID bool
+	// labeled is set when the value carried a label stack, the shape the
+	// event writes for a labeled-unicast NLRI; labels then holds each
+	// three-octet label entry as it is on the wire, bottom of stack last.
+	labeled bool
+	labels  []uint32
 }
 
 // applyPrefixIntent answers a prefix remove: every entry of the body NLRI
@@ -133,15 +140,20 @@ func applyPrefixIntent(sets *Sets, set *rpc.FilterSet, target intentTarget) erro
 }
 
 // dropAnnounced drops from section, of family fam, every entry carrying
-// want, and answers how many it dropped. A family whose NLRI is not a plain
-// prefix (unicast or multicast) carries no entry in the prefix shape.
-func dropAnnounced(sets *Sets, view *policyview.View, section NLRISection, fam family.Family, nlri []byte,
+// want, and answers how many it dropped. A unicast or multicast entry is
+// named by the prefix shape, a labeled-unicast entry by the labeled shape,
+// label stack included; every other family carries no entry in either.
+func dropAnnounced(sets *Sets, view *policyview.View, section NLRISection, fam family.Family, wire []byte,
 	want announcedPrefix,
 ) (int, error) {
-	if len(nlri) == 0 {
+	if len(wire) == 0 {
 		return 0, nil
 	}
-	if fam.SAFI != family.SAFIUnicast && fam.SAFI != family.SAFIMulticast {
+	labeled := fam.SAFI == family.SAFIMPLSLabel
+	if !labeled && fam.SAFI != family.SAFIUnicast && fam.SAFI != family.SAFIMulticast {
+		return 0, nil
+	}
+	if labeled != want.labeled {
 		return 0, nil
 	}
 	if (fam.AFI == family.AFIIPv4) != want.prefix.Addr().Is4() {
@@ -155,13 +167,27 @@ func dropAnnounced(sets *Sets, view *policyview.View, section NLRISection, fam f
 		return 0, nil
 	}
 	dropped := 0
-	cursor := wireu.NewCIDRCursor(nlri, addPath)
+	cursor := wireu.NewCIDRCursor(wire, addPath)
 	for {
 		entry, cidr, start, more := cursor.Next()
 		if !more {
 			break
 		}
-		if !entryCarries(entry, cidr, addPath, want) {
+		if addPath && binary.BigEndian.Uint32(entry) != want.pathID {
+			continue
+		}
+		bits, octets := int(cidr[0]), cidr[1:]
+		if labeled {
+			// RFC 8277 Section 2.3
+			var framed bool
+			if bits, octets, framed = nlrisplit.LabeledPrefix(cidr, false); !framed {
+				return 0, fmt.Errorf("the %s NLRI label field does not frame", fam)
+			}
+			if !labelsCarry(cidr[1:len(cidr)-len(octets)], want.labels) {
+				continue
+			}
+		}
+		if !prefixCarries(bits, octets, want.prefix) {
 			continue
 		}
 		if err := sets.DropNLRI(section, uint16(start)); err != nil { //nolint:gosec // G115: an offset in an UPDATE body, at most 65535 octets
@@ -175,7 +201,30 @@ func dropAnnounced(sets *Sets, view *policyview.View, section NLRISection, fam f
 	return dropped, nil
 }
 
-// entryCarries reports whether one NLRI entry carries want.
+// labelsCarry reports whether the label field of one labeled NLRI entry,
+// field, holds exactly the label entries want names, in order.
+//
+// RFC 8277 Section 2.3: "In all labels except the last (i.e., in all labels except the one
+// immediately preceding the prefix), the S bit MUST be 0.  In the
+// last label, the S bit MUST be 1."
+//
+//	+0 Label(20 bits) Rsrv(3 bits) S(1 bit), repeated, S set on the last
+func labelsCarry(field []byte, want []uint32) bool {
+	if len(field) != 3*len(want) {
+		return false
+	}
+	for i, entry := range want {
+		got := uint32(field[3*i])<<16 | uint32(field[3*i+1])<<8 | uint32(field[3*i+2])
+		if got != entry {
+			return false
+		}
+	}
+	return true
+}
+
+// prefixCarries reports whether a prefix of bits bits, written in octets,
+// is want. The ADD-PATH identifier, when the session carries one, is
+// compared by the caller.
 //
 // RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE message, the NLRI
 // encoding MUST be extended by prepending the Path Identifier field,
@@ -186,21 +235,19 @@ func dropAnnounced(sets *Sets, view *policyview.View, section NLRISection, fam f
 // of trailing bits is irrelevant."
 //
 //	+0 [Path Identifier(4), ADD-PATH only] Length(1) Prefix(ceil(Length/8))
-func entryCarries(entry, cidr []byte, addPath bool, want announcedPrefix) bool {
-	if addPath && binary.BigEndian.Uint32(entry) != want.pathID {
+func prefixCarries(bits int, prefix []byte, want netip.Prefix) bool {
+	if bits != want.Bits() {
 		return false
 	}
-	bits := want.prefix.Bits()
-	if int(cidr[0]) != bits {
-		return false
-	}
-	addr := want.prefix.Addr().As16()
+	addr := want.Addr().As16()
 	octets := addr[:]
-	if want.prefix.Addr().Is4() {
+	if want.Addr().Is4() {
 		octets = octets[12:]
 	}
 	full, rest := bits/8, bits%8 // rest: the bits of the last, partial octet
-	prefix := cidr[1:]
+	if len(prefix) < full+min(rest, 1) {
+		return false
+	}
 	if !bytes.Equal(prefix[:full], octets[:full]) {
 		return false
 	}
@@ -212,28 +259,42 @@ func entryCarries(entry, cidr []byte, addPath bool, want announcedPrefix) bool {
 }
 
 // announcedPrefixValue reads a prefix remove's value in the UPDATE event's
-// NLRI shape: the prefix string, or under ADD-PATH {"prefix": ..., "path-id":
-// ...}. The prefix is canonical: a value with host bits set names no NLRI.
+// NLRI shape: the prefix string, under ADD-PATH {"prefix": ..., "path-id":
+// ...}, and for a labeled-unicast NLRI {"labels": [[label, entry], ...],
+// "prefix": ...}. The prefix is canonical: a value with host bits set names
+// no NLRI.
 func announcedPrefixValue(value []byte) (announcedPrefix, error) {
 	var out announcedPrefix
 	text, ok := plainString(value)
 	if !ok {
 		var shaped struct {
-			Prefix *string `json:"prefix"`
-			PathID *uint32 `json:"path-id"`
+			Labels *[][]uint32 `json:"labels"`
+			Prefix *string     `json:"prefix"`
+			PathID *uint32     `json:"path-id"`
 		}
 		decoder := json.NewDecoder(bytes.NewReader(value))
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&shaped); err != nil {
-			return out, errors.New("the value is not a prefix string or {\"prefix\":...,\"path-id\":...}")
+			return out, errors.New("the value is not a prefix string, {\"prefix\":...,\"path-id\":...} " +
+				"or {\"labels\":...,\"prefix\":...}")
 		}
 		if shaped.Prefix == nil {
 			return out, errors.New("the value names no prefix")
 		}
-		if shaped.PathID == nil {
+		text = *shaped.Prefix
+		if shaped.Labels != nil {
+			labels, err := labelEntries(*shaped.Labels)
+			if err != nil {
+				return out, err
+			}
+			out.labeled, out.labels = true, labels
+		}
+		if shaped.PathID != nil {
+			out.pathID, out.hasPathID = *shaped.PathID, true
+		}
+		if !out.labeled && !out.hasPathID {
 			return out, errors.New("the value names no path-id")
 		}
-		text, out.pathID, out.hasPathID = *shaped.Prefix, *shaped.PathID, true
 	}
 	prefix, err := netip.ParsePrefix(text)
 	if err != nil {
@@ -244,6 +305,33 @@ func announcedPrefixValue(value []byte) (announcedPrefix, error) {
 	}
 	out.prefix = prefix
 	return out, nil
+}
+
+// labelEntries reads the label stack of the labeled shape, each member the
+// pair the UPDATE event writes: the 20-bit label, then the three-octet entry
+// it came from, which the event leaves out when the entry is zero. It answers
+// the entries as they are on the wire.
+func labelEntries(pairs [][]uint32) ([]uint32, error) {
+	if len(pairs) == 0 {
+		return nil, errors.New("the value names an empty label stack")
+	}
+	entries := make([]uint32, len(pairs))
+	for i, pair := range pairs {
+		if len(pair) == 1 && pair[0] == 0 {
+			continue
+		}
+		if len(pair) != 2 {
+			return nil, fmt.Errorf("label %d is not the [label, entry] pair the event writes", i+1)
+		}
+		if pair[1] >= 1<<24 {
+			return nil, fmt.Errorf("label %d's entry %d is wider than three octets", i+1, pair[1])
+		}
+		if nlri.LabelValue(pair[1]) != pair[0] {
+			return nil, fmt.Errorf("label %d is %d but its entry %d carries %d", i+1, pair[0], pair[1], nlri.LabelValue(pair[1]))
+		}
+		entries[i] = pair[1]
+	}
+	return entries, nil
 }
 
 // plainString answers the text of a plain JSON string value. An escape is no
