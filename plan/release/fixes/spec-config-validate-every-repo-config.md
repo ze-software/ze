@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-01 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -35,6 +35,41 @@ rules (never a list), every real defect it names is fixed, and the sweep is
 green with zero findings. The 556 findings of the last run are in the session
 scratch `tmp/session/2026-10-31-204407/scratch/sweep-findings-556.txt`; every
 one is accounted for in Acceptance Criteria (the per-bucket counts sum to 556).
+
+### Implementation record (2026-11-01)
+
+`./le spec claim` refused the claim (WIP cap 12 of 12 in progress), so the
+Status row stays `ready`; the cap is the owner's to decide.
+
+| AC | State | Commits | Evidence |
+|----|-------|---------|----------|
+| AC-1 | Linux: one finding left, not this spec's: `test/plugin/filter-wire-thirdparty-compiled-in.ci` (dabe5bd47a, the filter-wire session) has two EBGP peers with no export policy. macOS run owed | c7f5ce38b6, 5f65d1f35c | `go test -tags <full set> -run TestRepositoryConfigsValidate$ ./internal/component/config/cli/`: validated 2778 Ze configs and 241 migrated ExaBGP configs; 20 declared refused and asserted refused; 487 skipped by a non-zero exit expectation; 29 load sequences (71 steps); 80 legacy native fixtures logged with their reason; host verdicts skipped: none on Linux |
+| AC-2 | Done | - | 664be57056 reverted in the working tree: the sweep names `test/perf/configs/ze.conf` four times with `config-bgp-rfc8212-no-policy` (perf-receiver and perf-sender, import and export); restored: the file is in no finding |
+| AC-3 | Done (Agent B), extended to the daemon configs the sweep now reads | 6ca76b741b, 99839b2060, 86280b3a20, cf5d6b8c9e, 41f87f7d4a, 92ee85d979, f194d2760c, 3cb09bb0a9, ff15eecba0 | 302 `.ci` body findings, then 328 daemon-config findings, to 0; 3cb09bb0a9 carries the judged `expect=` of the three RFC 8212 subject tests |
+| AC-4 | Template and goldens hand-written; `./le test netlab check` owed on a netlab host | 6414ab2180 | - |
+| AC-5 | Done | 01e6f725b7, c7f5ce38b6 | `internal/test/exabgpnative` is the one classification; `TestParseAllConfigFiles` passes; three plugin-only `api-` fixtures (no bgp block, so no reactor) are their own class and validated by the sweep |
+| AC-6 | Done on Linux; the Mac run is AC-1's | 5f65d1f35c | `TestValidateReportsNodeOfAnotherOS` red with `nodeOfAnotherOS` disabled, green with it; code `config-node-other-os` |
+| AC-7 | Done on Linux; the Mac run is AC-1's | 5f65d1f35c | `TestValidateReportsHostBackendVerdict` red without the `IsHostVerdict` mapping, green with it; code `config-host-backend` |
+| AC-8, AC-9 | Done | c782411791, c7f5ce38b6 | `internal/test/labconfig`; RFC-approved rows for `checkRFC2545NextHops` and `checkVPNFRR` |
+| AC-10 | Done | c7f5ce38b6 | statement-shape rule; the three `vtysh.conf` return with it off (AC-22) |
+| AC-11 | Done | c7f5ce38b6 | `validate_corpus_plugins_test.go` links `internal/test/plugins/all`; 17 findings return with it off |
+| AC-12 | Done (Agent C, migration) | 794c3ac052, 7c85bafe4a, 88e7a340ab, ce9da8c565 | the two conf-flow and the bridge neighbor migrate outputs validate |
+| AC-13 | Done | 84c0fc6cea, c7f5ce38b6 | tapes expand their Source chain; every demo fragment is judged loaded onto `showcase-lab/ze.conf` in tape order; only `irr/1-server.conf` needed the top-level `policy` root |
+| AC-14 | Done | 3648c2c9d2 | - |
+| AC-15 | Done | c7f5ce38b6 | the four `.ci` merge fragments validate merged through the editor's LoadMerge |
+| AC-16 | Done | 698a7a547a, 6f31718a91, ece2daa9de | `refused=<code>` on tmpfs and stdin blocks; 20 bodies asserted refused; reload runs listed in the commits; `static-bfd-profile-reload-deleted`, `-passive` and the two `tx-iface-wireguard-*` need `./le test qemu all` |
+| AC-17 | Done | 84c0fc6cea, 9e74e41c06 | parse and ui runs listed in 84c0fc6cea; `lg-graph-lab/ze-bgp.conf` had no reader and was removed |
+| AC-18 | Done | 84c0fc6cea, c7f5ce38b6 | `policy-root-migrate.ci` `old.conf` validated as the `ze config migrate` output |
+| AC-19 | Done | 5dc57599fb | `TestRecordPortExpansionRefusesUnreservedPort`; bgp-rpki-added-live, bgp-rpki-attach-live, ipsec-added-live, reload-listener-rejected, bmp-lg-http-routes pass (ze built from HEAD) |
+| AC-20 | Done | d3345c8082 | - |
+| AC-21 | `./le arch tier check`: no refusal names the sweep's imports; the check is red for `internal/component/bfd/api` imports, not this spec's. Scoped lint owed: `./le go lint run scope ...` over the changed packages stopped three times with "lint inputs changed during planning" while other sessions edited the shared tree | - | - |
+| AC-22 | Done | c7f5ce38b6 | `TestSweepDerivesEachExclusion`: placeholders 40, ports 242, test plugins 17, declared refusal 1, load sequence 20, migrate input 1, native classification 80, statement shape 3, host verdict 11 (schema built as plan9) |
+
+Test-judge: test/ui/cli-config-dump-{sensitive,json-sensitive,strip-private}.ci: (a) adding local ip auto and import/export final accept leaves every assertion (exit 0, router-id / $9$ / SECRET-DATA) and the masked md5 password in the dump; all three pass and their bodies now validate.
+
+Owed outside this host: the AC-1 macOS run; `./le test netlab check` (AC-4); `./le test qemu all` for the needs-linux tests named under AC-16 and Agent B's 7 static, 4 firewall and 10 capability-needing plugin tests; `./le test qemu netns` for the seven `rpki-aspa-*` tests (ff15eecba0).
+
+Found, owned elsewhere: the exabgp-compat mock stops comparing an allowed case at its first divergent frame (`plan/release/validation/spec-exabgp-compat-allowance-checks-every-frame.md`, 660ec70b4b).
 
 ### Handoff enumeration (nothing dropped)
 
@@ -185,11 +220,11 @@ Corrections to the handoff, verified at the producer:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every one of the 26 host-backend findings validates on Linux | the messages name the missing OS default or `/sys` | A real defect hides behind the host code | Run the sweep on the Linux host (scoped package test) | unvalidated |
-| A-2 | The 11 ze:os findings validate on Linux | `ze:os "linux"` on each pruned node | Same | Same run | unvalidated |
-| A-3 | The 22 AC-16 bodies are refused on purpose | test names and their expectations | Marking hides a defect | Read each `.ci` expectation; the sweep asserts the refusal | unvalidated |
-| A-4 | Adding explicit policy to a `.ci` body does not change what that test proves | most are parse and UI tests | An expectation changes | `ze-test-judge` on each changed expectation | unvalidated |
-| A-5 | A Ze config never opens with `service <WORD>` | the `service` root is a block | AC-10's shape rule misclassifies | Grep the Ze corpus | unvalidated |
+| A-1 | Every one of the 26 host-backend findings validates on Linux | the messages name the missing OS default or `/sys` | A real defect hides behind the host code | Run the sweep on the Linux host (scoped package test) | confirmed: on Linux the sweep reports no `config-host-backend`; every such body validates |
+| A-2 | The 11 ze:os findings validate on Linux | `ze:os "linux"` on each pruned node | Same | Same run | confirmed: on Linux no `config-node-other-os`; built as plan9 the 11 findings are host verdicts |
+| A-3 | The 22 AC-16 bodies are refused on purpose | test names and their expectations | Marking hides a defect | Read each `.ci` expectation; the sweep asserts the refusal | confirmed: each of the 20 declared bodies is read against its test's expectation; three red reload tests were stale, fixed under ze-test-judge (ece2daa9de) |
+| A-4 | Adding explicit policy to a `.ci` body does not change what that test proves | most are parse and UI tests | An expectation changes | `ze-test-judge` on each changed expectation | confirmed: no expectation changed in AC-3; three RFC 8212 subject tests judged (3cb09bb0a9) |
+| A-5 | A Ze config never opens with `service <WORD>` | the `service` root is a block | AC-10's shape rule misclassifies | Grep the Ze corpus | confirmed: the shape rule moved only the three vtysh.conf out of the Ze population |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
