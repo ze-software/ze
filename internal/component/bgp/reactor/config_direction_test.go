@@ -926,8 +926,8 @@ func listFields(body string) []string {
 // accepts is the defect this guard exists to prevent. Neither is evidence about
 // the tree -- the five `test/exabgp-compat/native/api-*.conf` that write the
 // brace form are excluded from parser coverage by name, as "legacy ExaBGP-style
-// API example awaiting native conversion" (bgp/config/loader_test.go,
-// legacyExampleFixtureReason).
+// API example awaiting native conversion" (the shared classification,
+// exabgpnative.Classify, internal/test/exabgpnative).
 func listTokens(body, keyword string) []string {
 	fields := listFields(body)
 

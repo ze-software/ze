@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/test/exabgpnative"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -287,11 +288,12 @@ bgp {
 // TestParseAllConfigFiles verifies all test/exabgp-compat/native/*.conf files parse.
 //
 // VALIDATES: Curated native test/exabgp-compat/native fixtures are syntactically valid, and
-// remaining shipped examples are explicitly classified as legacy exclusions.
+// remaining shipped examples are explicitly classified as legacy exclusions
+// (internal/test/exabgpnative, the one classification every reader shares).
 //
 // PREVENTS: Blanket skip hiding drift between shipped examples and parser coverage.
 func TestParseAllConfigFiles(t *testing.T) {
-	dir := filepath.Join("..", "..", "..", "..", "test", "exabgp-compat", "native")
+	dir := filepath.Join("..", "..", "..", "..", filepath.FromSlash(exabgpnative.Dir))
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
 
@@ -303,57 +305,27 @@ func TestParseAllConfigFiles(t *testing.T) {
 
 		name := entry.Name()
 		path := filepath.Join(dir, name)
-		if curatedNativeExampleFixtures[name] {
+		class := exabgpnative.Classify(name)
+		switch class.Kind {
+		case exabgpnative.KindCurated:
 			parsed++
 			t.Run(name, func(t *testing.T) {
 				r, err := loadReactorFileWithPlugins(nil, path, nil)
 				require.NoError(t, err)
 				require.NotNil(t, r)
 			})
-			continue
+		case exabgpnative.KindLegacy:
+			t.Run(name, func(t *testing.T) {
+				t.Logf("excluded from native parser coverage: %s", class.Reason)
+			})
+		case exabgpnative.KindUnclassified:
+			require.FailNowf(t, "unclassified fixture",
+				"unclassified %s fixture %q; either convert it to native syntax and add it to the curated set, or document its exclusion, in internal/test/exabgpnative",
+				exabgpnative.Dir, name)
 		}
-
-		reason, ok := legacyExampleFixtureReason(name)
-		require.Truef(t, ok,
-			"unclassified test/exabgp-compat/native fixture %q; either convert it to native syntax and add it to parser coverage or document its exclusion here",
-			name,
-		)
-		t.Run(name, func(t *testing.T) {
-			t.Logf("excluded from native parser coverage: %s", reason)
-		})
 	}
 
-	require.Equal(t, len(curatedNativeExampleFixtures), parsed, "all curated native fixtures should be exercised")
-}
-
-var curatedNativeExampleFixtures = map[string]bool{
-	"parse-community.conf":        true,
-	"parse-dual-neighbor.conf":    true,
-	"parse-md5.conf":              true,
-	"parse-multiple-process.conf": true,
-	"parse-process.conf":          true,
-	"parse-simple-v4.conf":        true,
-	"parse-simple-v6.conf":        true,
-	"parse-ttl.conf":              true,
-}
-
-func legacyExampleFixtureReason(name string) (string, bool) {
-	switch {
-	case name == "parse-multisession.conf":
-		return "legacy example for ExaBGP multi-session; ze rejects that removed capability in native syntax", true
-	case strings.HasPrefix(name, "api-"):
-		return "legacy ExaBGP-style API example awaiting native conversion", true
-	case strings.HasPrefix(name, "conf-"):
-		return "legacy ExaBGP-style configuration example awaiting native conversion", true
-	case name == "example-healthcheck.conf":
-		return "legacy healthcheck example awaiting native conversion", true
-	case name == "extended-nexthop.conf":
-		return "legacy extended-nexthop example awaiting native conversion", true
-	case name == "unknown-message.conf":
-		return "legacy unknown-message example awaiting native conversion", true
-	default:
-		return "", false
-	}
+	require.Equal(t, exabgpnative.CuratedCount(), parsed, "all curated native fixtures should be exercised")
 }
 
 // TestOldSyntaxHint verifies that old syntax errors include migration hint.
