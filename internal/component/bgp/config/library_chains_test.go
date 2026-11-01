@@ -21,7 +21,7 @@ const libraryTestType = "bgpconfig-library-test"
 
 func init() {
 	policy.MustRegisterFilterType(libraryTestType, nil, []policy.Field{policy.FieldLocalPreference})
-	policychain.MustRegisterEvaluator(libraryTestType, rpc.OnErrorReject, func(string, map[string]any) (policychain.Evaluator, error) {
+	policychain.MustRegisterEvaluator(libraryTestType, rpc.OnErrorReject, func(string, map[string]any, policy.InstanceResolver) (policychain.Evaluator, error) {
 		return func(_ *policyview.View, sets *policychain.Sets) (policychain.Decision, error) {
 			return policychain.DecisionPass, sets.LocalPreference(policychain.NumericActionSet, 200)
 		}, nil

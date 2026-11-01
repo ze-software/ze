@@ -199,23 +199,50 @@ func rawAnswer(verdict externalVerdict, out *rpc.FilterUpdateOutput, decl *Exter
 // the caller discards the member's Sets, so none of the route's sets apply.
 // target is what the named intents resolve against.
 func applyExternalSets(sets *Sets, decl *ExternalDeclaration, settable setMask, replies []rpc.FilterSet, target intentTarget) error {
+	readIntents := externalIntentsOfReads(decl.Reads)
 	for i := range replies {
 		set := &replies[i]
-		if !slices.Contains(decl.Sets, set.Field) {
-			return fmt.Errorf("%w: %s", errUndeclaredSet, set.Field)
-		}
 		kind, ok := kindNamed(set.Field)
-		if !ok {
-			return fmt.Errorf("sets %q, which no BGP chain can set", set.Field)
-		}
-		if settable&kind.bit() == 0 {
-			return fmt.Errorf("sets %s, which a filter at this attachment may not set", set.Field)
+		if !ok || readIntents&kind.bit() == 0 {
+			if err := externalMaySet(decl, settable, set.Field, kind, ok); err != nil {
+				return err
+			}
 		}
 		if err := applyExternalSet(sets, kind, set, target); err != nil {
 			return fmt.Errorf("%s %s: %w", set.Field, set.Action, err)
 		}
 	}
 	return nil
+}
+
+// externalMaySet refuses a reply's set of a field the filter did not declare
+// it sets, that no BGP chain can set, or that the attachment does not let a
+// filter set. kind and known are what kindNamed answered for field.
+func externalMaySet(decl *ExternalDeclaration, settable setMask, field string, kind setKind, known bool) error {
+	if !slices.Contains(decl.Sets, field) {
+		return fmt.Errorf("%w: %s", errUndeclaredSet, field)
+	}
+	if !known {
+		return fmt.Errorf("sets %q, which no BGP chain can set", field)
+	}
+	if settable&kind.bit() == 0 {
+		return fmt.Errorf("sets %s, which a filter at this attachment may not set", field)
+	}
+	return nil
+}
+
+// externalIntentsOfReads answers the per-route intents a plugin filter's
+// declared reads admit, as intentsOfReads does for an in-process member: a
+// filter that reads prefix may answer a prefix remove, one that reads family
+// a family remove, with no set declaration (D-5).
+func externalIntentsOfReads(reads []string) setMask {
+	var mask setMask
+	for _, kind := range [...]setKind{setKindPrefix, setKindFamily} {
+		if slices.Contains(reads, setKindFields[kind].String()) {
+			mask |= kind.bit()
+		}
+	}
+	return mask
 }
 
 func applyExternalSet(sets *Sets, kind setKind, set *rpc.FilterSet, target intentTarget) error {

@@ -38,7 +38,7 @@ func init() {
 	if err != nil {
 		panic("BUG: reactor test: no prefix reader: " + err.Error())
 	}
-	policychain.MustRegisterEvaluator(libraryTypeIntents, rpc.OnErrorReject, func(string, map[string]any) (policychain.Evaluator, error) {
+	policychain.MustRegisterEvaluator(libraryTypeIntents, rpc.OnErrorReject, func(string, map[string]any, routepolicy.InstanceResolver) (policychain.Evaluator, error) {
 		return func(view *policyview.View, sets *policychain.Sets) (policychain.Decision, error) {
 			if _, err := view.Read(prefix); err != nil {
 				return policychain.DecisionUnspecified, err

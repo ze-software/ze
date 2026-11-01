@@ -40,7 +40,7 @@ func init() {
 	policy.MustRegisterFilterType(typeDropStray, nil, []policy.Field{prefix})
 	policy.MustRegisterFilterType(typePrefixGate, []policy.Field{prefix}, nil)
 	dropAt := func(section NLRISection, offset uint16) EvaluatorCompiler {
-		return func(string, map[string]any) (Evaluator, error) {
+		return func(string, map[string]any, policy.InstanceResolver) (Evaluator, error) {
 			return func(_ *policyview.View, sets *Sets) (Decision, error) {
 				return DecisionPass, sets.DropNLRI(section, offset)
 			}, nil
@@ -49,7 +49,7 @@ func init() {
 	MustRegisterEvaluator(typeDropFirstAnnounce, rpc.OnErrorReject, dropAt(NLRISectionAnnounce, 0))
 	MustRegisterEvaluator(typeDropFirstMPReach, rpc.OnErrorReject, dropAt(NLRISectionMPReach, 0))
 	MustRegisterEvaluator(typeDropStray, rpc.OnErrorReject, dropAt(NLRISectionAnnounce, 1))
-	MustRegisterEvaluator(typePrefixGate, rpc.OnErrorReject, func(string, map[string]any) (Evaluator, error) {
+	MustRegisterEvaluator(typePrefixGate, rpc.OnErrorReject, func(string, map[string]any, policy.InstanceResolver) (Evaluator, error) {
 		reader, err := policyview.ReaderFor(prefix)
 		if err != nil {
 			return nil, err

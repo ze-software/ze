@@ -180,6 +180,24 @@ func InstanceSets(inst Instance) ([]Field, error) {
 	return ft.second, nil
 }
 
+// InstanceReads answers the fields inst declares it reads: its own config's
+// fields when its type registered MustRegisterInstanceFields, else the type's
+// declaration. A BGP chain admits a member's NLRI-subset and family-strip
+// intents from it. A type that declared no fields is refused.
+func InstanceReads(inst Instance) ([]Field, error) {
+	vocab.mu.RLock()
+	defer vocab.mu.RUnlock()
+	ft, ok := vocab.filterTypes[inst.Type]
+	if !ok {
+		return nil, fmt.Errorf("filter %q (%s): the filter type declares no route fields", inst.Name, inst.Type)
+	}
+	if fields, ok := vocab.perInstance[inst.Type]; ok {
+		reads, _ := fields(inst.Config)
+		return reads, nil
+	}
+	return ft.first, nil
+}
+
 func (v *vocabulary) mustRegisterField(name string, view RouteView) Field {
 	v.mu.Lock()
 	defer v.mu.Unlock()

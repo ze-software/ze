@@ -27,12 +27,12 @@ func init() {
 	policy.MustRegisterAttachment("bgp", testAttachmentASPath, []policy.Field{asPath}, []policy.Field{asPath})
 	policy.MustRegisterFilterType(typePrependTwice, nil, []policy.Field{asPath})
 	policy.MustRegisterFilterType(typeASPathGate, []policy.Field{asPath}, nil)
-	MustRegisterEvaluator(typePrependTwice, rpc.OnErrorReject, func(string, map[string]any) (Evaluator, error) {
+	MustRegisterEvaluator(typePrependTwice, rpc.OnErrorReject, func(string, map[string]any, policy.InstanceResolver) (Evaluator, error) {
 		return func(_ *policyview.View, sets *Sets) (Decision, error) {
 			return DecisionPass, sets.PrependASPath(2)
 		}, nil
 	})
-	MustRegisterEvaluator(typeASPathGate, rpc.OnErrorReject, func(string, map[string]any) (Evaluator, error) {
+	MustRegisterEvaluator(typeASPathGate, rpc.OnErrorReject, func(string, map[string]any, policy.InstanceResolver) (Evaluator, error) {
 		reader, err := policyview.ReaderFor(asPath)
 		if err != nil {
 			return nil, err

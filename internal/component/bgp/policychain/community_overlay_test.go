@@ -26,7 +26,7 @@ func init() {
 	comm := policy.FieldCommunity
 	policy.MustRegisterFilterType(typeCommunityGate, []policy.Field{comm}, nil)
 	policy.MustRegisterFilterType(typeCommunityRemove, nil, []policy.Field{comm})
-	MustRegisterEvaluator(typeCommunityGate, rpc.OnErrorReject, func(string, map[string]any) (Evaluator, error) {
+	MustRegisterEvaluator(typeCommunityGate, rpc.OnErrorReject, func(string, map[string]any, policy.InstanceResolver) (Evaluator, error) {
 		reader, err := policyview.ReaderFor(comm)
 		if err != nil {
 			return nil, err
@@ -42,7 +42,7 @@ func init() {
 			return DecisionReject, nil
 		}, nil
 	})
-	MustRegisterEvaluator(typeCommunityRemove, rpc.OnErrorReject, func(string, map[string]any) (Evaluator, error) {
+	MustRegisterEvaluator(typeCommunityRemove, rpc.OnErrorReject, func(string, map[string]any, policy.InstanceResolver) (Evaluator, error) {
 		return func(_ *policyview.View, sets *Sets) (Decision, error) {
 			return DecisionPass, sets.RemoveCommunity(0xfde90064)
 		}, nil

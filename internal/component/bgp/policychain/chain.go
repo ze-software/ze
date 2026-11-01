@@ -54,8 +54,10 @@ const (
 type Evaluator func(view *policyview.View, sets *Sets) (Decision, error)
 
 // EvaluatorCompiler compiles one filter instance's config subtree into its
-// Evaluator. It MUST NOT change any state: a refused verify runs it.
-type EvaluatorCompiler func(name string, instance map[string]any) (Evaluator, error)
+// Evaluator. resolve answers the config of another instance the subtree names
+// (a match's prefix-list), from the same policy root. It MUST NOT change any
+// state: a refused verify runs it.
+type EvaluatorCompiler func(name string, instance map[string]any, resolve policy.InstanceResolver) (Evaluator, error)
 
 type evaluatorRegistration struct {
 	compile EvaluatorCompiler
@@ -109,10 +111,11 @@ type member struct {
 	filterType string
 	evaluate   Evaluator
 	onError    rpc.OnErrorPolicy
-	// settable holds the set kinds the member declared (policy.InstanceSets),
-	// which policy.CheckChain already bounded by what the attachment allows.
-	// For an external member it holds what the attachment allows, and its
-	// reply's sets are checked against its declaration as well.
+	// settable holds the set kinds the member may write: the ones it declared
+	// (policy.InstanceSets), which policy.CheckChain already bounded by what
+	// the attachment allows, and the per-route intents its reads admit
+	// (intentsOfReads). For an external member it holds what the attachment
+	// allows, and its reply's sets are checked against its declaration as well.
 	settable setMask
 	// external is set for a filter a plugin runs; evaluate is nil then.
 	external *externalMember
@@ -206,11 +209,35 @@ func compileMember(attachment string, reg *policy.Registry, name string) (member
 	if err != nil {
 		return member{}, fmt.Errorf("%s: %w", attachment, err)
 	}
-	evaluate, err := registration.compile(name, inst.Config)
+	reads, err := policy.InstanceReads(inst)
+	if err != nil {
+		return member{}, fmt.Errorf("%s: %w", attachment, err)
+	}
+	evaluate, err := registration.compile(name, inst.Config, registryResolver(reg))
 	if err != nil {
 		return member{}, fmt.Errorf("%s filter %q (%s): %w", attachment, name, inst.Type, err)
 	}
-	return member{name: name, filterType: inst.Type, evaluate: evaluate, onError: registration.onError, settable: maskOf(sets)}, nil
+	return member{name: name, filterType: inst.Type, evaluate: evaluate, onError: registration.onError,
+		settable: maskOf(sets) | intentsOfReads(reads)}, nil
+}
+
+// registryResolver answers, for a member's compiler, the config of the
+// instance of filterType the member names, from the registry its chain
+// compiles against. A name the registry does not hold, or holds as another
+// type, is refused by name.
+func registryResolver(reg *policy.Registry) policy.InstanceResolver {
+	return func(name, filterType string) (map[string]any, error) {
+		inst, ok := reg.Lookup(name)
+		if !ok {
+			return nil, fmt.Errorf("%q is not a %s defined under the %s root; define policy %s %s, or name an existing one",
+				name, filterType, policy.RootName, filterType, name)
+		}
+		if inst.Type != filterType {
+			return nil, fmt.Errorf("%q is a %s, not a %s; name a %s defined under the %s root",
+				name, inst.Type, filterType, filterType, policy.RootName)
+		}
+		return inst.Config, nil
+	}
 }
 
 // OutcomeAction is the chain's verdict on one route.
@@ -315,7 +342,11 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		} else {
 			decision, err = m.evaluate(view, &sets.member)
 		}
-		if err == nil {
+		// An external member's reply was judged set by set against its
+		// declaration, its reads' intents and the attachment
+		// (applyExternalSets), so only an in-process member's writes are
+		// checked here.
+		if err == nil && m.external == nil {
 			err = m.refuseUndeclared(&sets.member)
 		}
 		if err == nil {

@@ -56,6 +56,24 @@ var setKindFields = [setKindCount]policy.Field{
 	setKindFamily:          policy.FieldFamily,
 }
 
+// intentsOfReads answers the per-route intents a member that reads fields may
+// answer (D-5): an NLRI subset for a reader of prefix, a family strip for a
+// reader of family. Each drops only what the member was shown, so it changes
+// no field: neither needs a set declaration, nor the attachment to allow
+// setting prefix or family.
+func intentsOfReads(reads []policy.Field) setMask {
+	var mask setMask
+	for _, field := range reads {
+		switch field {
+		case policy.FieldPrefix:
+			mask |= setKindPrefix.bit()
+		case policy.FieldFamily:
+			mask |= setKindFamily.bit()
+		}
+	}
+	return mask
+}
+
 // setMask holds one bit per setKind.
 type setMask uint8
 

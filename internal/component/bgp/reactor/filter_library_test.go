@@ -28,12 +28,12 @@ func init() {
 	routepolicy.MustRegisterAttachment("bgp", libraryTestExport, []routepolicy.Field{lp}, []routepolicy.Field{lp})
 	routepolicy.MustRegisterFilterType(libraryTypeLP200, nil, []routepolicy.Field{lp})
 	routepolicy.MustRegisterFilterType(libraryTypeReject, nil, nil)
-	policychain.MustRegisterEvaluator(libraryTypeLP200, rpc.OnErrorReject, func(string, map[string]any) (policychain.Evaluator, error) {
+	policychain.MustRegisterEvaluator(libraryTypeLP200, rpc.OnErrorReject, func(string, map[string]any, routepolicy.InstanceResolver) (policychain.Evaluator, error) {
 		return func(_ *policyview.View, sets *policychain.Sets) (policychain.Decision, error) {
 			return policychain.DecisionPass, sets.LocalPreference(policychain.NumericActionSet, 200)
 		}, nil
 	})
-	policychain.MustRegisterEvaluator(libraryTypeReject, rpc.OnErrorReject, func(string, map[string]any) (policychain.Evaluator, error) {
+	policychain.MustRegisterEvaluator(libraryTypeReject, rpc.OnErrorReject, func(string, map[string]any, routepolicy.InstanceResolver) (policychain.Evaluator, error) {
 		return func(*policyview.View, *policychain.Sets) (policychain.Decision, error) {
 			return policychain.DecisionReject, nil
 		}, nil

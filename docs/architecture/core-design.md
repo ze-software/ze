@@ -1659,8 +1659,14 @@ library member joins that chain as a member (below).
   the payload carries), `DropNLRI` (an entry of the body NLRI, the Withdrawn
   Routes, MP_REACH_NLRI or MP_UNREACH_NLRI, named by its offset in the section
   bytes the view answers) and `StripFamily` (every section of one family, at
-  most three). They write `as-path`, `prefix` and `family`, so a member that
-  did not declare those is refused like any other undeclared set. A plugin
+  most three). The AS-path pair writes `as-path`, a field set like any
+  other: a member that did not declare it is refused, and the attachment must
+  let a filter set it. `DropNLRI` and `StripFamily` change no field: each
+  drops only what the member was shown, so a member may answer them when it
+  reads `prefix` (the NLRI subset) or `family` (the strip), with no set
+  declaration and at an attachment that lets no filter set either field
+  (`intentsOfReads`, `externalIntentsOfReads`). A member that reads neither is
+  refused like an undeclared set. A plugin
   filter in the chain answers the same intents as `filter-update` sets
   (`external_intents.go`): `applyPrefixIntent` maps the prefix it names, in
   the event's NLRI shape, to the offset of each entry carrying it in the body

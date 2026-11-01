@@ -25,7 +25,7 @@ func init() {
 	policy.MustRegisterFilterType(typeStripIPv4, nil, []policy.Field{fam})
 	policy.MustRegisterFilterType(typeStripIPv6, nil, []policy.Field{fam})
 	strip := func(stripped family.Family) EvaluatorCompiler {
-		return func(string, map[string]any) (Evaluator, error) {
+		return func(string, map[string]any, policy.InstanceResolver) (Evaluator, error) {
 			return func(_ *policyview.View, sets *Sets) (Decision, error) {
 				return DecisionPass, sets.StripFamily(stripped)
 			}, nil

@@ -738,6 +738,10 @@ the value in the field's shape:
   a field the chain's attachment does not let a filter set, or a field no BGP
   chain sets; when the action is not one the field takes; or when the value has
   the wrong shape. The other routes are judged on their own.
+- A `prefix` remove needs only that the filter declares it reads `prefix`, and
+  a `family` remove that it reads `family`. Each drops only what the filter
+  was shown, so neither is a set the filter declares, and both work at a BGP
+  attachment, which lets no filter set `prefix` or `family`.
 - The `as-path`, `prefix` and `family` entries are intents Ze resolves with
   state the plugin does not hold: a prepend uses the local AS and the
   session's AS number width, `"private-peer-as"` the peer AS, a prefix remove
@@ -761,6 +765,7 @@ the value in the field's shape:
 <!-- source: internal/component/bgp/policychain/external.go -- externalAnswer, applyExternalSets, rawAnswer -->
 <!-- source: internal/component/bgp/policychain/chain.go -- rawOutcome -->
 <!-- source: internal/component/bgp/policychain/external_intents.go -- applyASPathIntent, applyPrefixIntent, applyFamilyIntent -->
+<!-- source: internal/component/bgp/policychain/external.go -- externalIntentsOfReads -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterSet, FilterSetAction -->
 
 ### The Filter Text an `OnFilterUpdate` Handler Reads

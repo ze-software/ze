@@ -38,7 +38,7 @@ func numericConfig(action NumericAction, value uint32) map[string]any {
 }
 
 func numericEvaluator(set func(*Sets, NumericAction, uint32) error, read policy.Field) EvaluatorCompiler {
-	return func(_ string, instance map[string]any) (Evaluator, error) {
+	return func(_ string, instance map[string]any, _ policy.InstanceResolver) (Evaluator, error) {
 		action, _ := instance["action"].(NumericAction)
 		value, _ := instance["value"].(uint32)
 		reader, err := policyview.ReaderFor(read)
@@ -67,7 +67,7 @@ func init() {
 	policy.MustRegisterFilterType(typeCommunity, nil, []policy.Field{comm})
 	policy.MustRegisterFilterType(typeNoEval, nil, nil)
 	policy.MustRegisterFilterType(typeGate100, []policy.Field{lp}, nil)
-	MustRegisterEvaluator(typeGate100, rpc.OnErrorReject, func(string, map[string]any) (Evaluator, error) {
+	MustRegisterEvaluator(typeGate100, rpc.OnErrorReject, func(string, map[string]any, policy.InstanceResolver) (Evaluator, error) {
 		reader, err := policyview.ReaderFor(lp)
 		if err != nil {
 			return nil, err
@@ -87,12 +87,12 @@ func init() {
 	MustRegisterEvaluator(typeSetLocal, rpc.OnErrorReject, numericEvaluator((*Sets).LocalPreference, lp))
 	MustRegisterEvaluator(typeSetMED, rpc.OnErrorReject, numericEvaluator((*Sets).MED, med))
 	MustRegisterEvaluator(typeFailOpen, rpc.OnErrorAccept, numericEvaluator(func(*Sets, NumericAction, uint32) error { return nil }, lp))
-	MustRegisterEvaluator(typeUndeclared, rpc.OnErrorReject, func(string, map[string]any) (Evaluator, error) {
+	MustRegisterEvaluator(typeUndeclared, rpc.OnErrorReject, func(string, map[string]any, policy.InstanceResolver) (Evaluator, error) {
 		return func(_ *policyview.View, sets *Sets) (Decision, error) {
 			return DecisionPass, sets.MED(NumericActionSet, 5)
 		}, nil
 	})
-	MustRegisterEvaluator(typeCommunity, rpc.OnErrorReject, func(string, map[string]any) (Evaluator, error) {
+	MustRegisterEvaluator(typeCommunity, rpc.OnErrorReject, func(string, map[string]any, policy.InstanceResolver) (Evaluator, error) {
 		return func(_ *policyview.View, sets *Sets) (Decision, error) {
 			if err := sets.AddCommunity(0xfde90064); err != nil {
 				return DecisionUnspecified, err
