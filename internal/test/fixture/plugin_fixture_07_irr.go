@@ -393,3 +393,101 @@ func firewallIRRUpdate07(ctx context.Context, p *sdk.Plugin) error {
 	}
 	return nil
 }
+
+// filterIRRUnresolved07 observes test/plugin/filter-wire-irr-unresolved.ci
+// (spec-filter-wire-0-umbrella AC-32). Its goal is to prove that an UPDATE
+// arriving before its ASN's first IRR resolution is judged from what the
+// plugin holds: its announced prefix takes the filter's on-error verdict
+// (reject), its withdrawal still applies, and the prefix is accepted once the
+// list arrives. Method: the mock IRR holds its first answer longer than
+// rpc.FilterUpdateTimeout. The observer waits for the End-of-RIB that follows
+// the UPDATE, which the session counts only after the import verdict, and
+// requires `show bgp irr` to still report the ASN pending then: the verdict
+// came before the list. The first UPDATE event it saw must carry the
+// withdrawal of 10.9.0.0/24 and not the announced 10.0.0.0/24. Once the mock
+// answers, the readmitter's ROUTE-REFRESH (checked by the peer's script)
+// brings the route back, and the observer waits for it accepted.
+func filterIRRUnresolved07(ctx context.Context, _ []string) error {
+	const name = "plugin/filter-wire-irr-unresolved"
+	updates := make(chan string, 4)
+	setup := func(p *sdk.Plugin) error {
+		p.OnEvent(func(event string) error {
+			var decoded map[string]any
+			if json.Unmarshal([]byte(event), &decoded) != nil {
+				return nil //nolint:nilerr // a malformed event is skipped, and failing the handler would end the session
+			}
+			bgp, _ := decoded["bgp"].(map[string]any)
+			message, _ := bgp["message"].(map[string]any)
+			if message["direction"] != directionReceived {
+				return nil
+			}
+			update, isUpdate := bgp["update"].(map[string]any)
+			if !isUpdate {
+				return nil
+			}
+			select {
+			case updates <- text07(update):
+			default:
+			}
+			return nil
+		})
+		p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+		return nil
+	}
+	scenario := func(ctx context.Context, p *sdk.Plugin) error {
+		var received commandResult07
+		if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
+			received = command07(ctx, p, "show bgp peer 127.0.0.1 detail")
+			if received.status != statusDone {
+				return false
+			}
+			peer := object07(object07(object07(received.data)["peers"])["127.0.0.1"])
+			return number07(peer["eor-received"]) >= 1
+		}) {
+			return fmt.Errorf("the End-of-RIB following the unresolved UPDATE never arrived: status=%s data=%s error=%w", received.status, text07(received.data), received.err)
+		}
+		pending := command07(ctx, p, "show bgp irr")
+		if pending.status != statusDone {
+			return fmt.Errorf("show bgp irr status=%s error=%w", pending.status, pending.err)
+		}
+		listed := false
+		for _, row := range array07(object07(pending.data)["entries"]) {
+			entry := object07(row)
+			if number07(entry["asn"]) != 65001 {
+				continue
+			}
+			listed = true
+			if entry["status"] != "pending" {
+				return fmt.Errorf("ASN 65001 was %v when its UPDATE was judged, want pending (the mock IRR had not answered): data=%s", entry["status"], text07(pending.data))
+			}
+		}
+		if !listed {
+			return fmt.Errorf("show bgp irr does not list ASN 65001: data=%s", text07(pending.data))
+		}
+		var first string
+		select {
+		case first = <-updates:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		if !strings.Contains(first, "10.9.0.0/24") {
+			return fmt.Errorf("the withdrawal of 10.9.0.0/24 did not apply beside the unresolved announcement: update=%s", first)
+		}
+		if strings.Contains(first, "10.0.0.0/24") {
+			return fmt.Errorf("the IRR filter accepted 10.0.0.0/24 before its list resolved: update=%s", first)
+		}
+		wait := WaitBudget(50, 20*time.Second)
+		select {
+		case update := <-updates:
+			if !strings.Contains(update, "10.0.0.0/24") {
+				return fmt.Errorf("the route sent again is not 10.0.0.0/24: update=%s", update)
+			}
+			return nil
+		case <-time.After(wait):
+			return fmt.Errorf("the route rejected while the IRR list was unresolved was not accepted within %s", wait)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return observeConfigured(ctx, name, &sdk.Registration{}, setup, scenario)
+}

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 func Run(args []string) int {
@@ -20,6 +21,7 @@ func Run(args []string) int {
 	var port int
 	var emptyAfterFirst bool
 	var failFirst int
+	var delayFirst time.Duration
 
 	fs.IntVar(&port, "port", 0, "TCP listen port (0 = auto)")
 	fs.BoolVar(&emptyAfterFirst, "empty-after-first", false,
@@ -27,6 +29,8 @@ func Run(args []string) int {
 
 	fs.IntVar(&failFirst, "fail-first", 0,
 		"answer the first N queries with \"F\" (query failed), then normally")
+	fs.DurationVar(&delayFirst, "delay-first", 0,
+		"hold the answer to the first query for this long, then answer it normally")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: le mock irr [flags]
@@ -56,6 +60,11 @@ every later one normally. It models an IRR server that is down when ze starts
 and recovers, which is the case where a route rejected for a missing list must
 be evaluated again once the list arrives.
 
+With -delay-first D, the answer to the first query is held for D, then sent
+as usual. It models an IRR server that is slow when ze starts, which is the
+case where an UPDATE arrives before the first resolution and must be judged
+without waiting for it.
+
 Flags:
 `)
 		fs.PrintDefaults()
@@ -83,13 +92,14 @@ Flags:
 
 	failing := &failBudget{}
 	failing.left.Store(int64(failFirst))
+	slow := &slowFirst{delay: delayFirst}
 
 	for {
 		conn, acceptErr := ln.Accept()
 		if acceptErr != nil {
 			return 0
 		}
-		go handleIRRConn(conn, answered, failing)
+		go handleIRRConn(conn, answered, failing, slow)
 	}
 }
 
@@ -136,7 +146,25 @@ func (b *failBudget) take() bool {
 	return b.left.Add(-1) >= 0
 }
 
-func handleIRRConn(conn net.Conn, answered *servedQueries, failing *failBudget) {
+// slowFirst holds the answer to the first query for delay (-delay-first).
+type slowFirst struct {
+	delay time.Duration
+	taken atomic.Bool
+}
+
+// wait sleeps for delay when this query is the first one, and returns at once
+// for every later query or when no delay was asked for.
+func (s *slowFirst) wait() {
+	if s.delay <= 0 {
+		return
+	}
+	if s.taken.Swap(true) {
+		return
+	}
+	time.Sleep(s.delay)
+}
+
+func handleIRRConn(conn net.Conn, answered *servedQueries, failing *failBudget, slow *slowFirst) {
 	defer func() { _ = conn.Close() }()
 
 	buf := make([]byte, 4096)
@@ -154,6 +182,7 @@ func handleIRRConn(conn net.Conn, answered *servedQueries, failing *failBudget) 
 	if failing.take() {
 		response = "F mock IRR server failing on purpose (-fail-first)\n"
 	}
+	slow.wait()
 
 	if _, writeErr := fmt.Fprint(conn, response); writeErr != nil {
 		return

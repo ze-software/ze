@@ -3287,7 +3287,12 @@ later one normally. It models an IRR server that is down when ze starts and
 then recovers, which is how `test/plugin/filter-irr-readmit.ci` gets a route
 rejected for a missing list.
 
-Usage: `le mock irr --port 4343 [--empty-after-first] [--fail-first N]`
+`--delay-first D` holds the answer to the first query for D, then answers it
+normally. It models an IRR server that is slow when ze starts, which is how
+`test/plugin/filter-wire-irr-unresolved.ci` gets an UPDATE judged before the
+first resolution completes.
+
+Usage: `le mock irr --port 4343 [--empty-after-first] [--fail-first N] [--delay-first D]`
 
 <!-- source: internal/test/mock/irr/irr.go -- IRR mock whois subcommand -->
 
