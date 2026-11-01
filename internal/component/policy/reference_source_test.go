@@ -16,9 +16,8 @@ import (
 
 // referencePolicy defines one instance of each case the source tells apart: a
 // prefix-list every attachment here accepts, a community-match IS-IS routes
-// cannot feed, a match IS-IS refuses for the tag it reads and BGP refuses
-// because no BGP filter serves match, and a policy route entry, which is no
-// filter at all.
+// cannot feed, a match both IS-IS and BGP refuse for the tag it reads, and a
+// policy route entry, which is no filter at all.
 const referencePolicy = `
 policy {
 	prefix-list P {
@@ -81,7 +80,7 @@ bgp {
 	}
 	bgp := v.ReferenceInstances(root, []string{"bgp", "peer", "peer1", "filter", "import", "filters"})
 	if !slices.Equal(bgp, []string{"C", "P"}) {
-		t.Errorf("bgp peer filter import offers %v, want [C P]: both types fit BGP, and no BGP filter serves match", bgp)
+		t.Errorf("bgp peer filter import offers %v, want [C P]: both types fit BGP, and TAGGED reads tag, which BGP routes do not carry", bgp)
 	}
 	for _, offered := range [][]string{isis, bgp} {
 		if slices.Contains(offered, "R") {

@@ -46,8 +46,8 @@ bgp {
 // load a peer whose chain names each instance. A modify that sets distance (a
 // Loc-RIB field BGP routes do not let a filter set) is refused naming the
 // attachment and the field, whether named plain or by its filter type; a match
-// instance, which no BGP filter serves, is refused naming the type rather than
-// passed to a plugin that does not exist; a modify that adds a community
+// instance reading tag, a field BGP routes do not carry, is refused naming the
+// instance, the field and the attachment; a modify that adds a community
 // loads.
 func TestBGPChainFieldCheck(t *testing.T) {
 	cases := []struct {
@@ -57,8 +57,8 @@ func TestBGPChainFieldCheck(t *testing.T) {
 		{"import", "SET-DISTANCE", []string{"peer p1 import filters", "bgp import", "SET-DISTANCE", "sets distance"}},
 		{"export", "SET-DISTANCE", []string{"peer p1 export filters", "bgp export", "sets distance"}},
 		{"import", "modify:SET-DISTANCE", []string{"bgp import", "sets distance"}},
-		{"import", "TAG-1", []string{"peer p1 import filters", "TAG-1", "no BGP filter serves the match type"}},
-		{"export", "match:TAG-1", []string{"no BGP filter serves the match type", "bgp export"}},
+		{"import", "TAG-1", []string{"peer p1 import filters", "TAG-1", "reads tag", "bgp import"}},
+		{"export", "match:TAG-1", []string{"peer p1 export filters", "TAG-1", "reads tag", "bgp export"}},
 		{"import", "ADD-COMMUNITY", nil},
 	}
 	for _, tc := range cases {
