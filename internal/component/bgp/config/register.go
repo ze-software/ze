@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/grmarker"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
@@ -32,14 +33,24 @@ func init() {
 	// fields their routes carry and a filter there may set (the route field
 	// vocabulary, internal/component/policy/fields.go). They are declared here,
 	// in the package whose validateChainNames checks a chain against them, so
-	// every binary that links the check links the declaration too.
-	carries := []policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldASPath, policy.FieldLocalPreference, policy.FieldOrigin, policy.FieldAIGP, policy.FieldMED}
+	// every binary that links the check links the declaration too. Each
+	// carried field has a BGP view reader (internal/component/bgp/policyview).
+	// metric is not carried: BGP names that fact med, one name per fact, and
+	// the synonym makes a chain reading metric here name med in its refusal.
+	carries := []policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldASPath, policy.FieldLocalPreference, policy.FieldOrigin, policy.FieldAIGP, policy.FieldMED,
+		policy.FieldAtomicAggregate, policy.FieldAggregator, policy.FieldOriginatorID, policy.FieldClusterList}
+	for _, field := range carries {
+		if _, err := policyview.ReaderFor(field); err != nil {
+			panic("BUG: bgp attachments carry " + field.String() + ", which the BGP route view cannot read: " + err.Error())
+		}
+	}
 	settable := []policy.Field{policy.FieldASPath, policy.FieldLocalPreference, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldMED, policy.FieldOrigin, policy.FieldNextHop, policy.FieldAIGP}
 	// Each attachment's chains sit at `bgp ... filter <direction> filters`,
 	// global, group and peer alike. The editor completes a chain, and commit
 	// judges it, with the check a peer's chain passes at load.
 	for _, attachment := range []string{"bgp import", "bgp export"} {
 		policy.MustRegisterAttachment(attachmentOwnerBGP, attachment, carries, settable)
+		policy.MustRegisterFieldSynonym(attachment, policy.FieldMetric, policy.FieldMED)
 		direction := strings.TrimPrefix(attachment, attachmentOwnerBGP+" ")
 		policy.MustRegisterChainLeaf(attachmentOwnerBGP, direction, attachment, func(reg *policy.Registry, member, context string) error {
 			return validateChainNames(reg, []policy.Ref{{Name: member}}, attachment, context)

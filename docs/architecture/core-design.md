@@ -1536,6 +1536,46 @@ peers where it is configured (e.g., `allow-own-as:relaxed` overrides `rfc:no-sel
 <!-- source: internal/component/bgp/config/redistribution.go -- canonicalizeFilterRefs -->
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy, NewPolicy, WithFilters, AcceptsAtEnd -->
 
+#### The BGP route view
+
+`internal/component/bgp/policyview` is the lazy view a BGP chain member reads
+in place of the text subject. The chain does not run over it yet: the move of
+the chain onto the view is the next phase of `spec-filter-wire-0-umbrella`,
+and until it lands the text subject above is what filters read.
+
+- **One reader per field, registered from the BGP side.** The field names stay
+  declared in the policy library (`internal/component/policy/register.go`);
+  `policyview` registers how BGP reads each one, so the library learns no BGP
+  type. The BGP import and export attachments carry exactly the fields the view
+  reads, and `bgpconfig`'s `init` refuses to start a binary in which they
+  disagree.
+- **Decoded on first read, borrowed, cached for the run.** A field's value
+  points into the received bytes and is valid only during the synchronous
+  chain run, because a received UPDATE lives in a reusable read buffer. A run
+  reading only `prefix` decodes the NLRI and no attribute, and allocates
+  nothing. The AS path is built once per run, however many members read
+  `as-path` and `origin-as`.
+- **Malformed fails the route.** Each reader checks its attribute against the
+  RFC 7606 Section 7 shape, the second half of the ingress check. A malformed
+  attribute answers an error wrapping `policyview.ErrMalformed`, never a zero
+  value; an absent one answers a value whose `Present` is false. An UPDATE
+  still in the two-octet AS form fails `as-path`, `origin-as` and `aggregator`,
+  because the ingest collapse is what rewrites every received UPDATE to four
+  octets.
+- **One name per fact.** BGP carries `med`, not `metric`, so a `match`
+  instance with a `metric` condition is refused at `bgp import` and
+  `bgp export`, and the refusal names `med` as the BGP field for that fact
+  (`policy.MustRegisterFieldSynonym`). The same instance still loads at a
+  Loc-RIB, redistribute or IGP attachment. `atomic-aggregate`, `aggregator`,
+  `originator-id` and `cluster-list` are carried, so every value the text
+  subject exposed stays readable.
+
+<!-- source: internal/component/bgp/policyview/view.go -- View, Reset, Clear, Read, Value -->
+<!-- source: internal/component/bgp/policyview/readers.go -- readPrefix, readOriginAS, requireFourOctet, reconstructedPath -->
+<!-- source: internal/component/bgp/policyview/register.go -- init -->
+<!-- source: internal/component/bgp/config/register.go -- init, the attachment carries and the reader check -->
+<!-- source: internal/component/policy/fields.go -- MustRegisterFieldSynonym, synonymHint -->
+
 ---
 
 ## 10. What Gets Eliminated

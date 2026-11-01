@@ -101,12 +101,19 @@ is refused rather than matching nothing.
 | `isis filter export` | prefix, family, protocol, next-hop, metric, tag | metric |
 | `ospf filter export` | prefix, family, protocol, next-hop, metric, tag | tag, metric, metric-type |
 | `redistribute destination D import S` | prefix, family, protocol, next-hop, metric, tag | tag, metric |
+| `bgp filter import`, `bgp filter export` (bgp, group and peer) | prefix, family, protocol, next-hop, origin-as, community, large-community, extended-community, as-path, local-preference, origin, aigp, med, atomic-aggregate, aggregator, originator-id, cluster-list | as-path, local-preference, community, large-community, extended-community, med, origin, next-hop, aigp |
+
+BGP names a route's metric `med` and carries no `metric` field, so each fact
+has one name. A `match` instance with a `metric` condition is refused on a BGP
+chain, and the refusal names `med` as the BGP field; the same instance still
+loads at every other attachment that carries `metric`.
 <!-- source: internal/plugins/connected/register.go -- MustRegisterRouteAttachment -->
 <!-- source: internal/plugins/static/register.go -- MustRegisterRouteAttachment -->
 <!-- source: internal/plugins/ospf/register.go -- MustRegisterRouteAttachment -->
 <!-- source: internal/plugins/isis/register.go -- MustRegisterRouteAttachment -->
 <!-- source: internal/component/sysrib/register.go -- MustRegisterRouteAttachment -->
 <!-- source: internal/plugins/redistribute/register.go -- MustRegisterRouteAttachment -->
+<!-- source: internal/component/bgp/config/register.go -- MustRegisterAttachment, MustRegisterFieldSynonym -->
 
 IS-IS routes carry no tag, because Ze does not implement the IS-IS
 administrative tag (RFC 5130). A static route carries a tag only when its `tag`

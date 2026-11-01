@@ -58,6 +58,10 @@ var (
 	FieldOrigin            = MustRegisterField("origin", RouteView{})
 	FieldAIGP              = MustRegisterField("aigp", RouteView{})
 	FieldMED               = MustRegisterField("med", RouteView{})
+	FieldAtomicAggregate   = MustRegisterField("atomic-aggregate", RouteView{})
+	FieldAggregator        = MustRegisterField("aggregator", RouteView{})
+	FieldOriginatorID      = MustRegisterField("originator-id", RouteView{})
+	FieldClusterList       = MustRegisterField("cluster-list", RouteView{})
 )
 
 // routeProtocol is the protocol field's value on the route view: the source

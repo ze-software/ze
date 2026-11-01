@@ -63,6 +63,15 @@ type vocabulary struct {
 	// of its fields (match, modify), the function that reads one instance's
 	// fields from its config. The type's own declaration stays the superset.
 	perInstance map[string]InstanceFields
+	// synonyms holds, per attachment, the field it names a fact by when a
+	// filter reads that fact under another field's name (MustRegisterFieldSynonym).
+	synonyms map[synonymKey]Field
+}
+
+// synonymKey is one attachment's field that the attachment names otherwise.
+type synonymKey struct {
+	attachment string
+	field      Field
 }
 
 func newVocabulary() *vocabulary {
@@ -72,6 +81,7 @@ func newVocabulary() *vocabulary {
 		filterTypes: make(map[string]fieldUse),
 		attachments: make(map[string]fieldUse),
 		perInstance: make(map[string]InstanceFields),
+		synonyms:    make(map[synonymKey]Field),
 	}
 }
 
@@ -121,6 +131,16 @@ func MustRegisterAttachment(owner, name string, carries, settable []Field) {
 // filter match a zero and reject every route.
 func MustRegisterRouteAttachment(owner, name string, carries, settable []Field) {
 	vocab.mustRegisterAttachment(owner, name, carries, settable, true)
+}
+
+// MustRegisterFieldSynonym declares that attachment carries the fact field
+// names under the field named instead, one name per fact (BGP carries the
+// metric only as med). field MUST NOT be carried there and named MUST be. A
+// chain at attachment reading field is still refused, and the refusal names
+// named, so the operator learns the field to use. attachment MUST already be
+// registered. A second synonym for one field is a Ze defect and panics.
+func MustRegisterFieldSynonym(attachment string, field, named Field) {
+	vocab.mustRegisterFieldSynonym(attachment, field, named)
 }
 
 // AttachmentOwners answers, sorted and once each, the plugins that registered
@@ -201,6 +221,42 @@ func (v *vocabulary) mustRegisterAttachment(owner, name string, carries, settabl
 
 // isRouteAttachment reports whether name was registered with
 // MustRegisterRouteAttachment.
+func (v *vocabulary) mustRegisterFieldSynonym(attachment string, field, named Field) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	at, ok := v.attachments[attachment]
+	if !ok {
+		panic("BUG: policy: field synonym for unregistered attachment " + attachment)
+	}
+	if slices.Contains(at.first, field) {
+		panic("BUG: policy: " + attachment + " carries " + field.name + ", so it needs no synonym")
+	}
+	if !slices.Contains(at.first, named) {
+		panic("BUG: policy: " + attachment + " does not carry " + named.name + ", the synonym of " + field.name)
+	}
+	key := synonymKey{attachment: attachment, field: field}
+	if _, dup := v.synonyms[key]; dup {
+		panic("BUG: policy: " + attachment + " registers two synonyms for " + field.name)
+	}
+	v.synonyms[key] = named
+}
+
+// synonymHint answers, for the fields of want an attachment does not carry
+// but names otherwise, the clause that names the field to use instead. It
+// runs only on the refusal path.
+func (v *vocabulary) synonymHint(attachment string, want []Field) string {
+	var hint strings.Builder
+	for _, f := range want {
+		named, ok := v.synonyms[synonymKey{attachment: attachment, field: f}]
+		if !ok {
+			continue
+		}
+		hint.WriteString("; " + attachment + " names the " + f.name + " fact " + named.name +
+			", so judge it there through a filter that reads " + named.name)
+	}
+	return hint.String()
+}
+
 func (v *vocabulary) isRouteAttachment(name string) bool {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
@@ -268,9 +324,9 @@ func (v *vocabulary) checkChain(attachment string, reg *Registry, names []string
 			}
 		}
 		if missing := absent(reads, at.first); missing != "" {
-			return fmt.Errorf("%s filter %q (%s) reads %s, which %s routes do not carry; "+
+			return fmt.Errorf("%s filter %q (%s) reads %s, which %s routes do not carry%s; "+
 				"remove it from this chain or use a filter that matches only %s",
-				attachment, name, inst.Type, missing, attachment, joinFields(at.first))
+				attachment, name, inst.Type, missing, attachment, v.synonymHint(attachment, reads), joinFields(at.first))
 		}
 		if missing := absent(sets, at.second); missing != "" {
 			return fmt.Errorf("%s filter %q (%s) sets %s, which a filter at %s may not set; "+
