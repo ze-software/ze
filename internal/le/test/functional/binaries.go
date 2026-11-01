@@ -206,10 +206,23 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string) [][]string {
 		return append(argv, "-tags", tags, "-o", filepath.Join(binaries, name), "./cmd/ze")
 	}
 
-	// NOT instrumented: le is the harness, not the subject.
+	// NOT instrumented: le is the harness, not the subject, and neither is
+	// the fakefilter binary, a third party's plugin a test forks.
 	return append(daemonBuildCommands(tc, binaries, cover),
-		build(nil, tagString(tc, append([]string{repofeaturetags.LEBase}, tc.Features...)...), LE))
+		build(nil, tagString(tc, append([]string{repofeaturetags.LEBase}, tc.Features...)...), LE),
+		[]string{"go", "build", "-o", filepath.Join(binaries, FakeFilter), fakeFilterPackage})
 }
+
+// FakeFilter is the test filter plugin built as its own binary, from the SDK
+// alone, as a third party builds one: a .ci forks it with
+// `external <name> { run "ze-fakefilter" }` off the child PATH
+// (test/plugin/filter-wire-thirdparty-compiled-in.ci, spec-filter-wire-0-umbrella
+// AC-35). It carries no feature tag, because it links no ze package that
+// a tag gates.
+const FakeFilter = "ze-fakefilter"
+
+// fakeFilterPackage is the main package of FakeFilter.
+const fakeFilterPackage = "./internal/test/plugins/fakefilter/cmd/ze-fakefilter"
 
 // strippedFlowTags are the tags of ze-stripped-flow: the flow features (flow
 // export, DDoS, anomaly detection) on the stripped base, with no ze_bgp. It is

@@ -443,8 +443,8 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 		t.Fatalf("load the toolchain: %v", err)
 	}
 	commands := buildCommands(tc, filepath.Join("out", "bin"))
-	if len(commands) != 4 {
-		t.Fatalf("a set builds ze, ze-stripped, ze-stripped-flow and le, got %d commands", len(commands))
+	if len(commands) != 5 {
+		t.Fatalf("a set builds ze, ze-stripped, ze-stripped-flow, le and ze-fakefilter, got %d commands", len(commands))
 	}
 
 	dut := strings.Join(commands[0], " ")
@@ -474,6 +474,15 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 	}
 	if harness := strings.Join(commands[3], " "); strings.Contains(harness, "-cover") {
 		t.Error("le was instrumented; it is the harness, not the subject")
+	}
+	// The third-party plugin binary is built from its own main package, with
+	// no ze tag: it links the SDK alone, as an outside author's build does.
+	fake := strings.Join(commands[4], " ")
+	if !strings.HasSuffix(fake, filepath.Join("out", "bin", FakeFilter)+" "+fakeFilterPackage) {
+		t.Errorf("the fakefilter build is not %s from %s: %s", FakeFilter, fakeFilterPackage, fake)
+	}
+	if strings.Contains(fake, "-tags") || strings.Contains(fake, "-cover") {
+		t.Errorf("the fakefilter build carries ze tags or coverage: %s", fake)
 	}
 }
 

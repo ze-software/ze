@@ -30,7 +30,7 @@ func conformanceRoutes() []sdk.ConformanceRoute {
 // stop trigger off, as a plugin runs when no test asks it to stop, and one of
 // the two routes rejected, so both verdicts cross both transports.
 func TestFakeFilterConformance(t *testing.T) {
-	judge := newJudge(trigger{rejectPrefix: "10.1.0.0/24"}, func() {}, func(judgement) {})
+	judge := newJudge(Trigger{RejectPrefix: "10.1.0.0/24"}, func() {}, func(judgement) {})
 	if !sdk.CheckFilterConformance(t, Name, judge.evaluate, conformanceRoutes()) {
 		t.Fatal("the fakefilter evaluator breaks the fast-path contract")
 	}
@@ -42,7 +42,7 @@ func TestFakeFilterConformance(t *testing.T) {
 // encoded route: the batch).
 func TestFakeFilterAcceptsAndNamesThePrefix(t *testing.T) {
 	var judged []judgement
-	judge := newJudge(trigger{rejectPrefix: "10.1.0.0/24"}, func() {}, func(j judgement) { judged = append(judged, j) })
+	judge := newJudge(Trigger{RejectPrefix: "10.1.0.0/24"}, func() {}, func(j judgement) { judged = append(judged, j) })
 	routes := conformanceRoutes()
 	route := rpc.InputFilterRoute(&routes[0].Input)
 	out, err := judge.evaluate(&route)
@@ -72,7 +72,7 @@ func (slotView) Engine() any               { return struct{}{} }
 // and through the batch (an encoded route).
 func TestFakeFilterRejectsTheNamedPrefix(t *testing.T) {
 	var judged []judgement
-	judge := newJudge(trigger{rejectPrefix: "10.1.0.0/24"}, func() {}, func(j judgement) { judged = append(judged, j) })
+	judge := newJudge(Trigger{RejectPrefix: "10.1.0.0/24"}, func() {}, func(j judgement) { judged = append(judged, j) })
 	routes := conformanceRoutes()
 	batch := rpc.InputFilterRoute(&routes[1].Input)
 	slot := rpc.ViewFilterRoute(&rpc.FilterUpdateInput{Filter: FilterName, Direction: "import", Peer: "127.0.0.2", PeerAS: 65002},
@@ -99,7 +99,7 @@ func TestFakeFilterRejectsTheNamedPrefix(t *testing.T) {
 // verdict for a route whose fields it cannot read: the member's on-error
 // decides that route, not an accept invented by the fixture.
 func TestFakeFilterRefusesUnreadableFields(t *testing.T) {
-	judge := newJudge(trigger{}, func() {}, func(judgement) {})
+	judge := newJudge(Trigger{}, func() {}, func(judgement) {})
 	input := rpc.FilterUpdateInput{Filter: FilterName, Direction: "import", Fields: json.RawMessage(`{"prefix":`)}
 	route := rpc.InputFilterRoute(&input)
 	if out, err := judge.evaluate(&route); err == nil {
@@ -112,7 +112,7 @@ func TestFakeFilterRefusesUnreadableFields(t *testing.T) {
 // the stop runs exactly once on it, and never before it.
 func TestFakeFilterStopTriggerFiresOnce(t *testing.T) {
 	var stops atomic.Int32
-	judge := newJudge(trigger{stopAfter: 2}, func() { stops.Add(1) }, func(judgement) {})
+	judge := newJudge(Trigger{StopAfter: 2}, func() { stops.Add(1) }, func(judgement) {})
 	routes := conformanceRoutes()
 	for i := range 4 {
 		route := rpc.InputFilterRoute(&routes[i%2].Input)
@@ -134,7 +134,7 @@ func TestFakeFilterStopTriggerFiresOnce(t *testing.T) {
 // Stage 1 names the filter a chain references (fakefilter:judge), reads the
 // prefix, and fails closed: the on-error AC-33 asserts.
 func TestFakeFilterDeclaration(t *testing.T) {
-	decls := filterDecls()
+	decls := FilterDecls()
 	if len(decls) != 1 {
 		t.Fatalf("declared %d filters, want 1", len(decls))
 	}
@@ -154,18 +154,18 @@ func TestFakeFilterDeclaration(t *testing.T) {
 // and after the file exists, then one judged route of each.
 func TestFakeFilterRespawnedGenerationNeverStops(t *testing.T) {
 	stopped := filepath.Join(t.TempDir(), "fakefilter.stopped")
-	asked := trigger{stopAfter: 1, stoppedFile: stopped, restart: true}
+	asked := Trigger{StopAfter: 1, StoppedFile: stopped, Restart: true}
 
 	first := startGeneration(asked)
-	if first.generation != 1 || first.stopAfter != 1 {
-		t.Fatalf("before the stop: generation %d stop-after %d, want 1 and 1", first.generation, first.stopAfter)
+	if first.generation != 1 || first.StopAfter != 1 {
+		t.Fatalf("before the stop: generation %d stop-after %d, want 1 and 1", first.generation, first.StopAfter)
 	}
 	if err := os.WriteFile(stopped, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	second := startGeneration(asked)
-	if second.generation != 2 || second.stopAfter != 0 {
-		t.Fatalf("after the stop: generation %d stop-after %d, want 2 and 0", second.generation, second.stopAfter)
+	if second.generation != 2 || second.StopAfter != 0 {
+		t.Fatalf("after the stop: generation %d stop-after %d, want 2 and 0", second.generation, second.StopAfter)
 	}
 
 	var stops atomic.Int32
@@ -187,10 +187,53 @@ func TestFakeFilterRespawnedGenerationNeverStops(t *testing.T) {
 // TestFakeFilterDeclaresRestartWhenAsked proves the Stage 1 declaration
 // carries the restart failure policy only when the test asks for it.
 func TestFakeFilterDeclaresRestartWhenAsked(t *testing.T) {
-	if got := registration(trigger{}).FailurePolicy; got != rpc.FailureUnspecified {
+	if got := Registration(Trigger{}).FailurePolicy; got != rpc.FailureUnspecified {
 		t.Fatalf("unasked failure policy = %v, want unspecified", got)
 	}
-	if got := registration(trigger{restart: true}).FailurePolicy; got != sdk.FailureRestart {
+	if got := Registration(Trigger{Restart: true}).FailurePolicy; got != sdk.FailureRestart {
 		t.Fatalf("asked failure policy = %v, want restart", got)
+	}
+}
+
+// TestFakeFilterTriggerFrom checks the trigger is read through the lookup
+// both copies pass (env.Get compiled in, the process environment in the
+// binary): every key reaches its field, an unset key leaves the field at "do
+// nothing", and a malformed number or boolean is refused rather than read as
+// zero.
+func TestFakeFilterTriggerFrom(t *testing.T) {
+	values := map[string]string{
+		EnvRejectPrefix: "10.99.0.0/24",
+		EnvStopAfter:    "3",
+		EnvStoppedFile:  "stopped",
+		EnvRestart:      "true",
+		EnvRespawnFile:  "respawned",
+	}
+	tr, err := TriggerFrom(func(key string) string { return values[key] })
+	if err != nil {
+		t.Fatalf("TriggerFrom: %v", err)
+	}
+	want := Trigger{RejectPrefix: "10.99.0.0/24", StopAfter: 3, StoppedFile: "stopped", Restart: true, RespawnedFile: "respawned"}
+	if tr != want {
+		t.Fatalf("TriggerFrom = %+v, want %+v", tr, want)
+	}
+
+	unset, err := TriggerFrom(func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("TriggerFrom with nothing set: %v", err)
+	}
+	if unset != (Trigger{}) {
+		t.Fatalf("TriggerFrom with nothing set = %+v, want the zero trigger", unset)
+	}
+
+	for _, key := range []string{EnvStopAfter, EnvRestart} {
+		bad := func(k string) string {
+			if k == key {
+				return "x"
+			}
+			return ""
+		}
+		if _, err := TriggerFrom(bad); err == nil {
+			t.Errorf("TriggerFrom accepted %s=x", key)
+		}
 	}
 }

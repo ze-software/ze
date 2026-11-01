@@ -1,5 +1,6 @@
 // Design: docs/plugin-development/handlers.md -- route filters, the one evaluator both transports call
-// Related: register.go -- the compiled-in registration and the stop trigger's env keys
+// Related: compiledin/register.go -- the compiled-in registration of this plugin
+// Related: cmd/ze-fakefilter/main.go -- the same plugin built as its own binary
 //
 // Package fakefilter is a test-only filter plugin written against the public
 // SDK alone, as a third party's Go filter compiled into the tree would be
@@ -8,7 +9,8 @@
 // carrying the one prefix a test names and accepts every other, and logs each
 // prefix it judged with the transport that carried it. Run internal it is
 // called through the typed DirectBridge slot; run forked (`ze plugin
-// fakefilter`) it answers the batched filter-update message. Both come from
+// fakefilter`, or the ze-fakefilter binary that links this package and the
+// SDK alone) it answers the batched filter-update message. Both come from
 // the one sdk.OnFilter registration.
 //
 // It carries a stop trigger for AC-33: told to stop after N routes, it
@@ -32,6 +34,7 @@ import (
 	"net"
 	"os"
 	"slices"
+	"strconv"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -53,12 +56,12 @@ const (
 	transportBatch = "batch"
 )
 
-// filterDecls is the plugin's one filter declaration. It has two readers and
-// MUST stay one function: register.go puts it on registry.Registration.Filters,
-// which config load reads before any plugin runs, and run sends it in the
+// FilterDecls is the plugin's one filter declaration. It has two readers and
+// MUST stay one function: compiledin puts it on registry.Registration.Filters,
+// which config load reads before any plugin runs, and Run sends it in the
 // Stage 1 registration, which the daemon judges the chain against. On-error is
 // reject, so a route the plugin cannot judge, or meets stopped, fails closed.
-func filterDecls() []sdk.FilterDecl {
+func FilterDecls() []sdk.FilterDecl {
 	return []sdk.FilterDecl{{
 		Name:      FilterName,
 		Direction: sdk.FilterImport,
@@ -95,8 +98,8 @@ type judge struct {
 	report func(judgement)
 }
 
-func newJudge(tr trigger, stop func(), report func(judgement)) *judge {
-	return &judge{rejectPrefix: tr.rejectPrefix, stopAfter: tr.stopAfter, generation: tr.generation,
+func newJudge(tr Trigger, stop func(), report func(judgement)) *judge {
+	return &judge{rejectPrefix: tr.RejectPrefix, stopAfter: tr.StopAfter, generation: tr.generation,
 		stop: stop, report: report}
 }
 
@@ -155,18 +158,57 @@ func routeCarries(fields *routeFields, prefix string) bool {
 	return false
 }
 
-// trigger is what a test asks of the plugin: reject the routes that carry
-// rejectPrefix ("" none), stop after stopAfter routes (0 never), and create
-// stoppedFile ("" none) once the plugin is closed.
-type trigger struct {
-	rejectPrefix string
-	stopAfter    int64
-	stoppedFile  string
-	// restart declares the restart failure policy, so ze starts the plugin
-	// again once it stops; respawnedFile ("" none) is created once that second
+// The trigger's keys, in their dotted spelling. A forked copy is started
+// through `sh -c`, which drops a variable whose name is not a shell
+// identifier, so a test sets the underscore spelling
+// (ze_fakefilter_reject_prefix); no key holds a hyphen, which has no such
+// spelling.
+const (
+	EnvRejectPrefix = "ze.fakefilter.reject.prefix"
+	EnvStopAfter    = "ze.fakefilter.stop.after"
+	EnvStoppedFile  = "ze.fakefilter.stopped.file"
+	EnvRestart      = "ze.fakefilter.restart"
+	EnvRespawnFile  = "ze.fakefilter.respawned.file"
+)
+
+// TriggerFrom reads the trigger through lookup, which answers a key's value
+// or "" when it is unset: the compiled-in copy passes ze's env.Get, the
+// binary reads its own environment. A malformed number or boolean is refused.
+func TriggerFrom(lookup func(key string) string) (Trigger, error) {
+	tr := Trigger{
+		RejectPrefix:  lookup(EnvRejectPrefix),
+		StoppedFile:   lookup(EnvStoppedFile),
+		RespawnedFile: lookup(EnvRespawnFile),
+	}
+	if value := lookup(EnvStopAfter); value != "" {
+		stopAfter, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return Trigger{}, fmt.Errorf("%s %q is not a whole number: %w", EnvStopAfter, value, err)
+		}
+		tr.StopAfter = stopAfter
+	}
+	if value := lookup(EnvRestart); value != "" {
+		restart, err := strconv.ParseBool(value)
+		if err != nil {
+			return Trigger{}, fmt.Errorf("%s %q is not true or false: %w", EnvRestart, value, err)
+		}
+		tr.Restart = restart
+	}
+	return tr, nil
+}
+
+// Trigger is what a test asks of the plugin: reject the routes that carry
+// RejectPrefix ("" none), stop after StopAfter routes (0 never), and create
+// StoppedFile ("" none) once the plugin is closed.
+type Trigger struct {
+	RejectPrefix string
+	StopAfter    int64
+	StoppedFile  string
+	// Restart declares the restart failure policy, so ze starts the plugin
+	// again once it stops; RespawnedFile ("" none) is created once that second
 	// generation's startup is done.
-	restart       bool
-	respawnedFile string
+	Restart       bool
+	RespawnedFile string
 	// generation is set by startGeneration, never by the environment.
 	generation int
 }
@@ -174,34 +216,34 @@ type trigger struct {
 // startGeneration answers the trigger this run obeys. A run that finds the
 // stopped file is the generation ze started again after the stop: it never
 // stops, so the test sees one stop and one respawn, not a respawn loop.
-func startGeneration(tr trigger) trigger {
+func startGeneration(tr Trigger) Trigger {
 	tr.generation = 1
-	if tr.stoppedFile == "" {
+	if tr.StoppedFile == "" {
 		return tr
 	}
-	if _, err := os.Stat(tr.stoppedFile); err != nil {
+	if _, err := os.Stat(tr.StoppedFile); err != nil {
 		return tr
 	}
 	tr.generation = 2
-	tr.stopAfter = 0
+	tr.StopAfter = 0
 	return tr
 }
 
-// registration is what the plugin declares at Stage 1: its filter, and the
+// Registration is what the plugin declares at Stage 1: its filter, and the
 // restart failure policy when the test asks for it.
-func registration(tr trigger) *sdk.Registration {
-	reg := &sdk.Registration{Filters: filterDecls()}
-	if tr.restart {
+func Registration(tr Trigger) *sdk.Registration {
+	reg := &sdk.Registration{Filters: FilterDecls()}
+	if tr.Restart {
 		reg.FailurePolicy = sdk.FailureRestart
 	}
 	return reg
 }
 
-// run is the plugin's engine, over the connection the daemon gives it
-// (internal) or the TLS connect-back (forked). It returns the exit code.
-func run(conn net.Conn, tr trigger, log *slog.Logger) int {
+// Run is the plugin's engine over p, built on the connection the daemon gives
+// it (internal, sdk.NewWithConn) or on the TLS connect-back (forked,
+// sdk.NewFromTLSEnv). It returns the exit code.
+func Run(p *sdk.Plugin, tr Trigger, log *slog.Logger) int {
 	tr = startGeneration(tr)
-	p := sdk.NewWithConn(Name, conn)
 
 	signalled, cancelSignals := sdk.SignalContext()
 	defer cancelSignals()
@@ -213,16 +255,16 @@ func run(conn net.Conn, tr trigger, log *slog.Logger) int {
 			"transport", j.transport, "verdict", j.verdict)
 	}
 	p.OnFilter(newJudge(tr, stop, report).evaluate)
-	if tr.generation == 2 && tr.respawnedFile != "" {
+	if tr.generation == 2 && tr.RespawnedFile != "" {
 		p.OnStarted(func(context.Context) error {
 			log.Info("fakefilter started again", "generation", tr.generation)
-			return os.WriteFile(tr.respawnedFile, nil, 0o600)
+			return os.WriteFile(tr.RespawnedFile, nil, 0o600)
 		})
 	}
-	runErr := p.Run(ctx, registration(tr))
+	runErr := p.Run(ctx, Registration(tr))
 	// Only the first generation stops, so only it creates the stopped file.
 	if tr.generation != 1 {
-		tr.stoppedFile = ""
+		tr.StoppedFile = ""
 	}
 	// Closed before the stopped file exists: once it does, the bridge slot
 	// answers ErrBridgeClosed, which a test holding on the file relies on.
@@ -234,11 +276,11 @@ func run(conn net.Conn, tr trigger, log *slog.Logger) int {
 		closeErr = nil
 	}
 	if ctx.Err() != nil {
-		log.Info("fakefilter stopped", "stop-after", tr.stopAfter)
+		log.Info("fakefilter stopped", "stop-after", tr.StopAfter)
 	}
-	if tr.stoppedFile != "" {
-		if err := os.WriteFile(tr.stoppedFile, nil, 0o600); err != nil {
-			log.Error("fakefilter: create the stopped file", "path", tr.stoppedFile, "error", err)
+	if tr.StoppedFile != "" {
+		if err := os.WriteFile(tr.StoppedFile, nil, 0o600); err != nil {
+			log.Error("fakefilter: create the stopped file", "path", tr.StoppedFile, "error", err)
 			return 1
 		}
 	}
