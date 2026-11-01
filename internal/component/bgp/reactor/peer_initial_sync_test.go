@@ -1026,3 +1026,42 @@ func TestDefaultOriginateFilterReadsDeclaredFields(t *testing.T) {
 		t.Fatalf("fields = %s, want %s", got, want)
 	}
 }
+
+// stubLibraryChain stands for a compiled library chain the default-originate
+// condition must not inherit: the condition runs its one filter alone.
+type stubLibraryChain struct{}
+
+func (stubLibraryChain) Refused() uint64 { return 0 }
+
+// TestDefaultOriginateConditionRunsBesideALibraryChain proves the named
+// condition filter is called when the peer's export chain carries a library
+// chain. The condition policy is derived from the export policy for its
+// final (Policy.WithFilters keeps the library chain), and PolicyFilterChain
+// runs every active ref it holds without asking ActiveExternal, which a
+// library chain turns false: reading it there would skip the condition and
+// send the default route ungated.
+func TestDefaultOriginateConditionRunsBesideALibraryChain(t *testing.T) {
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65000, 65001, 1)
+	settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept).WithLibrary(stubLibraryChain{})
+	peer := NewPeer(settings)
+	transport := &fieldsTransport{reads: map[string][]string{"guard": {"prefix"}}}
+	peer.reactor = &Reactor{api: liveFilterServer(t), filterTransportSeam: transport}
+
+	prefix, nextHop := netip.MustParsePrefix("0.0.0.0/0"), netip.MustParseAddr("192.0.2.254")
+	ub := message.GetUpdateBuilder(65000, false, true, false)
+	defer message.PutUpdateBuilder(ub)
+	update, err := ub.BuildUnicast(&message.UnicastParams{Prefix: prefix, NextHop: nextHop, Origin: attribute.OriginIGP})
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	sendCtxID, err := bgpctx.Registry.Register(bgpctx.NewEncodingContext(
+		&capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001},
+		&capability.EncodingCaps{ASN4: true}, bgpctx.DirectionSend))
+	if err != nil {
+		t.Fatalf("register context: %v", err)
+	}
+	peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, prefix, nextHop, defaultRouteWire(update, sendCtxID))
+	if len(transport.sent) != 1 {
+		t.Fatalf("the condition filter was called %d times, want 1", len(transport.sent))
+	}
+}

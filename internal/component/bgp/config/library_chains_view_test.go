@@ -24,8 +24,7 @@ func init() {
 // alone compiles to the library chain when one of them names a type whose
 // plugin answers over the view (D-12): the text chain then runs none of its
 // refs, and the library chain calls the plugin by its plugin and filter name
-// with the fields it declared. Without the registration the same chain keeps
-// the text chain (TestLibraryChainAtPeerLoad, the plugin-only case).
+// with the fields it declared.
 func TestViewFilterChainCompilesToLibrary(t *testing.T) {
 	reg, err := policy.NewRegistry(policy.Instance{Name: "pref", Type: viewTestType})
 	if err != nil {

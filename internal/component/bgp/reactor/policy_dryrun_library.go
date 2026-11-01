@@ -36,9 +36,9 @@ type libraryDryRun struct {
 // that member (libraryTraceText).
 func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryDryRun, textBefore string) (PolicyChainResult, []plugin.PolicyTraceEntry) {
 	var trace []plugin.PolicyTraceEntry
-	record := func(step policychain.MemberTrace) {
+	record := func(step policychain.MemberTrace, running *libraryText) {
 		entry := libraryTraceEntry(step)
-		text, err := r.libraryTraceText(step, dry, textBefore)
+		text, err := r.libraryTraceText(step, running, dry, textBefore)
 		entry.TextAfter = text
 		if err != nil && entry.Error == "" {
 			entry.Error = err.Error()
@@ -77,7 +77,9 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryD
 // the chain's result takes; after a member that rejected no text, as the text
 // path's rejecting entry. Display only: it allocates the rendered text. An
 // error says why the sets so far cannot be rendered, and the text is empty.
-func (r *Reactor) libraryTraceText(step policychain.MemberTrace, dry libraryDryRun, textBefore string) (string, error) {
+//
+// running is the run's text as the text members up to step left it.
+func (r *Reactor) libraryTraceText(step policychain.MemberTrace, running *libraryText, dry libraryDryRun, textBefore string) (string, error) {
 	switch step.Step {
 	case policychain.TraceReject, policychain.TraceFailClosed:
 		return "", nil
@@ -90,10 +92,10 @@ func (r *Reactor) libraryTraceText(step policychain.MemberTrace, dry libraryDryR
 	if err != nil {
 		return "", errors.Join(errTraceRender, err)
 	}
-	if folded.Empty() {
+	if folded.Empty() && !running.changed() {
 		return textBefore, nil
 	}
-	rewrite := r.rewriteLibrary(&mods, folded, dry.wireUpdate, dry.payload, dry.intent)
+	rewrite := r.rewriteLibrary(&mods, folded, running, dry.wireUpdate, dry.payload, dry.intent)
 	if rewrite.nlriRefused {
 		return "", errors.New("the NLRI changes up to this filter cannot be applied: " + rewrite.refusal.reason)
 	}

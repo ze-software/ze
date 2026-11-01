@@ -864,7 +864,7 @@ of rejecting every route at run time with "cannot extract ASN".
 | `trackVerdict`, `readmitter.track` | `filter_irr.go`, `readmit.go` | fed from the view's prefixes; `heldKey.family` keeps the family name the refresh command takes |
 | `rpc.FilterUpdateTimeout` comment | `pkg/plugin/rpc/types.go` | the sentence "a plugin that waits inside its handler MUST bound that wait below this value" loses its one in-tree user; rewritten for the batch bound (D-3) |
 | registration | `register.go`, `runFilterIRR` | the name-pattern declaration (D-10) in both `registry.Registration` and `sdk.Registration`, which must agree |
-5. **Phase 5: Delete the text machinery** (`spec-filter-wire-5-delete`) - AC-8; the protocol pages rewritten in the same commit; every interop scenario in the table run with recorded reds.
+5. **Phase 5: Delete the text machinery** (`spec-filter-wire-5-delete`) - AC-8; the protocol pages rewritten in the same commit; every interop scenario in the table run with recorded reds. It deletes the transitional text member of the library chain with it: `internal/component/bgp/policychain/external_text.go` (`TextCaller`, `judgeText`), `internal/component/bgp/reactor/filter_library_text.go` (`libraryText`, `textDeltaOps`), `ExternalRoute.Text`, and the text branch of `rewriteLibrary`.
 6. **Throughput harness** (inside `spec-filter-wire-3-chain`, which introduces the batch bound it measures) - FR-7 and AC-17; the text-path benchmarks named in `## Relationship to Other Specs` give Thomas the before figure, and he runs it on his Mac.
 
 ### Critical Review Checklist

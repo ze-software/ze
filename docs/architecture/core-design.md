@@ -1613,14 +1613,18 @@ its decision line (`policychain.MustAddMatchReporter`, `match_report.go`): the
 line its own filter writes, on its logger and at its level, written once per
 member decision after the walk, never in a display-only `Chain.Trace` run. A
 live run asks each report's `Enabled` first and collects the judged prefixes
-only when some line is on, so with every line off the walk allocates nothing. `compileLibraryChain` leaves a
-chain with no library member on the text chain, where a plugin filter is sent the update
-text beside its declared `fields`, unless the chain names a filter type whose plugin
-answers over the route view: its plugin registered the type with
-`policychain.MustRegisterViewFilter` because it answers sets and intents, which only
-the library chain applies, so the chain compiles to the library chain with every plugin
-filter an external member. A plugin filter in a chain that does hold a
-library member joins that chain as a member (below).
+only when some line is on, so with every line off the walk allocates nothing. `compileLibraryChain` compiles
+every BGP import and export chain that holds a member to the library chain, plugin
+filters alone included: the text chain ignores sets, so a plugin filter answering sets
+or intents there would be silently ignored. Each plugin filter is an external member of
+that chain (below). One that declares no reads still answers the update text: until the
+text machinery is deleted (phase 5, AC-8) the chain serves it through
+`policychain.TextCaller`, which the reactor's `libraryText` implements with the text
+chain's own pieces (the rendering, `policyFilterFunc`, `applyFilterDelta`), and
+`rewriteLibrary` applies its delta through `textDeltaOps`, the extractors the text
+chain's steps share. A text member reads no earlier member's sets and writes none a
+later member reads; a text delta and NLRI sets that both rewrite the NLRI are refused.
+`policychain.MustRegisterViewFilter` no longer decides the compilation.
 
 - **Wired at peer load and on both policy steps.** `bgpServesFilterType`
   admits a type with an evaluator (`policychain.HasEvaluator`) at `bgp import`
@@ -1780,6 +1784,8 @@ library member joins that chain as a member (below).
 <!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, libraryASPathOps, libraryNLRIOps -->
 <!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChains, compileLibraryChain, parseAttributeBases -->
 <!-- source: internal/component/bgp/policychain/plugin_filters.go -- MustRegisterViewFilter, AnswersOverView -->
+<!-- source: internal/component/bgp/policychain/external_text.go -- TextCaller, judgeText -->
+<!-- source: internal/component/bgp/reactor/filter_library_text.go -- libraryText, textDeltaOps -->
 <!-- source: internal/component/bgp/policychain/external.go -- judgeExternal, applyExternalSets -->
 <!-- source: internal/component/bgp/reactor/filter_library.go -- libraryCaller -->
 <!-- source: internal/component/policy/fields.go -- InstanceSets -->

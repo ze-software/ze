@@ -30,8 +30,10 @@ func init() {
 
 // TestLibraryChainAtPeerLoad proves the config half of the 3a wiring: a BGP
 // chain may name a type with an in-process evaluator (bgpServesFilterType),
-// its policy then carries the compiled library chain, a chain naming no such
-// type carries none, and a chain mixing a library member with a plugin filter
+// its policy then carries the compiled library chain, a chain of plugin
+// filters alone carries one too (every BGP chain runs as the library chain,
+// spec filter-wire-0 Data Flow step 2), a chain with no member carries none,
+// and a chain mixing a library member with a plugin filter
 // compiles into one library chain that holds both, in chain order (FR-1,
 // D-12): run, it calls the plugin filter by its plugin and filter name after
 // the library member, which it reads the set of.
@@ -64,15 +66,26 @@ func TestLibraryChainAtPeerLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, err := compileLibraryChain(plain, reg, policychain.Bases{}, "bgp import", "ctx"); err != nil || got.Library() != nil {
-		t.Fatalf("a plugin-only chain = library %v, err %v; want none and no error", got.Library(), err)
+	got, err := compileLibraryChain(plain, reg, policychain.Bases{}, "bgp import", "ctx")
+	if err != nil || got.Library() == nil {
+		t.Fatalf("a plugin-only chain = library %v, err %v; want a library chain and no error", got.Library(), err)
+	}
+	if got.ActiveExternal(0) {
+		t.Fatal("a plugin-only chain still reaches its filter over the text chain")
+	}
+	empty, err := filterapi.NewPolicy(nil, policy.FinalAccept)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := compileLibraryChain(empty, reg, policychain.Bases{}, "bgp import", "ctx"); err != nil || got.Library() != nil {
+		t.Fatalf("a chain with no member = library %v, err %v; want none and no error", got.Library(), err)
 	}
 
 	mixed, err := filterapi.NewPolicy([]policy.Ref{{Name: "lp"}, {Name: "ext:other"}}, policy.FinalAccept)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := compileLibraryChain(mixed, reg, policychain.Bases{}, "bgp import", "peer p import filters")
+	got, err = compileLibraryChain(mixed, reg, policychain.Bases{}, "bgp import", "peer p import filters")
 	if err != nil {
 		t.Fatalf("a chain mixing a library member and a plugin filter was refused: %v", err)
 	}

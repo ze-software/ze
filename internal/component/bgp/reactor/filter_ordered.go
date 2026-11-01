@@ -245,24 +245,9 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, wireUpd
 		values := acquireValueScratch()
 		defer releaseValueScratch(values)
 
-		// The two parses write into storage this block owns, so the structs
-		// live on its stack rather than on the heap.
-		var origAttrs, modAttrs filterAttrs
-		parseFilterAttrsInto(&origAttrs, updateText)
-		parseFilterAttrsInto(&modAttrs, res.Text)
-		textDeltaToModOps(values, &origAttrs, &modAttrs, &importMods)
 		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
-		srcASN4 := srcCtx != nil && srcCtx.ASN4()
-		ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, srcASN4, peerAS, &importMods)
-		ExtractASPathPrependOps(values, &modAttrs, attrsWire, srcASN4, localAS, &importMods)
-		// RFC 4271 Section 5.1.4's configured removal, and the ONLY site that
-		// converts the directive. The rewritten payload below replaces the
-		// WireUpdate before the RIB plugin runs Decision Process phases 1 and 2,
-		// which is the ordering that section requires of a removal.
-		if medRemoveHasWork(&modAttrs) {
-			ExtractMEDRemoveOps(&modAttrs, &importMods)
-		}
-		nlriOverride, refusal, ok := sectionNLRIDelta(values, updateText, res.Text, wireUpdate, &importMods)
+		intent := libraryIntentContext{asn4: srcCtx != nil && srcCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: true}
+		nlriOverride, refusal, ok := textDeltaOps(values, updateText, res.Text, wireUpdate, intent, true, &importMods)
 		if !ok {
 			// A guard MISS, not an accept: the answer drops NLRI the engine
 			// cannot drop for it, so accepting would install the very
@@ -342,6 +327,11 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 		return egressStepResult{accept: exportPolicy.AcceptsAtEnd(!destInternal)}
 	}
 	if library := exportPolicy.Library(); library != nil {
+		// A ref only the ingress pass can run fails the export chain, as
+		// PolicyFilterChain refuses it.
+		if exportPolicy.RequiresIngress() {
+			return egressStepResult{failed: true} // accept == false: suppress for this peer
+		}
 		// External members reach their plugin as on the import step.
 		intent := libraryIntentContext{asn4: asn4, localAS: destLocalAS, peerAS: destPeerAS, asPathEditable: !destInternal}
 		res := r.runLibraryChain(library, wireUpdate, wireUpdate.Payload(), policyview.Session{EBGP: !destInternal}, intent,
@@ -409,12 +399,6 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 		values := acquireValueScratch()
 		defer releaseValueScratch(values)
 
-		// Parse each filter text exactly once; the three extractors share the
-		// parsed attributes read-only (spec filter-delta-parse-once).
-		var origAttrs, modAttrs filterAttrs
-		parseFilterAttrsInto(&origAttrs, updateText)
-		parseFilterAttrsInto(&modAttrs, res.Text)
-		textDeltaToModOps(values, &origAttrs, &modAttrs, &exportMods)
 		// RFC 4271 Section 5.1.2: "When a given BGP speaker advertises the
 		// route to an internal peer, the advertising speaker SHALL NOT modify
 		// the AS_PATH attribute associated with the route." The two export
@@ -424,14 +408,8 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 		// session's own verdict (isIBGPWith, session_as_migration.go), not a
 		// peer AS = local AS equality: RFC 7705 Section 4.2 makes a session
 		// whose peer AS is the configured migration AS internal too.
-		if destInternal {
-			fwdLogger().Debug("export AS_PATH edits not applied toward an internal peer (RFC 4271 Section 5.1.2)",
-				"peer", destAddrStr)
-		} else {
-			ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, asn4, destPeerAS, &exportMods)
-			ExtractASPathPrependOps(values, &modAttrs, attrsWire, asn4, destLocalAS, &exportMods)
-		}
-		nlriOverride, refusal, ok := sectionNLRIDelta(values, updateText, res.Text, wireUpdate, &exportMods)
+		intent := libraryIntentContext{asn4: asn4, localAS: destLocalAS, peerAS: destPeerAS, asPathEditable: !destInternal}
+		nlriOverride, refusal, ok := textDeltaOps(values, updateText, res.Text, wireUpdate, intent, false, &exportMods)
 		if !ok {
 			// A guard MISS, not a policy decision: sending the route would
 			// advertise the prefixes the export policy refused.

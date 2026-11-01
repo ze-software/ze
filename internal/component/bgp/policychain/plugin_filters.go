@@ -8,10 +8,10 @@ import "sync"
 
 // viewFilters holds the filter types whose plugin answers over the route
 // view (D-12): it declares the fields it reads, answers sets and named
-// intents, and never reads or writes the text update. Only the library chain
-// applies sets, so a BGP chain naming one of these types compiles to the
-// library chain even when no member evaluates in process; its plugin is then
-// an external member of that chain (judgeExternal).
+// intents, and never reads or writes the text update. Every BGP chain now
+// compiles to the library chain (bgp/config compileLibraryChain), so the
+// registration no longer decides the compilation; it is deleted once the
+// plugins that call it (filter_family, filter_remove_private_as) stop.
 var viewFilters = struct {
 	mu    sync.RWMutex
 	types map[string]struct{}

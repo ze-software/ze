@@ -39,17 +39,19 @@ func compileLibraryChains(settings []*reactor.PeerSettings, reg *policy.Registry
 }
 
 // compileLibraryChain answers p with its library chain, p itself when the
-// chain names neither a library member nor a filter type whose plugin answers
-// over the route view (policychain.AnswersOverView). A plugin filter in the
-// same chain becomes an
-// external member of the library chain, in chain order: it is sent the
-// fields it declared through the chain's view, so it reads what an earlier
-// member set, and its sets fold beside theirs (policychain external.go). The
-// reference splits at its colon into plugin and filter, as the text chain
-// splits it (PolicyFilterChain).
+// chain holds no member the chain runs (none, or only inactive refs and
+// compiled-in stage filters). Every BGP import and export chain runs as the
+// library chain (spec filter-wire-0 Data Flow step 2): the text chain
+// ignores sets, so a plugin filter answering sets or intents there would be
+// silently ignored. A plugin filter becomes an external member of the
+// library chain, in chain order: it is sent the fields it declared through
+// the chain's view, so it reads what an earlier member set, and its sets fold
+// beside theirs (policychain external.go); one that declared no reads is
+// served the text update (policychain external_text.go, transitional until
+// phase 5). The reference splits at its colon into plugin and filter, as the
+// text chain splits it (PolicyFilterChain).
 func compileLibraryChain(p filterapi.Policy, reg *policy.Registry, bases policychain.Bases, attachment, context string) (filterapi.Policy, error) {
 	var members []policychain.Member
-	library := false
 	for i, ref := range p.Filters() {
 		if ref.Inactive {
 			continue
@@ -60,16 +62,12 @@ func compileLibraryChain(p filterapi.Policy, reg *policy.Registry, bases policyc
 		entry, ok := reg.Lookup(filterInstanceName(ref.Name))
 		if ok && policychain.HasEvaluator(entry.Type) {
 			members = append(members, policychain.Member{Name: entry.Name})
-			library = true
 			continue
-		}
-		if ok && policychain.AnswersOverView(entry.Type) {
-			library = true // its sets apply only on the library chain
 		}
 		pluginName, filterName, _ := strings.Cut(ref.Name, ":")
 		members = append(members, policychain.Member{Name: filterName, Plugin: pluginName})
 	}
-	if !library {
+	if len(members) == 0 {
 		return p, nil
 	}
 	chain, err := policychain.Compile(attachment, reg, members, p.Final(), bases)

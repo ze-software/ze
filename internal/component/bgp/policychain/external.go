@@ -38,7 +38,7 @@ type Member struct {
 type ExternalDeclaration struct {
 	// Reads holds vocabulary field names, and rpc.FilterFieldRaw for the raw
 	// UPDATE body. A filter that declares none reads the text update, which
-	// this chain does not send.
+	// the route's TextCaller sends it (external_text.go, transitional).
 	Reads []string
 	// Sets holds the vocabulary fields the filter may set.
 	Sets    []string
@@ -71,6 +71,9 @@ type ExternalRoute struct {
 	Peer      string
 	PeerAS    uint32
 	Raw       []byte
+	// Text serves a member that declared no reads (external_text.go); nil
+	// fails such a member.
+	Text TextCaller
 }
 
 // externalMember is the plugin side of a member.
@@ -84,9 +87,7 @@ type externalMember struct {
 const fieldsOctets = 512
 
 var (
-	errExternalUndeclared = errors.New("the plugin declares no such filter: it has not started, or it stopped")
-	errExternalTextUpdate = errors.New("the filter declares no reads, so it reads the text update, " +
-		"which a chain holding in-process members does not send; declare the fields it reads")
+	errExternalUndeclared   = errors.New("the plugin declares no such filter: it has not started, or it stopped")
 	errExternalAnsweredText = errors.New("the filter answered a text update; a chain holding in-process members " +
 		"applies only sets")
 	errExternalRawUndeclared = errors.New("the filter answered a raw rewrite but does not declare it reads raw")
@@ -120,11 +121,21 @@ func (c *Chain) judgeExternal(m *member, view *policyview.View, run *RunSets) (e
 		return externalVerdict{}, rpc.OnErrorReject, errors.New("no plugin server reaches the filter")
 	}
 	decl, ok := route.Caller.FilterDeclaration(m.external.plugin, m.external.filter)
+	if !ok && route.Text != nil {
+		// TRANSITIONAL (phase 5, AC-8): a text-era plugin that declares no
+		// filter at Stage 1 (bgp-filter-modify) was called on the text chain
+		// regardless, its on-error deciding a failure; serve it the same way.
+		verdict, err := judgeText(m, route)
+		return verdict, rpc.OnErrorReject, err
+	}
 	if !ok {
 		return externalVerdict{}, rpc.OnErrorReject, errExternalUndeclared
 	}
 	if len(decl.Reads) == 0 {
-		return externalVerdict{}, decl.OnError, errExternalTextUpdate
+		// TRANSITIONAL (phase 5, AC-8): a text-era filter (external_text.go).
+		// The reactor applied its on-error already, so a failure rejects.
+		verdict, err := judgeText(m, route)
+		return verdict, rpc.OnErrorReject, err
 	}
 	header := rpc.FilterUpdateInput{
 		Filter:    m.external.filter,
