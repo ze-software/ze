@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -63,22 +64,60 @@ type attachment struct {
 // in the config document (configjson.ForEachPeer), so the template is the only
 // thing there is to count, and reporting zero for a listen-range group would say
 // the list is attached to nothing.
-func countAttachments(bgpCfg map[string]any) map[string]attachment {
+//
+// A chain naming a match instance whose reject-asn condition names a list
+// reaches that list as surely as a chain naming it, so it counts for the list
+// (matchLists); a peer reaching one list both ways counts once.
+func countAttachments(policyCfg, bgpCfg map[string]any) map[string]attachment {
 	counts := make(map[string]attachment)
+	lists := matchLists(policyCfg)
 
 	configjson.ForEachPeer(bgpCfg, func(_ string, peerMap, groupMap map[string]any, _ configjson.PeerOrigin) {
-		for name := range chainNames(directionImport, bgpCfg, groupMap, peerMap) {
+		for name := range chainLists(lists, chainNames(directionImport, bgpCfg, groupMap, peerMap)) {
 			entry := counts[name]
 			entry.importPeers++
 			counts[name] = entry
 		}
-		for name := range chainNames(directionExport, bgpCfg, groupMap, peerMap) {
+		for name := range chainLists(lists, chainNames(directionExport, bgpCfg, groupMap, peerMap)) {
 			entry := counts[name]
 			entry.exportPeers++
 			counts[name] = entry
 		}
 	})
 	return counts
+}
+
+// matchLists maps each match instance whose reject-asn condition names a list
+// to that list's name.
+func matchLists(policyCfg map[string]any) map[string]string {
+	lists := make(map[string]string)
+	matches, ok := policyCfg[policy.MatchFilterType].(map[string]any)
+	if !ok {
+		return lists
+	}
+	for name, body := range matches {
+		instance, ok := body.(map[string]any)
+		if !ok {
+			continue
+		}
+		if list, ok := instance[filterTypeName].(string); ok {
+			lists[name] = list
+		}
+	}
+	return lists
+}
+
+// chainLists maps a chain's instance names through lists, so a match instance
+// stands for the list its condition names. It is a set, as chainNames is.
+func chainLists(lists map[string]string, names map[string]bool) map[string]bool {
+	out := make(map[string]bool, len(names))
+	for name := range names {
+		if list, ok := lists[name]; ok {
+			name = list
+		}
+		out[name] = true
+	}
+	return out
 }
 
 // chainNames returns the instance names one direction's chain holds, over every

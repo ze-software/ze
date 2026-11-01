@@ -16,7 +16,7 @@ AS_PATH carries one of them is dropped and the session stays up.
 <!-- source: internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang -- the config schema -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/curated.go -- curatedNetwork, curatedTransitFree, curatedLookup -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/register_completion.go -- curatedASNValues, curatedASNHelp -->
-<!-- source: internal/component/bgp/plugins/filter_path_asn/command.go -- handleCommand, showRejectASN, showRejectASNName, showKnownTransitFree, countAttachments -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/command.go -- handleCommand, showRejectASN, showRejectASNName, showKnownTransitFree, countAttachments, matchLists -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/register_command.go -- the wire methods, the forwarders and the pipe shapes -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject, rejectSlot -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang -- the command tree -->
@@ -341,7 +341,9 @@ about that ASN, and an invented network name would be an input to it.
 chain names refuses nothing while reading like a safety filter, which is the
 failure the parse already refuses for an empty list. The parse cannot see peers,
 so `countAttachments` reads the chains at every config level, through all three
-spellings of a reference, and the count surfaces it.
+spellings of a reference, and the count surfaces it. A chain naming a match
+instance whose `reject-asn` condition names the list counts for the list too
+(`matchLists`), and a peer reaching one list both ways counts once.
 
 **`known transit-free` is the only route the well-known set takes into a
 config.** Ze acts on no ASN it was not configured with, so the authoring aid is

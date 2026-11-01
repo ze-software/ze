@@ -384,7 +384,7 @@ func TestAttachmentCountsPreserveFinalOnlyPolicies(t *testing.T) {
 			"export": map[string]any{"filters": []string{"NO-TRANSIT"}, "final": "reject"},
 		},
 	}}}
-	counts := countAttachments(cfg)
+	counts := countAttachments(nil, cfg)
 	if len(counts) != 1 {
 		t.Fatalf("attachment names = %+v, want only NO-TRANSIT", counts)
 	}
@@ -437,5 +437,35 @@ func TestShowCountsDynamicTemplateAttachments(t *testing.T) {
 	}
 	if got := unused["export-peers"]; got != float64(0) {
 		t.Errorf("unused export attachments = %v, want zero", got)
+	}
+}
+
+// TestShowCountsMatchConditionAttachments proves a chain naming a match
+// instance whose reject-asn condition names a list counts as an attachment of
+// that list, as a chain naming the list does: the match is how a chain now
+// reaches the list. Method: real config through configure, read back through
+// the show command. A peer naming the list both ways counts once.
+func TestShowCountsMatchConditionAttachments(t *testing.T) {
+	held := installedRejectASN.Load()
+	t.Cleanup(func() { installedRejectASN.Store(held) })
+	err := configure([]sdk.ConfigSection{{Root: policy.RootName, Data: `{"policy":{
+		"reject-asn":{"USED":{"anywhere":["6939"]}},
+		"match":{"guard-used":{"reject-asn":"USED"}}
+	}}`}, {Root: configRootBGP, Data: `{"bgp":{"peer":{
+		"a":{"connection":{"remote":{"ip":"198.51.100.1"}},
+			"filter":{"import":{"filters":["guard-used"],"final":"accept"}}},
+		"b":{"connection":{"remote":{"ip":"198.51.100.2"}},
+			"filter":{"import":{"filters":["guard-used","USED"],"final":"accept"},
+				"export":{"filters":["inactive:guard-used"],"final":"accept"}}}
+	}}}`}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	used := listNamed(t, answerOf(t, cmdShowRejectASN), "USED")
+	if got := used["import-peers"]; got != float64(2) {
+		t.Errorf("import attachments = %v, want both peers, b once", got)
+	}
+	if got := used["export-peers"]; got != float64(1) {
+		t.Errorf("export attachments = %v, want peer b", got)
 	}
 }
