@@ -168,10 +168,10 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
         grid-template-areas:
-            "title title"
-            "copy actions";
+            "title actions"
+            "copy copy";
         gap: var(--space-2) var(--space-5);
-        align-items: end;
+        align-items: center;
         margin-bottom: var(--space-4);
     }
 
@@ -1376,8 +1376,7 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .site-home .capability-footer { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.82rem; font-weight: 800; }
 .site-home .capability-note { color: var(--muted); font-size: 0.88rem; }
 .site-home .home-proof-block { margin: 0; padding: 3rem clamp(1rem, 3vw, 2.5rem); background: var(--brand-section-gradient); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; }
-.site-home .home-proof-head { display: flex; justify-content: space-between; align-items: start; gap: 2.5rem; margin-bottom: 1.5rem; }
-.site-home .home-proof-head > div:first-child { display: block; flex: 1; }
+.site-home .home-proof-head { gap: 1rem 2.5rem; margin-bottom: 1.5rem; }
 .site-home .home-proof-head h2 { white-space: normal; }
 .site-home .home-proof-head p { font-size: 0.9rem; font-weight: 400; }
 .site-home .proof-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; background: var(--panel); }
