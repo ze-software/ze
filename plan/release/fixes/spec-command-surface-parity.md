@@ -2,17 +2,19 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Priority | P1 |
 | Release reason | Shipped operator surfaces offer commands they cannot serve (web admin, SSH completion), omit commands they do serve, and leave a remote operator or AI without the local diagnostics (`ze doctor`, support archive, config inspection); this fixes those product defects by serving every command from the daemon and adds the per-surface check that keeps them fixed. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/8 |
 | Handoff | - |
 | Updated | 2026-11-01 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+WIP cap exception: Thomas said "Ignore the cap and start"; this spec was claimed at 14 in flight. One-off permission for this spec only.
 
 ## Task
 
@@ -244,7 +246,7 @@ No handler was found that cannot run in the daemon at all.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every TUI-only command has a YANG node or a view registration, and no plugin without YANG declares a TUI-only command | Views are rendered by the in-process CLI model (`view_registry.go`); a plugin process cannot supply one; `monitor bgp` is the only view with no RPC | A `CommandDecl` field is needed, a `pkg/` contract change | grep of `RegisterView` callers and Stage 1 declarations during implementation | unvalidated |
+| A-1 | Every TUI-only command has a YANG node or a view registration, and no plugin without YANG declares a TUI-only command | Views are rendered by the in-process CLI model (`view_registry.go`); a plugin process cannot supply one; `monitor bgp` is the only view with no RPC | A `CommandDecl` field is needed, a `pkg/` contract change | grep of `RegisterView` callers and Stage 1 declarations during implementation. 2026-11-01: `RegisterView` has three callers (`register_view_ping.go`, `register_view_traceroute.go`, `register_view_dashboard.go`), all in package `cli`, because `viewSpec` is unexported, so no plugin can register a view; every view prefix is a YANG `ze:command` node. The basis is wrong on one point: `monitor bgp` has a YANG node (`ze-monitor-cmd.yang`, `ze:command "ze-bgp:monitor"`) and a builtin RPC (`internal/component/bgp/plugins/cmd/monitor/monitor.go` `init`, `handleMonitor`, which answers the parsed monitor options and no data), so no view lacks an RPC today and AC-13 has no TUI-only command to declare until the main thread decides how `monitor bgp`'s one-shot answer is judged (AC-9) | confirmed |
 | A-2 | The daemon serves the G1 and G5 commands through their registered handlers, with the same output as the local route | Thomas: "there is no reason why the deamon could not run them and provide the same output"; "yes design so they can run" | - | Decided at the approval gate | confirmed |
 | A-3 | gNMI is not a checked surface | Thomas: listed by mistake; `ai/doors/api-surfaces.md`: gNMI serves the config tree, not commands | - | Decided at the approval gate | confirmed |
 | A-4 | `ze completion words` (shell completion) is YANG-only by design and offers local commands, since `ze <verb>` serves them | `docs/architecture/api/commands.md` shell completion section | The predicate needs a shell-surface row that differs | The check's shell-completion arm | unvalidated |
@@ -335,6 +337,34 @@ No handler was found that cannot run in the daemon at all.
 | `TestAdminTreeMergesVisiblePluginCommands` | `cmd/ze/hub/service_web_test.go` | G2 | |
 | `TestRuntimeTreeOffersLocalDataCommands` | `internal/component/cli/client/main_test.go` | G4 | |
 | `TestCollectLabelsLocalByKind` | `internal/le/cli/catalog/catalog_test.go` | AC-10 | |
+
+### Recorded red (AC-3)
+
+Run 2026-11-01 on HEAD `50b5853172` plus the phase 1 files, with a `go test -overlay` mapping the files another session had mid-edit (`local_data.go`, the env, schema and BGP rr/rs handler files) to their HEAD content, because that working tree did not compile:
+`./le job run label surfaces command go test -count=1 -overlay <overlay> -tags ze_core,ze_bgp,ze_web,ze_mcp,ze_ssh,ze_rest,ze_grpc -run TestEveryCommandOnEverySurface ./cmd/ze/hub/`
+
+| Count | Failure class |
+|-------|---------------|
+| 54 | local-data command listed on SSH, web admin or web completion, and the daemon dispatcher cannot serve it (G1) |
+| 54 | local-data command absent from MCP, REST and gRPC (G1) |
+| 57 | local command listed and not served (G1: `show config cat`, `fmt`, `graph`, `show data cat`) |
+| 64 | local command absent from a daemon surface, `doctor` from shell completion too (G5) |
+| 45 | plugin command with no YANG node absent from web admin: the fixture and every internal plugin's Stage 1 command (G2) |
+| 1 | `ze cli` surface not asked: its producer `buildRuntimeTreeFromDispatch` is unexported, so the G4 arm is missing |
+
+The lines AC-3 names, trimmed from the output:
+
+```
+"show env list" on ssh (local-data): listed, but the daemon dispatcher cannot serve it
+"show env list" on web-admin (local-data): listed, but the daemon dispatcher cannot serve it
+"show env list" on web-completion (local-data): listed, but the daemon dispatcher cannot serve it
+"show env list" on mcp (local-data): must be offered, the surface does not list it
+"doctor" on mcp (local): must be offered, the surface does not list it
+"show zz-surface-fixture visible" on web-admin (plugin): must be offered, the surface does not list it
+surface ze-cli: its producer buildRuntimeTreeFromDispatch is unexported, so the check cannot ask it
+```
+
+No builtin command failed on any surface. Not enumerated by this binary: the local registrations made in package `main` (`cmd/ze/ze_core_dispatch.go` `registerLocalCommands`: `show version`, `help command`, `help ai`, `update serve`) and those in packages only `cmd/ze` links (`show yang tree`, `completion`, `doc`), since `cmd/ze/hub` cannot link them (R-5).
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
