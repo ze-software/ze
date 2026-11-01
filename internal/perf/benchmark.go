@@ -149,6 +149,7 @@ func RunBenchmark(ctx context.Context, cfg BenchmarkConfig, progress io.Writer) 
 		Routes:              cfg.Routes,
 		Family:              cfg.Family,
 		ForceMP:             cfg.ForceMP,
+		Pass:                PassFor(cfg.SenderFirst),
 		Seed:                seed,
 		Timestamp:           time.Now().UTC().Format(time.RFC3339),
 		Repeat:              cfg.Repeat,

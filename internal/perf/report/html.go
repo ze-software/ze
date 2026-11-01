@@ -80,7 +80,7 @@ func writeHTMLTable(w io.Writer, results []perf.Result) error {
 		return fmt.Errorf("writing table open: %w", err)
 	}
 
-	if _, err := fmt.Fprintln(w, "<tr><th>DUT</th><th>Version</th><th>Convergence</th><th>+/-</th><th>Throughput</th><th>+/-</th><th>p99</th><th>+/-</th><th>Withdrawal</th><th>+/-</th></tr>"); err != nil { //nolint:errcheck // output
+	if _, err := fmt.Fprintln(w, "<tr><th>DUT</th><th>Version</th><th>Convergence</th><th>+/-</th><th>Throughput</th><th>+/-</th><th>p99</th><th>+/-</th><th>Withdrawal</th><th>+/-</th><th>Pass</th></tr>"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing table header: %w", err)
 	}
 
@@ -100,7 +100,8 @@ func writeHTMLTable(w io.Writer, results []perf.Result) error {
 			Str("</td><td>").Str(fmtMs(r.LatencyP99Ms)).
 			Str("</td><td>").Str(fmtMs(r.LatencyP99StddevMs)).
 			Str("</td><td>").Str(fmtMs(r.WithdrawalMs)).
-			Str("</td><td>").Str(fmtMs(r.WithdrawalStddevMs)).Str("</td></tr>").String()
+			Str("</td><td>").Str(fmtMs(r.WithdrawalStddevMs)).
+			Str("</td><td>").Str(html.EscapeString(r.Pass.String())).Str("</td></tr>").String()
 		if _, err := fmt.Fprintln(w, row); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing table row: %w", err)
 		}
@@ -121,7 +122,7 @@ func writeSVGChart(w io.Writer, results []perf.Result) error {
 	const (
 		barHeight  = 30
 		barGap     = 10
-		labelWidth = 120
+		labelWidth = 200
 		maxWidth   = 600
 		padding    = 10
 	)
@@ -166,7 +167,7 @@ func writeSVGChart(w io.Writer, results []perf.Result) error {
 
 		if _, err := fmt.Fprintf(w, //nolint:errcheck // output
 			"  <text x=\"%d\" y=\"%d\" font-size=\"14\" font-family=\"sans-serif\" dominant-baseline=\"middle\">%s</text>\n",
-			padding, y+barHeight/2, html.EscapeString(results[i].DUTName)); err != nil {
+			padding, y+barHeight/2, html.EscapeString(barLabel(&results[i]))); err != nil {
 			return fmt.Errorf("writing SVG label: %w", err)
 		}
 
@@ -188,6 +189,13 @@ func writeSVGChart(w io.Writer, results []perf.Result) error {
 	}
 
 	return nil
+}
+
+// barLabel answers the chart label of one result: its DUT and its pass, so the
+// two passes of one DUT draw two bars a reader can tell apart.
+func barLabel(r *perf.Result) string {
+	var tb textbuf.Buffer
+	return tb.Str(r.DUTName).Str(" (").Str(r.Pass.String()).Byte(')').String()
 }
 
 func minMaxConvergence(results []perf.Result) (min, max int) {

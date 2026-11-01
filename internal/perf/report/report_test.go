@@ -405,3 +405,137 @@ func TestComparisonOutputsKeepLatestResultPerDUT(t *testing.T) {
 	}
 
 }
+
+// passResult answers a complete ipv4/unicast result of dut, recorded at
+// timestamp in pass, converging in convergence milliseconds.
+func passResult(dut string, pass perf.Pass, timestamp string, convergence int) perf.Result {
+	return perf.Result{
+		DUTName:        dut,
+		DUTVersion:     "1.0",
+		Family:         "ipv4/unicast",
+		Pass:           pass,
+		Timestamp:      timestamp,
+		ConvergenceMs:  convergence,
+		Routes:         100000,
+		RoutesSent:     100000,
+		RoutesReceived: 100000,
+	}
+}
+
+// rowsOf answers the lines of out that open with prefix.
+func rowsOf(out, prefix string) []string {
+	var rows []string
+	for line := range strings.Lines(out) {
+		if strings.HasPrefix(line, prefix) {
+			rows = append(rows, line)
+		}
+	}
+	return rows
+}
+
+// passRenderings are the three comparison outputs, each with the row prefix
+// of DUT ze, the pass cell it writes for a pass, and the chart label it
+// writes, empty for an output that draws no chart.
+var passRenderings = []struct {
+	name   string
+	render func([]perf.Result, io.Writer) error
+	row    string
+	cell   func(pass string) string
+	label  func(pass string) string
+}{
+	{"markdown", Markdown, "| ze |", func(pass string) string { return "| " + pass + " |" }, nil},
+	{"html", HTML, "<tr><td>ze</td>", func(pass string) string { return "<td>" + pass + "</td>" }, func(pass string) string { return ">ze (" + pass + ")</text>" }},
+	{"performance doc", PerformanceDoc, "| ze |", func(pass string) string { return "| " + pass + " |" }, nil},
+}
+
+// assertPassRows fails t unless out holds exactly one row of DUT ze per entry
+// of want, each row carrying its own convergence and its own pass cell, and,
+// where the output draws a chart, one bar label per pass.
+func assertPassRows(t *testing.T, out, row string, cell, label func(string) string, want map[string]string) {
+	t.Helper()
+	rows := rowsOf(out, row)
+	if len(rows) != len(want) {
+		t.Fatalf("%d rows of ze, want %d, one per pass\n%s", len(rows), len(want), out)
+	}
+	for pass, convergence := range want {
+		found := false
+		for _, line := range rows {
+			if strings.Contains(line, cell(pass)) && strings.Contains(line, convergence) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("no ze row carries pass %q with convergence %s\n%s", pass, convergence, out)
+		}
+		if label != nil && strings.Count(out, label(pass)) != 1 {
+			t.Errorf("chart label %q appears %d times, want once\n%s", label(pass), strings.Count(out, label(pass)), out)
+		}
+	}
+}
+
+// VALIDATES: AC-7, AC-8, AC-9 "le perf compare over a live-forwarding and a
+// rib-propagation result of DUT ze, the propagation one newer, shows two ze
+// rows, each with its own convergence and its pass named; HTML draws two
+// labeled bars; the doc snapshot lists ze once in its DUT setup section".
+// METHOD: render one comparison set through Markdown, HTML and PerformanceDoc
+// and read the ze rows back out of each output.
+// PREVENTS: the propagation pass displacing the main pass because the
+// comparison key omitted the pass, which published 334ms as Ze's figure while
+// the main pass measured 86ms.
+func TestComparisonRendersBothPassesOfOneDUT(t *testing.T) {
+	results := []perf.Result{
+		passResult("ze", perf.PassLiveForwarding, "2026-11-01T10:00:00Z", 86),
+		passResult("bird", perf.PassLiveForwarding, "2026-11-01T09:00:00Z", 50),
+		passResult("ze", perf.PassRIBPropagation, "2026-11-01T10:05:00Z", 334),
+	}
+	want := map[string]string{"live-forwarding": "86ms", "rib-propagation": "334ms"}
+	for _, tt := range passRenderings {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := tt.render(results, &buf); err != nil {
+				t.Fatalf("render error: %v", err)
+			}
+			out := buf.String()
+			if tt.name != "html" && !strings.Contains(out, " Pass |") {
+				t.Errorf("table header lacks a Pass column\n%s", out)
+			}
+			if tt.name == "html" && !strings.Contains(out, "<th>Pass</th>") {
+				t.Errorf("table header lacks a Pass column\n%s", out)
+			}
+			assertPassRows(t, out, tt.row, tt.cell, tt.label, want)
+			if tt.name == "performance doc" {
+				if got := strings.Count(out, dutSetupNotes["ze"]); got != 1 {
+					t.Errorf("the DUT setup section lists ze %d times, want once\n%s", got, out)
+				}
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-10 "a result file with no pass field beside one with a pass,
+// same DUT: the unrecorded one renders with the pass cell reading not
+// recorded, never as either pass, and does not displace the other".
+// METHOD: render a recorded rib-propagation result and a newer result with
+// no pass through every comparison output.
+// PREVENTS: a silent default that labels an old propagation result as the
+// main pass, or a pre-field file hiding a recorded pass.
+func TestComparisonUnrecordedPassIsNamed(t *testing.T) {
+	results := []perf.Result{
+		passResult("ze", perf.PassRIBPropagation, "2026-11-01T10:05:00Z", 334),
+		passResult("ze", perf.PassUnrecorded, "2026-11-01T11:00:00Z", 91),
+	}
+	want := map[string]string{"rib-propagation": "334ms", "not recorded": "91ms"}
+	for _, tt := range passRenderings {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := tt.render(results, &buf); err != nil {
+				t.Fatalf("render error: %v", err)
+			}
+			out := buf.String()
+			assertPassRows(t, out, tt.row, tt.cell, tt.label, want)
+			if strings.Contains(out, tt.cell("live-forwarding")) {
+				t.Errorf("an unrecorded pass rendered as live-forwarding\n%s", out)
+			}
+		})
+	}
+}

@@ -108,7 +108,8 @@ type fakeCall struct {
 // the way the real client does when its context is canceled. A `le perf send`
 // writes its result into results, as the sender container does through its
 // /results mount: every route arrives unless received names the count for
-// that result file.
+// that result file, and the result records the pass its -sender-first flag
+// selects, as perf.RunBenchmark does.
 type dockerRecorder struct {
 	commands [][]string
 	answer   func([]string) (interoplab.ProcessResult, error)
@@ -152,7 +153,7 @@ func (r *dockerRecorder) send(argv []string) error {
 	if !short {
 		received = routes
 	}
-	result := perf.Result{DUTName: flag("--dut-name"), RoutesSent: routes, RoutesReceived: received, RoutesLost: routes - received}
+	result := perf.Result{DUTName: flag("--dut-name"), Pass: perf.PassFor(slices.Contains(argv, "-sender-first")), RoutesSent: routes, RoutesReceived: received, RoutesLost: routes - received}
 	data, err := json.Marshal(&result)
 	if err != nil {
 		return err
@@ -201,7 +202,7 @@ func TestPerfRunnerMountsLinuxLe(t *testing.T) {
 	if err := runner.buildLinuxBinary(t.Context()); err != nil {
 		t.Fatalf("buildLinuxBinary: %v", err)
 	}
-	if _, ok := runner.runPerf(t.Context(), DUTs()[0], false); !ok {
+	if _, ok := runner.runPerf(t.Context(), DUTs()[0], perf.PassLiveForwarding); !ok {
 		t.Fatal("runPerf reported a failure over a fake that always succeeds")
 	}
 
@@ -253,7 +254,7 @@ func TestPerfContainersCarryTheirFlagsAndLabels(t *testing.T) {
 	if err := runner.startDUT(t.Context(), DUTs()[0]); err != nil {
 		t.Fatalf("startDUT: %v", err)
 	}
-	if _, ok := runner.runPerf(t.Context(), DUTs()[0], false); !ok {
+	if _, ok := runner.runPerf(t.Context(), DUTs()[0], perf.PassLiveForwarding); !ok {
 		t.Fatal("runPerf failed over a fake that always succeeds")
 	}
 	lines := recorder.recorded()
@@ -320,7 +321,7 @@ func TestPerfRemovalFailureIsReportedAndFailsTheRun(t *testing.T) {
 		return interoplab.ProcessResult{}, nil
 	}
 	runner.removalFailed = false
-	runner.runPerf(t.Context(), DUTs()[1], false)
+	runner.runPerf(t.Context(), DUTs()[1], perf.PassLiveForwarding)
 	if !runner.removalFailed {
 		t.Error("a sender removal that failed did not fail the run")
 	}
@@ -744,5 +745,87 @@ func TestTestRunFailsADUTThatLostRoutes(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// VALIDATES: AC-11 "the perf runner over a ze run whose propagation pass lost
+// routes: the summary line names the pass with the same words as today (the
+// propagation pass), derived from the one declaration; the file is still
+// ze-propagation.json".
+// METHOD: pin the declaration's spellings to today's words, then run the test
+// step over ze with the propagation pass losing every route, and read back
+// each result file the sender fixture wrote: the file the declaration names
+// for a pass holds a result of that pass, which the fixture derives from the
+// -sender-first flag the runner passed.
+// PREVENTS: the runner spelling a pass a second time, so a renamed pass or a
+// changed flag leaves the summary, the file name and the recorded pass
+// disagreeing.
+func TestRunnerNamesPassFromDeclaration(t *testing.T) {
+	spellings := []struct {
+		pass   perf.Pass
+		file   string
+		phrase string
+	}{
+		{perf.PassLiveForwarding, "ze.json", "the measurement"},
+		{perf.PassRIBPropagation, "ze-propagation.json", "the propagation pass"},
+	}
+	for _, s := range spellings {
+		if got, err := s.pass.ResultFile("ze"); err != nil || got != s.file {
+			t.Errorf("%v.ResultFile(ze) = %q, %v, want %q", s.pass, got, err, s.file)
+		}
+		if got := s.pass.Phrase(); got != s.phrase {
+			t.Errorf("%v.Phrase() = %q, want %q", s.pass, got, s.phrase)
+		}
+	}
+
+	var stdout strings.Builder
+	runner, recorder := fixtureRunner(t, io.Discard)
+	runner.Stdout = &stdout
+	runner.Routes = 1000
+	recorder.received = map[string]int{"ze-propagation.json": 0}
+	recorder.answer = func(argv []string) (interoplab.ProcessResult, error) {
+		if slices.Contains(argv, "{{.State.Running}}") {
+			return interoplab.ProcessResult{Stdout: "true\n"}, nil
+		}
+		return interoplab.ProcessResult{}, nil
+	}
+	if code := runner.Execute(t.Context(), Steps{Test: true}, []string{"ze"}); code != 1 {
+		t.Errorf("Execute(test) = %d with the propagation pass losing every route, want 1", code)
+	}
+	want := "ze: " + perf.PassRIBPropagation.Phrase() + " lost routes: 0 of 1000 routes reached the receiver"
+	if !strings.Contains(stdout.String(), want) {
+		t.Errorf("stdout lacks %q: %q", want, stdout.String())
+	}
+	for _, s := range spellings {
+		data, err := os.ReadFile(filepath.Join(runner.resultsDir, s.file))
+		if err != nil {
+			t.Fatalf("the runner wrote no %s result: %v", s.pass, err)
+		}
+		var result perf.Result
+		if err := json.Unmarshal(data, &result); err != nil {
+			t.Fatalf("result %s does not parse: %v", s.file, err)
+		}
+		if result.Pass != s.pass {
+			t.Errorf("%s holds a %v result, want %v: the runner's -sender-first flag disagrees with the file name", s.file, result.Pass, s.pass)
+		}
+	}
+}
+
+// VALIDATES: an unnamed pass reaches no result file: runPerf refuses it before
+// any Docker command, so no sender starts, rather than writing under the live-forwarding name.
+// METHOD: call runPerf with PassUnrecorded and read what the Docker seam saw.
+// PREVENTS: an unrecorded pass measured into <dut>.json and read back as the
+// live-forwarding pass.
+func TestRunPerfRefusesAnUnnamedPass(t *testing.T) {
+	var stderr strings.Builder
+	runner, recorder := fixtureRunner(t, &stderr)
+	if _, ok := runner.runPerf(t.Context(), DUTs()[0], perf.PassUnrecorded); ok {
+		t.Fatal("runPerf answered a result for PassUnrecorded, want false")
+	}
+	if !strings.Contains(stderr.String(), "has no result file") {
+		t.Errorf("stderr %q does not name the refusal", stderr.String())
+	}
+	if lines := recorder.recorded(); len(lines) != 0 {
+		t.Errorf("runPerf ran Docker commands for an unnamed pass: %q", lines)
 	}
 }

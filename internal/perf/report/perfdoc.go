@@ -117,11 +117,11 @@ median convergence time) are automatically discarded.
 		grouped := groups[key]
 		sortByConvergence(grouped)
 
-		if _, err := fmt.Fprintln(w, "| DUT | Convergence | +/- | Throughput (r/s) | +/- | p50 | p99 | +/- | Max | Lost | Withdrawal | +/- |"); err != nil { //nolint:errcheck // output
+		if _, err := fmt.Fprintln(w, "| DUT | Convergence | +/- | Throughput (r/s) | +/- | p50 | p99 | +/- | Max | Lost | Withdrawal | +/- | Pass |"); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing table header: %w", err)
 		}
 
-		if _, err := fmt.Fprintln(w, "|-----|-------------|-----|------------------|-----|-----|-----|-----|-----|------|------------|-----|"); err != nil { //nolint:errcheck // output
+		if _, err := fmt.Fprintln(w, "|-----|-------------|-----|------------------|-----|-----|-----|-----|-----|------|------------|-----|------|"); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing table sep: %w", err)
 		}
 
@@ -139,7 +139,8 @@ median convergence time) are automatically discarded.
 				Str(" | ").Str(fmtMs(r.LatencyMaxMs)).
 				Str(" | ").Int(int64(r.RoutesLost)).
 				Str(" | ").Str(fmtMs(r.WithdrawalMs)).
-				Str(" | ").Str(fmtMs(r.WithdrawalStddevMs)).Str(" |").String()
+				Str(" | ").Str(fmtMs(r.WithdrawalStddevMs)).
+				Str(" | ").Str(r.Pass.String()).Str(" |").String()
 			if _, err := fmt.Fprintln(w, line); err != nil { //nolint:errcheck // output
 				return fmt.Errorf("writing row: %w", err)
 			}

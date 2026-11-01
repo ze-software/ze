@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -18,9 +19,137 @@ type SessionSetup struct {
 	Receiver int `json:"receiver"`
 }
 
+// Pass names which measurement one `le perf send` run made. It is the one
+// declaration of the passes: the result JSON value, the comparison's Pass
+// column and the perf runner's summary phrase and result file name all derive
+// from it. BenchmarkConfig.SenderFirst selects the pass, and PassFor maps it.
+type Pass uint8
+
+const (
+	// PassUnrecorded is a result written before results named their pass. It
+	// is neither pass, and is never read as one.
+	PassUnrecorded Pass = iota
+	// PassLiveForwarding connects the receiver first, so the DUT forwards each
+	// UPDATE as it arrives.
+	PassLiveForwarding
+	// PassRIBPropagation connects the sender first (-sender-first), so the DUT
+	// holds every route before the receiver connects and sends it its table.
+	PassRIBPropagation
+)
+
+// passUnrecordedName is what the comparison writes in the Pass column of a
+// result that names no pass.
+const passUnrecordedName = "not recorded"
+
+// passNaming spells one pass on every surface that names it.
+type passNaming struct {
+	value  string // the JSON value of Result.Pass
+	phrase string // how the perf runner's summary names the pass
+	suffix string // what the perf runner's result file appends to the DUT name
+}
+
+// passNamings holds the naming of every recorded pass, indexed by Pass.
+var passNamings = [...]passNaming{
+	PassLiveForwarding: {value: "live-forwarding", phrase: "the measurement", suffix: ""},
+	PassRIBPropagation: {value: "rib-propagation", phrase: "the propagation pass", suffix: "-propagation"},
+}
+
+// PassFor answers the pass a run makes with BenchmarkConfig.SenderFirst set
+// to senderFirst.
+func PassFor(senderFirst bool) Pass {
+	if senderFirst {
+		return PassRIBPropagation
+	}
+	return PassLiveForwarding
+}
+
+// naming answers the spelling of a recorded pass, or false for
+// PassUnrecorded and for a value no constant names.
+func (p Pass) naming() (passNaming, bool) {
+	if p == PassUnrecorded || int(p) >= len(passNamings) {
+		return passNaming{}, false
+	}
+	return passNamings[p], true
+}
+
+// SenderFirst answers whether the pass connects the sender first, the
+// `le perf send -sender-first` flag.
+func (p Pass) SenderFirst() bool {
+	return p == PassRIBPropagation
+}
+
+// String answers the pass as the comparison's Pass column writes it: its JSON
+// value, or "not recorded" for PassUnrecorded.
+func (p Pass) String() string {
+	if naming, ok := p.naming(); ok {
+		return naming.value
+	}
+	if p == PassUnrecorded {
+		return passUnrecordedName
+	}
+	return "unknown pass " + strconv.Itoa(int(p))
+}
+
+// Phrase answers how the perf runner's summary names the pass, as in "the
+// propagation pass lost routes". A pass no constant names answers String.
+func (p Pass) Phrase() string {
+	if naming, ok := p.naming(); ok {
+		return naming.phrase
+	}
+	return p.String()
+}
+
+// ResultFile answers the base name of the result file the perf runner writes
+// for dut in this pass: "ze.json" for the live-forwarding pass,
+// "ze-propagation.json" for the propagation pass. PassUnrecorded and a value
+// no constant names have no file, so they are refused rather than given the
+// live-forwarding name.
+func (p Pass) ResultFile(dut string) (string, error) {
+	naming, ok := p.naming()
+	if !ok {
+		return "", fmt.Errorf("pass %s has no result file: the runner measures only %s", p, acceptedPasses())
+	}
+	return dut + naming.suffix + ".json", nil
+}
+
+// MarshalText answers the JSON value of a recorded pass. Result.Pass is
+// omitted when unrecorded, so a refusal here means a value no constant names.
+func (p Pass) MarshalText() ([]byte, error) {
+	naming, ok := p.naming()
+	if !ok {
+		return nil, fmt.Errorf("pass %s has no JSON value: the accepted values are %s", p, acceptedPasses())
+	}
+	return []byte(naming.value), nil
+}
+
+// UnmarshalText reads the JSON value of a pass, and refuses any value no pass
+// declares, naming the value and the accepted ones.
+func (p *Pass) UnmarshalText(text []byte) error {
+	for i := range passNamings {
+		if passNamings[i].value != "" && passNamings[i].value == string(text) {
+			*p = Pass(i) //nolint:gosec // i indexes passNamings, whose length fits a Pass
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown pass %q: the accepted values are %s", text, acceptedPasses())
+}
+
+// acceptedPasses answers the JSON value of every recorded pass, comma
+// separated, for a refusal.
+func acceptedPasses() string {
+	values := make([]string, 0, len(passNamings))
+	for i := range passNamings {
+		if passNamings[i].value != "" {
+			values = append(values, passNamings[i].value)
+		}
+	}
+	return strings.Join(values, ", ")
+}
+
 // Result holds the outcome of a single performance test run.
 type Result struct {
 	DUTName             string       `json:"dut-name"`
+	Pass                Pass         `json:"pass,omitempty"`
 	DUTVersion          string       `json:"dut-version"`
 	DUTAddr             string       `json:"dut-addr"`
 	DUTPort             int          `json:"dut-port"`

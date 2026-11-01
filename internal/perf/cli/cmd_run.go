@@ -50,7 +50,7 @@ func cmdRun(args []string) int {
 	iterDelay := fs.Duration("iter-delay", 3*time.Second, "Delay between iterations")
 	batchSize := fs.Int("batch-size", 0, "NLRIs per UPDATE (0 = auto-max within 4096 bytes, 1 = one prefix per UPDATE)")
 	passiveListen := fs.Bool("passive-listen", false, "Listen on port 179 for inbound DUT connections (requires root)")
-	senderFirst := fs.Bool("sender-first", false, "Connect sender before receiver (measures RIB propagation instead of live forwarding)")
+	senderFirst := fs.Bool("sender-first", false, "Connect sender before receiver: the result records pass "+perf.PassRIBPropagation.String()+" instead of "+perf.PassLiveForwarding.String())
 
 	// Output flags.
 	jsonOutput := fs.Bool("json", false, "JSON output")

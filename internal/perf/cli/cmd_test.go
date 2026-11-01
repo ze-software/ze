@@ -149,3 +149,32 @@ func TestSubcommandHelpAnswersZero(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: the security review row "Result JSON with an unknown pass value
+// is refused by the report with the file name, the value and the accepted
+// values".
+// METHOD: run `le perf compare` over a result file whose pass names no
+// declared pass, capturing stderr.
+// PREVENTS: a mistyped pass rendered as a known pass, or as no pass.
+func TestCompareRefusesAnUnknownPass(t *testing.T) {
+	// No t.Parallel() -- captureStderr modifies global os.Stderr.
+
+	path := filepath.Join(t.TempDir(), "ze.json")
+	if err := os.WriteFile(path, []byte(`{"dut-name":"ze","family":"ipv4/unicast","pass":"sender-first"}`), 0o644); err != nil {
+		t.Fatalf("writing result: %v", err)
+	}
+
+	var code int
+	stderr := captureStderr(t, func() {
+		code = cmdReport([]string{path})
+	})
+
+	if code != 1 {
+		t.Errorf("exit code = %d, want 1 for an unknown pass; stderr: %s", code, stderr)
+	}
+	for _, want := range []string{path, `"sender-first"`, "live-forwarding", "rib-propagation"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("stderr lacks %q: %s", want, stderr)
+		}
+	}
+}

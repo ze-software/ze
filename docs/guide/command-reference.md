@@ -2614,6 +2614,7 @@ measures how quickly they propagate through to the receiver.
 | `--warmup` | duration | `2s` | Warmup delay after session establishment |
 | `--connect-timeout` | duration | `10s` | TCP connection timeout |
 | `--duration` | duration | `60s` | Maximum time to wait for convergence per iteration |
+| `--sender-first` | bool | `false` | Connect the sender before the receiver: the result records `"pass": "rib-propagation"` instead of `"pass": "live-forwarding"` |
 
 **Iteration flags:**
 
@@ -2630,6 +2631,11 @@ measures how quickly they propagate through to the receiver.
 |------|------|---------|---------|
 | `--json` | bool | `false` | JSON output |
 | `--output` | string | | Output file path (implies `--json`) |
+
+Every result JSON carries a `pass` field naming the pass it measured,
+`live-forwarding` or `rib-propagation` ([Passes](benchmarking.md#passes)).
+
+<!-- source: internal/perf/result.go -- Pass -->
 
 Exit codes: 0 = success, 1 = error (missing flags, validation failure, benchmark failure).
 
@@ -2648,9 +2654,18 @@ Generate a comparison report from one or more result JSON files.
 |------|------|---------|---------|
 | `--md` | bool | `true` | Markdown output |
 | `--html` | bool | `false` | HTML output (overrides `--md`) |
+| `--doc` | bool | `false` | Full performance.md document with disclaimers and methodology (overrides `--html` and `--md`) |
 
 Reads result JSON files produced by `le perf send --json` and generates a
-side-by-side comparison table.
+side-by-side comparison table. It keeps the newest result per DUT, family,
+force-mp and pass, so the `live-forwarding` and `rib-propagation` results of
+one DUT render as two rows, each naming its pass in the Pass column; in HTML
+each chart bar is labelled with the DUT and the pass. A result with no `pass`
+field reads `not recorded` in that column and displaces neither pass. A file
+whose `pass` names no known pass is refused with the file name, the value and
+the accepted values, and the command exits 1.
+
+<!-- source: internal/perf/report/markdown.go -- latestComparisonResults -->
 
 #### le perf track
 

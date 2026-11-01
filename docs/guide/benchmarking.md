@@ -185,7 +185,9 @@ fixed, and the run exits 1. A result file that does not read or parse fails
 the pass the same way. A pass that lost routes is left out of the comparison
 table, the HTML report and the doc snapshot, so no row of 0ms values reads as
 a fast result, and a DUT left with no rendered pass is named on the run's
-`no result for` line. A complete pass of the same DUT is still rendered.
+`no result for` line. A complete pass of the same DUT is still rendered, and
+when both passes of ze are complete the comparison shows both, one row each
+(see "Passes" below).
 
 `NO_BUILD=1` with `step build` is refused: the run would build nothing, so it
 names `NO_BUILD` as the reason, prints the `env -u NO_BUILD ./le perf run step
@@ -214,6 +216,36 @@ images themselves are kept, so the next `step test` finds them.
 <!-- source: internal/le/perf/actions.go -- signalRooted -->
 
 Results are written to `test/perf/results/` as JSON files. An HTML comparison report is generated automatically.
+
+### Passes
+
+Every result records the pass it measured in its `pass` field:
+
+| `pass` | `le perf send` | What it measures |
+|--------|----------------|------------------|
+| `live-forwarding` | without `-sender-first` | The receiver connects first, so the DUT forwards each UPDATE as it arrives |
+| `rib-propagation` | with `-sender-first` | The sender connects first, so the DUT holds every route before the receiver connects and is sent the table |
+
+The perf runner measures every DUT in the `live-forwarding` pass (`<dut>.json`,
+named `the measurement` in its summary), and ze also in the `rib-propagation`
+pass (`ze-propagation.json`, `the propagation pass`). The pass, its file name
+and its summary phrase are declared once, in `perf.Pass`.
+
+`le perf compare` keeps the newest result for each DUT, family, force-mp and
+pass, so both passes of one DUT render, each in its own row. The markdown
+table, the HTML table and the doc snapshot carry a Pass column, and each HTML
+chart bar is labelled with the DUT and the pass, as in `ze (rib-propagation)`.
+A result written before the field existed has no `pass`: its Pass cell reads
+`not recorded`, it is never shown as either pass, and it does not displace a
+result that records one. A `pass` value that is not one of the two above is
+refused: `le perf compare` prints the file name, the value and the accepted
+values, and exits 1. The doc snapshot's DUT setup section lists a DUT once,
+however many passes it has.
+<!-- source: internal/perf/result.go -- Pass, PassFor, Pass.UnmarshalText -->
+<!-- source: internal/perf/benchmark.go -- RunBenchmark -->
+<!-- source: internal/perf/report/markdown.go -- comparisonKey, latestComparisonResults -->
+<!-- source: internal/perf/report/html.go -- barLabel -->
+<!-- source: internal/test/perfrunner/run.go -- Runner.runPerf, Runner.measureDUT -->
 
 ### Manual Reports
 
@@ -324,6 +356,7 @@ The JSON result object contains these key fields:
 | `routes-sent` | count | Routes injected by sender |
 | `routes-received` | count | Routes received by receiver |
 | `routes-lost` | count | Difference between sent and received |
+| `pass` | name | `live-forwarding` or `rib-propagation` (see "Passes"); absent in a result written before the field existed |
 | `repeat` | count | Total iterations run |
 | `repeat-kept` | count | Iterations kept after outlier removal |
 

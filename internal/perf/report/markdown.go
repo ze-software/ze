@@ -17,10 +17,14 @@ type groupKey struct {
 	ForceMP bool
 }
 
+// comparisonKey identifies one row of a comparison: a DUT measured in one
+// pass. The pass is part of the key because the runner measures ze in two
+// passes, and without it the newer pass displaces the other.
 type comparisonKey struct {
 	DUTName string
 	Family  string
 	ForceMP bool
+	Pass    perf.Pass
 }
 
 type selectedResult struct {
@@ -28,9 +32,10 @@ type selectedResult struct {
 	index  int
 }
 
-// latestComparisonResults keeps the newest result for each DUT within a
-// comparison table group. RFC3339 timestamps sort lexicographically, so string
-// comparison is enough here.
+// latestComparisonResults keeps the newest result for each DUT and pass within
+// a comparison table group. A result that names no pass (PassUnrecorded) is a
+// row of its own, so it never displaces a recorded pass. RFC3339 timestamps
+// sort lexicographically, so string comparison is enough here.
 func latestComparisonResults(results []perf.Result) []perf.Result {
 	selected := make(map[comparisonKey]selectedResult)
 
@@ -39,6 +44,7 @@ func latestComparisonResults(results []perf.Result) []perf.Result {
 			DUTName: results[i].DUTName,
 			Family:  results[i].Family,
 			ForceMP: results[i].ForceMP,
+			Pass:    results[i].Pass,
 		}
 
 		prev, ok := selected[key]
@@ -133,11 +139,11 @@ func Markdown(results []perf.Result, w io.Writer) error {
 		grouped := groups[key]
 		sortByConvergence(grouped)
 
-		if _, err := fmt.Fprintln(w, "| DUT | Version | Convergence | +/- | Throughput | +/- | p99 | +/- | Withdrawal | +/- |"); err != nil { //nolint:errcheck // output
+		if _, err := fmt.Fprintln(w, "| DUT | Version | Convergence | +/- | Throughput | +/- | p99 | +/- | Withdrawal | +/- | Pass |"); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing table header: %w", err)
 		}
 
-		if _, err := fmt.Fprintln(w, "|-----|---------|-------------|-----|------------|-----|-----|-----|------------|-----|"); err != nil { //nolint:errcheck // output
+		if _, err := fmt.Fprintln(w, "|-----|---------|-------------|-----|------------|-----|-----|-----|------------|-----|------|"); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing table separator: %w", err)
 		}
 
@@ -148,7 +154,8 @@ func Markdown(results []perf.Result, w io.Writer) error {
 				Str(" | ").Str(fmtMs(r.ConvergenceMs)).Str(" | ").Str(fmtMs(r.ConvergenceStddevMs)).
 				Str(" | ").Str(fmtNum(r.ThroughputAvg)).Str(" | ").Str(fmtNum(r.ThroughputAvgStddev)).
 				Str(" | ").Str(fmtMs(r.LatencyP99Ms)).Str(" | ").Str(fmtMs(r.LatencyP99StddevMs)).
-				Str(" | ").Str(fmtMs(r.WithdrawalMs)).Str(" | ").Str(fmtMs(r.WithdrawalStddevMs)).Str(" |").String()
+				Str(" | ").Str(fmtMs(r.WithdrawalMs)).Str(" | ").Str(fmtMs(r.WithdrawalStddevMs)).
+				Str(" | ").Str(r.Pass.String()).Str(" |").String()
 			if _, err := fmt.Fprintln(w, line); err != nil { //nolint:errcheck // output
 				return fmt.Errorf("writing table row: %w", err)
 			}

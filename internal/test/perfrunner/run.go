@@ -527,10 +527,15 @@ func (runner *Runner) senderContainer() interoplab.DetachedContainer {
 }
 
 // runPerf runs one `le perf send` pass against dut and answers the host path
-// of the result file it wrote, or false when the sender could not start or the
-// pass failed. A result file it answers is not yet judged: the caller MUST
-// pass it to judgeResult before counting it.
-func (runner *Runner) runPerf(ctx context.Context, dut DUT, senderFirst bool) (string, bool) {
+// of the result file it wrote, named by pass.ResultFile, or false when the
+// sender could not start or the pass failed. A result file it answers is not
+// yet judged: the caller MUST pass it to judgeResult before counting it.
+func (runner *Runner) runPerf(ctx context.Context, dut DUT, pass perf.Pass) (string, bool) {
+	result, err := pass.ResultFile(dut.Name)
+	if err != nil {
+		say(runner.Stderr, "  error: measure ", dut.Name, ": ", err.Error())
+		return "", false
+	}
 	container := runner.senderName()
 	if err := runner.startContainer(ctx, runner.senderContainer()); err != nil {
 		say(runner.Stderr, "  error: start the sender: ", err.Error())
@@ -545,10 +550,6 @@ func (runner *Runner) runPerf(ctx context.Context, dut DUT, senderFirst bool) (s
 		runner.prepareSender(ctx, container, "ethtool", "-K", "eth0", "tx", "off")
 	}
 	convergence := max(30, (runner.Routes/1000)*4+30)
-	result := dut.Name + ".json"
-	if senderFirst {
-		result = dut.Name + "-propagation.json"
-	}
 	args := []string{containerLe, "perf", "send", "--dut-addr", dut.IP.String(), "--dut-port", strconv.Itoa(dut.Port), "--dut-asn", "65000", "--dut-name", dut.Name, "--sender-addr", senderIP.String(), "--sender-asn", "65001", "--receiver-addr", receiverIP.String(), "--receiver-asn", "65002", "--routes", strconv.Itoa(runner.Routes), "--seed", strconv.Itoa(runner.Seed), "--repeat", strconv.Itoa(runner.Repeat), "--warmup-runs", "1", "--iter-delay", "8s", "--warmup", "2s", "--connect-timeout", "20s", "--duration", strconv.Itoa(convergence) + "s", "--output", "/results/" + result}
 	if dut.SenderPort != 0 {
 		args = append(args, "--sender-port", strconv.Itoa(dut.SenderPort))
@@ -559,7 +560,7 @@ func (runner *Runner) runPerf(ctx context.Context, dut DUT, senderFirst bool) (s
 	if dut.Passive {
 		args = append(args, "--passive-listen")
 	}
-	if senderFirst {
+	if pass.SenderFirst() {
 		args = append(args, "-sender-first")
 	}
 	timeout := time.Duration((1+runner.Repeat)*(convergence+40)+60) * time.Second
@@ -576,13 +577,13 @@ func (runner *Runner) runPerf(ctx context.Context, dut DUT, senderFirst bool) (s
 // unreadable result is recorded in found with its cause, and the last lines
 // of the DUT's log are printed while its container still runs, so the reader
 // sees why it did not forward.
-func (runner *Runner) judgeResult(ctx context.Context, dut DUT, pass, path string, found *measurement) bool {
+func (runner *Runner) judgeResult(ctx context.Context, dut DUT, pass perf.Pass, path string, found *measurement) bool {
 	cause := readShortfall(path)
 	if cause == "" {
 		return true
 	}
 	found.incomplete = append(found.incomplete, incompleteRun{dut: dut.Name, pass: pass, cause: cause})
-	say(runner.Stdout, "  ", pass, " of ", dut.Name, " ", cause, "; the last lines of its log:")
+	say(runner.Stdout, "  ", pass.Phrase(), " of ", dut.Name, " ", cause, "; the last lines of its log:")
 	runner.printLogs(ctx, runner.containerName(dut.Name))
 	return false
 }
@@ -663,7 +664,7 @@ func (runner *Runner) cleanup(ctx context.Context) {
 // pass's name in the summary.
 type incompleteRun struct {
 	dut   string
-	pass  string
+	pass  perf.Pass
 	cause string
 }
 
@@ -849,21 +850,21 @@ func (runner *Runner) measureDUT(ctx context.Context, dut DUT, found *measuremen
 			runner.captureProfiles(ctx, runner.containerName(dut.Name), filepath.Join(runner.PProfDir, strconv.Itoa(runner.Routes)))
 		})
 	}
-	result, ok := runner.runPerf(ctx, dut, false)
+	result, ok := runner.runPerf(ctx, dut, perf.PassLiveForwarding)
 	profile.Wait()
 	if !ok {
 		return false
 	}
-	if !runner.judgeResult(ctx, dut, passMeasurement, result, found) {
+	if !runner.judgeResult(ctx, dut, perf.PassLiveForwarding, result, found) {
 		return false
 	}
 	found.results = append(found.results, result)
 	if dut.Name == dutZE {
-		propagation, ok := runner.runPerf(ctx, dut, true)
+		propagation, ok := runner.runPerf(ctx, dut, perf.PassRIBPropagation)
 		if !ok {
 			return false
 		}
-		if !runner.judgeResult(ctx, dut, passPropagation, propagation, found) {
+		if !runner.judgeResult(ctx, dut, perf.PassRIBPropagation, propagation, found) {
 			return false
 		}
 		found.results = append(found.results, propagation)
@@ -871,12 +872,6 @@ func (runner *Runner) measureDUT(ctx context.Context, dut DUT, found *measuremen
 	found.passed++
 	return true
 }
-
-// The passes a DUT is measured in, as the summary names them.
-const (
-	passMeasurement = "the measurement"
-	passPropagation = "the propagation pass"
-)
 
 // render prints the comparison and writes the HTML report and the doc snapshot.
 func (runner *Runner) render(ctx context.Context, results []string) {
@@ -926,7 +921,7 @@ func (runner *Runner) summarize(found measurement) {
 		say(runner.Stdout, "  fix the cause each line above names, then run again: ./le perf run dut \"", unbuiltNames(found.unbuilt), "\"")
 	}
 	for _, run := range found.incomplete {
-		say(runner.Stdout, "  ", run.dut, ": ", run.pass, " ", run.cause, ", so it is no result and is left out of the comparison")
+		say(runner.Stdout, "  ", run.dut, ": ", run.pass.Phrase(), " ", run.cause, ", so it is no result and is left out of the comparison")
 	}
 	if len(found.incomplete) > 0 {
 		say(runner.Stdout, "  read the DUT log lines printed under each name above, fix what stops the DUT forwarding every route, then run again: ./le perf run dut \"", incompleteNames(found.incomplete), "\"")
