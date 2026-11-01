@@ -3,22 +3,44 @@
     "rid": "RFC8955-3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go::TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute",
-    "unit-sha": "accf95a278fafe82",
+    "unit-sha": "e555647dadbca154",
     "claim-sha": "27db2d06ebc0362c",
     "route": "revert",
-    "producer": "internal/component/bgp/plugins/filter_community_match/match.go::evaluateCommunities",
-    "producer-sha": "9f9a1da907acb137",
-    "break": "body of evaluateCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/plugins/filter_community_match/condition.go::judgeEntries",
+    "producer-sha": "b9453f5527ddd516",
+    "break": "body of judgeEntries replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8955-3-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go::TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute",
-    "unit-sha": "367e853b672d7055",
+    "unit-sha": "d2d53a35d792d576",
     "claim-sha": "f27632312d660116",
     "route": "revert",
-    "producer": "internal/component/bgp/plugins/filter_community_match/match.go::evaluateCommunities",
-    "producer-sha": "9f9a1da907acb137",
-    "break": "body of evaluateCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/plugins/filter_community_match/condition.go::judgeEntries",
+    "producer-sha": "b9453f5527ddd516",
+    "break": "body of judgeEntries replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination",
+    "unit-sha": "e7b40869c8ee1129",
+    "claim-sha": "7b94d14ea6360546",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/filter_prefix/match.go::evaluatePrefix",
+    "producer-sha": "3423bc638d8f5e3a",
+    "break": "body of evaluatePrefix replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination",
+    "unit-sha": "e7b40869c8ee1129",
+    "claim-sha": "8f76ed45a7f75a45",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/filter_prefix/match.go::evaluatePrefix",
+    "producer-sha": "3423bc638d8f5e3a",
+    "break": "body of evaluatePrefix replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
