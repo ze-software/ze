@@ -261,8 +261,8 @@ func TestTheFAQPublishesEveryAnswerAsADisclosure(t *testing.T) {
 	cardPattern := regexp.MustCompile(`(?s)<details class="faq-card\b[^>]*>.*?</details>`)
 	wantCards := cardPattern.FindAllString(source, -1)
 	gotCards := cardPattern.FindAllString(page, -1)
-	if len(wantCards) != 13 {
-		t.Fatalf("the authored FAQ must carry all 13 answers, got %d", len(wantCards))
+	if len(wantCards) != 14 {
+		t.Fatalf("the authored FAQ must carry all 14 answers, got %d", len(wantCards))
 	}
 	if len(gotCards) != len(wantCards) {
 		t.Errorf("the published FAQ must carry %d interactive answers, got %d", len(wantCards), len(gotCards))

@@ -11,6 +11,7 @@ import (
 // parser can find, each with the reason, so a text that stops yielding one
 // is a red rather than a silently shrunk profile (A-1).
 var noReferences = map[string]string{
+	"rfc3882": "its only references section is Informative References",
 	"rfc5301": "its only references section is Informative References",
 	"rfc5396": "its only references section is Informative References",
 	"rfc7457": "its only references section is Informative References",
