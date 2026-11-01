@@ -121,7 +121,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_bgp_redistribute_announcements` | Counter | | redistribute-orchestrator |
 | `ze_bgp_redistribute_withdrawals` | Counter | | redistribute-orchestrator |
 | `ze_bgp_redistribute_filtered_protocol_total` | Counter | | redistribute-orchestrator |
-| `ze_bgp_redistribute_filtered_rule_total` | Counter | | redistribute-orchestrator |
+| `ze_redistribute_chain_rejected_total` | CounterVec | destination, source | redistribute-orchestrator |
 | `ze_bgp_redistribute_replay_total` | CounterVec | source | redistribute-orchestrator |
 | `ze_gr_active_peers` | Gauge | | bgp-gr |
 | `ze_gr_stale_routes` | GaugeVec | peer | bgp-gr |
@@ -371,7 +371,10 @@ The six `redistribute-orchestrator` series track the generic dispatch every
 protocol shares. `ze_bgp_redistribute_events_received` counts route-change
 batches taken off the bus. `_announcements` and `_withdrawals` count the entries
 dispatched to a consumer. `_filtered_protocol_total` counts batches the loop
-guard skipped, and `_filtered_rule_total` counts entries the evaluator rejected.
+guard skipped. `ze_redistribute_chain_rejected_total{destination,source}`
+counts the routes an import rule covers and its policy chain rejected, on the
+incremental and the replay path; a route no import rule names into that
+destination is not a chain's verdict and is not counted.
 
 `ze_bgp_redistribute_replay_total{source}` counts routes replayed to a party
 that arrived after a producer emitted. That party is either a BGP peer whose

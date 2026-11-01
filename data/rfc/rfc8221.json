@@ -1,0 +1,33 @@
+{
+  "stem": "rfc8221",
+  "title": "Cryptographic Algorithm Implementation Requirements and Usage Guidance for Encapsulating Security Payload (ESP) and Authentication Header (AH)",
+  "walked": true,
+  "requirements": 19,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 16,
+    "kept": 16,
+    "ze-proven": 16,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 3,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 3,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 16
+  },
+  "unmet": []
+}

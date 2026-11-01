@@ -1,6 +1,6 @@
 # RFC 2131 - Dynamic Host Configuration Protocol
 
-Partial. Every requirement this repository extracted from RFC 2131, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+DHCPv4. Every requirement this repository extracted from RFC 2131, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 36.6% | 26 of 71 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 7.0% | 5 of 71 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 71 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 62.8% | 49 of 78 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 26 | of 71 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 71 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 71 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Proven by a recorded break | 51 | 51 of 78 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,12 +21,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 71 | of 109 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 71 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 71 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 12.7% | 9 of 71 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 71 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 71 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 71 | of 109 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 71 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 71 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 9 | of 71 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 71 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 71 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -34,11 +34,11 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 2.8% | 2 of 71 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 40.8% | 29 of 71 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Partial proof; remaining gap | 2 | of 71 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 29 | of 71 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Audit verdicts | 21 | of 71 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 shares marked as a part above are the whole of the 71 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 71 gated MUSTs: they add up to 71. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,23 +46,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | bad | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | DHCPv4 |
 | Enrolment | Enrolled |
 | Requirements | 109 |
 | Gated MUST-level | 71 |
@@ -85,20 +85,14 @@ Enrolled: Dynamic Host Configuration Protocol
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** DHCPv4
 
-**What the ledger says is covered**
+**Proof:** 18 of 71 MUST proven
 
-Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/ACK/NAK carries the server identifier, OFFER and ACK carry the lease time and ordered T1/T2 timers, no client-only option (50, 55, 57, 61) is ever echoed back, a NAK carries nothing beyond the message type and server identifier, the magic cookie is required on input and emitted on output, and options are read and written strictly inside the options field. Client: the `iface-dhcp` plugin (`internal/plugins/iface/dhcp/`) runs a long-lived DHCPv4 client per interface unit -- ze owns the lease state machine (INIT, BOUND, RENEWING and REBINDING on deadlines from the instant each DHCPREQUEST was sent, the server's ordered T1/T2 or the defaults, the section 4.4.5 retransmission schedule, DHCPNAK restart, expiry teardown, address and default-route installation with route retry), sends the RENEWING DHCPREQUEST by unicast to the server identifier from the leased address and the REBINDING one by broadcast, accepts a REBINDING answer from any server, refuses an ACK without a lease time, and authors options 12 and 61 on every DHCPREQUEST, while DORA and the base of each extending DHCPREQUEST (`NewRenewFromAck`) are built by the vendored `nclient4` library. Tests bound per requirement in [`rfc/short/rfc2131.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc2131.md).
+**Evidence:** unit 18
 
-**What the ledger says remains**
+**Unmet:** RFC2131-2-1, RFC2131-3.1-3, RFC2131-3.1-4, RFC2131-3.1-6, RFC2131-3.1-7, RFC2131-3.2-1, RFC2131-3.2-3, RFC2131-3.4-1, RFC2131-4.1-1, RFC2131-4.1-15, RFC2131-4.1-2, RFC2131-4.1-4, RFC2131-4.1-5, RFC2131-4.1-7, RFC2131-4.1-8, RFC2131-4.2-1, RFC2131-4.3.1-1, RFC2131-4.3.1-10, RFC2131-4.3.1-3, RFC2131-4.3.1-5, RFC2131-4.3.1-7, RFC2131-4.3.2-2, RFC2131-4.3.2-3, RFC2131-4.3.3-1, RFC2131-4.3.5-1, RFC2131-4.4-1, RFC2131-4.4-2, RFC2131-4.4-3, RFC2131-4.4.2-1, RFC2131-4.4.2-2, RFC2131-4.4.3-1
 
-Thirty-one MUST and MUST NOT gaps, each annotated in [`rfc/short/rfc2131.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc2131.md). Option overload is honoured by the server and not by the client, whose vendored DHCP library never reads option 52 ([`RFC2131-4.1-7`](#rfc2131-4.1-7), 4.1-15, partial).
-
-- **Server:** an OFFER to a client that already holds a binding restarts the lease duration instead of returning the expiration time already assigned ([`RFC2131-4.3.1-10`](#rfc2131-4.3.1-10)); a DHCPNAK behind a relay never has the broadcast bit forced ([`RFC2131-4.3.2-2`](#rfc2131-4.3.2-2)); INIT-REBOOT for an unknown client draws an ACK rather than silence ([`RFC2131-4.3.2-3`](#rfc2131-4.3.2-3)); a declined address is handed back to the client that declined it ([`RFC2131-4.3.3-1`](#rfc2131-4.3.3-1)); only one address per subnet is accepted as the server identifier ([`RFC2131-4.1-1`](#rfc2131-4.1-1)); with no default-router configured the server identifier falls back to a pool address or the subnet network address, neither of which the server answers on ([`RFC2131-4.1-2`](#rfc2131-4.1-2)); the client identifier option 61 is never read, so every client is keyed by chaddr ([`RFC2131-4.2-1`](#rfc2131-4.2-1)); the Parameter Request List is never parsed, so the section 4.3.1 selection rules govern no code path ([`RFC2131-4.3.1-1`](#rfc2131-4.3.1-1), 4.3.1-3, 4.3.1-5); and the vendor class is matched by "PXEClient:" prefix rather than exactly ([`RFC2131-4.3.1-7`](#rfc2131-4.3.1-7)).
-- **Client:** the configured client-id is emitted with no uniqueness check ([`RFC2131-2-1`](#rfc2131-2-1)); an address found in use is kept rather than declined, and no DHCPDECLINE path exists ([`RFC2131-3.1-7`](#rfc2131-3.1-7)); and DORA retransmission doubles the timeout with no randomization ([`RFC2131-4.1-8`](#rfc2131-4.1-8)). Unimplemented optional client behaviour, each a gap because no owner decision declines it: the client never enters INIT-REBOOT ([`RFC2131-3.1-3`](#rfc2131-3.1-3), 3.1-4, 3.2-1, 3.2-3, 4.4.2-1, 4.4.2-2), sends no DHCPRELEASE ([`RFC2131-3.1-6`](#rfc2131-3.1-6)) and no DHCPINFORM ([`RFC2131-4.4.3-1`](#rfc2131-4.4.3-1)), and the DHCPDECLINE and DHCPRELEASE cells of Table 5 are produced by no path ([`RFC2131-4.4-1`](#rfc2131-4.4-1), 4.4-2, 4.4-3).
-- **Server:** DHCPINFORM is answered by no code path ([`RFC2131-4.3.5-1`](#rfc2131-4.3.5-1), 3.4-1).
-- **Gaps in testing:** ze puts no option in sname or file, so the option overload sender rules are met on every traced path, but no test asserts it ([`RFC2131-4.1-4`](#rfc2131-4.1-4), 4.1-5). Nine client MUSTs are met below ze by the vendored insomniacslk/dhcp library, which builds the governed fields from no value ze writes: the SELECTING DHCPREQUEST's options 50 and 54, secs and broadcast destination, the parameter request list, the xid, chaddr, the zero source address and the SELECTING receive filter and buffer ([`RFC2131-3.1-1`](#rfc2131-3.1-1), 3.1-2, 3.1-8, 3.5-1, 4.1-9, 4.4.1-1, 4.1-16, 4.4.1-4, 2-4); they are met but not proven by ze. The client issues no ARP request for an offered address, so the section 4.4.1 rules for that ARP request govern no code path.
 
 ## Coverage
 
@@ -119,9 +113,41 @@ Thirty-one MUST and MUST NOT gaps, each annotated in [`rfc/short/rfc2131.md`](ht
 
 **Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (2):** [`RFC2131-4.1-7`](#rfc2131-4.1-7), [`RFC2131-4.1-15`](#rfc2131-4.1-15)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 62 of 71 (87.3%); excluded: Met by a lower layer: 9 of 71 (12.7%). Optional ceiling: 38 of 38 (100.0%). Lowest mandatory ceiling: rfc2131 62 of 71 (87.3%). Lowest optional ceiling: rfc2131 38 of 38 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 18, OS testing gap 9, Ze correctness gap 44
+- **Overview bar**: Ze MUST proven 18, SHOULD proven 2, SHOULD not decided 36, OS testing gap 9, Ze correctness gap 44
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 71 |
+| MUST rows kept (the MUST bar) | 71 |
+| Ze proven | 18 |
+| OS verified | 0 |
+| OS testing gap | 9 |
+| Ze correctness gap | 44 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 38 |
+| SHOULD proven | 2 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 36 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc2131.json](../../../data/rfc/rfc2131.json).
 
 ## Requirements
 
@@ -755,8 +781,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOfferReachesClientHardware`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L98) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestOfferReachesClientHardware`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L97) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestOfferReachesClientHardware`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L98) | unit/verify | revert, verified |
+| positive | [`TestOfferReachesClientHardware`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L97) | unit/verify | revert, verified |
 
 ### [`RFC2131-4.3.1-1`](#rfc2131-4.3.1-1)
 

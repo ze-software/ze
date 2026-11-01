@@ -1,0 +1,12 @@
+{
+  "stem": "rfc8195",
+  "title": "Use of BGP Large Communities",
+  "walked": false,
+  "requirements": 3,
+  "implementer": "foundation",
+  "implemented": false,
+  "must": null,
+  "should": null,
+  "proven-by-kind": null,
+  "unmet": []
+}

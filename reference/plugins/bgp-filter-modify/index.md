@@ -13,7 +13,7 @@ Named route attribute modifier (set local-preference, med, origin, next-hop)
 
 ## Configuration
 
-`policy`
+`bgp`
 
 ## Dependencies
 

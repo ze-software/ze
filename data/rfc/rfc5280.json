@@ -1,0 +1,60 @@
+{
+  "stem": "rfc5280",
+  "title": "Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile",
+  "walked": true,
+  "requirements": 210,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 102,
+    "kept": 102,
+    "ze-proven": 26,
+    "os-verified": 0,
+    "os-gap": 50,
+    "ze-gap": 26,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 108,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 108,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 26
+  },
+  "unmet": [
+    "RFC5280-4.1.2.4-1",
+    "RFC5280-4.1.2.5-3",
+    "RFC5280-4.2-1",
+    "RFC5280-4.2-2",
+    "RFC5280-4.2-4",
+    "RFC5280-4.2.1.10-1",
+    "RFC5280-4.2.1.10-3",
+    "RFC5280-4.2.1.10-5",
+    "RFC5280-4.2.1.12-1",
+    "RFC5280-4.2.1.12-2",
+    "RFC5280-4.2.1.4-1",
+    "RFC5280-4.2.1.4-2",
+    "RFC5280-4.2.1.4-3",
+    "RFC5280-4.2.1.4-4",
+    "RFC5280-4.2.1.6-11",
+    "RFC5280-4.2.1.6-8",
+    "RFC5280-4.2.1.6-9",
+    "RFC5280-5-1",
+    "RFC5280-5.2-1",
+    "RFC5280-5.2.5-1",
+    "RFC5280-5.3-1",
+    "RFC5280-6.1-1",
+    "RFC5280-6.1.3-1",
+    "RFC5280-6.3-1",
+    "RFC5280-7.1-2",
+    "RFC5280-7.2-1"
+  ]
+}

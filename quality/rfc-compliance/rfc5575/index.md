@@ -1,6 +1,6 @@
 # RFC 5575 - Dissemination of Flow Specification Rules
 
-Partial. Every requirement this repository extracted from RFC 5575, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP Flowspec (obsoleted by RFC 8955). Every requirement this repository extracted from RFC 5575, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 77.8% | 7 of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 11.1% | 1 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 55.2% | 16 of 29 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 7 | of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 16 | 16 of 29 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 9 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 9 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 9 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 9 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 9 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 9 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 11.1% | 1 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 1 | of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 9 gated MUSTs: they add up to 9. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,23 +45,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | BGP Flowspec (obsoleted by RFC 8955) |
 | Enrolment | Enrolled |
 | Requirements | 16 |
 | Gated MUST-level | 9 |
@@ -84,17 +84,14 @@ Enrolled: BGP Flowspec (obsoleted by RFC 8955): 8 single-polarity positive (capa
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** BGP Flowspec (obsoleted by RFC 8955)
 
-**What the ledger says is covered**
+**Proof:** 4 of 9 MUST proven
 
-- IPv4 Flowspec NLRI encode/decode, MP (Code 1) capability negotiation for (AFI 1, SAFI 133/134), traffic-action extended communities, and lowering to the firewall
-- component ordering and operator/fragment/traffic-marking reserved bits enforced on encode.
+**Evidence:** unit 4
 
+**Unmet:** RFC5575-6-1
 
-**What the ledger says remains**
-
-RFC 8955 and RFC 9117 supply the current validation rules. The native codec, retained-route feasibility and revalidation, first-AS comparison against covering unicast reachability, originator/local-controller authorization, and more-specific-AS guard have source changes and regression carriers awaiting integration validation. The global firewall installs selected SAFI 133 rules only; VPN FlowSpec remains a BGP propagation feature.
 
 ## Coverage
 
@@ -115,9 +112,41 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 
 **Derived from other rows (3):** [`RFC5575-6-2`](#rfc5575-6-2), [`RFC5575-6-3`](#rfc5575-6-3), [`RFC5575-6-4`](#rfc5575-6-4)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 9 of 9 (100.0%). Optional ceiling: 4 of 4 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc5575 9 of 9 (100.0%). Lowest optional ceiling: rfc5575 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 4, Ze correctness gap 5
+- **Overview bar**: Ze MUST proven 4, SHOULD not decided 4, Ze correctness gap 5
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 9 |
+| MUST rows kept (the MUST bar) | 9 |
+| Ze proven | 4 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 5 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 4 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 4 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc5575.json](../../../data/rfc/rfc5575.json).
 
 ## Requirements
 
@@ -247,7 +276,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop, internal/component/bgp/reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop#2 moved. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 5575 Section 4: "Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestRFC8955NextHopIgnoredForFlowSpec, both tags). Verdict unchanged: enforced. Earlier judgement follows. RFC 5575 Section 4: "Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt." Both clauses remain covered. Producers message/update_build_plugin.go::MPReachCarriesNextHop and reactor/forward_next_hop.go::applyNextHopFamily force zero hop for non-redirect FlowSpec; payloadNextHop does not use the received FlowSpec address as a forwarding gate. plugins/rib/rib_bestchange.go::entryNextHopAddr returns no forwarding address for FlowSpec; rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec feeds empty, self and non-address MP bytes alongside a legacy self NEXT_HOP, then requires eligible retained candidates and exactly the same selected NLRI/action event. The legacy condition matters: draft-simpson-idr-flowspec-redirect-02 Section 3 identifies the redirect action target in MP_REACH, so an application requiring that address is outside RFC 5575 zero-hop antecedent. RFC 8955 Section 4 instead says "When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0." and separately "The Network Address of the Next-Hop field MUST be ignored." Its unconditional transmit rule is stronger; the legacy superseded relationship is navigation, not permission to import the old exception into RFC 8955. No whole-successor-conformance claim follows from this enforced legacy row. Independently read every tag carrier: message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop, reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop, reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop and protected reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop. The changed forward fixture calls negotiateForwardTestFamilies, which uses capability.Negotiate on explicit MP capabilities and publishes the same negotiated intersection to peer.session and peer.negotiated; it no longer seeds only the peer facade. forwardViaRIB sends non-FlowSpec sections live and relays individual FlowSpec StoredRoute values through reactorAPIAdapter.RelayStoredRoute to forwardUpdateCore. Exact recipient MP_REACH equals AFI/SAFI/zero length/reserved/NLRI, with exact traffic-rate bytes, no substituted withdrawal and the expected message count, for all four families, four rewrite modes and empty/IPv4/IPv6 received fields. Config, API batch and both queued origination writers compare whole TCP frames, including RD/NLRI/actions, with absent/IPv4/IPv6 configured addresses. The protected route-server carrier drives real RIB authorization and recipient TCP and remains unchanged. Native freshness inputs identify pending forward-carrier renewals; this source rejudgment does not claim they have run or passed. Parent must renew applicable proofs and stamp only after integration.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 5575 Section 4: "Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestRFC8955NextHopIgnoredForFlowSpec, both tags). Verdict unchanged: enforced. Earlier judgement follows. RFC 5575 Section 4: "Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt." Both clauses remain covered. Producers message/update_build_plugin.go::MPReachCarriesNextHop and reactor/forward_next_hop.go::applyNextHopFamily force zero hop for non-redirect FlowSpec; payloadNextHop does not use the received FlowSpec address as a forwarding gate. plugins/rib/rib_bestchange.go::entryNextHopAddr returns no forwarding address for FlowSpec; rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec feeds empty, self and non-address MP bytes alongside a legacy self NEXT_HOP, then requires eligible retained candidates and exactly the same selected NLRI/action event. The legacy condition matters: draft-simpson-idr-flowspec-redirect-02 Section 3 identifies the redirect action target in MP_REACH, so an application requiring that address is outside RFC 5575 zero-hop antecedent. RFC 8955 Section 4 instead says "When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0." and separately "The Network Address of the Next-Hop field MUST be ignored." Its unconditional transmit rule is stronger; the legacy superseded relationship is navigation, not permission to import the old exception into RFC 8955. No whole-successor-conformance claim follows from this enforced legacy row. Independently read every tag carrier: message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop, reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop, reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop and protected reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop. The changed forward fixture calls negotiateForwardTestFamilies, which uses capability.Negotiate on explicit MP capabilities and publishes the same negotiated intersection to peer.session and peer.negotiated; it no longer seeds only the peer facade. forwardViaRIB sends non-FlowSpec sections live and relays individual FlowSpec StoredRoute values through reactorAPIAdapter.RelayStoredRoute to forwardUpdateCore. Exact recipient MP_REACH equals AFI/SAFI/zero length/reserved/NLRI, with exact traffic-rate bytes, no substituted withdrawal and the expected message count, for all four families, four rewrite modes and empty/IPv4/IPv6 received fields. Config, API batch and both queued origination writers compare whole TCP frames, including RD/NLRI/actions, with absent/IPv4/IPv6 configured addresses. The protected route-server carrier drives real RIB authorization and recipient TCP and remains unchanged. Native freshness inputs identify pending forward-carrier renewals; this source rejudgment does not claim they have run or passed. Parent must renew applicable proofs and stamp only after integration.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

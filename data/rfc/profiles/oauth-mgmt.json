@@ -1,0 +1,12 @@
+{
+  "name": "oauth-mgmt",
+  "kind": "technology",
+  "title": "OAuth for management",
+  "release": false,
+  "required": [
+    "rfc8414",
+    "rfc8707",
+    "rfc9728"
+  ],
+  "optional": []
+}

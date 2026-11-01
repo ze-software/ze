@@ -1,0 +1,34 @@
+{
+  "stem": "rfc2866",
+  "title": "RADIUS Accounting",
+  "walked": true,
+  "requirements": 16,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 15,
+    "kept": 15,
+    "ze-proven": 8,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 7,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 1,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 1,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 1,
+    "unit": 7
+  },
+  "unmet": []
+}

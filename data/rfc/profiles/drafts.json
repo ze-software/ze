@@ -1,0 +1,17 @@
+{
+  "name": "drafts",
+  "kind": "technology",
+  "title": "Drafts and non-RFC standards",
+  "release": false,
+  "required": [
+    "draft-abraitis-bgp-version-capability",
+    "draft-abraitis-idr-addpath-paths-limit",
+    "draft-ietf-bess-mup-safi",
+    "draft-ietf-idr-bgp-bfd-strict-mode",
+    "draft-ietf-idr-linklocal-capability",
+    "draft-ietf-sidrops-aspa-verification",
+    "draft-walton-bgp-hostname-capability",
+    "sflow-v5"
+  ],
+  "optional": []
+}

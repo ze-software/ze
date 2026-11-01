@@ -1,0 +1,33 @@
+{
+  "stem": "rfc2759",
+  "title": "Microsoft PPP CHAP Extensions, Version 2",
+  "walked": true,
+  "requirements": 11,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 7,
+    "kept": 7,
+    "ze-proven": 4,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 3,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 2,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 4
+  },
+  "unmet": []
+}

@@ -1,0 +1,31 @@
+{
+  "stem": "rfc4034",
+  "title": "Resource Records for the DNS Security Extensions",
+  "walked": true,
+  "requirements": 59,
+  "implementer": "ze",
+  "implemented": false,
+  "must": {
+    "total": 59,
+    "kept": 59,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 59,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 0,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 0,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": []
+}

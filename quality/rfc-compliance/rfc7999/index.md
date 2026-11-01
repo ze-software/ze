@@ -1,6 +1,6 @@
 # RFC 7999 - BLACKHOLE Community
 
-Partial. Every requirement this repository extracted from RFC 7999, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BLACKHOLE community. Every requirement this repository extracted from RFC 7999, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,13 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 4 of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 47.4% | 18 of 38 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 4 | of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 0 | of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 18 | 18 of 38 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 7 | of 4 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -23,14 +24,14 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 4 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 4 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 4 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 4 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 4 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
-The 9 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 4 gated MUSTs: they add up to 4. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -38,23 +39,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | BLACKHOLE community |
 | Enrolment | Enrolled |
 | Requirements | 16 |
 | Gated MUST-level | 4 |
@@ -77,17 +78,14 @@ Enrolled: BLACKHOLE Community (65535:666, 0xFFFF029A): four MUST-level requireme
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** BLACKHOLE community
 
-**What the ledger says is covered**
+**Proof:** 4 of 4 MUST proven
 
-- The BLACKHOLE community (65535:666) is recognized on receive, and Ze honors it per BGP session. Section 3.3 states two conditions in one MUST sentence, and Ze enforces both. The peer must have agreed on that session by naming the community it honors (`blackhole communities`), which accepts the well-known value under either spelling and an operator's own value, because operators run RTBH on their own community far more often than on 65535:666. The announced prefix must be covered by an equal or shorter prefix that peer is authorized to advertise (`blackhole prefixes`). Coverage is not prefix-list membership: a /24 authorization covers the /32 inside it (`coveredByAuthorized`, [`internal/component/bgp/plugins/rib/rib_blackhole.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole.go)). A honored route becomes a discard route in the Linux FIB (`RTN_BLACKHOLE`) and a drop path in VPP. Section 4's default holds: a `blackhole` container with neither leaf-list, and a peer with no container, discard nothing. Stating `prefixes` alone is itself the explicit configuration directive Section 4 asks for, so it resolves the community to the well-known value
-- a stated `communities` list is taken exactly and the well-known value is never added to it. Section 3.1's send-side obligation is met on the origination path. `send bgp <selector> blackhole`, and `send bgp <selector> unicast community 65535:666`, advertise the community only to the sessions that named it, and a peer that named none is left out of the fan-out rather than being sent the prefix untagged (`agreedSelector`, [`internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go)). Section 3.3's origin-validation obligation is met by `blackhole-exempt` under an RPKI peer. It keeps a BLACKHOLE-tagged route that RFC 6811 makes Invalid on prefix length alone, and only when a covering VRP names the origin AS and the session named the community the route carries ([`internal/component/bgp/plugins/rpki/blackhole.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/blackhole.go)). All three consumers read one per-peer answer from one place (internal/component/bgp/blackholecfg). Section 3.2's receiver obligations and the own-Global-Administrator scrub are tracked under RFC 1997 and RFC 7454. Tests bound per requirement in [`rfc/requirements/rfc7999.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc7999.md), and the FRR and BIRD interop scenario `test/interop/scenarios/bgp-rfc7999-blackhole-frr` asserts the discard route in a real kernel. Both Section 3.3 conditions carry interop evidence as well as unit evidence. That scenario tags [`RFC7999-3.3-1`](#rfc7999-3.3-1) and [`RFC7999-3.3-2`](#rfc7999-3.3-2) in both polarities. Neither can afterwards fall back to a unit test alone. Enrolled on 2026-08-13, so the ratchets now hold every requirement here. The walk behind that claim is recorded in [`rfc/extraction/rfc7999.json`](https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc7999.json), at register `prose`, with 1 of 4 sites excluded.
+**Evidence:** interop 2, unit 2
 
+**Unmet:** -
 
-**What the ledger says remains**
-
-No tracked gap. Every MUST-level row is proven in both polarities. [`RFC7999-3.1-2`](#rfc7999-3.1-2) carried a `{not-applicable}` annotation until 2026-08-13, on the reading that Section 3.1 binds "the two networks" where Section 3.3 binds "BGP speakers", and that no daemon can verify an out-of-band agreement. The owner replaced that reading the same day: configuring the community on a peer is Ze's half of the agreement, the peer sending it is the other half, so the obligation is machine-checkable on the send side. The annotation is withdrawn and the requirement is tested. Four advisory rows carry no test. [`RFC7999-3.1-3`](#rfc7999-3.1-3) and [`RFC7999-3.1-5`](#rfc7999-3.1-5) bind the sender. [`RFC7999-3.3-3`](#rfc7999-3.3-3) asks a multilateral speaker to apply both Section 3.3 conditions. [`RFC7999-6-1`](#rfc7999-6-1) asks for strict filtering. None is gated, so none is ratcheted. Two are worth stating plainly. The authorization Section 3.3 and Section 6 turn on is operator-supplied. `blackhole prefixes` is a configured leaf-list, not a view derived from IRR or RPKI. The honoring machinery is bilateral, so a route server does not apply the two conditions to its clients.
 
 ## Coverage
 
@@ -104,9 +102,41 @@ No tracked gap. Every MUST-level row is proven in both polarities. [`RFC7999-3.1
 
 **Positive and negative tests (4):** [`RFC7999-3.1-2`](#rfc7999-3.1-2), [`RFC7999-3.3-1`](#rfc7999-3.3-1), [`RFC7999-3.3-2`](#rfc7999-3.3-2), [`RFC7999-3.3-4`](#rfc7999-3.3-4)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 4 of 4 (100.0%). Optional ceiling: 12 of 12 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7999 4 of 4 (100.0%). Lowest optional ceiling: rfc7999 12 of 12 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 4
+- **Overview bar**: Ze MUST proven 4, SHOULD proven 3, SHOULD not decided 9
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | complete |
+| MUST rows | 4 |
+| MUST rows kept (the MUST bar) | 4 |
+| Ze proven | 4 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 0 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 12 |
+| SHOULD proven | 3 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 9 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc7999.json](../../../data/rfc/rfc7999.json).
 
 ## Requirements
 
@@ -158,7 +188,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. (§3.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole, internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2 moved. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. Equal-/24 and covered-/32 positives require exact Blackhole on best-change and Loc-RIB; longer-/25 authorization and outside-prefix negatives require exact type 0. Dynamic group tests require the matching group rule, peer override precedence, and event-carried group identity reaching Loc-RIB. coveredByAuthorized, blackholeRouteTypeForBest and checkBestPathChange produce the type consumed by sysrib and the kernel discard builder. checkRFC7999Blackhole assertion 4 requires a real kernel discard and assertion 5 positively requires forwarding for the unauthorized prefix, after both foreign sessions and all destination routes exist. Q1-Q4 pass for the authorization clause with agreement held true; the dynamic fixture is consumer-boundary rather than eBGP-admission evidence. Stored panic records establish reachability only. No checks were run; live FRR/BIRD/Linux and VPP acceptance and changed-unit proof maintenance remain pending.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. Equal-/24 and covered-/32 positives require exact Blackhole on best-change and Loc-RIB; longer-/25 authorization and outside-prefix negatives require exact type 0. Dynamic group tests require the matching group rule, peer override precedence, and event-carried group identity reaching Loc-RIB. coveredByAuthorized, blackholeRouteTypeForBest and checkBestPathChange produce the type consumed by sysrib and the kernel discard builder. checkRFC7999Blackhole assertion 4 requires a real kernel discard and assertion 5 positively requires forwarding for the unauthorized prefix, after both foreign sessions and all destination routes exist. Q1-Q4 pass for the authorization clause with agreement held true; the dynamic fixture is consumer-boundary rather than eBGP-admission evidence. Stored panic records establish reachability only. No checks were run; live FRR/BIRD/Linux and VPP acceptance and changed-unit proof maintenance remain pending.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -175,7 +205,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. o The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. (§3.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole, internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2 moved. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. The row includes both bullets: equal/covered positives require exact Blackhole; outside and too-short announced-prefix negatives require type 0 despite agreement. Authorized/no-community internal config requires type 0; dynamic group membership and peer-rule precedence have distinct outcomes, and the structured consumer must retain ix and install Blackhole. The synthetic empty-community map is not user config-parser proof: prefixes-only defaults agreement. The interop scenario instead explicitly agrees only 65001:666 for BIRD sending 65535:666; assertion 6 requires a gateway route, while assertion 4 requires discard for the authorized/agreed FRR route and assertion 5 isolates authorization. blackholeRouteTypeForBest scopes the decision to the winning session and blackholeRouteType requires both conditions before sysrib/FIB consumption. Q1-Q4 pass over the combined population; group-membership negative alone is not agreement-isolated. Stored coveredByAuthorized HALTs prove reachability only. No checks ran; current live foreign/Linux/VPP acceptance and changed-unit proof maintenance remain pending.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. The row includes both bullets: equal/covered positives require exact Blackhole; outside and too-short announced-prefix negatives require type 0 despite agreement. Authorized/no-community internal config requires type 0; dynamic group membership and peer-rule precedence have distinct outcomes, and the structured consumer must retain ix and install Blackhole. The synthetic empty-community map is not user config-parser proof: prefixes-only defaults agreement. The interop scenario instead explicitly agrees only 65001:666 for BIRD sending 65535:666; assertion 6 requires a gateway route, while assertion 4 requires discard for the authorized/agreed FRR route and assertion 5 isolates authorization. blackholeRouteTypeForBest scopes the decision to the winning session and blackholeRouteType requires both conditions before sysrib/FIB consumption. Q1-Q4 pass over the combined population; group-membership negative alone is not agreement-isolated. Stored coveredByAuthorized HALTs prove reachability only. No checks ran; current live foreign/Linux/VPP acceptance and changed-unit proof maintenance remain pending.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -204,7 +234,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS. (§3.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/community-blackhole-noexport.ci moved. Positive TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity: config leaf parsed, [BLACKHOLE 64496:1] leaves applyIngressFilter with NO_EXPORT (or NO_ADVERTISE) appended and the other community kept. Negative TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity: with the guard on, no COMMUNITY, 65535:665 (one below BLACKHOLE) and 64496:1 pass unchanged, so the trigger is BLACKHOLE alone. Both carry revert records on blackholePropagationGuard. SHOULD: the add is operator-enabled (no leaf: unchanged), which 3.2-2 permits.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7999): "A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS." The only edit to test/plugin/community-blackhole-noexport.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -229,7 +259,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Posi
 
 Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement, internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityRewritesNextHopWhenAgreed moved. SHOULD NOT discard without an operator directive. Positive (conforming) TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement: a modify naming only 65001:100 accepts the 65535:666 route with no change; rib TestBlackholeNotStampedWithoutAgreement / ...WhenNoCommunityAgreedButAuthorizationExists: RouteType 0 on both rails. Negative TestBlackholeCommunityRewritesNextHopWhenAgreed is the directive-present counter-case (next-hop rewritten to the named discard address). Accepted as the negative: it shows the no-discard outcome is caused by the absent directive, so a filter that never rewrote anything cannot pass the pair. Revert records on (matchCond).matches for both filter_modify units; the rib positives have none.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. SHOULD NOT discard without an operator directive. Positive (conforming) TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement: a modify naming only 65001:100 accepts the 65535:666 route with no change; rib TestBlackholeNotStampedWithoutAgreement / ...WhenNoCommunityAgreedButAuthorizationExists: RouteType 0 on both rails. Negative TestBlackholeCommunityRewritesNextHopWhenAgreed is the directive-present counter-case (next-hop rewritten to the named discard address). Accepted as the negative: it shows the no-discard outcome is caused by the absent directive, so a filter that never rewrote anything cannot pass the pair. Revert records on (matchCond).matches for both filter_modify units; the rib positives have none.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

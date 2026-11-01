@@ -1,0 +1,33 @@
+{
+  "stem": "rfc7854",
+  "title": "BGP Monitoring Protocol (BMP)",
+  "walked": true,
+  "requirements": 48,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 39,
+    "kept": 39,
+    "ze-proven": 25,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 14,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 9,
+    "proven": 3,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 6,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 25
+  },
+  "unmet": []
+}

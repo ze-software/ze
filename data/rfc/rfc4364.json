@@ -1,0 +1,40 @@
+{
+  "stem": "rfc4364",
+  "title": "BGP/MPLS IP Virtual Private Networks (VPNs)",
+  "walked": true,
+  "requirements": 13,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 8,
+    "kept": 8,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 8,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 5,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 5,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC4364-13.1-1",
+    "RFC4364-13.1-2",
+    "RFC4364-4.3.1-1",
+    "RFC4364-4.3.1-2",
+    "RFC4364-4.3.2-1",
+    "RFC4364-4.3.2-2",
+    "RFC4364-4.3.2-3",
+    "RFC4364-6-1"
+  ]
+}

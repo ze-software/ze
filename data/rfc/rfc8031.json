@@ -1,0 +1,35 @@
+{
+  "stem": "rfc8031",
+  "title": "Curve25519 and Curve448 for the Internet Key Exchange Protocol Version 2 (IKEv2) Key Agreement",
+  "walked": true,
+  "requirements": 3,
+  "implementer": "ze",
+  "implemented": false,
+  "must": {
+    "total": 3,
+    "kept": 3,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 3,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 0,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 0,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC8031-2-1",
+    "RFC8031-3.2-1",
+    "RFC8031-3.2-2"
+  ]
+}

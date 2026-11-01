@@ -1,0 +1,40 @@
+{
+  "stem": "rfc3748",
+  "title": "Extensible Authentication Protocol (EAP)",
+  "walked": true,
+  "requirements": 63,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 59,
+    "kept": 59,
+    "ze-proven": 42,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 17,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 42
+  },
+  "unmet": [
+    "RFC3748-2.3-1",
+    "RFC3748-3.1-1",
+    "RFC3748-3.1-2",
+    "RFC3748-3.1-3",
+    "RFC3748-4.1-2",
+    "RFC3748-5.7-1"
+  ]
+}

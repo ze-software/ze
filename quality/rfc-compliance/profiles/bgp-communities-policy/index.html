@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BGP communities and policy RFC coverage - Ze</title>
-        <meta name="description" content="Technology aggregate bgp-communities-policy: mandatory 26 of 49 (53.1%), optional 4 of 37 (10.8%); ceiling mandatory 49 of 49 (100.0%), optional 37 of 37 (100.0%); 11 RFCs, 1 not walked." />
+        <meta name="description" content="Technology aggregate bgp-communities-policy: the MUST and overview coverage of its RFCs." />
         <meta property="og:title" content="BGP communities and policy RFC coverage - Ze" />
-        <meta property="og:description" content="Technology aggregate bgp-communities-policy: mandatory 26 of 49 (53.1%), optional 4 of 37 (10.8%); ceiling mandatory 49 of 49 (100.0%), optional 37 of 37 (100.0%); 11 RFCs, 1 not walked." />
+        <meta property="og:description" content="Technology aggregate bgp-communities-policy: the MUST and overview coverage of its RFCs." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="BGP communities and policy RFC coverage - Ze" />
-        <meta name="twitter:description" content="Technology aggregate bgp-communities-policy: mandatory 26 of 49 (53.1%), optional 4 of 37 (10.8%); ceiling mandatory 49 of 49 (100.0%), optional 37 of 37 (100.0%); 11 RFCs, 1 not walked." />
+        <meta name="twitter:description" content="Technology aggregate bgp-communities-policy: the MUST and overview coverage of its RFCs." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Technology aggregate</span>
     <h1 id="rfc-profile-title">BGP communities and policy</h1>
-    <p>BGP communities, route leak prevention, and policy signalling. The RFCs whose summary names the bgp-communities-policy aggregate, with their mandatory and optional coverage.</p>
+    <p>BGP communities, route leak prevention, and policy signalling. The RFCs whose summary names the bgp-communities-policy aggregate, with the MUST bar and the overview bar of the set and of each RFC.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -114,34 +114,104 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
-<style>
-.rfc-bar { display: block; width: 100%; min-width: 7rem; height: .7rem; margin: .2rem 0 .15rem; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); overflow: hidden; }
-.rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
-.rfc-bar-unmeasured { border-style: dashed; }
-.rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
-.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
-</style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
-<div class="rfc-card-grid">
-<div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>53.1%</strong><b>26 of 49 (53.1%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
-<div class="rfc-card rfc-neutral"><span>Optional</span><strong>10.8%</strong><b>4 of 37 (10.8%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
-<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>100.0%</strong><b>49 of 49 (100.0%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
-<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>37 of 37 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
-<div class="rfc-card rfc-neutral"><span>Not walked</span><strong>1</strong><b>of 11 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
-<div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
+<section><h2>Figures</h2>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="profile/bgp-communities-policy/required:must">Ze proven 28, Ze correctness gap 21</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="profile/bgp-communities-policy/required:overview">Ze MUST proven 28, SHOULD proven 4, SHOULD not decided 33, Ze correctness gap 21</div>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:rfcs">11</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:not-walked">1</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:register">not complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:must.total">49</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:must.kept">49</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:must.ze-proven">28</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:must.os-gap">0</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:must.ze-gap">21</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:must.not-owed">0</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:must.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:should.total">37</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:should.proven">4</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="profile/bgp-communities-policy/required:should.not-decided">33</span></td>
+</tr>
+</tbody>
+</table>
 </div>
-<p>Mandatory ceiling: 49 of 49 (100.0%). Optional ceiling: 37 of 37 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc1997 5 of 5 (100.0%). Lowest optional ceiling: rfc1997 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+</section>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows &#34;not walked&#34; and no bar.</p>
 <h3>Level 0</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc3882/">RFC 3882</a></td>
 <td>Configuring BGP to Block Denial-of-Service Attacks</td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc3882:must">no rows</div></td>
+<td><div data-ze-rfc-bar="rfc3882:overview">no rows</div></td>
 </tr>
 </tbody>
 </table>
@@ -149,12 +219,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 1</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc5635/">RFC 5635</a></td>
 <td>Remote Triggered Black Hole Filtering with Unicast Reverse Path Forwarding (uRPF)</td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc5635:must">no rows</div></td>
+<td><div data-ze-rfc-bar="rfc5635:overview">SHOULD not decided 1</div></td>
 </tr>
 </tbody>
 </table>
@@ -162,12 +232,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 4</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc1997/">RFC 1997</a></td>
 <td>BGP Communities Attribute</td>
-<td><div class="rfc-bar" role="img" aria-label="5 of 5 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">5 of 5 (100.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc1997:must">Ze proven 5</div></td>
+<td><div data-ze-rfc-bar="rfc1997:overview">Ze MUST proven 5, SHOULD not decided 4</div></td>
 </tr>
 </tbody>
 </table>
@@ -175,17 +245,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 5</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc3765/">RFC 3765</a></td>
 <td>NOPEER Community for Border Gateway Protocol (BGP) Route Scope Control</td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 2 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 2 (0.0%)</span><small class="rfc-ceiling">Ceiling: 2 of 2 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc3765:must">no rows</div></td>
+<td><div data-ze-rfc-bar="rfc3765:overview">SHOULD not decided 2</div></td>
 </tr>
 <tr><td><a href="../../rfc4360/">RFC 4360</a></td>
 <td>BGP Extended Communities Attribute</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 5 (40.0%)"><span style="width:40.0%"></span></div><span class="rfc-bar-note">2 of 5 (40.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4360:must">Ze proven 2, Ze correctness gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc4360:overview">Ze MUST proven 2, SHOULD not decided 4, Ze correctness gap 3</div></td>
 </tr>
 </tbody>
 </table>
@@ -193,12 +263,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 6</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc5701/">RFC 5701</a></td>
 <td>IPv6 Address Specific BGP Extended Community Attribute</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 2 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 2 (0.0%)</span><small class="rfc-ceiling">Ceiling: 2 of 2 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc5701:must">Ze correctness gap 4</div></td>
+<td><div data-ze-rfc-bar="rfc5701:overview">SHOULD not decided 2, Ze correctness gap 4</div></td>
 </tr>
 </tbody>
 </table>
@@ -206,27 +276,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 8</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc7611/">RFC 7611</a></td>
 <td>BGP ACCEPT_OWN Community Attribute</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 5 (40.0%)"><span style="width:40.0%"></span></div><span class="rfc-bar-note">2 of 5 (40.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7611:must">Ze proven 2, Ze correctness gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc7611:overview">Ze MUST proven 2, SHOULD not decided 3, Ze correctness gap 3</div></td>
 </tr>
 <tr><td><a href="../../rfc7999/">RFC 7999</a></td>
 <td>BLACKHOLE Community</td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 4 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">4 of 4 (100.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 12 (25.0%)"><span style="width:25.0%"></span></div><span class="rfc-bar-note">3 of 12 (25.0%)</span><small class="rfc-ceiling">Ceiling: 12 of 12 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7999:must">Ze proven 4</div></td>
+<td><div data-ze-rfc-bar="rfc7999:overview">Ze MUST proven 4, SHOULD proven 3, SHOULD not decided 9</div></td>
 </tr>
 <tr><td><a href="../../rfc8092/">RFC 8092</a></td>
 <td>BGP Large Communities Attribute</td>
-<td><div class="rfc-bar" role="img" aria-label="7 of 7 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">7 of 7 (100.0%)</span><small class="rfc-ceiling">Ceiling: 7 of 7 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc8092:must">Ze proven 7</div></td>
+<td><div data-ze-rfc-bar="rfc8092:overview">Ze MUST proven 7, SHOULD not decided 4</div></td>
 </tr>
 <tr><td><a href="../../rfc9234/">RFC 9234</a></td>
 <td>Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages</td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 19 (31.6%)"><span style="width:31.6%"></span></div><span class="rfc-bar-note">6 of 19 (31.6%)</span><small class="rfc-ceiling">Ceiling: 19 of 19 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 5 (20.0%)"><span style="width:20.0%"></span></div><span class="rfc-bar-note">1 of 5 (20.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc9234:must">Ze proven 8, Ze correctness gap 11</div></td>
+<td><div data-ze-rfc-bar="rfc9234:overview">Ze MUST proven 8, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 11</div></td>
 </tr>
 </tbody>
 </table>
@@ -234,17 +304,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 9</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc8195/">RFC 8195</a></td>
 <td>Use of BGP Large Communities</td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="not walked"><span style="width:0%"></span></div><span class="rfc-bar-note">not walked</span></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="not walked"><span style="width:0%"></span></div><span class="rfc-bar-note">not walked</span></td>
+<td><div data-ze-rfc-bar="rfc8195:must">not walked</div></td>
+<td><div data-ze-rfc-bar="rfc8195:overview">not walked</div></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
+<script src="../../../../assets/rfc-figures.js" defer></script>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -276,7 +347,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

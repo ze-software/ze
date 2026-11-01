@@ -1,0 +1,40 @@
+{
+  "stem": "rfc8907",
+  "title": "The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol",
+  "walked": true,
+  "requirements": 59,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 56,
+    "kept": 56,
+    "ze-proven": 38,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 18,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 2,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 2,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 38
+  },
+  "unmet": [
+    "RFC8907-5.4-1",
+    "RFC8907-5.4-2",
+    "RFC8907-5.4.2.3-1",
+    "RFC8907-5.4.2.4-1",
+    "RFC8907-5.4.2.5-1",
+    "RFC8907-5.4.2.6-1"
+  ]
+}

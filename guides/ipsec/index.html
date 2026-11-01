@@ -644,6 +644,18 @@ the peer certificate first, and Ze reads every later CERT payload as a link
 toward the anchor. Ze sends its own chain the same way: the <code>certificate</code> entry
 first, then the intermediate that PKI entry carries. A refusal names the anchor
 and the number of intermediate certificates the peer supplied.</p>
+<p>The signature method follows the peer. Ze announces RFC 7427 signature
+authentication in every IKE_SA_INIT, and a peer that announces it too gets an
+RFC 7427 Digital Signature (method 14). A peer that does not, such as strongSwan
+with <code>charon.signature_authentication = no</code>, gets the method that fits Ze's
+certificate key: RSA Digital Signature (method 1, SHA-1) for an RSA key, and
+ECDSA-256, ECDSA-384 or ECDSA-521 (methods 9, 10, 11) for an ECDSA key on P-256,
+P-384 or P-521. Any other key, Ed25519 for example, cannot authenticate to such
+a peer, and the refusal says so. Ze verifies all of these methods from the peer.
+A ze started with <code>GODEBUG=fips140=only</code> refuses method 1, because Go refuses
+SHA-1 signatures in that mode: enable RFC 7427 on the peer instead.</p>
+<!-- source: internal/component/ike/engine/auth_legacy.go -- computeLegacySignatureAuth, signLegacyRSAAuth, verifyLegacyRSAAuth -->
+<!-- source: internal/component/ike/engine/auth_ecdsa.go -- signECDSAAuth -->
 <p>An <code>eap-tls</code> peer whose EAP-TLS client sends its certificate without the
 intermediate that issued it can still authenticate. Store that intermediate as a
 PKI <code>ca</code> entry and name it in <code>intermediate-certificate</code>, a list. When Ze is the
@@ -2255,7 +2267,7 @@ boundaries; neither is a claim that every IKE extension is implemented.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

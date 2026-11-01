@@ -1,0 +1,35 @@
+{
+  "stem": "rfc8707",
+  "title": "Resource Indicators for OAuth 2.0",
+  "walked": true,
+  "requirements": 7,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 2,
+    "kept": 2,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 2,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 5,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 5,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC8707-2-1",
+    "RFC8707-2-2",
+    "RFC8707-2-6"
+  ]
+}

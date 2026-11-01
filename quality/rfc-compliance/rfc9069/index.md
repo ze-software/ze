@@ -1,6 +1,6 @@
 # RFC 9069 - Support for Local RIB in the BGP Monitoring Protocol (BMP)
 
-Supported. Every requirement this repository extracted from RFC 9069, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BMP Loc-RIB monitoring. Every requirement this repository extracted from RFC 9069, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 43.8% | 7 of 16 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 56.2% | 9 of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 16 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 16 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 66.7% | 20 of 30 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 7 | of 16 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 9 | of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 16 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 16 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 0 | of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 20 | 20 of 30 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,14 +23,14 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 16 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 16 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 16 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 16 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 16 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 16 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 16 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 16 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 16 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 16 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
-The 9 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 16 gated MUSTs: they add up to 16. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -38,23 +38,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Supported |
+| Public row | BMP Loc-RIB monitoring |
 | Enrolment | Enrolled |
 | Requirements | 16 |
 | Gated MUST-level | 16 |
@@ -77,19 +77,14 @@ Enrolled: Support for Local RIB in the BGP Monitoring Protocol (BMP): fifteen MU
 
 ## What the public ledger says
 
-**Status:** Supported
+**Area:** BMP Loc-RIB monitoring
 
-**What the ledger says is covered**
+**Proof:** 9 of 16 MUST proven
 
-Loc-RIB Instance Peer (Peer Type 3): per-peer flags cleared, zero Peer Address, Peer AS set to the router's own 4-octet ASN, Peer BGP ID set to the local router-id, a fabricated OPEN carried in both the sent and the received field of the Peer Up (Section 5.2) advertising the 4-octet ASN capability and one address-family capability per family the dump delivers, a Peer Down carrying reason code 6, the VRF/Table Name Information TLV (type 3) naming that Loc-RIB `global` on the Peer Up and repeated on the Peer Down (Section 5.2.1), a per-peer Timestamp that is the install time of an incremental change and ZERO where that time is unavailable (Section 5.1), the receiver reading the address-family capabilities off a Peer Up's OPEN and reporting them per peer (Section 6.1.1), exactly one Loc-RIB Peer Up per RIB instance per BMP session, and a full-table dump requested both when monitoring starts and whenever a collector connects, closed with an RFC 4724 End-of-RIB marker for EVERY base unicast family the dump owes one for -- the families it carried and the families the RIB stayed silent about alike (RFC 9069 itself specifies no End-of-RIB; the marker is ze's own dump-complete signal, in the RFC 4724 Section 2 form, and Section 4 of that RFC owes it "including the case when there is no update to send" for a family). Each dump also carries a per-dump correlation token, so a replay another subsystem requested is never mis-claimed as this plugin's dump. Tests bound per requirement in [`rfc/requirements/rfc9069.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc9069.md).
+**Evidence:** unit 9
 
-**What the ledger says remains**
+**Unmet:** -
 
-None outstanding.
-
-- **Closed 2026-07-27:** (1) the mixed-table gap -- a table whose IPv4 half was empty used to get an IPv6 marker and no IPv4 one, because the RIB emits no batch for an empty family ([`internal/component/bgp/plugins/rib/rib_bestchange.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange.go)), leaving a collector waiting on IPv4 waiting forever for a dump that had finished; `closeDumpFamilies` now closes every owed family (`TestMixedFamilyDumpClosesTheSilentFamily`). (2) A replay requested by sysrib that landed while a dump was in flight was claimed as this plugin's: the other collectors silently lost the batch and were sent an End-of-RIB for a dump they never requested. The claim is now made on a per-dump token the RIB echoes back (`TestForeignReplayIsNotClaimedAsOurDump`). Closed 2026-08-31, found by an extraction walk of the RFC's own text: (3) the Loc-RIB per-peer header sent Peer AS 0 against Section 5.1's "Set to the primary router BGP autonomous system number (ASN)", and the summary declared the defect as the requirement; (4) the Loc-RIB Peer Up carried two zero-length OPENs against Section 5.2's "This is a fabricated BGP OPEN message. Capabilities MUST include the 4-octet ASN", and its summary row did the same; (5) the RECEIVER shared the belief -- `decodePeerUp` skipped OPEN extraction for Peer Type 3, so a conformant Loc-RIB Peer Up from any implementation was misparsed from the first Information TLV onward; (6) the Loc-RIB Peer Down carried reason 2 against Section 5.3's "The Peer Down notification MUST use reason code 6". Closed 2026-09-01 by the extraction sign-off of the same text: (7) the per-peer Timestamp read a wall clock, which dated every route of a full-table replay to the moment the collector connected, where Section 5.1's own answer for an install time the sender does not know is zero; (8) no VRF/Table Name TLV was sent, against Section 5.2.1's "The default value of "global" MUST be used for the default Loc-RIB instance with a zero-filled distinguisher"; (9) the receiver read the capabilities of no Peer Up OPEN, against Section 6.1.1's "A BMP receiver MUST process these capabilities to know which peer belongs to which address family", and keyed every Peer Type 3 peer of one router by its zero-filled address, so two Loc-RIB instances shared one RIB-In pool. TWO FEATURES ARE OUT OF SCOPE and are implementation gaps rather than conformance gaps.
-- **VRF:** ze runs one Loc-RIB, the default global instance, and offers no VRF and no second named table (owner decision, 2026-09-01), so the Section 5.2.1 obligations conditional on a configured name or on multiple names for one Loc-RIB do not bind it.
-- **Loc-RIB FILTERING:** Section 5 makes it optional -- "a subset of Loc-RIB routes MAY be sent to a BMP collector by setting the F flag" -- and ze sends the whole Loc-RIB, so the F flag stays 0 and the Section 6.1.2 table-name obligation for multiple filters against one Loc-RIB does not bind it either. A later scope decision can revisit both.
 
 ## Coverage
 
@@ -108,9 +103,41 @@ None outstanding.
 
 **Annotated (including scoped evidence) (9):** [`RFC9069-x-1`](#rfc9069-x-1), [`RFC9069-x-2`](#rfc9069-x-2), [`RFC9069-x-3`](#rfc9069-x-3), [`RFC9069-x-4`](#rfc9069-x-4), [`RFC9069-x-5`](#rfc9069-x-5), [`RFC9069-5.2-1`](#rfc9069-5.2-1), [`RFC9069-5.3-1`](#rfc9069-5.3-1), [`RFC9069-x-7`](#rfc9069-x-7), [`RFC9069-6.1.1-2`](#rfc9069-6.1.1-2)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 16 of 16 (100.0%). Optional ceiling: no rows. Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc9069 16 of 16 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 9, Ze correctness gap 7
+- **Overview bar**: Ze MUST proven 9, Ze correctness gap 7
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 16 |
+| MUST rows kept (the MUST bar) | 16 |
+| Ze proven | 9 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 7 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 0 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 0 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc9069.json](../../../data/rfc/rfc9069.json).
 
 ## Requirements
 
@@ -123,8 +150,8 @@ Mandatory ceiling: 16 of 16 (100.0%). Optional ceiling: no rows. Every RFC shown
 | `RFC9069-x-5` | Peer Address: Zero-filled. The remote peer address is not applicable. (§5.1) | MUST | 5.1 - Per-Peer Header | **positive:** `unit/verify` [`TestLocRIBPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go#L99). **negative:** no negative test. **{single-polarity}:** the Loc-RIB per-peer header leaves Peer Address all-zero by construction (locRIBPeerHeader, internal/component/bgp/plugins/bmp/bmp_locrib.go, no Address assignment) and no path sets it, so there is no non-zero-address case to assert as a negative; the positive (Address==0) is proven in TestLocRIBPeerHeader |
 | `RFC9069-5.4.1-1` | Loc-RIB Route Monitoring messages MUST use a 4-byte ASN encoding as indicated in the Peer Up sent OPEN message (Section 5.2) capability. (§5.4.1). Proven in both polarities by TestLocRIBRouteMonitoringUsesFourByteASNs: the encoded AS_PATH segment is 4 octets per ASN, and an ASN above 65535 round-trips whole, which a 2-byte encoding cannot represent at all | MUST | 5.4.1 - ASN Encoding | **positive:** `unit/verify` [`TestLocRIBRouteMonitoringUsesFourByteASNs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go#L163). **negative:** `unit/verify` [`TestLocRIBRouteMonitoringUsesFourByteASNs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go#L166) |
 | `RFC9069-5.2-1` | Sent OPEN Message: This is a fabricated BGP OPEN message. Capabilities MUST include the 4-octet ASN and all necessary capabilities to represent the Loc-RIB Route Monitoring messages. Only include capabilities if they will be used for Loc-RIB monitoring messages. (§5.2) | MUST | 5.2 - Peer Up Notification | **positive:** `unit/verify` [`TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L88). **positive:** `unit/verify` [`TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go#L373). **positive:** `unit/verify` [`TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L135). **negative:** no negative test. **{single-polarity}:** fabricateLocRIBOpen (internal/component/bgp/plugins/bmp/bmp_locrib.go) builds the capability list from dumpFamilies, the same list the dump closes with End-of-RIB markers, plus one Extended Next Hop capability for IPv4 unicast with an IPv6 next hop, the one Route Monitoring encoding buildLocRIBUpdateBody writes that the Multiprotocol capabilities do not cover. There is no second list that could advertise a family the dump never delivers and no divergent case to assert as a negative. The count is asserted as well as the membership, which is what "Only include capabilities if they will be used for Loc-RIB monitoring messages" forbids going past; proven in TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities, TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses and TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop, which encodes that route and requires the capability |
-| `RFC9069-x-6` | Peer Autonomous System (AS): Set to the primary router BGP autonomous system number (ASN). (§5.1). Corrected 2026-08-31: this row read "Peer AS MUST be 0", which is what the RFC requires of the Peer ADDRESS, row RFC9069-x-5, and the reverse of what it requires of this field. The value is the 4-octet ASN, read from the `bgp session asn local` leaf rather than from a session that may not exist: an OPEN cache is empty until a peer comes up, which is the very case this RFC exists to serve, and an ASN read from the two-octet My AS field of an AS4 speaker is AS_TRANS rather than the router's. Proven positive by TestLocRIBPeerHeader and by TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity, which commits the leaf over the reload rail with the OPEN cache EMPTY, and negative by TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven | MUST | 5.1 - Per-Peer Header | **positive:** `unit/verify` [`TestLocRIBPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go#L88). **positive:** `unit/verify` [`TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1265). **negative:** `unit/verify` [`TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go#L106) |
-| `RFC9069-5.3-1` | The Peer Down notification MUST use reason code 6. (§5.3) | MUST | 5.3 - Peer Down Notification | **positive:** `unit/verify` [`TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1187). **negative:** no negative test. **{single-polarity}:** sendLocRIBPeerDown (internal/component/bgp/plugins/bmp/bmp_locrib.go) is the only producer of a Loc-RIB Peer Down and it passes one constant reason, so there is no second Loc-RIB path to reject as a negative. The neighbouring risk -- reason 6 used for a peer the requirement does not cover -- is closed elsewhere: TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession requires a PeerTypeGlobal Peer Down to carry reason 5, and TestPeerDownReasonMapping requires every mapped BGP close reason to be one of 1 to 5. The positive (reason 6 on the Loc-RIB peer) is proven in TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo, over the plugin's own reload rail |
+| `RFC9069-x-6` | Peer Autonomous System (AS): Set to the primary router BGP autonomous system number (ASN). (§5.1). Corrected 2026-08-31: this row read "Peer AS MUST be 0", which is what the RFC requires of the Peer ADDRESS, row RFC9069-x-5, and the reverse of what it requires of this field. The value is the 4-octet ASN, read from the `bgp session asn local` leaf rather than from a session that may not exist: an OPEN cache is empty until a peer comes up, which is the very case this RFC exists to serve, and an ASN read from the two-octet My AS field of an AS4 speaker is AS_TRANS rather than the router's. Proven positive by TestLocRIBPeerHeader and by TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity, which commits the leaf over the reload rail with the OPEN cache EMPTY, and negative by TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven | MUST | 5.1 - Per-Peer Header | **positive:** `unit/verify` [`TestLocRIBPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go#L88). **positive:** `unit/verify` [`TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1272). **negative:** `unit/verify` [`TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go#L106) |
+| `RFC9069-5.3-1` | The Peer Down notification MUST use reason code 6. (§5.3) | MUST | 5.3 - Peer Down Notification | **positive:** `unit/verify` [`TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1194). **negative:** no negative test. **{single-polarity}:** sendLocRIBPeerDown (internal/component/bgp/plugins/bmp/bmp_locrib.go) is the only producer of a Loc-RIB Peer Down and it passes one constant reason, so there is no second Loc-RIB path to reject as a negative. The neighbouring risk -- reason 6 used for a peer the requirement does not cover -- is closed elsewhere: TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession requires a PeerTypeGlobal Peer Down to carry reason 5, and TestPeerDownReasonMapping requires every mapped BGP close reason to be one of 1 to 5. The positive (reason 6 on the Loc-RIB peer) is proven in TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo, over the plugin's own reload rail |
 | `RFC9069-x-7` | Peer BGP ID: Set the ID to the router-id of the VRF instance if VRF is used; otherwise, set to the global instance router-id. (§5.1) | MUST | 5.1 - Per-Peer Header | **positive:** `unit/verify` [`TestLocRIBPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go#L94). **negative:** no negative test. **{single-polarity}:** the Loc-RIB per-peer header sets Peer BGP ID to the `bgp router-id` leaf (locRIBPeerHeader and BMPPlugin.localIdentity, internal/component/bgp/plugins/bmp/bmp_locrib.go) and ze has exactly one local router-id, so there is no non-conformant BGP-ID value to reject as a negative; a plugin that has been handed no configuration emits nothing rather than the zero identifier RFC 6286 forbids; the positive (Peer BGP ID == router-id) is proven in TestLocRIBPeerHeader and TestHandleBestChangeEmitsPeerUpThenRM |
 | `RFC9069-4.2-1` | If locally sourced routes are communicated using BMP, they MUST be conveyed using the Loc-RIB Instance Peer Type. (§4.2). Proven positive by TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType, which reads the Peer Up and the Route Monitoring one best change puts on the wire and requires Peer Type 3 on both, and by TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType, which does the same for a route this router originated, one with an empty AS_PATH, and negative by TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer, which pushes the input toward the violation: the locally sourced route names a monitored BGP peer's address as its next hop, and the Peer Up and Route Monitoring still carry Peer Type 3, a zero peer address and the router's own AS and BGP ID | MUST | 4.2 - Peer Flags | **positive:** `unit/verify` [`TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L137). **positive:** `unit/verify` [`TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L253). **negative:** `unit/verify` [`TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L277) |
 | `RFC9069-5.1-1` | Timestamp: The time when the encapsulated routes were installed in the Loc-RIB, expressed in seconds and microseconds since midnight (zero hour), January 1, 1970 (UTC). If zero, the time is unavailable. (§5.1). Ze knows it for an incremental best change, which the RIB delivers on the goroutine that installed it; a full-table replay, a Peer Up, a Peer Down and an End-of-RIB marker each carry zero, which the same paragraph defines: "If zero, the time is unavailable." Proven positive by TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime, negative by TestLocRIBReplayAndPeerUpCarryNoTimestamp | MUST | 5.1 - Per-Peer Header | **positive:** `unit/verify` [`TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L89). **negative:** `unit/verify` [`TestLocRIBReplayAndPeerUpCarryNoTimestamp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_test.go#L113) |
@@ -145,7 +172,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 The unused bits are reserved for future use. They MUST be transmitted as 0 (§4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader moved. Forbidden: a reserved (non-F) per-peer flag bit transmitted as 1 on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Flags != 0 is Errorf, red on any set bit. Single-polarity marker: no producer sets a flag, so no negative input exists. The row claims only the transmit half; the 'ignored on receipt' clause of the same sentence is not quoted and has no row.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a reserved (non-F) per-peer flag bit transmitted as 1 on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Flags != 0 is Errorf, red on any set bit. Single-polarity marker: no producer sets a flag, so no negative input exists. The row claims only the transmit half; the 'ignored on receipt' clause of the same sentence is not quoted and has no row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -155,7 +182,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 There MUST be at least one emulated peer for each Loc-RIB instance, such as with VRFs. (§6.1.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance moved. Re-judged 2026-10-23. TestLocRIBSinglePeerUpPerInstance changed by fixture only: each best change now carries Attributes (ORIGIN IGP), because buildLocRIBUpdateBody refuses an announce with no stored attribute set. The assertion is unchanged: two BGP peers' best changes produce exactly one Loc-RIB Peer Up (peerUps != 1 is Errorf), red on zero and on one per peer. Single-polarity annotation stands: the one-shot locRIBUpSent guard has no per-peer path to reject. Ze runs one Loc-RIB instance.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23. TestLocRIBSinglePeerUpPerInstance changed by fixture only: each best change now carries Attributes (ORIGIN IGP), because buildLocRIBUpdateBody refuses an announce with no stored attribute set. The assertion is unchanged: two BGP peers' best changes produce exactly one Loc-RIB Peer Up (peerUps != 1 is Errorf), red on zero and on one per peer. Single-polarity annotation stands: the one-shot locRIBUpSent guard has no per-peer path to reject. Ze runs one Loc-RIB instance.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -165,7 +192,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Received OPEN Message: Repeat of the same sent OPEN message. (§5.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM moved. Re-judged 2026-10-23. TestHandleBestChangeEmitsPeerUpThenRM changed by fixture only: the replayed best change carries Attributes (ORIGIN IGP) so the Route Monitoring after the Peer Up is encoded rather than refused. The Received OPEN assertions are unchanged: an empty SentOpenMsg is Fatal and SentOpenMsg != ReceivedOpenMsg is Errorf, so a received OPEN that is not a repeat of the sent one goes red. Single-polarity annotation stands: both producers pass one fabricateLocRIBOpen result to both fields.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23. TestHandleBestChangeEmitsPeerUpThenRM changed by fixture only: the replayed best change carries Attributes (ORIGIN IGP) so the Route Monitoring after the Peer Up is encoded rather than refused. The Received OPEN assertions are unchanged: an empty SentOpenMsg is Fatal and SentOpenMsg != ReceivedOpenMsg is Errorf, so a received OPEN that is not a repeat of the sent one goes red. Single-polarity annotation stands: both producers pass one fabricateLocRIBOpen result to both fields.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -175,7 +202,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Route Monitoring messages are used for initial synchronization of the Loc-RIB. (§5.4, Route Monitoring)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump moved. Re-judged 2026-09-29 (row prose rewritten, claim unchanged). rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring subscribes a stand-in RIB that answers startLocRIB's replay-request with one best change carrying its token, and requires after the Loc-RIB Peer Up a Route Monitoring of Peer Type 3 carrying 10.20.30.0/24: the initial synchronization arrives as Route Monitoring. bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump asserts the trigger and its per-dump tokens; it carries no discrimination record, the delivery unit does (startLocRIB break). {single-polarity: positive} holds: no non-conformant input to refuse.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (row prose rewritten, claim unchanged). rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring subscribes a stand-in RIB that answers startLocRIB's replay-request with one best change carrying its token, and requires after the Loc-RIB Peer Up a Route Monitoring of Peer Type 3 carrying 10.20.30.0/24: the initial synchronization arrives as Route Monitoring. bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump asserts the trigger and its per-dump tokens; it carries no discrimination record, the delivery unit does (startLocRIB break). {single-polarity: positive} holds: no non-conformant input to refuse.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -186,7 +213,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Peer Address: Zero-filled. The remote peer address is not applicable. (§5.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader moved. Forbidden: a non-zero Peer Address on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Address != [16]byte{} is Errorf. Single-polarity marker.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a non-zero Peer Address on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Address != [16]byte{} is Errorf. Single-polarity marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -196,7 +223,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Loc-RIB Route Monitoring messages MUST use a 4-byte ASN encoding as indicated in the Peer Up sent OPEN message (Section 5.2) capability. (§5.4.1). Proven in both polarities by TestLocRIBRouteMonitoringUsesFourByteASNs: the encoded AS_PATH segment is 4 octets per ASN, and an ASN above 65535 round-trips whole, which a 2-byte encoding cannot represent at all
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs, internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs#2 moved. Re-judged 2026-10-23. The Route Monitoring UPDATE now carries the best path's stored attributes, so AGGREGATOR became a second ASN carrier and the unit was extended to it. TestLocRIBRouteMonitoringUsesFourByteASNs asserts: AS_PATH value 2+4n octets (Fatal) with ASN 4200000001 whole (Errorf); AGGREGATOR value 8 octets with AS 4200000001 (Fatal/Errorf); AS4_PATH and AS4_AGGREGATOR absent (RFC 6793 Section 4.1), red observed with the attrCodeAfter AS4 filter removed. The stored AGGREGATOR's four-octet form is established at ingest (attribute.ReconcileASPathFamily, per storage.ParseAttributes), outside this unit: the unit proves the encoder carries it as stored and adds no two-octet companion. Both polarity tags on one unit.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23. The Route Monitoring UPDATE now carries the best path's stored attributes, so AGGREGATOR became a second ASN carrier and the unit was extended to it. TestLocRIBRouteMonitoringUsesFourByteASNs asserts: AS_PATH value 2+4n octets (Fatal) with ASN 4200000001 whole (Errorf); AGGREGATOR value 8 octets with AS 4200000001 (Fatal/Errorf); AS4_PATH and AS4_AGGREGATOR absent (RFC 6793 Section 4.1), red observed with the attrCodeAfter AS4 filter removed. The stored AGGREGATOR's four-octet form is established at ingest (attribute.ReconcileASPathFamily, per storage.ParseAttributes), outside this unit: the unit proves the encoder carries it as stored and adds no two-octet companion. Both polarity tags on one unit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -207,7 +234,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Sent OPEN Message: This is a fabricated BGP OPEN message. Capabilities MUST include the 4-octet ASN and all necessary capabilities to represent the Loc-RIB Route Monitoring messages. Only include capabilities if they will be used for Loc-RIB monitoring messages. (§5.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities moved. Re-judged 2026-10-23. TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop changed by fixture only: Attributes (ORIGIN IGP) and mustLocRIBBody, which fails the test on the encoder's new error. Assertions unchanged: the IPv4 route with an IPv6 next hop travels in MP_REACH_NLRI and the fabricated OPEN carries Extended Next Hop. Carrying the stored attribute set adds no capability need: path attributes other than the ASN carriers need none, and the ASN carriers are four-octet as the 4-octet ASN capability states. The other two units are unchanged. Single-polarity annotation stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23. TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop changed by fixture only: Attributes (ORIGIN IGP) and mustLocRIBBody, which fails the test on the encoder's new error. Assertions unchanged: the IPv4 route with an IPv6 next hop travels in MP_REACH_NLRI and the fabricated OPEN carries Extended Next Hop. Carrying the stored attribute set adds no capability need: path attributes other than the ASN carriers need none, and the ASN carriers are four-octet as the 4-octet ASN capability states. The other two units are unchanged. Single-polarity annotation stands.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -219,29 +246,29 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Peer Autonomous System (AS): Set to the primary router BGP autonomous system number (ASN). (§5.1). Corrected 2026-08-31: this row read "Peer AS MUST be 0", which is what the RFC requires of the Peer ADDRESS, row RFC9069-x-5, and the reverse of what it requires of this field. The value is the 4-octet ASN, read from the `bgp session asn local` leaf rather than from a session that may not exist: an OPEN cache is empty until a peer comes up, which is the very case this RFC exists to serve, and an ASN read from the two-octet My AS field of an AS4 speaker is AS_TRANS rather than the router's. Proven positive by TestLocRIBPeerHeader and by TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity, which commits the leaf over the reload rail with the OPEN cache EMPTY, and negative by TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader, internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven moved. Forbidden: Peer AS other than the router's primary ASN (zero, a constant, AS_TRANS). internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerAS != 4200000001 Errorf; ::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven two identities must give 65001 and 65002; internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity reads Peer AS 4200000001 off the wire with the OPEN cache empty.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity moved. Forbidden: Peer AS other than the router's primary ASN (zero, a constant, AS_TRANS). internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerAS != 4200000001 Errorf; ::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven two identities must give 65001 and 65002; internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity reads Peer AS 4200000001 off the wire with the OPEN cache empty.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go#L106) | unit/verify | unproven |
-| positive | [`TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1265) | unit/verify | unproven |
+| positive | [`TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1272) | unit/verify | unproven |
 | positive | [`TestLocRIBPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go#L88) | unit/verify | unproven |
 
 ### [`RFC9069-5.3-1`](#rfc9069-5.3-1)
 
 The Peer Down notification MUST use reason code 6. (§5.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Loc-RIB Peer Down with a reason other than 6. internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo: down.Reason != PeerDownTLVData Errorf, on the Loc-RIB peer type, read off the socket. Single-polarity marker.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo moved. Forbidden: a Loc-RIB Peer Down with a reason other than 6. internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo: down.Reason != PeerDownTLVData Errorf, on the Loc-RIB peer type, read off the socket. Single-polarity marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1187) | unit/verify | unproven |
+| positive | [`TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1194) | unit/verify | unproven |
 
 ### [`RFC9069-x-7`](#rfc9069-x-7)
 
 Peer BGP ID: Set the ID to the router-id of the VRF instance if VRF is used; otherwise, set to the global instance router-id. (§5.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader moved. Forbidden: Peer BGP ID other than the global instance router-id. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerBGPID != 0x0a141e01 Errorf. Single-polarity marker. The VRF clause is conditional on a VRF Loc-RIB instance, which ze does not implement (one global instance), so it has no reachable case.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: Peer BGP ID other than the global instance router-id. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerBGPID != 0x0a141e01 Errorf. Single-polarity marker. The VRF clause is conditional on a VRF Loc-RIB instance, which ze does not implement (one global instance), so it has no reachable case.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

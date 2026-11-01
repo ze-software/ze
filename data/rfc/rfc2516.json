@@ -1,0 +1,38 @@
+{
+  "stem": "rfc2516",
+  "title": "A Method for Transmitting PPP Over Ethernet (PPPoE)",
+  "walked": true,
+  "requirements": 40,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 37,
+    "kept": 37,
+    "ze-proven": 25,
+    "os-verified": 0,
+    "os-gap": 1,
+    "ze-gap": 11,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 3,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 3,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 25
+  },
+  "unmet": [
+    "RFC2516-3-1",
+    "RFC2516-x-11",
+    "RFC2516-x-14",
+    "RFC2516-x-15"
+  ]
+}

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8247 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8247: Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2). 20 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 8247: Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2). 20 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8247 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8247: Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2). 20 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 8247: Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2). 20 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8247 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8247: Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2). 20 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 8247: Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2). 20 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Partial</span>
+    <span class="journey-eyebrow">IKEv2 algorithms</span>
     <h1 id="rfc-detail-title">RFC 8247 - Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2)</h1>
     <p>Every requirement this repository extracted from RFC 8247, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -118,28 +118,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>80.0%</strong><b>16 of 20 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>32 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>17</strong><b>of 20 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 20 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 20 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 20 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>36</strong><b>36 of 36 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>20</strong><b>of 25 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 20 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>20</strong><b>of 25 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 20 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 20 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 20 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 20 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 20 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>20.0%</strong><b>4 of 20 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>3</strong><b>of 20 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 9 shares marked as a part above are the whole of the 20 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 9 counts marked as a part above are the whole of the 20 gated MUSTs: they add up to 20. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -156,7 +156,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Tested both ways</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got</td>
 </tr>
 <tr><td>One polarity plus reason</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -180,7 +180,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -192,7 +192,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-warn"></span> warn</td>
@@ -208,8 +208,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
-<tr><td>Public status</td>
-<td>Partial</td>
+<tr><td>Public row</td>
+<td>IKEv2 algorithms</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -224,7 +224,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>4</td>
+<td>3</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -236,16 +236,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>32</td>
+<td>36</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>32</td>
+<td>36</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>32</td>
+<td>36</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8247.md</code></td>
@@ -264,18 +264,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>Enrolled: IKEv2 algorithm requirements: twenty MUST-level rows, every one classified. Three are {gap}: PRF_HMAC_SHA1 (RFC8247-2.2-2) and AUTH_HMAC_SHA1_96 (RFC8247-2.3-2) are MUST- and the IKE SA registries in internal/component/ike/crypto/transform.go admit neither, and RSASSA-PSS (RFC8247-3.2-2) is absent from internal/component/ike/engine/auth.go hashFromAlgID. The others are met by those registries and by auth.go and owe tagged tests. The groups 23 and 24 check is conditional on groups ze does not offer (feature-out-of-scope in the extraction).</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Partial</p>
-<details class="rfc-fold"><summary>What the ledger says is covered</summary>
-<ul class="rfc-prose">
-<li>ENCR_AES_CBC, ENCR_AES_GCM_16 and ENCR_AES_CCM for the IKE SA</li>
-<li>PRF and integrity HMAC-SHA2-256/384/512</li>
-<li>DH groups 14, 19 and 20</li>
-<li>PSK, RSA Digital Signature (verify) and Digital Signature (method 14) authentication with SHA2 hashes. No DES, NULL, MD5, DSS or SHA-1 signature algorithm.</li>
-</ul>
-</details>
-<details class="rfc-fold"><summary>What the ledger says remains</summary>
-MUST- algorithms PRF_HMAC_SHA1 and AUTH_HMAC_SHA1_96 are not offered for the IKE SA (AUTH_HMAC_SHA1_96 is ESP-only); RSASSA-PSS is not supported, so RSA signatures use RSASSA-PKCS1-v1.5 only; ze verifies AUTH method 1 but always signs with method 14. ENCR_CHACHA20_POLY1305 is ESP-only. Groups 23 and 24 are not offered. Requirement tests are owed for every met row.
-</details>
+<p><strong>Area:</strong> IKEv2 algorithms</p>
+<p><strong>Proof:</strong> 17 of 20 MUST proven</p>
+<p><strong>Evidence:</strong> unit 17</p>
+<p><strong>Unmet:</strong> RFC8247-2.2-2, RFC8247-2.3-2, RFC8247-3.2-2</p>
+
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -283,11 +276,11 @@ MUST- algorithms PRF_HMAC_SHA1 and AUTH_HMAC_SHA1_96 are not offered for the IKE
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>16</strong></td>
+<td><strong>17</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>4</strong></td>
+<td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -314,11 +307,95 @@ MUST- algorithms PRF_HMAC_SHA1 and AUTH_HMAC_SHA1_96 are not offered for the IKE
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (16):</strong> <a href="#rfc8247-2.1-1"><code>RFC8247-2.1-1</code></a>, <a href="#rfc8247-2.1-2"><code>RFC8247-2.1-2</code></a>, <a href="#rfc8247-2.1-3"><code>RFC8247-2.1-3</code></a>, <a href="#rfc8247-2.1-4"><code>RFC8247-2.1-4</code></a>, <a href="#rfc8247-2.2-1"><code>RFC8247-2.2-1</code></a>, <a href="#rfc8247-2.2-3"><code>RFC8247-2.2-3</code></a>, <a href="#rfc8247-2.3-1"><code>RFC8247-2.3-1</code></a>, <a href="#rfc8247-2.3-3"><code>RFC8247-2.3-3</code></a>, <a href="#rfc8247-2.3-4"><code>RFC8247-2.3-4</code></a>, <a href="#rfc8247-2.4-1"><code>RFC8247-2.4-1</code></a>, <a href="#rfc8247-2.4-2"><code>RFC8247-2.4-2</code></a>, <a href="#rfc8247-2.4-3"><code>RFC8247-2.4-3</code></a>, <a href="#rfc8247-3.1-2"><code>RFC8247-3.1-2</code></a>, <a href="#rfc8247-3.1.1-1"><code>RFC8247-3.1.1-1</code></a>, <a href="#rfc8247-3.2-1"><code>RFC8247-3.2-1</code></a>, <a href="#rfc8247-3.2-3"><code>RFC8247-3.2-3</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (4):</strong> <a href="#rfc8247-2.2-2"><code>RFC8247-2.2-2</code></a>, <a href="#rfc8247-2.3-2"><code>RFC8247-2.3-2</code></a>, <a href="#rfc8247-3.1-1"><code>RFC8247-3.1-1</code></a>, <a href="#rfc8247-3.2-2"><code>RFC8247-3.2-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (17):</strong> <a href="#rfc8247-2.1-1"><code>RFC8247-2.1-1</code></a>, <a href="#rfc8247-2.1-2"><code>RFC8247-2.1-2</code></a>, <a href="#rfc8247-2.1-3"><code>RFC8247-2.1-3</code></a>, <a href="#rfc8247-2.1-4"><code>RFC8247-2.1-4</code></a>, <a href="#rfc8247-2.2-1"><code>RFC8247-2.2-1</code></a>, <a href="#rfc8247-2.2-3"><code>RFC8247-2.2-3</code></a>, <a href="#rfc8247-2.3-1"><code>RFC8247-2.3-1</code></a>, <a href="#rfc8247-2.3-3"><code>RFC8247-2.3-3</code></a>, <a href="#rfc8247-2.3-4"><code>RFC8247-2.3-4</code></a>, <a href="#rfc8247-2.4-1"><code>RFC8247-2.4-1</code></a>, <a href="#rfc8247-2.4-2"><code>RFC8247-2.4-2</code></a>, <a href="#rfc8247-2.4-3"><code>RFC8247-2.4-3</code></a>, <a href="#rfc8247-3.1-1"><code>RFC8247-3.1-1</code></a>, <a href="#rfc8247-3.1-2"><code>RFC8247-3.1-2</code></a>, <a href="#rfc8247-3.1.1-1"><code>RFC8247-3.1.1-1</code></a>, <a href="#rfc8247-3.2-1"><code>RFC8247-3.2-1</code></a>, <a href="#rfc8247-3.2-3"><code>RFC8247-3.2-3</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc8247-2.2-2"><code>RFC8247-2.2-2</code></a>, <a href="#rfc8247-2.3-2"><code>RFC8247-2.3-2</code></a>, <a href="#rfc8247-3.2-2"><code>RFC8247-3.2-2</code></a></p>
 </section>
-<section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 20 of 20 (100.0%). Optional ceiling: 5 of 5 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc8247 20 of 20 (100.0%). Lowest optional ceiling: rfc8247 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<section><h2>Figures</h2>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="rfc8247:must">Ze proven 17, Ze correctness gap 3</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="rfc8247:overview">Ze MUST proven 17, SHOULD not decided 5, Ze correctness gap 3</div>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="rfc8247:rfcs">1</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="rfc8247:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="rfc8247:register">not complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="rfc8247:must.total">20</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="rfc8247:must.kept">20</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="rfc8247:must.ze-proven">17</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="rfc8247:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="rfc8247:must.os-gap">0</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="rfc8247:must.ze-gap">3</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="rfc8247:must.not-owed">0</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="rfc8247:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="rfc8247:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="rfc8247:must.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="rfc8247:should.total">5</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="rfc8247:should.proven">0</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="rfc8247:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="rfc8247:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="rfc8247:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="rfc8247:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="rfc8247:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="rfc8247:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="rfc8247:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="rfc8247:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="rfc8247:should.not-decided">5</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -456,9 +533,11 @@ MUST- algorithms PRF_HMAC_SHA1 and AUTH_HMAC_SHA1_96 are not offered for the IKE
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8247-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze never sends AUTH method 1, and computeX509Auth refuses to sign at all when the peer sent no SIGNATURE_HASH_ALGORITHMS notify, so a peer that supports only RSA Digital Signature cannot authenticate ze; verifyLegacyRSAAuth verifies method 1 with a SHA-256 DigestInfo only, while RFC 7296 Section 3.8 has method 1 implementations default to SHA-1; internal/component/ike/engine/auth.go computeX509Auth, verifyLegacyRSAAuth</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L246" title="internal/component/ike/engine/rfc8247_legacy_auth_test.go" target="_blank" rel="noopener"><code>TestRFC8247LegacyRSAVerifiesSHA1</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L71" title="internal/component/ike/engine/rfc8247_legacy_auth_test.go" target="_blank" rel="noopener"><code>TestRFC8247LegacySignatureWithoutNotify</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L247" title="internal/component/ike/engine/rfc8247_legacy_auth_test.go" target="_blank" rel="noopener"><code>TestRFC8247LegacyRSAVerifiesSHA1</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L72" title="internal/component/ike/engine/rfc8247_legacy_auth_test.go" target="_blank" rel="noopener"><code>TestRFC8247LegacySignatureWithoutNotify</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8247-3.1-2">RFC8247-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Shared Key Message Integrity Code is widely deployed and mandatory to implement in the IKEv2 in RFC 7296. The status remains MUST. (§3.1)</span></td></tr>
 <tr><td></td>
@@ -566,10 +645,6 @@ MUST- algorithms PRF_HMAC_SHA1 and AUTH_HMAC_SHA1_96 are not offered for the IKE
 <tr><td><a href="#rfc8247-2.3-2"><code>RFC8247-2.3-2</code></a> AUTH_HMAC_SHA1_96 has been downgraded from MUST in RFC 4307 to MUST- as cryptographic attacks against SHA1 are increasing, resulting in an industry-wide trend to deprecate its usage. (§2.3)</td>
 <td>{gap}, no test</td>
 <td>MUST- means the same as MUST (Section 1.1), and AUTH_HMAC_SHA1_96 sits in the ESP-only registry, so an IKE SA can neither offer nor accept it; internal/component/ike/crypto/transform.go espOnlyIntegrityRegistry</td>
-</tr>
-<tr><td><a href="#rfc8247-3.1-1"><code>RFC8247-3.1-1</code></a> RSA Digital Signature is widely deployed and, therefore, kept for interoperability. (§3.1)</td>
-<td>{gap}, no test</td>
-<td>ze never sends AUTH method 1, and computeX509Auth refuses to sign at all when the peer sent no SIGNATURE_HASH_ALGORITHMS notify, so a peer that supports only RSA Digital Signature cannot authenticate ze; verifyLegacyRSAAuth verifies method 1 with a SHA-256 DigestInfo only, while RFC 7296 Section 3.8 has method 1 implementations default to SHA-1; internal/component/ike/engine/auth.go computeX509Auth, verifyLegacyRSAAuth</td>
 </tr>
 <tr><td><a href="#rfc8247-3.2-2"><code>RFC8247-3.2-2</code></a> When the Digital Signature authentication method is used with RSA signature algorithm, RSASSA-PSS MUST be supported and RSASSA- PKCS1-v1.5 MAY be supported. (§3.2)</td>
 <td>{gap}, no test</td>
@@ -831,8 +906,34 @@ MUST- algorithms PRF_HMAC_SHA1 and AUTH_HMAC_SHA1_96 are not offered for the IKE
 </div>
 <h3><a href="#rfc8247-3.1-1"><code>RFC8247-3.1-1</code></a></h3>
 <p>RSA Digital Signature is widely deployed and, therefore, kept for interoperability. (§3.1)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8247-3.1-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged after TestRFC8247LegacyRSAVerifiesSHA1 moved to verifyRemoteAuth. RFC 8247 Section 3.1 keeps RSA Digital Signature (method 1) at MUST; RFC 7296 Section 3.8 defines it as RSASSA-PKCS1-v1_5 with SHA-1 as the SHOULD default. Send side: TestRFC8247LegacySignatureWithoutNotify drives computeX509Auth with no notify and an RSA key and requires method 1, the bare modulus-length signature, accepted by verifyLegacyRSAAuth and by rsa.VerifyPKCS1v15 with crypto.SHA1 over the signed octets, so a wrong method, a DER prefix, a SHA-2 hash or the wrong octets go red. Receive side: TestRFC8247LegacyRSAVerifiesSHA1 hands verifyRemoteAuth a method 1 AUTH over the remote party&#39;s signed octets (computeSignedOctets with !IsInitiator) and requires SHA-1 and SHA-256 signatures to verify and a SHA-1 signature over other octets to fail with errSignatureFailed, so deleting the method 1 case of verifyRemoteAuth&#39;s switch or an accept-all verifier goes red; the earlier dispatch gap is closed. Remaining note: of the send-side negatives, &#39;notify received yields 14&#39; is RFC7427-3-5&#39;s obligation and &#39;fails over other octets&#39; is a property of rsa.VerifyPKCS1v15; the receive-side negative is the discriminating one. Untagged support: interop scenarios x509-legacy-rsa-signature and x509-legacy-rsa-signature-ze-responder against strongSwan with RFC 7427 disabled.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L247" title="internal/component/ike/engine/rfc8247_legacy_auth_test.go" target="_blank" rel="noopener"><code>TestRFC8247LegacyRSAVerifiesSHA1</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L72" title="internal/component/ike/engine/rfc8247_legacy_auth_test.go" target="_blank" rel="noopener"><code>TestRFC8247LegacySignatureWithoutNotify</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L246" title="internal/component/ike/engine/rfc8247_legacy_auth_test.go" target="_blank" rel="noopener"><code>TestRFC8247LegacyRSAVerifiesSHA1</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L71" title="internal/component/ike/engine/rfc8247_legacy_auth_test.go" target="_blank" rel="noopener"><code>TestRFC8247LegacySignatureWithoutNotify</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8247-3.1-2"><code>RFC8247-3.1-2</code></a></h3>
 <p>Shared Key Message Integrity Code is widely deployed and mandatory to implement in the IKEv2 in RFC 7296. The status remains MUST. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1213,6 +1314,7 @@ MUST- algorithms PRF_HMAC_SHA1 and AUTH_HMAC_SHA1_96 are not offered for the IKE
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 8247, so its obligations are stated where they were written.</p>
 </section>
+<script src="../../../assets/rfc-figures.js" defer></script>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -1244,7 +1346,7 @@ MUST- algorithms PRF_HMAC_SHA1 and AUTH_HMAC_SHA1_96 are not offered for the IKE
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

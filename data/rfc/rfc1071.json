@@ -1,0 +1,33 @@
+{
+  "stem": "rfc1071",
+  "title": "Computing the Internet Checksum",
+  "walked": true,
+  "requirements": 9,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 6,
+    "kept": 6,
+    "ze-proven": 6,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 3,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 3,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 6
+  },
+  "unmet": []
+}

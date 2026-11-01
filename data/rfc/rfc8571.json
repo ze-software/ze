@@ -1,0 +1,31 @@
+{
+  "stem": "rfc8571",
+  "title": "BGP - Link State (BGP-LS) Advertisement of IGP Traffic Engineering Performance Metric Extensions",
+  "walked": true,
+  "requirements": 0,
+  "implementer": "ze",
+  "implemented": false,
+  "must": {
+    "total": 0,
+    "kept": 0,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 0,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 0,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": []
+}

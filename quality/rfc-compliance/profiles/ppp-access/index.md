@@ -1,64 +1,91 @@
 # PPP access
 
-Technology aggregate. PPP, PPPoE, and L2TP subscriber access. The RFCs whose summary names the ppp-access aggregate, with their mandatory and optional coverage.
+Technology aggregate. PPP, PPPoE, and L2TP subscriber access. The RFCs whose summary names the ppp-access aggregate, with the MUST bar and the overview bar of the set and of each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 61.8% (183 of 296 (61.8%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 4.1% (4 of 97 (4.1%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 98.6% (292 of 296 (98.6%); excluded: Met by a lower layer: 4 of 296 (1.4%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (97 of 97 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 0 (of 11 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/ppp-access.json](../../../../data/rfc/profiles/ppp-access.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 292 of 296 (98.6%); excluded: Met by a lower layer: 4 of 296 (1.4%). Optional ceiling: 97 of 97 (100.0%). Lowest mandatory ceiling: rfc2516 36 of 37 (97.3%). Lowest optional ceiling: rfc1332 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 186, OS testing gap 4, Ze correctness gap 106
+- **Overview bar**: Ze MUST proven 186, SHOULD proven 4, SHOULD not decided 93, OS testing gap 4, Ze correctness gap 106
+
+| Figure | Rows |
+|---|---|
+| RFCs | 11 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 296 |
+| MUST rows kept (the MUST bar) | 296 |
+| Ze proven | 186 |
+| OS verified | 0 |
+| OS testing gap | 4 |
+| Ze correctness gap | 106 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 97 |
+| SHOULD proven | 4 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 93 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
 ### Level 0
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | 39 of 76 (51.3%); ceiling 74 of 76 (97.4%); excluded: Met by a lower layer: 2 of 76 (2.6%) | 0 of 25 (0.0%); ceiling 25 of 25 (100.0%) |
+| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 42, OS testing gap 2, Ze correctness gap 32 | Ze MUST proven 42, SHOULD not decided 25, OS testing gap 2, Ze correctness gap 32 |
 
 ### Level 1
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1570](../../rfc1570/) | PPP LCP Extensions | 0 of 22 (0.0%); ceiling 22 of 22 (100.0%) | 0 of 16 (0.0%); ceiling 16 of 16 (100.0%) |
-| [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | 8 of 16 (50.0%); ceiling 16 of 16 (100.0%) | 2 of 11 (18.2%); ceiling 11 of 11 (100.0%) |
-| [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | 25 of 37 (67.6%); ceiling 36 of 37 (97.3%); excluded: Met by a lower layer: 1 of 37 (2.7%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) |
+| [RFC 1570](../../rfc1570/) | PPP LCP Extensions | Ze correctness gap 22 | SHOULD not decided 16, Ze correctness gap 22 |
+| [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze proven 8, Ze correctness gap 8 | Ze MUST proven 8, SHOULD proven 2, SHOULD not decided 9, Ze correctness gap 8 |
+| [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | Ze proven 25, OS testing gap 1, Ze correctness gap 11 | Ze MUST proven 25, SHOULD not decided 3, OS testing gap 1, Ze correctness gap 11 |
 
 ### Level 2
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | 8 of 8 (100.0%); ceiling 8 of 8 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) |
-| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | 13 of 13 (100.0%); ceiling 13 of 13 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) |
-| [RFC 4638](../../rfc4638/) | Accommodating a Maximum Transit Unit/Maximum Receive Unit (MTU/MRU) Greater Than 1492 in the Point-to-Point Protocol over Ethernet (PPPoE) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) |
+| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 8 | Ze MUST proven 8, SHOULD not decided 6 |
+| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | Ze proven 13 | Ze MUST proven 13, SHOULD not decided 3 |
+| [RFC 4638](../../rfc4638/) | Accommodating a Maximum Transit Unit/Maximum Receive Unit (MTU/MRU) Greater Than 1492 in the Point-to-Point Protocol over Ethernet (PPPoE) | Ze correctness gap 6 | SHOULD not decided 3, Ze correctness gap 6 |
 
 ### Level 3
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1877](../../rfc1877/) | PPP Internet Protocol Control Protocol Extensions for Name Server Addresses | no rows; ceiling no rows | no rows; ceiling no rows |
+| [RFC 1877](../../rfc1877/) | PPP Internet Protocol Control Protocol Extensions for Name Server Addresses | no rows | no rows |
 
 ### Level 4
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | 9 of 16 (56.2%); ceiling 16 of 16 (100.0%) | 0 of 12 (0.0%); ceiling 12 of 12 (100.0%) |
+| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze proven 9, Ze correctness gap 7 | Ze MUST proven 9, SHOULD not decided 12, Ze correctness gap 7 |
 
 ### Level 5
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2661](../../rfc2661/) | Layer Two Tunneling Protocol "L2TP" | 81 of 94 (86.2%); ceiling 93 of 94 (98.9%); excluded: Met by a lower layer: 1 of 94 (1.1%) | 2 of 8 (25.0%); ceiling 8 of 8 (100.0%) |
+| [RFC 2661](../../rfc2661/) | Layer Two Tunneling Protocol "L2TP" | Ze proven 81, OS testing gap 1, Ze correctness gap 12 | Ze MUST proven 81, SHOULD proven 2, SHOULD not decided 6, OS testing gap 1, Ze correctness gap 12 |
 
 ### Level 6
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 3145](../../rfc3145/) | L2TP Disconnect Cause Information | 0 of 8 (0.0%); ceiling 8 of 8 (100.0%) | 0 of 10 (0.0%); ceiling 10 of 10 (100.0%) |
+| [RFC 3145](../../rfc3145/) | L2TP Disconnect Cause Information | Ze correctness gap 8 | SHOULD not decided 10, Ze correctness gap 8 |

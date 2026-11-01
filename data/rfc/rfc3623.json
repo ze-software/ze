@@ -1,0 +1,38 @@
+{
+  "stem": "rfc3623",
+  "title": "Graceful OSPF Restart",
+  "walked": true,
+  "requirements": 26,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 13,
+    "kept": 13,
+    "ze-proven": 8,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 5,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 13,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 13,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 8
+  },
+  "unmet": [
+    "RFC3623-3-1",
+    "RFC3623-3.1-1",
+    "RFC3623-3.2-1",
+    "RFC3623-A-1"
+  ]
+}

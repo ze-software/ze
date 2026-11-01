@@ -13,7 +13,7 @@ Named AS-path length filter (accept/reject based on hop count)
 
 ## Configuration
 
-`policy`
+`bgp`
 
 ## Dependencies
 

@@ -13,7 +13,7 @@ Named community match filter (ordered entries, first match wins, accept/reject)
 
 ## Configuration
 
-`policy`
+`bgp`
 
 ## Dependencies
 

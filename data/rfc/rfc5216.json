@@ -1,0 +1,43 @@
+{
+  "stem": "rfc5216",
+  "title": "The EAP-TLS Authentication Protocol",
+  "walked": true,
+  "requirements": 54,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 47,
+    "kept": 47,
+    "ze-proven": 30,
+    "os-verified": 0,
+    "os-gap": 2,
+    "ze-gap": 15,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 7,
+    "proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 5,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 30
+  },
+  "unmet": [
+    "RFC5216-2.4-5",
+    "RFC5216-2.4-7",
+    "RFC5216-5.2-1",
+    "RFC5216-5.2-2",
+    "RFC5216-5.2-3",
+    "RFC5216-5.2-4",
+    "RFC5216-5.3-2",
+    "RFC5216-5.3-3",
+    "RFC5216-5.3-5"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "bgp-sr-tunnel",
+  "kind": "technology",
+  "title": "BGP segment routing and tunnels",
+  "release": false,
+  "required": [
+    "rfc8669",
+    "rfc9012",
+    "rfc9252",
+    "rfc9256",
+    "rfc9830"
+  ],
+  "optional": []
+}

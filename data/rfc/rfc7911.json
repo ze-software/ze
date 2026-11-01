@@ -1,0 +1,35 @@
+{
+  "stem": "rfc7911",
+  "title": "Advertisement of Multiple Paths in BGP",
+  "walked": true,
+  "requirements": 13,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 9,
+    "kept": 9,
+    "ze-proven": 9,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 1,
+    "interop": 1,
+    "unit": 7
+  },
+  "unmet": []
+}

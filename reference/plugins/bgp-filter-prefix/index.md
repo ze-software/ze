@@ -13,7 +13,7 @@ Named prefix-list filter (CIDR + ge/le + accept/reject)
 
 ## Configuration
 
-`policy`
+`bgp`
 
 ## Dependencies
 

@@ -1,0 +1,31 @@
+{
+  "stem": "rfc3145",
+  "title": "L2TP Disconnect Cause Information",
+  "walked": true,
+  "requirements": 18,
+  "implementer": "ze",
+  "implemented": false,
+  "must": {
+    "total": 8,
+    "kept": 8,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 8,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 10,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 10,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": []
+}

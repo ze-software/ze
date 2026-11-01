@@ -1,0 +1,45 @@
+{
+  "stem": "rfc4787",
+  "title": "Network Address Translation (NAT) Behavioral Requirements for Unicast UDP",
+  "walked": true,
+  "requirements": 29,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 13,
+    "kept": 13,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 13,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 16,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 16,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC4787-10-1",
+    "RFC4787-10-2",
+    "RFC4787-11-1",
+    "RFC4787-11-2",
+    "RFC4787-4.1-1",
+    "RFC4787-4.2.1-1",
+    "RFC4787-4.3-1",
+    "RFC4787-4.3-2",
+    "RFC4787-4.4-1",
+    "RFC4787-6-1",
+    "RFC4787-6-2",
+    "RFC4787-8-1",
+    "RFC4787-9-1"
+  ]
+}

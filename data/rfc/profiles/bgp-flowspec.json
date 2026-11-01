@@ -1,0 +1,13 @@
+{
+  "name": "bgp-flowspec",
+  "kind": "technology",
+  "title": "BGP FlowSpec",
+  "release": false,
+  "required": [
+    "rfc5575",
+    "rfc8955",
+    "rfc8956",
+    "rfc9117"
+  ],
+  "optional": []
+}

@@ -399,6 +399,13 @@ width bound, 20 bits on VPN and 24 on EVPN, is <code>nlrisplit.TranspositionLabe
 <p>Implemented via <code>netlink.SEG6Encap</code> in <code>buildRichRoute</code>. A valid SRv6 Service SID
 selects IPv6 encapsulation even when the NLRI carries labels. Those fields can
 contain transposed SID bits and are not MPLS forwarding labels.</p>
+<p>The kernel needs <code>CONFIG_IPV6_SEG6_LWTUNNEL</code>. Ze's runtime kernel builds it in,
+and <code>gokrazy/kernel/runtime.require</code> fails the kernel build if it stops
+resolving to <code>=y</code>. A kernel without it refuses the install with EOPNOTSUPP.
+Linux's seg6 encapsulation does not lower the inner TTL or Hop Limit, which
+RFC 8986 Section 5.1 H.Encaps requires; that gap is open.</p>
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_IPV6_SEG6_LWTUNNEL -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_IPV6_SEG6_LWTUNNEL -->
 <h3 id="vpp">VPP</h3>
 <p>Routes with SRv6 SID are steered via VPP's SR policy infrastructure:</p>
 <pre><code>sr_steering_add_del bsid=&lt;SID&gt; prefix=&lt;prefix&gt; traffic_type=IPv4|IPv6
@@ -599,7 +606,7 @@ propagates without negotiation. Ze does not signal SRv6 support via capabilities
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,6 +1,6 @@
 # RFC 9012 - The BGP Tunnel Encapsulation Attribute
 
-Partial. Every requirement this repository extracted from RFC 9012, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Tunnel Encapsulation attribute. Every requirement this repository extracted from RFC 9012, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 31.6% | 24 of 76 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1.3% | 1 of 76 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 76 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 76 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 82.0% | 73 of 89 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 24 | of 76 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 76 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 76 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 76 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 73 | 73 of 89 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 76 | of 98 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 76 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 1.3% | 1 of 76 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 76 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 76 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 76 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 76 | of 98 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 76 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 1 | of 76 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 76 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 76 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 76 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,10 +35,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 65.8% | 50 of 76 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 31 | of 76 gated MUSTs judged | 5 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
+| No test at all | 50 | of 76 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 31 | of 76 gated MUSTs judged | 5 weak, wrong or unimplemented, 3 no longer current. Each is named below under its own requirement id |
 
-The 9 shares marked as a part above are the whole of the 76 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 76 gated MUSTs: they add up to 76. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,27 +46,27 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | Tunnel Encapsulation attribute |
 | Enrolment | Enrolled |
 | Requirements | 98 |
 | Gated MUST-level | 76 |
-| Not applicable, so out of scope | 1 |
+| Not applicable, so out of scope | 0 |
 | Declared gaps | 50 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
@@ -85,18 +85,14 @@ Enrolled: The BGP Tunnel Encapsulation Attribute
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** Tunnel Encapsulation attribute
 
-**What the ledger says is covered**
+**Proof:** 25 of 76 MUST proven
 
-- Attribute code 23 retains opaque Tunnel Type values
-- SubTLVs walks short and long headers, and Preference decodes the RFC 9830 six-octet value ([`internal/core/bgp/attribute/tunnel_encap.go`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/tunnel_encap.go)). Receive enforcement checks framing, endpoint count and encoded length, and the Section 3.1 destination/forwardable restrictions using embedded IANA IPv4/IPv6 Special-Purpose Address Registries with longest-prefix overrides ([`internal/component/bgp/reactor/session_tunnel_encap.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_tunnel_encap.go); internal/core/ipregistry). Invalid endpoint TLVs are removed
-- malformed framing or no surviving TLV invokes treat-as-withdraw. Receive, storage and final-wire fixtures exercise all seven Section 6 carriers, unrelated attributes, unknown/duplicate content, reserved endpoint bytes, VXLAN/NVGRE R bits and nonzero Color Extended Community Flags. These are BGP signaling assertions, not tunnel dataplane proof.
+**Evidence:** unit 25
 
+**Unmet:** RFC9012-11-1, RFC9012-11-11, RFC9012-11-2, RFC9012-11-5, RFC9012-11-6, RFC9012-11-8, RFC9012-13-16, RFC9012-13-17, RFC9012-13-21, RFC9012-13-4, RFC9012-13-6, RFC9012-15-1, RFC9012-3.1.1-3, RFC9012-3.2.1-1, RFC9012-3.2.1-3, RFC9012-3.2.1-4, RFC9012-3.2.1-5, RFC9012-3.2.1-6, RFC9012-3.2.4-1, RFC9012-3.2.5-1, RFC9012-3.3-1, RFC9012-3.3.2-1, RFC9012-3.4.1-2, RFC9012-3.4.1-3, RFC9012-3.4.1-4, RFC9012-3.4.2-2, RFC9012-3.5-1, RFC9012-3.5-2, RFC9012-3.5-4, RFC9012-3.6-1, RFC9012-3.6-13, RFC9012-3.6-2, RFC9012-3.6-3, RFC9012-3.6-4, RFC9012-3.6-5, RFC9012-3.6-6, RFC9012-3.6-7, RFC9012-3.6-8, RFC9012-3.7-2, RFC9012-3.7-3, RFC9012-3.7-4, RFC9012-4.1-1, RFC9012-4.1-2, RFC9012-4.1-3, RFC9012-4.2-1, RFC9012-4.3-1, RFC9012-6-2, RFC9012-7.1-1, RFC9012-8-1, RFC9012-8-2
 
-**What the ledger says remains**
-
-Full RFC support is not established; each canonical verdict and discrimination record bounds its own clause. Per-session outgoing attribute-23 filtering now has production cache, session-writer and downstream-receive unit proof through configured export policy, using a simulated external-plugin transport rather than a live daemon. This mechanism, configured exact-value community removal and whole-attribute egress suppression do not implement the missing default EBGP filtering of attribute 23 or the Encapsulation Extended Community. Other Section 11 scope obligations retain their checklist dispositions. Extraction site 13:7 maps to [`RFC9012-13-21`](#rfc9012-13-21), an explicit first-occurrence consumer gap; the historical RFC9012-13-7 identity remains retired. Attribute-driven tunnel selection/feasibility, encapsulation-header construction, recursive resolution, label handling, first-occurrence and type-specific sub-TLV interpretation, Router's MAC precedence and participating-router traffic filtering remain unimplemented consumer behavior, owned by [the separate tunnel-consumption spec](../../[`plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md`](https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md)). In particular, signaling acceptance/propagation does not prove [`RFC9012-13-16`](#rfc9012-13-16)/-17/-21. The optional Section 3.1.1 origin-AS procedure is not commissioned. Tag presence and producer-dependence records alone do not establish whole-requirement conformance.
 
 ## Coverage
 
@@ -115,9 +111,41 @@ Full RFC support is not established; each canonical verdict and discrimination r
 
 **Annotated (including scoped evidence) (52):** [`RFC9012-3.1.1-3`](#rfc9012-3.1.1-3), [`RFC9012-3.2.1-1`](#rfc9012-3.2.1-1), [`RFC9012-3.2.1-3`](#rfc9012-3.2.1-3), [`RFC9012-3.2.1-4`](#rfc9012-3.2.1-4), [`RFC9012-3.2.1-5`](#rfc9012-3.2.1-5), [`RFC9012-3.2.1-6`](#rfc9012-3.2.1-6), [`RFC9012-3.2.4-1`](#rfc9012-3.2.4-1), [`RFC9012-3.2.5-1`](#rfc9012-3.2.5-1), [`RFC9012-3.3-1`](#rfc9012-3.3-1), [`RFC9012-3.3.2-1`](#rfc9012-3.3.2-1), [`RFC9012-3.4.1-2`](#rfc9012-3.4.1-2), [`RFC9012-3.4.1-3`](#rfc9012-3.4.1-3), [`RFC9012-3.4.1-4`](#rfc9012-3.4.1-4), [`RFC9012-3.4.2-2`](#rfc9012-3.4.2-2), [`RFC9012-3.5-1`](#rfc9012-3.5-1), [`RFC9012-3.5-2`](#rfc9012-3.5-2), [`RFC9012-3.5-4`](#rfc9012-3.5-4), [`RFC9012-3.6-1`](#rfc9012-3.6-1), [`RFC9012-3.6-2`](#rfc9012-3.6-2), [`RFC9012-3.6-3`](#rfc9012-3.6-3), [`RFC9012-3.6-4`](#rfc9012-3.6-4), [`RFC9012-3.6-5`](#rfc9012-3.6-5), [`RFC9012-3.6-6`](#rfc9012-3.6-6), [`RFC9012-3.6-7`](#rfc9012-3.6-7), [`RFC9012-3.6-8`](#rfc9012-3.6-8), [`RFC9012-3.6-13`](#rfc9012-3.6-13), [`RFC9012-3.7-2`](#rfc9012-3.7-2), [`RFC9012-3.7-3`](#rfc9012-3.7-3), [`RFC9012-3.7-4`](#rfc9012-3.7-4), [`RFC9012-4.1-1`](#rfc9012-4.1-1), [`RFC9012-4.1-2`](#rfc9012-4.1-2), [`RFC9012-4.1-3`](#rfc9012-4.1-3), [`RFC9012-4.2-1`](#rfc9012-4.2-1), [`RFC9012-4.3-1`](#rfc9012-4.3-1), [`RFC9012-6-2`](#rfc9012-6-2), [`RFC9012-7.1-1`](#rfc9012-7.1-1), [`RFC9012-8-1`](#rfc9012-8-1), [`RFC9012-8-2`](#rfc9012-8-2), [`RFC9012-10-1`](#rfc9012-10-1), [`RFC9012-11-1`](#rfc9012-11-1), [`RFC9012-11-2`](#rfc9012-11-2), [`RFC9012-11-5`](#rfc9012-11-5), [`RFC9012-11-6`](#rfc9012-11-6), [`RFC9012-11-8`](#rfc9012-11-8), [`RFC9012-11-11`](#rfc9012-11-11), [`RFC9012-13-4`](#rfc9012-13-4), [`RFC9012-13-6`](#rfc9012-13-6), [`RFC9012-13-10`](#rfc9012-13-10), [`RFC9012-13-16`](#rfc9012-13-16), [`RFC9012-13-17`](#rfc9012-13-17), [`RFC9012-13-21`](#rfc9012-13-21), [`RFC9012-15-1`](#rfc9012-15-1)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 75 of 76 (98.7%); excluded: Not applicable (classification can be revisited): 1 of 76 (1.3%). Optional ceiling: 22 of 22 (100.0%). Lowest mandatory ceiling: rfc9012 75 of 76 (98.7%). Lowest optional ceiling: rfc9012 22 of 22 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 25, Ze correctness gap 50
+- **Overview bar**: Ze MUST proven 25, Not owed 1, SHOULD not decided 22, Ze correctness gap 50
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 76 |
+| MUST rows kept (the MUST bar) | 75 |
+| Ze proven | 25 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 50 |
+| MUST rows not owed | 1 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 1 |
+| SHOULD / MAY rows | 22 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 22 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc9012.json](../../../data/rfc/rfc9012.json).
 
 ## Requirements
 
@@ -745,7 +773,7 @@ No test carries RFC9012-11-8, so no unit is bound to it.
 
 * Any BGP speaker that understands it MUST be able to filter it from incoming BGP UPDATE messages. (§11) Context: internal/component/bgp/plugins/filter_community/filter.go applyIngressFilter and ingressStripCommunities remove configured exact eight-octet extended-community values. This can remove a named Encapsulation Extended Community; lack of a type-wide matcher alone does not prove that no filtering capability exists. Whole-clause proof is not established here.
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 9012 Section 11 says: Any BGP speaker that understands it MUST be able to filter it from incoming BGP UPDATE messages. TestRFC9012ConfiguredEncapsulationECIngress configures the actual registered bgp-filter-community SDK runner with exact Encapsulation Extended Community values 030c000000000002 and 030c000000000008. Established Session receipt reaches the registered ingressFilter, applyIngressFilter and ingressStripCommunities; reactor_notify consumes the replacement payload. The removal case asserts both Encapsulation ECs are absent before dispatch, in cached ForwardUpdate socket output and after downstream Session receipt, while the unrelated RT, ORIGIN, AS_PATH, NEXT_HOP and NLRI survive. A populated no-match policy preserves the identical two Encapsulation ECs through those boundaries, distinguishing configured removal from unconditional stripping or blanket attribute removal. Both named cases passed in the retained f688dd08 race run. This proves configurable ingress filtering, not the separate default-EBGP requirement.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress, internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress#2 moved. RFC 9012 Section 11 says: Any BGP speaker that understands it MUST be able to filter it from incoming BGP UPDATE messages. TestRFC9012ConfiguredEncapsulationECIngress configures the actual registered bgp-filter-community SDK runner with exact Encapsulation Extended Community values 030c000000000002 and 030c000000000008. Established Session receipt reaches the registered ingressFilter, applyIngressFilter and ingressStripCommunities; reactor_notify consumes the replacement payload. The removal case asserts both Encapsulation ECs are absent before dispatch, in cached ForwardUpdate socket output and after downstream Session receipt, while the unrelated RT, ORIGIN, AS_PATH, NEXT_HOP and NLRI survive. A populated no-match policy preserves the identical two Encapsulation ECs through those boundaries, distinguishing configured removal from unconditional stripping or blanket attribute removal. Both named cases passed in the retained f688dd08 race run. This proves configurable ingress filtering, not the separate default-EBGP requirement.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -756,7 +784,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 It MUST be possible to filter the Encapsulation Extended Community from outgoing messages (§11) Context: internal/component/bgp/plugins/filter_community/egress.go applyEgressFilter records configured exact-value removals, and handler.go genericCommunityHandler applies them. internal/component/bgp/reactor/peer_forward_facts.go applySendCommunityMask can also suppress the entire Extended Communities attribute. These mechanisms are not an EBGP default or independent whole-clause proof.
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 9012 Section 11 says: It MUST be possible to filter the Encapsulation Extended Community from outgoing messages. TestRFC9012ConfiguredEncapsulationECEgress configures the actual registered bgp-filter-community SDK runner with exact Encapsulation Extended Community values 030c000000000002 and 030c000000000008. Both values remain present at source receive dispatch; the configured destination's registered egressFilter and applyEgressFilter produce removal operations consumed by the registered Extended Communities handler and genericCommunityHandler during actual ForwardUpdate export. Socket output and downstream Session receipt contain only the unrelated RT, preserving ORIGIN, AS_PATH, NEXT_HOP and NLRI. A destination with a populated no-match policy receives both original Encapsulation ECs, distinguishing configured destination filtering from unconditional removal. Both named cases passed in the retained f688dd08 race run. This proves configurable outgoing filtering without requiring a type-wide matcher or claiming the separate default-EBGP behavior.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECEgress, internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECEgress#2 moved. RFC 9012 Section 11 says: It MUST be possible to filter the Encapsulation Extended Community from outgoing messages. TestRFC9012ConfiguredEncapsulationECEgress configures the actual registered bgp-filter-community SDK runner with exact Encapsulation Extended Community values 030c000000000002 and 030c000000000008. Both values remain present at source receive dispatch; the configured destination's registered egressFilter and applyEgressFilter produce removal operations consumed by the registered Extended Communities handler and genericCommunityHandler during actual ForwardUpdate export. Socket output and downstream Session receipt contain only the unrelated RT, preserving ORIGIN, AS_PATH, NEXT_HOP and NLRI. A destination with a populated no-match policy receives both original Encapsulation ECs, distinguishing configured destination filtering from unconditional removal. Both named cases passed in the retained f688dd08 race run. This proves configurable outgoing filtering without requiring a type-wide matcher or claiming the separate default-EBGP behavior.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

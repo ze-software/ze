@@ -275,12 +275,12 @@ outgoing interface:</p>
 </ul>
 <p>The tag is not programmed to the kernel, because Linux has no route tag
 attribute. It travels with the route into redistribution, where it does two
-things. A <code>redistribute { destination &lt;proto&gt; { import static { tag N } } }</code>
-rule imports only the routes carrying <code>N</code>. And when the route reaches OSPF, Ze
+things. A <code>redistribute { destination &lt;proto&gt; { import static { filters [ T ]; final accept; } } }</code> rule whose <code>policy { match T { tag [ N ]; } }</code> instance
+reads the tag imports only the routes carrying <code>N</code>. And when the route reaches OSPF, Ze
 writes the tag into the External Route Tag of the AS-external LSA (RFC 2328
-Appendix A.4.5). A route that carries a tag keeps it there, ahead of the <code>tag</code>
-configured for the whole source under <code>ospf { redistribute { static { ... } } }</code>;
-a route with no tag takes that configured value.</p>
+Appendix A.4.5), unless a <code>modify</code> instance on the <code>ospf filter export</code> chain
+sets another tag with <code>set tag</code>.
+<a href="../ospf/">OSPF redistribution</a> shows the chain.</p>
 <!-- source: internal/plugins/static/inject.go -- emitRouteChangeID -->
 <p>The tag also rides on the path the route installs in the Loc-RIB, so a
 <code>static filter import</code> or <code>rib filter import</code> chain can match it: a <code>match</code>
@@ -290,7 +290,7 @@ tag, so it never meets a <code>tag</code> condition; <code>tag 0</code> is a rea
 <a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md" target="_blank" rel="noopener">Route Policy at the Loc-RIB</a> covers the chains.</p>
 <!-- source: internal/plugins/static/locrib.go -- staticPath -->
 <!-- source: internal/plugins/static/config.go -- parseRoute -->
-<!-- source: internal/plugins/ospf/redist_wiring.go -- externalRouteTag -->
+<!-- source: internal/plugins/ospf/redistribute/export.go -- exportVerdict -->
 <h2 id="cli">CLI</h2>
 <pre><code>ze&gt; show static
 </code></pre>
@@ -359,6 +359,10 @@ framework. BGP redistribute can import static routes:</p>
     }
 }
 </code></pre>
+<p>Every route in the default table is redistributed, <code>blackhole</code> and <code>reject</code>
+routes included, as FRR and BIRD do. A discard route is the usual way to
+originate an aggregate: install <code>blackhole { }</code> for the covering prefix and
+import it into BGP or OSPF, and the more specific routes keep forwarding.</p>
 </div>
 </div>
             </section>
@@ -404,7 +408,7 @@ framework. BGP redistribute can import static routes:</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

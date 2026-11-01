@@ -1,6 +1,6 @@
 # RFC 1195 - Use of OSI IS-IS for Routing in TCP/IP and Dual Environments
 
-Experimental. Every requirement this repository extracted from RFC 1195, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Integrated IS-IS for IPv4. Every requirement this repository extracted from RFC 1195, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 70.7% | 29 of 41 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 12.2% | 5 of 41 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 41 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 41 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 71.4% | 60 of 84 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 29 | of 41 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 41 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 41 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 41 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 61 | 61 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 41 | of 42 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 41 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 41 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 41 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 41 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 41 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 41 | of 42 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 41 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 41 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 41 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 41 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 41 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,10 +35,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 17.1% | 7 of 41 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 7 | of 41 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Audit verdicts | 31 | of 41 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 shares marked as a part above are the whole of the 41 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 41 gated MUSTs: they add up to 41. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,23 +46,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Experimental |
+| Public row | Integrated IS-IS for IPv4 |
 | Enrolment | Enrolled |
 | Requirements | 42 |
 | Gated MUST-level | 41 |
@@ -71,10 +71,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 84 |
-| Tagged units | 84 |
+| Test tags | 85 |
+| Tagged units | 85 |
 | Recorded audit verdicts | 31 |
-| Discrimination records | 60 |
+| Discrimination records | 61 |
 | Summary | `rfc/short/rfc1195.md` |
 | Requirement shard | `rfc/requirements/rfc1195.md` |
 | RFC text | `rfc/full/rfc1195.txt` |
@@ -85,17 +85,14 @@ Enrolled: Integrated IS-IS for IP routing. The checklist records the requirement
 
 ## What the public ledger says
 
-**Status:** Experimental
+**Area:** Integrated IS-IS for IPv4
 
-**What the ledger says is covered**
+**Proof:** 25 of 41 MUST proven
 
-- Native IS-IS over Layer 2, L1/L2 broadcast and point-to-point circuits, IPv4 interface advertisement, node-wide protocol capability, narrow IPv4 SPF and leaking, and terminal forwarding rejection for unsupported protocol families. `circuit/ish.go` sends and receives ISO 9542 discovery
-- `ish_auth.go` applies configured cleartext link passwords before discovery changes state. IS-IS Hello, area and domain authentication use their scoped key chains. This describes source coverage, not a completed validation run.
+**Evidence:** unit 25
 
+**Unmet:** RFC1195-1.2-1, RFC1195-1.4-1, RFC1195-1.4-3, RFC1195-3.10.2-1, RFC1195-3.2-3, RFC1195-8-1, RFC1195-8-2
 
-**What the ledger says remains**
-
-Experimental pending current integration, discrimination and deployment evidence. Native IDRPI origination and manually configured summaries are not implemented, and no owner decision declines them, so their rows are gaps. Ze routes no OSI or CLNP traffic and cannot be a dual router, yet nothing stops it joining a dual area or acting as a level 2 router in a dual domain, so the dual-routing rows are gaps. Redistributed routes are advertised at every level, which RFC 2966 permits, but no test is tagged to that row. ISH discovery does not replace authenticated IIH adjacency establishment. TOS/QOS metrics and partition repair are not implemented; Section 3.5 makes TOS/QOS optional.
 
 ## Coverage
 
@@ -114,9 +111,41 @@ Experimental pending current integration, discrimination and deployment evidence
 
 **Annotated (including scoped evidence) (12):** [`RFC1195-5.2-1`](#rfc1195-5.2-1), [`RFC1195-5.2-2`](#rfc1195-5.2-2), [`RFC1195-5.2-3`](#rfc1195-5.2-3), [`RFC1195-3.4-2`](#rfc1195-3.4-2), [`RFC1195-3.1-1`](#rfc1195-3.1-1), [`RFC1195-1.4-1`](#rfc1195-1.4-1), [`RFC1195-1.4-3`](#rfc1195-1.4-3), [`RFC1195-1.2-1`](#rfc1195-1.2-1), [`RFC1195-3.2-3`](#rfc1195-3.2-3), [`RFC1195-3.10.2-1`](#rfc1195-3.10.2-1), [`RFC1195-8-1`](#rfc1195-8-1), [`RFC1195-8-2`](#rfc1195-8-2)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 41 of 41 (100.0%). Optional ceiling: 1 of 1 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc1195 41 of 41 (100.0%). Lowest optional ceiling: rfc1195 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 25, Ze correctness gap 16
+- **Overview bar**: Ze MUST proven 25, SHOULD not decided 1, Ze correctness gap 16
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 41 |
+| MUST rows kept (the MUST bar) | 41 |
+| Ze proven | 25 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 16 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 1 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 1 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc1195.json](../../../data/rfc/rfc1195.json).
 
 ## Requirements
 
@@ -137,7 +166,7 @@ Mandatory ceiling: 41 of 41 (100.0%). Optional ceiling: 1 of 1 (100.0%). Every R
 | `RFC1195-1.4-3` | In a dual area within a dual routing domain only dual routers may be used. (§1.4) | MUST | 1.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze is an IP-only IS-IS router that routes no OSI or CLNP traffic (no CLNP forwarding path in internal/plugins/isis), so it can never be a dual router, and nothing stops it joining a dual area; no test is tagged to this row |
 | `RFC1195-1.2-1` | External links (to other routing domains) must be from level 2 routers (Section 1.2) | MUST | 1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** RFC 2966 Section 2.2 updates this rule: it loosens the restrictions in RFC 1195 and allows the IP External Reachability Information TLV in level 1 LSPs; ze advertises redistributed routes at every origination level (InjectRoute in internal/plugins/isis/redistribute/consumer.go), which the updated rule permits, but no test is tagged to this row |
 | `RFC1195-1.4-2` | In a pure IP routing domain, all routers must be IP-capable (Section 1.4) | MUST | 1.4 | **positive:** `unit/verify` [`TestRFC1195PureIPAdvertisesIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L191). **negative:** `unit/verify` [`TestRFC1195IPv6SelectionDoesNotRemoveIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L204) |
-| `RFC1195-3.2-2` | In general, the same [IP address, subnet mask] pair may be announced in level 1 LSPs sent by multiple level 1 routers in the same area. In this case (assuming the entry is not superceded by a manually configured entry), then only one such entry shall be included in the level 2 LSP. The metric value(s) announced in level 2 LSPs correspond to the minimum of the metric value(s) that would be calculated for each of the level 1 LSP entries. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC1195SpecificLeakCollapsesDuplicatePrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L435). **negative:** `unit/verify` [`TestRFC1195SpecificLeakKeepsOnlyMinimum`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L123) |
+| `RFC1195-3.2-2` | In general, the same [IP address, subnet mask] pair may be announced in level 1 LSPs sent by multiple level 1 routers in the same area. In this case (assuming the entry is not superceded by a manually configured entry), then only one such entry shall be included in the level 2 LSP. The metric value(s) announced in level 2 LSPs correspond to the minimum of the metric value(s) that would be calculated for each of the level 1 LSP entries. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC1195Level2OneEntryPerPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_level2_reach_test.go#L50). **positive:** `unit/verify` [`TestRFC1195SpecificLeakCollapsesDuplicatePrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L435). **negative:** `unit/verify` [`TestRFC1195SpecificLeakKeepsOnlyMinimum`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L123) |
 | `RFC1195-3.2-3` | If a level 2 router receives an IP packet whose IP address matches a manually configured address which it is including in its level 2 LSP, but which is not reachable via level 1 routing in the area, then the packet must be discarded. (Section 3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no manually configured summary address: internal/plugins/isis/yang/ze-isis-conf.yang has no summary configuration, and LeakPrefixes (internal/plugins/isis/spf/leak.go) and Originator.fragmentTLVs (internal/plugins/isis/lsdb/origination.go) originate specific prefixes only, so the discard rule has no summary to act on; Section 3.2 makes summaries optional and no owner decision declines it (the earlier “owner decision” text had no primary source), so the row is a gap |
 | `RFC1195-3.3-1` | The reserved field must contain "00 00", as specified in GOSIP version 2.0. (Section 3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC1195ISHGOSIPReservedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_ish_test.go#L15). **negative:** `unit/verify` [`TestRFC1195ISHGOSIPReservedRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_ish_test.go#L39) |
 | `RFC1195-3.3-2` | IEEE 802 addresses, if used, must appear in IEEE canonical format (Section 3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC1195ISHCanonicalIEEEIdentifier`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_ish_test.go#L60). **negative:** `unit/verify` [`TestRFC1195ISHDoesNotReverseIdentifierBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_ish_test.go#L84) |
@@ -343,11 +372,12 @@ Audit verdict: not audited: no reader has judged these tests
 
 In general, the same [IP address, subnet mask] pair may be announced in level 1 LSPs sent by multiple level 1 routers in the same area. In this case (assuming the entry is not superceded by a manually configured entry), then only one such entry shall be included in the level 2 LSP. The metric value(s) announced in level 2 LSPs correspond to the minimum of the metric value(s) that would be calculated for each of the level 1 LSP entries. (§3.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: more than one L2 entry for a prefix several L1 routers announce, or an L2 metric above the minimum. metricLeak fails unless exactly one L2 entry for the prefix is originated; TestRFC1195SpecificLeakCollapsesDuplicatePrefix (two routers, 20 and 9) and TestRFC1195SpecificLeakKeepsOnlyMinimum (three routers, 20, 12 and 9, cheapest not first in system-id order) each require metric 9. Distinct inputs, so no longer one assertion with two tags; a first-seen or last-seen leak producer fails the three-router case. No refusal path exists for an originator. Negative carries an observed-red record on leakInto; the positive has none but reads red on the same breaks.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-31 by an auditor who authored neither the test nor its producer, after a third carrier was tagged. RFC 1195 Section 3.2: "In this case (assuming the entry is not superceded by a manually configured entry), then only one such entry shall be included in the level 2 LSP. The metric value(s) announced in level 2 LSPs correspond to the minimum of the metric value(s) that would be calculated for each of the level 1 LSP entries." The same section says directly reachable addresses "are treated exactly the same as addresses received in level 1 LSPs". New positive internal/plugins/isis/rfc1195_level2_reach_test.go::TestRFC1195Level2OneEntryPerPrefix runs the started engine, stores connected 172.30.0.0/24 at 10 and 192.0.2.0/24 at 50, applies a level 1 leak of both at 20, then decodes the stored level 2 LSP and requires exactly [10] and exactly [20] TLV 135 metrics: a duplicate or a non-minimum metric fails, and each case makes a different side win. Producer lsdb_wiring.go::level2Reachability, called for level 2 from the LSP state build; an observed red is recorded under a hand-written break that keeps every direct entry ([50 20] for 192.0.2.0/24). Earlier judgment of the other two carriers stands. Forbidden: more than one L2 entry for a prefix several L1 routers announce, or an L2 metric above the minimum. metricLeak fails unless exactly one L2 entry for the prefix is originated; TestRFC1195SpecificLeakCollapsesDuplicatePrefix (two routers, 20 and 9) and TestRFC1195SpecificLeakKeepsOnlyMinimum (three routers, 20, 12 and 9, cheapest not first in system-id order) each require metric 9. Distinct inputs, so no longer one assertion with two tags; a first-seen or last-seen leak producer fails the three-router case. No refusal path exists for an originator. Negative carries an observed-red record on leakInto; the positive has none but reads red on the same breaks.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC1195SpecificLeakKeepsOnlyMinimum`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L123) | unit/verify | revert, verified |
+| positive | [`TestRFC1195Level2OneEntryPerPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_level2_reach_test.go#L50) | unit/verify | mutant, verified |
 | positive | [`TestRFC1195SpecificLeakCollapsesDuplicatePrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L435) | unit/verify | revert, verified |
 
 ### [`RFC1195-3.2-3`](#rfc1195-3.2-3)

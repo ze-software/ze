@@ -1,6 +1,6 @@
 # RFC 3768 - Virtual Router Redundancy Protocol (VRRP)
 
-Experimental. Every requirement this repository extracted from RFC 3768, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+VRRPv2 (IPv4 only). Every requirement this repository extracted from RFC 3768, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 80.5% | 33 of 41 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 12.2% | 5 of 41 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 41 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 41 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 57.7% | 82 of 142 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 33 | of 41 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 41 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 41 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 41 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 82 | 82 of 142 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 41 | of 52 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 41 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 41 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 41 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 2.4% | 1 of 41 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 41 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 41 | of 52 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 41 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 41 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 41 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 41 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 41 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 4.9% | 2 of 41 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 3 | of 41 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 41 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 41 gated MUSTs: they add up to 41. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,28 +45,28 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Experimental |
+| Public row | VRRPv2 (IPv4 only) |
 | Enrolment | Enrolled |
 | Requirements | 52 |
 | Gated MUST-level | 41 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 2 |
+| Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -84,15 +84,14 @@ Enrolled: VRRPv2 advertisement format, election and timers, virtual-MAC ownershi
 
 ## What the public ledger says
 
-**Status:** Experimental
+**Area:** VRRPv2 (IPv4 only)
 
-**What the ledger says is covered**
+**Proof:** 31 of 41 MUST proven
 
-Opt-in via `version 2`. Whole-second Advertisement_Interval encoding, v2 advert format, the v2 receive-validation ladder (version, complete-packet, checksum, VRID, Auth Type 0, interval-mismatch discard, address-list discard), the Section 6.4 state machine (priority/master election, skew time, preemption, silent losing-advert discard), virtual-MAC ownership of the VIP via a per-group macvlan, and the v2 rejection rules (no accept-mode, no IPv6).
+**Evidence:** unit 31
 
-**What the ledger says remains**
+**Unmet:** RFC3768-5.2.2-1, RFC3768-8.3-1, RFC3768-9.2-1
 
-The requirement checklist carries gaps: no test shows the kernel or VPP dataplane forwards no datagram to 224.0.0.18 ([`RFC3768-5.2.2-1`](#rfc3768-5.2.2-1)), and ze implements no VRRP over token ring ([`RFC3768-9.2-1`](#rfc3768-9.2-1)). Proxy ARP on a VRRP unit is refused by owner decision ([`RFC3768-8.3-1`](#rfc3768-8.3-1)). RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section 9 removed them as providing no real security. Same VRRP experimental status.
 
 ## Coverage
 
@@ -111,9 +110,41 @@ The requirement checklist carries gaps: no test shows the kernel or VPP dataplan
 
 **Annotated (including scoped evidence) (8):** [`RFC3768-5.2.2-1`](#rfc3768-5.2.2-1), [`RFC3768-5.2.3-1`](#rfc3768-5.2.3-1), [`RFC3768-7.2-1`](#rfc3768-7.2-1), [`RFC3768-7.2-2`](#rfc3768-7.2-2), [`RFC3768-7.2-3`](#rfc3768-7.2-3), [`RFC3768-7.2-4`](#rfc3768-7.2-4), [`RFC3768-8.3-1`](#rfc3768-8.3-1), [`RFC3768-9.2-1`](#rfc3768-9.2-1)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 40 of 41 (97.6%); excluded: Optional feature not offered (classification can be revisited): 1 of 41 (2.4%). Optional ceiling: 11 of 11 (100.0%). Lowest mandatory ceiling: rfc3768 40 of 41 (97.6%). Lowest optional ceiling: rfc3768 11 of 11 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 31, Ze correctness gap 10
+- **Overview bar**: Ze MUST proven 31, SHOULD not decided 11, Ze correctness gap 10
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 41 |
+| MUST rows kept (the MUST bar) | 41 |
+| Ze proven | 31 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 10 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 11 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 11 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc3768.json](../../../data/rfc/rfc3768.json).
 
 ## Requirements
 
@@ -158,7 +189,7 @@ Mandatory ceiling: 40 of 41 (97.6%); excluded: Optional feature not offered (cla
 | `RFC3768-8.1-1` | If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address. (§8.1; lowercase "must" in the RFC) | MUST | 8.1 | **positive:** `unit/verify` [`TestVRRPRedirectSourceFollowsVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L24). **negative:** `unit/verify` [`TestVRRPRedirectSourceFollowsVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L25) |
 | `RFC3768-8.2-1` | The Master virtual router MUST NOT respond with its physical MAC address. (§8.2) | MUST NOT | 8.2 | **positive:** `unit/verify` [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L70). **positive:** `unit/verify` [`TestOwnerFilterWiredOnPromotionForEveryFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L170). **positive:** `unit/verify` [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L65). **positive:** `unit/verify` [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L46). **negative:** `unit/verify` [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L141). **negative:** `unit/verify` [`TestOwnerFilterWiredOnPromotionForEveryFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L171). **negative:** `unit/verify` [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L66). **negative:** `unit/verify` [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L47) |
 | `RFC3768-8.2-4` | When a host sends an ARP request for one of the virtual router IP addresses, the Master virtual router MUST respond to the ARP request with the virtual MAC address for the virtual router. (§8.2) | MUST | 8.2 | **positive:** `unit/verify` [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L73). **positive:** `unit/verify` [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L60). **negative:** `unit/verify` [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L74). **negative:** `unit/verify` [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L61) |
-| `RFC3768-8.3-1` | If Proxy ARP is to be used on a VRRP router, then the VRRP router must advertise the Virtual Router MAC address in the Proxy ARP message. (§8.3; lowercase "must" in the RFC) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** heading "Proxy ARP"; ze never uses Proxy ARP on a VRRP router: internal/plugins/vrrp/proxyarp.go::validateNoProxyARP refuses proxy ARP at config verify on every unit that carries an IPv4 VRRP group, and refuseLiveProxyARP refuses it on a runtime set sysctl; Owner decision 2026-10-20 in commit de23385159, because proxy ARP on the parent answers with the parent's MAC (LL-PROXY-ARP-MAC, docs/architecture/linux-limitations.md) |
+| `RFC3768-8.3-1` | If Proxy ARP is to be used on a VRRP router, then the VRRP router must advertise the Virtual Router MAC address in the Proxy ARP message. (§8.3; lowercase "must" in the RFC) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze never advertises the Virtual Router MAC in proxy ARP: internal/plugins/vrrp/proxyarp.go::validateNoProxyARP refuses proxy ARP at config verify on every unit that carries an IPv4 VRRP group, and refuseLiveProxyARP refuses it on a runtime set sysctl, because proxy ARP on the parent answers with the parent's MAC (LL-PROXY-ARP-MAC, docs/architecture/linux-limitations.md). Owed after the first release (owner decision 2026-10-31; the 2026-10-20 refusal, commit de23385159, is not permanent) |
 | `RFC3768-9.2-1` | The functional address mode of operation MUST be implemented by routers supporting VRRP on token ring. (§9.2) | MUST | 9.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no VRRP over token ring and no owner decision declines it: VRRP runs only on Ethernet-family parents (internal/plugins/vrrp/groups.go) over the AF_PACKET macvlan transport (internal/plugins/vrrp/transport/backend_linux.go), so no functional-address mode exists |
 | `RFC3768-5.3.10-1` | The authentication string is currently only used to maintain backwards compatibility with RFC 2338. It SHOULD be set to zero on transmission and ignored on reception. (§5.3.10) | SHOULD | 5.3.10 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3768-7.1-9` | If any one of the above checks fails, the receiver MUST discard the packet, SHOULD log the event (§7.1) | SHOULD | 7.1 | **positive:** no positive test. **negative:** no negative test |
@@ -177,7 +208,7 @@ Mandatory ceiling: 40 of 41 (97.6%); excluded: Optional feature not offered (cla
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC3768-5.2.2-1`](#rfc3768-5.2.2-1) Routers MUST NOT forward a datagram with this destination address regardless of its TTL. (§5.2.2) | {gap}, no test | ze is a router, and the VRRP plugin never re-emits a received advertisement (internal/plugins/vrrp/instance.go::onPacket), but forwarding is the dataplane's: no test shows that the Linux kernel or the VPP FIB backend ze programs forwards no datagram addressed to 224.0.0.18 |
-| [`RFC3768-8.3-1`](#rfc3768-8.3-1) If Proxy ARP is to be used on a VRRP router, then the VRRP router must advertise the Virtual Router MAC address in the Proxy ARP message. (§8.3; lowercase "must" in the RFC) | no test | no test carries this requirement id; annotated {feature-declined}: heading "Proxy ARP"; ze never uses Proxy ARP on a VRRP router: internal/plugins/vrrp/proxyarp.go::validateNoProxyARP refuses proxy ARP at config verify on every unit that carries an IPv4 VRRP group, and refuseLiveProxyARP refuses it on a runtime set sysctl; Owner decision 2026-10-20 in commit de23385159, because proxy ARP on the parent answers with the parent's MAC (LL-PROXY-ARP-MAC, docs/architecture/linux-limitations.md) |
+| [`RFC3768-8.3-1`](#rfc3768-8.3-1) If Proxy ARP is to be used on a VRRP router, then the VRRP router must advertise the Virtual Router MAC address in the Proxy ARP message. (§8.3; lowercase "must" in the RFC) | {gap}, no test | ze never advertises the Virtual Router MAC in proxy ARP: internal/plugins/vrrp/proxyarp.go::validateNoProxyARP refuses proxy ARP at config verify on every unit that carries an IPv4 VRRP group, and refuseLiveProxyARP refuses it on a runtime set sysctl, because proxy ARP on the parent answers with the parent's MAC (LL-PROXY-ARP-MAC, docs/architecture/linux-limitations.md). Owed after the first release (owner decision 2026-10-31; the 2026-10-20 refusal, commit de23385159, is not permanent) |
 | [`RFC3768-9.2-1`](#rfc3768-9.2-1) The functional address mode of operation MUST be implemented by routers supporting VRRP on token ring. (§9.2) | {gap}, no test | ze implements no VRRP over token ring and no owner decision declines it: VRRP runs only on Ethernet-family parents (internal/plugins/vrrp/groups.go) over the AF_PACKET macvlan transport (internal/plugins/vrrp/transport/backend_linux.go), so no functional-address mode exists |
 
 ## Proof state

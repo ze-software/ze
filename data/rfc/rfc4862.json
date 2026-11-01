@@ -1,0 +1,42 @@
+{
+  "stem": "rfc4862",
+  "title": "IPv6 Stateless Address Autoconfiguration",
+  "walked": true,
+  "requirements": 30,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 16,
+    "kept": 16,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 6,
+    "ze-gap": 10,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 14,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 14,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC4862-5.1-1",
+    "RFC4862-5.4-1",
+    "RFC4862-5.4-2",
+    "RFC4862-5.4-5",
+    "RFC4862-5.4.1-1",
+    "RFC4862-5.4.2-1",
+    "RFC4862-5.4.2-4",
+    "RFC4862-5.4.3-1",
+    "RFC4862-5.4.5-1",
+    "RFC4862-5.5-2"
+  ]
+}

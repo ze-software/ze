@@ -1,0 +1,44 @@
+{
+  "stem": "rfc9552",
+  "title": "Distribution of Link-State and Traffic Engineering Information Using BGP",
+  "walked": true,
+  "requirements": 89,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 59,
+    "kept": 58,
+    "ze-proven": 44,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 14,
+    "not-owed": 1,
+    "not-owed-by-kind": {
+      "not-applicable": 1
+    }
+  },
+  "should": {
+    "total": 30,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 29,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 1,
+    "unit": 43
+  },
+  "unmet": [
+    "RFC9552-5.1-7",
+    "RFC9552-5.2-5",
+    "RFC9552-5.3-1",
+    "RFC9552-5.3-2",
+    "RFC9552-5.3.2.7-1",
+    "RFC9552-5.4-2",
+    "RFC9552-8.2.6-2"
+  ]
+}

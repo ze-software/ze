@@ -1,0 +1,38 @@
+{
+  "stem": "rfc5072",
+  "title": "IP Version 6 over PPP",
+  "walked": true,
+  "requirements": 28,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 16,
+    "kept": 16,
+    "ze-proven": 9,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 7,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 12,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 12,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 9
+  },
+  "unmet": [
+    "RFC5072-2-2",
+    "RFC5072-4.1-10",
+    "RFC5072-4.1-11",
+    "RFC5072-4.1-8"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "stem": "rfc8955",
+  "title": "Dissemination of Flow Specification Rules",
+  "walked": true,
+  "requirements": 49,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 29,
+    "kept": 28,
+    "ze-proven": 13,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 15,
+    "not-owed": 1,
+    "not-owed-by-kind": {
+      "not-applicable": 1
+    }
+  },
+  "should": {
+    "total": 20,
+    "proven": 6,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 14,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 13
+  },
+  "unmet": [
+    "RFC8955-12-2",
+    "RFC8955-4-3"
+  ]
+}

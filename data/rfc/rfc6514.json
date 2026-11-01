@@ -1,0 +1,12 @@
+{
+  "stem": "rfc6514",
+  "title": "BGP Encodings and Procedures for Multicast in MPLS/BGP IP VPNs",
+  "walked": false,
+  "requirements": 201,
+  "implementer": "ze",
+  "implemented": false,
+  "must": null,
+  "should": null,
+  "proven-by-kind": null,
+  "unmet": []
+}

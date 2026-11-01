@@ -1,6 +1,6 @@
 # RFC 8277 - Using BGP to Bind MPLS Labels to Address Prefixes
 
-Partial. Every requirement this repository extracted from RFC 8277, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP Labeled Unicast. Every requirement this repository extracted from RFC 8277, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 25.7% | 9 of 35 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5.7% | 2 of 35 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 35 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 35 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 79.4% | 54 of 68 tagged units, 0 escaped and 3 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 9 | of 35 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 2 | of 35 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 35 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 35 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 57 | 57 of 68 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 35 | of 42 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 35 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 35 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 35 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 35 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 35 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 35 | of 42 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 35 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 35 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 35 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 35 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 35 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,10 +35,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 68.6% | 24 of 35 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 24 | of 35 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Audit verdicts | 12 | of 35 gated MUSTs judged | 1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
 
-The 9 shares marked as a part above are the whole of the 35 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 35 gated MUSTs: they add up to 35. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,23 +46,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | BGP Labeled Unicast |
 | Enrolment | Enrolled |
 | Requirements | 42 |
 | Gated MUST-level | 35 |
@@ -85,21 +85,14 @@ Enrolled: Using BGP to Bind MPLS Labels to Address Prefixes
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** BGP Labeled Unicast
 
-**What the ledger says is covered**
+**Proof:** 11 of 35 MUST proven
 
-- IPv4 and IPv6 labeled unicast NLRI (SAFI 4) encode and decode, label stack handling, ADD-PATH framing, route config, Adj-RIB-In label side-data, best-path comparability across differing labels, withdrawals that ignore the Compatibility field (labeled unicast and VPN, in the Adj-RIB-In and in the re-election that follows), and dataplane handoff
-- requirements bound per line in [`rfc/short/rfc8277.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc8277.md).
+**Evidence:** unit 11
 
+**Unmet:** RFC8277-2-1, RFC8277-2-3, RFC8277-2.1-1, RFC8277-2.1-10, RFC8277-2.1-11, RFC8277-2.1-12, RFC8277-2.1-13, RFC8277-2.1-14, RFC8277-2.1-15, RFC8277-2.1-2, RFC8277-2.1-3, RFC8277-2.1-4, RFC8277-2.1-5, RFC8277-2.1-6, RFC8277-2.1-7, RFC8277-2.1-8, RFC8277-2.1-9, RFC8277-2.2-2, RFC8277-3.2.1-2, RFC8277-3.2.1-3, RFC8277-3.2.1-4, RFC8277-3.2.2-1, RFC8277-3.2.2-2, RFC8277-3.2.2-3
 
-**What the ledger says remains**
-
-MUST-level gaps are each annotated in [`rfc/short/rfc8277.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc8277.md). Multiple Labels Capability (code 8) is absent from ze's capability set ([`internal/core/bgp/capability/capability.go`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability.go)), so its Section 2.1 procedures are gaps ([`RFC8277-2.1-1`](#rfc8277-2.1-1) to [`RFC8277-2.1-15`](#rfc8277-2.1-15), [`RFC8277-3.2.1-3`](#rfc8277-3.2.1-3)), so every session is in the RFC 8277 Section 2 single-label mode while the encoders still accept and emit a full stack: [`RFC8277-2-1`](#rfc8277-2-1), [`RFC8277-2-3`](#rfc8277-2-3), [`RFC8277-3.2.2-2`](#rfc8277-3.2.2-2). Propagation of an already-multi-label route is unguarded for the same reason: [`RFC8277-3.2.1-2`](#rfc8277-3.2.1-2) -- the prohibition binds on every peer precisely because the capability is negotiated with none, and [`RFC8277-3.2.1-4`](#rfc8277-3.2.1-4) -- no propagation is ever blocked on label count, so the paired withdrawal has no producer either.
-
-- **Encoding:** [`RFC8277-2.1-10`](#rfc8277-2.1-10) -- the one-octet NLRI Length is written as `byte(totalBits)` with no bound check ([`internal/component/bgp/plugins/nlri/labeled/types.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/types.go), [`internal/component/bgp/message/update_build_labeled.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_labeled.go)).
-- **Reception:** [`RFC8277-2.2-2`](#rfc8277-2.2-2) -- the announcement's label-stack readers are S-bit-driven ([`internal/core/bgp/nlri/nlrisplit/labeled.go`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/labeled.go),:112), so a single-label NLRI with S clear is read past its prefix and rejected.
-- **Propagation:** [`RFC8277-3.2.2-1`](#rfc8277-3.2.2-1) -- ze binds no local label, so a next-hop rewrite re-advertises the upstream label unchanged ([`internal/component/bgp/reactor/filter_delta_handlers.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/filter_delta_handlers.go)). [`RFC8277-3.2.2-3`](#rfc8277-3.2.2-3) separately records the absent withdrawal of an earlier fewer-label advertisement when the changed-next-hop label-stack decision declines propagation to that peer.
 
 ## Coverage
 
@@ -118,9 +111,41 @@ MUST-level gaps are each annotated in [`rfc/short/rfc8277.md`](https://github.co
 
 **Annotated (including scoped evidence) (26):** [`RFC8277-2-1`](#rfc8277-2-1), [`RFC8277-2-2`](#rfc8277-2-2), [`RFC8277-2.1-1`](#rfc8277-2.1-1), [`RFC8277-2.1-2`](#rfc8277-2.1-2), [`RFC8277-2-3`](#rfc8277-2-3), [`RFC8277-2.1-3`](#rfc8277-2.1-3), [`RFC8277-2.1-4`](#rfc8277-2.1-4), [`RFC8277-2.1-5`](#rfc8277-2.1-5), [`RFC8277-2.1-6`](#rfc8277-2.1-6), [`RFC8277-2.1-7`](#rfc8277-2.1-7), [`RFC8277-2.1-8`](#rfc8277-2.1-8), [`RFC8277-2.1-9`](#rfc8277-2.1-9), [`RFC8277-2.1-10`](#rfc8277-2.1-10), [`RFC8277-2.1-11`](#rfc8277-2.1-11), [`RFC8277-2.1-12`](#rfc8277-2.1-12), [`RFC8277-2.1-13`](#rfc8277-2.1-13), [`RFC8277-2.1-14`](#rfc8277-2.1-14), [`RFC8277-2.2-2`](#rfc8277-2.2-2), [`RFC8277-2.1-15`](#rfc8277-2.1-15), [`RFC8277-3.2.1-1`](#rfc8277-3.2.1-1), [`RFC8277-3.2.1-2`](#rfc8277-3.2.1-2), [`RFC8277-3.2.1-3`](#rfc8277-3.2.1-3), [`RFC8277-3.2.1-4`](#rfc8277-3.2.1-4), [`RFC8277-3.2.2-1`](#rfc8277-3.2.2-1), [`RFC8277-3.2.2-2`](#rfc8277-3.2.2-2), [`RFC8277-3.2.2-3`](#rfc8277-3.2.2-3)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 35 of 35 (100.0%). Optional ceiling: 7 of 7 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc8277 35 of 35 (100.0%). Lowest optional ceiling: rfc8277 7 of 7 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 11, Ze correctness gap 24
+- **Overview bar**: Ze MUST proven 11, SHOULD proven 1, SHOULD not decided 6, Ze correctness gap 24
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 35 |
+| MUST rows kept (the MUST bar) | 35 |
+| Ze proven | 11 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 24 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 7 |
+| SHOULD proven | 1 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 6 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc8277.json](../../../data/rfc/rfc8277.json).
 
 ## Requirements
 
@@ -406,7 +431,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Upon reception, the value of the Compatibility field MUST be ignored. (§2.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes moved. Re-judged 2026-10-26 by an independent auditor who authored none of the change, after 394bd1e802 and 180b306ffa (spec-bgp-rs-replacement-on-withdrawal). RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field MUST be ignored." rs server_handlers.go sendBatchedWithdrawals now carries the departed session generation in withdrawalGroup and passes it to recoverRouteSel, and rs handleStateDown stamps it on each entry and hands the map to a coalescing departure worker (merge: later entry wins per withdrawalKey). Neither touches how a VPN or labeled withdrawal key or its retained native hex is formed: withdrawalKey and entry.wire are built exactly as before, so a withdrawal still matches its announcement whatever Compatibility value it carried. rr handleStateDown gained the generation argument; the rr unit TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes changed only to pass 7, with every input (0x800000-Compatibility withdrawal, both families, with and without ADD-PATH) and every exact-hex assertion unchanged (independent judge approval recorded in 394bd1e802). The revert records on rr handleStateDown and rs sendBatchedWithdrawals were re-taken in 394bd1e802 with reds observed and verify under ./le rfc check. All other tagged units and cited producers (text_json.go, familyrib.go, mpwire.go) are byte-identical; rs and rr TestVPN*/TestLabeled* green at HEAD in an export. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers, internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2 moved. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8277): "Upon reception, the value of the Compatibility field MUST be ignored." a0589dd1d1 changed only the stub bridge.SetUpdateRouteSel callback's signature in TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes to accept the new trailing uint64 (source policy epoch), which the stub ignores. No input or assertion changed. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -416,7 +441,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestRFC8277LabeledWithdrawIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L55) | unit/verify | revert, verified |
 | negative | [`TestVPNWithdrawIgnoresCompatibilityValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L119) | unit/verify | revert, verified |
 | negative | [`TestVPNWithdrawPromotesTheOtherPE`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L26) | unit/verify | revert, verified |
-| negative | [`TestVPNWithdrawalLeavesExactReflectorInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L37) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestVPNWithdrawalLeavesExactReflectorInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L37) | unit/verify | revert, verified |
 | negative | [`TestLabeledWithdrawalLeavesTheWithdrawalMap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L62) | unit/verify | revert, verified |
 | negative | [`TestVPNWithdrawalLeavesExactRouteServerInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L31) | unit/verify | revert, verified |
 | negative | [`TestLabeledWithdrawalLeavesTheRouteServerSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go#L77) | unit/verify | revert, verified |
@@ -430,8 +455,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | positive | [`TestRFC8277LabeledWithdrawIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L54) | unit/verify | revert, verified |
 | positive | [`TestVPNWithdrawIgnoresCompatibilityValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L118) | unit/verify | revert, verified |
 | positive | [`TestVPNWithdrawPromotesTheOtherPE`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L25) | unit/verify | revert, verified |
-| positive | [`TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L152) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestVPNWithdrawalLeavesExactReflectorInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L36) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L152) | unit/verify | revert, verified |
+| positive | [`TestVPNWithdrawalLeavesExactReflectorInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L36) | unit/verify | revert, verified |
 | positive | [`TestLabeledWithdrawalLeavesTheWithdrawalMap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L61) | unit/verify | revert, verified |
 | positive | [`TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L155) | unit/verify | revert, verified |
 | positive | [`TestVPNWithdrawalLeavesExactRouteServerInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L30) | unit/verify | revert, verified |

@@ -1,6 +1,6 @@
 # RFC 8050 - Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions
 
-Partial. Every requirement this repository extracted from RFC 8050, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+MRT ADD-PATH. Every requirement this repository extracted from RFC 8050, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 66.7% | 4 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 16.7% | 1 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 88.9% | 32 of 36 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 4 | of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0 | of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 32 | 32 of 36 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 6 | of 6 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 6 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 6 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 6 | of 6 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 6 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 6 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,10 +35,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 16.7% | 1 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Audit verdicts | 6 | of 6 gated MUSTs judged | 1 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id |
+| Partial proof; remaining gap | 1 | of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Audit verdicts | 6 | of 6 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 6 gated MUSTs: they add up to 6. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,23 +46,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | bad | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | MRT ADD-PATH |
 | Enrolment | Enrolled |
 | Requirements | 6 |
 | Gated MUST-level | 6 |
@@ -85,17 +85,14 @@ Enrolled: MRT Routing Information Export Format with BGP Additional Path Extensi
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** MRT ADD-PATH
 
-**What the ledger says is covered**
+**Proof:** 5 of 6 MUST proven
 
-- BGP4MP/BGP4MP_ET recording observes complete original messages separately from semantic route delivery and selects direction/family ADD-PATH subtypes. Offline readers retain both actual OPENs per file/session epoch and use their negotiated per-family directional modes. Ordinary subtypes and unambiguous single-family ADD-PATH messages also decode without OPENs. TABLE_DUMP_V2 subtypes 8-11 store Path Identifiers in RIB entries
-- subtype 12 stores them in raw NLRI. Context-aware repair and new proof carriers await consolidated verification and independent rejudgment.
+**Evidence:** unit 5
 
+**Unmet:** RFC8050-4.1-1
 
-**What the ledger says remains**
-
-Multiple-family ADD-PATH records without both directional OPENs are explicitly undecodable: updates-only, mid-session and independently rotated captures cannot invent missing negotiation. Replay/inject/serve do not negotiate ADD-PATH and refuse Path-ID-bearing or ambiguous UPDATEs. TABLE_DUMP_V2 snapshots still select ADD-PATH through the static operator toggle; their RIB callback does not expose stored Path Identifiers.
 
 ## Coverage
 
@@ -116,9 +113,41 @@ Multiple-family ADD-PATH records without both directional OPENs are explicitly u
 
 **Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):** [`RFC8050-4.1-1`](#rfc8050-4.1-1)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 6 of 6 (100.0%). Optional ceiling: no rows. Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc8050 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 5, Ze correctness gap 1
+- **Overview bar**: Ze MUST proven 5, Ze correctness gap 1
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 6 |
+| MUST rows kept (the MUST bar) | 6 |
+| Ze proven | 5 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 1 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 0 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 0 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc8050.json](../../../data/rfc/rfc8050.json).
 
 ## Requirements
 
@@ -145,7 +174,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 The Advertisement of Multiple Paths [RFC7911] extension for BGP alters the encoding of the BGP Network Layer Reachability Information (NLRI) format for withdraws and announcements. Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI. (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN, internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN#2 moved. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 8050 Section 2: "The Advertisement of Multiple Paths [RFC7911] extension for BGP alters the encoding of the BGP Network Layer Reachability Information (NLRI) format for withdraws and announcements. Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestRFC8050MessageCallbackPreservesEncodingAndFraming, both tags). Verdict unchanged: enforced. Earlier judgement follows. Independent reread of both complete tagged carriers and their helper/producer/consumer paths. RFC 8050 Section 2: The Advertisement of Multiple Paths [RFC7911] extension for BGP alters the encoding of the BGP Network Layer Reachability Information (NLRI) format for withdraws and announcements. Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI. Section 3: These enhancements continue to encapsulate the entire BGP message in the BGP message field. The observer matrix requires exact ordinary/extended type, received/sent subtype 9/11 versus 4/7, complete original message bytes and exact record count for isolated classic/MP announcement/withdrawal locations. The actual TCP collision winner retains the same socket and byte-identical directional OPENs, then records eight isolated UPDATEs exactly once with literal received classic/MP subtypes 4/9 and sent classic/MP 11/7; mixed withdrawals additionally require exact prefixes and Path Identifiers. Q1-Q4 pass: isolated ordinary-family negatives cannot be masked by other-family or opposite-direction AP. setSendCtxID publishes the context into the epoch writer; observeReceivedWire and observedBGPWriter.observe dispatch to OnBGPMessage, updateAddPath and bgp4mpTypeSubtype. Stored panic records are producer-reachability evidence only, not a new semantic run. No checks or foreign MRT acceptance were performed; current execution/discrimination freshness remains pending. No TABLE_DUMP_V2 or whole-RFC claim is made.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 8050 Section 2: "The Advertisement of Multiple Paths [RFC7911] extension for BGP alters the encoding of the BGP Network Layer Reachability Information (NLRI) format for withdraws and announcements. Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestRFC8050MessageCallbackPreservesEncodingAndFraming, both tags). Verdict unchanged: enforced. Earlier judgement follows. Independent reread of both complete tagged carriers and their helper/producer/consumer paths. RFC 8050 Section 2: The Advertisement of Multiple Paths [RFC7911] extension for BGP alters the encoding of the BGP Network Layer Reachability Information (NLRI) format for withdraws and announcements. Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI. Section 3: These enhancements continue to encapsulate the entire BGP message in the BGP message field. The observer matrix requires exact ordinary/extended type, received/sent subtype 9/11 versus 4/7, complete original message bytes and exact record count for isolated classic/MP announcement/withdrawal locations. The actual TCP collision winner retains the same socket and byte-identical directional OPENs, then records eight isolated UPDATEs exactly once with literal received classic/MP subtypes 4/9 and sent classic/MP 11/7; mixed withdrawals additionally require exact prefixes and Path Identifiers. Q1-Q4 pass: isolated ordinary-family negatives cannot be masked by other-family or opposite-direction AP. setSendCtxID publishes the context into the epoch writer; observeReceivedWire and observedBGPWriter.observe dispatch to OnBGPMessage, updateAddPath and bgp4mpTypeSubtype. Stored panic records are producer-reachability evidence only, not a new semantic run. No checks or foreign MRT acceptance were performed; current execution/discrimination freshness remains pending. No TABLE_DUMP_V2 or whole-RFC claim is made.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -207,7 +236,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 MRT parsers are usually stateless. In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized. (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTCollisionWinnerReservation, internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN moved. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 8050 Section 2: "MRT parsers are usually stateless. In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestMRTEmptyMPFamilyRequiresContext, TestMRTMigrationEpochUsesActualLocalOPEN, TestRFC8050MessageCallbackPreservesEncodingAndFraming). Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-14 (independent auditor). Only TestMRTMigrationEpochUsesActualLocalOPEN changed, by one line: the remote OPEN's Optional Parameters are packed with packPeerOptionalParams (capability.PackOptionalParams) instead of the removed buildOptionalParams. The capabilities it packs, the fallback-OPEN local ASN assertions and the MRT read-back of both directions' withdrawals with their Path Identifiers are unchanged. Every other cover is byte-identical to the previous enforced judgement.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 8050 Section 2: "MRT parsers are usually stateless. In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestMRTEmptyMPFamilyRequiresContext, TestMRTMigrationEpochUsesActualLocalOPEN, TestRFC8050MessageCallbackPreservesEncodingAndFraming). Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-14 (independent auditor). Only TestMRTMigrationEpochUsesActualLocalOPEN changed, by one line: the remote OPEN's Optional Parameters are packed with packPeerOptionalParams (capability.PackOptionalParams) instead of the removed buildOptionalParams. The capabilities it packs, the fallback-OPEN local ASN assertions and the MRT read-back of both directions' withdrawals with their Path Identifiers are unchanged. Every other cover is byte-identical to the previous enforced judgement.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

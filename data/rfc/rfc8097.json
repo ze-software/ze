@@ -1,0 +1,37 @@
+{
+  "stem": "rfc8097",
+  "title": "BGP Prefix Origin Validation State Extended Community",
+  "walked": true,
+  "requirements": 10,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 5,
+    "kept": 5,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 5,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 5,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 5,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC8097-2-1",
+    "RFC8097-2-2",
+    "RFC8097-2-3",
+    "RFC8097-2-4",
+    "RFC8097-2-5"
+  ]
+}

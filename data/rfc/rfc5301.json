@@ -1,0 +1,31 @@
+{
+  "stem": "rfc5301",
+  "title": "Dynamic Hostname Exchange Mechanism for IS-IS",
+  "walked": true,
+  "requirements": 15,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 7,
+    "kept": 7,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 7,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 8,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 8,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": []
+}

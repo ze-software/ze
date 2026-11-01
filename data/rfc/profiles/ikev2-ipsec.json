@@ -1,0 +1,30 @@
+{
+  "name": "ikev2-ipsec",
+  "kind": "technology",
+  "title": "IKEv2 and IPsec",
+  "release": false,
+  "required": [
+    "rfc3948",
+    "rfc4106",
+    "rfc4301",
+    "rfc4302",
+    "rfc4303",
+    "rfc4555",
+    "rfc4739",
+    "rfc4754",
+    "rfc5280",
+    "rfc5282",
+    "rfc5685",
+    "rfc6071",
+    "rfc7296",
+    "rfc7383",
+    "rfc7427",
+    "rfc7634",
+    "rfc8031",
+    "rfc8221",
+    "rfc8247",
+    "rfc9329",
+    "rfc9370"
+  ],
+  "optional": []
+}

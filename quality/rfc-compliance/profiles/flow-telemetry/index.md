@@ -1,31 +1,58 @@
 # Flow telemetry
 
-Technology aggregate. Flow export: NetFlow v9 and IPFIX. The RFCs whose summary names the flow-telemetry aggregate, with their mandatory and optional coverage.
+Technology aggregate. Flow export: NetFlow v9 and IPFIX. The RFCs whose summary names the flow-telemetry aggregate, with the MUST bar and the overview bar of the set and of each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 24.3% (17 of 70 (24.3%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 0.0% (0 of 19 (0.0%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 94.3% (66 of 70 (94.3%); excluded: Not applicable (classification can be revisited): 4 of 70 (5.7%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (19 of 19 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 0 (of 3 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/flow-telemetry.json](../../../../data/rfc/profiles/flow-telemetry.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 66 of 70 (94.3%); excluded: Not applicable (classification can be revisited): 4 of 70 (5.7%). Optional ceiling: 19 of 19 (100.0%). Lowest mandatory ceiling: rfc3954 10 of 14 (71.4%). Lowest optional ceiling: rfc3954 12 of 12 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 17, Ze correctness gap 49
+- **Overview bar**: Ze MUST proven 17, Not owed 4, SHOULD not decided 19, Ze correctness gap 49
+
+| Figure | Rows |
+|---|---|
+| RFCs | 3 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 70 |
+| MUST rows kept (the MUST bar) | 66 |
+| Ze proven | 17 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 49 |
+| MUST rows not owed | 4 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 4 |
+| SHOULD / MAY rows | 19 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 19 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
 ### Level 0
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 3954](../../rfc3954/) | Cisco Systems NetFlow Services Export Version 9 | 4 of 14 (28.6%); ceiling 10 of 14 (71.4%); excluded: Not applicable (classification can be revisited): 4 of 14 (28.6%) | 0 of 12 (0.0%); ceiling 12 of 12 (100.0%) |
+| [RFC 3954](../../rfc3954/) | Cisco Systems NetFlow Services Export Version 9 | Ze proven 4, Ze correctness gap 6 | Ze MUST proven 4, Not owed 4, SHOULD not decided 12, Ze correctness gap 6 |
 
 ### Level 5
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7011](../../rfc7011/) (cycle with rfc7012) | Specification of the IP Flow Information Export (IPFIX) Protocol for the Exchange of Flow Information | 12 of 50 (24.0%); ceiling 50 of 50 (100.0%) | 0 of 7 (0.0%); ceiling 7 of 7 (100.0%) |
-| [RFC 7012](../../rfc7012/) (cycle with rfc7011) | Information Model for IP Flow Information Export (IPFIX) | 1 of 6 (16.7%); ceiling 6 of 6 (100.0%) | no rows; ceiling no rows |
+| [RFC 7011](../../rfc7011/) (cycle with rfc7012) | Specification of the IP Flow Information Export (IPFIX) Protocol for the Exchange of Flow Information | Ze proven 12, Ze correctness gap 38 | Ze MUST proven 12, SHOULD not decided 7, Ze correctness gap 38 |
+| [RFC 7012](../../rfc7012/) (cycle with rfc7011) | Information Model for IP Flow Information Export (IPFIX) | Ze proven 1, Ze correctness gap 5 | Ze MUST proven 1, Ze correctness gap 5 |

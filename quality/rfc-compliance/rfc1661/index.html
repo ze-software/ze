@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 1661 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 1661: The Point-to-Point Protocol (PPP). 76 gated MUST-level requirements, 19 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 1661: The Point-to-Point Protocol (PPP). 76 gated MUST-level requirements, 17 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 1661 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 1661: The Point-to-Point Protocol (PPP). 76 gated MUST-level requirements, 19 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 1661: The Point-to-Point Protocol (PPP). 76 gated MUST-level requirements, 17 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 1661 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 1661: The Point-to-Point Protocol (PPP). 76 gated MUST-level requirements, 19 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 1661: The Point-to-Point Protocol (PPP). 76 gated MUST-level requirements, 17 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Partial</span>
+    <span class="journey-eyebrow">PPP LCP</span>
     <h1 id="rfc-detail-title">RFC 1661 - The Point-to-Point Protocol (PPP)</h1>
     <p>Every requirement this repository extracted from RFC 1661, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -118,28 +118,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>60.5%</strong><b>46 of 76 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.8%</strong><b>9 of 76 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 76 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 76 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>57.5%</strong><b>104 of 181 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>47</strong><b>of 76 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10</strong><b>of 76 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 76 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 76 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>112</strong><b>112 of 189 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>76</strong><b>of 101 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 76 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 76 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>2.6%</strong><b>2 of 76 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 76 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 76 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>76</strong><b>of 101 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 76 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 76 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>2</strong><b>of 76 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 76 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 76 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>25.0%</strong><b>19 of 76 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>17</strong><b>of 76 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 9 shares marked as a part above are the whole of the 76 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 9 counts marked as a part above are the whole of the 76 gated MUSTs: they add up to 76. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -156,7 +156,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Tested both ways</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got</td>
 </tr>
 <tr><td>One polarity plus reason</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -180,7 +180,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -192,7 +192,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-warn"></span> warn</td>
@@ -208,8 +208,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
-<tr><td>Public status</td>
-<td>Partial</td>
+<tr><td>Public row</td>
+<td>PPP LCP</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -224,7 +224,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>19</td>
+<td>17</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -236,16 +236,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>181</td>
+<td>189</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>181</td>
+<td>189</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>56</td>
+<td>58</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>104</td>
+<td>112</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1661.md</code></td>
@@ -264,13 +264,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>Enrolled: PPP LCP under L2TP and PPPoE. Ze implements framing, option negotiation, authentication phase selection, restart and termination actions, Code-Reject and Protocol-Reject, and Echo keepalive. The checklist records remaining behavior and evidence gaps; the requirement index binds the tagged tests.</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Partial</p>
-<details class="rfc-fold"><summary>What the ledger says is covered</summary>
-The full ten-state RFC 1661 Section 4.1 option-negotiation automaton, LCP packet and option codecs, Configure-Request/Ack/Nak/Reject negotiation with Reject-over-Nak-over-Ack precedence and verbatim option echo, Terminate-Request/Ack, Code-Reject, Echo keepalive with Magic-Number, two-octet Protocol framing, and the common NCP structure reused by IPCP and IPv6CP under L2TP and PPPoE. Tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc1661.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc1661.md</code></a>.
-</details>
-<details class="rfc-fold"><summary>What the ledger says remains</summary>
-Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps include the Code-Reject peer-MRU clamp and fresh Identifiers, RXJ+ suppression, and configurable restart limits. IPCP/IPv6CP admission and LCP-down reset are implemented; bounded lifecycle and native IPv4 restart evidence exists. Compressed Protocol reception remains unverified at the Linux framing boundary. Configure-Ack/Nak/Reject now validate the retained request before FSM or authentication changes; request Identifiers advance on changed options or valid replies, and rejected options stay removed. The buffer holds a 1500-octet Information field plus the two-octet Protocol field. Tests exercise reply correlation, real Restart-timer grace expiry, Echo/Terminate Identifiers, Magic-Number negotiation and full-size reception; validation and discrimination must be run before reporting those changes verified. No Discard-Request sender is implemented; its existing spec records a proposed optional feature, not an approval to build it.
-</details>
+<p><strong>Area:</strong> PPP LCP</p>
+<p><strong>Proof:</strong> 42 of 76 MUST proven</p>
+<p><strong>Evidence:</strong> interop 4, unit 38</p>
+<p><strong>Unmet:</strong> RFC1661-2-2, RFC1661-3.4-1, RFC1661-3.5-2, RFC1661-3.5-4, RFC1661-3.7-2, RFC1661-4.3-3, RFC1661-4.4-1, RFC1661-4.6-1, RFC1661-4.6-2, RFC1661-4.6-3, RFC1661-4.6-4, RFC1661-5-1, RFC1661-5.3-4, RFC1661-5.7-2, RFC1661-5.9-1, RFC1661-5.9-3, RFC1661-6.5-3</p>
+
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -278,11 +276,11 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>46</strong></td>
+<td><strong>47</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>30</strong></td>
+<td><strong>29</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -309,11 +307,95 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (46):</strong> <a href="#rfc1661-2-1"><code>RFC1661-2-1</code></a>, <a href="#rfc1661-5-2"><code>RFC1661-5-2</code></a>, <a href="#rfc1661-6-2"><code>RFC1661-6-2</code></a>, <a href="#rfc1661-3.1-2"><code>RFC1661-3.1-2</code></a>, <a href="#rfc1661-3.5-1"><code>RFC1661-3.5-1</code></a>, <a href="#rfc1661-3.5-3"><code>RFC1661-3.5-3</code></a>, <a href="#rfc1661-3.6-1"><code>RFC1661-3.6-1</code></a>, <a href="#rfc1661-3.6-3"><code>RFC1661-3.6-3</code></a>, <a href="#rfc1661-4.3-1"><code>RFC1661-4.3-1</code></a>, <a href="#rfc1661-5.1-1"><code>RFC1661-5.1-1</code></a>, <a href="#rfc1661-5.1-2"><code>RFC1661-5.1-2</code></a>, <a href="#rfc1661-5.1-3"><code>RFC1661-5.1-3</code></a>, <a href="#rfc1661-5.2-1"><code>RFC1661-5.2-1</code></a>, <a href="#rfc1661-5.2-2"><code>RFC1661-5.2-2</code></a>, <a href="#rfc1661-5.2-3"><code>RFC1661-5.2-3</code></a>, <a href="#rfc1661-5.2-4"><code>RFC1661-5.2-4</code></a>, <a href="#rfc1661-5.3-1"><code>RFC1661-5.3-1</code></a>, <a href="#rfc1661-5.3-2"><code>RFC1661-5.3-2</code></a>, <a href="#rfc1661-5.3-3"><code>RFC1661-5.3-3</code></a>, <a href="#rfc1661-5.3-5"><code>RFC1661-5.3-5</code></a>, <a href="#rfc1661-5.3-6"><code>RFC1661-5.3-6</code></a>, <a href="#rfc1661-5.3-7"><code>RFC1661-5.3-7</code></a>, <a href="#rfc1661-5.3-8"><code>RFC1661-5.3-8</code></a>, <a href="#rfc1661-5.4-1"><code>RFC1661-5.4-1</code></a>, <a href="#rfc1661-5.4-2"><code>RFC1661-5.4-2</code></a>, <a href="#rfc1661-5.4-3"><code>RFC1661-5.4-3</code></a>, <a href="#rfc1661-5.4-4"><code>RFC1661-5.4-4</code></a>, <a href="#rfc1661-5.4-5"><code>RFC1661-5.4-5</code></a>, <a href="#rfc1661-5.5-1"><code>RFC1661-5.5-1</code></a>, <a href="#rfc1661-5.6-1"><code>RFC1661-5.6-1</code></a>, <a href="#rfc1661-5.7-1"><code>RFC1661-5.7-1</code></a>, <a href="#rfc1661-5.7-4"><code>RFC1661-5.7-4</code></a>, <a href="#rfc1661-5.8-1"><code>RFC1661-5.8-1</code></a>, <a href="#rfc1661-5.8-2"><code>RFC1661-5.8-2</code></a>, <a href="#rfc1661-6.4-1"><code>RFC1661-6.4-1</code></a>, <a href="#rfc1661-6.4-2"><code>RFC1661-6.4-2</code></a>, <a href="#rfc1661-6.4-3"><code>RFC1661-6.4-3</code></a>, <a href="#rfc1661-4.4-2"><code>RFC1661-4.4-2</code></a>, <a href="#rfc1661-5.5-2"><code>RFC1661-5.5-2</code></a>, <a href="#rfc1661-5.8-4"><code>RFC1661-5.8-4</code></a>, <a href="#rfc1661-5.8-5"><code>RFC1661-5.8-5</code></a>, <a href="#rfc1661-6.1-1"><code>RFC1661-6.1-1</code></a>, <a href="#rfc1661-6.4-5"><code>RFC1661-6.4-5</code></a>, <a href="#rfc1661-6.4-6"><code>RFC1661-6.4-6</code></a>, <a href="#rfc1661-6.4-7"><code>RFC1661-6.4-7</code></a>, <a href="#rfc1661-6.4-8"><code>RFC1661-6.4-8</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (30):</strong> <a href="#rfc1661-2-2"><code>RFC1661-2-2</code></a>, <a href="#rfc1661-5-1"><code>RFC1661-5-1</code></a>, <a href="#rfc1661-3.1-1"><code>RFC1661-3.1-1</code></a>, <a href="#rfc1661-3.4-1"><code>RFC1661-3.4-1</code></a>, <a href="#rfc1661-3.5-2"><code>RFC1661-3.5-2</code></a>, <a href="#rfc1661-3.5-4"><code>RFC1661-3.5-4</code></a>, <a href="#rfc1661-3.6-2"><code>RFC1661-3.6-2</code></a>, <a href="#rfc1661-3.7-1"><code>RFC1661-3.7-1</code></a>, <a href="#rfc1661-3.7-2"><code>RFC1661-3.7-2</code></a>, <a href="#rfc1661-4.3-2"><code>RFC1661-4.3-2</code></a>, <a href="#rfc1661-4.3-3"><code>RFC1661-4.3-3</code></a>, <a href="#rfc1661-5.3-4"><code>RFC1661-5.3-4</code></a>, <a href="#rfc1661-5.6-2"><code>RFC1661-5.6-2</code></a>, <a href="#rfc1661-5.6-3"><code>RFC1661-5.6-3</code></a>, <a href="#rfc1661-5.7-2"><code>RFC1661-5.7-2</code></a>, <a href="#rfc1661-5.7-3"><code>RFC1661-5.7-3</code></a>, <a href="#rfc1661-5.9-1"><code>RFC1661-5.9-1</code></a>, <a href="#rfc1661-5.9-2"><code>RFC1661-5.9-2</code></a>, <a href="#rfc1661-6.2-1"><code>RFC1661-6.2-1</code></a>, <a href="#rfc1661-6.5-1"><code>RFC1661-6.5-1</code></a>, <a href="#rfc1661-6.5-2"><code>RFC1661-6.5-2</code></a>, <a href="#rfc1661-6.5-3"><code>RFC1661-6.5-3</code></a>, <a href="#rfc1661-6.6-1"><code>RFC1661-6.6-1</code></a>, <a href="#rfc1661-6.6-2"><code>RFC1661-6.6-2</code></a>, <a href="#rfc1661-4.6-1"><code>RFC1661-4.6-1</code></a>, <a href="#rfc1661-4.6-2"><code>RFC1661-4.6-2</code></a>, <a href="#rfc1661-4.6-3"><code>RFC1661-4.6-3</code></a>, <a href="#rfc1661-4.6-4"><code>RFC1661-4.6-4</code></a>, <a href="#rfc1661-4.4-1"><code>RFC1661-4.4-1</code></a>, <a href="#rfc1661-5.9-3"><code>RFC1661-5.9-3</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (47):</strong> <a href="#rfc1661-2-1"><code>RFC1661-2-1</code></a>, <a href="#rfc1661-5-2"><code>RFC1661-5-2</code></a>, <a href="#rfc1661-6-2"><code>RFC1661-6-2</code></a>, <a href="#rfc1661-3.1-2"><code>RFC1661-3.1-2</code></a>, <a href="#rfc1661-3.5-1"><code>RFC1661-3.5-1</code></a>, <a href="#rfc1661-3.5-3"><code>RFC1661-3.5-3</code></a>, <a href="#rfc1661-3.6-1"><code>RFC1661-3.6-1</code></a>, <a href="#rfc1661-3.6-3"><code>RFC1661-3.6-3</code></a>, <a href="#rfc1661-4.3-1"><code>RFC1661-4.3-1</code></a>, <a href="#rfc1661-5.1-1"><code>RFC1661-5.1-1</code></a>, <a href="#rfc1661-5.1-2"><code>RFC1661-5.1-2</code></a>, <a href="#rfc1661-5.1-3"><code>RFC1661-5.1-3</code></a>, <a href="#rfc1661-5.2-1"><code>RFC1661-5.2-1</code></a>, <a href="#rfc1661-5.2-2"><code>RFC1661-5.2-2</code></a>, <a href="#rfc1661-5.2-3"><code>RFC1661-5.2-3</code></a>, <a href="#rfc1661-5.2-4"><code>RFC1661-5.2-4</code></a>, <a href="#rfc1661-5.3-1"><code>RFC1661-5.3-1</code></a>, <a href="#rfc1661-5.3-2"><code>RFC1661-5.3-2</code></a>, <a href="#rfc1661-5.3-3"><code>RFC1661-5.3-3</code></a>, <a href="#rfc1661-5.3-5"><code>RFC1661-5.3-5</code></a>, <a href="#rfc1661-5.3-6"><code>RFC1661-5.3-6</code></a>, <a href="#rfc1661-5.3-7"><code>RFC1661-5.3-7</code></a>, <a href="#rfc1661-5.3-8"><code>RFC1661-5.3-8</code></a>, <a href="#rfc1661-5.4-1"><code>RFC1661-5.4-1</code></a>, <a href="#rfc1661-5.4-2"><code>RFC1661-5.4-2</code></a>, <a href="#rfc1661-5.4-3"><code>RFC1661-5.4-3</code></a>, <a href="#rfc1661-5.4-4"><code>RFC1661-5.4-4</code></a>, <a href="#rfc1661-5.4-5"><code>RFC1661-5.4-5</code></a>, <a href="#rfc1661-5.5-1"><code>RFC1661-5.5-1</code></a>, <a href="#rfc1661-5.6-1"><code>RFC1661-5.6-1</code></a>, <a href="#rfc1661-5.6-3"><code>RFC1661-5.6-3</code></a>, <a href="#rfc1661-5.7-1"><code>RFC1661-5.7-1</code></a>, <a href="#rfc1661-5.7-4"><code>RFC1661-5.7-4</code></a>, <a href="#rfc1661-5.8-1"><code>RFC1661-5.8-1</code></a>, <a href="#rfc1661-5.8-2"><code>RFC1661-5.8-2</code></a>, <a href="#rfc1661-6.4-1"><code>RFC1661-6.4-1</code></a>, <a href="#rfc1661-6.4-2"><code>RFC1661-6.4-2</code></a>, <a href="#rfc1661-6.4-3"><code>RFC1661-6.4-3</code></a>, <a href="#rfc1661-4.4-2"><code>RFC1661-4.4-2</code></a>, <a href="#rfc1661-5.5-2"><code>RFC1661-5.5-2</code></a>, <a href="#rfc1661-5.8-4"><code>RFC1661-5.8-4</code></a>, <a href="#rfc1661-5.8-5"><code>RFC1661-5.8-5</code></a>, <a href="#rfc1661-6.1-1"><code>RFC1661-6.1-1</code></a>, <a href="#rfc1661-6.4-5"><code>RFC1661-6.4-5</code></a>, <a href="#rfc1661-6.4-6"><code>RFC1661-6.4-6</code></a>, <a href="#rfc1661-6.4-7"><code>RFC1661-6.4-7</code></a>, <a href="#rfc1661-6.4-8"><code>RFC1661-6.4-8</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (29):</strong> <a href="#rfc1661-2-2"><code>RFC1661-2-2</code></a>, <a href="#rfc1661-5-1"><code>RFC1661-5-1</code></a>, <a href="#rfc1661-3.1-1"><code>RFC1661-3.1-1</code></a>, <a href="#rfc1661-3.4-1"><code>RFC1661-3.4-1</code></a>, <a href="#rfc1661-3.5-2"><code>RFC1661-3.5-2</code></a>, <a href="#rfc1661-3.5-4"><code>RFC1661-3.5-4</code></a>, <a href="#rfc1661-3.6-2"><code>RFC1661-3.6-2</code></a>, <a href="#rfc1661-3.7-1"><code>RFC1661-3.7-1</code></a>, <a href="#rfc1661-3.7-2"><code>RFC1661-3.7-2</code></a>, <a href="#rfc1661-4.3-2"><code>RFC1661-4.3-2</code></a>, <a href="#rfc1661-4.3-3"><code>RFC1661-4.3-3</code></a>, <a href="#rfc1661-5.3-4"><code>RFC1661-5.3-4</code></a>, <a href="#rfc1661-5.6-2"><code>RFC1661-5.6-2</code></a>, <a href="#rfc1661-5.7-2"><code>RFC1661-5.7-2</code></a>, <a href="#rfc1661-5.7-3"><code>RFC1661-5.7-3</code></a>, <a href="#rfc1661-5.9-1"><code>RFC1661-5.9-1</code></a>, <a href="#rfc1661-5.9-2"><code>RFC1661-5.9-2</code></a>, <a href="#rfc1661-6.2-1"><code>RFC1661-6.2-1</code></a>, <a href="#rfc1661-6.5-1"><code>RFC1661-6.5-1</code></a>, <a href="#rfc1661-6.5-2"><code>RFC1661-6.5-2</code></a>, <a href="#rfc1661-6.5-3"><code>RFC1661-6.5-3</code></a>, <a href="#rfc1661-6.6-1"><code>RFC1661-6.6-1</code></a>, <a href="#rfc1661-6.6-2"><code>RFC1661-6.6-2</code></a>, <a href="#rfc1661-4.6-1"><code>RFC1661-4.6-1</code></a>, <a href="#rfc1661-4.6-2"><code>RFC1661-4.6-2</code></a>, <a href="#rfc1661-4.6-3"><code>RFC1661-4.6-3</code></a>, <a href="#rfc1661-4.6-4"><code>RFC1661-4.6-4</code></a>, <a href="#rfc1661-4.4-1"><code>RFC1661-4.4-1</code></a>, <a href="#rfc1661-5.9-3"><code>RFC1661-5.9-3</code></a></p>
 </section>
-<section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 74 of 76 (97.4%); excluded: Met by a lower layer: 2 of 76 (2.6%). Optional ceiling: 25 of 25 (100.0%). Lowest mandatory ceiling: rfc1661 74 of 76 (97.4%). Lowest optional ceiling: rfc1661 25 of 25 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<section><h2>Figures</h2>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="rfc1661:must">Ze proven 42, OS testing gap 2, Ze correctness gap 32</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="rfc1661:overview">Ze MUST proven 42, SHOULD not decided 25, OS testing gap 2, Ze correctness gap 32</div>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="rfc1661:rfcs">1</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="rfc1661:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="rfc1661:register">not complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="rfc1661:must.total">76</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="rfc1661:must.kept">76</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="rfc1661:must.ze-proven">42</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="rfc1661:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="rfc1661:must.os-gap">2</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="rfc1661:must.ze-gap">32</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="rfc1661:must.not-owed">0</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="rfc1661:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="rfc1661:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="rfc1661:must.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="rfc1661:should.total">25</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="rfc1661:should.proven">0</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="rfc1661:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="rfc1661:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="rfc1661:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="rfc1661:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="rfc1661:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="rfc1661:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="rfc1661:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="rfc1661:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="rfc1661:should.not-decided">25</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -338,7 +420,7 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> getFrameBuf in internal/component/l2tp/ppp/session_run.go supplies MaxFrameBufLen bytes, enough for 1500 Information octets and the Protocol field. sendProtocolReject clamps to the peer MRU, but sendCodeReject still truncates only against that buffer, so a large Code-Reject can exceed a smaller peer MRU. Disclosed in docs/features/rfc-status.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> getFrameBuf in internal/component/l2tp/ppp/session_run.go supplies MaxFrameBufLen bytes, enough for 1500 Information octets and the Protocol field. sendProtocolReject and writeCodeReject clamp to the peer MRU, but sendEchoReply (BuildLCPEchoReply in internal/component/l2tp/ppp/echo.go) echoes the request&#39;s Data with no clamp, so a peer whose Echo-Request is longer than its own established MRU draws an Echo-Reply that exceeds it. Disclosed in docs/features/rfc-status.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5-1">RFC1661-5-1</code></td><td colspan="3"><span class="rfc-subject">The Length MUST NOT exceed the MRU of the link. (§5)</span></td></tr>
 <tr><td></td>
@@ -759,6 +841,7 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L570" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckSentAndLinkHeld</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L604" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoTerminateAckForTerminateAck</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L96" title="internal/le/interoplab/l2tp/ppp_code_reject.go" target="_blank" rel="noopener"><code>checkPPPCodeReject</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.6-1">RFC1661-5.6-1</code></td><td colspan="3"><span class="rfc-subject">This MUST be reported back to the sender of the unknown Code by transmitting a Code- Reject. (Section 5.6)</span></td></tr>
@@ -768,6 +851,7 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1143" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectForUnknownCode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1175" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoCodeRejectForKnownCode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L82" title="internal/le/interoplab/l2tp/ppp_code_reject.go" target="_blank" rel="noopener"><code>checkPPPCodeReject</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.6-2">RFC1661-5.6-2</code></td><td colspan="3"><span class="rfc-subject">The Identifier field MUST be changed for each Code-Reject sent. (Section 5.6)</span></td></tr>
@@ -775,18 +859,21 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 <td>MUST</td>
 <td>5.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L48" title="internal/component/l2tp/ppp/rfc1661_code_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661LCPCodeRejectIdentifierChanges</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L76" title="internal/component/l2tp/ppp/rfc1661_code_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPCodeRejectIdentifierChanges</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> sendCodeReject (internal/component/l2tp/ppp/session_run.go) reuses the offending packet&#39;s Identifier for the Code-Reject instead of allocating a fresh one, so the Identifier does not change per Code-Reject sent. Disclosed in docs/features/rfc-status.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L86" title="internal/le/interoplab/l2tp/ppp_code_reject.go" target="_blank" rel="noopener"><code>checkPPPCodeReject</code></a></span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> sendCodeReject (internal/component/l2tp/ppp/session_run.go) advances lcpCodeRejectID, and sendNCPCodeReject (internal/component/l2tp/ppp/ncp.go) advances the family&#39;s ipcpCodeRejectID or ipv6cpCodeRejectID, before every packet written, and no input asks ze to hold the Identifier still, so the obligation has no refusing counterpart to assert</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.6-3">RFC1661-5.6-3</code></td><td colspan="3"><span class="rfc-subject">The Rejected-Packet MUST be truncated to comply with the peer&#39;s established MRU. (Section 5.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.6-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> sendCodeReject in internal/component/l2tp/ppp/session_run.go truncates the Rejected-Packet against the 1500-octet Information field in getFrameBuf&#39;s MaxFrameBufLen buffer, not against a smaller negotiatedMRU. Disclosed in docs/features/rfc-status.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L122" title="internal/component/l2tp/ppp/rfc1661_code_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectTruncatedToMRU</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L185" title="internal/component/l2tp/ppp/rfc1661_code_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectKeptWhenItFits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L91" title="internal/le/interoplab/l2tp/ppp_code_reject.go" target="_blank" rel="noopener"><code>checkPPPCodeReject</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.7-1">RFC1661-5.7-1</code></td><td colspan="3"><span class="rfc-subject">If the LCP automaton is in the Opened state, then this MUST be reported back to the peer by transmitting a Protocol-Reject. (Section 5.7)</span></td></tr>
 <tr><td></td>
@@ -1318,7 +1405,7 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 <tbody>
 <tr><td><a href="#rfc1661-2-2"><code>RFC1661-2-2</code></a> The maximum length for the Information field, including Padding, but not including the Protocol field, is termed the Maximum Receive Unit (MRU), which defaults to 1500 octets. (§2)</td>
 <td>{gap}, no test</td>
-<td>getFrameBuf in internal/component/l2tp/ppp/session_run.go supplies MaxFrameBufLen bytes, enough for 1500 Information octets and the Protocol field. sendProtocolReject clamps to the peer MRU, but sendCodeReject still truncates only against that buffer, so a large Code-Reject can exceed a smaller peer MRU. Disclosed in docs/features/rfc-status.md</td>
+<td>getFrameBuf in internal/component/l2tp/ppp/session_run.go supplies MaxFrameBufLen bytes, enough for 1500 Information octets and the Protocol field. sendProtocolReject and writeCodeReject clamp to the peer MRU, but sendEchoReply (BuildLCPEchoReply in internal/component/l2tp/ppp/echo.go) echoes the request&#39;s Data with no clamp, so a peer whose Echo-Request is longer than its own established MRU draws an Echo-Reply that exceeds it. Disclosed in docs/features/rfc-status.md</td>
 </tr>
 <tr><td><a href="#rfc1661-5-1"><code>RFC1661-5-1</code></a> The Length MUST NOT exceed the MRU of the link. (§5)</td>
 <td>{gap}, no test</td>
@@ -1347,14 +1434,6 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 <tr><td><a href="#rfc1661-5.3-4"><code>RFC1661-5.3-4</code></a> When a particular type of Configuration Option can be listed more than once with different values, the Configure-Nak MUST include a list of all values for that option which are acceptable to the Configure-Nak sender. (Section 5.3)</td>
 <td>{gap}, no test</td>
 <td>gap in proof: the condition never holds for ze, because RFC 1661 Section 6 lists no Configuration Option that can be listed more than once and ze negotiates only types 1, 2, 3, 5, 7 and 8 (internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption); no test asserts that no input yields a multi-value Configure-Nak</td>
-</tr>
-<tr><td><a href="#rfc1661-5.6-2"><code>RFC1661-5.6-2</code></a> The Identifier field MUST be changed for each Code-Reject sent. (Section 5.6)</td>
-<td>{gap}, no test</td>
-<td>sendCodeReject (internal/component/l2tp/ppp/session_run.go) reuses the offending packet&#39;s Identifier for the Code-Reject instead of allocating a fresh one, so the Identifier does not change per Code-Reject sent. Disclosed in docs/features/rfc-status.md</td>
-</tr>
-<tr><td><a href="#rfc1661-5.6-3"><code>RFC1661-5.6-3</code></a> The Rejected-Packet MUST be truncated to comply with the peer&#39;s established MRU. (Section 5.6)</td>
-<td>{gap}, no test</td>
-<td>sendCodeReject in internal/component/l2tp/ppp/session_run.go truncates the Rejected-Packet against the 1500-octet Information field in getFrameBuf&#39;s MaxFrameBufLen buffer, not against a smaller negotiatedMRU. Disclosed in docs/features/rfc-status.md</td>
 </tr>
 <tr><td><a href="#rfc1661-5.7-2"><code>RFC1661-5.7-2</code></a> Upon reception of a Protocol-Reject, the implementation MUST stop sending packets of the indicated protocol at the earliest opportunity. (Section 5.7)</td>
 <td>{gap}, no test</td>
@@ -2395,7 +2474,7 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 </div>
 <h3><a href="#rfc1661-5.5-1"><code>RFC1661-5.5-1</code></a></h3>
 <p>Upon reception of a Terminate-Request, a Terminate-Ack MUST be transmitted. (Section 5.5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: no Terminate-Ack for a Terminate-Request. TestRFC1661TerminateAckSentAndLinkHeld goes red on no Terminate-Ack or Identifier != 0x77 (driven in Opened only); TestRFC1661NoTerminateAckForTerminateAck goes red if a Terminate-Ack draws one.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: no Terminate-Ack for a Terminate-Request. TestRFC1661TerminateAckSentAndLinkHeld goes red on no LCP Terminate-Ack or an Identifier other than the request&#39;s 0x77, as Section 5.5 asks (&#39;the Identifier field of the Terminate-Request is copied into the Identifier field of the Terminate-Ack packet&#39;); TestRFC1661NoTerminateAckForTerminateAck goes red if a Terminate-Ack draws one. checkPPPCodeReject assertion 6 goes red unless the relay&#39;s fifth injected frame is exactly IPCP 05 5a 00 04 and Ze then sends an IPCP Terminate-Ack carrying 0x5a; assertion 5 has already shown Ze sent no Code 1-6 packet after the probes, so the Ack is the reply to that request. IPCP inherits this obligation unchanged: RFC 1332 Section 2 makes IPCP &#39;exactly the same as the Link Control Protocol&#39; and lists no Terminate exception. Scope: every tagged unit drives the Opened state (LCP and IPCP). The Section 4.1 sta edges of Stopped, Closing, Stopping, Ack-Rcvd and Ack-Sent have no test asserting a Terminate-Ack anywhere in the package (Closed is covered by TestLCPPeerTerminateRestartTimer, IPCP Req-Sent by TestIPCPUsedCodesAreNotCodeRejected); journaled as requirement-proven-in-one-state-of-many.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2410,12 +2489,17 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L96" title="internal/le/interoplab/l2tp/ppp_code_reject.go" target="_blank" rel="noopener"><code>checkPPPCodeReject</code></a></td>
+<td>interop/nightly</td>
+<td>mutant, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc1661-5.6-1"><code>RFC1661-5.6-1</code></a></h3>
 <p>This MUST be reported back to the sender of the unknown Code by transmitting a Code- Reject. (Section 5.6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: not Code-Rejecting an unknown Code. TestRFC1661CodeRejectForUnknownCode goes red on no Code-Reject or a Rejected-Packet not carrying Code 99, Identifier 0x41, Length 6, Data aabb; TestRFC1661NoCodeRejectForKnownCode goes red if a Terminate-Request is Code-Rejected.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: not Code-Rejecting an unknown Code. TestRFC1661CodeRejectForUnknownCode goes red on no Code-Reject or a Rejected-Packet not carrying Code 99, Identifier 0x41, Length 6, Data aabb; TestRFC1661NoCodeRejectForKnownCode goes red if a Terminate-Request is Code-Rejected. checkPPPCodeReject, over live xl2tpd and pppd with LCP and IPCP Opened, goes red at assertion 2 unless Ze answers the two injected LCP Code 99 probes with LCP Code-Rejects and the two IPCP Code 12 probes with IPCP Code-Rejects, and assertions 3 and 4 then require exactly two per protocol, each carrying the probe&#39;s Code and Identifier 0x42. Its claim now names both halves and states no more than the body checks. The LCP half is the sentence this row quotes; the IPCP half applies RFC 1332 Section 2 (&#39;Other Codes should be treated as unrecognized and should result in Code-Rejects&#39;). Its record breaks wakeUnitReader in afterLCPOpen (red at assertion 2), which proves the IPCP half needs Ze to read its PPP unit descriptor; no interop record breaks the LCP Code-Reject producer, whose discrimination rests on the unit tests.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2430,17 +2514,64 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L82" title="internal/le/interoplab/l2tp/ppp_code_reject.go" target="_blank" rel="noopener"><code>checkPPPCodeReject</code></a></td>
+<td>interop/nightly</td>
+<td>mutant, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc1661-5.6-2"><code>RFC1661-5.6-2</code></a></h3>
 <p>The Identifier field MUST be changed for each Code-Reject sent. (Section 5.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1661-5.6-2, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Every probe pair shares one Identifier, which isolates the defect the row forbids (copying the rejected packet&#39;s Identifier). TestRFC1661LCPCodeRejectIdentifierChanges (LCP, Opened, two Code 99 with 0x41) and TestRFC1661NCPCodeRejectIdentifierChanges (IPCP and IPv6CP, Req-Sent, two Code 12 with 0x51) go red unless exactly two Code-Rejects on that protocol carry different Identifiers. checkPPPCodeReject assertion 3 does the same on the wire for LCP and IPCP (two probes with 0x42 each, exactly two Code-Rejects per protocol, Identifiers differ); its record breaks nextNCPCodeRejectID to req.Identifier in sendNCPCodeReject and is red at assertion 3. The {single-polarity: positive} argument holds: sendCodeReject advances lcpCodeRejectID and nextNCPCodeRejectID (ncp.go) advances ipcpCodeRejectID or ipv6cpCodeRejectID per Code-Reject, and no input can ask Ze to keep a Code-Reject Identifier, so no refusing case exists to assert. Two consecutive distinct values is what &#39;changed for each Code-Reject sent&#39; can be observed as.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L48" title="internal/component/l2tp/ppp/rfc1661_code_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661LCPCodeRejectIdentifierChanges</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L76" title="internal/component/l2tp/ppp/rfc1661_code_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPCodeRejectIdentifierChanges</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L86" title="internal/le/interoplab/l2tp/ppp_code_reject.go" target="_blank" rel="noopener"><code>checkPPPCodeReject</code></a></td>
+<td>interop/nightly</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1661-5.6-3"><code>RFC1661-5.6-3</code></a></h3>
 <p>The Rejected-Packet MUST be truncated to comply with the peer&#39;s established MRU. (Section 5.6)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1661-5.6-3, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: TestRFC1661CodeRejectTruncatedToMRU (LCP Code 99 and IPCP Code 12, 404 octets, negotiatedMRU 100) goes red unless the Code-Reject frame&#39;s Information field is exactly 100 octets, the Rejected-Packet keeps the original Code, Identifier 0x61 and Length 404, and the kept 92 Data octets are the head of the packet. checkPPPCodeReject assertion 4, with pppd&#39;s mru 128 (ppp-options) and 204-octet probes, goes red if any LCP or IPCP Code-Reject&#39;s Information field exceeds 128 octets, its Length disagrees with it, or its Rejected-Packet is not the probe&#39;s Code, Identifier 0x42, Length 204 and leading Data; the claim states exactly that. Negative: TestRFC1661CodeRejectKeptWhenItFits requires a 44-octet packet under the same 100-octet MRU to come back whole, so the truncation is conditional on the MRU and an unconditional cut goes red, which the Rejected-Packet description (&#39;contains a copy of the LCP packet which is being rejected&#39;) requires.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L185" title="internal/component/l2tp/ppp/rfc1661_code_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectKeptWhenItFits</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L122" title="internal/component/l2tp/ppp/rfc1661_code_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectTruncatedToMRU</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L91" title="internal/le/interoplab/l2tp/ppp_code_reject.go" target="_blank" rel="noopener"><code>checkPPPCodeReject</code></a></td>
+<td>interop/nightly</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1661-5.7-1"><code>RFC1661-5.7-1</code></a></h3>
 <p>If the LCP automaton is in the Opened state, then this MUST be reported back to the peer by transmitting a Protocol-Reject. (Section 5.7)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: no Protocol-Reject for an unrecognized protocol in Opened. TestRFC1661UnsupportedProtocolRejectedInOpened goes red unless one LCP code-8 frame names 0x8281; TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened goes red on any frame outside Opened.</p>
@@ -3281,6 +3412,7 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 1661, so its obligations are stated where they were written.</p>
 </section>
+<script src="../../../assets/rfc-figures.js" defer></script>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -3312,7 +3444,7 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

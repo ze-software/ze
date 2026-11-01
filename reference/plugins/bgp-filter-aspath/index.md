@@ -13,7 +13,7 @@ Named AS-path regex filter (ordered entries, first match wins, accept/reject)
 
 ## Configuration
 
-`policy`
+`bgp`
 
 ## Dependencies
 

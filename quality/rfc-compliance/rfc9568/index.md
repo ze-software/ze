@@ -1,6 +1,6 @@
 # RFC 9568 - Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6
 
-Partial. Every requirement this repository extracted from RFC 9568, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+VRRPv3 (IPv4 and IPv6). Every requirement this repository extracted from RFC 9568, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 75.8% | 50 of 66 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 9.1% | 6 of 66 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 66 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 66 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 58.9% | 112 of 190 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 50 | of 66 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 6 | of 66 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 66 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 66 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 112 | 112 of 190 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 66 | of 94 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 66 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 66 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 66 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 66 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 66 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 66 | of 94 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 66 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 66 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 66 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 66 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 66 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,10 +35,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 15.2% | 10 of 66 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 55 | of 66 gated MUSTs judged | 1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
+| No test at all | 10 | of 66 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 55 | of 66 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 shares marked as a part above are the whole of the 66 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 66 gated MUSTs: they add up to 66. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,23 +46,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | VRRPv3 (IPv4 and IPv6) |
 | Enrolment | Enrolled |
 | Requirements | 94 |
 | Gated MUST-level | 66 |
@@ -85,17 +85,14 @@ Enrolled: VRRP Version 3 for IPv4 and IPv6
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** VRRPv3 (IPv4 and IPv6)
 
-**What the ledger says is covered**
+**Proof:** 37 of 66 MUST proven
 
-Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (Backup/Master, Master_Down_Timer, skew time), priority and preemption (including preempt-delay), the address-owner priority 255 rule, centisecond Max_Advert_Int, virtual MAC 00:00:5e:00:01:{vrid} (IPv4) / 00:00:5e:00:02:{vrid} (IPv6) on a per-group macvlan, 224.0.0.18 / ff02::12 multicast, IP protocol 112, GTSM TTL/hop-limit 255 on TX and RX, gratuitous ARP and unsolicited NA on Master transition, Accept_Mode enforced on the dataplane (an Active router that is neither the address owner nor configured Accept_Mode True does not accept packets addressed to the virtual addresses, while still answering ARP and Neighbor Discovery for them and forwarding for the virtual MAC), including the Section 6.1 carve-out that never drops IPv6 Neighbor Solicitations or Advertisements.
+**Evidence:** unit 37
 
-**What the ledger says remains**
+**Unmet:** RFC9568-5.1.1.2-1, RFC9568-5.1.2.2-1, RFC9568-6.4.2-3, RFC9568-6.4.3-4, RFC9568-8.2.2-2, RFC9568-8.2.2-3, RFC9568-8.2.3-1, RFC9568-8.4.2-1, RFC9568-8.4.2-2, RFC9568-8.4.2-3
 
-Ten gaps gated in [`rfc/short/rfc9568.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc9568.md). [`RFC9568-5.1.1.2-1`](#rfc9568-5.1.1.2-1) and 5.1.2.2-1: ze is a router, and no test shows that the kernel or VPP dataplane it programs forwards no datagram to 224.0.0.18 or ff02::12. [`RFC9568-6.4.2-3`](#rfc9568-6.4.2-3): the VRRP plugin sends no Router Advertisement, but no test proves a Backup's interface sends none. [`RFC9568-8.4.2-1`](#rfc9568-8.4.2-1), 8.4.2-2 and 8.4.2-3: ze implements no VRRPv2 and VRRPv3 interoperation mode. For VRRPv3 over IPv4 a group sends and accepts only the RFC 9568 Section 5.2.8 message-only checksum by default; `checksum rfc5798-compatible` switches that group, on both sides, to the RFC 5798 pseudo-header form keepalived and the pre-RFC 9568 deployed base require. [`RFC9568-6.4.3-4`](#rfc9568-6.4.3-4): an Active router sends no ND Router Advertisement for an IPv6 Virtual Router; the only ICMPv6 message the plugin builds is the unsolicited Neighbor Advertisement ([`internal/plugins/vrrp/transport/na.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/na.go)). [`RFC9568-8.2.2-2`](#rfc9568-8.2.2-2) and [`RFC9568-8.2.2-3`](#rfc9568-8.2.2-3): the Neighbor Solicitations an Active router sends for a LAN host are sent by the kernel from the parent interface, so their source link-layer address option carries the parent's physical MAC rather than the Virtual Router MAC. [`RFC9568-7.1-12`](#rfc9568-7.1-12) departs for one kind of group, owner-approved 2026-10-20: in a group configured `checksum rfc5798-compatible`, a VRRPv3 address owner discards an advertisement for its VRID as RFC 5798 Section 7.1 orders, counts it under the `owner` discard reason and writes no log line, where [`RFC9568-7.1-12`](#rfc9568-7.1-12) asks it to log the event; every other group logs and processes it (`onPacket`, [`internal/plugins/vrrp/instance.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance.go)). [`RFC9568-8.1.3-1`](#rfc9568-8.1.3-1) is met by refusal: `ze config verify` refuses proxy ARP on any interface an IPv4 VRRP group uses ([`internal/plugins/vrrp/proxyarp.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/proxyarp.go)), because the kernel would answer with the device's own MAC rather than the Virtual Router MAC. [`RFC9568-8.2.3-1`](#rfc9568-8.2.3-1): the Backup Routers cannot be configured to send the address owner's Router Advertisement options, because no Router Advertisement is sent ([`RFC9568-6.4.3-4`](#rfc9568-6.4.3-4)). [`RFC9568-5.1.2.3-1`](#rfc9568-5.1.2.3-1) (IPv6 Hop Limit 255 on transmit) rests on one Linux test ([`internal/plugins/vrrp/transport/transport_integration_linux_test.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_integration_linux_test.go), build tag `linux`) that runs unprivileged in a user namespace of its own and reads the hop limit back from both sockets; a recorded break of the value turns it red.
-
-- **Interoperability IS proven:** ze exchanges adverts with keepalived 2.3.1 under QEMU and passes election, node-death failover, and graceful-stop scenarios, including virtual-MAC ownership of the virtual IP (a foreign host resolves the VIP to 00:00:5e:00:01:{vrid}). Experimental pending deployment hardening.
 
 ## Coverage
 
@@ -114,9 +111,41 @@ Ten gaps gated in [`rfc/short/rfc9568.md`](https://github.com/ze-software/ze/blo
 
 **Annotated (including scoped evidence) (16):** [`RFC9568-5.1.1.2-1`](#rfc9568-5.1.1.2-1), [`RFC9568-5.1.1.3-1`](#rfc9568-5.1.1.3-1), [`RFC9568-5.1.2.2-1`](#rfc9568-5.1.2.2-1), [`RFC9568-5.1.2.3-1`](#rfc9568-5.1.2.3-1), [`RFC9568-6.4.2-3`](#rfc9568-6.4.2-3), [`RFC9568-6.4.3-2`](#rfc9568-6.4.3-2), [`RFC9568-6.4.3-4`](#rfc9568-6.4.3-4), [`RFC9568-7.2-1`](#rfc9568-7.2-1), [`RFC9568-7.2-2`](#rfc9568-7.2-2), [`RFC9568-7.2-4`](#rfc9568-7.2-4), [`RFC9568-8.2.2-2`](#rfc9568-8.2.2-2), [`RFC9568-8.2.2-3`](#rfc9568-8.2.2-3), [`RFC9568-8.2.3-1`](#rfc9568-8.2.3-1), [`RFC9568-8.4.2-1`](#rfc9568-8.4.2-1), [`RFC9568-8.4.2-2`](#rfc9568-8.4.2-2), [`RFC9568-8.4.2-3`](#rfc9568-8.4.2-3)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 66 of 66 (100.0%). Optional ceiling: 28 of 28 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc9568 66 of 66 (100.0%). Lowest optional ceiling: rfc9568 28 of 28 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 37, Ze correctness gap 29
+- **Overview bar**: Ze MUST proven 37, SHOULD proven 3, SHOULD not decided 25, Ze correctness gap 29
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 66 |
+| MUST rows kept (the MUST bar) | 66 |
+| Ze proven | 37 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 29 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 28 |
+| SHOULD proven | 3 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 25 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc9568.json](../../../data/rfc/rfc9568.json).
 
 ## Requirements
 
@@ -776,7 +805,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 * Compute the VRRP checksum (§7.2)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/plugins/vrrp/transport/backend_linux.go::openV6 moved. Re-judged 2026-10-18 (independent auditor, after d2abad70ad). RFC 9568 Section 7.2 says "The following operations MUST be performed when transmitting a VRRP packet: ... * Compute the VRRP checksum", in the Section 5.2.8 form: message-only for IPv4, and for IPv6 "the checksum calculation also includes a prepended \"pseudo-header\", as defined in Section 8.1 of [RFC8200]." IPv4: proven, and the previous finding is fixed. Overlay mutants run 2026-10-18 over the whole vrrp tree: doSendAdvert hard-coded to ChecksumRFC5798Compatible, to ChecksumRFC9568, or with Checksum dropped, each reds TestTransmittedAdvertFilledFromInstanceState, which now asserts p.Checksum == spec.Checksum; encodeLocked hard-coded to either mode, or skipping FillChecksum, reds TestSendAdvertFillsFieldsAndChecksum, whose expected sums the test computes itself. Both polarities stand: the negative is the compatible-mode subtest, a separate case from the default-mode positive, and is what reds when encodeLocked ignores the mode. IPv6: unproven by any tagged unit. The kernel computes the IPv6 checksum because openV6 (backend_linux.go) sets IPV6_CHECKSUM 6; the transport unit test runs on a fake backend and its IPv6 frame carries no checksum, and the IPv6 run of TestTransmittedAdvertFilledFromInstanceState computes FillChecksum in the test body. Removing that setsockopt would leave every tagged test green (reasoned from the test sources: only the integration-tagged QEMU units TestIntegrationOpenInstanceSocketOptions and TestIntegrationAdvertV6OnWire read it; the overlay run could not build because of another session's undefined applyVLANMTU in internal/component/iface/config_apply.go). Fix: tag one of those two units RFC9568-7.2-5 positive and take its QEMU discrimination record, which cannot be taken while the guest build fails. Claim nit: the TestTransmittedAdvertFilledFromInstanceState positive says "a default IPv4 and IPv6 group", but the test sets ChecksumRFC9568 on the spec; the parser default is proven only by the untagged TestLeafShapesFromTextConfig. Today no tagged unit of this row is a QEMU-guest unit.
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-10-31 (independent auditor, authored none of 7682a5dc93). RFC 9568 Section 7.2 says "The following operations MUST be performed when transmitting a VRRP packet: ... * Compute the VRRP checksum", in the Section 5.2.8 form: message-only for IPv4, and for IPv6 "the checksum calculation also includes a prepended \"pseudo-header\", as defined in Section 8.1 of [RFC8200]." 7682a5dc93 moved openV6's RX socket from the parent to the instance MACVLAN; the TX socket still sets IPV6_CHECKSUM 6, so the kernel still computes the IPv6 checksum with its pseudo-header. Tagged units are byte-identical to the 2026-10-18 judgement. IPv4: proven (TestTransmittedAdvertFilledFromInstanceState asserts p.Checksum == spec.Checksum in both modes; TestSendAdvertFillsFieldsAndChecksum computes the expected sums itself; the compatible-mode subtest is the negative). IPv6: still unproven by any tagged unit; the transport test's fake backend carries no IPv6 checksum and the instance test computes FillChecksum in its own body, so removing the setsockopt leaves every tagged unit green. Only the untagged integration QEMU units TestIntegrationOpenInstanceSocketOptions and TestIntegrationAdvertV6OnWire read it. Fix unchanged: tag one positive for this row with its QEMU discrimination record. Verdict unchanged: weak.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

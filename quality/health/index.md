@@ -10,11 +10,12 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
-| RFC MUST requirements proven by test, over the RFCs ze implements | Q2 | **2057 / 4753** (attention) | Write a test for a {gap} requirement, or for one carrying no test and no annotation, then record its break with `./le rfc record`: a requirement counts as proven only when a discrimination record still verifies on a walked summary. Not-applicable needs no test. |
-| Enrolled RFCs with zero test-proven requirements | Q2 | **31 / 198** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
+| RFC MUST requirements proven by test, over the RFCs ze implements | Q2 | **2102 / 4737** (attention) | Write a test for a {gap} requirement, or for one carrying no test and no annotation, then record its break with `./le rfc record`: a requirement counts as proven only when a discrimination record still verifies on a walked summary. Not-applicable needs no test. |
+| Enrolled RFCs with zero test-proven requirements | Q2 | **30 / 198** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
+| Tests with no reachable failure call | Q1 | **112 / 40518 (floor 111)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
 | Logged known-failing tests | Q3 | **3** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
-6 further metric(s) are within threshold and are listed in full below.
+5 further metric(s) are within threshold and are listed in full below.
 
 ## Sensitivity
 
@@ -22,7 +23,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**111 / 40224 (floor 111)** (ok)
+**112 / 40518 (floor 111)** (attention)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -55,9 +56,9 @@ A sleep is a guess about timing that hides the race it was added to mask. The ra
 
 ### RFC MUST requirements proven by test, over the RFCs ze implements
 
-**2057 / 4753** (attention)
+**2102 / 4737** (attention)
 
-43.3% of the 4753 gated MUSTs of the walked RFCs ze implements are proven by a recorded break: a discrimination record that still verifies against this tree. 0 of the 194 RFCs ze implements are not walked yet: their requirement lists are unbounded, so they are left out of both counts rather than measured. The gate holds a wider set -- 4787 gated MUSTs across 203 enrolled RFCs -- and of the 2340 of those not proven in both polarities: 46 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 1518 known gap (unimplemented, genuinely untested), 17 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 486 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 239 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 34 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, 0 blocked by a verified Linux kernel limitation: the obligation still binds and remains unmet, with no proof credit and no denominator reduction, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Gaps, remaining partial obligations and unexcused rows are work Ze owes; Linux limits separately name the primitive the kernel cannot provide. Apart from every figure above, 14 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.
+44.4% of the 4737 MUST rows ze and the OS owe in the walked RFCs ze implements are proven by ze with a recorded break: a discrimination record that still verifies against this tree. Of the rest, 0 are performed by the OS with a verified test, 239 by the OS with no verified test yet, and 2396 are owed by ze and not proven. 18 further MUST rows are not owed (not applicable, declined, OS blocked) and are in neither count. Until 2026-10-31 this figure was taken over every MUST row of those RFCs but rollups, annotated rows included, so a row that does not bind ze counted against it. 0 of the 195 RFCs ze implements are not walked yet: their requirement lists are unbounded, so they are left out of every count rather than measured. The gate holds a wider set -- 4787 MUST rows across 203 enrolled RFCs -- and of the 2331 of those not proven in both polarities: 46 not-applicable (recorded as not binding ze, and counted not owed only once its evidence passes: one whose evidence fails stays among the rows ze owes as a ze gap), 1540 known gap (unimplemented, genuinely untested), 19 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 487 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 239 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the MUST rows owed above and never in ze proven, 0 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so the row is counted not owed only once its evidence passes, and otherwise stays among the rows ze owes as a ze gap, 0 blocked by a Linux kernel limitation: no proof credit, and counted not owed as OS blocked only once its register entry verifies, because ze cannot meet it on Linux; one whose entry fails stays among the rows ze owes as a ze gap, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Gaps, remaining partial obligations and unexcused rows are work Ze owes; Linux limits separately name the primitive the kernel cannot provide. Apart from every figure above, 14 rows carry {rollup}: each derives its state from rows already counted here, and none is in any count above.
 
 *Action if this degrades:* Write a test for a {gap} requirement, or for one carrying no test and no annotation, then record its break with `./le rfc record`: a requirement counts as proven only when a discrimination record still verifies on a walked summary. Not-applicable needs no test.
 
@@ -76,7 +77,7 @@ A sleep is a guess about timing that hides the race it was added to mask. The ra
 
 ### Enrolled RFCs with zero test-proven requirements
 
-**31 / 198** (attention)
+**30 / 198** (attention)
 
 Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some of these do carry positive-only tests; none carries a pair.
 
@@ -84,15 +85,15 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**40263 test functions** (ok)
+**40557 test functions** (ok)
 
-7049 Go test files, 95 fuzz targets, 153 benchmarks, 2655 .ci scenarios, 200 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+7148 Go test files, 95 fuzz targets, 154 benchmarks, 2677 .ci scenarios, 201 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Test files that expect a specific error
 
-**2633 / 7049** (ok)
+**2667 / 7148** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -122,7 +123,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 700 | 37 | 138 | 37 |
+| 2026 | 704 | 37 | 138 | 37 |
 
 ## Integrity
 

@@ -1,6 +1,6 @@
 # RFC 7474 - Security Extensions for OSPFv2 when Using Manual Key Management
 
-Experimental. Every requirement this repository extracted from RFC 7474, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+OSPFv2 manual-key security extension. Every requirement this repository extracted from RFC 7474, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 75.0% | 9 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 16.7% | 2 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 12 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 75.8% | 25 of 33 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 9 | of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 2 | of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 12 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 25 | 25 of 33 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 12 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 12 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 12 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 12 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 12 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 12 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 8.3% | 1 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 1 | of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 12 gated MUSTs: they add up to 12. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,23 +45,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Experimental |
+| Public row | OSPFv2 manual-key security extension |
 | Enrolment | Enrolled |
 | Requirements | 16 |
 | Gated MUST-level | 12 |
@@ -84,15 +84,14 @@ Enrolled: OSPFv2 manual-key security extension (AuType 3), including durable boo
 
 ## What the public ledger says
 
-**Status:** Experimental
+**Area:** OSPFv2 manual-key security extension
 
-**What the ledger says is covered:**
+**Proof:** 7 of 12 MUST proven
 
-AuType-3 cryptographic authentication with extended sequence numbers, per-packet-type replay protection, source-bound Apad and protocol-ID key derivation.
+**Evidence:** unit 7
 
-**What the ledger says remains**
+**Unmet:** RFC7474-8-1
 
-Experimental. One MUST row carries {gap}. Section 8 requires authentication-key replacement after non-volatile storage loss or router replacement. An absent durable counter starts at one and cannot distinguish first use from total storage loss; startup does not automatically rotate the configured shared secrets.
 
 ## Coverage
 
@@ -111,9 +110,41 @@ Experimental. One MUST row carries {gap}. Section 8 requires authentication-key 
 
 **Annotated (including scoped evidence) (3):** [`RFC7474-2-2`](#rfc7474-2-2), [`RFC7474-2-3`](#rfc7474-2-3), [`RFC7474-8-1`](#rfc7474-8-1)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 12 of 12 (100.0%). Optional ceiling: 4 of 4 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7474 12 of 12 (100.0%). Lowest optional ceiling: rfc7474 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 7, Ze correctness gap 5
+- **Overview bar**: Ze MUST proven 7, SHOULD proven 1, SHOULD not decided 3, Ze correctness gap 5
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 12 |
+| MUST rows kept (the MUST bar) | 12 |
+| Ze proven | 7 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 5 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 4 |
+| SHOULD proven | 1 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 3 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc7474.json](../../../data/rfc/rfc7474.json).
 
 ## Requirements
 
@@ -130,7 +161,7 @@ Mandatory ceiling: 12 of 12 (100.0%). Optional ceiling: 4 of 4 (100.0%). Every R
 | `RFC7474-5-2` | OSPF routers sending OSPF packets must initialize the first 4 octets of Apad to the value of the IP source address that would be used when sending the OSPFv2 packet. The remainder of Apad will contain the value 0x878FE1F3 repeated (L - 4)/4 times, where L is the length of the hash, measured in octets. The basic idea is to incorporate the IP source address from the IP header in the cryptographic authentication computation so that any change of IP source address in a replayed packet can be detected. When an OSPF packet is received, implementations MUST initialize the first 4 octets of Apad to the IP source address from the IP header of the incoming OSPFv2 packet. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestOSPFAuthType3SourceBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L208). **positive:** `unit/verify` [`TestRFC7474ReceiveApadFromIPHeaderSource`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L278). **positive:** `unit/verify` [`TestRFC7474SentApadIsInterfaceSource`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L228). **negative:** `unit/verify` [`TestOSPFAuthType3SourceBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L204). **negative:** `unit/verify` [`TestRFC7474ReceiveApadOtherThanIPHeaderSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L287). **negative:** `unit/verify` [`TestRFC7474SentApadNotRouterIDOrZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L238) |
 | `RFC7474-6-1` | In order to prevent cross-protocol replay attacks for protocols sharing common keys, the two-octet OSPFv2 Cryptographic Protocol ID is appended to the authentication key prior to use. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L185). **negative:** `unit/verify` [`TestOSPFAuthType3RequiresProtocolIDSuffix`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L330) |
 | `RFC7474-6-2` | When XORing Ko and Ipad of Opad, Ko MUST be padded with zeros to the length of Ipad or Opad (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC7474KoZeroPaddedToBlockSize`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7474_auth_test.go#L52). **negative:** `unit/verify` [`TestRFC7474KoNonZeroPadRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7474_auth_test.go#L80) |
-| `RFC7474-8-1` | If the non-volatile storage is ever repaired or upgraded such that the contents are lost or the OSPFv2 router is replaced, the authentication keys MUST be changed to prevent replay attacks (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** startup does not rotate or refuse the configured shared secrets when the durable boot count is lost; internal/plugins/ospf/auth_keystore.go::loadOSPFBootCount restarts an absent counter at one, which cannot be told apart from first use. Disclosed in this summary's Support remaining row |
+| `RFC7474-8-1` | If the non-volatile storage is ever repaired or upgraded such that the contents are lost or the OSPFv2 router is replaced, the authentication keys MUST be changed to prevent replay attacks (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** startup does not rotate or refuse the configured shared secrets when the durable boot count is lost; internal/plugins/ospf/auth_keystore.go::loadOSPFBootCount restarts an absent counter at one, which cannot be told apart from first use. Disclosed by its own annotation, which the derived ledger lists under Unmet |
 | `RFC7474-4-1` | For packet reception, the key validity interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd must include the current time. (§4) | SHOULD | 4 | **positive:** `unit/verify` [`TestVerifyRejectsOutsideAcceptLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L541). **negative:** `unit/verify` [`TestVerifyRejectsOutsideAcceptLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L535) |
 | `RFC7474-4.1-1` | If there are still multiple keys that match, the key with the most recent SendLifetimeStart will be selected. This will facilitate graceful key rollover. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7474-2-7` | This is achieved by maintaining a boot count in non- volatile storage and incrementing it each time the OSPF router loses its prior sequence number state. The SNMPv3 snmpEngineBoots variable [RFC3414] MAY be used for this purpose. However, maintaining a separate boot count solely for OSPF sequence numbers has the advantage of decoupling SNMP reinitialization and OSPF reinitialization. Also, in the rare event that the lower-order 32-bit sequence number wraps, the boot count can be incremented to preserve the strictly increasing property of the aggregate sequence number. Hence, a separate OSPF boot count is RECOMMENDED. (§2) | RECOMMENDED | 2 | **positive:** no positive test. **negative:** no negative test |
@@ -140,7 +171,7 @@ Mandatory ceiling: 12 of 12 (100.0%). Optional ceiling: 4 of 4 (100.0%). Every R
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC7474-8-1`](#rfc7474-8-1) If the non-volatile storage is ever repaired or upgraded such that the contents are lost or the OSPFv2 router is replaced, the authentication keys MUST be changed to prevent replay attacks (§8) | {gap}, no test | startup does not rotate or refuse the configured shared secrets when the durable boot count is lost; internal/plugins/ospf/auth_keystore.go::loadOSPFBootCount restarts an absent counter at one, which cannot be told apart from first use. Disclosed in this summary's Support remaining row |
+| [`RFC7474-8-1`](#rfc7474-8-1) If the non-volatile storage is ever repaired or upgraded such that the contents are lost or the OSPFv2 router is replaced, the authentication keys MUST be changed to prevent replay attacks (§8) | {gap}, no test | startup does not rotate or refuse the configured shared secrets when the durable boot count is lost; internal/plugins/ospf/auth_keystore.go::loadOSPFBootCount restarts an absent counter at one, which cannot be told apart from first use. Disclosed by its own annotation, which the derived ledger lists under Unmet |
 
 ## Proof state
 

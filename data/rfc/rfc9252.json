@@ -1,0 +1,41 @@
+{
+  "stem": "rfc9252",
+  "title": "BGP Overlay Services Based on Segment Routing over IPv6 (SRv6)",
+  "walked": true,
+  "requirements": 30,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 25,
+    "kept": 25,
+    "ze-proven": 14,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 11,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 5,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 5,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 4,
+    "unit": 10
+  },
+  "unmet": [
+    "RFC9252-3.2-6",
+    "RFC9252-3.3-2",
+    "RFC9252-4.1-1",
+    "RFC9252-5-2",
+    "RFC9252-6.1-1",
+    "RFC9252-6.2-1"
+  ]
+}

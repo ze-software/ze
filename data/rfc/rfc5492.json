@@ -1,0 +1,35 @@
+{
+  "stem": "rfc5492",
+  "title": "Capabilities Advertisement with BGP-4",
+  "walked": true,
+  "requirements": 16,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 9,
+    "kept": 9,
+    "ze-proven": 8,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 1,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 7,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 7,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 8
+  },
+  "unmet": [
+    "RFC5492-4-3"
+  ]
+}

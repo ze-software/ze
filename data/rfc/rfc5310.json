@@ -1,0 +1,35 @@
+{
+  "stem": "rfc5310",
+  "title": "IS-IS Generic Cryptographic Authentication",
+  "walked": true,
+  "requirements": 12,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 9,
+    "kept": 9,
+    "ze-proven": 6,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 3,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 3,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 2,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 6
+  },
+  "unmet": [
+    "RFC5310-3.2-6"
+  ]
+}

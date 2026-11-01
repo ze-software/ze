@@ -211,6 +211,11 @@ Alpine's own modules, built for another version.</p>
 <td>The nine tunnel kinds <code>ze-iface-conf.yang</code> models. Six symbols plus the GRE demux gate. Measured cost: vmlinuz 16352256 to 16450560 bytes, +0.60%</td>
 </tr>
 <tr>
+<td>SRv6</td>
+<td><code>IPV6_SEG6_LWTUNNEL</code></td>
+<td>The kernel FIB backend's Service SID routes: <code>buildSEG6Encap</code> installs each RFC 9252 service route as a seg6 encap-mode lightweight tunnel. Without it the kernel answers EOPNOTSUPP and no SRv6 service route is installed. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/fib/kernel/nexthop_linux.go</code></span></span></td>
+</tr>
+<tr>
 <td>Policy routing</td>
 <td><code>IP_MULTIPLE_TABLES</code>, <code>IPV6_MULTIPLE_TABLES</code>, <code>IP_ROUTE_MULTIPATH</code></td>
 <td>The policy-routing engine. Without <code>IPV6_MULTIPLE_TABLES</code> the kernel folds every table id into the main table and says nothing</td>
@@ -1070,7 +1075,7 @@ config was saved. If the window completes, the active config hash is written to
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

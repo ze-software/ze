@@ -1,0 +1,38 @@
+{
+  "stem": "rfc4302",
+  "title": "IP Authentication Header",
+  "walked": true,
+  "requirements": 44,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 32,
+    "kept": 32,
+    "ze-proven": 9,
+    "os-verified": 0,
+    "os-gap": 19,
+    "ze-gap": 4,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 10,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 10,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 9
+  },
+  "unmet": [
+    "RFC4302-2.5-5",
+    "RFC4302-2.5.1-1",
+    "RFC4302-4-1",
+    "RFC4302-A2-1"
+  ]
+}

@@ -13,7 +13,7 @@ Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a l
 
 ## Configuration
 
-`policy`
+`bgp`
 
 ## Dependencies
 

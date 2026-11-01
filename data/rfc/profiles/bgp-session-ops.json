@@ -1,0 +1,22 @@
+{
+  "name": "bgp-session-ops",
+  "kind": "technology",
+  "title": "BGP session operations",
+  "release": false,
+  "required": [
+    "rfc4456",
+    "rfc4724",
+    "rfc5065",
+    "rfc6996",
+    "rfc7454",
+    "rfc7705",
+    "rfc7947",
+    "rfc7948",
+    "rfc8203",
+    "rfc8326",
+    "rfc8538",
+    "rfc9003",
+    "rfc9494"
+  ],
+  "optional": []
+}

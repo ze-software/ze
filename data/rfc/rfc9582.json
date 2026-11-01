@@ -1,0 +1,31 @@
+{
+  "stem": "rfc9582",
+  "title": "A Profile for Route Origin Authorizations (ROAs)",
+  "walked": true,
+  "requirements": 22,
+  "implementer": "third-party",
+  "implemented": false,
+  "must": {
+    "total": 16,
+    "kept": 16,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 16,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 6,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 6,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": []
+}

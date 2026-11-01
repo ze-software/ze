@@ -1,0 +1,33 @@
+{
+  "stem": "draft-abraitis-bgp-version-capability",
+  "title": "Software Version Capability for BGP",
+  "walked": true,
+  "requirements": 15,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 11,
+    "kept": 11,
+    "ze-proven": 11,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 11
+  },
+  "unmet": []
+}

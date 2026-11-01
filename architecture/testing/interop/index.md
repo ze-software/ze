@@ -76,7 +76,7 @@ as a scenario selector, and specs, journal rows and code comments cite it.
 |--------|---------|-------|--------------|-------------------|
 | FRR | 10.7.1 | `quay.io/frrouting/frr:10.7.1`, pinned by digest (`interoplab.FRRImage`, one declaration for the BGP, IPsec and L2TP labs and the perf runner) | vtysh | eBGP, iBGP, route exchange, GR, communities, MD5, route server |
 | BIRD | 3.4.0 | Built from the upstream `v3.4.0` tag on Debian trixie (`test/interop/Dockerfile.bird`, which refuses a tag moved off the pinned commit). BIRD 3 line only (`ai/META-DECISIONS.md`); Alpine 3.24 packages 3.2.4, and 3.4.0 built on Alpine 3.24.3 dies with SIGILL in `rte_announce_to` on the first route it imports | birdc | eBGP, route exchange, triangle topologies |
-| GoBGP | 4.10.0 | Go builder (`golang:1.25-alpine`, `test/interop/Dockerfile.gobgp`) | gobgp CLI, and `gobgp-paths` (a gRPC ListPath reader) for the families the CLI cannot name; it prints each attribute through GoBGP's `String()`, and an Extended Communities attribute also through its `MarshalJSON`, because `String()` writes an IPv4-address-specific Route Target and Route Origin alike | eBGP, route injection and verification |
+| GoBGP | 4.11.0 | Go builder (`golang:1.25-alpine`, `test/interop/Dockerfile.gobgp`) | gobgp CLI, and `gobgp-paths` (a gRPC ListPath reader) for the families the CLI cannot name; it prints each attribute through GoBGP's `String()`, and an Extended Communities attribute also through its `MarshalJSON`, because `String()` writes an IPv4-address-specific Route Target and Route Origin alike | eBGP, route injection and verification |
 | StayRTR | 0.6.4, patched to write its queued Error Report before it closes | Go builder (`golang:1.27-alpine3.24`, runtime `alpine:3.24.3`, `test/interop/Dockerfile.stayrtr`) | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
 | pmacct `pmbmpd` | 1.8.0 | `pmacct/pmbmpd:v1.8.0` | JSON msglog file | BMP (RFC 7854, RFC 9069) as the COLLECTOR. pmacct decodes the per-peer header, the Peer Up Information TLVs and the Peer Down reason itself, so a scenario reads another implementation's reading of Ze's bytes rather than a string Ze emitted |
 | Unbound | 1.26.2 | Built from the upstream release on `alpine:3.24.3` (`test/interop/Dockerfile.unbound`; Alpine 3.24 packages 1.25.2) | `kdig` from the `dnsclient` container; the query log on stderr (`log-queries`) | Upstream recursive resolver of Ze's LAN DNS resolver (`dns-resolver-forward-unbound`): Ze's answer per query equals Unbound's own, a repeated query reaches Unbound once, and a truncated UDP reply is retried over TCP |
@@ -176,6 +176,18 @@ a full routing table cannot flood the report. An empty answer is named as
 empty.
 <!-- source: internal/le/interoplab/output.go -- OutputExcerpt, WithSearchedOutput, WithLastAnswer -->
 <!-- source: internal/le/interoplab/wait.go -- waitNotReadyError, waitValueExcerpt -->
+
+`Lab.Query` refuses a command that exited 0 and printed nothing with an
+`EmptyAnswerError`, kept apart from an exec that failed or was cut short. The
+BGP suite's positive waits (`waitContains`, `waitContainsFold`,
+`waitContainsAny`) read that refusal as a measured empty answer, so a route
+that never arrives times out with `last output: (the peer printed nothing)`.
+FRR's vtysh prints nothing for an empty `show ipv6 route ospf6`, and before
+this the red read "never measured peer state", which names a peer that never
+answered. An empty answer still satisfies no positive wait. A negative wait
+keeps the refusal, because there an empty answer would read as absence.
+<!-- source: internal/le/interoplab/lab.go -- EmptyAnswerError, Query -->
+<!-- source: internal/le/interoplab/bgp/check_engine.go -- queryAnswered, answered -->
 
 The FRR readiness producers are
 [`peer_unshut_after_cfg`](https://github.com/FRRouting/frr/blob/frr-10.3.1/bgpd/bgpd.c),
@@ -1249,7 +1261,9 @@ no entry runs every daemon on `eth0` alone, as before.
 10.77.1.0/24 and the control 10.77.2.0/24; Ze's `isis filter import` rejects
 the first. The checker requires both adjacencies; the control in Ze's
 `show rib` and kernel FIB and the hidden prefix absent from both, read beside
-the control; both prefixes in Ze's LSDB; the JSON of
+the control; both prefixes in Ze's `show isis route`, the SPF result the
+chain runs after (`show isis database detail` prints TLV values as hex, so it
+cannot be searched for a prefix); the JSON of
 `show rib candidates prefix <p>` with the hidden prefix's one IS-IS path
 `hidden`, `hidden-by` `source`, `chain` `isis import`, and the control's one
 path selected and not hidden; and last, FRR-B's `show ip route <p> json` with
@@ -1267,6 +1281,31 @@ selected OSPF path at 110 and a static path at 150. Every field is judged on
 its own path, so the static path's 150 cannot stand for the OSPF path's
 distance.
 <!-- source: internal/le/interoplab/bgp/check_import_policy.go -- checkOSPFImportPolicy -->
+
+### IGP export-policy scenarios
+
+`isis-export-policy-frr` and `ospf-export-policy-frr` read an IGP export
+chain's verdicts and sets out of FRR, one JSON answer per assertion, so every
+absence sits beside the presences that prove the query saw Ze's routes.
+
+In `isis-export-policy-frr` Ze redistributes three static routes into IS-IS
+under `isis filter export { filters [ loopbacks tagged-loopback-metric ]; final
+accept; }`: a prefix-list accepting only /32s, then a modify that sets metric 77
+on tag 300. FRR's `show ip route isis json` must hold 10.66.0.1/32 through Ze
+at 87 (FRR's pinned link metric 10 plus 77), 10.66.0.2/32 at 110 (10 plus Ze's
+default 100), and no 10.66.1.0/24.
+
+In `ospf-export-policy-frr` Ze redistributes three static routes into OSPFv2
+under `ospf filter export { filters [ ospf-export-refused ospf-export-tagged ];
+final accept; }`. FRR's `show ip ospf database external json` must hold exactly
+one LSA from Ze's router ID 10.255.0.2 for 10.67.1.0/24 at metric 50, E1, tag
+200 (the modify's sets on the route tagged 100), one for 10.67.2.0/24 at the
+defaults (metric 20, E2, tag 0), and none for the rejected 10.67.3.0/24. The
+predicate collects every object carrying a `linkStateId` wherever FRR nests it,
+in a bounded iterative walk.
+<!-- source: internal/le/interoplab/bgp/check_export_policy.go -- checkISISExportPolicy, checkOSPFExportPolicy, waitFRRVerdict -->
+<!-- source: internal/le/interoplab/bgp/check_export_policy_predicate.go -- isisExportPolicyVerdict, ospfExportPolicyVerdict, ospfExternalLSAs -->
+<!-- source: internal/le/interoplab/bgp/register_export_policy.go -- specialCheckers entries -->
 
 ### Scenario Structure
 
@@ -1377,6 +1416,7 @@ and that ze still counts one establishment and no drop toward BIRD, which
 still reports Established. In a shipped build `injectReadPanic` is an empty
 function (`session_panic_inject.go`, `!ze_le`).
 <!-- source: internal/le/interoplab/bgp/check_panic_cease.go -- checkPanicCease, frrReceivedCeaseUnspecific -->
+<!-- source: internal/le/interoplab/bgp/check_rfc8212_default_reject.go -- checkRFC8212DefaultRejectFRR -->
 <!-- source: internal/component/bgp/reactor/session_panic_inject_le.go -- injectReadPanic -->
 
 A scenario carrying `frr.conf` may also carry its own `daemons` file. That file
@@ -2099,6 +2139,42 @@ second, so the strongSwan SA never comes up. Both scenarios set
 <!-- source: test/interop-ipsec/scenarios/multiple-auth-ze-responder/ -- the Ze-responder fixtures -->
 <!-- source: internal/le/interoplab/ipsec/multiauth.go -- checkMultipleAuthZeInitiator, checkMultipleAuthZeResponder -->
 
+### Legacy signature methods against a strongSwan without RFC 7427
+
+The five `x509-legacy-*` scenarios set
+`charon.signature_authentication = no`, so strongSwan 6.1.0 neither sends
+SIGNATURE_HASH_ALGORITHMS nor reads Ze's (`ike_init.c`). Ze then receives no
+notify, as initiator or as responder, RFC 7427 Section 3 leaves it no method 14, and it must
+sign with its key's legacy method (RFC 8247 Section 3.1). charon signs its own
+AUTH the same way (`pubkey_authenticator.c` `build`).
+
+| Scenario | Keys on both sides | Method each side sends | PKI |
+|----------|--------------------|------------------------|-----|
+| `x509-legacy-rsa-signature` | RSA 2048 | 1, RSASSA-PKCS1-v1_5 over SHA-1 | the scenario's `pki/` |
+| `x509-legacy-ecdsa-p256-signature` | ECDSA P-256 | 9, ECDSA-256 | the shared lab PKI |
+| `x509-legacy-ecdsa-p384-signature` | ECDSA P-384 | 10, ECDSA-384 | the scenario's `pki/` |
+| `x509-legacy-ecdsa-p521-signature` | ECDSA P-521 | 11, ECDSA-521 | the scenario's `pki/` |
+| `x509-legacy-rsa-signature-ze-responder` | RSA 2048, strongSwan initiates | 1, RSASSA-PKCS1-v1_5 over SHA-1 | the scenario's `pki/` |
+
+Ze initiates in the first four and responds in the last. Each scenario's own
+`pki/` holds leaf certificates issued by the shared lab CA.
+The checker requires the IKE and Child SAs, both kernels' ESP states and
+traffic both ways, then charon's two log lines: `authentication of
+'ze-test-client' with <method> successful` for Ze's AUTH, and
+`authentication of '172.28.0.3' (myself) with <method> successful` for its own,
+which Ze verified before installing the Child SA. charon names a method 14 AUTH
+by signature scheme rather than by method, so a Ze that sent method 14 fails the
+first line.
+
+Each scenario was walked red on 2026-10-31: with `computeX509Auth` reverted to
+refusing when no notify arrived, the rebuilt Ze logs `ike: build IKE_AUTH
+failed` and the strongSwan SA never comes up. The RSA scenario was also walked
+red with `verifyLegacyRSAAuth` reverted to SHA-256 only: Ze then refuses
+charon's SHA-1 method 1 AUTH.
+<!-- source: test/interop-ipsec/scenarios/x509-legacy-rsa-signature/ -- the method 1 fixtures -->
+<!-- source: test/interop-ipsec/scenarios/x509-legacy-ecdsa-p256-signature/ -- the method 9 fixtures -->
+<!-- source: internal/le/interoplab/ipsec/legacysig.go -- checkLegacySignature -->
+
 ### ESP transform kernel proof
 
 `esp-aes-cbc-sha256`, `esp-chacha20poly1305` and `esp-3des-sha1` offer one
@@ -2130,6 +2206,40 @@ The native scenario passed, failed when a private build omitted HELLO AVP
 validation (no matching StopCCN 2/8), then passed after a normal rebuild.
 <!-- source: internal/le/interoplab/l2tp/mandatory_avp.go -- checkUnknownMandatoryAVP -->
 <!-- source: internal/le/interoplab/l2tp/avprelay/main.go -- run, inject -->
+
+`ppp-code-reject-xl2tpd` puts the same relay between xl2tpd and Ze, and it is
+the one scenario where the relay originates frames. No lab peer sends a PPP
+Code it does not know, so the relay injects them on the live L2TP session,
+and only after the checker creates `/run/code-reject` once PPP traffic has
+flowed. The next data message from the LAC is the trigger: the relay
+forwards it, then sends Ze four PPP packets behind a copy of its L2TP header,
+so they carry the live tunnel and session IDs. Two are LCP packets with Code
+99 and two are IPCP packets with Code 12, all four with Identifier 0x42 and
+204 octets long, against the MRU of 128 that pppd requests (`mru 128`). The
+relay refuses a data header carrying Ns and Nr, because a frame it injected
+would break the sequence. From the marker on, it logs every data datagram in
+both directions, unfiltered, and the checker refuses one it cannot read, so a
+frame the log holds is never passed over. The checker decodes the probes and
+Ze's answers from that log. It requires two LCP Code-Rejects and two IPCP
+Code-Rejects, the two of each protocol with different Identifiers (RFC 1661
+Section 5.6: "The Identifier field MUST be changed for each Code-Reject
+sent."). The IPCP probes reach Ze on its PPP unit descriptor, not the
+channel: once NCP is up Ze connects the PPP channel to its unit, and Linux's
+`ppp_input` then queues an IPCP frame on the unit, so the IPCP answers prove
+Ze reads that descriptor.
+Each Code-Reject must have an Information field of at most 128 octets,
+and its Rejected-Packet must be the start of the probe, with the probe's Code, Identifier and Length unchanged (RFC 1661 Section 5.6: "The
+Rejected-Packet MUST be truncated to comply with the peer's established
+MRU."). The session must survive: a ping still crosses it, both PPP
+interfaces are the ones from before the probes, and neither peer sends an LCP
+or IPCP Configure or Terminate packet afterwards. Last, the checker creates
+`/run/ipcp-terminate`, the relay sends one IPCP Terminate-Request with
+Identifier 0x5a on the next LAC datagram, and Ze must answer with an IPCP
+Terminate-Ack carrying 0x5a (RFC 1661 Section 5.5: "Upon reception of a
+Terminate-Request, a Terminate-Ack MUST be transmitted."). That ends IPCP,
+so it runs after every other assertion.
+<!-- source: internal/le/interoplab/l2tp/ppp_code_reject.go -- checkPPPCodeReject -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/pppinject.go -- relayData, codeRejectFrames -->
 
 `pppoe-chap-rechallenge-ze-client` observes two accel-ppp reauthentication
 exchanges after working IPCP traffic, checks each CHAP Response's Identifier
@@ -2346,6 +2456,31 @@ outside the fault window refuse the run. The relay neither constructs client
 requests nor generates acknowledgments.
 The new carrier still owes green and forced-red execution evidence.
 <!-- source: internal/plugins/tftpserver/tftp_curl_docker_test.go -- TestTFTPCurlDuplicateACKInterop, curlTFTPRelay.transfer -->
+
+### Ze's TFTP server against tftp-hpa and curl options
+
+Two Linux, Docker-tagged tests in `tftp_hpa_docker_test.go` drive Ze's
+production TFTP handlers (`ServeConn`) with independent clients, through a
+relay that copies every datagram both ways and records the client's RRQ
+options, the server's OACK and the longest run of DATA blocks between two
+ACKs. The relay constructs nothing.
+
+- `TestTFTPHPAWindowsizeInterop` builds the tftp-hpa 7.2 client from its
+  release tag (`test/interop-tftp/Dockerfile.tftp-hpa`, which refuses any
+  other commit) and downloads a 300-block file twice: with the client's
+  default request (windowsize 64) and with `-W 1000`. Each must be granted
+  windowsize 64, be sent in windows (64 DATA blocks between ACKs), and match
+  the file's SHA-256. With `grantWindowsize` forced to one block the OACK
+  carries no windowsize and the test goes red.
+- `TestTFTPCurlTimeoutInterop` runs curl 8.23.0 with its default options,
+  whose RRQ carries `timeout 5` for `--max-time 25`. The OACK must echo that
+  timeout and curl must deliver the exact file. With the timeout left out of
+  the OACK the test goes red.
+
+Both run on a Mac the way the dnsmasq test below does: the test binary is
+cross-built with `-tags docker` and run in a `docker:cli` container on the
+`ze` Colima VM's host network.
+<!-- source: internal/plugins/tftpserver/tftp_hpa_docker_test.go -- TestTFTPHPAWindowsizeInterop, TestTFTPCurlTimeoutInterop, optionRelay -->
 
 ### Ze's TFTP client against dnsmasq
 
@@ -3126,6 +3261,9 @@ is not packet-forwarding evidence.
 | 60 | bgp-panic-cease | Ze (the ze_le daemon), FRR 10.7.1, BIRD 3.4.0 | RFC 4271 Section 6.7 and Section 4.5, a panic on one session's read path contained to that session: the scenario's `ze-le-daemon` file starts the ze_le build, the checker creates `/run/ze-inject/bgp-read-panic-<FRR address>` in ze's container and makes FRR redistribute 10.49.1.0/24, and the injected panic on that UPDATE must reach FRR as a received NOTIFICATION Cease / Unspecific (`lastResetDueTo` naming a received notification, `lastNotificationReason` a Cease with no named subcode). FRR's session must come back (two establishments, one drop), while ze counts one establishment and no drop toward BIRD and BIRD stays Established. Green on 2026-10-27, twice. Red on 2026-10-27, `ceaseAfterPanic` without its `tryNotificationWithin` send (a `GOFLAGS=-overlay` build, image rebuilt by the harness): assertion 5, FRR's `lastResetDueTo` "Peer closed the session" after ze logged the contained panic. The shipped `ze-linux` holds neither `injectReadPanic` nor the trigger path; only `ze-le-linux` does |
 | 61 | isis-import-policy-frr | Ze, FRR 10.7.1 twice (FRR-A, FRR-B on separate links) | `isis filter import` decides what Ze installs and nothing else: the hidden prefix is out of Ze's RIB and FIB, listed by `show rib candidates` as hidden by the `isis import` chain, and still flooded on, so FRR-B learns it through Ze ("Separate links between daemons") |
 | 62 | ospf-import-policy-bird | Ze, BIRD 3.4.0 | `ospf filter import` sets distance 200 on BIRD's tagged external, which then loses to a static path at 150, while the untagged one keeps 110 and wins, judged per path in `show rib candidates` |
+| 63 | bgp-rfc8212-default-reject-frr | Ze (route server, bgp-rib), FRR 10.7.1 twice (FRR at host 3 with no Ze policy, the FRR sink at host 15 with an explicit Ze policy) | RFC 8212 Section 3, the EBGP default reject in both directions, against an FRR that keeps its own `bgp ebgp-requires-policy` and holds explicit route-maps toward Ze: with no policy on Ze's FRR session, Ze's `show bgp rib best` must hold the sink's 10.81.15.0/24 and not FRR's 10.81.1.0/24 (after FRR's `advertised-routes` names it and Ze counts its UPDATE and End-of-RIB), FRR must hold neither Ze's config-originated 10.81.0.0/24 nor the sink's route, and the sink must receive 10.81.0.0/24 from the same config `update` path. A reload adding a bgp-level `final accept` in both directions must then deliver every route across the FRR session, with FRR and the sink each counting one establishment and no drop. Results on 2026-10-31, each image built by the harness: unmodified (`sha256:16bb31efdbb8`), assertions 1 to 15 pass, so both default rejects hold and the reload's export recovery reaches FRR with no reset, and assertion 16 fails: FRR's 10.81.1.0/24 never reaches Ze's RIB after the reload, because the import policy rising did not yet re-learn the routes the absent policy discarded. Ze's FRR peer now negotiates Route Refresh (`route-refresh enable`), since a rising import on a peer without it is refused (spec D-1). On 2026-10-31, after the import-rise refresh (e9385df360 through 16744a9e7e), the unmodified build passes all assertions in 25s: the reload sends ROUTE-REFRESH to FRR and FRR's 10.81.1.0/24 reaches Ze's RIB with no session reset. `Policy.AcceptsAtEnd` answering `true` for an unconfigured policy (a `GOFLAGS=-overlay` build, `sha256:7a6490c76e9b`): red at assertion 7, Ze's RIB holds 10.81.1.0/24. An export-only break, the `PolicyFilterChain` final verdict skipped for export and `egressFinalAccepts`, `forward_rs.go` and `egress_inject_filter.go` admitting (overlay, `sha256:41f076b8fae9`): red at assertion 8, FRR holds 10.81.0.0/24. The same break without `egressFinalAccepts` left assertion 8 green, so the session write gate is the guard Ze's config-originated route meets |
+| 64 | isis-export-policy-frr | Ze, FRR 10.7.1 | `isis filter export` decides what enters Ze's LSP and at what metric: FRR installs the tagged /32 at its link metric plus the 77 the modify set, the untagged /32 at the link metric plus Ze's default 100, and no route for the /24 the prefix-list rejects ("IGP export-policy scenarios"). Results on 2026-10-31 at 697dc6a618, each image built by the harness: unmodified, pass; `exportVerdict` answering accepted at `DefaultRedistMetric`, assertion 2 red with "FRR's IS-IS route for 10.66.0.1/32 has metric 110, want 87"; restored, pass (`sha256:310feaf0c24f`) |
+| 65 | ospf-export-policy-frr | Ze, FRR 10.7.1 | `ospf filter export` decides which AS-External-LSAs Ze originates and what they carry: FRR holds the tagged route's LSA at metric 50, E1, tag 200, the untagged one at metric 20, E2, tag 0, and none for the rejected route ("IGP export-policy scenarios"). Results on 2026-10-31 at 697dc6a618, each image built by the harness: unmodified, pass (`sha256:7459d9f4deca`); `applyExportSets` returning its input, assertion 2 red with "FRR's AS-External-LSA for 10.67.1.0/24 has metric 20, want 50" (`sha256:49ebad4b55cc`); restored, pass (`sha256:8cfc88af0ea1`). The first run found FRR 10.7.1 writing "E2 (Larger than any link state path)" for type 2, which the checker now reads by its first word (697dc6a618) |
 <!-- source: internal/le/interoplab/bgp/check_session_protection.go -- checkSessionProtection, sessionProbeScript -->
 <!-- source: internal/le/interoplab/bgp/check_session_protection_predicate.go -- parseSessionProbe, coppUnknownSourceDrops -->
 <!-- source: internal/le/interoplab/bgp/check_paths_limit_receive.go -- checkPathsLimitReceive, decodePathsLimitReceive, requirePathsLimitReceive -->

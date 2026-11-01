@@ -1,0 +1,48 @@
+{
+  "stem": "rfc3579",
+  "title": "RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP)",
+  "walked": true,
+  "requirements": 50,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 31,
+    "kept": 31,
+    "ze-proven": 17,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 14,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 19,
+    "proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 17,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 17
+  },
+  "unmet": [
+    "RFC3579-1-2",
+    "RFC3579-1.2-2",
+    "RFC3579-2.1-2",
+    "RFC3579-2.2-2",
+    "RFC3579-2.6.3-3",
+    "RFC3579-2.6.5-1",
+    "RFC3579-4.2-1",
+    "RFC3579-4.2-2",
+    "RFC3579-4.2-3",
+    "RFC3579-4.3.4-1",
+    "RFC3579-4.3.6-1",
+    "RFC3579-4.3.6-3",
+    "RFC3579-4.3.6-4",
+    "RFC3579-4.3.6-5"
+  ]
+}

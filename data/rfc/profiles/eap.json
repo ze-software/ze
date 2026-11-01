@@ -1,0 +1,15 @@
+{
+  "name": "eap",
+  "kind": "technology",
+  "title": "EAP",
+  "release": false,
+  "required": [
+    "rfc2759",
+    "rfc3748",
+    "rfc5216",
+    "rfc5998",
+    "rfc7627",
+    "rfc9190"
+  ],
+  "optional": []
+}

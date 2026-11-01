@@ -1,0 +1,37 @@
+{
+  "stem": "rfc8247",
+  "title": "Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2)",
+  "walked": true,
+  "requirements": 25,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 20,
+    "kept": 20,
+    "ze-proven": 17,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 3,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 5,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 5,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 17
+  },
+  "unmet": [
+    "RFC8247-2.2-2",
+    "RFC8247-2.3-2",
+    "RFC8247-3.2-2"
+  ]
+}

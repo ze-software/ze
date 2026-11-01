@@ -1,52 +1,79 @@
 # BGP VPN and EVPN
 
-Technology aggregate. BGP/MPLS VPNs, labeled routes, VPLS, and EVPN. The RFCs whose summary names the bgp-vpn-evpn aggregate, with their mandatory and optional coverage.
+Technology aggregate. BGP/MPLS VPNs, labeled routes, VPLS, and EVPN. The RFCs whose summary names the bgp-vpn-evpn aggregate, with the MUST bar and the overview bar of the set and of each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 15.3% (31 of 202 (15.3%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 1.9% (1 of 54 (1.9%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 100.0% (202 of 202 (100.0%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (54 of 54 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 2 (of 9 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/bgp-vpn-evpn.json](../../../../data/rfc/profiles/bgp-vpn-evpn.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 202 of 202 (100.0%). Optional ceiling: 54 of 54 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc4364 8 of 8 (100.0%). Lowest optional ceiling: rfc4364 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 31, Ze correctness gap 171
+- **Overview bar**: Ze MUST proven 31, SHOULD proven 1, SHOULD not decided 53, Ze correctness gap 171
+
+| Figure | Rows |
+|---|---|
+| RFCs | 9 |
+| Not walked | 2 |
+| Mandatory register | not complete |
+| MUST rows | 202 |
+| MUST rows kept (the MUST bar) | 202 |
+| Ze proven | 31 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 171 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 54 |
+| SHOULD proven | 1 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 53 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
 ### Level 7
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4364](../../rfc4364/) (cycle with rfc4659, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950) | BGP/MPLS IP Virtual Private Networks (VPNs) | 0 of 8 (0.0%); ceiling 8 of 8 (100.0%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) |
-| [RFC 4659](../../rfc4659/) (cycle with rfc4364, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950) | BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN | 4 of 18 (22.2%); ceiling 18 of 18 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) |
-| [RFC 8277](../../rfc8277/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8950) | Using BGP to Bind MPLS Labels to Address Prefixes | 11 of 35 (31.4%); ceiling 35 of 35 (100.0%) | 1 of 7 (14.3%); ceiling 7 of 7 (100.0%) |
+| [RFC 4364](../../rfc4364/) (cycle with rfc4659, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950) | BGP/MPLS IP Virtual Private Networks (VPNs) | Ze correctness gap 8 | SHOULD not decided 5, Ze correctness gap 8 |
+| [RFC 4659](../../rfc4659/) (cycle with rfc4364, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950) | BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN | Ze proven 4, Ze correctness gap 14 | Ze MUST proven 4, SHOULD not decided 6, Ze correctness gap 14 |
+| [RFC 8277](../../rfc8277/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8950) | Using BGP to Bind MPLS Labels to Address Prefixes | Ze proven 11, Ze correctness gap 24 | Ze MUST proven 11, SHOULD proven 1, SHOULD not decided 6, Ze correctness gap 24 |
 
 ### Level 8
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4684](../../rfc4684/) | Constrained Route Distribution for Border Gateway Protocol/MultiProtocol Label Switching (BGP/MPLS) Internet Protocol (IP) Virtual Private Networks (VPNs) | 2 of 6 (33.3%); ceiling 6 of 6 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) |
-| [RFC 4761](../../rfc4761/) | Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling | 0 of 18 (0.0%); ceiling 18 of 18 (100.0%) | 0 of 9 (0.0%); ceiling 9 of 9 (100.0%) |
+| [RFC 4684](../../rfc4684/) | Constrained Route Distribution for Border Gateway Protocol/MultiProtocol Label Switching (BGP/MPLS) Internet Protocol (IP) Virtual Private Networks (VPNs) | Ze proven 2, Ze correctness gap 4 | Ze MUST proven 2, SHOULD not decided 4, Ze correctness gap 4 |
+| [RFC 4761](../../rfc4761/) | Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling | Ze correctness gap 18 | SHOULD not decided 9, Ze correctness gap 18 |
 | [RFC 6514](../../rfc6514/) | BGP Encodings and Procedures for Multicast in MPLS/BGP IP VPNs | not walked | not walked |
 
 ### Level 9
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7432](../../rfc7432/) | BGP MPLS-Based Ethernet VPN | 11 of 103 (10.7%); ceiling 103 of 103 (100.0%) | 0 of 17 (0.0%); ceiling 17 of 17 (100.0%) |
+| [RFC 7432](../../rfc7432/) | BGP MPLS-Based Ethernet VPN | Ze proven 11, Ze correctness gap 92 | Ze MUST proven 11, SHOULD not decided 17, Ze correctness gap 92 |
 
 ### Level 10
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9136](../../rfc9136/) | IP Prefix Advertisement in Ethernet VPN (EVPN) | 3 of 14 (21.4%); ceiling 14 of 14 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) |
+| [RFC 9136](../../rfc9136/) | IP Prefix Advertisement in Ethernet VPN (EVPN) | Ze proven 3, Ze correctness gap 11 | Ze MUST proven 3, SHOULD not decided 6, Ze correctness gap 11 |
 
 ### No level: the corpus holds no text of the RFC
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 4762](../../rfc4762/) | Virtual Private LAN Service (VPLS) Using Label Distribution Protocol (LDP) Signaling | not walked | not walked |

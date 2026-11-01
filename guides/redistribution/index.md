@@ -257,10 +257,16 @@ The `redistribute` root is a separate config root from `bgp { filter }`, and
 nothing in this section changes what a BGP session accepts or advertises.
 
 ```
+policy {
+    match redistribute-ospf-bgp {
+        family [ ipv6/unicast ];
+    }
+}
 redistribute {
     destination ospf {
         import bgp {
-            family [ ipv6/unicast ];
+            filters [ redistribute-ospf-bgp ];
+            final accept;
         }
     }
     destination isis {
@@ -271,28 +277,52 @@ redistribute {
 ```
 
 A `destination <protocol>` block names the protocol that RECEIVES the routes.
-Each `import <source>` under it names where they come from. The optional
-`family` leaf-list narrows which address families that source contributes. An
-empty list imports every family.
+Each `import <source>` under it names where they come from. A rule with no
+`filters` imports every route the source holds. To narrow it, name filter
+instances from the top-level `policy` root in `filters [ ... ]` and end the chain
+with `final accept` or `final reject`: a route moves only when every filter
+passes it and the final decision accepts it. `filters` without a `final` is
+refused. The chain sits at the `redistribute import` attachment, so the editor
+completes the instances that fit it and `ze config validate` refuses a name the
+`policy` root does not define. The [route policy guide](https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md) lists
+the filter types and the fields they read.
 
-The optional `tag` leaf narrows the same rule by route tag. The route tag is the
-value the source protocol attached to the route, for example the `tag` leaf of a
-static route. A rule that names a tag imports the routes carrying exactly that
-value and rejects the others. A rule with no `tag` leaf imports every route from
-the source, whatever tag it carries.
+A `match` instance narrows by address family (`family [ ... ]`) and by route tag
+(`tag [ ... ]`), among its other conditions. The route tag is the value the
+source protocol attached to the route, for example the `tag` leaf of a static
+route.
+<!-- source: internal/component/config/loader_redistribute.go -- importChain -->
+<!-- source: internal/plugins/redistribute/config.go -- compileRuleChains -->
+<!-- source: internal/plugins/redistribute/register_reference.go -- importFiltersPattern -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- redistRoute -->
+
+A file written before the chain, with `family [ ... ]` or `tag N` directly under
+`import`, no longer loads: the refusal names the fix,
+`ze config migrate -o <new-file> <file>`, which moves the two leaves into a
+`match redistribute-<destination>-<source>` instance named in the rule's
+`filters` with `final accept`. `tag 0` becomes `tag [ 0 ]` and keeps selecting
+the untagged routes. A rule that names neither leaf, a bare `import <source>`
+included, is already current and is left as written.
+<!-- source: internal/plugins/redistribute/migrate.go -- migrateImportLeaves, importNeedsMigration -->
 
 ```
+policy {
+    match redistribute-ospf-static {
+        tag [ 4242 ];
+    }
+}
 redistribute {
     destination ospf {
         import static {
-            tag 4242;
+            filters [ redistribute-ospf-static ];
+            final accept;
         }
     }
 }
 ```
 
-The value 0 is a tag like any other. A route with no tag carries 0, so `tag 0`
-imports the untagged routes alone. The filter runs for each route, not for each
+The value 0 is a tag like any other. A redistributed route with no tag carries
+0, so `tag [ 0 ]` selects the untagged routes alone. The filter runs for each route, not for each
 batch, so one source can feed two destinations with two different tag sets.
 
 Changing a static route's tag announces the route again with the new tag, and
@@ -308,6 +338,115 @@ that destination even if its rule would reject the withdrawal itself, for
 instance because the rules changed since the route was announced.
 <!-- source: internal/plugins/redistribute/held.go -- removeReplacedRoute -->
 <!-- source: internal/plugins/static/inject.go -- applyRouteLocked -->
+
+A reload that changes an import's `filters` or `final` judges the routes each
+destination already holds again, at once, rather than when each source next
+announces them: a route the new chain rejects is withdrawn, a route it now
+accepts is dispatched, and a route whose chain now sets a different tag or
+metric is sent again with the new value. The orchestrator withdraws first, then
+asks every producer to re-send its current set, which the new rules judge (the
+replay described under "Startup Order Does Not Decide the Outcome"). Every
+producer answers: static, connected, L2TP, AS112, BGP, IS-IS and OSPF. Only
+what changed reaches the destination: a route it already holds, judged the same
+and carrying the same tag, metric, origin AS and communities, is not sent
+again, so a commit that leaves a route's verdict alone sends no UPDATE for it.
+When another plugin refuses the same transaction and it rolls back, the previous
+rules return and the same reconciliation puts back what the apply changed. A
+route that was being dispatched while the reload applied is judged again under
+the new rules before the destination keeps it, and is withdrawn once if they
+reject it.
+<!-- source: internal/plugins/redistribute/config.go -- reconcileConsumers -->
+<!-- source: internal/plugins/redistribute/held.go -- withdrawRejectedHeld, releaseRejected, heldRoutes.beginAdd, heldRoutes.settleAdd -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- replayConsumers, settleDispatchedAdd -->
+
+### Setting the metric
+
+A `modify` instance in the import chain can `set metric`. What the destination
+does with that metric depends on the protocol:
+
+| Destination | A `set metric` becomes | With no `set metric` |
+|-------------|------------------------|----------------------|
+| `bgp` | the route's MULTI_EXIT_DISC | the route is sent with no MULTI_EXIT_DISC |
+| `isis` | the TLV 135 or TLV 236 prefix metric | the default prefix metric, 100 |
+| `ospf` | the AS-external LSA metric | the default external metric, 20 |
+
+At `isis` and `ospf` the IGP's own export chain judges the route next, and a
+`set metric` there replaces the one the import chain set (below). A `set tag`
+in the import chain reaches OSPF the same way, as the External Route Tag, until
+an export chain sets another. This is FRR's precedence for its one route-map on
+`redistribute`: `ospf_external_lsa_body_set` takes the route-map's metric over
+the redistribute default, and isisd's `route_set_metric` overwrites the default
+`isis_redist_update` started from.
+
+BGP takes the metric as MED the way FRR does: `bgp_redistribute_add` makes the
+redistributed metric the route's MED, and `redistribute <source> metric N`
+replaces it. Ze sends a MED only when a filter set one, the way BIRD sends a MED
+only when an export filter sets `bgp_med`, because a producer's own metric (an
+IGP cost, a static route's zero) is not a figure a BGP neighbour can compare.
+<!-- source: internal/component/bgp/redistribute/consumer.go -- formatAnnounce -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- dispatchEntryToConsumer, applySets -->
+<!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict -->
+<!-- source: internal/plugins/ospf/redistribute/export.go -- exportVerdict -->
+
+```
+policy {
+    modify redistribute-bgp-static {
+        set { metric 50; }
+    }
+}
+redistribute {
+    destination bgp {
+        import static {
+            filters [ redistribute-bgp-static ];
+            final accept;
+        }
+    }
+}
+```
+
+### The export chain of an IGP
+
+The import chain decides what may leave the source. IS-IS also judges every
+route it receives with its own chain, `isis filter export`, before the route
+enters its LSP. A route that chain rejects is not advertised, and a prefix it
+advertised before is withdrawn. A `modify` instance's `set metric` there is the
+prefix metric, and it replaces any metric the import chain set. The export chain
+cannot match on `level`: the level is where IS-IS injects the route, at every
+level the router originates, not a property the route arrives with, so a
+`match level` there is refused at load. `ze config validate` refuses a name in
+`filters` that the `policy` root does not define.
+
+```
+policy {
+    prefix-list loopbacks {
+        entry 0.0.0.0/0 { ge 32; le 32; action accept; }
+    }
+    modify loopback-metric {
+        set { metric 10; }
+    }
+}
+isis {
+    filter {
+        export {
+            filters [ loopbacks loopback-metric ];
+            final accept;
+        }
+    }
+}
+```
+
+A reload that changes the export chain judges the routes the IGP already holds
+again: a route the new chain rejects leaves the LSP or has its AS-external LSA
+flushed, a route it now accepts is advertised, and a changed set replaces what
+was advertised. A commit that fails after IS-IS or OSPF applied it takes the
+new chain back, and the routes are judged again by the chain of the config
+still running.
+<!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict -->
+<!-- source: internal/plugins/isis/export_chain.go -- exportChainSlot -->
+<!-- source: internal/plugins/ospf/export_chain.go -- exportChainSlot -->
+<!-- source: internal/plugins/isis/redistribute/consumer.go -- Rejudge -->
+<!-- source: internal/plugins/ospf/redistribute/consumer.go -- Rejudge -->
+<!-- source: internal/plugins/isis/register.go -- init, MustRegisterRouteAttachment exportAttachment -->
 
 That block is the whole configuration. It needs no `plugin` block and no
 `attach process` block. The orchestrator that dispatches the routes auto-loads
@@ -331,26 +470,45 @@ token first.
 
 | Source | Registered by | What it contributes |
 |--------|---------------|---------------------|
-| `bgp`, `ibgp`, `ebgp` | the BGP engine | the Loc-RIB's best paths, all sessions or internal or external only |
-| `connected` | the interface component | prefixes of configured interface addresses |
+| `bgp`, `ibgp`, `ebgp` | the BGP engine | the Loc-RIB's best paths, all sessions or internal or external only. Each best path carries the class of the peer it was learned from, so `ebgp` moves only eBGP-learned paths and `ibgp` only iBGP-learned ones; a locally originated path has no peer class and moves through `bgp` alone |
+| `connected` | the connected plugin | prefixes of configured interface addresses, except the unroutable ones below |
 | `static` | the static plugin | forward routes in the default table |
 | `kernel` | the kernel plugin | routes another program installed in the OS FIB |
 | `isis`, `ospf` | the IGP plugins | that protocol's SPF-selected routes |
 | `as112`, `l2tp` | those plugins | the covering prefixes and the per-session routes they own |
 | `ipsec` | the IKE engine | the remote traffic selector of each established Child SA |
 
-A destination is the name of a protocol whose consumer registered: `bgp`, `ospf`
-and `isis` today. OSPF and IS-IS register their consumers from their own
-plugins. BGP declares a consumer factory, which the orchestrator builds over its
-own connection to the engine, so a build without BGP has no `bgp` destination.
+`connected` never offers a prefix whose network address is loopback
+(127.0.0.0/8, ::1/128), link-local (169.254.0.0/16, fe80::/10), multicast
+(224.0.0.0/4) or in the zero network (0.0.0.0/8). The address `lo` carries
+would otherwise reach every OSPF, IS-IS or BGP neighbor, which then routes its
+own loopback range through this router. The prefix still enters the Loc-RIB,
+because the kernel holds its route, so `show rib` lists it; only the
+redistribution feed leaves it out. FRR's zebra refuses the same set on its
+redistribute path (`zebra_check_addr`), and BIRD's `direct` protocol skips any
+address of host or link scope.
+<!-- source: internal/plugins/connected/connected.go -- redistributable, emitID -->
+
+A destination is the name of a protocol that receives routes: `bgp`, `ospf`
+and `isis` today. Each protocol declares its destination when its package
+loads, with the config block it needs, so the config check knows `destination
+isis` needs an `isis { }` block before any plugin starts. The consumer that
+receives the routes comes later. OSPF and IS-IS register theirs when their
+plugins start. BGP declares a consumer factory, which the orchestrator builds
+over its own connection to the engine. A build without a protocol has neither,
+so a build without BGP has no `bgp` destination, and a config naming one is
+refused at load with the list of destinations the build does declare.
 
 **A protocol is never redistributed into itself.** `destination isis { import
 isis }` parses and moves nothing, at every guard: the config evaluator, the
 dispatch fan-out and the replay all ask one predicate.
 
 <!-- source: internal/component/config/redistribute/registry.go -- RegisterSource, LookupSource -->
+<!-- source: internal/component/config/redistribute/destination.go -- Destination, RegisterDestination -->
 <!-- source: internal/component/config/redistribute/consumer_factory.go -- ConsumerFactory -->
-<!-- source: internal/component/bgp/redistribute/register.go -- the BGP consumer factory -->
+<!-- source: internal/component/bgp/redistribute/register.go -- the BGP destination and consumer factory -->
+<!-- source: internal/plugins/isis/register.go -- registerISIS, the isis destination -->
+<!-- source: internal/plugins/ospf/register.go -- registerOSPF, the ospf destination -->
 <!-- source: internal/core/redistevents/registry.go -- WouldLoop, the one loop definition -->
 
 ### What the Rules Wire For You
@@ -385,13 +543,20 @@ replay request, every producer re-emits its CURRENT set, and the answer is
 injected through that consumer alone.
 
 A replay reflects what the producer holds NOW rather than what it once sent. A
-route withdrawn before the consumer registered is therefore absent.
+route withdrawn before the consumer registered is therefore absent. A route the
+producer removes while its replay is under way is not revived either: the
+orchestrator drops a replayed route whose removal reached it after the request,
+whichever producer sent it. Static, connected, L2TP, AS112 and BGP also publish
+their replay under the lock that orders their own announcements, so the removal
+follows the replay.
 
 The same mechanism covers a BGP peer that establishes after an injection, where
-the replay reaches that one peer.
+the replay reaches that one peer, and a reload of the import rules, where every
+consumer is replayed under the new rules.
 
-<!-- source: internal/plugins/redistribute/replay.go -- onPeerUp, onConsumerRegistered -->
+<!-- source: internal/plugins/redistribute/replay.go -- onPeerUp, onConsumerRegistered, noteIncremental, removedSince -->
 <!-- source: internal/plugins/redistribute/redistribute.go -- watchConsumers -->
+<!-- source: internal/plugins/static/inject.go -- reemitAll -->
 
 ### When Redistribution Cannot Work
 
@@ -403,24 +568,29 @@ and the error names what you typed:
 | `import rip`, and no component registers `rip` | the load fails: `redistribute: unknown source "rip" under destination "ospf"` |
 | `family [ ipv9/unicast ]` | the load fails naming the family |
 | `destination ospf { }` with no import | the load fails: the destination imports nothing |
-| `import bgp` or `destination bgp`, and no `bgp { }` block | the load, `ze config validate` and a commit fail: `redistribute: "import bgp" needs a bgp { } block, and this config has none`, with the fix on its own line |
+| `import bgp` or `destination bgp`, and no `bgp { }` block | the load, `ze config validate` and a commit fail: `redistribute: "destination bgp" needs bgp configured, and this config has no bgp { } block`, with the fix on its own line |
+| `import isis` or `destination isis`, and no `isis { }` block | the same refusal: `redistribute: "destination isis" needs isis configured, and this config has no isis { } block` |
+| `import ospf` or `destination ospf`, and no `ospf { }` block | the same refusal: `redistribute: "destination ospf" needs ospf configured, and this config has no ospf { } block` |
+
+| `destination ospv3 { import connected }`, a name no protocol in this build declares | the load, `ze config validate` and a commit fail: `redistribute: "destination ospv3" names no protocol that receives redistributed routes`, then a line listing the declared destinations (read from the registry, so it is what this build carries) and the fix |
 
 A refusal is deliberate. Ze used to warn once and carry on with redistribution
 disabled for the WHOLE file. One mistyped word silently stopped rules that were
 written correctly.
 
-One fault is not refusable, because no code can judge it at load time. It is a
-`destination` naming a protocol whose consumer never registers. `ze doctor`
-reports it, under `doctor-redistribute-unknown-destination`, together with an
-unknown source under `doctor-redistribute-unknown-source`.
+`ze doctor` on such a config reports the same refusal, as its config-parse
+diagnostic `doctor-config-parse`. Every `ze doctor` entry point (the command,
+`show doctor` on a running daemon, and the support bundle) loads the config
+through the same door the daemon boots through, so the refusal is the whole
+report and no separate redistribution check exists.
 
 ```
 ze doctor
 ```
 
-<!-- source: internal/component/config/loader_redistribute.go -- RefuseRedistributeRules -->
-<!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules -->
-<!-- source: internal/core/diagnostic/codes.go -- doctor-redistribute-unknown-source, doctor-redistribute-unknown-destination -->
+<!-- source: internal/component/config/loader_redistribute.go -- RefuseRedistributeRules, refuseUndeclaredDestination -->
+<!-- source: internal/component/config/redistribute/destination.go -- DestinationNames -->
+<!-- source: internal/component/doctor/doctor.go -- runChecks -->
 
 ### Counters
 
@@ -428,9 +598,9 @@ ze doctor
 |---------|----------------|
 | `ze_bgp_redistribute_events_received` | route-change batches the orchestrator received |
 | `ze_bgp_redistribute_announcements` | accepted add entries dispatched to a consumer |
-| `ze_bgp_redistribute_withdrawals` | withdrawals dispatched to a consumer: accepted remove entries, and held routes a rejected entry removes |
+| `ze_bgp_redistribute_withdrawals` | withdrawals dispatched to a consumer: accepted remove entries, and held routes a rejected entry or a reload removes |
 | `ze_bgp_redistribute_filtered_protocol_total` | batches skipped by the loop guard |
-| `ze_bgp_redistribute_filtered_rule_total` | entries the evaluator rejected |
-| `ze_bgp_redistribute_replay_total{source}` | routes replayed, to a new peer or to a consumer that registered late |
+| `ze_redistribute_chain_rejected_total{destination,source}` | routes an import rule covers whose `filters` chain rejected them, by destination and source protocol. A route no import rule names is not counted |
+| `ze_bgp_redistribute_replay_total{source}` | routes replayed, to a new peer, to a consumer that registered late, or to every consumer after a reload changed the import rules |
 
 <!-- source: internal/plugins/redistribute/redistribute.go -- setMetricsRegistry -->

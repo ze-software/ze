@@ -1,49 +1,76 @@
 # BGP-LS
 
-Technology aggregate. BGP Link-State distribution. The RFCs whose summary names the bgp-ls aggregate, with their mandatory and optional coverage.
+Technology aggregate. BGP Link-State distribution. The RFCs whose summary names the bgp-ls aggregate, with the MUST bar and the overview bar of the set and of each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 65.6% (82 of 125 (65.6%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 5.5% (4 of 73 (5.5%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 99.2% (124 of 125 (99.2%); excluded: Not applicable (classification can be revisited): 1 of 125 (0.8%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (73 of 73 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 0 (of 6 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/bgp-ls.json](../../../../data/rfc/profiles/bgp-ls.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 124 of 125 (99.2%); excluded: Not applicable (classification can be revisited): 1 of 125 (0.8%). Optional ceiling: 73 of 73 (100.0%). Lowest mandatory ceiling: rfc9552 58 of 59 (98.3%). Lowest optional ceiling: rfc7752 26 of 26 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 83, Ze correctness gap 41
+- **Overview bar**: Ze MUST proven 83, SHOULD proven 4, Not owed 1, SHOULD not decided 69, Ze correctness gap 41
+
+| Figure | Rows |
+|---|---|
+| RFCs | 6 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 125 |
+| MUST rows kept (the MUST bar) | 124 |
+| Ze proven | 83 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 41 |
+| MUST rows not owed | 1 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 1 |
+| SHOULD / MAY rows | 73 |
+| SHOULD proven | 4 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 69 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
 ### Level 12
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9552](../../rfc9552/) | Distribution of Link-State and Traffic Engineering Information Using BGP | 43 of 59 (72.9%); ceiling 58 of 59 (98.3%); excluded: Not applicable (classification can be revisited): 1 of 59 (1.7%) | 1 of 30 (3.3%); ceiling 30 of 30 (100.0%) |
+| [RFC 9552](../../rfc9552/) | Distribution of Link-State and Traffic Engineering Information Using BGP | Ze proven 44, Ze correctness gap 14 | Ze MUST proven 44, SHOULD proven 1, Not owed 1, SHOULD not decided 29, Ze correctness gap 14 |
 
 ### Level 13
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7752](../../rfc7752/) | North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP | 8 of 26 (30.8%); ceiling 26 of 26 (100.0%) | 0 of 26 (0.0%); ceiling 26 of 26 (100.0%) |
-| [RFC 8571](../../rfc8571/) | BGP - Link State (BGP-LS) Advertisement of IGP Traffic Engineering Performance Metric Extensions | no rows; ceiling no rows | no rows; ceiling no rows |
+| [RFC 7752](../../rfc7752/) | North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP | Ze proven 8, Ze correctness gap 18 | Ze MUST proven 8, SHOULD not decided 26, Ze correctness gap 18 |
+| [RFC 8571](../../rfc8571/) | BGP - Link State (BGP-LS) Advertisement of IGP Traffic Engineering Performance Metric Extensions | no rows | no rows |
 
 ### Level 14
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9085](../../rfc9085/) | Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing | 9 of 9 (100.0%); ceiling 9 of 9 (100.0%) | 3 of 5 (60.0%); ceiling 5 of 5 (100.0%) |
+| [RFC 9085](../../rfc9085/) | Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing | Ze proven 9 | Ze MUST proven 9, SHOULD proven 3, SHOULD not decided 2 |
 
 ### Level 15
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9086](../../rfc9086/) | Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing BGP Egress Peer Engineering | 7 of 11 (63.6%); ceiling 11 of 11 (100.0%) | 0 of 9 (0.0%); ceiling 9 of 9 (100.0%) |
+| [RFC 9086](../../rfc9086/) | Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing BGP Egress Peer Engineering | Ze proven 7, Ze correctness gap 4 | Ze MUST proven 7, SHOULD not decided 9, Ze correctness gap 4 |
 
 ### Level 16
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9514](../../rfc9514/) | Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6) | 15 of 20 (75.0%); ceiling 20 of 20 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) |
+| [RFC 9514](../../rfc9514/) | Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6) | Ze proven 15, Ze correctness gap 5 | Ze MUST proven 15, SHOULD not decided 3, Ze correctness gap 5 |

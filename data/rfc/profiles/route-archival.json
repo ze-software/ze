@@ -1,0 +1,12 @@
+{
+  "name": "route-archival",
+  "kind": "technology",
+  "title": "Route archival",
+  "release": false,
+  "required": [
+    "rfc6396",
+    "rfc6397",
+    "rfc8050"
+  ],
+  "optional": []
+}

@@ -1,0 +1,37 @@
+{
+  "stem": "rfc2473",
+  "title": "Generic Packet Tunneling in IPv6 Specification",
+  "walked": true,
+  "requirements": 21,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 11,
+    "kept": 11,
+    "ze-proven": 1,
+    "os-verified": 0,
+    "os-gap": 7,
+    "ze-gap": 3,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 10,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 10,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 1
+  },
+  "unmet": [
+    "RFC2473-7.1-1",
+    "RFC2473-7.1-2",
+    "RFC2473-7.1-4"
+  ]
+}

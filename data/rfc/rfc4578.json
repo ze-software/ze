@@ -1,0 +1,39 @@
+{
+  "stem": "rfc4578",
+  "title": "Dynamic Host Configuration Protocol (DHCP) Options for the Intel Preboot eXecution Environment (PXE)",
+  "walked": true,
+  "requirements": 8,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 5,
+    "kept": 4,
+    "ze-proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 3,
+    "not-owed": 1,
+    "not-owed-by-kind": {
+      "not-applicable": 1
+    }
+  },
+  "should": {
+    "total": 3,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 3,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 1
+  },
+  "unmet": [
+    "RFC4578-2.1-1",
+    "RFC4578-2.2-1",
+    "RFC4578-2.3-1"
+  ]
+}

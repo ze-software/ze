@@ -1,0 +1,39 @@
+{
+  "stem": "rfc5340",
+  "title": "OSPF for IPv6",
+  "walked": true,
+  "requirements": 46,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 23,
+    "kept": 23,
+    "ze-proven": 6,
+    "os-verified": 0,
+    "os-gap": 1,
+    "ze-gap": 16,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 23,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 23,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 6
+  },
+  "unmet": [
+    "RFC5340-2.5-2",
+    "RFC5340-2.8-2",
+    "RFC5340-4.2.2-1",
+    "RFC5340-4.9-1",
+    "RFC5340-4.9-2"
+  ]
+}

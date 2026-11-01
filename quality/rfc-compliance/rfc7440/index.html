@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7440 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7440: TFTP Windowsize Option. 9 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7440: TFTP Windowsize Option. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7440 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7440: TFTP Windowsize Option. 9 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7440: TFTP Windowsize Option. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7440 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7440: TFTP Windowsize Option. 9 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7440: TFTP Windowsize Option. 9 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Partial</span>
+    <span class="journey-eyebrow">TFTP windowsize</span>
     <h1 id="rfc-detail-title">RFC 7440 - TFTP Windowsize Option</h1>
     <p>Every requirement this repository extracted from RFC 7440, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -118,28 +118,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>55.6%</strong><b>5 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>16 of 16 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>9</strong><b>of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0</strong><b>of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>26</strong><b>26 of 26 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>10</strong><b>of 9 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>9</strong><b>of 15 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 9 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>9</strong><b>of 15 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 9 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 9 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>44.4%</strong><b>4 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-</div>
-<p>The 9 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 9 counts marked as a part above are the whole of the 9 gated MUSTs: they add up to 9. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -156,7 +153,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Tested both ways</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got</td>
 </tr>
 <tr><td>One polarity plus reason</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -171,7 +168,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -180,7 +177,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -192,10 +189,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -208,8 +205,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
-<tr><td>Public status</td>
-<td>Partial</td>
+<tr><td>Public row</td>
+<td>TFTP windowsize</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -224,7 +221,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>4</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -236,16 +233,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>16</td>
+<td>26</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>16</td>
+<td>26</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>6</td>
+<td>10</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>16</td>
+<td>26</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7440.md</code></td>
@@ -261,17 +258,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: TFTP Windowsize Option: nine MUST-level requirements. 3-1 (all RRQ/WRQ fields except the opcode are NUL-terminated ASCII strings) is met with positive+negative tags on the server&#39;s RRQ parser (internal/plugins/tftpserver/handler.go parseRRQ rejects a field lacking its NUL). Four are met by Ze&#39;s TFTP client, the data receiver of a read and the tftp scheme of ze init --from (internal/core/fetch/tftp.go, internal/core/tftp/oack.go grantWindowsize), each with both polarities: 3-2 (an OACK windowsize outside 1..65535 is refused with ERROR 8) and 3-4 (the client uses the OACK windowsize or sends ERROR 8) via TestRFC7440ClientWindowsize, 4-2 (the receiver ACKs the last block of each window) via TestRFC7440ClientWindowsize, and 4-3 (a window of one is RFC 1350 lockstep) via TestRFC7440ClientWindowOneIsLockstep; the SHOULD 4-6 (a sequence error draws the ACK of the last block received in order) via TestRFC7440ClientSequenceError. The four sender-side MUSTs (3-3 acknowledged windowsize, 4-1 windowed send, 4-4 timeout window-start, 4-5 sequence-error rollback) stay {not-applicable}: ze&#39;s TFTP server implements base RFC 1350 with the RFC 2347/2348/2349 blksize and tsize options only; it records the windowsize option name but discards the value and never negotiates it, falling back to lockstep.</p>
+<p>Enrolled: TFTP Windowsize Option: nine MUST-level requirements. 3-1 (all RRQ/WRQ fields except the opcode are NUL-terminated ASCII strings) is met with positive+negative tags on the server&#39;s RRQ parser (internal/plugins/tftpserver/handler.go parseRRQ rejects a field lacking its NUL). Four are met by Ze&#39;s TFTP client, the data receiver of a read and the tftp scheme of ze init --from (internal/core/fetch/tftp.go, internal/core/tftp/oack.go grantWindowsize), each with both polarities: 3-2 (an OACK windowsize outside 1..65535 is refused with ERROR 8) and 3-4 (the client uses the OACK windowsize or sends ERROR 8) via TestRFC7440ClientWindowsize, 4-2 (the receiver ACKs the last block of each window) via TestRFC7440ClientWindowsize, and 4-3 (a window of one is RFC 1350 lockstep) via TestRFC7440ClientWindowOneIsLockstep; the SHOULD 4-6 (a sequence error draws the ACK of the last block received in order) via TestRFC7440ClientSequenceError. The four sender-side MUSTs are met by Ze&#39;s TFTP server, the data sender of a read (internal/plugins/tftpserver/handler.go grantWindowsize and sendOACKAndWait, internal/plugins/tftpserver/window_send.go serveFile and windowSender), each with both polarities in rfc7440_window_send_test.go: 3-3 (the acknowledged windowsize is at most the request and the configured max-windowsize) via TestRFC7440ServerAcknowledgesWindowsize, 4-1 (the agreed window, then a wait for its ACK) via TestRFC7440ServerSendsWindow, 4-4 (a timeout restarts the window after the last ACK) via TestRFC7440ServerTimeoutRestartsWindow, and 4-5 (an ACK inside the window starts the next one after it) via TestRFC7440ServerInWindowACKRestartsWindow; the server side of 4-3 (a window of one is lockstep) via TestRFC7440ServerWindowOneIsLockstep. The tftp-hpa 7.2 client downloads from the windowed server in TestTFTPHPAWindowsizeInterop.</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Partial</p>
-<p><strong>What the ledger says is covered:</strong></p>
-<ul class="rfc-prose">
-<li>The TFTP client (<a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/tftp.go" target="_blank" rel="noopener"><code>internal/core/fetch/tftp.go</code></a>, <a href="https://github.com/ze-software/ze/blob/main/internal/core/tftp/oack.go" target="_blank" rel="noopener"><code>internal/core/tftp/oack.go</code></a>) negotiates and uses windowsize</li>
-<li>the TFTP server (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler.go" target="_blank" rel="noopener"><code>internal/plugins/tftpserver/handler.go</code></a>) serves in RFC 1350 lockstep and never acknowledges windowsize.</li>
-</ul>
-<p><strong>What the ledger says remains:</strong></p>
-Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440-3-3</code></a>, 4-1, 4-4, 4-5): the lockstep server meets each as a window of one, and no test asserts it.
+<p><strong>Area:</strong> TFTP windowsize</p>
+<p><strong>Proof:</strong> 9 of 9 MUST proven</p>
+<p><strong>Evidence:</strong> unit 9</p>
+<p><strong>Unmet:</strong> -</p>
+
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -279,11 +273,11 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>5</strong></td>
+<td><strong>9</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>4</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -310,11 +304,94 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc7440-3-1"><code>RFC7440-3-1</code></a>, <a href="#rfc7440-3-2"><code>RFC7440-3-2</code></a>, <a href="#rfc7440-3-4"><code>RFC7440-3-4</code></a>, <a href="#rfc7440-4-2"><code>RFC7440-4-2</code></a>, <a href="#rfc7440-4-3"><code>RFC7440-4-3</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (4):</strong> <a href="#rfc7440-3-3"><code>RFC7440-3-3</code></a>, <a href="#rfc7440-4-1"><code>RFC7440-4-1</code></a>, <a href="#rfc7440-4-4"><code>RFC7440-4-4</code></a>, <a href="#rfc7440-4-5"><code>RFC7440-4-5</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (9):</strong> <a href="#rfc7440-3-1"><code>RFC7440-3-1</code></a>, <a href="#rfc7440-3-2"><code>RFC7440-3-2</code></a>, <a href="#rfc7440-3-3"><code>RFC7440-3-3</code></a>, <a href="#rfc7440-3-4"><code>RFC7440-3-4</code></a>, <a href="#rfc7440-4-1"><code>RFC7440-4-1</code></a>, <a href="#rfc7440-4-2"><code>RFC7440-4-2</code></a>, <a href="#rfc7440-4-3"><code>RFC7440-4-3</code></a>, <a href="#rfc7440-4-4"><code>RFC7440-4-4</code></a>, <a href="#rfc7440-4-5"><code>RFC7440-4-5</code></a></p>
 </section>
-<section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 9 of 9 (100.0%). Optional ceiling: 6 of 6 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7440 9 of 9 (100.0%). Lowest optional ceiling: rfc7440 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<section><h2>Figures</h2>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="rfc7440:must">Ze proven 9</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="rfc7440:overview">Ze MUST proven 9, SHOULD proven 1, SHOULD not decided 5</div>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="rfc7440:rfcs">1</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="rfc7440:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="rfc7440:register">complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="rfc7440:must.total">9</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="rfc7440:must.kept">9</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="rfc7440:must.ze-proven">9</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="rfc7440:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="rfc7440:must.os-gap">0</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="rfc7440:must.ze-gap">0</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="rfc7440:must.not-owed">0</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="rfc7440:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="rfc7440:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="rfc7440:must.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="rfc7440:should.total">6</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="rfc7440:should.proven">1</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="rfc7440:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="rfc7440:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="rfc7440:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="rfc7440:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="rfc7440:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="rfc7440:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="rfc7440:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="rfc7440:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="rfc7440:should.not-decided">5</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -327,10 +404,10 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7440-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc7440_client_test.go#L153" title="internal/core/fetch/rfc7440_client_test.go" target="_blank" rel="noopener"><code>TestRFC7440ClientRequestFieldsAreNULTerminatedASCII</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L259" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC7440FieldsAreNULTerminatedASCIIStrings</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L264" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC7440FieldsAreNULTerminatedASCIIStrings</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L99" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPParseRRQ</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc7440_client_test.go#L156" title="internal/core/fetch/rfc7440_client_test.go" target="_blank" rel="noopener"><code>TestRFC7440ClientRequestFieldsAreNULTerminatedASCII</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L263" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC7440FieldsAreNULTerminatedASCIIStrings</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L268" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC7440FieldsAreNULTerminatedASCIIStrings</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L127" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPParseRRQInvalid</code></a></span></div>
 </div></td>
 </tr>
@@ -348,9 +425,9 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7440-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> gap in proof: the condition never holds, because internal/plugins/tftpserver/handler.go::sendOACKAndWait builds its OACK from blksize and tsize only and never acknowledges windowsize, so no acknowledged value can exceed the client&#39;s; no test asserts it</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L60" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerAcknowledgesWindowsize</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L63" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerAcknowledgesWindowsize</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7440-3-4">RFC7440-3-4</code></td><td colspan="3"><span class="rfc-subject">The client MUST then either use the size specified in the OACK or send an ERROR packet, with error code 8, to terminate the transfer. (§3)</span></td></tr>
 <tr><td></td>
@@ -366,9 +443,9 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7440-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> gap in proof: with no windowsize agreed, internal/plugins/tftpserver/handler.go::serveFile sends one DATA block per ACK through sendAndWaitACK, the RFC 1350 lockstep that RFC7440-4-3 equates with a window of one; no test asserts the server side</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L105" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerSendsWindow</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L108" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerSendsWindow</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7440-4-2">RFC7440-4-2</code></td><td colspan="3"><span class="rfc-subject">The DRCV MUST send to the DSND the ACK of the last data block of the window in order to confirm a successful data block window reception. (§4)</span></td></tr>
 <tr><td></td>
@@ -385,7 +462,9 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7440-4-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc7440_client_test.go#L80" title="internal/core/fetch/rfc7440_client_test.go" target="_blank" rel="noopener"><code>TestRFC7440ClientWindowOneIsLockstep</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L137" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerWindowOneIsLockstep</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc7440_client_test.go#L84" title="internal/core/fetch/rfc7440_client_test.go" target="_blank" rel="noopener"><code>TestRFC7440ClientWindowOneIsLockstep</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L140" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerWindowOneIsLockstep</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7440-4-4">RFC7440-4-4</code></td><td colspan="3"><span class="rfc-subject">In the case of an expected ACK not timely reaching the DSND (timeout), the last received ACK SHALL set the beginning of the next windowsize data block window to be sent. (§4)</span></td></tr>
@@ -393,18 +472,18 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 <td>SHALL</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7440-4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> gap in proof: on timeout internal/plugins/tftpserver/handler.go::sendAndWaitACK resends the one unacknowledged block, the block after the last received ACK, which is the window of one that ACK sets; no test asserts it</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L171" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerTimeoutRestartsWindow</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L175" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerTimeoutRestartsWindow</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7440-4-5">RFC7440-4-5</code></td><td colspan="3"><span class="rfc-subject">The notified DSND SHOULD send a new data block window whose beginning MUST be set based on the ACK received out of sequence. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7440-4-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> gap in proof: internal/plugins/tftpserver/handler.go::sendAndWaitACK accepts only the ACK of the block just sent and otherwise resends that block, the window of one an out-of-sequence ACK sets; no test asserts it</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L213" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerInWindowACKRestartsWindow</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L216" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerInWindowACKRestartsWindow</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7440-5-1">RFC7440-5-1</code></td><td colspan="3"><span class="rfc-subject">Operators SHOULD test various values and SHOULD be conservative when selecting a windowsize value (§5)</span></td></tr>
 <tr><td></td>
@@ -465,35 +544,13 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc7440-3-3"><code>RFC7440-3-3</code></a> If the server is willing to accept the windowsize option, it sends an Option Acknowledgment (OACK) to the client. The specified value MUST be less than or equal to the value specified by the client. (§3)</td>
-<td>{gap}, no test</td>
-<td>gap in proof: the condition never holds, because internal/plugins/tftpserver/handler.go::sendOACKAndWait builds its OACK from blksize and tsize only and never acknowledges windowsize, so no acknowledged value can exceed the client&#39;s; no test asserts it</td>
-</tr>
-<tr><td><a href="#rfc7440-4-1"><code>RFC7440-4-1</code></a> The DSND MUST cyclically send to the DRCV the agreed windowsize consecutive data blocks before normally stopping and waiting for the ACK of the transferred window. (§4)</td>
-<td>{gap}, no test</td>
-<td>gap in proof: with no windowsize agreed, internal/plugins/tftpserver/handler.go::serveFile sends one DATA block per ACK through sendAndWaitACK, the RFC 1350 lockstep that RFC7440-4-3 equates with a window of one; no test asserts the server side</td>
-</tr>
-<tr><td><a href="#rfc7440-4-4"><code>RFC7440-4-4</code></a> In the case of an expected ACK not timely reaching the DSND (timeout), the last received ACK SHALL set the beginning of the next windowsize data block window to be sent. (§4)</td>
-<td>{gap}, no test</td>
-<td>gap in proof: on timeout internal/plugins/tftpserver/handler.go::sendAndWaitACK resends the one unacknowledged block, the block after the last received ACK, which is the window of one that ACK sets; no test asserts it</td>
-</tr>
-<tr><td><a href="#rfc7440-4-5"><code>RFC7440-4-5</code></a> The notified DSND SHOULD send a new data block window whose beginning MUST be set based on the ACK received out of sequence. (§4)</td>
-<td>{gap}, no test</td>
-<td>gap in proof: internal/plugins/tftpserver/handler.go::sendAndWaitACK accepts only the ACK of the block just sent and otherwise resends that block, the window of one an out-of-sequence ACK sets; no test asserts it</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 7440 declares no gap, and every gated MUST it carries has a test bound to it.</p>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7440-3-1"><code>RFC7440-3-1</code></a></h3>
 <p>Note that all fields except &#34;opc&#34; MUST be ASCII strings followed by a single-byte NULL character. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both roles are now tagged. Sender (Ze&#39;s client): TestRFC7440ClientRequestFieldsAreNULTerminatedASCII compares the whole RRQ byte for byte (f.bin, octet, blksize 1468, tsize 0, windowsize 4, each ASCII with one NUL), so a missing or doubled NUL is red; BuildRRQ must refuse a filename holding a NUL or a non-ASCII byte (a\x00b, caf\xc3\xa9). Receiver (server): TestTFTPParseRRQ/Invalid and TestRFC7440FieldsAreNULTerminatedASCIIStrings, rename-only diffs, still refuse an unterminated field.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31: TestRFC7440FieldsAreNULTerminatedASCIIStrings now requests blksize, tsize and windowsize 16 and requires the OACK to be exactly six non-empty printable-ASCII fields each ending in one NUL (blksize 1024, tsize 700, windowsize 16): a missing or doubled NUL, a non-ASCII octet, or an extra or missing field is red. Its request half is unchanged: the Section 3 example parses into foobar, octet, windowsize; an unterminated #blocks leaves windowsize unrecognised (parseRRQ breaks on valEnd &lt; 0); a filename with no NUL is refused. TestTFTPParseRRQ/Invalid changed only in claim comments. Client TestRFC7440ClientRequestFieldsAreNULTerminatedASCII unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -509,7 +566,7 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L263" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC7440FieldsAreNULTerminatedASCIIStrings</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L268" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC7440FieldsAreNULTerminatedASCIIStrings</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -524,7 +581,7 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L259" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC7440FieldsAreNULTerminatedASCIIStrings</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2347_2348_transfer_test.go#L264" title="internal/plugins/tftpserver/rfc2347_2348_transfer_test.go" target="_blank" rel="noopener"><code>TestRFC7440FieldsAreNULTerminatedASCIIStrings</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -553,8 +610,24 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 </div>
 <h3><a href="#rfc7440-3-3"><code>RFC7440-3-3</code></a></h3>
 <p>If the server is willing to accept the windowsize option, it sends an Option Acknowledgment (OACK) to the client. The specified value MUST be less than or equal to the value specified by the client. (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7440-3-3, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7440 Section 3: &#39;The specified value MUST be less than or equal to the value specified by the client.&#39; TestRFC7440ServerAcknowledgesWindowsize asserts the exact grant: 8 gives 8 and 64 gives 64 (red if the server grants its maximum regardless), 1000 and 65535 give 64 (red if it echoes the request above its maximum), plus granted &lt;= asked on every case; 0, 65536 and abc are not acknowledged beside blksize. Producer grantWindowsize min(requested, maximum) and sendOACKAndWait.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L63" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerAcknowledgesWindowsize</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L60" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerAcknowledgesWindowsize</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7440-3-4"><code>RFC7440-3-4</code></a></h3>
 <p>The client MUST then either use the size specified in the OACK or send an ERROR packet, with error code 8, to terminate the transfer. (§3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC7440ClientWindowsize: with windowsize 2 granted (4 requested), blocks 1 and 2 must draw ACK 2 within tftpTimeout/2 (500 ms against a 1 s timeout), so the retransmitted ACK no longer masks a client that keeps its own window. Observed red under the overlay mutant grantWindowsize setting granted.Windowsize = req.Windowsize. Negative: windowsize 5, above the request, draws ERROR 8 and a failed fetch.</p>
@@ -577,8 +650,24 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 </div>
 <h3><a href="#rfc7440-4-1"><code>RFC7440-4-1</code></a></h3>
 <p>The DSND MUST cyclically send to the DRCV the agreed windowsize consecutive data blocks before normally stopping and waiting for the ACK of the transferred window. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7440-4-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7440 Section 4: &#39;The DSND MUST cyclically send to the DRCV the agreed windowsize consecutive data blocks before normally stopping and waiting for the ACK of the transferred window.&#39; TestRFC7440ServerSendsWindow, windowsize 4 over a 9-block file: blocks 1-4 in order, 1 s silence before ACK 4, blocks 5-8, silence before ACK 8, final short block 9, silence after its ACK, bytes equal the file. A sender that streams past the window, sends fewer than four, or keeps lockstep is red. Producer windowSender.sendWindow then awaitACK.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L108" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerSendsWindow</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L105" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerSendsWindow</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7440-4-2"><code>RFC7440-4-2</code></a></h3>
 <p>The DRCV MUST send to the DSND the ACK of the last data block of the window in order to confirm a successful data block window reception. (§4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC7440ClientWindowsize: the ACK of each window&#39;s last block (2, 4, and the short 5) must arrive within tftpTimeout/2, before any timeout retransmission could produce it, and the first packet after blocks 1 and 2 must be ACK 2, not ACK 1. Observed red under the overlay mutant that uses the requested window 4 against a granted 2 (no ACK at window end).</p>
@@ -601,7 +690,7 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 </div>
 <h3><a href="#rfc7440-4-3"><code>RFC7440-4-3</code></a></h3>
 <p>Traffic with windowsize = 1 MUST be equivalent to traffic specified by [RFC1350]. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC7440ClientWindowOneIsLockstep now uses the shared shortenTFTP (tftpTimeout 1 s, expectACK waits 500 ms). With windowsize 1, every DATA must draw its own ACK within tftpTimeout/2, before the next DATA is sent, so lockstep timing is now bounded. Block 3, sent while block 2 is expected, must draw nothing for 300 ms and must not be written, and the file must hold each block once. Observed red under the overlay mutant that ignores the granted windowsize: &#39;client sent 00 04 00 01, want nothing&#39;.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31: the server now sends windows and gained TestRFC7440ServerWindowOneIsLockstep: windowsize 1 alone draws DATA 1 with no OACK, then silence for 1 s before ACK 1, then block 2; beside blksize 1024, windowsize 1 is left out of the OACK and the transfer is still lockstep. A sender that streams a second block before the ACK is red. grantWindowsize returns 1 for a request of 1, so the transfer takes the same serveFile path as an RFC 1350 request. Client TestRFC7440ClientWindowOneIsLockstep unchanged (each DATA draws its ACK within tftpTimeout/2; an out-of-order block draws nothing).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -611,8 +700,18 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L140" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerWindowOneIsLockstep</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc7440_client_test.go#L80" title="internal/core/fetch/rfc7440_client_test.go" target="_blank" rel="noopener"><code>TestRFC7440ClientWindowOneIsLockstep</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L137" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerWindowOneIsLockstep</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -621,12 +720,44 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 </div>
 <h3><a href="#rfc7440-4-4"><code>RFC7440-4-4</code></a></h3>
 <p>In the case of an expected ACK not timely reaching the DSND (timeout), the last received ACK SHALL set the beginning of the next windowsize data block window to be sent. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7440-4-4, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7440 Section 4: &#39;In the case of an expected ACK not timely reaching the DSND (timeout), the last received ACK SHALL set the beginning of the next windowsize data block window to be sent.&#39; TestRFC7440ServerTimeoutRestartsWindow, windowsize 4 and timeout 1: after ACK 4, the unacked window 5-8 must come again as 5-8 with identical bytes (red on a restart from 1 or a skip to 9), then ACK 8 draws 9-12; a never-acknowledged window is sent four times then silence for 2 s. Producer serveFile keeps first on errNoACK.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L175" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerTimeoutRestartsWindow</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L171" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerTimeoutRestartsWindow</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7440-4-5"><code>RFC7440-4-5</code></a></h3>
 <p>The notified DSND SHOULD send a new data block window whose beginning MUST be set based on the ACK received out of sequence. (§4)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7440-4-5, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7440 Section 4: &#39;The notified DSND SHOULD send a new data block window whose beginning MUST be set based on the ACK received out of sequence.&#39; TestRFC7440ServerInWindowACKRestartsWindow, windowsize 4: blocks 1-4 sent, ACK 2 must draw exactly 3-6 before the 5 s timeout would (red on a restart from 1 or 5, or on waiting for the timeout); a repeated ACK 2 (the block before the window, a duplicate under RFC 1350 Section 5) and ACK 20 (never sent) draw no DATA; ACK 6 then draws 7-10. Producer serveFile first = acked + 1 with awaitACK&#39;s windowPosition.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L216" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerInWindowACKRestartsWindow</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc7440_window_send_test.go#L213" title="internal/plugins/tftpserver/rfc7440_window_send_test.go" target="_blank" rel="noopener"><code>TestRFC7440ServerInWindowACKRestartsWindow</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7440-4-6"><code>RFC7440-4-6</code></a></h3>
 <p>In the case of a data block sequence error, the DRCV SHOULD notify the DSND by sending an ACK corresponding to the last data block correctly received. (§4)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC7440ClientSequenceError: after block 1 and then block 3 (block 2 lost) in a window of four, ACK 1 must arrive within tftpTimeout/2, so only the sequence-error notification can produce it, not the timeout retransmission. Negative: block 4, still past the gap, draws no second ACK for 300 ms. Then the restarted window completes the file. Observed red under an overlay mutant that drops the gap ACK in (*tftpTransfer).data, re-made against the current tftp.go.</p>
@@ -760,6 +891,7 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 7440, so its obligations are stated where they were written.</p>
 </section>
+<script src="../../../assets/rfc-figures.js" defer></script>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -791,7 +923,7 @@ Four MUST gaps in proof on the server side (<a href="#rfc7440-3-3"><code>RFC7440
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

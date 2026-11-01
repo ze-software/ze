@@ -1,0 +1,40 @@
+{
+  "stem": "rfc6396",
+  "title": "Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format",
+  "walked": true,
+  "requirements": 25,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 13,
+    "kept": 13,
+    "ze-proven": 6,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 7,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 12,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 12,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 6
+  },
+  "unmet": [
+    "RFC6396-4.2-1",
+    "RFC6396-4.3.4-2",
+    "RFC6396-4.4.2-1",
+    "RFC6396-4.4.3-1",
+    "RFC6396-5.1-1",
+    "RFC6396-B.1-1"
+  ]
+}

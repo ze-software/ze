@@ -13,7 +13,7 @@ Named address-family policy filter: remove a family's NLRI or tear down the sess
 
 ## Configuration
 
-`policy`
+`bgp`
 
 ## Dependencies
 

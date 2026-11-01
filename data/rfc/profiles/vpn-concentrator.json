@@ -1,0 +1,33 @@
+{
+  "name": "vpn-concentrator",
+  "kind": "use-case",
+  "title": "IPsec VPN concentrator for remote-access clients",
+  "release": false,
+  "required": [
+    "rfc3748",
+    "rfc3948",
+    "rfc4106",
+    "rfc4301",
+    "rfc4303",
+    "rfc4555",
+    "rfc4739",
+    "rfc4754",
+    "rfc5216",
+    "rfc5280",
+    "rfc5282",
+    "rfc5998",
+    "rfc7296",
+    "rfc7427",
+    "rfc8221",
+    "rfc8247",
+    "rfc9190"
+  ],
+  "optional": [
+    "rfc5685",
+    "rfc7383",
+    "rfc7634",
+    "rfc8031",
+    "rfc9329",
+    "rfc9370"
+  ]
+}

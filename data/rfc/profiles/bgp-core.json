@@ -1,0 +1,30 @@
+{
+  "name": "bgp-core",
+  "kind": "technology",
+  "title": "BGP core",
+  "release": false,
+  "required": [
+    "rfc2545",
+    "rfc2918",
+    "rfc4271",
+    "rfc4486",
+    "rfc4760",
+    "rfc5492",
+    "rfc5549",
+    "rfc6286",
+    "rfc6608",
+    "rfc6793",
+    "rfc7311",
+    "rfc7313",
+    "rfc7606",
+    "rfc7607",
+    "rfc7911",
+    "rfc8212",
+    "rfc8654",
+    "rfc8950",
+    "rfc9072",
+    "rfc9687",
+    "rfc9774"
+  ],
+  "optional": []
+}

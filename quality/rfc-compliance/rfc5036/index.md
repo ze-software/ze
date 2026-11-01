@@ -1,6 +1,6 @@
 # RFC 5036 - LDP Specification
 
-Experimental. Every requirement this repository extracted from RFC 5036, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+LDP. Every requirement this repository extracted from RFC 5036, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 31.9% | 29 of 91 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3.3% | 3 of 91 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 91 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 91 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 87.5% | 56 of 64 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 29 | of 91 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 91 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 91 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 91 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 57 | 57 of 64 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 91 | of 95 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 91 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 91 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 91 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 91 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 91 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 91 | of 95 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 91 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 91 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 91 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 91 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 91 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,10 +35,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 64.8% | 59 of 91 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 26 | of 91 gated MUSTs judged | 2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
+| No test at all | 59 | of 91 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 26 | of 91 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 shares marked as a part above are the whole of the 91 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 91 gated MUSTs: they add up to 91. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,23 +46,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Experimental |
+| Public row | LDP |
 | Enrolment | Enrolled |
 | Requirements | 95 |
 | Gated MUST-level | 91 |
@@ -85,17 +85,14 @@ Enrolled: LDP Specification
 
 ## What the public ledger says
 
-**Status:** Experimental
+**Area:** LDP
 
-**What the ledger says is covered**
+**Proof:** 29 of 91 MUST proven
 
-Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negotiation, label information base, downstream-unsolicited Label Mapping advertisement and reception, kernel MPLS integration. The 2026-09-21 walk widened the checklist to the whole document, so this list now covers a small part of the row set rather than most of it.
+**Evidence:** unit 29
 
-**What the ledger says remains**
+**Unmet:** RFC5036-2.5.1-3, RFC5036-2.5.1-4, RFC5036-2.5.3-2, RFC5036-2.5.3-7, RFC5036-2.6.1.2-1, RFC5036-2.6.1.3-1, RFC5036-2.7-1, RFC5036-2.8.1-1, RFC5036-2.8.1-2, RFC5036-2.8.1-3, RFC5036-2.8.1-4, RFC5036-2.8.1-5, RFC5036-2.8.1-6, RFC5036-2.8.1-7, RFC5036-2.8.2-1, RFC5036-2.8.2-10, RFC5036-2.8.2-11, RFC5036-2.8.2-12, RFC5036-2.8.2-13, RFC5036-2.8.2-2, RFC5036-2.8.2-3, RFC5036-2.8.2-4, RFC5036-2.8.2-5, RFC5036-2.8.2-6, RFC5036-2.8.2-7, RFC5036-2.8.2-8, RFC5036-2.8.2-9, RFC5036-2.9-1, RFC5036-3.4.2.2-1, RFC5036-3.4.2.2-2, RFC5036-3.4.2.2-3, RFC5036-3.4.2.3-1, RFC5036-3.4.4.1-3, RFC5036-3.4.5.1.1-1, RFC5036-3.4.5.1.1-2, RFC5036-3.4.5.1.1-3, RFC5036-3.4.5.1.2-1, RFC5036-3.4.5.1.2-2, RFC5036-3.4.5.1.2-3, RFC5036-3.5.1-1, RFC5036-3.5.11.1-1, RFC5036-3.5.3-10, RFC5036-3.5.3-11, RFC5036-3.5.3-12, RFC5036-3.5.3-13, RFC5036-3.5.3-14, RFC5036-3.5.3-2, RFC5036-3.5.7-1, RFC5036-3.5.8.1-1, RFC5036-3.5.8.1-2, RFC5036-3.5.8.1-3, RFC5036-3.5.8.1-4, RFC5036-3.5.9.1-1, RFC5036-3.5.9.1-2, RFC5036-3.5.9.1-3, RFC5036-3.6.1.1-1, RFC5036-3.6.1.2-1, RFC5036-A.1-1, RFC5036-A.1.2-1, RFC5036-A.1.7-1
 
-The 2026-09-21 extraction walk read all 87 normative sites in [`rfc/full/rfc5036.txt`](https://github.com/ze-software/ze/blob/main/rfc/full/rfc5036.txt) and grew the checklist from 19 rows to 86. Fatal Notification handling remains partial: [`RFC5036-2.5.3-2`](#rfc5036-2.5.3-2) and [`RFC5036-3.5.1-1`](#rfc5036-3.5.1-1) (unacceptable Initialization and unexpected message types in OPENSENT/OPENREC are NAK'd, and KeepAlive Timer expiry sends the fatal KeepAlive Timer Expired Notification before closing, but decoding errors outside the initialization type checks still close silently).
-
-- **Other missing send paths:** [`RFC5036-2.6.1.3-1`](#rfc5036-2.6.1.3-1) (no Label Release on a received withdraw), [`RFC5036-2.6.1.2-1`](#rfc5036-2.6.1.2-1) (SendLabelWithdraw has no production caller, so a local binding is never withdrawn on the wire). Passive-role session procedures remain absent: [`RFC5036-2.5.1-4`](#rfc5036-2.5.1-4), [`RFC5036-2.5.1-3`](#rfc5036-2.5.1-3) and [`RFC5036-2.5.3-7`](#rfc5036-2.5.3-7) (ze dials every session and nothing listens on TCP port 646). The walk corrected four rows against the document: [`RFC5036-2.9-1`](#rfc5036-2.9-1) rose to MUST, [`RFC5036-2.6.1.1-1`](#rfc5036-2.6.1.1-1) fell to MAY, [`RFC5036-3.5.1-1`](#rfc5036-3.5.1-1) fell to SHOULD, and [`RFC5036-2.7-1`](#rfc5036-2.7-1) lost a prohibition on sending labeled packets before MPLS forwarding is enabled, which no sentence of RFC 5036 states. Ze still imposes labels without that check, at ProgramPush in [`internal/plugins/ldp/fib.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/fib.go), and the walk removed the row that recorded it, so nothing on this ledger gates it now. Remaining implementation gaps include Loop Detection procedures, ATM and Frame Relay label and session parameters, Downstream on Demand Label Request, Abort and Release procedures, and vendor-private U-bit configuration interfaces.
 
 ## Coverage
 
@@ -114,9 +111,41 @@ The 2026-09-21 extraction walk read all 87 normative sites in [`rfc/full/rfc5036
 
 **Annotated (including scoped evidence) (62):** [`RFC5036-2.6.1.2-1`](#rfc5036-2.6.1.2-1), [`RFC5036-2.6.1.3-1`](#rfc5036-2.6.1.3-1), [`RFC5036-2.5.1-3`](#rfc5036-2.5.1-3), [`RFC5036-2.5.3-7`](#rfc5036-2.5.3-7), [`RFC5036-2.5.1-4`](#rfc5036-2.5.1-4), [`RFC5036-2.5.3-2`](#rfc5036-2.5.3-2), [`RFC5036-2.7-1`](#rfc5036-2.7-1), [`RFC5036-2.9-1`](#rfc5036-2.9-1), [`RFC5036-2.8.1-1`](#rfc5036-2.8.1-1), [`RFC5036-2.8.1-2`](#rfc5036-2.8.1-2), [`RFC5036-2.8.1-3`](#rfc5036-2.8.1-3), [`RFC5036-2.8.1-4`](#rfc5036-2.8.1-4), [`RFC5036-2.8.1-5`](#rfc5036-2.8.1-5), [`RFC5036-2.8.1-6`](#rfc5036-2.8.1-6), [`RFC5036-2.8.1-7`](#rfc5036-2.8.1-7), [`RFC5036-2.8.2-1`](#rfc5036-2.8.2-1), [`RFC5036-2.8.2-2`](#rfc5036-2.8.2-2), [`RFC5036-2.8.2-3`](#rfc5036-2.8.2-3), [`RFC5036-2.8.2-4`](#rfc5036-2.8.2-4), [`RFC5036-2.8.2-5`](#rfc5036-2.8.2-5), [`RFC5036-2.8.2-6`](#rfc5036-2.8.2-6), [`RFC5036-2.8.2-7`](#rfc5036-2.8.2-7), [`RFC5036-2.8.2-8`](#rfc5036-2.8.2-8), [`RFC5036-2.8.2-9`](#rfc5036-2.8.2-9), [`RFC5036-2.8.2-10`](#rfc5036-2.8.2-10), [`RFC5036-2.8.2-11`](#rfc5036-2.8.2-11), [`RFC5036-2.8.2-12`](#rfc5036-2.8.2-12), [`RFC5036-2.8.2-13`](#rfc5036-2.8.2-13), [`RFC5036-3.4.2.2-1`](#rfc5036-3.4.2.2-1), [`RFC5036-3.4.2.2-2`](#rfc5036-3.4.2.2-2), [`RFC5036-3.4.2.2-3`](#rfc5036-3.4.2.2-3), [`RFC5036-3.4.2.3-1`](#rfc5036-3.4.2.3-1), [`RFC5036-3.4.4.1-3`](#rfc5036-3.4.4.1-3), [`RFC5036-3.4.5.1.1-1`](#rfc5036-3.4.5.1.1-1), [`RFC5036-3.4.5.1.1-2`](#rfc5036-3.4.5.1.1-2), [`RFC5036-3.4.5.1.1-3`](#rfc5036-3.4.5.1.1-3), [`RFC5036-3.4.5.1.2-1`](#rfc5036-3.4.5.1.2-1), [`RFC5036-3.4.5.1.2-2`](#rfc5036-3.4.5.1.2-2), [`RFC5036-3.4.5.1.2-3`](#rfc5036-3.4.5.1.2-3), [`RFC5036-3.5-1`](#rfc5036-3.5-1), [`RFC5036-3.5.3-2`](#rfc5036-3.5.3-2), [`RFC5036-3.5.3-4`](#rfc5036-3.5.3-4), [`RFC5036-3.5.3-8`](#rfc5036-3.5.3-8), [`RFC5036-3.5.3-10`](#rfc5036-3.5.3-10), [`RFC5036-3.5.3-11`](#rfc5036-3.5.3-11), [`RFC5036-3.5.3-12`](#rfc5036-3.5.3-12), [`RFC5036-3.5.3-13`](#rfc5036-3.5.3-13), [`RFC5036-3.5.3-14`](#rfc5036-3.5.3-14), [`RFC5036-3.5.7-1`](#rfc5036-3.5.7-1), [`RFC5036-3.5.8.1-1`](#rfc5036-3.5.8.1-1), [`RFC5036-3.5.8.1-2`](#rfc5036-3.5.8.1-2), [`RFC5036-3.5.8.1-3`](#rfc5036-3.5.8.1-3), [`RFC5036-3.5.8.1-4`](#rfc5036-3.5.8.1-4), [`RFC5036-3.5.9.1-1`](#rfc5036-3.5.9.1-1), [`RFC5036-3.5.9.1-2`](#rfc5036-3.5.9.1-2), [`RFC5036-3.5.9.1-3`](#rfc5036-3.5.9.1-3), [`RFC5036-3.5.11.1-1`](#rfc5036-3.5.11.1-1), [`RFC5036-3.6.1.1-1`](#rfc5036-3.6.1.1-1), [`RFC5036-3.6.1.2-1`](#rfc5036-3.6.1.2-1), [`RFC5036-A.1.2-1`](#rfc5036-a.1.2-1), [`RFC5036-A.1.7-1`](#rfc5036-a.1.7-1), [`RFC5036-A.1-1`](#rfc5036-a.1-1)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 91 of 91 (100.0%). Optional ceiling: 4 of 4 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc5036 91 of 91 (100.0%). Lowest optional ceiling: rfc5036 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 29, Ze correctness gap 62
+- **Overview bar**: Ze MUST proven 29, SHOULD not decided 4, Ze correctness gap 62
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 91 |
+| MUST rows kept (the MUST bar) | 91 |
+| Ze proven | 29 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 62 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 4 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 4 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc5036.json](../../../data/rfc/rfc5036.json).
 
 ## Requirements
 
@@ -737,11 +766,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Glob
 
 Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored; if U is set (=1), the unknown TLV MUST be silently ignored and the rest of the message processed as if the unknown TLV did not exist. (§3.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go::TestLDPInitUnknownTLVUClearNotifies moved. TestRFC5036UnknownTLVWithUBitSetIsSkipped checks an unknown TLV with U=1 is skipped, the mapping is applied and nothing is written; TestRFC5036UnknownTLVWithUBitClearIsRefused checks U=0 draws the Unknown TLV Notification referring to the Label Mapping, the mapping is not applied and the session stays up. TestLDPInitUnknownTLVUClearNotifies (rfc5036_init_unknown_tlv_test.go) checks the same U=0 half for an Initialization: DecodeInit refuses with unknownTLVError, Session.ignoreUnknownTLV answers an Unknown TLV Notification referring to message 7 of type Initialization, processMessages returns nil and the session stays in OpenSent, so the whole message is ignored.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 at HEAD 137c2dcfcf by an auditor who did not author dfe4e3aa8d. RFC 5036 Section 3.3: "Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored; if U is set (=1), the unknown TLV MUST be silently ignored and the rest of the message processed as if the unknown TLV did not exist." dfe4e3aa8d replaced errors.As into an otherwise unused *unknownTLVError with errors.AsType[*unknownTLVError], the same assertion over the same DecodeInit input. TestLDPInitUnknownTLVUClearNotifies: an Initialization whose second TLV is an unregistered type with U=0; DecodeInit must refuse with unknownTLVError, processMessages must answer an Unknown TLV Notification referring to message 7 of type Initialization, return nil, and leave the session in OpenSent, which is both clauses of the U=0 half (notification to the originator, whole message ignored). TestRFC5036UnknownTLVWithUBitClearIsRefused: the U=0 half on a Label Mapping, Notification refers to it, mapping not applied, session up. TestRFC5036UnknownTLVWithUBitSetIsSkipped (positive): U=1 unknown TLV skipped, mapping applied, nothing written. Re-probed at HEAD by go -overlay of skipTLV (tree untouched): skipping every unknown TLV whatever its U bit reddens both U=0 tests and leaves the positive green; refusing a U=1 unknown TLV reddens only the positive. That is a semantic break of the U-bit decision, stronger than the panic-body revert records on file. Not tagged here: the U=1 half on an Initialization is left to TestRFC5561UnknownCapabilityWithUBitSetIsIgnored, so the U=1 clause is proven on Label Mapping only through this row's tags.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLDPInitUnknownTLVUClearNotifies`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go#L26) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestLDPInitUnknownTLVUClearNotifies`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go#L26) | unit/verify | revert, verified |
 | negative | [`TestRFC5036UnknownTLVWithUBitClearIsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L128) | unit/verify | revert, verified |
 | positive | [`TestRFC5036UnknownTLVWithUBitSetIsSkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L99) | unit/verify | revert, verified |
 

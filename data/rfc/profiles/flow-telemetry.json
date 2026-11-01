@@ -1,0 +1,12 @@
+{
+  "name": "flow-telemetry",
+  "kind": "technology",
+  "title": "Flow telemetry",
+  "release": false,
+  "required": [
+    "rfc3954",
+    "rfc7011",
+    "rfc7012"
+  ],
+  "optional": []
+}

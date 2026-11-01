@@ -524,8 +524,27 @@ session applies when the chain ends:</p>
 direction nobody configured, so it never reads as a reject you wrote. Add
 <code>final accept</code> (or a filter chain) to that direction to let routes through.
 A dynamic peer's session type is known only once its OPEN arrives, so its
-absent direction stays <code>undetermined</code> until then.
-Policy dry-run applies the same final: absence rejects on EBGP and
+absent direction stays <code>undetermined</code> until then.</p>
+<p>When an EBGP session reaches Established, Ze logs one warning for each
+direction RFC 8212 closes on it. The warning names the peer, the direction, and
+the editor command that adds an explicit policy at the level where the peer is
+configured:</p>
+<pre><code class="language-text">level=WARN msg="RFC 8212: this EBGP peer has no import policy, so Ze uses none of the routes it receives from it" subsystem=bgp.reactor.peer peer=transit-a address=192.0.2.1 direction=import fix="set bgp peer transit-a filter import final accept" then="commit now"
+level=WARN msg="RFC 8212: this EBGP peer has no export policy, so Ze sends it no routes" subsystem=bgp.reactor.peer peer=transit-a address=192.0.2.1 direction=export fix="set bgp peer transit-a filter export final accept" then="commit now"
+</code></pre>
+<p>A peer in a group gets <code>set bgp group &lt;group&gt; peer &lt;name&gt; ...</code>. A dynamic peer
+gets <code>set bgp group &lt;group&gt; ...</code>, because it exists only through its group.
+<code>final accept</code> passes every route: write the filters you want in front of it,
+or use <code>final reject</code> when that direction must stay closed, which also stops
+the warning. Every new session warns again while the direction stays absent.
+An IBGP session and a configured direction never warn.
+<code>ze config validate</code> reports the same directions before the daemon starts,
+as warnings with the same words and the same fix command, so a config whose
+EBGP sessions would carry nothing is visible without bringing one up
+(<a href="../command-reference/#ze-config-validate"><code>ze config validate</code></a>).</p>
+<!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- warnRFC8212AbsentPolicy, RFC8212Absences, rfc8212Fix -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- addRFC8212Warning -->
+<p>Policy dry-run applies the same final: absence rejects on EBGP and
 accepts on IBGP. With a rejecting final, a pure withdrawal remains <code>accept</code> with unchanged resulting
 text. A mixed announcement and withdrawal reports <code>modify</code>, with only its explicit
 withdrawals in the resulting text. A filter execution failure or teardown still
@@ -611,7 +630,7 @@ ze cli -c "show bgp peer transit-b rib"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 12:24 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,6 +1,6 @@
 # RFC 2181 - Clarifications to the DNS Specification
 
-Partial. Every requirement this repository extracted from RFC 2181, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+DNS clarifications. Every requirement this repository extracted from RFC 2181, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 39.1% | 9 of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 39.1% | 9 of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 81.6% | 31 of 38 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 9 | of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 9 | of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 31 | 31 of 38 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 23 | of 70 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 23 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 23 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 23 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 23 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 23 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 23 | of 70 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 23 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 23 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 23 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 23 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 23 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 21.7% | 5 of 23 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 5 | of 23 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 23 gated MUSTs: they add up to 23. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,23 +45,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | DNS clarifications |
 | Enrolment | Enrolled |
 | Requirements | 70 |
 | Gated MUST-level | 23 |
@@ -84,18 +84,14 @@ Enrolled: Clarifications to the DNS Specification (RFC 2181): ze is authoritativ
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** DNS clarifications
 
-**What the ledger says is covered**
+**Proof:** 12 of 23 MUST proven
 
-- Authoritative GeoDNS/AS112 answers with RRSet-consistent per-record TTLs, the section 8 0..2147483647 TTL bound ([`internal/plugins/geodns/config.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config.go)), canonical NS targets with A glue, UDP reply source-address/port fidelity, wire label/name limits, and a stub-resolver cache that replaces whole RRSets without merging. The LAN resolver cache ([`internal/plugins/dnsresolver/cache.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/cache.go) lru.store) also never merges: a response RRset either replaces the cached one whole or, when a live cached RRset outranks it, is ignored, and data of another type at the same name leaves the cached RRset alone
-- a received TTL with the most significant bit set is cached as zero, and 2147483647 is kept (receivedTTL). Every datagram reply of the shared DNS harness whose RRSet does not fit is marked truncated ([`internal/core/dnsserver/handler.go`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/handler.go) send). The LAN resolver (internal/plugins/dnsresolver) ranks cached answer-section data by the reply's AA bit, giving the authoritative rank only to the RRset the name sought owns (an alias target in an authoritative reply ranks as non-authoritative), and caches nothing else as an answer, returns an RRSIG RRset whole as an ordinary RRset, never takes or caches an RRSIG seen only in an authority or additional section as one, and clears AA on every reply, while the authoritative harness sets AA on every answer it gives ([`internal/core/dnsserver/handler.go`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/handler.go) shapeAuthoritative)
-- tests bound per requirement in [`rfc/short/rfc2181.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc2181.md).
+**Evidence:** unit 12
 
+**Unmet:** RFC2181-10.1-4, RFC2181-10.1.1-1, RFC2181-10.2-1, RFC2181-5.4.1-8, RFC2181-5.5-4
 
-**What the ledger says remains**
-
-Five gaps in the requirement checklist. Ze implements no zone transfer, so no AXFR keeps its duplicated SOA TTLs equal ([`RFC2181-5.5-4`](#rfc2181-5.5-4)); ze offers no DNSSEC validation, post-release work no owner decision declines, so authenticated data never outranks unauthenticated data ([`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8)); ze authors no CNAME or PTR record, which meets the alias rules with no test ([`RFC2181-10.1-4`](#rfc2181-10.1-4), 10.1.1-1, 10.2-1). The rows tagged in this change rest on hand-written breaks that still owe an independent ze-test-judge reading and carry no /ze-rfc-audit verdict yet, and the single-polarity rows are proven in one polarity only (4.1-1, 4.2-1, 4.2-2, 5.2-1, 5.4-1, 10.3-1, 10.3-2, 11-2, 11-3).
 
 ## Coverage
 
@@ -114,9 +110,41 @@ Five gaps in the requirement checklist. Ze implements no zone transfer, so no AX
 
 **Annotated (including scoped evidence) (14):** [`RFC2181-4.1-1`](#rfc2181-4.1-1), [`RFC2181-4.2-1`](#rfc2181-4.2-1), [`RFC2181-4.2-2`](#rfc2181-4.2-2), [`RFC2181-5.2-1`](#rfc2181-5.2-1), [`RFC2181-5.4-1`](#rfc2181-5.4-1), [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8), [`RFC2181-5.5-4`](#rfc2181-5.5-4), [`RFC2181-10.1-4`](#rfc2181-10.1-4), [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1), [`RFC2181-10.2-1`](#rfc2181-10.2-1), [`RFC2181-10.3-1`](#rfc2181-10.3-1), [`RFC2181-10.3-2`](#rfc2181-10.3-2), [`RFC2181-11-2`](#rfc2181-11-2), [`RFC2181-11-3`](#rfc2181-11-3)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 23 of 23 (100.0%). Optional ceiling: 47 of 47 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc2181 23 of 23 (100.0%). Lowest optional ceiling: rfc2181 47 of 47 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 12, Ze correctness gap 11
+- **Overview bar**: Ze MUST proven 12, SHOULD proven 1, SHOULD not decided 46, Ze correctness gap 11
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 23 |
+| MUST rows kept (the MUST bar) | 23 |
+| Ze proven | 12 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 11 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 47 |
+| SHOULD proven | 1 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 46 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc2181.json](../../../data/rfc/rfc2181.json).
 
 ## Requirements
 
@@ -360,7 +388,7 @@ No test carries RFC2181-5.5-4, so no unit is bound to it.
 
 It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound, internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound#2 moved. Re-judged (independent auditor) after 0bf856490c retagged the resolver high-bit paragraph to RFC2181-8-2. Section 8: "It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647." and "When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero." geodns (unchanged units): TestRFC2181TTLTransmittedWithSignBitClear accepts configured TTL 0 and reads every packed A/NS/SOA TTL field back at default-ttl 2147483647 with the top bit clear; TestRFC2181_TTLSignBitBound positive keeps 2147483647 exactly and its negative refuses 2147483648 at parseTTL, the only source of a configured geodns TTL (default-ttl and per-host ttl). That is a genuine conforming/violating pair over both clauses. Resolver: the 8-1 negative now stands alone in this scope and is a conforming boundary input, not a violating one: a received 2147483647 with max-ttl raised to 2147483647 is answered and re-served from cache unchanged, which catches an off-by-one that treats the maximum as out of range (record: receivedTTL ttl >= ttlSignBit-1 mutant, observed red); it is a second positive in substance, and the row's violating-input negative is the geodns 2147483648 refusal. The resolver's transmit clause is held by receivedTTL's sign-bit check plus min with a limit the YANG bounds to 0..2147483647 (cache max-ttl and max-negative-ttl); a resolver relaying a sign-bit TTL would turn this same unit red through its RFC2181-8-2 assertion (0x80000001 answered as 0), but no 8-1-tagged assertion and no tagged test of the YANG range would, and the 8-2 record's break (false && sign check) leaves 8-1 met because the YANG-bounded cap still clears the bit. Finding recorded, verdict stands on the geodns pair plus the resolver unit.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged (independent auditor) after 0bf856490c retagged the resolver high-bit paragraph to RFC2181-8-2. Section 8: "It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647." and "When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero." geodns (unchanged units): TestRFC2181TTLTransmittedWithSignBitClear accepts configured TTL 0 and reads every packed A/NS/SOA TTL field back at default-ttl 2147483647 with the top bit clear; TestRFC2181_TTLSignBitBound positive keeps 2147483647 exactly and its negative refuses 2147483648 at parseTTL, the only source of a configured geodns TTL (default-ttl and per-host ttl). That is a genuine conforming/violating pair over both clauses. Resolver: the 8-1 negative now stands alone in this scope and is a conforming boundary input, not a violating one: a received 2147483647 with max-ttl raised to 2147483647 is answered and re-served from cache unchanged, which catches an off-by-one that treats the maximum as out of range (record: receivedTTL ttl >= ttlSignBit-1 mutant, observed red); it is a second positive in substance, and the row's violating-input negative is the geodns 2147483648 refusal. The resolver's transmit clause is held by receivedTTL's sign-bit check plus min with a limit the YANG bounds to 0..2147483647 (cache max-ttl and max-negative-ttl); a resolver relaying a sign-bit TTL would turn this same unit red through its RFC2181-8-2 assertion (0x80000001 answered as 0), but no 8-1-tagged assertion and no tagged test of the YANG range would, and the 8-2 record's break (false && sign check) leaves 8-1 met because the YANG-bounded cap still clears the bit. Finding recorded, verdict stands on the geodns pair plus the resolver unit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

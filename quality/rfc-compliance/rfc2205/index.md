@@ -1,6 +1,6 @@
 # RFC 2205 - Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification
 
-Experimental. Every requirement this repository extracted from RFC 2205, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+RSVP base protocol. Every requirement this repository extracted from RFC 2205, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 33.3% | 25 of 75 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 8.0% | 6 of 75 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 75 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 75 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 98.8% | 84 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 25 | of 75 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 6 | of 75 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 75 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 75 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 84 | 84 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 75 | of 80 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 75 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 75 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 75 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 75 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 75 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 75 | of 80 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 75 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 75 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 75 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 75 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 75 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,10 +35,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 58.7% | 44 of 75 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 44 | of 75 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Audit verdicts | 19 | of 75 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 shares marked as a part above are the whole of the 75 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 75 gated MUSTs: they add up to 75. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,23 +46,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Experimental |
+| Public row | RSVP base protocol |
 | Enrolment | Enrolled |
 | Requirements | 80 |
 | Gated MUST-level | 75 |
@@ -85,17 +85,14 @@ Enrolled: RSVP version 1 base protocol (codec shared by ze's RSVP-TE plugin). Th
 
 ## What the public ledger says
 
-**Status:** Experimental
+**Area:** RSVP base protocol
 
-**What the ledger says is covered**
+**Proof:** 31 of 75 MUST proven
 
-- RSVP base common-header and object codec used by RSVP-TE: Version-1 header enforced on decode, reserved octet zeroed on send, every emitted object length a multiple of 4, and a received Path, Resv, PathTear, PathErr or ResvConf dropped when it omits an object its Section 3.1 BNF writes unbracketed
-- tests bound per requirement in [`rfc/requirements/rfc2205.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc2205.md). Reservation control: a ResvErr originated per failing FF descriptor and with InPlace on a refused increase, a ResvErr relayed toward the receiver, and a ResvTear matched on SESSION, STYLE, FILTER_SPEC and RSVP_HOP and relayed toward the previous hop ([`internal/plugins/rsvpte/reservation.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/reservation.go) -- acceptReservation, handleResvErr, handleResvTear). Against freeRouter, `./le test integration interop-rsvpte` shows a freeRouter egress receiving a Ze transit's InPlace ResvErr and its per-descriptor ResvErr for an unknown sender, and freeRouter relaying a Ze-originated ResvErr and ResvTear to another Ze node ([`internal/le/interoplab/rsvpte/checkers.go`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/rsvpte/checkers.go)).
+**Evidence:** unit 31
 
+**Unmet:** RFC2205-1-1, RFC2205-1-2, RFC2205-1-3, RFC2205-1-4, RFC2205-2-10, RFC2205-2-11, RFC2205-2-12, RFC2205-2-5, RFC2205-2-6, RFC2205-2-9, RFC2205-2.5-1, RFC2205-3-10, RFC2205-3-11, RFC2205-3-16, RFC2205-3-21, RFC2205-3-22, RFC2205-3-23, RFC2205-3-24, RFC2205-3-25, RFC2205-3-26, RFC2205-3-27, RFC2205-3-28, RFC2205-3-29, RFC2205-3-3, RFC2205-3-30, RFC2205-3-31, RFC2205-3-32, RFC2205-3-33, RFC2205-3-34, RFC2205-3-35, RFC2205-3-36, RFC2205-3-38, RFC2205-3-4, RFC2205-3-43, RFC2205-3-5, RFC2205-3-6, RFC2205-3-7, RFC2205-3-8, RFC2205-3-9, RFC2205-3.9-1, RFC2205-4-1, RFC2205-4-2, RFC2205-4-3, RFC2205-4-5
 
-**What the ledger says remains**
-
-Forty-four MUST rows carry {gap}. Checksum validation, supported FF/SE message checks, ResvErr/ResvTear, local address-based policy and native transport are implemented; the ResvErr, ResvTear, FF per-descriptor error, InPlace and PathTear-object rows are proven by tagged tests, and complete requirement-level proof of the other implemented rows remains open. Missing enforcement includes refresh synchronization avoidance, the lifetime floor, bounded period increases and non-RSVP-hop detection. Received-interface loop checks and reverse-interface retention also remain absent. IntServ host reservations, multicast/WF signaling, authenticated POLICY_DATA interpretation and UDP encapsulation are absent capabilities, not implementation authorization. The baseline records bounded native Ze-to-Ze evidence separately from full conformance; independent-peer evidence is freeRouter only and limited to the reservation-control scenarios named under Support coverage.
 
 ## Coverage
 
@@ -114,9 +111,41 @@ Forty-four MUST rows carry {gap}. Checksum validation, supported FF/SE message c
 
 **Annotated (including scoped evidence) (50):** [`RFC2205-3.1-2`](#rfc2205-3.1-2), [`RFC2205-1-1`](#rfc2205-1-1), [`RFC2205-1-2`](#rfc2205-1-2), [`RFC2205-1-3`](#rfc2205-1-3), [`RFC2205-1-4`](#rfc2205-1-4), [`RFC2205-2-5`](#rfc2205-2-5), [`RFC2205-2-6`](#rfc2205-2-6), [`RFC2205-2-9`](#rfc2205-2-9), [`RFC2205-2.5-1`](#rfc2205-2.5-1), [`RFC2205-2-10`](#rfc2205-2-10), [`RFC2205-2-11`](#rfc2205-2-11), [`RFC2205-2-12`](#rfc2205-2-12), [`RFC2205-3-3`](#rfc2205-3-3), [`RFC2205-3-4`](#rfc2205-3-4), [`RFC2205-3-5`](#rfc2205-3-5), [`RFC2205-3-6`](#rfc2205-3-6), [`RFC2205-3-7`](#rfc2205-3-7), [`RFC2205-3-8`](#rfc2205-3-8), [`RFC2205-3-9`](#rfc2205-3-9), [`RFC2205-3-10`](#rfc2205-3-10), [`RFC2205-3-11`](#rfc2205-3-11), [`RFC2205-3-16`](#rfc2205-3-16), [`RFC2205-3-21`](#rfc2205-3-21), [`RFC2205-3-22`](#rfc2205-3-22), [`RFC2205-3-23`](#rfc2205-3-23), [`RFC2205-3-24`](#rfc2205-3-24), [`RFC2205-3-25`](#rfc2205-3-25), [`RFC2205-3-26`](#rfc2205-3-26), [`RFC2205-3-27`](#rfc2205-3-27), [`RFC2205-3-28`](#rfc2205-3-28), [`RFC2205-3-29`](#rfc2205-3-29), [`RFC2205-3-30`](#rfc2205-3-30), [`RFC2205-3-31`](#rfc2205-3-31), [`RFC2205-3-32`](#rfc2205-3-32), [`RFC2205-3-33`](#rfc2205-3-33), [`RFC2205-3-34`](#rfc2205-3-34), [`RFC2205-3.9-1`](#rfc2205-3.9-1), [`RFC2205-3-35`](#rfc2205-3-35), [`RFC2205-3-36`](#rfc2205-3-36), [`RFC2205-3-37`](#rfc2205-3-37), [`RFC2205-3-38`](#rfc2205-3-38), [`RFC2205-3-39`](#rfc2205-3-39), [`RFC2205-3-40`](#rfc2205-3-40), [`RFC2205-3-41`](#rfc2205-3-41), [`RFC2205-3-42`](#rfc2205-3-42), [`RFC2205-3-43`](#rfc2205-3-43), [`RFC2205-4-1`](#rfc2205-4-1), [`RFC2205-4-2`](#rfc2205-4-2), [`RFC2205-4-3`](#rfc2205-4-3), [`RFC2205-4-5`](#rfc2205-4-5)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 75 of 75 (100.0%). Optional ceiling: 5 of 5 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc2205 75 of 75 (100.0%). Lowest optional ceiling: rfc2205 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 31, Ze correctness gap 44
+- **Overview bar**: Ze MUST proven 31, SHOULD not decided 5, Ze correctness gap 44
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 75 |
+| MUST rows kept (the MUST bar) | 75 |
+| Ze proven | 31 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 44 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 5 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 5 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc2205.json](../../../data/rfc/rfc2205.json).
 
 ## Requirements
 

@@ -1,0 +1,44 @@
+{
+  "stem": "rfc4724",
+  "title": "Graceful Restart Mechanism for BGP",
+  "walked": true,
+  "requirements": 31,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 26,
+    "kept": 26,
+    "ze-proven": 14,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 12,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 5,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "interop": 1,
+    "unit": 13
+  },
+  "unmet": [
+    "RFC4724-3-5",
+    "RFC4724-4.1-1",
+    "RFC4724-4.1-2",
+    "RFC4724-4.1-3",
+    "RFC4724-4.1-5",
+    "RFC4724-4.1-6",
+    "RFC4724-4.1-8",
+    "RFC4724-4.2-1",
+    "RFC4724-4.2-2"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "stem": "rfc8092",
+  "title": "BGP Large Communities Attribute",
+  "walked": true,
+  "requirements": 11,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 7,
+    "kept": 7,
+    "ze-proven": 7,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 1,
+    "unit": 6
+  },
+  "unmet": []
+}

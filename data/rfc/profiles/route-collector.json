@@ -1,0 +1,31 @@
+{
+  "name": "route-collector",
+  "kind": "use-case",
+  "title": "Route collector",
+  "release": true,
+  "required": [
+    "rfc2545",
+    "rfc4271",
+    "rfc4760",
+    "rfc5492",
+    "rfc6286",
+    "rfc6396",
+    "rfc6397",
+    "rfc6608",
+    "rfc6793",
+    "rfc7606",
+    "rfc7607",
+    "rfc7854",
+    "rfc7911",
+    "rfc8050",
+    "rfc8671",
+    "rfc9069",
+    "rfc9687",
+    "rfc9774"
+  ],
+  "optional": [
+    "rfc2918",
+    "rfc8654",
+    "rfc9072"
+  ]
+}

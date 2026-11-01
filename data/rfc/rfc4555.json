@@ -1,0 +1,33 @@
+{
+  "stem": "rfc4555",
+  "title": "IKEv2 Mobility and Multihoming Protocol (MOBIKE)",
+  "walked": true,
+  "requirements": 26,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 14,
+    "kept": 14,
+    "ze-proven": 3,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 11,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 12,
+    "proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 10,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 3
+  },
+  "unmet": []
+}

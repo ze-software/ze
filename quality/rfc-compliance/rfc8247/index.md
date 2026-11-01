@@ -1,6 +1,6 @@
 # RFC 8247 - Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2)
 
-Partial. Every requirement this repository extracted from RFC 8247, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+IKEv2 algorithms. Every requirement this repository extracted from RFC 8247, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 80.0% | 16 of 20 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 20 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 20 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 20 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 100.0% | 32 of 32 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 17 | of 20 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 20 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 20 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 20 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 36 | 36 of 36 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 20 | of 25 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 20 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 20 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 20 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 20 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 20 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 20 | of 25 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 20 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 20 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 20 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 20 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 20 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 20.0% | 4 of 20 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 3 | of 20 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 20 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 20 gated MUSTs: they add up to 20. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,35 +45,35 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | IKEv2 algorithms |
 | Enrolment | Enrolled |
 | Requirements | 25 |
 | Gated MUST-level | 20 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 4 |
+| Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 32 |
-| Tagged units | 32 |
-| Recorded audit verdicts | 0 |
-| Discrimination records | 32 |
+| Test tags | 36 |
+| Tagged units | 36 |
+| Recorded audit verdicts | 1 |
+| Discrimination records | 36 |
 | Summary | `rfc/short/rfc8247.md` |
 | Requirement shard | `rfc/requirements/rfc8247.md` |
 | RFC text | `rfc/full/rfc8247.txt` |
@@ -84,26 +84,21 @@ Enrolled: IKEv2 algorithm requirements: twenty MUST-level rows, every one classi
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** IKEv2 algorithms
 
-**What the ledger says is covered**
+**Proof:** 17 of 20 MUST proven
 
-- ENCR_AES_CBC, ENCR_AES_GCM_16 and ENCR_AES_CCM for the IKE SA
-- PRF and integrity HMAC-SHA2-256/384/512
-- DH groups 14, 19 and 20
-- PSK, RSA Digital Signature (verify) and Digital Signature (method 14) authentication with SHA2 hashes. No DES, NULL, MD5, DSS or SHA-1 signature algorithm.
+**Evidence:** unit 17
 
+**Unmet:** RFC8247-2.2-2, RFC8247-2.3-2, RFC8247-3.2-2
 
-**What the ledger says remains**
-
-MUST- algorithms PRF_HMAC_SHA1 and AUTH_HMAC_SHA1_96 are not offered for the IKE SA (AUTH_HMAC_SHA1_96 is ESP-only); RSASSA-PSS is not supported, so RSA signatures use RSASSA-PKCS1-v1.5 only; ze verifies AUTH method 1 but always signs with method 14. ENCR_CHACHA20_POLY1305 is ESP-only. Groups 23 and 24 are not offered. Requirement tests are owed for every met row.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 16 | one part of the gated population |
-| Annotated (including scoped evidence) | 4 | one part of the gated population |
+| Positive and negative tests | 17 | one part of the gated population |
+| Annotated (including scoped evidence) | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
@@ -111,13 +106,45 @@ MUST- algorithms PRF_HMAC_SHA1 and AUTH_HMAC_SHA1_96 are not offered for the IKE
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **20** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (16):** [`RFC8247-2.1-1`](#rfc8247-2.1-1), [`RFC8247-2.1-2`](#rfc8247-2.1-2), [`RFC8247-2.1-3`](#rfc8247-2.1-3), [`RFC8247-2.1-4`](#rfc8247-2.1-4), [`RFC8247-2.2-1`](#rfc8247-2.2-1), [`RFC8247-2.2-3`](#rfc8247-2.2-3), [`RFC8247-2.3-1`](#rfc8247-2.3-1), [`RFC8247-2.3-3`](#rfc8247-2.3-3), [`RFC8247-2.3-4`](#rfc8247-2.3-4), [`RFC8247-2.4-1`](#rfc8247-2.4-1), [`RFC8247-2.4-2`](#rfc8247-2.4-2), [`RFC8247-2.4-3`](#rfc8247-2.4-3), [`RFC8247-3.1-2`](#rfc8247-3.1-2), [`RFC8247-3.1.1-1`](#rfc8247-3.1.1-1), [`RFC8247-3.2-1`](#rfc8247-3.2-1), [`RFC8247-3.2-3`](#rfc8247-3.2-3)
+**Positive and negative tests (17):** [`RFC8247-2.1-1`](#rfc8247-2.1-1), [`RFC8247-2.1-2`](#rfc8247-2.1-2), [`RFC8247-2.1-3`](#rfc8247-2.1-3), [`RFC8247-2.1-4`](#rfc8247-2.1-4), [`RFC8247-2.2-1`](#rfc8247-2.2-1), [`RFC8247-2.2-3`](#rfc8247-2.2-3), [`RFC8247-2.3-1`](#rfc8247-2.3-1), [`RFC8247-2.3-3`](#rfc8247-2.3-3), [`RFC8247-2.3-4`](#rfc8247-2.3-4), [`RFC8247-2.4-1`](#rfc8247-2.4-1), [`RFC8247-2.4-2`](#rfc8247-2.4-2), [`RFC8247-2.4-3`](#rfc8247-2.4-3), [`RFC8247-3.1-1`](#rfc8247-3.1-1), [`RFC8247-3.1-2`](#rfc8247-3.1-2), [`RFC8247-3.1.1-1`](#rfc8247-3.1.1-1), [`RFC8247-3.2-1`](#rfc8247-3.2-1), [`RFC8247-3.2-3`](#rfc8247-3.2-3)
 
-**Annotated (including scoped evidence) (4):** [`RFC8247-2.2-2`](#rfc8247-2.2-2), [`RFC8247-2.3-2`](#rfc8247-2.3-2), [`RFC8247-3.1-1`](#rfc8247-3.1-1), [`RFC8247-3.2-2`](#rfc8247-3.2-2)
+**Annotated (including scoped evidence) (3):** [`RFC8247-2.2-2`](#rfc8247-2.2-2), [`RFC8247-2.3-2`](#rfc8247-2.3-2), [`RFC8247-3.2-2`](#rfc8247-3.2-2)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 20 of 20 (100.0%). Optional ceiling: 5 of 5 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc8247 20 of 20 (100.0%). Lowest optional ceiling: rfc8247 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 17, Ze correctness gap 3
+- **Overview bar**: Ze MUST proven 17, SHOULD not decided 5, Ze correctness gap 3
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 20 |
+| MUST rows kept (the MUST bar) | 20 |
+| Ze proven | 17 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 3 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 5 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 5 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc8247.json](../../../data/rfc/rfc8247.json).
 
 ## Requirements
 
@@ -137,7 +164,7 @@ Mandatory ceiling: 20 of 20 (100.0%). Optional ceiling: 5 of 5 (100.0%). Every R
 | `RFC8247-2.4-1` | Group 14 or the 2048-bit MODP Group is raised from SHOULD+ in RFC 4307 to MUST as a replacement for the 1024-bit MODP Group. (§2.4) | MUST | 2.4 | **positive:** `unit/verify` [`TestRFC8247DHGroup14`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc8247_ike_algorithms_test.go#L358). **negative:** `unit/verify` [`TestRFC8247DHGroup14`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc8247_ike_algorithms_test.go#L400) |
 | `RFC8247-2.4-2` | It has, therefore, been downgraded to MUST NOT. (§2.4) | MUST NOT | 2.4 | **positive:** `unit/verify` [`TestRFC8247IKERefusesDHGroups1And22`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc8247_ike_algorithms_test.go#L438). **negative:** `unit/verify` [`TestRFC8247IKERefusesDHGroups1And22`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc8247_ike_algorithms_test.go#L430) |
 | `RFC8247-2.4-3` | This has resulted in group 22 to be demoted to MUST NOT. (§2.4) | MUST NOT | 2.4 | **positive:** `unit/verify` [`TestRFC8247IKERefusesDHGroups1And22`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc8247_ike_algorithms_test.go#L440). **negative:** `unit/verify` [`TestRFC8247IKERefusesDHGroups1And22`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc8247_ike_algorithms_test.go#L434) |
-| `RFC8247-3.1-1` | RSA Digital Signature is widely deployed and, therefore, kept for interoperability. (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze never sends AUTH method 1, and computeX509Auth refuses to sign at all when the peer sent no SIGNATURE_HASH_ALGORITHMS notify, so a peer that supports only RSA Digital Signature cannot authenticate ze; verifyLegacyRSAAuth verifies method 1 with a SHA-256 DigestInfo only, while RFC 7296 Section 3.8 has method 1 implementations default to SHA-1; internal/component/ike/engine/auth.go computeX509Auth, verifyLegacyRSAAuth |
+| `RFC8247-3.1-1` | RSA Digital Signature is widely deployed and, therefore, kept for interoperability. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC8247LegacyRSAVerifiesSHA1`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L246). **positive:** `unit/verify` [`TestRFC8247LegacySignatureWithoutNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L71). **negative:** `unit/verify` [`TestRFC8247LegacyRSAVerifiesSHA1`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L247). **negative:** `unit/verify` [`TestRFC8247LegacySignatureWithoutNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L72) |
 | `RFC8247-3.1-2` | Shared Key Message Integrity Code is widely deployed and mandatory to implement in the IKEv2 in RFC 7296. The status remains MUST. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC8247SharedKeyAuth`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ike_auth_algorithms_test.go#L39). **negative:** `unit/verify` [`TestRFC8247SharedKeyAuth`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ike_auth_algorithms_test.go#L56) |
 | `RFC8247-3.1.1-1` | IKEv2 [RFC7296] mandates support for the RSA keys of the bit size 1024 or 2048 (§3.1.1) | MUST | 3.1.1 | **positive:** `unit/verify` [`TestRFC8247RSAKeySizes`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ike_auth_algorithms_test.go#L78). **negative:** `unit/verify` [`TestRFC8247RSAKeySizes`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ike_auth_algorithms_test.go#L88) |
 | `RFC8247-3.2-1` | When a Digital Signature authentication method is implemented, the following recommendations are applied for hash functions: (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC8247SignatureHashes`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ike_auth_algorithms_test.go#L125). **negative:** `unit/verify` [`TestRFC8247SignatureHashes`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ike_auth_algorithms_test.go#L133) |
@@ -155,7 +182,6 @@ Mandatory ceiling: 20 of 20 (100.0%). Optional ceiling: 5 of 5 (100.0%). Every R
 |---|---|---|
 | [`RFC8247-2.2-2`](#rfc8247-2.2-2) PRF_HMAC_SHA1 has been downgraded from MUST in RFC 4307 to MUST-, as cryptographic attacks against SHA1 are increasing, resulting in an industry-wide trend to deprecate its usage. (§2.2) | {gap}, no test | MUST- means the same as MUST (Section 1.1), and ze's IKE PRF registry holds HMAC-SHA2-256, 384 and 512 only; internal/component/ike/crypto/transform.go prfRegistry |
 | [`RFC8247-2.3-2`](#rfc8247-2.3-2) AUTH_HMAC_SHA1_96 has been downgraded from MUST in RFC 4307 to MUST- as cryptographic attacks against SHA1 are increasing, resulting in an industry-wide trend to deprecate its usage. (§2.3) | {gap}, no test | MUST- means the same as MUST (Section 1.1), and AUTH_HMAC_SHA1_96 sits in the ESP-only registry, so an IKE SA can neither offer nor accept it; internal/component/ike/crypto/transform.go espOnlyIntegrityRegistry |
-| [`RFC8247-3.1-1`](#rfc8247-3.1-1) RSA Digital Signature is widely deployed and, therefore, kept for interoperability. (§3.1) | {gap}, no test | ze never sends AUTH method 1, and computeX509Auth refuses to sign at all when the peer sent no SIGNATURE_HASH_ALGORITHMS notify, so a peer that supports only RSA Digital Signature cannot authenticate ze; verifyLegacyRSAAuth verifies method 1 with a SHA-256 DigestInfo only, while RFC 7296 Section 3.8 has method 1 implementations default to SHA-1; internal/component/ike/engine/auth.go computeX509Auth, verifyLegacyRSAAuth |
 | [`RFC8247-3.2-2`](#rfc8247-3.2-2) When the Digital Signature authentication method is used with RSA signature algorithm, RSASSA-PSS MUST be supported and RSASSA- PKCS1-v1.5 MAY be supported. (§3.2) | {gap}, no test | ze recognises only the sha256WithRSAEncryption, sha384WithRSAEncryption and sha512WithRSAEncryption identifiers and verifies with rsa.VerifyPKCS1v15, so no RSASSA-PSS signature is produced or accepted; internal/component/ike/engine/auth.go hashFromAlgID |
 
 ## Proof state
@@ -314,9 +340,14 @@ Audit verdict: not audited: no reader has judged these tests
 
 RSA Digital Signature is widely deployed and, therefore, kept for interoperability. (§3.1)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged after TestRFC8247LegacyRSAVerifiesSHA1 moved to verifyRemoteAuth. RFC 8247 Section 3.1 keeps RSA Digital Signature (method 1) at MUST; RFC 7296 Section 3.8 defines it as RSASSA-PKCS1-v1_5 with SHA-1 as the SHOULD default. Send side: TestRFC8247LegacySignatureWithoutNotify drives computeX509Auth with no notify and an RSA key and requires method 1, the bare modulus-length signature, accepted by verifyLegacyRSAAuth and by rsa.VerifyPKCS1v15 with crypto.SHA1 over the signed octets, so a wrong method, a DER prefix, a SHA-2 hash or the wrong octets go red. Receive side: TestRFC8247LegacyRSAVerifiesSHA1 hands verifyRemoteAuth a method 1 AUTH over the remote party's signed octets (computeSignedOctets with !IsInitiator) and requires SHA-1 and SHA-256 signatures to verify and a SHA-1 signature over other octets to fail with errSignatureFailed, so deleting the method 1 case of verifyRemoteAuth's switch or an accept-all verifier goes red; the earlier dispatch gap is closed. Remaining note: of the send-side negatives, 'notify received yields 14' is RFC7427-3-5's obligation and 'fails over other octets' is a property of rsa.VerifyPKCS1v15; the receive-side negative is the discriminating one. Untagged support: interop scenarios x509-legacy-rsa-signature and x509-legacy-rsa-signature-ze-responder against strongSwan with RFC 7427 disabled.
 
-No test carries RFC8247-3.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8247LegacyRSAVerifiesSHA1`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L247) | unit/verify | revert, verified |
+| negative | [`TestRFC8247LegacySignatureWithoutNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L72) | unit/verify | revert, verified |
+| positive | [`TestRFC8247LegacyRSAVerifiesSHA1`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L246) | unit/verify | revert, verified |
+| positive | [`TestRFC8247LegacySignatureWithoutNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc8247_legacy_auth_test.go#L71) | unit/verify | revert, verified |
 
 ### [`RFC8247-3.1-2`](#rfc8247-3.1-2)
 

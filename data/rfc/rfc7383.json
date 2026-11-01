@@ -1,0 +1,31 @@
+{
+  "stem": "rfc7383",
+  "title": "Internet Key Exchange Protocol Version 2 (IKEv2) Message Fragmentation",
+  "walked": true,
+  "requirements": 40,
+  "implementer": "ze",
+  "implemented": false,
+  "must": {
+    "total": 25,
+    "kept": 25,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 25,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 15,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 15,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": []
+}

@@ -1,0 +1,33 @@
+{
+  "name": "ospf",
+  "kind": "technology",
+  "title": "OSPF",
+  "release": false,
+  "required": [
+    "rfc2328",
+    "rfc3101",
+    "rfc3623",
+    "rfc3630",
+    "rfc4552",
+    "rfc5187",
+    "rfc5250",
+    "rfc5340",
+    "rfc5392",
+    "rfc5709",
+    "rfc5838",
+    "rfc6549",
+    "rfc6987",
+    "rfc7166",
+    "rfc7474",
+    "rfc7684",
+    "rfc7770",
+    "rfc8362",
+    "rfc8665",
+    "rfc8666",
+    "rfc9129"
+  ],
+  "optional": [
+    "rfc4576",
+    "rfc4577"
+  ]
+}

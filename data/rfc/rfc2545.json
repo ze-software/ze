@@ -1,0 +1,37 @@
+{
+  "stem": "rfc2545",
+  "title": "Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing",
+  "walked": true,
+  "requirements": 7,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 5,
+    "kept": 5,
+    "ze-proven": 3,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 2,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 2,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 2,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 2,
+    "interop": 1
+  },
+  "unmet": [
+    "RFC2545-3-3",
+    "RFC2545-3-6"
+  ]
+}

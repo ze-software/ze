@@ -220,10 +220,50 @@ A router becomes an AS Boundary Router (ASBR) when it originates external LSAs, 
 <!-- source: internal/plugins/ospf/origination_v6_external.go -- v6InjectExternal, v6OriginateExternalLSA -->
 <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA -->
 
-Redistribution uses the shared `redistribute` orchestrator. `redistribute { destination ospf { import connected static bgp } }` injects each accepted route as an external LSA in the configured address family; `redistribute { destination bgp { import ospf } }` exports OSPF-selected routes back out. OSPF self-import is a runtime no-op (loop prevention: the import source `ospf` equals the importing protocol). The per-source metric, metric-type (E1/E2), and route tag come from the `ospf` container's `redistribute` list; an unenrolled source falls back to metric 20, type-2. A redistributed route that carries its own tag overrides that per-source tag: the tag on the route is the more specific value, and it becomes the External Route Tag of the Type 5 (or Type 7) LSA. A route with no tag of its own takes the per-source value. RFC 2328 Appendix A.4.5 defines the field and states that OSPF itself does not read it, so the precedence is Ze's choice rather than the RFC's.
-<!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute, WithdrawRoute -->
+Redistribution uses the shared `redistribute` orchestrator. `redistribute { destination ospf { import connected static bgp } }` injects each accepted route as an external LSA in the configured address family; `redistribute { destination bgp { import ospf } }` exports OSPF-selected routes back out. OSPF self-import is a runtime no-op (loop prevention: the import source `ospf` equals the importing protocol). 
+
+The `ospf filter export` chain judges every redistributed route before Ze originates its LSA. A route the chain rejects is not originated, and one it originated before is withdrawn. A `modify` instance on the chain sets the metric (`set metric`, 0 to 16777215), the metric type (`set metric-type type-1` for E1, `type-2` for E2) and the External Route Tag (`set tag`) of the Type 5 (or Type 7) LSA. A route the export chain sets nothing for keeps what the redistribute import chain gave it: that chain's `set metric`, else metric 20, type-2, and its tag, which is the import chain's `set tag`, else its own, zero when it carries none. A metric above 16777215 originates as 16777215, LSInfinity (RFC 2328 Appendix B), the way FRR clamps it. RFC 2328 Appendix A.4.5 defines the tag field and states that OSPF itself does not read it.
+
+```
+policy {
+    modify ospf-export-connected {
+        match {
+            protocol [ connected ];
+        }
+        set {
+            metric 30;
+            metric-type type-1;
+        }
+    }
+    modify ospf-export-untagged {
+        match {
+            tag [ 0 ];
+        }
+        set {
+            tag 7;
+        }
+    }
+}
+ospf {
+    filter {
+        export {
+            filters [ ospf-export-connected ospf-export-untagged ];
+            final accept;
+        }
+    }
+}
+```
+
+The `ospf redistribute <source>` list keeps only `nssa-propagate`. Its `metric`, `metric-type` and `tag` leaves are retired: a config that still carries them is refused, and `ze config migrate` rewrites each entry into a `modify` instance matching `protocol [ <source> ]` on the export chain. The old per-source tag applied only to a route without one, so the migration writes it as a second instance that also matches `tag [ 0 ]`.
+
+A reload that changes the export chain judges the routes OSPF already holds again: a route the new chain rejects has its AS-external LSA flushed, a route it now accepts is originated, and a changed metric, metric type or tag re-originates the LSA with them. A reload that fails, in OSPF or in another plugin, puts the chain of the running config back and judges the routes against it again, so the failed commit's chain never stays installed.
+<!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute, WithdrawRoute, Rejudge -->
+<!-- source: internal/plugins/ospf/register.go -- OnConfigApply, OnConfigRollback -->
+<!-- source: internal/plugins/ospf/redistribute/export.go -- exportVerdict, applyExportSets -->
+<!-- source: internal/plugins/ospf/export_chain.go -- parseExportChain -->
+<!-- source: internal/plugins/ospf/migrate.go -- migrateRedistributeLeaves -->
 <!-- source: internal/plugins/ospf/redistribute/source.go -- Source OnSPFChange exports OSPF routes -->
-<!-- source: internal/plugins/ospf/redist_wiring.go -- engine InjectExternal, externalParams -->
+<!-- source: internal/plugins/ospf/redist_wiring.go -- engine InjectExternal -->
 
 The `redistribute` block is the whole configuration. It needs no `plugin` block
 and no `attach process` block. `import bgp` names the daemon's own Loc-RIB, and

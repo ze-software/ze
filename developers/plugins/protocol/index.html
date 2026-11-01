@@ -70,6 +70,7 @@ plugins connect back via TLS.</p>
 </ol></li>
 <li><a href="#runtime-callbacks-engine-to-plugin">Runtime Callbacks (Engine to Plugin)</a>
 <ol>
+<li><a href="#the-route-fields-of-filter-update">The Route Fields of filter-update</a></li>
 <li><a href="#the-filter-text-an-onfilterupdate-handler-reads">The Filter Text an OnFilterUpdate Handler Reads</a></li>
 </ol></li>
 <li><a href="#runtime-rpcs-plugin-to-engine">Runtime RPCs (Plugin to Engine)</a></li>
@@ -297,10 +298,10 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn, readLoop -->
 <p><strong>Examples:</strong></p>
 <pre><code># Plugin sends declare-registration (Stage 1)
-#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
+#1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
 
-# Engine responds OK
-#1 ok
+# Engine answers the protocol version both sides speak
+#1 ok {"protocol-version":1}
 
 # Engine sends configure to plugin (Stage 2)
 #1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{...}"}]}
@@ -332,6 +333,11 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>protocol-version</code></td>
+<td><code>int</code></td>
+<td>REQUIRED. The highest plugin protocol version the plugin speaks (this engine speaks <code>1</code>)</td>
+</tr>
 <tr>
 <td><code>families</code></td>
 <td><code>[]FamilyDecl</code></td>
@@ -390,7 +396,7 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <tr>
 <td><code>filters</code></td>
 <td><code>[]FilterDecl</code></td>
-<td>Named route filters the plugin provides</td>
+<td>Named route filters the plugin provides: each a <code>name</code> or a <code>name-pattern</code>, and the route fields it <code>reads</code> (<code>raw</code> for the UPDATE body) and <code>sets</code>; Stage 1 and config load judge them ("Filter Declaration"). <span class="ev-src"><span class="ev-ref"><code>docs/architecture/api/process-protocol.md</code></span></span></td>
 </tr>
 <tr>
 <td><code>doctor-checks</code></td>
@@ -617,9 +623,20 @@ obligation.</p>
 </table>
 <p>Set <code>afi</code> and <code>safi</code> for a custom family. A built-in family can omit both numeric fields.</p>
 <p><strong>Wire example:</strong></p>
-<pre><code>#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","short-help":"Show FlowSpec status"}],"wants-config":["bgp"]}
-#1 ok
+<pre><code>#1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","short-help":"Show FlowSpec status"}],"wants-config":["bgp"]}
+#1 ok {"protocol-version":1}
 </code></pre>
+<p><strong>The protocol version.</strong> The engine answers Stage 1 with the version both
+sides speak from then on: the lower of the plugin's <code>protocol-version</code> and its
+own. A plugin declaring a version above the engine's speaks the answered
+version. A declaration with no <code>protocol-version</code> is from the text era, before
+filters declared the route fields they read, and the engine refuses it with
+one error that names the plugin and the version to declare; the startup tier
+then stops, as for any plugin failure. Version <code>1</code> is the first versioned
+contract. The Go SDK declares it and refuses an engine that answers any other.</p>
+<!-- source: pkg/plugin/rpc/declaration.go -- NegotiateProtocolVersion -->
+<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
+<!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
 <h3 id="stage-2-config-engine-to-plugin">Stage 2: Config (Engine to Plugin)</h3>
 <p>Engine sends <code>ze-plugin-callback:configure</code> with a <code>ConfigureInput</code>:</p>
 <!-- source: pkg/plugin/rpc/types.go -- ConfigureInput -->
@@ -1178,6 +1195,70 @@ session's routes (<code>docs/architecture/plugin/rib-storage-design.md</code>,
 "Source-DOWN replacement and sent ordering").</p>
 <!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent -->
 <!-- source: internal/component/bgp/plugins/cmd/update/recovery.go -- recoveryFromMeta -->
+<h3 id="the-route-fields-of-filter-update">The Route Fields of filter-update</h3>
+<p><code>FilterUpdateInput.Fields</code> (<code>fields</code> on the wire) is one JSON object holding the
+route fields the filter declared in <code>reads</code>, and no other. Each key is the
+vocabulary field name, never the UPDATE event's <code>attr</code> key: <code>community</code>, not
+<code>communities</code>. Each value takes the shape the event's <code>attr</code> map gives that
+attribute (<code>docs/architecture/api/json-format.md</code>, "Attributes"), written by
+the same formatter. The fields the <code>attr</code> table has no row for take these
+shapes:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Shape</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prefix</code></td>
+<td>object: family to the list of announced NLRI, in the event's NLRI shapes (ADD-PATH adds <code>path-id</code>)</td>
+<td><span class="ev-src"><span class="ev-ref"><code>{"ipv4/unicast":["10.0.0.0/24"]}</code></span></span></td>
+</tr>
+<tr>
+<td><code>family</code></td>
+<td>list of the announced families</td>
+<td><code>["ipv4/unicast","ipv6/unicast"]</code></td>
+</tr>
+<tr>
+<td><code>next-hop</code></td>
+<td>object: family to the next hop of its announced routes</td>
+<td><span class="ev-src"><span class="ev-ref"><code>{"ipv4/unicast":"192.0.2.1"}</code></span></span></td>
+</tr>
+<tr>
+<td><code>protocol</code></td>
+<td><code>"ebgp"</code> or <code>"ibgp"</code>: the session the route came from (import) or goes to (export)</td>
+<td><code>"ebgp"</code></td>
+</tr>
+<tr>
+<td><code>origin-as</code></td>
+<td>the origin AS number, or <code>"none"</code> for RFC 6811's NONE</td>
+<td><code>65002</code></td>
+</tr>
+</tbody>
+</table>
+<p>For example, a filter that declared <code>community</code>, <code>as-path</code> and
+<code>local-preference</code> reads
+<code>"fields":{"community":["65001:100"],"as-path":[65001,65002],"local-preference":100}</code>.</p>
+<ul>
+<li>A declared field the route does not carry is left out of the object.</li>
+<li>A filter that declared no route field (a raw-only filter) is sent no
+<code>fields</code> member, and <code>raw</code> is sent only to a filter that declared <code>raw</code>.</li>
+<li>A field Ze cannot read, such as a malformed attribute, is never sent empty:
+the filter's <code>on-error</code> decides the route instead of the filter.</li>
+<li>Stage 1 refuses a declared BGP field this binary cannot write: the
+community fields need <code>bgp-filter-community</code>, <code>originator-id</code> and
+<code>cluster-list</code> need <code>bgp-rr</code>, and <code>aigp</code> needs <code>bgp-aigp</code>.</li>
+<li>The values are the route as the chain received it. A modify an earlier
+filter in the chain answered reaches this filter in the text <code>update</code> only,
+as it does for <code>raw</code>.</li>
+</ul>
+<!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
+<!-- source: internal/component/bgp/policyview/register_writers.go -- the field writers -->
+<!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
 <h3 id="the-filter-text-an-onfilterupdate-handler-reads">The Filter Text an <code>OnFilterUpdate</code> Handler Reads</h3>
 <p><code>FilterUpdateInput.Update</code> is the UPDATE as text: <code>&lt;name&gt; &lt;value&gt;</code> attribute
 pairs, then one NLRI block for each section the UPDATE carries.</p>
@@ -1456,7 +1537,7 @@ config-verify, etc.) and bye.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

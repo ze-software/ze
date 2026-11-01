@@ -1,59 +1,86 @@
 # RPKI
 
-Technology aggregate. RPKI, origin validation, and RPKI to router. The RFCs whose summary names the rpki aggregate, with their mandatory and optional coverage.
+Technology aggregate. RPKI, origin validation, and RPKI to router. The RFCs whose summary names the rpki aggregate, with the MUST bar and the overview bar of the set and of each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
 Use case: [Transit Edge with RPKI](../../../../use-cases/transit-edge-rpki/)
 
-- **Mandatory**: 9.2% (13 of 142 (9.2%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 7.5% (6 of 80 (7.5%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 96.5% (137 of 142 (96.5%); excluded: Not applicable (classification can be revisited): 5 of 142 (3.5%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (80 of 80 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 1 (of 9 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../../data/rfc/profiles/rpki.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 137 of 142 (96.5%); excluded: Not applicable (classification can be revisited): 5 of 142 (3.5%). Optional ceiling: 80 of 80 (100.0%). Lowest mandatory ceiling: rfc8210 56 of 59 (94.9%). Lowest optional ceiling: rfc6482 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 13, Ze correctness gap 124
+- **Overview bar**: Ze MUST proven 13, SHOULD proven 6, Not owed 5, SHOULD not decided 74, Ze correctness gap 124
+
+| Figure | Rows |
+|---|---|
+| RFCs | 9 |
+| Not walked | 1 |
+| Mandatory register | not complete |
+| MUST rows | 142 |
+| MUST rows kept (the MUST bar) | 137 |
+| Ze proven | 13 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 124 |
+| MUST rows not owed | 5 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 5 |
+| SHOULD / MAY rows | 80 |
+| SHOULD proven | 6 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 74 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
 ### Level 3
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | 0 of 16 (0.0%); ceiling 16 of 16 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) |
+| [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | Ze correctness gap 16 | SHOULD not decided 6, Ze correctness gap 16 |
 
 ### Level 4
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6482](../../rfc6482/) | A Profile for Route Origin Authorizations (ROAs) | 0 of 9 (0.0%); ceiling 9 of 9 (100.0%) | 0 of 1 (0.0%); ceiling 1 of 1 (100.0%) |
+| [RFC 6482](../../rfc6482/) | A Profile for Route Origin Authorizations (ROAs) | Ze correctness gap 9 | SHOULD not decided 1, Ze correctness gap 9 |
 
 ### Level 7
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | 1 of 5 (20.0%); ceiling 5 of 5 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) |
+| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze proven 1, Ze correctness gap 4 | Ze MUST proven 1, SHOULD not decided 4, Ze correctness gap 4 |
 
 ### Level 8
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6810](../../rfc6810/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol | 0 of 40 (0.0%); ceiling 38 of 40 (95.0%); excluded: Not applicable (classification can be revisited): 2 of 40 (5.0%) | 0 of 28 (0.0%); ceiling 28 of 28 (100.0%) |
-| [RFC 8097](../../rfc8097/) | BGP Prefix Origin Validation State Extended Community | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) |
-| [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) |
-| [RFC 9319](../../rfc9319/) | The Use of maxLength in the Resource Public Key Infrastructure (RPKI) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 0 of 7 (0.0%); ceiling 7 of 7 (100.0%) |
+| [RFC 6810](../../rfc6810/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol | Ze correctness gap 38 | Not owed 2, SHOULD not decided 28, Ze correctness gap 38 |
+| [RFC 8097](../../rfc8097/) | BGP Prefix Origin Validation State Extended Community | Ze correctness gap 5 | SHOULD not decided 5, Ze correctness gap 5 |
+| [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | Ze correctness gap 4 | SHOULD not decided 2, Ze correctness gap 4 |
+| [RFC 9319](../../rfc9319/) | The Use of maxLength in the Resource Public Key Infrastructure (RPKI) | Ze correctness gap 4 | SHOULD not decided 7, Ze correctness gap 4 |
 
 ### Level 9
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | 12 of 59 (20.3%); ceiling 56 of 59 (94.9%); excluded: Not applicable (classification can be revisited): 3 of 59 (5.1%) | 6 of 27 (22.2%); ceiling 27 of 27 (100.0%) |
+| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | Ze proven 12, Ze correctness gap 44 | Ze MUST proven 12, SHOULD proven 6, Not owed 3, SHOULD not decided 21, Ze correctness gap 44 |
 
 ### Level 10
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [DRAFT-IETF-SIDROPS-8210BIS](../../draft-ietf-sidrops-8210bis/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2 | not walked | not walked |

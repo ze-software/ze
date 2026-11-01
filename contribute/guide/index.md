@@ -23,7 +23,8 @@ Ze is built spec by spec, and that shapes how contributions flow:
    accept the [CLA](../). No signed-off commit, no merge: this is the one hard
    requirement.
 5. **Open a pull request.** The maintainer reviews it, often with AI
-   assistance, the same way the rest of the project is built.
+   assistance, the same way the rest of the project is built (the
+   [FAQ](../../faq/#ai-development) explains how).
 
 ## Setting up a build
 

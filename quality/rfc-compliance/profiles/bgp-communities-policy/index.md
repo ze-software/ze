@@ -1,64 +1,91 @@
 # BGP communities and policy
 
-Technology aggregate. BGP communities, route leak prevention, and policy signalling. The RFCs whose summary names the bgp-communities-policy aggregate, with their mandatory and optional coverage.
+Technology aggregate. BGP communities, route leak prevention, and policy signalling. The RFCs whose summary names the bgp-communities-policy aggregate, with the MUST bar and the overview bar of the set and of each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 53.1% (26 of 49 (53.1%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 10.8% (4 of 37 (10.8%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 100.0% (49 of 49 (100.0%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (37 of 37 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 1 (of 11 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/bgp-communities-policy.json](../../../../data/rfc/profiles/bgp-communities-policy.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 49 of 49 (100.0%). Optional ceiling: 37 of 37 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc1997 5 of 5 (100.0%). Lowest optional ceiling: rfc1997 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 28, Ze correctness gap 21
+- **Overview bar**: Ze MUST proven 28, SHOULD proven 4, SHOULD not decided 33, Ze correctness gap 21
+
+| Figure | Rows |
+|---|---|
+| RFCs | 11 |
+| Not walked | 1 |
+| Mandatory register | not complete |
+| MUST rows | 49 |
+| MUST rows kept (the MUST bar) | 49 |
+| Ze proven | 28 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 21 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 37 |
+| SHOULD proven | 4 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 33 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
 ### Level 0
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 3882](../../rfc3882/) | Configuring BGP to Block Denial-of-Service Attacks | no rows; ceiling no rows | no rows; ceiling no rows |
+| [RFC 3882](../../rfc3882/) | Configuring BGP to Block Denial-of-Service Attacks | no rows | no rows |
 
 ### Level 1
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5635](../../rfc5635/) | Remote Triggered Black Hole Filtering with Unicast Reverse Path Forwarding (uRPF) | no rows; ceiling no rows | 0 of 1 (0.0%); ceiling 1 of 1 (100.0%) |
+| [RFC 5635](../../rfc5635/) | Remote Triggered Black Hole Filtering with Unicast Reverse Path Forwarding (uRPF) | no rows | SHOULD not decided 1 |
 
 ### Level 4
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1997](../../rfc1997/) | BGP Communities Attribute | 5 of 5 (100.0%); ceiling 5 of 5 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) |
+| [RFC 1997](../../rfc1997/) | BGP Communities Attribute | Ze proven 5 | Ze MUST proven 5, SHOULD not decided 4 |
 
 ### Level 5
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 3765](../../rfc3765/) | NOPEER Community for Border Gateway Protocol (BGP) Route Scope Control | no rows; ceiling no rows | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) |
-| [RFC 4360](../../rfc4360/) | BGP Extended Communities Attribute | 2 of 5 (40.0%); ceiling 5 of 5 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) |
+| [RFC 3765](../../rfc3765/) | NOPEER Community for Border Gateway Protocol (BGP) Route Scope Control | no rows | SHOULD not decided 2 |
+| [RFC 4360](../../rfc4360/) | BGP Extended Communities Attribute | Ze proven 2, Ze correctness gap 3 | Ze MUST proven 2, SHOULD not decided 4, Ze correctness gap 3 |
 
 ### Level 6
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5701](../../rfc5701/) | IPv6 Address Specific BGP Extended Community Attribute | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) |
+| [RFC 5701](../../rfc5701/) | IPv6 Address Specific BGP Extended Community Attribute | Ze correctness gap 4 | SHOULD not decided 2, Ze correctness gap 4 |
 
 ### Level 8
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7611](../../rfc7611/) | BGP ACCEPT_OWN Community Attribute | 2 of 5 (40.0%); ceiling 5 of 5 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) |
-| [RFC 7999](../../rfc7999/) | BLACKHOLE Community | 4 of 4 (100.0%); ceiling 4 of 4 (100.0%) | 3 of 12 (25.0%); ceiling 12 of 12 (100.0%) |
-| [RFC 8092](../../rfc8092/) | BGP Large Communities Attribute | 7 of 7 (100.0%); ceiling 7 of 7 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) |
-| [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | 6 of 19 (31.6%); ceiling 19 of 19 (100.0%) | 1 of 5 (20.0%); ceiling 5 of 5 (100.0%) |
+| [RFC 7611](../../rfc7611/) | BGP ACCEPT_OWN Community Attribute | Ze proven 2, Ze correctness gap 3 | Ze MUST proven 2, SHOULD not decided 3, Ze correctness gap 3 |
+| [RFC 7999](../../rfc7999/) | BLACKHOLE Community | Ze proven 4 | Ze MUST proven 4, SHOULD proven 3, SHOULD not decided 9 |
+| [RFC 8092](../../rfc8092/) | BGP Large Communities Attribute | Ze proven 7 | Ze MUST proven 7, SHOULD not decided 4 |
+| [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | Ze proven 8, Ze correctness gap 11 | Ze MUST proven 8, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 11 |
 
 ### Level 9
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 8195](../../rfc8195/) | Use of BGP Large Communities | not walked | not walked |

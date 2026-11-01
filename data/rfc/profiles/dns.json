@@ -1,0 +1,20 @@
+{
+  "name": "dns",
+  "kind": "technology",
+  "title": "DNS",
+  "release": false,
+  "required": [
+    "rfc1035",
+    "rfc2181",
+    "rfc2782",
+    "rfc4033",
+    "rfc4034",
+    "rfc4035",
+    "rfc7534",
+    "rfc7535",
+    "rfc7858",
+    "rfc7871",
+    "rfc8484"
+  ],
+  "optional": []
+}

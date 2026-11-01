@@ -1,0 +1,36 @@
+{
+  "stem": "draft-ietf-idr-linklocal-capability",
+  "title": "Link-Local Next Hop Capability for BGP",
+  "walked": true,
+  "requirements": 27,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 15,
+    "kept": 15,
+    "ze-proven": 13,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 2,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 12,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 12,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 13
+  },
+  "unmet": [
+    "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2",
+    "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15"
+  ]
+}

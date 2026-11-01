@@ -1,0 +1,39 @@
+{
+  "stem": "rfc5998",
+  "title": "An Extension for EAP-Only Authentication in IKEv2",
+  "walked": true,
+  "requirements": 7,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 6,
+    "kept": 6,
+    "ze-proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 5,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 1,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 1,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 1
+  },
+  "unmet": [
+    "RFC5998-3-1",
+    "RFC5998-3-2",
+    "RFC5998-3-3",
+    "RFC5998-3-4",
+    "RFC5998-4-1"
+  ]
+}

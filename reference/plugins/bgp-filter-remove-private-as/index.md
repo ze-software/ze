@@ -13,7 +13,7 @@ Named AS-path action filter that removes RFC 6996 Private Use ASNs
 
 ## Configuration
 
-`policy`
+`bgp`
 
 ## Dependencies
 

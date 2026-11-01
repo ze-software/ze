@@ -1,6 +1,6 @@
 # RFC 4301 - Security Architecture for the Internet Protocol
 
-Partial. Every requirement this repository extracted from RFC 4301, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+IPsec architecture. Every requirement this repository extracted from RFC 4301, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 45.5% | 46 of 101 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 11.9% | 12 of 101 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 101 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 101 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 78.4% | 131 of 167 tagged units, 0 escaped and 20 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 46 | of 101 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 12 | of 101 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 101 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 101 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 151 | 151 of 167 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 101 | of 104 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 101 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 101 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 2.0% | 2 of 101 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 101 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 101 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 101 | of 104 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 101 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 101 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 2 | of 101 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 101 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 101 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,10 +35,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 40.6% | 41 of 101 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 52 | of 101 gated MUSTs judged | 4 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
+| No test at all | 41 | of 101 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 52 | of 101 gated MUSTs judged | 4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 shares marked as a part above are the whole of the 101 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 101 gated MUSTs: they add up to 101. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,23 +46,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | IPsec architecture |
 | Enrolment | Enrolled |
 | Requirements | 104 |
 | Gated MUST-level | 101 |
@@ -81,22 +81,18 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: Security Architecture for IP (RFC 4301): native control-plane SPD/SAD projected to kernel XFRM. The extraction walk of 2026-09-21 read all 89 normative sites in `rfc/full/rfc4301.txt` and grew the checklist from 24 rows to 81 (72 MUST, 6 MUST NOT, 2 SHOULD, 1 MAY). 14 rows carry an annotation from the 2026-08-30 pass: 1 gap (port/ICMP selectors), 7 single-polarity positive (tunnel/transport modes, SPD present, negotiated selectors, manual+automated keying), 6 not-applicable (per-packet datapath kernel-delegated). The 57 rows added on 2026-09-21 carried no annotation and no test when added; the ruling pass of the same day classified every one (Support remaining).
+Enrolled: Security Architecture for IP (RFC 4301): native control-plane SPD/SAD projected to kernel XFRM. The extraction walk of 2026-09-21 read all 89 normative sites in `rfc/full/rfc4301.txt` and grew the checklist from 24 rows to 81 (72 MUST, 6 MUST NOT, 2 SHOULD, 1 MAY). 14 rows carry an annotation from the 2026-08-30 pass: 1 gap (port/ICMP selectors), 7 single-polarity positive (tunnel/transport modes, SPD present, negotiated selectors, manual+automated keying), 6 not-applicable (per-packet datapath kernel-delegated). The 57 rows added on 2026-09-21 carried no annotation and no test when added; the ruling pass of the same day classified every one, each on its own row.
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** IPsec architecture
 
-**What the ledger says is covered**
+**Proof:** 52 of 101 MUST proven
 
-Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all three dispositions of Section 4.4.1: a negotiated Child SA produces the PROTECT entries, and the operator `vpn ipsec policy` list produces the BYPASS and DISCARD entries, each with a selector, a direction and a total order. A selector holds the local and remote prefixes, the next-layer protocol, and a local and a remote port as an any-or-one-exact value. IKEv2 Child SAs install tunnel mode, or transport mode when USE_TRANSPORT_MODE is negotiated and echoed, and the RFC 4552 OSPFv3 path installs manual transport-mode ESP or AH. SAD entries carry the SPI, the address pair, the mode, the protocol, the algorithms, the replay window and a time-based lifetime. Per-packet SPD and SAD processing is kernel-delegated to XFRM. The 2026-09-21 walk widened the checklist to the whole document, so this paragraph now describes the covered part of a much larger row set rather than most of it.
+**Evidence:** unit 52
 
-**What the ledger says remains**
+**Unmet:** RFC4301-4.1-5, RFC4301-4.4.1-13, RFC4301-4.4.1-2, RFC4301-4.4.1-5, RFC4301-4.4.1-8, RFC4301-4.4.1.1-1, RFC4301-4.4.1.1-2, RFC4301-4.4.1.1-4, RFC4301-4.4.1.1-5, RFC4301-4.4.1.2-2, RFC4301-4.4.2.1-13, RFC4301-4.4.2.1-14, RFC4301-4.4.2.1-15, RFC4301-4.4.2.1-16, RFC4301-4.4.2.1-17, RFC4301-4.4.2.1-2, RFC4301-4.4.2.1-3, RFC4301-4.4.3.3-1, RFC4301-5.1-3, RFC4301-5.1-7, RFC4301-5.1.2.1-1, RFC4301-5.2-1, RFC4301-5.2-9, RFC4301-6-1, RFC4301-6.1.1-1, RFC4301-6.1.1-2, RFC4301-6.1.2-1, RFC4301-6.2-1, RFC4301-6.2-2, RFC4301-6.2-3, RFC4301-6.2-4, RFC4301-6.2-5, RFC4301-7-1, RFC4301-7.2-1, RFC4301-7.2-2, RFC4301-7.3-1, RFC4301-7.3-2, RFC4301-8.1-1, RFC4301-8.1-2, RFC4301-8.2.1-1, RFC4301-8.2.2-1
 
-Lowered from `Supported` on 2026-08-30, after an extraction walk of [`rfc/full/rfc4301.txt`](https://github.com/ze-software/ze/blob/main/rfc/full/rfc4301.txt) found architecture obligations Ze does not meet. The implementation work is [`plan/release/fixes/spec-rfc4301-architecture-gaps.md`](https://github.com/ze-software/ze/blob/main/plan/release/fixes/spec-rfc4301-architecture-gaps.md), one phase per block.
-
-- **Section 6, ICMP processing:** no control lets an administrator accept or reject unauthenticated ICMP error messages per ICMP type, and no check compares a protected transit ICMP error message payload header against the traffic selectors of the SA that carried it.
-- **Section 8, DF bit and PMTU:** the DF treatment of a tunnel-mode SA is not configurable, and no per-SA PMTU value is held or aged. Section 4.4.2.1, SAD lifetimes: `newLifetimeState` ([`internal/component/ike/engine/rekey.go`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey.go)) assigns a time lifetime only, `softBytes` is never assigned, and the byte-count arm of `softExpired` is unreachable in a running daemon; [`plan/release/fixes/spec-ipsec-lifetime-volume.md`](https://github.com/ze-software/ze/blob/main/plan/release/fixes/spec-ipsec-lifetime-volume.md) designs the byte-count lifetime. Section 5.1.2.1, outer header: the DSCP value of the outer tunnel header is not mapped for the domain the packet enters. Section 4.4.1.1, selectors: a port selector holds any port or one exact port rather than the range the section defines, and `SPParams` carries no ICMP type or code field. Each of those blocks is now gated by a checklist row of its own, added by the 2026-09-21 extraction walk: [`RFC4301-6.1.1-1`](#rfc4301-6.1.1-1) and [`RFC4301-6.1.1-2`](#rfc4301-6.1.1-2) for the unauthenticated-ICMP control, [`RFC4301-6.2-1`](#rfc4301-6.2-1) for the ICMP error payload check, [`RFC4301-8.1-1`](#rfc4301-8.1-1) and [`RFC4301-8.1-2`](#rfc4301-8.1-2) for the DF bit, [`RFC4301-8.2.2-1`](#rfc4301-8.2.2-1) for PMTU ageing, [`RFC4301-4.4.2.1-2`](#rfc4301-4.4.2.1-2) for the byte-count lifetime, and [`RFC4301-5.1.2.1-1`](#rfc4301-5.1.2.1-1) for the outer-header DSCP mapping. [`RFC4301-4.4.1.1-1`](#rfc4301-4.4.1.1-1) remains the gated selector row and its reason text is stale about ports. The same walk added 49 further rows, for obligations no earlier pass had recorded at all: the Section 3 connectivity and ESP-support rows, the Section 4.4.1 SPD management interface and decorrelation rows, the Section 4.4.1.1 OPAQUE and ICMP-range selector rows, the Section 4.4.2.1 SAD data items, the Section 4.4.3 PAD rows, the Section 4.5.2 key-splitting rule, the Section 5 processing-step rows, and the Section 7 fragment-handling rows. None of them carried a test on 2026-09-21. The ruling pass of that day implemented the Section 5 catch-all (`vpn ipsec unmatched`, [`RFC4301-5-1`](#rfc4301-5-1)), proved the Section 3.1, 4, 4.1, 4.4, 4.4.1, 4.4.1.1, 4.4.2.1, 5.1, 5.2 and 7.3 obligations the kernel performs on state Ze installs at the XFRM boundary, and scheduled every remaining MUST as a `{gap}` naming its spec: the Section 6 ICMP block, the Section 8 DF bit and PMTU block, the outer-header DSCP mapping and the ICMP type/code selector in [`plan/release/fixes/spec-rfc4301-architecture-gaps.md`](https://github.com/ze-software/ze/blob/main/plan/release/fixes/spec-rfc4301-architecture-gaps.md); the byte-count lifetime in [`plan/release/fixes/spec-ipsec-lifetime-volume.md`](https://github.com/ze-software/ze/blob/main/plan/release/fixes/spec-ipsec-lifetime-volume.md); OPAQUE ports in the operator list in [`plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md`](https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md); multiple SPDs, the user override control and the name selector in [`plan/post-release/features/spec-ipsec-spd-selection.md`](https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-ipsec-spd-selection.md); the dual-family PAD range in [`plan/post-release/features/spec-ipsec-pad-dual-family-range.md`](https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-ipsec-pad-dual-family-range.md); and NON_FIRST_FRAGMENTS_ALSO in [`plan/post-release/features/spec-ipsec-non-first-fragments-also.md`](https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-ipsec-non-first-fragments-also.md). Section 4.4.1, final SPD entry: RFC 4301 Section 4.4.1 says "Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it", and the `vpn ipsec unmatched` leaf defaults to discard, so with the default the final entry Ze installs discards unmatched traffic. Until 2026-10-18 the default was bypass, a disclosed deviation kept by owner ruling R27; the owner reversed it that day. Because the discard also drops the router's own control plane where it crosses in the clear, a commit that would turn it on while the leaf is unset is refused, naming what stays open and the two commands that settle it (refuseImplicitDiscard), and a daemon that starts with the leaf unset installs the discard and logs the same facts at error level (warnImplicitDiscardAtStart). [`RFC4301-4.4.1-3`](#rfc4301-4.4.1-3) is proven by TestRFC4301DefaultFinalSPDEntryDiscards (the default final entry matches anything and discards), by TestRFC4301FinalEntryIsUnderEveryZeSPDEntry (the default final entry is installed before every other Ze entry and removed after all of them) and, against a real XFRM stack, by TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry (with the leaf absent, a clear datagram nothing else matches is not delivered). [`RFC4301-5.2-9`](#rfc4301-5.2-9), the Section 5.2 step 3b discard of an inbound packet no SPD-I entry matches, and [`RFC4301-5.2-1`](#rfc4301-5.2-1), the same discard as Section 4.4.1 states it, each carry a `{gap}` for the two paths where no catch-all is installed at all, so an inbound packet can meet no SPD-I entry: the VPP backend, which holds no entry bound to no interface and so runs only under `unmatched bypass`, and OSPFv3 authentication with RFC 4552 manual keys, whose SAs and transport-mode entries the OSPF plugin installs through the active dataplane backend, loading xfrm itself only when no backend is active, with no catch-all, outside the IKE engine's lifecycle. Anywhere else under the IKE engine a catch-all that cannot be installed is refused at commit or fails the apply, whichever disposition it carries (owner decision 2026-10-20). Outside the window from the first configuration apply to the IKE engine's exit, the IKE engine holds no SPD entry and no SA, because the catch-all is the first entry installed and the last removed (kept, with a warning, when another removal failed), so the IKE engine is not acting as an IPsec implementation then and no packet is looked up in an SPD-I of its own, a reading the owner accepted on 2026-10-20. Section 4.4.1.2, multiple selector sets: an SPD entry may hold "One to N selector sets", and Ze offers one per entry (parseSPDPolicy); no decision of Thomas's declines the multiple-set entry, so [`RFC4301-4.4.1.2-2`](#rfc4301-4.4.1.2-2), the MUST NOT on users that constrains such entries, is a `{gap}` until a test proves no configuration reaches it. Section 5.1, traffic-triggered SA creation: an outbound packet whose SPD entry calls for PROTECT with no SA is meant to invoke key management, and Ze installs a PROTECT entry only together with the Child SA it negotiated and handles no XFRM acquire, so no packet starts IKEv2; [`RFC4301-5.1-7`](#rfc4301-5.1-7) carries it as a `{gap}`. Section 7.2, non-initial fragments: Ze never employs an SA that carries non-initial fragments (childPolicies), and no decision of Thomas's declines that approach, so [`RFC4301-7.2-1`](#rfc4301-7.2-1) and [`RFC4301-7.2-2`](#rfc4301-7.2-2) are gaps. Decorrelation (Section 4.4.1, Appendix B) is not built and no decision of Thomas's declines it, so [`RFC4301-4.4.1-13`](#rfc4301-4.4.1-13), the link between the entries of a decorrelated SPD entry, is a gap. Multiple SAs with identical selectors, SPD consultation of all traffic, and transport mode over IPv4 fragments hold on Linux XFRM with no test over the state ze installs and are unverified on the VPP IPsec backend, so [`RFC4301-4.1-5`](#rfc4301-4.1-5), 4.4.1-2 and 7-1 are gaps.
 
 ## Coverage
 
@@ -115,9 +111,41 @@ Lowered from `Supported` on 2026-08-30, after an extraction walk of [`rfc/full/r
 
 **Annotated (including scoped evidence) (55):** [`RFC4301-4.1-1`](#rfc4301-4.1-1), [`RFC4301-4.1-2`](#rfc4301-4.1-2), [`RFC4301-4.1-3`](#rfc4301-4.1-3), [`RFC4301-4.1-4`](#rfc4301-4.1-4), [`RFC4301-4.1-5`](#rfc4301-4.1-5), [`RFC4301-4.4.1-1`](#rfc4301-4.4.1-1), [`RFC4301-4.4.1-2`](#rfc4301-4.4.1-2), [`RFC4301-4.4.1.1-1`](#rfc4301-4.4.1.1-1), [`RFC4301-4.5-1`](#rfc4301-4.5-1), [`RFC4301-5.2-1`](#rfc4301-5.2-1), [`RFC4301-7-1`](#rfc4301-7-1), [`RFC4301-3.2-1`](#rfc4301-3.2-1), [`RFC4301-4.1-12`](#rfc4301-4.1-12), [`RFC4301-4.1-10`](#rfc4301-4.1-10), [`RFC4301-4.1-11`](#rfc4301-4.1-11), [`RFC4301-4.4.1-5`](#rfc4301-4.4.1-5), [`RFC4301-4.4.1-8`](#rfc4301-4.4.1-8), [`RFC4301-4.4.1-13`](#rfc4301-4.4.1-13), [`RFC4301-4.4.1.1-2`](#rfc4301-4.4.1.1-2), [`RFC4301-4.4.1.1-4`](#rfc4301-4.4.1.1-4), [`RFC4301-4.4.1.1-5`](#rfc4301-4.4.1.1-5), [`RFC4301-4.4.1.2-1`](#rfc4301-4.4.1.2-1), [`RFC4301-4.4.1.2-2`](#rfc4301-4.4.1.2-2), [`RFC4301-4.4.2.1-4`](#rfc4301-4.4.2.1-4), [`RFC4301-4.4.2.1-5`](#rfc4301-4.4.2.1-5), [`RFC4301-4.4.2.1-6`](#rfc4301-4.4.2.1-6), [`RFC4301-4.4.2.1-13`](#rfc4301-4.4.2.1-13), [`RFC4301-4.4.2.1-14`](#rfc4301-4.4.2.1-14), [`RFC4301-4.4.2.1-15`](#rfc4301-4.4.2.1-15), [`RFC4301-4.4.2.1-16`](#rfc4301-4.4.2.1-16), [`RFC4301-4.4.2.1-17`](#rfc4301-4.4.2.1-17), [`RFC4301-4.4.2.1-2`](#rfc4301-4.4.2.1-2), [`RFC4301-4.4.2.1-3`](#rfc4301-4.4.2.1-3), [`RFC4301-4.4.3.3-1`](#rfc4301-4.4.3.3-1), [`RFC4301-5.1-3`](#rfc4301-5.1-3), [`RFC4301-5.1-7`](#rfc4301-5.1-7), [`RFC4301-5.1.2.1-1`](#rfc4301-5.1.2.1-1), [`RFC4301-5.2-9`](#rfc4301-5.2-9), [`RFC4301-6-1`](#rfc4301-6-1), [`RFC4301-6.1.1-1`](#rfc4301-6.1.1-1), [`RFC4301-6.1.1-2`](#rfc4301-6.1.1-2), [`RFC4301-6.1.2-1`](#rfc4301-6.1.2-1), [`RFC4301-6.2-1`](#rfc4301-6.2-1), [`RFC4301-6.2-2`](#rfc4301-6.2-2), [`RFC4301-6.2-3`](#rfc4301-6.2-3), [`RFC4301-6.2-4`](#rfc4301-6.2-4), [`RFC4301-6.2-5`](#rfc4301-6.2-5), [`RFC4301-7.2-1`](#rfc4301-7.2-1), [`RFC4301-7.2-2`](#rfc4301-7.2-2), [`RFC4301-7.3-1`](#rfc4301-7.3-1), [`RFC4301-7.3-2`](#rfc4301-7.3-2), [`RFC4301-8.1-1`](#rfc4301-8.1-1), [`RFC4301-8.1-2`](#rfc4301-8.1-2), [`RFC4301-8.2.1-1`](#rfc4301-8.2.1-1), [`RFC4301-8.2.2-1`](#rfc4301-8.2.2-1)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 99 of 101 (98.0%); excluded: Met by a lower layer: 2 of 101 (2.0%). Optional ceiling: 3 of 3 (100.0%). Lowest mandatory ceiling: rfc4301 99 of 101 (98.0%). Lowest optional ceiling: rfc4301 3 of 3 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 52, OS testing gap 2, Ze correctness gap 47
+- **Overview bar**: Ze MUST proven 52, SHOULD proven 1, SHOULD not decided 2, OS testing gap 2, Ze correctness gap 47
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 101 |
+| MUST rows kept (the MUST bar) | 101 |
+| Ze proven | 52 |
+| OS verified | 0 |
+| OS testing gap | 2 |
+| Ze correctness gap | 47 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 3 |
+| SHOULD proven | 1 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 2 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc4301.json](../../../data/rfc/rfc4301.json).
 
 ## Requirements
 
@@ -377,13 +405,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L403) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L348) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestChildSAInboundPolicyUsesNegotiatedTS`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L430) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L401) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L345) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_test.go#L60) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestNarrowedSelectorsReachTheInstalledPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L424) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L403) | unit/verify | revert, verified |
+| negative | [`TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L348) | unit/verify | revert, verified |
+| positive | [`TestChildSAInboundPolicyUsesNegotiatedTS`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L430) | unit/verify | revert, verified |
+| positive | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L401) | unit/verify | revert, verified |
+| positive | [`TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L345) | unit/verify | revert, verified |
+| positive | [`TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_test.go#L60) | unit/verify | revert, verified |
+| positive | [`TestNarrowedSelectorsReachTheInstalledPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L424) | unit/verify | revert, verified |
 
 ### [`RFC4301-4.4.2-2`](#rfc4301-4.4.2-2)
 
@@ -432,12 +460,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L191) | unit/verify | revert, verified |
-| negative | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L408) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L353) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L408) | unit/verify | revert, verified |
+| negative | [`TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L353) | unit/verify | revert, verified |
 | positive | [`TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L130) | unit/verify | revert, verified |
 | positive | [`TestRFC4301TransportStateSelectorIsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_child_multi_pair_test.go#L135) | unit/verify | mutant, verified |
-| positive | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L406) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L351) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L406) | unit/verify | revert, verified |
+| positive | [`TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L351) | unit/verify | revert, verified |
 
 ### [`RFC4301-4.1-6`](#rfc4301-4.1-6)
 
@@ -557,7 +585,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC4301ChildSAIsInstalledAsESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L19) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301ChildSAIsInstalledAsESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L19) | unit/verify | revert, verified |
 
 ### [`RFC4301-4-1`](#rfc4301-4-1)
 
@@ -589,9 +617,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L112) | unit/verify | revert, verified |
-| negative | [`TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go#L108) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go#L108) | unit/verify | revert, verified |
 | positive | [`TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L70) | unit/verify | revert, verified |
-| positive | [`TestRFC4301ParallelSAsWithOneSelectorAreEachReceived`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go#L81) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301ParallelSAsWithOneSelectorAreEachReceived`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go#L81) | unit/verify | revert, verified |
 
 ### [`RFC4301-4.1-10`](#rfc4301-4.1-10)
 
@@ -657,10 +685,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Orde
 |---|---|---|---|
 | negative | [`TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L188) | unit/verify | revert, verified |
 | negative | [`TestRFC4301OrderedInboundSearchRefusesOnTheFirstRankedDiscard`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go#L140) | unit/verify | revert, verified |
-| negative | [`TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go#L111) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go#L111) | unit/verify | revert, verified |
 | positive | [`TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L127) | unit/verify | revert, verified |
-| positive | [`TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go#L87) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4301ParallelSAsWithOneSelectorAreEachReceived`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go#L84) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go#L87) | unit/verify | revert, verified |
+| positive | [`TestRFC4301ParallelSAsWithOneSelectorAreEachReceived`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go#L84) | unit/verify | revert, verified |
 
 ### [`RFC4301-4.4.1-11`](#rfc4301-4.4.1-11)
 
@@ -1041,7 +1069,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Step
 
 If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA. If SA creation succeeds, a new outbound (SPD-S) cache entry is created, along with outbound and inbound SAD entries, otherwise the packet is discarded. (§5.1)
 
-Audit verdict: unimplemented (no code path enforces the requirement), stale-unit: internal/component/ike/engine/child.go::installChildSA moved. Re-judged 2026-10-27 at HEAD 58ee58c176 (independent judge, clean clone), after bb90bdec23 rewrote the doc comment of installChildSA ("its selectors, tunnel or transport mode"). The function body is byte-identical to dfabdcf8bf (retryStranded, claim, installChildDataplane, release on a non-XFRM-unsupported error), and parseSPDPolicy is unchanged. Section 5.1: "If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA." A PROTECT entry is still installed only beside a Child SA IKEv2 already negotiated (createFirstChildSA, installChildSA). Outside vendor/ no file names XFRM_MSG_ACQUIRE or XFRMNLGRP_ACQUIRE (the only hits are in vendor/github.com/vishvananda/netlink/nl/xfrm_linux.go), no XFRM monitor or subscription exists under internal/component/ike or internal/plugins/ospf, the remaining 'acquire' hits are a migrate receiver comment, lease and batch acquisitions and lock comments, and no trap or on-demand start action exists. The other child.go changes since dfabdcf8bf (000e6fdfea, dc7de8e76f, 0308ef4d70) touch stranded-policy retry and childPolicyPair and add no path from an outbound packet to IKEv2. The {gap} text on the row stays accurate. Gap stands.
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-31 (independent auditor, authored none of e2d9c4a62a). Section 5.1: "If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA." e2d9c4a62a rewrote installChildSA to install tunnel receive protection in both IN and FWD (forwardPolicy from dp.RequiresForwardPolicy), consume the rekey predecessor (installPrevious), switch claim/release to beginInstall/finishInstall with stranded-record adoption only after a completed install, and release through releaseInnerRecord; later commits (5935713168, eddb239060) touch transport-rekey NAT state and lint only. Every path still installs PROTECT policies beside a Child SA IKEv2 has already negotiated; none starts IKEv2 from an outbound packet. Outside vendor/ no Go file under internal/, pkg/ or cmd/ names XFRM_MSG_ACQUIRE, XFRMNLGRP_ACQUIRE or an XFRM monitor (grep 2026-10-31), so no acquire-driven SA creation exists. parseSPDPolicy is unchanged. The {gap} on the row stays accurate. Gap stands: unimplemented.
 
 No test carries RFC4301-5.1-7, so no unit is bound to it.
 
@@ -1197,7 +1225,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4301PortScopedSAIsNeverInstalledAsAnyPort`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_portless_test.go#L71) | unit/verify | revert, verified |
-| positive | [`TestRFC4301TunnelSAPassesTrafficWithoutRegardToPorts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_portless_test.go#L47) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301TunnelSAPassesTrafficWithoutRegardToPorts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_portless_test.go#L47) | unit/verify | revert, verified |
 
 ### [`RFC4301-7.1-2`](#rfc4301-7.1-2)
 
@@ -1286,9 +1314,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Whol
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L194) | unit/verify | revert, verified |
-| negative | [`TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_linux_test.go#L86) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_linux_test.go#L86) | unit/verify | revert, verified |
 | positive | [`TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L133) | unit/verify | revert, verified |
-| positive | [`TestRFC4301FragmentsOfACompliantPacketAreDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_linux_test.go#L57) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301FragmentsOfACompliantPacketAreDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_linux_test.go#L57) | unit/verify | revert, verified |
 
 ### [`RFC4301-8.1-1`](#rfc4301-8.1-1)
 

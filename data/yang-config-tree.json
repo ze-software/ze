@@ -8385,7 +8385,7 @@
             "source": "config"
           }
         ],
-        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS\nLSDB, an OSPF LSDB) is never filtered.",
+        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB.",
         "kind": "container",
         "name": "filter",
         "short-help": "Route filter chains into the Loc-RIB.",
@@ -18479,6 +18479,41 @@
           {
             "children": [
               {
+                "description": "Run these filter instances in order. Each one passes the route on or\nrejects it; a filter type with no route evaluator is refused.",
+                "kind": "leaf-list",
+                "name": "filters",
+                "short-help": "Ordered filter instance references",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Every present export policy must set final accept or final reject, even with no\nfilters. A filter's accept only passes the route on, so final decides.",
+                "kind": "leaf",
+                "name": "final",
+                "short-help": "Decision after every filter passes",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Advertise a route that passes every filter"
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Do not advertise a route that passes every filter"
+                  }
+                ]
+              }
+            ],
+            "description": "Runs on every route the redistribute import rules hand this protocol, before it\nenters the IGP database. A rejected route is not advertised; the sets of an\naccepting chain (the metric, and on ospf the metric type and tag) shape what is.",
+            "kind": "container",
+            "name": "export",
+            "short-help": "Export policy over redistributed routes",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
                 "description": "Run these filter instances in order. Each one passes the route on or\nrejects it; a filter type with no Loc-RIB route evaluator is refused.",
                 "kind": "leaf-list",
                 "name": "filters",
@@ -18512,10 +18547,10 @@
             "source": "config"
           }
         ],
-        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS\nLSDB, an OSPF LSDB) is never filtered.",
+        "description": "A name references a filter instance defined under the top-level policy root. The\nimport chain judges routes as they enter the Loc-RIB, and the export chain judges\nredistributed routes before the IGP advertises them; the IGP's own database (an\nIS-IS LSDB, an OSPF LSDB) is never filtered.",
         "kind": "container",
         "name": "filter",
-        "short-help": "Route filter chains into the Loc-RIB.",
+        "short-help": "Route filter chains into the Loc-RIB and out of redistribution.",
         "source": "config"
       },
       {
@@ -22913,6 +22948,41 @@
           {
             "children": [
               {
+                "description": "Run these filter instances in order. Each one passes the route on or\nrejects it; a filter type with no route evaluator is refused.",
+                "kind": "leaf-list",
+                "name": "filters",
+                "short-help": "Ordered filter instance references",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Every present export policy must set final accept or final reject, even with no\nfilters. A filter's accept only passes the route on, so final decides.",
+                "kind": "leaf",
+                "name": "final",
+                "short-help": "Decision after every filter passes",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Advertise a route that passes every filter"
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Do not advertise a route that passes every filter"
+                  }
+                ]
+              }
+            ],
+            "description": "Runs on every route the redistribute import rules hand this protocol, before it\nenters the IGP database. A rejected route is not advertised; the sets of an\naccepting chain (the metric, and on ospf the metric type and tag) shape what is.",
+            "kind": "container",
+            "name": "export",
+            "short-help": "Export policy over redistributed routes",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
                 "description": "Run these filter instances in order. Each one passes the route on or\nrejects it; a filter type with no Loc-RIB route evaluator is refused.",
                 "kind": "leaf-list",
                 "name": "filters",
@@ -22946,10 +23016,10 @@
             "source": "config"
           }
         ],
-        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS\nLSDB, an OSPF LSDB) is never filtered.",
+        "description": "A name references a filter instance defined under the top-level policy root. The\nimport chain judges routes as they enter the Loc-RIB, and the export chain judges\nredistributed routes before the IGP advertises them; the IGP's own database (an\nIS-IS LSDB, an OSPF LSDB) is never filtered.",
         "kind": "container",
         "name": "filter",
-        "short-help": "Route filter chains into the Loc-RIB.",
+        "short-help": "Route filter chains into the Loc-RIB and out of redistribution.",
         "source": "config"
       },
       {
@@ -23590,52 +23660,18 @@
       {
         "children": [
           {
-            "description": "Ze writes the value into the metric field of the AS-external LSA,\nwhich is 24 bits wide. A source with no entry in this list takes 20.",
-            "kind": "leaf",
-            "name": "metric",
-            "short-help": "Injected metric.",
-            "source": "config",
-            "type": "uint32"
-          },
-          {
-            "description": "RFC 2328 section 2.3 states that a Type 1 external metric is in the\nsame units as the OSPF cost. A Type 2 metric is an order of magnitude larger than any\ninternal path. A Type 1 route always wins over a Type 2 route.",
-            "kind": "leaf",
-            "name": "metric-type",
-            "short-help": "External metric type.",
-            "source": "config",
-            "type": "enumeration",
-            "values": [
-              {
-                "name": "type-1",
-                "short-help": "External metric in OSPF cost units, added to the internal distance."
-              },
-              {
-                "name": "type-2",
-                "short-help": "External metric larger than any internal path, compared alone."
-              }
-            ]
-          },
-          {
             "description": "RFC 3101 Appendix D requires configurable Type-7 propagation and\ndefaults the P-bit to clear. Set the P-bit for this source when the router cannot originate\na Type-5 directly. A P-set Type-7 requires a usable forwarding address in its NSSA;\nwithout one the LSA is withdrawn. A locally originated Type-5 always clears the P-bit.",
             "kind": "leaf",
             "name": "nssa-propagate",
             "short-help": "Permit translation of this source's NSSA routes into Type-5 LSAs.",
             "source": "config",
             "type": "boolean"
-          },
-          {
-            "description": "RFC 2328 Appendix A.4.5 states that the External Route Tag is not\nused by the OSPF protocol itself. It carries information between AS boundary routers, and\na policy on another router CAN match it.",
-            "kind": "leaf",
-            "name": "tag",
-            "short-help": "External route tag.",
-            "source": "config",
-            "type": "uint32"
           }
         ],
-        "description": "This list starts no import. The generic redistribute container enables\nthe import, with a rule of the shape destination ospf import \u003csource\u003e. A source with no\nentry here takes metric 20 and metric-type type-2.",
+        "description": "This list starts no import. The generic redistribute container enables\nthe import, with a rule of the shape destination ospf import \u003csource\u003e. The metric, the\nmetric type and the tag of a redistributed route are set by a modify filter on the ospf\nfilter export chain; a route no filter sets takes metric 20 and metric-type type-2.",
         "kind": "list[source]",
         "name": "redistribute",
-        "short-help": "Per-source metric, metric type and tag for redistribution into OSPF.",
+        "short-help": "Per-source NSSA propagation for redistribution into OSPF.",
         "source": "config"
       },
       {
@@ -24781,6 +24817,32 @@
                 "type": "uint32"
               },
               {
+                "description": "Ze advertises a matching route with this metric: the prefix metric of\nan IS-IS export, the metric of an OSPF AS-external LSA, whose field is 24 bits wide. An\nIGP export chain only: the instance is refused at any attachment that does not let a\nfilter set the metric.",
+                "kind": "leaf",
+                "name": "metric",
+                "short-help": "Set the metric an IGP export advertises (0-16777215).",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "RFC 2328 section 2.3 states that a Type 1 external metric is in the\nsame units as the OSPF cost, and a Type 2 metric is larger than any internal path. An\nOSPF export chain only. A route no filter sets takes type-2.",
+                "kind": "leaf",
+                "name": "metric-type",
+                "short-help": "Set the OSPF external metric type of an exported route.",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "type-1",
+                    "short-help": "External metric in OSPF cost units, added to the internal distance."
+                  },
+                  {
+                    "name": "type-2",
+                    "short-help": "External metric larger than any internal path, compared alone."
+                  }
+                ]
+              },
+              {
                 "description": "NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address\nonly. An IPv6 next-hop travels in the MP_REACH attribute instead, so this leaf does not\nset one.",
                 "kind": "leaf",
                 "name": "next-hop",
@@ -25309,30 +25371,40 @@
           {
             "children": [
               {
-                "description": "An empty leaf-list imports every family.",
+                "description": "Run these filter instances, defined under the top-level policy root, in\norder. Each one passes the route on, with what it sets, or rejects it. A filter of a type with no route\nevaluator, or one reading a field a redistributed route does not carry, is refused. Select a family or a\ntag with a match filter: match V4 { family [ ipv4/unicast ]; }.",
                 "kind": "leaf-list",
-                "name": "family",
-                "short-help": "Address families Ze imports from this source.",
+                "name": "filters",
+                "short-help": "Ordered filter instance references",
                 "source": "config",
                 "type": "string"
               },
               {
-                "description": "The route tag is the value the source protocol attached to the route, for\nexample the tag leaf of a static route. A rule that names a tag imports the routes carrying exactly that\nvalue and rejects the others. A rule with no tag leaf imports every route from the source, whatever tag\nit carries. The value 0 is a tag like any other: a route with no tag carries 0, so tag 0 imports the\nuntagged routes alone.",
+                "description": "The decision after every filter passes. An import with filters must set it.\nAn import with neither filters nor final imports every route from the source.",
                 "kind": "leaf",
-                "name": "tag",
-                "short-help": "Import only the routes that carry this route tag.",
+                "name": "final",
+                "short-help": "Decision after every filter passes",
                 "source": "config",
-                "type": "uint32"
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Import a route that passes every filter"
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Do not import a route that passes every filter"
+                  }
+                ]
               }
             ],
-            "description": "If the family leaf-list is empty, Ze imports every family.",
+            "description": "With no filters and no final, Ze imports every route of the source.",
             "kind": "list[source]",
             "name": "import",
             "short-help": "Import routes from a source into this destination.",
             "source": "config"
           }
         ],
-        "description": "Each entry names a consumer that registered itself, for example bgp\nor ospf.",
+        "description": "Each entry names a protocol that declared itself a destination, for\nexample bgp or ospf.",
         "kind": "list[protocol]",
         "name": "destination",
         "short-help": "Destination protocol for redistributed routes.",
@@ -25450,7 +25522,7 @@
             "source": "config"
           }
         ],
-        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS\nLSDB, an OSPF LSDB) is never filtered.",
+        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB.",
         "kind": "container",
         "name": "filter",
         "short-help": "Route filter chains into the Loc-RIB.",
@@ -26850,15 +26922,31 @@
             "type": "uint16"
           },
           {
+            "description": "The default is 64 and the range is 1 to 65535, the range of RFC 7440. A\nclient that asks for a windowsize gets the smaller of its request\nand this value, and Ze then sends that many DATA blocks before it\nwaits for an ACK. A grant of one block is RFC 1350 lockstep and is\nnot acknowledged, so the value 1 turns windowed sending off. A\nchange applies to the next read request; a transfer already running\nkeeps the window it started with.",
+            "kind": "leaf",
+            "name": "max-windowsize",
+            "short-help": "Largest RFC 7440 window the server grants",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
             "description": "Ze resolves each requested file under this directory and follows\nevery symbolic link first. A file that lands outside the directory\ngets an access violation error, so a client cannot read the rest of\nthe disk. The leaf is required when enabled is true.",
             "kind": "leaf",
             "name": "root-directory",
             "short-help": "Directory to serve files from",
             "source": "config",
             "type": "string"
+          },
+          {
+            "description": "The default is 5 and the range is 1 to 255, the range of RFC 2349. Ze\nwaits this long for an ACK before it sends the DATA again, at most\nthree times, then ends the transfer. A client that asks for its own\nRFC 2349 timeout from 1 to 255 seconds gets it acknowledged and used\ninstead. A change applies to the next read request; a transfer\nalready running keeps the timeout it started with.",
+            "kind": "leaf",
+            "name": "timeout",
+            "short-help": "Seconds to wait for an ACK before Ze sends again",
+            "source": "config",
+            "type": "uint8"
           }
         ],
-        "description": "The server answers a read request on UDP port 69 and refuses every\nwrite request, so no client can put a file on this host. Ze accepts\noctet mode alone, and answers any other mode with an illegal operation\nerror. Ze negotiates the blksize option of RFC 2348 and the tsize\noption of RFC 2349, and it does not support the windowsize option.",
+        "description": "The server answers a read request on UDP port 69 and refuses every\nwrite request, so no client can put a file on this host. Ze accepts\noctet mode alone, and answers any other mode with an illegal operation\nerror. Ze negotiates the blksize option of RFC 2348, the timeout and\ntsize options of RFC 2349, and the windowsize option of RFC 7440.",
         "kind": "container",
         "name": "tftp-server",
         "short-help": "Read-only TFTP server (RFC 1350)",
@@ -26911,7 +26999,7 @@
             "source": "config"
           }
         ],
-        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS\nLSDB, an OSPF LSDB) is never filtered.",
+        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB.",
         "kind": "container",
         "name": "filter",
         "short-help": "Route filter chains into the Loc-RIB.",

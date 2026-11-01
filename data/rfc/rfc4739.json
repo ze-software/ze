@@ -1,0 +1,33 @@
+{
+  "stem": "rfc4739",
+  "title": "Multiple Authentication Exchanges in the Internet Key Exchange (IKEv2) Protocol",
+  "walked": true,
+  "requirements": 2,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 2,
+    "kept": 2,
+    "ze-proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 0,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 0,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 2
+  },
+  "unmet": []
+}

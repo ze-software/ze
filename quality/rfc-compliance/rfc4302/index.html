@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4302 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4302 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4302 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Partial</span>
+    <span class="journey-eyebrow">Authentication Header</span>
     <h1 id="rfc-detail-title">RFC 4302 - IP Authentication Header</h1>
     <p>Every requirement this repository extracted from RFC 4302, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -118,28 +118,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>25.0%</strong><b>8 of 32 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.1%</strong><b>1 of 32 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>24 of 24 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>8</strong><b>of 32 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 32 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 32 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 32 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>24</strong><b>24 of 24 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>32</strong><b>of 44 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 32 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>59.4%</strong><b>19 of 32 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>3.1%</strong><b>1 of 32 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>32</strong><b>of 44 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 32 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 32 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>19</strong><b>of 32 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 32 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 32 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>9.4%</strong><b>3 of 32 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>4</strong><b>of 32 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 9 shares marked as a part above are the whole of the 32 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 9 counts marked as a part above are the whole of the 32 gated MUSTs: they add up to 32. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -156,7 +156,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Tested both ways</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got</td>
 </tr>
 <tr><td>One polarity plus reason</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -180,7 +180,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -192,7 +192,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-warn"></span> warn</td>
@@ -208,8 +208,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
-<tr><td>Public status</td>
-<td>Partial</td>
+<tr><td>Public row</td>
+<td>Authentication Header</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -224,7 +224,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>3</td>
+<td>4</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -264,12 +264,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>Enrolled: IP Authentication Header (RFC 4302): control plane only. Ze speaks AH through RFC 4552 manually-keyed IPsec for OSPFv3: validateIPsecInterface (plugins/ospf/config_ipsec.go) accepts protocol ah with an SPI at or above 256, an HMAC-SHA algorithm and a hex key of that algorithm length, and refuses an encryption key beside AH; buildIPsecSA and buildIPsecPolicies (plugins/ospf/ipsec_install.go) install one transport-mode SA with Proto ProtoAH and a {::/0, ::/0, proto 89} state selector plus out/in/fwd policies scoped to the interface; planStateAlgos (ike/dataplane/dataplane.go) gives an AH state an integrity transform and no encryption transform, and xfrmStateFromParams (ike/dataplane/xfrm_linux.go) writes it. Every per-packet AH obligation -- header construction, sequence numbers, mutable-field zeroing, ICV, replay window, discard on failure -- is performed by Linux XFRM, which the whole-stack conformance ruling of 2026-08-31 counts as an implementation of the obligation rather than an exemption. Ze never negotiates an AH Child SA over IKEv2, so every AH SA it installs is manually keyed and carries no replay window unless the interface&#39;s replay-window leaf asks for one, which defaults to 0 as Section 5 asks. 34 gated rows, none tested and none annotated at enrolment; the interop scenario ospf-ipsec-ah-frr already reads the installed kernel state and is the carrier the coverage work will tag.</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Partial</p>
-<p><strong>What the ledger says is covered:</strong></p>
-AH algorithm planning and RFC 4552 OSPFv3 use.
-<details class="rfc-fold"><summary>What the ledger says remains</summary>
-Scoped to configured manual IPsec support. No counter reset before sequence-number rollover, and no AH auditing surface. Anti-replay is off unless the operator sets the replay-window leaf, which defaults to 0 because every AH SA is manually keyed and Section 5 says a compliant implementation SHOULD NOT provide anti-replay with a manually keyed SA; an enabled window is not yet tested (<a href="#rfc4302-3.4.3-3"><code>RFC4302-3.4.3-3</code></a>). An atomic IPv6 fragment keeps its Fragment header through to AH, which ah6.c does not skip (RFC4302-A2-1).
-</details>
+<p><strong>Area:</strong> Authentication Header</p>
+<p><strong>Proof:</strong> 9 of 32 MUST proven</p>
+<p><strong>Evidence:</strong> unit 9</p>
+<p><strong>Unmet:</strong> RFC4302-2.5-5, RFC4302-2.5.1-1, RFC4302-4-1, RFC4302-A2-1</p>
+
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -312,8 +311,92 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (24):</strong> <a href="#rfc4302-2.3-1"><code>RFC4302-2.3-1</code></a>, <a href="#rfc4302-2.4-2"><code>RFC4302-2.4-2</code></a>, <a href="#rfc4302-2.4-3"><code>RFC4302-2.4-3</code></a>, <a href="#rfc4302-2.4-4"><code>RFC4302-2.4-4</code></a>, <a href="#rfc4302-2.5-1"><code>RFC4302-2.5-1</code></a>, <a href="#rfc4302-2.5-2"><code>RFC4302-2.5-2</code></a>, <a href="#rfc4302-2.5-3"><code>RFC4302-2.5-3</code></a>, <a href="#rfc4302-2.5-5"><code>RFC4302-2.5-5</code></a>, <a href="#rfc4302-2.5.1-1"><code>RFC4302-2.5.1-1</code></a>, <a href="#rfc4302-2.6-1"><code>RFC4302-2.6-1</code></a>, <a href="#rfc4302-3.3.2-1"><code>RFC4302-3.3.2-1</code></a>, <a href="#rfc4302-3.3.3.1-1"><code>RFC4302-3.3.3.1-1</code></a>, <a href="#rfc4302-3.3.3.2.2-1"><code>RFC4302-3.3.3.2.2-1</code></a>, <a href="#rfc4302-3.3.3.2.2-2"><code>RFC4302-3.3.3.2.2-2</code></a>, <a href="#rfc4302-3.3.3.2.2-3"><code>RFC4302-3.3.3.2.2-3</code></a>, <a href="#rfc4302-3.3.3.2.2-4"><code>RFC4302-3.3.3.2.2-4</code></a>, <a href="#rfc4302-3.4.1-1"><code>RFC4302-3.4.1-1</code></a>, <a href="#rfc4302-3.4.3-2"><code>RFC4302-3.4.3-2</code></a>, <a href="#rfc4302-3.4.3-3"><code>RFC4302-3.4.3-3</code></a>, <a href="#rfc4302-3.4.3-4"><code>RFC4302-3.4.3-4</code></a>, <a href="#rfc4302-3.4.3-5"><code>RFC4302-3.4.3-5</code></a>, <a href="#rfc4302-4-1"><code>RFC4302-4-1</code></a>, <a href="#rfc4302-a2-1"><code>RFC4302-A2-1</code></a>, <a href="#rfc4302-a2-2"><code>RFC4302-A2-2</code></a></p>
 <p class="rfc-id-list"><strong>Derived from other rows (2):</strong> <a href="#rfc4302-5-1"><code>RFC4302-5-1</code></a>, <a href="#rfc4302-5-2"><code>RFC4302-5-2</code></a></p>
 </section>
-<section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 12 of 32 (37.5%); excluded: Optional feature not offered (classification can be revisited): 1 of 32 (3.1%); Met by a lower layer: 19 of 32 (59.4%). Optional ceiling: 10 of 10 (100.0%). Lowest mandatory ceiling: rfc4302 12 of 32 (37.5%). Lowest optional ceiling: rfc4302 10 of 10 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<section><h2>Figures</h2>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="rfc4302:must">Ze proven 9, OS testing gap 19, Ze correctness gap 4</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="rfc4302:overview">Ze MUST proven 9, SHOULD not decided 10, OS testing gap 19, Ze correctness gap 4</div>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="rfc4302:rfcs">1</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="rfc4302:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="rfc4302:register">not complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="rfc4302:must.total">32</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="rfc4302:must.kept">32</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="rfc4302:must.ze-proven">9</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="rfc4302:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="rfc4302:must.os-gap">19</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="rfc4302:must.ze-gap">4</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="rfc4302:must.not-owed">0</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="rfc4302:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="rfc4302:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="rfc4302:must.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="rfc4302:should.total">10</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="rfc4302:should.proven">0</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="rfc4302:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="rfc4302:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="rfc4302:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="rfc4302:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="rfc4302:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="rfc4302:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="rfc4302:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="rfc4302:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="rfc4302:should.not-decided">10</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -446,7 +529,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-2.5.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;To support high-speed IPsec implementations, a new option for sequence numbers SHOULD be offered, as an extension to the current, 32-bit sequence number field.&#34;; ze offers no ESN, so nothing ever uses one. internal/plugins/ospf/ipsec_install.go::buildIPsecSA is the only code that creates an AH SA, and it builds one manually keyed transport-mode state from static interface configuration with no ESN in it; espProposalWire, internal/component/ike/engine/initiator.go, proposes ESP alone and keys Transform Type 5 to espESNNotExtended, so ze runs no SA management protocol that could negotiate an AH ESN</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze negotiates no ESN for AH: internal/plugins/ospf/ipsec_install.go::buildIPsecSA builds the only AH SA from static interface configuration with no ESN in it, and espProposalWire (internal/component/ike/engine/initiator.go) proposes ESP alone with espESNNotExtended, so no SA management protocol negotiates an AH ESN; owed after the first release (no owner decision declines ESN; plan/post-release/features/spec-ipsec-12-esn.md owns it)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.6-1">RFC4302-2.6-1</code></td><td colspan="3"><span class="rfc-subject">All implementations MUST support such padding and MUST insert only enough padding to satisfy the IPv4/IPv6 alignment requirements. (§2.6)</span></td></tr>
 <tr><td></td>
@@ -765,8 +848,8 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>nothing resets the counters before the 2^32nd packet. The OSPFv3 SA is manually keyed and ze never rekeys it: setConfig installs one SPI and key per interface (internal/plugins/ospf/ipsec_install.go) and no code establishes a replacement SA, so an operator who enables anti-replay with the replay-window leaf gets an SA that stops sending at the rollover rather than one that is re-established. Disclosed in docs/features/rfc-status.md RFC 4302 row</td>
 </tr>
 <tr><td><a href="#rfc4302-2.5.1-1"><code>RFC4302-2.5.1-1</code></a> Use of an Extended Sequence Number (ESN) MUST be negotiated by an SA management protocol. (§2.5.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;To support high-speed IPsec implementations, a new option for sequence numbers SHOULD be offered, as an extension to the current, 32-bit sequence number field.&#34;; ze offers no ESN, so nothing ever uses one. internal/plugins/ospf/ipsec_install.go::buildIPsecSA is the only code that creates an AH SA, and it builds one manually keyed transport-mode state from static interface configuration with no ESN in it; espProposalWire, internal/component/ike/engine/initiator.go, proposes ESP alone and keys Transform Type 5 to espESNNotExtended, so ze runs no SA management protocol that could negotiate an AH ESN</td>
+<td>{gap}, no test</td>
+<td>ze negotiates no ESN for AH: internal/plugins/ospf/ipsec_install.go::buildIPsecSA builds the only AH SA from static interface configuration with no ESN in it, and espProposalWire (internal/component/ike/engine/initiator.go) proposes ESP alone with espESNNotExtended, so no SA management protocol negotiates an AH ESN; owed after the first release (no owner decision declines ESN; plan/post-release/features/spec-ipsec-12-esn.md owns it)</td>
 </tr>
 <tr><td><a href="#rfc4302-2.6-1"><code>RFC4302-2.6-1</code></a> All implementations MUST support such padding and MUST insert only enough padding to satisfy the IPv4/IPv6 alignment requirements. (§2.6)</td>
 <td>no test</td>
@@ -1558,6 +1641,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 4302, so its obligations are stated where they were written.</p>
 </section>
+<script src="../../../assets/rfc-figures.js" defer></script>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -1589,7 +1673,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

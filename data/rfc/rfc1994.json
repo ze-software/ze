@@ -1,0 +1,37 @@
+{
+  "stem": "rfc1994",
+  "title": "PPP Challenge Handshake Authentication Protocol (CHAP)",
+  "walked": true,
+  "requirements": 27,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 16,
+    "kept": 16,
+    "ze-proven": 8,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 8,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 11,
+    "proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 9,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 8
+  },
+  "unmet": [
+    "RFC1994-2.3-1",
+    "RFC1994-4.1-2",
+    "RFC1994-4.1-9"
+  ]
+}

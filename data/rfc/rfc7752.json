@@ -1,0 +1,50 @@
+{
+  "stem": "rfc7752",
+  "title": "North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP",
+  "walked": true,
+  "requirements": 52,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 26,
+    "kept": 26,
+    "ze-proven": 8,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 18,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 26,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 26,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 8
+  },
+  "unmet": [
+    "RFC7752-3.2-2",
+    "RFC7752-3.2-3",
+    "RFC7752-3.2.1-1",
+    "RFC7752-3.2.1.1-1",
+    "RFC7752-3.2.1.1-2",
+    "RFC7752-3.2.1.4-1",
+    "RFC7752-3.2.1.4-2",
+    "RFC7752-3.2.1.5-1",
+    "RFC7752-3.3-1",
+    "RFC7752-3.3.2.1-1",
+    "RFC7752-3.3.2.2-1",
+    "RFC7752-3.3.2.7-1",
+    "RFC7752-3.3.3-1",
+    "RFC7752-6.2.2-1",
+    "RFC7752-6.2.6-1",
+    "RFC7752-8-1"
+  ]
+}

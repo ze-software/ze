@@ -1,6 +1,6 @@
 # RFC 2918 - Route Refresh Capability for BGP-4
 
-Supported. Every requirement this repository extracted from RFC 2918, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Route Refresh. Every requirement this repository extracted from RFC 2918, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,13 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 6 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 25.9% | 7 of 27 tagged units, 0 escaped and 4 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 6 | of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 0 | of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 11 | 11 of 27 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 7 | of 6 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -23,14 +24,14 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 6 | of 11 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 6 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 6 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 6 | of 11 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 6 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 6 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
-The 9 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 6 gated MUSTs: they add up to 6. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -38,23 +39,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Supported |
+| Public row | Route Refresh |
 | Enrolment | Enrolled |
 | Requirements | 11 |
 | Gated MUST-level | 6 |
@@ -77,15 +78,14 @@ Enrolled: BGP Route Refresh: six MUST-level requirements, all met and test-bound
 
 ## What the public ledger says
 
-**Status:** Supported
+**Area:** Route Refresh
 
-**What the ledger says is covered:**
+**Proof:** 3 of 6 MUST proven
 
-Route Refresh capability and ROUTE-REFRESH message handling.
+**Evidence:** functional 1, unit 2
 
-**What the ledger says remains:**
+**Unmet:** -
 
-No tracked gap in current source anchors.
 
 ## Coverage
 
@@ -102,9 +102,41 @@ No tracked gap in current source anchors.
 
 **Positive and negative tests (6):** [`RFC2918-2-1`](#rfc2918-2-1), [`RFC2918-3-1`](#rfc2918-3-1), [`RFC2918-3-2`](#rfc2918-3-2), [`RFC2918-4-1`](#rfc2918-4-1), [`RFC2918-4-2`](#rfc2918-4-2), [`RFC2918-4-3`](#rfc2918-4-3)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 6 of 6 (100.0%). Optional ceiling: 5 of 5 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc2918 6 of 6 (100.0%). Lowest optional ceiling: rfc2918 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 3, Ze correctness gap 3
+- **Overview bar**: Ze MUST proven 3, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 3
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 6 |
+| MUST rows kept (the MUST bar) | 6 |
+| Ze proven | 3 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 3 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 5 |
+| SHOULD proven | 1 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 4 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc2918.json](../../../data/rfc/rfc2918.json).
 
 ## Requirements
 
@@ -195,18 +227,18 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy. (S4)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy, internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy#2 moved. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 2918 Section 4: "Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed nlri.NewINET to take an explicit has-path-id flag; the unit passes false where it passed path id 0, which already meant no ADD-PATH identifier, so the input, the route and every assertion are byte-for-byte the same (TestRefreshSentFeedbackRetainsReplayOrigin and its helper refreshFeedbackBatch). The other carriers are byte-identical. The replay still asserts the sent-feedback replay flags [true,false] and the export-policy pair still decides the wire output, so the re-advertisement of the requested <AFI, SAFI> Adj-RIB-Out under outbound policy stays proven in both polarities. Verdict unchanged: enforced. Earlier judgement follows. Independently rejudged 2026-10-22; no execution or stamping. RFC 2918 Section 4: "Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy." Read every tagged carrier: internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh and TestRFC2918RefreshDoesNotSendToDownPeer; rib/rib_test.go::TestHandleRefresh_InternalState and TestHandleRefresh_PeerNotUp; reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin and TestRFC2918RefreshRunsCurrentExportPolicy; test/plugin/refresh-config-static.ci. The changed policy setup constructs ExportPolicy with the same refresh-policy reference and explicit FinalAccept, then republishes forwarding facts. The accepted replay must grow the wire output and call the policy once; changing only the policy response to reject must call it again and leave wire bytes identical. Both polarities isolate current export policy rather than final exhaustion. The immediate/queued replay test asserts sent-feedback replay flags [true,false], and storage tests consume emitted commands through the real UPDATE parser, require exact requested-family route identities and configured attributes, retain config-static ownership on refresh and transfer it on an ordinary plugin replacement. The functional carrier pins the exact configured IPv4 UPDATE before and after an actual AFI 1/SAFI 1 refresh, bracketed by BoRR/EoRR. Producer/consumer read: rib_structured.go::dispatchStructured routes refresh to handleRefreshStructured, which checks subtype and established peer then collects only the requested Adj-RIB-Out family; rib_commands.go::sendRoutes supplies replay metadata; reactor/egress_inject_filter.go::exportFilterForBody reads the current export Policy and rejects before transmission. TestHandleRefresh_PeerNotUp alone asserts only the unchanged down state and is not evidence of no output; the separate TestRFC2918RefreshDoesNotSendToDownPeer explicitly fails on either route or marker emission, so the whole row retains its existing enforced verdict without inflating that older carrier. Native renewal inputs are freshness observations, not this semantic verdict.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of faf7c5c380. RFC 2918 Section 4: "Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy." faf7c5c380 (filter chain model moved into internal/component/policy) changed one line in the tagged unit internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy: mustPolicy(t, []filterapi.FilterRef{{Name: "refresh-policy"}}, filterapi.FinalAccept) became mustPolicy(t, []routepolicy.Ref{{Name: "refresh-policy"}}, routepolicy.FinalAccept). mustPolicy still calls filterapi.NewPolicy with the same single unbound ref and the explicit accept final (NewPolicy now wraps policy.NewChain; an unbound ref stays external as the zero inProcess field did), so the policy the fixture installs, every input and every assertion are unchanged. No other commit touched the file since the verdict was stamped. The unit still requires that an accepted replay grows the wire output with exactly one policy call, and that flipping only the policy response to reject calls it again and leaves the wire bytes identical, so the outbound policy decides the re-advertisement in both polarities. Every other tagged carrier is byte-identical and its judgement stands. Verdict unchanged: enforced. Ran: go test -tags ze_bgp -run over the six faf7c5c380-changed reactor units, PASS on 2026-10-31. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2918RefreshDoesNotSendToDownPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L87) | unit/verify | revert, verified |
 | negative | [`TestHandleRefresh_PeerNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1084) | unit/verify | unproven |
-| negative | [`TestRFC2918RefreshRunsCurrentExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L70) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC2918RefreshRunsCurrentExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L70) | unit/verify | revert, verified |
 | positive | [`TestRFC2918ConfigStaticRetainedForRefresh`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L19) | unit/verify | revert, verified |
-| positive | [`TestHandleRefresh_InternalState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1011) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2918RefreshRunsCurrentExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L69) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestHandleRefresh_InternalState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1011) | unit/verify | revert, verified |
+| positive | [`TestRFC2918RefreshRunsCurrentExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L69) | unit/verify | revert, verified |
 | positive | [`TestRefreshSentFeedbackRetainsReplayOrigin`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L33) | unit/verify | revert, verified |
-| positive | [`refresh-config-static.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/refresh-config-static.ci#L10) | functional/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`refresh-config-static.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/refresh-config-static.ci#L10) | functional/verify | revert, verified |
 
 ### [`RFC2918-3-4`](#rfc2918-3-4)
 

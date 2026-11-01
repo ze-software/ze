@@ -1,0 +1,55 @@
+{
+  "stem": "rfc4271",
+  "title": "A Border Gateway Protocol 4 (BGP-4)",
+  "walked": true,
+  "requirements": 167,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 133,
+    "kept": 133,
+    "ze-proven": 83,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 50,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 34,
+    "proven": 3,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 31,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 5,
+    "interop": 3,
+    "unit": 75
+  },
+  "unmet": [
+    "RFC4271-3.1-2",
+    "RFC4271-5.1.6-1",
+    "RFC4271-5.1.7-1",
+    "RFC4271-6.2-3",
+    "RFC4271-8.2.1-3",
+    "RFC4271-8.2.2-13",
+    "RFC4271-9.1.2-1",
+    "RFC4271-9.1.2-4",
+    "RFC4271-9.1.2.1-2",
+    "RFC4271-9.1.2.2-2",
+    "RFC4271-9.2-2",
+    "RFC4271-9.2-3",
+    "RFC4271-9.2.1.1-2",
+    "RFC4271-9.2.1.1-3",
+    "RFC4271-9.2.2.2-1",
+    "RFC4271-9.2.2.2-2",
+    "RFC4271-9.2.2.2-3",
+    "RFC4271-9.2.2.2-4",
+    "RFC4271-9.2.2.2-5"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "stem": "rfc9514",
+  "title": "Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6)",
+  "walked": true,
+  "requirements": 23,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 20,
+    "kept": 20,
+    "ze-proven": 15,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 5,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 3,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 3,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 15
+  },
+  "unmet": [
+    "RFC9514-7.2-1",
+    "RFC9514-7.2-2",
+    "RFC9514-7.2-3",
+    "RFC9514-7.2-5",
+    "RFC9514-7.2-6"
+  ]
+}

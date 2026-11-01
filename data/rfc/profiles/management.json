@@ -1,0 +1,11 @@
+{
+  "name": "management",
+  "kind": "technology",
+  "title": "Management",
+  "release": false,
+  "required": [
+    "rfc5905",
+    "rfc7950"
+  ],
+  "optional": []
+}

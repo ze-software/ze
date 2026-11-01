@@ -1,0 +1,33 @@
+{
+  "stem": "rfc9069",
+  "title": "Support for Local RIB in the BGP Monitoring Protocol (BMP)",
+  "walked": true,
+  "requirements": 16,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 16,
+    "kept": 16,
+    "ze-proven": 9,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 7,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 0,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 0,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 9
+  },
+  "unmet": []
+}

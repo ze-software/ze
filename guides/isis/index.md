@@ -360,7 +360,31 @@ redistribute {
 }
 ```
 
-Each redistributed prefix is advertised with a fixed default metric. TLV 135 (IPv4)
+Each redistributed prefix is advertised with the default metric 100, unless the
+export chain sets one. `isis filter export` judges every redistributed route before
+it enters the LSP: a route the chain rejects is not advertised, and a `modify`
+instance's `set metric` replaces the default. A reload that changes the chain
+judges the routes already redistributed again, so the LSP follows the new chain
+without a restart. The chain cannot match on `level`, because the level is where
+IS-IS injects the route rather than a property it arrives with. This chain advertises only the /32
+loopbacks, at metric 10:
+
+```
+policy {
+  prefix-list loopbacks {
+    entry 0.0.0.0/0 { ge 32; le 32; action accept; }
+  }
+  modify loopback-metric { set { metric 10; } }
+}
+isis {
+  filter {
+    export { filters [ loopbacks loopback-metric ]; final accept; }
+  }
+}
+```
+
+A filter's accept only passes the route on, so the chain ends in `final accept`;
+`loopbacks` rejects every prefix that matches no entry. TLV 135 (IPv4)
 carries **no external bit**. A redistributed route is an ordinary reachability
 entry; the only wire flag is the up/down bit (RFC 5305 sec 4), which IS-IS sets only
 when leaking a prefix to a lower level (RFC 2966), never to mark external origin.
@@ -384,7 +408,9 @@ plugins started first. See
 **Connected and passive interfaces.** IS-IS also advertises its own enabled and
 **passive** interface prefixes as internal reachability in its LSPs. A passive
 interface forms no adjacency but its prefix is still advertised, so loopbacks and
-edge networks are reachable without running the protocol on them.
+edge networks are reachable without running the protocol on them. Loopback
+(127.0.0.0/8, `::1`), zero-network (0.0.0.0/8) and multicast addresses are
+never advertised, so a passive `lo` contributes only the addresses you add to it.
 
 **Counters.** `ze_isis_redist_injected_total{source,afi}` and
 `ze_isis_redist_withdrawn_total{source,afi}` track imported routes;

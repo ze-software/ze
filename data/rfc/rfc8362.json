@@ -1,0 +1,12 @@
+{
+  "stem": "rfc8362",
+  "title": "OSPFv3 Link State Advertisement (LSA) Extensibility",
+  "walked": false,
+  "requirements": 50,
+  "implementer": "ze",
+  "implemented": false,
+  "must": null,
+  "should": null,
+  "proven-by-kind": null,
+  "unmet": []
+}

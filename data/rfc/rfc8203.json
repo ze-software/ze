@@ -1,0 +1,33 @@
+{
+  "stem": "rfc8203",
+  "title": "BGP Administrative Shutdown Communication",
+  "walked": true,
+  "requirements": 9,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 5,
+    "kept": 5,
+    "ze-proven": 3,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 2,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 3
+  },
+  "unmet": []
+}

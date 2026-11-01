@@ -1,0 +1,12 @@
+{
+  "stem": "rfc8538",
+  "title": "Notification Message Support for BGP Graceful Restart",
+  "walked": false,
+  "requirements": 0,
+  "implementer": "ze",
+  "implemented": false,
+  "must": null,
+  "should": null,
+  "proven-by-kind": null,
+  "unmet": []
+}

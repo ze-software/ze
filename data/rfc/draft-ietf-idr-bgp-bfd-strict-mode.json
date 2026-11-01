@@ -1,0 +1,33 @@
+{
+  "stem": "draft-ietf-idr-bgp-bfd-strict-mode",
+  "title": "BGP BFD Strict-Mode",
+  "walked": true,
+  "requirements": 4,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 4,
+    "kept": 4,
+    "ze-proven": 4,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 0,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 0,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 4
+  },
+  "unmet": []
+}

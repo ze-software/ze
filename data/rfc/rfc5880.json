@@ -1,0 +1,46 @@
+{
+  "stem": "rfc5880",
+  "title": "Bidirectional Forwarding Detection (BFD)",
+  "walked": true,
+  "requirements": 137,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 111,
+    "kept": 111,
+    "ze-proven": 72,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 39,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 26,
+    "proven": 6,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 20,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 72
+  },
+  "unmet": [
+    "RFC5880-6.6-2",
+    "RFC5880-6.6-3",
+    "RFC5880-6.8.1-11",
+    "RFC5880-6.8.1-13",
+    "RFC5880-6.8.15-1",
+    "RFC5880-6.8.17-1",
+    "RFC5880-6.8.6-14",
+    "RFC5880-6.8.7-6",
+    "RFC5880-6.8.7-7",
+    "RFC5880-6.8.7-8",
+    "RFC5880-7-1",
+    "RFC5880-7-2"
+  ]
+}

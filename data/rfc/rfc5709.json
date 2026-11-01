@@ -1,0 +1,33 @@
+{
+  "stem": "rfc5709",
+  "title": "OSPFv2 HMAC-SHA Cryptographic Authentication",
+  "walked": true,
+  "requirements": 22,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 15,
+    "kept": 15,
+    "ze-proven": 5,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 10,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 7,
+    "proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 5,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 5
+  },
+  "unmet": []
+}

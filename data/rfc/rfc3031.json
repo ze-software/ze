@@ -1,0 +1,42 @@
+{
+  "stem": "rfc3031",
+  "title": "Multiprotocol Label Switching Architecture",
+  "walked": true,
+  "requirements": 12,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 10,
+    "kept": 10,
+    "ze-proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 8,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 2,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 2,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 2
+  },
+  "unmet": [
+    "RFC3031-3.10-1",
+    "RFC3031-3.10-2",
+    "RFC3031-3.16-2",
+    "RFC3031-3.16-3",
+    "RFC3031-3.23-1",
+    "RFC3031-3.8-1",
+    "RFC3031-4.1.2.2-1",
+    "RFC3031-x-1"
+  ]
+}

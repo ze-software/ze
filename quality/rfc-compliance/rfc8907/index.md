@@ -1,6 +1,6 @@
 # RFC 8907 - The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol
 
-Partial. Every requirement this repository extracted from RFC 8907, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+TACACS+. Every requirement this repository extracted from RFC 8907, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 80.4% | 45 of 56 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5.4% | 3 of 56 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 56 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 56 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 56 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 69.1% | 105 of 152 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 45 | of 56 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 56 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 56 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 56 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 105 | 105 of 152 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,14 +22,22 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 56 | of 59 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 8 | of 56 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 3.6% | 2 of 56 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 56 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 10.7% | 6 of 56 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 56 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 56 | of 59 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 56 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 2 | of 56 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 56 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 56 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 56 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
-The 9 shares marked as a part above are the whole of the 56 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 6 | of 56 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+
+The 9 counts marked as a part above are the whole of the 56 gated MUSTs: they add up to 56. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -38,28 +45,28 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | TACACS+ |
 | Enrolment | Enrolled |
 | Requirements | 59 |
 | Gated MUST-level | 56 |
-| Not applicable, so out of scope | 2 |
-| Declared gaps | 0 |
+| Not applicable, so out of scope | 0 |
+| Declared gaps | 6 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -77,21 +84,14 @@ Enrolled: Ze implements a TACACS+ client for management AAA. The 2026-09-21 extr
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** TACACS+
 
-**What the ledger says is covered**
+**Proof:** 38 of 56 MUST proven
 
-- PAP login followed by shell-session privilege authorization
-- printable-ASCII fields and UsernameCasePreserved usernames
-- exact decrypted lengths
-- ordered ERROR failover
-- mandatory command arguments
-- command accounting and negotiated single-connect reuse.
+**Evidence:** unit 38
 
+**Unmet:** RFC8907-5.4-1, RFC8907-5.4-2, RFC8907-5.4.2.3-1, RFC8907-5.4.2.4-1, RFC8907-5.4.2.5-1, RFC8907-5.4.2.6-1
 
-**What the ledger says remains**
-
-Current implementation changes await test and discrimination runs. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`: no ASCII interactive, CHAP, MS-CHAP v1/v2 or ENABLE authentication workflows. The conditional method rows retain that selection and their source text. Section 10.5 also includes deployment obligations that a TCP reachability check cannot establish.
 
 ## Coverage
 
@@ -112,9 +112,41 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 
 **Derived from other rows (1):** [`RFC8907-10.5-1`](#rfc8907-10.5-1)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 48 of 56 (85.7%); excluded: Optional feature not offered (classification can be revisited): 6 of 56 (10.7%); Not applicable (classification can be revisited): 2 of 56 (3.6%). Optional ceiling: 2 of 2 (100.0%). Lowest mandatory ceiling: rfc8907 48 of 56 (85.7%). Lowest optional ceiling: rfc8907 2 of 2 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 38, Ze correctness gap 18
+- **Overview bar**: Ze MUST proven 38, SHOULD not decided 2, Ze correctness gap 18
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 56 |
+| MUST rows kept (the MUST bar) | 56 |
+| Ze proven | 38 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 18 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 2 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 2 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc8907.json](../../../data/rfc/rfc8907.json).
 
 ## Requirements
 
@@ -145,14 +177,14 @@ Mandatory ceiling: 48 of 56 (85.7%); excluded: Optional feature not offered (cla
 | `RFC8907-4.4-2` | If Single Connection Mode was enabled, but an ERROR occurred due to connection issues (such as an incorrect secret (see Section 4.5)), then any further new sessions MUST NOT be accepted on the connection. (§4.4, Session Completion) | MUST NOT | 4.4 | **positive:** `unit/verify` [`TestRFC8907NoNewSessionOnBrokenPooledConnection`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L313). **negative:** `unit/verify` [`TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L328) |
 | `RFC8907-4.4-3` | Once all active sessions are completed, then the connection MUST be closed. (§4.4, Session Completion) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC8907BrokenPooledConnectionIsClosed`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L339). **negative:** `unit/verify` [`TestRFC8907HealthyPooledConnectionStaysOpen`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L351) |
 | `RFC8907-5.1-1` | The username is optional in this packet, depending upon the class of authentication. If it is absent, the client MUST set user_len to 0. (§5.1, The Authentication START Packet Body) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC8907AuthenStartAbsentUserWritesZeroLength`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L47). **negative:** `unit/verify` [`TestRFC8907AuthenStartPresentUserWritesItsLength`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L63) |
-| `RFC8907-5.4-1` | When the REPLY status equals TAC_PLUS_AUTHEN_STATUS_GETDATA, TAC_PLUS_AUTHEN_STATUS_GETUSER, or TAC_PLUS_AUTHEN_STATUS_GETPASS, authentication continues and the server SHOULD provide server_msg content for the client to prompt the user for more information. The client MUST then return a CONTINUE packet containing the requested information in the user_msg field. (§5.4, Description of Authentication Process) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "The entire exchange MUST consist of a single START packet and a single REPLY."; the PAP-specific rule is §5.4.2.2, which also restricts the reply to PASS, FAIL or ERROR. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding ASCII interactive workflows. internal/component/tacacs/client.go::Authenticate produces PAP through NewPAPAuthenStart, and validateReplyStatus rejects GETDATA/GETUSER/GETPASS rather than entering an interactive exchange; this is a selected method boundary, not a server-only obligation |
-| `RFC8907-5.4-2` | If the information being requested by the server from the client is sensitive, then the server should set the TAC_PLUS_REPLY_FLAG_NOECHO flag. When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered. (§5.4, Description of Authentication Process) | MUST NOT | 5.4 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered."; ze never queries the user for the information: internal/component/tacacs/client.go::Authenticate builds a PAP START with NewPAPAuthenStart from the username and password already supplied through aaa.AuthRequest and returns the REPLY, so it never prompts the user in response to a TACACS+ reply. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding ASCII interaction |
+| `RFC8907-5.4-1` | When the REPLY status equals TAC_PLUS_AUTHEN_STATUS_GETDATA, TAC_PLUS_AUTHEN_STATUS_GETUSER, or TAC_PLUS_AUTHEN_STATUS_GETPASS, authentication continues and the server SHOULD provide server_msg content for the client to prompt the user for more information. The client MUST then return a CONTINUE packet containing the requested information in the user_msg field. (§5.4, Description of Authentication Process) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements only PAP login: internal/component/tacacs/client.go::Authenticate sends a PAP START and validateReplyStatus rejects GETDATA, GETUSER and GETPASS, so no CONTINUE is ever returned. The ASCII interactive login is owed and scheduled after the first release |
+| `RFC8907-5.4-2` | If the information being requested by the server from the client is sensitive, then the server should set the TAC_PLUS_REPLY_FLAG_NOECHO flag. When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered. (§5.4, Description of Authentication Process) | MUST NOT | 5.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements only PAP login and never prompts the user in response to a REPLY (internal/component/tacacs/client.go::Authenticate), so NOECHO handling is unimplemented. The ASCII interactive login is owed and scheduled after the first release |
 | `RFC8907-5.4.2.2-1` | The entire exchange MUST consist of a single START packet and a single REPLY. (§5.4.2.2, PAP Login) | MUST | 5.4.2.2 | **positive:** `unit/verify` [`TestRFC8907PAPExchangeIsOneStartOneReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L382). **negative:** `unit/verify` [`TestRFC8907PAPClientSendsNoContinue`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L394) |
 | `RFC8907-5.4.2.2-2` | The START packet MUST contain a username and the data field MUST contain the PAP ASCII password. (§5.4.2.2, PAP Login) | MUST | 5.4.2.2 | **positive:** `unit/verify` [`TestRFC8907PAPStartCarriesUserAndPassword`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L75). **positive:** `unit/verify` [`TestRFC8907PAPStartOnWireCarriesUserAndPassword`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L158). **negative:** `unit/verify` [`TestRFC8907PAPStartRefusesPasswordItCannotCarry`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L89). **negative:** `unit/verify` [`TestRFC8907PAPStartWithoutUsernameNeverSent`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L170) |
-| `RFC8907-5.4.2.3-1` | The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response. (§5.4.2.3, CHAP Login) | MUST | 5.4.2.3 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response."; §5.4.2.3 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_CHAP. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding CHAP. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product CHAP challenge/response workflow exists |
-| `RFC8907-5.4.2.4-1` | The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.4, MS-CHAP v1 Login) | MUST | 5.4.2.4 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response."; §5.4.2.4 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_MSCHAP. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding MS-CHAP v1. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product MS-CHAP v1 challenge/response workflow exists |
-| `RFC8907-5.4.2.5-1` | The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.5, MS-CHAP v2 Login) | MUST | 5.4.2.5 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response."; §5.4.2.5 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_MSCHAPV2. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding MS-CHAP v2. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product MS-CHAP v2 challenge/response workflow exists |
-| `RFC8907-5.4.2.6-1` | In order to readily distinguish "ENABLE" requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE. (§5.4.2.6, Enable Requests) | MUST | 5.4.2.6 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "The exchange MAY consist of multiple messages while the server collects the information it requires in order to allow changing the principal's privilege level."; §5.4.2.6 defines an ENABLE privilege-change workflow, and the service rule applies when requesting an ENABLE. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding ENABLE workflows. internal/component/tacacs/authen.go::NewPAPAuthenStart sets the LOGIN service for the management password callback; it does not request a privilege change. The separate prohibition on using ENABLE for other operations remains tested |
+| `RFC8907-5.4.2.3-1` | The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response. (§5.4.2.3, CHAP Login) | MUST | 5.4.2.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no CHAP login: internal/component/tacacs/client.go::Authenticate builds only a PAP START. CHAP login is owed and scheduled after the first release |
+| `RFC8907-5.4.2.4-1` | The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.4, MS-CHAP v1 Login) | MUST | 5.4.2.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no MS-CHAP v1 login: internal/component/tacacs/client.go::Authenticate builds only a PAP START. MS-CHAP v1 login is owed and scheduled after the first release |
+| `RFC8907-5.4.2.5-1` | The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.5, MS-CHAP v2 Login) | MUST | 5.4.2.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no MS-CHAP v2 login: internal/component/tacacs/client.go::Authenticate builds only a PAP START. MS-CHAP v2 login is owed and scheduled after the first release |
+| `RFC8907-5.4.2.6-1` | In order to readily distinguish "ENABLE" requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE. (§5.4.2.6, Enable Requests) | MUST | 5.4.2.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze sends no ENABLE request: internal/component/tacacs/client.go::Authenticate builds only a PAP login START, and no owner decision declines ENABLE. It is owed |
 | `RFC8907-5.4.2.6-2` | It MUST NOT be set to this value when requesting any other operation. (§5.4.2.6, Enable Requests) | MUST NOT | 5.4.2.6 | **positive:** `unit/verify` [`TestRFC8907LoginStartCarriesLoginService`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L97). **positive:** `unit/verify` [`TestRFC8907PAPLoginOnWireCarriesLoginService`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L453). **negative:** `unit/verify` [`TestRFC8907LoginStartNeverCarriesEnableService`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L105). **negative:** `unit/verify` [`TestRFC8907NoRequestCarriesEnableService`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L458) |
 | `RFC8907-5.4.3-1` | If a client does not implement the TAC_PLUS_AUTHEN_STATUS_RESTART option, then it MUST process the response as if the status was TAC_PLUS_AUTHEN_STATUS_FAIL. (§5.4.3, Aborting an Authentication Session) | MUST | 5.4.3 | **positive:** `unit/verify` [`TestRFC8907RestartIsProcessedAsFail`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L75). **negative:** `unit/verify` [`TestRFC8907ErrorIsNotProcessedAsFail`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L84) |
 | `RFC8907-6.1-1` | The user_len MUST indicate the length of the user field, in bytes. (§6.1, The Authorization REQUEST Packet Body) | MUST | 6.1 | **positive:** `unit/verify` [`TestRFC8907AuthorRequestUserLenMatchesUser`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L114). **positive:** `unit/verify` [`TestRFC8907AuthorUserLenCountsBytes`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L179). **negative:** `unit/verify` [`TestRFC8907AuthorRequestRefusesUserItCannotMeasure`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L125). **negative:** `unit/verify` [`TestRFC8907AuthorUserLenRefusesRuneCount`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_arguments_test.go#L190) |
@@ -185,12 +217,12 @@ Mandatory ceiling: 48 of 56 (85.7%); excluded: Optional feature not offered (cla
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC8907-5-1`](#rfc8907-5-1) The sequence number must never wrap, i.e., if the sequence number 2^(8)-1 is ever reached, that session must terminate and be restarted with a sequence number of 1. (§4.1, Packet Header; maximum 255, not 254) | no test | no test carries this requirement id; annotated {not-applicable}: on 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`; internal/component/tacacs/client.go::Authenticate calls NewPAPAuthenStart and trySend emits sequence 1 and accepts only reply sequence 2. Section 5.4.2.2 requires one START and one REPLY for PAP, so no reachable authentication exchange approaches 255 or wraps; the separate initial/reply sequence tests remain applicable |
-| [`RFC8907-5.4-1`](#rfc8907-5.4-1) When the REPLY status equals TAC_PLUS_AUTHEN_STATUS_GETDATA, TAC_PLUS_AUTHEN_STATUS_GETUSER, or TAC_PLUS_AUTHEN_STATUS_GETPASS, authentication continues and the server SHOULD provide server_msg content for the client to prompt the user for more information. The client MUST then return a CONTINUE packet containing the requested information in the user_msg field. (§5.4, Description of Authentication Process) | no test | no test carries this requirement id; annotated {feature-declined}: "The entire exchange MUST consist of a single START packet and a single REPLY."; the PAP-specific rule is §5.4.2.2, which also restricts the reply to PASS, FAIL or ERROR. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding ASCII interactive workflows. internal/component/tacacs/client.go::Authenticate produces PAP through NewPAPAuthenStart, and validateReplyStatus rejects GETDATA/GETUSER/GETPASS rather than entering an interactive exchange; this is a selected method boundary, not a server-only obligation |
-| [`RFC8907-5.4-2`](#rfc8907-5.4-2) If the information being requested by the server from the client is sensitive, then the server should set the TAC_PLUS_REPLY_FLAG_NOECHO flag. When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered. (§5.4, Description of Authentication Process) | no test | no test carries this requirement id; annotated {feature-declined}: "When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered."; ze never queries the user for the information: internal/component/tacacs/client.go::Authenticate builds a PAP START with NewPAPAuthenStart from the username and password already supplied through aaa.AuthRequest and returns the REPLY, so it never prompts the user in response to a TACACS+ reply. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding ASCII interaction |
-| [`RFC8907-5.4.2.3-1`](#rfc8907-5.4.2.3-1) The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response. (§5.4.2.3, CHAP Login) | no test | no test carries this requirement id; annotated {feature-declined}: "The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response."; §5.4.2.3 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_CHAP. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding CHAP. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product CHAP challenge/response workflow exists |
-| [`RFC8907-5.4.2.4-1`](#rfc8907-5.4.2.4-1) The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.4, MS-CHAP v1 Login) | no test | no test carries this requirement id; annotated {feature-declined}: "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response."; §5.4.2.4 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_MSCHAP. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding MS-CHAP v1. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product MS-CHAP v1 challenge/response workflow exists |
-| [`RFC8907-5.4.2.5-1`](#rfc8907-5.4.2.5-1) The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.5, MS-CHAP v2 Login) | no test | no test carries this requirement id; annotated {feature-declined}: "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response."; §5.4.2.5 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_MSCHAPV2. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding MS-CHAP v2. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product MS-CHAP v2 challenge/response workflow exists |
-| [`RFC8907-5.4.2.6-1`](#rfc8907-5.4.2.6-1) In order to readily distinguish "ENABLE" requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE. (§5.4.2.6, Enable Requests) | no test | no test carries this requirement id; annotated {feature-declined}: "The exchange MAY consist of multiple messages while the server collects the information it requires in order to allow changing the principal's privilege level."; §5.4.2.6 defines an ENABLE privilege-change workflow, and the service rule applies when requesting an ENABLE. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding ENABLE workflows. internal/component/tacacs/authen.go::NewPAPAuthenStart sets the LOGIN service for the management password callback; it does not request a privilege change. The separate prohibition on using ENABLE for other operations remains tested |
+| [`RFC8907-5.4-1`](#rfc8907-5.4-1) When the REPLY status equals TAC_PLUS_AUTHEN_STATUS_GETDATA, TAC_PLUS_AUTHEN_STATUS_GETUSER, or TAC_PLUS_AUTHEN_STATUS_GETPASS, authentication continues and the server SHOULD provide server_msg content for the client to prompt the user for more information. The client MUST then return a CONTINUE packet containing the requested information in the user_msg field. (§5.4, Description of Authentication Process) | {gap}, no test | ze implements only PAP login: internal/component/tacacs/client.go::Authenticate sends a PAP START and validateReplyStatus rejects GETDATA, GETUSER and GETPASS, so no CONTINUE is ever returned. The ASCII interactive login is owed and scheduled after the first release |
+| [`RFC8907-5.4-2`](#rfc8907-5.4-2) If the information being requested by the server from the client is sensitive, then the server should set the TAC_PLUS_REPLY_FLAG_NOECHO flag. When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered. (§5.4, Description of Authentication Process) | {gap}, no test | ze implements only PAP login and never prompts the user in response to a REPLY (internal/component/tacacs/client.go::Authenticate), so NOECHO handling is unimplemented. The ASCII interactive login is owed and scheduled after the first release |
+| [`RFC8907-5.4.2.3-1`](#rfc8907-5.4.2.3-1) The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response. (§5.4.2.3, CHAP Login) | {gap}, no test | ze implements no CHAP login: internal/component/tacacs/client.go::Authenticate builds only a PAP START. CHAP login is owed and scheduled after the first release |
+| [`RFC8907-5.4.2.4-1`](#rfc8907-5.4.2.4-1) The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.4, MS-CHAP v1 Login) | {gap}, no test | ze implements no MS-CHAP v1 login: internal/component/tacacs/client.go::Authenticate builds only a PAP START. MS-CHAP v1 login is owed and scheduled after the first release |
+| [`RFC8907-5.4.2.5-1`](#rfc8907-5.4.2.5-1) The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response. (§5.4.2.5, MS-CHAP v2 Login) | {gap}, no test | ze implements no MS-CHAP v2 login: internal/component/tacacs/client.go::Authenticate builds only a PAP START. MS-CHAP v2 login is owed and scheduled after the first release |
+| [`RFC8907-5.4.2.6-1`](#rfc8907-5.4.2.6-1) In order to readily distinguish "ENABLE" requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE. (§5.4.2.6, Enable Requests) | {gap}, no test | ze sends no ENABLE request: internal/component/tacacs/client.go::Authenticate builds only a PAP login START, and no owner decision declines ENABLE. It is owed |
 | [`RFC8907-10.5-1`](#rfc8907-10.5-1) New implementations, and upgrades of current implementations, MUST implement these recommendations. (§10.5, TACACS+ Best Practices) | no test | no test carries this requirement id; annotated {rollup}: RFC8907-10.5.1-1, RFC8907-10.5.1-2, RFC8907-10.5.2-1, RFC8907-10.5.4-1; Section 10.5 makes "these recommendations" of Sections 10.5.1 to 10.5.4 mandatory for new implementations, and those four rows carry the client-side recommendations the checklist gates; the MUSTs of Sections 10.5.3 and 10.5.5 bind TACACS+ servers, a role ze does not fill |
 | [`RFC8907-4.6-2`](#rfc8907-4.6-2) A request MUST be dropped if TAC_PLUS_UNENCRYPTED_FLAG is set to true. (§4.5, Data Obfuscation; stable historical ID) | no test | no test carries this requirement id; annotated {not-applicable}: this request-receiver obligation binds a TACACS+ server. Ze implements the management AAA client, not a TACACS+ server; the client's separate obfuscation and reply-validation obligations remain applicable |
 

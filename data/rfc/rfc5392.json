@@ -1,0 +1,39 @@
+{
+  "stem": "rfc5392",
+  "title": "OSPF Extensions in Support of Inter-Autonomous System (AS) MPLS and GMPLS Traffic Engineering",
+  "walked": true,
+  "requirements": 32,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 14,
+    "kept": 14,
+    "ze-proven": 5,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 9,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 18,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 18,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 5
+  },
+  "unmet": [
+    "RFC5392-3.1.2-1",
+    "RFC5392-3.2.1-2",
+    "RFC5392-3.2.1-5",
+    "RFC5392-3.3.3-1",
+    "RFC5392-3.3.3-2"
+  ]
+}

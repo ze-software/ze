@@ -426,9 +426,9 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>redistribute-orchestrator</td>
 </tr>
 <tr>
-<td><code>ze_bgp_redistribute_filtered_rule_total</code></td>
-<td>Counter</td>
-<td></td>
+<td><code>ze_redistribute_chain_rejected_total</code></td>
+<td>CounterVec</td>
+<td>destination, source</td>
 <td>redistribute-orchestrator</td>
 </tr>
 <tr>
@@ -1233,7 +1233,10 @@ generic <code>redistribute-orchestrator</code> counters, not an IS-IS-specific s
 protocol shares. <code>ze_bgp_redistribute_events_received</code> counts route-change
 batches taken off the bus. <code>_announcements</code> and <code>_withdrawals</code> count the entries
 dispatched to a consumer. <code>_filtered_protocol_total</code> counts batches the loop
-guard skipped, and <code>_filtered_rule_total</code> counts entries the evaluator rejected.</p>
+guard skipped. <code>ze_redistribute_chain_rejected_total{destination,source}</code>
+counts the routes an import rule covers and its policy chain rejected, on the
+incremental and the replay path; a route no import rule names into that
+destination is not a chain's verdict and is not counted.</p>
 <p><code>ze_bgp_redistribute_replay_total{source}</code> counts routes replayed to a party
 that arrived after a producer emitted. That party is either a BGP peer whose
 session just established, or a destination protocol's consumer that just
@@ -1398,7 +1401,7 @@ atomic pointer, periodic update loop, and per-peer label cleanup.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,0 +1,31 @@
+{
+  "stem": "rfc2867",
+  "title": "RADIUS Accounting Modifications for Tunnel Protocol Support",
+  "walked": true,
+  "requirements": 17,
+  "implementer": "ze",
+  "implemented": false,
+  "must": {
+    "total": 1,
+    "kept": 1,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 1,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 16,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 16,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": []
+}

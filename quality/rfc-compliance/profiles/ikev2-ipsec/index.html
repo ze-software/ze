@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>IKEv2 and IPsec RFC coverage - Ze</title>
-        <meta name="description" content="Technology aggregate ikev2-ipsec: mandatory 240 of 704 (34.1%), optional 9 of 265 (3.4%); ceiling mandatory 628 of 704 (89.2%), optional 265 of 265 (100.0%); mandatory excluded: feature-declined 1, lower-layer 75; 21 RFCs, 0 not walked." />
+        <meta name="description" content="Technology aggregate ikev2-ipsec: the MUST and overview coverage of its RFCs." />
         <meta property="og:title" content="IKEv2 and IPsec RFC coverage - Ze" />
-        <meta property="og:description" content="Technology aggregate ikev2-ipsec: mandatory 240 of 704 (34.1%), optional 9 of 265 (3.4%); ceiling mandatory 628 of 704 (89.2%), optional 265 of 265 (100.0%); mandatory excluded: feature-declined 1, lower-layer 75; 21 RFCs, 0 not walked." />
+        <meta property="og:description" content="Technology aggregate ikev2-ipsec: the MUST and overview coverage of its RFCs." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="IKEv2 and IPsec RFC coverage - Ze" />
-        <meta name="twitter:description" content="Technology aggregate ikev2-ipsec: mandatory 240 of 704 (34.1%), optional 9 of 265 (3.4%); ceiling mandatory 628 of 704 (89.2%), optional 265 of 265 (100.0%); mandatory excluded: feature-declined 1, lower-layer 75; 21 RFCs, 0 not walked." />
+        <meta name="twitter:description" content="Technology aggregate ikev2-ipsec: the MUST and overview coverage of its RFCs." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Technology aggregate</span>
     <h1 id="rfc-profile-title">IKEv2 and IPsec</h1>
-    <p>IPsec, IKEv2, and kernel security associations. The RFCs whose summary names the ikev2-ipsec aggregate, with their mandatory and optional coverage.</p>
+    <p>IPsec, IKEv2, and kernel security associations. The RFCs whose summary names the ikev2-ipsec aggregate, with the MUST bar and the overview bar of the set and of each RFC.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -114,39 +114,109 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
-<style>
-.rfc-bar { display: block; width: 100%; min-width: 7rem; height: .7rem; margin: .2rem 0 .15rem; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); overflow: hidden; }
-.rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
-.rfc-bar-unmeasured { border-style: dashed; }
-.rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
-.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
-</style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
-<div class="rfc-card-grid">
-<div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>34.1%</strong><b>240 of 704 (34.1%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
-<div class="rfc-card rfc-neutral"><span>Optional</span><strong>3.4%</strong><b>9 of 265 (3.4%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
-<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>89.2%</strong><b>628 of 704 (89.2%); excluded: Optional feature not offered (classification can be revisited): 1 of 704 (0.1%); Met by a lower layer: 75 of 704 (10.7%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
-<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>265 of 265 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
-<div class="rfc-card rfc-neutral"><span>Not walked</span><strong>0</strong><b>of 21 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
-<div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
+<section><h2>Figures</h2>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="profile/ikev2-ipsec/required:must">Ze proven 252, OS testing gap 75, Ze correctness gap 377</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="profile/ikev2-ipsec/required:overview">Ze MUST proven 252, SHOULD proven 9, SHOULD not decided 256, OS testing gap 75, Ze correctness gap 377</div>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:rfcs">21</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:register">not complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:must.total">704</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:must.kept">704</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:must.ze-proven">252</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:must.os-gap">75</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:must.ze-gap">377</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:must.not-owed">0</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:must.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:should.total">265</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:should.proven">9</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="profile/ikev2-ipsec/required:should.not-decided">256</span></td>
+</tr>
+</tbody>
+</table>
 </div>
-<p>Mandatory ceiling: 628 of 704 (89.2%); excluded: Optional feature not offered (classification can be revisited): 1 of 704 (0.1%); Met by a lower layer: 75 of 704 (10.7%). Optional ceiling: 265 of 265 (100.0%). Lowest mandatory ceiling: rfc4302 12 of 32 (37.5%). Lowest optional ceiling: rfc3948 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+</section>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows &#34;not walked&#34; and no bar.</p>
 <h3>Level 0</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc4739/">RFC 4739</a></td>
 <td>Multiple Authentication Exchanges in the Internet Key Exchange (IKEv2) Protocol</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 2 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">2 of 2 (100.0%)</span><small class="rfc-ceiling">Ceiling: 2 of 2 (100.0%)</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc4739:must">Ze proven 2</div></td>
+<td><div data-ze-rfc-bar="rfc4739:overview">Ze MUST proven 2</div></td>
 </tr>
 <tr><td><a href="../../rfc5685/">RFC 5685</a></td>
 <td>Redirect Mechanism for the Internet Key Exchange Protocol Version 2 (IKEv2)</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 26 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 26 (0.0%)</span><small class="rfc-ceiling">Ceiling: 26 of 26 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 9 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 9 (0.0%)</span><small class="rfc-ceiling">Ceiling: 9 of 9 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc5685:must">Ze correctness gap 26</div></td>
+<td><div data-ze-rfc-bar="rfc5685:overview">SHOULD not decided 9, Ze correctness gap 26</div></td>
 </tr>
 </tbody>
 </table>
@@ -154,12 +224,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 1</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc4754/">RFC 4754</a></td>
 <td>IKE and IKEv2 Authentication Using the Elliptic Curve Digital Signature Algorithm (ECDSA)</td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 1 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">1 of 1 (100.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc4754:must">Ze proven 1</div></td>
+<td><div data-ze-rfc-bar="rfc4754:overview">Ze MUST proven 1</div></td>
 </tr>
 </tbody>
 </table>
@@ -167,12 +237,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 3</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc5280/">RFC 5280</a></td>
 <td>Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile</td>
-<td><div class="rfc-bar" role="img" aria-label="26 of 102 (25.5%)"><span style="width:25.5%"></span></div><span class="rfc-bar-note">26 of 102 (25.5%)</span><small class="rfc-ceiling">Ceiling: 52 of 102 (51.0%); excluded: Met by a lower layer: 50 of 102 (49.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 108 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 108 (0.0%)</span><small class="rfc-ceiling">Ceiling: 108 of 108 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc5280:must">Ze proven 26, OS testing gap 50, Ze correctness gap 26</div></td>
+<td><div data-ze-rfc-bar="rfc5280:overview">Ze MUST proven 26, SHOULD not decided 108, OS testing gap 50, Ze correctness gap 26</div></td>
 </tr>
 </tbody>
 </table>
@@ -180,47 +250,47 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 4</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc3948/">RFC 3948</a> (cycle with rfc3602, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>UDP Encapsulation of IPsec ESP Packets</td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 11 (36.4%)"><span style="width:36.4%"></span></div><span class="rfc-bar-note">4 of 11 (36.4%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 5 (40.0%)"><span style="width:40.0%"></span></div><span class="rfc-bar-note">2 of 5 (40.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc3948:must">Ze proven 6, Ze correctness gap 5</div></td>
+<td><div data-ze-rfc-bar="rfc3948:overview">Ze MUST proven 6, SHOULD proven 2, SHOULD not decided 3, Ze correctness gap 5</div></td>
 </tr>
 <tr><td><a href="../../rfc4106/">RFC 4106</a> (cycle with rfc3602, rfc3948, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP)</td>
-<td><div class="rfc-bar" role="img" aria-label="5 of 8 (62.5%)"><span style="width:62.5%"></span></div><span class="rfc-bar-note">5 of 8 (62.5%)</span><small class="rfc-ceiling">Ceiling: 5 of 8 (62.5%); excluded: Met by a lower layer: 3 of 8 (37.5%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4106:must">Ze proven 5, OS testing gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc4106:overview">Ze MUST proven 5, SHOULD not decided 5, OS testing gap 3</div></td>
 </tr>
 <tr><td><a href="../../rfc4301/">RFC 4301</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>Security Architecture for the Internet Protocol</td>
-<td><div class="rfc-bar" role="img" aria-label="50 of 101 (49.5%)"><span style="width:49.5%"></span></div><span class="rfc-bar-note">50 of 101 (49.5%)</span><small class="rfc-ceiling">Ceiling: 99 of 101 (98.0%); excluded: Met by a lower layer: 2 of 101 (2.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 3 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">1 of 3 (33.3%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4301:must">Ze proven 52, OS testing gap 2, Ze correctness gap 47</div></td>
+<td><div data-ze-rfc-bar="rfc4301:overview">Ze MUST proven 52, SHOULD proven 1, SHOULD not decided 2, OS testing gap 2, Ze correctness gap 47</div></td>
 </tr>
 <tr><td><a href="../../rfc4302/">RFC 4302</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>IP Authentication Header</td>
-<td><div class="rfc-bar" role="img" aria-label="9 of 32 (28.1%)"><span style="width:28.1%"></span></div><span class="rfc-bar-note">9 of 32 (28.1%)</span><small class="rfc-ceiling">Ceiling: 12 of 32 (37.5%); excluded: Optional feature not offered (classification can be revisited): 1 of 32 (3.1%); Met by a lower layer: 19 of 32 (59.4%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 10 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 10 (0.0%)</span><small class="rfc-ceiling">Ceiling: 10 of 10 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4302:must">Ze proven 9, OS testing gap 19, Ze correctness gap 4</div></td>
+<td><div data-ze-rfc-bar="rfc4302:overview">Ze MUST proven 9, SHOULD not decided 10, OS testing gap 19, Ze correctness gap 4</div></td>
 </tr>
 <tr><td><a href="../../rfc4303/">RFC 4303</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4309, rfc5282, rfc7296, rfc8247)</td>
 <td>IP Encapsulating Security Payload (ESP)</td>
-<td><div class="rfc-bar" role="img" aria-label="7 of 23 (30.4%)"><span style="width:30.4%"></span></div><span class="rfc-bar-note">7 of 23 (30.4%)</span><small class="rfc-ceiling">Ceiling: 23 of 23 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4303:must">Ze proven 7, Ze correctness gap 16</div></td>
+<td><div data-ze-rfc-bar="rfc4303:overview">Ze MUST proven 7, SHOULD not decided 4, Ze correctness gap 16</div></td>
 </tr>
 <tr><td><a href="../../rfc5282/">RFC 5282</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc7296, rfc8247)</td>
 <td>Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol</td>
-<td><div class="rfc-bar" role="img" aria-label="19 of 19 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">19 of 19 (100.0%)</span><small class="rfc-ceiling">Ceiling: 19 of 19 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 11 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 11 (0.0%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc5282:must">Ze proven 19</div></td>
+<td><div data-ze-rfc-bar="rfc5282:overview">Ze MUST proven 19, SHOULD not decided 11</div></td>
 </tr>
 <tr><td><a href="../../rfc7296/">RFC 7296</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247)</td>
 <td>Internet Key Exchange Protocol Version 2 (IKEv2)</td>
-<td><div class="rfc-bar" role="img" aria-label="78 of 234 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">78 of 234 (33.3%)</span><small class="rfc-ceiling">Ceiling: 234 of 234 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 9 (44.4%)"><span style="width:44.4%"></span></div><span class="rfc-bar-note">4 of 9 (44.4%)</span><small class="rfc-ceiling">Ceiling: 9 of 9 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7296:must">Ze proven 84, Ze correctness gap 150</div></td>
+<td><div data-ze-rfc-bar="rfc7296:overview">Ze MUST proven 84, SHOULD proven 4, SHOULD not decided 5, Ze correctness gap 150</div></td>
 </tr>
 <tr><td><a href="../../rfc8247/">RFC 8247</a> (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296)</td>
 <td>Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2)</td>
-<td><div class="rfc-bar" role="img" aria-label="16 of 20 (80.0%)"><span style="width:80.0%"></span></div><span class="rfc-bar-note">16 of 20 (80.0%)</span><small class="rfc-ceiling">Ceiling: 20 of 20 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc8247:must">Ze proven 17, Ze correctness gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc8247:overview">Ze MUST proven 17, SHOULD not decided 5, Ze correctness gap 3</div></td>
 </tr>
 </tbody>
 </table>
@@ -228,47 +298,47 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 5</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc4555/">RFC 4555</a></td>
 <td>IKEv2 Mobility and Multihoming Protocol (MOBIKE)</td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 14 (21.4%)"><span style="width:21.4%"></span></div><span class="rfc-bar-note">3 of 14 (21.4%)</span><small class="rfc-ceiling">Ceiling: 14 of 14 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 12 (16.7%)"><span style="width:16.7%"></span></div><span class="rfc-bar-note">2 of 12 (16.7%)</span><small class="rfc-ceiling">Ceiling: 12 of 12 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4555:must">Ze proven 3, Ze correctness gap 11</div></td>
+<td><div data-ze-rfc-bar="rfc4555:overview">Ze MUST proven 3, SHOULD proven 2, SHOULD not decided 10, Ze correctness gap 11</div></td>
 </tr>
 <tr><td><a href="../../rfc7383/">RFC 7383</a></td>
 <td>Internet Key Exchange Protocol Version 2 (IKEv2) Message Fragmentation</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 25 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 25 (0.0%)</span><small class="rfc-ceiling">Ceiling: 25 of 25 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 15 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 15 (0.0%)</span><small class="rfc-ceiling">Ceiling: 15 of 15 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7383:must">Ze correctness gap 25</div></td>
+<td><div data-ze-rfc-bar="rfc7383:overview">SHOULD not decided 15, Ze correctness gap 25</div></td>
 </tr>
 <tr><td><a href="../../rfc7427/">RFC 7427</a></td>
 <td>Signature Authentication in the Internet Key Exchange Version 2 (IKEv2)</td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 4 (75.0%)"><span style="width:75.0%"></span></div><span class="rfc-bar-note">3 of 4 (75.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7427:must">Ze proven 4</div></td>
+<td><div data-ze-rfc-bar="rfc7427:overview">Ze MUST proven 4, SHOULD not decided 3</div></td>
 </tr>
 <tr><td><a href="../../rfc7634/">RFC 7634</a></td>
 <td>ChaCha20, Poly1305, and Their Use in the Internet Key Exchange Protocol (IKE) and IPsec</td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 2 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">1 of 2 (50.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 2 (50.0%); excluded: Met by a lower layer: 1 of 2 (50.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7634:must">Ze proven 1, OS testing gap 1</div></td>
+<td><div data-ze-rfc-bar="rfc7634:overview">Ze MUST proven 1, SHOULD not decided 3, OS testing gap 1</div></td>
 </tr>
 <tr><td><a href="../../rfc8031/">RFC 8031</a></td>
 <td>Curve25519 and Curve448 for the Internet Key Exchange Protocol Version 2 (IKEv2) Key Agreement</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc8031:must">Ze correctness gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc8031:overview">Ze correctness gap 3</div></td>
 </tr>
 <tr><td><a href="../../rfc8221/">RFC 8221</a></td>
 <td>Cryptographic Algorithm Implementation Requirements and Usage Guidance for Encapsulating Security Payload (ESP) and Authentication Header (AH)</td>
-<td><div class="rfc-bar" role="img" aria-label="16 of 16 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">16 of 16 (100.0%)</span><small class="rfc-ceiling">Ceiling: 16 of 16 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc8221:must">Ze proven 16</div></td>
+<td><div data-ze-rfc-bar="rfc8221:overview">Ze MUST proven 16, SHOULD not decided 3</div></td>
 </tr>
 <tr><td><a href="../../rfc9329/">RFC 9329</a></td>
 <td>TCP Encapsulation of Internet Key Exchange Protocol (IKE) and IPsec Packets</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 30 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 30 (0.0%)</span><small class="rfc-ceiling">Ceiling: 30 of 30 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 44 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 44 (0.0%)</span><small class="rfc-ceiling">Ceiling: 44 of 44 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc9329:must">Ze correctness gap 30</div></td>
+<td><div data-ze-rfc-bar="rfc9329:overview">SHOULD not decided 44, Ze correctness gap 30</div></td>
 </tr>
 <tr><td><a href="../../rfc9370/">RFC 9370</a></td>
 <td>Multiple Key Exchanges in the Internet Key Exchange Protocol Version 2 (IKEv2)</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 23 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 23 (0.0%)</span><small class="rfc-ceiling">Ceiling: 23 of 23 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc9370:must">Ze correctness gap 23</div></td>
+<td><div data-ze-rfc-bar="rfc9370:overview">SHOULD not decided 4, Ze correctness gap 23</div></td>
 </tr>
 </tbody>
 </table>
@@ -276,17 +346,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 10</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc6071/">RFC 6071</a></td>
 <td>IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 8 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 8 (0.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 12 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 12 (0.0%)</span><small class="rfc-ceiling">Ceiling: 12 of 12 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc6071:must">Ze correctness gap 8</div></td>
+<td><div data-ze-rfc-bar="rfc6071:overview">SHOULD not decided 12, Ze correctness gap 8</div></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
+<script src="../../../../assets/rfc-figures.js" defer></script>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -318,7 +389,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

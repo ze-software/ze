@@ -1,0 +1,35 @@
+{
+  "stem": "rfc5882",
+  "title": "Generic Application of Bidirectional Forwarding Detection (BFD)",
+  "walked": true,
+  "requirements": 32,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 3,
+    "kept": 3,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 3,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 29,
+    "proven": 5,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 24,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC5882-10.1.3-1",
+    "RFC5882-4.1-1",
+    "RFC5882-4.4-1"
+  ]
+}

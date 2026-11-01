@@ -1,0 +1,14 @@
+{
+  "name": "bfd",
+  "kind": "technology",
+  "title": "BFD",
+  "release": false,
+  "required": [
+    "rfc5880",
+    "rfc5881",
+    "rfc5882",
+    "rfc5883",
+    "rfc9384"
+  ],
+  "optional": []
+}

@@ -1,0 +1,35 @@
+{
+  "stem": "rfc2349",
+  "title": "TFTP Timeout Interval and Transfer Size Options",
+  "walked": true,
+  "requirements": 6,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 4,
+    "kept": 4,
+    "ze-proven": 3,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 1,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 2,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 1,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 3
+  },
+  "unmet": [
+    "RFC2349-x-4"
+  ]
+}

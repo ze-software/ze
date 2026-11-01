@@ -1,69 +1,96 @@
 # IKEv2 and IPsec
 
-Technology aggregate. IPsec, IKEv2, and kernel security associations. The RFCs whose summary names the ikev2-ipsec aggregate, with their mandatory and optional coverage.
+Technology aggregate. IPsec, IKEv2, and kernel security associations. The RFCs whose summary names the ikev2-ipsec aggregate, with the MUST bar and the overview bar of the set and of each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 34.1% (240 of 704 (34.1%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 3.4% (9 of 265 (3.4%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 89.2% (628 of 704 (89.2%); excluded: Optional feature not offered (classification can be revisited): 1 of 704 (0.1%); Met by a lower layer: 75 of 704 (10.7%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (265 of 265 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 0 (of 21 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/ikev2-ipsec.json](../../../../data/rfc/profiles/ikev2-ipsec.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 628 of 704 (89.2%); excluded: Optional feature not offered (classification can be revisited): 1 of 704 (0.1%); Met by a lower layer: 75 of 704 (10.7%). Optional ceiling: 265 of 265 (100.0%). Lowest mandatory ceiling: rfc4302 12 of 32 (37.5%). Lowest optional ceiling: rfc3948 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 252, OS testing gap 75, Ze correctness gap 377
+- **Overview bar**: Ze MUST proven 252, SHOULD proven 9, SHOULD not decided 256, OS testing gap 75, Ze correctness gap 377
+
+| Figure | Rows |
+|---|---|
+| RFCs | 21 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 704 |
+| MUST rows kept (the MUST bar) | 704 |
+| Ze proven | 252 |
+| OS verified | 0 |
+| OS testing gap | 75 |
+| Ze correctness gap | 377 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 265 |
+| SHOULD proven | 9 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 256 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
 ### Level 0
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4739](../../rfc4739/) | Multiple Authentication Exchanges in the Internet Key Exchange (IKEv2) Protocol | 2 of 2 (100.0%); ceiling 2 of 2 (100.0%) | no rows; ceiling no rows |
-| [RFC 5685](../../rfc5685/) | Redirect Mechanism for the Internet Key Exchange Protocol Version 2 (IKEv2) | 0 of 26 (0.0%); ceiling 26 of 26 (100.0%) | 0 of 9 (0.0%); ceiling 9 of 9 (100.0%) |
+| [RFC 4739](../../rfc4739/) | Multiple Authentication Exchanges in the Internet Key Exchange (IKEv2) Protocol | Ze proven 2 | Ze MUST proven 2 |
+| [RFC 5685](../../rfc5685/) | Redirect Mechanism for the Internet Key Exchange Protocol Version 2 (IKEv2) | Ze correctness gap 26 | SHOULD not decided 9, Ze correctness gap 26 |
 
 ### Level 1
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4754](../../rfc4754/) | IKE and IKEv2 Authentication Using the Elliptic Curve Digital Signature Algorithm (ECDSA) | 1 of 1 (100.0%); ceiling 1 of 1 (100.0%) | no rows; ceiling no rows |
+| [RFC 4754](../../rfc4754/) | IKE and IKEv2 Authentication Using the Elliptic Curve Digital Signature Algorithm (ECDSA) | Ze proven 1 | Ze MUST proven 1 |
 
 ### Level 3
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5280](../../rfc5280/) | Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile | 26 of 102 (25.5%); ceiling 52 of 102 (51.0%); excluded: Met by a lower layer: 50 of 102 (49.0%) | 0 of 108 (0.0%); ceiling 108 of 108 (100.0%) |
+| [RFC 5280](../../rfc5280/) | Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile | Ze proven 26, OS testing gap 50, Ze correctness gap 26 | Ze MUST proven 26, SHOULD not decided 108, OS testing gap 50, Ze correctness gap 26 |
 
 ### Level 4
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 3948](../../rfc3948/) (cycle with rfc3602, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | UDP Encapsulation of IPsec ESP Packets | 4 of 11 (36.4%); ceiling 11 of 11 (100.0%) | 2 of 5 (40.0%); ceiling 5 of 5 (100.0%) |
-| [RFC 4106](../../rfc4106/) (cycle with rfc3602, rfc3948, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP) | 5 of 8 (62.5%); ceiling 5 of 8 (62.5%); excluded: Met by a lower layer: 3 of 8 (37.5%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) |
-| [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | 50 of 101 (49.5%); ceiling 99 of 101 (98.0%); excluded: Met by a lower layer: 2 of 101 (2.0%) | 1 of 3 (33.3%); ceiling 3 of 3 (100.0%) |
-| [RFC 4302](../../rfc4302/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | IP Authentication Header | 9 of 32 (28.1%); ceiling 12 of 32 (37.5%); excluded: Optional feature not offered (classification can be revisited): 1 of 32 (3.1%); Met by a lower layer: 19 of 32 (59.4%) | 0 of 10 (0.0%); ceiling 10 of 10 (100.0%) |
-| [RFC 4303](../../rfc4303/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4309, rfc5282, rfc7296, rfc8247) | IP Encapsulating Security Payload (ESP) | 7 of 23 (30.4%); ceiling 23 of 23 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) |
-| [RFC 5282](../../rfc5282/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc7296, rfc8247) | Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol | 19 of 19 (100.0%); ceiling 19 of 19 (100.0%) | 0 of 11 (0.0%); ceiling 11 of 11 (100.0%) |
-| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | 78 of 234 (33.3%); ceiling 234 of 234 (100.0%) | 4 of 9 (44.4%); ceiling 9 of 9 (100.0%) |
-| [RFC 8247](../../rfc8247/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296) | Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2) | 16 of 20 (80.0%); ceiling 20 of 20 (100.0%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) |
+| [RFC 3948](../../rfc3948/) (cycle with rfc3602, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | UDP Encapsulation of IPsec ESP Packets | Ze proven 6, Ze correctness gap 5 | Ze MUST proven 6, SHOULD proven 2, SHOULD not decided 3, Ze correctness gap 5 |
+| [RFC 4106](../../rfc4106/) (cycle with rfc3602, rfc3948, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP) | Ze proven 5, OS testing gap 3 | Ze MUST proven 5, SHOULD not decided 5, OS testing gap 3 |
+| [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | Ze proven 52, OS testing gap 2, Ze correctness gap 47 | Ze MUST proven 52, SHOULD proven 1, SHOULD not decided 2, OS testing gap 2, Ze correctness gap 47 |
+| [RFC 4302](../../rfc4302/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | IP Authentication Header | Ze proven 9, OS testing gap 19, Ze correctness gap 4 | Ze MUST proven 9, SHOULD not decided 10, OS testing gap 19, Ze correctness gap 4 |
+| [RFC 4303](../../rfc4303/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4309, rfc5282, rfc7296, rfc8247) | IP Encapsulating Security Payload (ESP) | Ze proven 7, Ze correctness gap 16 | Ze MUST proven 7, SHOULD not decided 4, Ze correctness gap 16 |
+| [RFC 5282](../../rfc5282/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc7296, rfc8247) | Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol | Ze proven 19 | Ze MUST proven 19, SHOULD not decided 11 |
+| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 84, Ze correctness gap 150 | Ze MUST proven 84, SHOULD proven 4, SHOULD not decided 5, Ze correctness gap 150 |
+| [RFC 8247](../../rfc8247/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296) | Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 17, Ze correctness gap 3 | Ze MUST proven 17, SHOULD not decided 5, Ze correctness gap 3 |
 
 ### Level 5
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4555](../../rfc4555/) | IKEv2 Mobility and Multihoming Protocol (MOBIKE) | 3 of 14 (21.4%); ceiling 14 of 14 (100.0%) | 2 of 12 (16.7%); ceiling 12 of 12 (100.0%) |
-| [RFC 7383](../../rfc7383/) | Internet Key Exchange Protocol Version 2 (IKEv2) Message Fragmentation | 0 of 25 (0.0%); ceiling 25 of 25 (100.0%) | 0 of 15 (0.0%); ceiling 15 of 15 (100.0%) |
-| [RFC 7427](../../rfc7427/) | Signature Authentication in the Internet Key Exchange Version 2 (IKEv2) | 3 of 4 (75.0%); ceiling 4 of 4 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) |
-| [RFC 7634](../../rfc7634/) | ChaCha20, Poly1305, and Their Use in the Internet Key Exchange Protocol (IKE) and IPsec | 1 of 2 (50.0%); ceiling 1 of 2 (50.0%); excluded: Met by a lower layer: 1 of 2 (50.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) |
-| [RFC 8031](../../rfc8031/) | Curve25519 and Curve448 for the Internet Key Exchange Protocol Version 2 (IKEv2) Key Agreement | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) | no rows; ceiling no rows |
-| [RFC 8221](../../rfc8221/) | Cryptographic Algorithm Implementation Requirements and Usage Guidance for Encapsulating Security Payload (ESP) and Authentication Header (AH) | 16 of 16 (100.0%); ceiling 16 of 16 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) |
-| [RFC 9329](../../rfc9329/) | TCP Encapsulation of Internet Key Exchange Protocol (IKE) and IPsec Packets | 0 of 30 (0.0%); ceiling 30 of 30 (100.0%) | 0 of 44 (0.0%); ceiling 44 of 44 (100.0%) |
-| [RFC 9370](../../rfc9370/) | Multiple Key Exchanges in the Internet Key Exchange Protocol Version 2 (IKEv2) | 0 of 23 (0.0%); ceiling 23 of 23 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) |
+| [RFC 4555](../../rfc4555/) | IKEv2 Mobility and Multihoming Protocol (MOBIKE) | Ze proven 3, Ze correctness gap 11 | Ze MUST proven 3, SHOULD proven 2, SHOULD not decided 10, Ze correctness gap 11 |
+| [RFC 7383](../../rfc7383/) | Internet Key Exchange Protocol Version 2 (IKEv2) Message Fragmentation | Ze correctness gap 25 | SHOULD not decided 15, Ze correctness gap 25 |
+| [RFC 7427](../../rfc7427/) | Signature Authentication in the Internet Key Exchange Version 2 (IKEv2) | Ze proven 4 | Ze MUST proven 4, SHOULD not decided 3 |
+| [RFC 7634](../../rfc7634/) | ChaCha20, Poly1305, and Their Use in the Internet Key Exchange Protocol (IKE) and IPsec | Ze proven 1, OS testing gap 1 | Ze MUST proven 1, SHOULD not decided 3, OS testing gap 1 |
+| [RFC 8031](../../rfc8031/) | Curve25519 and Curve448 for the Internet Key Exchange Protocol Version 2 (IKEv2) Key Agreement | Ze correctness gap 3 | Ze correctness gap 3 |
+| [RFC 8221](../../rfc8221/) | Cryptographic Algorithm Implementation Requirements and Usage Guidance for Encapsulating Security Payload (ESP) and Authentication Header (AH) | Ze proven 16 | Ze MUST proven 16, SHOULD not decided 3 |
+| [RFC 9329](../../rfc9329/) | TCP Encapsulation of Internet Key Exchange Protocol (IKE) and IPsec Packets | Ze correctness gap 30 | SHOULD not decided 44, Ze correctness gap 30 |
+| [RFC 9370](../../rfc9370/) | Multiple Key Exchanges in the Internet Key Exchange Protocol Version 2 (IKEv2) | Ze correctness gap 23 | SHOULD not decided 4, Ze correctness gap 23 |
 
 ### Level 10
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6071](../../rfc6071/) | IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap | 0 of 8 (0.0%); ceiling 8 of 8 (100.0%) | 0 of 12 (0.0%); ceiling 12 of 12 (100.0%) |
+| [RFC 6071](../../rfc6071/) | IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap | Ze correctness gap 8 | SHOULD not decided 12, Ze correctness gap 8 |

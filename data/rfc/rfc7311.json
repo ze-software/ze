@@ -1,0 +1,33 @@
+{
+  "stem": "rfc7311",
+  "title": "The Accumulated IGP Metric Attribute for BGP",
+  "walked": true,
+  "requirements": 26,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 22,
+    "kept": 22,
+    "ze-proven": 13,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 9,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 13
+  },
+  "unmet": []
+}

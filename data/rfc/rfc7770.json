@@ -1,0 +1,42 @@
+{
+  "stem": "rfc7770",
+  "title": "Extensions to OSPF for Advertising Optional Router Capabilities",
+  "walked": true,
+  "requirements": 25,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 11,
+    "kept": 10,
+    "ze-proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 9,
+    "not-owed": 1,
+    "not-owed-by-kind": {
+      "not-applicable": 1
+    }
+  },
+  "should": {
+    "total": 14,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 13,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 1
+  },
+  "unmet": [
+    "RFC7770-2-1",
+    "RFC7770-2.3-1",
+    "RFC7770-2.7-1",
+    "RFC7770-5.2-1",
+    "RFC7770-5.2-2",
+    "RFC7770-5.3-1"
+  ]
+}

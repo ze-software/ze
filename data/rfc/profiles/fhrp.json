@@ -1,0 +1,12 @@
+{
+  "name": "fhrp",
+  "kind": "technology",
+  "title": "First-hop redundancy",
+  "release": false,
+  "required": [
+    "rfc3768",
+    "rfc5798",
+    "rfc9568"
+  ],
+  "optional": []
+}

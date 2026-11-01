@@ -1,0 +1,33 @@
+{
+  "stem": "rfc5701",
+  "title": "IPv6 Address Specific BGP Extended Community Attribute",
+  "walked": true,
+  "requirements": 6,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 4,
+    "kept": 4,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 4,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 2,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 2,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC5701-4-1"
+  ]
+}

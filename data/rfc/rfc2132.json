@@ -1,0 +1,60 @@
+{
+  "stem": "rfc2132",
+  "title": "DHCP Options and BOOTP Vendor Extensions",
+  "walked": true,
+  "requirements": 68,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 34,
+    "kept": 34,
+    "ze-proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 33,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 34,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 34,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 1
+  },
+  "unmet": [
+    "RFC2132-3.10-1",
+    "RFC2132-3.11-1",
+    "RFC2132-3.12-1",
+    "RFC2132-3.13-1",
+    "RFC2132-3.6-1",
+    "RFC2132-3.7-1",
+    "RFC2132-3.9-1",
+    "RFC2132-4.3-1",
+    "RFC2132-4.7-1",
+    "RFC2132-5.8-1",
+    "RFC2132-8.10-1",
+    "RFC2132-8.12-1",
+    "RFC2132-8.13-1",
+    "RFC2132-8.14-1",
+    "RFC2132-8.15-1",
+    "RFC2132-8.16-1",
+    "RFC2132-8.17-1",
+    "RFC2132-8.18-1",
+    "RFC2132-8.19-1",
+    "RFC2132-8.2-1",
+    "RFC2132-8.20-1",
+    "RFC2132-8.21-1",
+    "RFC2132-8.3-1",
+    "RFC2132-8.9-1",
+    "RFC2132-9.14-1",
+    "RFC2132-9.8-1"
+  ]
+}

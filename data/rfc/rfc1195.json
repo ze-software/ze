@@ -1,0 +1,41 @@
+{
+  "stem": "rfc1195",
+  "title": "Use of OSI IS-IS for Routing in TCP/IP and Dual Environments",
+  "walked": true,
+  "requirements": 42,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 41,
+    "kept": 41,
+    "ze-proven": 25,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 16,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 1,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 1,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 25
+  },
+  "unmet": [
+    "RFC1195-1.2-1",
+    "RFC1195-1.4-1",
+    "RFC1195-1.4-3",
+    "RFC1195-3.10.2-1",
+    "RFC1195-3.2-3",
+    "RFC1195-8-1",
+    "RFC1195-8-2"
+  ]
+}

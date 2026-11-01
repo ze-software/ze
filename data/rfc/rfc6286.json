@@ -1,0 +1,33 @@
+{
+  "stem": "rfc6286",
+  "title": "Autonomous-System-Wide Unique BGP Identifier for BGP-4",
+  "walked": true,
+  "requirements": 5,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 4,
+    "kept": 4,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 4,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 1,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 0,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC6286-2.1-1"
+  ]
+}

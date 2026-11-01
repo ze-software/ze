@@ -1,0 +1,20 @@
+{
+  "name": "radius-tacacs",
+  "kind": "technology",
+  "title": "RADIUS and TACACS+",
+  "release": false,
+  "required": [
+    "rfc2865",
+    "rfc2866",
+    "rfc2867",
+    "rfc2868",
+    "rfc2869",
+    "rfc3162",
+    "rfc3579",
+    "rfc4818",
+    "rfc5176",
+    "rfc6911",
+    "rfc8907"
+  ],
+  "optional": []
+}

@@ -64,6 +64,7 @@ including Ze.</p>
 <li><a href="#cross-implementation-comparison">Cross-Implementation Comparison</a>
 <ol>
 <li><a href="#automated-docker-runner">Automated Docker Runner</a></li>
+<li><a href="#passes">Passes</a></li>
 <li><a href="#manual-reports">Manual Reports</a></li>
 </ol></li>
 <li><a href="#tracking-performance-over-time">Tracking Performance Over Time</a>
@@ -227,7 +228,7 @@ a pause. Longer delays give the DUT time to settle between measurements.</p>
 <td>Ze</td>
 <td>ze-interop (built)</td>
 <td><span class="ev-src"><span class="ev-ref"><code>test/perf/configs/ze.conf</code></span></span></td>
-<td>bgp-rs plugin</td>
+<td>bgp-rs plugin, import and export <code>final accept</code> (RFC 8212 refuses an EBGP direction with no policy)</td>
 </tr>
 <tr>
 <td>FRR</td>
@@ -303,8 +304,9 @@ DUT_ROUTES=10000 DUT_REPEAT=5 ./le perf run step test dut ze
 <!-- source: internal/le/perf/bench.go -- Bench -->
 <p>A run with no <code>step</code> keyword builds the images and measures. <code>step build</code>
 records nothing, because it measured nothing. Any other <code>step</code> value exits 2
-and names the value. A run that measured records the commit, so the perf nudge
-(<code>./le perf suggest</code>) stops asking for one.</p>
+and names the value. A run that measured and passed records the commit, so the
+perf nudge (<code>./le perf suggest</code>) stops asking for one. A run that failed, for
+any cause below, records nothing.</p>
 <p>An image that fails to build or pull fails the run, and the run prints an error
 naming the DUT and the cause. In a <code>step build</code> run the image is the whole
 answer, so the run names every DUT that has no image, prints the rebuild
@@ -319,9 +321,29 @@ cause, and the run exits 1.</p>
 <code>NO_BUILD=1</code> that command is <code>env -u NO_BUILD ./le perf run step build dut "..."</code>, because the plain form would build nothing. Skips beside a measured DUT
 still pass, but a run that measured no DUT prints <code>FAIL  no DUT was measured</code>
 and exits 1, because a run of skips has no result.</p>
+<p>A DUT whose measurement lost a route is failed, because its timings describe
+the routes that arrived, or nothing, and a DUT that forwarded nothing reads
+as the fastest. After each <code>le perf send</code> pass the runner reads the result
+file and judges it with the same check that sets <code>le perf send</code>'s own exit
+code: every route sent must reach the receiver, and a result that sent none
+measured nothing. The ze DUT's propagation pass (<code>ze-propagation.json</code>) is
+judged the same way. For a pass that lost routes the run prints the DUT's last
+log lines under its name, while the DUT still runs. The summary line reads
+<code>FAIL</code>, counts the DUT as failed, and names the pass and the count, as in
+<code>ze: the measurement lost routes: 0 of 100000 routes reached the receiver</code>.
+It then prints the <code>./le perf run dut "..."</code> command to run once the DUT is
+fixed, and the run exits 1. A result file that does not read or parse fails
+the pass the same way. A pass that lost routes is left out of the comparison
+table, the HTML report and the doc snapshot, so no row of 0ms values reads as
+a fast result, and a DUT left with no rendered pass is named on the run's
+<code>no result for</code> line. A complete pass of the same DUT is still rendered, and
+when both passes of ze are complete the comparison shows both, one row each
+(see "Passes" below).</p>
 <p><code>NO_BUILD=1</code> with <code>step build</code> is refused: the run would build nothing, so it
 names <code>NO_BUILD</code> as the reason, prints the <code>env -u NO_BUILD ./le perf run step build</code> command that unsets it, and exits 1 without claiming any image was built.</p>
-<!-- source: internal/test/perfrunner/run.go -- Runner.buildImages, Runner.buildCommand, Execute, Runner.measure, Runner.summarize, measurement.failedRun -->
+<!-- source: internal/test/perfrunner/run.go -- Runner.buildImages, Runner.buildCommand, Execute, Runner.measure, Runner.measureDUT, Runner.judgeResult, readShortfall, Runner.summarize, measurement.failedRun -->
+<!-- source: internal/perf/result.go -- Result.Shortfall -->
+<!-- source: internal/le/perf/bench.go -- Bench.Run -->
 <p>The runner builds no host benchmark program. It cross-builds <code>le</code> for linux
 with <code>CGO_ENABLED=0</code> into <code>tmp/perf-run/linux-&lt;arch&gt;/le</code>, and prints how long
 that build took. It mounts the file at <code>/usr/local/bin/le</code> in the sender
@@ -340,6 +362,48 @@ images themselves are kept, so the next <code>step test</code> finds them.</p>
 <!-- source: internal/test/perfrunner/run.go -- Runner.removeContainer, Runner.cleanup -->
 <!-- source: internal/le/perf/actions.go -- signalRooted -->
 <p>Results are written to <code>test/perf/results/</code> as JSON files. An HTML comparison report is generated automatically.</p>
+<h3 id="passes">Passes</h3>
+<p>Every result records the pass it measured in its <code>pass</code> field:</p>
+<table>
+<thead>
+<tr>
+<th><code>pass</code></th>
+<th><code>le perf send</code></th>
+<th>What it measures</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>live-forwarding</code></td>
+<td>without <code>-sender-first</code></td>
+<td>The receiver connects first, so the DUT forwards each UPDATE as it arrives</td>
+</tr>
+<tr>
+<td><code>rib-propagation</code></td>
+<td>with <code>-sender-first</code></td>
+<td>The sender connects first, so the DUT holds every route before the receiver connects and is sent the table</td>
+</tr>
+</tbody>
+</table>
+<p>The perf runner measures every DUT in the <code>live-forwarding</code> pass (<code>&lt;dut&gt;.json</code>,
+named <code>the measurement</code> in its summary), and ze also in the <code>rib-propagation</code>
+pass (<code>ze-propagation.json</code>, <code>the propagation pass</code>). The pass, its file name
+and its summary phrase are declared once, in <code>perf.Pass</code>.</p>
+<p><code>le perf compare</code> keeps the newest result for each DUT, family, force-mp and
+pass, so both passes of one DUT render, each in its own row. The markdown
+table, the HTML table and the doc snapshot carry a Pass column, and each HTML
+chart bar is labelled with the DUT and the pass, as in <code>ze (rib-propagation)</code>.
+A result written before the field existed has no <code>pass</code>: its Pass cell reads
+<code>not recorded</code>, it is never shown as either pass, and it does not displace a
+result that records one. A <code>pass</code> value that is not one of the two above is
+refused: <code>le perf compare</code> prints the file name, the value and the accepted
+values, and exits 1. The doc snapshot's DUT setup section lists a DUT once,
+however many passes it has.</p>
+<!-- source: internal/perf/result.go -- Pass, PassFor, Pass.UnmarshalText -->
+<!-- source: internal/perf/benchmark.go -- RunBenchmark -->
+<!-- source: internal/perf/report/markdown.go -- comparisonKey, latestComparisonResults -->
+<!-- source: internal/perf/report/html.go -- barLabel -->
+<!-- source: internal/test/perfrunner/run.go -- Runner.runPerf, Runner.measureDUT -->
 <h3 id="manual-reports">Manual Reports</h3>
 <p>After running benchmarks, generate reports from the result files:</p>
 <pre><code class="language-bash"># Markdown report (default)
@@ -500,6 +564,11 @@ prevents false positives from noisy measurements.</p>
 <td>Difference between sent and received</td>
 </tr>
 <tr>
+<td><code>pass</code></td>
+<td>name</td>
+<td><code>live-forwarding</code> or <code>rib-propagation</code> (see "Passes"); absent in a result written before the field existed</td>
+</tr>
+<tr>
 <td><code>repeat</code></td>
 <td>count</td>
 <td>Total iterations run</td>
@@ -524,7 +593,11 @@ full convergence window. The peak shows the maximum 1-second burst rate.</p>
 the typical latency, P99 captures tail latency, and max shows the worst case.</p>
 <!-- source: internal/perf/metrics.go -- CalculateLatencies -->
 <p><strong>Routes lost</strong> should always be zero. Any loss indicates the DUT dropped
-routes, which the regression checker always flags.</p>
+routes: <code>le perf send</code> then exits 1 (in <code>--json</code> mode it exits 0 once the
+result file is written, and the file carries the loss), <code>./le perf run</code>
+fails the DUT, and the regression checker always flags it.</p>
+<!-- source: internal/perf/result.go -- Result.Shortfall -->
+<!-- source: internal/perf/cli/cmd_run.go -- cmdRun -->
 <h3 id="before-you-report-a-number">Before you report a number</h3>
 <p><code>le perf send</code> already discards the warmup run, drops outliers and reports a
 median with its standard deviation. That makes one run repeatable. It does
@@ -545,7 +618,8 @@ same family and encoding mode, and the same route count. When one side runs
 on its defaults, you compared configurations, not implementations.</li>
 <li><strong>Did the work happen?</strong> Check that <code>routes-lost</code> is zero and that
 <code>routes-received</code> matches <code>routes-sent</code>. A run that dropped or rejected routes
-is often the fastest run.</li>
+is often the fastest run. <code>./le perf run</code> fails such a DUT for you; a
+result you produced with <code>le perf send --json</code> you check yourself.</li>
 <li><strong>Is the gap bigger than the noise?</strong> To compare two builds, alternate them:
 A, B, A, B, at least five times each, appending every <code>--json</code> result. Then
 warm caches and machine drift favour neither side. A gap smaller than the
@@ -603,7 +677,7 @@ result inconclusive and say which answer is missing.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

@@ -21,7 +21,7 @@
     "repo.detail_comments": "website/data/repo-facts.json: git ls-files '*.go', counting the file-header annotations",
     "repo.go_packages": "website/data/repo-facts.json: go list ./..., keeping the packages git holds a file for",
     "rfc": "internal/le/rfc.Collect, over rfc/short/*.md",
-    "rfc.proven": "internal/le/rfc.ProvenShareOf, the one producer of the published proof share",
+    "rfc.proven": "internal/le/rfc.ImplementedSectionsOf, the one producer of Ze proven over the MUST rows Ze and the OS owe in walked RFCs Ze implements",
     "tests": "internal/le/test/health.Render, over the tree this build read"
   },
   "blog_articles": 6,
@@ -192,7 +192,7 @@
     },
     "core_experimental": 52
   },
-  "generated_at": "2026-10-30",
+  "generated_at": "2026-11-01",
   "github_stars": 59,
   "health": {
     "adoption": {
@@ -204,7 +204,7 @@
           "with_rfc_tag": "0"
         },
         "2026": {
-          "packages": "700",
+          "packages": "704",
           "with_ci": "37",
           "with_fuzz": "37",
           "with_rfc_tag": "138"
@@ -216,13 +216,13 @@
     },
     "assert-nothing": {
       "inert": {
-        "denominator": "40224",
-        "numerator": "111",
+        "denominator": "40518",
+        "numerator": "112",
         "percent": "0.3"
       },
       "value": {
-        "1": "111",
-        "2": "40224",
+        "1": "112",
+        "2": "40518",
         "3": "111"
       }
     },
@@ -237,14 +237,14 @@
         "1": "6"
       },
       "detail": {
-        "1": "7049",
+        "1": "7148",
         "2": "95",
-        "3": "153",
-        "4": "2655",
-        "5": "200"
+        "3": "154",
+        "4": "2677",
+        "5": "201"
       },
       "value": {
-        "1": "40263"
+        "1": "40557"
       }
     },
     "known-failures": {
@@ -257,13 +257,13 @@
     },
     "negative-tests": {
       "overall": {
-        "denominator": "7049",
-        "numerator": "2633",
-        "percent": "37.4"
+        "denominator": "7148",
+        "numerator": "2667",
+        "percent": "37.3"
       },
       "value": {
-        "1": "2633",
-        "2": "7049"
+        "1": "2667",
+        "2": "7148"
       },
       "worst": {
         "1": {
@@ -320,34 +320,38 @@
     },
     "rfc-proof-density": {
       "detail": {
-        "1": "43.3",
-        "10": "08",
-        "11": "31",
-        "12": "1518",
-        "13": "17",
-        "14": "486",
-        "15": "239",
-        "16": "34",
-        "17": "0",
-        "18": "0",
-        "19": "14",
-        "2": "4753",
+        "1": "44.4",
+        "10": "0",
+        "11": "195",
+        "12": "4787",
+        "13": "203",
+        "14": "2331",
+        "15": "46",
+        "16": "1540",
+        "17": "19",
+        "18": "487",
+        "19": "239",
+        "2": "4737",
+        "20": "0",
+        "21": "0",
+        "22": "0",
+        "23": "14",
         "3": "0",
-        "4": "194",
-        "5": "4787",
-        "6": "203",
-        "7": "2340",
-        "8": "46",
-        "9": "2026"
+        "4": "239",
+        "5": "2396",
+        "6": "18",
+        "7": "2026",
+        "8": "10",
+        "9": "31"
       },
       "proof_density": {
-        "denominator": "4753",
-        "numerator": "2057",
-        "percent": "43.3"
+        "denominator": "4737",
+        "numerator": "2102",
+        "percent": "44.4"
       },
       "value": {
-        "1": "2057",
-        "2": "4753"
+        "1": "2102",
+        "2": "4737"
       },
       "worst": {
         "1": {
@@ -385,11 +389,11 @@
     "rfc-unproven": {
       "unproven": {
         "denominator": "198",
-        "numerator": "31",
-        "percent": "15.7"
+        "numerator": "30",
+        "percent": "15.2"
       },
       "value": {
-        "1": "31",
+        "1": "30",
         "2": "198"
       }
     },
@@ -419,12 +423,12 @@
     "targets": 13
   },
   "plugin_registrations": 96,
-  "published_at": "2026-10-30T23:16:15Z",
+  "published_at": "2026-11-01T12:26:36Z",
   "release": null,
   "repo": {
-    "design_comments": 7748,
+    "design_comments": 7751,
     "design_comments_display": "7,700+",
-    "detail_comments": 7986,
+    "detail_comments": 7990,
     "detail_comments_display": "7,900+",
     "go_packages": 951,
     "go_packages_display": "950+"
@@ -432,34 +436,34 @@
   "rfc": {
     "enrolled": 203,
     "enrolled_display": "203",
-    "gated_implemented": 4753,
-    "gated_implemented_display": "4,753",
     "gated_must": 4787,
     "gated_must_display": "4,787",
-    "implemented": 194,
-    "implemented_display": "194",
+    "implemented": 195,
+    "implemented_display": "195",
     "inspected": 203,
     "inspected_display": "203",
     "must": 5336,
     "must_display": "5,336",
+    "must_kept": 4737,
+    "must_kept_display": "4,737",
     "not_walked": 0,
     "not_walked_display": "0",
-    "proven": 2057,
-    "proven_display": "2,057",
-    "proven_percent": "43.3",
+    "proven": 2102,
+    "proven_display": "2,102",
+    "proven_percent": "44.4",
     "requirements": 7738,
     "requirements_display": "7,738",
     "summaries": 229,
     "summaries_display": "229"
   },
   "tests": {
-    "e2e": 2655,
+    "e2e": 2677,
     "e2e_display": "2,600+",
-    "editor": 200,
-    "editor_display": "200",
+    "editor": 201,
+    "editor_display": "200+",
     "fuzz": 95,
     "fuzz_display": "95",
-    "unit": 40263,
-    "unit_display": "40,200+"
+    "unit": 40557,
+    "unit_display": "40,500+"
   }
 }

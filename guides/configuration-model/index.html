@@ -157,6 +157,7 @@
 <ol>
 <li><a href="#pxe-boot-support">PXE Boot Support</a></li>
 </ol></li>
+<li><a href="#tftp-server">TFTP Server</a></li>
 <li><a href="#reactor-settings">Reactor Settings</a>
 <ol>
 <li><a href="#environment-variable-override_1">Environment Variable Override</a></li>
@@ -645,16 +646,29 @@ chain at all stays legitimate, and is how an interface runs unauthenticated.</p>
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- key-chains, authentication, extended-sequence -->
 <!-- source: internal/plugins/ospf/auth_keystore.go -- configure, decodeSecret -->
 <p>Redistribution and default-route origination make the router an ASBR. The <code>ospf</code>
-container sets the per-source external metric, metric-type (<code>type-1</code>/<code>type-2</code>),
-and route tag, and configures <code>default-information originate</code>. A redistributed
-route that carries its own tag, such as a static route with a <code>tag</code> leaf,
-overrides the per-source tag; a route with no tag takes the per-source value. The shared
+container configures <code>default-information originate</code>, and its <code>filter export</code>
+chain judges every redistributed route: a <code>modify</code> instance there sets the
+external metric, the metric-type (<code>type-1</code>/<code>type-2</code>) and the route tag, and a
+route no filter sets takes metric 20, <code>type-2</code> and its own tag. The shared
 top-level <code>redistribute</code> block enrols the actual route flow: <code>destination ospf</code>
 imports routes as OSPFv2 Type 5 LSAs for IPv4, OSPFv3 AS-External-LSAs for
 normal IPv6 areas, or OSPFv3 NSSA-LSAs for attached IPv6 NSSA areas.
 <code>destination bgp { import ospf }</code> exports OSPF routes. <code>import ospf</code> into OSPF
 itself is a runtime no-op (loop prevention).</p>
-<pre><code>ospf {
+<pre><code>policy {
+    modify ospf-export-connected {
+        match {
+            protocol [ connected ]
+        }
+        set {
+            metric 20
+            metric-type type-2
+            tag 100
+        }
+    }
+}
+
+ospf {
     router-id 10.0.0.1
 
     default-information {
@@ -664,11 +678,15 @@ itself is a runtime no-op (loop prevention).</p>
         metric-type type-2
     }
 
+    filter {
+        export {
+            filters [ ospf-export-connected ]
+            final accept
+        }
+    }
+
     redistribute {
         connected {
-            metric 20
-            metric-type type-2
-            tag 100
         }
         static {
         }
@@ -2066,11 +2084,15 @@ dispatches accepted routes to the matching consumer.</p>
 </tr>
 </tbody>
 </table>
-<pre><code>redistribute {
+<pre><code>policy {
+    match redistribute-bgp-ebgp { family [ ipv4/unicast ipv4/vpn ]; }
+    match redistribute-bgp-connected { family [ ipv4/unicast ]; }
+}
+redistribute {
     destination bgp {
-        import ebgp { family [ ipv4/unicast ipv4/vpn ]; }    # intra-BGP ACL
+        import ebgp { filters [ redistribute-bgp-ebgp ]; final accept; }    # intra-BGP ACL
         import l2tp;                                          # egress, all families
-        import connected { family [ ipv4/unicast ]; }         # egress, IPv4 unicast only
+        import connected { filters [ redistribute-bgp-connected ]; final accept; }         # egress, IPv4 unicast only
         import isis;                                          # IS-IS SPF routes into BGP
     }
     destination isis {
@@ -5034,6 +5056,81 @@ When a PXE client has no option 93 (architecture), the server defaults to the
 BIOS bootfile.</p>
 <!-- source: internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang -- DHCP server config schema -->
 <!-- source: internal/plugins/dhcpserver/config.go -- parseConfig, parseRanges, parsePXEConfig -->
+<h3 id="tftp-server">TFTP Server</h3>
+<p>The TFTP server serves files read-only, for PXE boot and for
+<code>ze init --from tftp://</code>. It refuses every write request.</p>
+<pre><code>service {
+    tftp-server {
+        enabled true;
+        listen-interface eth0;
+        root-directory /var/lib/tftp;
+        max-transfers 10;
+        max-windowsize 64;
+        timeout 5;
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Serve TFTP. <code>root-directory</code> is then required.</td>
+</tr>
+<tr>
+<td><code>listen-interface</code></td>
+<td>list of interfaces</td>
+<td>(none)</td>
+<td>One UDP socket per interface, bound with <code>SO_BINDTODEVICE</code>.</td>
+</tr>
+<tr>
+<td><code>root-directory</code></td>
+<td>string</td>
+<td>(none)</td>
+<td>The directory files are served from. A path that leaves it is refused.</td>
+</tr>
+<tr>
+<td><code>max-transfers</code></td>
+<td>1-1000</td>
+<td><code>10</code></td>
+<td>Transfers at once, across every listener. Over the limit a request gets the error "service unavailable".</td>
+</tr>
+<tr>
+<td><code>max-windowsize</code></td>
+<td>1-65535 blocks</td>
+<td><code>64</code></td>
+<td>The largest RFC 7440 window granted. A client gets the smaller of its request and this value; <code>1</code> turns windowed sending off.</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td>1-255 seconds</td>
+<td><code>5</code></td>
+<td>How long Ze waits for an ACK before it sends again, for a client that asks for no timeout. A client's own RFC 2349 timeout from 1 to 255 seconds is used instead.</td>
+</tr>
+</tbody>
+</table>
+<p>A value outside its range is refused when the config is validated or
+committed, and the error names the range to use. A reload that changes only
+<code>max-windowsize</code> or <code>timeout</code> cuts no transfer: a transfer in flight keeps the
+values it started with, and the next request gets the new ones. A reload that
+changes any other leaf, or that finds an interface the server could not bind
+at boot, binds the listeners again and cuts the transfers in flight; the
+client fetches the file again. Such a reload binds every interface or none, so
+while an interface it names is still missing it is refused and rolled back, a
+<code>timeout</code> or <code>max-windowsize</code> change included, and the running server goes on
+as it was.</p>
+<!-- source: internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang -- TFTP server config schema -->
+<!-- source: internal/plugins/tftpserver/config.go -- parseConfig, rangedLeaf -->
+<!-- source: internal/plugins/tftpserver/config_tx.go -- tftpServer.install, tftpServer.onlyLimitsChange -->
 <h3 id="reactor-settings">Reactor Settings</h3>
 <p>Configure reactor behavior under <code>environment { reactor { } }</code>:</p>
 <pre><code>environment {
@@ -5725,7 +5822,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

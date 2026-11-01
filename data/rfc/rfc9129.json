@@ -1,0 +1,12 @@
+{
+  "stem": "rfc9129",
+  "title": "YANG Data Model for the OSPF Protocol",
+  "walked": false,
+  "requirements": 6,
+  "implementer": "foundation",
+  "implemented": false,
+  "must": null,
+  "should": null,
+  "proven-by-kind": null,
+  "unmet": []
+}

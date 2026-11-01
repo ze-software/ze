@@ -1,0 +1,34 @@
+{
+  "stem": "rfc7296",
+  "title": "Internet Key Exchange Protocol Version 2 (IKEv2)",
+  "walked": true,
+  "requirements": 243,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 234,
+    "kept": 234,
+    "ze-proven": 84,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 150,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 9,
+    "proven": 4,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 5,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 1,
+    "unit": 83
+  },
+  "unmet": []
+}

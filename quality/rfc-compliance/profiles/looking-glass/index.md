@@ -6,72 +6,129 @@ Release profile. The RFCs this use case requires, each declared by the Use cases
 
 Use case: [AS-Path Topology](../../../../use-cases/as-path-topology/)
 
-- **Mandatory**: 53.2% (164 of 308 (53.2%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 5.4% (5 of 93 (5.4%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 100.0% (308 of 308 (100.0%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (93 of 93 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 0 (of 16 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](../../../../data/rfc/profiles/looking-glass.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 308 of 308 (100.0%). Optional ceiling: 93 of 93 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc1997 5 of 5 (100.0%). Lowest optional ceiling: rfc1997 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 175, Ze correctness gap 133
+- **Overview bar**: Ze MUST proven 175, SHOULD proven 5, SHOULD not decided 88, Ze correctness gap 133
+
+| Figure | Rows |
+|---|---|
+| RFCs | 16 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 308 |
+| MUST rows kept (the MUST bar) | 308 |
+| Ze proven | 175 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 133 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 93 |
+| SHOULD proven | 5 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 88 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.
 
 ### Level 3
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 78 of 133 (58.6%); ceiling 133 of 133 (100.0%) | 3 of 34 (8.8%); ceiling 34 of 34 (100.0%) | looking-glass: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 83, Ze correctness gap 50 | Ze MUST proven 83, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 50 | looking-glass: required by rfc/short/rfc4271.md |
 
 ### Level 4
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1997](../../rfc1997/) | BGP Communities Attribute | 5 of 5 (100.0%); ceiling 5 of 5 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | looking-glass: required by rfc/short/rfc1997.md |
-| [RFC 2545](../../rfc2545/) | Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing | 5 of 5 (100.0%); ceiling 5 of 5 (100.0%) | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) | looking-glass: required by rfc/short/rfc2545.md |
-| [RFC 5492](../../rfc5492/) | Capabilities Advertisement with BGP-4 | 2 of 9 (22.2%); ceiling 9 of 9 (100.0%) | 0 of 7 (0.0%); ceiling 7 of 7 (100.0%) | looking-glass: required by rfc/short/rfc5492.md |
-| [RFC 6608](../../rfc6608/) | Subcodes for BGP Finite State Machine Error | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) | no rows; ceiling no rows | looking-glass: required by rfc/short/rfc6608.md |
-| [RFC 9687](../../rfc9687/) | Border Gateway Protocol 4 (BGP-4) Send Hold Timer | 3 of 13 (23.1%); ceiling 13 of 13 (100.0%) | 0 of 7 (0.0%); ceiling 7 of 7 (100.0%) | looking-glass: required by rfc/short/rfc9687.md |
+| [RFC 1997](../../rfc1997/) | BGP Communities Attribute | Ze proven 5 | Ze MUST proven 5, SHOULD not decided 4 | looking-glass: required by rfc/short/rfc1997.md |
+| [RFC 2545](../../rfc2545/) | Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing | Ze proven 3, Ze correctness gap 2 | Ze MUST proven 3, SHOULD not decided 2, Ze correctness gap 2 | looking-glass: required by rfc/short/rfc2545.md |
+| [RFC 5492](../../rfc5492/) | Capabilities Advertisement with BGP-4 | Ze proven 8, Ze correctness gap 1 | Ze MUST proven 8, SHOULD not decided 7, Ze correctness gap 1 | looking-glass: required by rfc/short/rfc5492.md |
+| [RFC 6608](../../rfc6608/) | Subcodes for BGP Finite State Machine Error | Ze correctness gap 3 | Ze correctness gap 3 | looking-glass: required by rfc/short/rfc6608.md |
+| [RFC 9687](../../rfc9687/) | Border Gateway Protocol 4 (BGP-4) Send Hold Timer | Ze proven 3, Ze correctness gap 10 | Ze MUST proven 3, SHOULD not decided 7, Ze correctness gap 10 | looking-glass: required by rfc/short/rfc9687.md |
 
 ### Level 5
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | 6 of 6 (100.0%); ceiling 6 of 6 (100.0%) | 1 of 11 (9.1%); ceiling 11 of 11 (100.0%) | looking-glass: required by rfc/short/rfc4760.md |
+| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | Ze proven 6 | Ze MUST proven 6, SHOULD proven 1, SHOULD not decided 10 | looking-glass: required by rfc/short/rfc4760.md |
 
 ### Level 6
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | 20 of 30 (66.7%); ceiling 30 of 30 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) | looking-glass: required by rfc/short/rfc6793.md |
-| [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | 9 of 9 (100.0%); ceiling 9 of 9 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | looking-glass: required by rfc/short/rfc7911.md |
-| [RFC 8522](../../rfc8522/) | Looking Glass Command Set | 0 of 18 (0.0%); ceiling 18 of 18 (100.0%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) | looking-glass: required by rfc/short/rfc8522.md |
+| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze proven 20, Ze correctness gap 10 | Ze MUST proven 20, SHOULD not decided 6, Ze correctness gap 10 | looking-glass: required by rfc/short/rfc6793.md |
+| [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | Ze proven 9 | Ze MUST proven 9, SHOULD not decided 4 | looking-glass: required by rfc/short/rfc7911.md |
+| [RFC 8522](../../rfc8522/) | Looking Glass Command Set | Ze correctness gap 18 | SHOULD not decided 5, Ze correctness gap 18 | looking-glass: required by rfc/short/rfc8522.md |
 
 ### Level 7
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 1 of 1 (100.0%); ceiling 1 of 1 (100.0%) | looking-glass: required by rfc/short/rfc6286.md |
-| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | 1 of 5 (20.0%); ceiling 5 of 5 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | looking-glass: required by rfc/short/rfc6811.md |
-| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | 26 of 53 (49.1%); ceiling 53 of 53 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | looking-glass: required by rfc/short/rfc7606.md |
+| [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Ze correctness gap 4 | SHOULD proven 1, Ze correctness gap 4 | looking-glass: required by rfc/short/rfc6286.md |
+| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze proven 1, Ze correctness gap 4 | Ze MUST proven 1, SHOULD not decided 4, Ze correctness gap 4 | looking-glass: required by rfc/short/rfc6811.md |
+| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze proven 28, Ze correctness gap 25 | Ze MUST proven 28, SHOULD not decided 4, Ze correctness gap 25 | looking-glass: required by rfc/short/rfc7606.md |
 
 ### Level 8
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 7607](../../rfc7607/) | Codification of AS 0 Processing | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) | no rows; ceiling no rows | looking-glass: required by rfc/short/rfc7607.md |
-| [RFC 8092](../../rfc8092/) | BGP Large Communities Attribute | 7 of 7 (100.0%); ceiling 7 of 7 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | looking-glass: required by rfc/short/rfc8092.md |
-| [RFC 9774](../../rfc9774/) | Deprecation of AS_SET and AS_CONFED_SET in BGP | 2 of 3 (66.7%); ceiling 3 of 3 (100.0%) | no rows; ceiling no rows | looking-glass: required by rfc/short/rfc9774.md |
+| [RFC 7607](../../rfc7607/) | Codification of AS 0 Processing | Ze correctness gap 5 | Ze correctness gap 5 | looking-glass: required by rfc/short/rfc7607.md |
+| [RFC 8092](../../rfc8092/) | BGP Large Communities Attribute | Ze proven 7 | Ze MUST proven 7, SHOULD not decided 4 | looking-glass: required by rfc/short/rfc8092.md |
+| [RFC 9774](../../rfc9774/) | Deprecation of AS_SET and AS_CONFED_SET in BGP | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, Ze correctness gap 1 | looking-glass: required by rfc/short/rfc9774.md |
 
 ## Optional (not counted)
 
-RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own figures: mandatory 14 of 64 (21.9%), optional 6 of 31 (19.4%); ceiling mandatory 61 of 64 (95.3%), optional 31 of 31 (100.0%); mandatory excluded: not-applicable 3; 2 RFCs, 0 not walked.
+RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own bars and figures follow.
 
-Mandatory ceiling: 61 of 64 (95.3%); excluded: Not applicable (classification can be revisited): 3 of 64 (4.7%). Optional ceiling: 31 of 31 (100.0%). Lowest mandatory ceiling: rfc8210 56 of 59 (94.9%). Lowest optional ceiling: rfc4360 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 14, Ze correctness gap 47
+- **Overview bar**: Ze MUST proven 14, SHOULD proven 6, Not owed 3, SHOULD not decided 25, Ze correctness gap 47
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| Figure | Rows |
+|---|---|
+| RFCs | 2 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 64 |
+| MUST rows kept (the MUST bar) | 61 |
+| Ze proven | 14 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 47 |
+| MUST rows not owed | 3 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 3 |
+| SHOULD / MAY rows | 31 |
+| SHOULD proven | 6 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 25 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4360](../../rfc4360/) | BGP Extended Communities Attribute | 2 of 5 (40.0%); ceiling 5 of 5 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | looking-glass: optional in rfc/short/rfc4360.md |
-| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | 12 of 59 (20.3%); ceiling 56 of 59 (94.9%); excluded: Not applicable (classification can be revisited): 3 of 59 (5.1%) | 6 of 27 (22.2%); ceiling 27 of 27 (100.0%) | looking-glass: optional in rfc/short/rfc8210.md |
+| [RFC 4360](../../rfc4360/) | BGP Extended Communities Attribute | Ze proven 2, Ze correctness gap 3 | Ze MUST proven 2, SHOULD not decided 4, Ze correctness gap 3 | looking-glass: optional in rfc/short/rfc4360.md |
+| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | Ze proven 12, Ze correctness gap 44 | Ze MUST proven 12, SHOULD proven 6, Not owed 3, SHOULD not decided 21, Ze correctness gap 44 | looking-glass: optional in rfc/short/rfc8210.md |

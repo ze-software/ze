@@ -1,0 +1,33 @@
+{
+  "stem": "rfc9687",
+  "title": "Border Gateway Protocol 4 (BGP-4) Send Hold Timer",
+  "walked": true,
+  "requirements": 20,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 13,
+    "kept": 13,
+    "ze-proven": 3,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 10,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 7,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 7,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 3
+  },
+  "unmet": []
+}

@@ -1,6 +1,6 @@
 # RFC 6793 - BGP Support for Four-Octet Autonomous System (AS) Number Space
 
-Partial. Every requirement this repository extracted from RFC 6793, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+4-byte AS numbers. Every requirement this repository extracted from RFC 6793, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 93.3% | 28 of 30 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3.3% | 1 of 30 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 30 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 30 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 52.9% | 45 of 85 tagged units, 0 escaped and 4 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 28 | of 30 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 30 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 30 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 30 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 49 | 49 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 30 | of 36 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 30 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 30 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 30 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 30 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 30 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 30 | of 36 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 30 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 30 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 30 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 30 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 30 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 3.3% | 1 of 30 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 1 | of 30 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 30 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 30 gated MUSTs: they add up to 30. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,23 +45,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | 4-byte AS numbers |
 | Enrolment | Enrolled |
 | Requirements | 36 |
 | Gated MUST-level | 30 |
@@ -84,19 +84,14 @@ Enrolled: BGP Support for Four-Octet AS Number Space
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** 4-byte AS numbers
 
-**What the ledger says is covered**
+**Proof:** 20 of 30 MUST proven
 
-- ASN4 capability advertisement and negotiation, 4-octet AS_PATH/AGGREGATOR between NEW speakers, 2-octet AS_PATH with AS_TRANS toward OLD speakers, AS4_PATH and AS4_AGGREGATOR construction (confederation segments excluded), the whole receive-side procedure of Section 4.2.3 (the AGGREGATOR versus AS4_AGGREGATOR choice, the AS-number-count comparison, the leading-segment prepend and its confederation adjacency rule), the Section 4.1 and Section 6 discard of an AS4_PATH or AS4_AGGREGATOR received from a NEW speaker, AS4_PATH/AS4_AGGREGATOR malformed-attribute validation, AS_TRANS in the OPEN My AS field
-- tests bound per requirement in [`rfc/requirements/rfc6793.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc6793.md).
+**Evidence:** functional 2, unit 18
 
+**Unmet:** RFC6793-4.1-3
 
-**What the ledger says remains**
-
-One MUST-level gap, annotated in [`rfc/short/rfc6793.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc6793.md).
-
-- **Peer identity:** [`RFC6793-4.1-3`](#rfc6793-4.1-3) -- `UnpackOpen` never populates `Open.ASN4` from the code-65 capability ([`internal/component/bgp/message/open.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open.go)), so the session's OPEN-derived peer AS falls back to the two-octet My AS field ([`internal/component/bgp/reactor/reactor_dynamic.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_dynamic.go)).
 
 ## Coverage
 
@@ -115,9 +110,41 @@ One MUST-level gap, annotated in [`rfc/short/rfc6793.md`](https://github.com/ze-
 
 **Annotated (including scoped evidence) (2):** [`RFC6793-4.1-3`](#rfc6793-4.1-3), [`RFC6793-4.2.3-2`](#rfc6793-4.2.3-2)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 30 of 30 (100.0%). Optional ceiling: 6 of 6 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc6793 30 of 30 (100.0%). Lowest optional ceiling: rfc6793 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 20, Ze correctness gap 10
+- **Overview bar**: Ze MUST proven 20, SHOULD not decided 6, Ze correctness gap 10
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 30 |
+| MUST rows kept (the MUST bar) | 30 |
+| Ze proven | 20 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 10 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 6 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 6 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc6793.json](../../../data/rfc/rfc6793.json).
 
 ## Requirements
 
@@ -226,27 +253,27 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 The new attributes, AS4_PATH and AS4_AGGREGATOR, MUST NOT be carried in an UPDATE message between NEW BGP speakers. (Section 4.1, Section 6)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/rfc6793-narrow-to-old-speaker.ci, test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci, test/plugin/rfc6793-no-as4path-from-new-speaker.ci moved. RFC 6793 §4.1 states: 'The new attributes, AS4_PATH and AS4_AGGREGATOR, MUST NOT be carried in an UPDATE message between NEW BGP speakers.' Section 6 repeats the prohibition. Re-read both primary passages, summary and unannotated checklist row, all five tagged covers and actual producers. TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker drives the seven enumerated AS_PATH builder entry points with a non-mappable AS, asserting no decoded AS4_PATH AS numbers and the exact four-octet AS_PATH; TestOriginatedAggregatorOmitsAS4AggregatorTowardNewSpeaker drives all four enumerated aggregator builders, asserting attribute-18 absence and the real non-mappable AS in AGGREGATOR. The actual origination gates are UpdateBuilder.appendASPath/ASPathNeedsAS4 and appendAggregator/AS4AggregatorFor. The two NEW-speaker CI carriers supply the forbidden attributes rather than merely observing their absence on clean input: no-as4path requires exactly 24 attribute octets and preserves AS_PATH tail 4200000123 rather than the supplied AS4_PATH tail 4200000000; no-as4aggregator requires exactly 35 attribute octets, preserves AGGREGATOR AS 4200000123 and excludes the supplied AS4_AGGREGATOR naming 4200000000. Each exact full frame also requires delivery of the route. The OLD-speaker negative carrier requires the actual relayed two-octet AS_PATH [65000,65001,AS_TRANS] and four-octet AS4_PATH [65000,65001,4200000123], distinguishing the destination-scoped prohibition from blanket suppression; it is not an independent negative for AS4_AGGREGATOR. Current receive validation prepares AS4FamilyPlan, session_read consumes its WriteTo result before publication, and WriteTo explicitly omits types 17 and 18 while copying unrelated attributes and NLRI. The corrected comment names that actual path. Current WriteTo halt records in job-final-functional-citations-and-precise-framing-8381327b.log prove reachability only, since replay/EOR can fail before byte comparison; the older CollapseAS4Family-wrapper halt is not semantic evidence for these fixtures. The combined origination and exact relay assertions support both named attributes without treating either single carrier or a halt as proof of the whole clause.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc6793): "The new attributes, AS4_PATH and AS4_AGGREGATOR, MUST NOT be carried in an UPDATE message between NEW BGP speakers." The only edit to test/plugin/rfc6793-narrow-to-old-speaker.ci, test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci, test/plugin/rfc6793-no-as4path-from-new-speaker.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`rfc6793-narrow-to-old-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-narrow-to-old-speaker.ci#L25) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`rfc6793-narrow-to-old-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-narrow-to-old-speaker.ci#L25) | functional/verify | revert, verified |
 | positive | [`TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc6793_originate_as4_test.go#L290) | unit/verify | revert, verified |
 | positive | [`TestOriginatedAggregatorOmitsAS4AggregatorTowardNewSpeaker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc6793_originate_as4agg_new_test.go#L12) | unit/verify | revert, verified |
-| positive | [`rfc6793-no-as4aggregator-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci#L12) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L29) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`rfc6793-no-as4aggregator-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4aggregator-from-new-speaker.ci#L12) | functional/verify | revert, verified |
+| positive | [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L29) | functional/verify | revert, verified |
 
 ### [`RFC6793-4.1-7`](#rfc6793-4.1-7)
 
 A NEW BGP speaker that receives the AS4_PATH attribute or the AS4_AGGREGATOR attribute in an UPDATE message from another NEW BGP speaker MUST discard the path attribute and continue processing the UPDATE message. (Section 4.1, Section 6)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/rfc6793-no-as4path-from-new-speaker.ci moved. RFC 6793 §4.1 states: 'A NEW BGP speaker that receives the AS4_PATH attribute or the AS4_AGGREGATOR attribute in an UPDATE message from another NEW BGP speaker MUST discard the path attribute and continue processing the UPDATE message.' Section 6 repeats that sentence; its following logging SHOULD is a separate obligation, not silently included in this verdict. Re-read the primary passages, summary and unannotated checklist row, all three tagged covers, ReconcileASPathFamily and the actual receive preparation/rewrite/publication consumers. TestRFC6793NewSpeakerAS4AttributesAreDiscarded feeds both attributes with SourceASN4=true, requires successful reconciliation, exact unchanged canonical AS_PATH and AGGREGATOR, and exactly the discard codes [AttrAS4Path,AttrAS4Aggregator]. Its AS_PATH and AS4_PATH values agree, so that value equality alone does not distinguish a mistaken merge; the explicit discard assertions and the live AS4_PATH carrier supply the missing distinction. That carrier deliberately disagrees on the path tail and requires the complete relayed frame containing the original AS_PATH, ORIGIN, NEXT_HOP and announced prefix, with no AS4_PATH: retaining it, substituting its tail, dropping the UPDATE or treating its route as withdrawn cannot satisfy the expectation. TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath supplies the OLD-source control and requires the AS4_PATH's non-mappable AS to become canonical instead of retaining AS_TRANS. The unit cover establishes both attribute decisions; the CI tagged to this ID establishes continued route processing and non-substitution end to end for AS4_PATH only, not an AS4_AGGREGATOR-specific end-to-end claim. Source inspection confirms the shared AS4FamilyPlan.WriteTo dispatch explicitly drops both legacy attributes, preserves unrelated attributes and NLRI, and returns the rewritten WireUpdate for normal callback publication. The separately tagged AS4_AGGREGATOR carrier under RFC6793-4.1-6 corroborates that same writer boundary but is not misrepresented as a tagged cover of this ID. Whole-producer halts remain reachability evidence, not selective discard proof. The combined tagged unit and functional assertions enforce both discard and continued-processing obligations.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc6793): "A NEW BGP speaker that receives the AS4_PATH attribute or the AS4_AGGREGATOR attribute in an UPDATE message from another NEW BGP speaker MUST discard the path attribute and continue processing the UPDATE message." The only edit to test/plugin/rfc6793-no-as4path-from-new-speaker.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L206) | unit/verify | revert, verified |
 | positive | [`TestRFC6793NewSpeakerAS4AttributesAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L532) | unit/verify | revert, verified |
-| positive | [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L34) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`rfc6793-no-as4path-from-new-speaker.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc6793-no-as4path-from-new-speaker.ci#L34) | functional/verify | revert, verified |
 
 ### [`RFC6793-4.2.1-1`](#rfc6793-4.2.1-1)
 

@@ -1,0 +1,33 @@
+{
+  "stem": "rfc4760",
+  "title": "Multiprotocol Extensions for BGP-4",
+  "walked": true,
+  "requirements": 17,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 6,
+    "kept": 6,
+    "ze-proven": 6,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 11,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 10,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 6
+  },
+  "unmet": []
+}

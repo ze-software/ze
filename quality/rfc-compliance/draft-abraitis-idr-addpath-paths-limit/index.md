@@ -1,6 +1,6 @@
 # DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT - Scalability Considerations for ADD-PATH with PATHS-LIMIT
 
-Supported. Every requirement this repository extracted from DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP PATHS-LIMIT. Every requirement this repository extracted from DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,13 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 4 of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 51.7% | 15 of 29 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 4 | of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 0 | of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 17 | 17 of 29 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 7 | of 4 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -23,14 +24,14 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 4 | of 7 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 4 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 4 | of 7 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 4 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 4 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
-The 9 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 4 gated MUSTs: they add up to 4. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -38,23 +39,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Supported |
+| Public row | BGP PATHS-LIMIT |
 | Enrolment | Enrolled |
 | Requirements | 7 |
 | Gated MUST-level | 4 |
@@ -77,15 +78,14 @@ Enrolled: BGP ADD-PATH Paths-Limit capability (code 76): four MUST-level require
 
 ## What the public ledger says
 
-**Status:** Supported
+**Area:** BGP PATHS-LIMIT
 
-**What the ledger says is covered**
+**Proof:** 1 of 4 MUST proven
 
-Receiver-advertised per-family path-count requests for ADD-PATH, with session-wide outbound enforcement across normal sends and forwarding, including the route-server fast path (`pathsLimitAdmission.section` in [`internal/component/bgp/reactor/session_paths_limit.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit.go)). Under the peer's limit Ze sends the paths the bgp-rib election ranks first and withdraws a demoted path before announcing its replacement (`queuePathsLimitElection` in `session_paths_limit_elect.go`). The configuration knob `limit { receive N; }` is advertised and enforced on received paths: an excess path is dropped, counted and warned once per route, and the rest of its UPDATE installs (`receiveCeiling` in `session_paths_limit_recv.go`).
+**Evidence:** unit 1
 
-**What the ledger says remains:**
+**Unmet:** -
 
--
 
 ## Coverage
 
@@ -102,9 +102,41 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 
 **Positive and negative tests (4):** [`DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1`](#draft-abraitis-idr-addpath-paths-limit-3-1), [`DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2`](#draft-abraitis-idr-addpath-paths-limit-3-2), [`DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3`](#draft-abraitis-idr-addpath-paths-limit-3-3), [`DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4`](#draft-abraitis-idr-addpath-paths-limit-3-4)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 4 of 4 (100.0%). Optional ceiling: 3 of 3 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: draft-abraitis-idr-addpath-paths-limit 4 of 4 (100.0%). Lowest optional ceiling: draft-abraitis-idr-addpath-paths-limit 3 of 3 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 1, Ze correctness gap 3
+- **Overview bar**: Ze MUST proven 1, SHOULD proven 3, Ze correctness gap 3
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 4 |
+| MUST rows kept (the MUST bar) | 4 |
+| Ze proven | 1 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 3 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 3 |
+| SHOULD proven | 3 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 0 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/draft-abraitis-idr-addpath-paths-limit.json](../../../data/rfc/draft-abraitis-idr-addpath-paths-limit.json).
 
 ## Requirements
 
@@ -189,7 +221,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability. (§3)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/paths-limit-live.ci, test/plugin/paths-limit-live.ci#2 moved. Re-judged 2026-10-27 by an independent judge (authored none of the change). Section 3: "A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability." The only change to test/plugin/paths-limit-live.ci is the daemon's container-level config line `limit 9` -> `limit { receive 9; }`: that is ze's own receive request, incidental to this row, while the bound under test comes from the peer script's OPEN (option=open paths-limit ipv4/unicast limit=1, ipv6/unicast limit=2), which is unchanged. Every expect hex, sequence group, sentinel and action line is byte-identical to HEAD, so the negative (an excess identifier absent before the next different-prefix sentinel, admitted only after withdrawal and explicit retry) and the positive (admitted, replaced and reused identifiers reach the wire, per family) read exactly as before. The two Go units are unchanged. Ran green on the current tree, which carries phase 3's move of the send filter into pathsLimitAdmission: ./le test bgp plugin paths-limit-live 1/1 PASS. Separately, ./le rfc check reports this row's discrimination records producer-gone because phase 3 moved pathsLimitSection; that is a stale proof record owed a re-record, not a change to what the tests assert. Enforced stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-31 by an auditor who authored none of the change. Draft Section 3: "A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability." test/plugin/paths-limit-live.ci changed since the last stamp only in setup: 5cf82621ba added the system authorization profile admin block, and 7c22ceb0d0 added a bgp-level filter {import {final accept;} export {final accept;}} so RFC 8212 default-reject does not withhold the routes the assertions read. The bound under test still comes from the peer script's OPEN (paths-limit ipv4/unicast limit=1, ipv6/unicast limit=2); every expect hex, sequence group, sentinel and action line is unchanged, so the negative and positive read as before. Verdict unchanged. Earlier judgment follows. Re-judged 2026-10-27 by an independent judge (authored none of the change). Section 3: "A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability." The only change to test/plugin/paths-limit-live.ci is the daemon's container-level config line `limit 9` -> `limit { receive 9; }`: that is ze's own receive request, incidental to this row, while the bound under test comes from the peer script's OPEN (option=open paths-limit ipv4/unicast limit=1, ipv6/unicast limit=2), which is unchanged. Every expect hex, sequence group, sentinel and action line is byte-identical to HEAD, so the negative (an excess identifier absent before the next different-prefix sentinel, admitted only after withdrawal and explicit retry) and the positive (admitted, replaced and reused identifiers reach the wire, per family) read exactly as before. The two Go units are unchanged. Ran green on the current tree, which carries phase 3's move of the send filter into pathsLimitAdmission: ./le test bgp plugin paths-limit-live 1/1 PASS. Separately, ./le rfc check reports this row's discrimination records producer-gone because phase 3 moved pathsLimitSection; that is a stale proof record owed a re-record, not a change to what the tests assert. Enforced stands.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -204,19 +236,19 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender. (§3)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/paths-limit-receive-ceiling.ci, test/plugin/paths-limit-receive-ceiling.ci#2 moved. Re-judged 2026-10-27 by an independent judge (authored none of the tests). Section 3: "An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender." Both halves are now proven. Knob: TestParsePeerCapabilityPathsLimit and TestConfiguredPathsLimitOpen (unchanged) show limit { receive N; } at container and per-family level decides the advertised tuples, an omitted limit advertising none. Accept ceiling: the knob reaches session_negotiate.go initPathsLimitRecv(Encoding.PathsLimitRecv), and session_read.go calls receiveCeiling before checkPrefixLimits and delivery, which filters NLRIs admitPath refuses at len(prefix.ids) >= f.limit. test/plugin/paths-limit-receive-ceiling.ci drives it end to end from config: with receive 2, the plugin sees ids 1 and 2 of 10.0.0.0/8 plus 20.0.0.0/8 in one exact event line (positive, also proving the other prefix is untouched), id 3 only after a withdrawal of admitted id 1 frees a slot, and never id 4 (negative; reject=path-id 4). TestProcessMessageRefusesPathOverReceiveCeiling asserts the exact delivered path list through processMessage and the admitted/refused counts 2/1; TestReceiveCeilingAdmitsUpToLimit asserts exact admitted ids [1 2 7], refused counter 1, and a replacement at the ceiling kept. Positive inputs are conforming (at or under the ceiling), negatives exceed this ceiling and no neighbouring rule; assertions are exact, not floors. Discrimination records for all six tags observed red under admitPath breaks: ceiling check -> false (negatives) and limit -> limit-1 (positives).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (draft-abraitis-idr-addpath-paths-limit): "An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender." The only edit to test/plugin/paths-limit-receive-ceiling.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestConfiguredPathsLimitOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go#L14) | unit/verify | unproven |
 | negative | [`TestProcessMessageRefusesPathOverReceiveCeiling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go#L52) | unit/verify | mutant, verified |
 | negative | [`TestReceiveCeilingAdmitsUpToLimit`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go#L23) | unit/verify | mutant, verified |
-| negative | [`paths-limit-receive-ceiling.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-receive-ceiling.ci#L21) | functional/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`paths-limit-receive-ceiling.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-receive-ceiling.ci#L21) | functional/verify | mutant, verified |
 | positive | [`TestParsePeerCapabilityPathsLimit`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L564) | unit/verify | unproven |
 | positive | [`TestConfiguredPathsLimitOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go#L13) | unit/verify | unproven |
 | positive | [`TestProcessMessageRefusesPathOverReceiveCeiling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go#L51) | unit/verify | mutant, verified |
 | positive | [`TestReceiveCeilingAdmitsUpToLimit`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_receive_test.go#L22) | unit/verify | mutant, verified |
-| positive | [`paths-limit-receive-ceiling.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-receive-ceiling.ci#L20) | functional/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`paths-limit-receive-ceiling.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-receive-ceiling.ci#L20) | functional/verify | mutant, verified |
 
 ## Extraction sign-off
 

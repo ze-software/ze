@@ -1,0 +1,37 @@
+{
+  "stem": "rfc7684",
+  "title": "OSPFv2 Prefix/Link Attribute Advertisement",
+  "walked": true,
+  "requirements": 20,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 9,
+    "kept": 9,
+    "ze-proven": 4,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 5,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 11,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 11,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 4
+  },
+  "unmet": [
+    "RFC7684-4-1",
+    "RFC7684-6.5-1",
+    "RFC7684-6.5-2"
+  ]
+}

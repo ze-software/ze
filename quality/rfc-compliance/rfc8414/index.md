@@ -1,6 +1,6 @@
 # RFC 8414 - OAuth 2.0 Authorization Server Metadata
 
-Partial. Every requirement this repository extracted from RFC 8414, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+OAuth 2.0 Authorization Server Metadata (MCP resource server). Every requirement this repository extracted from RFC 8414, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 51.6% | 16 of 31 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 31 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 31 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 31 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 31 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 51.2% | 22 of 43 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 16 | of 31 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 31 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 31 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 31 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 22 | 22 of 43 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,14 +22,22 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 31 | of 33 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 15 | of 31 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 38.7% | 12 of 31 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 31 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 9.7% | 3 of 31 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 31 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 31 | of 33 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 31 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 12 | of 31 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 31 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 31 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 31 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
-The 9 shares marked as a part above are the whole of the 31 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 3 | of 31 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+
+The 9 counts marked as a part above are the whole of the 31 gated MUSTs: they add up to 31. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -38,28 +45,28 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | OAuth 2.0 Authorization Server Metadata (MCP resource server) |
 | Enrolment | Enrolled |
 | Requirements | 33 |
 | Gated MUST-level | 31 |
-| Not applicable, so out of scope | 12 |
-| Declared gaps | 0 |
+| Not applicable, so out of scope | 0 |
+| Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -77,15 +84,14 @@ Enrolled: Ze consumes authorization-server metadata for its MCP resource server.
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** OAuth 2.0 Authorization Server Metadata (MCP resource server)
 
-**What the ledger says is covered**
+**Proof:** 9 of 31 MUST proven
 
-`fetchASMetadata` requires HTTPS, an application/json object, an exact issuer match and an HTTPS `jwks_uri`. `oauthHTTPClient` prevents redirect downgrades. `parseJWKSDocument` rejects ambiguous key usage when encryption keys are present. The metadata URL uses the registered oauth-authorization-server suffix before the issuer path.
+**Evidence:** unit 9
 
-**What the ledger says remains**
+**Unmet:** RFC8414-2-13, RFC8414-2.1-1, RFC8414-2.1-2
 
-Implementation features not offered under the 2026-09-21 scope decision: authorization/token/revocation/introspection endpoints and their client-authentication metadata, signed AS metadata, and an AS metadata publisher/TLS listener. These are absent features, not unimplemented obligations of the selected resource-server and plain-metadata-consumer roles. Applicable verification remains subject to the recorded tests and discrimination results.
 
 ## Coverage
 
@@ -104,9 +110,41 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 
 **Annotated (including scoped evidence) (15):** [`RFC8414-3-1`](#rfc8414-3-1), [`RFC8414-2-2`](#rfc8414-2-2), [`RFC8414-2-3`](#rfc8414-2-3), [`RFC8414-2-4`](#rfc8414-2-4), [`RFC8414-2-9`](#rfc8414-2-9), [`RFC8414-2-10`](#rfc8414-2-10), [`RFC8414-2-11`](#rfc8414-2-11), [`RFC8414-2-12`](#rfc8414-2-12), [`RFC8414-2-13`](#rfc8414-2-13), [`RFC8414-2-14`](#rfc8414-2-14), [`RFC8414-2-15`](#rfc8414-2-15), [`RFC8414-2.1-1`](#rfc8414-2.1-1), [`RFC8414-2.1-2`](#rfc8414-2.1-2), [`RFC8414-3.2-2`](#rfc8414-3.2-2), [`RFC8414-6.1-2`](#rfc8414-6.1-2)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 16 of 31 (51.6%); excluded: Optional feature not offered (classification can be revisited): 3 of 31 (9.7%); Not applicable (classification can be revisited): 12 of 31 (38.7%). Optional ceiling: 2 of 2 (100.0%). Lowest mandatory ceiling: rfc8414 16 of 31 (51.6%). Lowest optional ceiling: rfc8414 2 of 2 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 9, Ze correctness gap 22
+- **Overview bar**: Ze MUST proven 9, SHOULD not decided 2, Ze correctness gap 22
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 31 |
+| MUST rows kept (the MUST bar) | 31 |
+| Ze proven | 9 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 22 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 2 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 2 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc8414.json](../../../data/rfc/rfc8414.json).
 
 ## Requirements
 
@@ -127,11 +165,11 @@ Mandatory ceiling: 16 of 31 (51.6%); excluded: Optional feature not offered (cla
 | `RFC8414-2-10` | The value "none" MUST NOT be used. (§2, token_endpoint_auth_signing_alg_values_supported) | MUST NOT | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** §2 defines the field as algorithms "used to authenticate the client at the token endpoint"; it does not describe resource-server token verification. Thomas's 2026-09-21 decision excludes the AS/token-client roles. internal/component/mcp/streamable.go::ServeHTTP has no token endpoint, and internal/component/mcp/as_metadata.go::fetchASMetadata neither advertises nor selects these client-authentication algorithms |
 | `RFC8414-2-11` | used to authenticate the client at the revocation endpoint for the "private_key_jwt" and "client_secret_jwt" authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the "revocation_endpoint_auth_methods_supported" entry. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** §2 conditions this entry on methods "specified in the \\"revocation_endpoint_auth_methods_supported\\" entry." Thomas's 2026-09-21 selection excludes the AS and revocation-client roles. internal/component/mcp/streamable.go::ServeHTTP publishes no revocation endpoint; internal/component/mcp/as_metadata.go::fetchASMetadata consumes only issuer and jwks_uri and makes no revocation request |
 | `RFC8414-2-12` | The value "none" MUST NOT be used. (§2, revocation_endpoint_auth_signing_alg_values_supported) | MUST NOT | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** §2 describes algorithms "used to authenticate the client at the revocation endpoint", not token verification by a resource server. Thomas's 2026-09-21 selection excludes the AS and revocation-client roles. internal/component/mcp/streamable.go::ServeHTTP has no revocation endpoint; internal/component/mcp/as_metadata.go::fetchASMetadata neither publishes nor selects revocation authentication algorithms |
-| `RFC8414-2-13` | (These values are and will remain distinct, due to Section 7.2.) If omitted, the set of supported authentication methods MUST be determined by other means. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "introspection_endpoint OPTIONAL."; §2 makes introspection metadata optional. Thomas chose the present OAuth roles on 2026-09-21, retaining local token verification rather than introspection. internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a JWKS-backed verifier and makes no introspection request that would need an authentication method |
+| `RFC8414-2-13` | (These values are and will remain distinct, due to Section 7.2.) If omitted, the set of supported authentication methods MUST be determined by other means. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze makes no introspection request: internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a JWKS-backed verifier only, so no introspection authentication method is ever determined; owed after the first release (owner decision 2026-09-21, "Keep present OAuth roles", recorded in the Enrolment reason, which left it out of the current work) |
 | `RFC8414-2-14` | used to authenticate the client at the introspection endpoint for the "private_key_jwt" and "client_secret_jwt" authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the "introspection_endpoint_auth_methods_supported" entry. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** §2 conditions this entry on methods "specified in the \\"introspection_endpoint_auth_methods_supported\\" entry." Thomas's 2026-09-21 selection excludes the AS and introspection-client roles. internal/component/mcp/streamable.go::ServeHTTP has no introspection endpoint; internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a local JWKS-backed verifier rather than an introspection client |
 | `RFC8414-2-15` | The value "none" MUST NOT be used. (§2, introspection_endpoint_auth_signing_alg_values_supported) | MUST NOT | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** §2 describes algorithms "used to authenticate the client at the introspection endpoint", not the signatures on access tokens. Thomas's 2026-09-21 selection excludes the AS/introspection-client roles. internal/component/mcp/as_metadata.go::fetchASMetadata consumes issuer and jwks_uri only; internal/component/mcp/streamable_auth.go::buildAuthForMode verifies tokens locally and selects no introspection authentication algorithm |
-| `RFC8414-2.1-1` | The signed metadata MUST be digitally signed or MACed using JSON Web Signature (JWS) [JWS] and MUST contain an "iss" (issuer) claim denoting the party attesting to the claims in the signed metadata. (§2.1) | MUST | 2.1 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "Consumers of the metadata MAY ignore the signed metadata if they do not support this feature."; Thomas excluded signed metadata on 2026-09-21. internal/component/mcp/as_metadata.go::fetchASMetadata consumes only plain JSON issuer and jwks_uri; internal/component/mcp/streamable.go::ServeHTTP publishes no AS metadata, signed or otherwise |
-| `RFC8414-2.1-2` | If the consumer of the metadata supports signed metadata, metadata values conveyed in the signed metadata MUST take precedence over the corresponding values conveyed using plain JSON elements (§2.1) | MUST | 2.1 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "Consumers of the metadata MAY ignore the signed metadata if they do not support this feature."; Thomas excluded signed metadata on 2026-09-21. internal/component/mcp/as_metadata.go::fetchASMetadata reads the plain JSON issuer and jwks_uri only, so no supported signed-metadata values compete with those fields |
+| `RFC8414-2.1-1` | The signed metadata MUST be digitally signed or MACed using JSON Web Signature (JWS) [JWS] and MUST contain an "iss" (issuer) claim denoting the party attesting to the claims in the signed metadata. (§2.1) | MUST | 2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze supports no signed AS metadata: internal/component/mcp/as_metadata.go::fetchASMetadata consumes only the plain JSON issuer and jwks_uri; owed after the first release (owner decision 2026-09-21, "Keep present OAuth roles", recorded in the Enrolment reason, which left it out of the current work) |
+| `RFC8414-2.1-2` | If the consumer of the metadata supports signed metadata, metadata values conveyed in the signed metadata MUST take precedence over the corresponding values conveyed using plain JSON elements (§2.1) | MUST | 2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze supports no signed AS metadata: internal/component/mcp/as_metadata.go::fetchASMetadata reads only the plain JSON issuer and jwks_uri, so no signed value takes precedence; owed after the first release (owner decision 2026-09-21, "Keep present OAuth roles", recorded in the Enrolment reason, which left it out of the current work) |
 | `RFC8414-3-2` | The well-known URI suffix used MUST be registered in the IANA "Well-Known URIs" registry (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC8414MetadataRequestIsGETAtWellKnownPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L78). **negative:** `unit/verify` [`TestRFC8414MetadataPathNeverAppendedToIssuerPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L155) |
 | `RFC8414-3-3` | An OAuth 2.0 application using this specification MUST specify what well-known URI suffix it will use for this purpose (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC8414MetadataRequestIsGETAtWellKnownPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L79). **negative:** `unit/verify` [`TestRFC8414MetadataPathNeverAppendedToIssuerPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L156) |
 | `RFC8414-3.1-1` | An authorization server metadata document MUST be queried using an HTTP "GET" request at the previously specified path (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC8414MetadataRequestIsGETAtWellKnownPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L74). **negative:** `unit/verify` [`TestRFC8414MetadataRequestUsesNoOtherVerbOrPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L102) |
@@ -158,11 +196,11 @@ Mandatory ceiling: 16 of 31 (51.6%); excluded: Optional feature not offered (cla
 | [`RFC8414-2-10`](#rfc8414-2-10) The value "none" MUST NOT be used. (§2, token_endpoint_auth_signing_alg_values_supported) | no test | no test carries this requirement id; annotated {not-applicable}: §2 defines the field as algorithms "used to authenticate the client at the token endpoint"; it does not describe resource-server token verification. Thomas's 2026-09-21 decision excludes the AS/token-client roles. internal/component/mcp/streamable.go::ServeHTTP has no token endpoint, and internal/component/mcp/as_metadata.go::fetchASMetadata neither advertises nor selects these client-authentication algorithms |
 | [`RFC8414-2-11`](#rfc8414-2-11) used to authenticate the client at the revocation endpoint for the "private_key_jwt" and "client_secret_jwt" authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the "revocation_endpoint_auth_methods_supported" entry. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: §2 conditions this entry on methods "specified in the \\"revocation_endpoint_auth_methods_supported\\" entry." Thomas's 2026-09-21 selection excludes the AS and revocation-client roles. internal/component/mcp/streamable.go::ServeHTTP publishes no revocation endpoint; internal/component/mcp/as_metadata.go::fetchASMetadata consumes only issuer and jwks_uri and makes no revocation request |
 | [`RFC8414-2-12`](#rfc8414-2-12) The value "none" MUST NOT be used. (§2, revocation_endpoint_auth_signing_alg_values_supported) | no test | no test carries this requirement id; annotated {not-applicable}: §2 describes algorithms "used to authenticate the client at the revocation endpoint", not token verification by a resource server. Thomas's 2026-09-21 selection excludes the AS and revocation-client roles. internal/component/mcp/streamable.go::ServeHTTP has no revocation endpoint; internal/component/mcp/as_metadata.go::fetchASMetadata neither publishes nor selects revocation authentication algorithms |
-| [`RFC8414-2-13`](#rfc8414-2-13) (These values are and will remain distinct, due to Section 7.2.) If omitted, the set of supported authentication methods MUST be determined by other means. (§2) | no test | no test carries this requirement id; annotated {feature-declined}: "introspection_endpoint OPTIONAL."; §2 makes introspection metadata optional. Thomas chose the present OAuth roles on 2026-09-21, retaining local token verification rather than introspection. internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a JWKS-backed verifier and makes no introspection request that would need an authentication method |
+| [`RFC8414-2-13`](#rfc8414-2-13) (These values are and will remain distinct, due to Section 7.2.) If omitted, the set of supported authentication methods MUST be determined by other means. (§2) | {gap}, no test | ze makes no introspection request: internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a JWKS-backed verifier only, so no introspection authentication method is ever determined; owed after the first release (owner decision 2026-09-21, "Keep present OAuth roles", recorded in the Enrolment reason, which left it out of the current work) |
 | [`RFC8414-2-14`](#rfc8414-2-14) used to authenticate the client at the introspection endpoint for the "private_key_jwt" and "client_secret_jwt" authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the "introspection_endpoint_auth_methods_supported" entry. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: §2 conditions this entry on methods "specified in the \\"introspection_endpoint_auth_methods_supported\\" entry." Thomas's 2026-09-21 selection excludes the AS and introspection-client roles. internal/component/mcp/streamable.go::ServeHTTP has no introspection endpoint; internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a local JWKS-backed verifier rather than an introspection client |
 | [`RFC8414-2-15`](#rfc8414-2-15) The value "none" MUST NOT be used. (§2, introspection_endpoint_auth_signing_alg_values_supported) | no test | no test carries this requirement id; annotated {not-applicable}: §2 describes algorithms "used to authenticate the client at the introspection endpoint", not the signatures on access tokens. Thomas's 2026-09-21 selection excludes the AS/introspection-client roles. internal/component/mcp/as_metadata.go::fetchASMetadata consumes issuer and jwks_uri only; internal/component/mcp/streamable_auth.go::buildAuthForMode verifies tokens locally and selects no introspection authentication algorithm |
-| [`RFC8414-2.1-1`](#rfc8414-2.1-1) The signed metadata MUST be digitally signed or MACed using JSON Web Signature (JWS) [JWS] and MUST contain an "iss" (issuer) claim denoting the party attesting to the claims in the signed metadata. (§2.1) | no test | no test carries this requirement id; annotated {feature-declined}: "Consumers of the metadata MAY ignore the signed metadata if they do not support this feature."; Thomas excluded signed metadata on 2026-09-21. internal/component/mcp/as_metadata.go::fetchASMetadata consumes only plain JSON issuer and jwks_uri; internal/component/mcp/streamable.go::ServeHTTP publishes no AS metadata, signed or otherwise |
-| [`RFC8414-2.1-2`](#rfc8414-2.1-2) If the consumer of the metadata supports signed metadata, metadata values conveyed in the signed metadata MUST take precedence over the corresponding values conveyed using plain JSON elements (§2.1) | no test | no test carries this requirement id; annotated {feature-declined}: "Consumers of the metadata MAY ignore the signed metadata if they do not support this feature."; Thomas excluded signed metadata on 2026-09-21. internal/component/mcp/as_metadata.go::fetchASMetadata reads the plain JSON issuer and jwks_uri only, so no supported signed-metadata values compete with those fields |
+| [`RFC8414-2.1-1`](#rfc8414-2.1-1) The signed metadata MUST be digitally signed or MACed using JSON Web Signature (JWS) [JWS] and MUST contain an "iss" (issuer) claim denoting the party attesting to the claims in the signed metadata. (§2.1) | {gap}, no test | ze supports no signed AS metadata: internal/component/mcp/as_metadata.go::fetchASMetadata consumes only the plain JSON issuer and jwks_uri; owed after the first release (owner decision 2026-09-21, "Keep present OAuth roles", recorded in the Enrolment reason, which left it out of the current work) |
+| [`RFC8414-2.1-2`](#rfc8414-2.1-2) If the consumer of the metadata supports signed metadata, metadata values conveyed in the signed metadata MUST take precedence over the corresponding values conveyed using plain JSON elements (§2.1) | {gap}, no test | ze supports no signed AS metadata: internal/component/mcp/as_metadata.go::fetchASMetadata reads only the plain JSON issuer and jwks_uri, so no signed value takes precedence; owed after the first release (owner decision 2026-09-21, "Keep present OAuth roles", recorded in the Enrolment reason, which left it out of the current work) |
 | [`RFC8414-3.2-2`](#rfc8414-3.2-2) Claims with zero elements MUST be omitted from the response (§3.2) | no test | no test carries this requirement id; annotated {not-applicable}: §3.2 says "The response is a set of claims about the authorization server's configuration." Thomas excluded the AS publisher role on 2026-09-21. internal/component/mcp/as_metadata.go::fetchASMetadata consumes that response; internal/component/mcp/streamable.go::ServeHTTP exposes only MCP and protected-resource metadata, whose empty-field omission is separately governed by RFC 9728 |
 | [`RFC8414-6.1-2`](#rfc8414-6.1-2) The authorization server MUST support TLS version 1.2 (§6.1) | no test | no test carries this requirement id; annotated {not-applicable}: §6.1 explicitly says "The authorization server MUST support TLS version 1.2 [RFC5246]". Thomas excluded the AS role on 2026-09-21. internal/component/mcp/as_metadata.go::fetchASMetadata is the external-AS HTTPS client; cmd/ze/hub/service_mcp.go::loadMCPTLSConfig configures Ze's resource-server listener, not an AS listener. Its real-listener proof belongs to RFC9728-7.1-1 and RFC9728-7.1-2 |
 

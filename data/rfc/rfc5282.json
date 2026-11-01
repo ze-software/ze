@@ -1,0 +1,33 @@
+{
+  "stem": "rfc5282",
+  "title": "Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol",
+  "walked": true,
+  "requirements": 30,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 19,
+    "kept": 19,
+    "ze-proven": 19,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 11,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 11,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 19
+  },
+  "unmet": []
+}

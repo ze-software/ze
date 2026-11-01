@@ -1,0 +1,39 @@
+{
+  "stem": "rfc7313",
+  "title": "Enhanced Route Refresh Capability for BGP-4",
+  "walked": true,
+  "requirements": 17,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 11,
+    "kept": 11,
+    "ze-proven": 5,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 6,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 6,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 6,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 5
+  },
+  "unmet": [
+    "RFC7313-4-13",
+    "RFC7313-4-4",
+    "RFC7313-4-5",
+    "RFC7313-4-6",
+    "RFC7313-4-7"
+  ]
+}

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>MPLS RFC coverage - Ze</title>
-        <meta name="description" content="Technology aggregate mpls: mandatory 125 of 319 (39.2%), optional 6 of 59 (10.2%); ceiling mandatory 312 of 319 (97.8%), optional 59 of 59 (100.0%); mandatory excluded: lower-layer 7; 10 RFCs, 0 not walked." />
+        <meta name="description" content="Technology aggregate mpls: the MUST and overview coverage of its RFCs." />
         <meta property="og:title" content="MPLS RFC coverage - Ze" />
-        <meta property="og:description" content="Technology aggregate mpls: mandatory 125 of 319 (39.2%), optional 6 of 59 (10.2%); ceiling mandatory 312 of 319 (97.8%), optional 59 of 59 (100.0%); mandatory excluded: lower-layer 7; 10 RFCs, 0 not walked." />
+        <meta property="og:description" content="Technology aggregate mpls: the MUST and overview coverage of its RFCs." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="MPLS RFC coverage - Ze" />
-        <meta name="twitter:description" content="Technology aggregate mpls: mandatory 125 of 319 (39.2%), optional 6 of 59 (10.2%); ceiling mandatory 312 of 319 (97.8%), optional 59 of 59 (100.0%); mandatory excluded: lower-layer 7; 10 RFCs, 0 not walked." />
+        <meta name="twitter:description" content="Technology aggregate mpls: the MUST and overview coverage of its RFCs." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Technology aggregate</span>
     <h1 id="rfc-profile-title">MPLS</h1>
-    <p>MPLS, LDP, RSVP-TE, and fast reroute. The RFCs whose summary names the mpls aggregate, with their mandatory and optional coverage.</p>
+    <p>MPLS, LDP, RSVP-TE, and fast reroute. The RFCs whose summary names the mpls aggregate, with the MUST bar and the overview bar of the set and of each RFC.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -114,34 +114,104 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
-<style>
-.rfc-bar { display: block; width: 100%; min-width: 7rem; height: .7rem; margin: .2rem 0 .15rem; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); overflow: hidden; }
-.rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
-.rfc-bar-unmeasured { border-style: dashed; }
-.rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
-.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
-</style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
-<div class="rfc-card-grid">
-<div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>39.2%</strong><b>125 of 319 (39.2%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
-<div class="rfc-card rfc-neutral"><span>Optional</span><strong>10.2%</strong><b>6 of 59 (10.2%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
-<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>97.8%</strong><b>312 of 319 (97.8%); excluded: Met by a lower layer: 7 of 319 (2.2%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
-<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>59 of 59 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
-<div class="rfc-card rfc-neutral"><span>Not walked</span><strong>0</strong><b>of 10 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
-<div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
+<section><h2>Figures</h2>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="profile/mpls/required:must">Ze proven 125, OS testing gap 7, Ze correctness gap 187</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="profile/mpls/required:overview">Ze MUST proven 125, SHOULD proven 6, SHOULD not decided 53, OS testing gap 7, Ze correctness gap 187</div>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="profile/mpls/required:rfcs">10</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="profile/mpls/required:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="profile/mpls/required:register">not complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="profile/mpls/required:must.total">319</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="profile/mpls/required:must.kept">319</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="profile/mpls/required:must.ze-proven">125</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="profile/mpls/required:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="profile/mpls/required:must.os-gap">7</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="profile/mpls/required:must.ze-gap">187</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="profile/mpls/required:must.not-owed">0</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/mpls/required:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/mpls/required:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/mpls/required:must.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="profile/mpls/required:should.total">59</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="profile/mpls/required:should.proven">6</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="profile/mpls/required:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="profile/mpls/required:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="profile/mpls/required:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/mpls/required:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/mpls/required:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/mpls/required:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="profile/mpls/required:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="profile/mpls/required:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="profile/mpls/required:should.not-decided">53</span></td>
+</tr>
+</tbody>
+</table>
 </div>
-<p>Mandatory ceiling: 312 of 319 (97.8%); excluded: Met by a lower layer: 7 of 319 (2.2%). Optional ceiling: 59 of 59 (100.0%). Lowest mandatory ceiling: rfc3032 13 of 18 (72.2%). Lowest optional ceiling: rfc2205 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+</section>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows &#34;not walked&#34; and no bar.</p>
 <h3>Level 0</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc2205/">RFC 2205</a> (cycle with rfc2210, rfc2211, rfc2215)</td>
 <td>Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification</td>
-<td><div class="rfc-bar" role="img" aria-label="31 of 75 (41.3%)"><span style="width:41.3%"></span></div><span class="rfc-bar-note">31 of 75 (41.3%)</span><small class="rfc-ceiling">Ceiling: 75 of 75 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc2205:must">Ze proven 31, Ze correctness gap 44</div></td>
+<td><div data-ze-rfc-bar="rfc2205:overview">Ze MUST proven 31, SHOULD not decided 5, Ze correctness gap 44</div></td>
 </tr>
 </tbody>
 </table>
@@ -149,12 +219,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 1</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc5036/">RFC 5036</a></td>
 <td>LDP Specification</td>
-<td><div class="rfc-bar" role="img" aria-label="29 of 91 (31.9%)"><span style="width:31.9%"></span></div><span class="rfc-bar-note">29 of 91 (31.9%)</span><small class="rfc-ceiling">Ceiling: 91 of 91 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc5036:must">Ze proven 29, Ze correctness gap 62</div></td>
+<td><div data-ze-rfc-bar="rfc5036:overview">Ze MUST proven 29, SHOULD not decided 4, Ze correctness gap 62</div></td>
 </tr>
 </tbody>
 </table>
@@ -162,12 +232,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 2</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc5561/">RFC 5561</a></td>
 <td>LDP Capabilities</td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 17 (5.9%)"><span style="width:5.9%"></span></div><span class="rfc-bar-note">1 of 17 (5.9%)</span><small class="rfc-ceiling">Ceiling: 17 of 17 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc5561:must">Ze proven 1, Ze correctness gap 16</div></td>
+<td><div data-ze-rfc-bar="rfc5561:overview">Ze MUST proven 1, SHOULD not decided 1, Ze correctness gap 16</div></td>
 </tr>
 </tbody>
 </table>
@@ -175,17 +245,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 3</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc3031/">RFC 3031</a> (cycle with rfc3032)</td>
 <td>Multiprotocol Label Switching Architecture</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 10 (20.0%)"><span style="width:20.0%"></span></div><span class="rfc-bar-note">2 of 10 (20.0%)</span><small class="rfc-ceiling">Ceiling: 10 of 10 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 2 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 2 (0.0%)</span><small class="rfc-ceiling">Ceiling: 2 of 2 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc3031:must">Ze proven 2, Ze correctness gap 8</div></td>
+<td><div data-ze-rfc-bar="rfc3031:overview">Ze MUST proven 2, SHOULD not decided 2, Ze correctness gap 8</div></td>
 </tr>
 <tr><td><a href="../../rfc3032/">RFC 3032</a> (cycle with rfc3031)</td>
 <td>MPLS Label Stack Encoding</td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 18 (5.6%)"><span style="width:5.6%"></span></div><span class="rfc-bar-note">1 of 18 (5.6%)</span><small class="rfc-ceiling">Ceiling: 13 of 18 (72.2%); excluded: Met by a lower layer: 5 of 18 (27.8%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc3032:must">Ze proven 1, OS testing gap 5, Ze correctness gap 12</div></td>
+<td><div data-ze-rfc-bar="rfc3032:overview">Ze MUST proven 1, SHOULD not decided 6, OS testing gap 5, Ze correctness gap 12</div></td>
 </tr>
 </tbody>
 </table>
@@ -193,12 +263,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 4</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc3209/">RFC 3209</a></td>
 <td>RSVP-TE: Extensions to RSVP for LSP Tunnels</td>
-<td><div class="rfc-bar" role="img" aria-label="23 of 59 (39.0%)"><span style="width:39.0%"></span></div><span class="rfc-bar-note">23 of 59 (39.0%)</span><small class="rfc-ceiling">Ceiling: 57 of 59 (96.6%); excluded: Met by a lower layer: 2 of 59 (3.4%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc3209:must">Ze proven 23, OS testing gap 2, Ze correctness gap 34</div></td>
+<td><div data-ze-rfc-bar="rfc3209:overview">Ze MUST proven 23, SHOULD not decided 3, OS testing gap 2, Ze correctness gap 34</div></td>
 </tr>
 </tbody>
 </table>
@@ -206,17 +276,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 5</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc4090/">RFC 4090</a></td>
 <td>Fast Reroute Extensions to RSVP-TE for LSP Tunnels</td>
-<td><div class="rfc-bar" role="img" aria-label="29 of 33 (87.9%)"><span style="width:87.9%"></span></div><span class="rfc-bar-note">29 of 33 (87.9%)</span><small class="rfc-ceiling">Ceiling: 33 of 33 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 8 (75.0%)"><span style="width:75.0%"></span></div><span class="rfc-bar-note">6 of 8 (75.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4090:must">Ze proven 29, Ze correctness gap 4</div></td>
+<td><div data-ze-rfc-bar="rfc4090:overview">Ze MUST proven 29, SHOULD proven 6, SHOULD not decided 2, Ze correctness gap 4</div></td>
 </tr>
 <tr><td><a href="../../rfc5443/">RFC 5443</a></td>
 <td>LDP IGP Synchronization</td>
-<td><div class="rfc-bar" role="img" aria-label="5 of 8 (62.5%)"><span style="width:62.5%"></span></div><span class="rfc-bar-note">5 of 8 (62.5%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc5443:must">Ze proven 5, Ze correctness gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc5443:overview">Ze MUST proven 5, SHOULD not decided 6, Ze correctness gap 3</div></td>
 </tr>
 </tbody>
 </table>
@@ -224,12 +294,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 6</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc6138/">RFC 6138</a></td>
 <td>LDP IGP Synchronization for Broadcast Networks</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 2 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">2 of 2 (100.0%)</span><small class="rfc-ceiling">Ceiling: 2 of 2 (100.0%)</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc6138:must">Ze proven 2</div></td>
+<td><div data-ze-rfc-bar="rfc6138:overview">Ze MUST proven 2</div></td>
 </tr>
 </tbody>
 </table>
@@ -237,17 +307,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 10</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc5286/">RFC 5286</a></td>
 <td>Basic Specification for IP Fast Reroute: Loop-Free Alternates</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 6 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">2 of 6 (33.3%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 24 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 24 (0.0%)</span><small class="rfc-ceiling">Ceiling: 24 of 24 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc5286:must">Ze proven 2, Ze correctness gap 4</div></td>
+<td><div data-ze-rfc-bar="rfc5286:overview">Ze MUST proven 2, SHOULD not decided 24, Ze correctness gap 4</div></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
+<script src="../../../../assets/rfc-figures.js" defer></script>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -279,7 +350,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

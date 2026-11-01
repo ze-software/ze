@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>DNS RFC coverage - Ze</title>
-        <meta name="description" content="Technology aggregate dns: mandatory 34 of 299 (11.4%), optional 1 of 211 (0.5%); ceiling mandatory 296 of 299 (99.0%), optional 211 of 211 (100.0%); mandatory excluded: not-applicable 3; 11 RFCs, 0 not walked." />
+        <meta name="description" content="Technology aggregate dns: the MUST and overview coverage of its RFCs." />
         <meta property="og:title" content="DNS RFC coverage - Ze" />
-        <meta property="og:description" content="Technology aggregate dns: mandatory 34 of 299 (11.4%), optional 1 of 211 (0.5%); ceiling mandatory 296 of 299 (99.0%), optional 211 of 211 (100.0%); mandatory excluded: not-applicable 3; 11 RFCs, 0 not walked." />
+        <meta property="og:description" content="Technology aggregate dns: the MUST and overview coverage of its RFCs." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="DNS RFC coverage - Ze" />
-        <meta name="twitter:description" content="Technology aggregate dns: mandatory 34 of 299 (11.4%), optional 1 of 211 (0.5%); ceiling mandatory 296 of 299 (99.0%), optional 211 of 211 (100.0%); mandatory excluded: not-applicable 3; 11 RFCs, 0 not walked." />
+        <meta name="twitter:description" content="Technology aggregate dns: the MUST and overview coverage of its RFCs." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Technology aggregate</span>
     <h1 id="rfc-profile-title">DNS</h1>
-    <p>DNS, DNSSEC, encrypted DNS transports, and AS112. The RFCs whose summary names the dns aggregate, with their mandatory and optional coverage.</p>
+    <p>DNS, DNSSEC, encrypted DNS transports, and AS112. The RFCs whose summary names the dns aggregate, with the MUST bar and the overview bar of the set and of each RFC.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -114,35 +114,105 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
-<style>
-.rfc-bar { display: block; width: 100%; min-width: 7rem; height: .7rem; margin: .2rem 0 .15rem; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); overflow: hidden; }
-.rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
-.rfc-bar-unmeasured { border-style: dashed; }
-.rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
-.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
-</style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <p>Use case: <a href="../../../../use-cases/as112/">AS112 anycast DNS inside a network</a></p>
-<div class="rfc-card-grid">
-<div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>11.4%</strong><b>34 of 299 (11.4%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
-<div class="rfc-card rfc-neutral"><span>Optional</span><strong>0.5%</strong><b>1 of 211 (0.5%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
-<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>99.0%</strong><b>296 of 299 (99.0%); excluded: Not applicable (classification can be revisited): 3 of 299 (1.0%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
-<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>211 of 211 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
-<div class="rfc-card rfc-neutral"><span>Not walked</span><strong>0</strong><b>of 11 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
-<div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
+<section><h2>Figures</h2>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="profile/dns/required:must">Ze proven 34, Ze correctness gap 262</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="profile/dns/required:overview">Ze MUST proven 34, SHOULD proven 1, Not owed 3, SHOULD not decided 210, Ze correctness gap 262</div>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="profile/dns/required:rfcs">11</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="profile/dns/required:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="profile/dns/required:register">not complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="profile/dns/required:must.total">299</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="profile/dns/required:must.kept">296</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="profile/dns/required:must.ze-proven">34</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="profile/dns/required:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="profile/dns/required:must.os-gap">0</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="profile/dns/required:must.ze-gap">262</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="profile/dns/required:must.not-owed">3</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/dns/required:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/dns/required:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/dns/required:must.not-owed-by-kind.not-applicable">3</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="profile/dns/required:should.total">211</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="profile/dns/required:should.proven">1</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="profile/dns/required:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="profile/dns/required:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="profile/dns/required:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/dns/required:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/dns/required:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/dns/required:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="profile/dns/required:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="profile/dns/required:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="profile/dns/required:should.not-decided">210</span></td>
+</tr>
+</tbody>
+</table>
 </div>
-<p>Mandatory ceiling: 296 of 299 (99.0%); excluded: Not applicable (classification can be revisited): 3 of 299 (1.0%). Optional ceiling: 211 of 211 (100.0%). Lowest mandatory ceiling: rfc2782 5 of 7 (71.4%). Lowest optional ceiling: rfc1035 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+</section>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows &#34;not walked&#34; and no bar.</p>
 <h3>Level 2</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc1035/">RFC 1035</a> (cycle with rfc1034, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
 <td>Domain Names - Implementation and Specification</td>
-<td><div class="rfc-bar" role="img" aria-label="12 of 27 (44.4%)"><span style="width:44.4%"></span></div><span class="rfc-bar-note">12 of 27 (44.4%)</span><small class="rfc-ceiling">Ceiling: 27 of 27 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc1035:must">Ze proven 12, Ze correctness gap 15</div></td>
+<td><div data-ze-rfc-bar="rfc1035:overview">Ze MUST proven 12, SHOULD not decided 6, Ze correctness gap 15</div></td>
 </tr>
 </tbody>
 </table>
@@ -150,12 +220,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 3</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc2181/">RFC 2181</a></td>
 <td>Clarifications to the DNS Specification</td>
-<td><div class="rfc-bar" role="img" aria-label="12 of 23 (52.2%)"><span style="width:52.2%"></span></div><span class="rfc-bar-note">12 of 23 (52.2%)</span><small class="rfc-ceiling">Ceiling: 23 of 23 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 47 (2.1%)"><span style="width:2.1%"></span></div><span class="rfc-bar-note">1 of 47 (2.1%)</span><small class="rfc-ceiling">Ceiling: 47 of 47 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc2181:must">Ze proven 12, Ze correctness gap 11</div></td>
+<td><div data-ze-rfc-bar="rfc2181:overview">Ze MUST proven 12, SHOULD proven 1, SHOULD not decided 46, Ze correctness gap 11</div></td>
 </tr>
 </tbody>
 </table>
@@ -163,12 +233,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 4</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc2782/">RFC 2782</a></td>
 <td>A DNS RR for specifying the location of services (DNS SRV)</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 7 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 7 (0.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 7 (71.4%); excluded: Not applicable (classification can be revisited): 2 of 7 (28.6%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 7 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 7 (0.0%)</span><small class="rfc-ceiling">Ceiling: 7 of 7 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc2782:must">Ze correctness gap 5</div></td>
+<td><div data-ze-rfc-bar="rfc2782:overview">Not owed 2, SHOULD not decided 7, Ze correctness gap 5</div></td>
 </tr>
 </tbody>
 </table>
@@ -176,27 +246,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 5</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc4033/">RFC 4033</a> (cycle with rfc4034, rfc4035)</td>
 <td>DNS Security Introduction and Requirements</td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc4033:must">no rows</div></td>
+<td><div data-ze-rfc-bar="rfc4033:overview">no rows</div></td>
 </tr>
 <tr><td><a href="../../rfc4034/">RFC 4034</a> (cycle with rfc4033, rfc4035)</td>
 <td>Resource Records for the DNS Security Extensions</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 59 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 59 (0.0%)</span><small class="rfc-ceiling">Ceiling: 59 of 59 (100.0%)</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc4034:must">Ze correctness gap 59</div></td>
+<td><div data-ze-rfc-bar="rfc4034:overview">Ze correctness gap 59</div></td>
 </tr>
 <tr><td><a href="../../rfc4035/">RFC 4035</a> (cycle with rfc4033, rfc4034)</td>
 <td>Protocol Modifications for the DNS Security Extensions</td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 108 (3.7%)"><span style="width:3.7%"></span></div><span class="rfc-bar-note">4 of 108 (3.7%)</span><small class="rfc-ceiling">Ceiling: 108 of 108 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 50 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 50 (0.0%)</span><small class="rfc-ceiling">Ceiling: 50 of 50 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4035:must">Ze proven 4, Ze correctness gap 104</div></td>
+<td><div data-ze-rfc-bar="rfc4035:overview">Ze MUST proven 4, SHOULD not decided 50, Ze correctness gap 104</div></td>
 </tr>
 <tr><td><a href="../../rfc8484/">RFC 8484</a></td>
 <td>DNS Queries over HTTPS (DoH)</td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 16 (6.2%)"><span style="width:6.2%"></span></div><span class="rfc-bar-note">1 of 16 (6.2%)</span><small class="rfc-ceiling">Ceiling: 15 of 16 (93.8%); excluded: Not applicable (classification can be revisited): 1 of 16 (6.2%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 11 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 11 (0.0%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc8484:must">Ze proven 1, Ze correctness gap 14</div></td>
+<td><div data-ze-rfc-bar="rfc8484:overview">Ze MUST proven 1, Not owed 1, SHOULD not decided 11, Ze correctness gap 14</div></td>
 </tr>
 </tbody>
 </table>
@@ -204,22 +274,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 6</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc7534/">RFC 7534</a> (cycle with rfc7535)</td>
 <td>AS112 Nameserver Operations</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 3 (66.7%)"><span style="width:66.7%"></span></div><span class="rfc-bar-note">2 of 3 (66.7%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 13 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 13 (0.0%)</span><small class="rfc-ceiling">Ceiling: 13 of 13 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7534:must">Ze proven 2, Ze correctness gap 1</div></td>
+<td><div data-ze-rfc-bar="rfc7534:overview">Ze MUST proven 2, SHOULD not decided 13, Ze correctness gap 1</div></td>
 </tr>
 <tr><td><a href="../../rfc7535/">RFC 7535</a> (cycle with rfc7534)</td>
 <td>AS112 Redirection Using DNAME</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7535:must">Ze correctness gap 1</div></td>
+<td><div data-ze-rfc-bar="rfc7535:overview">SHOULD not decided 6, Ze correctness gap 1</div></td>
 </tr>
 <tr><td><a href="../../rfc7871/">RFC 7871</a></td>
 <td>Client Subnet in DNS Queries</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 36 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 36 (0.0%)</span><small class="rfc-ceiling">Ceiling: 36 of 36 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 52 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 52 (0.0%)</span><small class="rfc-ceiling">Ceiling: 52 of 52 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7871:must">Ze correctness gap 36</div></td>
+<td><div data-ze-rfc-bar="rfc7871:overview">SHOULD not decided 52, Ze correctness gap 36</div></td>
 </tr>
 </tbody>
 </table>
@@ -227,17 +297,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 7</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc7858/">RFC 7858</a></td>
 <td>Specification for DNS over Transport Layer Security (TLS)</td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 19 (15.8%)"><span style="width:15.8%"></span></div><span class="rfc-bar-note">3 of 19 (15.8%)</span><small class="rfc-ceiling">Ceiling: 19 of 19 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 19 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 19 (0.0%)</span><small class="rfc-ceiling">Ceiling: 19 of 19 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7858:must">Ze proven 3, Ze correctness gap 16</div></td>
+<td><div data-ze-rfc-bar="rfc7858:overview">Ze MUST proven 3, SHOULD not decided 19, Ze correctness gap 16</div></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
+<script src="../../../../assets/rfc-figures.js" defer></script>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -269,7 +340,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

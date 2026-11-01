@@ -1,0 +1,36 @@
+{
+  "stem": "rfc8671",
+  "title": "Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP)",
+  "walked": true,
+  "requirements": 12,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 11,
+    "kept": 11,
+    "ze-proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 9,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 1,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 1,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 2
+  },
+  "unmet": [
+    "RFC8671-5.2-1",
+    "RFC8671-5.2-2"
+  ]
+}

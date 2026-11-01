@@ -1,6 +1,6 @@
 # RFC 5340 - OSPF for IPv6
 
-Partial. Every requirement this repository extracted from RFC 5340, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+OSPFv3 (partial, experimental). Every requirement this repository extracted from RFC 5340, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 69.6% | 16 of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 4.3% | 1 of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 40.0% | 18 of 45 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 16 | of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 20 | 20 of 45 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 23 | of 46 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 23 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 23 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 4.3% | 1 of 23 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 23 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 23 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 23 | of 46 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 23 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 23 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 1 | of 23 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 23 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 23 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 21.7% | 5 of 23 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 5 | of 23 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 23 gated MUSTs: they add up to 23. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,23 +45,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | OSPFv3 (partial, experimental) |
 | Enrolment | Enrolled |
 | Requirements | 46 |
 | Gated MUST-level | 23 |
@@ -84,15 +84,14 @@ Enrolled: OSPF for IPv6 (OSPFv3)
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** OSPFv3 (partial, experimental)
 
-**What the ledger says is covered**
+**Proof:** 6 of 23 MUST proven
 
-Native OSPFv3 as an IPv6 address-family engine sharing the OSPFv2 reactor through the codec seam: the 16-byte common header with Version-3 validation, the IPv6 upper-layer checksum bound to the datagram source/destination, the per-interface Instance ID demux, raw IPv6 protocol 89 with a link-local source and the ff02::5 / ff02::6 groups, per-link (not per-subnet) operation with Router-ID neighbor identity, the scope-typed LS Type registry with link-local-scope Link-LSAs kept on their own link, address-free Router-LSAs and Network-LSAs listing every fully adjacent router, Link-LSAs and Intra-Area-Prefix-LSAs carrying the word-padded prefix encoding, Inter-Area-Prefix / Inter-Area-Router / AS-External / NSSA LSAs, global-scope-only virtual-link endpoints, and the Appendix C.3 positive cost / InfTransDelay and matching HelloInterval / RouterDeadInterval checks. Requirements bound per line in [`rfc/short/rfc5340.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5340.md).
+**Evidence:** unit 6
 
-**What the ledger says remains**
+**Unmet:** RFC5340-2.5-2, RFC5340-2.8-2, RFC5340-4.2.2-1, RFC5340-4.9-1, RFC5340-4.9-2
 
-Five MUST gaps, annotated in [`rfc/short/rfc5340.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5340.md) and gated by `./le rfc check`. [`RFC5340-2.5-2`](#rfc5340-2.5-2): intra-area-prefix-LSAs exclude link-local addresses, but the ABR inter-area summary path ([`internal/plugins/ospf/origination_v6_summary.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/origination_v6_summary.go)) and the ASBR redistribution path ([`internal/plugins/ospf/origination_v6_external.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/origination_v6_external.go)) apply no link-local filter. [`RFC5340-2.8-2`](#rfc5340-2.8-2): the SPF graph keys a router vertex by Advertising Router and assigns rather than concatenates, so a router that spreads its links across several Router-LSAs is aggregated only to its last one ([`internal/plugins/ospf/afstrategy_v6.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6.go)). [`RFC5340-4.2.2-1`](#rfc5340-4.2.2-1): no destination-address acceptance check -- the datagram destination is used only as checksum pseudo-header input ([`internal/plugins/ospf/dispatcher.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/dispatcher.go)). [`RFC5340-4.9-1`](#rfc5340-4.9-1) and [`RFC5340-4.9-2`](#rfc5340-4.9-2): the §4.9 multiple-interfaces-to-one-link model (Active/Standby, shared Interface Instance ID, standby link-local LSA flush) has no producer. The feature also remains pre-production pending hardening and deployment evidence.
 
 ## Coverage
 
@@ -111,9 +110,41 @@ Five MUST gaps, annotated in [`rfc/short/rfc5340.md`](https://github.com/ze-soft
 
 **Annotated (including scoped evidence) (7):** [`RFC5340-2.5-2`](#rfc5340-2.5-2), [`RFC5340-2.8-2`](#rfc5340-2.8-2), [`RFC5340-4.2.2-1`](#rfc5340-4.2.2-1), [`RFC5340-4.2.2-2`](#rfc5340-4.2.2-2), [`RFC5340-4.2.2-3`](#rfc5340-4.2.2-3), [`RFC5340-4.9-1`](#rfc5340-4.9-1), [`RFC5340-4.9-2`](#rfc5340-4.9-2)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 22 of 23 (95.7%); excluded: Met by a lower layer: 1 of 23 (4.3%). Optional ceiling: 23 of 23 (100.0%). Lowest mandatory ceiling: rfc5340 22 of 23 (95.7%). Lowest optional ceiling: rfc5340 23 of 23 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 6, OS testing gap 1, Ze correctness gap 16
+- **Overview bar**: Ze MUST proven 6, SHOULD not decided 23, OS testing gap 1, Ze correctness gap 16
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 23 |
+| MUST rows kept (the MUST bar) | 23 |
+| Ze proven | 6 |
+| OS verified | 0 |
+| OS testing gap | 1 |
+| Ze correctness gap | 16 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 23 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 23 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc5340.json](../../../data/rfc/rfc5340.json).
 
 ## Requirements
 
@@ -401,9 +432,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5340FloodIncrementsAgeByInfTransDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_flood_age_test.go#L73) | unit/verify | revert, verified |
-| negative | [`TestRFC5340IPv6InterfaceTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L487) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5340IPv6InterfaceTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L487) | unit/verify | revert, verified |
 | positive | [`TestRFC5340FloodIncrementsAgeByInfTransDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_flood_age_test.go#L66) | unit/verify | revert, verified |
-| positive | [`TestRFC5340IPv6InterfaceTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L483) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5340IPv6InterfaceTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L483) | unit/verify | revert, verified |
 
 ### [`RFC5340-C.3-3`](#rfc5340-c.3-3)
 

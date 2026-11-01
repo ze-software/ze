@@ -1,0 +1,38 @@
+{
+  "stem": "rfc9086",
+  "title": "Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing BGP Egress Peer Engineering",
+  "walked": true,
+  "requirements": 20,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 11,
+    "kept": 11,
+    "ze-proven": 7,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 4,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 9,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 9,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 7
+  },
+  "unmet": [
+    "RFC9086-5-2",
+    "RFC9086-5.2-1",
+    "RFC9086-7-1",
+    "RFC9086-7-2"
+  ]
+}

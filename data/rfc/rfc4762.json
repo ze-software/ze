@@ -1,0 +1,12 @@
+{
+  "stem": "rfc4762",
+  "title": "Virtual Private LAN Service (VPLS) Using Label Distribution Protocol (LDP) Signaling",
+  "walked": false,
+  "requirements": 0,
+  "implementer": "ze",
+  "implemented": false,
+  "must": null,
+  "should": null,
+  "proven-by-kind": null,
+  "unmet": []
+}

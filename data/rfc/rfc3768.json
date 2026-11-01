@@ -1,0 +1,37 @@
+{
+  "stem": "rfc3768",
+  "title": "Virtual Router Redundancy Protocol (VRRP)",
+  "walked": true,
+  "requirements": 52,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 41,
+    "kept": 41,
+    "ze-proven": 31,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 10,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 11,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 11,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 31
+  },
+  "unmet": [
+    "RFC3768-5.2.2-1",
+    "RFC3768-8.3-1",
+    "RFC3768-9.2-1"
+  ]
+}

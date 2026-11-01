@@ -1,0 +1,12 @@
+{
+  "stem": "rfc7627",
+  "title": "Transport Layer Security (TLS) Session Hash and Extended Master Secret Extension",
+  "walked": false,
+  "requirements": 27,
+  "implementer": "third-party",
+  "implemented": false,
+  "must": null,
+  "should": null,
+  "proven-by-kind": null,
+  "unmet": []
+}

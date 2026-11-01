@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9915 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9915: Dynamic Host Configuration Protocol for IPv6 (DHCPv6). 126 gated MUST-level requirements, 25 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 9915: Dynamic Host Configuration Protocol for IPv6 (DHCPv6). 126 gated MUST-level requirements, 40 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9915 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9915: Dynamic Host Configuration Protocol for IPv6 (DHCPv6). 126 gated MUST-level requirements, 25 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 9915: Dynamic Host Configuration Protocol for IPv6 (DHCPv6). 126 gated MUST-level requirements, 40 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9915 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9915: Dynamic Host Configuration Protocol for IPv6 (DHCPv6). 126 gated MUST-level requirements, 25 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 9915: Dynamic Host Configuration Protocol for IPv6 (DHCPv6). 126 gated MUST-level requirements, 40 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Partial</span>
+    <span class="journey-eyebrow">DHCPv6</span>
     <h1 id="rfc-detail-title">RFC 9915 - Dynamic Host Configuration Protocol for IPv6 (DHCPv6)</h1>
     <p>Every requirement this repository extracted from RFC 9915, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -118,28 +118,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>2.4%</strong><b>3 of 126 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>62.7%</strong><b>79 of 126 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 126 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>91 of 91 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>3</strong><b>of 126 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>79</strong><b>of 126 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 126 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>91</strong><b>91 of 91 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>126</strong><b>of 126 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>15</strong><b>of 126 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 126 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>2.4%</strong><b>3 of 126 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>11.9%</strong><b>15 of 126 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 126 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>126</strong><b>of 126 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 126 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 126 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>3</strong><b>of 126 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 126 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 126 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>0.8%</strong><b>1 of 126 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>19.8%</strong><b>25 of 126 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>1</strong><b>of 126 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>40</strong><b>of 126 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 9 shares marked as a part above are the whole of the 126 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 9 counts marked as a part above are the whole of the 126 gated MUSTs: they add up to 126. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -156,7 +156,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Tested both ways</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got</td>
 </tr>
 <tr><td>One polarity plus reason</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -180,7 +180,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -192,7 +192,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Proven by a recorded break</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
 <td><span class="rfc-swatch rfc-warn"></span> warn</td>
@@ -208,8 +208,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
-<tr><td>Public status</td>
-<td>Partial</td>
+<tr><td>Public row</td>
+<td>DHCPv6</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -224,7 +224,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>25</td>
+<td>40</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -264,14 +264,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>Enrolled: DHCPv6 client of the iface-dhcp plugin; RFC 8415 to RFC 9915 put in scope by the owner as an exception to the RFC scope freeze, 2026-10-18</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Partial</p>
-<details class="rfc-fold"><summary>What the ledger says is covered</summary>
-Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/iface/dhcp/</code>) runs a long-lived stateful DHCPv6 client per interface unit: Solicit with Rapid Commit and Advertise selection by preference, Request, Renew at T1 to the leasing server and Rebind at T2 without a Server ID, a Confirm after a device down then up for a lease of addresses alone (NotOnLink drops the addresses and solicits again), the section 15 retransmission engine with a per-interface rate limit, SOL_MAX_RT processing, Reply and Advertise validation, IA_NA addresses installed as /128 with the lease&#39;s lifetimes, IA_PD prefix delegation published as an event, expiry teardown and Release on Stop. Tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9915.md" target="_blank" rel="noopener"><code>rfc/short/rfc9915.md</code></a>.
-</details>
-<details class="rfc-fold"><summary>What the ledger says remains</summary>
-<p>Twenty-six MUST gaps. Four are met and untested (<a href="#rfc9915-10-1"><code>RFC9915-10-1</code></a>, 18.2.7-5, 21.16-1, 21.17-2), <a href="#rfc9915-18.2.7-8"><code>RFC9915-18.2.7-8</code></a> is a declined delegated-prefix use no feature-declined shape takes, and <a href="#rfc9915-11.2-1"><code>RFC9915-11.2-1</code></a> is open because a configured duid is sent unchecked. Information-request (stateless DHCPv6), Reconfigure and the Authentication option are in scope by owner decision 2026-10-19 and not implemented yet, and the requirements only those features meet are annotated <code>{gap}</code> (<a href="https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-dhcpv6-client-0-umbrella.md" target="_blank" rel="noopener"><code>plan/post-release/features/spec-dhcpv6-client-0-umbrella.md</code></a>). On the VPP backend, which reports no interface addresses, the client reads no duplicate address detection outcome and declines nothing, so <a href="#rfc9915-18.2.10.1-1"><code>RFC9915-18.2.10.1-1</code></a> is unmet there (<a href="https://github.com/ze-software/ze/blob/main/plan/journal/zero-value-as-valid-answer.md" target="_blank" rel="noopener"><code>plan/journal/zero-value-as-valid-answer.md</code></a>).</p>
-<p class="rfc-prose"><strong>Not offered:</strong> the User Class, Vendor Class, Vendor-specific and NTP server options, any use of a delegated prefix (ze publishes it and neither subnets it onto other interfaces nor advertises it in Router Advertisements), and a configurable transmission rate limit; the client always uses a DUID-LL unless a duid is configured, which departs from Section 11.2&#39;s non-normative recommendation of DUID-LLT for devices, routers included, that contain writable non-volatile storage. Server and relay roles are not implemented.</p>
-</details>
+<p><strong>Area:</strong> DHCPv6</p>
+<p><strong>Proof:</strong> 82 of 126 MUST proven</p>
+<p><strong>Evidence:</strong> unit 82</p>
+<p><strong>Unmet:</strong> RFC9915-10-1, RFC9915-11.2-1, RFC9915-11.2-2, RFC9915-11.2-3, RFC9915-11.2-4, RFC9915-11.2-5, RFC9915-11.3-1, RFC9915-15-2, RFC9915-16.10-3, RFC9915-18.2.1-7, RFC9915-18.2.10.1-1, RFC9915-18.2.10.5-1, RFC9915-18.2.11-2, RFC9915-18.2.12-3, RFC9915-18.2.4-2, RFC9915-18.2.6-1, RFC9915-18.2.6-2, RFC9915-18.2.6-3, RFC9915-18.2.6-4, RFC9915-18.2.7-5, RFC9915-18.2.7-8, RFC9915-18.2.9-4, RFC9915-20.2-1, RFC9915-20.3-3, RFC9915-20.3-4, RFC9915-21.15-1, RFC9915-21.15-2, RFC9915-21.16-1, RFC9915-21.17-1, RFC9915-21.17-2, RFC9915-21.17-3, RFC9915-21.23-1, RFC9915-21.23-5, RFC9915-21.23-6, RFC9915-21.23-7, RFC9915-21.25-2, RFC9915-21.25-3, RFC9915-21.25-4, RFC9915-6.3-1, RFC9915-6.3-2, RFC9915-6.3-3</p>
+
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -314,8 +311,92 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (123):</strong> <a href="#rfc9915-6.3-1"><code>RFC9915-6.3-1</code></a>, <a href="#rfc9915-6.3-2"><code>RFC9915-6.3-2</code></a>, <a href="#rfc9915-6.3-3"><code>RFC9915-6.3-3</code></a>, <a href="#rfc9915-7.2-1"><code>RFC9915-7.2-1</code></a>, <a href="#rfc9915-7.2-3"><code>RFC9915-7.2-3</code></a>, <a href="#rfc9915-10-1"><code>RFC9915-10-1</code></a>, <a href="#rfc9915-11-1"><code>RFC9915-11-1</code></a>, <a href="#rfc9915-11-2"><code>RFC9915-11-2</code></a>, <a href="#rfc9915-11.2-1"><code>RFC9915-11.2-1</code></a>, <a href="#rfc9915-11.2-2"><code>RFC9915-11.2-2</code></a>, <a href="#rfc9915-11.2-3"><code>RFC9915-11.2-3</code></a>, <a href="#rfc9915-11.2-4"><code>RFC9915-11.2-4</code></a>, <a href="#rfc9915-11.2-5"><code>RFC9915-11.2-5</code></a>, <a href="#rfc9915-11.3-1"><code>RFC9915-11.3-1</code></a>, <a href="#rfc9915-11.4-1"><code>RFC9915-11.4-1</code></a>, <a href="#rfc9915-12-1"><code>RFC9915-12-1</code></a>, <a href="#rfc9915-12-2"><code>RFC9915-12-2</code></a>, <a href="#rfc9915-14.1-1"><code>RFC9915-14.1-1</code></a>, <a href="#rfc9915-14.1-2"><code>RFC9915-14.1-2</code></a>, <a href="#rfc9915-14.2-1"><code>RFC9915-14.2-1</code></a>, <a href="#rfc9915-14.2-2"><code>RFC9915-14.2-2</code></a>, <a href="#rfc9915-15-1"><code>RFC9915-15-1</code></a>, <a href="#rfc9915-15-2"><code>RFC9915-15-2</code></a>, <a href="#rfc9915-16-1"><code>RFC9915-16-1</code></a>, <a href="#rfc9915-16-2"><code>RFC9915-16-2</code></a>, <a href="#rfc9915-16.1-1"><code>RFC9915-16.1-1</code></a>, <a href="#rfc9915-16.2-1"><code>RFC9915-16.2-1</code></a>, <a href="#rfc9915-16.3-1"><code>RFC9915-16.3-1</code></a>, <a href="#rfc9915-16.4-1"><code>RFC9915-16.4-1</code></a>, <a href="#rfc9915-16.5-1"><code>RFC9915-16.5-1</code></a>, <a href="#rfc9915-16.6-1"><code>RFC9915-16.6-1</code></a>, <a href="#rfc9915-16.7-1"><code>RFC9915-16.7-1</code></a>, <a href="#rfc9915-16.8-1"><code>RFC9915-16.8-1</code></a>, <a href="#rfc9915-16.9-1"><code>RFC9915-16.9-1</code></a>, <a href="#rfc9915-16.10-1"><code>RFC9915-16.10-1</code></a>, <a href="#rfc9915-16.10-2"><code>RFC9915-16.10-2</code></a>, <a href="#rfc9915-16.10-3"><code>RFC9915-16.10-3</code></a>, <a href="#rfc9915-16.11-2"><code>RFC9915-16.11-2</code></a>, <a href="#rfc9915-16.12-1"><code>RFC9915-16.12-1</code></a>, <a href="#rfc9915-16.13-1"><code>RFC9915-16.13-1</code></a>, <a href="#rfc9915-16.14-1"><code>RFC9915-16.14-1</code></a>, <a href="#rfc9915-18-1"><code>RFC9915-18-1</code></a>, <a href="#rfc9915-18.2-1"><code>RFC9915-18.2-1</code></a>, <a href="#rfc9915-18.2.1-1"><code>RFC9915-18.2.1-1</code></a>, <a href="#rfc9915-18.2.1-2"><code>RFC9915-18.2.1-2</code></a>, <a href="#rfc9915-18.2.1-3"><code>RFC9915-18.2.1-3</code></a>, <a href="#rfc9915-18.2.1-4"><code>RFC9915-18.2.1-4</code></a>, <a href="#rfc9915-18.2.1-5"><code>RFC9915-18.2.1-5</code></a>, <a href="#rfc9915-18.2.1-6"><code>RFC9915-18.2.1-6</code></a>, <a href="#rfc9915-18.2.1-7"><code>RFC9915-18.2.1-7</code></a>, <a href="#rfc9915-18.2.2-1"><code>RFC9915-18.2.2-1</code></a>, <a href="#rfc9915-18.2.2-2"><code>RFC9915-18.2.2-2</code></a>, <a href="#rfc9915-18.2.2-3"><code>RFC9915-18.2.2-3</code></a>, <a href="#rfc9915-18.2.2-4"><code>RFC9915-18.2.2-4</code></a>, <a href="#rfc9915-18.2.3-1"><code>RFC9915-18.2.3-1</code></a>, <a href="#rfc9915-18.2.3-2"><code>RFC9915-18.2.3-2</code></a>, <a href="#rfc9915-18.2.4-1"><code>RFC9915-18.2.4-1</code></a>, <a href="#rfc9915-18.2.4-2"><code>RFC9915-18.2.4-2</code></a>, <a href="#rfc9915-18.2.4-4"><code>RFC9915-18.2.4-4</code></a>, <a href="#rfc9915-18.2.4-5"><code>RFC9915-18.2.4-5</code></a>, <a href="#rfc9915-18.2.4-6"><code>RFC9915-18.2.4-6</code></a>, <a href="#rfc9915-18.2.4-7"><code>RFC9915-18.2.4-7</code></a>, <a href="#rfc9915-18.2.6-1"><code>RFC9915-18.2.6-1</code></a>, <a href="#rfc9915-18.2.6-2"><code>RFC9915-18.2.6-2</code></a>, <a href="#rfc9915-18.2.6-3"><code>RFC9915-18.2.6-3</code></a>, <a href="#rfc9915-18.2.6-4"><code>RFC9915-18.2.6-4</code></a>, <a href="#rfc9915-18.2.7-1"><code>RFC9915-18.2.7-1</code></a>, <a href="#rfc9915-18.2.7-2"><code>RFC9915-18.2.7-2</code></a>, <a href="#rfc9915-18.2.7-3"><code>RFC9915-18.2.7-3</code></a>, <a href="#rfc9915-18.2.7-4"><code>RFC9915-18.2.7-4</code></a>, <a href="#rfc9915-18.2.7-5"><code>RFC9915-18.2.7-5</code></a>, <a href="#rfc9915-18.2.7-6"><code>RFC9915-18.2.7-6</code></a>, <a href="#rfc9915-18.2.7-7"><code>RFC9915-18.2.7-7</code></a>, <a href="#rfc9915-18.2.7-8"><code>RFC9915-18.2.7-8</code></a>, <a href="#rfc9915-18.2.8-1"><code>RFC9915-18.2.8-1</code></a>, <a href="#rfc9915-18.2.8-2"><code>RFC9915-18.2.8-2</code></a>, <a href="#rfc9915-18.2.8-3"><code>RFC9915-18.2.8-3</code></a>, <a href="#rfc9915-18.2.8-4"><code>RFC9915-18.2.8-4</code></a>, <a href="#rfc9915-18.2.8-5"><code>RFC9915-18.2.8-5</code></a>, <a href="#rfc9915-18.2.8-6"><code>RFC9915-18.2.8-6</code></a>, <a href="#rfc9915-18.2.9-1"><code>RFC9915-18.2.9-1</code></a>, <a href="#rfc9915-18.2.9-2"><code>RFC9915-18.2.9-2</code></a>, <a href="#rfc9915-18.2.9-3"><code>RFC9915-18.2.9-3</code></a>, <a href="#rfc9915-18.2.9-4"><code>RFC9915-18.2.9-4</code></a>, <a href="#rfc9915-18.2.9-5"><code>RFC9915-18.2.9-5</code></a>, <a href="#rfc9915-18.2.10-1"><code>RFC9915-18.2.10-1</code></a>, <a href="#rfc9915-18.2.10.1-1"><code>RFC9915-18.2.10.1-1</code></a>, <a href="#rfc9915-18.2.10.1-3"><code>RFC9915-18.2.10.1-3</code></a>, <a href="#rfc9915-18.2.10.5-1"><code>RFC9915-18.2.10.5-1</code></a>, <a href="#rfc9915-18.2.11-1"><code>RFC9915-18.2.11-1</code></a>, <a href="#rfc9915-18.2.11-2"><code>RFC9915-18.2.11-2</code></a>, <a href="#rfc9915-18.2.12-3"><code>RFC9915-18.2.12-3</code></a>, <a href="#rfc9915-18.2.12-4"><code>RFC9915-18.2.12-4</code></a>, <a href="#rfc9915-18.3.5-1"><code>RFC9915-18.3.5-1</code></a>, <a href="#rfc9915-20.2-1"><code>RFC9915-20.2-1</code></a>, <a href="#rfc9915-20.3-3"><code>RFC9915-20.3-3</code></a>, <a href="#rfc9915-20.3-4"><code>RFC9915-20.3-4</code></a>, <a href="#rfc9915-21-1"><code>RFC9915-21-1</code></a>, <a href="#rfc9915-21.4-2"><code>RFC9915-21.4-2</code></a>, <a href="#rfc9915-21.6-3"><code>RFC9915-21.6-3</code></a>, <a href="#rfc9915-21.6-4"><code>RFC9915-21.6-4</code></a>, <a href="#rfc9915-21.7-1"><code>RFC9915-21.7-1</code></a>, <a href="#rfc9915-21.7-2"><code>RFC9915-21.7-2</code></a>, <a href="#rfc9915-21.9-1"><code>RFC9915-21.9-1</code></a>, <a href="#rfc9915-21.15-1"><code>RFC9915-21.15-1</code></a>, <a href="#rfc9915-21.15-2"><code>RFC9915-21.15-2</code></a>, <a href="#rfc9915-21.16-1"><code>RFC9915-21.16-1</code></a>, <a href="#rfc9915-21.17-1"><code>RFC9915-21.17-1</code></a>, <a href="#rfc9915-21.17-2"><code>RFC9915-21.17-2</code></a>, <a href="#rfc9915-21.17-3"><code>RFC9915-21.17-3</code></a>, <a href="#rfc9915-21.22-2"><code>RFC9915-21.22-2</code></a>, <a href="#rfc9915-21.23-1"><code>RFC9915-21.23-1</code></a>, <a href="#rfc9915-21.23-2"><code>RFC9915-21.23-2</code></a>, <a href="#rfc9915-21.23-5"><code>RFC9915-21.23-5</code></a>, <a href="#rfc9915-21.23-6"><code>RFC9915-21.23-6</code></a>, <a href="#rfc9915-21.23-7"><code>RFC9915-21.23-7</code></a>, <a href="#rfc9915-21.24-3"><code>RFC9915-21.24-3</code></a>, <a href="#rfc9915-21.24-4"><code>RFC9915-21.24-4</code></a>, <a href="#rfc9915-21.25-2"><code>RFC9915-21.25-2</code></a>, <a href="#rfc9915-21.25-3"><code>RFC9915-21.25-3</code></a>, <a href="#rfc9915-21.25-4"><code>RFC9915-21.25-4</code></a>, <a href="#rfc9915-22.3-1"><code>RFC9915-22.3-1</code></a>, <a href="#rfc9915-a-1"><code>RFC9915-A-1</code></a></p>
 <p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc9915-18.2.10.1-1"><code>RFC9915-18.2.10.1-1</code></a></p>
 </section>
-<section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 108 of 126 (85.7%); excluded: Optional feature not offered (classification can be revisited): 15 of 126 (11.9%); Met by a lower layer: 3 of 126 (2.4%). Optional ceiling: no rows. Lowest mandatory ceiling: rfc9915 108 of 126 (85.7%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<section><h2>Figures</h2>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="rfc9915:must">Ze proven 82, OS testing gap 3, Ze correctness gap 41</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="rfc9915:overview">Ze MUST proven 82, OS testing gap 3, Ze correctness gap 41</div>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="rfc9915:rfcs">1</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="rfc9915:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="rfc9915:register">not complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="rfc9915:must.total">126</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="rfc9915:must.kept">126</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="rfc9915:must.ze-proven">82</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="rfc9915:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="rfc9915:must.os-gap">3</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="rfc9915:must.ze-gap">41</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="rfc9915:must.not-owed">0</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="rfc9915:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="rfc9915:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="rfc9915:must.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="rfc9915:should.total">0</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="rfc9915:should.proven">0</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="rfc9915:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="rfc9915:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="rfc9915:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="rfc9915:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="rfc9915:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="rfc9915:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="rfc9915:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="rfc9915:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="rfc9915:should.not-decided">0</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -329,7 +410,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-6.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;If the client uses a delegated prefix to configure addresses on interfaces on itself or other nodes behind it, the preferred and valid lifetimes of those addresses MUST be no longer than the remaining preferred and valid lifetimes, respectively, for the delegated prefix at any time.&#34;; ze never uses a delegated prefix to configure addresses on interfaces on itself or other nodes behind it: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect installs only the IA_NA addresses and publishes each IA_PD prefix as a dhcp-acquired event, and its subscribers, handleDHCPLeaseEvent in internal/component/iface/register.go and syncWorker.handleDHCPEvent in internal/plugins/ntp/ntp.go, read only the router and the NTP servers and configure no address from it. The owner kept delegated-prefix use declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze configures no address from a delegated prefix: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes each IA_PD prefix only as a dhcp-acquired event, and no subscriber configures an address from it; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left delegated-prefix use out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-6.3-2">RFC9915-6.3-2</code></td><td colspan="3"><span class="rfc-subject">In particular, if the delegated prefix or a prefix derived from it is advertised for stateless address autoconfiguration [RFC4862], the advertised preferred and valid lifetimes MUST NOT exceed the corresponding remaining lifetimes of the delegated prefix. (§6.3)</span></td></tr>
 <tr><td></td>
@@ -338,7 +419,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-6.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;In particular, if the delegated prefix or a prefix derived from it is advertised for stateless address autoconfiguration [RFC4862], the advertised preferred and valid lifetimes MUST NOT exceed the corresponding remaining lifetimes of the delegated prefix.&#34;; ze never advertises the delegated prefix or a prefix derived from it for stateless address autoconfiguration: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes the IA_PD prefix only as a dhcp-acquired event, and the Router Advertisement sender, internal/plugins/iface/ra/sender_linux.go, advertises only the prefixes the operator configures and subscribes to no DHCP event. The owner kept delegated-prefix use declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no delegated prefix for stateless address autoconfiguration: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes the IA_PD prefix only as a dhcp-acquired event, and internal/plugins/iface/ra/sender_linux.go advertises only the prefixes the operator configures; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left delegated-prefix use out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-6.3-3">RFC9915-6.3-3</code></td><td colspan="3"><span class="rfc-subject">A client that has delegated any of the address space received through DHCP Prefix Delegation MUST NOT issue a DHCP Release on the relevant delegated prefix while any of the address space is outstanding. (§6.3)</span></td></tr>
 <tr><td></td>
@@ -347,7 +428,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-6.3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;A client that has delegated any of the address space received through DHCP Prefix Delegation MUST NOT issue a DHCP Release on the relevant delegated prefix while any of the address space is outstanding.&#34;; ze never delegates any of the address space received through DHCP Prefix Delegation: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes the IA_PD prefix as a dhcp-acquired event and assigns none of it onward, and the DHCP server plugin (internal/plugins/dhcpserver) holds no prefix-delegation code. The owner kept delegated-prefix use declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze delegates none of the address space received through DHCP Prefix Delegation: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect assigns none of the IA_PD prefix onward; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left delegated-prefix use out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-7.2-1">RFC9915-7.2-1</code></td><td colspan="3"><span class="rfc-subject">Clients MUST listen for DHCP messages on UDP port 546. (§7.2)</span></td></tr>
 <tr><td></td>
@@ -401,7 +482,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-11.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the owner kept DUID-LLT generation declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5), and ze generates none, but the configured duid leaf takes any octets: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify sends them as given, so a configured DUID-LLT whose hardware type IANA never assigned is sent unrefused</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the owner left DUID-LLT generation out of the current work (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5), and ze generates none, but the configured duid leaf takes any octets: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify sends them as given, so a configured DUID-LLT whose hardware type IANA never assigned is sent unrefused</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-11.2-2">RFC9915-11.2-2</code></td><td colspan="3"><span class="rfc-subject">Clients and servers using this type of DUID MUST store the DUID-LLT in stable storage and MUST continue to use this DUID-LLT even if the network interface used to generate the DUID-LLT is removed. (§11.2)</span></td></tr>
 <tr><td></td>
@@ -410,7 +491,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-11.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> heading &#34;DUID-LLT&#34;; ze never generates a DUID-LLT: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or takes the operator&#39;s configured duid octets, held in the configuration, as given. The owner kept DUID-LLT declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze generates no DUID-LLT: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or sends the configured duid octets as given; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left DUID-LLT out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-11.2-3">RFC9915-11.2-3</code></td><td colspan="3"><span class="rfc-subject">Clients and servers that do not have any stable storage MUST NOT use this type of DUID. (§11.2)</span></td></tr>
 <tr><td></td>
@@ -419,7 +500,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-11.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> heading &#34;DUID-LLT&#34;; ze never generates a DUID-LLT: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or takes the operator&#39;s configured duid octets, held in the configuration, as given. The owner kept DUID-LLT declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze generates no DUID-LLT: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or sends the configured duid octets as given; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left DUID-LLT out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-11.2-4">RFC9915-11.2-4</code></td><td colspan="3"><span class="rfc-subject">Clients and servers that use this DUID SHOULD attempt to configure the time prior to generating the DUID, if that is possible, and MUST use some sort of time source (for example, a real-time clock) in generating the DUID, even if that time source could not be configured prior to generating the DUID. (§11.2)</span></td></tr>
 <tr><td></td>
@@ -428,7 +509,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-11.2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;Clients and servers that use this DUID SHOULD attempt to configure the time prior to generating the DUID, if that is possible, and MUST use some sort of time source (for example, a real-time clock) in generating the DUID, even if that time source could not be configured prior to generating the DUID.&#34;; ze never generates a DUID-LLT, and a configured duid is used as given: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or takes the operator&#39;s configured duid octets as given whatever their type, so no DUID-LLT time field is ever generated. The owner kept DUID-LLT declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze generates no DUID-LLT, so no time field is ever generated: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or sends the configured duid octets as given whatever their type; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left DUID-LLT out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-11.2-5">RFC9915-11.2-5</code></td><td colspan="3"><span class="rfc-subject">A DHCP client that generates a DUID-LLT using this mechanism MUST provide an administrative interface that replaces the existing DUID with a newly generated DUID-LLT. (§11.2)</span></td></tr>
 <tr><td></td>
@@ -437,7 +518,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-11.2-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;A DHCP client that generates a DUID-LLT using this mechanism MUST provide an administrative interface that replaces the existing DUID with a newly generated DUID-LLT.&#34;; ze never generates a DUID-LLT using this mechanism: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or takes the operator&#39;s configured duid octets as given. The owner kept DUID-LLT declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze generates no DUID-LLT and offers no interface that replaces one: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or sends the configured duid octets as given; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left DUID-LLT out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-11.3-1">RFC9915-11.3-1</code></td><td colspan="3"><span class="rfc-subject">The source of the identifier is left up to the vendor defining it, but each identifier part of each DUID-EN MUST be unique to the device that is using it, and MUST be assigned to the device no later than at the first usage and stored in some form of non-volatile storage. (§11.3)</span></td></tr>
 <tr><td></td>
@@ -446,7 +527,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-11.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> heading &#34;DUID-EN&#34;; ze never generates a DUID-EN: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or takes the operator&#39;s configured duid octets as given, whose uniqueness is the operator&#39;s. The owner kept DUID-EN declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze generates no DUID-EN: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or sends the configured duid octets as given, whose uniqueness is the operator&#39;s; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left DUID-EN out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-11.4-1">RFC9915-11.4-1</code></td><td colspan="3"><span class="rfc-subject">The hardware type MUST be a valid hardware type assigned by IANA; see [IANA-HARDWARE-TYPES]. (§11.4)</span></td></tr>
 <tr><td></td>
@@ -527,7 +608,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-15-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-16-1">RFC9915-16-1</code></td><td colspan="3"><span class="rfc-subject">Clients, relay agents, and servers MUST NOT discard messages that contain unknown options (or instances of vendor options with unknown enterprise-number values). (§16)</span></td></tr>
 <tr><td></td>
@@ -653,7 +734,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-16.10-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> §18.2.6 &#34;The client SHOULD include a Client Identifier option (see Section 21.2) to identify itself to the server (however, see Section 4.3.1 of [RFC7844] for reasons why a client may not want to include this option).&#34;; Thomas declined Client Identifier omission on 2026-10-19 (the DHCPv6 client umbrella spec, Q5); ze never omits it: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message adds a Client Identifier option to every message, so the condition never holds</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze offers no Client Identifier omission (RFC 7844 Section 4.3.1): internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message adds a Client Identifier option to every message; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left Client Identifier omission out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-16.11-2">RFC9915-16.11-2</code></td><td colspan="3"><span class="rfc-subject">Clients MUST discard any Reconfigure message that meets any of the following conditions: (§16.11)</span></td></tr>
 <tr><td></td>
@@ -770,7 +851,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.1-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;If the DHCP client is configured with either MRC or MRD set to a value other than 0, it MUST stop trying to configure the interface if the message exchange fails.&#34;; ze never configures MRC or MRD for the Solicit to a value other than 0: internal/plugins/iface/dhcp/dhcp_v6_linux.go::solicit runs the Solicit exchange with MRC and MRD 0 from Table 1, and no configuration leaf sets them. The owner kept non-zero MRC declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze offers no non-zero MRC or MRD for the Solicit: internal/plugins/iface/dhcp/dhcp_v6_linux.go::solicit runs the exchange with MRC and MRD 0 from Table 1, and no configuration leaf sets them; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left non-zero MRC out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-18.2.2-1">RFC9915-18.2.2-1</code></td><td colspan="3"><span class="rfc-subject">The client MUST include the identifier of the destination server in a Server Identifier option (see Section 21.3). (§18.2.2)</span></td></tr>
 <tr><td></td>
@@ -851,7 +932,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-18.2.4-4">RFC9915-18.2.4-4</code></td><td colspan="3"><span class="rfc-subject">The client MUST include a Server Identifier option (see Section 21.3) in the Renew message, identifying the server with which the client most recently communicated. (§18.2.4)</span></td></tr>
 <tr><td></td>
@@ -896,7 +977,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-18.2.6-2">RFC9915-18.2.6-2</code></td><td colspan="3"><span class="rfc-subject">The client MUST include an Option Request option (see Section 21.7) to request the INF_MAX_RT option (see Section 21.25), the Information Refresh Time option (see Section 21.23), and any other options the client is interested in receiving. (§18.2.6)</span></td></tr>
 <tr><td></td>
@@ -905,7 +986,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.6-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-18.2.6-3">RFC9915-18.2.6-3</code></td><td colspan="3"><span class="rfc-subject">When responding to a Reconfigure, the client MUST include a Server Identifier option (see Section 21.3) with the identifier from the Reconfigure message to which the client is responding. (§18.2.6)</span></td></tr>
 <tr><td></td>
@@ -914,7 +995,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.6-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Reconfigure and stateless DHCPv6 are in scope by owner decision 2026-10-19 and not yet implemented: ze never responds to a Reconfigure, because internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure, and every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request is sent; disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Reconfigure and stateless DHCPv6 are in scope by owner decision 2026-10-19 and not yet implemented: ze never responds to a Reconfigure, because internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure, and every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request is sent; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-18.2.6-4">RFC9915-18.2.6-4</code></td><td colspan="3"><span class="rfc-subject">The first Information-request message from the client on the interface MUST be delayed by a random amount of time between 0 and INF_MAX_DELAY. (§18.2.6)</span></td></tr>
 <tr><td></td>
@@ -923,7 +1004,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.6-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-18.2.7-1">RFC9915-18.2.7-1</code></td><td colspan="3"><span class="rfc-subject">The client MUST include a Server Identifier option (see Section 21.3) in the Renew message, identifying the server that allocated the lease(s). (§18.2.7)</span></td></tr>
 <tr><td></td>
@@ -995,7 +1076,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.7-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the owner kept delegated-prefix use declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5), but neither Section 18.2.7 nor a title above it names that feature and no sentence makes it optional, so the row takes the gap outlet. ze advertises no delegated prefix: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes the IA_PD prefix as a dhcp-acquired event, and its subscribers, handleDHCPLeaseEvent in internal/component/iface/register.go and syncWorker.handleDHCPEvent in internal/plugins/ntp/ntp.go, send no Router Advertisement from it, so the Release follows no advertisement with lifetimes of 0; no test asserts it</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the owner left delegated-prefix use out of the current work (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5), but neither Section 18.2.7 nor a title above it names that feature and no sentence makes it optional, so the row takes the gap outlet. ze advertises no delegated prefix: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes the IA_PD prefix as a dhcp-acquired event, and its subscribers, handleDHCPLeaseEvent in internal/component/iface/register.go and syncWorker.handleDHCPEvent in internal/plugins/ntp/ntp.go, send no Router Advertisement from it, so the Release follows no advertisement with lifetimes of 0; no test asserts it</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-18.2.8-1">RFC9915-18.2.8-1</code></td><td colspan="3"><span class="rfc-subject">The Decline message is not used in prefix delegation; thus, the client MUST NOT include IA_PD options (see Section 21.21) in the Decline message. (§18.2.8)</span></td></tr>
 <tr><td></td>
@@ -1086,7 +1167,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.9-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-18.2.9-5">RFC9915-18.2.9-5</code></td><td colspan="3"><span class="rfc-subject">The client ignoring an Advertise message MUST NOT restart the Solicit retransmission timer. (§18.2.9)</span></td></tr>
 <tr><td></td>
@@ -1132,7 +1213,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.10.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;As a counterexample, a client that previously received an NTP server address from the DHCP server and does not receive it anymore MUST stop using the configured NTP server address.&#34;; ze never receives an NTP server address from the DHCP server over DHCPv6: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only, and the lease payload internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes carries no NTP servers, so no NTP server address is ever configured from DHCPv6; the DNS case the sentence illustrates is met: a Reply without the DNS option empties the lease&#39;s list and setV6Resolvers in internal/plugins/iface/dhcp/resolv_linux.go withdraws the servers. The owner kept the NTP server option declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze takes no NTP server address from DHCPv6: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only, and the lease internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes carries no NTP servers; the DNS case the sentence illustrates is met, because setV6Resolvers in internal/plugins/iface/dhcp/resolv_linux.go withdraws servers a Reply no longer carries; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left the NTP server option out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-18.2.11-1">RFC9915-18.2.11-1</code></td><td colspan="3"><span class="rfc-subject">The message MUST be dropped if it doesn&#39;t pass the validation, as explained in Section 16.11, particularly in cases where the authentication is missing or fails. (§18.2.11)</span></td></tr>
 <tr><td></td>
@@ -1150,7 +1231,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.11-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-18.2.12-1">RFC9915-18.2.12-1</code></td><td colspan="3"><span class="rfc-subject">The client MUST include any IAs assigned to the interface that may have moved to a new link, along with the addresses associated with those IAs, in its Confirm message. (§18.2.12)</span></td></tr>
 <tr><td></td>
@@ -1179,7 +1260,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.12-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-18.2.12-4">RFC9915-18.2.12-4</code></td><td colspan="3"><span class="rfc-subject">However, a client MUST rate- limit such initiation attempts to avoid flooding a server with requests when there are link issues (for example, only doing one of these at most every 30 seconds). (§18.2.12)</span></td></tr>
 <tr><td></td>
@@ -1206,7 +1287,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-20.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the Authentication option is in scope by owner decision 2026-10-19 and not yet implemented: ze&#39;s client sends and reads no Authentication option (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message builds none, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher accepts only Reply messages, judged without authentication); disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the Authentication option is in scope by owner decision 2026-10-19 and not yet implemented: ze&#39;s client sends and reads no Authentication option (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message builds none, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher accepts only Reply messages, judged without authentication); disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-20.3-3">RFC9915-20.3-3</code></td><td colspan="3"><span class="rfc-subject">A client that receives a message with the RDM field set to 0x00 MUST compare its replay detection field with the previous value sent by that same server (based on the Server Identifier option; see Section 21.3) and only accept the message if the received value is greater and record this as the new value. (§20.3)</span></td></tr>
 <tr><td></td>
@@ -1215,7 +1296,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-20.3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the Authentication option (RKAP) is in scope by owner decision 2026-10-19 and not yet implemented: ze never negotiates Reconfigure: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, so no Authentication option is processed and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher judges Replies without one; disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the Authentication option (RKAP) is in scope by owner decision 2026-10-19 and not yet implemented: ze never negotiates Reconfigure: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, so no Authentication option is processed and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher judges Replies without one; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-20.3-4">RFC9915-20.3-4</code></td><td colspan="3"><span class="rfc-subject">If this is the first time a client processes an Authentication option sent by a server, the client MUST record the replay detection value and skip the replay detection check. (§20.3)</span></td></tr>
 <tr><td></td>
@@ -1224,7 +1305,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-20.3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the Authentication option (RKAP) is in scope by owner decision 2026-10-19 and not yet implemented: ze never negotiates Reconfigure: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, so no Authentication option is processed and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher judges Replies without one; disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the Authentication option (RKAP) is in scope by owner decision 2026-10-19 and not yet implemented: ze never negotiates Reconfigure: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, so no Authentication option is processed and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher judges Replies without one; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-21-1">RFC9915-21-1</code></td><td colspan="3"><span class="rfc-subject">If an option does appear multiple times, each instance is considered separate and the data areas of the options MUST NOT be concatenated or otherwise combined. (§21)</span></td></tr>
 <tr><td></td>
@@ -1296,7 +1377,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-21.15-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> heading &#34;User Class Option&#34;; ze never sends a User Class option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message builds, with buildSolicit and buildFromLease, messages carrying only Client ID, Server ID, Elapsed Time, ORO, Rapid Commit, IA_NA and IA_PD. The owner kept User Class declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze sends no User Class option and offers no configuration for one: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message builds, with buildSolicit and buildFromLease, messages carrying only Client ID, Server ID, Elapsed Time, ORO, Rapid Commit, IA_NA and IA_PD; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left User Class out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-21.15-2">RFC9915-21.15-2</code></td><td colspan="3"><span class="rfc-subject">The data area of the User Class option MUST contain one or more instances of user-class-data information. (§21.15)</span></td></tr>
 <tr><td></td>
@@ -1305,7 +1386,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-21.15-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> heading &#34;User Class Option&#34;; ze never sends a User Class option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message builds, with buildSolicit and buildFromLease, messages carrying only Client ID, Server ID, Elapsed Time, ORO, Rapid Commit, IA_NA and IA_PD. The owner kept User Class declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze sends no User Class option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message builds, with buildSolicit and buildFromLease, messages carrying only Client ID, Server ID, Elapsed Time, ORO, Rapid Commit, IA_NA and IA_PD; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left User Class out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-21.16-1">RFC9915-21.16-1</code></td><td colspan="3"><span class="rfc-subject">Servers and clients MUST NOT include more than one instance of OPTION_VENDOR_CLASS with the same Enterprise Number. (§21.16)</span></td></tr>
 <tr><td></td>
@@ -1323,7 +1404,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-21.17-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> heading &#34;Vendor-Specific Information Option&#34;; ze never requests or sends a Vendor-specific Information option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only, and newV6Message builds no such option. The owner kept Vendor-specific declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze neither requests nor sends a Vendor-specific Information option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only, and newV6Message builds no such option; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left the Vendor-specific Information option out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-21.17-2">RFC9915-21.17-2</code></td><td colspan="3"><span class="rfc-subject">Servers and clients MUST NOT send more than one instance of the Vendor-specific Information option with the same Enterprise Number. (§21.17)</span></td></tr>
 <tr><td></td>
@@ -1341,7 +1422,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-21.17-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> heading &#34;Vendor-Specific Information Option&#34;; ze never requests a Vendor-specific Information option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only. The owner kept Vendor-specific declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze never requests a Vendor-specific Information option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left the Vendor-specific Information option out of the current work)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-21.22-2">RFC9915-21.22-2</code></td><td colspan="3"><span class="rfc-subject">The client MUST discard any prefixes for which the preferred lifetime is greater than the valid lifetime. (§21.22)</span></td></tr>
 <tr><td></td>
@@ -1359,7 +1440,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-21.23-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-21.23-2">RFC9915-21.23-2</code></td><td colspan="3"><span class="rfc-subject">A client MUST NOT request this option in the Option Request option in any other messages. (§21.23)</span></td></tr>
 <tr><td></td>
@@ -1377,7 +1458,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-21.23-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-21.23-6">RFC9915-21.23-6</code></td><td colspan="3"><span class="rfc-subject">A client MUST use the refresh time IRT_MINIMUM if it receives the option with a value less than IRT_MINIMUM. (§21.23)</span></td></tr>
 <tr><td></td>
@@ -1386,7 +1467,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-21.23-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-21.23-7">RFC9915-21.23-7</code></td><td colspan="3"><span class="rfc-subject">When the client detects that the refresh time has expired, it SHOULD try to update its configuration data by sending an Information- request as specified in Section 18.2.6, except that the client MUST delay sending the first Information-request by a random amount of time between 0 and INF_MAX_DELAY. (§21.23)</span></td></tr>
 <tr><td></td>
@@ -1395,7 +1476,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-21.23-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-21.24-3">RFC9915-21.24-3</code></td><td colspan="3"><span class="rfc-subject">A DHCP client MUST ignore any SOL_MAX_RT option values that are less than 60 or more than 86400. (§21.24)</span></td></tr>
 <tr><td></td>
@@ -1422,7 +1503,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-21.25-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-21.25-3">RFC9915-21.25-3</code></td><td colspan="3"><span class="rfc-subject">A DHCP client MUST ignore any INF_MAX_RT option values that are less than 60 or more than 86400. (§21.25)</span></td></tr>
 <tr><td></td>
@@ -1431,7 +1512,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-21.25-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-21.25-4">RFC9915-21.25-4</code></td><td colspan="3"><span class="rfc-subject">If a DHCP client receives a message containing an INF_MAX_RT option that has a valid value for INF_MAX_RT, the client MUST set its internal INF_MAX_RT parameter to the value contained in the INF_MAX_RT option. (§21.25)</span></td></tr>
 <tr><td></td>
@@ -1440,7 +1521,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-21.25-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-22.3-1">RFC9915-22.3-1</code></td><td colspan="3"><span class="rfc-subject">Because of the opportunity for attack through the Reconfigure message, a DHCP client MUST discard any Reconfigure message that does not include authentication or that does not pass the validation process for the authentication protocol. (§22.3)</span></td></tr>
 <tr><td></td>
@@ -1470,16 +1551,16 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc9915-6.3-1"><code>RFC9915-6.3-1</code></a> If the client uses a delegated prefix to configure addresses on interfaces on itself or other nodes behind it, the preferred and valid lifetimes of those addresses MUST be no longer than the remaining preferred and valid lifetimes, respectively, for the delegated prefix at any time. (§6.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;If the client uses a delegated prefix to configure addresses on interfaces on itself or other nodes behind it, the preferred and valid lifetimes of those addresses MUST be no longer than the remaining preferred and valid lifetimes, respectively, for the delegated prefix at any time.&#34;; ze never uses a delegated prefix to configure addresses on interfaces on itself or other nodes behind it: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect installs only the IA_NA addresses and publishes each IA_PD prefix as a dhcp-acquired event, and its subscribers, handleDHCPLeaseEvent in internal/component/iface/register.go and syncWorker.handleDHCPEvent in internal/plugins/ntp/ntp.go, read only the router and the NTP servers and configure no address from it. The owner kept delegated-prefix use declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze configures no address from a delegated prefix: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes each IA_PD prefix only as a dhcp-acquired event, and no subscriber configures an address from it; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left delegated-prefix use out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-6.3-2"><code>RFC9915-6.3-2</code></a> In particular, if the delegated prefix or a prefix derived from it is advertised for stateless address autoconfiguration [RFC4862], the advertised preferred and valid lifetimes MUST NOT exceed the corresponding remaining lifetimes of the delegated prefix. (§6.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;In particular, if the delegated prefix or a prefix derived from it is advertised for stateless address autoconfiguration [RFC4862], the advertised preferred and valid lifetimes MUST NOT exceed the corresponding remaining lifetimes of the delegated prefix.&#34;; ze never advertises the delegated prefix or a prefix derived from it for stateless address autoconfiguration: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes the IA_PD prefix only as a dhcp-acquired event, and the Router Advertisement sender, internal/plugins/iface/ra/sender_linux.go, advertises only the prefixes the operator configures and subscribes to no DHCP event. The owner kept delegated-prefix use declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze advertises no delegated prefix for stateless address autoconfiguration: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes the IA_PD prefix only as a dhcp-acquired event, and internal/plugins/iface/ra/sender_linux.go advertises only the prefixes the operator configures; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left delegated-prefix use out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-6.3-3"><code>RFC9915-6.3-3</code></a> A client that has delegated any of the address space received through DHCP Prefix Delegation MUST NOT issue a DHCP Release on the relevant delegated prefix while any of the address space is outstanding. (§6.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;A client that has delegated any of the address space received through DHCP Prefix Delegation MUST NOT issue a DHCP Release on the relevant delegated prefix while any of the address space is outstanding.&#34;; ze never delegates any of the address space received through DHCP Prefix Delegation: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes the IA_PD prefix as a dhcp-acquired event and assigns none of it onward, and the DHCP server plugin (internal/plugins/dhcpserver) holds no prefix-delegation code. The owner kept delegated-prefix use declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze delegates none of the address space received through DHCP Prefix Delegation: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect assigns none of the IA_PD prefix onward; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left delegated-prefix use out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-7.2-1"><code>RFC9915-7.2-1</code></a> Clients MUST listen for DHCP messages on UDP port 546. (§7.2)</td>
 <td>no test</td>
@@ -1495,59 +1576,59 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 </tr>
 <tr><td><a href="#rfc9915-11.2-1"><code>RFC9915-11.2-1</code></a> The hardware type MUST be a valid hardware type assigned by IANA; see [IANA-HARDWARE-TYPES]. (§11.2)</td>
 <td>{gap}, no test</td>
-<td>the owner kept DUID-LLT generation declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5), and ze generates none, but the configured duid leaf takes any octets: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify sends them as given, so a configured DUID-LLT whose hardware type IANA never assigned is sent unrefused</td>
+<td>the owner left DUID-LLT generation out of the current work (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5), and ze generates none, but the configured duid leaf takes any octets: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify sends them as given, so a configured DUID-LLT whose hardware type IANA never assigned is sent unrefused</td>
 </tr>
 <tr><td><a href="#rfc9915-11.2-2"><code>RFC9915-11.2-2</code></a> Clients and servers using this type of DUID MUST store the DUID-LLT in stable storage and MUST continue to use this DUID-LLT even if the network interface used to generate the DUID-LLT is removed. (§11.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: heading &#34;DUID-LLT&#34;; ze never generates a DUID-LLT: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or takes the operator&#39;s configured duid octets, held in the configuration, as given. The owner kept DUID-LLT declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze generates no DUID-LLT: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or sends the configured duid octets as given; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left DUID-LLT out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-11.2-3"><code>RFC9915-11.2-3</code></a> Clients and servers that do not have any stable storage MUST NOT use this type of DUID. (§11.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: heading &#34;DUID-LLT&#34;; ze never generates a DUID-LLT: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or takes the operator&#39;s configured duid octets, held in the configuration, as given. The owner kept DUID-LLT declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze generates no DUID-LLT: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or sends the configured duid octets as given; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left DUID-LLT out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-11.2-4"><code>RFC9915-11.2-4</code></a> Clients and servers that use this DUID SHOULD attempt to configure the time prior to generating the DUID, if that is possible, and MUST use some sort of time source (for example, a real-time clock) in generating the DUID, even if that time source could not be configured prior to generating the DUID. (§11.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;Clients and servers that use this DUID SHOULD attempt to configure the time prior to generating the DUID, if that is possible, and MUST use some sort of time source (for example, a real-time clock) in generating the DUID, even if that time source could not be configured prior to generating the DUID.&#34;; ze never generates a DUID-LLT, and a configured duid is used as given: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or takes the operator&#39;s configured duid octets as given whatever their type, so no DUID-LLT time field is ever generated. The owner kept DUID-LLT declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze generates no DUID-LLT, so no time field is ever generated: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or sends the configured duid octets as given whatever their type; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left DUID-LLT out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-11.2-5"><code>RFC9915-11.2-5</code></a> A DHCP client that generates a DUID-LLT using this mechanism MUST provide an administrative interface that replaces the existing DUID with a newly generated DUID-LLT. (§11.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;A DHCP client that generates a DUID-LLT using this mechanism MUST provide an administrative interface that replaces the existing DUID with a newly generated DUID-LLT.&#34;; ze never generates a DUID-LLT using this mechanism: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or takes the operator&#39;s configured duid octets as given. The owner kept DUID-LLT declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze generates no DUID-LLT and offers no interface that replaces one: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or sends the configured duid octets as given; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left DUID-LLT out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-11.3-1"><code>RFC9915-11.3-1</code></a> The source of the identifier is left up to the vendor defining it, but each identifier part of each DUID-EN MUST be unique to the device that is using it, and MUST be assigned to the device no later than at the first usage and stored in some form of non-volatile storage. (§11.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: heading &#34;DUID-EN&#34;; ze never generates a DUID-EN: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or takes the operator&#39;s configured duid octets as given, whose uniqueness is the operator&#39;s. The owner kept DUID-EN declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze generates no DUID-EN: internal/plugins/iface/dhcp/dhcp_v6_linux.go::identify builds a DUID-LL from the device MAC, or sends the configured duid octets as given, whose uniqueness is the operator&#39;s; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left DUID-EN out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-15-2"><code>RFC9915-15-2</code></a> Of course, a client MUST listen for a Reconfigure if it has negotiated for its use with the server. (§15)</td>
 <td>{gap}, no test</td>
-<td>Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</td>
+<td>Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</td>
 </tr>
 <tr><td><a href="#rfc9915-16.10-3"><code>RFC9915-16.10-3</code></a> If the client did not include a Client Identifier option in the original message, the Reply message MUST NOT include a Client Identifier option. (§16.10)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: §18.2.6 &#34;The client SHOULD include a Client Identifier option (see Section 21.2) to identify itself to the server (however, see Section 4.3.1 of [RFC7844] for reasons why a client may not want to include this option).&#34;; Thomas declined Client Identifier omission on 2026-10-19 (the DHCPv6 client umbrella spec, Q5); ze never omits it: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message adds a Client Identifier option to every message, so the condition never holds</td>
+<td>{gap}, no test</td>
+<td>ze offers no Client Identifier omission (RFC 7844 Section 4.3.1): internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message adds a Client Identifier option to every message; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left Client Identifier omission out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-18.2.1-7"><code>RFC9915-18.2.1-7</code></a> If the DHCP client is configured with either MRC or MRD set to a value other than 0, it MUST stop trying to configure the interface if the message exchange fails. (§18.2.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;If the DHCP client is configured with either MRC or MRD set to a value other than 0, it MUST stop trying to configure the interface if the message exchange fails.&#34;; ze never configures MRC or MRD for the Solicit to a value other than 0: internal/plugins/iface/dhcp/dhcp_v6_linux.go::solicit runs the Solicit exchange with MRC and MRD 0 from Table 1, and no configuration leaf sets them. The owner kept non-zero MRC declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze offers no non-zero MRC or MRD for the Solicit: internal/plugins/iface/dhcp/dhcp_v6_linux.go::solicit runs the exchange with MRC and MRD 0 from Table 1, and no configuration leaf sets them; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left non-zero MRC out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-18.2.4-2"><code>RFC9915-18.2.4-2</code></a> A client MUST also initiate a Renew/Reply message exchange before time T1 if the client&#39;s link-local address used in previous interactions with the server is no longer valid and it is willing to receive Reconfigure messages. (§18.2.4)</td>
 <td>{gap}, no test</td>
-<td>Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</td>
+<td>Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</td>
 </tr>
 <tr><td><a href="#rfc9915-18.2.6-1"><code>RFC9915-18.2.6-1</code></a> The client MUST include an Elapsed Time option (see Section 21.9) to indicate how long the client has been trying to complete the current DHCP message exchange. (§18.2.6)</td>
 <td>{gap}, no test</td>
-<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</td>
+<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</td>
 </tr>
 <tr><td><a href="#rfc9915-18.2.6-2"><code>RFC9915-18.2.6-2</code></a> The client MUST include an Option Request option (see Section 21.7) to request the INF_MAX_RT option (see Section 21.25), the Information Refresh Time option (see Section 21.23), and any other options the client is interested in receiving. (§18.2.6)</td>
 <td>{gap}, no test</td>
-<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</td>
+<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</td>
 </tr>
 <tr><td><a href="#rfc9915-18.2.6-3"><code>RFC9915-18.2.6-3</code></a> When responding to a Reconfigure, the client MUST include a Server Identifier option (see Section 21.3) with the identifier from the Reconfigure message to which the client is responding. (§18.2.6)</td>
 <td>{gap}, no test</td>
-<td>Reconfigure and stateless DHCPv6 are in scope by owner decision 2026-10-19 and not yet implemented: ze never responds to a Reconfigure, because internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure, and every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request is sent; disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</td>
+<td>Reconfigure and stateless DHCPv6 are in scope by owner decision 2026-10-19 and not yet implemented: ze never responds to a Reconfigure, because internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure, and every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request is sent; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</td>
 </tr>
 <tr><td><a href="#rfc9915-18.2.6-4"><code>RFC9915-18.2.6-4</code></a> The first Information-request message from the client on the interface MUST be delayed by a random amount of time between 0 and INF_MAX_DELAY. (§18.2.6)</td>
 <td>{gap}, no test</td>
-<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</td>
+<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</td>
 </tr>
 <tr><td><a href="#rfc9915-18.2.7-5"><code>RFC9915-18.2.7-5</code></a> Any leases for the IAs the client wishes to continue to use MUST NOT be added to the IAs. (§18.2.7)</td>
 <td>{gap}, no test</td>
@@ -1555,95 +1636,95 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 </tr>
 <tr><td><a href="#rfc9915-18.2.7-8"><code>RFC9915-18.2.7-8</code></a> For a delegated prefix, this means the prefix MUST have been advertised with a Preferred Lifetime and a Valid Lifetime of 0 in a Router Advertisement message as described in part (e) of Section 5.5.3 of [RFC4862]; also see requirement L-13 in Section 4.3 of [RFC7084]. (§18.2.7)</td>
 <td>{gap}, no test</td>
-<td>the owner kept delegated-prefix use declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5), but neither Section 18.2.7 nor a title above it names that feature and no sentence makes it optional, so the row takes the gap outlet. ze advertises no delegated prefix: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes the IA_PD prefix as a dhcp-acquired event, and its subscribers, handleDHCPLeaseEvent in internal/component/iface/register.go and syncWorker.handleDHCPEvent in internal/plugins/ntp/ntp.go, send no Router Advertisement from it, so the Release follows no advertisement with lifetimes of 0; no test asserts it</td>
+<td>the owner left delegated-prefix use out of the current work (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5), but neither Section 18.2.7 nor a title above it names that feature and no sentence makes it optional, so the row takes the gap outlet. ze advertises no delegated prefix: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes the IA_PD prefix as a dhcp-acquired event, and its subscribers, handleDHCPLeaseEvent in internal/component/iface/register.go and syncWorker.handleDHCPEvent in internal/plugins/ntp/ntp.go, send no Router Advertisement from it, so the Release follows no advertisement with lifetimes of 0; no test asserts it</td>
 </tr>
 <tr><td><a href="#rfc9915-18.2.9-4"><code>RFC9915-18.2.9-4</code></a> MUST process an included INF_MAX_RT option. (§18.2.9)</td>
 <td>{gap}, no test</td>
-<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</td>
+<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</td>
 </tr>
 <tr><td><a href="#rfc9915-18.2.10.1-1"><code>RFC9915-18.2.10.1-1</code></a> The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862], which does list some exceptions, on each of the received addresses in any IAs on which it has not performed duplicate address detection during processing of any of the previous Reply messages from the server. (§18.2.10.1)</td>
 <td>{partial}, Partial proof; remaining gap</td>
 <td>tested &#34;The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862]&#34;; gap &#34;on each of the received addresses in any IAs&#34;; the tested span holds on the kernel (netlink) iface backend, whose DAD outcome the client reads and acts on; on the VPP backend, which reports no DAD outcome for the leased addresses, internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::dadUnreported drops every received address from the DAD poll undeclined, so no received address there is checked for duplicates; VPP DAD is owned by plan/release/fixes/spec-dhcpv6-dad-on-vpp.md</td>
 </tr>
 <tr><td><a href="#rfc9915-18.2.10.5-1"><code>RFC9915-18.2.10.5-1</code></a> As a counterexample, a client that previously received an NTP server address from the DHCP server and does not receive it anymore MUST stop using the configured NTP server address. (§18.2.10.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;As a counterexample, a client that previously received an NTP server address from the DHCP server and does not receive it anymore MUST stop using the configured NTP server address.&#34;; ze never receives an NTP server address from the DHCP server over DHCPv6: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only, and the lease payload internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes carries no NTP servers, so no NTP server address is ever configured from DHCPv6; the DNS case the sentence illustrates is met: a Reply without the DNS option empties the lease&#39;s list and setV6Resolvers in internal/plugins/iface/dhcp/resolv_linux.go withdraws the servers. The owner kept the NTP server option declined on 2026-10-19 (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze takes no NTP server address from DHCPv6: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only, and the lease internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes carries no NTP servers; the DNS case the sentence illustrates is met, because setV6Resolvers in internal/plugins/iface/dhcp/resolv_linux.go withdraws servers a Reply no longer carries; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left the NTP server option out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-18.2.11-2"><code>RFC9915-18.2.11-2</code></a> Once the client has received a Reconfigure, the client proceeds with the message exchange (retransmitting the Renew, Rebind, or Information-request message if necessary); the client MUST ignore any additional Reconfigure messages until the exchange is complete. (§18.2.11)</td>
 <td>{gap}, no test</td>
-<td>Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</td>
+<td>Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</td>
 </tr>
 <tr><td><a href="#rfc9915-18.2.12-3"><code>RFC9915-18.2.12-3</code></a> If the client has only obtained network information using Information-request/Reply message exchanges, the client MUST initiate an Information-request/Reply message exchange as described in Section 18.2.6. (§18.2.12)</td>
 <td>{gap}, no test</td>
-<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</td>
+<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</td>
 </tr>
 <tr><td><a href="#rfc9915-20.2-1"><code>RFC9915-20.2-1</code></a> Any DHCP message MUST NOT include more than one Authentication option. (§20.2)</td>
 <td>{gap}, no test</td>
-<td>the Authentication option is in scope by owner decision 2026-10-19 and not yet implemented: ze&#39;s client sends and reads no Authentication option (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message builds none, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher accepts only Reply messages, judged without authentication); disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</td>
+<td>the Authentication option is in scope by owner decision 2026-10-19 and not yet implemented: ze&#39;s client sends and reads no Authentication option (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message builds none, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher accepts only Reply messages, judged without authentication); disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</td>
 </tr>
 <tr><td><a href="#rfc9915-20.3-3"><code>RFC9915-20.3-3</code></a> A client that receives a message with the RDM field set to 0x00 MUST compare its replay detection field with the previous value sent by that same server (based on the Server Identifier option; see Section 21.3) and only accept the message if the received value is greater and record this as the new value. (§20.3)</td>
 <td>{gap}, no test</td>
-<td>the Authentication option (RKAP) is in scope by owner decision 2026-10-19 and not yet implemented: ze never negotiates Reconfigure: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, so no Authentication option is processed and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher judges Replies without one; disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</td>
+<td>the Authentication option (RKAP) is in scope by owner decision 2026-10-19 and not yet implemented: ze never negotiates Reconfigure: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, so no Authentication option is processed and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher judges Replies without one; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</td>
 </tr>
 <tr><td><a href="#rfc9915-20.3-4"><code>RFC9915-20.3-4</code></a> If this is the first time a client processes an Authentication option sent by a server, the client MUST record the replay detection value and skip the replay detection check. (§20.3)</td>
 <td>{gap}, no test</td>
-<td>the Authentication option (RKAP) is in scope by owner decision 2026-10-19 and not yet implemented: ze never negotiates Reconfigure: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, so no Authentication option is processed and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher judges Replies without one; disclosed in Support remaining; plan/spec-dhcpv6-client-4-reconfigure.md</td>
+<td>the Authentication option (RKAP) is in scope by owner decision 2026-10-19 and not yet implemented: ze never negotiates Reconfigure: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, so no Authentication option is processed and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher judges Replies without one; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md</td>
 </tr>
 <tr><td><a href="#rfc9915-21-1"><code>RFC9915-21-1</code></a> If an option does appear multiple times, each instance is considered separate and the data areas of the options MUST NOT be concatenated or otherwise combined. (§21)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: vendored insomniacslk/dhcp dhcpv6 option decoder, vendor/github.com/insomniacslk/dhcp; internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::v6Identified reads each option through the library&#39;s per-code accessors, and the decoder keeps every instance separate, so ze combines no option data</td>
 </tr>
 <tr><td><a href="#rfc9915-21.15-1"><code>RFC9915-21.15-1</code></a> The user class information carried in this option MUST be configurable on the client. (§21.15)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: heading &#34;User Class Option&#34;; ze never sends a User Class option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message builds, with buildSolicit and buildFromLease, messages carrying only Client ID, Server ID, Elapsed Time, ORO, Rapid Commit, IA_NA and IA_PD. The owner kept User Class declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze sends no User Class option and offers no configuration for one: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message builds, with buildSolicit and buildFromLease, messages carrying only Client ID, Server ID, Elapsed Time, ORO, Rapid Commit, IA_NA and IA_PD; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left User Class out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-21.15-2"><code>RFC9915-21.15-2</code></a> The data area of the User Class option MUST contain one or more instances of user-class-data information. (§21.15)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: heading &#34;User Class Option&#34;; ze never sends a User Class option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message builds, with buildSolicit and buildFromLease, messages carrying only Client ID, Server ID, Elapsed Time, ORO, Rapid Commit, IA_NA and IA_PD. The owner kept User Class declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze sends no User Class option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message builds, with buildSolicit and buildFromLease, messages carrying only Client ID, Server ID, Elapsed Time, ORO, Rapid Commit, IA_NA and IA_PD; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left User Class out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-21.16-1"><code>RFC9915-21.16-1</code></a> Servers and clients MUST NOT include more than one instance of OPTION_VENDOR_CLASS with the same Enterprise Number. (§21.16)</td>
 <td>{gap}, no test</td>
 <td>gap in proof: ze meets it by sending no Vendor Class option: the messages internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message, buildSolicit and buildFromLease build carry only Client ID, Server ID, Elapsed Time, ORO, Rapid Commit, IA_NA and IA_PD; no test asserts it</td>
 </tr>
 <tr><td><a href="#rfc9915-21.17-1"><code>RFC9915-21.17-1</code></a> The vendor-option-data field MUST be encoded as a sequence of code/length/value fields of format identical to the DHCP options (see Section 21.1). (§21.17)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: heading &#34;Vendor-Specific Information Option&#34;; ze never requests or sends a Vendor-specific Information option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only, and newV6Message builds no such option. The owner kept Vendor-specific declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze neither requests nor sends a Vendor-specific Information option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only, and newV6Message builds no such option; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left the Vendor-specific Information option out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-21.17-2"><code>RFC9915-21.17-2</code></a> Servers and clients MUST NOT send more than one instance of the Vendor-specific Information option with the same Enterprise Number. (§21.17)</td>
 <td>{gap}, no test</td>
 <td>gap in proof: ze meets it by sending no Vendor-specific Information option: the messages internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message, buildSolicit and buildFromLease build carry only Client ID, Server ID, Elapsed Time, ORO, Rapid Commit, IA_NA and IA_PD; no test asserts it</td>
 </tr>
 <tr><td><a href="#rfc9915-21.17-3"><code>RFC9915-21.17-3</code></a> MUST specify the Vendor-specific Information option in an Option Request option. (§21.17)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: heading &#34;Vendor-Specific Information Option&#34;; ze never requests a Vendor-specific Information option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only. The owner kept Vendor-specific declined (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5)</td>
+<td>{gap}, no test</td>
+<td>ze never requests a Vendor-specific Information option: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 &#34;ok&#34;, which left the Vendor-specific Information option out of the current work)</td>
 </tr>
 <tr><td><a href="#rfc9915-21.23-1"><code>RFC9915-21.23-1</code></a> A DHCP client MUST request this option in the Option Request option (see Section 21.7) when sending Information-request messages. (§21.23)</td>
 <td>{gap}, no test</td>
-<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</td>
+<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</td>
 </tr>
 <tr><td><a href="#rfc9915-21.23-5"><code>RFC9915-21.23-5</code></a> If the Reply to an Information-request message does not contain this option, the client MUST behave as if the option with the value IRT_DEFAULT was provided. (§21.23)</td>
 <td>{gap}, no test</td>
-<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</td>
+<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</td>
 </tr>
 <tr><td><a href="#rfc9915-21.23-6"><code>RFC9915-21.23-6</code></a> A client MUST use the refresh time IRT_MINIMUM if it receives the option with a value less than IRT_MINIMUM. (§21.23)</td>
 <td>{gap}, no test</td>
-<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</td>
+<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</td>
 </tr>
 <tr><td><a href="#rfc9915-21.23-7"><code>RFC9915-21.23-7</code></a> When the client detects that the refresh time has expired, it SHOULD try to update its configuration data by sending an Information- request as specified in Section 18.2.6, except that the client MUST delay sending the first Information-request by a random amount of time between 0 and INF_MAX_DELAY. (§21.23)</td>
 <td>{gap}, no test</td>
-<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</td>
+<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</td>
 </tr>
 <tr><td><a href="#rfc9915-21.25-2"><code>RFC9915-21.25-2</code></a> A DHCP client MUST include the INF_MAX_RT option code in any Option Request option (see Section 21.7) it sends in an Information-request message. (§21.25)</td>
 <td>{gap}, no test</td>
-<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</td>
+<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</td>
 </tr>
 <tr><td><a href="#rfc9915-21.25-3"><code>RFC9915-21.25-3</code></a> A DHCP client MUST ignore any INF_MAX_RT option values that are less than 60 or more than 86400. (§21.25)</td>
 <td>{gap}, no test</td>
-<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</td>
+<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</td>
 </tr>
 <tr><td><a href="#rfc9915-21.25-4"><code>RFC9915-21.25-4</code></a> If a DHCP client receives a message containing an INF_MAX_RT option that has a valid value for INF_MAX_RT, the client MUST set its internal INF_MAX_RT parameter to the value contained in the INF_MAX_RT option. (§21.25)</td>
 <td>{gap}, no test</td>
-<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed in Support remaining; plan/spec-dhcpv6-client-3-stateless.md</td>
+<td>stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md</td>
 </tr>
 </tbody>
 </table>
@@ -4558,6 +4639,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 9915, so its obligations are stated where they were written.</p>
 </section>
+<script src="../../../assets/rfc-figures.js" defer></script>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -4589,7 +4671,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

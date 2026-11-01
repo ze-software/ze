@@ -1,6 +1,6 @@
 # RFC 9552 - Distribution of Link-State and Traffic Engineering Information Using BGP
 
-Partial. Every requirement this repository extracted from RFC 9552, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP-LS (obsoletes RFC 7752). Every requirement this repository extracted from RFC 9552, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 78.0% | 46 of 59 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 10.2% | 6 of 59 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 59 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 59 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 69.3% | 113 of 163 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 46 | of 59 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 6 | of 59 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 59 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 59 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 115 | 115 of 163 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 59 | of 89 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 59 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 1.7% | 1 of 59 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 59 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 59 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 59 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 59 | of 89 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 59 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 1 | of 59 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 59 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 59 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 59 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,10 +35,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 10.2% | 6 of 59 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 43 | of 59 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| No test at all | 6 | of 59 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 43 | of 59 gated MUSTs judged | 1 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id |
 
-The 9 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 59 gated MUSTs: they add up to 59. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,27 +46,27 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | BGP-LS (obsoletes RFC 7752) |
 | Enrolment | Enrolled |
 | Requirements | 89 |
 | Gated MUST-level | 59 |
-| Not applicable, so out of scope | 1 |
+| Not applicable, so out of scope | 0 |
 | Declared gaps | 7 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
@@ -85,17 +85,14 @@ Enrolled: Distribution of Link-State and TE Information Using BGP
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** BGP-LS (obsoletes RFC 7752)
 
-**What the ledger says is covered**
+**Proof:** 44 of 59 MUST proven
 
-- Consumer decoding and syntactic propagation remain separate from native origination. `bgp-ls-export` consumes registered IS-IS, OSPF, and EPE snapshots, emits distinct topology identities, enforces opaque LSA provenance, clears originated reserved flags, reconciles withdrawals and replacements, and supports per-domain 64-bit Instance-ID configuration. Native SPF-unreachable origins are withdrawn and re-advertised on native SPF recovery, including unchanged LSDB objects
-- reachable-origin half-links remain advertised. Native EPE index advertisements require a matching advertised SRGB.
+**Evidence:** functional 1, unit 43
 
+**Unmet:** RFC9552-5.1-7, RFC9552-5.2-5, RFC9552-5.3-1, RFC9552-5.3-2, RFC9552-5.3.2.7-1, RFC9552-5.4-2, RFC9552-8.2.6-2
 
-**What the ledger says remains**
-
-MUST and advisory gaps remain annotated in the requirement rows. [`RFC9552-5.3-2`](#rfc9552-5.3-2) still requires oversized propagation to discard the BGP-LS Attribute first. ze originates standard types only: `encodeTopology` emits standard NLRI types and `originateAttributes` refuses private-use TLV types; no native vendor-private producer is enabled. Section 5.4's Enterprise Code duties are conditional on private origination; received unknown/private NLRIs remain opaque on the propagation path. New native origination proofs require centralized execution and discrimination; no conformance claim follows from the source additions alone. The native exporter does not bound a BGP-LS Attribute by the collector session's maximum UPDATE size ([`RFC9552-5.3-1`](#rfc9552-5.3-1)). Optional FQDN-based native Link Name selection is not implemented ([`RFC9552-5.3.2.7-1`](#rfc9552-5.3.2.7-1)); received Link Name TLVs remain decoded and propagated without imposing a naming restriction.
 
 ## Coverage
 
@@ -114,9 +111,41 @@ MUST and advisory gaps remain annotated in the requirement rows. [`RFC9552-5.3-2
 
 **Annotated (including scoped evidence) (13):** [`RFC9552-5.2-4`](#rfc9552-5.2-4), [`RFC9552-5.2-5`](#rfc9552-5.2-5), [`RFC9552-5.2.1.4-2`](#rfc9552-5.2.1.4-2), [`RFC9552-5.2.2-4`](#rfc9552-5.2.2-4), [`RFC9552-5.2.3.1-1`](#rfc9552-5.2.3.1-1), [`RFC9552-5.2.1-1`](#rfc9552-5.2.1-1), [`RFC9552-5.5-1`](#rfc9552-5.5-1), [`RFC9552-5.3-1`](#rfc9552-5.3-1), [`RFC9552-5.4-1`](#rfc9552-5.4-1), [`RFC9552-5.3-2`](#rfc9552-5.3-2), [`RFC9552-5.1-7`](#rfc9552-5.1-7), [`RFC9552-8.2.6-2`](#rfc9552-8.2.6-2), [`RFC9552-5.4-2`](#rfc9552-5.4-2)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 58 of 59 (98.3%); excluded: Not applicable (classification can be revisited): 1 of 59 (1.7%). Optional ceiling: 30 of 30 (100.0%). Lowest mandatory ceiling: rfc9552 58 of 59 (98.3%). Lowest optional ceiling: rfc9552 30 of 30 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 44, Ze correctness gap 14
+- **Overview bar**: Ze MUST proven 44, SHOULD proven 1, Not owed 1, SHOULD not decided 29, Ze correctness gap 14
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 59 |
+| MUST rows kept (the MUST bar) | 58 |
+| Ze proven | 44 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 14 |
+| MUST rows not owed | 1 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 1 |
+| SHOULD / MAY rows | 30 |
+| SHOULD proven | 1 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 29 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc9552.json](../../../data/rfc/rfc9552.json).
 
 ## Requirements
 
@@ -263,7 +292,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 r
 |---|---|---|---|
 | negative | [`TestRFC9552UnknownTypesSurviveARewrittenUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_propagate_test.go#L191) | unit/verify | revert, verified |
 | positive | [`TestRFC7752UnknownTLVPreservedAndPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L67) | unit/verify | revert, verified |
-| positive | [`TestRFC9552UnknownTypesPropagateOnAForwardedUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_propagate_test.go#L171) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9552UnknownTypesPropagateOnAForwardedUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_propagate_test.go#L171) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.1-4`](#rfc9552-5.1-4)
 
@@ -389,7 +418,7 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestRFC9552MalformedBGPLSNLRIRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L90) | unit/verify | unproven |
 | positive | [`TestRFC9552BGPLSVPNNLRIFramedByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L136) | unit/verify | unproven |
 | positive | [`TestRFC9552UnknownBGPLSNLRITypeIsOpaque`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L46) | unit/verify | unproven |
-| positive | [`rfc9552-52-rs-opaque-withdraw-peer-down.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc9552-52-rs-opaque-withdraw-peer-down.ci#L3) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`rfc9552-52-rs-opaque-withdraw-peer-down.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc9552-52-rs-opaque-withdraw-peer-down.ci#L3) | functional/verify | revert, verified |
 
 ### [`RFC9552-5.2.1.4-1`](#rfc9552-5.2.1.4-1)
 
@@ -486,7 +515,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 When configured, these auxiliary TE Router-IDs (TLV 1028/1029) MUST be included in the node attribute described in Section 5.3.1 (§5.2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged all current tagged carriers against RFC 9552 Section 5.2.1: 'When configured, these auxiliary TE Router-IDs (TLV 1028/1029) MUST be included in the node attribute described in Section 5.3.1 and MAY be included in the link attribute described in Section 5.3.2.' Preserved IS-IS TestRFC9552ISISNodeRouterID and TestRFC9552ISISNodeCarriesBothRouterIDs assert exact per-node IPv4 and IPv6 values from native LSP TLVs 134/140. New OSPF TestRFC9552OSPFRouterIDsReachExporter installs one area-scope opaque-type-1 Router Address LSA per router, conforming to RFC 3630 Sections 2.1 and 2.4.1, and compares the complete native node TLV multiset and final encoded BGP-LS Attribute bytes from the registered exporter against independent literals. It catches omission, substitution, duplication and invented IPv6 IDs, closing the previous OSPF and final-attribute proof gaps. Read indexV2 scope guards, trafficEngineering, snapshot router-ID collection, encodeTopology, originateAttributes and send. The single-positive annotation is appropriate for this inclusion obligation. TestRFC9552OSPFAuxiliaryRouterIDsNotCollapsed is untagged robustness evidence only: multiple Router Address LSAs from one router violate RFC 3630's exactly-one-LSA condition and are not the conforming positive. This is a source-level judgment; new native discrimination observations remain Main's responsibility, and no fresh independent-peer run is claimed.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter moved. Rejudged all current tagged carriers against RFC 9552 Section 5.2.1: 'When configured, these auxiliary TE Router-IDs (TLV 1028/1029) MUST be included in the node attribute described in Section 5.3.1 and MAY be included in the link attribute described in Section 5.3.2.' Preserved IS-IS TestRFC9552ISISNodeRouterID and TestRFC9552ISISNodeCarriesBothRouterIDs assert exact per-node IPv4 and IPv6 values from native LSP TLVs 134/140. New OSPF TestRFC9552OSPFRouterIDsReachExporter installs one area-scope opaque-type-1 Router Address LSA per router, conforming to RFC 3630 Sections 2.1 and 2.4.1, and compares the complete native node TLV multiset and final encoded BGP-LS Attribute bytes from the registered exporter against independent literals. It catches omission, substitution, duplication and invented IPv6 IDs, closing the previous OSPF and final-attribute proof gaps. Read indexV2 scope guards, trafficEngineering, snapshot router-ID collection, encodeTopology, originateAttributes and send. The single-positive annotation is appropriate for this inclusion obligation. TestRFC9552OSPFAuxiliaryRouterIDsNotCollapsed is untagged robustness evidence only: multiple Router Address LSAs from one router violate RFC 3630's exactly-one-LSA condition and are not the conforming positive. This is a source-level judgment; new native discrimination observations remain Main's responsibility, and no fresh independent-peer run is claimed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -498,7 +527,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI. (§5.3.2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged all current tagged carriers against RFC 9552 Section 5.3.2.1: 'All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI.' Preserved IS-IS TestRFC9552ISISLinkRouterIDs and TestRFC9552ISISLinkCarriesAllRouterIDs assert exact local/remote IPv4 and IPv6 inclusion and separately forbid swapped values. OSPF TestRFC9552OSPFRouterIDsReachExporter uses conforming single Router Address LSAs and pins both directed links' exact 1028/1030 values through complete encoded attributes. TestRFC9552OSPFRouterIDAbsenceReachExporter uses absent, MaxAge and unrelated-opaque local sources with a live remote control: it requires the remote ID to remain on the correct side and forbids invented local IDs, with roles reversed on the reverse link. TestRFC9552OSPFInterASRouterIDsReachExporter uses RFC 5392 type-6 Link TLVs in both permitted area/AS scopes, mandatory remote-AS and permitted simultaneous remote IPv4/IPv6 ASBR IDs, with no prohibited Link ID; it requires local 1028 and remote 1030/1031 in exact final bytes and detects contamination from an internal same-four-octet-ID router. Read indexV2, trafficEngineering, linkAttributes and exporter attribute producers; Remote.ASN == 0 correctly prevents internal-ID borrowing. Literal complete snapshots and final attribute equality catch missing, swapped, duplicate or invented IDs rather than merely accepting a parse. The untagged multi-LSA case is robustness evidence, not a conforming positive; untagged wrong-scope and mixed-body regressions support provenance without adding tagged covers. This is a source-level judgment; new native discrimination observations remain Main's responsibility, and the documented FRR ordinary/inter-AS collectors are not claimed freshly passed.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFInterASRouterIDsReachExporter, internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDAbsenceReachExporter, internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter moved. Rejudged all current tagged carriers against RFC 9552 Section 5.3.2.1: 'All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI.' Preserved IS-IS TestRFC9552ISISLinkRouterIDs and TestRFC9552ISISLinkCarriesAllRouterIDs assert exact local/remote IPv4 and IPv6 inclusion and separately forbid swapped values. OSPF TestRFC9552OSPFRouterIDsReachExporter uses conforming single Router Address LSAs and pins both directed links' exact 1028/1030 values through complete encoded attributes. TestRFC9552OSPFRouterIDAbsenceReachExporter uses absent, MaxAge and unrelated-opaque local sources with a live remote control: it requires the remote ID to remain on the correct side and forbids invented local IDs, with roles reversed on the reverse link. TestRFC9552OSPFInterASRouterIDsReachExporter uses RFC 5392 type-6 Link TLVs in both permitted area/AS scopes, mandatory remote-AS and permitted simultaneous remote IPv4/IPv6 ASBR IDs, with no prohibited Link ID; it requires local 1028 and remote 1030/1031 in exact final bytes and detects contamination from an internal same-four-octet-ID router. Read indexV2, trafficEngineering, linkAttributes and exporter attribute producers; Remote.ASN == 0 correctly prevents internal-ID borrowing. Literal complete snapshots and final attribute equality catch missing, swapped, duplicate or invented IDs rather than merely accepting a parse. The untagged multi-LSA case is robustness evidence, not a conforming positive; untagged wrong-scope and mixed-body regressions support provenance without adding tagged covers. This is a source-level judgment; new native discrimination observations remain Main's responsibility, and the documented FRR ordinary/inter-AS collectors are not claimed freshly passed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

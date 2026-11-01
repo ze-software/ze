@@ -1,0 +1,58 @@
+{
+  "stem": "rfc8277",
+  "title": "Using BGP to Bind MPLS Labels to Address Prefixes",
+  "walked": true,
+  "requirements": 42,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 35,
+    "kept": 35,
+    "ze-proven": 11,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 24,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 7,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 6,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 11
+  },
+  "unmet": [
+    "RFC8277-2-1",
+    "RFC8277-2-3",
+    "RFC8277-2.1-1",
+    "RFC8277-2.1-10",
+    "RFC8277-2.1-11",
+    "RFC8277-2.1-12",
+    "RFC8277-2.1-13",
+    "RFC8277-2.1-14",
+    "RFC8277-2.1-15",
+    "RFC8277-2.1-2",
+    "RFC8277-2.1-3",
+    "RFC8277-2.1-4",
+    "RFC8277-2.1-5",
+    "RFC8277-2.1-6",
+    "RFC8277-2.1-7",
+    "RFC8277-2.1-8",
+    "RFC8277-2.1-9",
+    "RFC8277-2.2-2",
+    "RFC8277-3.2.1-2",
+    "RFC8277-3.2.1-3",
+    "RFC8277-3.2.1-4",
+    "RFC8277-3.2.2-1",
+    "RFC8277-3.2.2-2",
+    "RFC8277-3.2.2-3"
+  ]
+}

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>FTTx edge: customers to the internet over L2TP, local DNS for the LAN RFC coverage - Ze</title>
-        <meta name="description" content="Release profile fttx-edge: mandatory 339 of 747 (45.4%), optional 6 of 335 (1.8%); ceiling mandatory 612 of 747 (81.9%), optional 335 of 335 (100.0%); mandatory excluded: feature-declined 15, lower-layer 120; 18 RFCs, 0 not walked." />
+        <meta name="description" content="Release profile fttx-edge: the MUST and overview coverage of its RFCs." />
         <meta property="og:title" content="FTTx edge: customers to the internet over L2TP, local DNS for the LAN RFC coverage - Ze" />
-        <meta property="og:description" content="Release profile fttx-edge: mandatory 339 of 747 (45.4%), optional 6 of 335 (1.8%); ceiling mandatory 612 of 747 (81.9%), optional 335 of 335 (100.0%); mandatory excluded: feature-declined 15, lower-layer 120; 18 RFCs, 0 not walked." />
+        <meta property="og:description" content="Release profile fttx-edge: the MUST and overview coverage of its RFCs." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="FTTx edge: customers to the internet over L2TP, local DNS for the LAN RFC coverage - Ze" />
-        <meta name="twitter:description" content="Release profile fttx-edge: mandatory 339 of 747 (45.4%), optional 6 of 335 (1.8%); ceiling mandatory 612 of 747 (81.9%), optional 335 of 335 (100.0%); mandatory excluded: feature-declined 15, lower-layer 120; 18 RFCs, 0 not walked." />
+        <meta name="twitter:description" content="Release profile fttx-edge: the MUST and overview coverage of its RFCs." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -114,34 +114,104 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
-<style>
-.rfc-bar { display: block; width: 100%; min-width: 7rem; height: .7rem; margin: .2rem 0 .15rem; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); overflow: hidden; }
-.rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
-.rfc-bar-unmeasured { border-style: dashed; }
-.rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
-.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
-</style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
-<div class="rfc-card-grid">
-<div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>45.4%</strong><b>339 of 747 (45.4%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
-<div class="rfc-card rfc-neutral"><span>Optional</span><strong>1.8%</strong><b>6 of 335 (1.8%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
-<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>81.9%</strong><b>612 of 747 (81.9%); excluded: Optional feature not offered (classification can be revisited): 15 of 747 (2.0%); Met by a lower layer: 120 of 747 (16.1%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
-<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>335 of 335 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
-<div class="rfc-card rfc-neutral"><span>Not walked</span><strong>0</strong><b>of 18 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
-<div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
+<section><h2>Figures</h2>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="profile/fttx-edge/required:must">Ze proven 342, OS testing gap 120, Ze correctness gap 285</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="profile/fttx-edge/required:overview">Ze MUST proven 342, SHOULD proven 7, SHOULD not decided 328, OS testing gap 120, Ze correctness gap 285</div>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:rfcs">18</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:register">not complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:must.total">747</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:must.kept">747</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:must.ze-proven">342</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:must.os-gap">120</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:must.ze-gap">285</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:must.not-owed">0</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:must.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:should.total">335</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:should.proven">7</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="profile/fttx-edge/required:should.not-decided">328</span></td>
+</tr>
+</tbody>
+</table>
 </div>
-<p>Mandatory ceiling: 612 of 747 (81.9%); excluded: Optional feature not offered (classification can be revisited): 15 of 747 (2.0%); Met by a lower layer: 120 of 747 (16.1%). Optional ceiling: 335 of 335 (100.0%). Lowest mandatory ceiling: rfc4861 47 of 138 (34.1%). Lowest optional ceiling: rfc1035 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+</section>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows &#34;not walked&#34; and no bar. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.</p>
 <h3>Level 0</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc1661/">RFC 1661</a></td>
 <td>The Point-to-Point Protocol (PPP)</td>
-<td><div class="rfc-bar" role="img" aria-label="39 of 76 (51.3%)"><span style="width:51.3%"></span></div><span class="rfc-bar-note">39 of 76 (51.3%)</span><small class="rfc-ceiling">Ceiling: 74 of 76 (97.4%); excluded: Met by a lower layer: 2 of 76 (2.6%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 25 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 25 (0.0%)</span><small class="rfc-ceiling">Ceiling: 25 of 25 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc1661:must">Ze proven 42, OS testing gap 2, Ze correctness gap 32</div></td>
+<td><div data-ze-rfc-bar="rfc1661:overview">Ze MUST proven 42, SHOULD not decided 25, OS testing gap 2, Ze correctness gap 32</div></td>
 <td>fttx-edge: required by rfc/short/rfc1661.md</td>
 </tr>
 </tbody>
@@ -150,24 +220,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 1</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc1994/">RFC 1994</a></td>
 <td>PPP Challenge Handshake Authentication Protocol (CHAP)</td>
-<td><div class="rfc-bar" role="img" aria-label="8 of 16 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">8 of 16 (50.0%)</span><small class="rfc-ceiling">Ceiling: 16 of 16 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 11 (18.2%)"><span style="width:18.2%"></span></div><span class="rfc-bar-note">2 of 11 (18.2%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc1994:must">Ze proven 8, Ze correctness gap 8</div></td>
+<td><div data-ze-rfc-bar="rfc1994:overview">Ze MUST proven 8, SHOULD proven 2, SHOULD not decided 9, Ze correctness gap 8</div></td>
 <td>fttx-edge: required by rfc/short/rfc1994.md</td>
 </tr>
 <tr><td><a href="../../rfc2516/">RFC 2516</a></td>
 <td>A Method for Transmitting PPP Over Ethernet (PPPoE)</td>
-<td><div class="rfc-bar" role="img" aria-label="25 of 37 (67.6%)"><span style="width:67.6%"></span></div><span class="rfc-bar-note">25 of 37 (67.6%)</span><small class="rfc-ceiling">Ceiling: 36 of 37 (97.3%); excluded: Met by a lower layer: 1 of 37 (2.7%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc2516:must">Ze proven 25, OS testing gap 1, Ze correctness gap 11</div></td>
+<td><div data-ze-rfc-bar="rfc2516:overview">Ze MUST proven 25, SHOULD not decided 3, OS testing gap 1, Ze correctness gap 11</div></td>
 <td>fttx-edge: required by rfc/short/rfc2516.md</td>
 </tr>
 <tr><td><a href="../../rfc4787/">RFC 4787</a></td>
 <td>Network Address Translation (NAT) Behavioral Requirements for Unicast UDP</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 13 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 13 (0.0%)</span><small class="rfc-ceiling">Ceiling: 13 of 13 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 16 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 16 (0.0%)</span><small class="rfc-ceiling">Ceiling: 16 of 16 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4787:must">Ze correctness gap 13</div></td>
+<td><div data-ze-rfc-bar="rfc4787:overview">SHOULD not decided 16, Ze correctness gap 13</div></td>
 <td>fttx-edge: required by rfc/short/rfc4787.md</td>
 </tr>
 </tbody>
@@ -176,36 +246,36 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 2</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc1035/">RFC 1035</a> (cycle with rfc1034, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
 <td>Domain Names - Implementation and Specification</td>
-<td><div class="rfc-bar" role="img" aria-label="12 of 27 (44.4%)"><span style="width:44.4%"></span></div><span class="rfc-bar-note">12 of 27 (44.4%)</span><small class="rfc-ceiling">Ceiling: 27 of 27 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc1035:must">Ze proven 12, Ze correctness gap 15</div></td>
+<td><div data-ze-rfc-bar="rfc1035:overview">Ze MUST proven 12, SHOULD not decided 6, Ze correctness gap 15</div></td>
 <td>fttx-edge: required by rfc/short/rfc1035.md</td>
 </tr>
 <tr><td><a href="../../rfc1332/">RFC 1332</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
 <td>The PPP Internet Protocol Control Protocol (IPCP)</td>
-<td><div class="rfc-bar" role="img" aria-label="8 of 8 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">8 of 8 (100.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc1332:must">Ze proven 8</div></td>
+<td><div data-ze-rfc-bar="rfc1332:overview">Ze MUST proven 8, SHOULD not decided 6</div></td>
 <td>fttx-edge: required by rfc/short/rfc1332.md</td>
 </tr>
 <tr><td><a href="../../rfc2131/">RFC 2131</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
 <td>Dynamic Host Configuration Protocol</td>
-<td><div class="rfc-bar" role="img" aria-label="18 of 71 (25.4%)"><span style="width:25.4%"></span></div><span class="rfc-bar-note">18 of 71 (25.4%)</span><small class="rfc-ceiling">Ceiling: 62 of 71 (87.3%); excluded: Met by a lower layer: 9 of 71 (12.7%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 38 (2.6%)"><span style="width:2.6%"></span></div><span class="rfc-bar-note">1 of 38 (2.6%)</span><small class="rfc-ceiling">Ceiling: 38 of 38 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc2131:must">Ze proven 18, OS testing gap 9, Ze correctness gap 44</div></td>
+<td><div data-ze-rfc-bar="rfc2131:overview">Ze MUST proven 18, SHOULD proven 2, SHOULD not decided 36, OS testing gap 9, Ze correctness gap 44</div></td>
 <td>fttx-edge: required by rfc/short/rfc2131.md</td>
 </tr>
 <tr><td><a href="../../rfc2132/">RFC 2132</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
 <td>DHCP Options and BOOTP Vendor Extensions</td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 34 (2.9%)"><span style="width:2.9%"></span></div><span class="rfc-bar-note">1 of 34 (2.9%)</span><small class="rfc-ceiling">Ceiling: 34 of 34 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 34 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 34 (0.0%)</span><small class="rfc-ceiling">Ceiling: 34 of 34 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc2132:must">Ze proven 1, Ze correctness gap 33</div></td>
+<td><div data-ze-rfc-bar="rfc2132:overview">Ze MUST proven 1, SHOULD not decided 34, Ze correctness gap 33</div></td>
 <td>fttx-edge: required by rfc/short/rfc2132.md</td>
 </tr>
 <tr><td><a href="../../rfc4861/">RFC 4861</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293)</td>
 <td>Neighbor Discovery for IP version 6 (IPv6)</td>
-<td><div class="rfc-bar" role="img" aria-label="30 of 138 (21.7%)"><span style="width:21.7%"></span></div><span class="rfc-bar-note">30 of 138 (21.7%)</span><small class="rfc-ceiling">Ceiling: 47 of 138 (34.1%); excluded: Met by a lower layer: 91 of 138 (65.9%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 79 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 79 (0.0%)</span><small class="rfc-ceiling">Ceiling: 79 of 79 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4861:must">Ze proven 30, OS testing gap 91, Ze correctness gap 17</div></td>
+<td><div data-ze-rfc-bar="rfc4861:overview">Ze MUST proven 30, SHOULD not decided 79, OS testing gap 91, Ze correctness gap 17</div></td>
 <td>fttx-edge: required by rfc/short/rfc4861.md</td>
 </tr>
 </tbody>
@@ -214,36 +284,36 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 3</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc1877/">RFC 1877</a></td>
 <td>PPP Internet Protocol Control Protocol Extensions for Name Server Addresses</td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc1877:must">no rows</div></td>
+<td><div data-ze-rfc-bar="rfc1877:overview">no rows</div></td>
 <td>fttx-edge: required by rfc/short/rfc1877.md</td>
 </tr>
 <tr><td><a href="../../rfc2181/">RFC 2181</a></td>
 <td>Clarifications to the DNS Specification</td>
-<td><div class="rfc-bar" role="img" aria-label="12 of 23 (52.2%)"><span style="width:52.2%"></span></div><span class="rfc-bar-note">12 of 23 (52.2%)</span><small class="rfc-ceiling">Ceiling: 23 of 23 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 47 (2.1%)"><span style="width:2.1%"></span></div><span class="rfc-bar-note">1 of 47 (2.1%)</span><small class="rfc-ceiling">Ceiling: 47 of 47 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc2181:must">Ze proven 12, Ze correctness gap 11</div></td>
+<td><div data-ze-rfc-bar="rfc2181:overview">Ze MUST proven 12, SHOULD proven 1, SHOULD not decided 46, Ze correctness gap 11</div></td>
 <td>fttx-edge: required by rfc/short/rfc2181.md</td>
 </tr>
 <tr><td><a href="../../rfc3022/">RFC 3022</a></td>
 <td>Traditional IP Network Address Translator (Traditional NAT)</td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc3022:must">no rows</div></td>
+<td><div data-ze-rfc-bar="rfc3022:overview">no rows</div></td>
 <td>fttx-edge: required by rfc/short/rfc3022.md</td>
 </tr>
 <tr><td><a href="../../rfc4862/">RFC 4862</a> (cycle with rfc2464)</td>
 <td>IPv6 Stateless Address Autoconfiguration</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 16 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 16 (0.0%)</span><small class="rfc-ceiling">Ceiling: 10 of 16 (62.5%); excluded: Met by a lower layer: 6 of 16 (37.5%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 14 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 14 (0.0%)</span><small class="rfc-ceiling">Ceiling: 14 of 14 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4862:must">OS testing gap 6, Ze correctness gap 10</div></td>
+<td><div data-ze-rfc-bar="rfc4862:overview">SHOULD not decided 14, OS testing gap 6, Ze correctness gap 10</div></td>
 <td>fttx-edge: required by rfc/short/rfc4862.md</td>
 </tr>
 <tr><td><a href="../../rfc5382/">RFC 5382</a></td>
 <td>NAT Behavioral Requirements for TCP</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 11 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 11 (0.0%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 11 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 11 (0.0%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc5382:must">Ze correctness gap 11</div></td>
+<td><div data-ze-rfc-bar="rfc5382:overview">SHOULD not decided 11, Ze correctness gap 11</div></td>
 <td>fttx-edge: required by rfc/short/rfc5382.md</td>
 </tr>
 </tbody>
@@ -252,18 +322,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 4</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc5072/">RFC 5072</a></td>
 <td>IP Version 6 over PPP</td>
-<td><div class="rfc-bar" role="img" aria-label="9 of 16 (56.2%)"><span style="width:56.2%"></span></div><span class="rfc-bar-note">9 of 16 (56.2%)</span><small class="rfc-ceiling">Ceiling: 16 of 16 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 12 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 12 (0.0%)</span><small class="rfc-ceiling">Ceiling: 12 of 12 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc5072:must">Ze proven 9, Ze correctness gap 7</div></td>
+<td><div data-ze-rfc-bar="rfc5072:overview">Ze MUST proven 9, SHOULD not decided 12, Ze correctness gap 7</div></td>
 <td>fttx-edge: required by rfc/short/rfc5072.md</td>
 </tr>
 <tr><td><a href="../../rfc9915/">RFC 9915</a></td>
 <td>Dynamic Host Configuration Protocol for IPv6 (DHCPv6)</td>
-<td><div class="rfc-bar" role="img" aria-label="82 of 126 (65.1%)"><span style="width:65.1%"></span></div><span class="rfc-bar-note">82 of 126 (65.1%)</span><small class="rfc-ceiling">Ceiling: 108 of 126 (85.7%); excluded: Optional feature not offered (classification can be revisited): 15 of 126 (11.9%); Met by a lower layer: 3 of 126 (2.4%)</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc9915:must">Ze proven 82, OS testing gap 3, Ze correctness gap 41</div></td>
+<td><div data-ze-rfc-bar="rfc9915:overview">Ze MUST proven 82, OS testing gap 3, Ze correctness gap 41</div></td>
 <td>fttx-edge: required by rfc/short/rfc9915.md</td>
 </tr>
 </tbody>
@@ -272,12 +342,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 5</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc2661/">RFC 2661</a></td>
 <td>Layer Two Tunneling Protocol &#34;L2TP&#34;</td>
-<td><div class="rfc-bar" role="img" aria-label="81 of 94 (86.2%)"><span style="width:86.2%"></span></div><span class="rfc-bar-note">81 of 94 (86.2%)</span><small class="rfc-ceiling">Ceiling: 93 of 94 (98.9%); excluded: Met by a lower layer: 1 of 94 (1.1%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 8 (25.0%)"><span style="width:25.0%"></span></div><span class="rfc-bar-note">2 of 8 (25.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc2661:must">Ze proven 81, OS testing gap 1, Ze correctness gap 12</div></td>
+<td><div data-ze-rfc-bar="rfc2661:overview">Ze MUST proven 81, SHOULD proven 2, SHOULD not decided 6, OS testing gap 1, Ze correctness gap 12</div></td>
 <td>fttx-edge: required by rfc/short/rfc2661.md</td>
 </tr>
 </tbody>
@@ -286,12 +356,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 7</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc7084/">RFC 7084</a></td>
 <td>Basic Requirements for IPv6 Customer Edge Routers</td>
-<td><div class="rfc-bar" role="img" aria-label="14 of 41 (34.1%)"><span style="width:34.1%"></span></div><span class="rfc-bar-note">14 of 41 (34.1%)</span><small class="rfc-ceiling">Ceiling: 34 of 41 (82.9%); excluded: Met by a lower layer: 7 of 41 (17.1%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 25 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 25 (0.0%)</span><small class="rfc-ceiling">Ceiling: 25 of 25 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7084:must">Ze proven 14, OS testing gap 7, Ze correctness gap 20</div></td>
+<td><div data-ze-rfc-bar="rfc7084:overview">Ze MUST proven 14, SHOULD not decided 25, OS testing gap 7, Ze correctness gap 20</div></td>
 <td>fttx-edge: required by rfc/short/rfc7084.md</td>
 </tr>
 </tbody>
@@ -299,52 +369,136 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Optional (not counted)</h2>
-<p>RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own figures: mandatory 4 of 192 (2.1%), optional 0 of 66 (0.0%); ceiling mandatory 192 of 192 (100.0%), optional 66 of 66 (100.0%); 6 RFCs, 0 not walked.</p>
-<p>Mandatory ceiling: 192 of 192 (100.0%). Optional ceiling: 66 of 66 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc4034 59 of 59 (100.0%). Lowest optional ceiling: rfc4035 50 of 50 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own bars and figures follow.</p>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="profile/fttx-edge/optional:must">Ze proven 4, Ze correctness gap 188</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="profile/fttx-edge/optional:overview">Ze MUST proven 4, SHOULD not decided 66, Ze correctness gap 188</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:rfcs">6</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:register">not complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:must.total">192</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:must.kept">192</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:must.ze-proven">4</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:must.os-gap">0</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:must.ze-gap">188</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:must.not-owed">0</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:must.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:should.total">66</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:should.proven">0</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="profile/fttx-edge/optional:should.not-decided">66</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc4638/">RFC 4638</a></td>
 <td>Accommodating a Maximum Transit Unit/Maximum Receive Unit (MTU/MRU) Greater Than 1492 in the Point-to-Point Protocol over Ethernet (PPPoE)</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 6 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 6 (0.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4638:must">Ze correctness gap 6</div></td>
+<td><div data-ze-rfc-bar="rfc4638:overview">SHOULD not decided 3, Ze correctness gap 6</div></td>
 <td>fttx-edge: optional in rfc/short/rfc4638.md</td>
 </tr>
 <tr><td><a href="../../rfc5905/">RFC 5905</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc8200, rfc8201, rfc9293)</td>
 <td>Network Time Protocol Version 4: Protocol and Algorithms Specification</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 8 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 8 (0.0%)</span><small class="rfc-ceiling">Ceiling: 8 of 8 (100.0%)</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc5905:must">Ze correctness gap 8</div></td>
+<td><div data-ze-rfc-bar="rfc5905:overview">Ze correctness gap 8</div></td>
 <td>fttx-edge: optional in rfc/short/rfc5905.md</td>
 </tr>
 <tr><td><a href="../../rfc8106/">RFC 8106</a></td>
 <td>IPv6 Router Advertisement Options for DNS Configuration</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 11 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 11 (0.0%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 13 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 13 (0.0%)</span><small class="rfc-ceiling">Ceiling: 13 of 13 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc8106:must">Ze correctness gap 11</div></td>
+<td><div data-ze-rfc-bar="rfc8106:overview">SHOULD not decided 13, Ze correctness gap 11</div></td>
 <td>fttx-edge: optional in rfc/short/rfc8106.md</td>
 </tr>
 <tr><td><a href="../../rfc4033/">RFC 4033</a> (cycle with rfc4034, rfc4035)</td>
 <td>DNS Security Introduction and Requirements</td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc4033:must">no rows</div></td>
+<td><div data-ze-rfc-bar="rfc4033:overview">no rows</div></td>
 <td>fttx-edge: optional in rfc/short/rfc4033.md</td>
 </tr>
 <tr><td><a href="../../rfc4034/">RFC 4034</a> (cycle with rfc4033, rfc4035)</td>
 <td>Resource Records for the DNS Security Extensions</td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 59 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 59 (0.0%)</span><small class="rfc-ceiling">Ceiling: 59 of 59 (100.0%)</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc4034:must">Ze correctness gap 59</div></td>
+<td><div data-ze-rfc-bar="rfc4034:overview">Ze correctness gap 59</div></td>
 <td>fttx-edge: optional in rfc/short/rfc4034.md</td>
 </tr>
 <tr><td><a href="../../rfc4035/">RFC 4035</a> (cycle with rfc4033, rfc4034)</td>
 <td>Protocol Modifications for the DNS Security Extensions</td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 108 (3.7%)"><span style="width:3.7%"></span></div><span class="rfc-bar-note">4 of 108 (3.7%)</span><small class="rfc-ceiling">Ceiling: 108 of 108 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 50 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 50 (0.0%)</span><small class="rfc-ceiling">Ceiling: 50 of 50 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4035:must">Ze proven 4, Ze correctness gap 104</div></td>
+<td><div data-ze-rfc-bar="rfc4035:overview">Ze MUST proven 4, SHOULD not decided 50, Ze correctness gap 104</div></td>
 <td>fttx-edge: optional in rfc/short/rfc4035.md</td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
+<script src="../../../../assets/rfc-figures.js" defer></script>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -376,7 +530,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

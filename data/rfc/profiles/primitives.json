@@ -1,0 +1,15 @@
+{
+  "name": "primitives",
+  "kind": "technology",
+  "title": "Network primitives",
+  "release": false,
+  "required": [
+    "rfc1071",
+    "rfc3022",
+    "rfc4787",
+    "rfc5382",
+    "rfc792",
+    "rfc905"
+  ],
+  "optional": []
+}

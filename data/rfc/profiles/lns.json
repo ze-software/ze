@@ -1,0 +1,31 @@
+{
+  "name": "lns",
+  "kind": "use-case",
+  "title": "L2TP network server",
+  "release": true,
+  "required": [
+    "rfc1332",
+    "rfc1334",
+    "rfc1661",
+    "rfc1877",
+    "rfc1994",
+    "rfc2661",
+    "rfc2759",
+    "rfc2865",
+    "rfc2866",
+    "rfc2869",
+    "rfc3162",
+    "rfc4861",
+    "rfc5072",
+    "rfc5176"
+  ],
+  "optional": [
+    "rfc1570",
+    "rfc2867",
+    "rfc2868",
+    "rfc3145",
+    "rfc3579",
+    "rfc4818",
+    "rfc6911"
+  ]
+}

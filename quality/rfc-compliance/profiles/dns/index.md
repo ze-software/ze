@@ -1,61 +1,88 @@
 # DNS
 
-Technology aggregate. DNS, DNSSEC, encrypted DNS transports, and AS112. The RFCs whose summary names the dns aggregate, with their mandatory and optional coverage.
+Technology aggregate. DNS, DNSSEC, encrypted DNS transports, and AS112. The RFCs whose summary names the dns aggregate, with the MUST bar and the overview bar of the set and of each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
 Use case: [AS112 anycast DNS inside a network](../../../../use-cases/as112/)
 
-- **Mandatory**: 11.4% (34 of 299 (11.4%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 0.5% (1 of 211 (0.5%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 99.0% (296 of 299 (99.0%); excluded: Not applicable (classification can be revisited): 3 of 299 (1.0%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (211 of 211 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 0 (of 11 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/dns.json](../../../../data/rfc/profiles/dns.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 296 of 299 (99.0%); excluded: Not applicable (classification can be revisited): 3 of 299 (1.0%). Optional ceiling: 211 of 211 (100.0%). Lowest mandatory ceiling: rfc2782 5 of 7 (71.4%). Lowest optional ceiling: rfc1035 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 34, Ze correctness gap 262
+- **Overview bar**: Ze MUST proven 34, SHOULD proven 1, Not owed 3, SHOULD not decided 210, Ze correctness gap 262
+
+| Figure | Rows |
+|---|---|
+| RFCs | 11 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 299 |
+| MUST rows kept (the MUST bar) | 296 |
+| Ze proven | 34 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 262 |
+| MUST rows not owed | 3 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 3 |
+| SHOULD / MAY rows | 211 |
+| SHOULD proven | 1 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 210 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
 ### Level 2
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | 12 of 27 (44.4%); ceiling 27 of 27 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) |
+| [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | Ze proven 12, Ze correctness gap 15 | Ze MUST proven 12, SHOULD not decided 6, Ze correctness gap 15 |
 
 ### Level 3
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2181](../../rfc2181/) | Clarifications to the DNS Specification | 12 of 23 (52.2%); ceiling 23 of 23 (100.0%) | 1 of 47 (2.1%); ceiling 47 of 47 (100.0%) |
+| [RFC 2181](../../rfc2181/) | Clarifications to the DNS Specification | Ze proven 12, Ze correctness gap 11 | Ze MUST proven 12, SHOULD proven 1, SHOULD not decided 46, Ze correctness gap 11 |
 
 ### Level 4
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2782](../../rfc2782/) | A DNS RR for specifying the location of services (DNS SRV) | 0 of 7 (0.0%); ceiling 5 of 7 (71.4%); excluded: Not applicable (classification can be revisited): 2 of 7 (28.6%) | 0 of 7 (0.0%); ceiling 7 of 7 (100.0%) |
+| [RFC 2782](../../rfc2782/) | A DNS RR for specifying the location of services (DNS SRV) | Ze correctness gap 5 | Not owed 2, SHOULD not decided 7, Ze correctness gap 5 |
 
 ### Level 5
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4033](../../rfc4033/) (cycle with rfc4034, rfc4035) | DNS Security Introduction and Requirements | no rows; ceiling no rows | no rows; ceiling no rows |
-| [RFC 4034](../../rfc4034/) (cycle with rfc4033, rfc4035) | Resource Records for the DNS Security Extensions | 0 of 59 (0.0%); ceiling 59 of 59 (100.0%) | no rows; ceiling no rows |
-| [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | 4 of 108 (3.7%); ceiling 108 of 108 (100.0%) | 0 of 50 (0.0%); ceiling 50 of 50 (100.0%) |
-| [RFC 8484](../../rfc8484/) | DNS Queries over HTTPS (DoH) | 1 of 16 (6.2%); ceiling 15 of 16 (93.8%); excluded: Not applicable (classification can be revisited): 1 of 16 (6.2%) | 0 of 11 (0.0%); ceiling 11 of 11 (100.0%) |
+| [RFC 4033](../../rfc4033/) (cycle with rfc4034, rfc4035) | DNS Security Introduction and Requirements | no rows | no rows |
+| [RFC 4034](../../rfc4034/) (cycle with rfc4033, rfc4035) | Resource Records for the DNS Security Extensions | Ze correctness gap 59 | Ze correctness gap 59 |
+| [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | Ze proven 4, Ze correctness gap 104 | Ze MUST proven 4, SHOULD not decided 50, Ze correctness gap 104 |
+| [RFC 8484](../../rfc8484/) | DNS Queries over HTTPS (DoH) | Ze proven 1, Ze correctness gap 14 | Ze MUST proven 1, Not owed 1, SHOULD not decided 11, Ze correctness gap 14 |
 
 ### Level 6
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7534](../../rfc7534/) (cycle with rfc7535) | AS112 Nameserver Operations | 2 of 3 (66.7%); ceiling 3 of 3 (100.0%) | 0 of 13 (0.0%); ceiling 13 of 13 (100.0%) |
-| [RFC 7535](../../rfc7535/) (cycle with rfc7534) | AS112 Redirection Using DNAME | 0 of 1 (0.0%); ceiling 1 of 1 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) |
-| [RFC 7871](../../rfc7871/) | Client Subnet in DNS Queries | 0 of 36 (0.0%); ceiling 36 of 36 (100.0%) | 0 of 52 (0.0%); ceiling 52 of 52 (100.0%) |
+| [RFC 7534](../../rfc7534/) (cycle with rfc7535) | AS112 Nameserver Operations | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, SHOULD not decided 13, Ze correctness gap 1 |
+| [RFC 7535](../../rfc7535/) (cycle with rfc7534) | AS112 Redirection Using DNAME | Ze correctness gap 1 | SHOULD not decided 6, Ze correctness gap 1 |
+| [RFC 7871](../../rfc7871/) | Client Subnet in DNS Queries | Ze correctness gap 36 | SHOULD not decided 52, Ze correctness gap 36 |
 
 ### Level 7
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7858](../../rfc7858/) | Specification for DNS over Transport Layer Security (TLS) | 3 of 19 (15.8%); ceiling 19 of 19 (100.0%) | 0 of 19 (0.0%); ceiling 19 of 19 (100.0%) |
+| [RFC 7858](../../rfc7858/) | Specification for DNS over Transport Layer Security (TLS) | Ze proven 3, Ze correctness gap 16 | Ze MUST proven 3, SHOULD not decided 19, Ze correctness gap 16 |

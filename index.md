@@ -80,15 +80,16 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 ## Regression prevention
 
-Tests help catch changes that break existing behavior. Go tests, end-to-end scenarios, protocol checks, fuzzing and interoperability tests cover different failure modes. The figures describe the test suite and its coverage. Each card explains what is checked and links to how those checks work.
+Tests help catch changes that break existing behavior. Go tests, end-to-end scenarios, protocol checks, fuzzing and interoperability tests cover different failure modes. The figures describe the test suite and its coverage. Each card explains what is checked and links to how those checks work. Ze is written with AI agents working under a quality process based on ISO management systems; [how Ze is developed with AI](https://ze-software.net/project/ai-development/) explains it.
 
- [See completion by use case](https://ze-software.net/quality/rfc-compliance/profiles/) [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**43.3% RFC MUSTs tested**
+ [See completion by use case](https://ze-software.net/quality/rfc-compliance/profiles/) [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**44.4% RFC MUSTs tested**
 
-- 2,057 of 4,753 MUSTs in walked RFCs
-- Across 194 RFCs, 0 not walked yet
+- 2,102 of 4,737 MUSTs Ze and the OS owe, in walked RFCs Ze implements
+- Across 195 RFCs, 0 not walked yet
+- Until 2026-10-31 the figure counted every MUST row but rollups, annotated rows included
 - Tests tied to requirements
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**40,200+ Go tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**40,500+ Go tests**
 
 - Check encoded bytes and parsed values.
 - Verify config, state transitions and plugins.

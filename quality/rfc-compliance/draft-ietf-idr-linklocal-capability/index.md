@@ -1,6 +1,6 @@
 # DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY - Link-Local Next Hop Capability for BGP
 
-Partial. Every requirement this repository extracted from DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Link-local next-hop capability code 77. Every requirement this repository extracted from DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 86.7% | 13 of 15 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 15 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 15 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 15 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 78.4% | 40 of 51 tagged units, 0 escaped and 11 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 13 | of 15 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 15 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 15 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 15 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 51 | 51 of 51 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 15 | of 27 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 15 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 15 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 15 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 15 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 15 | of 27 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 15 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 15 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 15 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 15 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,10 +35,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 13.3% | 2 of 15 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 15 | of 15 gated MUSTs judged | 2 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id |
+| No test at all | 2 | of 15 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 15 | of 15 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 9 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 15 gated MUSTs: they add up to 15. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,23 +46,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | Link-local next-hop capability code 77 |
 | Enrolment | Enrolled |
 | Requirements | 27 |
 | Gated MUST-level | 15 |
@@ -85,17 +85,14 @@ Enrolled: Link-Local Next Hop capability for BGP (code 77): fifteen MUST-level r
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** Link-local next-hop capability code 77
 
-**What the ledger says is covered**
+**Proof:** 13 of 15 MUST proven
 
-- Capability 77 declared, negotiated and acted on, for the send side and for the reflection path. Declaration: `extractLLNHCapabilities` ([`internal/component/bgp/plugins/llnh/llnh.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/llnh.go)) advertises the empty code 77 capability for a peer or group whose config carries a `link-local-nexthop` key that is not `disable`, and `refuseLinkLocalCapabilityWithoutAddress` (same file) refuses that config, at commit and at startup, when neither the peer nor its group sets `session link-local`, the only source of the own Link-Local Section 4 makes the next hop include. Gap: [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2`](#draft-ietf-idr-linklocal-capability-1-2), Section 1's "implementations must ensure that they are strictly associated with a specific interface": a received Link-Local next hop is kept without its interface, and the configured `session link-local` address is not tied to the session's interface. Negotiation: `parseCapability` ([`internal/core/bgp/capability/capability.go`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability.go)) types it and `Negotiate` ([`internal/core/bgp/capability/negotiated.go`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated.go)) sets `LinkLocalNextHop` only when both OPENs carried it, which `Peer.linkLocalOnlyNextHopPermitted` ([`internal/component/bgp/reactor/peer.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer.go)) reads beside the RFC 8950 Extended Next Hop Encoding state Section 5 asks for. Send: `resolveNextHop` (same file) refuses a link-local next hop on a session that may not carry it, so the route is left out rather than encoded in a form RFC 2545 Section 3 forbids, and `buildMPReach` ([`internal/component/bgp/message/update_build.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build.go)) writes the 16-octet Link-Local-only field or the 32-octet pair, for IPv4 NLRI as well as IPv6. Reflection: `egressNextHopIsLinkLocalOnly` ([`internal/component/bgp/reactor/forward_next_hop.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop.go)) and `sameLinkLayerSegment` ([`internal/component/bgp/reactor/link_scope.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/link_scope.go)) decide, per client, between the rewrite and the ineligibility Section 4 allows. Receive: `parseNextHops` ([`internal/core/bgp/attribute/mpnlri.go`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri.go)) still performs no `fe80::/10` test, so a received 16-octet link-local-only Next Hop is read as a Global IPv6 next hop
-- the Section 3 receive sentence is indicative and carries no checklist row (see Notes). Receive error handling (Section 6): `ValidateUpdateRFC7606Peer` ([`internal/component/bgp/message/rfc7606.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606.go)) takes the negotiated capability from `Session.validateRFC7606Attrs` ([`internal/component/bgp/reactor/session_validation_receive.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_receive.go)), and on a capability-77 session `validateLinkLocalNextHopPair` ([`internal/component/bgp/message/rfc7606_linklocal.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_linklocal.go)) makes a 32-octet Next Hop field treat-as-withdraw (RFC 7606 Section 7.3) unless it is a Global or `::` followed by a Link-Local, or two Link-Locals, the forms Section 6 tells a receiver to use. A wrong Length of Next Hop still ends in the RFC 7606 Section 7.11 session reset, which that section requires. Gap in proof: [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15`](#draft-ietf-idr-linklocal-capability-4-15), which ze meets by withholding a route whose next hop is the internal peer's own address, with no test carrying the requirement.
+**Evidence:** unit 13
 
+**Unmet:** DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2, DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15
 
-**What the ledger says remains:**
-
--
 
 ## Coverage
 
@@ -114,9 +111,41 @@ Enrolled: Link-Local Next Hop capability for BGP (code 77): fifteen MUST-level r
 
 **Annotated (including scoped evidence) (2):** [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2`](#draft-ietf-idr-linklocal-capability-1-2), [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15`](#draft-ietf-idr-linklocal-capability-4-15)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 15 of 15 (100.0%). Optional ceiling: 12 of 12 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: draft-ietf-idr-linklocal-capability 15 of 15 (100.0%). Lowest optional ceiling: draft-ietf-idr-linklocal-capability 12 of 12 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 13, Ze correctness gap 2
+- **Overview bar**: Ze MUST proven 13, SHOULD not decided 12, Ze correctness gap 2
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 15 |
+| MUST rows kept (the MUST bar) | 15 |
+| Ze proven | 13 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 2 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 12 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 12 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/draft-ietf-idr-linklocal-capability.json](../../../data/rfc/draft-ietf-idr-linklocal-capability.json).
 
 ## Requirements
 
@@ -214,10 +243,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLinkLocalIncludedForPeerOneHopAway`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L84) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
-| negative | [`TestLinkLocalReceivedPairStrippedForMultihopInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L158) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestLinkLocalNotIncludedForPeerMoreThanOneHopAway`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L73) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
-| positive | [`TestLinkLocalReceivedPairStrippedForMultihopInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L155) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestLinkLocalIncludedForPeerOneHopAway`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L84) | unit/verify | revert, verified |
+| negative | [`TestLinkLocalReceivedPairStrippedForMultihopInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L158) | unit/verify | revert, verified |
+| positive | [`TestLinkLocalNotIncludedForPeerMoreThanOneHopAway`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L73) | unit/verify | revert, verified |
+| positive | [`TestLinkLocalReceivedPairStrippedForMultihopInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L155) | unit/verify | revert, verified |
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3`](#draft-ietf-idr-linklocal-capability-4-3)
 
@@ -228,7 +257,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go#L75) | unit/verify | revert, verified |
-| negative | [`TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go#L107) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go#L107) | unit/verify | revert, verified |
 | negative | [`TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L193) | unit/verify | revert, verified |
 | positive | [`TestLinkLocalCapabilityAcceptedWithLinkLocalAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go#L104) | unit/verify | revert, verified |
 | positive | [`TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go#L85) | unit/verify | revert, verified |
@@ -285,16 +314,16 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 When sending a message to an external peer X, and the peer is multiple IP hops away from the speaker (aka "multihop EBGP"): * Link-Local IPv6 next hops MUST NOT be included. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer, internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer, internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient, internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient moved. Re-judged 2026-10-02 (BGP c22 judge). The route-server rail the c21 judge named is now driven: TestLinkLocalRouteServerStripsReceivedPairForMultihopClient relays the received 32-octet 2001:db8:1::1+fe80::9 through reactorForwardRS to an off-link external client under next hop unchanged and auto and asserts the 16-octet Global alone; TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient keeps the pair for a client on the connected /64. The author's overlay disabling only the forward_rs.go call (strip && false, job-c22-nocut log, read by the judge) turns the RS positive red, so the RS call is pinned on its own. General rail unchanged from c21 (forwardUpdateCore units, both polarities). Revert records on egressNextHopGlobalHalf observed red for all four units.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c22 judge). The route-server rail the c21 judge named is now driven: TestLinkLocalRouteServerStripsReceivedPairForMultihopClient relays the received 32-octet 2001:db8:1::1+fe80::9 through reactorForwardRS to an off-link external client under next hop unchanged and auto and asserts the 16-octet Global alone; TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient keeps the pair for a client on the connected /64. The author's overlay disabling only the forward_rs.go call (strip && false, job-c22-nocut log, read by the judge) turns the RS positive red, so the RS call is pinned on its own. General rail unchanged from c21 (forwardUpdateCore units, both polarities). Revert records on egressNextHopGlobalHalf observed red for all four units.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L130) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L241) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L130) | unit/verify | revert, verified |
+| negative | [`TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L241) | unit/verify | revert, verified |
 | negative | [`TestLinkLocalIncludedForDirectlyAttachedExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L108) | unit/verify | revert, verified |
-| positive | [`TestLinkLocalReceivedPairStrippedForMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L107) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestLinkLocalRouteServerStripsReceivedPairForMultihopClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L219) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestLinkLocalNotIncludedForMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L95) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
+| positive | [`TestLinkLocalReceivedPairStrippedForMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L107) | unit/verify | revert, verified |
+| positive | [`TestLinkLocalRouteServerStripsReceivedPairForMultihopClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L219) | unit/verify | revert, verified |
+| positive | [`TestLinkLocalNotIncludedForMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L95) | unit/verify | revert, verified |
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9`](#draft-ietf-idr-linklocal-capability-4-9)
 
@@ -333,12 +362,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of "treat-as- withdraw", as described in section 7.3 of [RFC7606]. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling moved. Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1 or 439a413ffd). draft-ietf-idr-linklocal-capability-06 Section 6: "If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of "treat-as-withdraw", as described in section 7.3 of [RFC7606]." The only change to TestLinkLocalCapabilityMalformedThirtyTwoOctet and TestLinkLocalCapabilityWellFormedThirtyTwoOctet (9c3697d0d1) is the call ValidateUpdateRFC7606AddPath(attrs, false, false, true, nil, true) becoming ValidateUpdateRFC7606Peer(attrs, false, false, true, nil, true, false); the deleted wrapper's body at 9c3697d0d1^ was exactly that call with acceptASSet false, so the input reaching the producer is unchanged and the AS_PATH [65001] fixture holds no set. Assertions unchanged: the negative requires exact TreatAsWithdraw, AttrCode 14 and the exact draft Section 6 description for link-local/global, global/global, global/unspecified and multicast/link-local; the positive requires exact ActionNone for global/link-local, unspecified/link-local and link-local/link-local, the forms Section 6 admits. The reactor producer session_validation_receive.go still calls ValidateUpdateRFC7606Peer with the session's capability-77 state, which reaches validateLinkLocalNextHopPair (rfc7606.go). The receiving-pair reactor units are unchanged and their earlier reading stands. Units ran green at HEAD.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of faf7c5c380. draft-ietf-idr-linklocal-capability Section 6: "If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of "treat-as-withdraw", as described in section 7.3 of [RFC7606]." faf7c5c380 (filter chain model moved into internal/component/policy) changed one line in the tagged unit internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling: mustPolicy(t, []filterapi.FilterRef{{Name: "ipv6:raw-next-hop"}}, filterapi.FinalAccept) became mustPolicy(t, []routepolicy.Ref{{Name: "ipv6:raw-next-hop"}}, routepolicy.FinalAccept). mustPolicy still calls filterapi.NewPolicy with the same single unbound ref and the explicit accept final (NewPolicy now wraps policy.NewChain; an unbound ref stays external as the zero inProcess field did), so the policy the fixture installs, every input and every assertion are unchanged. No other commit touched the file since the verdict was stamped. The unit still installs the raw next-hop export policy whose replacement makes the effective pair malformed and requires the treat-as-withdraw outcome, the policy and replacement each to have run, the exact section count, and an unchanged legacy sibling with no native reachability leak. The message-layer malformed/well-formed units and the received-pair units are byte-identical and their judgement stands. Verdict unchanged: enforced. Ran: go test -tags ze_bgp -run over the six faf7c5c380-changed reactor units, PASS on 2026-10-31. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLinkLocalCapabilityMalformedThirtyTwoOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go#L47) | unit/verify | revert, verified |
-| negative | [`TestRFC2545EffectivePairPolicyAndMixedSibling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L699) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC2545EffectivePairPolicyAndMixedSibling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L699) | unit/verify | revert, verified |
 | negative | [`TestRFC2545ReceivedPairFirstAddressValidated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L625) | unit/verify | revert, verified |
 | negative | [`TestRFC2545ReceivedPairSecondAddressValidated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L234) | unit/verify | revert, verified |
 | positive | [`TestLinkLocalCapabilityWellFormedThirtyTwoOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go#L89) | unit/verify | revert, verified |

@@ -1,0 +1,35 @@
+{
+  "stem": "rfc3101",
+  "title": "The OSPF Not-So-Stubby Area (NSSA) Option",
+  "walked": true,
+  "requirements": 35,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 28,
+    "kept": 28,
+    "ze-proven": 15,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 13,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 7,
+    "proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 5,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 15
+  },
+  "unmet": [
+    "RFC3101-3.2-3"
+  ]
+}

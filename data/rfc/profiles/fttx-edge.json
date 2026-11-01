@@ -1,0 +1,34 @@
+{
+  "name": "fttx-edge",
+  "kind": "use-case",
+  "title": "FTTx edge: customers to the internet over L2TP, local DNS for the LAN",
+  "release": true,
+  "required": [
+    "rfc1035",
+    "rfc1332",
+    "rfc1661",
+    "rfc1877",
+    "rfc1994",
+    "rfc2131",
+    "rfc2132",
+    "rfc2181",
+    "rfc2516",
+    "rfc2661",
+    "rfc3022",
+    "rfc4787",
+    "rfc4861",
+    "rfc4862",
+    "rfc5072",
+    "rfc5382",
+    "rfc7084",
+    "rfc9915"
+  ],
+  "optional": [
+    "rfc4033",
+    "rfc4034",
+    "rfc4035",
+    "rfc4638",
+    "rfc5905",
+    "rfc8106"
+  ]
+}

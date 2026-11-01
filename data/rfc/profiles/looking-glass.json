@@ -1,0 +1,28 @@
+{
+  "name": "looking-glass",
+  "kind": "use-case",
+  "title": "Looking glass",
+  "release": true,
+  "required": [
+    "rfc1997",
+    "rfc2545",
+    "rfc4271",
+    "rfc4760",
+    "rfc5492",
+    "rfc6286",
+    "rfc6608",
+    "rfc6793",
+    "rfc6811",
+    "rfc7606",
+    "rfc7607",
+    "rfc7911",
+    "rfc8092",
+    "rfc8522",
+    "rfc9687",
+    "rfc9774"
+  ],
+  "optional": [
+    "rfc4360",
+    "rfc8210"
+  ]
+}

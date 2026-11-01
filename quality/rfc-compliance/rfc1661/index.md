@@ -1,6 +1,6 @@
 # RFC 1661 - The Point-to-Point Protocol (PPP)
 
-Partial. Every requirement this repository extracted from RFC 1661, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+PPP LCP. Every requirement this repository extracted from RFC 1661, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 60.5% | 46 of 76 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 11.8% | 9 of 76 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 76 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 76 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 57.5% | 104 of 181 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 47 | of 76 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 10 | of 76 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 76 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 76 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 112 | 112 of 189 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 76 | of 101 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 76 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 76 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 2.6% | 2 of 76 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 76 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 76 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 76 | of 101 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 76 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 76 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 2 | of 76 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 76 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 76 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 25.0% | 19 of 76 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 17 | of 76 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 76 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 76 gated MUSTs: they add up to 76. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,35 +45,35 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | PPP LCP |
 | Enrolment | Enrolled |
 | Requirements | 101 |
 | Gated MUST-level | 76 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 19 |
+| Declared gaps | 17 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 181 |
-| Tagged units | 181 |
-| Recorded audit verdicts | 56 |
-| Discrimination records | 104 |
+| Test tags | 189 |
+| Tagged units | 189 |
+| Recorded audit verdicts | 58 |
+| Discrimination records | 112 |
 | Summary | `rfc/short/rfc1661.md` |
 | Requirement shard | `rfc/requirements/rfc1661.md` |
 | RFC text | `rfc/full/rfc1661.txt` |
@@ -84,22 +84,21 @@ Enrolled: PPP LCP under L2TP and PPPoE. Ze implements framing, option negotiatio
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** PPP LCP
 
-**What the ledger says is covered**
+**Proof:** 42 of 76 MUST proven
 
-The full ten-state RFC 1661 Section 4.1 option-negotiation automaton, LCP packet and option codecs, Configure-Request/Ack/Nak/Reject negotiation with Reject-over-Nak-over-Ack precedence and verbatim option echo, Terminate-Request/Ack, Code-Reject, Echo keepalive with Magic-Number, two-octet Protocol framing, and the common NCP structure reused by IPCP and IPv6CP under L2TP and PPPoE. Tests bound per requirement in [`rfc/requirements/rfc1661.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc1661.md).
+**Evidence:** interop 4, unit 38
 
-**What the ledger says remains**
+**Unmet:** RFC1661-2-2, RFC1661-3.4-1, RFC1661-3.5-2, RFC1661-3.5-4, RFC1661-3.7-2, RFC1661-4.3-3, RFC1661-4.4-1, RFC1661-4.6-1, RFC1661-4.6-2, RFC1661-4.6-3, RFC1661-4.6-4, RFC1661-5-1, RFC1661-5.3-4, RFC1661-5.7-2, RFC1661-5.9-1, RFC1661-5.9-3, RFC1661-6.5-3
 
-Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps include the Code-Reject peer-MRU clamp and fresh Identifiers, RXJ+ suppression, and configurable restart limits. IPCP/IPv6CP admission and LCP-down reset are implemented; bounded lifecycle and native IPv4 restart evidence exists. Compressed Protocol reception remains unverified at the Linux framing boundary. Configure-Ack/Nak/Reject now validate the retained request before FSM or authentication changes; request Identifiers advance on changed options or valid replies, and rejected options stay removed. The buffer holds a 1500-octet Information field plus the two-octet Protocol field. Tests exercise reply correlation, real Restart-timer grace expiry, Echo/Terminate Identifiers, Magic-Number negotiation and full-size reception; validation and discrimination must be run before reporting those changes verified. No Discard-Request sender is implemented; its existing spec records a proposed optional feature, not an approval to build it.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 46 | one part of the gated population |
-| Annotated (including scoped evidence) | 30 | one part of the gated population |
+| Positive and negative tests | 47 | one part of the gated population |
+| Annotated (including scoped evidence) | 29 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
@@ -107,20 +106,52 @@ Partial for L2TP and PPPoE. Nineteen MUST rows carry {gap}. Remaining gaps inclu
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **76** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (46):** [`RFC1661-2-1`](#rfc1661-2-1), [`RFC1661-5-2`](#rfc1661-5-2), [`RFC1661-6-2`](#rfc1661-6-2), [`RFC1661-3.1-2`](#rfc1661-3.1-2), [`RFC1661-3.5-1`](#rfc1661-3.5-1), [`RFC1661-3.5-3`](#rfc1661-3.5-3), [`RFC1661-3.6-1`](#rfc1661-3.6-1), [`RFC1661-3.6-3`](#rfc1661-3.6-3), [`RFC1661-4.3-1`](#rfc1661-4.3-1), [`RFC1661-5.1-1`](#rfc1661-5.1-1), [`RFC1661-5.1-2`](#rfc1661-5.1-2), [`RFC1661-5.1-3`](#rfc1661-5.1-3), [`RFC1661-5.2-1`](#rfc1661-5.2-1), [`RFC1661-5.2-2`](#rfc1661-5.2-2), [`RFC1661-5.2-3`](#rfc1661-5.2-3), [`RFC1661-5.2-4`](#rfc1661-5.2-4), [`RFC1661-5.3-1`](#rfc1661-5.3-1), [`RFC1661-5.3-2`](#rfc1661-5.3-2), [`RFC1661-5.3-3`](#rfc1661-5.3-3), [`RFC1661-5.3-5`](#rfc1661-5.3-5), [`RFC1661-5.3-6`](#rfc1661-5.3-6), [`RFC1661-5.3-7`](#rfc1661-5.3-7), [`RFC1661-5.3-8`](#rfc1661-5.3-8), [`RFC1661-5.4-1`](#rfc1661-5.4-1), [`RFC1661-5.4-2`](#rfc1661-5.4-2), [`RFC1661-5.4-3`](#rfc1661-5.4-3), [`RFC1661-5.4-4`](#rfc1661-5.4-4), [`RFC1661-5.4-5`](#rfc1661-5.4-5), [`RFC1661-5.5-1`](#rfc1661-5.5-1), [`RFC1661-5.6-1`](#rfc1661-5.6-1), [`RFC1661-5.7-1`](#rfc1661-5.7-1), [`RFC1661-5.7-4`](#rfc1661-5.7-4), [`RFC1661-5.8-1`](#rfc1661-5.8-1), [`RFC1661-5.8-2`](#rfc1661-5.8-2), [`RFC1661-6.4-1`](#rfc1661-6.4-1), [`RFC1661-6.4-2`](#rfc1661-6.4-2), [`RFC1661-6.4-3`](#rfc1661-6.4-3), [`RFC1661-4.4-2`](#rfc1661-4.4-2), [`RFC1661-5.5-2`](#rfc1661-5.5-2), [`RFC1661-5.8-4`](#rfc1661-5.8-4), [`RFC1661-5.8-5`](#rfc1661-5.8-5), [`RFC1661-6.1-1`](#rfc1661-6.1-1), [`RFC1661-6.4-5`](#rfc1661-6.4-5), [`RFC1661-6.4-6`](#rfc1661-6.4-6), [`RFC1661-6.4-7`](#rfc1661-6.4-7), [`RFC1661-6.4-8`](#rfc1661-6.4-8)
+**Positive and negative tests (47):** [`RFC1661-2-1`](#rfc1661-2-1), [`RFC1661-5-2`](#rfc1661-5-2), [`RFC1661-6-2`](#rfc1661-6-2), [`RFC1661-3.1-2`](#rfc1661-3.1-2), [`RFC1661-3.5-1`](#rfc1661-3.5-1), [`RFC1661-3.5-3`](#rfc1661-3.5-3), [`RFC1661-3.6-1`](#rfc1661-3.6-1), [`RFC1661-3.6-3`](#rfc1661-3.6-3), [`RFC1661-4.3-1`](#rfc1661-4.3-1), [`RFC1661-5.1-1`](#rfc1661-5.1-1), [`RFC1661-5.1-2`](#rfc1661-5.1-2), [`RFC1661-5.1-3`](#rfc1661-5.1-3), [`RFC1661-5.2-1`](#rfc1661-5.2-1), [`RFC1661-5.2-2`](#rfc1661-5.2-2), [`RFC1661-5.2-3`](#rfc1661-5.2-3), [`RFC1661-5.2-4`](#rfc1661-5.2-4), [`RFC1661-5.3-1`](#rfc1661-5.3-1), [`RFC1661-5.3-2`](#rfc1661-5.3-2), [`RFC1661-5.3-3`](#rfc1661-5.3-3), [`RFC1661-5.3-5`](#rfc1661-5.3-5), [`RFC1661-5.3-6`](#rfc1661-5.3-6), [`RFC1661-5.3-7`](#rfc1661-5.3-7), [`RFC1661-5.3-8`](#rfc1661-5.3-8), [`RFC1661-5.4-1`](#rfc1661-5.4-1), [`RFC1661-5.4-2`](#rfc1661-5.4-2), [`RFC1661-5.4-3`](#rfc1661-5.4-3), [`RFC1661-5.4-4`](#rfc1661-5.4-4), [`RFC1661-5.4-5`](#rfc1661-5.4-5), [`RFC1661-5.5-1`](#rfc1661-5.5-1), [`RFC1661-5.6-1`](#rfc1661-5.6-1), [`RFC1661-5.6-3`](#rfc1661-5.6-3), [`RFC1661-5.7-1`](#rfc1661-5.7-1), [`RFC1661-5.7-4`](#rfc1661-5.7-4), [`RFC1661-5.8-1`](#rfc1661-5.8-1), [`RFC1661-5.8-2`](#rfc1661-5.8-2), [`RFC1661-6.4-1`](#rfc1661-6.4-1), [`RFC1661-6.4-2`](#rfc1661-6.4-2), [`RFC1661-6.4-3`](#rfc1661-6.4-3), [`RFC1661-4.4-2`](#rfc1661-4.4-2), [`RFC1661-5.5-2`](#rfc1661-5.5-2), [`RFC1661-5.8-4`](#rfc1661-5.8-4), [`RFC1661-5.8-5`](#rfc1661-5.8-5), [`RFC1661-6.1-1`](#rfc1661-6.1-1), [`RFC1661-6.4-5`](#rfc1661-6.4-5), [`RFC1661-6.4-6`](#rfc1661-6.4-6), [`RFC1661-6.4-7`](#rfc1661-6.4-7), [`RFC1661-6.4-8`](#rfc1661-6.4-8)
 
-**Annotated (including scoped evidence) (30):** [`RFC1661-2-2`](#rfc1661-2-2), [`RFC1661-5-1`](#rfc1661-5-1), [`RFC1661-3.1-1`](#rfc1661-3.1-1), [`RFC1661-3.4-1`](#rfc1661-3.4-1), [`RFC1661-3.5-2`](#rfc1661-3.5-2), [`RFC1661-3.5-4`](#rfc1661-3.5-4), [`RFC1661-3.6-2`](#rfc1661-3.6-2), [`RFC1661-3.7-1`](#rfc1661-3.7-1), [`RFC1661-3.7-2`](#rfc1661-3.7-2), [`RFC1661-4.3-2`](#rfc1661-4.3-2), [`RFC1661-4.3-3`](#rfc1661-4.3-3), [`RFC1661-5.3-4`](#rfc1661-5.3-4), [`RFC1661-5.6-2`](#rfc1661-5.6-2), [`RFC1661-5.6-3`](#rfc1661-5.6-3), [`RFC1661-5.7-2`](#rfc1661-5.7-2), [`RFC1661-5.7-3`](#rfc1661-5.7-3), [`RFC1661-5.9-1`](#rfc1661-5.9-1), [`RFC1661-5.9-2`](#rfc1661-5.9-2), [`RFC1661-6.2-1`](#rfc1661-6.2-1), [`RFC1661-6.5-1`](#rfc1661-6.5-1), [`RFC1661-6.5-2`](#rfc1661-6.5-2), [`RFC1661-6.5-3`](#rfc1661-6.5-3), [`RFC1661-6.6-1`](#rfc1661-6.6-1), [`RFC1661-6.6-2`](#rfc1661-6.6-2), [`RFC1661-4.6-1`](#rfc1661-4.6-1), [`RFC1661-4.6-2`](#rfc1661-4.6-2), [`RFC1661-4.6-3`](#rfc1661-4.6-3), [`RFC1661-4.6-4`](#rfc1661-4.6-4), [`RFC1661-4.4-1`](#rfc1661-4.4-1), [`RFC1661-5.9-3`](#rfc1661-5.9-3)
+**Annotated (including scoped evidence) (29):** [`RFC1661-2-2`](#rfc1661-2-2), [`RFC1661-5-1`](#rfc1661-5-1), [`RFC1661-3.1-1`](#rfc1661-3.1-1), [`RFC1661-3.4-1`](#rfc1661-3.4-1), [`RFC1661-3.5-2`](#rfc1661-3.5-2), [`RFC1661-3.5-4`](#rfc1661-3.5-4), [`RFC1661-3.6-2`](#rfc1661-3.6-2), [`RFC1661-3.7-1`](#rfc1661-3.7-1), [`RFC1661-3.7-2`](#rfc1661-3.7-2), [`RFC1661-4.3-2`](#rfc1661-4.3-2), [`RFC1661-4.3-3`](#rfc1661-4.3-3), [`RFC1661-5.3-4`](#rfc1661-5.3-4), [`RFC1661-5.6-2`](#rfc1661-5.6-2), [`RFC1661-5.7-2`](#rfc1661-5.7-2), [`RFC1661-5.7-3`](#rfc1661-5.7-3), [`RFC1661-5.9-1`](#rfc1661-5.9-1), [`RFC1661-5.9-2`](#rfc1661-5.9-2), [`RFC1661-6.2-1`](#rfc1661-6.2-1), [`RFC1661-6.5-1`](#rfc1661-6.5-1), [`RFC1661-6.5-2`](#rfc1661-6.5-2), [`RFC1661-6.5-3`](#rfc1661-6.5-3), [`RFC1661-6.6-1`](#rfc1661-6.6-1), [`RFC1661-6.6-2`](#rfc1661-6.6-2), [`RFC1661-4.6-1`](#rfc1661-4.6-1), [`RFC1661-4.6-2`](#rfc1661-4.6-2), [`RFC1661-4.6-3`](#rfc1661-4.6-3), [`RFC1661-4.6-4`](#rfc1661-4.6-4), [`RFC1661-4.4-1`](#rfc1661-4.4-1), [`RFC1661-5.9-3`](#rfc1661-5.9-3)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 74 of 76 (97.4%); excluded: Met by a lower layer: 2 of 76 (2.6%). Optional ceiling: 25 of 25 (100.0%). Lowest mandatory ceiling: rfc1661 74 of 76 (97.4%). Lowest optional ceiling: rfc1661 25 of 25 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 42, OS testing gap 2, Ze correctness gap 32
+- **Overview bar**: Ze MUST proven 42, SHOULD not decided 25, OS testing gap 2, Ze correctness gap 32
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 76 |
+| MUST rows kept (the MUST bar) | 76 |
+| Ze proven | 42 |
+| OS verified | 0 |
+| OS testing gap | 2 |
+| Ze correctness gap | 32 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 25 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 25 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc1661.json](../../../data/rfc/rfc1661.json).
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC1661-2-1` | All Protocols MUST be odd; the least significant bit of the least significant octet MUST equal "1".  Also, all Protocols MUST be assigned such that the least significant bit of the most significant octet equals "0".  Frames received which don't comply with these rules MUST be treated as having an unrecognized Protocol. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC1661CompliantProtocolRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L238). **positive:** `unit/verify` [`TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L48). **negative:** `unit/verify` [`TestRFC1661NonCompliantProtocolTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L203). **negative:** `unit/verify` [`TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L49) |
-| `RFC1661-2-2` | The maximum length for the Information field, including Padding, but not including the Protocol field, is termed the Maximum Receive Unit (MRU), which defaults to 1500 octets. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** getFrameBuf in internal/component/l2tp/ppp/session_run.go supplies MaxFrameBufLen bytes, enough for 1500 Information octets and the Protocol field. sendProtocolReject clamps to the peer MRU, but sendCodeReject still truncates only against that buffer, so a large Code-Reject can exceed a smaller peer MRU. Disclosed in docs/features/rfc-status.md |
+| `RFC1661-2-2` | The maximum length for the Information field, including Padding, but not including the Protocol field, is termed the Maximum Receive Unit (MRU), which defaults to 1500 octets. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** getFrameBuf in internal/component/l2tp/ppp/session_run.go supplies MaxFrameBufLen bytes, enough for 1500 Information octets and the Protocol field. sendProtocolReject and writeCodeReject clamp to the peer MRU, but sendEchoReply (BuildLCPEchoReply in internal/component/l2tp/ppp/echo.go) echoes the request's Data with no clamp, so a peer whose Echo-Request is longer than its own established MRU draws an Echo-Reply that exceeds it. Disclosed in docs/features/rfc-status.md |
 | `RFC1661-5-1` | The Length MUST NOT exceed the MRU of the link. (§5) | MUST NOT | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** WriteLCPPacket in internal/component/l2tp/ppp/lcp.go backfills the packet length from its supplied payload; sendCodeReject in internal/component/l2tp/ppp/session_run.go bounds that payload by the default-sized Information field rather than a smaller negotiatedMRU. Protocol-Reject has a separate peer-MRU clamp. Disclosed in docs/features/rfc-status.md |
 | `RFC1661-5-2` | When a packet is received with an invalid Length field, the packet is silently discarded without affecting the automaton. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestIPCPFrameRejectsNonSinglePacket`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/frame_test.go#L188). **positive:** `unit/verify` [`TestRFC1661InvalidLengthPacketSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_packet_length_test.go#L36). **negative:** `unit/verify` [`TestRFC1661ValidLengthWithPaddingIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_packet_length_test.go#L77) |
 | `RFC1661-6-1` | If a negotiable Configuration Option is received in a Configure- Request, but with an invalid or unrecognized Length, a Configure- Nak SHOULD be transmitted which includes the desired Configuration Option with an appropriate Length and Data. (§6) | SHOULD | 6 | **positive:** `unit/verify` [`TestRFC1661ClientInvalidOptionLengthDrawsNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L167). **positive:** `unit/verify` [`TestRFC1661InvalidOptionLengthDrawsNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L154). **positive:** `unit/verify` [`TestRFC1661LCPInvalidOptionLengthDrawsNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L318). **positive:** `unit/verify` [`TestRFC1661LCPWrongLengthMagicIsNakedNotRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L404). **positive:** `unit/verify` [`TestRFC1661ReplyListsEachOptionTypeOnce`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L744). **negative:** `unit/verify` [`TestRFC1661ClientInvalidOptionLengthDrawsNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L173). **negative:** `unit/verify` [`TestRFC1661InvalidOptionLengthDrawsNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L159). **negative:** `unit/verify` [`TestRFC1661LCPInvalidOptionLengthDrawsNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L325). **negative:** `unit/verify` [`TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L465). **negative:** `unit/verify` [`TestRFC1661LCPWrongLengthMagicIsNakedNotRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L408). **negative:** `unit/verify` [`TestRFC1661ReplyListsEachOptionTypeOnce`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L748) |
@@ -160,10 +191,10 @@ Mandatory ceiling: 74 of 76 (97.4%); excluded: Met by a lower layer: 2 of 76 (2.
 | `RFC1661-5.4-3` | On reception of a Configure-Reject, the Identifier field MUST match that of the last transmitted Configure-Request. (Section 5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L76). **positive:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L405). **negative:** `unit/verify` [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L23). **negative:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L406) |
 | `RFC1661-5.4-4` | Additionally, the Configuration Options in a Configure-Reject MUST be a subset of those in the last transmitted Configure- Request. (§5.4, erratum 543) | MUST | 5.4 | **positive:** `unit/verify` [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L77). **positive:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L407). **negative:** `unit/verify` [`TestClientLCPReplyCorrelation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L24). **negative:** `unit/verify` [`TestLCPRepliesMatchOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L408) |
 | `RFC1661-5.4-5` | Reception of a valid Configure-Reject indicates that when a new Configure-Request is sent, it MUST NOT include any of the Configuration Options listed in the Configure-Reject. (§5.4) | MUST NOT | 5.4 | **positive:** `unit/verify` [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L78). **positive:** `unit/verify` [`TestLCPRejectedOptionsStayRemoved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L533). **negative:** `unit/verify` [`TestClientLCPRejectRemovesOnlyRejectedOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go#L79). **negative:** `unit/verify` [`TestLCPRejectedOptionsStayRemoved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_lcp_test.go#L534) |
-| `RFC1661-5.5-1` | Upon reception of a Terminate-Request, a Terminate-Ack MUST be transmitted. (Section 5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestRFC1661TerminateAckSentAndLinkHeld`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L570). **negative:** `unit/verify` [`TestRFC1661NoTerminateAckForTerminateAck`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L604) |
-| `RFC1661-5.6-1` | This MUST be reported back to the sender of the unknown Code by transmitting a Code- Reject. (Section 5.6) | MUST | 5.6 | **positive:** `unit/verify` [`TestRFC1661CodeRejectForUnknownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1143). **negative:** `unit/verify` [`TestRFC1661NoCodeRejectForKnownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1175) |
-| `RFC1661-5.6-2` | The Identifier field MUST be changed for each Code-Reject sent. (Section 5.6) | MUST | 5.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** sendCodeReject (internal/component/l2tp/ppp/session_run.go) reuses the offending packet's Identifier for the Code-Reject instead of allocating a fresh one, so the Identifier does not change per Code-Reject sent. Disclosed in docs/features/rfc-status.md |
-| `RFC1661-5.6-3` | The Rejected-Packet MUST be truncated to comply with the peer's established MRU. (Section 5.6) | MUST | 5.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** sendCodeReject in internal/component/l2tp/ppp/session_run.go truncates the Rejected-Packet against the 1500-octet Information field in getFrameBuf's MaxFrameBufLen buffer, not against a smaller negotiatedMRU. Disclosed in docs/features/rfc-status.md |
+| `RFC1661-5.5-1` | Upon reception of a Terminate-Request, a Terminate-Ack MUST be transmitted. (Section 5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestRFC1661TerminateAckSentAndLinkHeld`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L570). **negative:** `unit/verify` [`TestRFC1661NoTerminateAckForTerminateAck`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L604). **positive:** `interop/nightly` [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L96) |
+| `RFC1661-5.6-1` | This MUST be reported back to the sender of the unknown Code by transmitting a Code- Reject. (Section 5.6) | MUST | 5.6 | **positive:** `unit/verify` [`TestRFC1661CodeRejectForUnknownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1143). **negative:** `unit/verify` [`TestRFC1661NoCodeRejectForKnownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1175). **positive:** `interop/nightly` [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L82) |
+| `RFC1661-5.6-2` | The Identifier field MUST be changed for each Code-Reject sent. (Section 5.6) | MUST | 5.6 | **positive:** `unit/verify` [`TestRFC1661LCPCodeRejectIdentifierChanges`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L48). **positive:** `unit/verify` [`TestRFC1661NCPCodeRejectIdentifierChanges`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L76). **negative:** no negative test. **positive:** `interop/nightly` [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L86). **{single-polarity}:** sendCodeReject (internal/component/l2tp/ppp/session_run.go) advances lcpCodeRejectID, and sendNCPCodeReject (internal/component/l2tp/ppp/ncp.go) advances the family's ipcpCodeRejectID or ipv6cpCodeRejectID, before every packet written, and no input asks ze to hold the Identifier still, so the obligation has no refusing counterpart to assert |
+| `RFC1661-5.6-3` | The Rejected-Packet MUST be truncated to comply with the peer's established MRU. (Section 5.6) | MUST | 5.6 | **positive:** `unit/verify` [`TestRFC1661CodeRejectTruncatedToMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L122). **negative:** `unit/verify` [`TestRFC1661CodeRejectKeptWhenItFits`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L185). **positive:** `interop/nightly` [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L91) |
 | `RFC1661-5.7-1` | If the LCP automaton is in the Opened state, then this MUST be reported back to the peer by transmitting a Protocol-Reject. (Section 5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestRFC1661UnsupportedProtocolRejectedInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L40). **negative:** `unit/verify` [`TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L89) |
 | `RFC1661-5.7-2` | Upon reception of a Protocol-Reject, the implementation MUST stop sending packets of the indicated protocol at the earliest opportunity. (Section 5.7) | MUST | 5.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** handleLCPPacket in internal/component/l2tp/ppp/session_run.go maps the rejection to RXJ+ but records no rejected-protocol set. The FSM transition does not implement suppression of later packets of that protocol. |
 | `RFC1661-5.7-3` | The Identifier field MUST be changed for each Protocol-Reject sent. (Section 5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestRFC1661ProtocolRejectIdentifierChanges`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L137). **negative:** no negative test. **{single-polarity}:** sendProtocolReject (internal/component/l2tp/ppp/session_run.go) advances protocolRejectID before every packet it writes, and no input asks ze to hold the Identifier still, so the obligation has no refusing counterpart to assert |
@@ -225,7 +256,7 @@ Mandatory ceiling: 74 of 76 (97.4%); excluded: Met by a lower layer: 2 of 76 (2.
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC1661-2-2`](#rfc1661-2-2) The maximum length for the Information field, including Padding, but not including the Protocol field, is termed the Maximum Receive Unit (MRU), which defaults to 1500 octets. (§2) | {gap}, no test | getFrameBuf in internal/component/l2tp/ppp/session_run.go supplies MaxFrameBufLen bytes, enough for 1500 Information octets and the Protocol field. sendProtocolReject clamps to the peer MRU, but sendCodeReject still truncates only against that buffer, so a large Code-Reject can exceed a smaller peer MRU. Disclosed in docs/features/rfc-status.md |
+| [`RFC1661-2-2`](#rfc1661-2-2) The maximum length for the Information field, including Padding, but not including the Protocol field, is termed the Maximum Receive Unit (MRU), which defaults to 1500 octets. (§2) | {gap}, no test | getFrameBuf in internal/component/l2tp/ppp/session_run.go supplies MaxFrameBufLen bytes, enough for 1500 Information octets and the Protocol field. sendProtocolReject and writeCodeReject clamp to the peer MRU, but sendEchoReply (BuildLCPEchoReply in internal/component/l2tp/ppp/echo.go) echoes the request's Data with no clamp, so a peer whose Echo-Request is longer than its own established MRU draws an Echo-Reply that exceeds it. Disclosed in docs/features/rfc-status.md |
 | [`RFC1661-5-1`](#rfc1661-5-1) The Length MUST NOT exceed the MRU of the link. (§5) | {gap}, no test | WriteLCPPacket in internal/component/l2tp/ppp/lcp.go backfills the packet length from its supplied payload; sendCodeReject in internal/component/l2tp/ppp/session_run.go bounds that payload by the default-sized Information field rather than a smaller negotiatedMRU. Protocol-Reject has a separate peer-MRU clamp. Disclosed in docs/features/rfc-status.md |
 | [`RFC1661-3.4-1`](#rfc1661-3.4-1) Any non-LCP packets received during this phase MUST be silently discarded. (Section 3.4) | {gap}, no test | handleFrame in internal/component/l2tp/ppp/session_run.go now discards IPCP/IPv6CP before the current authenticated LCP lifetime is admitted. Bounded phase and lifetime tests exist; complete proof across all protocol types remains open. |
 | [`RFC1661-3.5-2`](#rfc1661-3.5-2) An implementation MUST NOT allow the exchange of link quality determination packets to delay authentication indefinitely. (Section 3.5) | {gap}, no test | gap in proof: internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption meets it, because it Configure-Rejects the Quality-Protocol option (type 4) as an unknown type, so ze exchanges no link quality determination packet that could delay authentication; no test asserts it |
@@ -233,8 +264,6 @@ Mandatory ceiling: 74 of 76 (97.4%); excluded: Met by a lower layer: 2 of 76 (2.
 | [`RFC1661-3.7-2`](#rfc1661-3.7-2) Any non-LCP packets received during this phase MUST be silently discarded. (Section 3.7) | {gap}, no test | handleFrame and performAction in internal/component/l2tp/ppp/session_run.go now gate NCP on the current LCP lifetime and clear admission when that lifetime ends. Bounded lifecycle tests exist; complete requirement-level proof remains open. |
 | [`RFC1661-4.3-3`](#rfc1661-4.3-3) The implementation MUST stop sending the offending packet type. (Section 4.3) | {gap}, no test | codeToEvent and handleLCPPacket in internal/component/l2tp/ppp/session_run.go handle received rejects without retaining an offending-code suppression set. The Opened RXJ+ transition can send an Echo-Reply; it does not prevent later transmission of the rejected packet type. |
 | [`RFC1661-5.3-4`](#rfc1661-5.3-4) When a particular type of Configuration Option can be listed more than once with different values, the Configure-Nak MUST include a list of all values for that option which are acceptable to the Configure-Nak sender. (Section 5.3) | {gap}, no test | gap in proof: the condition never holds for ze, because RFC 1661 Section 6 lists no Configuration Option that can be listed more than once and ze negotiates only types 1, 2, 3, 5, 7 and 8 (internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption); no test asserts that no input yields a multi-value Configure-Nak |
-| [`RFC1661-5.6-2`](#rfc1661-5.6-2) The Identifier field MUST be changed for each Code-Reject sent. (Section 5.6) | {gap}, no test | sendCodeReject (internal/component/l2tp/ppp/session_run.go) reuses the offending packet's Identifier for the Code-Reject instead of allocating a fresh one, so the Identifier does not change per Code-Reject sent. Disclosed in docs/features/rfc-status.md |
-| [`RFC1661-5.6-3`](#rfc1661-5.6-3) The Rejected-Packet MUST be truncated to comply with the peer's established MRU. (Section 5.6) | {gap}, no test | sendCodeReject in internal/component/l2tp/ppp/session_run.go truncates the Rejected-Packet against the 1500-octet Information field in getFrameBuf's MaxFrameBufLen buffer, not against a smaller negotiatedMRU. Disclosed in docs/features/rfc-status.md |
 | [`RFC1661-5.7-2`](#rfc1661-5.7-2) Upon reception of a Protocol-Reject, the implementation MUST stop sending packets of the indicated protocol at the earliest opportunity. (Section 5.7) | {gap}, no test | handleLCPPacket in internal/component/l2tp/ppp/session_run.go maps the rejection to RXJ+ but records no rejected-protocol set. The FSM transition does not implement suppression of later packets of that protocol. |
 | [`RFC1661-5.9-1`](#rfc1661-5.9-1) Discard-Request packets MUST only be sent in the LCP Opened state. (Section 5.9) | {gap}, no test | gap in proof: ze meets it by never sending a Discard-Request: LCPDiscardRequest appears only as a constant, in LCPCodeName (internal/component/l2tp/ppp/lcp.go) and in the receive-side codeToEvent mapping (internal/component/l2tp/ppp/session_run.go), and no sender builds one; no test asserts it |
 | [`RFC1661-6.5-3`](#rfc1661-6.5-3) When negotiated, PPP implementations MUST accept PPP packets with either double-octet or single-octet Protocol fields, and MUST NOT distinguish between them. (§6.5) | {gap}, no test | whole-stack reception remains unverified. ParseFrame in internal/component/l2tp/ppp/frame.go reads a two-octet Protocol field, but that alone does not establish a failure after applicable directional negotiation and Linux PPP receive normalization. The negotiated kernel boundary needs proof. |
@@ -741,39 +770,49 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 Upon reception of a Terminate-Request, a Terminate-Ack MUST be transmitted. (Section 5.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: no Terminate-Ack for a Terminate-Request. TestRFC1661TerminateAckSentAndLinkHeld goes red on no Terminate-Ack or Identifier != 0x77 (driven in Opened only); TestRFC1661NoTerminateAckForTerminateAck goes red if a Terminate-Ack draws one.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: no Terminate-Ack for a Terminate-Request. TestRFC1661TerminateAckSentAndLinkHeld goes red on no LCP Terminate-Ack or an Identifier other than the request's 0x77, as Section 5.5 asks ('the Identifier field of the Terminate-Request is copied into the Identifier field of the Terminate-Ack packet'); TestRFC1661NoTerminateAckForTerminateAck goes red if a Terminate-Ack draws one. checkPPPCodeReject assertion 6 goes red unless the relay's fifth injected frame is exactly IPCP 05 5a 00 04 and Ze then sends an IPCP Terminate-Ack carrying 0x5a; assertion 5 has already shown Ze sent no Code 1-6 packet after the probes, so the Ack is the reply to that request. IPCP inherits this obligation unchanged: RFC 1332 Section 2 makes IPCP 'exactly the same as the Link Control Protocol' and lists no Terminate exception. Scope: every tagged unit drives the Opened state (LCP and IPCP). The Section 4.1 sta edges of Stopped, Closing, Stopping, Ack-Rcvd and Ack-Sent have no test asserting a Terminate-Ack anywhere in the package (Closed is covered by TestLCPPeerTerminateRestartTimer, IPCP Req-Sent by TestIPCPUsedCodesAreNotCodeRejected); journaled as requirement-proven-in-one-state-of-many.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC1661NoTerminateAckForTerminateAck`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L604) | unit/verify | unproven |
 | positive | [`TestRFC1661TerminateAckSentAndLinkHeld`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L570) | unit/verify | revert, verified |
+| positive | [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L96) | interop/nightly | mutant, verified |
 
 ### [`RFC1661-5.6-1`](#rfc1661-5.6-1)
 
 This MUST be reported back to the sender of the unknown Code by transmitting a Code- Reject. (Section 5.6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: not Code-Rejecting an unknown Code. TestRFC1661CodeRejectForUnknownCode goes red on no Code-Reject or a Rejected-Packet not carrying Code 99, Identifier 0x41, Length 6, Data aabb; TestRFC1661NoCodeRejectForKnownCode goes red if a Terminate-Request is Code-Rejected.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: not Code-Rejecting an unknown Code. TestRFC1661CodeRejectForUnknownCode goes red on no Code-Reject or a Rejected-Packet not carrying Code 99, Identifier 0x41, Length 6, Data aabb; TestRFC1661NoCodeRejectForKnownCode goes red if a Terminate-Request is Code-Rejected. checkPPPCodeReject, over live xl2tpd and pppd with LCP and IPCP Opened, goes red at assertion 2 unless Ze answers the two injected LCP Code 99 probes with LCP Code-Rejects and the two IPCP Code 12 probes with IPCP Code-Rejects, and assertions 3 and 4 then require exactly two per protocol, each carrying the probe's Code and Identifier 0x42. Its claim now names both halves and states no more than the body checks. The LCP half is the sentence this row quotes; the IPCP half applies RFC 1332 Section 2 ('Other Codes should be treated as unrecognized and should result in Code-Rejects'). Its record breaks wakeUnitReader in afterLCPOpen (red at assertion 2), which proves the IPCP half needs Ze to read its PPP unit descriptor; no interop record breaks the LCP Code-Reject producer, whose discrimination rests on the unit tests.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC1661NoCodeRejectForKnownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1175) | unit/verify | unproven |
 | positive | [`TestRFC1661CodeRejectForUnknownCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1143) | unit/verify | unproven |
+| positive | [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L82) | interop/nightly | mutant, verified |
 
 ### [`RFC1661-5.6-2`](#rfc1661-5.6-2)
 
 The Identifier field MUST be changed for each Code-Reject sent. (Section 5.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Every probe pair shares one Identifier, which isolates the defect the row forbids (copying the rejected packet's Identifier). TestRFC1661LCPCodeRejectIdentifierChanges (LCP, Opened, two Code 99 with 0x41) and TestRFC1661NCPCodeRejectIdentifierChanges (IPCP and IPv6CP, Req-Sent, two Code 12 with 0x51) go red unless exactly two Code-Rejects on that protocol carry different Identifiers. checkPPPCodeReject assertion 3 does the same on the wire for LCP and IPCP (two probes with 0x42 each, exactly two Code-Rejects per protocol, Identifiers differ); its record breaks nextNCPCodeRejectID to req.Identifier in sendNCPCodeReject and is red at assertion 3. The {single-polarity: positive} argument holds: sendCodeReject advances lcpCodeRejectID and nextNCPCodeRejectID (ncp.go) advances ipcpCodeRejectID or ipv6cpCodeRejectID per Code-Reject, and no input can ask Ze to keep a Code-Reject Identifier, so no refusing case exists to assert. Two consecutive distinct values is what 'changed for each Code-Reject sent' can be observed as.
 
-No test carries RFC1661-5.6-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestRFC1661LCPCodeRejectIdentifierChanges`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L48) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661NCPCodeRejectIdentifierChanges`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L76) | unit/verify | mutant, verified |
+| positive | [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L86) | interop/nightly | mutant, verified |
 
 ### [`RFC1661-5.6-3`](#rfc1661-5.6-3)
 
 The Rejected-Packet MUST be truncated to comply with the peer's established MRU. (Section 5.6)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: TestRFC1661CodeRejectTruncatedToMRU (LCP Code 99 and IPCP Code 12, 404 octets, negotiatedMRU 100) goes red unless the Code-Reject frame's Information field is exactly 100 octets, the Rejected-Packet keeps the original Code, Identifier 0x61 and Length 404, and the kept 92 Data octets are the head of the packet. checkPPPCodeReject assertion 4, with pppd's mru 128 (ppp-options) and 204-octet probes, goes red if any LCP or IPCP Code-Reject's Information field exceeds 128 octets, its Length disagrees with it, or its Rejected-Packet is not the probe's Code, Identifier 0x42, Length 204 and leading Data; the claim states exactly that. Negative: TestRFC1661CodeRejectKeptWhenItFits requires a 44-octet packet under the same 100-octet MRU to come back whole, so the truncation is conditional on the MRU and an unconditional cut goes red, which the Rejected-Packet description ('contains a copy of the LCP packet which is being rejected') requires.
 
-No test carries RFC1661-5.6-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC1661CodeRejectKeptWhenItFits`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L185) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661CodeRejectTruncatedToMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_code_reject_test.go#L122) | unit/verify | mutant, verified |
+| positive | [`checkPPPCodeReject`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L91) | interop/nightly | mutant, verified |
 
 ### [`RFC1661-5.7-1`](#rfc1661-5.7-1)
 

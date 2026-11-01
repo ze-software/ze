@@ -1,6 +1,6 @@
 # RFC 4302 - IP Authentication Header
 
-Partial. Every requirement this repository extracted from RFC 4302, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Authentication Header. Every requirement this repository extracted from RFC 4302, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 25.0% | 8 of 32 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3.1% | 1 of 32 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 32 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 32 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 100.0% | 24 of 24 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 8 | of 32 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 32 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 32 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 32 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 24 | 24 of 24 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 32 | of 44 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 32 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 32 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 59.4% | 19 of 32 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 3.1% | 1 of 32 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 32 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 32 | of 44 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 32 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 32 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 19 | of 32 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 32 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 32 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 9.4% | 3 of 32 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 4 | of 32 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 32 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 32 gated MUSTs: they add up to 32. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,28 +45,28 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | Authentication Header |
 | Enrolment | Enrolled |
 | Requirements | 44 |
 | Gated MUST-level | 32 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 3 |
+| Declared gaps | 4 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -84,15 +84,14 @@ Enrolled: IP Authentication Header (RFC 4302): control plane only. Ze speaks AH 
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** Authentication Header
 
-**What the ledger says is covered:**
+**Proof:** 9 of 32 MUST proven
 
-AH algorithm planning and RFC 4552 OSPFv3 use.
+**Evidence:** unit 9
 
-**What the ledger says remains**
+**Unmet:** RFC4302-2.5-5, RFC4302-2.5.1-1, RFC4302-4-1, RFC4302-A2-1
 
-Scoped to configured manual IPsec support. No counter reset before sequence-number rollover, and no AH auditing surface. Anti-replay is off unless the operator sets the replay-window leaf, which defaults to 0 because every AH SA is manually keyed and Section 5 says a compliant implementation SHOULD NOT provide anti-replay with a manually keyed SA; an enabled window is not yet tested ([`RFC4302-3.4.3-3`](#rfc4302-3.4.3-3)). An atomic IPv6 fragment keeps its Fragment header through to AH, which ah6.c does not skip (RFC4302-A2-1).
 
 ## Coverage
 
@@ -113,9 +112,41 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 
 **Derived from other rows (2):** [`RFC4302-5-1`](#rfc4302-5-1), [`RFC4302-5-2`](#rfc4302-5-2)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 12 of 32 (37.5%); excluded: Optional feature not offered (classification can be revisited): 1 of 32 (3.1%); Met by a lower layer: 19 of 32 (59.4%). Optional ceiling: 10 of 10 (100.0%). Lowest mandatory ceiling: rfc4302 12 of 32 (37.5%). Lowest optional ceiling: rfc4302 10 of 10 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 9, OS testing gap 19, Ze correctness gap 4
+- **Overview bar**: Ze MUST proven 9, SHOULD not decided 10, OS testing gap 19, Ze correctness gap 4
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 32 |
+| MUST rows kept (the MUST bar) | 32 |
+| Ze proven | 9 |
+| OS verified | 0 |
+| OS testing gap | 19 |
+| Ze correctness gap | 4 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 10 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 10 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc4302.json](../../../data/rfc/rfc4302.json).
 
 ## Requirements
 
@@ -134,7 +165,7 @@ Mandatory ceiling: 12 of 32 (37.5%); excluded: Optional feature not offered (cla
 | `RFC4302-2.5-2` | The field is mandatory and MUST always be present even if the receiver does not elect to enable the anti-replay service for a specific SA. (§2.5) | MUST | 2.5 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM AH (net/ipv6/ah6.c), linux:CONFIG_INET6_AH; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes the XFRM state, and the kernel emits the Sequence Number on every AH packet whether or not the state carries a replay window |
 | `RFC4302-2.5-3` | Processing of the Sequence Number field is at the discretion of the receiver, but all AH implementations MUST be capable of performing the processing described in Section 3.3.2, "Sequence Number Generation", and Section 3.4.3, "Sequence Number Verification". (§2.5) | MUST | 2.5 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM replay (net/xfrm/xfrm_replay.c, the XFRM core linux:CONFIG_XFRM_USER selects); internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes the state for both directions of the SA, and the kernel generates the sequence numbers it sends and verifies the ones it receives |
 | `RFC4302-2.5-5` | Thus, the sender's counter and the receiver's counter MUST be reset (by establishing a new SA and thus a new key) prior to the transmission of the 2^32nd packet on an SA. (§2.5) | MUST | 2.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** nothing resets the counters before the 2^32nd packet. The OSPFv3 SA is manually keyed and ze never rekeys it: setConfig installs one SPI and key per interface (internal/plugins/ospf/ipsec_install.go) and no code establishes a replacement SA, so an operator who enables anti-replay with the replay-window leaf gets an SA that stops sending at the rollover rather than one that is re-established. Disclosed in docs/features/rfc-status.md RFC 4302 row |
-| `RFC4302-2.5.1-1` | Use of an Extended Sequence Number (ESN) MUST be negotiated by an SA management protocol. (§2.5.1) | MUST | 2.5.1 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "To support high-speed IPsec implementations, a new option for sequence numbers SHOULD be offered, as an extension to the current, 32-bit sequence number field."; ze offers no ESN, so nothing ever uses one. internal/plugins/ospf/ipsec_install.go::buildIPsecSA is the only code that creates an AH SA, and it builds one manually keyed transport-mode state from static interface configuration with no ESN in it; espProposalWire, internal/component/ike/engine/initiator.go, proposes ESP alone and keys Transform Type 5 to espESNNotExtended, so ze runs no SA management protocol that could negotiate an AH ESN |
+| `RFC4302-2.5.1-1` | Use of an Extended Sequence Number (ESN) MUST be negotiated by an SA management protocol. (§2.5.1) | MUST | 2.5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze negotiates no ESN for AH: internal/plugins/ospf/ipsec_install.go::buildIPsecSA builds the only AH SA from static interface configuration with no ESN in it, and espProposalWire (internal/component/ike/engine/initiator.go) proposes ESP alone with espESNNotExtended, so no SA management protocol negotiates an AH ESN; owed after the first release (no owner decision declines ESN; plan/post-release/features/spec-ipsec-12-esn.md owns it) |
 | `RFC4302-2.6-1` | All implementations MUST support such padding and MUST insert only enough padding to satisfy the IPv4/IPv6 alignment requirements. (§2.6) | MUST | 2.6 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM AH (net/ipv6/ah6.c), linux:CONFIG_INET6_AH; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams sets the integrity transform and its truncation length, and the kernel's AH output sizes the ICV field and pads it to the alignment the address family needs |
 | `RFC4302-3.3.2-1` | In other words, the sender MUST NOT send a packet on an SA if doing so would cause the sequence number to cycle. (§3.3.2) | MUST NOT | 3.3.2 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM replay (net/xfrm/xfrm_replay.c, the XFRM core linux:CONFIG_XFRM_USER selects); internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes OSeqMayWrap=false on every state (the `state.OSeqMayWrap = false` guard), the value that keeps sequence-number rollover off, and the kernel's xfrm_replay_overflow refuses to send a packet on that state once the sequence number would cycle; ze emits no AH packet of its own. Owed tag on the installed value: internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover) and rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) |
 | `RFC4302-3.3.3.1-1` | If a field may be modified during transit, the value of the field is set to zero for purposes of the ICV computation. If a field is mutable, but its value at the (IPsec) receiver is predictable, then that value is inserted into the field for purposes of the ICV calculation. The Integrity Check Value field is also set to zero in preparation for this computation. (§3.3.3.1) | MUST | 3.3.3.1 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM AH (net/ipv6/ah6.c), linux:CONFIG_INET6_AH; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode AH SA, and the kernel's AH code zeroes the mutable fields and the ICV field before it computes the ICV |
@@ -178,7 +209,7 @@ Mandatory ceiling: 12 of 32 (37.5%); excluded: Optional feature not offered (cla
 | [`RFC4302-2.5-2`](#rfc4302-2.5-2) The field is mandatory and MUST always be present even if the receiver does not elect to enable the anti-replay service for a specific SA. (§2.5) | no test | no test carries this requirement id; annotated {lower-layer}: Linux XFRM AH (net/ipv6/ah6.c), linux:CONFIG_INET6_AH; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes the XFRM state, and the kernel emits the Sequence Number on every AH packet whether or not the state carries a replay window |
 | [`RFC4302-2.5-3`](#rfc4302-2.5-3) Processing of the Sequence Number field is at the discretion of the receiver, but all AH implementations MUST be capable of performing the processing described in Section 3.3.2, "Sequence Number Generation", and Section 3.4.3, "Sequence Number Verification". (§2.5) | no test | no test carries this requirement id; annotated {lower-layer}: Linux XFRM replay (net/xfrm/xfrm_replay.c, the XFRM core linux:CONFIG_XFRM_USER selects); internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes the state for both directions of the SA, and the kernel generates the sequence numbers it sends and verifies the ones it receives |
 | [`RFC4302-2.5-5`](#rfc4302-2.5-5) Thus, the sender's counter and the receiver's counter MUST be reset (by establishing a new SA and thus a new key) prior to the transmission of the 2^32nd packet on an SA. (§2.5) | {gap}, no test | nothing resets the counters before the 2^32nd packet. The OSPFv3 SA is manually keyed and ze never rekeys it: setConfig installs one SPI and key per interface (internal/plugins/ospf/ipsec_install.go) and no code establishes a replacement SA, so an operator who enables anti-replay with the replay-window leaf gets an SA that stops sending at the rollover rather than one that is re-established. Disclosed in docs/features/rfc-status.md RFC 4302 row |
-| [`RFC4302-2.5.1-1`](#rfc4302-2.5.1-1) Use of an Extended Sequence Number (ESN) MUST be negotiated by an SA management protocol. (§2.5.1) | no test | no test carries this requirement id; annotated {feature-declined}: "To support high-speed IPsec implementations, a new option for sequence numbers SHOULD be offered, as an extension to the current, 32-bit sequence number field."; ze offers no ESN, so nothing ever uses one. internal/plugins/ospf/ipsec_install.go::buildIPsecSA is the only code that creates an AH SA, and it builds one manually keyed transport-mode state from static interface configuration with no ESN in it; espProposalWire, internal/component/ike/engine/initiator.go, proposes ESP alone and keys Transform Type 5 to espESNNotExtended, so ze runs no SA management protocol that could negotiate an AH ESN |
+| [`RFC4302-2.5.1-1`](#rfc4302-2.5.1-1) Use of an Extended Sequence Number (ESN) MUST be negotiated by an SA management protocol. (§2.5.1) | {gap}, no test | ze negotiates no ESN for AH: internal/plugins/ospf/ipsec_install.go::buildIPsecSA builds the only AH SA from static interface configuration with no ESN in it, and espProposalWire (internal/component/ike/engine/initiator.go) proposes ESP alone with espESNNotExtended, so no SA management protocol negotiates an AH ESN; owed after the first release (no owner decision declines ESN; plan/post-release/features/spec-ipsec-12-esn.md owns it) |
 | [`RFC4302-2.6-1`](#rfc4302-2.6-1) All implementations MUST support such padding and MUST insert only enough padding to satisfy the IPv4/IPv6 alignment requirements. (§2.6) | no test | no test carries this requirement id; annotated {lower-layer}: Linux XFRM AH (net/ipv6/ah6.c), linux:CONFIG_INET6_AH; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams sets the integrity transform and its truncation length, and the kernel's AH output sizes the ICV field and pads it to the alignment the address family needs |
 | [`RFC4302-3.3.2-1`](#rfc4302-3.3.2-1) In other words, the sender MUST NOT send a packet on an SA if doing so would cause the sequence number to cycle. (§3.3.2) | no test | no test carries this requirement id; annotated {lower-layer}: Linux XFRM replay (net/xfrm/xfrm_replay.c, the XFRM core linux:CONFIG_XFRM_USER selects); internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes OSeqMayWrap=false on every state (the `state.OSeqMayWrap = false` guard), the value that keeps sequence-number rollover off, and the kernel's xfrm_replay_overflow refuses to send a packet on that state once the sequence number would cycle; ze emits no AH packet of its own. Owed tag on the installed value: internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover) and rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) |
 | [`RFC4302-3.3.3.1-1`](#rfc4302-3.3.3.1-1) If a field may be modified during transit, the value of the field is set to zero for purposes of the ICV computation. If a field is mutable, but its value at the (IPsec) receiver is predictable, then that value is inserted into the field for purposes of the ICV calculation. The Integrity Check Value field is also set to zero in preparation for this computation. (§3.3.3.1) | no test | no test carries this requirement id; annotated {lower-layer}: Linux XFRM AH (net/ipv6/ah6.c), linux:CONFIG_INET6_AH; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode AH SA, and the kernel's AH code zeroes the mutable fields and the ICV field before it computes the ICV |

@@ -1,0 +1,19 @@
+{
+  "name": "mpls",
+  "kind": "technology",
+  "title": "MPLS",
+  "release": false,
+  "required": [
+    "rfc2205",
+    "rfc3031",
+    "rfc3032",
+    "rfc3209",
+    "rfc4090",
+    "rfc5036",
+    "rfc5286",
+    "rfc5443",
+    "rfc5561",
+    "rfc6138"
+  ],
+  "optional": []
+}

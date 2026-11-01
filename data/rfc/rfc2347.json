@@ -1,0 +1,33 @@
+{
+  "stem": "rfc2347",
+  "title": "TFTP Option Extension",
+  "walked": true,
+  "requirements": 5,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 3,
+    "kept": 3,
+    "ze-proven": 3,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 2,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 1,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 3
+  },
+  "unmet": []
+}

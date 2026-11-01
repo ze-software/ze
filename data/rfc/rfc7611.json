@@ -1,0 +1,36 @@
+{
+  "stem": "rfc7611",
+  "title": "BGP ACCEPT_OWN Community Attribute",
+  "walked": true,
+  "requirements": 8,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 5,
+    "kept": 5,
+    "ze-proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 3,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 3,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 3,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 2
+  },
+  "unmet": [
+    "RFC7611-2.3-1",
+    "RFC7611-3-1"
+  ]
+}

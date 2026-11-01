@@ -1,0 +1,52 @@
+{
+  "stem": "rfc1661",
+  "title": "The Point-to-Point Protocol (PPP)",
+  "walked": true,
+  "requirements": 101,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 76,
+    "kept": 76,
+    "ze-proven": 42,
+    "os-verified": 0,
+    "os-gap": 2,
+    "ze-gap": 32,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 25,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 25,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "interop": 4,
+    "unit": 38
+  },
+  "unmet": [
+    "RFC1661-2-2",
+    "RFC1661-3.4-1",
+    "RFC1661-3.5-2",
+    "RFC1661-3.5-4",
+    "RFC1661-3.7-2",
+    "RFC1661-4.3-3",
+    "RFC1661-4.4-1",
+    "RFC1661-4.6-1",
+    "RFC1661-4.6-2",
+    "RFC1661-4.6-3",
+    "RFC1661-4.6-4",
+    "RFC1661-5-1",
+    "RFC1661-5.3-4",
+    "RFC1661-5.7-2",
+    "RFC1661-5.9-1",
+    "RFC1661-5.9-3",
+    "RFC1661-6.5-3"
+  ]
+}

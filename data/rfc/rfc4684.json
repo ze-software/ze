@@ -1,0 +1,38 @@
+{
+  "stem": "rfc4684",
+  "title": "Constrained Route Distribution for Border Gateway Protocol/MultiProtocol Label Switching (BGP/MPLS) Internet Protocol (IP) Virtual Private Networks (VPNs)",
+  "walked": true,
+  "requirements": 10,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 6,
+    "kept": 6,
+    "ze-proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 4,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 2
+  },
+  "unmet": [
+    "RFC4684-3.2-1",
+    "RFC4684-3.2-2",
+    "RFC4684-3.2-3",
+    "RFC4684-6-1"
+  ]
+}

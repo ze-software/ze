@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>DDoS detection and mitigation by sending FlowSpec upstream RFC coverage - Ze</title>
-        <meta name="description" content="Use-case profile ddos-flowspec: mandatory 177 of 343 (51.6%), optional 16 of 124 (12.9%); ceiling mandatory 337 of 343 (98.3%), optional 124 of 124 (100.0%); mandatory excluded: lower-layer 1, not-applicable 5; 13 RFCs, 0 not walked." />
+        <meta name="description" content="Use-case profile ddos-flowspec: the MUST and overview coverage of its RFCs." />
         <meta property="og:title" content="DDoS detection and mitigation by sending FlowSpec upstream RFC coverage - Ze" />
-        <meta property="og:description" content="Use-case profile ddos-flowspec: mandatory 177 of 343 (51.6%), optional 16 of 124 (12.9%); ceiling mandatory 337 of 343 (98.3%), optional 124 of 124 (100.0%); mandatory excluded: lower-layer 1, not-applicable 5; 13 RFCs, 0 not walked." />
+        <meta property="og:description" content="Use-case profile ddos-flowspec: the MUST and overview coverage of its RFCs." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="DDoS detection and mitigation by sending FlowSpec upstream RFC coverage - Ze" />
-        <meta name="twitter:description" content="Use-case profile ddos-flowspec: mandatory 177 of 343 (51.6%), optional 16 of 124 (12.9%); ceiling mandatory 337 of 343 (98.3%), optional 124 of 124 (100.0%); mandatory excluded: lower-layer 1, not-applicable 5; 13 RFCs, 0 not walked." />
+        <meta name="twitter:description" content="Use-case profile ddos-flowspec: the MUST and overview coverage of its RFCs." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
@@ -114,35 +114,105 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
-<style>
-.rfc-bar { display: block; width: 100%; min-width: 7rem; height: .7rem; margin: .2rem 0 .15rem; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); overflow: hidden; }
-.rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
-.rfc-bar-unmeasured { border-style: dashed; }
-.rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
-.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
-</style>
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <p>Use case: <a href="../../../../use-cases/flowspec-injection/">FlowSpec Injection</a></p>
-<div class="rfc-card-grid">
-<div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>51.6%</strong><b>177 of 343 (51.6%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
-<div class="rfc-card rfc-neutral"><span>Optional</span><strong>12.9%</strong><b>16 of 124 (12.9%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
-<div class="rfc-card rfc-neutral"><span>Mandatory ceiling</span><strong>98.3%</strong><b>337 of 343 (98.3%); excluded: Met by a lower layer: 1 of 343 (0.3%); Not applicable (classification can be revisited): 5 of 343 (1.5%)</b><p>Attainable mandatory rows under current classifications, over the unchanged total.</p></div>
-<div class="rfc-card rfc-neutral"><span>Optional ceiling</span><strong>100.0%</strong><b>124 of 124 (100.0%)</b><p>Attainable optional rows under current classifications, over the unchanged total.</p></div>
-<div class="rfc-card rfc-neutral"><span>Not walked</span><strong>0</strong><b>of 13 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
-<div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
+<section><h2>Figures</h2>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="profile/ddos-flowspec/required:must">Ze proven 184, OS testing gap 1, Ze correctness gap 153</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="profile/ddos-flowspec/required:overview">Ze MUST proven 184, SHOULD proven 16, Not owed 5, SHOULD not decided 108, OS testing gap 1, Ze correctness gap 153</div>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:rfcs">13</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:register">not complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.total">343</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.kept">338</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.ze-proven">184</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.os-gap">1</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.ze-gap">153</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.not-owed">5</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.not-owed-by-kind.not-applicable">5</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:should.total">124</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:should.proven">16</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:should.not-decided">108</span></td>
+</tr>
+</tbody>
+</table>
 </div>
-<p>Mandatory ceiling: 337 of 343 (98.3%); excluded: Met by a lower layer: 1 of 343 (0.3%); Not applicable (classification can be revisited): 5 of 343 (1.5%). Optional ceiling: 124 of 124 (100.0%). Lowest mandatory ceiling: rfc3954 10 of 14 (71.4%). Lowest optional ceiling: rfc3954 12 of 12 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+</section>
 <section><h2>Tree</h2>
-<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.</p>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows &#34;not walked&#34; and no bar. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.</p>
 <h3>Level 0</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc3954/">RFC 3954</a></td>
 <td>Cisco Systems NetFlow Services Export Version 9</td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 14 (28.6%)"><span style="width:28.6%"></span></div><span class="rfc-bar-note">4 of 14 (28.6%)</span><small class="rfc-ceiling">Ceiling: 10 of 14 (71.4%); excluded: Not applicable (classification can be revisited): 4 of 14 (28.6%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 12 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 12 (0.0%)</span><small class="rfc-ceiling">Ceiling: 12 of 12 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc3954:must">Ze proven 4, Ze correctness gap 6</div></td>
+<td><div data-ze-rfc-bar="rfc3954:overview">Ze MUST proven 4, Not owed 4, SHOULD not decided 12, Ze correctness gap 6</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc3954.md</td>
 </tr>
 </tbody>
@@ -151,12 +221,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 1</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc5635/">RFC 5635</a></td>
 <td>Remote Triggered Black Hole Filtering with Unicast Reverse Path Forwarding (uRPF)</td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span><small class="rfc-ceiling">Ceiling: 1 of 1 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc5635:must">no rows</div></td>
+<td><div data-ze-rfc-bar="rfc5635:overview">SHOULD not decided 1</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc5635.md</td>
 </tr>
 </tbody>
@@ -165,18 +235,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 3</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc4271/">RFC 4271</a></td>
 <td>A Border Gateway Protocol 4 (BGP-4)</td>
-<td><div class="rfc-bar" role="img" aria-label="78 of 133 (58.6%)"><span style="width:58.6%"></span></div><span class="rfc-bar-note">78 of 133 (58.6%)</span><small class="rfc-ceiling">Ceiling: 133 of 133 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 34 (8.8%)"><span style="width:8.8%"></span></div><span class="rfc-bar-note">3 of 34 (8.8%)</span><small class="rfc-ceiling">Ceiling: 34 of 34 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4271:must">Ze proven 83, Ze correctness gap 50</div></td>
+<td><div data-ze-rfc-bar="rfc4271:overview">Ze MUST proven 83, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 50</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc4271.md</td>
 </tr>
 <tr><td><a href="../../sflow-v5/">SFLOW-V5</a></td>
 <td>sFlow: A Method for Monitoring Traffic in Switched and Routed Networks</td>
-<td><div class="rfc-bar" role="img" aria-label="22 of 32 (68.8%)"><span style="width:68.8%"></span></div><span class="rfc-bar-note">22 of 32 (68.8%)</span><small class="rfc-ceiling">Ceiling: 31 of 32 (96.9%); excluded: Met by a lower layer: 1 of 32 (3.1%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 11 (27.3%)"><span style="width:27.3%"></span></div><span class="rfc-bar-note">3 of 11 (27.3%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="sflow-v5:must">Ze proven 22, OS testing gap 1, Ze correctness gap 9</div></td>
+<td><div data-ze-rfc-bar="sflow-v5:overview">Ze MUST proven 22, SHOULD proven 3, SHOULD not decided 8, OS testing gap 1, Ze correctness gap 9</div></td>
 <td>ddos-flowspec: required by rfc/short/sflow-v5.md</td>
 </tr>
 </tbody>
@@ -185,30 +255,30 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 5</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc4360/">RFC 4360</a></td>
 <td>BGP Extended Communities Attribute</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 5 (40.0%)"><span style="width:40.0%"></span></div><span class="rfc-bar-note">2 of 5 (40.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4360:must">Ze proven 2, Ze correctness gap 3</div></td>
+<td><div data-ze-rfc-bar="rfc4360:overview">Ze MUST proven 2, SHOULD not decided 4, Ze correctness gap 3</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc4360.md</td>
 </tr>
 <tr><td><a href="../../rfc4760/">RFC 4760</a></td>
 <td>Multiprotocol Extensions for BGP-4</td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 6 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">6 of 6 (100.0%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 11 (9.1%)"><span style="width:9.1%"></span></div><span class="rfc-bar-note">1 of 11 (9.1%)</span><small class="rfc-ceiling">Ceiling: 11 of 11 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc4760:must">Ze proven 6</div></td>
+<td><div data-ze-rfc-bar="rfc4760:overview">Ze MUST proven 6, SHOULD proven 1, SHOULD not decided 10</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc4760.md</td>
 </tr>
 <tr><td><a href="../../rfc7011/">RFC 7011</a> (cycle with rfc7012)</td>
 <td>Specification of the IP Flow Information Export (IPFIX) Protocol for the Exchange of Flow Information</td>
-<td><div class="rfc-bar" role="img" aria-label="12 of 50 (24.0%)"><span style="width:24.0%"></span></div><span class="rfc-bar-note">12 of 50 (24.0%)</span><small class="rfc-ceiling">Ceiling: 50 of 50 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 7 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 7 (0.0%)</span><small class="rfc-ceiling">Ceiling: 7 of 7 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7011:must">Ze proven 12, Ze correctness gap 38</div></td>
+<td><div data-ze-rfc-bar="rfc7011:overview">Ze MUST proven 12, SHOULD not decided 7, Ze correctness gap 38</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc7011.md</td>
 </tr>
 <tr><td><a href="../../rfc7012/">RFC 7012</a> (cycle with rfc7011)</td>
 <td>Information Model for IP Flow Information Export (IPFIX)</td>
-<td><div class="rfc-bar" role="img" aria-label="1 of 6 (16.7%)"><span style="width:16.7%"></span></div><span class="rfc-bar-note">1 of 6 (16.7%)</span><small class="rfc-ceiling">Ceiling: 6 of 6 (100.0%)</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc7012:must">Ze proven 1, Ze correctness gap 5</div></td>
+<td><div data-ze-rfc-bar="rfc7012:overview">Ze MUST proven 1, Ze correctness gap 5</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc7012.md</td>
 </tr>
 </tbody>
@@ -217,12 +287,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 7</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc7606/">RFC 7606</a> (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950)</td>
 <td>Revised Error Handling for BGP UPDATE Messages</td>
-<td><div class="rfc-bar" role="img" aria-label="26 of 53 (49.1%)"><span style="width:49.1%"></span></div><span class="rfc-bar-note">26 of 53 (49.1%)</span><small class="rfc-ceiling">Ceiling: 53 of 53 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7606:must">Ze proven 28, Ze correctness gap 25</div></td>
+<td><div data-ze-rfc-bar="rfc7606:overview">Ze MUST proven 28, SHOULD not decided 4, Ze correctness gap 25</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc7606.md</td>
 </tr>
 </tbody>
@@ -231,18 +301,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 8</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc7999/">RFC 7999</a></td>
 <td>BLACKHOLE Community</td>
-<td><div class="rfc-bar" role="img" aria-label="4 of 4 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">4 of 4 (100.0%)</span><small class="rfc-ceiling">Ceiling: 4 of 4 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="3 of 12 (25.0%)"><span style="width:25.0%"></span></div><span class="rfc-bar-note">3 of 12 (25.0%)</span><small class="rfc-ceiling">Ceiling: 12 of 12 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc7999:must">Ze proven 4</div></td>
+<td><div data-ze-rfc-bar="rfc7999:overview">Ze MUST proven 4, SHOULD proven 3, SHOULD not decided 9</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc7999.md</td>
 </tr>
 <tr><td><a href="../../rfc8955/">RFC 8955</a></td>
 <td>Dissemination of Flow Specification Rules</td>
-<td><div class="rfc-bar" role="img" aria-label="13 of 29 (44.8%)"><span style="width:44.8%"></span></div><span class="rfc-bar-note">13 of 29 (44.8%)</span><small class="rfc-ceiling">Ceiling: 28 of 29 (96.6%); excluded: Not applicable (classification can be revisited): 1 of 29 (3.4%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="6 of 20 (30.0%)"><span style="width:30.0%"></span></div><span class="rfc-bar-note">6 of 20 (30.0%)</span><small class="rfc-ceiling">Ceiling: 20 of 20 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc8955:must">Ze proven 13, Ze correctness gap 15</div></td>
+<td><div data-ze-rfc-bar="rfc8955:overview">Ze MUST proven 13, SHOULD proven 6, Not owed 1, SHOULD not decided 14, Ze correctness gap 15</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc8955.md</td>
 </tr>
 </tbody>
@@ -251,18 +321,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Level 9</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc8956/">RFC 8956</a></td>
 <td>Dissemination of Flow Specification Rules for IPv6</td>
-<td><div class="rfc-bar" role="img" aria-label="7 of 9 (77.8%)"><span style="width:77.8%"></span></div><span class="rfc-bar-note">7 of 9 (77.8%)</span><small class="rfc-ceiling">Ceiling: 9 of 9 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span><small class="rfc-ceiling">Ceiling: 5 of 5 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc8956:must">Ze proven 7, Ze correctness gap 2</div></td>
+<td><div data-ze-rfc-bar="rfc8956:overview">Ze MUST proven 7, SHOULD not decided 5, Ze correctness gap 2</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc8956.md</td>
 </tr>
 <tr><td><a href="../../rfc9117/">RFC 9117</a></td>
 <td>Revised Validation Procedure for BGP Flow Specifications</td>
-<td><div class="rfc-bar" role="img" aria-label="2 of 2 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">2 of 2 (100.0%)</span><small class="rfc-ceiling">Ceiling: 2 of 2 (100.0%)</small></td>
-<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span><small class="rfc-ceiling">Ceiling: 3 of 3 (100.0%)</small></td>
+<td><div data-ze-rfc-bar="rfc9117:must">Ze proven 2</div></td>
+<td><div data-ze-rfc-bar="rfc9117:overview">Ze MUST proven 2, SHOULD not decided 3</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc9117.md</td>
 </tr>
 </tbody>
@@ -270,22 +340,106 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Optional (not counted)</h2>
-<p>RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own figures: mandatory no rows, optional no rows; ceiling mandatory no rows, optional no rows; 1 RFCs, 0 not walked.</p>
-<p>Mandatory ceiling: no rows. Optional ceiling: no rows. Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own bars and figures follow.</p>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="profile/ddos-flowspec/optional:must">no rows</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="profile/ddos-flowspec/optional:overview">no rows</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th><th>Why it is here</th></tr></thead>
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:rfcs">1</span></td>
+</tr>
+<tr><td>Not walked</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory register</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:register">complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:must.total">0</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:must.kept">0</span></td>
+</tr>
+<tr><td>Ze proven</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:must.ze-proven">0</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:must.os-verified">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:must.os-gap">0</span></td>
+</tr>
+<tr><td>Ze correctness gap</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:must.ze-gap">0</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:must.not-owed">0</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:must.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:should.total">0</span></td>
+</tr>
+<tr><td>SHOULD proven</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:should.proven">0</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD not ever</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:should.not-ever">0</span></td>
+</tr>
+<tr><td>SHOULD not yet</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:should.not-yet">0</span></td>
+</tr>
+<tr><td>SHOULD not decided</td>
+<td><span data-ze-rfc="profile/ddos-flowspec/optional:should.not-decided">0</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
 <tbody>
 <tr><td><a href="../../rfc3882/">RFC 3882</a></td>
 <td>Configuring BGP to Block Denial-of-Service Attacks</td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
-<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span><small class="rfc-ceiling">Ceiling: no rows</small></td>
+<td><div data-ze-rfc-bar="rfc3882:must">no rows</div></td>
+<td><div data-ze-rfc-bar="rfc3882:overview">no rows</div></td>
 <td>ddos-flowspec: optional in rfc/short/rfc3882.md</td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
+<script src="../../../../assets/rfc-figures.js" defer></script>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -317,7 +471,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

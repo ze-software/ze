@@ -444,7 +444,28 @@ LSPs, which flood to peers like any other prefix:</p>
   }
 }
 </code></pre>
-<p>Each redistributed prefix is advertised with a fixed default metric. TLV 135 (IPv4)
+<p>Each redistributed prefix is advertised with the default metric 100, unless the
+export chain sets one. <code>isis filter export</code> judges every redistributed route before
+it enters the LSP: a route the chain rejects is not advertised, and a <code>modify</code>
+instance's <code>set metric</code> replaces the default. A reload that changes the chain
+judges the routes already redistributed again, so the LSP follows the new chain
+without a restart. The chain cannot match on <code>level</code>, because the level is where
+IS-IS injects the route rather than a property it arrives with. This chain advertises only the /32
+loopbacks, at metric 10:</p>
+<pre><code>policy {
+  prefix-list loopbacks {
+    entry 0.0.0.0/0 { ge 32; le 32; action accept; }
+  }
+  modify loopback-metric { set { metric 10; } }
+}
+isis {
+  filter {
+    export { filters [ loopbacks loopback-metric ]; final accept; }
+  }
+}
+</code></pre>
+<p>A filter's accept only passes the route on, so the chain ends in <code>final accept</code>;
+<code>loopbacks</code> rejects every prefix that matches no entry. TLV 135 (IPv4)
 carries <strong>no external bit</strong>. A redistributed route is an ordinary reachability
 entry; the only wire flag is the up/down bit (RFC 5305 sec 4), which IS-IS sets only
 when leaking a prefix to a lower level (RFC 2966), never to mark external origin.
@@ -465,7 +486,9 @@ plugins started first. See
 <p><strong>Connected and passive interfaces.</strong> IS-IS also advertises its own enabled and
 <strong>passive</strong> interface prefixes as internal reachability in its LSPs. A passive
 interface forms no adjacency but its prefix is still advertised, so loopbacks and
-edge networks are reachable without running the protocol on them.</p>
+edge networks are reachable without running the protocol on them. Loopback
+(127.0.0.0/8, <code>::1</code>), zero-network (0.0.0.0/8) and multicast addresses are
+never advertised, so a passive <code>lo</code> contributes only the addresses you add to it.</p>
 <p><strong>Counters.</strong> <code>ze_isis_redist_injected_total{source,afi}</code> and
 <code>ze_isis_redist_withdrawn_total{source,afi}</code> track imported routes;
 <code>ze_isis_redist_inject_failures_total{source}</code> counts failed re-originations; and
@@ -706,7 +729,7 @@ System ID embedded in the first NET.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

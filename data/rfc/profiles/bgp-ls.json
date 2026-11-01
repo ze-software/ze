@@ -1,0 +1,15 @@
+{
+  "name": "bgp-ls",
+  "kind": "technology",
+  "title": "BGP-LS",
+  "release": false,
+  "required": [
+    "rfc7752",
+    "rfc8571",
+    "rfc9085",
+    "rfc9086",
+    "rfc9514",
+    "rfc9552"
+  ],
+  "optional": []
+}

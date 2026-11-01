@@ -395,6 +395,23 @@ the running daemon produces on reload. See
 <a href="../configuration-model/#backend-capability-errors">Backend Capability Errors</a>.</p>
 <!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate, backend-gate loop -->
 <!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures -->
+<p>Validation warns, and still exits 0, for every EBGP peer direction that has no
+explicit import or export policy. RFC 8212 Section 3 closes that direction: Ze
+uses none of the routes the peer sends, or sends it none, so the session comes
+up and carries nothing. The warning uses the words of the daemon's
+establishment warning and names the editor command that adds a policy at the
+level the peer is configured at
+(<a href="../bgp-policy/">RFC 8212 default</a>):</p>
+<pre><code class="language-text">configuration valid: router.conf
+
+Warnings:
+  warning: peer transit-a: RFC 8212: this EBGP peer has no import policy, so Ze uses none of the routes it receives from it; to exchange routes, run `set bgp peer transit-a filter import final accept`, then `commit now`
+</code></pre>
+<p>An IBGP peer and a configured direction never warn. A dynamic group with no
+remote AS is judged only when each member's OPEN says whether it is EBGP.</p>
+<!-- source: internal/component/config/cli/cmd_validate.go -- addRFC8212Warning -->
+<!-- source: internal/component/bgp/config/register.go -- policyAbsencesFromTree -->
+<!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- RFC8212Absences -->
 <h3 id="ze-config">ze config</h3>
 <p>Configuration management.</p>
 <p><strong>Editing:</strong></p>
@@ -3151,6 +3168,12 @@ measures how quickly they propagate through to the receiver.</p>
 <td><code>60s</code></td>
 <td>Maximum time to wait for convergence per iteration</td>
 </tr>
+<tr>
+<td><code>--sender-first</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Connect the sender before the receiver: the result records <code>"pass": "rib-propagation"</code> instead of <code>"pass": "live-forwarding"</code></td>
+</tr>
 </tbody>
 </table>
 <p><strong>Iteration flags:</strong></p>
@@ -3215,6 +3238,9 @@ measures how quickly they propagate through to the receiver.</p>
 </tr>
 </tbody>
 </table>
+<p>Every result JSON carries a <code>pass</code> field naming the pass it measured,
+<code>live-forwarding</code> or <code>rib-propagation</code> (<a href="../benchmarking/#passes">Passes</a>).</p>
+<!-- source: internal/perf/result.go -- Pass -->
 <p>Exit codes: 0 = success, 1 = error (missing flags, validation failure, benchmark failure).</p>
 <h4 id="le-perf-compare">le perf compare</h4>
 <p>Generate a comparison report from one or more result JSON files.</p>
@@ -3244,10 +3270,23 @@ measures how quickly they propagate through to the receiver.</p>
 <td><code>false</code></td>
 <td>HTML output (overrides <code>--md</code>)</td>
 </tr>
+<tr>
+<td><code>--doc</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Full performance.md document with disclaimers and methodology (overrides <code>--html</code> and <code>--md</code>)</td>
+</tr>
 </tbody>
 </table>
 <p>Reads result JSON files produced by <code>le perf send --json</code> and generates a
-side-by-side comparison table.</p>
+side-by-side comparison table. It keeps the newest result per DUT, family,
+force-mp and pass, so the <code>live-forwarding</code> and <code>rib-propagation</code> results of
+one DUT render as two rows, each naming its pass in the Pass column; in HTML
+each chart bar is labelled with the DUT and the pass. A result with no <code>pass</code>
+field reads <code>not recorded</code> in that column and displaces neither pass. A file
+whose <code>pass</code> names no known pass is refused with the file name, the value and
+the accepted values, and the command exits 1.</p>
+<!-- source: internal/perf/report/markdown.go -- latestComparisonResults -->
 <h4 id="le-perf-track">le perf track</h4>
 <p>Track performance history and detect regressions from an NDJSON file.</p>
 <!-- source: internal/perf/cli/cmd_track.go -- track subcommand -->
@@ -4828,7 +4867,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

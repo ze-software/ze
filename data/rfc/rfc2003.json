@@ -1,0 +1,45 @@
+{
+  "stem": "rfc2003",
+  "title": "IP Encapsulation within IP",
+  "walked": true,
+  "requirements": 37,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 13,
+    "kept": 13,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 13,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 24,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 24,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC2003-3.1-1",
+    "RFC2003-3.1-2",
+    "RFC2003-3.1-3",
+    "RFC2003-3.2-1",
+    "RFC2003-3.2-2",
+    "RFC2003-4.1-1",
+    "RFC2003-4.1-2",
+    "RFC2003-4.1-3",
+    "RFC2003-4.1-4",
+    "RFC2003-4.3-1",
+    "RFC2003-4.4-1",
+    "RFC2003-4.5-1",
+    "RFC2003-5.1-1"
+  ]
+}

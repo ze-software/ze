@@ -1,0 +1,26 @@
+{
+  "name": "vpn-endpoint",
+  "kind": "use-case",
+  "title": "IPsec VPN endpoint",
+  "release": true,
+  "required": [
+    "rfc3948",
+    "rfc4106",
+    "rfc4301",
+    "rfc4303",
+    "rfc4754",
+    "rfc5280",
+    "rfc5282",
+    "rfc6071",
+    "rfc7296",
+    "rfc7427",
+    "rfc8221",
+    "rfc8247"
+  ],
+  "optional": [
+    "rfc7383",
+    "rfc7634",
+    "rfc8031",
+    "rfc9370"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "bgp-transport-security",
+  "kind": "technology",
+  "title": "BGP transport security",
+  "release": false,
+  "required": [
+    "rfc2385",
+    "rfc5082",
+    "rfc5925"
+  ],
+  "optional": []
+}

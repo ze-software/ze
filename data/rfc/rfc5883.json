@@ -1,0 +1,33 @@
+{
+  "stem": "rfc5883",
+  "title": "Bidirectional Forwarding Detection (BFD) for Multihop Paths",
+  "walked": true,
+  "requirements": 7,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 6,
+    "kept": 6,
+    "ze-proven": 3,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 3,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 1,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 1,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 3
+  },
+  "unmet": []
+}

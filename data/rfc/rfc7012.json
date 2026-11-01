@@ -1,0 +1,39 @@
+{
+  "stem": "rfc7012",
+  "title": "Information Model for IP Flow Information Export (IPFIX)",
+  "walked": true,
+  "requirements": 6,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 6,
+    "kept": 6,
+    "ze-proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 5,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 0,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 0,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 1
+  },
+  "unmet": [
+    "RFC7012-2.1-1",
+    "RFC7012-2.1-2",
+    "RFC7012-2.1-3",
+    "RFC7012-2.1-5",
+    "RFC7012-4-2"
+  ]
+}

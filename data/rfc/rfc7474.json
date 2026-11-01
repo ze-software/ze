@@ -1,0 +1,35 @@
+{
+  "stem": "rfc7474",
+  "title": "Security Extensions for OSPFv2 when Using Manual Key Management",
+  "walked": true,
+  "requirements": 16,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 12,
+    "kept": 12,
+    "ze-proven": 7,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 5,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 3,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 7
+  },
+  "unmet": [
+    "RFC7474-8-1"
+  ]
+}

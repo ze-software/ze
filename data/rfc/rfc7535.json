@@ -1,0 +1,33 @@
+{
+  "stem": "rfc7535",
+  "title": "AS112 Redirection Using DNAME",
+  "walked": true,
+  "requirements": 7,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 1,
+    "kept": 1,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 1,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 6,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 6,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC7535-6-1"
+  ]
+}

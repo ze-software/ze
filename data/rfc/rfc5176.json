@@ -1,0 +1,33 @@
+{
+  "stem": "rfc5176",
+  "title": "Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS)",
+  "walked": true,
+  "requirements": 31,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 30,
+    "kept": 30,
+    "ze-proven": 26,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 4,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 1,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 0,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 26
+  },
+  "unmet": []
+}

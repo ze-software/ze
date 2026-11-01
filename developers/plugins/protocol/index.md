@@ -137,10 +137,10 @@ reader goroutine routes incoming lines by verb: `ok`/`error` responses go to the
 
 ```
 # Plugin sends declare-registration (Stage 1)
-#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
+#1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
 
-# Engine responds OK
-#1 ok
+# Engine answers the protocol version both sides speak
+#1 ok {"protocol-version":1}
 
 # Engine sends configure to plugin (Stage 2)
 #1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{...}"}]}
@@ -170,6 +170,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `protocol-version` | `int` | REQUIRED. The highest plugin protocol version the plugin speaks (this engine speaks `1`) |
 | `families` | `[]FamilyDecl` | Address families the plugin handles (name, mode, AFI, and SAFI) |
 | `commands` | `[]CommandDecl` | Commands the plugin provides |
 | `dependencies` | `[]string` | Plugin names that must also be loaded |
@@ -181,7 +182,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `wants-validate-open` | `bool` | Whether plugin wants OPEN validation callbacks |
 | `cache-consumer` | `bool` | Whether plugin consumes cached events |
 | `cache-consumer-unordered` | `bool` | Whether unordered cache delivery is acceptable |
-| `filters` | `[]FilterDecl` | Named route filters the plugin provides |
+| `filters` | `[]FilterDecl` | Named route filters the plugin provides: each a `name` or a `name-pattern`, and the route fields it `reads` (`raw` for the UPDATE body) and `sets`; Stage 1 and config load judge them (`docs/architecture/api/process-protocol.md`, "Filter Declaration") |
 | `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides |
 | `resolver-caches` | `[]string` | Resolver caches the plugin holds clients for: `peeringdb`, `irr`, `cymru`. Set by `OnResolverCacheClear`; any other name is refused |
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
@@ -281,9 +282,21 @@ Set `afi` and `safi` for a custom family. A built-in family can omit both numeri
 **Wire example:**
 
 ```
-#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","short-help":"Show FlowSpec status"}],"wants-config":["bgp"]}
-#1 ok
+#1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","short-help":"Show FlowSpec status"}],"wants-config":["bgp"]}
+#1 ok {"protocol-version":1}
 ```
+
+**The protocol version.** The engine answers Stage 1 with the version both
+sides speak from then on: the lower of the plugin's `protocol-version` and its
+own. A plugin declaring a version above the engine's speaks the answered
+version. A declaration with no `protocol-version` is from the text era, before
+filters declared the route fields they read, and the engine refuses it with
+one error that names the plugin and the version to declare; the startup tier
+then stops, as for any plugin failure. Version `1` is the first versioned
+contract. The Go SDK declares it and refuses an engine that answers any other.
+<!-- source: pkg/plugin/rpc/declaration.go -- NegotiateProtocolVersion -->
+<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
+<!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
 
 ### Stage 2: Config (Engine to Plugin)
 
@@ -617,6 +630,44 @@ session's routes (`docs/architecture/plugin/rib-storage-design.md`,
 "Source-DOWN replacement and sent ordering").
 <!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent -->
 <!-- source: internal/component/bgp/plugins/cmd/update/recovery.go -- recoveryFromMeta -->
+
+### The Route Fields of filter-update
+
+`FilterUpdateInput.Fields` (`fields` on the wire) is one JSON object holding the
+route fields the filter declared in `reads`, and no other. Each key is the
+vocabulary field name, never the UPDATE event's `attr` key: `community`, not
+`communities`. Each value takes the shape the event's `attr` map gives that
+attribute (`docs/architecture/api/json-format.md`, "Attributes"), written by
+the same formatter. The fields the `attr` table has no row for take these
+shapes:
+
+| Field | Shape | Example |
+|-------|-------|---------|
+| `prefix` | object: family to the list of announced NLRI, in the event's NLRI shapes (ADD-PATH adds `path-id`) | `{"ipv4/unicast":["10.0.0.0/24"]}` |
+| `family` | list of the announced families | `["ipv4/unicast","ipv6/unicast"]` |
+| `next-hop` | object: family to the next hop of its announced routes | `{"ipv4/unicast":"192.0.2.1"}` |
+| `protocol` | `"ebgp"` or `"ibgp"`: the session the route came from (import) or goes to (export) | `"ebgp"` |
+| `origin-as` | the origin AS number, or `"none"` for RFC 6811's NONE | `65002` |
+
+For example, a filter that declared `community`, `as-path` and
+`local-preference` reads
+`"fields":{"community":["65001:100"],"as-path":[65001,65002],"local-preference":100}`.
+
+- A declared field the route does not carry is left out of the object.
+- A filter that declared no route field (a raw-only filter) is sent no
+  `fields` member, and `raw` is sent only to a filter that declared `raw`.
+- A field Ze cannot read, such as a malformed attribute, is never sent empty:
+  the filter's `on-error` decides the route instead of the filter.
+- Stage 1 refuses a declared BGP field this binary cannot write: the
+  community fields need `bgp-filter-community`, `originator-id` and
+  `cluster-list` need `bgp-rr`, and `aigp` needs `bgp-aigp`.
+- The values are the route as the chain received it. A modify an earlier
+  filter in the chain answered reaches this filter in the text `update` only,
+  as it does for `raw`.
+<!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
+<!-- source: internal/component/bgp/policyview/register_writers.go -- the field writers -->
+<!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
 
 ### The Filter Text an `OnFilterUpdate` Handler Reads
 

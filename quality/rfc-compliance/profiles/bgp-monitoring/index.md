@@ -1,37 +1,64 @@
 # BGP monitoring
 
-Technology aggregate. BGP Monitoring Protocol (BMP). The RFCs whose summary names the bgp-monitoring aggregate, with their mandatory and optional coverage.
+Technology aggregate. BGP Monitoring Protocol (BMP). The RFCs whose summary names the bgp-monitoring aggregate, with the MUST bar and the overview bar of the set and of each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 42.9% (36 of 84 (42.9%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 20.0% (3 of 15 (20.0%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 100.0% (84 of 84 (100.0%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (15 of 15 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 0 (of 4 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/bgp-monitoring.json](../../../../data/rfc/profiles/bgp-monitoring.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 84 of 84 (100.0%). Optional ceiling: 15 of 15 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7854 39 of 39 (100.0%). Lowest optional ceiling: rfc7854 9 of 9 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 36, Ze correctness gap 48
+- **Overview bar**: Ze MUST proven 36, SHOULD proven 3, SHOULD not decided 12, Ze correctness gap 48
+
+| Figure | Rows |
+|---|---|
+| RFCs | 4 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 84 |
+| MUST rows kept (the MUST bar) | 84 |
+| Ze proven | 36 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 48 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 15 |
+| SHOULD proven | 3 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 12 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
 ### Level 6
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8522](../../rfc8522/) | Looking Glass Command Set | 0 of 18 (0.0%); ceiling 18 of 18 (100.0%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) |
+| [RFC 8522](../../rfc8522/) | Looking Glass Command Set | Ze correctness gap 18 | SHOULD not decided 5, Ze correctness gap 18 |
 
 ### Level 8
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7854](../../rfc7854/) | BGP Monitoring Protocol (BMP) | 25 of 39 (64.1%); ceiling 39 of 39 (100.0%) | 3 of 9 (33.3%); ceiling 9 of 9 (100.0%) |
+| [RFC 7854](../../rfc7854/) | BGP Monitoring Protocol (BMP) | Ze proven 25, Ze correctness gap 14 | Ze MUST proven 25, SHOULD proven 3, SHOULD not decided 6, Ze correctness gap 14 |
 
 ### Level 9
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8671](../../rfc8671/) | Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP) | 2 of 11 (18.2%); ceiling 11 of 11 (100.0%) | 0 of 1 (0.0%); ceiling 1 of 1 (100.0%) |
-| [RFC 9069](../../rfc9069/) | Support for Local RIB in the BGP Monitoring Protocol (BMP) | 9 of 16 (56.2%); ceiling 16 of 16 (100.0%) | no rows; ceiling no rows |
+| [RFC 8671](../../rfc8671/) | Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP) | Ze proven 2, Ze correctness gap 9 | Ze MUST proven 2, SHOULD not decided 1, Ze correctness gap 9 |
+| [RFC 9069](../../rfc9069/) | Support for Local RIB in the BGP Monitoring Protocol (BMP) | Ze proven 9, Ze correctness gap 7 | Ze MUST proven 9, Ze correctness gap 7 |

@@ -257,12 +257,13 @@ static {
 
 The tag is not programmed to the kernel, because Linux has no route tag
 attribute. It travels with the route into redistribution, where it does two
-things. A `redistribute { destination <proto> { import static { tag N } } }`
-rule imports only the routes carrying `N`. And when the route reaches OSPF, Ze
+things. A `redistribute { destination <proto> { import static { filters [ T ];
+final accept; } } }` rule whose `policy { match T { tag [ N ]; } }` instance
+reads the tag imports only the routes carrying `N`. And when the route reaches OSPF, Ze
 writes the tag into the External Route Tag of the AS-external LSA (RFC 2328
-Appendix A.4.5). A route that carries a tag keeps it there, ahead of the `tag`
-configured for the whole source under `ospf { redistribute { static { ... } } }`;
-a route with no tag takes that configured value.
+Appendix A.4.5), unless a `modify` instance on the `ospf filter export` chain
+sets another tag with `set tag`.
+[OSPF redistribution](../ospf/index.md) shows the chain.
 
 <!-- source: internal/plugins/static/inject.go -- emitRouteChangeID -->
 
@@ -274,7 +275,7 @@ tag, so it never meets a `tag` condition; `tag 0` is a real tag.
 [Route Policy at the Loc-RIB](https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md) covers the chains.
 <!-- source: internal/plugins/static/locrib.go -- staticPath -->
 <!-- source: internal/plugins/static/config.go -- parseRoute -->
-<!-- source: internal/plugins/ospf/redist_wiring.go -- externalRouteTag -->
+<!-- source: internal/plugins/ospf/redistribute/export.go -- exportVerdict -->
 
 ## CLI
 
@@ -367,3 +368,8 @@ redistribute {
     }
 }
 ```
+
+Every route in the default table is redistributed, `blackhole` and `reject`
+routes included, as FRR and BIRD do. A discard route is the usual way to
+originate an aggregate: install `blackhole { }` for the covering prefix and
+import it into BGP or OSPF, and the more specific routes keep forwarding.

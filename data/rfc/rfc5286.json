@@ -1,0 +1,37 @@
+{
+  "stem": "rfc5286",
+  "title": "Basic Specification for IP Fast Reroute: Loop-Free Alternates",
+  "walked": true,
+  "requirements": 30,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 6,
+    "kept": 6,
+    "ze-proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 4,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 24,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 24,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 2
+  },
+  "unmet": [
+    "RFC5286-x-4",
+    "RFC5286-x-5",
+    "RFC5286-x-6"
+  ]
+}

@@ -1,36 +1,63 @@
 # BGP transport security
 
-Technology aggregate. BGP session transport security. The RFCs whose summary names the bgp-transport-security aggregate, with their mandatory and optional coverage.
+Technology aggregate. BGP session transport security. The RFCs whose summary names the bgp-transport-security aggregate, with the MUST bar and the overview bar of the set and of each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 100.0% (12 of 12 (100.0%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 14.3% (1 of 7 (14.3%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 100.0% (12 of 12 (100.0%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (7 of 7 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 1 (of 3 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/bgp-transport-security.json](../../../../data/rfc/profiles/bgp-transport-security.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 12 of 12 (100.0%). Optional ceiling: 7 of 7 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc2385 8 of 8 (100.0%). Lowest optional ceiling: rfc2385 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 12
+- **Overview bar**: Ze MUST proven 12, SHOULD proven 1, SHOULD not decided 6
+
+| Figure | Rows |
+|---|---|
+| RFCs | 3 |
+| Not walked | 1 |
+| Mandatory register | not complete |
+| MUST rows | 12 |
+| MUST rows kept (the MUST bar) | 12 |
+| Ze proven | 12 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 0 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 7 |
+| SHOULD proven | 1 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 6 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
 ### Level 0
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2385](../../rfc2385/) | Protection of BGP Sessions via the TCP MD5 Signature Option | 8 of 8 (100.0%); ceiling 8 of 8 (100.0%) | 0 of 1 (0.0%); ceiling 1 of 1 (100.0%) |
+| [RFC 2385](../../rfc2385/) | Protection of BGP Sessions via the TCP MD5 Signature Option | Ze proven 8 | Ze MUST proven 8, SHOULD not decided 1 |
 
 ### Level 5
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5082](../../rfc5082/) | The Generalized TTL Security Mechanism (GTSM) | 4 of 4 (100.0%); ceiling 4 of 4 (100.0%) | 1 of 6 (16.7%); ceiling 6 of 6 (100.0%) |
+| [RFC 5082](../../rfc5082/) | The Generalized TTL Security Mechanism (GTSM) | Ze proven 4 | Ze MUST proven 4, SHOULD proven 1, SHOULD not decided 5 |
 
 ### No level: the corpus holds no text of the RFC
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 5925](../../rfc5925/) | The TCP Authentication Option | not walked | not walked |

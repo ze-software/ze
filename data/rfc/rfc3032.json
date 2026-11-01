@@ -1,0 +1,46 @@
+{
+  "stem": "rfc3032",
+  "title": "MPLS Label Stack Encoding",
+  "walked": true,
+  "requirements": 24,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 18,
+    "kept": 18,
+    "ze-proven": 1,
+    "os-verified": 0,
+    "os-gap": 5,
+    "ze-gap": 12,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 6,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 6,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 1
+  },
+  "unmet": [
+    "RFC3032-1-1",
+    "RFC3032-2.2-2",
+    "RFC3032-2.4.3-1",
+    "RFC3032-3.3-1",
+    "RFC3032-3.3-2",
+    "RFC3032-3.4-1",
+    "RFC3032-3.4-2",
+    "RFC3032-3.4-3",
+    "RFC3032-3.5-1",
+    "RFC3032-3.5-2",
+    "RFC3032-3.6-1",
+    "RFC3032-3.6-2"
+  ]
+}

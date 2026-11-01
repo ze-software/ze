@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 11.8% | 2 of 17 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 17 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 17 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 17 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 100.0% | 4 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 2 | of 17 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 17 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 17 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 17 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 4 | 4 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 17 | of 27 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every share below reads what the summary records rather than what the gate enforces |
-| Out of scope | 0 | of 17 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 17 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 17 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 17 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 17 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| MUSTs declared | 17 | of 27 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every count below reads what the summary records rather than what the gate enforces |
+| Out of scope | 0 | of 17 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 17 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 17 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 17 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 17 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 88.2% | 15 of 17 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 15 | of 17 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 17 gated MUSTs: they add up to 17. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,23 +45,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | No row in the public ledger |
+| Public row | No row in the public ledger |
 | Enrolment | Not enrolled (backlog) |
 | Requirements | 27 |
 | Gated MUST-level | 17 |
@@ -103,9 +103,41 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 **No test and no annotation (15):** [`RFC7627-5.1-1`](#rfc7627-5.1-1), [`RFC7627-5.2-1`](#rfc7627-5.2-1), [`RFC7627-5.2-2`](#rfc7627-5.2-2), [`RFC7627-5.2-4`](#rfc7627-5.2-4), [`RFC7627-5.2-6`](#rfc7627-5.2-6), [`RFC7627-5.3-3`](#rfc7627-5.3-3), [`RFC7627-5.3-4`](#rfc7627-5.3-4), [`RFC7627-5.3-6`](#rfc7627-5.3-6), [`RFC7627-5.3-8`](#rfc7627-5.3-8), [`RFC7627-5.3-9`](#rfc7627-5.3-9), [`RFC7627-5.3-10`](#rfc7627-5.3-10), [`RFC7627-5.4-3`](#rfc7627-5.4-3), [`RFC7627-5.4-4`](#rfc7627-5.4-4), [`RFC7627-5.4-6`](#rfc7627-5.4-6), [`RFC7627-6.4-2`](#rfc7627-6.4-2)
 
-## Attainable ceiling
+## Figures
 
-Not walked: no proof figure or ceiling is published.
+- **MUST bar**: not walked
+- **Overview bar**: not walked
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 1 |
+| Mandatory register | not complete |
+| MUST rows | not walked |
+| MUST rows kept (the MUST bar) | not walked |
+| Ze proven | not walked |
+| OS verified | not walked |
+| OS testing gap | not walked |
+| Ze correctness gap | not walked |
+| MUST rows not owed | not walked |
+| MUST not owed: feature-declined | not walked |
+| MUST not owed: linux-limit | not walked |
+| MUST not owed: not-applicable | not walked |
+| SHOULD / MAY rows | not walked |
+| SHOULD proven | not walked |
+| SHOULD OS verified | not walked |
+| SHOULD OS testing gap | not walked |
+| SHOULD not owed | not walked |
+| SHOULD not owed: feature-declined | not walked |
+| SHOULD not owed: linux-limit | not walked |
+| SHOULD not owed: not-applicable | not walked |
+| SHOULD not ever | not walked |
+| SHOULD not yet | not walked |
+| SHOULD not decided | not walked |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc7627.json](../../../data/rfc/rfc7627.json).
 
 ## Requirements
 
@@ -122,8 +154,8 @@ Not walked: no proof figure or ceiling is published.
 | `RFC7627-5.3-8` | If the new ClientHello contains the extension and the server chooses to continue the handshake, then the server MUST include the "extended_master_secret" extension in its ServerHello message. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7627-5.3-9` | If the original session did not use the "extended_master_secret" extension but the new ServerHello contains the extension, the client MUST abort the handshake. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7627-5.3-10` | If the original session used the extension but the new ServerHello does not contain the extension, the client MUST abort the handshake. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7627-5.4-1` | If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. (§5.4) | MUST NOT | 5.4 | **positive:** `unit/verify` [`TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7627_eap_tls_export_refusal_test.go#L200). **negative:** `interop/nightly` [`checkEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L391) |
-| `RFC7627-5.4-2` | If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. In particular, it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication [COMPOUND-AUTH]. (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7627_eap_tls_export_refusal_test.go#L203). **negative:** `interop/nightly` [`checkEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L396) |
+| `RFC7627-5.4-1` | If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. (§5.4) | MUST NOT | 5.4 | **positive:** `unit/verify` [`TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7627_eap_tls_export_refusal_test.go#L200). **negative:** `interop/nightly` [`checkEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L400) |
+| `RFC7627-5.4-2` | If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. In particular, it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication [COMPOUND-AUTH]. (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7627_eap_tls_export_refusal_test.go#L203). **negative:** `interop/nightly` [`checkEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L405) |
 | `RFC7627-5.4-3` | If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake's "verify_data" for application-level authentication. (§5.4) | MUST NOT | 5.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7627-5.4-4` | If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake's "verify_data" for application-level authentication. In particular, the client MUST disable renegotiation and any use of the "tls-unique" channel binding [RFC5929] on the current connection. (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7627-5.4-6` | If the original session uses an extended master secret but the ClientHello or ServerHello in the abbreviated handshake does not include the extension, it MAY be safe to continue the abbreviated handshake since it is protected by the extended master secret of the original session. This scenario may occur, for example, when a server that implements this extension establishes a session but the session is subsequently resumed at a different server that does not support the extension. Since such situations are unusual and likely to be the result of transient or inadvertent misconfigurations, this document recommends that the client and server MUST abort such handshakes. (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
@@ -259,7 +291,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`checkEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L391) | interop/nightly | mutant, verified |
+| negative | [`checkEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L400) | interop/nightly | mutant, verified |
 | positive | [`TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7627_eap_tls_export_refusal_test.go#L200) | unit/verify | mutant, verified |
 
 ### [`RFC7627-5.4-2`](#rfc7627-5.4-2)
@@ -270,7 +302,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`checkEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L396) | interop/nightly | mutant, verified |
+| negative | [`checkEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L405) | interop/nightly | mutant, verified |
 | positive | [`TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7627_eap_tls_export_refusal_test.go#L203) | unit/verify | mutant, verified |
 
 ### [`RFC7627-5.4-3`](#rfc7627-5.4-3)

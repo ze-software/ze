@@ -1,0 +1,39 @@
+{
+  "stem": "rfc9234",
+  "title": "Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages",
+  "walked": true,
+  "requirements": 24,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 19,
+    "kept": 19,
+    "ze-proven": 8,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 11,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 5,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 4,
+    "interop": 1,
+    "unit": 3
+  },
+  "unmet": [
+    "RFC9234-5-7",
+    "RFC9234-5-8",
+    "RFC9234-6-1"
+  ]
+}

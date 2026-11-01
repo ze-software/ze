@@ -1,0 +1,20 @@
+{
+  "name": "ppp-access",
+  "kind": "technology",
+  "title": "PPP access",
+  "release": false,
+  "required": [
+    "rfc1332",
+    "rfc1334",
+    "rfc1570",
+    "rfc1661",
+    "rfc1877",
+    "rfc1994",
+    "rfc2516",
+    "rfc2661",
+    "rfc3145",
+    "rfc4638",
+    "rfc5072"
+  ],
+  "optional": []
+}

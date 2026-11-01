@@ -1,0 +1,39 @@
+{
+  "stem": "rfc5305",
+  "title": "IS-IS Extensions for Traffic Engineering",
+  "walked": true,
+  "requirements": 22,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 14,
+    "kept": 14,
+    "ze-proven": 8,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 6,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 8,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 8,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 8
+  },
+  "unmet": [
+    "RFC5305-3.2-2",
+    "RFC5305-3.3-2",
+    "RFC5305-3.7-1",
+    "RFC5305-4.1-3",
+    "RFC5305-4.3-1"
+  ]
+}

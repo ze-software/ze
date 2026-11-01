@@ -1,0 +1,43 @@
+{
+  "stem": "rfc5382",
+  "title": "NAT Behavioral Requirements for TCP",
+  "walked": true,
+  "requirements": 22,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 11,
+    "kept": 11,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 11,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 11,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 11,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC5382-4.1-1",
+    "RFC5382-4.2-1",
+    "RFC5382-4.2-2",
+    "RFC5382-4.3-1",
+    "RFC5382-4.3-2",
+    "RFC5382-4.3-3",
+    "RFC5382-5-1",
+    "RFC5382-5-2",
+    "RFC5382-7.1-1",
+    "RFC5382-7.2-1",
+    "RFC5382-7.3-1"
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "stem": "rfc5303",
+  "title": "Three-Way Handshake for IS-IS Point-to-Point Adjacencies",
+  "walked": true,
+  "requirements": 18,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 17,
+    "kept": 17,
+    "ze-proven": 8,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 9,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 1,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 1,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 8
+  },
+  "unmet": [
+    "RFC5303-3.1-2",
+    "RFC5303-3.1-3",
+    "RFC5303-3.2-12",
+    "RFC5303-3.2-4",
+    "RFC5303-3.2-8",
+    "RFC5303-3.2-9"
+  ]
+}

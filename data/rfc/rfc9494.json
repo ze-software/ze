@@ -1,0 +1,42 @@
+{
+  "stem": "rfc9494",
+  "title": "Long-Lived Graceful Restart for BGP",
+  "walked": true,
+  "requirements": 36,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 25,
+    "kept": 25,
+    "ze-proven": 8,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 17,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 11,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 10,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 2,
+    "unit": 6
+  },
+  "unmet": [
+    "RFC9494-4.2-10",
+    "RFC9494-4.2-7",
+    "RFC9494-4.2-9",
+    "RFC9494-4.3-2",
+    "RFC9494-4.7.2-1",
+    "RFC9494-4.7.2-2",
+    "RFC9494-5-2"
+  ]
+}

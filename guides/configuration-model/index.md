@@ -478,10 +478,10 @@ ospf {
 <!-- source: internal/plugins/ospf/auth_keystore.go -- configure, decodeSecret -->
 
 Redistribution and default-route origination make the router an ASBR. The `ospf`
-container sets the per-source external metric, metric-type (`type-1`/`type-2`),
-and route tag, and configures `default-information originate`. A redistributed
-route that carries its own tag, such as a static route with a `tag` leaf,
-overrides the per-source tag; a route with no tag takes the per-source value. The shared
+container configures `default-information originate`, and its `filter export`
+chain judges every redistributed route: a `modify` instance there sets the
+external metric, the metric-type (`type-1`/`type-2`) and the route tag, and a
+route no filter sets takes metric 20, `type-2` and its own tag. The shared
 top-level `redistribute` block enrols the actual route flow: `destination ospf`
 imports routes as OSPFv2 Type 5 LSAs for IPv4, OSPFv3 AS-External-LSAs for
 normal IPv6 areas, or OSPFv3 NSSA-LSAs for attached IPv6 NSSA areas.
@@ -489,6 +489,19 @@ normal IPv6 areas, or OSPFv3 NSSA-LSAs for attached IPv6 NSSA areas.
 itself is a runtime no-op (loop prevention).
 
 ```
+policy {
+    modify ospf-export-connected {
+        match {
+            protocol [ connected ]
+        }
+        set {
+            metric 20
+            metric-type type-2
+            tag 100
+        }
+    }
+}
+
 ospf {
     router-id 10.0.0.1
 
@@ -499,11 +512,15 @@ ospf {
         metric-type type-2
     }
 
+    filter {
+        export {
+            filters [ ospf-export-connected ]
+            final accept
+        }
+    }
+
     redistribute {
         connected {
-            metric 20
-            metric-type type-2
-            tag 100
         }
         static {
         }
@@ -1696,11 +1713,15 @@ dispatches accepted routes to the matching consumer.
 | `redistribute-orchestrator` plugin | Dispatches non-BGP route-change events to registered consumers (BGP, IS-IS). |
 
 ```
+policy {
+    match redistribute-bgp-ebgp { family [ ipv4/unicast ipv4/vpn ]; }
+    match redistribute-bgp-connected { family [ ipv4/unicast ]; }
+}
 redistribute {
     destination bgp {
-        import ebgp { family [ ipv4/unicast ipv4/vpn ]; }    # intra-BGP ACL
+        import ebgp { filters [ redistribute-bgp-ebgp ]; final accept; }    # intra-BGP ACL
         import l2tp;                                          # egress, all families
-        import connected { family [ ipv4/unicast ]; }         # egress, IPv4 unicast only
+        import connected { filters [ redistribute-bgp-connected ]; final accept; }         # egress, IPv4 unicast only
         import isis;                                          # IS-IS SPF routes into BGP
     }
     destination isis {
@@ -4142,6 +4163,48 @@ BIOS bootfile.
 
 <!-- source: internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang -- DHCP server config schema -->
 <!-- source: internal/plugins/dhcpserver/config.go -- parseConfig, parseRanges, parsePXEConfig -->
+
+### TFTP Server
+
+The TFTP server serves files read-only, for PXE boot and for
+`ze init --from tftp://`. It refuses every write request.
+
+```
+service {
+    tftp-server {
+        enabled true;
+        listen-interface eth0;
+        root-directory /var/lib/tftp;
+        max-transfers 10;
+        max-windowsize 64;
+        timeout 5;
+    }
+}
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `enabled` | boolean | `false` | Serve TFTP. `root-directory` is then required. |
+| `listen-interface` | list of interfaces | (none) | One UDP socket per interface, bound with `SO_BINDTODEVICE`. |
+| `root-directory` | string | (none) | The directory files are served from. A path that leaves it is refused. |
+| `max-transfers` | 1-1000 | `10` | Transfers at once, across every listener. Over the limit a request gets the error "service unavailable". |
+| `max-windowsize` | 1-65535 blocks | `64` | The largest RFC 7440 window granted. A client gets the smaller of its request and this value; `1` turns windowed sending off. |
+| `timeout` | 1-255 seconds | `5` | How long Ze waits for an ACK before it sends again, for a client that asks for no timeout. A client's own RFC 2349 timeout from 1 to 255 seconds is used instead. |
+
+A value outside its range is refused when the config is validated or
+committed, and the error names the range to use. A reload that changes only
+`max-windowsize` or `timeout` cuts no transfer: a transfer in flight keeps the
+values it started with, and the next request gets the new ones. A reload that
+changes any other leaf, or that finds an interface the server could not bind
+at boot, binds the listeners again and cuts the transfers in flight; the
+client fetches the file again. Such a reload binds every interface or none, so
+while an interface it names is still missing it is refused and rolled back, a
+`timeout` or `max-windowsize` change included, and the running server goes on
+as it was.
+
+<!-- source: internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang -- TFTP server config schema -->
+<!-- source: internal/plugins/tftpserver/config.go -- parseConfig, rangedLeaf -->
+<!-- source: internal/plugins/tftpserver/config_tx.go -- tftpServer.install, tftpServer.onlyLimitsChange -->
 
 ### Reactor Settings
 

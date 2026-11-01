@@ -1,38 +1,65 @@
 # BFD
 
-Technology aggregate. Bidirectional Forwarding Detection. The RFCs whose summary names the bfd aggregate, with their mandatory and optional coverage.
+Technology aggregate. Bidirectional Forwarding Detection. The RFCs whose summary names the bfd aggregate, with the MUST bar and the overview bar of the set and of each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 61.5% (88 of 143 (61.5%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 17.4% (12 of 69 (17.4%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 100.0% (143 of 143 (100.0%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (69 of 69 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 0 (of 5 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/bfd.json](../../../../data/rfc/profiles/bfd.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 143 of 143 (100.0%). Optional ceiling: 69 of 69 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc5880 111 of 111 (100.0%). Lowest optional ceiling: rfc5880 26 of 26 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 88, Ze correctness gap 55
+- **Overview bar**: Ze MUST proven 88, SHOULD proven 12, SHOULD not decided 57, Ze correctness gap 55
+
+| Figure | Rows |
+|---|---|
+| RFCs | 5 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 143 |
+| MUST rows kept (the MUST bar) | 143 |
+| Ze proven | 88 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 55 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 69 |
+| SHOULD proven | 12 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 57 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
 ### Level 6
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5880](../../rfc5880/) | Bidirectional Forwarding Detection (BFD) | 72 of 111 (64.9%); ceiling 111 of 111 (100.0%) | 6 of 26 (23.1%); ceiling 26 of 26 (100.0%) |
+| [RFC 5880](../../rfc5880/) | Bidirectional Forwarding Detection (BFD) | Ze proven 72, Ze correctness gap 39 | Ze MUST proven 72, SHOULD proven 6, SHOULD not decided 20, Ze correctness gap 39 |
 
 ### Level 7
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5881](../../rfc5881/) (cycle with rfc5882, rfc5883) | Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop) | 13 of 23 (56.5%); ceiling 23 of 23 (100.0%) | 0 of 10 (0.0%); ceiling 10 of 10 (100.0%) |
-| [RFC 5882](../../rfc5882/) (cycle with rfc5881, rfc5883) | Generic Application of Bidirectional Forwarding Detection (BFD) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) | 5 of 29 (17.2%); ceiling 29 of 29 (100.0%) |
-| [RFC 5883](../../rfc5883/) (cycle with rfc5881, rfc5882) | Bidirectional Forwarding Detection (BFD) for Multihop Paths | 3 of 6 (50.0%); ceiling 6 of 6 (100.0%) | 0 of 1 (0.0%); ceiling 1 of 1 (100.0%) |
+| [RFC 5881](../../rfc5881/) (cycle with rfc5882, rfc5883) | Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop) | Ze proven 13, Ze correctness gap 10 | Ze MUST proven 13, SHOULD not decided 10, Ze correctness gap 10 |
+| [RFC 5882](../../rfc5882/) (cycle with rfc5881, rfc5883) | Generic Application of Bidirectional Forwarding Detection (BFD) | Ze correctness gap 3 | SHOULD proven 5, SHOULD not decided 24, Ze correctness gap 3 |
+| [RFC 5883](../../rfc5883/) (cycle with rfc5881, rfc5882) | Bidirectional Forwarding Detection (BFD) for Multihop Paths | Ze proven 3, Ze correctness gap 3 | Ze MUST proven 3, SHOULD not decided 1, Ze correctness gap 3 |
 
 ### Level 9
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9384](../../rfc9384/) | A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD) | no rows; ceiling no rows | 1 of 3 (33.3%); ceiling 3 of 3 (100.0%) |
+| [RFC 9384](../../rfc9384/) | A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD) | no rows | SHOULD proven 1, SHOULD not decided 2 |

@@ -1,6 +1,6 @@
 # RFC 4861 - Neighbor Discovery for IP version 6 (IPv6)
 
-Partial. Every requirement this repository extracted from RFC 4861, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+IPv6 Neighbor Discovery and Router Advertisement. Every requirement this repository extracted from RFC 4861, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 7.2% | 10 of 138 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 14.5% | 20 of 138 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 138 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 138 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 100.0% | 49 of 49 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 10 | of 138 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 20 | of 138 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 138 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 138 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 49 | 49 of 49 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 138 | of 217 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 138 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 138 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 65.9% | 91 of 138 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 138 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 138 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 138 | of 217 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 138 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 138 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 91 | of 138 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 138 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 138 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 12.3% | 17 of 138 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 17 | of 138 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 138 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 138 gated MUSTs: they add up to 138. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,23 +45,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | IPv6 Neighbor Discovery and Router Advertisement |
 | Enrolment | Enrolled |
 | Requirements | 217 |
 | Gated MUST-level | 138 |
@@ -80,19 +80,18 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: Ze is an IPv6 router that originates Router Advertisements and answers Router Solicitations on configured interfaces (internal/plugins/iface/ra) and on L2TP subscriber sessions (internal/component/l2tp/ppp ra_send.go), and sends VRRP unsolicited Neighbor Advertisements (internal/plugins/vrrp/transport/na.go). Walked site by site on 2026-10-26 (rfc/extraction/rfc4861.json). Every MUST is classified: the rows the Linux kernel's Neighbor Discovery performs (Neighbor Solicitation and Advertisement, address resolution, NUD, Redirect, host processing of Router Advertisements) are lower-layer; the rows on Router Advertisement origination, Router Solicitation handling and unsolicited Neighbor Advertisements are Ze's and carry tagged tests where Ze meets them; seventeen rows are gaps, listed under Support remaining; the ND proxy and IPsec rows are among them, because no owner ruling names either feature unwanted (ai/META-DECISIONS.md, Goal and scope).
+Enrolled: Ze is an IPv6 router that originates Router Advertisements and answers Router Solicitations on configured interfaces (internal/plugins/iface/ra) and on L2TP subscriber sessions (internal/component/l2tp/ppp ra_send.go), and sends VRRP unsolicited Neighbor Advertisements (internal/plugins/vrrp/transport/na.go). Walked site by site on 2026-10-26 (rfc/extraction/rfc4861.json). Every MUST is classified: the rows the Linux kernel's Neighbor Discovery performs (Neighbor Solicitation and Advertisement, address resolution, NUD, Redirect, host processing of Router Advertisements) are lower-layer; the rows on Router Advertisement origination, Router Solicitation handling and unsolicited Neighbor Advertisements are Ze's and carry tagged tests where Ze meets them; seventeen rows are gaps, each disclosed by its own annotation, which the derived ledger lists under Unmet; the ND proxy and IPsec rows are among them, because no owner ruling names either feature unwanted (ai/META-DECISIONS.md, Goal and scope).
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** IPv6 Neighbor Discovery and Router Advertisement
 
-**What the ledger says is covered**
+**Proof:** 30 of 138 MUST proven
 
-Router Advertisements with M and O flags, router lifetime, reachable and retrans timers, Source Link-Layer Address, Prefix Information and RDNSS options, sent with Hop Limit 255 from the link-local address on a randomized schedule, answered to a solicitation after a random delay, rate limited, and withdrawn with a zero router lifetime when an interface stops advertising. Router configuration variables are bounded as Section 6.2.1 requires. Neighbor Discovery other than Router Advertisement origination is performed by the Linux kernel.
+**Evidence:** unit 30
 
-**What the ledger says remains**
+**Unmet:** RFC4861-11.2-1, RFC4861-11.2-2, RFC4861-2.3-1, RFC4861-4.4-3, RFC4861-4.6-1, RFC4861-6.1.1-1, RFC4861-6.1.1-2, RFC4861-6.2.1-1, RFC4861-6.2.1-8, RFC4861-6.2.4-1, RFC4861-6.2.5-1, RFC4861-6.2.5-2, RFC4861-6.2.6-1, RFC4861-7.2.6-1, RFC4861-7.2.8-1, RFC4861-7.2.8-2, RFC4861-9-7
 
-A received Router Solicitation is not checked for Hop Limit 255, Code 0, length or zero-length options ([`RFC4861-6.1.1-2`](#rfc4861-6.1.1-2), [`RFC4861-4.6-1`](#rfc4861-4.6-1)). The configuration does not cover every conceptual variable ([`RFC4861-6.2.1-1`](#rfc4861-6.2.1-1)), and the advertised reachable-time, retransmit-timer and hop-limit are not the values the router itself uses ([`RFC4861-6.2.1-8`](#rfc4861-6.2.1-8)). An interface that is not forwarding still advertises, and still answers received Router Solicitations instead of discarding them ([`RFC4861-6.1.1-1`](#rfc4861-6.1.1-1), [`RFC4861-6.2.6-1`](#rfc4861-6.2.6-1)), and turning forwarding off does not zero the Router Lifetime ([`RFC4861-6.2.4-1`](#rfc4861-6.2.4-1), [`RFC4861-6.2.5-2`](#rfc4861-6.2.5-2)), nor clear the Router flag in VRRP Neighbor Advertisements ([`RFC4861-6.2.5-1`](#rfc4861-6.2.5-1)). A VRRP virtual-MAC interface is up with no link-local address while its group is Backup ([`RFC4861-2.3-1`](#rfc4861-2.3-1)). VRRP refuses no multicast IPv6 virtual address as a Neighbor Advertisement target, and does not space its repeated unsolicited Neighbor Advertisements by RetransTimer ([`RFC4861-4.4-3`](#rfc4861-4.4-3), [`RFC4861-7.2.6-1`](#rfc4861-7.2.6-1)). A Router Advertisement can exceed the link MTU, because the prefix list is unbounded ([`RFC4861-9-7`](#rfc4861-9-7)). No MTU option is sent. No Neighbor Discovery proxy exists ([`RFC4861-7.2.8-1`](#rfc4861-7.2.8-1), [`RFC4861-7.2.8-2`](#rfc4861-7.2.8-2)), and Neighbor Discovery cannot be secured with AH or ESP ([`RFC4861-11.2-1`](#rfc4861-11.2-1), [`RFC4861-11.2-2`](#rfc4861-11.2-2)).
 
 ## Coverage
 
@@ -111,9 +110,41 @@ A received Router Solicitation is not checked for Hop Limit 255, Code 0, length 
 
 **Annotated (including scoped evidence) (128):** [`RFC4861-2.3-1`](#rfc4861-2.3-1), [`RFC4861-4.1-1`](#rfc4861-4.1-1), [`RFC4861-4.1-2`](#rfc4861-4.1-2), [`RFC4861-4.1-3`](#rfc4861-4.1-3), [`RFC4861-4.2-1`](#rfc4861-4.2-1), [`RFC4861-4.2-3`](#rfc4861-4.2-3), [`RFC4861-4.3-1`](#rfc4861-4.3-1), [`RFC4861-4.3-2`](#rfc4861-4.3-2), [`RFC4861-4.3-3`](#rfc4861-4.3-3), [`RFC4861-4.3-4`](#rfc4861-4.3-4), [`RFC4861-4.3-5`](#rfc4861-4.3-5), [`RFC4861-4.4-1`](#rfc4861-4.4-1), [`RFC4861-4.4-2`](#rfc4861-4.4-2), [`RFC4861-4.4-3`](#rfc4861-4.4-3), [`RFC4861-4.4-4`](#rfc4861-4.4-4), [`RFC4861-4.4-5`](#rfc4861-4.4-5), [`RFC4861-4.4-6`](#rfc4861-4.4-6), [`RFC4861-4.5-1`](#rfc4861-4.5-1), [`RFC4861-4.5-2`](#rfc4861-4.5-2), [`RFC4861-4.5-3`](#rfc4861-4.5-3), [`RFC4861-4.5-4`](#rfc4861-4.5-4), [`RFC4861-4.5-5`](#rfc4861-4.5-5), [`RFC4861-4.6-1`](#rfc4861-4.6-1), [`RFC4861-4.6.1-1`](#rfc4861-4.6.1-1), [`RFC4861-4.6.2-1`](#rfc4861-4.6.2-1), [`RFC4861-4.6.2-2`](#rfc4861-4.6.2-2), [`RFC4861-4.6.2-5`](#rfc4861-4.6.2-5), [`RFC4861-4.6.2-7`](#rfc4861-4.6.2-7), [`RFC4861-4.6.3-1`](#rfc4861-4.6.3-1), [`RFC4861-4.6.3-2`](#rfc4861-4.6.3-2), [`RFC4861-4.6.4-1`](#rfc4861-4.6.4-1), [`RFC4861-4.6.4-2`](#rfc4861-4.6.4-2), [`RFC4861-6.1.1-1`](#rfc4861-6.1.1-1), [`RFC4861-6.1.1-2`](#rfc4861-6.1.1-2), [`RFC4861-6.1.1-3`](#rfc4861-6.1.1-3), [`RFC4861-6.1.1-4`](#rfc4861-6.1.1-4), [`RFC4861-6.1.2-1`](#rfc4861-6.1.2-1), [`RFC4861-6.1.2-2`](#rfc4861-6.1.2-2), [`RFC4861-6.1.2-3`](#rfc4861-6.1.2-3), [`RFC4861-6.2.1-1`](#rfc4861-6.2.1-1), [`RFC4861-6.2.1-2`](#rfc4861-6.2.1-2), [`RFC4861-6.2.1-8`](#rfc4861-6.2.1-8), [`RFC4861-6.2.2-2`](#rfc4861-6.2.2-2), [`RFC4861-6.2.4-1`](#rfc4861-6.2.4-1), [`RFC4861-6.2.5-1`](#rfc4861-6.2.5-1), [`RFC4861-6.2.5-2`](#rfc4861-6.2.5-2), [`RFC4861-6.2.6-1`](#rfc4861-6.2.6-1), [`RFC4861-6.2.6-2`](#rfc4861-6.2.6-2), [`RFC4861-6.2.6-3`](#rfc4861-6.2.6-3), [`RFC4861-6.2.6-4`](#rfc4861-6.2.6-4), [`RFC4861-6.2.6-5`](#rfc4861-6.2.6-5), [`RFC4861-6.2.6-6`](#rfc4861-6.2.6-6), [`RFC4861-6.2.6-7`](#rfc4861-6.2.6-7), [`RFC4861-6.3.4-1`](#rfc4861-6.3.4-1), [`RFC4861-6.3.4-2`](#rfc4861-6.3.4-2), [`RFC4861-6.3.4-3`](#rfc4861-6.3.4-3), [`RFC4861-6.3.4-4`](#rfc4861-6.3.4-4), [`RFC4861-6.3.4-5`](#rfc4861-6.3.4-5), [`RFC4861-6.3.4-6`](#rfc4861-6.3.4-6), [`RFC4861-6.3.4-7`](#rfc4861-6.3.4-7), [`RFC4861-6.3.4-8`](#rfc4861-6.3.4-8), [`RFC4861-6.3.5-1`](#rfc4861-6.3.5-1), [`RFC4861-6.3.7-1`](#rfc4861-6.3.7-1), [`RFC4861-7.1.1-1`](#rfc4861-7.1.1-1), [`RFC4861-7.1.1-2`](#rfc4861-7.1.1-2), [`RFC4861-7.1.1-3`](#rfc4861-7.1.1-3), [`RFC4861-7.1.2-1`](#rfc4861-7.1.2-1), [`RFC4861-7.1.2-2`](#rfc4861-7.1.2-2), [`RFC4861-7.1.2-3`](#rfc4861-7.1.2-3), [`RFC4861-7.2-1`](#rfc4861-7.2-1), [`RFC4861-7.2.1-1`](#rfc4861-7.2.1-1), [`RFC4861-7.2.1-2`](#rfc4861-7.2.1-2), [`RFC4861-7.2.1-3`](#rfc4861-7.2.1-3), [`RFC4861-7.2.2-1`](#rfc4861-7.2.2-1), [`RFC4861-7.2.2-2`](#rfc4861-7.2.2-2), [`RFC4861-7.2.2-3`](#rfc4861-7.2.2-3), [`RFC4861-7.2.2-4`](#rfc4861-7.2.2-4), [`RFC4861-7.2.2-5`](#rfc4861-7.2.2-5), [`RFC4861-7.2.3-1`](#rfc4861-7.2.3-1), [`RFC4861-7.2.3-2`](#rfc4861-7.2.3-2), [`RFC4861-7.2.3-3`](#rfc4861-7.2.3-3), [`RFC4861-7.2.3-4`](#rfc4861-7.2.3-4), [`RFC4861-7.2.4-1`](#rfc4861-7.2.4-1), [`RFC4861-7.2.4-2`](#rfc4861-7.2.4-2), [`RFC4861-7.2.4-3`](#rfc4861-7.2.4-3), [`RFC4861-7.2.4-4`](#rfc4861-7.2.4-4), [`RFC4861-7.2.5-1`](#rfc4861-7.2.5-1), [`RFC4861-7.2.5-2`](#rfc4861-7.2.5-2), [`RFC4861-7.2.5-3`](#rfc4861-7.2.5-3), [`RFC4861-7.2.5-4`](#rfc4861-7.2.5-4), [`RFC4861-7.2.5-5`](#rfc4861-7.2.5-5), [`RFC4861-7.2.5-6`](#rfc4861-7.2.5-6), [`RFC4861-7.2.5-7`](#rfc4861-7.2.5-7), [`RFC4861-7.2.6-1`](#rfc4861-7.2.6-1), [`RFC4861-7.2.6-2`](#rfc4861-7.2.6-2), [`RFC4861-7.2.6-3`](#rfc4861-7.2.6-3), [`RFC4861-7.2.8-1`](#rfc4861-7.2.8-1), [`RFC4861-7.2.8-2`](#rfc4861-7.2.8-2), [`RFC4861-7.3.1-1`](#rfc4861-7.3.1-1), [`RFC4861-7.3.3-1`](#rfc4861-7.3.3-1), [`RFC4861-7.3.3-2`](#rfc4861-7.3.3-2), [`RFC4861-7.3.3-3`](#rfc4861-7.3.3-3), [`RFC4861-7.3.3-4`](#rfc4861-7.3.3-4), [`RFC4861-8-1`](#rfc4861-8-1), [`RFC4861-8.1-1`](#rfc4861-8.1-1), [`RFC4861-8.1-2`](#rfc4861-8.1-2), [`RFC4861-8.1-3`](#rfc4861-8.1-3), [`RFC4861-8.1-4`](#rfc4861-8.1-4), [`RFC4861-8.2-1`](#rfc4861-8.2-1), [`RFC4861-8.2-2`](#rfc4861-8.2-2), [`RFC4861-8.2-3`](#rfc4861-8.2-3), [`RFC4861-8.2-4`](#rfc4861-8.2-4), [`RFC4861-8.3-1`](#rfc4861-8.3-1), [`RFC4861-8.3-2`](#rfc4861-8.3-2), [`RFC4861-8.3-3`](#rfc4861-8.3-3), [`RFC4861-8.3-4`](#rfc4861-8.3-4), [`RFC4861-8.3-5`](#rfc4861-8.3-5), [`RFC4861-9-1`](#rfc4861-9-1), [`RFC4861-9-2`](#rfc4861-9-2), [`RFC4861-9-3`](#rfc4861-9-3), [`RFC4861-9-4`](#rfc4861-9-4), [`RFC4861-9-5`](#rfc4861-9-5), [`RFC4861-9-6`](#rfc4861-9-6), [`RFC4861-9-7`](#rfc4861-9-7), [`RFC4861-9-8`](#rfc4861-9-8), [`RFC4861-11.2-1`](#rfc4861-11.2-1), [`RFC4861-11.2-2`](#rfc4861-11.2-2), [`RFC4861-D-1`](#rfc4861-d-1)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 47 of 138 (34.1%); excluded: Met by a lower layer: 91 of 138 (65.9%). Optional ceiling: 79 of 79 (100.0%). Lowest mandatory ceiling: rfc4861 47 of 138 (34.1%). Lowest optional ceiling: rfc4861 79 of 79 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 30, OS testing gap 91, Ze correctness gap 17
+- **Overview bar**: Ze MUST proven 30, SHOULD not decided 79, OS testing gap 91, Ze correctness gap 17
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 138 |
+| MUST rows kept (the MUST bar) | 138 |
+| Ze proven | 30 |
+| OS verified | 0 |
+| OS testing gap | 91 |
+| Ze correctness gap | 17 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 79 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 79 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc4861.json](../../../data/rfc/rfc4861.json).
 
 ## Requirements
 

@@ -1,0 +1,34 @@
+{
+  "stem": "rfc8212",
+  "title": "Default External BGP (EBGP) Route Propagation Behavior without Policies",
+  "walked": true,
+  "requirements": 3,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 2,
+    "kept": 2,
+    "ze-proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 1,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 1,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 1,
+    "interop": 1
+  },
+  "unmet": []
+}

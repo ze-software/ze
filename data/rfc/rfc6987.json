@@ -1,0 +1,12 @@
+{
+  "stem": "rfc6987",
+  "title": "OSPF Stub Router Advertisement",
+  "walked": false,
+  "requirements": 0,
+  "implementer": "ze",
+  "implemented": false,
+  "must": null,
+  "should": null,
+  "proven-by-kind": null,
+  "unmet": []
+}

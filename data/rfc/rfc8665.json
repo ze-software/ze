@@ -1,0 +1,48 @@
+{
+  "stem": "rfc8665",
+  "title": "OSPF Extensions for Segment Routing",
+  "walked": true,
+  "requirements": 86,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 51,
+    "kept": 51,
+    "ze-proven": 13,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 38,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 35,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 34,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 13
+  },
+  "unmet": [
+    "RFC8665-3.1-4",
+    "RFC8665-3.1-5",
+    "RFC8665-3.2-8",
+    "RFC8665-3.4-2",
+    "RFC8665-3.4-3",
+    "RFC8665-4-1",
+    "RFC8665-4-2",
+    "RFC8665-4-3",
+    "RFC8665-5-8",
+    "RFC8665-5-9",
+    "RFC8665-7.1-1",
+    "RFC8665-7.1-2",
+    "RFC8665-7.1-3",
+    "RFC8665-7.2-1"
+  ]
+}

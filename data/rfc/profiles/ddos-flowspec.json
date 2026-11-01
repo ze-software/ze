@@ -1,0 +1,24 @@
+{
+  "name": "ddos-flowspec",
+  "kind": "use-case",
+  "title": "DDoS detection and mitigation by sending FlowSpec upstream",
+  "release": false,
+  "required": [
+    "rfc3954",
+    "rfc4271",
+    "rfc4360",
+    "rfc4760",
+    "rfc5635",
+    "rfc7011",
+    "rfc7012",
+    "rfc7606",
+    "rfc7999",
+    "rfc8955",
+    "rfc8956",
+    "rfc9117",
+    "sflow-v5"
+  ],
+  "optional": [
+    "rfc3882"
+  ]
+}

@@ -1,6 +1,6 @@
 # RFC 7911 - Advertisement of Multiple Paths in BGP
 
-Supported. Every requirement this repository extracted from RFC 7911, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+ADD-PATH. Every requirement this repository extracted from RFC 7911, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 9 of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 59.0% | 36 of 61 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 9 | of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 0 | of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 38 | 38 of 61 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,14 +23,14 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 9 | of 13 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 9 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 9 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 9 | of 13 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 9 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 9 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
-The 9 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 9 gated MUSTs: they add up to 9. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -38,23 +38,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Supported |
+| Public row | ADD-PATH |
 | Enrolment | Enrolled |
 | Requirements | 13 |
 | Gated MUST-level | 9 |
@@ -77,19 +77,14 @@ Enrolled: Advertisement of Multiple Paths in BGP (ADD-PATH): nine MUST-level req
 
 ## What the public ledger says
 
-**Status:** Supported
+**Area:** ADD-PATH
 
-**What the ledger says is covered**
+**Proof:** 9 of 9 MUST proven
 
-- Per-family send and receive modes, Path ID packing, NLRI path IDs where negotiated
-- a re-advertised route carries ze's own Path Identifier ([`RFC7911-2-2`](#rfc7911-2-2)), assigned per ingress path in [`internal/component/bgp/reactor/forward_path_id.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id.go) and read by both the raw same-context forward and the re-encode, so an announcement and its withdraw leave under one value and two clients that chose one identifier for a prefix stay two paths at a third
-- identifier 0 is an identifier like any other, because presence follows the negotiated capability (`nlri.HasPathID`) and never the value, so a route carrying identifier 0 is indexed, rendered and re-advertised as carrying it
-- tests bound per requirement in [`rfc/requirements/rfc7911.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc7911.md).
+**Evidence:** interop 1, functional 1, unit 7
 
+**Unmet:** -
 
-**What the ledger says remains:**
-
-Closed 2026-08-14: [`RFC7911-2-2`](#rfc7911-2-2). Until then ze relayed the ingress Path Identifier, so a route server merged two clients' paths for one prefix into one and lost a route.
 
 ## Coverage
 
@@ -106,9 +101,41 @@ Closed 2026-08-14: [`RFC7911-2-2`](#rfc7911-2-2). Until then ze relayed the ingr
 
 **Positive and negative tests (9):** [`RFC7911-2-1`](#rfc7911-2-1), [`RFC7911-2-2`](#rfc7911-2-2), [`RFC7911-3-1`](#rfc7911-3-1), [`RFC7911-4-1`](#rfc7911-4-1), [`RFC7911-5-1`](#rfc7911-5-1), [`RFC7911-5-2`](#rfc7911-5-2), [`RFC7911-5-3`](#rfc7911-5-3), [`RFC7911-5-4`](#rfc7911-5-4), [`RFC7911-5-5`](#rfc7911-5-5)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 9 of 9 (100.0%). Optional ceiling: 4 of 4 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7911 9 of 9 (100.0%). Lowest optional ceiling: rfc7911 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 9
+- **Overview bar**: Ze MUST proven 9, SHOULD not decided 4
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | complete |
+| MUST rows | 9 |
+| MUST rows kept (the MUST bar) | 9 |
+| Ze proven | 9 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 0 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 4 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 4 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc7911.json](../../../data/rfc/rfc7911.json).
 
 ## Requirements
 
@@ -140,7 +167,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor. (Section 2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/adj_rib_out.go::clearRoutes, internal/component/bgp/reactor/session_ownership.go::allow, internal/component/bgp/reactor/session_ownership.go::bindSourcePath, internal/component/bgp/reactor/session_ownership.go::recordDeletion, internal/component/bgp/reactor/session_ownership.go::recordSection, internal/component/bgp/reactor/session_ownership.go::release, internal/component/bgp/reactor/session_write.go::retireWrite, internal/component/bgp/reactor/session_write.go::writeUpdateBody moved. Re-judged 2026-10-27 by an independent auditor who authored none of the change, after 9b7673180c and 5a65ff5ee7 (spec-add-path-limit-send-receive). RFC 7911 Section 2: "However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor." Two cited producers moved. session_write.go writeUpdateBody now calls s.pathsLimit.filter (the extracted PATHS-LIMIT admission, formerly s.filterPathsLimit) and, after commit, adjOutWrite.owePathsLimitElections, which owes an election per contested prefix into the destination's owed table: neither mints, rebinds or releases a Path Identifier. session_ownership.go adjOutWrite.allow's adjOutRecovery withdraw branch now lets an item marked pathsLimitDemotion withdraw an ADD-PATH key whose owner is current; it still returns before any identifier bookkeeping, still honours recoverySpares, and withdraws the (Prefix, Path Identifier) the destination already holds, so the recipient never sees two paths under one identifier. The identifier producers (forward_path_id.go) and both tagged units are byte-identical, each with its verified revert record on generatePath. Verdict unchanged: enforced. Earlier judgements are in this file's git history. The same closure added a doc-comment paragraph to session_ownership.go beginAdjOut stating that the table mutex stays held until release and MUST NOT be taken again inside that window; the function body is unchanged.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/adj_rib_out.go::clearRoutes, internal/component/bgp/reactor/session_ownership.go::recordDeletion, internal/component/bgp/reactor/session_ownership.go::recordSection, internal/component/bgp/reactor/session_ownership.go::release moved. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7911): "However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor." Producers moved in a0589dd1d1, ff2aac12b0 and 30ff1fce91 (RFC 8212 import invalidation with reversible released receipts). Re-read each: session_ownership.go bindSourcePath now also treats a key another source released (releasedByOther) as taken, so a released receipt keeps its identifier slot and no second path is bound under that (Prefix, Path Identifier) while it is released; recordSection hands a released receipt's slot and identifier reservation back to the entry through takeReleased, and keeps a denied receipt's record for a non-ADD-PATH key; adj_rib_out.go clearRoutes now releases the identifier reservation of every released ADD-PATH key; recordDeletion keeps a released record; allow fences announcements by source policy epoch and re-sends a released receipt only as its abort restore (sentOwnerCurrent); release zeroes the write's policy epoch; session_write.go writeUpdateBody refuses raw writes under a rejecting export final and records SourcePolicyEpoch, retireWrite adds stopAdmission. None mints a new identifier or lets two paths share one toward a neighbor; the new released-slot rule strengthens uniqueness and is pinned by TestRFC8212ReleasedSlotAddPath (another source's announcement of the same prefix gets an identifier other than the released slot's), which is untagged for this row. The identifier producers in forward_path_id.go and both tagged units are byte-identical. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -151,7 +178,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route. (Section 2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/adj_rib_out.go::clearRoutes, internal/component/bgp/reactor/session_ownership.go::allow, internal/component/bgp/reactor/session_ownership.go::bindSourcePath, internal/component/bgp/reactor/session_ownership.go::recordDeletion, internal/component/bgp/reactor/session_ownership.go::recordSection, internal/component/bgp/reactor/session_ownership.go::release, internal/component/bgp/reactor/session_write.go::retireWrite, internal/component/bgp/reactor/session_write.go::writeUpdateBody moved. Re-judged 2026-10-27 by an independent auditor who authored none of the change, after 9b7673180c and 5a65ff5ee7 (spec-add-path-limit-send-receive). RFC 7911 Section 2: "A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route." The moved producers are session_write.go writeUpdateBody (calls the extracted s.pathsLimit.filter and owes PATHS-LIMIT elections after commit) and session_ownership.go adjOutWrite.allow (a pathsLimitDemotion recovery item may withdraw a current owner's ADD-PATH key). Neither generates an identifier: a survivor the election re-announces goes through the ordinary staged forward rail, whose identifier still comes only from forward_path_id.go, forward_body.go and forward_provenance.go, all byte-identical, as are all 19 tagged units. The positives still assert the re-advertised identifier differs from the received one and is stable per destination; the negatives still fail on a received-id passthrough, each with a verified revert or mutant record. Verdict unchanged: enforced. Earlier judgements are in this file's git history. The same closure added a doc-comment paragraph to session_ownership.go beginAdjOut stating that the table mutex stays held until release and MUST NOT be taken again inside that window; the function body is unchanged.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/adj_rib_out.go::clearRoutes, internal/component/bgp/reactor/session_ownership.go::recordDeletion, internal/component/bgp/reactor/session_ownership.go::recordSection, internal/component/bgp/reactor/session_ownership.go::release moved. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7911): "A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route." Producers moved in a0589dd1d1, ff2aac12b0 and 30ff1fce91 (RFC 8212 import invalidation). Re-read each: bindSourcePath, recordSection (takeReleased), clearRoutes, recordDeletion, allow, release, retireWrite and writeUpdateBody now carry released-receipt slot retention, policy-epoch fencing and an export-final refusal; a restored or re-announced path keeps the identifier the speaker generated for it (the reservation passes with the released receipt), and none passes the received identifier through or mints one outside forward_path_id.go. forward_path_id.go, forward_body.go, forward_provenance.go and all 19 tagged units are byte-identical, so the positives still require a re-advertised identifier generated per destination and the negatives still fail on a received-id passthrough. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -172,14 +199,14 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | positive | [`TestForwardPathIDMPGeneration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go#L25) | unit/verify | revert, verified |
 | positive | [`TestForwardPathIDsDifferForCollidingSources`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L33) | unit/verify | revert, verified |
 | positive | [`TestPathIDKeyFollowsWhatTheSourceFramed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go#L22) | unit/verify | revert, verified |
-| positive | [`checkAddPathReadvertiseCollision`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L16) | interop/nightly | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`adj-rib-in-replay-addpath-source.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L23) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`checkAddPathReadvertiseCollision`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L16) | interop/nightly | mutant, verified |
+| positive | [`adj-rib-in-replay-addpath-source.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L23) | functional/verify | revert, verified |
 
 ### [`RFC7911-3-1`](#rfc7911-3-1)
 
 In order to carry the Path Identifier in an UPDATE message, the NLRI encoding MUST be extended by prepending the Path Identifier field, which is of four octets. (Section 3)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/adj-rib-in-replay-addpath-source.ci, test/plugin/adj-rib-in-replay-addpath-source.ci#2 moved. Sentence: NLRI encoding MUST be extended by prepending the four-octet Path Identifier field. Forbidden: no field, a field of other size, or the field placed after the prefix. TestWriteNLRI_WithStoredPathID asserts buf[0..3]==0000002a and n==4+Len() (red if absent, mis-sized, or appended, since buf[0] would then be the prefix length); TestWriteNLRI_AddPath disabled subtest asserts n==Len() without ADD-PATH; TestINETWithAddPath decodes 00000001 then 8,10 as id 1 and 10.0.0.0/8; test/plugin/adj-rib-in-replay-addpath-source.ci asserts exact wire hex 00000000180A0000 vs 180A0000 per destination negotiation. Rejudged 2026-10-17 (independent reader, not the author of 3f6bb1965e) after the owner-approved command-text change in 3f6bb1965e (injection grammar: nlri <family> became mp <family> for MP families and bare nlri for IPv4 unicast): the cmd/update units changed only the section keyword of their command arguments (nlri ipv4/mpls-label became mp ipv4/mpls-label); TestPathInformationZeroIsAnIdentifierOnTheWire still asserts the four zero octets before the labeled prefix when ADD-PATH is negotiated, and TestPathInformationIsNotWrittenWithoutTheNegotiation still asserts the wire equals the labeled NLRI without them. Package re-run green 2026-10-17. RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE message, the NLRI encoding MUST be extended by prepending the Path Identifier field, which is of four octets." Verdict stands. Rejudged 2026-10-21 (a reader that did not author the new unit) after internal/component/bgp/format/rfc7911_withdraw_only_test.go::TestWithdrawOnlyUpdateKeepsPathIdentifier joined the row: it covers the receive half of the same encoding, building a withdraw-only UPDATE whose Withdrawn Routes hold 00000007 08 0a under an ADD-PATH receive context with no attribute section (it asserts AttrsWire is nil), and it asserts the JSON event's del operation names {"prefix":"10.0.0.0/8","path-id":7} and the text event ends with `nlri ipv4/unicast del 10.0.0.0/8`. A reader that did not take the four prepended octets as the Path Identifier would read 0x00 as a zero-length prefix and could produce neither, so the test goes red if the prepended field is not honoured on a withdraw-only UPDATE; the recorded revert of types/rawmessage.go::SourceEncodingContext observed it red. Verdict stands. Rejudged 2026-10-23 (refuse-instead-of-defaulting F3, a reader that did not author the original tests): the only change to the judged units is the constructor call nlri.NewINET(fam, prefix, id, hasPathID), whose new fourth argument sets PrefixNLRI.addPath, read only by HasAddPath (internal/core/bgp/nlri/base.go) and nlri.HasPathID. nlri.WriteNLRI and nlri.LenWithContext (internal/core/bgp/nlri/nlri.go) still choose the identifier octets from the session addPath argument and n.PathID(), and no reactor or message producer reads presence, so the bytes these units assert are produced by the same code as before. Units re-run green 2026-10-23 under ./le job run. Verdict stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7911): "In order to carry the Path Identifier in an UPDATE message, the NLRI encoding MUST be extended by prepending the Path Identifier field, which is of four octets." The only edit to test/plugin/adj-rib-in-replay-addpath-source.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

@@ -1,0 +1,34 @@
+{
+  "stem": "rfc1035",
+  "title": "Domain Names - Implementation and Specification",
+  "walked": true,
+  "requirements": 33,
+  "implementer": "ze",
+  "implemented": false,
+  "must": {
+    "total": 27,
+    "kept": 27,
+    "ze-proven": 12,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 15,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 6,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 6,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 1,
+    "unit": 11
+  },
+  "unmet": []
+}

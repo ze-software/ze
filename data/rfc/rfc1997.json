@@ -1,0 +1,35 @@
+{
+  "stem": "rfc1997",
+  "title": "BGP Communities Attribute",
+  "walked": true,
+  "requirements": 9,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 5,
+    "kept": 5,
+    "ze-proven": 5,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 2,
+    "interop": 1,
+    "unit": 2
+  },
+  "unmet": []
+}

@@ -311,6 +311,14 @@ Implemented via `netlink.SEG6Encap` in `buildRichRoute`. A valid SRv6 Service SI
 selects IPv6 encapsulation even when the NLRI carries labels. Those fields can
 contain transposed SID bits and are not MPLS forwarding labels.
 
+The kernel needs `CONFIG_IPV6_SEG6_LWTUNNEL`. Ze's runtime kernel builds it in,
+and `gokrazy/kernel/runtime.require` fails the kernel build if it stops
+resolving to `=y`. A kernel without it refuses the install with EOPNOTSUPP.
+Linux's seg6 encapsulation does not lower the inner TTL or Hop Limit, which
+RFC 8986 Section 5.1 H.Encaps requires; that gap is open.
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_IPV6_SEG6_LWTUNNEL -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_IPV6_SEG6_LWTUNNEL -->
+
 ### VPP
 
 Routes with SRv6 SID are steered via VPP's SR policy infrastructure:

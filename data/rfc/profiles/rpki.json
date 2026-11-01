@@ -1,0 +1,18 @@
+{
+  "name": "rpki",
+  "kind": "technology",
+  "title": "RPKI",
+  "release": false,
+  "required": [
+    "draft-ietf-sidrops-8210bis",
+    "rfc6482",
+    "rfc6810",
+    "rfc6811",
+    "rfc8097",
+    "rfc8210",
+    "rfc8893",
+    "rfc9319",
+    "rfc9582"
+  ],
+  "optional": []
+}

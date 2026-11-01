@@ -1,0 +1,40 @@
+{
+  "stem": "rfc4552",
+  "title": "Authentication/Confidentiality for OSPFv3",
+  "walked": true,
+  "requirements": 38,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 27,
+    "kept": 27,
+    "ze-proven": 6,
+    "os-verified": 0,
+    "os-gap": 6,
+    "ze-gap": 15,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 11,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 11,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 6
+  },
+  "unmet": [
+    "RFC4552-11-4",
+    "RFC4552-6-7",
+    "RFC4552-9-1",
+    "RFC4552-9-2",
+    "RFC4552-9-3",
+    "RFC4552-9-4"
+  ]
+}

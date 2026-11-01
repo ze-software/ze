@@ -53,20 +53,20 @@ Generated group for registry entries mapped to the BGP area. Config roots: `bgp`
 - [`bgp-gr`](bgp-gr/index.md): Start after `bgp-rr` (order only).
 ## BGP Filter
 
-Generated group for registry entries mapped to the BGP Filter area. Config roots: `bgp`, `policy`. Source area: `internal/component/bgp`.
+Generated group for registry entries mapped to the BGP Filter area. Config roots: `bgp`. Source area: `internal/component/bgp`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`bgp-filter-aspath`](bgp-filter-aspath/index.md) | Named AS-path regex filter (ordered entries, first match wins, accept/reject) | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_aspath` |
-| [`bgp-filter-aspath-length`](bgp-filter-aspath-length/index.md) | Named AS-path length filter (accept/reject based on hop count) | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_aspath_length` |
+| [`bgp-filter-aspath`](bgp-filter-aspath/index.md) | Named AS-path regex filter (ordered entries, first match wins, accept/reject) | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_aspath` |
+| [`bgp-filter-aspath-length`](bgp-filter-aspath-length/index.md) | Named AS-path length filter (accept/reject based on hop count) | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_aspath_length` |
 | [`bgp-filter-community`](bgp-filter-community/index.md) | Community tag/strip filter (standard, large, extended) | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_community` |
-| [`bgp-filter-community-match`](bgp-filter-community-match/index.md) | Named community match filter (ordered entries, first match wins, accept/reject) | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_community_match` |
-| [`bgp-filter-family`](bgp-filter-family/index.md) | Named address-family policy filter: remove a family's NLRI or tear down the session | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_family` |
+| [`bgp-filter-community-match`](bgp-filter-community-match/index.md) | Named community match filter (ordered entries, first match wins, accept/reject) | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_community_match` |
+| [`bgp-filter-family`](bgp-filter-family/index.md) | Named address-family policy filter: remove a family's NLRI or tear down the session | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_family` |
 | [`bgp-filter-irr`](bgp-filter-irr/index.md) | IRR-based prefix-list filter for eBGP peers | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_irr` |
-| [`bgp-filter-modify`](bgp-filter-modify/index.md) | Named route attribute modifier (set local-preference, med, origin, next-hop) | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_modify` |
-| [`bgp-filter-path-asn`](bgp-filter-path-asn/index.md) | Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_path_asn` |
-| [`bgp-filter-prefix`](bgp-filter-prefix/index.md) | Named prefix-list filter (CIDR + ge/le + accept/reject) | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_prefix` |
-| [`bgp-filter-remove-private-as`](bgp-filter-remove-private-as/index.md) | Named AS-path action filter that removes RFC 6996 Private Use ASNs | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_remove_private_as` |
+| [`bgp-filter-modify`](bgp-filter-modify/index.md) | Named route attribute modifier (set local-preference, med, origin, next-hop) | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_modify` |
+| [`bgp-filter-path-asn`](bgp-filter-path-asn/index.md) | Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_path_asn` |
+| [`bgp-filter-prefix`](bgp-filter-prefix/index.md) | Named prefix-list filter (CIDR + ge/le + accept/reject) | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_prefix` |
+| [`bgp-filter-remove-private-as`](bgp-filter-remove-private-as/index.md) | Named AS-path action filter that removes RFC 6996 Private Use ASNs | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_remove_private_as` |
 | [`loop`](loop/index.md) | Route loop detection (RFC 4271 S9, RFC 4456 S8) | None | `policy` | `internal/component/bgp/reactor/filter` |
 
 ## BGP NLRI

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>How Ze is developed with AI - Ze</title>
+        <meta name="description" content="Ze documentation: ai-development.md" />
+        <meta property="og:title" content="How Ze is developed with AI - Ze" />
+        <meta property="og:description" content="Ze documentation: ai-development.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="How Ze is developed with AI - Ze" />
+        <meta name="twitter:description" content="Ze documentation: ai-development.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/project/ai-development/" />
+        <meta property="og:url" content="https://ze-software.net/project/ai-development/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Documentation</span>
+    <h1 id="how-ze-is-developed-with-ai">How Ze is developed with AI</h1>
+    <p>Most of Ze's code is written by AI coding agents. I know that makes some people uneasy, and I understand why. Many developers see good software as a craft, the work of a skilled person who cares about every line, and it is hard to see where that care fits when a machine writes the code. Ze is meant to run in networks that people depend on, so I need to be able to explain where the quality of its code comes from when no craftsman wrote it.</p>
+</div>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#craft-and-industry">Craft and industry</a></li>
+<li><a href="#where-it-started">Where it started</a></li>
+<li><a href="#how-the-models-got-here">How the models got here</a></li>
+<li><a href="#agents-need-managing-the-way-staff-do">Agents need managing the way staff do</a></li>
+<li><a href="#where-the-method-comes-from">Where the method comes from</a></li>
+<li><a href="#the-management-system-practice-by-practice">The management system, practice by practice</a></li>
+<li><a href="#the-limits-i-have-set">The limits I have set</a></li>
+<li><a href="#what-has-stayed-my-job">What has stayed my job</a></li>
+<li><a href="#if-you-want-to-look-for-yourself">If you want to look for yourself</a></li>
+<li><a href="#where-it-still-falls-short">Where it still falls short</a></li>
+</ol></details></nav><div class="doc-body">
+<p>The answer came from somewhere I did not expect when I started, which is the way I have run a business for more than twenty years.</p>
+<h2 id="craft-and-industry">Craft and industry</h2>
+<p>I understand the craft view from the inside. I wrote ExaBGP by hand over many years, and I know the satisfaction of a piece of code that is exactly right. Seen from there, ISO, which turns the way work is done into a defined and audited process, looks like the opposite of everything good about the job.</p>
+<p>I thought so too when I started my career. I was firmly opposed to processes and saw them as useless constraints, and to be fair, a badly designed ISO system can be exactly that. It goes wrong the way a bad KPI does: people learn to satisfy the measure, the measure becomes the goal, and the customer's experience, which it was meant to protect, drops out of sight. I have since found that agents can play a bad measure just as readily as people do, so whatever process I give them has to keep the outcome in view, and I have to correct it whenever it starts rewarding the wrong thing. That means I still look at the code: its structure and the overall implementation. I do not read the details, because the details are what the tests are for. That is what test-driven development gives me, and it is why the number of tests in Ze grows with each commit.</p>
+<p>Where I have ended up is that craft and industry suit different work. A bespoke piece of furniture, or a one-off solution for a single customer, benefits from one person's skill and taste. Cars and industrial machinery are not built that way any more, and I would not want to drive a car whose brakes depended on how its maker felt that morning. A network operating system feels much closer to the car to me. Its behaviour is written down in RFCs, it has to behave the same way every time, and it can be tested against what those RFCs say. For that kind of software I have found that craft adds little, while a good process catches what even a gifted engineer misses on a bad day.</p>
+<p>The techniques that make software reliable have been written about for decades, and the models have read all of it. When it comes to applying them, I have found that an agent does better than a senior engineer, and I include myself in that. It does not innovate the way a person does, so the design and the decisions about what to build have stayed with me. Inside the right process, though, it produces quality, and building that process has become my part of the job.</p>
+<h2 id="where-it-started">Where it started</h2>
+<p>I started using AI on ExaBGP, before Ze existed. ExaBGP had some long-standing design issues, and fixing any one of them would have taken weeks of development. With an agent, I only had to formulate the problem and the change I wanted, and it did the work. Some of those fixes came back elegant, and a few were better than what I had initially considered.</p>
+<p>The first big job was grunt work: making ExaBGP's code pass type checking with mypy. It was hard going with Opus 4.5. More recently, Opus 5.5 handled fault isolation in ExaBGP very well: ExaBGP already stopped an exception raised while decoding a protocol message from bubbling up into the core engine, and the agent tidied that mechanism up into <code>with</code> statements that express it far more elegantly.</p>
+<h2 id="how-the-models-got-here">How the models got here</h2>
+<p>For anyone not following AI development closely, the models have changed a great deal in a short time. In my experience, Claude Opus 4.5 was the first model that made agentic engineering possible, where an agent takes a piece of work from the request through to tested code while a person supervises. Even so, I had to fight Opus 4.5 and 4.6 to get the work done properly, and I hated working with 4.7 and 4.8. Opus 5.0 showed clear signs of progress, but its English was so hard to follow that working with it felt alien.</p>
+<p>Opus 5.5 has raised the bar. Like OpenAI's Astra, it is a model I trust to achieve what I set it to do, and it finds problems in the code that earlier models could not spot. Most of the process on this page took shape while I was working with the earlier models, and it still matters with the newer ones, because a model that is good at its job still needs to be told what the job is.</p>
+<h2 id="agents-need-managing-the-way-staff-do">Agents need managing the way staff do</h2>
+<p>Running a team taught me that quality cannot depend on who happens to be at work that day. You write down how things are done, make it clear who is responsible for what, have someone other than the author check the work, and when something goes wrong, change the process so that it does not happen again. As a director I cannot do every task myself, and I would not want to. My job is to decide how the work should be done, make sure it was, and fix the process when it was not.</p>
+<p>When I started working with agents, they reminded me of a new member of staff who is remarkably fast and knows the trade, but has never set foot in the company. An agent does not know my decisions, or which shortcuts I will not accept, and in two ways it is worse off than a new hire. It forgets everything when its session ends, so whatever I had told one agent in conversation, I had to tell the next one again. Several agents also work at the same time without knowing what the others were told. With people, a written process is good practice. With agents, I found it was the only thing that carried over from one session to the next.</p>
+<p>So I ended up running Ze's development as a management system for agents. Its procedures are written down in the repository beside the code, and every agent session reads them, whichever AI tool is running it.</p>
+<h2 id="where-the-method-comes-from">Where the method comes from</h2>
+<p>I have run Exa Networks, an ISP, since 2003. Exa is certified to ISO 9001 for quality management and ISO 27001 for information security, and I supervised the implementation of both with our staff. That work taught me how much good work depends on the way it is organised, so when agents started getting things wrong, it was the first place I looked.</p>
+<h2 id="the-management-system-practice-by-practice">The management system, practice by practice</h2>
+<p>Looking back, most of the practices a business uses to manage its staff now have a counterpart in Ze's repository. I did not design them up front. Each one was added after agents went wrong in a way I did not want to see twice.</p>
+<!-- table-columns: off -->
+<table>
+<thead>
+<tr>
+<th>Management practice</th>
+<th>In Ze's repository</th>
+<th>What happened before it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Policy set by management</td>
+<td>An <a href="https://github.com/ze-software/ze/blob/main/ai/META-DECISIONS.md" target="_blank" rel="noopener">owner decisions file</a> records scope, priorities and the questions that are already settled.</td>
+<td>Agents kept asking questions I had already answered, and a question was often a polite way of dropping work that looked hard. An agent may now ask me how to do something, never whether to do it.</td>
+</tr>
+<tr>
+<td>Documented procedures</td>
+<td>The <a href="https://github.com/ze-software/ze/tree/main/ai/rules" target="_blank" rel="noopener">rules</a> live in one place that every AI tool reads.</td>
+<td>An instruction kept in one tool's memory, or in one session's notes, was lost to the next session and to every other tool.</td>
+</tr>
+<tr>
+<td>Responsibility and authority</td>
+<td>A precedence order decides between rules: irreversible actions first, then correctness owed to people outside the project, then the agreed scope, then the current phase of work.</td>
+<td>When two rules disagreed, an agent followed whichever suited it. Only I can widen or narrow the scope.</td>
+</tr>
+<tr>
+<td>Information where the work happens</td>
+<td>A short core of rules is always loaded, and the others load when the task matches their trigger. Each subsystem has a page listing the constraints any change to it must respect.</td>
+<td>Loading every rule for every task buried the one that mattered.</td>
+</tr>
+<tr>
+<td>Planning before work</td>
+<td>A specification is agreed before any code is written. It states the acceptance criteria and names the existing mechanisms the design extends.</td>
+<td>Agents started building at once, and sometimes invented a second mechanism next to one that already did the job.</td>
+</tr>
+<tr>
+<td>Independent audit</td>
+<td>A change is reviewed by an agent that did not write it, and a separate judge must approve any change that could reduce what a test proves.</td>
+<td>Authors approved their own shortcuts, and failing tests were edited to match broken code.</td>
+</tr>
+<tr>
+<td>Records as evidence</td>
+<td>A test cited for an RFC requirement needs a recorded run in which the code was deliberately broken and the test failed. Every commit goes through one controlled script.</td>
+<td>Some tests passed for the wrong reason, and a test like that proves nothing.</td>
+</tr>
+<tr>
+<td>Corrective action</td>
+<td>A defect found in passing is recorded and assigned to the specification that will fix it. Every rule has a written record of why it exists.</td>
+<td>Defects found along the way were either forgotten or fixed in the middle of unrelated work, which delayed both.</td>
+</tr>
+<tr>
+<td>Continual improvement</td>
+<td>Rules are corrected when they mislead and removed when they stop helping. Automated checks look at what a command or file is, never at how a message is worded.</td>
+<td>Rules kept out of habit outlived their purpose, and checks that misfired taught agents to ask for exemptions as a matter of routine.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-limits-i-have-set">The limits I have set</h2>
+<p>A few limits now apply whatever the task, and for several of them the tooling refuses the action outright. An agent may not:</p>
+<ul>
+<li>Weaken a test to make it pass, unless an independent judge has approved the change.</li>
+<li>Review its own work.</li>
+<li>Call work done before a test exercises it the way a user reaches it, through the CLI, the configuration or the wire.</li>
+<li>Run destructive version control commands, or touch work belonging to another session. Several agents work in the same checkout at once.</li>
+<li>Implement protocol behaviour from memory. It reads the RFC text, and where the RFC is silent, it reads the source of established open source implementations so that Ze interoperates with them.</li>
+</ul>
+<h2 id="what-has-stayed-my-job">What has stayed my job</h2>
+<p>I still decide Ze's architecture and its scope, and I write the rules the agents work under. When an agent gets something wrong, I have learned that fixing the code is only half the job: I also look for the rule or the check that let the mistake through and correct it, so that the next session does not repeat it. It is much the same work I do at Exa, with a team that types a good deal faster.</p>
+<h2 id="if-you-want-to-look-for-yourself">If you want to look for yourself</h2>
+<p>Everything I have described is in the repository: the <a href="https://github.com/ze-software/ze/blob/main/AGENTS.md" target="_blank" rel="noopener">agent instructions</a>, the <a href="https://github.com/ze-software/ze/blob/main/ai/META-DECISIONS.md" target="_blank" rel="noopener">owner decisions</a> and the <a href="https://github.com/ze-software/ze/tree/main/ai/rules" target="_blank" rel="noopener">rules</a>. The <a href="https://ze-software.net/quality/">quality pages</a> describe how Ze is tested, and the <a href="https://ze-software.net/quality/rfc-compliance/">RFC compliance pages</a> show which protocol requirements a test proves and which are still missing. Most figures on this site are generated from the code, so they follow the software rather than my opinion of it.</p>
+<p>I have written about parts of this at more length on the blog. <a href="https://ze-software.net/blog/the-repository-is-the-ai-harness/">The repository is half the AI harness</a> covers how the rules let an agent check its own change, and <a href="https://ze-software.net/blog/the-proof-is-the-expensive-part/">The proof is the expensive part</a> covers why passing tests alone do not show that the software behaves correctly.</p>
+<h2 id="where-it-still-falls-short">Where it still falls short</h2>
+<p>Agents get things wrong, and so do people. The first version of a feature is often not fully correct, and proving it takes many passes, plenty of time and a fair amount of compute. For an RFC, every requirement has to be found, tested and shown to fail when the code is broken, and that work carries on long after the first implementation is published.</p>
+<p>This website is probably where you will find the most mistakes. An RFC defines behaviour strictly enough for a test to check it, but nothing checks the free text of a web page in the same way. If you find something wrong here or in Ze, I would appreciate it if you could tell me on <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a> or the <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">issue tracker</a>.</p>
+<p><em>This page was written with Claude. The method, the decisions and the account of my background are mine.</em></p>
+</div>
+</div>
+            </section>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 1 November 2026 12:30 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

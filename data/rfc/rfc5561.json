@@ -1,0 +1,50 @@
+{
+  "stem": "rfc5561",
+  "title": "LDP Capabilities",
+  "walked": true,
+  "requirements": 18,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 17,
+    "kept": 17,
+    "ze-proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 16,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 1,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 1,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 1
+  },
+  "unmet": [
+    "RFC5561-10-1",
+    "RFC5561-3-1",
+    "RFC5561-3-2",
+    "RFC5561-3-5",
+    "RFC5561-4-1",
+    "RFC5561-4-2",
+    "RFC5561-6-1",
+    "RFC5561-6-2",
+    "RFC5561-6-3",
+    "RFC5561-8-1",
+    "RFC5561-8-2",
+    "RFC5561-8-3",
+    "RFC5561-8-4",
+    "RFC5561-9-1",
+    "RFC5561-9-2",
+    "RFC5561-9-3"
+  ]
+}

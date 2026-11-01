@@ -62,6 +62,7 @@
 <li><a href="#03-ze-lac-xl2tpd-lns">03-ze-lac-xl2tpd-lns</a></li>
 <li><a href="#04-radius-acct-attrs">04-radius-acct-attrs</a></li>
 <li><a href="#dns-resolver-l2tp-subscriber">dns-resolver-l2tp-subscriber</a></li>
+<li><a href="#ppp-code-reject-xl2tpd">ppp-code-reject-xl2tpd</a></li>
 </ol></li>
 <li><a href="#relationship-to-other-evidence">Relationship to Other Evidence</a></li>
 <li><a href="#design-pattern">Design Pattern</a></li>
@@ -87,16 +88,23 @@ route redistribution from a live PPP session.</p>
     03-ze-lac-xl2tpd-lns/   ze as initiator (LAC) vs real xl2tpd LNS
     04-radius-acct-attrs/   subscriber attributes in RADIUS auth and accounting
     dns-resolver-l2tp-subscriber/   IPCP DNS to Ze's LAN resolver, then a lookup
+    l2tp-unknown-mandatory-avp-xl2tpd/   unknown AVP, M=0 then M=1, through the relay
+    ppp-code-reject-xl2tpd/   unknown LCP and IPCP Codes injected through the relay
 internal/le/interoplab/l2tp/
   l2tp.go              Native topology, images, selection, and lifecycle
-  checkers.go          Typed protocol assertions for all four scenarios
+  checkers.go          Typed protocol assertions for the scenarios
   dns_resolver.go      The dns-resolver-l2tp-subscriber assertions
+  mandatory_avp.go     The l2tp-unknown-mandatory-avp-xl2tpd assertions
+  ppp_code_reject.go   The ppp-code-reject-xl2tpd assertions
+  avprelay/            UDP relay between the LAC and Ze, on 172.29.0.4
   radiusmock/          Independent Go RADIUS peer
 </code></pre>
 <p>Each scenario contains the protocol configuration mounted by its typed plan.
 The plans choose the Ze, xl2tpd, FRR, and RADIUS peers for that scenario, while
 the checker map fixes the complete scenario population. The
-<code>dns-resolver-l2tp-subscriber</code> plan adds Knot DNS on <code>172.29.0.7</code>.</p>
+<code>dns-resolver-l2tp-subscriber</code> plan adds Knot DNS on <code>172.29.0.7</code>, and the
+<code>l2tp-unknown-mandatory-avp-xl2tpd</code> and <code>ppp-code-reject-xl2tpd</code> plans put the
+relay on <code>172.29.0.4</code>, the address their xl2tpd dials as its LNS.</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <p>The lab requires Docker and a host kernel with PPPoL2TP support, built in
 or loaded by the host: a lab container never loads a kernel module. The
@@ -200,6 +208,20 @@ method. Read in xl2tpd v1.3.18 and v1.3.19: <code>avpsend.c</code> has no builde
 26, 27 or 28, and the ICRQ and ICCN branches of <code>control.c</code> carry none. The
 authentication has to reach a credential, because RFC 2865 Section 4.1 admits
 no Access-Request without one.</p>
+<h3 id="ppp-code-reject-xl2tpd">ppp-code-reject-xl2tpd</h3>
+<p>Proves Ze's PPP Code-Reject against a real xl2tpd and pppd session (RFC 1661
+Section 5.6). pppd requests an MRU of 128. Once a ping has crossed the
+session, the relay sends Ze, as the LAC, two LCP packets with the unknown Code
+99 and two IPCP packets with Code 12, all with Identifier 0x42 and 204 octets
+long. The checker reads Ze's answers off the wire. The two LCP and the two
+IPCP Code-Rejects carry different Identifiers within each protocol, each fits
+the 128-octet MRU with a copy of the start of the probe it rejects, and the
+session stays up. The IPCP answers come from the PPP unit descriptor, where
+Linux queues IPCP once the channel is connected. Last, the relay sends one
+IPCP Terminate-Request and Ze must answer with a Terminate-Ack carrying its
+Identifier. The full
+account is in <code>docs/architecture/testing/interop.md</code>, "L2TP and PPPoE
+lifecycle fault scenarios".</p>
 <h2 id="relationship-to-other-evidence">Relationship to Other Evidence</h2>
 <table>
 <thead>
@@ -290,7 +312,7 @@ specific to this protocol.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

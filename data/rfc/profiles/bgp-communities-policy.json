@@ -1,0 +1,20 @@
+{
+  "name": "bgp-communities-policy",
+  "kind": "technology",
+  "title": "BGP communities and policy",
+  "release": false,
+  "required": [
+    "rfc1997",
+    "rfc3765",
+    "rfc3882",
+    "rfc4360",
+    "rfc5635",
+    "rfc5701",
+    "rfc7611",
+    "rfc7999",
+    "rfc8092",
+    "rfc8195",
+    "rfc9234"
+  ],
+  "optional": []
+}

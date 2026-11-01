@@ -1,0 +1,42 @@
+{
+  "stem": "rfc5881",
+  "title": "Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop)",
+  "walked": true,
+  "requirements": 33,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 23,
+    "kept": 23,
+    "ze-proven": 13,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 10,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 10,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 10,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 13
+  },
+  "unmet": [
+    "RFC5881-2-1",
+    "RFC5881-2-3",
+    "RFC5881-2-4",
+    "RFC5881-4-2",
+    "RFC5881-4-6",
+    "RFC5881-4-7",
+    "RFC5881-6-3",
+    "RFC5881-6-4"
+  ]
+}

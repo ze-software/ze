@@ -1,0 +1,42 @@
+{
+  "stem": "rfc8669",
+  "title": "Segment Routing Prefix Segment Identifier Extensions for BGP",
+  "walked": true,
+  "requirements": 46,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 24,
+    "kept": 24,
+    "ze-proven": 13,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 11,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 21,
+    "proven": 3,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 18,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 6,
+    "unit": 7
+  },
+  "unmet": [
+    "RFC8669-3.1-1",
+    "RFC8669-4.1-3",
+    "RFC8669-4.1-4",
+    "RFC8669-4.1-5",
+    "RFC8669-4.1-7",
+    "RFC8669-5.1-1",
+    "RFC8669-6-2"
+  ]
+}

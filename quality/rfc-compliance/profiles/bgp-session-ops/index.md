@@ -1,63 +1,90 @@
 # BGP session operations
 
-Technology aggregate. BGP session operations: graceful restart, shutdown, route reflection, route servers, and AS migration. The RFCs whose summary names the bgp-session-ops aggregate, with their mandatory and optional coverage.
+Technology aggregate. BGP session operations: graceful restart, shutdown, route reflection, route servers, and AS migration. The RFCs whose summary names the bgp-session-ops aggregate, with the MUST bar and the overview bar of the set and of each RFC.
 
 [All profiles](../) · [All RFCs](../../)
 
 Use case: [Chaos-Tested BGP Peering](../../../../use-cases/chaos-tested-peering/)
 
-- **Mandatory**: 50.6% (39 of 77 (50.6%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 4.1% (5 of 122 (4.1%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 100.0% (77 of 77 (100.0%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (122 of 122 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 3 (of 13 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json](../../../../data/rfc/profiles/bgp-session-ops.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 77 of 77 (100.0%). Optional ceiling: 122 of 122 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc4456 4 of 4 (100.0%). Lowest optional ceiling: rfc4456 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 39, Ze correctness gap 38
+- **Overview bar**: Ze MUST proven 39, SHOULD proven 5, SHOULD not decided 117, Ze correctness gap 38
+
+| Figure | Rows |
+|---|---|
+| RFCs | 13 |
+| Not walked | 3 |
+| Mandatory register | not complete |
+| MUST rows | 77 |
+| MUST rows kept (the MUST bar) | 77 |
+| Ze proven | 39 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 38 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 122 |
+| SHOULD proven | 5 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 117 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
 ### Level 4
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4456](../../rfc4456/) | BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP) | 1 of 4 (25.0%); ceiling 4 of 4 (100.0%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) |
+| [RFC 4456](../../rfc4456/) | BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP) | Ze proven 1, Ze correctness gap 3 | Ze MUST proven 1, SHOULD not decided 5, Ze correctness gap 3 |
 | [RFC 5065](../../rfc5065/) | Autonomous System Confederations for BGP | not walked | not walked |
 
 ### Level 5
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7705](../../rfc7705/) | Autonomous System Migration Mechanisms and Their Effects on the BGP AS_PATH Attribute | 9 of 9 (100.0%); ceiling 9 of 9 (100.0%) | 0 of 8 (0.0%); ceiling 8 of 8 (100.0%) |
+| [RFC 7705](../../rfc7705/) | Autonomous System Migration Mechanisms and Their Effects on the BGP AS_PATH Attribute | Ze proven 9 | Ze MUST proven 9, SHOULD not decided 8 |
 | [RFC 8326](../../rfc8326/) | Graceful BGP Session Shutdown | not walked | not walked |
 
 ### Level 6
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | 14 of 26 (53.8%); ceiling 26 of 26 (100.0%) | 1 of 5 (20.0%); ceiling 5 of 5 (100.0%) |
-| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | 2 of 3 (66.7%); ceiling 3 of 3 (100.0%) | 3 of 5 (60.0%); ceiling 5 of 5 (100.0%) |
+| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze proven 14, Ze correctness gap 12 | Ze MUST proven 14, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 12 |
+| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, SHOULD proven 3, SHOULD not decided 2, Ze correctness gap 1 |
 
 ### Level 7
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6996](../../rfc6996/) | Autonomous System (AS) Reservation for Private Use | 1 of 1 (100.0%); ceiling 1 of 1 (100.0%) | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) |
-| [RFC 7948](../../rfc7948/) | Internet Exchange BGP Route Server Operations | no rows; ceiling no rows | 0 of 11 (0.0%); ceiling 11 of 11 (100.0%) |
-| [RFC 8203](../../rfc8203/) | BGP Administrative Shutdown Communication | 3 of 5 (60.0%); ceiling 5 of 5 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) |
-| [RFC 9003](../../rfc9003/) | Extended BGP Administrative Shutdown Communication | 1 of 4 (25.0%); ceiling 4 of 4 (100.0%) | 0 of 7 (0.0%); ceiling 7 of 7 (100.0%) |
+| [RFC 6996](../../rfc6996/) | Autonomous System (AS) Reservation for Private Use | Ze proven 1 | Ze MUST proven 1, SHOULD not decided 2 |
+| [RFC 7948](../../rfc7948/) | Internet Exchange BGP Route Server Operations | no rows | SHOULD not decided 11 |
+| [RFC 8203](../../rfc8203/) | BGP Administrative Shutdown Communication | Ze proven 3, Ze correctness gap 2 | Ze MUST proven 3, SHOULD not decided 4, Ze correctness gap 2 |
+| [RFC 9003](../../rfc9003/) | Extended BGP Administrative Shutdown Communication | Ze proven 1, Ze correctness gap 3 | Ze MUST proven 1, SHOULD not decided 7, Ze correctness gap 3 |
 
 ### Level 8
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7454](../../rfc7454/) | BGP Operations and Security | no rows; ceiling no rows | 0 of 64 (0.0%); ceiling 64 of 64 (100.0%) |
+| [RFC 7454](../../rfc7454/) | BGP Operations and Security | no rows | SHOULD not decided 64 |
 | [RFC 8538](../../rfc8538/) | Notification Message Support for BGP Graceful Restart | not walked | not walked |
 
 ### Level 9
 
-| RFC | Title | Mandatory | Optional |
+| RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9494](../../rfc9494/) | Long-Lived Graceful Restart for BGP | 8 of 25 (32.0%); ceiling 25 of 25 (100.0%) | 1 of 11 (9.1%); ceiling 11 of 11 (100.0%) |
+| [RFC 9494](../../rfc9494/) | Long-Lived Graceful Restart for BGP | Ze proven 8, Ze correctness gap 17 | Ze MUST proven 8, SHOULD proven 1, SHOULD not decided 10, Ze correctness gap 17 |

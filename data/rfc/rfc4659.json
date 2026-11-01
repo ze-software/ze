@@ -1,0 +1,48 @@
+{
+  "stem": "rfc4659",
+  "title": "BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN",
+  "walked": true,
+  "requirements": 24,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 18,
+    "kept": 18,
+    "ze-proven": 4,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 14,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 6,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 6,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "interop": 1,
+    "unit": 3
+  },
+  "unmet": [
+    "RFC4659-3.2.1.2-1",
+    "RFC4659-4-1",
+    "RFC4659-4-2",
+    "RFC4659-4-3",
+    "RFC4659-4-4",
+    "RFC4659-4-5",
+    "RFC4659-4-6",
+    "RFC4659-4-7",
+    "RFC4659-8-1",
+    "RFC4659-8-2",
+    "RFC4659-8-3",
+    "RFC4659-8-4",
+    "RFC4659-8-5"
+  ]
+}

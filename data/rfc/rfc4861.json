@@ -1,0 +1,51 @@
+{
+  "stem": "rfc4861",
+  "title": "Neighbor Discovery for IP version 6 (IPv6)",
+  "walked": true,
+  "requirements": 217,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 138,
+    "kept": 138,
+    "ze-proven": 30,
+    "os-verified": 0,
+    "os-gap": 91,
+    "ze-gap": 17,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 79,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 79,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 30
+  },
+  "unmet": [
+    "RFC4861-11.2-1",
+    "RFC4861-11.2-2",
+    "RFC4861-2.3-1",
+    "RFC4861-4.4-3",
+    "RFC4861-4.6-1",
+    "RFC4861-6.1.1-1",
+    "RFC4861-6.1.1-2",
+    "RFC4861-6.2.1-1",
+    "RFC4861-6.2.1-8",
+    "RFC4861-6.2.4-1",
+    "RFC4861-6.2.5-1",
+    "RFC4861-6.2.5-2",
+    "RFC4861-6.2.6-1",
+    "RFC4861-7.2.6-1",
+    "RFC4861-7.2.8-1",
+    "RFC4861-7.2.8-2",
+    "RFC4861-9-7"
+  ]
+}

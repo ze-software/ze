@@ -1,0 +1,38 @@
+{
+  "stem": "rfc9072",
+  "title": "Extended Optional Parameters Length for BGP OPEN Message",
+  "walked": true,
+  "requirements": 12,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 9,
+    "kept": 9,
+    "ze-proven": 5,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 4,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 3,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 2,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 5
+  },
+  "unmet": [
+    "RFC9072-2-5",
+    "RFC9072-2-6",
+    "RFC9072-3-1",
+    "RFC9072-3-3"
+  ]
+}

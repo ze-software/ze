@@ -1,0 +1,40 @@
+{
+  "stem": "rfc8666",
+  "title": "OSPFv3 Extensions for Segment Routing",
+  "walked": true,
+  "requirements": 58,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 32,
+    "kept": 32,
+    "ze-proven": 6,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 26,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 26,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 26,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 6
+  },
+  "unmet": [
+    "RFC8666-5-3",
+    "RFC8666-5-4",
+    "RFC8666-6-10",
+    "RFC8666-8.1-1",
+    "RFC8666-8.1-2",
+    "RFC8666-8.1-3"
+  ]
+}

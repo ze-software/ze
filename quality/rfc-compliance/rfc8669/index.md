@@ -1,6 +1,6 @@
 # RFC 8669 - Segment Routing Prefix Segment Identifier Extensions for BGP
 
-Partial. Every requirement this repository extracted from RFC 8669, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP Prefix-SID attribute. Every requirement this repository extracted from RFC 8669, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 50.0% | 12 of 24 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 20.8% | 5 of 24 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 24 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 24 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 63.9% | 53 of 83 tagged units, 0 escaped and 9 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 12 | of 24 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 24 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 24 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 24 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 62 | 62 of 83 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 24 | of 46 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 24 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 24 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 24 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 24 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 24 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 24 | of 46 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 24 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 24 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 24 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 24 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 24 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 29.2% | 7 of 24 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 7 | of 24 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 24 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 24 gated MUSTs: they add up to 24. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,23 +45,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | BGP Prefix-SID attribute |
 | Enrolment | Enrolled |
 | Requirements | 46 |
 | Gated MUST-level | 24 |
@@ -84,17 +84,14 @@ Enrolled: SR Prefix Segment Identifier Extensions for BGP
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** BGP Prefix-SID attribute
 
-**What the ledger says is covered**
+**Proof:** 13 of 24 MUST proven
 
-- Attribute code 40 is registered as optional transitive ([`internal/core/bgp/attribute/attribute.go`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/attribute.go)) and carried end to end: the Label-Index TLV (type 1) and the Originator SRGB TLV (type 3) are encoded from route configuration with their Reserved and Flags octets cleared ([`internal/core/bgp/attribute/prefixsid.go`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/prefixsid.go)) and attached to labeled-unicast and VPN UPDATEs ([`internal/component/bgp/message/update_build_labeled.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_labeled.go))
-- on reception every TLV is bounds-checked with Section 6 attribute-discard for an overrunning TLV length or trailing bytes ([`internal/component/bgp/message/rfc7606.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606.go)), a duplicate attribute is discarded unexamined in favor of the first for PROCESSING purposes ([`internal/component/bgp/message/rfc7606.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606.go)), a duplicate recognized Service TLV never displaces the first ([`internal/component/bgp/plugins/rib/pool/srv6sid.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/srv6sid.go)), the Section 4 EBGP boundary discards the attribute unless the peer is configured to accept it ([`internal/component/bgp/reactor/session_validation.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation.go)), the Section 8 boundary removes it on egress toward an EBGP peer the operator has not configured for propagation, on every rail that writes an UPDATE: the two forward rails, the two origination rails and the API/readvertise announce rail all ask prefixSIDAllowedTo ([`internal/component/bgp/reactor/forward_prefix_sid.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_prefix_sid.go), [`internal/component/bgp/reactor/reactor_api_batch.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_batch.go)), unknown TLVs and the Reserved/Flags fields are ignored and left byte-identical for propagation, and the label carried in a received labeled-unicast NLRI is the outbound label programmed toward the next hop ([`internal/core/bgp/nlri/nlrisplit/labeled.go`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/labeled.go) to [`internal/plugins/fib/kernel/nexthop_linux.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/nexthop_linux.go)). Requirements bound per line in [`rfc/short/rfc8669.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc8669.md).
+**Evidence:** functional 6, unit 7
 
+**Unmet:** RFC8669-3.1-1, RFC8669-4.1-3, RFC8669-4.1-4, RFC8669-4.1-5, RFC8669-4.1-7, RFC8669-5.1-1, RFC8669-6-2
 
-**What the ledger says remains**
-
-Unproven duplicate-attribute wire handling remains recorded by [`RFC8669-6-2`](#rfc8669-6-2): the keep-first strip in enforceRFC7606 removes repeated attributes, but code-40 forwarding proof is still owed. Missing SR-MPLS semantics remain explicit in [`RFC8669-3.1-1`](#rfc8669-3.1-1), [`RFC8669-4.1-3`](#rfc8669-4.1-3) (conflict detection), [`RFC8669-4.1-4`](#rfc8669-4.1-4) (ignoring a "conflicting" attribute; an "invalid" one, with no Label-Index TLV, is already discarded under Section 6, proven by [`RFC8669-4.1-2`](#rfc8669-4.1-2) and [`RFC8669-6-1`](#rfc8669-6-1)), [`RFC8669-4.1-5`](#rfc8669-4.1-5) (dynamic local label allocation), [`RFC8669-4.1-7`](#rfc8669-4.1-7) (implicit-NULL pop) and [`RFC8669-5.1-1`](#rfc8669-5.1-1) (advertised local/incoming label programming). A discarded Prefix-SID logs one ERROR record naming attribute 40 at the default level, rate-limited per peer and attribute code (`Session.logRFC7606Discards`, `Session.logRFC7606Error`), proven for [`RFC8669-6-4`](#rfc8669-6-4), [`RFC8669-4-2`](#rfc8669-4-2) and [`RFC8669-4.1-15`](#rfc8669-4.1-15) in [`internal/component/bgp/reactor/rfc8669_error_log_test.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go). An UPDATE that discards another attribute as well logs one record for each discarded attribute, each with its own reason, so the Prefix-SID record no longer depends on which discard the validator met first (`TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth`). A kept Prefix-SID, well-formed or accepted from an EBGP peer configured inside the SR domain, logs no record. The Debug diagnostics with the whole UPDATE keep their proof in [`internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go). That proof does not establish missing conflicting-state detection.
 
 ## Coverage
 
@@ -115,9 +112,41 @@ Unproven duplicate-attribute wire handling remains recorded by [`RFC8669-6-2`](#
 
 **Derived from other rows (1):** [`RFC8669-4.1-6`](#rfc8669-4.1-6)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 24 of 24 (100.0%). Optional ceiling: 21 of 21 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc8669 24 of 24 (100.0%). Lowest optional ceiling: rfc8669 21 of 21 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 13, Ze correctness gap 11
+- **Overview bar**: Ze MUST proven 13, SHOULD proven 3, SHOULD not decided 18, Ze correctness gap 11
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 24 |
+| MUST rows kept (the MUST bar) | 24 |
+| Ze proven | 13 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 11 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 21 |
+| SHOULD proven | 3 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 18 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc8669.json](../../../data/rfc/rfc8669.json).
 
 ## Requirements
 
@@ -191,7 +220,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 For future extensibility, unknown TLVs MUST be ignored and propagated unmodified. (§3, §6)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/prefixsid-malformed-receive.ci moved. Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 3: "For future extensibility, unknown TLVs MUST be ignored and propagated unmodified." The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b (relayed UPDATE leads with its MP attribute): each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frame (f) (10.0.7.0/24 IPv4 VPN, Label-Index with Reserved AA and Flags BBCC) still requires attribute 40 relayed octet-equal (C0280A010007AABBCC00000064), which is this row's functional cover; the Go units are unchanged. Ran green at HEAD: ./le test bgp plugin prefixsid-malformed-receive. Verdict stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8669): "For future extensibility, unknown TLVs MUST be ignored and propagated unmodified." The only edit to test/plugin/prefixsid-malformed-receive.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -199,7 +228,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | positive | [`TestRFC8669UnknownTLVIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L80) | unit/verify | unproven |
 | positive | [`TestClearTransmittedLabelIndexOnlyOnLabeledUnicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_family_test.go#L24) | unit/verify | revert, verified |
 | positive | [`TestRFC8669UnknownTLVPropagatedAcrossANextHopChange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L140) | unit/verify | revert, verified |
-| positive | [`prefixsid-malformed-receive.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L7) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`prefixsid-malformed-receive.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L7) | functional/verify | revert, verified |
 
 ### [`RFC8669-3.1-1`](#rfc8669-3.1-1)
 
@@ -213,7 +242,7 @@ No test carries RFC8669-3.1-1, so no unit is bound to it.
 
 It MUST be ignored when received for other BGP AFI/SAFI combinations. (§3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/prefixsid-malformed-receive.ci moved. Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 3.1: "It MUST be ignored when received for other BGP AFI/SAFI combinations." The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frame (c) (10.0.3.0/24 IPv4 VPN, 6-octet Label-Index then a valid L3 Service TLV) still requires attribute 40 relayed octet-equal; the Go units are unchanged. Single-polarity annotation unchanged and still accurate. Ran green at HEAD. Verdict stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8669): "It MUST be ignored when received for other BGP AFI/SAFI combinations." The only edit to test/plugin/prefixsid-malformed-receive.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -221,7 +250,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | positive | [`TestRFC8669LabelIndexIgnoredOnNonLabeledUnicastFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc8669_test.go#L98) | unit/verify | unproven |
 | positive | [`TestClearTransmittedLabelIndexOnlyOnLabeledUnicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_family_test.go#L25) | unit/verify | revert, verified |
 | positive | [`TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8669_prefixsid_family_test.go#L19) | unit/verify | revert, verified |
-| positive | [`prefixsid-malformed-receive.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L6) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`prefixsid-malformed-receive.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L6) | functional/verify | revert, verified |
 
 ### [`RFC8669-3.1-3`](#rfc8669-3.1-3)
 
@@ -355,7 +384,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC8669NoLabelIndexInvalidOnLabeledUnicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_tlv_length_test.go#L171) | unit/verify | revert, verified |
-| negative | [`prefixsid-malformed-receive.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L5) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`prefixsid-malformed-receive.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L5) | functional/verify | revert, verified |
 | positive | [`TestRFC8669NoLabelIndexInvalidOnLabeledUnicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_tlv_length_test.go#L172) | unit/verify | revert, verified |
 
 ### [`RFC8669-4.1-3`](#rfc8669-4.1-3)
@@ -428,20 +457,20 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go#L138) | unit/verify | revert, verified |
 | negative | [`TestPrefixSIDEgressBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L169) | unit/verify | revert, verified |
 | negative | [`TestPrefixSIDOriginationBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L302) | unit/verify | revert, verified |
-| negative | [`prefixsid-announce-rail-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L4) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`prefixsid-ebgp-egress-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L4) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`prefixsid-announce-rail-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L4) | functional/verify | revert, verified |
+| negative | [`prefixsid-ebgp-egress-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L4) | functional/verify | revert, verified |
 | positive | [`TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go#L49) | unit/verify | revert, verified |
 | positive | [`TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go#L141) | unit/verify | revert, verified |
 | positive | [`TestPrefixSIDEgressBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L168) | unit/verify | revert, verified |
 | positive | [`TestPrefixSIDOriginationBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L301) | unit/verify | revert, verified |
-| positive | [`prefixsid-announce-rail-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L7) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`prefixsid-ebgp-egress-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L7) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`prefixsid-announce-rail-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L7) | functional/verify | revert, verified |
+| positive | [`prefixsid-ebgp-egress-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L7) | functional/verify | revert, verified |
 
 ### [`RFC8669-6-1`](#rfc8669-6-1)
 
 When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/prefixsid-malformed-receive.ci moved. Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 6: "When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers." The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frames (a), (d) and (e1) on IPv4 labeled unicast still require attribute 40 absent and an ATTR_TOMBSTONE (C0FC) naming code 40 in its place; the message units are unchanged. Ran green at HEAD. Verdict stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8669): "When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers." The only edit to test/plugin/prefixsid-malformed-receive.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -450,7 +479,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestRFC8669EmptyAttributeMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_tlv_length_test.go#L185) | unit/verify | revert, verified |
 | negative | [`TestRFC8669LabelIndexLengthMalformedOnLabeledUnicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_tlv_length_test.go#L96) | unit/verify | revert, verified |
 | negative | [`TestRFC8669SRGBLengthMalformedOnLabeledUnicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_tlv_length_test.go#L112) | unit/verify | revert, verified |
-| negative | [`prefixsid-malformed-receive.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L4) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`prefixsid-malformed-receive.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L4) | functional/verify | revert, verified |
 | positive | [`TestRFC8669WellFormedAttributeAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L187) | unit/verify | unproven |
 | positive | [`TestRFC8669ConformingTLVLengthsAcceptedOnLabeledUnicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_tlv_length_test.go#L126) | unit/verify | revert, verified |
 
@@ -466,7 +495,7 @@ No test carries RFC8669-6-2, so no unit is bound to it.
 
 Similarly, if a recognized TLV appears more than once in a BGP Prefix-SID attribute while the specification only allows for a single occurrence, then all the occurrences of the TLV other than the first one SHALL be discarded and the Prefix-SID attribute will continue to be processed. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/prefixsid-duplicate-tlv-relay.ci moved. Re-judged after 465af38f1d against rfc/full/rfc8669.txt Sections 3, 3.1, 3.2 and 6 and rfc/full/rfc9252.txt Section 7. Positive TestRFC8669DuplicateServiceTLVDiscardedOnReceive drives the real receive entry (enforceRFC7606 to publishBase) on an internal and a route-server-client session and asserts no error, RFC7606ActionNone, exactly one attribute 40 equal to the received TLVs less the repeat in received order, the peer's header width, the received attributes after code 40 octet for octet, and the same TLVs on the forward path; its cases are repeated SRv6 L3 and L2 Service TLVs on labelled unicast, Label-Index twice with an unknown TLV between, an unknown TLV after the repeat, a COMMUNITIES attribute after code 40, an Extended Length header, and L3 Service twice on IPv4 unicast (RFC 9252 Section 7 names no family). Negative TestRFC8669SingleOccurrencePrefixSIDKeptWhole pins the 'only allows for a single occurrence' qualifier and the Section 6 MUST 'unknown TLVs MUST be ignored and propagated unmodified': each type once, an unknown TLV twice, an Originator SRGB TLV twice (Section 3.2 'MUST NOT be changed during the propagation', so keeping both copies is the conforming answer) and a Label-Index TLV twice on IPv4 unicast must publish the received body octet-equal and forward every TLV. test/plugin/prefixsid-duplicate-tlv-relay.ci proves the session-in to session-out path with two byte-identical controls (unknown repeat; Label-Index repeat off labelled unicast) and an L3 Service repeat trimmed with the trailing unknown TLV and COMMUNITIES kept. The judge ran five -overlay mutants on HEAD, none recorded: Label-Index single on every family, stop copying after the first discard, family always read as IPv4 unicast, Extended Length header read as 3 octets, and the attributes after code 40 dropped; each turned a tagged reactor test red. Recorded discrimination records cover all three reactor/.ci tags (producer disabled). Readings, not findings: RFC 8669 sets no explicit occurrence limit for Label-Index; Ze treats it as single on IPv4/IPv6 labelled unicast from 'the label index for a given prefix', and off labelled unicast, where Section 3.1 says it 'MUST be ignored when received for other BGP AFI/SAFI combinations', as unrecognized and propagated unmodified (owner decision 2026-10-03). This is a defensible reading of an RFC that is silent, not RFC text. An UPDATE carrying both RFC 4271 NLRI and an MP_REACH_NLRI is judged by the MP_REACH family (prefixSIDRouteFamily), and no test covers it. The pool pair TestRFC8669DuplicateRecognizedTLVFirstWins / CannotOverrideFirst is one read-side first-wins assertion wearing two hats (the SIDs are swapped), so the polarity pair rests on the reactor and .ci tests, not on these two. A malformed repeat stays treat-as-withdraw first (untagged TestRFC8669DuplicateMalformedServiceTLVStillWithdrawn), which is RFC 9252 Section 7 and outside this row. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). Both units' labeled-unicast cases now lead with a Label-Index TLV, because a labeled-unicast Prefix-SID without one is invalid (Section 4.1) and would be discarded before the repeat rule is reached; the assertions are unchanged, so each buffer still isolates this rule. Verdict unchanged.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8669): "Similarly, if a recognized TLV appears more than once in a BGP Prefix-SID attribute while the specification only allows for a single occurrence, then all the occurrences of the TLV other than the first one SHALL be discarded and the Prefix-SID attribute will continue to be processed." The only edit to test/plugin/prefixsid-duplicate-tlv-relay.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -474,7 +503,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestRFC8669SingleOccurrencePrefixSIDKeptWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go#L197) | unit/verify | revert, verified |
 | positive | [`TestRFC8669DuplicateRecognizedTLVFirstWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/pool/rfc8669_test.go#L149) | unit/verify | unproven |
 | positive | [`TestRFC8669DuplicateServiceTLVDiscardedOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go#L132) | unit/verify | revert, verified |
-| positive | [`prefixsid-duplicate-tlv-relay.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-duplicate-tlv-relay.ci#L4) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`prefixsid-duplicate-tlv-relay.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-duplicate-tlv-relay.ci#L4) | functional/verify | revert, verified |
 
 ### [`RFC8669-4-2`](#rfc8669-4-2)
 

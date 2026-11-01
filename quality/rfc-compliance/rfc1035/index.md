@@ -1,6 +1,6 @@
 # RFC 1035 - Domain Names - Implementation and Specification
 
-Partial. Every requirement this repository extracted from RFC 1035, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
+DNS message behavior. Every requirement this repository extracted from RFC 1035, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 92.6% | 25 of 27 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 27 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 27 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 27 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 30.6% | 26 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 25 | of 27 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 27 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 27 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 27 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 26 | 26 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 27 | of 33 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every share below reads what the summary records rather than what the gate enforces |
-| Out of scope | 0 | of 27 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 27 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 27 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 27 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 27 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| MUSTs declared | 27 | of 33 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every count below reads what the summary records rather than what the gate enforces |
+| Out of scope | 0 | of 27 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 27 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 27 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 27 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 27 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 7.4% | 2 of 27 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 2 | of 27 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 27 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 27 gated MUSTs: they add up to 27. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,23 +45,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | DNS message behavior |
 | Enrolment | Not enrolled (backlog) |
 | Requirements | 33 |
 | Gated MUST-level | 27 |
@@ -84,17 +84,14 @@ Not enrolled (backlog, the requirements have not been extracted from the documen
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** DNS message behavior
 
-**What the ledger says is covered**
+**Proof:** 12 of 27 MUST proven
 
-- DNS cache TTL handling, plus authoritative GeoDNS and AS112 response shaping. The reply carries the AA bit and the compression-off, recursion-unavailable shape, re-asserted after the answer function on every query (`Authoritative` in [`internal/core/dnsserver/handler.go`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/handler.go)). A reply on a datagram transport is bounded and carries TC when it is shortened (`send` and `udpReplyLimit`, same file): the Section 2.3.4 floor of 512 octets, raised to the reassembly buffer an RFC 6891 Section 6.2.3 OPT record advertises. A stream reply is written whole. An opcode Ze does not serve draws Not Implemented before any zone lookup, which is the Section 6.4 reply an unsupported inverse query gets (`Authoritative`, same file). A name outside every served zone draws NXDOMAIN, and a name inside one with no matching record draws NODATA plus the zone SOA. Zone and label matching folds case. TTLs are bounded to 0..2147483647. The AS112 UDP and TCP listeners bind port 53. The LAN recursive resolver (`internal/plugins/dnsresolver`) answers through the second wrapper, `Recursive` in [`internal/core/dnsserver/recursive.go`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/recursive.go): its reply has AA, Z and AD clear and RA set whatever the upstream reply carried (`shapeRecursive`), an opcode other than a standard query (an inverse query included) draws Not Implemented before any upstream is asked, and a datagram reply is held to 512 octets, or the size the client's OPT offers up to 1232, with TC set when shortened, while a stream reply goes whole. Its cache key folds the name's case (`keyOf` in [`internal/plugins/dnsresolver/cache.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/cache.go)) and an upstream reply is matched to its query by name without regard to case (`replyMatches` in `forward.go`)
-- an upstream reply that uses compression pointers is understood, a TCP query upstream carries the two-byte length prefix and a UDP one does not (`exchange`), and a listener or forward server given no port uses port 53 (`parseListener`, `parseUpstream` in `config.go`). Obligations extracted 2026-07-30 and bound per line in [`rfc/short/rfc1035.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc1035.md). The walk of all 73 sections is recorded in [`rfc/extraction/rfc1035.json`](https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc1035.json).
+**Evidence:** functional 1, unit 11
 
+**Unmet:** -
 
-**What the ledger says remains**
-
-Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercase indicative prose. The extraction read that prose as normative, and the surviving obligation with no code path is zone transfer: Ze performs none, and the owner ruled RFC 1035 out of scope on 2026-08-18, so that work is not to be started. A response TTL is deliberately not raised to the zone SOA MINIMUM. RFC 2308 Section 4 withdrew that rule ("the minimum TTL value of all RRs in a zone, has never in practice been used and is hereby deprecated"), `hdr` in [`internal/plugins/geodns/server.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server.go) applies no floor, and `TestRFC2308_NoZoneWideTTLFloor` holds the decision. The DNS wire codec is `github.com/miekg/dns`, so several encoding obligations admit no negative test through Ze at all. Declared `backlog` while an owner ruling is outstanding.
 
 ## Coverage
 
@@ -113,9 +110,41 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 
 **No test and no annotation (2):** [`RFC1035-3.3.13-1`](#rfc1035-3.3.13-1), [`RFC1035-4.2-1`](#rfc1035-4.2-1)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 27 of 27 (100.0%). Optional ceiling: 6 of 6 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc1035 27 of 27 (100.0%). Lowest optional ceiling: rfc1035 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 12, Ze correctness gap 15
+- **Overview bar**: Ze MUST proven 12, SHOULD not decided 6, Ze correctness gap 15
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 27 |
+| MUST rows kept (the MUST bar) | 27 |
+| Ze proven | 12 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 15 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 6 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 6 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc1035.json](../../../data/rfc/rfc1035.json).
 
 ## Requirements
 

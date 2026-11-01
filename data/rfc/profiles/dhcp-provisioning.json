@@ -1,0 +1,22 @@
+{
+  "name": "dhcp-provisioning",
+  "kind": "technology",
+  "title": "DHCP and provisioning",
+  "release": false,
+  "required": [
+    "rfc1350",
+    "rfc2131",
+    "rfc2132",
+    "rfc2347",
+    "rfc2348",
+    "rfc2349",
+    "rfc4578",
+    "rfc4861",
+    "rfc4862",
+    "rfc7084",
+    "rfc7440",
+    "rfc8106",
+    "rfc9915"
+  ],
+  "optional": []
+}

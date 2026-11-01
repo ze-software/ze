@@ -1,0 +1,12 @@
+{
+  "stem": "rfc8326",
+  "title": "Graceful BGP Session Shutdown",
+  "walked": false,
+  "requirements": 1,
+  "implementer": "ze",
+  "implemented": false,
+  "must": null,
+  "should": null,
+  "proven-by-kind": null,
+  "unmet": []
+}

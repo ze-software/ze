@@ -1,0 +1,33 @@
+{
+  "stem": "rfc1332",
+  "title": "The PPP Internet Protocol Control Protocol (IPCP)",
+  "walked": true,
+  "requirements": 14,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 8,
+    "kept": 8,
+    "ze-proven": 8,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 6,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 6,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 8
+  },
+  "unmet": []
+}

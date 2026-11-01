@@ -146,7 +146,7 @@ The container holds the plugin switch, the reusable profiles, and the sessions a
 
 ## bgp
 
-*Provided by `bgp` ([ze-bgp-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-api.yang), [ze-bgp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-conf.yang)); `bgp-bmp` ([ze-bmp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `bgp-filter-community` ([ze-filter-community.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang)); `bgp-filter-irr` ([ze-filter-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang), [ze-filter-irr.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang)); `bgp-gr` ([ze-graceful-restart.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang)); `bgp-healthcheck` ([ze-healthcheck-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang)); `bgp-hostname` ([ze-hostname.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/hostname/yang/ze-hostname.yang)); `bgp-llnh` ([ze-link-local-nexthop.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang)); `bgp-rib` ([ze-rib-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib-api.yang), [ze-rib.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib.yang)); `bgp-role` ([ze-role.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/yang/ze-role.yang)); `bgp-route-refresh` ([ze-refresh-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang), [ze-route-refresh-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang), [ze-route-refresh.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang)); `bgp-rpki` ([ze-rpki.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/yang/ze-rpki.yang)); `bgp-rs` ([ze-rs-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang)); `bgp-softver` ([ze-softver.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/yang/ze-softver.yang)); `bgp-watchdog` ([ze-watchdog-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/watchdog/yang/ze-watchdog-cmd.yang))*
+*Provided by `bgp` ([ze-bgp-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-api.yang), [ze-bgp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-conf.yang)); `bgp-bmp` ([ze-bmp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `bgp-filter-aspath` ([ze-filter-aspath.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang)); `bgp-filter-aspath-length` ([ze-filter-aspath-length.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang)); `bgp-filter-community` ([ze-filter-community.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang)); `bgp-filter-community-match` ([ze-filter-community-match.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang)); `bgp-filter-family` ([ze-filter-family.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang)); `bgp-filter-irr` ([ze-filter-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang), [ze-filter-irr.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang)); `bgp-filter-modify` ([ze-filter-modify.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang)); `bgp-filter-path-asn` ([ze-filter-path-asn-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang), [ze-filter-path-asn.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang)); `bgp-filter-prefix` ([ze-filter-prefix.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang)); `bgp-filter-remove-private-as` ([ze-filter-remove-private-as.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang)); `bgp-gr` ([ze-graceful-restart.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang)); `bgp-healthcheck` ([ze-healthcheck-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang)); `bgp-hostname` ([ze-hostname.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/hostname/yang/ze-hostname.yang)); `bgp-llnh` ([ze-link-local-nexthop.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang)); `bgp-rib` ([ze-rib-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib-api.yang), [ze-rib.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib.yang)); `bgp-role` ([ze-role.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/yang/ze-role.yang)); `bgp-route-refresh` ([ze-refresh-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang), [ze-route-refresh-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang), [ze-route-refresh.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang)); `bgp-rpki` ([ze-rpki.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/yang/ze-rpki.yang)); `bgp-rs` ([ze-rs-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang)); `bgp-softver` ([ze-softver.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/yang/ze-softver.yang)); `bgp-watchdog` ([ze-watchdog-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/watchdog/yang/ze-watchdog-cmd.yang))*
 
 Border Gateway Protocol routing configuration.
 
@@ -2028,7 +2028,7 @@ Connected route redistribution. Presence enables the plugin.
 The container carries no leaf, so writing it is the whole configuration. The plugin watches each interface address event and emits the network prefix of that address on the redistribute event bus. It counts the addresses of one prefix, so two addresses in one subnet announce the prefix once. The withdrawal waits for the last address of that prefix. The plugin registers the connected route source, and a redistribute statement names that source.
 
 - **filter** `container`: Route filter chains into the Loc-RIB.
-  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS LSDB, an OSPF LSDB) is never filtered.
+  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB.
   - **import** `container`: Import policy into the Loc-RIB
     A rejected route stays in the Loc-RIB as a hidden path that is never selected, so relaxing the chain re-admits it without the protocol sending it again. The source's chain runs first, then the rib chain.
     - **filters** `string[]`: Ordered filter instance references
@@ -4528,8 +4528,16 @@ IS-IS routing instance configuration.
 
 The presence of this container starts the IS-IS component. At least one `net` leaf MUST be set for the engine to run. A commit with no net is accepted, and the engine then stays idle, opens no circuit and originates no LSP.
 
-- **filter** `container`: Route filter chains into the Loc-RIB.
-  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS LSDB, an OSPF LSDB) is never filtered.
+- **filter** `container`: Route filter chains into the Loc-RIB and out of redistribution.
+  A name references a filter instance defined under the top-level policy root. The import chain judges routes as they enter the Loc-RIB, and the export chain judges redistributed routes before the IGP advertises them; the IGP's own database (an IS-IS LSDB, an OSPF LSDB) is never filtered.
+  - **export** `container`: Export policy over redistributed routes
+    Runs on every route the redistribute import rules hand this protocol, before it enters the IGP database. A rejected route is not advertised; the sets of an accepting chain (the metric, and on ospf the metric type and tag) shape what is.
+    - **filters** `string[]`: Ordered filter instance references
+      Run these filter instances in order. Each one passes the route on or rejects it; a filter type with no route evaluator is refused.
+    - **final** `enumeration`: Decision after every filter passes
+      Every present export policy must set final accept or final reject, even with no filters. A filter's accept only passes the route on, so final decides.
+      - `accept`: Advertise a route that passes every filter
+      - `reject`: Do not advertise a route that passes every filter
   - **import** `container`: Import policy into the Loc-RIB
     A rejected route stays in the Loc-RIB as a hidden path that is never selected, so relaxing the chain re-admits it without the protocol sending it again. The source's chain runs first, then the rib chain.
     - **filters** `string[]`: Ordered filter instance references
@@ -5619,8 +5627,16 @@ The presence of this container starts the OSPFv2 engine, which RFC 2328 defines.
     - `ti-lfa`: Add the Segment-Routing repair-list fallback (TI-LFA).
   - **node-protection** `boolean`: Prefer node-protecting alternates over link-only alternates (RFC 5286 Section 3.6).
     RFC 5286 section 3.2 gives Inequality 3 for a node-protecting alternate N against a primary neighbor E for destination D. Distance_opt(N, D) MUST be less than Distance_opt(N, E) plus Distance_opt(E, D). Section 3.6 takes a link-protecting alternate when no node-protecting one exists.
-- **filter** `container`: Route filter chains into the Loc-RIB.
-  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS LSDB, an OSPF LSDB) is never filtered.
+- **filter** `container`: Route filter chains into the Loc-RIB and out of redistribution.
+  A name references a filter instance defined under the top-level policy root. The import chain judges routes as they enter the Loc-RIB, and the export chain judges redistributed routes before the IGP advertises them; the IGP's own database (an IS-IS LSDB, an OSPF LSDB) is never filtered.
+  - **export** `container`: Export policy over redistributed routes
+    Runs on every route the redistribute import rules hand this protocol, before it enters the IGP database. A rejected route is not advertised; the sets of an accepting chain (the metric, and on ospf the metric type and tag) shape what is.
+    - **filters** `string[]`: Ordered filter instance references
+      Run these filter instances in order. Each one passes the route on or rejects it; a filter type with no route evaluator is refused.
+    - **final** `enumeration`: Decision after every filter passes
+      Every present export policy must set final accept or final reject, even with no filters. A filter's accept only passes the route on, so final decides.
+      - `accept`: Advertise a route that passes every filter
+      - `reject`: Do not advertise a route that passes every filter
   - **import** `container`: Import policy into the Loc-RIB
     A rejected route stays in the Loc-RIB as a hidden path that is never selected, so relaxing the chain re-admits it without the protocol sending it again. The source's chain runs first, then the rib chain.
     - **filters** `string[]`: Ordered filter instance references
@@ -5781,18 +5797,10 @@ The presence of this container starts the OSPFv2 engine, which RFC 2328 defines.
   SPF keeps at most this many equal-cost next-hops for one prefix, and it drops the rest. Ze uses 8 when the leaf is absent.
 - **opaque** `boolean`: Enable the opaque-LSA capability.
   RFC 5250 defines the opaque LSA. When this leaf is true, the router sets the O-bit in its Database Description packets, which advertises that it will receive and forward an opaque LSA, and it originates an opaque LSA for each registered consumer. Ze stores a received opaque LSA and refloods it by its scope whatever this leaf holds. A false leaf stops the capability advertisement and the origination only.
-- **redistribute <source>** `list`: Per-source metric, metric type and tag for redistribution into OSPF.
-  This list starts no import. The generic redistribute container enables the import, with a rule of the shape destination ospf import <source>. A source with no entry here takes metric 20 and metric-type type-2.
-  - **metric** `uint32`: Injected metric.
-    Ze writes the value into the metric field of the AS-external LSA, which is 24 bits wide. A source with no entry in this list takes 20.
-  - **metric-type** `enumeration`: External metric type.
-    RFC 2328 section 2.3 states that a Type 1 external metric is in the same units as the OSPF cost. A Type 2 metric is an order of magnitude larger than any internal path. A Type 1 route always wins over a Type 2 route.
-    - `type-1`: External metric in OSPF cost units, added to the internal distance.
-    - `type-2`: External metric larger than any internal path, compared alone.
+- **redistribute <source>** `list`: Per-source NSSA propagation for redistribution into OSPF.
+  This list starts no import. The generic redistribute container enables the import, with a rule of the shape destination ospf import <source>. The metric, the metric type and the tag of a redistributed route are set by a modify filter on the ospf filter export chain; a route no filter sets takes metric 20 and metric-type type-2.
   - **nssa-propagate** `boolean`: Permit translation of this source's NSSA routes into Type-5 LSAs.
     RFC 3101 Appendix D requires configurable Type-7 propagation and defaults the P-bit to clear. Set the P-bit for this source when the router cannot originate a Type-5 directly. A P-set Type-7 requires a usable forwarding address in its NSSA; without one the LSA is withdrawn. A locally originated Type-5 always clears the P-bit.
-  - **tag** `uint32`: External route tag.
-    RFC 2328 Appendix A.4.5 states that the External Route Tag is not used by the OSPF protocol itself. It carries information between AS boundary routers, and a policy on another router CAN match it.
 - **reference-bandwidth** `uint32`: Auto-cost reference bandwidth in Mbps.
   The unit is Mbps, the range is 1 to 4294967, and the default is 100000. Ze divides this bandwidth by the speed of a link to derive the cost of that link, so under the default a 10 Gbit/s link costs 10 and a 1 Gbit/s link costs 100. An interface that sets `interfaces/interface/cost` keeps that cost and is not derived. The quotient is clamped to the range a Router-LSA link metric carries, 1 to 65535, because RFC 2328 Appendix C.3 states that the interface output cost 'must always be greater than 0' and the wire field is two octets wide. A link whose speed the kernel does not report costs 1, which covers a loopback, a dummy, a tunnel and a link with no carrier; a veth reports 10000 and is derived like a real NIC. The speed is read again on each origination pass, so a link that renegotiates re-prices itself. The value is router-wide: every OSPFv3 address family prices a link exactly as the IPv4 family does. A change to this leaf drops no adjacency: Ze re-prices each interface in place and originates the new Router-LSA at the commit.
 - **router-address** `ipv4-address`: Traffic Engineering Router Address of this router.
@@ -5929,7 +5937,7 @@ Declares the plugins this daemon runs, and the hub transport they connect back o
 
 ## policy
 
-*Provided by `bgp-filter-aspath` ([ze-filter-aspath.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang)); `bgp-filter-aspath-length` ([ze-filter-aspath-length.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang)); `bgp-filter-community-match` ([ze-filter-community-match.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang)); `bgp-filter-family` ([ze-filter-family.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang)); `bgp-filter-modify` ([ze-filter-modify.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang)); `bgp-filter-path-asn` ([ze-filter-path-asn-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang), [ze-filter-path-asn.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang)); `bgp-filter-prefix` ([ze-filter-prefix.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang)); `bgp-filter-remove-private-as` ([ze-filter-remove-private-as.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang)); `policy` ([ze-policy-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/policy/yang/ze-policy-conf.yang))*
+*Provided by `policy` ([ze-policy-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/policy/yang/ze-policy-conf.yang))*
 
 Route policy filters and policy routing.
 
@@ -6086,6 +6094,12 @@ Each filter type is a list that its plugin adds through an augment and marks ze:
       Ze replaces the value the route carried. RFC 4271 Section 5.1.5 forbids the attribute in an UPDATE to an external peer, so the value serves the local decision process and the internal peers. The leaf is mutually exclusive with increment local-preference and decrement local-preference.
     - **med** `uint32`: Set MULTI_EXIT_DISC attribute (RFC 4271 type 4).
       Ze replaces the metric the route carried, and writes one on a route that carried none. The leaf is mutually exclusive with del med, increment med and decrement med, and Ze refuses a modifier that carries two of them.
+    - **metric** `uint32`: Set the metric an IGP export advertises (0-16777215).
+      Ze advertises a matching route with this metric: the prefix metric of an IS-IS export, the metric of an OSPF AS-external LSA, whose field is 24 bits wide. An IGP export chain only: the instance is refused at any attachment that does not let a filter set the metric.
+    - **metric-type** `enumeration`: Set the OSPF external metric type of an exported route.
+      RFC 2328 section 2.3 states that a Type 1 external metric is in the same units as the OSPF cost, and a Type 2 metric is larger than any internal path. An OSPF export chain only. A route no filter sets takes type-2.
+      - `type-1`: External metric in OSPF cost units, added to the internal distance.
+      - `type-2`: External metric larger than any internal path, compared alone.
     - **next-hop** `ip-address`: Set the NEXT_HOP attribute of the route.
       NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address only. An IPv6 next-hop travels in the MP_REACH attribute instead, so this leaf does not set one.
     - **origin** `enumeration`: Set ORIGIN attribute (RFC 4271 type 1).
@@ -6222,13 +6236,15 @@ Route redistribution between protocols.
 Each destination protocol has its own container that holds the import rules. To add a destination protocol, add a key here.
 
 - **destination <protocol>** `list`: Destination protocol for redistributed routes.
-  Each entry names a consumer that registered itself, for example bgp or ospf.
+  Each entry names a protocol that declared itself a destination, for example bgp or ospf.
   - **import <source>** `list`: Import routes from a source into this destination.
-    If the family leaf-list is empty, Ze imports every family.
-    - **family** `string[]`: Address families Ze imports from this source.
-      An empty leaf-list imports every family.
-    - **tag** `uint32`: Import only the routes that carry this route tag.
-      The route tag is the value the source protocol attached to the route, for example the tag leaf of a static route. A rule that names a tag imports the routes carrying exactly that value and rejects the others. A rule with no tag leaf imports every route from the source, whatever tag it carries. The value 0 is a tag like any other: a route with no tag carries 0, so tag 0 imports the untagged routes alone.
+    With no filters and no final, Ze imports every route of the source.
+    - **filters** `string[]`: Ordered filter instance references
+      Run these filter instances, defined under the top-level policy root, in order. Each one passes the route on, with what it sets, or rejects it. A filter of a type with no route evaluator, or one reading a field a redistributed route does not carry, is refused. Select a family or a tag with a match filter: match V4 { family [ ipv4/unicast ]; }.
+    - **final** `enumeration`: Decision after every filter passes
+      The decision after every filter passes. An import with filters must set it. An import with neither filters nor final imports every route from the source.
+      - `accept`: Import a route that passes every filter
+      - `reject`: Do not import a route that passes every filter
 
 ## rib
 
@@ -6255,7 +6271,7 @@ The system RIB takes the best route each protocol offers and selects one system 
 - **fib-withhold** `string[]`: Protocols whose selected routes are not programmed into the FIB. An empty list programs all.
   This list names the protocols Ze does not program. Selection is unchanged: the system RIB ranks the candidates for each prefix on administrative distance and picks one winner. A winner from a protocol named here stays in the RIB, `show rib` reports it, redistribution can offer it to another protocol, and the protocol's own event stream still carries it. Ze declines the write to the kernel, to VPP or to a P4 switch. It holds the prefix off `system-rib/best-change`, the stream every FIB writer reads, so the list applies to every FIB. Ze also releases the next-hop tracking for the prefix, so `show nexthop-table` stops listing it under its next-hop. An empty list withholds nothing, which is the behavior of a router that says nothing here. Withholding is one of the reasons a selected route is not programmed: a route the operating system installs, and a route whose SRv6 SID reaches nothing, are not written either. The values are the protocol names this build registered: the editor completes them, and a name nothing registered is refused at commit.
 - **filter** `container`: Route filter chains into the Loc-RIB.
-  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS LSDB, an OSPF LSDB) is never filtered.
+  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB.
   - **import** `container`: Import policy into the Loc-RIB
     A rejected route stays in the Loc-RIB as a hidden path that is never selected, so relaxing the chain re-admits it without the protocol sending it again. The source's chain runs first, then the rib chain.
     - **filters** `string[]`: Ordered filter instance references
@@ -6613,15 +6629,19 @@ The container holds the settings of each service Ze runs, and the as112 containe
   - **ssh-username** `string`: Admin username for installed target (written to served zefs)
     Ze writes this name and the password hash into a zefs database, and serves that database at /install/database.zefs. The target reads it and gets its first administrator. Write ssh-username and ssh-password-hash together, because Ze refuses one without the other.
 - **tftp-server** `container`: Read-only TFTP server (RFC 1350)
-  The server answers a read request on UDP port 69 and refuses every write request, so no client can put a file on this host. Ze accepts octet mode alone, and answers any other mode with an illegal operation error. Ze negotiates the blksize option of RFC 2348 and the tsize option of RFC 2349, and it does not support the windowsize option.
+  The server answers a read request on UDP port 69 and refuses every write request, so no client can put a file on this host. Ze accepts octet mode alone, and answers any other mode with an illegal operation error. Ze negotiates the blksize option of RFC 2348, the timeout and tsize options of RFC 2349, and the windowsize option of RFC 7440.
   - **enabled** `boolean`: Enable TFTP server
     The default is false. When the leaf is true, Ze refuses the configuration unless root-directory names a directory. A configuration that names no listen-interface binds no socket, and Ze then logs that the server does not serve.
   - **listen-interface** `string[]`: Interfaces to serve TFTP on
     Ze opens one UDP socket for each interface of this list and binds the socket to that interface with SO_BINDTODEVICE. A logical interface name is resolved to its kernel device first. An interface that fails to bind is logged, and the others keep their socket.
   - **max-transfers** `uint16`: Maximum concurrent TFTP transfers
     The default is 10 and the range is 1 to 1000. The count is shared by every listener of the server. Over the limit Ze answers the read request with a TFTP error that carries the text service unavailable, and the transfers already open keep running.
+  - **max-windowsize** `uint16`: Largest RFC 7440 window the server grants
+    The default is 64 and the range is 1 to 65535, the range of RFC 7440. A client that asks for a windowsize gets the smaller of its request and this value, and Ze then sends that many DATA blocks before it waits for an ACK. A grant of one block is RFC 1350 lockstep and is not acknowledged, so the value 1 turns windowed sending off. A change applies to the next read request; a transfer already running keeps the window it started with.
   - **root-directory** `string`: Directory to serve files from
     Ze resolves each requested file under this directory and follows every symbolic link first. A file that lands outside the directory gets an access violation error, so a client cannot read the rest of the disk. The leaf is required when enabled is true.
+  - **timeout** `uint8`: Seconds to wait for an ACK before Ze sends again
+    The default is 5 and the range is 1 to 255, the range of RFC 2349. Ze waits this long for an ACK before it sends the DATA again, at most three times, then ends the transfer. A client that asks for its own RFC 2349 timeout from 1 to 255 seconds gets it acknowledged and used instead. A change applies to the next read request; a transfer already running keeps the timeout it started with.
 
 ## static
 
@@ -6632,7 +6652,7 @@ Static route configuration.
 Ze programs each route into the kernel through netlink, or into the VPP dataplane, and marks it with the static protocol number. A route the backend cannot program is skipped and logged, and the rest of the section still applies. Only a forward route in the default table reaches the redistribute bus, where BGP can announce it.
 
 - **filter** `container`: Route filter chains into the Loc-RIB.
-  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS LSDB, an OSPF LSDB) is never filtered.
+  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB.
   - **import** `container`: Import policy into the Loc-RIB
     A rejected route stays in the Loc-RIB as a hidden path that is never selected, so relaxing the chain re-admits it without the protocol sending it again. The source's chain runs first, then the rib chain.
     - **filters** `string[]`: Ordered filter instance references

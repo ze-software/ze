@@ -1,6 +1,6 @@
 # RFC 8654 - Extended Message Support for BGP
 
-Partial. Every requirement this repository extracted from RFC 8654, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP Extended Message. Every requirement this repository extracted from RFC 8654, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 75.0% | 9 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 8.3% | 1 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 12 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 56.5% | 35 of 62 tagged units, 0 escaped and 5 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 9 | of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 12 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 40 | 40 of 62 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,12 +22,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 12 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 12 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 8.3% | 1 of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 12 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 12 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 12 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 1 | of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 12 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +35,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 8.3% | 1 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 1 | of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 12 gated MUSTs: they add up to 12. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,27 +45,27 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | BGP Extended Message |
 | Enrolment | Enrolled |
 | Requirements | 16 |
 | Gated MUST-level | 12 |
-| Not applicable, so out of scope | 1 |
+| Not applicable, so out of scope | 0 |
 | Declared gaps | 1 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
@@ -84,15 +84,14 @@ Enrolled: Extended Message capability and framing are implemented in internal/co
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** BGP Extended Message
 
-**What the ledger says is covered:**
+**Proof:** 9 of 12 MUST proven
 
-Directional Extended Message capability and 65535-byte receive limit after local advertisement.
+**Evidence:** interop 2, unit 7
 
-**What the ledger says remains**
+**Unmet:** RFC8654-5-3
 
-Correction 2026-10-06: the earlier weak classification described incomplete tests, not an absent Extended Message implementation. Native host execution and independent rejudgment now support the repaired directional, accumulation, discard/removal and fatal-error replacement assertions. Exact last-owner release versus outbound advertisement admission remains unproven; the ledger separately reports unaudited obligations and missing discrimination records. This is not a whole-RFC conformance claim.
 
 ## Coverage
 
@@ -111,9 +110,41 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 
 **Annotated (including scoped evidence) (3):** [`RFC8654-3-2`](#rfc8654-3-2), [`RFC8654-5-3`](#rfc8654-5-3), [`RFC8654-5-5`](#rfc8654-5-5)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 11 of 12 (91.7%); excluded: Not applicable (classification can be revisited): 1 of 12 (8.3%). Optional ceiling: 4 of 4 (100.0%). Lowest mandatory ceiling: rfc8654 11 of 12 (91.7%). Lowest optional ceiling: rfc8654 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 9, Ze correctness gap 2
+- **Overview bar**: Ze MUST proven 9, SHOULD proven 1, Not owed 1, SHOULD not decided 3, Ze correctness gap 2
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 12 |
+| MUST rows kept (the MUST bar) | 11 |
+| Ze proven | 9 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 2 |
+| MUST rows not owed | 1 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 1 |
+| SHOULD / MAY rows | 4 |
+| SHOULD proven | 1 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 3 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc8654.json](../../../data/rfc/rfc8654.json).
 
 ## Requirements
 
@@ -151,7 +182,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606]. (§3)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery, internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery#2, internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes, internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes#2 moved. Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1 or 439a413ffd). RFC 8654 Section 3: "Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606]." 439a413ffd added a well-formed subtest to TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling and moved the positive tag onto it: on a session negotiating Extended Message both ways, a >4096-octet UPDATE (1100 /24s, valid ORIGIN, AS_PATH, NEXT_HOP) leaves ReadAndProcess error-free, the session Established, exactly one dispatch whose withdrawn section is empty, attribute section byte-equal and NLRI byte-equal to what was sent, and no NOTIFICATION. That is a genuinely conforming input, which closes the previous finding (positive tag on an error input). The negative now names both error subtests: malformed ORIGIN (length 2) dispatches every route as withdrawn with no attributes, session up, no NOTIFICATION; attribute section overrunning the message gives an error, Idle, nothing dispatched and NOTIFICATION 3/1 with empty data. Positive and negative are distinct subtests with distinct inputs. Other carriers unchanged. Discrimination records observed red: positive under session_read.go extendedMessage forced false, negative under the treat-as-withdraw branch forced to None. Units ran green at HEAD.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1 or 439a413ffd). RFC 8654 Section 3: "Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606]." 439a413ffd added a well-formed subtest to TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling and moved the positive tag onto it: on a session negotiating Extended Message both ways, a >4096-octet UPDATE (1100 /24s, valid ORIGIN, AS_PATH, NEXT_HOP) leaves ReadAndProcess error-free, the session Established, exactly one dispatch whose withdrawn section is empty, attribute section byte-equal and NLRI byte-equal to what was sent, and no NOTIFICATION. That is a genuinely conforming input, which closes the previous finding (positive tag on an error input). The negative now names both error subtests: malformed ORIGIN (length 2) dispatches every route as withdrawn with no attributes, session up, no NOTIFICATION; attribute section overrunning the message gives an error, Idle, nothing dispatched and NOTIFICATION 3/1 with empty data. Positive and negative are distinct subtests with distinct inputs. Other carriers unchanged. Discrimination records observed red: positive under session_read.go extendedMessage forced false, negative under the treat-as-withdraw branch forced to None. Units ran green at HEAD.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -166,7 +197,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 | positive | [`TestRFC8654ExtendedAttributeDiscard`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L336) | unit/verify | revert, verified |
 | positive | [`TestRFC8654ExtendedDuplicateAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L411) | unit/verify | revert, verified |
 | positive | [`TestRFC8654ExtendedDuplicateMPResets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L479) | unit/verify | revert, verified |
-| positive | [`TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L252) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L252) | unit/verify | mutant, verified |
 
 ### [`RFC8654-3-2`](#rfc8654-3-2)
 
@@ -244,12 +275,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Both
 |---|---|---|---|
 | negative | [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L248) | unit/verify | unproven |
 | negative | [`TestRFC8654LengthBoundsPerTypeAndCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L38) | unit/verify | revert, verified |
-| negative | [`TestRFC8654AnnouncementAccumulation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_directional_session_test.go#L109) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8654AnnouncementAccumulation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_directional_session_test.go#L109) | unit/verify | revert, verified |
 | negative | [`TestRFC8654ReceiveLimitFollowsLocalOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_directional_session_test.go#L27) | unit/verify | revert, verified |
 | negative | [`TestRFC8654ExtendedMessageDirections`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L70) | unit/verify | revert, verified |
 | positive | [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L253) | unit/verify | unproven |
 | positive | [`TestRFC8654LengthBoundsPerTypeAndCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L35) | unit/verify | revert, verified |
-| positive | [`TestRFC8654AnnouncementAccumulation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_directional_session_test.go#L108) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC8654AnnouncementAccumulation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_directional_session_test.go#L108) | unit/verify | revert, verified |
 | positive | [`TestRFC8654ReceiveLimitFollowsLocalOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_directional_session_test.go#L26) | unit/verify | revert, verified |
 | positive | [`TestRFC8654ExtendedMessageDirections`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc8654_extended_message_test.go#L69) | unit/verify | revert, verified |
 
@@ -291,14 +322,14 @@ No test carries RFC8654-5-3, so no unit is bound to it.
 
 Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/relay_recovery.go::departedOwner, internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced, internal/component/bgp/reactor/session_read.go::readAndProcessMessage moved. Re-judged 2026-10-26 by an independent auditor who authored none of the change, after 394bd1e802 and 180b306ffa (spec-bgp-rs-replacement-on-withdrawal). RFC 8654 Section 5: "Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]." RFC 4271 Section 6 requires the invalid routes of the closed connection be withdrawn or replaced by new best routes. relay_recovery.go oweDeparture now requires the departure to name its session generation (refusing generation 0 with an error) and owes a non-ADD-PATH key only when departedOwner holds: same source, entry.owner.generation <= the departed generation, and the owner no longer current. This narrows a departure to the routes of the session that actually closed; a newer session's route was never one of the RFC 4271 Section 6 invalid routes, so the narrowing is what the RFC asks. The generation reaches the engine on the real path: rr.go and rs/server_handlers.go pass StructuredEvent.SessionGeneration as recovery-generation, and update_text.go recoveryFromMeta sets NLRIBatch.RecoveryGeneration. All seven tagged units are byte-identical; TestRFC8654FatalLengthReleasesInstalledRoutes and TestRFC8654FatalLengthReelectsAlternateBest (positives) still require the closed session's routes released and the alternate re-elected, the negatives still require a valid-length message leave the session and routes intact and an over-length one take the NOTIFICATION path; revert records on notifyPeerClosed, emitPurgedWithdraws, readAndProcessMessage, readAndProcessCoalesced and ValidateLengthWithMax verify. Reactor and message TestRFC8654* green at HEAD in an export. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8654): "Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]." Producers moved: relay_recovery.go departedOwner now tests adjOutOwnerSessionCurrent rather than adjOutOwnerCurrent (30ff1fce91/fa6552968f), so a departure stays a session fact and a live session's policy-stale path is not counted departed; the routes of the closed session are still the ones owed withdrawal or replacement, which is what RFC 4271 Section 6 requires. session_read.go readAndProcessMessage and session_coalesce.go readAndProcessCoalesced (ff2aac12b0) gained a beginAdmission gate that holds a fully read packet while a policy change pauses admission; in readAndProcessMessage it sits after hdr.ValidateLengthWithMax, so an over-length message still returns its error and takes the NOTIFICATION path before the gate. All seven tagged units are byte-identical. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L290) | unit/verify | unproven |
 | negative | [`TestRFC8654LengthBoundsPerTypeAndCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L41) | unit/verify | revert, verified |
-| negative | [`TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_bad_length_session_test.go#L27) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC8654ValidLengthRetainsInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go#L128) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_bad_length_session_test.go#L27) | unit/verify | revert, verified |
+| negative | [`TestRFC8654ValidLengthRetainsInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go#L128) | unit/verify | revert, verified |
 | positive | [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L298) | unit/verify | unproven |
 | positive | [`TestRFC8654FatalLengthReleasesInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go#L51) | unit/verify | revert, verified |
 | positive | [`TestRFC8654FatalLengthReelectsAlternateBest`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L173) | unit/verify | revert, verified |

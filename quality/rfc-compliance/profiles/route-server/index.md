@@ -6,95 +6,152 @@ Release profile. The RFCs this use case requires, each declared by the Use cases
 
 Use case: [Route Server at an IXP](../../../../use-cases/route-server/)
 
-- **Mandatory**: 47.4% (188 of 397 (47.4%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 8.1% (18 of 221 (8.1%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 99.2% (394 of 397 (99.2%); excluded: Not applicable (classification can be revisited): 3 of 397 (0.8%)). Attainable mandatory rows under current classifications, over the unchanged total.
-- **Optional ceiling**: 100.0% (221 of 221 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
-- **Not walked**: 0 (of 24 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
-- **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
+Figures as of the last build, read from [data/rfc/profiles/route-server.json](../../../../data/rfc/profiles/route-server.json) and [data/rfc/index.json](../../../../data/rfc/index.json).
 
-Mandatory ceiling: 394 of 397 (99.2%); excluded: Not applicable (classification can be revisited): 3 of 397 (0.8%). Optional ceiling: 221 of 221 (100.0%). Lowest mandatory ceiling: rfc8210 56 of 59 (94.9%). Lowest optional ceiling: rfc1997 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+## Figures
+
+- **MUST bar**: Ze proven 203, Ze correctness gap 191
+- **Overview bar**: Ze MUST proven 203, SHOULD proven 18, Not owed 3, SHOULD not decided 203, Ze correctness gap 191
+
+| Figure | Rows |
+|---|---|
+| RFCs | 24 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 397 |
+| MUST rows kept (the MUST bar) | 394 |
+| Ze proven | 203 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 191 |
+| MUST rows not owed | 3 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 3 |
+| SHOULD / MAY rows | 221 |
+| SHOULD proven | 18 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 203 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 ## Tree
 
-Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows a recorded break proves; the ceiling below it shows attainable rows under current classifications. An RFC that is not walked shows an empty bar and no figure or ceiling. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.
+Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar. The last column names the summary whose Use cases row declares the RFC: a normative citation never adds one.
 
 ### Level 3
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 78 of 133 (58.6%); ceiling 133 of 133 (100.0%) | 3 of 34 (8.8%); ceiling 34 of 34 (100.0%) | route-server: required by rfc/short/rfc4271.md |
-| [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | 0 of 16 (0.0%); ceiling 16 of 16 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) | route-server: required by rfc/short/rfc9582.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 83, Ze correctness gap 50 | Ze MUST proven 83, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 50 | route-server: required by rfc/short/rfc4271.md |
+| [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | Ze correctness gap 16 | SHOULD not decided 6, Ze correctness gap 16 | route-server: required by rfc/short/rfc9582.md |
 
 ### Level 4
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1997](../../rfc1997/) | BGP Communities Attribute | 5 of 5 (100.0%); ceiling 5 of 5 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | route-server: required by rfc/short/rfc1997.md |
-| [RFC 2545](../../rfc2545/) | Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing | 5 of 5 (100.0%); ceiling 5 of 5 (100.0%) | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) | route-server: required by rfc/short/rfc2545.md |
-| [RFC 5492](../../rfc5492/) | Capabilities Advertisement with BGP-4 | 2 of 9 (22.2%); ceiling 9 of 9 (100.0%) | 0 of 7 (0.0%); ceiling 7 of 7 (100.0%) | route-server: required by rfc/short/rfc5492.md |
-| [RFC 6608](../../rfc6608/) | Subcodes for BGP Finite State Machine Error | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) | no rows; ceiling no rows | route-server: required by rfc/short/rfc6608.md |
-| [RFC 8212](../../rfc8212/) | Default External BGP (EBGP) Route Propagation Behavior without Policies | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) | 0 of 1 (0.0%); ceiling 1 of 1 (100.0%) | route-server: required by rfc/short/rfc8212.md |
-| [RFC 9687](../../rfc9687/) | Border Gateway Protocol 4 (BGP-4) Send Hold Timer | 3 of 13 (23.1%); ceiling 13 of 13 (100.0%) | 0 of 7 (0.0%); ceiling 7 of 7 (100.0%) | route-server: required by rfc/short/rfc9687.md |
+| [RFC 1997](../../rfc1997/) | BGP Communities Attribute | Ze proven 5 | Ze MUST proven 5, SHOULD not decided 4 | route-server: required by rfc/short/rfc1997.md |
+| [RFC 2545](../../rfc2545/) | Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing | Ze proven 3, Ze correctness gap 2 | Ze MUST proven 3, SHOULD not decided 2, Ze correctness gap 2 | route-server: required by rfc/short/rfc2545.md |
+| [RFC 5492](../../rfc5492/) | Capabilities Advertisement with BGP-4 | Ze proven 8, Ze correctness gap 1 | Ze MUST proven 8, SHOULD not decided 7, Ze correctness gap 1 | route-server: required by rfc/short/rfc5492.md |
+| [RFC 6608](../../rfc6608/) | Subcodes for BGP Finite State Machine Error | Ze correctness gap 3 | Ze correctness gap 3 | route-server: required by rfc/short/rfc6608.md |
+| [RFC 8212](../../rfc8212/) | Default External BGP (EBGP) Route Propagation Behavior without Policies | Ze proven 2 | Ze MUST proven 2, SHOULD not decided 1 | route-server: required by rfc/short/rfc8212.md |
+| [RFC 9687](../../rfc9687/) | Border Gateway Protocol 4 (BGP-4) Send Hold Timer | Ze proven 3, Ze correctness gap 10 | Ze MUST proven 3, SHOULD not decided 7, Ze correctness gap 10 | route-server: required by rfc/short/rfc9687.md |
 
 ### Level 5
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | 6 of 6 (100.0%); ceiling 6 of 6 (100.0%) | 1 of 11 (9.1%); ceiling 11 of 11 (100.0%) | route-server: required by rfc/short/rfc4760.md |
+| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | Ze proven 6 | Ze MUST proven 6, SHOULD proven 1, SHOULD not decided 10 | route-server: required by rfc/short/rfc4760.md |
 
 ### Level 6
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | 20 of 30 (66.7%); ceiling 30 of 30 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) | route-server: required by rfc/short/rfc6793.md |
-| [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | 9 of 9 (100.0%); ceiling 9 of 9 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | route-server: required by rfc/short/rfc7911.md |
-| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | 2 of 3 (66.7%); ceiling 3 of 3 (100.0%) | 3 of 5 (60.0%); ceiling 5 of 5 (100.0%) | route-server: required by rfc/short/rfc7947.md |
+| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze proven 20, Ze correctness gap 10 | Ze MUST proven 20, SHOULD not decided 6, Ze correctness gap 10 | route-server: required by rfc/short/rfc6793.md |
+| [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | Ze proven 9 | Ze MUST proven 9, SHOULD not decided 4 | route-server: required by rfc/short/rfc7911.md |
+| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, SHOULD proven 3, SHOULD not decided 2, Ze correctness gap 1 | route-server: required by rfc/short/rfc7947.md |
 
 ### Level 7
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 1 of 1 (100.0%); ceiling 1 of 1 (100.0%) | route-server: required by rfc/short/rfc6286.md |
-| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | 1 of 5 (20.0%); ceiling 5 of 5 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | route-server: required by rfc/short/rfc6811.md |
-| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | 26 of 53 (49.1%); ceiling 53 of 53 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | route-server: required by rfc/short/rfc7606.md |
-| [RFC 7948](../../rfc7948/) | Internet Exchange BGP Route Server Operations | no rows; ceiling no rows | 0 of 11 (0.0%); ceiling 11 of 11 (100.0%) | route-server: required by rfc/short/rfc7948.md |
+| [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Ze correctness gap 4 | SHOULD proven 1, Ze correctness gap 4 | route-server: required by rfc/short/rfc6286.md |
+| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze proven 1, Ze correctness gap 4 | Ze MUST proven 1, SHOULD not decided 4, Ze correctness gap 4 | route-server: required by rfc/short/rfc6811.md |
+| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze proven 28, Ze correctness gap 25 | Ze MUST proven 28, SHOULD not decided 4, Ze correctness gap 25 | route-server: required by rfc/short/rfc7606.md |
+| [RFC 7948](../../rfc7948/) | Internet Exchange BGP Route Server Operations | no rows | SHOULD not decided 11 | route-server: required by rfc/short/rfc7948.md |
 
 ### Level 8
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 7454](../../rfc7454/) | BGP Operations and Security | no rows; ceiling no rows | 0 of 64 (0.0%); ceiling 64 of 64 (100.0%) | route-server: required by rfc/short/rfc7454.md |
-| [RFC 7607](../../rfc7607/) | Codification of AS 0 Processing | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) | no rows; ceiling no rows | route-server: required by rfc/short/rfc7607.md |
-| [RFC 7999](../../rfc7999/) | BLACKHOLE Community | 4 of 4 (100.0%); ceiling 4 of 4 (100.0%) | 3 of 12 (25.0%); ceiling 12 of 12 (100.0%) | route-server: required by rfc/short/rfc7999.md |
-| [RFC 8092](../../rfc8092/) | BGP Large Communities Attribute | 7 of 7 (100.0%); ceiling 7 of 7 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | route-server: required by rfc/short/rfc8092.md |
-| [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) | route-server: required by rfc/short/rfc8893.md |
-| [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | 6 of 19 (31.6%); ceiling 19 of 19 (100.0%) | 1 of 5 (20.0%); ceiling 5 of 5 (100.0%) | route-server: required by rfc/short/rfc9234.md |
-| [RFC 9774](../../rfc9774/) | Deprecation of AS_SET and AS_CONFED_SET in BGP | 2 of 3 (66.7%); ceiling 3 of 3 (100.0%) | no rows; ceiling no rows | route-server: required by rfc/short/rfc9774.md |
+| [RFC 7454](../../rfc7454/) | BGP Operations and Security | no rows | SHOULD not decided 64 | route-server: required by rfc/short/rfc7454.md |
+| [RFC 7607](../../rfc7607/) | Codification of AS 0 Processing | Ze correctness gap 5 | Ze correctness gap 5 | route-server: required by rfc/short/rfc7607.md |
+| [RFC 7999](../../rfc7999/) | BLACKHOLE Community | Ze proven 4 | Ze MUST proven 4, SHOULD proven 3, SHOULD not decided 9 | route-server: required by rfc/short/rfc7999.md |
+| [RFC 8092](../../rfc8092/) | BGP Large Communities Attribute | Ze proven 7 | Ze MUST proven 7, SHOULD not decided 4 | route-server: required by rfc/short/rfc8092.md |
+| [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | Ze correctness gap 4 | SHOULD not decided 2, Ze correctness gap 4 | route-server: required by rfc/short/rfc8893.md |
+| [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | Ze proven 8, Ze correctness gap 11 | Ze MUST proven 8, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 11 | route-server: required by rfc/short/rfc9234.md |
+| [RFC 9774](../../rfc9774/) | Deprecation of AS_SET and AS_CONFED_SET in BGP | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, Ze correctness gap 1 | route-server: required by rfc/short/rfc9774.md |
 
 ### Level 9
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | 12 of 59 (20.3%); ceiling 56 of 59 (94.9%); excluded: Not applicable (classification can be revisited): 3 of 59 (5.1%) | 6 of 27 (22.2%); ceiling 27 of 27 (100.0%) | route-server: required by rfc/short/rfc8210.md |
+| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | Ze proven 12, Ze correctness gap 44 | Ze MUST proven 12, SHOULD proven 6, Not owed 3, SHOULD not decided 21, Ze correctness gap 44 | route-server: required by rfc/short/rfc8210.md |
 
 ## Optional (not counted)
 
-RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own figures: mandatory 57 of 97 (58.8%), optional 5 of 57 (8.8%); ceiling mandatory 96 of 97 (99.0%), optional 57 of 57 (100.0%); mandatory excluded: not-applicable 1; 12 RFCs, 0 not walked.
+RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own bars and figures follow.
 
-Mandatory ceiling: 96 of 97 (99.0%); excluded: Not applicable (classification can be revisited): 1 of 97 (1.0%). Optional ceiling: 57 of 57 (100.0%). Lowest mandatory ceiling: rfc8654 11 of 12 (91.7%). Lowest optional ceiling: rfc2385 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 57, Ze correctness gap 39
+- **Overview bar**: Ze MUST proven 57, SHOULD proven 5, Not owed 1, SHOULD not decided 52, Ze correctness gap 39
 
-| RFC | Title | Mandatory | Optional | Why it is here |
+| Figure | Rows |
+|---|---|
+| RFCs | 12 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 97 |
+| MUST rows kept (the MUST bar) | 96 |
+| Ze proven | 57 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 39 |
+| MUST rows not owed | 1 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 1 |
+| SHOULD / MAY rows | 57 |
+| SHOULD proven | 5 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 52 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+| RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 2385](../../rfc2385/) | Protection of BGP Sessions via the TCP MD5 Signature Option | 8 of 8 (100.0%); ceiling 8 of 8 (100.0%) | 0 of 1 (0.0%); ceiling 1 of 1 (100.0%) | route-server: optional in rfc/short/rfc2385.md |
-| [RFC 9072](../../rfc9072/) | Extended Optional Parameters Length for BGP OPEN Message | 5 of 9 (55.6%); ceiling 9 of 9 (100.0%) | 1 of 3 (33.3%); ceiling 3 of 3 (100.0%) | route-server: optional in rfc/short/rfc9072.md |
-| [RFC 4360](../../rfc4360/) | BGP Extended Communities Attribute | 2 of 5 (40.0%); ceiling 5 of 5 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | route-server: optional in rfc/short/rfc4360.md |
-| [RFC 5082](../../rfc5082/) | The Generalized TTL Security Mechanism (GTSM) | 4 of 4 (100.0%); ceiling 4 of 4 (100.0%) | 1 of 6 (16.7%); ceiling 6 of 6 (100.0%) | route-server: optional in rfc/short/rfc5082.md |
-| [RFC 2918](../../rfc2918/) | Route Refresh Capability for BGP-4 | 3 of 6 (50.0%); ceiling 6 of 6 (100.0%) | 1 of 5 (20.0%); ceiling 5 of 5 (100.0%) | route-server: optional in rfc/short/rfc2918.md |
-| [RFC 4486](../../rfc4486/) | Subcodes for BGP Cease NOTIFICATION Message | 0 of 1 (0.0%); ceiling 1 of 1 (100.0%) | 0 of 10 (0.0%); ceiling 10 of 10 (100.0%) | route-server: optional in rfc/short/rfc4486.md |
-| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | 14 of 26 (53.8%); ceiling 26 of 26 (100.0%) | 1 of 5 (20.0%); ceiling 5 of 5 (100.0%) | route-server: optional in rfc/short/rfc4724.md |
-| [RFC 7313](../../rfc7313/) | Enhanced Route Refresh Capability for BGP-4 | 5 of 11 (45.5%); ceiling 11 of 11 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) | route-server: optional in rfc/short/rfc7313.md |
-| [RFC 8203](../../rfc8203/) | BGP Administrative Shutdown Communication | 3 of 5 (60.0%); ceiling 5 of 5 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | route-server: optional in rfc/short/rfc8203.md |
-| [RFC 8950](../../rfc8950/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8277) | Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop | 3 of 6 (50.0%); ceiling 6 of 6 (100.0%) | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) | route-server: optional in rfc/short/rfc8950.md |
-| [RFC 9003](../../rfc9003/) | Extended BGP Administrative Shutdown Communication | 1 of 4 (25.0%); ceiling 4 of 4 (100.0%) | 0 of 7 (0.0%); ceiling 7 of 7 (100.0%) | route-server: optional in rfc/short/rfc9003.md |
-| [RFC 8654](../../rfc8654/) | Extended Message Support for BGP | 9 of 12 (75.0%); ceiling 11 of 12 (91.7%); excluded: Not applicable (classification can be revisited): 1 of 12 (8.3%) | 1 of 4 (25.0%); ceiling 4 of 4 (100.0%) | route-server: optional in rfc/short/rfc8654.md |
+| [RFC 2385](../../rfc2385/) | Protection of BGP Sessions via the TCP MD5 Signature Option | Ze proven 8 | Ze MUST proven 8, SHOULD not decided 1 | route-server: optional in rfc/short/rfc2385.md |
+| [RFC 9072](../../rfc9072/) | Extended Optional Parameters Length for BGP OPEN Message | Ze proven 5, Ze correctness gap 4 | Ze MUST proven 5, SHOULD proven 1, SHOULD not decided 2, Ze correctness gap 4 | route-server: optional in rfc/short/rfc9072.md |
+| [RFC 4360](../../rfc4360/) | BGP Extended Communities Attribute | Ze proven 2, Ze correctness gap 3 | Ze MUST proven 2, SHOULD not decided 4, Ze correctness gap 3 | route-server: optional in rfc/short/rfc4360.md |
+| [RFC 5082](../../rfc5082/) | The Generalized TTL Security Mechanism (GTSM) | Ze proven 4 | Ze MUST proven 4, SHOULD proven 1, SHOULD not decided 5 | route-server: optional in rfc/short/rfc5082.md |
+| [RFC 2918](../../rfc2918/) | Route Refresh Capability for BGP-4 | Ze proven 3, Ze correctness gap 3 | Ze MUST proven 3, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 3 | route-server: optional in rfc/short/rfc2918.md |
+| [RFC 4486](../../rfc4486/) | Subcodes for BGP Cease NOTIFICATION Message | Ze correctness gap 1 | SHOULD not decided 10, Ze correctness gap 1 | route-server: optional in rfc/short/rfc4486.md |
+| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze proven 14, Ze correctness gap 12 | Ze MUST proven 14, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 12 | route-server: optional in rfc/short/rfc4724.md |
+| [RFC 7313](../../rfc7313/) | Enhanced Route Refresh Capability for BGP-4 | Ze proven 5, Ze correctness gap 6 | Ze MUST proven 5, SHOULD not decided 6, Ze correctness gap 6 | route-server: optional in rfc/short/rfc7313.md |
+| [RFC 8203](../../rfc8203/) | BGP Administrative Shutdown Communication | Ze proven 3, Ze correctness gap 2 | Ze MUST proven 3, SHOULD not decided 4, Ze correctness gap 2 | route-server: optional in rfc/short/rfc8203.md |
+| [RFC 8950](../../rfc8950/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8277) | Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop | Ze proven 3, Ze correctness gap 3 | Ze MUST proven 3, SHOULD not decided 2, Ze correctness gap 3 | route-server: optional in rfc/short/rfc8950.md |
+| [RFC 9003](../../rfc9003/) | Extended BGP Administrative Shutdown Communication | Ze proven 1, Ze correctness gap 3 | Ze MUST proven 1, SHOULD not decided 7, Ze correctness gap 3 | route-server: optional in rfc/short/rfc9003.md |
+| [RFC 8654](../../rfc8654/) | Extended Message Support for BGP | Ze proven 9, Ze correctness gap 2 | Ze MUST proven 9, SHOULD proven 1, Not owed 1, SHOULD not decided 3, Ze correctness gap 2 | route-server: optional in rfc/short/rfc8654.md |

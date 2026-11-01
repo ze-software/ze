@@ -1,0 +1,33 @@
+{
+  "stem": "rfc6996",
+  "title": "Autonomous System (AS) Reservation for Private Use",
+  "walked": true,
+  "requirements": 3,
+  "implementer": "ze",
+  "implemented": false,
+  "must": {
+    "total": 1,
+    "kept": 1,
+    "ze-proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 2,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 2,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 1
+  },
+  "unmet": []
+}

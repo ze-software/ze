@@ -1,0 +1,50 @@
+{
+  "stem": "rfc4761",
+  "title": "Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling",
+  "walked": true,
+  "requirements": 27,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 18,
+    "kept": 18,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 18,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 9,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 9,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC4761-2.3-1",
+    "RFC4761-3.2.3-1",
+    "RFC4761-3.2.3-2",
+    "RFC4761-3.2.4-1",
+    "RFC4761-3.2.4-2",
+    "RFC4761-3.2.4-3",
+    "RFC4761-3.2.4-4",
+    "RFC4761-3.2.4-5",
+    "RFC4761-3.2.4-6",
+    "RFC4761-3.3-1",
+    "RFC4761-3.4.2-1",
+    "RFC4761-3.5-1",
+    "RFC4761-3.5-2",
+    "RFC4761-4.2.1-1",
+    "RFC4761-4.2.2-1",
+    "RFC4761-4.2.5-1",
+    "RFC4761-6-1",
+    "RFC4761-6-2"
+  ]
+}

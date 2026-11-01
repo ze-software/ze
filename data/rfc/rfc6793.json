@@ -1,0 +1,36 @@
+{
+  "stem": "rfc6793",
+  "title": "BGP Support for Four-Octet Autonomous System (AS) Number Space",
+  "walked": true,
+  "requirements": 36,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 30,
+    "kept": 30,
+    "ze-proven": 20,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 10,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 6,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 6,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 2,
+    "unit": 18
+  },
+  "unmet": [
+    "RFC6793-4.1-3"
+  ]
+}

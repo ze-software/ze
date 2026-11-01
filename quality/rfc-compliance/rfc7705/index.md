@@ -1,6 +1,6 @@
 # RFC 7705 - Autonomous System Migration Mechanisms and Their Effects on the BGP AS_PATH Attribute
 
-Supported. Every requirement this repository extracted from RFC 7705, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+AS migration: Local AS, No Prepend Inbound, Replace Old AS, Internal BGP AS Migration. Every requirement this repository extracted from RFC 7705, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,12 +10,13 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 9 of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 85.0% | 17 of 20 tagged units, 0 escaped and 3 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 9 | of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| No test at all | 0 | of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 20 | 20 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 9 | of 9 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -23,14 +24,14 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 9 | of 17 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 9 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 9 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 9 | of 17 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 9 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 9 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
-The 9 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 9 gated MUSTs: they add up to 9. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -38,23 +39,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Supported |
+| Public row | AS migration: Local AS, No Prepend Inbound, Replace Old AS, Internal BGP AS Migration |
 | Enrolment | Enrolled |
 | Requirements | 17 |
 | Gated MUST-level | 9 |
@@ -77,17 +78,14 @@ Enrolled: Autonomous System migration: the four de facto mechanisms a renumberin
 
 ## What the public ledger says
 
-**Status:** Supported
+**Area:** AS migration: Local AS, No Prepend Inbound, Replace Old AS, Internal BGP AS Migration
 
-**What the ledger says is covered**
+**Proof:** 9 of 9 MUST proven
 
-- All four mechanisms. Configuration is one `session > asn` container read by `parsePeerSettings` ([`internal/component/bgp/reactor/config.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config.go)) out of the peer-fields grouping that a group and a peer both use, so `local`, `local-options` and `migration` are each settable per neighbor and per neighbor group ([`RFC7705-3.3-1`](#rfc7705-3.3-1), [`RFC7705-4.2-1`](#rfc7705-4.2-1)). Section 3.3: `local-options no-prepend` keeps the Local AS value out of the AS_PATH of a route received from that peer, and leaves the globally configured AS number on the path every other external neighbor receives ([`RFC7705-3.3-2`](#rfc7705-3.3-2), [`RFC7705-3.3-3`](#rfc7705-3.3-3))
-- `local-options replace-as` sends the Local AS value alone toward that peer, with the globally configured AS number absent from AS_PATH and from AS4_PATH ([`RFC7705-3.3-4`](#rfc7705-3.3-4), [`RFC7705-3.3-5`](#rfc7705-3.3-5)). Section 4.2: `session > asn > migration` widens one iBGP session to exactly two of this speaker's AS numbers. An OPEN carrying either is accepted and any third AS is answered with OPEN Message Error / Bad Peer AS, which ze originates for the first time (`validateOpenPeerAS`, [`internal/component/bgp/reactor/session_open_as.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as.go), [`RFC7705-4.2-2`](#rfc7705-4.2-2)). The OPEN ze sends carries the globally configured AS number first and the locally configured one after a peer answers Bad Peer AS, in My Autonomous System and in the Four-octet AS capability alike (`openLocalAS`, [`RFC7705-4.2-3`](#rfc7705-4.2-3), and the Section 4.2 SHOULD [`RFC7705-4.2-5`](#rfc7705-4.2-5) through `noteASMigrationRejection`). The session is internal under either AS number, from one rule every AS-scoped decision reads (`isIBGPWith`, [`RFC7705-4.2-4`](#rfc7705-4.2-4)), so no external AS_PATH prepend runs and the RFC 4456 reflection rules apply. Requirements bound per line below.
+**Evidence:** unit 9
 
+**Unmet:** -
 
-**What the ledger says remains**
-
-Two advisory items, neither of them a MUST. [`RFC7705-3.3-9`](#rfc7705-3.3-9), the Section 3.3 SHOULD that the Local AS value be appended inbound before a route is installed or advertised to an internal neighbor, is not performed by the engine: an operator writes it as policy, and [`plan/post-release/features/spec-bgp-local-as-inbound-append.md`](https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-bgp-local-as-inbound-append.md) holds the ruling. [`RFC7705-3.3-11`](#rfc7705-3.3-11), the MAY letting an EXTERNAL speaker attempt the session under either AS number, is not offered: the two-AS session is iBGP only, because `setMigrationAS` refuses a remote AS that is neither of the pair. [`RFC7705-3.3-8`](#rfc7705-3.3-8), the SHOULD NOT that follows from that MAY, is therefore met by the scope decision rather than by a branch: no external session of ze establishes on the globally configured AS number while a Local AS is set for it.
 
 ## Coverage
 
@@ -104,9 +102,41 @@ Two advisory items, neither of them a MUST. [`RFC7705-3.3-9`](#rfc7705-3.3-9), t
 
 **Positive and negative tests (9):** [`RFC7705-3.3-1`](#rfc7705-3.3-1), [`RFC7705-3.3-2`](#rfc7705-3.3-2), [`RFC7705-3.3-3`](#rfc7705-3.3-3), [`RFC7705-3.3-4`](#rfc7705-3.3-4), [`RFC7705-3.3-5`](#rfc7705-3.3-5), [`RFC7705-4.2-1`](#rfc7705-4.2-1), [`RFC7705-4.2-2`](#rfc7705-4.2-2), [`RFC7705-4.2-3`](#rfc7705-4.2-3), [`RFC7705-4.2-4`](#rfc7705-4.2-4)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 9 of 9 (100.0%). Optional ceiling: 8 of 8 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7705 9 of 9 (100.0%). Lowest optional ceiling: rfc7705 8 of 8 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 9
+- **Overview bar**: Ze MUST proven 9, SHOULD not decided 8
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | complete |
+| MUST rows | 9 |
+| MUST rows kept (the MUST bar) | 9 |
+| Ze proven | 9 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 0 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 8 |
+| SHOULD proven | 0 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 8 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc7705.json](../../../data/rfc/rfc7705.json).
 
 ## Requirements
 
@@ -142,23 +172,23 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 The mechanisms introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility. (§3.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/config/rfc7705_peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup, internal/component/bgp/config/rfc7705_peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup#2 moved. Forbidden: a Section 3.3 mechanism settable on neither a neighbor nor a neighbor group. TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup drives PeersFromConfigTree: the group's local (65010) and replace-as reach the inheriting peer (assert.Equal LocalAS, assert.True LocalASReplaceAS), and no-prepend set on a peer reaches that peer (assert.True LocalASNoPrepend); each of the three mechanisms goes red if it cannot be configured on the basis the test uses. Negative: the group options do not reach the peer outside the group or override the peer's own leaf-list.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Section 3.3 mechanism settable on neither a neighbor nor a neighbor group. TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup drives PeersFromConfigTree: the group's local (65010) and replace-as reach the inheriting peer (assert.Equal LocalAS, assert.True LocalASReplaceAS), and no-prepend set on a peer reaches that peer (assert.True LocalASNoPrepend); each of the three mechanisms goes red if it cannot be configured on the basis the test uses. Negative: the group options do not reach the peer outside the group or override the peer's own leaf-list.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7705_peers_test.go#L684) | unit/verify | revert, verified |
-| positive | [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7705_peers_test.go#L679) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7705_peers_test.go#L679) | unit/verify | revert, verified |
 
 ### [`RFC7705-3.3-2`](#rfc7705-3.3-2)
 
 "No Prepend Inbound": When the BGP router receives inbound BGP UPDATEs from its eBGP neighbor configured with this option, it MUST NOT append the "Local AS" ASN value in the AS_PATH attribute when installing the route or advertising that UPDATE to iBGP neighbors (§3.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged against RFC 7705 section 3.3: the No Prepend Inbound sentence forbids adding Local AS both on installation and on advertisement to iBGP; the sentence's native-eBGP global-AS obligation is separately RFC7705-3.3-3, not renewed here. TestRFC7705NoPrependInstalledAndAdvertised now sends real inbound UPDATEs, reads the running bgp-rib snapshot and captures the internal neighbor's wire; both exact AS_PATH comparisons reject any added legacy ASN. Its second input already contains the legacy ASN and rejects duplicate insertion or stripping, independently of the first input. This remedies the old verdict's missing installed-route assertion. Absence of the advisory default inbound prepend is not a violation of this conditional MUST NOT and is not credited as implemented here. The startup commit changes only spacing in the tagged body and waits for plugin startup in lowLiveRouter; neither alters inputs or assertions. Read handleReceivedStructured and publishBase: installed and published attributes are real production results, not values injected by the test. Existing producer-changed discrimination records still require renewal; this semantic judgment does not claim that renewal has run. Post-lint rejudgment 2026-10-04: lowLiveRouter no longer returns the discarded Reactor; the same running router and peers remain owned by cleanup. lowInstalledAttributes now embeds the identical source address 192.0.2.1 formerly passed by every caller, and still requires peer index, AFI/SAFI, prefix length and prefix bytes. Exact installed and transmitted attribute assertions and independent countercases are unchanged. Full governing sentence, RFC 7705 section 3.3: ""No Prepend Inbound": When the BGP router receives inbound BGP UPDATEs from its eBGP neighbor configured with this option, it MUST NOT append the "Local AS" ASN value in the AS_PATH attribute when installing the route or advertising that UPDATE to iBGP neighbors, but it MUST still append the globally configured ASN as normal when advertising the UPDATE to other local eBGP neighbors (i.e., those natively peering with the globally configured ASN)."
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7705): ": When the BGP router receives inbound BGP UPDATEs from its eBGP neighbor configured with this option, it MUST NOT append the" be95c10053 replaced lowLiveSettings with acceptingLiveSettings for source and destination (FinalAccept import and export, no refs). An accepting policy neither refuses nor rewrites AS_PATH, so the absence of the prepended Local AS on installation and advertisement still comes from the No Prepend producer. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC7705NoPrependInstalledAndAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L221) | unit/verify | revert, verified |
-| positive | [`TestRFC7705NoPrependInstalledAndAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L220) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7705NoPrependInstalledAndAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L220) | unit/verify | revert, verified |
 
 ### [`RFC7705-3.3-3`](#rfc7705-3.3-3)
 
@@ -236,7 +266,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7705MigrationWireSemantics`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L247) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7705MigrationWireSemantics`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L247) | unit/verify | revert, verified |
 | positive | [`TestRFC7705MigrationWireSemantics`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L246) | unit/verify | revert, verified |
 
 ## Extraction sign-off

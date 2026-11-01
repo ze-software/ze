@@ -1,0 +1,35 @@
+{
+  "stem": "draft-ietf-sidrops-aspa-verification",
+  "title": "BGP AS_PATH Verification Based on Autonomous System Provider Authorization (ASPA) Objects",
+  "walked": true,
+  "requirements": 18,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 8,
+    "kept": 8,
+    "ze-proven": 6,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 2,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 10,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 10,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 6
+  },
+  "unmet": [
+    "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2"
+  ]
+}

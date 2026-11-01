@@ -1,0 +1,37 @@
+{
+  "stem": "rfc7606",
+  "title": "Revised Error Handling for BGP UPDATE Messages",
+  "walked": true,
+  "requirements": 57,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 53,
+    "kept": 53,
+    "ze-proven": 28,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 25,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "functional": 4,
+    "interop": 2,
+    "unit": 22
+  },
+  "unmet": [
+    "RFC7606-8-1"
+  ]
+}

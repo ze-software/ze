@@ -1,0 +1,39 @@
+{
+  "stem": "rfc2181",
+  "title": "Clarifications to the DNS Specification",
+  "walked": true,
+  "requirements": 70,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 23,
+    "kept": 23,
+    "ze-proven": 12,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 11,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 47,
+    "proven": 1,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 46,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 12
+  },
+  "unmet": [
+    "RFC2181-10.1-4",
+    "RFC2181-10.1.1-1",
+    "RFC2181-10.2-1",
+    "RFC2181-5.4.1-8",
+    "RFC2181-5.5-4"
+  ]
+}

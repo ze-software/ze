@@ -1,0 +1,13 @@
+{
+  "name": "bgp-monitoring",
+  "kind": "technology",
+  "title": "BGP monitoring",
+  "release": false,
+  "required": [
+    "rfc7854",
+    "rfc8522",
+    "rfc8671",
+    "rfc9069"
+  ],
+  "optional": []
+}

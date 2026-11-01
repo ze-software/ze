@@ -1,0 +1,40 @@
+{
+  "stem": "rfc9728",
+  "title": "OAuth 2.0 Protected Resource Metadata",
+  "walked": true,
+  "requirements": 32,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 26,
+    "kept": 26,
+    "ze-proven": 9,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 17,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 6,
+    "proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 9
+  },
+  "unmet": [
+    "RFC9728-2-6",
+    "RFC9728-2-7",
+    "RFC9728-2-8",
+    "RFC9728-2.2-1",
+    "RFC9728-2.2-2",
+    "RFC9728-3.3-4"
+  ]
+}

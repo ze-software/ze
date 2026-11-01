@@ -1,0 +1,42 @@
+{
+  "stem": "rfc3954",
+  "title": "Cisco Systems NetFlow Services Export Version 9",
+  "walked": true,
+  "requirements": 26,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 14,
+    "kept": 10,
+    "ze-proven": 4,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 6,
+    "not-owed": 4,
+    "not-owed-by-kind": {
+      "not-applicable": 4
+    }
+  },
+  "should": {
+    "total": 12,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 12,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 4
+  },
+  "unmet": [
+    "RFC3954-x-2",
+    "RFC3954-x-22",
+    "RFC3954-x-23",
+    "RFC3954-x-5",
+    "RFC3954-x-6",
+    "RFC3954-x-7"
+  ]
+}

@@ -1,6 +1,6 @@
 # RFC 7947 - Internet Exchange BGP Route Server
 
-Partial. Every requirement this repository extracted from RFC 7947, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+BGP Route Server. Every requirement this repository extracted from RFC 7947, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,11 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 33.3% | 1 of 3 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 33.3% | 1 of 3 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 3 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 3 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 40.9% | 9 of 22 tagged units, 0 escaped and 3 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 1 | of 3 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 3 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 3 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0 | of 3 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Proven by a recorded break | 7 | 7 of 22 tagged units, 0 escaped and 5 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Audit verdicts | 7 | of 3 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -22,12 +23,12 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 3 | of 8 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 3 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 3 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 3 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 3 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 3 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 3 | of 8 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Out of scope | 0 | of 3 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
+| Not applicable | 0 | of 3 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Met below Ze | 0 | of 3 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 3 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
+| Linux cannot do this | 0 | of 3 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to and earns no proof credit |
 
 ### Negative
 
@@ -35,9 +36,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 33.3% | 1 of 3 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 1 | of 3 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 9 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 9 counts marked as a part above are the whole of the 3 gated MUSTs: they add up to 3. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -45,23 +46,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|---|
 | Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
+| Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
-| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public status | Partial |
+| Public row | BGP Route Server |
 | Enrolment | Enrolled |
 | Requirements | 8 |
 | Gated MUST-level | 3 |
@@ -84,18 +85,14 @@ Enrolled: BGP Route Server: two MUST-level transparency requirements over the re
 
 ## What the public ledger says
 
-**Status:** Partial
+**Area:** BGP Route Server
 
-**What the ledger says is covered**
+**Proof:** 2 of 3 MUST proven
 
-- Transparent RS forwarding for RS clients by default: no AS_PATH prepend, no NEXT_HOP rewrite, MED preserved (verbatim wire forwarding)
-- per-client import/export policy applied on redistribution. A client without ADD-PATH send for the family holds the route bgp-rib elects: an announcement that contests the route it holds, and the withdrawal of that route, are decided by the RIB's election and written as the elected route, or as the withdrawal when no candidate is left (`oweAnnouncement` and `owesWithdrawal`, [`internal/component/bgp/reactor/session_ownership.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_ownership.go); `queueRecoveryOutcome`, [`internal/component/bgp/reactor/relay_recovery.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/relay_recovery.go)). A client with ADD-PATH send receives every path. Sections 2.2.2.1 and 2.2.3 state the AS_PATH and MULTI_EXIT_DISC rules as recommendations, so an operator policy may override each. On the client side of the same document, Section 2.2.2.2 ([`RFC7947-2.2.2.2-1`](#rfc7947-2.2.2.2-1)) asks that a leftmost-AS check be possible to disable
-- ze runs no ingress leftmost-AS check at all, so a route ze receives from a route server whose leftmost AS_PATH AS is another client's is accepted in every configuration (`LoopIngress`, [`internal/component/bgp/reactor/filter/loop.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/filter/loop.go)). The walk that bounds this row against the RFC's own text is [`rfc/extraction/rfc7947.json`](https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc7947.json).
+**Evidence:** unit 2
 
+**Unmet:** RFC7947-2.1-1
 
-**What the ledger says remains**
-
-Optional per-peer next-hop override and path-hiding mitigation (add-path) are operator-configured. A modify policy with `as-path-prepend` or `del { med; }` also changes what an RS client receives. Section 2.1 requires a route server to accept every UPDATE it receives from a client for inclusion in its Adj-RIB-In, and ze does not: `notifyMessageReceiver` ([`internal/component/bgp/reactor/reactor_notify.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_notify.go)) returns at the ordered ingress step loop's non-accept branch, ahead of the cache add, ahead of `reactorForwardRS` and ahead of the plugin dispatch, so an UPDATE a filter denied is absent from `show bgp adj-rib-in`. `LoopIngress` denies with no operator configuration, so the path is reachable by default. Thomas ruled on 2026-08-30 that ze stores such an UPDATE first and marks the entry filtered; that work is homed in [`plan/release/fixes/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md`](https://github.com/ze-software/ze/blob/main/plan/release/fixes/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md), which reserves the id [`RFC7947-2.1-1`](#rfc7947-2.1-1), and site 2.1:1 of the extraction sign-off records the relocation.
 
 ## Coverage
 
@@ -114,9 +111,41 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 
 **Annotated (including scoped evidence) (2):** [`RFC7947-x-2`](#rfc7947-x-2), [`RFC7947-2.1-1`](#rfc7947-2.1-1)
 
-## Attainable ceiling
+## Figures
 
-Mandatory ceiling: 3 of 3 (100.0%). Optional ceiling: 5 of 5 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7947 3 of 3 (100.0%). Lowest optional ceiling: rfc7947 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+- **MUST bar**: Ze proven 2, Ze correctness gap 1
+- **Overview bar**: Ze MUST proven 2, SHOULD proven 3, SHOULD not decided 2, Ze correctness gap 1
+
+| Figure | Rows |
+|---|---|
+| RFCs | 1 |
+| Not walked | 0 |
+| Mandatory register | not complete |
+| MUST rows | 3 |
+| MUST rows kept (the MUST bar) | 3 |
+| Ze proven | 2 |
+| OS verified | 0 |
+| OS testing gap | 0 |
+| Ze correctness gap | 1 |
+| MUST rows not owed | 0 |
+| MUST not owed: feature-declined | 0 |
+| MUST not owed: linux-limit | 0 |
+| MUST not owed: not-applicable | 0 |
+| SHOULD / MAY rows | 5 |
+| SHOULD proven | 3 |
+| SHOULD OS verified | 0 |
+| SHOULD OS testing gap | 0 |
+| SHOULD not owed | 0 |
+| SHOULD not owed: feature-declined | 0 |
+| SHOULD not owed: linux-limit | 0 |
+| SHOULD not owed: not-applicable | 0 |
+| SHOULD not ever | 0 |
+| SHOULD not yet | 0 |
+| SHOULD not decided | 2 |
+
+The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
+
+Source: [data/rfc/rfc7947.json](../../../data/rfc/rfc7947.json).
 
 ## Requirements
 
@@ -145,7 +174,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way. (§2.2.2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend, test/plugin/bgp-rs-relay-aspath-transparency.ci, test/plugin/bgp-rs-relay-aspath-transparency.ci#2 moved. RFC 7947 Section 2.2.2.1: "As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way." Re-judged 2026-10-26 by an independent auditor after a6c328343b changed TestReactorForwardRSEBGPPrepend: the only change gives its non-RS EBGP destination ProcessBindings rsRelaySendBinding(), the bgp-rs send [ update ] grant the fast path now requires (2de6f30f3b); without it the destination received nothing, so the fixture change restores reachability and no assertion moved (one dispatch, non-empty rawBodies, body longer than the input). The growth-only assertion remains weaker than an exact path oracle, as recorded before, and the exact pair stays supplied by TestRelayStoredRouteRSClientPreservesASPath / TestRelayStoredRoutePlainEBGPPrependsLocalAS ([65001] versus [65000,65001]), TestReactorForwardRSTransparent (byte identity for an RS client), bgp-rs-relay-aspath-transparency.ci and checkRouteServerASPath, all unchanged. Discrimination record renewed and verified for the changed unit: mutant forward_rs.go::reactorForwardRSSection '!facts.rsClient' -> false (no prepend for a non-RS EBGP peer) reddens it. Verdict unchanged.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7947 Section 2.2.2.1: "As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way." Re-judged 2026-10-31 by an independent auditor after c8a7d38c3f changed TestReactorForwardRSEBGPPrepend and f8f7628bdf changed bgp-rs-relay-aspath-transparency.ci. Both changes are the same RFC 8212 Section 3 fixture repair: the unit's non-RS EBGP destination gains an explicit filterless FinalAccept ExportPolicy (and makeRSPeer gives its source the same import/export pair), and the .ci gains a bgp-level filter { import { final accept; } export { final accept; } }. Without them reactorForwardRSSection skips the destination at filterapi.Policy.AcceptsAtEnd (an unconfigured policy returns !external), so the tests dispatched nothing; the policies carry no refs, so hasActiveFilter stays false and the fast path, and the !facts.rsClient prepend branch it reaches, are unchanged. No assertion moved: the unit still requires one dispatch, non-empty rawBodies and a body longer than the input, and the .ci still pins the exact wire bytes, conn=2 (rs-client true) byte-identical with AS_SEQUENCE[65001] and conn=3 (rs-client false) AS_SEQUENCE[65000,65001]. The unit's growth-only assertion remains weaker than an exact path oracle, as recorded before; the exact pair is supplied by the .ci and by TestRelayStoredRouteRSClientPreservesASPath / TestRelayStoredRoutePlainEBGPPrependsLocalAS, with TestReactorForwardRSTransparent proving byte identity for an RS client and checkRouteServerASPath the interop side, all unchanged. Discrimination record re-taken in c8a7d38c3f over the changed unit and verified by ./le rfc discriminate: mutant forward_rs.go::reactorForwardRSSection line 633 '!facts.rsClient' -> false reddens it. Both carriers re-run green (go test -run TestReactorForwardRSEBGPPrepend|TestReactorForwardRSTransparent; ./le test bgp plugin bgp-rs-relay-aspath-transparency). Verdict unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -161,7 +190,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the "third-party" next-hop feature described in Section 5.1.3. of [RFC4271]. (§2.2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent moved. RFC 7947 Section 2.2.1: "As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the "third-party" next-hop feature described in Section 5.1.3. of [RFC4271]." The sole current carrier TestReactorForwardRSTransparent forwards a body with NEXT_HOP 10.0.0.254 and reachable NLRI to an RS client and requires complete byte identity. A dropped/changed next-hop fails, and nonempty output excludes the no-forward false positive. Existing single-polarity annotation remains justified for the default transparent path: ordinary forwarding also preserves next-hop unless an explicit policy requests a rewrite; changing that policy would test another feature, not create this rule's confining negative. peerForwardFacts/buildForwardFacts and forwarding producer path were read. One positive cover, zero negative, with the existing annotation rather than a fabricated pair. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7947 Section 2.2.1: "As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the "third-party" next-hop feature described in Section 5.1.3. of [RFC4271]." The sole current carrier TestReactorForwardRSTransparent forwards a body with NEXT_HOP 10.0.0.254 and reachable NLRI to an RS client and requires complete byte identity. A dropped/changed next-hop fails, and nonempty output excludes the no-forward false positive. Existing single-polarity annotation remains justified for the default transparent path: ordinary forwarding also preserves next-hop unless an explicit policy requests a rewrite; changing that policy would test another feature, not create this rule's confining negative. peerForwardFacts/buildForwardFacts and forwarding producer path were read. One positive cover, zero negative, with the existing annotation rather than a fabricated pair. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -171,7 +200,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value. (§2.2.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/med-not-propagated-across-as.ci, test/plugin/med-not-propagated-across-as.ci#2 moved. RFC 7947 Section 2.2.3: "Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value." TestReactorForwardRSTransparent requires body identity with MED 100; TestForwardKeepsMEDForRouteServerClient pins no MED operation/no rebuild; med-not-propagated-across-as.ci separately compares complete actual UPDATEs at an RS client (MED retained unchanged) and ordinary eBGP destination (MED absent). applyFactsMED uses the RS destination exception and otherwise records suppression of a received, unmodified metric. Thus both propagation and unchanged value are asserted, and preserving MED for all destinations would fail the negative. No source capability was widened. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): "Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value." The only edit to test/plugin/med-not-propagated-across-as.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -184,31 +213,31 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy. (§2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire, internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire#2 moved. Rejudged 2026-10-23 by an independent auditor (not the author) after 010e649057, which makes the final writer (session_ownership.go adjOutWrite.allow) send a synthesized withdrawal only to a destination holding an adj-out record for the route. RFC 4271 Section 3.1 allows a withdrawal only for "the IP prefix that expresses the destination for a previously advertised route". RFC 7947 Section 2.1: "The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy." The moved unit is TestRFC7947ClientPolicyControlsWire (both tags): in each of the two rounds it now plants the round's route at both clients through ownershipWriterForward before the receive, and takes the socket baseline after that. Assertions unchanged: reactorForwardRS sends zero policy-agnostic copies and defers both clients; ForwardUpdate runs each destination's export policy exactly once; the session output holds exactly one UPDATE per client, the exact announced NLRI and ORIGIN for the accepting client and only the exact withdrawn prefix with no announced NLRI for the rejecting one; the accepting client swaps between rounds, so a policy change from reject to accept is proven. Ignoring a client's policy sends an announcement to the rejecting client and fails; applying one client's acceptance to both fails. The rejecting client is owed a withdrawal only because it held the route, which is the RFC 4271 Section 3.1 behaviour; withdrawal on rejection remains the existing owner choice, not an RFC 7947 obligation. Producers named by the 2026-10-22 verdict are unchanged. Ran: PASS on 2026-10-23.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of faf7c5c380. RFC 7947 Section 2.1: "The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy." faf7c5c380 (filter chain model moved into internal/component/policy) changed one line in the tagged unit internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire: mustPolicy(t, []filterapi.FilterRef{{Name: "client-policy"}}, filterapi.FinalAccept) became mustPolicy(t, []routepolicy.Ref{{Name: "client-policy"}}, routepolicy.FinalAccept). mustPolicy still calls filterapi.NewPolicy with the same single unbound ref and the explicit accept final (NewPolicy now wraps policy.NewChain; an unbound ref stays external as the zero inProcess field did), so the policy the fixture installs, every input and every assertion are unchanged. No other commit touched the file since the verdict was stamped. be95c10053 changed sibling units in the same file (acceptingLiveSettings), not this one. The unit still requires no policy-agnostic send from reactorForwardRS, exactly one export policy call per client, one UPDATE per client with the exact NLRI and ORIGIN for the accepting client and only the exact withdrawal for the rejecting one, with the accepting client swapped between rounds. Verdict unchanged: enforced. Ran: go test -tags ze_bgp -run over the six faf7c5c380-changed reactor units, PASS on 2026-10-31. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7947ClientPolicyControlsWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L87) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC7947ClientPolicyControlsWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L86) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC7947ClientPolicyControlsWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L87) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7947ClientPolicyControlsWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L86) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7947-x-5`](#rfc7947-x-5)
 
 The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1. (§2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go::TestRSAnnouncementAddPathClientGetsEveryPath, internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go::TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor moved. RFC 7947 Section 2.1: "The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1." Section 2.3 declares itself informative, so the mechanisms of 2.3.2.1/2.3.2.2 are read as what the decision must take into account, not as normative procedure. Re-judged 2026-10-26 by an independent auditor after ea4394c1fb, and again after ef1238d425, which rewrote only the VALIDATES doc line of TestRSAnnouncementAddPathClientGetsEveryPath to state its wire outcome (each source path under its own identifier, arrival order, no election owed); tag claim and body unchanged, and the new line is more accurate than the old one, which named only the oweAnnouncement guard that the paired record shows is not alone load-bearing; supersedes the weak verdict of f725acbf39, whose finding (no carrier for the configuration clause) is closed. Decision clause, client without ADD-PATH: the rfc7947_rs_decision_test.go pair (live bgp-rs/bgp-rib sessions, fenced TCP history) is unchanged in substance: positive, the holder's source re-announcing a worse route leaves the client on B's exact attributes with no withdrawal; negative, a worse later route from B sends the client nothing for P; both discriminated by oweAnnouncement contest -> true. Multiple-paths clause (2.3.2.2): TestRSAnnouncementAddPathClientGetsEveryPath gives client C ADD-PATH send and, in both arrival orders with B worse, asserts on C's wire two NLRI for the prefix with distinct Path Identifiers carrying each source's exact attributes, and zero owed keys; against the decision pair's identical input, this is the configuration-dependent contrast the clause asks for. Its paired record is honest: Ze keeps every path at an ADD-PATH destination through three independent layers (unframed-source identifier allocation in fwdPathIDTable.generate, the fresh-identifier reservation in bindSourcePath when a path meets another owner's slot, and oweAnnouncement's key.addPath guard), each break alone is recorded green because the other two still keep distinct slots, and the three together collapse C to one slot per prefix with the election running there, which is exactly a decision that gives an ADD-PATH client only the elected path (C then receives one path; red at the first-path wait). The test asserts wire outcome, so any other route to that failure also goes red; its arrival-order assertion is stricter than the RFC but not contrary to it. Per-client Loc-RIB clause (2.3.2.1): TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor gives C an export policy denying B; after the owner A withdraws, C receives E's exact attributes with no withdrawal and never B's route (the per-client best after the client's policy, i.e. no path hiding), and with E denied too, exactly one withdrawal; the mutant recoveryStagedAnnouncement synthesizedWithdrawal branch -> true makes the denied B the replacement and C is withdrawn. Auditor probe, scratch only (HEAD export, not committed): the Section 2.3.1 Figure 1 case at arrival (C holds permitted worse E, then B's better route, denied for C, arrives) keeps C on E with no withdrawal; it stays green with the forwarded-withdrawal foreign-owner guard in adjOutWrite.allow disabled (and all four x-5 tags stay green under that break), and goes red (C withdrawn) only when the carrier's recoveryStagedAnnouncement mutant is added, so arrival-time path hiding rests on the same egress step-past the tagged carrier discriminates, behind the RFC 4271 ownership guard. Residual, not a finding against this row: no x-5 carrier combines an ADD-PATH client with a per-client export policy, and the arrival-time Figure 1 case has no tagged unit of its own.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): "The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1." be95c10053 wraps the settings of TestRSAnnouncementAddPathClientGetsEveryPath (and the shared fixture builders) in acceptingPolicies (FinalAccept import and export, no refs) because every peer is EBGP. An accepting policy removes no path, so every path the ADD-PATH client must receive is still selected by the route server's own election. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L86) | unit/verify | mutant, verified |
-| positive | [`TestRSAnnouncementAddPathClientGetsEveryPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go#L628) | unit/verify | mutant, producer-changed (the paired producer internal/component/bgp/reactor/session_ownership.go::bindSourcePath's behavior changed since the break was applied to it) |
-| positive | [`TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L28) | unit/verify | mutant, verified |
+| negative | [`TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L86) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRSAnnouncementAddPathClientGetsEveryPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go#L628) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L28) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go#L501) | unit/verify | mutant, verified |
 
 ### [`RFC7947-2.2-1`](#rfc7947-2.2-1)
 
 Therefore, contrary to what is specified in Section 5 of [RFC4271], route servers SHOULD NOT by default (unless explicitly configured) update well-known BGP attributes received from route server clients before redistributing them to their other route server clients. Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients. (§2.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient, internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRouteServerTransparencyStopsAtOrdinaryPeer moved. RFC 7947 Section 2.2: "Therefore, contrary to what is specified in Section 5 of [RFC4271], route servers SHOULD NOT by default (unless explicitly configured) update well-known BGP attributes received from route server clients before redistributing them to their other route server clients. Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients." Independently re-read both current tagged bodies after the parent moved the negative tag. TestRFC7947AllAttributesReachClient sends a valid live-ingress UPDATE carrying nondefault ORIGIN, AS_PATH, NEXT_HOP, MED, community, and distinct unknown transitive/non-transitive values; exact whole-attribute equality at the client would fail on omission, rewriting, default substitution or spurious Partial. TestRouteServerTransparencyStopsAtOrdinaryPeer now supplies a separately tagged confining negative: the SAME source UPDATE reaches both recipients, the client retains all bytes, and the ordinary iBGP destination lacks unknown non-transitive code 242 while code 241 has flags 0xe0 and unchanged value 11:22:33. Both recipients must receive the actual prefix before assertions, excluding no-forward success. The only governing distinction is destination role; no unrelated malformed input is used. publishBase preserves client input, and forward_rs.go passes destination preserveOpaqueAttributes to forward_body.go forwardWire, whose ordinary branch strips/stamps without mutating the common input. Thus whole well-known/optional, recognized/unrecognized, transitive/non-transitive transparency is covered, with the explicit configuration exception not converted into a demand for policy overrides. The previous same-assertion double-tag gap is closed by the newly attached independent countercase, not by relabeling the old positive. Native proof for the new negative unit must be newly observed; an old negative record on TestRFC7947AllAttributesReachClient is not reusable. Independent source rejudgment only; no checks, tests or native commands executed. Post-lint rejudgment 2026-10-04: both units now take only peers from lowLiveRouter; the same live socket ingress, destination roles and exact outputs remain. The negative is still only on TestRouteServerTransparencyStopsAtOrdinaryPeer. Current source, not the stale derived ledger which still names the old negative carrier, determines the pair.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): "Therefore, contrary to what is specified in Section 5 of [RFC4271], route servers SHOULD NOT by default (unless explicitly configured) update well-known BGP attributes received from route server clients before redistributing them to their other route server clients. Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients." be95c10053 replaced lowLiveSettings with acceptingLiveSettings for source, client and ordinary peer in TestRFC7947AllAttributesReachClient and TestRouteServerTransparencyStopsAtOrdinaryPeer (FinalAccept import and export, no refs); faf7c5c380 only renamed filterapi to routepolicy elsewhere in the file. An accepting policy rewrites no attribute, so the client's byte-identical attributes, the unknown non-transitive attribute kept from the client, and the Partial bit set on the unknown transitive toward the ordinary peer still come from the route-server transparency producer. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

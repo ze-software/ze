@@ -1,0 +1,35 @@
+{
+  "stem": "rfc9774",
+  "title": "Deprecation of AS_SET and AS_CONFED_SET in BGP",
+  "walked": true,
+  "requirements": 3,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 3,
+    "kept": 3,
+    "ze-proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 1,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 0,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 0,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 2
+  },
+  "unmet": [
+    "RFC9774-5.2-1"
+  ]
+}

@@ -164,7 +164,7 @@
     "name": "bgp-filter-aspath",
     "description": "Named AS-path regex filter (ordered entries, first match wins, accept/reject)",
     "config_roots": [
-      "policy"
+      "bgp"
     ],
     "dependencies": [
       "bgp",
@@ -181,7 +181,7 @@
     "name": "bgp-filter-aspath-length",
     "description": "Named AS-path length filter (accept/reject based on hop count)",
     "config_roots": [
-      "policy"
+      "bgp"
     ],
     "dependencies": [
       "bgp",
@@ -214,7 +214,7 @@
     "name": "bgp-filter-community-match",
     "description": "Named community match filter (ordered entries, first match wins, accept/reject)",
     "config_roots": [
-      "policy"
+      "bgp"
     ],
     "dependencies": [
       "bgp",
@@ -231,7 +231,7 @@
     "name": "bgp-filter-family",
     "description": "Named address-family policy filter: remove a family's NLRI or tear down the session",
     "config_roots": [
-      "policy"
+      "bgp"
     ],
     "dependencies": [
       "bgp",
@@ -266,7 +266,7 @@
     "name": "bgp-filter-modify",
     "description": "Named route attribute modifier (set local-preference, med, origin, next-hop)",
     "config_roots": [
-      "policy"
+      "bgp"
     ],
     "dependencies": [
       "bgp",
@@ -283,7 +283,7 @@
     "name": "bgp-filter-path-asn",
     "description": "Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position",
     "config_roots": [
-      "policy"
+      "bgp"
     ],
     "dependencies": [
       "bgp",
@@ -301,7 +301,7 @@
     "name": "bgp-filter-prefix",
     "description": "Named prefix-list filter (CIDR + ge/le + accept/reject)",
     "config_roots": [
-      "policy"
+      "bgp"
     ],
     "dependencies": [
       "bgp",
@@ -318,7 +318,7 @@
     "name": "bgp-filter-remove-private-as",
     "description": "Named AS-path action filter that removes RFC 6996 Private Use ASNs",
     "config_roots": [
-      "policy"
+      "bgp"
     ],
     "dependencies": [
       "bgp",

@@ -1,0 +1,46 @@
+{
+  "stem": "rfc7858",
+  "title": "Specification for DNS over Transport Layer Security (TLS)",
+  "walked": true,
+  "requirements": 38,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 19,
+    "kept": 19,
+    "ze-proven": 3,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 16,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 19,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 19,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 3
+  },
+  "unmet": [
+    "RFC7858-3.1-2",
+    "RFC7858-3.1-3",
+    "RFC7858-3.1-7",
+    "RFC7858-3.3-4",
+    "RFC7858-3.3-5",
+    "RFC7858-3.4-7",
+    "RFC7858-3.4-8",
+    "RFC7858-3.4-9",
+    "RFC7858-4.2-4",
+    "RFC7858-4.2-5",
+    "RFC7858-4.2-6",
+    "RFC7858-4.2-7"
+  ]
+}

@@ -192,14 +192,6 @@ remediation guidance.</p>
 <td>A BGP peer or dynamic group range with <code>connection ttl</code> (RFC 5082 GTSM) whose kernel state is short: inside the daemon (<code>show doctor</code>), the host route carrying hop limit 255, or a <code>ze_gtsm</code> term the daemon published (the listen-port drop or a related-ICMP drop), is missing from the kernel. The report names each missing term and the fix, <code>ze signal restart</code>, because a reload leaves an unchanged peer set alone. In <code>ze doctor</code>, before a start, the kernel resolves no route to the peer, so that route cannot be installed at apply <!-- source: internal/component/gtsm/doctor.go -- checkKernelState, installedStateDiagnostics, missingStateDiagnostic --></td>
 </tr>
 <tr>
-<td><code>doctor-redistribute-unknown-source</code></td>
-<td>A <code>redistribute</code> import names a source no component registered. The daemon refuses to start on it</td>
-</tr>
-<tr>
-<td><code>doctor-redistribute-unknown-destination</code></td>
-<td>A <code>redistribute</code> destination names a protocol nothing registered, so every rule under it is inert. A warning, because a build that omits that protocol is a legitimate reason <!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules --></td>
-</tr>
-<tr>
 <td><code>doctor-vpp-unreachable</code></td>
 <td>VPP API socket (Linux)</td>
 </tr>
@@ -553,7 +545,7 @@ is present and emits the registered code.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
                 </div>
             </div>
         </footer>

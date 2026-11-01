@@ -1,0 +1,33 @@
+{
+  "stem": "rfc2328",
+  "title": "OSPF Version 2",
+  "walked": true,
+  "requirements": 82,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 67,
+    "kept": 67,
+    "ze-proven": 58,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 9,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 15,
+    "proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 13,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 58
+  },
+  "unmet": []
+}

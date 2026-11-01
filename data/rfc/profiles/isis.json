@@ -1,0 +1,20 @@
+{
+  "name": "isis",
+  "kind": "technology",
+  "title": "IS-IS",
+  "release": false,
+  "required": [
+    "rfc1195",
+    "rfc2966",
+    "rfc3786",
+    "rfc3787",
+    "rfc5120",
+    "rfc5301",
+    "rfc5303",
+    "rfc5304",
+    "rfc5305",
+    "rfc5308",
+    "rfc5310"
+  ],
+  "optional": []
+}

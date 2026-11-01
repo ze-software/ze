@@ -1,0 +1,39 @@
+{
+  "stem": "rfc2782",
+  "title": "A DNS RR for specifying the location of services (DNS SRV)",
+  "walked": true,
+  "requirements": 14,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 7,
+    "kept": 5,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 5,
+    "not-owed": 2,
+    "not-owed-by-kind": {
+      "not-applicable": 2
+    }
+  },
+  "should": {
+    "total": 7,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 7,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": [
+    "RFC2782-Notes-2",
+    "RFC2782-Notes-3",
+    "RFC2782-Priority-1",
+    "RFC2782-Target-1",
+    "RFC2782-Target-2"
+  ]
+}

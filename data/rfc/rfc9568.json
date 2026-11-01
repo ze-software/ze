@@ -1,0 +1,44 @@
+{
+  "stem": "rfc9568",
+  "title": "Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6",
+  "walked": true,
+  "requirements": 94,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 66,
+    "kept": 66,
+    "ze-proven": 37,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 29,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 28,
+    "proven": 3,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 25,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 37
+  },
+  "unmet": [
+    "RFC9568-5.1.1.2-1",
+    "RFC9568-5.1.2.2-1",
+    "RFC9568-6.4.2-3",
+    "RFC9568-6.4.3-4",
+    "RFC9568-8.2.2-2",
+    "RFC9568-8.2.2-3",
+    "RFC9568-8.2.3-1",
+    "RFC9568-8.4.2-1",
+    "RFC9568-8.4.2-2",
+    "RFC9568-8.4.2-3"
+  ]
+}

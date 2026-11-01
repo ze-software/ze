@@ -1,0 +1,49 @@
+{
+  "stem": "rfc4303",
+  "title": "IP Encapsulating Security Payload (ESP)",
+  "walked": true,
+  "requirements": 27,
+  "implementer": "mixed",
+  "implemented": true,
+  "must": {
+    "total": 23,
+    "kept": 23,
+    "ze-proven": 7,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 16,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 4,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 7
+  },
+  "unmet": [
+    "RFC4303-2.2-1",
+    "RFC4303-2.2-2",
+    "RFC4303-2.2-3",
+    "RFC4303-2.4-1",
+    "RFC4303-2.6-1",
+    "RFC4303-2.6-2",
+    "RFC4303-3.3.3-1",
+    "RFC4303-3.3.4-1",
+    "RFC4303-3.3.4-2",
+    "RFC4303-3.4.2-1",
+    "RFC4303-3.4.2-2",
+    "RFC4303-3.4.3-3",
+    "RFC4303-3.4.4.1-1",
+    "RFC4303-3.4.4.1-2",
+    "RFC4303-3.4.4.2-1"
+  ]
+}

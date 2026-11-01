@@ -1,0 +1,36 @@
+{
+  "stem": "rfc1350",
+  "title": "The TFTP Protocol (Revision 2)",
+  "walked": true,
+  "requirements": 14,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 10,
+    "kept": 10,
+    "ze-proven": 8,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 2,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 4,
+    "proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 2,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 8
+  },
+  "unmet": [
+    "RFC1350-4-2",
+    "RFC1350-5-1"
+  ]
+}

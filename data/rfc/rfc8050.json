@@ -1,0 +1,35 @@
+{
+  "stem": "rfc8050",
+  "title": "Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions",
+  "walked": true,
+  "requirements": 6,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 6,
+    "kept": 6,
+    "ze-proven": 5,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 1,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 0,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 0,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 5
+  },
+  "unmet": [
+    "RFC8050-4.1-1"
+  ]
+}
