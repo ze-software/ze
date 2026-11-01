@@ -177,6 +177,17 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   and its `vendor/` tree, nothing else), before the commit that first uses it.
 - An RFC sentence quoted in a comment stays byte-exact, its full stop inside the
   quote included, and is never edited to satisfy a linter.
+- Every route-processing step is a filter in the peer's filter list. A
+  procedure a feature's config implies (a role's RFC 9234 checks, the
+  transit-leak check a role brings) is auto-inserted into that list by the
+  feature's own plugin when the config needs it, visible like any member; a
+  required one refuses an operator edit that removes, moves or deactivates it.
+  The plugin declares the insertion; the engine and config code never name a
+  feature, a plugin or a config path to make it happen.
+- Ze is a modular engine: a feature lives in the plugin that owns it and
+  reaches the engine by registration. A design that has the engine or config
+  code name a specific feature, plugin, field or path is wrong, however
+  small, and is redone as a registration before it is built.
 
 ## Ze is pre-release
 
