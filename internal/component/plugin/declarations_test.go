@@ -295,8 +295,8 @@ func rowsByName(rows []declarationRow) map[string]declarationRow {
 func TestDeclarationRowsCarryEveryState(t *testing.T) {
 	withQueryBudget(t, "1s")
 
-	declared := rpc.DeclareRegistrationInput{Commands: []rpc.CommandDecl{{Name: "show query answer"}}}
-	var none rpc.DeclareRegistrationInput
+	declared := rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion, Commands: []rpc.CommandDecl{{Name: "show query answer"}}}
+	none := rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion}
 
 	withConfiguredPluginReader(t, func(string) ([]PluginConfig, error) {
 		return []PluginConfig{
@@ -337,6 +337,38 @@ func TestDeclarationRowsCarryEveryState(t *testing.T) {
 	}
 	if len(byName["query-declared-none"].Commands) != 0 {
 		t.Fatal("the declared-none row carries a command the child never wrote")
+	}
+}
+
+// TestDeclarationRowRefusesAnUnversionedAnswer holds the query half of the
+// protocol version (spec-filter-wire-0-umbrella D-2): a plugin whose query-mode
+// declaration names no protocol version speaks the text-era contract the daemon
+// refuses at Stage 1, so query mode reads it as unstartable with the reason the
+// daemon gives, never as a plugin that declares its commands.
+func TestDeclarationRowRefusesAnUnversionedAnswer(t *testing.T) {
+	withQueryBudget(t, "1s")
+
+	unversioned := rpc.DeclareRegistrationInput{Commands: []rpc.CommandDecl{{Name: "show text era"}}}
+	withConfiguredPluginReader(t, func(string) ([]PluginConfig, error) {
+		return []PluginConfig{{Name: "query-text-era", Run: queryRunString(t, "", &unversioned)}}, nil
+	})
+
+	rows, err := declarationRows("ze.conf")
+	if err != nil {
+		t.Fatalf("declarationRows over an unversioned answer failed: %v", err)
+	}
+	row, held := rowsByName(rows)["query-text-era"]
+	if !held {
+		t.Fatal("plugin query-text-era is configured and has no row")
+	}
+	if row.State != stateUnstartable {
+		t.Fatalf("an unversioned answer reads state %q, want %q", row.State, stateUnstartable)
+	}
+	if !strings.Contains(row.Reason, "protocol-version") {
+		t.Fatalf("the reason %q does not name the protocol-version field the plugin must declare", row.Reason)
+	}
+	if len(row.Commands) != 0 {
+		t.Fatalf("a refused answer still carries commands %v", row.Commands)
 	}
 }
 
@@ -427,7 +459,7 @@ func TestDeclarationRowsRefuseAnInternalBlockWithNoCodeHere(t *testing.T) {
 func TestDeclarationIgnoresUnframedStdout(t *testing.T) {
 	withQueryBudget(t, "1s")
 
-	declared := rpc.DeclareRegistrationInput{Commands: []rpc.CommandDecl{{Name: "show banner survivor"}}}
+	declared := rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion, Commands: []rpc.CommandDecl{{Name: "show banner survivor"}}}
 	noise := "starting the plugin\nrow plugin banner\n#not-an-id\n"
 
 	withConfiguredPluginReader(t, func(string) ([]PluginConfig, error) {
@@ -793,7 +825,7 @@ func TestDeclarationRowsQueryTheBinaryAnExternalBlockNames(t *testing.T) {
 	declaring := declaringRegistration(t)
 
 	withQueryBudget(t, "1s")
-	vendor := rpc.DeclareRegistrationInput{Commands: []rpc.CommandDecl{{Name: "show vendor answer"}}}
+	vendor := rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion, Commands: []rpc.CommandDecl{{Name: "show vendor answer"}}}
 	withConfiguredPluginReader(t, func(string) ([]PluginConfig, error) {
 		return []PluginConfig{{Name: declaring.Name, Run: queryRunString(t, "", &vendor)}}, nil
 	})

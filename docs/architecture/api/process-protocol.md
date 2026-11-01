@@ -681,8 +681,15 @@ no plugin code. For a plugin binary ze does not carry,
 query, and the reader records it as having sent nothing. Both routes write the
 line through `rpc.WriteDeclaration`, so the id, the method and the framing have
 one definition and cannot drift apart.
+
+The reader judges the version the way a live start does. A query answer that
+declares no `protocol-version` speaks the text-era contract the daemon refuses
+at Stage 1, so `show plugin declarations` reports that plugin `unstartable`, with
+the refusal `rpc.NegotiateProtocolVersion` gives, never as a plugin declaring
+its commands.
 <!-- source: pkg/plugin/rpc/declaration.go -- WriteDeclaration -->
 <!-- source: pkg/plugin/sdk/sdk_query.go -- RunOrDeclare -->
+<!-- source: internal/component/plugin/declarations.go -- queriedDeclarationRow -->
 <!-- source: internal/component/plugin/cli/main.go -- Run, answerQuery -->
 
 ### Tier-Ordered Startup

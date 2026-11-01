@@ -413,6 +413,14 @@ func queriedDeclarationRow(configured PluginConfig, budget time.Duration) declar
 	stdout, outcome := runQuery(configured, budget)
 	declaration, answered := declarationFromStdout(stdout)
 	if answered {
+		// A declaration with no protocol version is the text-era contract the
+		// daemon refuses at Stage 1 (runStartupHandshake), so it is refused
+		// here with the daemon's own reason, never listed as declared.
+		if _, err := rpc.NegotiateProtocolVersion(configured.Name, declaration.ProtocolVersion); err != nil {
+			row.State = stateUnstartable
+			row.Reason = err.Error()
+			return row
+		}
 		row.Commands = declaration.Commands
 		row.Pipes = declaration.Pipes
 		row.State = stateDeclared
