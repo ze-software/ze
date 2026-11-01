@@ -17,6 +17,20 @@ module ze-filter-aspath-length {
         description "Initial revision";
     }
 
+    augment "/policy:policy/policy:match" {
+        description "The as-path-length condition of a match instance: the AS-path length filter
+                     registers it, so a build without BGP has no such condition.";
+        leaf as-path-length {
+            type string { length "1..max"; }
+            ze:reference "policy-as-path-length";
+            description "The UPDATE passes this condition when its AS path hop count lies within the
+                         named as-path-length instance's min and max. The editor completes the
+                         configured as-path-length instances, and a commit naming any other is
+                         refused. Only a BGP chain judges it.";
+            ze:help "Match routes whose AS path length the named as-path-length allows";
+        }
+    }
+
     augment "/policy:policy" {
         list as-path-length {
             ze:filter;

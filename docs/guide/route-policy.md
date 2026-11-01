@@ -53,13 +53,14 @@ the community match filter registers `community`. A build without the `ze_bgp`
 tag therefore has no `prefix-list` or `community` condition, as it has no list
 for either to name. A condition is a pure function of the route
 and the instance's config: it runs inside the chain, never in a plugin
-process. The AS-path filter registers `as-path`, which only a BGP chain
-judges: a Loc-RIB route carries no AS path, so a match naming it there is
-refused.
+process. The AS-path filters register `as-path` and `as-path-length`, which
+only a BGP chain judges: a Loc-RIB route carries no AS path, so a match naming
+either there is refused.
 <!-- source: internal/component/policy/match.go -- MustRegisterMatchCondition, Conditions.MustAdd, CompileMatch -->
 <!-- source: internal/component/policy/register_match.go -- init -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/register.go -- MustRegisterMatchCondition -->
 <!-- source: internal/component/bgp/plugins/filter_aspath/register.go -- MustRegisterMatchCondition -->
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/register.go -- MustRegisterMatchCondition -->
 <!-- source: internal/component/bgp/plugins/filter_community_match/register.go -- MustRegisterMatchCondition -->
 
 | Condition | Met when |
@@ -67,6 +68,7 @@ refused.
 | `prefix-list <name>` | The named `prefix-list` instance accepts the prefix. The editor completes the configured prefix-lists, and a commit naming any other is refused |
 | `community <name>` | The named `community-match` instance accepts the route: its first entry whose standard, large or extended community the route carries decides, and a route no entry matches fails. Only a BGP chain judges it. The editor completes the configured lists, and a commit naming any other is refused |
 | `as-path <name>` | The named `as-path-list` instance accepts the UPDATE's AS path, read as its space-separated decimal ASNs. Only a BGP chain judges it. The editor completes the configured lists, and a commit naming any other is refused |
+| `as-path-length <name>` | The UPDATE's AS path hop count, every ASN of the path, lies within the named `as-path-length` instance's `min` and `max`. Only a BGP chain judges it. The editor completes the configured instances, and a commit naming any other is refused |
 | `family [ ... ]` | The route's address family is listed, such as `ipv4/unicast` |
 | `protocol [ ... ]` | The route's source is listed: a registered source such as `static`, or `ebgp` or `ibgp` for a BGP path |
 | `next-hop [ ... ]` | The next hop lies in a listed prefix. A connected route has no next hop |
@@ -79,6 +81,7 @@ refused.
 <!-- source: internal/component/bgp/plugins/filter_prefix/condition.go -- compileRouteCondition -->
 <!-- source: internal/component/bgp/plugins/filter_community_match/condition.go -- compileBGPCondition, judgeEntries -->
 <!-- source: internal/component/bgp/plugins/filter_aspath/condition.go -- compileBGPCondition -->
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/condition.go -- compileBGPCondition -->
 <!-- source: internal/component/policy/yang/ze-policy-conf.yang -- list match -->
 
 This hides every static route tagged 4242 and keeps the others:
@@ -303,7 +306,7 @@ message names the chain and the fix:
 | A filter that reads a field the routes do not carry | For example, a community match on IS-IS routes |
 | A filter type with no Loc-RIB route evaluator | The message lists the filter types that have one |
 | A `family-filter` with `action tear-down` | A Loc-RIB route has no session to close |
-| A `match` condition on a BGP peer chain that reads a field BGP routes do not carry | A `match` runs at a BGP chain over the conditions BGP can judge, `prefix-list`, `community` and `as-path` today; one that reads `tag`, `metric` or `level` is refused naming the field. A `modify` that sets `distance` or `tag` on a BGP chain is refused the same way |
+| A `match` condition on a BGP peer chain that reads a field BGP routes do not carry | A `match` runs at a BGP chain over the conditions BGP can judge, `prefix-list`, `community`, `as-path` and `as-path-length` today; one that reads `tag`, `metric` or `level` is refused naming the field. A `modify` that sets `distance` or `tag` on a BGP chain is refused the same way |
 <!-- source: internal/component/bgp/config/peers.go -- validateChainNames, bgpServesFilterType -->
 <!-- source: internal/component/policy/rib_compile.go -- readRIBChain, compileRIBChain -->
 <!-- source: internal/component/policy/fields.go -- CheckChain -->

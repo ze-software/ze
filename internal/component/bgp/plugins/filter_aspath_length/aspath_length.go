@@ -5,7 +5,11 @@
 
 package filter_aspath_length
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+)
 
 func evaluateASPathLength(pathLen int, def *asPathLengthDef) bool {
 	if def.max >= 0 && pathLen > def.max {
@@ -25,4 +29,19 @@ func countASPathHops(asPath string) int {
 		return 0
 	}
 	return 1 + strings.Count(asPath, " ")
+}
+
+// pathHops counts the ASNs of the reconstructed AS path the BGP view answers:
+// every ASN of every segment, as countASPathHops counts the text the filter
+// reads, where each segment's ASNs are flattened into one list. A nil path,
+// an UPDATE with no AS path, counts no hops.
+func pathHops(path *attribute.ASPath) int {
+	if path == nil {
+		return 0
+	}
+	hops := 0
+	for _, segment := range path.Segments {
+		hops += len(segment.ASNs)
+	}
+	return hops
 }

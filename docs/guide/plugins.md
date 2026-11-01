@@ -1155,13 +1155,26 @@ Chain references: `bgp-filter-modify:NAME` or `modify:NAME`.
 Configure named filters with min and/or max bounds:
 `policy { as-path-length REJECT-LONG { max 30; } }`.
 Routes outside the configured range are rejected. At least one of max or min
-is required. Path length counts AS_SEQUENCE entries individually and AS_SET as 1,
-following RFC 4271 Section 9.1.2.2.
+is required. Path length counts every ASN of the path: a member of an AS_SET
+and an ASN of a confederation segment each count as one hop. That is the
+filter's own count, not the RFC 4271 Section 9.1.2.2 path length best-path
+selection uses, which counts an AS_SET as 1.
 
 Chain references: `bgp-filter-aspath-length:NAME` or `as-path-length:NAME`.
 
+The plugin also registers the `as-path-length` condition of a `match`
+instance: `policy { match NOT-LONG { as-path-length REJECT-LONG; } }` passes
+an UPDATE whose hop count lies within `REJECT-LONG`'s bounds and rejects any
+other, counting the hops the filter counts. Only a BGP chain judges it: a
+Loc-RIB route carries no AS path, so a match naming `as-path-length` there is
+refused. The editor completes the configured instances, and a commit naming
+any other is refused.
+
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/condition.go -- compileBGPCondition -->
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/register.go -- MustRegisterMatchCondition -->
+
 <!-- source: internal/component/bgp/plugins/filter_aspath_length/filter_aspath_length.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/plugins/filter_aspath_length/aspath_length.go -- evaluateASPathLength, countASPathHops -->
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/aspath_length.go -- evaluateASPathLength, countASPathHops, pathHops -->
 
 ### Remove Private AS (`bgp-filter-remove-private-as`)
 

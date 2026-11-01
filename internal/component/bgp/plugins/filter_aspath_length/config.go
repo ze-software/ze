@@ -34,33 +34,43 @@ func parseAsPathLengthDefs(policyCfg map[string]any) (map[string]*asPathLengthDe
 			return nil, fmt.Errorf("as-path-length %q: not a map", name)
 		}
 
-		def := &asPathLengthDef{name: name, max: -1, min: -1}
-
-		for key := range defMap {
-			switch key {
-			case "max", "min":
-			default:
-				return nil, fmt.Errorf("as-path-length %q: unknown key %q", name, key)
-			}
+		def, err := parseAsPathLengthDef(name, defMap)
+		if err != nil {
+			return nil, err
 		}
-
-		if v, ok := readUint16(defMap["max"]); ok {
-			def.max = int(v)
-		}
-		if v, ok := readUint16(defMap["min"]); ok {
-			def.min = int(v)
-		}
-
-		if def.max < 0 && def.min < 0 {
-			return nil, fmt.Errorf("as-path-length %q: at least one of 'max' or 'min' required", name)
-		}
-		if def.max >= 0 && def.min >= 0 && def.min > def.max {
-			return nil, fmt.Errorf("as-path-length %q: min (%d) exceeds max (%d)", name, def.min, def.max)
-		}
-
 		result[name] = def
 	}
 	return result, nil
+}
+
+// parseAsPathLengthDef reads one as-path-length instance's bounds: the
+// filter's own config parse (parseAsPathLengthDefs) and the as-path-length
+// match condition's (condition.go) share it, so both judge one instance alike.
+func parseAsPathLengthDef(name string, defMap map[string]any) (*asPathLengthDef, error) {
+	def := &asPathLengthDef{name: name, max: -1, min: -1}
+
+	for key := range defMap {
+		switch key {
+		case "max", "min":
+		default:
+			return nil, fmt.Errorf("as-path-length %q: unknown key %q", name, key)
+		}
+	}
+
+	if v, ok := readUint16(defMap["max"]); ok {
+		def.max = int(v)
+	}
+	if v, ok := readUint16(defMap["min"]); ok {
+		def.min = int(v)
+	}
+
+	if def.max < 0 && def.min < 0 {
+		return nil, fmt.Errorf("as-path-length %q: at least one of 'max' or 'min' required", name)
+	}
+	if def.max >= 0 && def.min >= 0 && def.min > def.max {
+		return nil, fmt.Errorf("as-path-length %q: min (%d) exceeds max (%d)", name, def.min, def.max)
+	}
+	return def, nil
 }
 
 func readUint16(v any) (uint16, bool) {

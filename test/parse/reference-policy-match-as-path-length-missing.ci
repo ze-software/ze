@@ -1,0 +1,44 @@
+# Test: a policy match instance naming an as-path-length no instance declares is refused
+#
+# VALIDATES: the match as-path-length leaf declares
+#            `ze:reference "policy-as-path-length"` (ze-filter-aspath-length.yang),
+#            whose source is filter_aspath_length.asPathLengthReference, so
+#            `ze config validate` refuses an undeclared as-path-length, naming
+#            the value, the declared instances and the leaf, and accepts a
+#            declared one.
+# PREVENTS: a match instance whose as-path-length is a typo passing validation
+#           and failing only when a chain compiles it.
+
+stdin=missing:terminator=EOF_MISSING
+policy {
+	as-path-length SHORT {
+		max 30
+	}
+	as-path-length NONZERO {
+		min 1
+	}
+	match CUSTOMER {
+		as-path-length CUSTOMERS
+	}
+}
+EOF_MISSING
+
+stdin=present:terminator=EOF_PRESENT
+policy {
+	as-path-length SHORT {
+		max 30
+	}
+	match CUSTOMER {
+		as-path-length SHORT
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=missing
+expect=exit:code=1
+expect=stdout:contains="CUSTOMERS"
+expect=stdout:contains=name one of "NONZERO SHORT"
+expect=stdout:contains=match[CUSTOMER]/as-path-length
+cmd=foreground:seq=2:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid
