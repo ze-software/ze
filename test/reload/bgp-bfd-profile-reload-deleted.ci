@@ -24,6 +24,14 @@ bfd {
 }
 
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	peer peer1 {
 		connection {
 			local {
@@ -62,6 +70,14 @@ bfd {
 }
 
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	peer peer1 {
 		connection {
 			local {

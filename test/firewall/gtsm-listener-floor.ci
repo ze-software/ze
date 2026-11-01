@@ -27,6 +27,10 @@ option=netns-link:name=zegtsm1:address=2001:db8::1/64
 
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	peer peer4 {
 		connection {
 			remote { ip 192.0.2.2; }
@@ -60,6 +64,10 @@ EOF_CONF
 
 tmpfs=config2.conf:terminator=EOF_CONF2
 bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	peer peer4 {
 		connection {
 			remote { ip 192.0.2.2; }
@@ -92,6 +100,10 @@ EOF_CONF2
 
 tmpfs=config3.conf:terminator=EOF_CONF3
 bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	peer peer4 {
 		connection {
 			remote { ip 192.0.2.2; }
