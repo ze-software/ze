@@ -23,8 +23,12 @@ RUN cd src && javac @compiler.txt && \
 FROM alpine:3.24.3 AS native-builder
 RUN apk add --no-cache gcc musl-dev linux-headers
 WORKDIR /build
-COPY --from=freertr /misc/native/rawInt.c /misc/native/utils.h ./
-RUN gcc -O3 -Wall -o rawInt.bin rawInt.c -lpthread && strip rawInt.bin
+# Upstream keeps rawInt.c in misc/iface/ and the utils.h it includes as
+# "../forward/utils.h" in misc/forward/ (moved out of misc/native/ in
+# 2026-09), so the two directories keep their relative layout here.
+COPY --from=freertr /misc/iface/rawInt.c iface/
+COPY --from=freertr /misc/forward/utils.h forward/
+RUN gcc -O3 -Wall -o rawInt.bin iface/rawInt.c -lpthread && strip rawInt.bin
 
 FROM golang:1.27-alpine AS fixture-builder
 WORKDIR /src
