@@ -1,0 +1,63 @@
+# Test: an IRR filter reference that names no AS number is refused at load
+#
+# VALIDATES: spec-filter-wire-0-umbrella D-10 for bgp-filter-irr: the plugin
+# declares its per-ASN filters by a name pattern (asnFilterNamePattern,
+# filter_irr.go), so a chain reference whose name is not a decimal AS number
+# from 1 to 4294967295 fails the daemon's start naming the reference, and a
+# reference the pattern covers is accepted.
+# PREVENTS: bgp-filter-irr:<not-an-asn> loading and then rejecting every
+# route at run time, because extractASNFromFilter reads no AS from the name.
+#
+# Method: two peers, one importing through bgp-filter-irr:65001 (covered), one
+# through bgp-filter-irr:4294967296 (one past the 32-bit range, so a digit
+# count alone would accept it). The plugin is judged at its Stage 1
+# declaration; the refused reference fails startup and ze exits 1 by itself.
+
+stdin=ze-bgp:terminator=EOF_CONF
+policy {
+	irr {
+		server 127.0.0.1:1
+		peeringdb-url http://127.0.0.1:1
+		refresh-interval 3600
+	}
+}
+
+bgp {
+	peer covered {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+		filter {
+			import { filters [ bgp-filter-irr:65001 ]; final accept; }
+		}
+	}
+	peer outofrange {
+		connection {
+			remote { ip 127.0.0.3; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+		filter {
+			import { filters [ bgp-filter-irr:4294967296 ]; final accept; }
+		}
+	}
+}
+EOF_CONF
+
+# The daemon ends by itself on the refusal, with no fence, so the exit code
+# is ze's own.
+cmd=foreground:seq=1:exec=ze --plugin ze.bgp-filter-irr -:stdin=ze-bgp:timeout=40s
+expect=exit:code=1
+expect=stderr:pattern=plugin bgp-filter-irr failed during startup at stage Registration: .*peer outofrange.*chain names \\"bgp-filter-irr:4294967296\\", and plugin \\"bgp-filter-irr\\" declares no filter of that name
+expect=stderr:pattern=ze does not start with a config whose filter chain names a filter its plugin refuses
+reject=stderr:pattern=chain names \\"bgp-filter-irr:65001\\"
