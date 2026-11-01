@@ -512,7 +512,17 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 	pathPrefix := config.FormatEditPath(canonical)
 	changeTree, changeMeta, beforeOps, err := e.readChangeFile(guard, changePath)
 	if err != nil {
-		return err
+		if pathPrefix != "" {
+			return err
+		}
+		if !errors.Is(err, errChangeFileUnparsable) {
+			return err
+		}
+		// A discard of everything is how the operator leaves a change file
+		// that does not parse (docs/guide/web-interface.md, "Corrupt change
+		// files"), so it removes the file. The entries it created cannot be
+		// read back, so nothing is pruned from the draft for them.
+		beforeOps = nil
 	}
 
 	if pathPrefix == "" {

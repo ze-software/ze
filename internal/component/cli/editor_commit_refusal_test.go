@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"io/fs"
 	"testing"
 	"time"
 
@@ -135,4 +136,43 @@ func TestEditRefusesCorruptChangeFile(t *testing.T) {
 	kept, err := store.ReadFile(changePath)
 	require.NoError(t, err)
 	assert.Equal(t, corrupt, kept, "the change file is left as it was")
+}
+
+// TestDiscardRemovesCorruptChangeFile proves the way out the refusals above
+// promise: a discard of everything removes a change file that does not parse,
+// while a discard of one path still refuses it.
+//
+// GOAL: an operator whose change file no longer parses can start again.
+// METHOD: write an unparsable change file, discard one path, then discard
+// everything, and read the file after each.
+//
+// VALIDATES: `discard <path>` fails naming the file and keeps it; `discard`
+// removes it and the next edit succeeds.
+// PREVENTS: a corrupt change file that every edit, commit and discard refuses,
+// leaving the user's session stuck until someone deletes the file by hand.
+func TestDiscardRemovesCorruptChangeFile(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = ed.Close() })
+	session := NewEditSession("thomas", "ssh")
+	ed.SetSession(session)
+
+	changePath := ChangePath(configPath, session.User)
+	corrupt := []byte("set no-such-container leaf x\n")
+	require.NoError(t, store.WriteFile(changePath, corrupt, 0o600))
+
+	err = ed.DiscardSessionPath([]string{"bgp"})
+	require.Error(t, err, "a partial discard cannot pick entries out of a file it cannot read")
+	assert.Contains(t, err.Error(), changePath, "the error names the change file")
+	kept, err := store.ReadFile(changePath)
+	require.NoError(t, err)
+	assert.Equal(t, corrupt, kept, "the partial discard leaves the file as it was")
+
+	require.NoError(t, ed.DiscardSessionPath(nil), "a discard of everything removes the corrupt file")
+	_, err = store.Stat(changePath)
+	assert.ErrorIs(t, err, fs.ErrNotExist, "the change file is gone")
+
+	require.NoError(t, ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"), "the next edit succeeds")
 }

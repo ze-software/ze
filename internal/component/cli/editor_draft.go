@@ -555,7 +555,9 @@ func (e *Editor) writeChangeFile(guard storage.WriteGuard, changePath string, tr
 // empty collections. Any other read failure, and a file that does not parse,
 // is an error naming the file: the file holds the user's pending changes, so
 // reading it as empty would let a commit answer success with nothing applied
-// and let the next edit overwrite it. The file is left in place.
+// and let the next edit overwrite it. The file is left in place. A file that
+// does not parse wraps errChangeFileUnparsable, so a discard of everything can
+// still remove it.
 func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*config.Tree, *config.MetaTree, []config.StructuralOp, error) {
 	data, err := guard.ReadFile(changePath)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -567,10 +569,16 @@ func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*c
 	parser := config.NewSetParser(e.schema)
 	tree, meta, ops, err := config.ParseChangeFile(string(data), parser)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("change file %s does not parse, pending changes kept in it: %w", changePath, err)
+		return nil, nil, nil, fmt.Errorf("change file %s %w: %w", changePath, errChangeFileUnparsable, err)
 	}
 	return tree, meta, ops, nil
 }
+
+// errChangeFileUnparsable marks a change file that was read but does not
+// parse. Every edit and commit refuses it; a discard of everything removes it,
+// because that discard is the operator's documented way out
+// (docs/guide/web-interface.md, "Corrupt change files").
+var errChangeFileUnparsable = errors.New("does not parse, pending changes kept in it")
 
 // SaveDraft applies changes from the per-user change file to config.conf.draft.
 // Creates a new draft (base + own changes), then deletes the change file.
