@@ -235,6 +235,19 @@ bgp {
 {% endif %}
 			}
 		}
+{% if n.type == 'ebgp' %}
+{#      RFC 8212 Section 3: an EBGP direction with no explicit policy passes no
+        route, and a netlab lab validates with a ping across these sessions.
+        netlab states no policy of its own, so both directions accept. #}
+		filter {
+			import {
+				final accept;
+			}
+			export {
+				final accept;
+			}
+		}
+{% endif %}
 {#      A peer that attaches no process is fed nothing and may announce nothing.
         bgp-rib takes this peer's UPDATEs and answers with the routes the node
         offers; redistribute-orchestrator carries the connected, OSPF and IS-IS
