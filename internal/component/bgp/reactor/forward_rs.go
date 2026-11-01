@@ -113,6 +113,9 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 // reference. In-process ownership is proved only for import; a manually built
 // export policy containing an active internal ref must not take a bypass.
 func hasActiveFilter(policy filterapi.Policy, direction string) bool {
+	if policy.Library() != nil {
+		return true // the in-process chain is an active filter in both directions
+	}
 	for i, ref := range policy.Filters() {
 		if policy.ActiveExternal(i) {
 			return true

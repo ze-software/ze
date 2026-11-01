@@ -1580,9 +1580,24 @@ and until it lands the text subject above is what filters read.
 
 `internal/component/bgp/policychain` compiles and runs a BGP chain whose
 members are filter types with an in-process BGP evaluator, over the view
-above. No peer chain runs through it yet: no filter type registers a BGP
-evaluator until the plugin filters move onto it (`spec-filter-wire-0-umbrella`,
-phases 3b and 4), so the text subject is still what every BGP filter reads.
+above. No shipped filter type registers a BGP evaluator yet: the plugin filters
+move onto it in `spec-filter-wire-0-umbrella` phases 3b and 4, so until then
+the text subject is still what every configured BGP filter reads.
+
+- **Wired at peer load and on both policy steps.** `bgpServesFilterType`
+  admits a type with an evaluator (`policychain.HasEvaluator`) at `bgp import`
+  and `bgp export`. After the refs are canonical, `compileLibraryChains`
+  compiles each peer's and dynamic template's library members and records the
+  chain on the policy (`filterapi.Policy.WithLibrary`).
+  `runIngressPolicyChain` and `runEgressPolicyChainASN4` then run it in
+  process, with no API server, through `runLibraryChain`, which takes its view
+  and sets from a pool and Clears the view before it returns. A reject keeps
+  the text chain's RFC 8212 withdrawals rule, and a failed member drops the
+  route.
+- **No mixed chain yet.** A chain that names a library member and a plugin
+  filter reached over `filter-update` is refused at load, naming both
+  (`refuseMixedLibraryChain`): neither kind would see the other's changes.
+  Phase 3b runs plugin members on this chain and removes the refusal.
 
 - **Checked by the library, compiled by BGP.** `policychain.Compile` refuses
   the chain with `policy.CheckChain`, exactly as `validateChainNames` does, then
@@ -1594,9 +1609,12 @@ phases 3b and 4), so the text subject is still what every BGP filter reads.
   set, increment or decrement, `community` add and remove. The run folds them
   in chain order (a later set overrides an earlier increment; an increment adds
   to an earlier set), and `Sets.ApplyTo` writes them as `ModAccumulator`
-  operations, so `buildModifiedPayload` stays the one apply engine. Arithmetic
-  on an absent attribute starts from the configured base and is refused
-  without one; a decrement clamps at zero.
+  operations, so `buildModifiedPayload` stays the one apply engine.
+  `Chain.Apply` reads the route's current LOCAL_PREF or MED from the view only
+  for a field the sets change. Arithmetic on an absent attribute starts from
+  the base in `bgp { defaults { attribute { } } }` (`parseAttributeBases`, each
+  absent leaf at its YANG default). A decrement clamps at zero, and an
+  increment clamps at 4294967295.
 - **A failed member applies its on-error.** A read that answers an error (a
   malformed attribute, `policyview.ErrMalformed`) and a write to a field the
   member did not declare (`policy.InstanceSets`) each fail the route under the
@@ -1609,6 +1627,9 @@ phases 3b and 4), so the text subject is still what every BGP filter reads.
 
 <!-- source: internal/component/bgp/policychain/chain.go -- Compile, Chain.Run, MustRegisterEvaluator, refuseUndeclared -->
 <!-- source: internal/component/bgp/policychain/sets.go -- Sets, numericSet.resolve, Sets.ApplyTo -->
+<!-- source: internal/component/bgp/policychain/apply.go -- Bases, Chain.Apply -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
+<!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChains, refuseMixedLibraryChain, parseAttributeBases -->
 <!-- source: internal/component/policy/fields.go -- InstanceSets -->
 
 ---

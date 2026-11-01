@@ -119,6 +119,9 @@ type Chain struct {
 	attachment string
 	members    []member
 	final      policy.Final
+	// bases and the two readers serve Apply's increment and decrement.
+	bases                Bases
+	localPreference, med policyview.Reader
 	// refused counts the routes a member failed under its on-error.
 	refused atomic.Uint64
 }
@@ -127,15 +130,23 @@ type Chain struct {
 // library and compiles each member with its type's registered evaluator.
 // A name the registry does not hold, a type with no evaluator, a field the
 // attachment does not carry or allow, and a missing final are each refused by
-// name.
-func Compile(attachment string, reg *policy.Registry, names []string, final policy.Final) (*Chain, error) {
+// name. bases is what an increment or decrement of an absent attribute starts
+// from (bgp defaults attribute).
+func Compile(attachment string, reg *policy.Registry, names []string, final policy.Final, bases Bases) (*Chain, error) {
 	if final != policy.FinalAccept && final != policy.FinalReject {
 		return nil, fmt.Errorf("%s: missing or invalid final; write filters [ NAME ]; final accept; or final reject", attachment)
 	}
 	if err := policy.CheckChain(attachment, reg, names); err != nil {
 		return nil, err
 	}
-	chain := &Chain{attachment: attachment, members: make([]member, 0, len(names)), final: final}
+	chain := &Chain{attachment: attachment, members: make([]member, 0, len(names)), final: final, bases: bases}
+	var err error
+	if chain.localPreference, err = policyview.ReaderFor(policy.FieldLocalPreference); err != nil {
+		return nil, fmt.Errorf("BUG: policychain: %w", err)
+	}
+	if chain.med, err = policyview.ReaderFor(policy.FieldMED); err != nil {
+		return nil, fmt.Errorf("BUG: policychain: %w", err)
+	}
 	for _, name := range names {
 		compiled, err := compileMember(attachment, reg, name)
 		if err != nil {

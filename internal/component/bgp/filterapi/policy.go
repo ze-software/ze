@@ -15,11 +15,25 @@ import (
 // owned by a registered ingress stage. It is nil when no ref is bound, so an
 // unbound policy carries no second slice. Only BindInProcess proves a binding
 // and only WithBoundFilters records one.
+//
+// library is the compiled chain of the policy's library members, the filters
+// that evaluate in process over the BGP route view (WithLibrary). It is nil
+// when the chain names none.
 // Safe for concurrent use: callers MUST NOT mutate borrowed refs or bindings.
 type Policy struct {
 	chain           policy.Chain
 	inProcess       []bool
 	requiresIngress bool
+	library         LibraryChain
+}
+
+// LibraryChain is a policy's compiled in-process chain over the BGP route
+// view: a *policychain.Chain. filterapi names it by an interface because
+// policychain imports this package. The chain is immutable and safe for
+// concurrent runs, each with its own view and sets.
+type LibraryChain interface {
+	// Refused answers how many routes a member of the chain failed.
+	Refused() uint64
 }
 
 // NewPolicy constructs a configured policy and refuses a missing or unknown final.
@@ -67,9 +81,25 @@ func (p Policy) InProcess(i int) bool {
 }
 
 // ActiveExternal reports whether the per-peer RPC chain must execute ref i.
-// i MUST index Filters.
+// i MUST index Filters. A policy with a library chain has no RPC member: config
+// load refuses a chain that mixes library members with plugin filters reached
+// over filter-update, until phase 3b runs plugin members on the library chain
+// and removes that refusal (bgp/config, refuseMixedLibraryChain).
 func (p Policy) ActiveExternal(i int) bool {
+	if p.library != nil {
+		return false
+	}
 	return !p.chain.Refs()[i].Inactive && !p.InProcess(i)
+}
+
+// Library answers the compiled library chain, nil when the policy has none.
+func (p Policy) Library() LibraryChain { return p.library }
+
+// WithLibrary records the compiled chain of the policy's library members. The
+// caller MUST have compiled it from the same refs and final.
+func (p Policy) WithLibrary(chain LibraryChain) Policy {
+	p.library = chain
+	return p
 }
 
 // RequiresIngress reports whether an active reference belongs to a registered
@@ -79,7 +109,9 @@ func (p Policy) RequiresIngress() bool { return p.requiresIngress }
 
 // WithFilters replaces references while preserving the policy's disposition.
 // Every replacement ref is unbound: a caller that keeps stage ownership across
-// the replacement uses WithBoundFilters.
+// the replacement uses WithBoundFilters. The library chain is kept: a library
+// member is a policy instance name, which variable resolution
+// (resolveFilterVars) and canonicalization leave naming the same member.
 // The caller MUST keep filters immutable for the lifetime of every derived policy.
 func (p Policy) WithFilters(filters []policy.Ref) Policy {
 	p.chain = p.chain.WithRefs(filters)

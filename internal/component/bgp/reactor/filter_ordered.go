@@ -16,6 +16,8 @@ import (
 	"unsafe"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -154,6 +156,23 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, wireUpd
 	peer.mu.RUnlock()
 	if peerAS == 0 {
 		return ingressPolicyWithdrawals(payload)
+	}
+	if library := policy.Library(); library != nil {
+		// The in-process chain needs no API server: no member is reached
+		// over filter-update (config load refuses a mixed chain).
+		res := r.runLibraryChain(library, wireUpdate, payload, policyview.Session{EBGP: external},
+			modifySiteImportChain, peerAddr.String())
+		if res.outcome.Action != policychain.OutcomeAccept {
+			// RFC 8212 Section 3: the same withdrawals rule as the text chain.
+			if !res.outcome.Failed && !policy.AcceptsAtEnd(external) {
+				return ingressPolicyWithdrawals(payload)
+			}
+			return ingressStepResult{} // accept == false: drop the route
+		}
+		if res.failed {
+			return ingressStepResult{} // a guard miss: drop the route
+		}
+		return ingressStepResult{accept: true, modifiedPayload: res.modifiedPayload}
 	}
 	if !hasActiveFilter(policy, directionImport) {
 		// RFC 8212 Section 3.
@@ -316,6 +335,21 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 	if !hasActiveFilter(exportPolicy, directionExport) {
 		// RFC 8212 Section 3.
 		return egressStepResult{accept: exportPolicy.AcceptsAtEnd(!destInternal)}
+	}
+	if library := exportPolicy.Library(); library != nil {
+		// In process: no API server is involved (see the import step).
+		res := r.runLibraryChain(library, wireUpdate, wireUpdate.Payload(), policyview.Session{EBGP: !destInternal},
+			modifySiteExportChain, destAddrStr)
+		if res.outcome.Action != policychain.OutcomeAccept {
+			return egressStepResult{failed: res.outcome.Failed} // accept == false: suppress for this peer
+		}
+		if res.failed {
+			return egressStepResult{failed: true} // a guard miss: suppress for this peer
+		}
+		if res.modifiedPayload != nil {
+			return egressStepResult{accept: true, wireOverride: wireu.NewWireUpdate(res.modifiedPayload, wireUpdate.SourceCtxID())}
+		}
+		return egressStepResult{accept: true}
 	}
 	// An ACTIVE export filter but the API server (the filter engine that
 	// enforces it) is absent: a guard MISS, not an accept. An export chain is a

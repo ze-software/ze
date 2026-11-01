@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -297,6 +298,16 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 	// Default filters (loop-detection) auto-populate unless already referenced.
 	prependDefaultFilters(policyTree, settings, filterReg)
 
+	// Step 3b4: Compile the chains of the members that evaluate in process
+	// over the route view, after every ref is canonical and bound.
+	bases, err := parseAttributeBases(tree, schema)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := compileLibraryChains(settings, filterReg, bases); err != nil {
+		return nil, nil, err
+	}
+
 	// Step 3c: Extract loop-detection policy settings into PeerSettings.
 	// For each peer, check if any import filter references a loop-detection entry
 	// in the policy section. If so, apply allow-own-as and cluster-id to the peer.
@@ -432,8 +443,9 @@ func namesFilterType(prefix, filterType string, typesMap map[string]string) bool
 }
 
 // bgpServesFilterType refuses an instance whose filter type no BGP filter
-// serves: neither a compiled-in filter (filterapi.BindInProcess) nor a plugin
-// that registered the type. Canonicalization would otherwise pass the bare
+// serves: neither a compiled-in filter (filterapi.BindInProcess), a plugin
+// that registered the type, nor an in-process evaluator over the route view
+// (policychain.HasEvaluator). Canonicalization would otherwise pass the bare
 // name through to a plugin that does not exist, and the filter would never run.
 func bgpServesFilterType(ref policy.Ref, entry policy.Instance, typesMap map[string]string, attachment, context string) error {
 	if _, inProcess := filterapi.BindInProcess(ref, entry.Type); inProcess {
@@ -441,6 +453,9 @@ func bgpServesFilterType(ref policy.Ref, entry policy.Instance, typesMap map[str
 	}
 	if _, served := typesMap[entry.Type]; served {
 		return nil
+	}
+	if policychain.HasEvaluator(entry.Type) {
+		return nil // evaluated in process over the route view (compileLibraryChains)
 	}
 	return fmt.Errorf("%s: filter %q is a %s instance, and no BGP filter serves the %s type, so it cannot run at %s; "+
 		"attach it to a Loc-RIB chain (rib, static, ospf, isis or connected filter import) and remove it from this chain",
