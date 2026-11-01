@@ -226,3 +226,55 @@ func TestThirdPartyInsertionAppliesFromStageOne(t *testing.T) {
 	require.NotContains(t, refNames(peers["B"].ImportPolicy.Filters()), "third-party:judge",
 		"peer B does not meet the condition, so nothing is inserted")
 }
+
+// TestReloadVerifyAppliesRuntimeInsertions checks that the tree route a
+// reload's verify and apply take (createTreeReloadFunc, which
+// reactorAPIAdapter.VerifyConfig reaches through loadPeersFullOrTree) judges
+// a third party's Stage 1 insertions, not only the compiled ones.
+//
+// Method: a running third-party process declares a required import insertion
+// conditioned on peer A's config (registry.SetRuntimeFilterInsertions). The
+// candidate tree, lowered to the plugin map form the reactor holds, goes
+// through the tree reload: naming the required member is refused with the
+// declared reason, and leaving it out inserts it on peer A only.
+//
+// VALIDATES: declaredInsertions appends registry.RuntimeFilterInsertions on
+// the reload route (spec-filter-wire-6-stage-filters A-12).
+// PREVENTS: a reload whose verify passes an operator edit of a third party's
+// required member, or whose apply drops the member the boot placed.
+func TestReloadVerifyAppliesRuntimeInsertions(t *testing.T) {
+	const reason = "the third party's procedure is not the operator's to edit"
+	t.Cleanup(configyang.RegisterModuleForTest("ze-test-inserter-conf.yang", insertionTestYANG))
+	registry.SetRuntimeFilterInsertions(func() []registry.ProcessFilterInsertions {
+		return []registry.ProcessFilterInsertions{{
+			Process: "third-party",
+			Insertions: []rpc.FilterInsertion{{Filter: "third-party:judge", Direction: rpc.FilterImport,
+				Priority: 100, Config: rrClient, Values: []string{"on"}, Required: true, Reason: reason}},
+		}}
+	})
+	t.Cleanup(func() { registry.SetRuntimeFilterInsertions(nil) })
+
+	reload := createTreeReloadFunc()
+	candidate := func(peerA string) map[string]any {
+		schema, err := config.YANGSchema()
+		require.NoError(t, err)
+		tree, err := config.NewParser(schema).Parse(strings.Replace(insertionConfig, "%A%", peerA, 1))
+		require.NoError(t, err)
+		return tree.ToPluginMap()
+	}
+
+	_, _, _, err := reload(candidate("filter { import { filters [ third-party:judge ]; final accept; } }"))
+	require.Error(t, err, "the reload route must refuse an operator reference to a third party's required member")
+	require.Contains(t, err.Error(), "peer A")
+	require.Contains(t, err.Error(), reason)
+
+	peers, _, _, err := reload(candidate(""))
+	require.NoError(t, err)
+	byName := make(map[string][]string, len(peers))
+	for _, ps := range peers {
+		byName[ps.Name] = refNames(ps.ImportPolicy.Filters())
+	}
+	require.Equal(t, []string{"third-party:judge"}, byName["A"],
+		"the reload route must insert the third party's member where its condition holds")
+	require.NotContains(t, byName["B"], "third-party:judge")
+}
