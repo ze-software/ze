@@ -1,5 +1,6 @@
 // Design: docs/architecture/diagnostics/debug-filtering.md -- debug CLI registration
 // Related: debug.go -- verb-first set/delete/show/clear handlers
+// Related: show.go -- the answer types and their text drawings
 
 package debug
 
@@ -15,46 +16,54 @@ func init() {
 	// local shortcuts under existing verb roots; cmdutil.RunCommand checks the
 	// local registry before the daemon, so they run in-process without shadowing
 	// the daemon `show debug` command (live runtime state, in yang/).
-	command.MustRegisterLocalMeta("set debug module", runSetModule, registry.Meta{
+	//
+	// Each one answers DATA, so its answer reaches the pipe layer, and the
+	// drawings below give the text route the lines these commands always
+	// printed.
+	command.MustRegisterTextRenderer(keyDebugChange, drawDebugChange)
+	command.MustRegisterTextRenderer(keyDebugModules, drawDebugModules)
+	command.MustRegisterTextRenderer(keyDebugProfiles, drawDebugProfiles)
+
+	command.MustRegisterLocalData("set debug module", runSetModule, registry.Meta{
 		ShortHelp: "Enable debug output for one subsystem.",
 		Description: "One level, one flag or one scope can be set in the same command, and each one narrows " +
 			"what the subsystem writes. A word after that option is refused: run one command per option.",
-	})
-	command.MustRegisterLocalMeta("delete debug module", runDeleteModule, registry.Meta{
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("delete debug module", runDeleteModule, registry.Meta{
 		ShortHelp: "Disable debug for a subsystem, or remove one of its flags/scopes.",
 		Description: "The module name alone removes the whole module. Naming a flag or a scope removes " +
 			"that one and leaves the module enabled. Deleting a module the profile does not hold " +
 			"succeeds and changes nothing, so a repeated command is safe.",
-	})
-	command.MustRegisterLocalMeta("set debug timeout", runSetTimeout, registry.Meta{
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("set debug timeout", runSetTimeout, registry.Meta{
 		ShortHelp: "Set how long debug output stays enabled.",
 		Description: "The duration is written as 30m, 1h or 90s, seconds are rounded up to minutes, " +
 			"and the longest accepted value is 24h. Zero disables the timer.",
-	})
-	command.MustRegisterLocalMeta("set debug profile name", runSaveProfile, registry.Meta{
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("set debug profile name", runSaveProfile, registry.Meta{
 		ShortHelp: "Save the current debug state as a named profile.",
 		Description: "It copies what the daemon is writing NOW into a named slot. The default slot is " +
 			"left as it is, so saving a profile does not change what the running daemon logs.",
-	})
-	command.MustRegisterLocalMeta("set debug active name", runRestoreProfile, registry.Meta{
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("set debug active name", runRestoreProfile, registry.Meta{
 		ShortHelp: "Load a named debug profile and apply it to the running daemon.",
 		Description: "The named profile becomes the live state and the default slot is NOT overwritten, " +
 			"so a restart returns the daemon to the default profile rather than to this one.",
-	})
-	command.MustRegisterLocalMeta("delete debug profile name", runDeleteProfileName, registry.Meta{
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("delete debug profile name", runDeleteProfileName, registry.Meta{
 		ShortHelp: "Delete a named debug profile.",
 		Description: "It removes the stored slot and nothing else. The running daemon keeps whatever it " +
 			"is writing, so deleting the profile that is live does not turn its output off.",
-	})
-	command.MustRegisterLocalMeta("clear debug", func(command.ValidatedArgs) int { return cmdClear() }, registry.Meta{
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("clear debug", runClear, registry.Meta{
 		ShortHelp: "Clear the default debug profile.",
 		Description: "It writes an empty profile into the default slot AND applies it, so the stored " +
 			"default and the running daemon both stop. A named profile is not touched.",
-	})
-	command.MustRegisterLocalMeta("show debug profile", runShowProfile, registry.Meta{
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show debug profile", runShowProfile, registry.Meta{
 		ShortHelp: "Show stored debug profiles, one by name, or one filtered to a module subtree.",
 		Description: "With no argument it lists the profile names. `name <name>` prints that profile as a " +
 			"table of module, level, flags and scopes. Adding `module <prefix>` keeps the rows under " +
 			"one subsystem subtree. Any other trailing word is refused rather than ignored.",
-	})
+	}, command.RenderLocalAnswer)
 }
