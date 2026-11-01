@@ -1106,7 +1106,8 @@ a speaker to implement. It is honored on an **import** chain only, because that
 section also requires the removal before Decision Process phases 1 and 2. The
 import chain is the only chain that runs there.
 
-On an export chain, the directive is refused and logged. RFC 4271 Section
+On an export chain, the removal is ignored with a logged warning, and the
+definition's other operations still apply. RFC 4271 Section
 9.1.2.2 states that comparing on a MULTI_EXIT_DISC and then advertising the
 route without it causes route loops. The directive is mutually exclusive with
 `set med`, `increment med`, and `decrement med`. A metric received from one
@@ -1148,7 +1149,6 @@ Chain references: `bgp-filter-modify:NAME` or `modify:NAME`.
 <!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- evaluateModify, medRemoveFor -->
 <!-- source: internal/component/bgp/plugins/filter_modify/config.go -- buildSets, buildCommunitySets -->
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps, communityDirectives -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractMEDRemoveOps -->
 

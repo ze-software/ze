@@ -2162,7 +2162,8 @@ AIGP TLV from consideration rather than scoring it. The full table is
 `del { med; }` is the mechanism RFC 4271 Section 5.1.4 requires a speaker to
 implement. It takes effect on an `import` chain only. That section requires the
 removal before Decision Process phases 1 and 2, and the import chain is the only
-chain that runs there. On an `export` chain, the directive is refused and logged.
+chain that runs there. On an `export` chain, the removal is ignored with a logged
+warning, and the definition's other operations still apply.
 It is mutually exclusive with `set med`, `increment med`, and `decrement med`.
 The configuration is refused when removal and one of these operations are both stated.
 
@@ -2177,7 +2178,7 @@ in the route satisfies the condition.
 
 <!-- source: internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- modify YANG container, match -->
 <!-- source: internal/component/bgp/plugins/filter_modify/config.go -- parseModifyDefs -->
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- medRemoveFor -->
 <!-- source: internal/component/bgp/reactor/forward_med.go -- applyFactsMED -->
 <!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
 

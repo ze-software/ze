@@ -99,9 +99,14 @@ comparison, so removal must not occur after selection before an IBGP
 readvertisement.
 
 The public `del { med; }` mechanism satisfies Section 5.1.4 by running on the
-import chain only. `ExtractMEDRemoveOps` converts that directive at ingress,
-`appendMEDRemove` (`internal/component/bgp/plugins/filter_modify/filter_modify.go`)
-refuses it on export and logs the reason, and `medPropagationAllowedTo`
+import chain only. `bgp-filter-modify` answers the removal as a `med` remove
+in its Sets on an import chain, and `removeMED`
+(`internal/component/bgp/policychain/external_attributes.go`) applies it there.
+On an export chain `medRemoveFor`
+(`internal/component/bgp/plugins/filter_modify/filter_modify.go`) withholds the
+removal and logs a warning, and `removeMED` fails an export route whose filter
+answers one. A text filter's `med-remove` directive is converted at ingress by
+`ExtractMEDRemoveOps`. `medPropagationAllowedTo`
 (`internal/component/bgp/reactor/forward_med.go`) returns true for every non-eBGP
 destination. That path keeps the value used for comparison aligned with the value
 advertised to an IBGP peer.
@@ -184,4 +189,5 @@ reading was a second declaration of one fact and it is gone.
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- medRemoveHasWork, ExtractMEDRemoveOps -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filterAttrs.merge, the chain order between med and med-remove -->
 <!-- source: internal/component/bgp/reactor/forward_med.go -- medPropagationAllowedTo, the internal-destination exemption Section 9.1.2.2 rests on -->
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove, the export-chain refusal -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- medRemoveFor, the export-chain warning -->
+<!-- source: internal/component/bgp/policychain/external_attributes.go -- removeMED, the export-chain refusal -->
