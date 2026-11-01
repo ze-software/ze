@@ -339,6 +339,59 @@ module ze-plugin-engine {
                     ze:help "Default filters this filter replaces (e.g., rfc:no-self-as)";
                 }
             }
+            list filter-insertion {
+                description
+                    "The config loader inserts the filter into the import or export list of
+                     every peer whose resolved config meets the condition, ahead of the
+                     operator's members, unless the operator names it there. A required
+                     insertion refuses any operator reference to it.";
+                ze:help "Members inserted into a peer's filter list by this plugin";
+                leaf filter {
+                    type string { length "1..512"; }
+                    description
+                        "A reference this plugin serves: <plugin>:<filter> of a filter it
+                         declares, or <type>:<instance> of a filter type it owns.";
+                    ze:help "Chain reference to insert";
+                }
+                leaf direction {
+                    type enumeration {
+                        enum import { ze:help "Insert into the import list"; }
+                        enum export { ze:help "Insert into the export list"; }
+                    }
+                    description "Exactly one list; declare a second insertion for the other.";
+                    ze:help "Which list receives the member";
+                }
+                leaf priority {
+                    type uint16 { range "0..9999"; }
+                    description "Inserted members run in ascending priority, ahead of the operator's.";
+                    ze:help "Order among inserted members";
+                }
+                leaf-list config {
+                    type string;
+                    ordered-by user;
+                    description
+                        "The words of a path under a peer's resolved config entry (bgp, group
+                         and peer merged). The condition holds where the path is present, or
+                         where its leaf equals one of values.";
+                    ze:help "Config path the condition reads";
+                }
+                leaf-list values {
+                    type string;
+                    description "When given, the leaf must equal one of them.";
+                    ze:help "Leaf values that meet the condition";
+                }
+                leaf required {
+                    type boolean;
+                    default false;
+                    description "A required member refuses an operator reference: named, moved or inactive.";
+                    ze:help "Whether the operator may place or deactivate it";
+                }
+                leaf reason {
+                    type string { length "1..1024"; }
+                    description "The text the refusal prints. Owed when required is true.";
+                    ze:help "Why the member is required";
+                }
+            }
             list pipe {
                 key "command name";
                 description

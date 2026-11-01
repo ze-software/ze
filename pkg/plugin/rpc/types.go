@@ -331,15 +331,19 @@ type DeclareRegistrationInput struct {
 	// SourcePolicyOwner declares retained source state, independently of support.
 	SourcePolicyOwner bool `json:"source-policy-owner,omitempty"`
 	// SourcePolicy declares the acknowledged source-policy lifecycle handler.
-	SourcePolicy           bool              `json:"source-policy,omitempty"`
-	VerifyBudget           int               `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
-	ApplyBudget            int               `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
-	Schema                 *SchemaDecl       `json:"schema,omitempty"`
-	WantsValidateOpen      bool              `json:"wants-validate-open,omitempty"`
-	CacheConsumer          bool              `json:"cache-consumer,omitempty"`
-	CacheConsumerUnordered bool              `json:"cache-consumer-unordered,omitempty"`
-	Filters                []FilterDecl      `json:"filters,omitempty"`
-	DoctorChecks           []DoctorCheckDecl `json:"doctor-checks,omitempty"`
+	SourcePolicy           bool         `json:"source-policy,omitempty"`
+	VerifyBudget           int          `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
+	ApplyBudget            int          `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
+	Schema                 *SchemaDecl  `json:"schema,omitempty"`
+	WantsValidateOpen      bool         `json:"wants-validate-open,omitempty"`
+	CacheConsumer          bool         `json:"cache-consumer,omitempty"`
+	CacheConsumerUnordered bool         `json:"cache-consumer-unordered,omitempty"`
+	Filters                []FilterDecl `json:"filters,omitempty"`
+	// FilterInsertions are the members this plugin asks the config loader to
+	// insert into a peer's filter list where the peer's config needs them
+	// (FilterInsertion).
+	FilterInsertions []FilterInsertion `json:"filter-insertions,omitempty"`
+	DoctorChecks     []DoctorCheckDecl `json:"doctor-checks,omitempty"`
 	// ResolverCaches names the resolver caches (rpc.ResolverCachePeeringDB,
 	// ResolverCacheIRR, ResolverCacheCymru) this plugin holds clients for. The
 	// engine asks it to clear each one through MethodResolverCacheClear when
@@ -556,6 +560,31 @@ type SchemaDecl struct {
 	YANGText  string   `json:"yang-text,omitempty"`
 	Handlers  []string `json:"handlers,omitempty"`
 }
+
+// FilterInsertion is one member a plugin asks the config loader to insert
+// into a peer's filter list: the procedure a feature's config implies (RFC
+// 9234 Section 5 for a role), placed by the plugin that owns the feature, so
+// no engine or config code names the feature (docs/architecture/api/process-protocol.md,
+// "Filter Insertion"). The loader inserts Filter into the Direction list of
+// every peer whose resolved config meets the condition, ahead of the
+// operator's members in ascending Priority, unless the operator names the
+// reference there (plainly, or `inactive:` to run without it). A Required
+// insertion refuses any operator reference to it, with Reason as the text the
+// operator reads. The condition is Config: the words of a path under the
+// peer's resolved entry, present, or equal to one of Values when they are
+// given.
+type FilterInsertion struct {
+	Filter    string          `json:"filter"`             // Chain reference the plugin serves: <plugin>:<filter> or <type>:<instance>
+	Direction FilterDirection `json:"direction"`          // import or export, exactly one
+	Priority  int             `json:"priority"`           // 0-9999: lower runs first among inserted members
+	Config    []string        `json:"config"`             // Path words under the peer's resolved entry (e.g. role import)
+	Values    []string        `json:"values,omitempty"`   // The leaf equals one of these; empty means present
+	Required  bool            `json:"required,omitempty"` // The operator cannot name, move or deactivate it
+	Reason    string          `json:"reason,omitempty"`   // Why it is required; owed when Required
+}
+
+// FilterInsertionPriorityMax bounds FilterInsertion.Priority.
+const FilterInsertionPriorityMax = 9999
 
 // FilterDecl declares a named route filter the plugin offers.
 //
@@ -1326,7 +1355,13 @@ func ParseEventEnvelope(event string) (EventEnvelope, error) {
 // separate subscribe-events RPC that would arrive after routes are already sent.
 type ReadyInput struct {
 	Subscribe *SubscribeEventsInput `json:"subscribe,omitempty"`
-	Transport string                `json:"transport,omitempty"` // "bridge" for internal plugins; pipe closed after ack
+	// Subscriptions carries further startup subscribe blocks, each in its own
+	// namespace (Namespace set), registered with Subscribe and as atomically.
+	// A plugin that hears events of more than one namespace from its first
+	// event onward (bgp-rr hears bgp state and bgp-gr retention) needs one
+	// block per namespace, because a block names one namespace.
+	Subscriptions []*SubscribeEventsInput `json:"subscriptions,omitempty"`
+	Transport     string                  `json:"transport,omitempty"` // "bridge" for internal plugins; pipe closed after ack
 }
 
 // ConfigVerifyInput is the input for ze-plugin-callback:config-verify.

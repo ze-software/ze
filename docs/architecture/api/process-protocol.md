@@ -337,6 +337,36 @@ hold, and `raw` declared as a set. An exact name wins over a pattern that also
 covers it. A build that links no subsystem running filters (no `ze_bgp`)
 refuses any plugin declaring one.
 
+#### Filter Insertion
+
+A plugin that owns a feature whose config implies a procedure (an RFC 9234
+role, say) declares where its filter goes, in `filter-insertions`; config load
+then inserts the member into the import or export list of every peer whose
+resolved config (bgp, group and peer merged) meets the condition, ahead of the
+operator's members. No engine or config code names the feature, the plugin or
+the path (`ai/META-DECISIONS.md`, "Goal and scope").
+<!-- source: internal/component/plugin/registry/filter_insertion.go -- CheckFilterInsertions -->
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `filter-insertions[].filter` | string | A reference the plugin serves: `<plugin>:<filter>` of a filter it declares, or `<type>:<instance>` of a filter type it owns |
+| `filter-insertions[].direction` | enum | `import` or `export`, exactly one |
+| `filter-insertions[].priority` | number | 0 to 9999; inserted members run in ascending priority, then reference |
+| `filter-insertions[].config` | list | The words of the path the condition reads under the peer's resolved entry (`["role"]`) |
+| `filter-insertions[].values` | list | When given, the leaf must equal one of them; absent means the path is present |
+| `filter-insertions[].required` | bool | The operator cannot name, move or deactivate the member |
+| `filter-insertions[].reason` | string | The text the refusal prints; owed when `required` is true |
+
+Stage 1 refuses an insertion naming a reference the plugin does not serve, a
+direction other than `import` or `export`, a priority outside 0 to 9999, an
+empty or holed path, a required insertion with no reason, and the same
+reference twice for one direction. Config load judges a compiled-in plugin's
+insertions by the same rules. An operator who names a non-required member in
+the list places it there, and `inactive:` on it runs the session without it,
+as for a loop-detection default; naming a required member in any form is
+refused at verify with the plugin's reason, naming the peer, the list and the
+reference.
+
 The declared reads and sets are what config load judges. A chain at `bgp
 import` or `bgp export` naming `<plugin>:<filter>` fails when no declared name
 or pattern covers the filter (the refusal lists what the plugin declares), when

@@ -235,6 +235,12 @@ type Registration struct {
 	// declared one waits for the Stage 1 judgement.
 	Filters []rpc.FilterDecl
 
+	// FilterInsertions are the members this plugin asks config load to insert
+	// into a peer's filter list where that peer's config needs them: the same
+	// values its sdk.Registration carries at Stage 1, from one function.
+	// CheckFilterInsertions judges them.
+	FilterInsertions []rpc.FilterInsertion
+
 	// Optional handlers.
 	ConfigureEngineLogger func(loggerName string)               // Configure logger for in-process engine mode
 	InProcessDecoder      func(input, output *bytes.Buffer) int // Decode function for CLI fallback

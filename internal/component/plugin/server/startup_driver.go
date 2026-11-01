@@ -163,6 +163,15 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err
 	}
+	// The auto-insertions are judged by the same static rules config load
+	// applies to a compiled-in registration: a reference the plugin does not
+	// serve, two directions, no condition, or a required one with no reason
+	// fails the plugin here (spec-filter-wire-6-stage-filters AC-2).
+	if err := registry.CheckFilterInsertions(sink.pluginName(), regInput.Filters,
+		registry.OwnedFilterTypes(sink.pluginName()), regInput.FilterInsertions); err != nil {
+		_ = conn.SendError(ctx, req.ID, err.Error())
+		return err
+	}
 	if err := sink.onRegistration(&regInput); err != nil {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err
