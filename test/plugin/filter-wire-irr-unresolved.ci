@@ -1,0 +1,108 @@
+# Test: an UPDATE judged before its ASN's first IRR resolution
+#
+# VALIDATES: spec-filter-wire-0-umbrella AC-32 (FR-10, D-12): the IRR filter
+# never waits for a list. An UPDATE that arrives while the mock IRR holds its
+# first answer longer than rpc.FilterUpdateTimeout is judged at once: its
+# announced 10.0.0.0/24 takes the filter's on-error verdict (reject), its
+# withdrawal of 10.9.0.0/24 still applies (RFC 4271 Section 9), and
+# `show bgp irr` still reports the ASN pending. Once the mock answers, the
+# readmitter sends a ROUTE-REFRESH (RFC 2918 Section 4) and the route the peer
+# sends again is accepted.
+# PREVENTS: a first-resolution wait inside the evaluator stalling every route
+# behind it, a rejected announcement taking its UPDATE's withdrawals with it,
+# and a route rejected for a missing list staying rejected.
+#
+# Flow:
+# 1. The mock IRR holds its first answer 7 s (-delay-first), past the 5 s
+#    rpc.FilterUpdateTimeout and within the IRR client's 10 s query timeout.
+# 2. The peer sends one UPDATE announcing 10.0.0.0/24 and withdrawing
+#    10.9.0.0/24, then an End-of-RIB.
+# 3. The observer (internal/test/fixture/plugin_fixture_07_irr.go,
+#    filterIRRUnresolved07) waits for eor-received, checks the ASN is still
+#    pending, and that the first UPDATE it saw carries the withdrawal alone.
+# 4. The list resolves, the peer's script checks the ROUTE-REFRESH and sends
+#    the route again, and the observer receives it accepted.
+
+option=env:var=ze.log.bgp.filter.irr:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=linger:value=true
+option=tcp_connections:value=1
+option=timeout:value=40s
+# UPDATE from AS 65001: Withdrawn 10.9.0.0/24, ORIGIN IGP, AS_PATH [65001],
+# NEXT_HOP 1.1.1.1, NLRI 10.0.0.0/24
+# Marker(16) + Len=0x0033(51) + Type=02 + WdLen=0004 + 180A0900 + AttrLen=0014
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0033020004180A090000144001010040020602010000FDE940030401010101180A0000
+# The End-of-RIB is counted only after the UPDATE's import verdict.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# ROUTE-REFRESH: marker(16) + length(0017=23) + type(05) + AFI(0001) + reserved(00) + SAFI(01)
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
+# The announcement again, as a peer answers a ROUTE-REFRESH
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-filter-irr-unresolved {
+		run "le test fixture plugin/filter-wire-irr-unresolved"
+		encoder json
+	}
+	# ze advertises route-refresh, so it must be able to re-advertise its
+	# Adj-RIB-Out when the peer asks (RFC 2918 Section 3); bgp-rib does that.
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+policy {
+	irr {
+		server 127.0.0.1:$PORT2
+		refresh-interval 3600
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				route-refresh enable
+				graceful-restart disable
+			}
+			irr {
+				as-set AS-TEST
+			}
+		}
+		filter {
+			import { filters [ bgp-filter-irr:65001 ]; final accept; }
+		}
+		attach process test-filter-irr-unresolved {
+			receive [ update state ]
+		}
+		# The filter asks the peer for its routes again, so it needs the refresh
+		# send permission like any other process.
+		attach process bgp-filter-irr {
+			send [ refresh ]
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock irr --port $PORT2 --delay-first 7s
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-irr -:stdin=ze-bgp:timeout=40s
+expect=exit:code=0
+expect=stderr:pattern=irr filter keeps the withdrawals.*reason=no-prefix-list
+expect=stderr:pattern=irr: asked the peer to send again routes the IRR list now authorizes
+expect=stderr:pattern=irr filter accept
