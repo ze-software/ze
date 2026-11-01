@@ -1602,8 +1602,11 @@ rejected rejects; otherwise it passes and drops each rejected entry
 (`DropNLRI`). A FlowSpec rule is judged by its destination prefix
 (`nlrisplit.FlowSpecDestination`, shared with the text projection): an absent
 destination, or a rejected one, rejects the whole UPDATE, since a rule is
-never rewritten. A labeled-unicast section fails the member: the walk does not
-read its label stack. Each compiler gets the chain's
+never rewritten. A labeled-unicast entry is judged by the prefix past its
+label field, read in place by `nlrisplit.LabeledPrefix`, the label walk the
+engine's prefix keys share: an announcement's label stack to the
+bottom-of-stack bit, a withdrawal's one Compatibility field (RFC 8277
+Sections 2.3 and 2.4). Each compiler gets the chain's
 `policy.InstanceResolver` (`registryResolver`), so a match compiles the
 prefix-list it names from instance config. `compileLibraryChain` leaves a
 chain with no library member on the text chain, where a plugin filter is sent the update

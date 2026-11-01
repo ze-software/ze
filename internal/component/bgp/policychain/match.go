@@ -37,8 +37,8 @@ type MatchRoute struct {
 var MatchConditions = policy.NewConditions[MatchRoute]("a BGP UPDATE")
 
 var (
-	errMatchLabeled     = errors.New("judges prefixes, and labeled-unicast NLRI is not walked at a BGP chain")
-	errMatchCIDRFraming = errors.New("an NLRI entry is longer than its family's address")
+	errMatchCIDRFraming  = errors.New("an NLRI entry is longer than its family's address")
+	errMatchLabelFraming = errors.New("a labeled NLRI entry's label field runs past its length")
 )
 
 // matchEvaluator is one compiled match instance at a BGP chain.
@@ -158,32 +158,45 @@ func (w *matchWalk) section(section NLRISection, fam family.Family, nlri []byte)
 		return err
 	}
 	if fam.SAFI == family.SAFIUnicast || fam.SAFI == family.SAFIMulticast {
-		return w.cidrSection(section, fam, nlri, addPath)
+		return w.cidrSection(section, fam, nlri, addPath, false)
+	}
+	if fam.SAFI == family.SAFIMPLSLabel {
+		return w.cidrSection(section, fam, nlri, addPath, true)
 	}
 	if nlrisplit.IsFlowSpec(fam) {
 		return w.flowSpecSection(fam, nlri, addPath)
 	}
-	if fam.SAFI == family.SAFIMPLSLabel {
-		return fmt.Errorf("match %s: %w (%s)", policy.FieldPrefix, errMatchLabeled, fam)
-	}
 	return nil
 }
 
-// cidrSection judges each entry of a unicast or multicast section, and drops
-// the rejected ones at their offset in the section the view answered.
+// cidrSection judges each entry of a unicast, multicast or labeled-unicast
+// section, and drops the rejected ones at their offset in the section the view
+// answered. A labeled entry's prefix is read past its label field in place
+// (nlrisplit.LabeledPrefix): a withdrawal's one Compatibility field, an
+// announcement's label stack. A dropped entry keeps its offset, so the
+// engine removes it whole, label field included (wireu.DropCIDREntries).
 //
 // RFC 4271 Section 4.3: "The Prefix field contains an IP address prefix, followed by
 // the minimum number of trailing bits needed to make the end
 // of the field fall on an octet boundary.  Note that the value
 // of trailing bits is irrelevant."
-func (w *matchWalk) cidrSection(section NLRISection, fam family.Family, nlri []byte, addPath bool) error {
+func (w *matchWalk) cidrSection(section NLRISection, fam family.Family, nlri []byte, addPath, labeled bool) error {
+	withdraw := section == NLRISectionWithdrawn || section == NLRISectionMPUnreach
 	cursor := wireu.NewCIDRCursor(nlri, addPath)
 	for {
 		_, cidr, start, more := cursor.Next()
 		if !more {
 			break
 		}
-		prefix, ok := cidrPrefix(cidr, fam.AFI == family.AFIIPv4)
+		bits, octets := int(cidr[0]), cidr[1:]
+		if labeled {
+			// RFC 8277 Section 2.3, Section 2.4
+			var framed bool
+			if bits, octets, framed = nlrisplit.LabeledPrefix(cidr, withdraw); !framed {
+				return errors.Join(policyview.ErrMalformed, errMatchLabelFraming)
+			}
+		}
+		prefix, ok := cidrPrefix(bits, octets, fam.AFI == family.AFIIPv4)
 		if !ok {
 			return errors.Join(policyview.ErrMalformed, errMatchCIDRFraming)
 		}
@@ -244,24 +257,24 @@ func (w *matchWalk) flowSpecSection(fam family.Family, nlri []byte, addPath bool
 	return nil
 }
 
-// cidrPrefix answers the prefix one CIDR entry (Length, then the prefix
-// octets) carries, its trailing bits masked off; false when Length exceeds
-// the address.
+// cidrPrefix answers the prefix of bits bits that octets carries, its
+// trailing bits masked off; false when bits exceeds the address. For a CIDR
+// entry (Length, then the prefix octets) bits is Length and octets follow it;
+// for a labeled entry both are read past the label field.
 //
 //	+0 Length(1) +1 Prefix(ceil(Length/8))
-func cidrPrefix(cidr []byte, is4 bool) (netip.Prefix, bool) {
-	bits := int(cidr[0])
+func cidrPrefix(bits int, octets []byte, is4 bool) (netip.Prefix, bool) {
 	var addr [16]byte
 	if is4 {
 		if bits > 32 {
 			return netip.Prefix{}, false
 		}
-		copy(addr[:4], cidr[1:])
+		copy(addr[:4], octets)
 		return netip.PrefixFrom(netip.AddrFrom4([4]byte(addr[:4])), bits).Masked(), true
 	}
 	if bits > 128 {
 		return netip.Prefix{}, false
 	}
-	copy(addr[:], cidr[1:])
+	copy(addr[:], octets)
 	return netip.PrefixFrom(netip.AddrFrom16(addr), bits).Masked(), true
 }

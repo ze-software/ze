@@ -148,16 +148,41 @@ func keyLabeled(raw, scratch []byte, withdraw bool) ([]byte, error) {
 	if len(raw) < 4 || len(raw) != 1+(int(raw[0])+7)/8 || len(scratch) < len(raw) {
 		return nil, errPrefixKey
 	}
-	off, bits, ok := labelFieldEnd(raw, withdraw)
+	bits, prefix, ok := LabeledPrefix(raw, withdraw)
 	if !ok {
 		return nil, errPrefixKey
 	}
 	scratch[0] = byte(bits)
-	n := 1 + copy(scratch[1:], raw[off:])
+	n := 1 + copy(scratch[1:], prefix)
 	if remainder := bits % 8; remainder != 0 {
 		scratch[n-1] &= 0xff << (8 - remainder)
 	}
 	return scratch[:n], nil
+}
+
+// LabeledPrefix answers the prefix of one labeled NLRI, raw, which starts at
+// its length octet: the bits the length octet counts after the label field,
+// and the octets after that field, which alias raw (nothing is copied). An
+// announcement's label field is its label stack, a withdrawal's the one
+// Compatibility field (labelFieldEnd). ok is false when the label field does
+// not frame inside raw. A walk that judges labeled prefixes in place asks
+// this; keyLabeled asks it to key them.
+//
+// RFC 8277 Section 2.3: "In all labels except the last (i.e., in all labels
+// except the one immediately preceding the prefix), the S bit MUST be 0.  In the
+// last label, the S bit MUST be 1."
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field MUST be ignored."
+//
+//	+0 Length(1) +1 Label(3) ... until S = 1, or Compatibility(3) | Prefix ~
+func LabeledPrefix(raw []byte, withdraw bool) (bits int, prefix []byte, ok bool) {
+	if len(raw) == 0 {
+		return 0, nil, false
+	}
+	off, bits, ok := labelFieldEnd(raw, withdraw)
+	if !ok {
+		return 0, nil, false
+	}
+	return bits, raw[off:], true
 }
 
 // labelFieldEnd finds the end of the label field of one labeled NLRI, raw,
@@ -167,8 +192,8 @@ func keyLabeled(raw, scratch []byte, withdraw bool) ([]byte, error) {
 // walked to the bottom-of-stack bit; a withdrawal's is the one three-octet
 // Compatibility field of RFC 8277 Section 2.4, whatever it holds. It reports
 // false when the length octet counts fewer bits than the field or the field
-// runs past raw. It is the one label walk keyLabeled and the withdrawal writer
-// share. The walk is bounded by len(raw): every step advances three octets.
+// runs past raw. It is the one label walk LabeledPrefix and the withdrawal
+// writer share. The walk is bounded by len(raw): every step advances three octets.
 func labelFieldEnd(raw []byte, withdraw bool) (off, bits int, ok bool) {
 	bits = int(raw[0])
 	off = 1

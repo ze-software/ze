@@ -54,6 +54,23 @@ func mpReach(afi uint16, safi uint8, nh, nlri []byte) []byte {
 	return append(attr, value...)
 }
 
+// mpUnreach is an MP_UNREACH_NLRI attribute (extended length) of afi/safi
+// withdrawing nlri.
+func mpUnreach(afi uint16, safi uint8, nlri []byte) []byte {
+	value := binary.BigEndian.AppendUint16(nil, afi)
+	value = append(value, safi)
+	value = append(value, nlri...)
+	attr := []byte{0x90, 15}
+	attr = binary.BigEndian.AppendUint16(attr, uint16(len(value)))
+	return append(attr, value...)
+}
+
+// labeled is one labeled-unicast NLRI (RFC 8277 Section 2.2): the length in
+// bits of the label field and prefix, the label field, then prefix (24 bits).
+func labeled(field []byte, prefix ...byte) []byte {
+	return append(append([]byte{byte(8*len(field) + 24)}, field...), prefix...)
+}
+
 // flowRule is one FlowSpec NLRI of components (RFC 8955 Section 4), with the
 // 8-octet route distinguisher first when rd is set (SAFI 134).
 func flowRule(rd bool, components ...byte) []byte {
@@ -110,7 +127,12 @@ func TestBGPMatchPrefixListParity(t *testing.T) {
 	nh4 := []byte{192, 0, 2, 1}  // a next hop for MP_REACH
 	v6 := []byte{32, 0x20, 0x01, 0x0d, 0xb8}
 	destination := func(bits byte, octets ...byte) []byte { return append([]byte{1, bits}, octets...) }
-	source := []byte{2, 24, 10, 1, 0} // a source prefix component only
+	source := []byte{2, 24, 10, 1, 0}                       // a source prefix component only
+	label100 := []byte{0x00, 0x06, 0x41}                    // label 100, bottom of stack
+	twoLabels := []byte{0x00, 0x06, 0x40, 0x00, 0x0c, 0x81} // labels 100 then 200, S on the last
+	compat := []byte{0x80, 0x00, 0x00}                      // RFC 8277 Section 2.4 Compatibility, S bit clear
+	labeledAccepted := labeled(label100, 10, 1, 0)
+	labeledDenied := labeled(label100, 192, 0, 2)
 	cases := []struct {
 		name                   string
 		withdrawn, attrs, nlri []byte
@@ -146,6 +168,21 @@ func TestBGPMatchPrefixListParity(t *testing.T) {
 			"mp ipv4/flow add 10.1.0.0/24 192.0.2.0/24", sdk.FilterReject, nil},
 		{"flowspec vpn accepted destination", nil, mpReach(1, 134, nil, flowRule(true, destination(24, 10, 1, 0)...)), nil,
 			"mp ipv4/flow-vpn add 10.1.0.0/24", sdk.FilterAccept, nil},
+		{"labeled accepted prefix", nil, mpReach(1, 4, nh4, labeledAccepted), nil,
+			"mp ipv4/mpls-label add 10.1.0.0/24", sdk.FilterAccept, nil},
+		{"labeled denied prefix", nil, mpReach(1, 4, nh4, labeledDenied), nil,
+			"mp ipv4/mpls-label add 192.0.2.0/24", sdk.FilterReject, nil},
+		{"labeled two-label stack accepted", nil, mpReach(1, 4, nh4, labeled(twoLabels, 10, 1, 0)), nil,
+			"mp ipv4/mpls-label add 10.1.0.0/24", sdk.FilterAccept, nil},
+		{"labeled mixed mp-reach", nil, mpReach(1, 4, nh4, append(slices.Clone(labeledAccepted), labeledDenied...)), nil,
+			"mp ipv4/mpls-label add 10.1.0.0/24 192.0.2.0/24", sdk.FilterModify,
+			map[policychain.NLRISection][]uint16{policychain.NLRISectionMPReach: {7}}},
+		{"labeled denied withdrawal beside accepted announce", nil,
+			append(mpReach(1, 4, nh4, labeledAccepted), mpUnreach(1, 4, labeled(compat, 192, 0, 2))...), nil,
+			"mp ipv4/mpls-label add 10.1.0.0/24 mp ipv4/mpls-label del 192.0.2.0/24", sdk.FilterModify,
+			map[policychain.NLRISection][]uint16{policychain.NLRISectionMPUnreach: {0}}},
+		{"labeled accepted withdrawal, zero Compatibility", nil, mpUnreach(1, 4, labeled([]byte{0, 0, 0}, 10, 1, 0)), nil,
+			"mp ipv4/mpls-label del 10.1.0.0/24", sdk.FilterAccept, nil},
 	}
 	chain := matchChain(t)
 	for _, tc := range cases {
@@ -178,6 +215,32 @@ func TestBGPMatchPrefixListParity(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestBGPMatchLabeledAllocatesNothing proves judging labeled-unicast
+// prefixes at a BGP chain allocates nothing per run: the label stack is
+// skipped in place, never copied. Method: testing.AllocsPerRun over an
+// UPDATE with a mixed labeled MP_REACH_NLRI and a labeled withdrawal.
+func TestBGPMatchLabeledAllocatesNothing(t *testing.T) {
+	family.RegisterTestFamilies()
+	chain := matchChain(t)
+	label := []byte{0x00, 0x06, 0x41}
+	reach := mpReach(1, 4, []byte{192, 0, 2, 1}, append(labeled(label, 10, 1, 0), labeled(label, 192, 0, 2)...))
+	attrs := append(reach, mpUnreach(1, 4, labeled([]byte{0x80, 0, 0}, 192, 0, 2))...)
+	update := bgpUpdate(t, nil, attrs, nil)
+	var view policyview.View
+	sets := new(policychain.RunSets)
+	run := func() {
+		view.Reset(update, policyview.Session{})
+		if outcome := chain.Run(&view, sets); outcome.Action != policychain.OutcomeAccept {
+			t.Fatalf("outcome = %+v, want accept with drops", outcome)
+		}
+		view.Clear()
+	}
+	run()
+	if allocs := testing.AllocsPerRun(100, run); allocs != 0 {
+		t.Fatalf("a run allocates %.1f times, want 0", allocs)
 	}
 }
 
