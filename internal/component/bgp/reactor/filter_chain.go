@@ -644,7 +644,10 @@ type filterTransport interface {
 	// ok false when no running plugin declares the filter.
 	FilterDeclaration(pluginName, filterName string) (reads, sets []string, onError rpc.OnErrorPolicy, ok bool)
 	FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy
-	CallFilterUpdate(ctx context.Context, pluginName string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error)
+	// CallFilterUpdate judges route by the plugin's filter, on the transport the
+	// plugin runs on: its typed filter slot internal, its filter-update
+	// batch forked (D-12).
+	CallFilterUpdate(ctx context.Context, pluginName string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error)
 }
 
 // filterAPI returns the transport the policy filter path talks to: the plugin
@@ -724,7 +727,8 @@ func (r *Reactor) policyFilterFunc(wireUpdate *wireu.WireUpdate, rawPayload []by
 			Raw:       rawBytes,
 		}
 
-		out, err := api.CallFilterUpdate(ctx, pluginName, input)
+		route := rpc.InputFilterRoute(input)
+		out, err := api.CallFilterUpdate(ctx, pluginName, &route)
 		if err != nil {
 			return filterOnErrorResponse(api, pluginName, filterName, "policy filter IPC error", err)
 		}

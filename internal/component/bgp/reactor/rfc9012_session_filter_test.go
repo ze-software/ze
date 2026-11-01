@@ -202,7 +202,12 @@ func (teSessionFilterTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy {
 // real policy request. Rebuilding owns new bytes, as an external plugin would.
 // RFC 9012 Section 11: "In addition, any BGP speaker that understands the attribute
 // MUST be able to filter the attribute from outgoing BGP UPDATE messages".
-func (teSessionFilterTransport) CallFilterUpdate(_ context.Context, pluginName string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+func (teSessionFilterTransport) CallFilterUpdate(_ context.Context, pluginName string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
+	inputValue, err := route.Input()
+	if err != nil {
+		return nil, err
+	}
+	input := &inputValue
 	if pluginName != teSessionFilterPlugin {
 		return nil, fmt.Errorf("unexpected filter plugin %q", pluginName)
 	}

@@ -98,6 +98,7 @@ type Plugin struct {
 	// onEvent is also captured by the deliver-event/deliver-batch map entries.
 	onEvent           EventHandler
 	onStructuredEvent StructuredEventHandler
+	onFilter          FilterEvaluator // installed as the bridge filter slot when internal (OnFilter)
 	onExecuteCommand  ExecuteCommandHandler
 
 	// onDrain is the stop drain handler, run on the connection's drain
@@ -551,40 +552,7 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	// instead of going through the connection. Signal ready so the engine side
 	// switches from SendDeliverBatch to bridge.DeliverEvents.
 	if p.bridge != nil {
-		p.mu.Lock()
-		onEventFn := p.onEvent
-		onStructuredFn := p.onStructuredEvent
-		onExecuteFn := p.onExecuteCommand
-		p.mu.Unlock()
-
-		p.bridge.SetDeliverEvents(func(events []string) error {
-			if onEventFn == nil {
-				return nil
-			}
-			for _, event := range events {
-				if err := onEventFn(event); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-		if onStructuredFn != nil {
-			p.bridge.SetDeliverStructured(onStructuredFn)
-		}
-		if onExecuteFn != nil {
-			// The bridge answers one marshaled value and has no line to carry
-			// a record on, so a handler that answers with a walk reaches this
-			// path as the document that walk collapses to
-			// (Records.MarshalJSON, pkg/plugin/records.go).
-			p.bridge.SetExecuteCommand(func(serial, command string, args []string, peer string) (*rpc.ExecuteCommandOutput, error) {
-				status, data, err := onExecuteFn(serial, command, args, peer)
-				if err != nil {
-					return nil, err
-				}
-				return executeCommandOutput(status, data)
-			})
-		}
-		p.bridge.SetReady()
+		p.activateBridge()
 	}
 
 	// Post-startup: safe to make engine calls.
@@ -645,3 +613,47 @@ func (p *Plugin) callEngineRaw(ctx context.Context, method string, params any) (
 // --- Callback handlers ---
 
 // --- RPC Types (aliases to canonical types in pkg/plugin/rpc) ---
+
+// activateBridge installs the plugin's handlers on its DirectBridge and
+// signals ready, after Stage 5. The caller MUST hold a non-nil bridge.
+func (p *Plugin) activateBridge() {
+	p.mu.Lock()
+	onEventFn := p.onEvent
+	onStructuredFn := p.onStructuredEvent
+	onExecuteFn := p.onExecuteCommand
+	onFilterFn := p.onFilter
+	p.mu.Unlock()
+
+	p.bridge.SetDeliverEvents(func(events []string) error {
+		if onEventFn == nil {
+			return nil
+		}
+		for _, event := range events {
+			if err := onEventFn(event); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if onStructuredFn != nil {
+		p.bridge.SetDeliverStructured(onStructuredFn)
+	}
+	if onFilterFn != nil {
+		// FR-11: the slot is callable from SetReady on, never before.
+		p.bridge.SetFilterSlot(rpc.FilterSlotHandler(onFilterFn))
+	}
+	if onExecuteFn != nil {
+		// The bridge answers one marshaled value and has no line to carry
+		// a record on, so a handler that answers with a walk reaches this
+		// path as the document that walk collapses to
+		// (Records.MarshalJSON, pkg/plugin/records.go).
+		p.bridge.SetExecuteCommand(func(serial, command string, args []string, peer string) (*rpc.ExecuteCommandOutput, error) {
+			status, data, err := onExecuteFn(serial, command, args, peer)
+			if err != nil {
+				return nil, err
+			}
+			return executeCommandOutput(status, data)
+		})
+	}
+	p.bridge.SetReady()
+}

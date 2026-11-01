@@ -53,6 +53,9 @@ which. Code that only works internal is broken.
 
   DirectBridge is an in-process optimization of the same protocol, not a second
   protocol: an external plugin gets the same behavior over RPC.
+  A per-route callback reaches DirectBridge as a typed slot of that
+  protocol, as `filter-update` does: the same evaluator answers the batched
+  message when the plugin runs forked.
 - **What crosses a boundary is a self-contained value.** No pointer into data
   another plugin or component allocated, even when its package is shared core
   (`plugin-system.md`, "Cross-boundary value types").

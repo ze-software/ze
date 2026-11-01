@@ -475,9 +475,14 @@ func (s *Server) SetMetricsRegistry(reg metrics.Registry) {
 	}
 }
 
-// CallFilterUpdate sends a filter-update RPC to a named plugin and returns the response.
-// Returns an error if the plugin is not found, not connected, or the RPC fails.
-func (s *Server) CallFilterUpdate(ctx context.Context, pluginName string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+// CallFilterUpdate judges route by a named plugin's filter, through the plugin's
+// typed filter slot when it runs internal and in its next filter-update batch
+// otherwise (ipc PluginConn.CallFilter, D-12). A plugin whose slot is closed
+// (stopped, crashed or respawning) answers an error naming it unavailable
+// and wrapping rpc.ErrBridgeClosed, and the caller applies the filter's
+// on-error (FR-11). Returns an error if the plugin is not found or not
+// connected.
+func (s *Server) CallFilterUpdate(ctx context.Context, pluginName string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
 	pm := s.procManager.Load()
 	if pm == nil {
 		return nil, errFilterUpdateNoProcessManager
@@ -490,7 +495,12 @@ func (s *Server) CallFilterUpdate(ctx context.Context, pluginName string, input 
 	if conn == nil {
 		return nil, fmt.Errorf("filter-update: plugin %q not connected", pluginName)
 	}
-	return conn.SendFilterUpdate(ctx, input)
+	out, err := conn.CallFilter(ctx, route)
+	if errors.Is(err, rpc.ErrBridgeClosed) {
+		return nil, fmt.Errorf("filter %s: plugin %q is unavailable (stopped, crashed or respawning): %w",
+			route.Filter(), pluginName, err)
+	}
+	return out, err
 }
 
 // CallDoctorCheck invokes a plugin's doctor check callback and returns diagnostics.

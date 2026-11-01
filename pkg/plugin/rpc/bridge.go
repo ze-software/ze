@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — direct transport bridge
 // Related: conn.go — socket-based RPC transport (replaced by bridge for internal plugins)
+// Related: filter_slot.go — the typed filter-update slot
 
 package rpc
 
@@ -52,6 +53,8 @@ type DirectBridge struct {
 	deliverEvents         func(events []string) error
 	deliverStructured     func(events []any) error
 	hasStructured         atomic.Bool // set atomically when deliverStructured is written
+	filterSlot            FilterSlotHandler
+	hasFilterSlot         atomic.Bool // set atomically when filterSlot is written (filter_slot.go)
 	dispatchRPC           func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error)
 	dispatchCommand       DispatchCommandHandler       // Typed fast path (no JSON)
 	hasDispatchCmd        atomic.Bool                  // set atomically when dispatchCommand is written

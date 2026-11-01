@@ -352,6 +352,46 @@ p.OnValidateOpen(func(input *sdk.ValidateOpenInput) *sdk.ValidateOpenOutput {
 
 If no handler is registered, OPEN validation returns `{accept: true}` (no-op).
 
+### Route filters
+
+A filter has one evaluator for both transports. Register it with
+`p.OnFilter(eval)`, where `eval` takes one `*sdk.FilterRoute` and answers the
+verdict and the sets (`*sdk.FilterUpdateOutput`), or an error that fails that
+route under the filter's `on-error`.
+
+| The plugin runs | The SDK installs `eval` as | The route carries |
+|-----------------|----------------------------|-------------------|
+| Internal (a goroutine in the daemon) | The typed `DirectBridge` filter slot, at Stage 5 | The engine's lazy view: `Fields()` encodes the declared fields only when called, `Raw()` the raw body, `Engine()` the engine's typed view for a filter compiled with it |
+| Forked (any process) | The `filter-update` batch handler | The decoded input: `Fields()` and `Raw()` answer what the message carried, `Engine()` is nil |
+
+The slot is callable only from Stage 5 until the bridge closes. A stopped,
+crashed or respawning plugin is unavailable: the engine applies the filter's
+`on-error` and never answers from the old plugin's state.
+
+**The fast-path contract.** Internal, `eval` runs on the engine's goroutines,
+concurrently. It MUST be non-blocking and bounded, MUST be safe for
+concurrent calls, MUST NOT keep the route, or any slice it answered, past its
+return, and MUST read its state from a snapshot its own goroutines swap
+atomically. Data it has not resolved yet takes the filter's `on-error`; once
+resolved, the plugin asks Ze to re-judge the routes, which at HEAD is
+`request peer <peer> refresh <family>` (RFC 2918).
+
+**The conformance harness.** Every fast-path filter's test MUST pass
+`sdk.CheckFilterConformance(t, name, eval, routes)` under `-race`. It refuses
+a call past `sdk.FilterCallDeadline`, a repeat call that answers differently
+(state written without a snapshot), a view read after its call returned or a
+kept slice whose reuse changes an answer, a fast-path verdict that differs
+from the forked transport's, and concurrent calls that answer otherwise,
+each report naming the filter and the clause.
+
+`p.OnFilterUpdate(fn)` is the same registration, adapted for a handler
+written against `*sdk.FilterUpdateInput`: the SDK encodes a fast-path route's
+fields for it and serializes its calls with a mutex, so a handler that keeps
+unsnapshotted state stays race-free. It is removed once every filter
+registers with `OnFilter`.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter -->
+<!-- source: pkg/plugin/sdk/filter_conformance.go -- CheckFilterConformance -->
+
 ### OnBye
 
 Called when the engine sends `bye`: when it removes the plugin while the

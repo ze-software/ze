@@ -57,7 +57,7 @@ func (f *fakeFilterTransport) FilterReads(_, _ string) []string { return nil }
 
 func (f *fakeFilterTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy { return f.onError }
 
-func (f *fakeFilterTransport) CallFilterUpdate(_ context.Context, _ string, _ *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+func (f *fakeFilterTransport) CallFilterUpdate(_ context.Context, _ string, _ *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
 	return f.out, f.err
 }
 

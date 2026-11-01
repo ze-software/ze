@@ -39,7 +39,12 @@ func (f *fakeCaller) FilterDeclaration(plugin, filter string) (ExternalDeclarati
 	return ff.decl, ok
 }
 
-func (f *fakeCaller) CallFilter(plugin string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+func (f *fakeCaller) CallFilter(plugin string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
+	inputValue, err := route.Input()
+	if err != nil {
+		return nil, err
+	}
+	input := &inputValue
 	ff, ok := f.filters[plugin+":"+input.Filter]
 	if !ok {
 		return nil, errors.New("no such filter")

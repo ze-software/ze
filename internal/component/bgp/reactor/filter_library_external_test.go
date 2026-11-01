@@ -45,7 +45,12 @@ func (e *externalTransport) FilterDeclaration(plugin, filter string) ([]string, 
 
 func (e *externalTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy { return rpc.OnErrorReject }
 
-func (e *externalTransport) CallFilterUpdate(_ context.Context, _ string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+func (e *externalTransport) CallFilterUpdate(_ context.Context, _ string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
+	inputValue, err := route.Input()
+	if err != nil {
+		return nil, err
+	}
+	input := &inputValue
 	sent := *input
 	sent.Fields = append(json.RawMessage(nil), input.Fields...)
 	e.sent = append(e.sent, sent)

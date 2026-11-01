@@ -51,6 +51,10 @@ compiled yet (`docs/plugin-development/schema.md`, "What works today").
   stays generic").
 - **Every feature works over both transports.** `DirectBridge` is an in-process
   shortcut of the same protocol, and a forked plugin always takes the RPC path.
+  A per-route callback gets a typed bridge slot, as `filter-update` does
+  (`rpc.DirectBridge.SetFilterSlot`, installed by `sdk.OnFilter`): one
+  evaluator, called through the slot internal and over the batched message
+  forked (`docs/plugin-development/handlers.md`, "Route filters").
 - **A role one plugin takes from another is a claim, not an import.** Declare
   `Claims`. The other plugin reads `ClaimActive` in `OnConfigure`
   (`plugin-system.md`, "Exclusive role claims").
@@ -119,4 +123,5 @@ compiled yet (`docs/plugin-development/schema.md`, "What works today").
 | `./le doc yang-contract command-contract` | Every YANG command has a handler |
 | `./le mock plugin-external <name>` | Runs a registered engine through real TLS connect-back (`docs/architecture/testing/ci-format.md`) |
 | `./le job run label plugin command go test -race ./internal/component/plugin/... ./pkg/plugin/...` | The scoped package tests |
+| `sdk.CheckFilterConformance` in a filter's test, under `-race` | The fast-path contract of a filter evaluator, on both transports |
 | `./le doc check all` | Source anchors in any page you edited |

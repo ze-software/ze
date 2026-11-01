@@ -256,6 +256,9 @@ type RunSets struct {
 	// fields object it is sent, kept across runs.
 	route  ExternalRoute
 	fields []byte
+	// call is the view an external member's call carries (memberView),
+	// valid during that call only.
+	call memberView
 }
 
 // SetRoute records what external members are sent for the next runs. The

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -93,6 +94,14 @@ type ValidateOpenHandler func(*ValidateOpenInput) *ValidateOpenOutput
 
 // FilterUpdateHandler handles route filter requests (accept/reject/modify with optional delta).
 type FilterUpdateHandler func(*FilterUpdateInput) (*FilterUpdateOutput, error)
+
+// FilterEvaluator judges one route for a filter, on either transport: the
+// verdict and the sets, or an error that fails the route under the filter's
+// on-error (OnFilter).
+type FilterEvaluator func(route *FilterRoute) (*FilterUpdateOutput, error)
+
+// FilterRoute is one route a filter judges (rpc.FilterRoute).
+type FilterRoute = rpc.FilterRoute
 
 // DoctorCheckHandler handles doctor check requests. Receives the check name, returns diagnostics.
 type DoctorCheckHandler func(name string) ([]rpc.DoctorCheckDiagnostic, error)
@@ -841,35 +850,68 @@ func (p *Plugin) OnValidateOpen(fn ValidateOpenHandler) {
 	}
 }
 
-// OnFilterUpdate sets the handler for route filter requests. The engine sends
-// a batch of routes in one filter-update exchange (rpc.FilterUpdateBatchInput);
-// the SDK calls fn once per route, in request order, and answers one verdict
-// per route. An error fn returns fails that route alone: its verdict carries
-// the error, and the engine applies the filter's on-error to it.
-func (p *Plugin) OnFilterUpdate(fn FilterUpdateHandler) {
+// OnFilter installs the plugin's filter evaluator, the one registration a
+// filter has for both transports (FR-8). Running internal, the SDK installs
+// eval as the typed DirectBridge filter slot at Stage 5: the engine calls it
+// on its own goroutines with its lazy view of the route, nothing encoded.
+// Running forked, the SDK answers each filter-update batch by calling eval
+// once per route, in request order, with one verdict per route. An error eval
+// returns, or a nil verdict, fails that route alone: the engine applies the
+// filter's on-error to it. eval MUST honor the fast-path contract on both
+// transports (docs/plugin-development/handlers.md, "Route filters").
+func (p *Plugin) OnFilter(eval FilterEvaluator) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.onFilter = eval
 	p.callbacks[callbackFilterUpdate] = func(params json.RawMessage) (json.RawMessage, error) {
-		var batch rpc.FilterUpdateBatchInput
-		if err := json.Unmarshal(params, &batch); err != nil {
-			return nil, fmt.Errorf("unmarshal filter-update: %w", err)
-		}
-		out := rpc.FilterUpdateBatchOutput{Verdicts: make([]rpc.FilterUpdateOutput, len(batch.Routes))}
-		for i := range batch.Routes {
-			verdict, err := fn(&batch.Routes[i])
-			if err != nil {
-				out.Verdicts[i] = rpc.FilterUpdateOutput{Action: rpc.FilterReject, Error: err.Error()}
-				continue
-			}
-			if verdict == nil {
-				out.Verdicts[i] = rpc.FilterUpdateOutput{Action: rpc.FilterReject,
-					Error: "the filter handler answered no verdict"}
-				continue
-			}
-			out.Verdicts[i] = *verdict
-		}
-		return json.Marshal(out)
+		return answerFilterBatch(eval, params)
 	}
+}
+
+// answerFilterBatch is the forked transport of eval: one filter-update batch
+// in, one verdict per route out.
+func answerFilterBatch(eval FilterEvaluator, params json.RawMessage) (json.RawMessage, error) {
+	var batch rpc.FilterUpdateBatchInput
+	if err := json.Unmarshal(params, &batch); err != nil {
+		return nil, fmt.Errorf("unmarshal filter-update: %w", err)
+	}
+	out := rpc.FilterUpdateBatchOutput{Verdicts: make([]rpc.FilterUpdateOutput, len(batch.Routes))}
+	for i := range batch.Routes {
+		route := rpc.InputFilterRoute(&batch.Routes[i])
+		verdict, err := eval(&route)
+		if err != nil {
+			out.Verdicts[i] = rpc.FilterUpdateOutput{Action: rpc.FilterReject, Error: err.Error()}
+			continue
+		}
+		if verdict == nil {
+			out.Verdicts[i] = rpc.FilterUpdateOutput{Action: rpc.FilterReject,
+				Error: "the filter handler answered no verdict"}
+			continue
+		}
+		out.Verdicts[i] = *verdict
+	}
+	return json.Marshal(out)
+}
+
+// OnFilterUpdate installs fn as the plugin's filter evaluator through
+// OnFilter, for a filter written against the filter-update input. It is the
+// same registration, adapted: fn receives the route as one input (a fast-path
+// route's fields encoded for it), and its calls are serialized by a mutex, as
+// the plugin's callback loop serialized them before the fast path, so a
+// handler that keeps unsnapshotted state stays race-free. A filter that
+// meets the fast-path contract registers with OnFilter instead and is called
+// concurrently with nothing encoded.
+func (p *Plugin) OnFilterUpdate(fn FilterUpdateHandler) {
+	var serial sync.Mutex
+	p.OnFilter(func(route *FilterRoute) (*FilterUpdateOutput, error) {
+		input, err := route.Input()
+		if err != nil {
+			return nil, err
+		}
+		serial.Lock()
+		defer serial.Unlock()
+		return fn(&input)
+	})
 }
 
 // OnDoctorCheck sets the handler for doctor check requests.

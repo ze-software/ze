@@ -119,7 +119,12 @@ func (c *recordingCaller) FilterDeclaration(string, string) (policychain.Externa
 	return c.decl, true
 }
 
-func (c *recordingCaller) CallFilter(plugin string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+func (c *recordingCaller) CallFilter(plugin string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
+	inputValue, err := route.Input()
+	if err != nil {
+		return nil, err
+	}
+	input := &inputValue
 	c.calls = append(c.calls, plugin+":"+input.Filter+" "+string(input.Fields))
 	return &rpc.FilterUpdateOutput{Action: rpc.FilterAccept}, nil
 }

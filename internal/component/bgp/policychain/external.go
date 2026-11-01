@@ -52,10 +52,12 @@ type ExternalCaller interface {
 	// when it has declared no such filter (it has not reached Stage 1, or
 	// it has gone).
 	FilterDeclaration(plugin, filter string) (ExternalDeclaration, bool)
-	// CallFilter sends input to plugin, in a filter-update batch bounded by
-	// rpc.FilterUpdateTimeout, and answers the route's verdict. It MUST NOT
-	// keep input past its return.
-	CallFilter(plugin string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error)
+	// CallFilter judges route by plugin's filter and answers its verdict:
+	// through the plugin's typed filter slot, the view read in place, when the
+	// plugin runs internal, and in a filter-update batch bounded by
+	// rpc.FilterUpdateTimeout, the fields encoded, when it runs forked
+	// (D-12). It MUST NOT keep route past its return.
+	CallFilter(plugin string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error)
 }
 
 // ExternalRoute is what an external member needs beside the view: the caller,
@@ -117,24 +119,16 @@ func (c *Chain) judgeExternal(m *member, view *policyview.View, run *RunSets) (e
 	if len(decl.Reads) == 0 {
 		return externalVerdict{}, decl.OnError, errExternalTextUpdate
 	}
-	fields, err := policyview.AppendFields(run.fields[:0], view, decl.Reads)
-	if err != nil {
-		return externalVerdict{}, decl.OnError, fmt.Errorf("the declared fields cannot be read: %w", err)
-	}
-	run.fields = fields[:0]
-	input := rpc.FilterUpdateInput{
+	header := rpc.FilterUpdateInput{
 		Filter:    m.external.filter,
 		Direction: route.Direction,
 		Peer:      route.Peer,
 		PeerAS:    route.PeerAS,
 	}
-	if len(fields) > 0 {
-		input.Fields = fields
-	}
-	if slices.Contains(decl.Reads, rpc.FilterFieldRaw) {
-		input.Raw = route.Raw
-	}
-	out, err := route.Caller.CallFilter(m.external.plugin, &input)
+	run.call.begin(run, view, decl.Reads)
+	defer run.call.end()
+	call := rpc.ViewFilterRoute(&header, &run.call)
+	out, err := route.Caller.CallFilter(m.external.plugin, &call)
 	if err != nil {
 		return externalVerdict{}, decl.OnError, err
 	}

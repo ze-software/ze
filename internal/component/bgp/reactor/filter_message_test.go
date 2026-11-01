@@ -38,7 +38,12 @@ func (f *fieldsTransport) FilterReads(_, filterName string) []string { return f.
 
 func (f *fieldsTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy { return rpc.OnErrorReject }
 
-func (f *fieldsTransport) CallFilterUpdate(_ context.Context, _ string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+func (f *fieldsTransport) CallFilterUpdate(_ context.Context, _ string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
+	inputValue, err := route.Input()
+	if err != nil {
+		return nil, err
+	}
+	input := &inputValue
 	sent := *input
 	// The fields buffer returns to its pool once the call answers, as it does
 	// after the production transport marshalled the request, so the test

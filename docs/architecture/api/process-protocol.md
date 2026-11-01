@@ -2078,7 +2078,9 @@ not just a goroutine waiting for an uncancelled writer.
 | Plugin to Engine dispatch-command-args | JSON marshal `DispatchCommandArgsInput` -> RPC -> unmarshal -> exact command route | `bridge.DispatchCommandArgs(ctx, command, args, peer)` -> `dispatchCommandArgs()` directly (Go args slice, no tokenizer) |
 | Plugin to Engine emit-event | JSON marshal `EmitEventInput` -> RPC -> unmarshal -> deliver | `bridge.EmitEvent(namespace, eventType, ...)` -> `deliverEvent()` directly (Go strings, no JSON) |
 | Engine to Plugin callbacks | MuxConn RPC + 3-way select | `bridge.SendCallback()` -> callback channel -> `bridgeEventLoop` 2-way select |
-| Engine to Plugin `filter-update` | `CallFilterUpdate` -> `SendFilterUpdate` (queued on the connection's batch worker) -> `CallRPC` -> MuxConn RPC | No typed slot: `CallRPC` marshals the batch of text-subject `FilterUpdateInput` routes to JSON and calls the generic `bridge.SendCallback()`, so the callback skips the pipe but still pays for the text subject and JSON both ways |
+| Engine to Plugin `filter-update` | `Server.CallFilterUpdate` -> `PluginConn.CallFilter` -> `DirectBridge.CallFilterSlot` when the plugin installed a filter slot (`sdk.OnFilter` at Stage 5), else `SendFilterUpdate` (queued on the connection's batch worker) | Typed slot: the evaluator is called on the engine's goroutine with the engine's lazy view (`rpc.FilterView`), nothing marshaled and nothing queued on `callbackCh`; a fast-path route is encoded only when the evaluator asks for `Fields`, or when the route goes to a forked plugin's batch. A closed slot (before Stage 5, after `CloseCallbacks`, after a callback failure) answers `ErrBridgeClosed`, which `Server.CallFilterUpdate` reports as the plugin being unavailable, and the filter's `on-error` applies; once a slot existed the route never falls back to the queue |
+<!-- source: pkg/plugin/rpc/filter_slot.go -- CallFilterSlot -->
+<!-- source: internal/component/plugin/ipc/filter_slot.go -- CallFilter -->
 
 **Callback dispatch:** Both event loops (pipe and bridge) dispatch through a generic
 callback registry (`map[string]callbackHandler`). Each `On*` method registers a typed
