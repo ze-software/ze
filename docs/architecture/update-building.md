@@ -578,6 +578,12 @@ identity and ingress path identity; local/config/API writes establish local
 ownership. Explicit local withdrawals retain their authority, while automatic
 RIB cleanup and sent replay carry captured ownership rather than impersonating
 an operator.
+Each key's entry is a slot of the table's own store: installing a key takes a
+zeroed slot, from the slots its withdrawals freed or from a chunk of 256, so a
+write allocates no object per key, and a reset of the table frees every chunk
+with it.
+<!-- source: internal/component/bgp/reactor/adj_rib_out_store.go -- adjRIBOutEntries, take, free, clear -->
+<!-- source: internal/component/bgp/reactor/session_ownership_walk.go -- adjOutSectionWalk, recordNLRI -->
 Each nonempty family section also checks the bound Session's negotiated family
 intersection before changing ownership. The negotiated pointer is published under
 `writeMu` during OPEN processing, so this check takes no peer or session read lock
@@ -754,6 +760,7 @@ delivery after a failed flush.
 <!-- source: internal/component/bgp/reactor/session_paths_limit.go -- updateSendCounts, commitUpdateSender -->
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- commitToPeer -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- recordSection -->
+<!-- source: internal/component/bgp/reactor/session_ownership_walk.go -- recordNLRI -->
 
 Duplicate suppression is performed under the final writer lock, after policy
 and normalization, not by an API post-send record/forget bridge. Native semantic

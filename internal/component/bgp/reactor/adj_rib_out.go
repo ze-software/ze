@@ -30,6 +30,9 @@ type adjRIBOut struct {
 	mu      sync.Mutex
 	session *Session
 	routes  map[adjOutKey]*adjRIBOutRoute
+	// entries holds the slots routes points at; every reset of routes clears
+	// it (adjRIBOutEntries).
+	entries adjRIBOutEntries
 	// sourcePaths is a derived index of source-owned ADD-PATH slots, keyed
 	// before outgoing identifier generation. It has the same lifetime as
 	// routes, not the recent-update cache or its allocator mappings.
@@ -458,6 +461,7 @@ func (a *adjRIBOut) clearRoutes() {
 	}
 	a.sourcePaths = nil
 	a.routes = nil
+	a.entries.clear()
 	a.tombstones = nil
 	a.released = nil
 	a.dropOwed()

@@ -366,3 +366,80 @@ func TestAdvertisedStateClearedOnTeardown(t *testing.T) {
 
 	assert.False(t, peer.hasAdvertised(), "the connection that advertised is gone")
 }
+
+// adjOutOnlyEntry is the table's one installed entry, read under the table
+// mutex.
+func adjOutOnlyEntry(t *testing.T, table *adjRIBOut) *adjRIBOutRoute {
+	t.Helper()
+	table.mu.Lock()
+	defer table.mu.Unlock()
+
+	require.Len(t, table.routes, 1, "the table holds one key")
+	for _, entry := range table.routes {
+		return entry
+	}
+	return nil
+}
+
+// TestAdjOutEntryStoreReusesFreedSlots pins the entry store's slot lifecycle.
+//
+// Goal: a key's entry is a pooled slot, a withdrawal returns it, and the next
+// key installed reuses it carrying nothing of the key it held before. A slot
+// that kept its old contested bit would make the new owner's re-announcement
+// an election; one that kept its revision would answer a replay with the old
+// message identity (recordSection keeps a nonzero revision on replay).
+// Method: announce a route through the operator rail, plant every field of its
+// entry with a value no fresh install writes, withdraw it, then replay an
+// announcement of a DIFFERENT prefix. The second key's entry must be the same
+// slot, with every planted value gone. A reset (clearRoutes) must then leave
+// the store with no chunk and no free slot.
+//
+// VALIDATES: a freed slot is reused and zeroed; clearRoutes drops every chunk.
+// PREVENTS: a per-key heap object, and a reused slot leaking another key's
+// ownership state (spec A-3, R-2).
+func TestAdjOutEntryStoreReusesFreedSlots(t *testing.T) {
+	peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
+	adapter := groupUpdatesReactor([]*Peer{peer}, false)
+
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	first := adjOutOnlyEntry(t, &peer.adjOut)
+
+	planted := adjRIBOutRoute{
+		owner:     adjOutPath{source: peer, revision: ^uint64(0), generation: ^uint64(0)},
+		revision:  ^uint64(0),
+		signature: []byte{0xde, 0xad},
+		exactNLRI: []byte{0xbe, 0xef},
+		contested: true,
+	}
+	peer.adjOut.mu.Lock()
+	*first = planted
+	peer.adjOut.mu.Unlock()
+
+	require.NoError(t, adapter.WithdrawNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	replay := adjOutBatch("3.3.0.1/32", "1.1.1.1")
+	replay.Replay = true
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), replay, plugin.OperatorSender()))
+	require.Len(t, framesOf(t, conn, false), 3, "announce, withdraw, announce of another prefix")
+
+	second := adjOutOnlyEntry(t, &peer.adjOut)
+	peer.adjOut.mu.Lock()
+	reused := second == first
+	got := *second
+	peer.adjOut.mu.Unlock()
+
+	assert.True(t, reused, "the withdrawn key's slot is reused for the next key")
+	assert.NotEqual(t, planted.owner, got.owner, "the old key's owner is gone")
+	assert.NotEqual(t, planted.revision, got.revision, "the old key's revision is gone, even on a replay")
+	assert.NotEqual(t, planted.signature, got.signature, "the old key's signature is gone")
+	assert.Nil(t, got.exactNLRI, "a canonical /32 keeps no exact NLRI, so the old one is gone")
+	assert.False(t, got.contested, "the old key's contested bit is gone")
+
+	peer.adjOut.mu.Lock()
+	peer.adjOut.clearRoutes()
+	store := peer.adjOut.entries
+	peer.adjOut.mu.Unlock()
+
+	assert.Nil(t, store.chunk, "a reset drops the current chunk")
+	assert.Zero(t, store.cut)
+	assert.Empty(t, store.freed, "a reset drops the free list")
+}

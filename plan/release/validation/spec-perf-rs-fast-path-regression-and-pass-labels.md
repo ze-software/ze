@@ -8,7 +8,7 @@
 | Release reason | Release validation: the route-server fast path measures about 5x slower than it did on 2026-09-21, and the comparison report shows Ze's sender-first pass under the bare DUT name, so the published convergence figure for Ze is the wrong pass |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 3/6 |
+| Phase | 4/6 |
 | Handoff | - |
 | Updated | 2026-11-01 |
 
@@ -202,7 +202,7 @@ pass, with the pass named in one declaration.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A cheaper bookkeeping path changes an election, tombstone or owed-withdrawal outcome | A test named in AC-4 goes red | Fix the code; no test in AC-4 is edited except through `ze-test-judge` |
-| R-2 | The chunked entry store retains memory after a mass withdrawal | Heap in a 1M route soak stays at peak | Chunks are freed on `clearRoutes`; the free list reuses slots; retention is bounded by the session's peak table, the same bound the map already holds |
+| R-2 | The chunked entry store retains memory after a mass withdrawal | Heap in a 1M route soak stays at peak | Chunks are freed on `clearRoutes`; the free list reuses slots; retention is bounded by the session's peak table, the same bound the map already holds. Phase 4 evidence: `adjRIBOutEntries.clear` runs in `clearRoutes`, `free` zeroes a slot so a free slot keeps no Peer or signature alive, and `TestAdjOutEntryStoreReusesFreedSlots` shows the reuse and the empty store after a reset; no soak run |
 | R-3 | Host load makes AC-1 noise (294 ms ±355 was observed at load average about 97) | Stddev above 10 ms | AC-1 is run by Thomas on the Mac on a quiet host, never by an agent |
 | R-4 | The Go benchmark measures a path the lab does not take | Benchmark improves, lab does not | The benchmark drives `writeUpdateBody` with a source-bound forwarded item, the same authority and table state as the fast path |
 
@@ -245,10 +245,10 @@ pass, with the pass named in one declaration.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAdjOutForwardedWriteAllocations` | `internal/component/bgp/reactor/session_ownership_bench_test.go` (built `!race`; `session_ownership_bench_race_test.go` skips the name under `-race`, whose `sync.Pool` drops make counts the detector's) | AC-3 | written, red at HEAD |
+| `TestAdjOutForwardedWriteAllocations` | `internal/component/bgp/reactor/session_ownership_bench_test.go` (built `!race`; `session_ownership_bench_race_test.go` skips the name under `-race`, whose `sync.Pool` drops make counts the detector's) | AC-3 | written, red at HEAD (cycle 10 keys 26.0, 1000 keys 1016.0 allocs; re-announce 8.0), green after phase 4 (0.0, 0.0; 0.0) |
 | `BenchmarkAdjOutForwardedWrite` | `internal/component/bgp/reactor/session_ownership_bench_test.go` | AC-2, owner-run on the Mac | written, smoke-run `-benchtime=1x` only |
 | `TestOwesWithdrawalReadsRecoveryOwnerOncePerWrite` | `internal/component/bgp/reactor/recovery_owed_test.go` | AC-5 | written, red at HEAD (owed 1 of 8), green after phase 3 |
-| `TestAdjOutEntryStoreReusesFreedSlots` | `internal/component/bgp/reactor/adj_rib_out_test.go` | A freed slot is reused for a new key and carries none of the old key's owner, revision, signature or contested bit; `clearRoutes` drops every chunk (A-3, R-2) | |
+| `TestAdjOutEntryStoreReusesFreedSlots` | `internal/component/bgp/reactor/adj_rib_out_test.go` | A freed slot is reused for a new key and carries none of the old key's owner, revision, signature or contested bit; `clearRoutes` drops every chunk (A-3, R-2) | written, red before the store was wired (slot not reused), green after phase 4 |
 | `TestRunResultRecordsPass` | `internal/perf/benchmark_test.go` | AC-6 | |
 | `TestComparisonRendersBothPassesOfOneDUT` | `internal/perf/report/report_test.go` | AC-7, AC-8, AC-9 | |
 | `TestComparisonUnrecordedPassIsNamed` | `internal/perf/report/report_test.go` | AC-10 | |

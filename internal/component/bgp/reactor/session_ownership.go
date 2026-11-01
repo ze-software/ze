@@ -70,10 +70,15 @@ type adjOutWrite struct {
 	// Counts come from the existing final-body record walk, before acceptance.
 	announcedRoutes uint64
 	withdrawnRoutes uint64
+	// walk is the current section walk; allowVisit and recordVisit are its
+	// visitors, bound once when the pool makes the write (adjOutSectionWalk).
+	walk        adjOutSectionWalk
+	allowVisit  func([]byte) bool
+	recordVisit func([]byte) bool
 }
 
 var adjOutWritePool = sync.Pool{New: func() any {
-	return &adjOutWrite{
+	w := &adjOutWrite{
 		owners:    make(map[adjOutKey]adjOutPath),
 		withdrawn: make(map[adjOutKey]struct{}),
 		owes:      make(map[adjOutKey]adjOutOwe),
@@ -83,6 +88,8 @@ var adjOutWritePool = sync.Pool{New: func() any {
 		contested: make(map[adjOutKey]struct{}),
 		ordinals:  make(map[family.Family]uint32),
 	}
+	w.allowVisit, w.recordVisit = w.allowNLRI, w.recordNLRI
+	return w
 }}
 
 // beginAdjOut MUST be called under writeMu and paired with release. Captured
@@ -755,36 +762,13 @@ func (w *adjOutWrite) section(dst, data []byte, fam family.Family, withdraw, mul
 	if split == nil {
 		return 0, errAdjOutProvenance
 	}
-	n, occurrence := 0, 0
-	var cause error
-	_, err := split(data, w.encoding.AddPathFor(fam), func(raw []byte) bool {
-		if cause != nil {
-			return true
-		}
-		// RFC 7911 Section 5; final destination framing, original provenance.
-		allowed, admissionErr := w.allow(fam, raw, withdraw, multiprotocol, occurrence, sig, readable)
-		occurrence++
-		// One refused NLRI fails the whole section. For errAdjOutPolicy that
-		// relies on an invariant: every NLRI of an initial, replay or
-		// recovery section shares one source and one original import epoch,
-		// because the epoch is the item's (fwdItem.sourcePolicyEpoch) and a
-		// packed section joins only items with equal epochs
-		// (recoveryPackJoins, the forward bucket's run test). A stale NLRI
-		// therefore means the whole section is stale.
-		if admissionErr != nil {
-			cause = admissionErr
-			return true
-		}
-		if !allowed {
-			w.removed++
-			return true
-		}
-		if dst != nil {
-			copy(dst[n:], raw)
-		}
-		n += len(raw)
-		return true
-	})
+	w.walk = adjOutSectionWalk{
+		dst: dst, family: fam, withdraw: withdraw, multiprotocol: multiprotocol,
+		signature: sig, readable: readable,
+	}
+	_, err := split(data, w.encoding.AddPathFor(fam), w.allowVisit)
+	n, cause := w.walk.n, w.walk.cause
+	w.walk = adjOutSectionWalk{}
 	if err != nil {
 		return 0, err
 	}
@@ -964,109 +948,10 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 	if split == nil {
 		return errAdjOutProvenance
 	}
-	var sig adjRIBOutSignature
-	var readable, signatureRead bool
-	var stored []byte
-	var cause error
-	_, err := split(data, w.encoding.AddPathFor(fam), func(raw []byte) bool {
-		if cause != nil {
-			return true
-		}
-		key, keyErr := w.key(fam, raw, withdraw)
-		if keyErr != nil {
-			cause = keyErr
-			return true
-		}
-		if withdraw {
-			w.recordDeletion(key)
-			w.withdrawnRoutes++
-			return true
-		}
-		owner, ok := w.owners[key]
-		if !ok {
-			cause = errAdjOutProvenance
-			return true
-		}
-		if w.sourceSet && w.source != owner.source {
-			cause = errAdjOutProvenance
-			return true
-		}
-		w.source, w.sourceSet = owner.source, true
-		w.policyEpoch = owner.policyEpoch
-		if w.session.onMessageReceived != nil {
-			ordinal := w.ordinals[fam]
-			if owner.addPath {
-				if w.pathSources == nil {
-					w.pathSources = make([]wireu.SentPathSource, 0, len(w.owners))
-				}
-				w.pathSources = append(w.pathSources, wireu.SentPathSource{
-					Family: fam, Ordinal: ordinal, PathID: owner.received,
-				})
-			}
-			w.ordinals[fam] = ordinal + 1
-		}
-		if w.table.routes == nil {
-			w.table.routes = make(map[adjOutKey]*adjRIBOutRoute)
-		}
-		entry := w.table.routes[key]
-		if entry == nil {
-			entry = new(adjRIBOutRoute)
-			w.table.routes[key] = entry
-			if taken, held := w.table.takeReleased(key, owner); held {
-				// The released receipt's slot, its identifier reservation
-				// and ingress binding, passes to the entry; setOwner below
-				// rebinds it if another owner takes the key.
-				entry.owner = taken
-			} else if key.addPath {
-				fwdPathIDs.retain(key.path.received)
-			}
-		} else if !key.addPath && !adjOutSameOwner(entry.owner, owner) {
-			// RFC 8212 Section 3: a recovery survivor replacing a receipt
-			// its invalidation denied keeps the receipt's record, as a
-			// removal does, so the abort restore can be owed to the
-			// election between the two paths (oweReleasedRestore).
-			w.keepReleased(key, entry)
-		}
-		w.table.setOwner(&key, entry, owner)
-		if _, contested := w.contested[key]; contested {
-			entry.contested = true
-		}
-		delete(w.table.tombstones, key) // An installed entry carries the bit itself.
-		if !w.sourceBound() {
-			// An originated route is not a candidate of the election and is
-			// not overridden by it: it decides an owed key itself.
-			w.table.removeOwed(key, w.table.owed[key])
-		}
-		if w.session.sentForward == nil || w.session.sentForward.authority != adjOutExpected {
-			replay, _ := w.session.sentMeta["replay"].(bool)
-			if !replay || entry.revision == 0 {
-				entry.revision = w.session.sentReceipt.MessageID()
-			}
-		} else if entry.revision == 0 {
-			// A re-installed released receipt keeps the revision its owner
-			// names, so the owner's later exact removal still matches it.
-			entry.revision = w.session.sentForward.expectedMessage
-		}
-		if item := w.session.sentForward; item != nil && item.authority == adjOutInitial {
-			entry.revision = item.expectedMessage
-		}
-		entry.signature, entry.exactNLRI = nil, nil
-		if owner.source == nil && !signatureRead {
-			sig, readable = announceSignature(attrs, fam, len(data))
-			signatureRead = true
-		}
-		if owner.source == nil && readable {
-			if stored == nil {
-				stored = sig.store()
-			}
-			entry.signature = stored
-			if !adjOutExactNLRI(entry, key, raw) {
-				entry.exactNLRI = append([]byte(nil), raw...)
-			}
-		}
-		w.announcedRoutes++
-		return true
-	})
+	w.walk = adjOutSectionWalk{family: fam, withdraw: withdraw, attrs: attrs, sectionOctets: len(data)}
+	_, err := split(data, w.encoding.AddPathFor(fam), w.recordVisit)
+	cause := w.walk.cause
+	w.walk = adjOutSectionWalk{}
 	if err != nil {
 		return err
 	}
@@ -1084,18 +969,24 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 // slot as a released record instead (keepReleased).
 func (w *adjOutWrite) recordDeletion(key adjOutKey) {
 	entry := w.table.routes[key]
-	if entry != nil && !w.keepReleased(key, entry) {
-		w.table.releasePath(&key, entry)
+	sourceOwned := false
+	if entry != nil {
+		if !w.keepReleased(key, entry) {
+			w.table.releasePath(&key, entry)
+		}
+		sourceOwned = entry.owner.source != nil
 	}
 	delete(w.table.routes, key)
+	if entry != nil {
+		// The entry's last read is above: keepReleased and releasePath copy
+		// what they keep, so the slot can serve the next key installed.
+		w.table.entries.free(entry)
+	}
 	if item := w.session.sentForward; item != nil && item.authority == adjOutRecovery {
 		delete(w.table.tombstones, key)
 		return
 	}
-	if entry == nil {
-		return
-	}
-	if entry.owner.source == nil {
+	if !sourceOwned {
 		return
 	}
 	if key.addPath {
