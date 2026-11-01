@@ -176,6 +176,10 @@ type Sets struct {
 	// (Chain.Trace), so a match's conditions neither count nor log a route
 	// they refuse (MatchRoute.Reports). It is scratch, as matchRoute is.
 	display bool
+	// route is the run's session (RunSets.SetRoute), which a match's
+	// decision line names. Nil when the member is judged outside a chain run.
+	// It is scratch, as matchRoute is.
+	route *ExternalRoute
 }
 
 // Reset forgets every change, so one Sets serves the next member or route.

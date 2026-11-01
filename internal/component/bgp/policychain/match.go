@@ -61,6 +61,9 @@ type matchEvaluator struct {
 	// rejectsUnmatched is the match's action accept: a failed condition
 	// refuses the route (MatchRoute.Reports).
 	rejectsUnmatched bool
+	// reports write the decision line of each condition the match names
+	// (match_report.go), in condition key order.
+	reports []boundReport
 }
 
 // compileMatchEvaluator compiles a match instance over MatchConditions. A
@@ -77,6 +80,9 @@ func compileMatchEvaluator(_ string, instance map[string]any, resolve policy.Ins
 	e := &matchEvaluator{match: match, prefix: reader,
 		perPrefix:        slices.Contains(policy.MatchFields(instance, false), policy.FieldPrefix),
 		rejectsUnmatched: match.RejectsUnmatched()}
+	if e.reports, err = compileMatchReports(instance, resolve); err != nil {
+		return nil, err
+	}
 	return e.evaluate, nil
 }
 
@@ -88,13 +94,17 @@ func compileMatchEvaluator(_ string, instance map[string]any, resolve policy.Ins
 // each rejected entry (DropNLRI), announced and withdrawn.
 func (e *matchEvaluator) evaluate(view *policyview.View, sets *Sets) (Decision, error) {
 	sets.matchRoute = MatchRoute{View: view, Reports: e.rejectsUnmatched && !sets.display}
-	decision, err := e.judge(view, sets)
+	w := matchWalk{e: e, sets: sets, route: &sets.matchRoute, collecting: e.reporting(sets)}
+	decision, err := w.judge(view)
+	if err == nil && w.collecting {
+		e.report(&w, decision) // once per member decision, never for a failure
+	}
 	sets.matchRoute = MatchRoute{} // the view MUST NOT outlive the run
 	return decision, err
 }
 
-func (e *matchEvaluator) judge(view *policyview.View, sets *Sets) (Decision, error) {
-	w := matchWalk{e: e, sets: sets, route: &sets.matchRoute}
+func (w *matchWalk) judge(view *policyview.View) (Decision, error) {
+	e := w.e
 	if !e.perPrefix {
 		return w.verdict()
 	}
@@ -135,6 +145,11 @@ type matchWalk struct {
 	// whole is set when the UPDATE is rejected whatever the counts: a FlowSpec
 	// destination that is absent or rejected, or a section that does not frame.
 	whole bool
+	// collecting is set when a decision line will be written, and judged then
+	// holds each judged prefix in walk order, for the line to name. Unset, the
+	// walk keeps nothing, so a run with every line off allocates nothing.
+	collecting bool
+	judged     []netip.Prefix
 }
 
 func (w *matchWalk) verdict() (Decision, error) {
@@ -215,6 +230,7 @@ func (w *matchWalk) cidrSection(section NLRISection, fam family.Family, nlri []b
 			return errors.Join(policyview.ErrMalformed, errMatchCIDRFraming)
 		}
 		w.route.Prefix = prefix
+		w.collect(prefix)
 		rejects, err := w.e.match.Rejects(w.route)
 		if err != nil {
 			return err
@@ -249,6 +265,7 @@ func (w *matchWalk) flowSpecSection(fam family.Family, nlri []byte, addPath bool
 			return true
 		}
 		w.route.Prefix = destination
+		w.collect(destination)
 		rejects, err := w.e.match.Rejects(w.route)
 		if err != nil {
 			judgeErr = err
@@ -269,6 +286,13 @@ func (w *matchWalk) flowSpecSection(fam family.Family, nlri []byte, addPath bool
 		w.whole = true // a rule that does not frame has no destination to judge
 	}
 	return nil
+}
+
+// collect keeps prefix for the decision line, when one will be written.
+func (w *matchWalk) collect(prefix netip.Prefix) {
+	if w.collecting {
+		w.judged = append(w.judged, prefix)
+	}
 }
 
 // cidrPrefix answers the prefix of bits bits that octets carries, its

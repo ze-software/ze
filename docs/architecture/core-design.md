@@ -1608,7 +1608,12 @@ engine's prefix keys share: an announcement's label stack to the
 bottom-of-stack bit, a withdrawal's one Compatibility field (RFC 8277
 Sections 2.3 and 2.4). Each compiler gets the chain's
 `policy.InstanceResolver` (`registryResolver`), so a match compiles the
-prefix-list it names from instance config. `compileLibraryChain` leaves a
+prefix-list it names from instance config. Each condition's package also registers
+its decision line (`policychain.MustAddMatchReporter`, `match_report.go`): the
+line its own filter writes, on its logger and at its level, written once per
+member decision after the walk, never in a display-only `Chain.Trace` run. A
+live run asks each report's `Enabled` first and collects the judged prefixes
+only when some line is on, so with every line off the walk allocates nothing. `compileLibraryChain` leaves a
 chain with no library member on the text chain, where a plugin filter is sent the update
 text beside its declared `fields`. A plugin filter in a chain that does hold a
 library member joins that chain as a member (below).

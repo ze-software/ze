@@ -25,6 +25,9 @@ func init() {
 	asPathCondition := policy.MustRegisterMatchCondition(policy.FieldASPath.String(),
 		[]policy.Field{policy.FieldASPath}, false)
 	policychain.MatchConditions.MustAdd(asPathCondition, compileBGPCondition)
+	// Its decision line, the one the filter writes (condition.go).
+	policychain.MustAddMatchReporter(asPathCondition,
+		policychain.MatchReporter{Enabled: bgpReportEnabled, Compile: compileBGPReport})
 	// The match leaf naming a list completes and is checked at commit
 	// through this source (as_path_list_reference.go).
 	yang.RegisterReferenceSource(asPathListReferenceSource, asPathListReference)

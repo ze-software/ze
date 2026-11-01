@@ -322,6 +322,7 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		m := &c.members[i]
 		sets.member.Reset()
 		sets.member.display = record != nil
+		sets.member.route = &sets.route
 		onError := m.onError
 		var decision Decision
 		var err error

@@ -26,6 +26,9 @@ func init() {
 	communityCondition := policy.MustRegisterMatchCondition(policy.FieldCommunity.String(),
 		[]policy.Field{policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity}, false)
 	policychain.MatchConditions.MustAdd(communityCondition, compileBGPCondition)
+	// Its decision line, the one the filter writes (condition.go).
+	policychain.MustAddMatchReporter(communityCondition,
+		policychain.MatchReporter{Enabled: bgpReportEnabled, Compile: compileBGPReport})
 	// The match leaf naming a list completes and is checked at commit
 	// through this source (community_match_reference.go).
 	yang.RegisterReferenceSource(communityMatchReferenceSource, communityMatchReference)

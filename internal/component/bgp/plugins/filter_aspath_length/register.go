@@ -26,6 +26,9 @@ func init() {
 	asPathLengthCondition := policy.MustRegisterMatchCondition(filterTypeName,
 		[]policy.Field{policy.FieldASPath}, false)
 	policychain.MatchConditions.MustAdd(asPathLengthCondition, compileBGPCondition)
+	// Its decision line, the one the filter writes (condition.go).
+	policychain.MustAddMatchReporter(asPathLengthCondition,
+		policychain.MatchReporter{Enabled: bgpReportEnabled, Compile: compileBGPReport})
 	// The match leaf naming an instance completes and is checked at commit
 	// through this source (as_path_length_reference.go).
 	yang.RegisterReferenceSource(asPathLengthReferenceSource, asPathLengthReference)

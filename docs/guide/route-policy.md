@@ -297,6 +297,25 @@ daemon's Loc-RIB, so `ze doctor` before a start does not report it.
 | `ze_rib_policy_rejected_total` | `source`, `chain` (`source` or `central`) | Rejections. Every route a protocol offers that a chain rejects counts once. A reload counts a stored path again only when its verdict changes, so recommitting the same chain adds nothing |
 <!-- source: internal/core/rib/locrib/policy_metrics.go -- SetPolicyMetricsRegistry, accountStored, accountRemoved -->
 
+## Decision lines on a BGP chain
+
+A `match` on a BGP peer chain writes, for each UPDATE it judges, the line its
+condition's filter writes, on the same logger and at the same level. Turn a
+logger on with its `ze.log.<subsystem>` variable, for example
+`ze.log.bgp.filter.prefix=info`. `show policy test` writes none of them,
+because it refuses no route.
+
+| Condition | Logger | Line |
+|-----------|--------|------|
+| `prefix-list` | `bgp.filter.prefix` | Info `prefix-list accept`, `reject` or `modify`, with `filter=<list>`, `peer`, `nlri` (the judged prefixes), and `accepted` and `rejected` counts for a modify |
+| `as-path` | `bgp.filter.aspath` | Info `as-path-list accept`, `reject` or `modify`, with `filter=<list>`, `peer`, `as-path` |
+| `as-path-length` | `bgp.filter.aspath-length` | Info `as-path-length reject` only, with `filter=<instance>`, `peer`, `length`, `max`, `min` (-1 for a bound not set) |
+| `community` | `bgp.filter.community.match` | Info `community-match accept`, `reject` or `modify`, with `filter=<list>`, `peer` |
+| `reject-asn` | `bgp.filter.path.asn` | Info `reject-asn reject` with `filter=<list>`, `direction`, `peer`, then `asn` and `position` (and `index` for nth), or `pattern`, then `as-path`; Debug `reject-asn accept` with `as-path` |
+<!-- source: internal/component/bgp/policychain/match_report.go -- MustAddMatchReporter, MatchOutcome -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/condition.go -- compileBGPReport -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/condition.go -- compileBGPReport, logListedReject, logPatternReject -->
+
 ## What Ze refuses
 
 Ze checks every chain when it verifies the config. These are refused, and the

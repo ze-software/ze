@@ -28,6 +28,9 @@ func init() {
 	policy.RouteConditions.MustAdd(prefixListCondition, compileRouteCondition)
 	// The same condition at a BGP chain, judged prefix by prefix.
 	policychain.MatchConditions.MustAdd(prefixListCondition, compileBGPCondition)
+	// Its decision line, the one the list's filter writes.
+	policychain.MustAddMatchReporter(prefixListCondition,
+		policychain.MatchReporter{Enabled: bgpReportEnabled, Compile: compileBGPReport})
 	// The match leaf naming a list completes and is checked at commit
 	// through this source (prefix_list_reference.go).
 	yang.RegisterReferenceSource(prefixListReferenceSource, prefixListReference)

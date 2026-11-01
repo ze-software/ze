@@ -12,8 +12,10 @@
 package filter_aspath_length
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
@@ -62,4 +64,44 @@ func conditionDef(value any, resolve policy.InstanceResolver) (*asPathLengthDef,
 		return nil, err
 	}
 	return parseAsPathLengthDef(name, instance)
+}
+
+// lineReject is the decision line the as-path-length filter writes for a
+// reject (handleFilterUpdate), which a match naming an as-path-length
+// instance writes too. Neither writes a line for an accept.
+const lineReject = "as-path-length reject"
+
+// bgpReportEnabled reports whether the decision line is written: Info on the
+// bgp.filter.aspath-length logger, as the filter writes it.
+func bgpReportEnabled() bool {
+	return logger().Enabled(context.Background(), slog.LevelInfo)
+}
+
+// compileBGPReport binds the as-path-length condition's reject line to the
+// instance the value names: the instance as filter=, the peer, the hop count
+// and the instance's bounds (-1 for a bound it does not set).
+func compileBGPReport(value any, resolve policy.InstanceResolver) (policychain.MatchReport, error) {
+	def, err := conditionDef(value, resolve)
+	if err != nil {
+		return nil, err
+	}
+	reader, err := policyview.ReaderFor(policy.FieldASPath)
+	if err != nil {
+		return nil, fmt.Errorf("BUG: as-path-length: %w", err)
+	}
+	return func(route *policychain.MatchRoute, outcome *policychain.MatchOutcome) {
+		if outcome.Verdict != policychain.MatchVerdictReject {
+			return
+		}
+		l := logger()
+		if !l.Enabled(context.Background(), slog.LevelInfo) {
+			return
+		}
+		path, err := route.View.Read(reader)
+		if err != nil {
+			return // the check already failed the member on this read
+		}
+		l.Info(lineReject, "filter", def.name, "peer", outcome.Peer,
+			"length", pathHops(path.ASPath()), "max", def.max, "min", def.min)
+	}, nil
 }

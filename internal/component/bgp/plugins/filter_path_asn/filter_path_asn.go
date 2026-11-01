@@ -121,7 +121,7 @@ func parseRejectASNConfig(policyCfg, bgpCfg map[string]any) (*rejectASNConfig, e
 	if err != nil {
 		return nil, err
 	}
-	return &rejectASNConfig{lists: lists, attachments: countAttachments(bgpCfg)}, nil
+	return &rejectASNConfig{lists: lists, attachments: countAttachments(policyCfg, bgpCfg)}, nil
 }
 
 // installRejectASN makes cfg what every later filter-update and show reads.
@@ -191,25 +191,12 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 
 	if found, ok := matchPositions(asPath, senderOf(in), list.positions, list.nth); ok {
 		recordReject(in.Direction, rejectSlot(found.at))
-		// An nth reject names the collapsed position it matched at, because
-		// "nth" alone does not tell the operator which of their rules fired.
-		if found.at == positionNth {
-			logger().Info("reject-asn reject",
-				"filter", list.name, "direction", in.Direction, "peer", in.Peer,
-				"asn", found.asn, "position", found.at.String(), "index", found.index,
-				"as-path", asPath)
-			return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
-		}
-		logger().Info("reject-asn reject",
-			"filter", list.name, "direction", in.Direction, "peer", in.Peer,
-			"asn", found.asn, "position", found.at.String(), "as-path", asPath)
+		logListedReject(list.name, in.Direction, in.Peer, found, asPath)
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 	if pattern, ok := matchPattern(asPath, list.patterns); ok {
 		recordReject(in.Direction, slotPattern)
-		logger().Info("reject-asn reject",
-			"filter", list.name, "direction", in.Direction, "peer", in.Peer,
-			"pattern", pattern.String(), "as-path", asPath)
+		logPatternReject(list.name, in.Direction, in.Peer, pattern, asPath)
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 

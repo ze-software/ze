@@ -13,8 +13,10 @@ package filter_community_match
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
@@ -128,4 +130,45 @@ func kindField(kind communityType) policy.Field {
 	default:
 		panic("BUG: invalid community kind")
 	}
+}
+
+// The decision lines the community-match filter writes (handleFilterUpdate), which a
+// match naming a community-match list writes too.
+const (
+	lineAccept = "community-match accept"
+	lineReject = "community-match reject"
+	lineModify = "community-match modify"
+)
+
+// bgpReportEnabled reports whether the decision line is written: Info on the
+// package logger, as the filter writes it.
+func bgpReportEnabled() bool {
+	return logger().Enabled(context.Background(), slog.LevelInfo)
+}
+
+// compileBGPReport binds the community condition's decision line to the list
+// the value names: the verdict, the list as filter=, the peer.
+func compileBGPReport(value any, _ policy.InstanceResolver) (policychain.MatchReport, error) {
+	name, ok := value.(string)
+	if !ok {
+		return nil, errors.New("must name one community-match instance")
+	}
+	return func(_ *policychain.MatchRoute, outcome *policychain.MatchOutcome) {
+		var line string
+		switch outcome.Verdict {
+		case policychain.MatchVerdictAccept:
+			line = lineAccept
+		case policychain.MatchVerdictReject:
+			line = lineReject
+		case policychain.MatchVerdictModify:
+			line = lineModify
+		case policychain.MatchVerdictUnspecified:
+			return // the evaluator names a verdict for every decision
+		}
+		l := logger()
+		if !l.Enabled(context.Background(), slog.LevelInfo) {
+			return
+		}
+		l.Info(line, "filter", name, "peer", outcome.Peer)
+	}, nil
 }

@@ -11,7 +11,9 @@
 package filter_prefix
 
 import (
+	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/policy"
@@ -48,6 +50,54 @@ func compileBGPCondition(value any, resolve policy.InstanceResolver) (policy.Con
 			return false, nil
 		}
 		return evaluatePrefix(entries, r.Prefix) == actionAccept, nil
+	}, nil
+}
+
+// The decision lines the prefix-list filter writes (handleFilterUpdate),
+// which a match naming a prefix-list writes too.
+const (
+	lineAccept = "prefix-list accept"
+	lineReject = "prefix-list reject"
+	lineModify = "prefix-list modify"
+)
+
+// bgpReportEnabled reports whether the decision line is written: Info on the
+// bgp.filter.prefix logger, as the filter writes it.
+func bgpReportEnabled() bool {
+	return logger().Enabled(context.Background(), slog.LevelInfo)
+}
+
+// compileBGPReport binds the prefix-list condition's decision line to the
+// list the value names: the verdict, the list as filter=, the peer, the
+// judged prefixes, and for a modify the accepted and rejected counts.
+func compileBGPReport(value any, _ policy.InstanceResolver) (policychain.MatchReport, error) {
+	name, ok := value.(string)
+	if !ok {
+		return nil, errors.New("must name one prefix-list instance")
+	}
+	return func(_ *policychain.MatchRoute, outcome *policychain.MatchOutcome) {
+		var line string
+		switch outcome.Verdict {
+		case policychain.MatchVerdictAccept:
+			line = lineAccept
+		case policychain.MatchVerdictReject:
+			line = lineReject
+		case policychain.MatchVerdictModify:
+			line = lineModify
+		case policychain.MatchVerdictUnspecified:
+			return // the evaluator names a verdict for every decision
+		}
+		l := logger()
+		if !l.Enabled(context.Background(), slog.LevelInfo) {
+			return
+		}
+		nlri := string(outcome.AppendPrefixes(nil))
+		if outcome.Verdict == policychain.MatchVerdictModify {
+			l.Info(line, "filter", name, "peer", outcome.Peer,
+				"accepted", outcome.Accepted, "rejected", outcome.Rejected, "nlri", nlri)
+			return
+		}
+		l.Info(line, "filter", name, "peer", outcome.Peer, "nlri", nlri)
 	}, nil
 }
 

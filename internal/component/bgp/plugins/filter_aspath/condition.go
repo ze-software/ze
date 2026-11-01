@@ -11,7 +11,9 @@
 package filter_aspath
 
 import (
+	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/policy"
@@ -56,4 +58,49 @@ func conditionEntries(value any, resolve policy.InstanceResolver) ([]aspathEntry
 		return nil, err
 	}
 	return parseAsPathEntries(name, instance)
+}
+
+// The decision lines the as-path-list filter writes (handleFilterUpdate), which a
+// match naming a as-path-list list writes too.
+const (
+	lineAccept = "as-path-list accept"
+	lineReject = "as-path-list reject"
+	lineModify = "as-path-list modify"
+)
+
+// bgpReportEnabled reports whether the decision line is written: Info on the
+// package logger, as the filter writes it.
+func bgpReportEnabled() bool {
+	return logger().Enabled(context.Background(), slog.LevelInfo)
+}
+
+// compileBGPReport binds the as-path condition's decision line to the list
+// the value names: the verdict, the list as filter=, the peer and the AS path.
+func compileBGPReport(value any, _ policy.InstanceResolver) (policychain.MatchReport, error) {
+	name, ok := value.(string)
+	if !ok {
+		return nil, errors.New("must name one as-path-list instance")
+	}
+	return func(route *policychain.MatchRoute, outcome *policychain.MatchOutcome) {
+		var line string
+		switch outcome.Verdict {
+		case policychain.MatchVerdictAccept:
+			line = lineAccept
+		case policychain.MatchVerdictReject:
+			line = lineReject
+		case policychain.MatchVerdictModify:
+			line = lineModify
+		case policychain.MatchVerdictUnspecified:
+			return // the evaluator names a verdict for every decision
+		}
+		l := logger()
+		if !l.Enabled(context.Background(), slog.LevelInfo) {
+			return
+		}
+		text, err := route.View.ASPathText()
+		if err != nil {
+			return // the check already failed the member on this read
+		}
+		l.Info(line, "filter", name, "peer", outcome.Peer, "as-path", string(text))
+	}, nil
 }

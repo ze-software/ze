@@ -27,6 +27,9 @@ func init() {
 	rejectASNCondition := policy.MustRegisterMatchCondition(filterTypeName,
 		[]policy.Field{policy.FieldASPath}, false)
 	policychain.MatchConditions.MustAdd(rejectASNCondition, compileBGPCondition)
+	// Its decision line, the one the filter writes (condition.go).
+	policychain.MustAddMatchReporter(rejectASNCondition,
+		policychain.MatchReporter{Enabled: bgpReportEnabled, Compile: compileBGPReport})
 	// RFC 7454 Section 9: a match naming the condition discharges the
 	// transit-leak obligation a declared RFC 9234 role carries, as a
 	// reject-asn chain member does (FilterObligations below).
