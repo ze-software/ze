@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 
+	"gopkg.in/yaml.v3"
+
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 
 	_ "github.com/ze-software/ze/internal/le/build/hostdriver"
@@ -324,6 +326,25 @@ func actionExists(t *testing.T, identity string) {
 	}
 }
 
+// TestEveryWorkflowParsesAsYAML proves each workflow file is a YAML mapping
+// with a jobs mapping. Every other test here reads the files as text, and
+// GitHub answers a file it cannot parse by running none of its jobs, which a
+// text search cannot see. METHOD: unmarshal each file with yaml.v3.
+func TestEveryWorkflowParsesAsYAML(t *testing.T) {
+	for _, name := range workflowNames(t) {
+		var document struct {
+			Jobs map[string]any `yaml:"jobs"`
+		}
+		if err := yaml.Unmarshal([]byte(workflowSource(t, name)), &document); err != nil {
+			t.Errorf("%s does not parse as YAML: %v", name, err)
+			continue
+		}
+		if len(document.Jobs) == 0 {
+			t.Errorf("%s declares no job", name)
+		}
+	}
+}
+
 func TestEveryWorkflowNativeActionExists(t *testing.T) {
 	seen := map[string]bool{}
 	for _, name := range workflowNames(t) {
@@ -545,6 +566,80 @@ func TestVerifyPreparesTheRunnerKernelBeforeReadingStages(t *testing.T) {
 	}
 	if !strings.Contains(source[start:stages], "exit 1") {
 		t.Error("the module step must fail the job when a module is missing, not continue")
+	}
+}
+
+// TestVerifyKeepsLeBuildCachesBetweenRuns pins how a shard keeps le's Go build
+// and golangci-lint caches. le builds through ~/.cache/ze/go-cache and lints
+// through ~/.cache/ze/golangci-lint-cache (gotoolchain.GoCache, LintCache),
+// which setup-go's cache never covers, so every shard compiled and linted
+// cold: shard 1 of verify run 41295105997 spent 79 minutes in `go lint run`
+// and was cancelled at the 120-minute job bound.
+//
+// VALIDATES: the shard restores both directories under a key naming the
+// toolchain, go.sum and both patch sets, per shard; backdates what it
+// restored before the first stage, so an entry the run uses gets a fresh
+// mtime (Go and golangci-lint refresh an entry older than an hour when they
+// use it); after the stage loop deletes every entry no newer than the stamp
+// taken after that backdating, so what is saved is what the run used, with no
+// native action of its own (TestVerifyWorkflowIsTheFastMergeGate); saves only from a push to the default branch and only within
+// the byte limit; and deletes the shard's previous entry before saving, so
+// the repository holds one entry per shard rather than one per push.
+// METHOD: read verify.yml with its comments stripped and order the steps.
+func TestVerifyKeepsLeBuildCachesBetweenRuns(t *testing.T) {
+	source := stripComments(workflowSource(t, "verify.yml"))
+	for _, required := range []string{
+		"~/.cache/ze/go-cache",
+		"~/.cache/ze/golangci-lint-cache",
+		"ze-go-build-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-" +
+			"${{ hashFiles('go.sum', 'internal/le/go/stdpatch/patches/**', 'internal/le/vendorpatch/patches/**') }}-" +
+			"shard${{ matrix.shard }}of${{ strategy.job-total }}-",
+		"GO_CACHE_SAVE_LIMIT_MIB:",
+		"actions: write",
+	} {
+		if !strings.Contains(source, required) {
+			t.Errorf("verify.yml lacks %q", required)
+		}
+	}
+	order := []string{
+		"name: Restore le's Go build and lint caches",
+		"name: Mark the restored build cache entries unused",
+		`exit "$status"`,
+		`-mindepth 2 -type f ! -newer "$STAMP" -delete`,
+		"name: Measure the build caches against the save limit",
+		"name: Remove this shard's previous build cache entry",
+		"name: Save le's Go build and lint caches",
+	}
+	last := -1
+	for _, marker := range order {
+		index := strings.Index(source, marker)
+		if index < 0 {
+			t.Errorf("verify.yml lacks %q", marker)
+			continue
+		}
+		if index < last {
+			t.Errorf("verify.yml runs %q out of order", marker)
+		}
+		last = index
+	}
+	defaultBranch := "github.ref_name == github.event.repository.default_branch"
+	for _, step := range []string{
+		"name: Remove this shard's previous build cache entry",
+		"name: Save le's Go build and lint caches",
+	} {
+		start := strings.Index(source, step)
+		if start < 0 {
+			continue
+		}
+		block := source[start:]
+		if next := strings.Index(block[1:], "- name:"); next >= 0 {
+			block = block[:next+1]
+		}
+		for _, guard := range []string{"github.event_name == 'push'", defaultBranch, "steps.go-cache-size.outputs.fits == 'yes'"} {
+			if !strings.Contains(block, guard) {
+				t.Errorf("verify.yml step %q is not guarded by %q", step, guard)
+			}
+		}
 	}
 }
 

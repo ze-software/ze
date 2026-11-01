@@ -44,7 +44,34 @@ runner the same way before it reads its stage list:
 
 The race pass is three stages rather than one (`verify-freshness-scope.md`),
 because on a CI clone it races the whole tree, and the undivided stage outran
-the 120-minute job bound.
+what was then a 120-minute job bound.
+
+## What a verify shard keeps between runs
+
+le builds through `~/.cache/ze/go-cache` and lints through
+`~/.cache/ze/golangci-lint-cache` (`gotoolchain.GoCache`, `LintCache`; the
+launcher links `cache/` to `~/.cache/ze`). setup-go caches `~/.cache/go-build`,
+which le never uses, so until each shard kept its own, every shard compiled and
+linted from nothing: about 9 minutes of compile before each Staticcheck piece,
+and on shard 1 of run 41295105997 a 79-minute `go lint run` that ended in a
+cancellation at the 120-minute bound. The job bound is now 180 minutes, so
+the first run after a key change, which starts cold, can finish and save.
+
+| Step | What it does |
+|------|--------------|
+| Restore | Both directories, keyed `ze-go-build-<os>-go<version>-<hash of go.sum and both patch sets>-shard<n>of<count>-<commit>`, falling back to the shard's latest entry, then to any entry of the same toolchain. Both caches are content-addressed, so an entry from an older tree is reused or ignored, never wrong |
+| Mark unused | Every restored entry is set two hours back, then a stamp is taken. Go and golangci-lint refresh an entry's mtime when they use one an hour old or more, so at the end an entry newer than the stamp is one the run wrote or used |
+| Drop unused | After the stage loop, every entry no newer than the stamp is deleted, so the entry saved holds what this shard's stages used and nothing older |
+| Measure | The two directories are compressed with zstd, as the cache action does, and compared with `GO_CACHE_SAVE_LIMIT_MIB` (1024). A shard past it saves nothing and says so |
+| Replace | A push to the default branch deletes the shard's previous entry, then saves the new one. Any other run restores the default branch's entries and saves none |
+
+One entry per shard at the limit is 6 GiB, which leaves room in the
+repository's 10 GB of Actions cache for the Staticcheck pieces and the nightly
+kernel and CodeQL caches, so a save does not evict the runtime kernel the QEMU
+nightly takes about 30 minutes to rebuild. The trim is shell in the workflow,
+not `./le scratch clean`: verify.yml runs no native action but `verify list`
+(`TestVerifyWorkflowIsTheFastMergeGate`).
+<!-- source: .github/workflows/verify.yml -- Restore le's Go build and lint caches -->
 
 A Docker lab prints one progress line as each scenario starts and ends
 (`Suite.Progress`), and under `docker-lab` the host le running the lab streams it as it
@@ -118,6 +145,8 @@ Each nightly therefore also declares `workflow_dispatch`, which is the re-arm.
 It asserts that `verify.yml` stays a push and pull_request gate whose only
 direct native action is `verify list`, that every verify shard lifts the
 user-namespace restriction and loads the L2TP modules before its first stage,
+that a shard keeps le's build caches as described above, that every workflow
+file parses as YAML,
 that each nightly is scheduled-only with every job advisory, that each nightly
 invokes the native actions it is supposed to, that a Dependabot Go branch gets
 every vendor patch back and a verify run on the result, that the four Docker lab jobs
@@ -132,5 +161,5 @@ in the Go action tables, and that a capability-gated `.ci` test has a VM home.
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere -->
 <!-- source: internal/le/rfc/carriers.go -- nativeActionsIn, actionsInCommand, nestedLeWords -->
 <!-- source: .github/workflows/qemu-nightly.yml -- needs-linux, protocol-labs, runtime-kernel-labs -->
-<!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestVerifyWorkflowIsTheFastMergeGate, TestVerifyPreparesTheRunnerKernelBeforeReadingStages, TestVerifyInstallsPinnedNativeTools, TestEvidenceNightlyScheduleActionsAndPrivileges, TestQEMUNightlyScheduleActionsCachesAndBudgets, TestEveryWorkflowNativeActionExists, TestCapabilityGatedTestsHaveANativeVMHome, TestDependabotBranchesGetTheVendorPatches -->
+<!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestVerifyWorkflowIsTheFastMergeGate, TestVerifyPreparesTheRunnerKernelBeforeReadingStages, TestVerifyInstallsPinnedNativeTools, TestEvidenceNightlyScheduleActionsAndPrivileges, TestQEMUNightlyScheduleActionsCachesAndBudgets, TestEveryWorkflowNativeActionExists, TestCapabilityGatedTestsHaveANativeVMHome, TestDependabotBranchesGetTheVendorPatches, TestVerifyKeepsLeBuildCachesBetweenRuns, TestEveryWorkflowParsesAsYAML -->
 <!-- source: .github/workflows/dependabot-vendor-patches.yml -- apply -->

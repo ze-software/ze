@@ -19,7 +19,18 @@ jobs:
   verify:
     name: verify (shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # 120 minutes was the bound until le's build caches were kept between runs.
+    # A shard that starts with them cold cannot finish inside it: shard 1 of
+    # verify run 41295105997 linted for 79 minutes and was cancelled at 120,
+    # and a cancelled job saves no cache, so it would stay cold for ever. 180
+    # lets the first run after a key change finish and save.
+    timeout-minutes: 180
+    # actions: write lets a default-branch push delete its own shard's previous
+    # build cache entry before saving the new one (see the last steps). A pull
+    # request from a fork gets a read-only token whatever this asks.
+    permissions:
+      contents: read
+      actions: write
     strategy:
       # A red shard must not cancel siblings whose stages have not run yet.
       fail-fast: false
@@ -30,6 +41,13 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4, 5, 6]
     env:
+      # The largest compressed size one shard's Go build and lint cache entry
+      # may be saved at. The repository holds 10 GB of Actions cache; one entry
+      # per shard (6 GiB at this limit), the Staticcheck pieces (about 0.6 GB)
+      # and the nightly kernel and CodeQL caches (about 0.8 GB) stay inside it,
+      # so a save never evicts the runtime kernel the QEMU nightly rebuilds in
+      # about 30 minutes.
+      GO_CACHE_SAVE_LIMIT_MIB: "1024"
       SHARD_INDEX: ${{ matrix.shard }}
       SHARD_TOTAL: ${{ strategy.job-total }}
     steps:
@@ -202,6 +220,49 @@ jobs:
             staticcheck-matrix-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ steps.staticcheck-version.outputs.version }}-${{ hashFiles('go.sum') }}-piece${{ matrix.shard }}of${{ strategy.job-total }}-
             staticcheck-matrix-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ steps.staticcheck-version.outputs.version }}-
 
+      # le builds through ~/.cache/ze/go-cache and lints through
+      # ~/.cache/ze/golangci-lint-cache (gotoolchain.GoCache and LintCache,
+      # internal/le/go/toolchain; the launcher links cache/ to ~/.cache/ze).
+      # setup-go caches ~/.cache/go-build, which le never uses, so every shard
+      # compiled and linted from nothing: about 9 minutes of compile before each
+      # Staticcheck piece, and 79 minutes of `go lint run` on shard 1 of verify
+      # run 41295105997. Both caches are content-addressed, so an entry from an
+      # older tree is either reused or ignored, never wrong; the key names what
+      # makes most of it useless (the toolchain, go.sum, the standard-library
+      # and vendor patches) and the shard, whose stages decide what it holds.
+      # A fallback to another shard or an older go.sum still saves work, and
+      # what the run does not use is dropped before the save.
+      - name: Restore le's Go build and lint caches
+        id: go-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.cache/ze/go-cache
+            ~/.cache/ze/golangci-lint-cache
+          key: ze-go-build-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('go.sum', 'internal/le/go/stdpatch/patches/**', 'internal/le/vendorpatch/patches/**') }}-shard${{ matrix.shard }}of${{ strategy.job-total }}-${{ github.sha }}
+          restore-keys: |
+            ze-go-build-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('go.sum', 'internal/le/go/stdpatch/patches/**', 'internal/le/vendorpatch/patches/**') }}-shard${{ matrix.shard }}of${{ strategy.job-total }}-
+            ze-go-build-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-
+
+      # Go and golangci-lint refresh an entry's mtime when they use it, but only
+      # when it is an hour old or more (cache.(*DiskCache).used), and a restore
+      # keeps the mtimes the saving run left. Every restored entry is set two
+      # hours back and the stamp is taken after, so at the end an entry newer
+      # than the stamp is one this run wrote or used, and the rest can go. The
+      # entries sit one level down, in two-character directories; README and
+      # trim.txt at the top are not entries and are left alone.
+      - name: Mark the restored build cache entries unused
+        env:
+          STAMP: ${{ runner.temp }}/go-cache-run-start
+        run: |
+          set -uo pipefail
+          for dir in ~/.cache/ze/go-cache ~/.cache/ze/golangci-lint-cache; do
+            if [ -d "$dir" ]; then
+              find "$dir" -mindepth 2 -type f -exec touch -d '2 hours ago' {} +
+            fi
+          done
+          touch "$STAMP"
+
       # functional/exabgp runs the compatibility suite through
       # `uv run --with paramiko`, so a runner without uv answers 127 before the
       # first case. The installer is the route uv documents; it writes to
@@ -250,3 +311,83 @@ jobs:
         with:
           path: ~/.cache/ze/staticcheck-matrix
           key: ${{ steps.staticcheck-cache.outputs.cache-primary-key }}
+
+      # Only a push to the default branch saves le's build caches: a branch's
+      # entry is visible to that branch alone, and one entry per shard is what
+      # keeps the repository inside its 10 GB (GO_CACHE_SAVE_LIMIT_MIB). Every
+      # other run restores the default branch's entry and saves nothing. The
+      # saves run whatever the verdict was, as the Staticcheck save does.
+      - name: Drop the build cache entries this run did not use
+        if: ${{ !cancelled() && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+        env:
+          STAMP: ${{ runner.temp }}/go-cache-run-start
+        run: |
+          set -uo pipefail
+          test -e "$STAMP" || { echo "::error::$STAMP is missing, so this run cannot tell which build cache entries it used; nothing is saved." >&2; exit 1; }
+          for dir in ~/.cache/ze/go-cache ~/.cache/ze/golangci-lint-cache; do
+            if [ -d "$dir" ]; then
+              find "$dir" -mindepth 2 -type f ! -newer "$STAMP" -delete
+              echo "$dir: $(du -sh "$dir" | cut -f1) after dropping the entries this run did not use"
+            fi
+          done
+
+      # actions/cache compresses with zstd; the same compression measured here
+      # is what the entry will hold.
+      - name: Measure the build caches against the save limit
+        id: go-cache-size
+        if: ${{ !cancelled() && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+        run: |
+          set -uo pipefail
+          dirs=()
+          for dir in go-cache golangci-lint-cache; do
+            if [ -d "$HOME/.cache/ze/$dir" ]; then
+              dirs+=("$dir")
+            fi
+          done
+          if [ "${#dirs[@]}" -eq 0 ]; then
+            echo "fits=no" >> "$GITHUB_OUTPUT"
+            echo "::warning::this shard built nothing into ~/.cache/ze, so there is no build cache to save."
+            exit 0
+          fi
+          bytes="$(tar -C "$HOME/.cache/ze" -cf - "${dirs[@]}" | zstd -T0 -q -c | wc -c)"
+          mib=$((bytes / 1048576))
+          echo "le's build caches (${dirs[*]}) compress to ${mib} MiB; the save limit is ${GO_CACHE_SAVE_LIMIT_MIB} MiB"
+          if [ "$mib" -le "$GO_CACHE_SAVE_LIMIT_MIB" ]; then
+            echo "fits=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "fits=no" >> "$GITHUB_OUTPUT"
+            echo "::warning::le's build caches compress to ${mib} MiB, past the ${GO_CACHE_SAVE_LIMIT_MIB} MiB save limit, so this shard saves none and its next run starts from the previous entry. Fix: raise GO_CACHE_SAVE_LIMIT_MIB in .github/workflows/verify.yml only if six entries of that size still fit the repository's Actions cache beside the kernel and Staticcheck entries."
+          fi
+
+      # The restore matched this shard's entry from an earlier push; the new
+      # one replaces it, so it is deleted first and the repository never holds
+      # two per shard. An entry restored from another shard or an older go.sum
+      # is not this shard's to delete.
+      - name: Remove this shard's previous build cache entry
+        id: go-cache-prune
+        if: ${{ !cancelled() && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch && steps.go-cache-size.outputs.fits == 'yes' && steps.go-cache.outputs.cache-hit != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRIMARY: ${{ steps.go-cache.outputs.cache-primary-key }}
+          MATCHED: ${{ steps.go-cache.outputs.cache-matched-key }}
+        run: |
+          set -uo pipefail
+          prefix="${PRIMARY%-*}-"
+          case "$MATCHED" in
+            "$prefix"*)
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/caches?key=$MATCHED&ref=$GITHUB_REF" >/dev/null
+              echo "deleted the previous entry $MATCHED"
+              ;;
+            *)
+              echo "no earlier entry of this shard to replace (restored: ${MATCHED:-nothing})"
+              ;;
+          esac
+
+      - name: Save le's Go build and lint caches
+        if: ${{ !cancelled() && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch && steps.go-cache-size.outputs.fits == 'yes' && steps.go-cache.outputs.cache-hit != 'true' && steps.go-cache-prune.outcome == 'success' }}
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/.cache/ze/go-cache
+            ~/.cache/ze/golangci-lint-cache
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
