@@ -23,7 +23,7 @@ The command metadata is available through Ze's built-in help. As well as display
 
 The [reference generator](https://github.com/ze-software/ze/blob/main/internal/le/site/commands.go) uses this list to produce the syntax and descriptions for both the website and a Markdown reference. Because both versions use the same input, correcting a help description once updates the terminal help and, on the next build, both documents. We can change how the reference is presented without having to maintain its command list separately.
 
-The build also saves the catalogue as [`data/cli-commands.json`](../../data/cli-commands.json). Someone who wants to use the command information in another tool can read that data directly, without extracting it from the HTML page.
+The build also saves the catalogue as [`data/cli-commands.json`](../../data/cli-commands.json). Someone writing another tool can use that data directly, without extracting it from the HTML page.
 
 ## Include the configuration supplied by plugins
 
@@ -31,7 +31,7 @@ Configuration presents the same maintenance problem, with the added complication
 
 Ze's configuration tree already combines those definitions for the running program. The [configuration reference generator](https://github.com/ze-software/ze/blob/main/internal/le/site/yang.go) obtains that tree with `show yang tree --config | json`, including the settings supplied by plugins in the build. Generating the reference from this tree includes their contributions without a second description of the available configuration.
 
-We use the registrations in the code for the [plugin inventory](https://github.com/ze-software/ze/blob/main/internal/le/inventory/plugins.go) too. Each entry identifies the plugin and its configuration root, with a link to the package that implements it. The reference can therefore show where a setting belongs and give a reader investigating it a route into the source.
+We use the registrations in the code for the [plugin inventory](https://github.com/ze-software/ze/blob/main/internal/le/inventory/plugins.go) too. Each inventory entry identifies the plugin and its configuration root, with a link to the package that implements it. A reader can see where the plugin's settings belong and find the source that implements them.
 
 ## Publish the support records we use during development
 
@@ -39,11 +39,11 @@ Command names and configuration options can be taken directly from definitions i
 
 For Ze, we record individual RFC requirements and connect them to tests and records of missing behaviour. These are the records we use to assess implementation progress, so we use them to generate the [public compliance pages](../../quality/rfc-compliance/) as well. The [RFC ledger generator](https://github.com/ze-software/ze/blob/main/internal/le/site/rfcledger.go) combines the requirement rows with our recorded descriptions of support. Updating a gap or a description during development then updates the public account on the next website build.
 
-This also lets a reader examine what a support claim means. A declaration of partial support links to the missing requirements and the tests cited for implemented behaviour. The page preserves the distinction between a test carrying a requirement identifier and evidence that the test detects a particular incorrect implementation. [The proof is the expensive part](../the-proof-is-the-expensive-part/) explains why that distinction matters: a test can pass while leaving the required application behaviour unchecked.
+This also lets a reader examine what a support claim means. A partial-support entry links to the requirements Ze has not yet implemented and the tests cited for implemented behaviour. The page also shows where we have evidence that a test detects a particular mistake. [The proof is the expensive part](../the-proof-is-the-expensive-part/) explains why a test can pass while leaving the required application behaviour unchecked.
 
-Using the same records for development and publication also gives both readers the same way to investigate a claim. An operator can follow a support entry to the requirement and its evidence. An agent changing that behaviour can follow the same identifiers to the tests and source, then update the records from which the public page is built. We avoid maintaining a separate account for each audience.
+An agent changing that behaviour can use the same records as an operator to find the tests and source, then update them for the next public build. Neither reader has to depend on a separate account maintained by hand.
 
-Generating the page keeps it consistent with our records; the accuracy of those records still depends on the evidence behind them. Publishing the gaps alongside the claims gives someone considering Ze a way to inspect that evidence, including reasons to be less confident in the implementation.
+Generating the page keeps it consistent with our records, but those records are only as accurate as the evidence behind them. Publishing the gaps alongside the claims gives someone considering Ze a way to inspect that evidence, including reasons to be less confident in the implementation.
 
 ## Keep the explanations alongside the generated facts
 
