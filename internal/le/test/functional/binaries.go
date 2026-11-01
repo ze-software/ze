@@ -210,10 +210,17 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string) [][]string {
 	// the fakefilter binary, a third party's plugin a test forks.
 	return append(daemonBuildCommands(tc, binaries, cover),
 		build(nil, tagString(tc, append([]string{repofeaturetags.LEBase}, tc.Features...)...), LE),
-		// The SDK-only test plugin a .ci forks as `run "ze-fakefilter"` off
-		// the child PATH (runner.FakeFilterBinary). It takes no feature tag,
-		// because it links no ze package that a tag gates.
-		[]string{"go", "build", "-o", filepath.Join(binaries, runner.FakeFilterBinary), runner.FakeFilterPackage})
+		fakeFilterBuildCommand(binaries))
+}
+
+// fakeFilterBuildCommand answers the build of the SDK-only test plugin a .ci
+// forks as `run "ze-fakefilter"` off the child PATH (runner.FakeFilterBinary,
+// runner.FakeFilterPackage, the names runner.Build reads too). It takes no
+// feature tag, because it links no ze package that a tag gates. Every binary
+// set carries it: the isolated set (buildCommands) and the QEMU guest set
+// (guestBuildCommands), so a prebuilt run finds it beside ze.
+func fakeFilterBuildCommand(binaries string) []string {
+	return []string{"go", "build", "-o", filepath.Join(binaries, runner.FakeFilterBinary), runner.FakeFilterPackage}
 }
 
 // strippedFlowTags are the tags of ze-stripped-flow: the flow features (flow
@@ -241,16 +248,23 @@ func daemonBuildCommands(tc gotoolchain.Toolchain, binaries string, extra []stri
 	}
 }
 
-// PrepareGuest builds ze, ze-stripped and ze-stripped-flow for linux/goarch
-// into binaries, the set a QEMU guest runs a test against; `le test qemu run` builds the guest le
-// itself. The toolchain's environment turns CGO off, so the binaries carry no
-// dynamic loader the musl guest lacks.
+// guestBuildCommands answers the builds of the set a QEMU guest runs a test
+// against: the three daemons and the ze-fakefilter test plugin, which a guest
+// run finds beside ze (the runner puts ze's directory on every child's PATH).
+func guestBuildCommands(tc gotoolchain.Toolchain, binaries string) [][]string {
+	return append(daemonBuildCommands(tc, binaries, nil), fakeFilterBuildCommand(binaries))
+}
+
+// PrepareGuest builds ze, ze-stripped, ze-stripped-flow and ze-fakefilter for
+// linux/goarch into binaries, the set a QEMU guest runs a test against; `le
+// test qemu run` builds the guest le itself. The toolchain's environment turns
+// CGO off, so the binaries carry no dynamic loader the musl guest lacks.
 func PrepareGuest(tc gotoolchain.Toolchain, binaries, goarch string) error {
 	if err := os.MkdirAll(binaries, 0o750); err != nil {
 		return err
 	}
 	environ := tc.Environment(gotoolchain.EnvOptions{GOOS: "linux", GOARCH: goarch})
-	for _, argv := range daemonBuildCommands(tc, binaries, nil) {
+	for _, argv := range guestBuildCommands(tc, binaries) {
 		if gaterun.Stream(argv, tc.Root, environ) != 0 {
 			return ErrBuildFailed
 		}

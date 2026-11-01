@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // VALIDATES: the run reads its knobs from the environment the native host
@@ -146,6 +147,26 @@ func TestTheShimReplacesTheLinksAPreviousRunLeft(t *testing.T) {
 	}
 	if !strings.HasPrefix(target, run.Workspace) {
 		t.Errorf("the shim still points at %q", target)
+	}
+}
+
+// The shim links ze-fakefilter from beside ZE_BIN. A guest run is
+// LE_TEST_NO_BUILD and the runner finds the forked test plugin only on the
+// child PATH, which is the shim directory, so a missing link leaves
+// test/plugin/filter-wire-thirdparty-compiled-in.ci with "not found".
+func TestTheShimLinksTheFakeFilterPluginBesideZe(t *testing.T) {
+	run := vmFixture(t)
+	run.ZeBin = filepath.Join("tmp", "guest", "ze")
+
+	if err := run.shim(); err != nil {
+		t.Fatalf("shim: %v", err)
+	}
+	target, err := os.Readlink(filepath.Join(run.BinDir, runner.FakeFilterBinary))
+	if err != nil {
+		t.Fatalf("the shim holds no %s: %v", runner.FakeFilterBinary, err)
+	}
+	if want := filepath.Join(run.Workspace, "tmp", "guest", runner.FakeFilterBinary); target != want {
+		t.Errorf("%s links %q, want %q beside ZE_BIN", runner.FakeFilterBinary, target, want)
 	}
 }
 

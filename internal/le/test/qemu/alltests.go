@@ -789,10 +789,16 @@ func (a *allTestsRun) shim() error {
 	if err := os.Chmod(a.BinDir, 0o755); err != nil { //nolint:gosec // same reason
 		return err
 	}
+	// ze-fakefilter is the test plugin a .ci forks off the child PATH. The
+	// runner puts ze's directory on that PATH, which here is this shim
+	// directory, so it is linked from beside ZE_BIN, where
+	// testfunctional.PrepareGuest builds it. It is linked, never required:
+	// only the .ci that forks it needs it, and that test fails naming it.
 	for name, target := range map[string]string{
-		zeName:             a.workspacePath(a.ZeBin),
-		zeStrippedName:     a.workspacePath(a.StrippedBin),
-		zeStrippedFlowName: a.workspacePath(a.StrippedFlowBin),
+		zeName:                  a.workspacePath(a.ZeBin),
+		zeStrippedName:          a.workspacePath(a.StrippedBin),
+		zeStrippedFlowName:      a.workspacePath(a.StrippedFlowBin),
+		runner.FakeFilterBinary: a.workspacePath(filepath.Join(filepath.Dir(a.ZeBin), runner.FakeFilterBinary)),
 	} {
 		link := filepath.Join(a.BinDir, name)
 		if err := os.Remove(link); err != nil && !errors.Is(err, os.ErrNotExist) {

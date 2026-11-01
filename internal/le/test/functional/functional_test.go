@@ -486,6 +486,34 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 	}
 }
 
+// TestTheGuestSetCarriesTheFakeFilterPlugin holds the QEMU guest set to the
+// same binaries a host run builds for a forking .ci: a guest run is
+// LE_TEST_NO_BUILD, so a binary PrepareGuest leaves out is never built, and
+// test/plugin/filter-wire-thirdparty-compiled-in.ci then fails with
+// "ze-fakefilter: not found". The names come from the runner's constants, the
+// ones runner.Build reads.
+func TestTheGuestSetCarriesTheFakeFilterPlugin(t *testing.T) {
+	env.ResetCache()
+	tc, err := gotoolchain.New(repoRootForTest(t))
+	if err != nil {
+		t.Fatalf("load the toolchain: %v", err)
+	}
+	binaries := filepath.Join("out", "guest")
+	want := strings.Join(fakeFilterBuildCommand(binaries), " ")
+	if !strings.HasSuffix(want, filepath.Join(binaries, runner.FakeFilterBinary)+" "+runner.FakeFilterPackage) {
+		t.Fatalf("the fakefilter build is not %s from %s: %s", runner.FakeFilterBinary, runner.FakeFilterPackage, want)
+	}
+	found := false
+	for _, argv := range guestBuildCommands(tc, binaries) {
+		if strings.Join(argv, " ") == want {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("the guest set does not build %s: %v", runner.FakeFilterBinary, guestBuildCommands(tc, binaries))
+	}
+}
+
 // TestTheUISetCarriesTheLEPersonality holds the fix for the defect that made
 // the ui suite's verdict depend on the machine: 20 ui fixtures read
 // $ZE_REPO_ROOT/bin/le, which .gitignore excludes and no verification job
