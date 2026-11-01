@@ -2,6 +2,7 @@ package fakefilter
 
 import (
 	"encoding/json"
+	"slices"
 	"sync/atomic"
 	"testing"
 
@@ -24,19 +25,22 @@ func conformanceRoutes() []sdk.ConformanceRoute {
 // plugin hands sdk.OnFilter, written against the SDK alone, passes the
 // fast-path conformance harness (deadline, repeat, borrowed view, transport
 // equality, concurrency). Method: the harness itself, under -race, with the
-// stop trigger off, as a plugin runs when no test asks it to stop.
+// stop trigger off, as a plugin runs when no test asks it to stop, and one of
+// the two routes rejected, so both verdicts cross both transports.
 func TestFakeFilterConformance(t *testing.T) {
-	judge := newJudge(0, func() {}, func(string, string) {})
+	judge := newJudge(trigger{rejectPrefix: "10.1.0.0/24"}, func() {}, func(judgement) {})
 	if !sdk.CheckFilterConformance(t, Name, judge.evaluate, conformanceRoutes()) {
 		t.Fatal("the fakefilter evaluator breaks the fast-path contract")
 	}
 }
 
 // TestFakeFilterAcceptsAndNamesThePrefix proves the verdict and the record a
-// .ci reads: every route is accepted, and the judged prefix is reported.
+// .ci reads: a route without the reject prefix is accepted, and the judged
+// prefix is reported with its peer and the transport that carried it (an
+// encoded route: the batch).
 func TestFakeFilterAcceptsAndNamesThePrefix(t *testing.T) {
-	var judged []string
-	judge := newJudge(0, func() {}, func(prefix, verdict string) { judged = append(judged, prefix+" "+verdict) })
+	var judged []judgement
+	judge := newJudge(trigger{rejectPrefix: "10.1.0.0/24"}, func() {}, func(j judgement) { judged = append(judged, j) })
 	routes := conformanceRoutes()
 	route := rpc.InputFilterRoute(&routes[0].Input)
 	out, err := judge.evaluate(&route)
@@ -46,8 +50,46 @@ func TestFakeFilterAcceptsAndNamesThePrefix(t *testing.T) {
 	if out == nil || out.Action != rpc.FilterAccept {
 		t.Fatalf("verdict = %+v, want accept", out)
 	}
-	if len(judged) != 1 || judged[0] != "10.0.0.0/24 accept" {
-		t.Fatalf("judged = %q, want [\"10.0.0.0/24 accept\"]", judged)
+	want := judgement{peer: "127.0.0.1", prefix: "10.0.0.0/24", transport: transportBatch, verdict: "accept"}
+	if len(judged) != 1 || judged[0] != want {
+		t.Fatalf("judged = %+v, want [%+v]", judged, want)
+	}
+}
+
+// slotView is an engine view as the slot hands one: the declared fields, and
+// a non-nil engine value.
+type slotView struct{ fields []byte }
+
+func (v slotView) Fields() ([]byte, error) { return v.fields, nil }
+func (slotView) Raw() []byte               { return nil }
+func (slotView) Engine() any               { return struct{}{} }
+
+// TestFakeFilterRejectsTheNamedPrefix proves the reject verdict a .ci reads
+// on the wire, on both transports: the route carrying the reject prefix is
+// rejected and reported so, through the slot (a route with the engine's view)
+// and through the batch (an encoded route).
+func TestFakeFilterRejectsTheNamedPrefix(t *testing.T) {
+	var judged []judgement
+	judge := newJudge(trigger{rejectPrefix: "10.1.0.0/24"}, func() {}, func(j judgement) { judged = append(judged, j) })
+	routes := conformanceRoutes()
+	batch := rpc.InputFilterRoute(&routes[1].Input)
+	slot := rpc.ViewFilterRoute(&rpc.FilterUpdateInput{Filter: FilterName, Direction: "import", Peer: "127.0.0.2", PeerAS: 65002},
+		slotView{fields: routes[1].Input.Fields})
+	for _, route := range []*rpc.FilterRoute{&batch, &slot} {
+		out, err := judge.evaluate(route)
+		if err != nil {
+			t.Fatalf("evaluate: %v", err)
+		}
+		if out == nil || out.Action != rpc.FilterReject {
+			t.Fatalf("verdict = %+v, want reject", out)
+		}
+	}
+	want := []judgement{
+		{peer: "127.0.0.2", prefix: "10.1.0.0/24", transport: transportBatch, verdict: "reject"},
+		{peer: "127.0.0.2", prefix: "10.1.0.0/24", transport: transportSlot, verdict: "reject"},
+	}
+	if !slices.Equal(judged, want) {
+		t.Fatalf("judged = %+v, want %+v", judged, want)
 	}
 }
 
@@ -55,7 +97,7 @@ func TestFakeFilterAcceptsAndNamesThePrefix(t *testing.T) {
 // verdict for a route whose fields it cannot read: the member's on-error
 // decides that route, not an accept invented by the fixture.
 func TestFakeFilterRefusesUnreadableFields(t *testing.T) {
-	judge := newJudge(0, func() {}, func(string, string) {})
+	judge := newJudge(trigger{}, func() {}, func(judgement) {})
 	input := rpc.FilterUpdateInput{Filter: FilterName, Direction: "import", Fields: json.RawMessage(`{"prefix":`)}
 	route := rpc.InputFilterRoute(&input)
 	if out, err := judge.evaluate(&route); err == nil {
@@ -68,7 +110,7 @@ func TestFakeFilterRefusesUnreadableFields(t *testing.T) {
 // the stop runs exactly once on it, and never before it.
 func TestFakeFilterStopTriggerFiresOnce(t *testing.T) {
 	var stops atomic.Int32
-	judge := newJudge(2, func() { stops.Add(1) }, func(string, string) {})
+	judge := newJudge(trigger{stopAfter: 2}, func() { stops.Add(1) }, func(judgement) {})
 	routes := conformanceRoutes()
 	for i := range 4 {
 		route := rpc.InputFilterRoute(&routes[i%2].Input)
