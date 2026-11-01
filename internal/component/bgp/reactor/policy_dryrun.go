@@ -222,6 +222,22 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	if _, err := message.UnpackUpdate(updateBody); err != nil {
 		return nil, errInvalidUpdateBody
 	}
+	if !asn4 {
+		// A route received over a two-octet session reaches the chains only
+		// after the ingest collapse (Session's CollapseAS4Family call in
+		// session_read.go) merged AS4_PATH and AS4_AGGREGATOR into the
+		// four-octet form, so the dry-run explains that route, not the bytes
+		// pasted (RFC 6793 Section 4.2.3).
+		collapsed := make([]byte, wireu.CollapseAS4FamilySize(updateBody))
+		n, _, collapseErr := wireu.CollapseAS4Family(collapsed, updateBody, false)
+		if collapseErr != nil {
+			return nil, errInvalidUpdateBody
+		}
+		if n > 0 {
+			updateBody = collapsed[:n:n]
+			asn4 = true
+		}
+	}
 
 	// Build a temporary WireUpdate for text rendering.
 	ctxID := bgpctx.APIContextID
@@ -249,12 +265,14 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 
 	var result PolicyChainResult
 	var trace []plugin.PolicyTraceEntry
-	if library := policy.Library(); library != nil {
+	var wireChanges []string
+	library := policy.Library()
+	if library != nil {
 		// D-11: a library chain runs as it runs live, display only, its
 		// plugin members reached through the chain (traceLibraryChain).
 		dry := libraryDryRun{wireUpdate: wu, payload: updateBody, ctxID: ctxID, direction: direction, peer: peerAddr, internal: internal,
 			intent: libraryIntentContext{asn4: asn4, localAS: localAS, peerAS: peerAS, asPathEditable: direction == directionImport || !internal}}
-		result, trace = r.traceLibraryChain(library, dry, textBefore)
+		result, trace, wireChanges = r.traceLibraryChain(library, dry, textBefore)
 	} else {
 		// Run the trace chain using the real filter function (calls plugins via IPC).
 		callFilter := r.policyFilterFunc(wu, updateBody, policyview.Session{EBGP: !internal})
@@ -296,13 +314,16 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 
 	// Compute changed attributes. Parse each filter text exactly once and
 	// share the maps read-only (spec filter-delta-parse-once).
+	// A library chain's wire changes are the operations its run built
+	// (traceLibraryChain); the text chain's are recomputed from its delta.
 	var changedAttrs []string
-	var wireChanges []string
 	if textBefore != textAfter && textAfter != "" {
 		beforeAttrs := parseFilterAttrs(textBefore)
 		afterAttrs := parseFilterAttrs(textAfter)
 		changedAttrs = computeChangedAttrs(beforeAttrs, afterAttrs)
-		wireChanges = computeWireChanges(beforeAttrs, afterAttrs, attrs, direction, asn4, peerAS, localAS, internal)
+		if library == nil {
+			wireChanges = computeWireChanges(beforeAttrs, afterAttrs, attrs, direction, asn4, peerAS, localAS, internal)
+		}
 	}
 
 	return &plugin.PolicyDryRunResult{
@@ -359,6 +380,12 @@ func computeWireChanges(beforeAttrs, afterAttrs *filterAttrs, attrs *attribute.A
 		ExtractMEDRemoveOps(afterAttrs, &mods)
 	}
 
+	return describeWireOps(&mods)
+}
+
+// describeWireOps renders each attribute operation as "<ATTRIBUTE> <verb>"
+// for the dry-run's wire-changes; nil when there is none. Display only.
+func describeWireOps(mods *filterapi.ModAccumulator) []string {
 	ops := mods.Ops()
 	if len(ops) == 0 {
 		return nil

@@ -59,6 +59,9 @@ type libraryResult struct {
 	failed bool
 	// modifiedPayload is the rewritten body, nil when the sets change nothing.
 	modifiedPayload []byte
+	// wireChanges names the attribute operations the rewrite applied
+	// (describeWireOps), filled by a display-only run alone.
+	wireChanges []string
 }
 
 // runLibraryChain runs a policy's library chain over one route and turns the
@@ -143,6 +146,9 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 	}
 	if rewrite.modFail.failed() {
 		return libraryResult{outcome: outcome, failed: true}
+	}
+	if record != nil {
+		return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, wireChanges: describeWireOps(&mods)}
 	}
 	return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload}
 }

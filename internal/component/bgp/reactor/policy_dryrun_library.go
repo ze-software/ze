@@ -33,8 +33,9 @@ type libraryDryRun struct {
 // the live path's, while no failure is counted or logged. Each member's trace
 // entry is drawn from its step: a passing member's sets as text in delta, a
 // failure's error, and in text-after the UPDATE as the chain rewrote it up to
-// that member (libraryTraceText).
-func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryDryRun, textBefore string) (PolicyChainResult, []plugin.PolicyTraceEntry) {
+// that member (libraryTraceText). It also answers the attribute operations
+// the run applied, as the dry-run's wire-changes.
+func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryDryRun, textBefore string) (PolicyChainResult, []plugin.PolicyTraceEntry, []string) {
 	var trace []plugin.PolicyTraceEntry
 	record := func(step policychain.MemberTrace, running *libraryText) {
 		entry := libraryTraceEntry(step)
@@ -51,23 +52,23 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryD
 	outcome := res.outcome
 	if outcome.Teardown {
 		return PolicyChainResult{Action: PolicyReject, Teardown: true,
-			NotifyCode: outcome.NotifyCode, NotifySubcode: outcome.NotifySubcode}, trace
+			NotifyCode: outcome.NotifyCode, NotifySubcode: outcome.NotifySubcode}, trace, nil
 	}
 	if outcome.Action != policychain.OutcomeAccept {
-		return PolicyChainResult{Action: PolicyReject, Failed: outcome.Failed}, trace
+		return PolicyChainResult{Action: PolicyReject, Failed: outcome.Failed}, trace, nil
 	}
 	if res.failed {
-		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace
+		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace, nil
 	}
 	if res.modifiedPayload == nil {
-		return PolicyChainResult{Action: PolicyAccept, Text: textBefore}, trace
+		return PolicyChainResult{Action: PolicyAccept, Text: textBefore}, trace, nil
 	}
 	modified := wireu.NewWireUpdate(res.modifiedPayload, dry.ctxID)
 	attrs, err := modified.Attrs()
 	if err != nil {
-		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace
+		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace, nil
 	}
-	return PolicyChainResult{Action: PolicyAccept, Text: string(AppendUpdateForFilter(nil, attrs, modified, nil))}, trace
+	return PolicyChainResult{Action: PolicyAccept, Text: string(AppendUpdateForFilter(nil, attrs, modified, nil))}, trace, res.wireChanges
 }
 
 // libraryTraceText renders the UPDATE as the chain rewrote it up to step,

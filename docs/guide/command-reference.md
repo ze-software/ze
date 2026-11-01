@@ -2796,9 +2796,9 @@ The peer selector comes first (`peer <sel>`, matching `show bgp peer <sel> ...`)
 
 `<HEX>` is a hex-encoded full BGP UPDATE message (including the 19-byte header). The `0x` prefix is optional.
 
-Optional: `source-asn4 false` to test with ASN2 encoding context (default: ASN4). This is what makes AS4_PATH (RFC 6793) the active path carrier.
+Optional: `source-asn4 false` to paste an UPDATE as received over a two-octet session (default: ASN4). The dry-run first merges its AS4_PATH and AS4_AGGREGATOR into the four-octet form, as the live import does (RFC 6793 Section 4.2.3), and explains that route, which is the one the filters see.
 
-Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify/undetermined), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (wire-level attribute ops such as `AS4_PATH suppressed` that the flat filter text cannot express). An export dry-run toward an internal peer lists no `AS_PATH` operation, because the export chain applies no `as-path-prepend` or `remove-private` toward one (RFC 4271 Section 5.1.2).
+Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify/undetermined), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (the wire-level attribute operations the chain applies, such as `AS_PATH set`, which the flat filter text cannot express). An export dry-run toward an internal peer lists no `AS_PATH` operation, because the export chain applies no `as-path-prepend` or `remove-private` toward one (RFC 4271 Section 5.1.2).
 
 If the remote AS is unresolved, `action` is `undetermined` and `reason` tells you
 to wait for establishment and repeat `show policy test`. No filter executes,

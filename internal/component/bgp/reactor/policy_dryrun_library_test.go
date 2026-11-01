@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/plugin"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestPolicyDryRunRunsLibraryChain proves the in-process half of AC-16
@@ -132,4 +134,51 @@ func TestPolicyDryRunLibraryEntryTextAfter(t *testing.T) {
 	require.Equal(t, strings.Replace(result.TextBefore, "local-preference 100", "local-preference 200", 1), first,
 		"the first entry is the received UPDATE with only LOCAL_PREF rewritten")
 	require.Empty(t, result.Trace[1].TextAfter, "a rejecting member's entry carries no text, as the text path's")
+}
+
+// TestPolicyDryRunLibraryReportsWireChanges proves that show policy test over
+// a library chain explains the route the live export sees and reports the wire
+// operations the live run performs: an UPDATE pasted as received over a
+// two-octet session (AS_PATH [64500 23456], AS4_PATH [4200000000]) is first
+// collapsed to the four-octet form, as the ingest does (RFC 6793 Section
+// 4.2.3), so an external filter reading the AS path is served, and its as-path
+// remove "private" intent rewrites the merged AS_PATH, which wire-changes then
+// names (RFC 6996 Section 4).
+//
+// VALIDATES: the dry-run collapses a two-octet body before the chains run, and
+// its wire-changes come from the operations the library rewrite built.
+// PREVENTS: every library member reading the AS path failing on a two-octet
+// paste, and an intent answered as sets leaving wire-changes empty.
+func TestPolicyDryRunLibraryReportsWireChanges(t *testing.T) {
+	// AS_PATH AS_SEQUENCE [64500 23456] at two octets, AS4_PATH
+	// AS_SEQUENCE [4200000000], LOCAL_PREF 100, NLRI 10.0.0.0/24.
+	body := nlriHex(t, "0000 0024 40010100 400206 0202 fbf4 5ba0 40030401010101"+
+		" c01106 0201 fa56ea00 40050400000064 180a0000")
+	transport := &externalTransport{reads: []string{"as-path"}, sets: []string{"as-path"},
+		reply: rpc.FilterUpdateOutput{Action: rpc.FilterModify,
+			Sets: []rpc.FilterSet{intentSet("as-path", rpc.FilterSetActionRemove, `"private"`)}}}
+	r := New(&Config{})
+	r.filterTransportSeam = transport
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	settings.ExportPolicy = rfc6996ExportPolicy(t)
+	peer := NewPeer(settings)
+	peer.state.Store(int32(PeerStateEstablished))
+	r.peers[settings.PeerKey()] = peer
+
+	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun("192.0.2.1", directionExport, "", body, false)
+	if err != nil {
+		t.Fatalf("dry-run: %v", err)
+	}
+	if result.Action != dryRunActionModify {
+		t.Fatalf("action = %q, want %q (trace %+v)", result.Action, dryRunActionModify, result.Trace)
+	}
+	if !strings.Contains(result.TextBefore, "as-path [64500 4200000000]") {
+		t.Fatalf("text-before = %q, want the merged as-path [64500 4200000000]", result.TextBefore)
+	}
+	if !strings.Contains(result.TextAfter, "as-path 64500 next-hop") {
+		t.Fatalf("text-after = %q, want as-path 64500", result.TextAfter)
+	}
+	if !slices.Equal(result.WireChanges, []string{"AS_PATH set"}) {
+		t.Fatalf("wire-changes = %v, want [AS_PATH set]", result.WireChanges)
+	}
 }
