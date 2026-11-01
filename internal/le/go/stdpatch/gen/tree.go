@@ -40,6 +40,11 @@ type builder struct {
 	layout string
 }
 
+// treeDirMode is the mode of every directory of a tree, its key directory
+// included. A tree is a copy of a world-readable GOROOT, and a process of
+// another user than the one that built it must reach it at its key (build).
+const treeDirMode = 0o755 //nolint:gosec // a GOROOT is world-readable, and another user's child must reach the tree
+
 // StagingPrefix starts the name of every directory a build writes before its
 // rename, so nothing that judges finished trees mistakes one for a tree.
 // `le scratch clean` reads it to remove the staging directories a killed
@@ -82,6 +87,14 @@ func (b builder) build() (string, error) {
 			_ = os.RemoveAll(staging) //nolint:errcheck // the build already failed; its error is the one returned
 		}
 	}()
+	// MkdirTemp makes the directory 0700, and the rename below turns it into
+	// the key directory. Every user must be able to enter it: a child that
+	// runs as another user, such as the uid 1000 `le test fixture` a
+	// capability-holding ze forks under a root-built QEMU guest tree, would
+	// otherwise read the tree as absent and rebuild it on every launch.
+	if err := os.Chmod(staging, treeDirMode); err != nil {
+		return "", fmt.Errorf("stdpatch: %w", err)
+	}
 
 	// The patch applies first, over copies of its targets, so a refusal costs
 	// no `go list`; the embedded files are copied in after it.
@@ -229,7 +242,7 @@ func (b builder) key(targets map[string][]byte) string {
 // directory; an embedded file is a copy, because the go command refuses to
 // embed a link ("cannot embed irregular file").
 func populate(target, source string, copies map[string]bool) error {
-	if err := os.Mkdir(target, 0o750); err != nil {
+	if err := os.Mkdir(target, treeDirMode); err != nil {
 		return fmt.Errorf("stdpatch: %w", err)
 	}
 	entries, err := os.ReadDir(source)
@@ -255,7 +268,7 @@ func populate(target, source string, copies map[string]bool) error {
 		}
 		link := filepath.Join(target, rel)
 		if entry.IsDir() {
-			return os.Mkdir(link, 0o750)
+			return os.Mkdir(link, treeDirMode)
 		}
 		if entry.Type().IsRegular() && copies[filepath.ToSlash(rel)] {
 			return copyFile(link, path)

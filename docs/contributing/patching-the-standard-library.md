@@ -151,7 +151,13 @@ The generator does this, each time:
    the same packages as under the real GOROOT. Then rename the directory to the
    key. The rename makes two sessions that race produce one result: the session
    that loses deletes its own directory and answers the winner's. The generator
-   needs `git` wherever it runs.
+   needs `git` wherever it runs. Every directory of the tree, the key directory
+   included, is mode 0755, because a process of another user must reach the tree
+   the builder wrote: under `./le test qemu netns` the root-built guest tree is
+   read by the uid 1000 `le test fixture` that ze forks as a plugin. A key
+   directory only its builder could enter read as absent to that child, which
+   then rebuilt the whole tree on every launch and dialled back after the
+   daemon's 30 second connect-back wait had expired.
 5. When `git apply` refuses, stop with an error that names the Go version, the
    patch file, git's output, and the section "When the Go version changes", and
    that ends with the command to run after the repair. No

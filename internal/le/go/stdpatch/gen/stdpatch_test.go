@@ -265,6 +265,42 @@ func TestStdpatchConcurrentBuildsAnswerOneTree(t *testing.T) {
 	}
 }
 
+// TestStdpatchTreeIsReadableByAnotherUser proves that every directory of a
+// built tree, its key directory included, lets any user in: a child that runs
+// as another user (the netns launcher's uid 1000 `le test fixture`, forked by
+// a capability-holding ze under a root-built guest tree) must find the tree at
+// its key. A key directory only its builder can enter reads as absent to that
+// child, which then rebuilds the whole tree, `go list std cmd` and all, on
+// every launch, and the plugin dials back only after the daemon's 30 second
+// connect-back wait ran out.
+func TestStdpatchTreeIsReadableByAnotherUser(t *testing.T) {
+	cache := t.TempDir()
+	tree, err := builder{cache: cache, toolchain: realToolchain(t, cache), patches: shippedPatches(t), layout: layoutVersion}.build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	walkErr := filepath.WalkDir(filepath.Dir(tree), func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if info.Mode().Perm()&0o005 != 0o005 {
+			t.Errorf("%s is mode %v: another user cannot list or enter it, so it reads the tree as absent and rebuilds it", path, info.Mode().Perm())
+			return fs.SkipDir
+		}
+		return nil
+	})
+	if walkErr != nil {
+		t.Fatal(walkErr)
+	}
+}
+
 // deadTreeAt writes a tree at cache/name whose VERSION link names a GOROOT
 // this machine does not hold: what a QEMU guest's generator left in a shared
 // cache once the host read it (/usr/local/go, 2026-10-15).

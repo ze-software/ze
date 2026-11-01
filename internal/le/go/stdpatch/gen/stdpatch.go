@@ -102,10 +102,10 @@ func CacheDirs(root string) []string {
 func CacheDir(root string) (string, error) {
 	dirs := CacheDirs(root)
 	cache, fallback := dirs[0], dirs[1]
-	if err := os.MkdirAll(cache, 0o750); err == nil {
+	if err := os.MkdirAll(cache, treeDirMode); err == nil {
 		return Landing(root, cache), nil
 	}
-	if err := os.MkdirAll(fallback, 0o750); err != nil {
+	if err := os.MkdirAll(fallback, treeDirMode); err != nil {
 		return "", fmt.Errorf("stdpatch: neither %s nor %s can hold the patched GOROOT: %w", cache, fallback, err)
 	}
 	return Landing(root, fallback), nil
