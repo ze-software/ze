@@ -59,7 +59,7 @@ bgp {
 }
 EOF_CONF
 
-tmpfs=session-editor-load-refused-bad.conf:terminator=EOF_BAD
+tmpfs=session-editor-load-refused-bad.conf:refused=config-parse:terminator=EOF_BAD
 bgp {
     router-id 9.9.9.9
     peer peer1 {

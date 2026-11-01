@@ -39,7 +39,7 @@ static {
 }
 EOF_CONF
 
-tmpfs=next.conf:terminator=EOF_NEXT
+tmpfs=next.conf:refused=config-plugin-verify:terminator=EOF_NEXT
 bfd {
 	enabled true
 	profile fast {

@@ -19,7 +19,7 @@
 # the assertion below observes. The vpp Verifier keeps its own bound check
 # (verifyFilter), covered by the fakeOps unit tests.
 
-stdin=ze-bgp:terminator=EOF_CONF
+stdin=ze-bgp:refused=config-plugin-verify:terminator=EOF_CONF
 bgp {
 	peer peer1 {
 		connection {

@@ -49,7 +49,7 @@ plugin {
 }
 EOF_LEGACY_ENV
 
-tmpfs=shapes/unknown_internal.conf:terminator=EOF_UNKNOWN_INTERNAL
+tmpfs=shapes/unknown_internal.conf:refused=config-yang-type:terminator=EOF_UNKNOWN_INTERNAL
 plugin {
 	internal bogus {
 		use no-such-plugin

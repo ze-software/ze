@@ -101,7 +101,7 @@ EOF_CONF
 
 # Updated config: the peer switches to a mode whose PKI reference is missing.
 # Reload must reject it and keep the running config.
-tmpfs=config2.conf:terminator=EOF_CONF2
+tmpfs=config2.conf:refused=config-plugin-verify:terminator=EOF_CONF2
 bgp {
 	peer peer1 {
 		connection {

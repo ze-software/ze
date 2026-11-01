@@ -12,7 +12,7 @@
 #            walk validate DOES reach (peersAndDynamicGroups), and this test is
 #            what says so.
 
-tmpfs=update-delay-bad.conf:terminator=EOF_CONF
+tmpfs=update-delay-bad.conf:refused=config-bgp-peer:terminator=EOF_CONF
 bgp {
     router-id 10.0.0.1
     session { asn { local 65000 } }

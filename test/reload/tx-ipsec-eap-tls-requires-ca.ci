@@ -123,7 +123,7 @@ EOF_CONF
 
 # Updated config: the peer switches to eap-tls but names no ca-certificate, so
 # it could not path-validate the authenticator. Reload must reject.
-tmpfs=config2.conf:terminator=EOF_CONF2
+tmpfs=config2.conf:refused=config-plugin-verify:terminator=EOF_CONF2
 pki {
 	ca test-ca {
 		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==

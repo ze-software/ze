@@ -43,7 +43,7 @@ bgp {
 }
 EOF_CONF
 
-tmpfs=tx-bad.conf:terminator=EOF_BAD_CONF
+tmpfs=tx-bad.conf:refused=config-parse:terminator=EOF_BAD_CONF
 bgp {
     router-id 1.2.3.4
     session {

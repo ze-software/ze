@@ -74,7 +74,7 @@ interface {
 EOF_CONF
 
 # Updated config: peer public-key is garbage. Reload must reject.
-tmpfs=config2.conf:terminator=EOF_CONF2
+tmpfs=config2.conf:refused=config-plugin-verify:terminator=EOF_CONF2
 bgp {
 	peer peer1 {
 		connection {

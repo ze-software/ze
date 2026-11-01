@@ -97,7 +97,7 @@ bgp {
 }
 EOF_CONF
 
-tmpfs=invalid-validator.conf:terminator=EOF_INVALID
+tmpfs=invalid-validator.conf:refused=config-yang-type:terminator=EOF_INVALID
 plugin {
 	internal p1 {
 		use no-such-plugin-exists

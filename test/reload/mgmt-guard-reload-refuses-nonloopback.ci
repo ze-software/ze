@@ -70,7 +70,7 @@ bgp {
 }
 EOF_CONF
 
-tmpfs=mcp-exposed.conf:terminator=EOF_CONF2
+tmpfs=mcp-exposed.conf:refused=config-mcp-invalid:terminator=EOF_CONF2
 environment {
 	mcp {
 		enabled true

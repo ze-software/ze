@@ -7,7 +7,7 @@
 # PREVENTS: an operator validating a config clean, deploying it, and finding out
 # at boot that the daemon will not start.
 
-tmpfs=exposed.conf:terminator=EOF_CONF
+tmpfs=exposed.conf:refused=config-mcp-invalid:terminator=EOF_CONF
 environment {
     gnmi {
         enabled true

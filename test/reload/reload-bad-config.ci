@@ -63,7 +63,7 @@ bgp {
 EOF_CONF
 
 # Bad config (syntax error - parser will reject this)
-tmpfs=bad-config.conf:terminator=EOF_BAD
+tmpfs=bad-config.conf:refused=config-parse:terminator=EOF_BAD
 bgp {
 	this is not valid config syntax
 }
