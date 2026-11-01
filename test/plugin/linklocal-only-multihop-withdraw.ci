@@ -81,6 +81,10 @@ plugin {
 	}
 }
 bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	peer inject {
 		connection {
 			remote { ip 2001:db8:99:1::2; }

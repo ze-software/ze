@@ -45,6 +45,14 @@ EOF_PEER
 # else can accept this connection.
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	peer solo {
 		connection {
 			remote {

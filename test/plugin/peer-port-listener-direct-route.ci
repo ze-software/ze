@@ -33,6 +33,14 @@ EOF_PEER
 # One passive peer and no dynamic group: a single claimant on 127.0.0.1's listener.
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	peer solo {
 		connection {
 			remote {

@@ -36,6 +36,14 @@ expect=stdout:contains=establish-wait 40 must not be more than max-delay 30
 
 tmpfs=update-delay-good.conf:terminator=EOF_OK
 bgp {
+    filter {
+        import {
+            final accept
+        }
+        export {
+            final accept
+        }
+    }
     router-id 10.0.0.1
     session { asn { local 65000 } }
     update-delay {

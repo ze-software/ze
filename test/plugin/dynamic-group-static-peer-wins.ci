@@ -40,6 +40,14 @@ EOF_PEER
 # because a listener is keyed on (local address, port).
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
 	peer member {
 		connection {
 			remote {

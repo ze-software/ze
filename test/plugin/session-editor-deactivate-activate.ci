@@ -32,6 +32,10 @@ environment {
 # Each peer carries its own router-id, so the config stays valid while the
 # global one is deactivated (a mandatory leaf, RFC 7950 Section 7.6.5).
 bgp {
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
     router-id 1.2.3.4
     session {
         asn {
