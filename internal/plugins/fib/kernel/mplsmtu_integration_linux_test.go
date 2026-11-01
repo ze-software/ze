@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"os"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,7 +32,7 @@ import (
 // addresses a label in that namespace's label space.
 func skipWithoutMPLSIPMTU(t *testing.T) {
 	t.Helper()
-	probe := kernelcap.MPLSIPMTU()
+	probe := mplsIPMTUGateProbe()
 	if probe.State == kernelcap.StateAbsent {
 		t.Skipf("kernel transit MTU probe answered %v (%v): this bound needs CONFIG_MPLS_IP_MTU, "+
 			"which the QEMU guest's runtime kernel carries", probe.State, probe.Reason)
@@ -50,12 +51,54 @@ func skipWithoutMPLSIPMTU(t *testing.T) {
 // test namespace, for the same reason as skipWithoutMPLSIPMTU.
 func requireMPLSIPMTU(t *testing.T) {
 	t.Helper()
-	probe := kernelcap.MPLSIPMTU()
+	probe := mplsIPMTUGateProbe()
 	if probe.State != kernelcap.StatePresent {
 		t.Skipf("refusing to run: kernel transit MTU probe answered %v (%v), not present; "+
 			"without CONFIG_MPLS_IP_MTU a sub-quantum fragment budget livelocks the kernel",
 			probe.State, probe.Reason)
 	}
+}
+
+// mplsIPMTUGateProbe is the question skipWithoutMPLSIPMTU and requireMPLSIPMTU
+// ask the kernel. It asks in the test's own network namespace, whose label space
+// enableNetnsMPLS sized, so it needs CAP_NET_ADMIN alone. kernelcap.MPLSIPMTU
+// asks from a throwaway namespace and first binds /proc/sys, which a user
+// namespace refuses with EINVAL: its answer there is unknown, and an unknown
+// answer runs the patch-only cases on a kernel without the patch. MUST be
+// called inside the test namespace after enableNetnsMPLS.
+func mplsIPMTUGateProbe() kernelcap.Result {
+	return kernelcap.MPLSIPMTUInThisNamespace()
+}
+
+// TestMPLSIntegration_PatchGateAnswersInAUserNamespace runs the probe the
+// patch-only MTU cases gate on, from the same place they call it: a network
+// namespace of the test's own, inside userns.Enter, with its label space sized.
+//
+// VALIDATES: the gate answers present on Ze's runtime kernel (release suffix
+// "-ze", CONFIG_MPLS_IP_MTU=y) and absent on any other kernel with AF_MPLS,
+// never unknown.
+// PREVENTS: evidence-nightly run 41298258262, where the gate answered unknown
+// inside the user namespace (the throwaway-namespace probe binds /proc/sys,
+// which a user namespace refuses), so on the hosted runner's stock kernel
+// TestMPLSIntegration_PathMTU and TestMPLSIntegration_TransitIPv4Options ran
+// the bounds only Ze's patch enforces and failed instead of skipping.
+func TestMPLSIntegration_PatchGateAnswersInAUserNamespace(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	loadMPLSModules(t)
+	withNetNS(t, func() {
+		enableNetnsMPLS(t)
+		probe := mplsIPMTUGateProbe()
+		t.Logf("kernel %s: mpls-transit-mtu %v (%v)", kernelRelease(t), probe.State, probe.Reason)
+		want := kernelcap.StateAbsent
+		if strings.HasSuffix(kernelRelease(t), "-ze") {
+			want = kernelcap.StatePresent
+		}
+		if probe.State != want {
+			t.Fatalf("the patch gate answered %v (%v), want %v", probe.State, probe.Reason, want)
+		}
+	})
 }
 
 // skipWithoutInitNamespacePrivilege checks effective CAP_SYS_ADMIN for cases

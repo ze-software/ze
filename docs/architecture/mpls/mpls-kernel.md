@@ -231,10 +231,17 @@ budgets with a forwarded marker on the same veth queue, covering rounding to
 zero, physical-link underflow and the maximum IPv4 option header.
 The carrier must run inside a guest booted with the rebuilt runtime kernel.
 Rounding to zero and the option header livelock a stock kernel as described
-above, so this test runs only when `kernelcap.MPLSIPMTU` answers "present", and
+above, so this test runs only when the probe answers "present", and
 skips on "absent" or "unknown" with the answer in the skip message. The other
 patch-only cases skip only on "absent": they fragment at budgets of 1280 bytes
 and above, which always leave a whole fragment quantum.
+Both gates ask `kernelcap.MPLSIPMTUInThisNamespace` in the test's own network
+namespace, after its label space is sized, never `kernelcap.MPLSIPMTU`: the
+throwaway-namespace probe binds `/proc/sys`, which a user namespace refuses,
+so inside `userns.Enter` it answers "unknown", and the patch-only cases then
+ran and failed on the hosted runner's stock kernel (evidence-nightly run
+41298258262). `TestMPLSIntegration_PatchGateAnswersInAUserNamespace` pins the
+gate to a "present" or "absent" answer there.
 A capability skip leaves the behaviour unverified.
 
 Evidence, 2026-10-08: `./le test qemu run` booted the runtime kernel
@@ -255,7 +262,7 @@ and forwards a frame through the swap.
 slots across exact-fit forwarding, first-fragment preservation, later-fragment
 omission and DF-set ICMP quotation.
 
-<!-- source: internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go -- TestMPLSIntegration_PathMTU -->
+<!-- source: internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go -- TestMPLSIntegration_PathMTU, mplsIPMTUGateProbe -->
 <!-- source: internal/plugins/fib/kernel/mplstransitmtu_integration_linux_test.go -- TestMPLSIntegration_TransitPathMTUFollowsTheProbe -->
 
 ## Operator surface
