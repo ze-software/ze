@@ -83,6 +83,7 @@ const docsSourceRFCStatus = "features/rfc-status.md"
 // named architecture/config/deprecated-options.md twice with one value and
 // Python deduped it silently; the row appears once here, at its first position.
 var docsManifest = []docsManifestRow{
+	{Source: "ai-development.md", Category: ""},
 	{Source: "architecture.md", Category: ""},
 	{Source: "architecture/api/commands.md", Category: categoryAutomate},
 	{Source: "architecture/config/deprecated-options.md", Category: categoryOperate},
@@ -203,7 +204,8 @@ var docsManifest = []docsManifestRow{
 // docsDestinationExact names the pages whose public role differs from their
 // source family, so neither the source path nor a prefix answers their URL.
 var docsDestinationExact = map[string]string{
-	"architecture.md": "architecture",
+	"ai-development.md":                         "project/ai-development",
+	"architecture.md":                           "architecture",
 	"architecture/config/deprecated-options.md": "reference/deprecations",
 	"contributing/testing.md":                   "contribute/testing",
 	"features.md":                               "reference/feature-status",

@@ -74,8 +74,9 @@ func TestDocsManifestNamesEachSourceOnce(t *testing.T) {
 		}
 		seen[row.Source] = true
 	}
-	if len(docsManifest) != 115 {
-		t.Errorf("the recovered manifest holds %d rows, want the 115 the retired registry named once", len(docsManifest))
+	// 115 recovered rows, plus ai-development.md, added after the recovery.
+	if len(docsManifest) != 116 {
+		t.Errorf("the manifest holds %d rows, want the 115 the retired registry named once plus ai-development.md", len(docsManifest))
 	}
 }
 
@@ -93,9 +94,9 @@ func TestEveryDocsProducerSourceExists(t *testing.T) {
 		t.Fatalf("pages: %v", err)
 	}
 	// 148 recovered pages, less project/roadmap/, which the roadmap producer
-	// owns, plus legal/, added after the recovery.
-	if len(pages) != 148 {
-		t.Errorf("the docs producer publishes %d pages, want the 147 the recovered registry names plus legal/", len(pages))
+	// owns, plus legal/ and project/ai-development/, added after the recovery.
+	if len(pages) != 149 {
+		t.Errorf("the docs producer publishes %d pages, want the 147 the recovered registry names plus legal/ and project/ai-development/", len(pages))
 	}
 	destinations := map[string]string{}
 	for _, page := range pages {

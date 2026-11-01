@@ -211,7 +211,11 @@ const homeTemplate = `        <div class="site-home">
                             fuzzing and interoperability tests cover different
                             failure modes. The figures describe the test suite
                             and its coverage. Each card explains what is checked
-                            and links to how those checks work.
+                            and links to how those checks work. Ze is written
+                            with AI agents working under a quality process
+                            based on ISO management systems;
+                            <a href="project/ai-development/">how Ze is developed with AI</a>
+                            explains it.
                         </p>
                     </div>
                     <div class="home-proof-actions">
