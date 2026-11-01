@@ -94,7 +94,7 @@ func filterHere(args leaction.Arguments) (any, int) {
 	measure := args.One(filterMode) == filterMeasure
 	report := FilterReport{Action: filterVerb, Measured: measure, Run: filterMeasureCommand}
 	for _, bench := range filterBenches {
-		bench.Command = "go " + strings.Join(filterArgs(bench, true), " ")
+		bench.Command = shellLine(append([]string{"go"}, filterArgs(bench, true)...))
 		report.Benchmarks = append(report.Benchmarks, bench)
 	}
 	if measure {
@@ -108,6 +108,19 @@ func filterHere(args leaction.Arguments) (any, int) {
 		return report, 1
 	}
 	return report, 0
+}
+
+// shellLine answers words as one line a POSIX shell reads back as the same
+// words: a word holding a character the shell would interpret is single-quoted.
+func shellLine(words []string) string {
+	quoted := make([]string, len(words))
+	for i, word := range words {
+		if strings.ContainsAny(word, "^$()|*?[] '\"\\") {
+			word = "'" + strings.ReplaceAll(word, "'", `'\''`) + "'"
+		}
+		quoted[i] = word
+	}
+	return strings.Join(quoted, " ")
 }
 
 // filterArgs answers the go arguments for bench: the measuring run, or the

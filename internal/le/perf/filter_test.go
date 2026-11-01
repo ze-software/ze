@@ -55,3 +55,16 @@ func TestFilterHarnessListsItsBenchmarks(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestFilterCommandIsShellSafe proves the printed command pastes into a
+// shell as the words the harness runs: the patterns are quoted.
+func TestFilterCommandIsShellSafe(t *testing.T) {
+	got := shellLine([]string{"go", "test", "-run", "^$", "-bench", "^(A|B)$", "./pkg/"})
+	want := `go test -run '^$' -bench '^(A|B)$' ./pkg/`
+	if got != want {
+		t.Fatalf("shellLine = %s, want %s", got, want)
+	}
+	if got := shellLine([]string{"it's"}); got != `'it'\''s'` {
+		t.Fatalf("shellLine quoted a single quote as %s", got)
+	}
+}
