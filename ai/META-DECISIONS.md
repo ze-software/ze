@@ -145,6 +145,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   (it builds, runs and produces output), and never reports or compares the
   figures such a run prints. A Linux-only harness is measured on the Mac
   inside a Linux QEMU guest.
+- Everything except a performance figure runs on the Linux host: QEMU guests,
+  netns runs, `caps=` and `needs-linux` tests, interop labs. "Needs another
+  host" is never a reason to defer them; the work runs them, scoped to the
+  tests it reaches. Only a performance figure, or a test that runs only on
+  macOS, waits for the Mac.
 - Kernel work uses the architecture of the machine the agent is on. Never
   cross-compile or emulate the other architecture's kernel locally; its proof
   comes from a host that runs it natively.
