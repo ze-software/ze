@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -60,6 +61,9 @@ func declaredInsertions() ([]rpc.FilterInsertion, error) {
 			continue
 		}
 		if err := registry.CheckFilterInsertions(r.Name, r.Filters, r.FilterTypes, r.FilterInsertions); err != nil {
+			return nil, err
+		}
+		if err := config.CheckFilterInsertionPaths(r.Name, r.YANG, r.FilterInsertions); err != nil {
 			return nil, err
 		}
 		insertions = append(insertions, r.FilterInsertions...)

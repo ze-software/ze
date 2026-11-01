@@ -355,6 +355,7 @@ resolved config (bgp, group and peer merged) meets the condition, ahead of the
 operator's members. No engine or config code names the feature, the plugin or
 the path (`ai/META-DECISIONS.md`, "Goal and scope").
 <!-- source: internal/component/plugin/registry/filter_insertion.go -- CheckFilterInsertions -->
+<!-- source: internal/component/config/schema_origin.go -- CheckFilterInsertionPaths, SchemaNodeModule -->
 
 | Field | Type | Meaning |
 |-------|------|---------|
@@ -369,8 +370,15 @@ the path (`ai/META-DECISIONS.md`, "Goal and scope").
 Stage 1 refuses an insertion naming a reference the plugin does not serve, a
 direction other than `import` or `export`, a priority outside 0 to 9999, an
 empty or holed path, a required insertion with no reason, and the same
-reference twice for one direction. Config load judges a compiled-in plugin's
-insertions by the same rules. An operator who names a non-required member in
+reference twice for one direction. It also refuses a condition path that is
+not a node of the compiled schema under `bgp peer` (an external plugin's own
+YANG is not compiled, `docs/plugin-development/schema.md`), and, for a plugin
+compiled into ze, a path whose first word names a node another module
+defines: a compiled-in plugin conditions only on config its own YANG module
+adds, so its member lands only where config it owns is set. A third-party
+plugin, started by the operator's `plugin external` entry, may condition on any
+compiled path. Config load judges a compiled-in plugin's insertions by the same
+rules. An operator who names a non-required member in
 the list places it there, and `inactive:` on it runs the session without it,
 as for a loop-detection default; naming a required member in any form is
 refused at verify with the plugin's reason, naming the peer, the list and the

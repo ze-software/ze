@@ -586,6 +586,14 @@ type FilterInsertion struct {
 // FilterInsertionPriorityMax bounds FilterInsertion.Priority.
 const FilterInsertionPriorityMax = 9999
 
+// FilterInsertionSchemaPath answers the schema path, one word per level with
+// list keys omitted, of an insertion's Config condition: the words continue a
+// peer's entry, `bgp peer`. The declaration judge looks the path up in the
+// compiled schema, so a condition names a node the daemon knows.
+func FilterInsertionSchemaPath(config []string) []string {
+	return append([]string{"bgp", "peer"}, config...)
+}
+
 // FilterDecl declares a named route filter the plugin offers.
 //
 // A declaration names its filter exactly (Name) or covers a family of names

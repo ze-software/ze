@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ze-software/ze/internal/component/config"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -169,6 +170,13 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	// fails the plugin here (spec-filter-wire-6-stage-filters AC-2).
 	if err := registry.CheckFilterInsertions(sink.pluginName(), regInput.Filters,
 		registry.OwnedFilterTypes(sink.pluginName()), regInput.FilterInsertions); err != nil {
+		_ = conn.SendError(ctx, req.ID, err.Error())
+		return err
+	}
+	// Each condition path is judged against the compiled schema, and a
+	// compiled-in plugin's against the config its own module adds (A-10).
+	if err := config.CheckFilterInsertionPaths(sink.pluginName(), registry.OwnedYANG(sink.pluginName()),
+		regInput.FilterInsertions); err != nil {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err
 	}

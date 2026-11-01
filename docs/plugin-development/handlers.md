@@ -436,6 +436,21 @@ it does not block.
 <!-- source: pkg/plugin/rpc/filter_slot.go -- Input -->
 <!-- source: pkg/plugin/sdk/filter_conformance.go -- CheckFilterConformance -->
 
+A filter can also place itself. `Registration.FilterInsertions` lists the
+peers' filter lists your filter joins without the operator naming it: each
+`rpc.FilterInsertion` gives the reference, `import` or `export`, a priority,
+and the config path under `bgp peer` whose presence (or one of whose values)
+means a peer needs it. Ze inserts it ahead of the operator's members on
+exactly those peers, group inheritance included. The path must be a node the
+daemon compiled. Your plugin's own YANG is not compiled yet
+(`schema.md`, "What works today"), so a third-party plugin conditions on a
+path one of ze's modules defines; a plugin compiled into ze conditions only on
+config its own module adds. The fields and refusals are in
+`docs/architecture/api/process-protocol.md`, "Filter Insertion", and
+`internal/test/plugins/fakefilter` (`FilterInsertions`) is a worked example.
+<!-- source: pkg/plugin/rpc/types.go -- FilterInsertion, FilterInsertionSchemaPath -->
+<!-- source: internal/component/config/schema_origin.go -- CheckFilterInsertionPaths -->
+
 ### OnBye
 
 Called when the engine sends `bye`: when it removes the plugin while the

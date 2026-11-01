@@ -85,6 +85,18 @@ func OwnedFilterTypes(pluginName string) []string {
 	return reg.FilterTypes
 }
 
+// OwnedYANG answers the YANG module text of the compiled registration of
+// pluginName, empty for a plugin with no compiled registration or no module.
+// The insertion path judge reads it to tell a compiled-in plugin, whose
+// conditions must name config its own module adds, from a third-party one.
+func OwnedYANG(pluginName string) string {
+	reg := Lookup(pluginName)
+	if reg == nil {
+		return ""
+	}
+	return reg.YANG
+}
+
 // priorityRange is the refusal of a priority outside 0 to FilterInsertionPriorityMax.
 var priorityRange = "with a priority outside 0-" + strconv.Itoa(rpc.FilterInsertionPriorityMax)
 
