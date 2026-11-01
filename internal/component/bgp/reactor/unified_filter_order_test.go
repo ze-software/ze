@@ -92,8 +92,8 @@ func TestUnifiedIngressReproducesLegacyOrder(t *testing.T) {
 	t.Cleanup(func() { filterapi.Restore(snap) })
 	filterapi.ResetForTest()
 
-	// Mirror the real registered ingress filters' names and stages.
-	mustRegisterIngress(t, "loop", filterapi.FilterStageProtocol, 0)
+	// Mirror the real registered ingress filters' names and stages. Loop
+	// detection is the engine's own protocol step, so it is not registered.
 	mustRegisterIngress(t, "bgp-filter-community", filterapi.FilterStagePolicy, 0)
 	mustRegisterIngress(t, "bgp-redistribute", filterapi.FilterStagePolicy, 0)
 	mustRegisterIngress(t, "bgp-role", filterapi.FilterStageAnnotation, 0)
@@ -142,7 +142,6 @@ func TestUnifiedIngressOrder(t *testing.T) {
 	// between Annotation and PeerChain.
 	mustRegisterIngress(t, "community", filterapi.FilterStagePolicy, 0)
 	mustRegisterIngress(t, "prefix", filterapi.FilterStagePolicy, 10)
-	mustRegisterIngress(t, "loop", filterapi.FilterStageProtocol, 0)
 	mustRegisterIngress(t, "late", filterapi.FilterStageAnnotation+50, 0)
 
 	steps := buildOrderedIngressSteps()
@@ -173,19 +172,37 @@ func TestUnifiedEgressOrder(t *testing.T) {
 }
 
 // TestOrderedStepsEmptyRegistry verifies that with no in-process filters the pass
-// is just the policy-chain step (a no-op accept at runtime when a peer has no
-// configured filters), so the pipeline is never empty and needs no nil guard.
+// is just the engine's own steps: on ingress the loop step and the policy-chain
+// step, on egress the policy-chain step (a no-op accept at runtime when a peer
+// has no configured filters), so the pipeline is never empty and needs no nil
+// guard.
 func TestOrderedStepsEmptyRegistry(t *testing.T) {
 	snap := filterapi.Snapshot()
 	t.Cleanup(func() { filterapi.Restore(snap) })
 	filterapi.ResetForTest()
 
 	ingress := buildOrderedIngressSteps()
-	if len(ingress) != 1 || !ingress[0].policyChain {
-		t.Fatalf("empty registry: ingress steps = %v, want single policy-chain step", ingressStepNames(ingress))
+	if len(ingress) != 2 || ingress[0].name != "loop" || ingress[0].policyChain || !ingress[1].policyChain {
+		t.Fatalf("empty registry: ingress steps = %v, want the loop step then the policy-chain step", ingressStepNames(ingress))
 	}
 	egress := buildOrderedEgressSteps()
 	if len(egress) != 1 || !egress[0].policyChain {
 		t.Fatalf("empty registry: egress steps = %v, want single policy-chain step", egressStepNames(egress))
+	}
+}
+
+// TestOrderedIngressCarriesTheEngineLoopStep proves loop detection is engine
+// code, not a registered filter: with nothing registered, the built pass still
+// holds exactly one loop step, at the protocol stage, running LoopIngress,
+// ahead of the policy chain (RFC 4271 Section 9.1.2, RFC 4456 Section 8).
+func TestOrderedIngressCarriesTheEngineLoopStep(t *testing.T) {
+	snap := filterapi.Snapshot()
+	t.Cleanup(func() { filterapi.Restore(snap) })
+	filterapi.ResetForTest()
+
+	steps := buildOrderedIngressSteps()
+	assertOrder(t, ingressStepNames(steps), []string{"loop", policyChainStepName})
+	if steps[0].stage != filterapi.FilterStageProtocol || steps[0].inproc == nil || steps[0].policyChain {
+		t.Fatalf("loop step = %+v, want the protocol-stage engine step", steps[0])
 	}
 }

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
+	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/filter"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -81,7 +81,7 @@ func servesNoFilter(reg *registry.Registration) bool {
 	if len(reg.FilterTypes) > 0 {
 		return false
 	}
-	return !filterapi.ServesChainMembers(reg.Name)
+	return !bgpfilter.OwnsChainMembers(reg.Name)
 }
 
 // refuseFilterlessPlugin refuses at config load a member naming a compiled-in

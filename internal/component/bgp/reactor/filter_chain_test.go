@@ -48,7 +48,7 @@ func acceptingLiveSettings(t testing.TB, address string, local, remote uint32) *
 
 // bindRefs marks every ref of p named like one of owned as bound to its
 // registered stage: the ownership config resolution (bgpconfig
-// canonicalizeFilterRefs) grants through filterapi.BindInProcess, which
+// canonicalizeFilterRefs) grants through bgpfilter.BindLoopDetection, which
 // these tests call to obtain owned.
 func bindRefs(p filterapi.Policy, owned ...routepolicy.Ref) filterapi.Policy {
 	refs := p.Filters()

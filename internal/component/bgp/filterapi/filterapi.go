@@ -28,7 +28,6 @@ import (
 	"maps"
 	"net/netip"
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/policy"
@@ -90,42 +89,6 @@ type PeerFilterInfo struct {
 	// RFC 9494 Section 4.3 fact for a route that carries MetaKeyRebuilt. False on
 	// every other rail: the live forward rails carry that fact in meta["stale"].
 	LLGRAdvertised bool
-}
-
-// BindInProcess resolves a configured policy instance through the existing
-// stage registry, answering the ref under its stage-qualified name and whether
-// a registered ingress stage owns it. The caller MUST obtain policyType from
-// that instance's config definition, not from the reference prefix. Unknown
-// owners remain external: the ref comes back unchanged and unbound, on the
-// fail-closed RPC path. Only this function grants stage ownership.
-// Called during config resolution, never on the UPDATE path.
-func BindInProcess(ref policy.Ref, policyType string) (policy.Ref, bool) {
-	prefix, instance, qualified := strings.Cut(ref.Name, ":")
-	if !qualified {
-		instance = ref.Name
-		prefix = ""
-	}
-	mu.RLock()
-	defer mu.RUnlock()
-	for _, f := range filters {
-		if f.PolicyType == "" {
-			continue
-		}
-		if f.PolicyType != policyType {
-			continue
-		}
-		if qualified {
-			if prefix != f.Name && prefix != f.PolicyType {
-				continue
-			}
-		}
-		if prefix != f.Name {
-			var name textbuf.Buffer
-			ref.Name = name.Str(f.Name).Byte(':').Str(instance).String()
-		}
-		return ref, true
-	}
-	return ref, false
 }
 
 // FilterRefStrings renders a filter chain to the canonical string form used at
@@ -658,10 +621,6 @@ type Filter struct {
 	Priority int               // Fine ordering within a stage; equal priority sorted by name
 	Ingress  IngressFilterFunc // nil = no ingress filtering
 	Egress   EgressFilterFunc  // nil = no egress filtering
-	// PolicyType is the optional YANG policy list whose named instances
-	// configure this ingress stage. It requires Ingress; named export execution
-	// is not supported across all origin rails. Empty owns no named instances.
-	PolicyType string
 	// Readvertise opts an egress filter into the RIB stale-readvertise announce
 	// rail (AnnounceNLRIBatch) in addition to the ForwardUpdate rail. It exists
 	// for the LLGR egress filter (RFC 9494): when a peer's GR window expires its
@@ -763,30 +722,8 @@ func Register(f Filter) error {
 	if _, exists := filters[f.Name]; exists {
 		return fmt.Errorf("%w: %q", ErrDuplicateFilterName, f.Name)
 	}
-	if f.PolicyType != "" {
-		if f.Ingress == nil {
-			return fmt.Errorf("%w: policy type %q needs an ingress hook", ErrNoFilterFunc, f.PolicyType)
-		}
-		for _, registered := range filters {
-			if registered.PolicyType == f.PolicyType {
-				return fmt.Errorf("%w: policy type %q", ErrDuplicateFilterName, f.PolicyType)
-			}
-		}
-	}
 	filters[f.Name] = f
 	return nil
-}
-
-// ServesChainMembers reports whether the compiled-in filter registered under
-// name owns a policy type, and so answers a `<name>:<instance>` chain member
-// in process (BindInProcess). Config load reads it to tell a compiled-in
-// plugin that serves chain members from one that serves none. Safe for
-// concurrent use.
-func ServesChainMembers(name string) bool {
-	mu.RLock()
-	defer mu.RUnlock()
-	f, ok := filters[name]
-	return ok && f.PolicyType != ""
 }
 
 // NotifyPeerRemoved tells every registered filter that the reactor removed

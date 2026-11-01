@@ -8,87 +8,13 @@ import (
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 )
 
-// TestBindInProcess confines stage ownership to the registered policy type and
-// its plain, type-qualified or canonical name. Other process names stay guards.
-func TestBindInProcess(t *testing.T) {
-	snapshot := Snapshot()
-	t.Cleanup(func() { Restore(snapshot) })
-	ResetForTest()
-	if err := Register(Filter{Name: "protocol-owner", PolicyType: "protocol-policy", Ingress: noopIngress, Stage: FilterStageProtocol}); err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"CHECK", "protocol-policy:CHECK", "protocol-owner:CHECK"} {
-		for _, inactive := range []bool{false, true} {
-			ref, bound := BindInProcess(routepolicy.Ref{Name: name, Inactive: inactive}, "protocol-policy")
-			bindings := []bool{bound}
-			owned := InternalPolicy(nil).WithBoundFilters([]routepolicy.Ref{ref}, bindings)
-			if ref.Name != "protocol-owner:CHECK" || !owned.InProcess(0) || owned.ActiveExternal(0) || ref.Inactive != inactive {
-				t.Fatalf("binding %q: %+v", name, ref)
-			}
-			policy := InternalPolicy([]routepolicy.Ref{ref}).WithBoundFilters([]routepolicy.Ref{ref}, bindings)
-			if policy.Final() != 0 || policy.Configured() || !policy.InProcess(0) {
-				t.Fatalf("policy copy lost absence or ownership: %+v", policy)
-			}
-		}
-	}
-	ref, bound := BindInProcess(routepolicy.Ref{Name: "protocol-owner"}, "protocol-policy")
-	if ref.Name != "protocol-owner:protocol-owner" || !bound {
-		t.Fatalf("plain instance matching its owner's name = %+v", ref)
-	}
-	for _, tc := range []struct{ name, policyType string }{
-		{"external:CHECK", "protocol-policy"},
-		{"protocol-owner:CHECK", "other-policy"},
-		{"CHECK", ""},
-	} {
-		ref, bound := BindInProcess(routepolicy.Ref{Name: tc.name}, tc.policyType)
-		unowned := InternalPolicy(nil).WithBoundFilters([]routepolicy.Ref{ref}, []bool{bound})
-		if unowned.InProcess(0) || !unowned.ActiveExternal(0) || ref.Name != tc.name {
-			t.Fatalf("unowned reference bound: %+v", ref)
-		}
-	}
-}
-
-// TestPolicyTypeRegistrationRefusesAmbiguity ensures map iteration cannot choose
-// between two stage owners, or bind an instance to a registration with no hook.
-func TestPolicyTypeRegistrationRefusesAmbiguity(t *testing.T) {
-	snapshot := Snapshot()
-	t.Cleanup(func() { Restore(snapshot) })
-	ResetForTest()
-	if err := Register(Filter{Name: "first", PolicyType: "check", Ingress: noopIngress}); err != nil {
-		t.Fatal(err)
-	}
-	if err := Register(Filter{Name: "second", PolicyType: "check", Ingress: noopIngress}); err == nil {
-		t.Fatal("duplicate policy owner registered")
-	}
-	if err := Register(Filter{Name: "no-hook", PolicyType: "other", PeerRemoved: func(PeerFilterInfo) {}}); err == nil {
-		t.Fatal("named policy registered without an executable stage")
-	}
-}
-
-// TestNamedPolicyRequiresIngressHook prevents named ownership from promising
-// export execution that the originated-route rails do not run.
-func TestNamedPolicyRequiresIngressHook(t *testing.T) {
-	snapshot := Snapshot()
-	t.Cleanup(func() { Restore(snapshot) })
-	ResetForTest()
-	if err := Register(Filter{Name: "egress", PolicyType: "egress-type", Egress: noopEgress}); err == nil {
-		t.Fatal("named policy registered without the supported ingress execution")
-	}
-}
-
 // TestPolicyIngressOwnership covers every policy constructor and reference
 // replacement, including zero and inactive values that must clear the invariant.
 func TestPolicyIngressOwnership(t *testing.T) {
-	snapshot := Snapshot()
-	t.Cleanup(func() { Restore(snapshot) })
-	ResetForTest()
-	if err := Register(Filter{Name: "owner", PolicyType: "check", Ingress: noopIngress}); err != nil {
-		t.Fatal(err)
-	}
-	ref, bound := BindInProcess(routepolicy.Ref{Name: "CHECK"}, "check")
-	if !bound {
-		t.Fatal("registered ingress owner did not bind")
-	}
+	// The bound ref the engine's loop binding answers (reactor/filter
+	// BindLoopDetection, tested there); this test owns what a policy does
+	// with a binding, not how one is granted.
+	ref := routepolicy.Ref{Name: "loop:CHECK"}
 	inactive := ref
 	inactive.Inactive = true
 	var absent Policy

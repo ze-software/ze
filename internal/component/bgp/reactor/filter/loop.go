@@ -3,8 +3,8 @@
 // RFC: rfc/short/rfc4456.md
 //
 // Package filter implements protocol-mandated ingress filters for the BGP reactor.
-// Filters are registered with the BGP filter pipeline (filterapi) at init() and called by the
-// reactor's ingress filter chain for each received UPDATE.
+// They are engine code: the reactor names LoopIngress as the protocol-stage step
+// of its ordered ingress pass and calls it for each received UPDATE.
 package filter
 
 import (

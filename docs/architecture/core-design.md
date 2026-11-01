@@ -1259,9 +1259,13 @@ All ingress filtering runs in **one stage-ordered pass** over
 kinds of executor, ordered by declared Stage, then Priority, then name -- never by
 code position:
 
-1. **In-process ingress filters** (registered via `filterapi.Register`, ordered by
-   `filterapi` Stage: Protocol `loop` → Policy `bgp-filter-community` →
-   Annotation `bgp-role`/OTC). Signature
+1. **In-process ingress filters**: the engine's own loop detection
+   (`reactor/filter` `LoopIngress`, an RFC 4271 Section 9.1.2 and RFC 4456
+   Section 8 protocol check the reactor names as its Protocol-stage step in
+   `buildOrderedIngressSteps`, never a registered filter), and the filters
+   registered via `filterapi.Register`. Both sort by `filterapi` Stage:
+   Protocol (`bgp-gr-llgr-ingress`, `loop`) → Policy `bgp-filter-community` →
+   Annotation `bgp-role`/OTC. Signature
    `func(source PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)`.
    `accept=false` drops the route (no caching, no dispatch). A non-nil
    `modifiedPayload` REPLACES the original bytes; the reactor builds a fresh
@@ -1282,9 +1286,10 @@ code position:
    in-process BGP chain" below) runs through `runLibraryChain` instead: its
    plugin members are sent their declared `fields` and no update text, and
    still reach the plugin through the API server (`libraryCaller`).
-   Named in-process references are bound through `filterapi.Filter.PolicyType`
-   during configuration. They remain in `Policy.Filters` but execute only at
-   their registered stage, never again as an RPC. `Reject` drops the route; `Teardown`
+   A named `loop-detection` instance (`loop:<name>`) is bound to the engine's
+   loop step by `reactor/filter` `BindLoopDetection` during configuration. It
+   remains in `Policy.Filters` but executes only at the loop step, never again
+   as an RPC; no other type is bound in process. `Reject` drops the route; `Teardown`
    closes the session (import only). A raw override stops later filters but
    still receives the final decision. An accepted raw override or `Modify`
    text delta rebuilds the cached `WireUpdate` through the same progressive
@@ -1461,8 +1466,8 @@ deactivation), `policy.Final`, `policy.Chain`, `policy.ExtractChain` for a
 `filter { import|export { ... } }` block, `policy.ConcatChains` for the
 inheritance rule, and `policy.CanonicalName` for the plugin, filter-type and
 plain reference forms. BGP compiles the chain into `filterapi.Policy`, which
-adds what only BGP has: the stage binding of each ref to a registered
-in-process ingress filter (`filterapi.BindInProcess`, kept as a slice parallel
+adds what only BGP has: the binding of each `loop-detection` ref to the
+engine's loop step (`reactor/filter` `BindLoopDetection`, kept as a slice parallel
 to the refs and set once at config time, so the UPDATE path reads an index and
 allocates nothing), whether the policy therefore requires ingress, and the RFC
 8212 default. `filterapi.Policy` carries both together through
@@ -1472,7 +1477,8 @@ preserves acceptance on IBGP, including migration-AS sessions. Automatic and
 inactive references do not establish operator policy presence.
 <!-- source: internal/component/policy/chain.go -- Ref, Final, Chain, ExtractChain, ConcatChains, CanonicalName -->
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, Policy.InProcess, Policy.WithBoundFilters -->
-<!-- source: internal/component/bgp/filterapi/filterapi.go -- BindInProcess -->
+<!-- source: internal/component/bgp/reactor/filter/binding.go -- BindLoopDetection, OwnsChainMembers -->
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- buildOrderedIngressSteps -->
 
 Filters respond accept/reject/modify with delta-only output. Accept continues;
 reject, fail-closed error and teardown short-circuit. Exhaustion, including

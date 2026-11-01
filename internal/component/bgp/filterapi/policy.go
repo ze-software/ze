@@ -12,8 +12,9 @@ import (
 // decides its default (RFC 8212, AcceptsAtEnd).
 //
 // inProcess runs parallel to the chain's refs: entry i reports that ref i is
-// owned by a registered ingress stage. It is nil when no ref is bound, so an
-// unbound policy carries no second slice. Only BindInProcess proves a binding
+// owned by the engine's loop-detection ingress step. It is nil when no ref is
+// bound, so an unbound policy carries no second slice. Only the loop engine's
+// binding (reactor/filter BindLoopDetection) proves a binding
 // and only WithBoundFilters records one.
 //
 // library is the compiled chain of the policy's library members, the filters

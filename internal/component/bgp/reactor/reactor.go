@@ -40,6 +40,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
+	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/filter"
 	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/config"
@@ -1319,15 +1320,16 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
 		// ze_task_panics_total{component="bgp"}: the BGP panic boundary's count.
 		bgpPanics().guard.SetMetricsRegistry(r.metricsRegistry)
-		// The attribute-modification contract counters and the always-on
-		// protocol filters' metrics (loop detection). The AttrMod handlers
+		// The attribute-modification contract counters. The AttrMod handlers
 		// register at init() via filterapi.RegisterAttrModHandler and run during
 		// the progressive build whether or not the plugin that supplied them is
-		// running, and the protocol filters register through filterapi.Register,
-		// not as run plugins, so a plugin's ConfigureMetrics hook would leave
-		// these counters dead. filterapi hands the registry to each filter's
-		// Filter.ConfigureMetrics.
+		// running, so a plugin's ConfigureMetrics hook would leave these
+		// counters dead. filterapi hands the registry to each registered
+		// filter's Filter.ConfigureMetrics.
 		filterapi.SetMetricsRegistry(r.metricsRegistry)
+		// Loop detection's counters, for the same reason: it is the engine's
+		// own protocol step (buildOrderedIngressSteps), not a run plugin.
+		bgpfilter.SetMetricsRegistry(r.metricsRegistry)
 		// The library chains' refused-set counter, for the same reason: a chain
 		// is compiled from config, not run as a plugin (policychain/metrics.go).
 		policychain.SetMetricsRegistry(r.metricsRegistry)

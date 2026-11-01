@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/filter"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -51,7 +52,7 @@ func TestLoopPolicyRegisteredStage(t *testing.T) {
 		{name: "explicit-reject", final: routepolicy.FinalReject},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ref, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO", Inactive: tc.inactive}, "loop-detection")
+			ref, bound := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "AUTO", Inactive: tc.inactive}, "loop-detection")
 			if !bound {
 				t.Fatal("real loop registration did not bind AUTO")
 			}
@@ -136,7 +137,7 @@ func TestLoopPolicyRegisteredStage(t *testing.T) {
 // TestLoopPolicyDynamicOwnership proves substitution and snapshot publication
 // retain execution ownership, while reload equality distinguishes an unbound ref.
 func TestLoopPolicyDynamicOwnership(t *testing.T) {
-	ref, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "loop:AUTO-$remote_as"}, "loop-detection")
+	ref, bound := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "loop:AUTO-$remote_as"}, "loop-detection")
 	if !bound {
 		t.Fatalf("templated loop ref %q did not bind to its registered stage", ref.Name)
 	}
@@ -175,7 +176,7 @@ func TestLoopPolicyDynamicOwnership(t *testing.T) {
 func TestLoopPolicyDryRunScope(t *testing.T) {
 	r := New(&Config{})
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65000, 65001, 0x01020304)
-	ref, _ := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	ref, _ := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
 	settings.ImportPolicy = bindRefs(filterapi.InternalPolicy([]routepolicy.Ref{ref}), ref)
 	peer := NewPeer(settings)
 	r.peers[settings.PeerKey()] = peer
@@ -214,7 +215,7 @@ func TestLoopPolicyDryRunScope(t *testing.T) {
 // TestLoopPolicyUnknownGuardFailsClosed proves a configured internal ref does
 // not make the remaining unresolved external guard optional at the live entry.
 func TestLoopPolicyUnknownGuardFailsClosed(t *testing.T) {
-	automatic, _ := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	automatic, _ := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
 	refs := []routepolicy.Ref{
 		automatic,
 		{Name: "missing:guard"},
@@ -239,7 +240,7 @@ func TestLoopPolicyUnknownGuardFailsClosed(t *testing.T) {
 // direction validation. Neither a direct chain nor either export origin rail
 // may interpret ingress ownership as proof of an executed export check.
 func TestLoopPolicyManualExportRefusal(t *testing.T) {
-	ref, _ := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	ref, _ := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
 	policy := bindRefs(filterapi.InternalPolicy([]routepolicy.Ref{ref}), ref)
 	for _, direction := range []string{directionExport, "invalid-direction"} {
 		result := PolicyFilterChain(policy, true, direction, "192.0.2.1", 65001, "origin igp", func(string, string, string, string, uint32, string) PolicyResponse {
@@ -293,7 +294,7 @@ func TestLoopPolicyManualExportLeavesNativeRS(t *testing.T) {
 	}
 	source := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
 	destination := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
-	ref, _ := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	ref, _ := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
 	destination.settings.ExportPolicy = bindRefs(filterapi.InternalPolicy([]routepolicy.Ref{ref}), ref)
 	destination.refreshForwardFacts()
 	update := &ReceivedUpdate{
@@ -315,7 +316,7 @@ func TestLoopPolicyManualExportLeavesNativeRS(t *testing.T) {
 // First ownership tests the existing boundary; middle and last expose early
 // terminal escape and side effects before a later unsupported reference.
 func TestLoopPolicyExportOwnershipPreflight(t *testing.T) {
-	ref, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	ref, bound := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
 	if !bound {
 		t.Fatal("real loop registration did not bind AUTO")
 	}
@@ -360,7 +361,7 @@ func TestLoopPolicyExportOwnershipPreflight(t *testing.T) {
 // TestLoopPolicyExportOwnershipConsumers drives forwarded and originated export
 // gates with a valid raw response preceding a real bound internal reference.
 func TestLoopPolicyExportOwnershipConsumers(t *testing.T) {
-	ref, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	ref, bound := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
 	if !bound {
 		t.Fatal("real loop registration did not bind AUTO")
 	}
@@ -396,7 +397,7 @@ func TestLoopPolicyExportOwnershipConsumers(t *testing.T) {
 // both explicit finals when WithFilters replaces active ownership with inactive
 // or external references, then restores the unsupported ownership.
 func TestLoopPolicyOwnershipReplacement(t *testing.T) {
-	ref, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	ref, bound := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
 	if !bound {
 		t.Fatal("real loop registration did not bind AUTO")
 	}

@@ -1,11 +1,8 @@
 package filter
 
 import (
-	"fmt"
 	"net"
-	"os"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 )
@@ -19,22 +16,11 @@ func init() {
 	// filter type reads and sets").
 	policy.MustRegisterFilterType(loopFilterType, []policy.Field{policy.FieldASPath}, nil)
 
-	// Route filter pipeline contribution (BGP-owned seam, not the generic registry).
-	if err := filterapi.Register(filterapi.Filter{
-		Name:       "loop",
-		Stage:      filterapi.FilterStageProtocol,
-		Ingress:    LoopIngress,
-		PolicyType: loopFilterType,
-		// Loop detection runs as an always-on protocol filter, not as a run
-		// plugin, so its counters arrive through filterapi.SetMetricsRegistry.
-		ConfigureMetrics: SetMetricsRegistry,
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "loop: filter registration failed: %v\n", err)
-		os.Exit(1)
-	}
-
+	// Loop detection is engine code: the reactor runs LoopIngress as its own
+	// protocol-stage ingress step and binds loop-detection chain members
+	// through BindLoopDetection, so it registers no filter.
 	_ = registry.Register(registry.Registration{
-		Name:        "loop",
+		Name:        LoopName,
 		Description: "Route loop detection (RFC 4271 S9, RFC 4456 S8)",
 		RFCs:        []string{"4271", "4456"},
 		// Loop detection registers the loop-detection filter type into the

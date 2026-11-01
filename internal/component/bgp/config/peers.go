@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/filter"
 	"github.com/ze-software/ze/internal/component/bgp/redistribute"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/config"
@@ -453,12 +454,12 @@ func namesFilterType(prefix, filterType string, typesMap map[string]string) bool
 }
 
 // bgpServesFilterType refuses an instance whose filter type no BGP filter
-// serves: neither a compiled-in filter (filterapi.BindInProcess), a plugin
+// serves: neither the engine's loop step (bgpfilter.BindLoopDetection), a plugin
 // that registered the type, nor an in-process evaluator over the route view
 // (policychain.HasEvaluator). Canonicalization would otherwise pass the bare
 // name through to a plugin that does not exist, and the filter would never run.
 func bgpServesFilterType(ref policy.Ref, entry policy.Instance, typesMap map[string]string, attachment, context string) error {
-	if _, inProcess := filterapi.BindInProcess(ref, entry.Type); inProcess {
+	if _, inProcess := bgpfilter.BindLoopDetection(ref, entry.Type); inProcess {
 		return nil
 	}
 	if _, served := typesMap[entry.Type]; served {
@@ -484,7 +485,7 @@ func validateExportPolicyReferences(chain policy.Chain, reg *policy.Registry, pa
 		if !ok {
 			continue
 		}
-		bound, inProcess := filterapi.BindInProcess(ref, entry.Type)
+		bound, inProcess := bgpfilter.BindLoopDetection(ref, entry.Type)
 		if !inProcess {
 			continue
 		}

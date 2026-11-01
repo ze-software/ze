@@ -4,7 +4,7 @@
 package bgpconfig
 
 import (
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/filter"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
@@ -59,12 +59,12 @@ func validatePolicyLayer(tree *config.Tree, path string) error {
 }
 
 // canonicalizeFilterRefs rewrites each chain ref to the form runtime dispatch
-// consumes and binds a configured in-process instance to its registered
-// stage, answering the refs and their parallel bindings (nil when none is
+// consumes and binds a configured loop-detection instance to the engine's
+// loop step, answering the refs and their parallel bindings (nil when none is
 // bound) for filterapi.Policy.WithBoundFilters.
 //
-// A configured in-process instance receives its registered stage ownership
-// and the stage-qualified name BindInProcess gives it; a matching prefix alone
+// A configured loop-detection instance receives the loop step's ownership
+// and the owner-qualified name bgpfilter.BindLoopDetection gives it; a matching prefix alone
 // never grants it. Every other ref is rewritten by policy.CanonicalName, which
 // accepts the plugin, filter-type and plain forms, and keeps RPC dispatch.
 // Deactivation state (policy.Ref.Inactive) is carried structurally and
@@ -80,7 +80,7 @@ func canonicalizeFilterRefs(chain []policy.Ref, reg *policy.Registry) ([]policy.
 		out[i] = ref
 		if reg != nil {
 			if entry, ok := reg.Lookup(filterInstanceName(ref.Name)); ok {
-				if named, inProcess := filterapi.BindInProcess(ref, entry.Type); inProcess {
+				if named, inProcess := bgpfilter.BindLoopDetection(ref, entry.Type); inProcess {
 					out[i] = named
 					if bound == nil {
 						bound = make([]bool, len(chain))

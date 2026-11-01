@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/filter"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -122,7 +123,7 @@ func TestRFC8212PolicyDryRunWiring(t *testing.T) {
 // session types. Neither an automatic reference nor a terminal raw rewrite can
 // grant an absent EBGP policy acceptance, and failure/teardown remain terminal.
 func TestRFC8212ChainBoundaries(t *testing.T) {
-	automatic, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	automatic, bound := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
 	if !bound {
 		t.Fatal("loop registration did not bind the automatic reference")
 	}
@@ -202,7 +203,7 @@ func TestRFC8212ChainBoundaries(t *testing.T) {
 // absent, holds only an automatic filter, or holds only an inactive filter has
 // its IPv4 and MP announcements withheld from every consumer.
 func TestRFC8212Section3AbsentImportRejectsOnEBGP(t *testing.T) {
-	automatic, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	automatic, bound := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
 	if !bound {
 		t.Fatal("loop registration missing")
 	}
@@ -369,7 +370,7 @@ func TestRFC8212DefaultOriginateGuard(t *testing.T) {
 		}
 	}
 	t.Run("unsupported-export-ownership", func(t *testing.T) {
-		ref, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+		ref, bound := bgpfilter.BindLoopDetection(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
 		if !bound {
 			t.Fatal("loop registration did not bind")
 		}
