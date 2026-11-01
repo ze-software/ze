@@ -1,6 +1,7 @@
 package filter_prefix
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/policy"
@@ -15,85 +16,55 @@ func prefixSection(entryAction string) []sdk.ConfigSection {
 	return []sdk.ConfigSection{{Root: policy.RootName, Data: data}}
 }
 
-// installedActionOfL reads the action the running definitions give list L's
-// only entry, as a filter-update would.
-func installedActionOfL(t *testing.T) action {
-	t.Helper()
-	listsP := listsByName.Load()
-	if listsP == nil {
-		t.Fatal("no prefix lists installed")
-	}
-	list, ok := (*listsP)["L"]
-	if !ok {
-		t.Fatal("prefix-list L not installed")
-	}
-	if len(list.entries) != 1 {
-		t.Fatalf("L has %d entries, want 1", len(list.entries))
-	}
-	return list.entries[0].action
-}
-
+// TestPrefixConfigTxRefusesAMalformedReload proves what the config
+// transaction of bgp-filter-prefix still owns. The prefix lists are no state
+// the plugin keeps: a BGP chain judges them through a match instance compiled
+// from the policy tree, so the transaction's job is the verify. Method: a boot
+// configure, a verified edit applied and rolled back, then an entry whose
+// action the parser does not know, whose verify is refused and whose apply is
+// then refused as unverified.
 // VALIDATES: spec-plugin-reload-applies-or-refuses AC-1, AC-3, AC-4 for
-// bgp-filter-prefix. A reload's verify installs nothing, apply installs the
-// edited entry, rollback restores the boot definition, and a candidate the
-// parser refuses leaves the running lists.
-// PREVENTS: the silent reload: OnConfigure alone answered every config-apply
-// OK and kept the startup lists.
-// Not parallel: listsByName is package state.
-func TestPrefixConfigTxAppliesAReloadedEntry(t *testing.T) {
-	t.Cleanup(func() { listsByName.Store(nil) })
+// bgp-filter-prefix, as far as the plugin holds them.
+// PREVENTS: a candidate the parser refuses reaching apply.
+func TestPrefixConfigTxRefusesAMalformedReload(t *testing.T) {
 	tx := newPrefixConfigTx()
 	if err := tx.Configure(prefixSection("accept")); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
-
 	if err := tx.Verify(prefixSection("reject")); err != nil {
 		t.Fatalf("verify: %v", err)
-	}
-	if got := installedActionOfL(t); got != actionAccept {
-		t.Fatalf("verify installed the candidate: action %v, want accept until apply", got)
 	}
 	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if got := installedActionOfL(t); got != actionReject {
-		t.Fatalf("after apply: action %v, want reject", got)
-	}
 	if err := tx.Rollback(); err != nil {
 		t.Fatalf("rollback: %v", err)
-	}
-	if got := installedActionOfL(t); got != actionAccept {
-		t.Fatalf("after rollback: action %v, want accept", got)
 	}
 
 	if err := tx.Verify(prefixSection("maybe")); err == nil {
 		t.Fatal("verify of an unknown action: err nil, want a parse refusal")
 	}
-	if got := installedActionOfL(t); got != actionAccept {
-		t.Fatalf("a refused verify changed the lists: action %v, want accept", got)
+	if err := tx.Apply(); !errors.Is(err, sdk.ErrConfigApplyUnverified) {
+		t.Fatalf("apply after a refused verify: %v, want ErrConfigApplyUnverified", err)
 	}
 }
 
-// VALIDATES: AC-2 for bgp-filter-prefix. A reload whose bgp section defines no
-// prefix-list removes every list, and a reload that carries no bgp section
-// leaves the lists as they are (A-2).
-// PREVENTS: a removed list still filtering after the reload.
-// Not parallel: listsByName is package state.
+// TestPrefixConfigTxRemovalAndAbsentRoot proves AC-2 for bgp-filter-prefix as
+// far as the plugin holds it: a reload whose policy section defines no
+// prefix-list, and one that carries no policy section at all, both verify and
+// apply.
+// PREVENTS: a list removal refused by the plugin, which would hold the reload.
 func TestPrefixConfigTxRemovalAndAbsentRoot(t *testing.T) {
-	t.Cleanup(func() { listsByName.Store(nil) })
 	tx := newPrefixConfigTx()
 	if err := tx.Configure(prefixSection("accept")); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 
 	if err := tx.Verify([]sdk.ConfigSection{{Root: "interface", Data: `{}`}}); err != nil {
-		t.Fatalf("verify without bgp: %v", err)
+		t.Fatalf("verify without policy: %v", err)
 	}
 	if err := tx.Apply(); err != nil {
-		t.Fatalf("apply without bgp: %v", err)
-	}
-	if got := installedActionOfL(t); got != actionAccept {
-		t.Fatalf("a transaction without bgp changed L: action %v", got)
+		t.Fatalf("apply without policy: %v", err)
 	}
 
 	if err := tx.Verify([]sdk.ConfigSection{{Root: policy.RootName, Data: `{"bgp":{}}`}}); err != nil {
@@ -101,12 +72,5 @@ func TestPrefixConfigTxRemovalAndAbsentRoot(t *testing.T) {
 	}
 	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply of a removal: %v", err)
-	}
-	listsP := listsByName.Load()
-	if listsP == nil {
-		t.Fatal("removal left no definitions installed, want an empty set")
-	}
-	if n := len(*listsP); n != 0 {
-		t.Fatalf("after removal: %d lists, want 0", n)
 	}
 }

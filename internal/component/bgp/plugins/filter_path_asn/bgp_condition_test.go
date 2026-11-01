@@ -2,7 +2,6 @@ package filter_path_asn
 
 import (
 	"encoding/binary"
-	"strconv"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
@@ -75,39 +74,12 @@ func rejectASNChain(t *testing.T) *policychain.Chain {
 	return chain
 }
 
-// pathText is the filter text format's as-path for path, as
-// (*attribute.ASPath).AppendText writes it.
-func pathText(path []uint32) string {
-	var b []byte
-	for i, a := range path {
-		if i > 0 {
-			b = append(b, ' ')
-		}
-		b = strconv.AppendUint(b, uint64(a), 10)
-	}
-	switch len(path) {
-	case 0:
-		return ""
-	case 1:
-		return "as-path " + string(b)
-	default:
-		return "as-path [" + string(b) + "]"
-	}
-}
-
 // TestBGPMatchRejectASNParity proves the reject-asn condition at a BGP chain
-// gives the verdict the reject-asn filter gives over the same route's text
-// form, on import (sender known) and export (no sender). Method: each case
-// runs the old handler with the text and the direction, and the chain over
-// the wire UPDATE with the matching view session.
+// gives the verdict the reject-asn filter gave, on import (sender known) and
+// export (no sender). Method: each case runs the chain over the wire UPDATE
+// with the matching view session against the verdict the filter answered for
+// the same route, fixed in the table.
 func TestBGPMatchRejectASNParity(t *testing.T) {
-	list, err := parseOneList("guard", conditionListConfig())
-	if err != nil {
-		t.Fatal(err)
-	}
-	old := installedRejectASN.Load()
-	t.Cleanup(func() { installedRejectASN.Store(old) })
-	installedRejectASN.Store(&rejectASNConfig{lists: map[string]*rejectList{"guard": list}})
 
 	cases := []struct {
 		name      string
@@ -129,11 +101,6 @@ func TestBGPMatchRejectASNParity(t *testing.T) {
 	chain := rejectASNChain(t)
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := handleFilterUpdate(&sdk.FilterUpdateInput{Filter: "guard", Direction: tc.direction, PeerAS: tc.sender,
-				Update: pathText(tc.path) + " nlri add 10.1.0.0/24"})
-			if got.Action != tc.action {
-				t.Fatalf("text path answered %v, want %v", got.Action, tc.action)
-			}
 			session := policyview.Session{EBGP: true}
 			if tc.direction == directionImport {
 				session.Sender, session.SenderKnown = tc.sender, true
@@ -150,7 +117,7 @@ func TestBGPMatchRejectASNParity(t *testing.T) {
 				want = policychain.OutcomeReject
 			}
 			if outcome.Action != want {
-				t.Fatalf("BGP chain answered %+v, text answered %v", outcome, tc.action)
+				t.Fatalf("BGP chain answered %+v, want %v", outcome, tc.action)
 			}
 		})
 	}

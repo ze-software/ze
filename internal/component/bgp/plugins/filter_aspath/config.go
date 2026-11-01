@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- AS-path filter config parsing
 // Related: match.go -- AS-path regex matching algorithm
-// Related: filter_aspath.go -- SDK entry point and handleFilterUpdate
+// Related: filter_aspath.go -- SDK entry point and the installed definitions
 //
 // Config parsing for the bgp-filter-aspath plugin.
 //

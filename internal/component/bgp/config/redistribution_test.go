@@ -232,10 +232,13 @@ bgp {
 policy {
     loop-detection my-filter {
     }
-    prefix-list another-filter {
+    prefix-list any-route {
         entry 0.0.0.0/0 {
             action accept;
         }
+    }
+    match another-filter {
+        prefix-list any-route
     }
 }
 `
@@ -380,10 +383,10 @@ bgp {
 // PREVENTS: policy.Ref.Inactive dropped or an inactive filter reactivated by
 // canonicalization.
 func TestCanonicalizeInactivePlainRef(t *testing.T) {
-	reg := mustPolicyRegistry(t, policy.Instance{Name: "CUSTOMERS", Type: "prefix-list"})
+	reg := mustPolicyRegistry(t, policy.Instance{Name: "CUSTOMERS", Type: "family-filter"})
 
 	got, bound := canonicalizeFilterRefs([]policy.Ref{{Name: "CUSTOMERS", Inactive: true}}, reg)
-	assert.Equal(t, []policy.Ref{{Name: "bgp-filter-prefix:CUSTOMERS", Inactive: true}}, got)
+	assert.Equal(t, []policy.Ref{{Name: "bgp-filter-family:CUSTOMERS", Inactive: true}}, got)
 	assert.Nil(t, bound)
 }
 

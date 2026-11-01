@@ -1,24 +1,14 @@
 package filter_community_match
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/ze-software/ze/pkg/plugin/sdk"
-)
-
-// rfc8955Filter installs one community-match list, "POLICY", that accepts
-// 65001:100 and rejects 65001:666, and runs one UPDATE through the filter
-// entry point the engine calls.
-func rfc8955Filter(t *testing.T, update string) sdk.FilterAction {
-	t.Helper()
-	old := listsByName.Load()
-	t.Cleanup(func() { listsByName.Store(old) })
-	lists := map[string]*communityList{"POLICY": {entries: []communityEntry{
-		{community: "65001:666", ctype: communityStandard, action: actionReject},
-		{community: "65001:100", ctype: communityStandard, action: actionAccept},
-	}}}
-	listsByName.Store(&lists)
-	return handleFilterUpdate(&sdk.FilterUpdateInput{Filter: "POLICY", Peer: "192.0.2.1", Update: update}).Action
+// rfc8955List is one community-match list, "POLICY", that rejects 65001:666
+// and accepts 65001:100, in that order.
+func rfc8955List() map[string]any {
+	return map[string]any{"entry": []any{
+		map[string]any{"community": "65001:666", "action": "reject"},
+		map[string]any{"community": "65001:100", "action": "accept"},
+	}}
 }
 
 // RFC requirement: RFC8955-3-1 positive -- community matching applies to the
@@ -28,10 +18,13 @@ func rfc8955Filter(t *testing.T, update string) sdk.FilterAction {
 //
 // VALIDATES: RFC 8955 Section 3 "community matching, must apply to the Flow specification defined NLRI-type".
 // PREVENTS: the community policy being keyed on unicast NLRI text alone.
+// Method: each UPDATE carries the FlowSpec rule in MP_REACH_NLRI and no IPv4
+// NLRI field (flowSpecUpdate), so nothing but the FlowSpec route is judged.
 func TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute(t *testing.T) {
-	for _, nlri := range []string{"ipv4/flow add 10.1.0.0/24", "ipv4/flow-vpn add 10.1.0.0/24"} {
-		if got := rfc8955Filter(t, "origin igp community 65001:100 nlri "+nlri); got != sdk.FilterAccept {
-			t.Fatalf("%s with 65001:100: action = %v, want accept", nlri, got)
+	for _, safi := range []uint8{133, 134} {
+		attrs := append(flowSpecReach(safi), standardCommunities(65001<<16|100)...)
+		if got := judgeWire(t, rfc8955List(), flowSpecUpdate(t, attrs)); got != actionAccept {
+			t.Fatalf("SAFI %d with 65001:100: action = %v, want accept", safi, got)
 		}
 	}
 }
@@ -43,14 +36,16 @@ func TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute(t *testing.T) {
 //
 // VALIDATES: the community-match deny and implicit deny reach FlowSpec routes.
 // PREVENTS: a FlowSpec rule the operator's community policy refuses being installed.
+// Method: FlowSpec-only UPDATEs (flowSpecUpdate, no IPv4 NLRI field), so a
+// community check skipped when no unicast NLRI is present goes red here.
 func TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute(t *testing.T) {
-	updates := []string{
-		"origin igp community [65001:666 65001:100] nlri ipv4/flow add 10.1.0.0/24",
-		"origin igp community 64496:1 nlri ipv4/flow add 10.1.0.0/24",
-	}
-	for _, update := range updates {
-		if got := rfc8955Filter(t, update); got != sdk.FilterReject {
-			t.Fatalf("%q: action = %v, want reject", update, got)
+	for name, communities := range map[string][]byte{
+		"65001:666 beside 65001:100": standardCommunities(65001<<16|666, 65001<<16|100),
+		"64496:1 only":               standardCommunities(64496<<16 | 1),
+	} {
+		attrs := append(flowSpecReach(133), communities...)
+		if got := judgeWire(t, rfc8955List(), flowSpecUpdate(t, attrs)); got != actionReject {
+			t.Fatalf("%s: action = %v, want reject", name, got)
 		}
 	}
 }

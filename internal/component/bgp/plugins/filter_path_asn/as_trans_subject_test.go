@@ -10,24 +10,58 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// subjectFromWire renders the filter subject the reactor hands this plugin for
-// one UPDATE, through the producer itself so this test and the running daemon
-// cannot drift. asn4 is what the session negotiated.
-func subjectFromWire(t *testing.T, asn4 bool, attrs ...[]byte) string {
+// judgeReceived answers the reject-asn list's verdict on one UPDATE as a
+// session receives it: attrs (with one IPv4 prefix) on a session whose
+// negotiated four-octet AS is asn4, from peerAS. The payload goes through the
+// receive reconciliation the session read path runs
+// (wireu.CollapseAS4Family, RFC 6793 Section 4.2.3), and the result is what
+// the policy view reads, so the merge under test is the daemon's own. The
+// condition (conditionCheck) then judges it on a live run.
+func judgeReceived(t *testing.T, filter string, asn4 bool, peerAS uint32, attrs ...[]byte) sdk.FilterAction {
 	t.Helper()
+	held := installedRejectASN.Load()
+	require.NotNil(t, held, "no reject-asn config installed")
+	list, ok := held.lists[filter]
+	require.True(t, ok, "reject-asn list %q is not installed", filter)
+
 	var packed []byte
 	for _, a := range attrs {
 		packed = append(packed, a...)
 	}
+	payload := binary.BigEndian.AppendUint16(nil, 0)
+	payload = binary.BigEndian.AppendUint16(payload, uint16(len(packed))) //nolint:gosec // G115: a test attribute block
+	payload = append(payload, packed...)
+	payload = append(payload, 24, 10, 1, 0)
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(asn4))
 	require.NoError(t, err)
-	return string(reactor.AppendUpdateForFilter(nil, attribute.NewAttributesWire(packed, ctxID), nil, nil))
+	update := wireu.NewWireUpdate(payload, ctxID)
+
+	dst := make([]byte, wireu.CollapseAS4FamilySize(payload))
+	n, _, err := wireu.CollapseAS4Family(dst, payload, asn4)
+	require.NoError(t, err)
+	if n > 0 {
+		collapsedID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+		require.NoError(t, err)
+		update = wireu.NewWireUpdate(dst[:n:n], collapsedID)
+	}
+
+	var view policyview.View
+	view.Reset(update, policyview.Session{EBGP: true, Sender: peerAS, SenderKnown: true})
+	defer view.Clear()
+	passed, err := conditionCheck(list)(&policychain.MatchRoute{View: &view, Reports: true})
+	require.NoError(t, err)
+	if passed {
+		return sdk.FilterAccept
+	}
+	return sdk.FilterReject
 }
 
 // wireAttr wraps one attribute value in its wire header.
@@ -62,8 +96,10 @@ func wirePath4(asns ...uint32) []byte {
 	return value
 }
 
-// TestRejectsFourOctetASNBehindASTrans drives the plugin from the subject the
-// reactor really builds, for a peer that did not negotiate four-octet AS.
+// TestRejectsFourOctetASNBehindASTrans drives the condition from the UPDATE
+// the session read path really produces, for a peer that did not negotiate
+// four-octet AS: the received AS_PATH and AS4_PATH are merged by the receive
+// reconciliation before the view reads the path.
 //
 // The route traversed AS199524, which is what the operator listed. On the wire
 // the AS_PATH says 23456 because two octets cannot hold that number, and the
@@ -72,26 +108,25 @@ func wirePath4(asns ...uint32) []byte {
 //
 // VALIDATES: a reject-asn list naming a four-octet ASN rejects a route that
 // reached it through an OLD-speaker session.
-// PREVENTS: a fail-open that no test over the plugin alone can see, because
-// the plugin is handed a subject that is already wrong.
+// PREVENTS: a fail-open that no test over the condition alone can see,
+// because the condition is handed a path that is already wrong.
+//
+// MUTATION: PrepareAS4Family (wireu/aspath_collapse.go) reconciling without
+// the received AS4_PATH (AS4Path: nil, so the placeholder 23456 stays in the
+// path) turns this test red: the route is accepted.
 func TestRejectsFourOctetASNBehindASTrans(t *testing.T) {
 	configureFrom(t, `        reject-asn NO-TRANSIT {
             indirect [ 199524 ]
         }`)
 
-	subject := subjectFromWire(t, false,
+	got := judgeReceived(t, "NO-TRANSIT", false, 65001,
 		wireAttr(attribute.FlagTransitive, attribute.AttrNextHop, []byte{10, 0, 0, 1}),
 		wireAttr(attribute.FlagTransitive, attribute.AttrASPath,
 			wirePath2(65001, attribute.ASTrans, 65002)),
 		wireAttr(attribute.FlagOptional|attribute.FlagTransitive, attribute.AttrAS4Path,
 			wirePath4(65001, 199524, 65002)),
 	)
-
-	out := handleFilterUpdate(&sdk.FilterUpdateInput{
-		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-		Update: subject,
-	})
-	assert.Equal(t, sdk.FilterReject, out.Action,
+	assert.Equal(t, sdk.FilterReject, got,
 		"the route reached 199524 through the peer, so indirect must reject it")
 }
 
@@ -106,17 +141,12 @@ func TestRejectsFourOctetASNOnFourOctetSession(t *testing.T) {
             indirect [ 199524 ]
         }`)
 
-	subject := subjectFromWire(t, true,
+	got := judgeReceived(t, "NO-TRANSIT", true, 65001,
 		wireAttr(attribute.FlagTransitive, attribute.AttrNextHop, []byte{10, 0, 0, 1}),
 		wireAttr(attribute.FlagTransitive, attribute.AttrASPath,
 			wirePath4(65001, 199524, 65002)),
 	)
-
-	out := handleFilterUpdate(&sdk.FilterUpdateInput{
-		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-		Update: subject,
-	})
-	assert.Equal(t, sdk.FilterReject, out.Action)
+	assert.Equal(t, sdk.FilterReject, got)
 }
 
 // TestAcceptsUnlistedPathBehindASTrans is the negative arm: the same
@@ -131,18 +161,13 @@ func TestAcceptsUnlistedPathBehindASTrans(t *testing.T) {
             indirect [ 199525 ]
         }`)
 
-	subject := subjectFromWire(t, false,
+	got := judgeReceived(t, "NO-TRANSIT", false, 65001,
 		wireAttr(attribute.FlagTransitive, attribute.AttrNextHop, []byte{10, 0, 0, 1}),
 		wireAttr(attribute.FlagTransitive, attribute.AttrASPath,
 			wirePath2(65001, attribute.ASTrans, 65002)),
 		wireAttr(attribute.FlagOptional|attribute.FlagTransitive, attribute.AttrAS4Path,
 			wirePath4(65001, 199524, 65002)),
 	)
-
-	out := handleFilterUpdate(&sdk.FilterUpdateInput{
-		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-		Update: subject,
-	})
-	assert.Equal(t, sdk.FilterAccept, out.Action,
+	assert.Equal(t, sdk.FilterAccept, got,
 		"199525 is not in the reconstructed path, so the route is accepted")
 }

@@ -211,13 +211,13 @@ func TestDirectIsDefinedByTheSenderNotTheIndex(t *testing.T) {
 
 	update := updateFor(sequence(3356, 65001))
 
-	sent := handleFilterUpdate(&sdk.FilterUpdateInput{
+	sent := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 3356, Update: update,
 	})
 	assert.Equal(t, sdk.FilterAccept, sent.Action,
 		"AS3356 sent this path itself, so its leading run is the neighbor and via excludes it")
 
-	leaked := handleFilterUpdate(&sdk.FilterUpdateInput{
+	leaked := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.2", PeerAS: 65001, Update: update,
 	})
 	assert.Equal(t, sdk.FilterReject, leaked.Action,
@@ -259,7 +259,7 @@ func TestExportHasNoNeighborSoViaCoversTheWholePath(t *testing.T) {
 
 	// AC-13: 3356 sits at index zero and the destination peer IS AS3356. Nothing
 	// makes it direct, because nothing on export says who sent the route.
-	leaked := handleFilterUpdate(&sdk.FilterUpdateInput{
+	leaked := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "NO-TRANSIT", Direction: "export", Peer: "10.0.0.1", PeerAS: 3356,
 		Update: updateFor(sequence(3356, 65001)),
 	})
@@ -267,7 +267,7 @@ func TestExportHasNoNeighborSoViaCoversTheWholePath(t *testing.T) {
 		"a path through AS3356 must not be advertised, whatever the destination's own ASN is")
 
 	// AC-14: the same destination, a path that carries no listed ASN.
-	clean := handleFilterUpdate(&sdk.FilterUpdateInput{
+	clean := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "NO-TRANSIT", Direction: "export", Peer: "10.0.0.1", PeerAS: 3356,
 		Update: updateFor(sequence(65001, 65002)),
 	})
@@ -293,12 +293,12 @@ func TestScanUnbracketedSingleASN(t *testing.T) {
             indirect [ 3356 ]
         }`)
 
-	stranger := handleFilterUpdate(&sdk.FilterUpdateInput{
+	stranger := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001, Update: update,
 	})
 	assert.Equal(t, sdk.FilterReject, stranger.Action, "a lone ASN that is not the sender is the origin")
 
-	itself := handleFilterUpdate(&sdk.FilterUpdateInput{
+	itself := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 3356, Update: update,
 	})
 	assert.Equal(t, sdk.FilterAccept, itself.Action, "a lone ASN that is the sender is direct")
@@ -323,7 +323,7 @@ func TestScanAbsentASPath(t *testing.T) {
         }`)
 
 	for _, direction := range []string{"import", "export"} {
-		out := handleFilterUpdate(&sdk.FilterUpdateInput{
+		out := judgeUpdate(t, &sdk.FilterUpdateInput{
 			Filter: "NO-TRANSIT", Direction: direction, Peer: "10.0.0.1", PeerAS: 65001, Update: update,
 		})
 		assert.Equal(t, sdk.FilterAccept, out.Action, "a route with no AS_PATH is accepted on %s", direction)
@@ -439,13 +439,13 @@ func TestRegexRejectsOnShape(t *testing.T) {
             regex [ "^3356 174 " ]
         }`)
 
-	adjacent := handleFilterUpdate(&sdk.FilterUpdateInput{
+	adjacent := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "SHAPES", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
 		Update: updateFor(sequence(3356, 174, 65001)),
 	})
 	assert.Equal(t, sdk.FilterReject, adjacent.Action, "the shape holds, so the route is rejected")
 
-	apart := handleFilterUpdate(&sdk.FilterUpdateInput{
+	apart := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "SHAPES", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
 		Update: updateFor(sequence(3356, 65001, 174)),
 	})
@@ -481,7 +481,7 @@ func TestRegexAndPositionsUnion(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			out := handleFilterUpdate(&sdk.FilterUpdateInput{
+			out := judgeUpdate(t, &sdk.FilterUpdateInput{
 				Filter: "BOTH", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
 				Update: updateFor(sequence(tc.path...)),
 			})
@@ -503,7 +503,7 @@ func TestRegexSubjectIsTheFlattenedString(t *testing.T) {
             regex [ "^65001 174 3356 " ]
         }`)
 
-	out := handleFilterUpdate(&sdk.FilterUpdateInput{
+	out := judgeUpdate(t, &sdk.FilterUpdateInput{
 		Filter: "SHAPES", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
 		Update: updateFor(
 			sequence(65001),

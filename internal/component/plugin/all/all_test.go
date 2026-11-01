@@ -110,17 +110,16 @@ func TestRegisteredPluginNames(t *testing.T) {
 
 // TestFilterTypeMappings snapshots the registered filter types.
 //
-// VALIDATES: Every expected policy filter type is registered.
-// PREVENTS: Silent removal of a policy feature (e.g. prefix-list filtering).
+// VALIDATES: Every expected policy filter type is registered, and the five
+// list types a match instance names (as-path-length, as-path-list,
+// community-match, prefix-list, reject-asn) are none: a BGP chain reaches them
+// only through a match condition.
+// PREVENTS: Silent removal of a policy feature, and an old list type left
+// answering as a chain member beside its match condition.
 func TestFilterTypeMappings(t *testing.T) {
 	expected := map[string]string{
-		"as-path-length":    "bgp-filter-aspath-length",
-		"as-path-list":      "bgp-filter-aspath",
-		"community-match":   "bgp-filter-community-match",
 		"family-filter":     "bgp-filter-family",
 		"modify":            "bgp-filter-modify",
-		"prefix-list":       "bgp-filter-prefix",
-		"reject-asn":        "bgp-filter-path-asn",
 		"remove-private-as": "bgp-filter-remove-private-as",
 	}
 

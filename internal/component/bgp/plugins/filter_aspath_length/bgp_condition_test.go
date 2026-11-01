@@ -29,6 +29,7 @@ func testDefs() map[string]map[string]any {
 		"short":   {"max": "3"},
 		"range":   {"min": "2", "max": "3"},
 		"nonzero": {"min": "1"},
+		"long":    {"min": "2"},
 	}
 }
 
@@ -84,24 +85,11 @@ func matchChain(t *testing.T, name string) *policychain.Chain {
 }
 
 // TestBGPMatchASPathLengthParity proves a match naming an as-path-length
-// instance judges a BGP UPDATE as the instance's own filter judges its text.
+// instance judges a BGP UPDATE as the instance's own filter judged it.
 // Method: each case is one AS path, encoded as the UPDATE's AS_PATH and run
-// through a compiled chain, and rendered by the producer of the filter text
-// (ASPath.AppendText) and run through handleFilterUpdate; the two verdicts
-// must agree, and each must be the one the case names.
+// through a compiled chain; the verdict must be the one the filter answered,
+// fixed in the table.
 func TestBGPMatchASPathLengthParity(t *testing.T) {
-	old := defsByName.Load()
-	t.Cleanup(func() { defsByName.Store(old) })
-	defs := map[string]*asPathLengthDef{}
-	for name, cfg := range testDefs() {
-		def, err := parseAsPathLengthDef(name, cfg)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defs[name] = def
-	}
-	defsByName.Store(&defs)
-
 	seq := func(asns ...uint32) attribute.ASPathSegment {
 		return attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: asns}
 	}
@@ -115,6 +103,7 @@ func TestBGPMatchASPathLengthParity(t *testing.T) {
 		action   sdk.FilterAction
 	}{
 		{"one hop under max", "short", []attribute.ASPathSegment{seq(65001)}, sdk.FilterAccept},
+		{"two hops under max", "short", []attribute.ASPathSegment{seq(65001, 65002)}, sdk.FilterAccept},
 		{"at max", "short", []attribute.ASPathSegment{seq(65001, 65002, 65003)}, sdk.FilterAccept},
 		{"over max", "short", []attribute.ASPathSegment{seq(65001, 65002, 65003, 65004)}, sdk.FilterReject},
 		{"as-set members each count", "short", []attribute.ASPathSegment{seq(65001), set(65002, 65003, 65004)}, sdk.FilterReject},
@@ -125,21 +114,17 @@ func TestBGPMatchASPathLengthParity(t *testing.T) {
 		{"at min", "range", []attribute.ASPathSegment{seq(65001, 4200000000)}, sdk.FilterAccept},
 		{"over range max", "range", []attribute.ASPathSegment{seq(65001, 65002), seq(65003, 65004)}, sdk.FilterReject},
 		{"no as-path under min", "nonzero", nil, sdk.FilterReject},
+		{"min only, one hop under min", "long", []attribute.ASPathSegment{seq(65001)}, sdk.FilterReject},
+		{"min only, three hops over min", "long", []attribute.ASPathSegment{seq(65001, 65002, 65003)}, sdk.FilterAccept},
 		{"empty sequence under min", "nonzero", []attribute.ASPathSegment{}, sdk.FilterReject},
 		{"one as-set member meets min", "nonzero", []attribute.ASPathSegment{set(65001)}, sdk.FilterAccept},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var attrs []byte
-			var text []byte
 			if tc.segments != nil {
 				path := &attribute.ASPath{Segments: tc.segments}
 				attrs = asPathAttr(path)
-				text = path.AppendText(nil)
-			}
-			textOut := handleFilterUpdate(&sdk.FilterUpdateInput{Filter: tc.def, Update: string(text) + " nlri add 10.1.0.0/24"})
-			if textOut.Action != tc.action {
-				t.Fatalf("text path answered %v for %q, want %v", textOut.Action, text, tc.action)
 			}
 			var view policyview.View
 			view.Reset(bgpUpdate(t, attrs), policyview.Session{})
@@ -153,7 +138,7 @@ func TestBGPMatchASPathLengthParity(t *testing.T) {
 				want = policychain.OutcomeReject
 			}
 			if outcome.Action != want {
-				t.Fatalf("BGP chain answered %+v, text answered %v", outcome, tc.action)
+				t.Fatalf("BGP chain answered %+v, want %v", outcome, tc.action)
 			}
 		})
 	}

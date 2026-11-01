@@ -55,7 +55,7 @@ plugin {
     internal rib { use bgp-rib; }
     external policy-final { run "le test fixture reload/bgp-policy-final-reload"; encoder json; }
 }
-policy { reject-asn DENY { indirect [ 65010 ]; } }
+policy { reject-asn DENY-LIST { indirect [ 65010 ]; } match DENY { reject-asn DENY-LIST; } }
 bgp {
     # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
     filter {
@@ -89,7 +89,7 @@ bgp {
             capability { graceful-restart disable; }
         }
         behavior { group-updates disable; }
-        filter { export { filters [ bgp-filter-path-asn:DENY ]; final accept; } }
+        filter { export { filters [ DENY ]; final accept; } }
         attach process policy-final { receive [ update-received ]; send [ update ]; }
         attach process rs { receive [ state open-received refresh ]; send [ update ]; }
         attach process rib { receive [ update-sent state refresh ]; }

@@ -1409,10 +1409,15 @@ filter {
 | `filters` | ordered leaf-list of string | Named filter instances or `<plugin>:<filter>` references; may be empty |
 | `final` | mandatory enumeration | `accept` or `reject`, with no default |
 
-Chains are cumulative across config levels (bgp > group > peer). A member can
-be written three ways, and all three resolve to the same dispatch target: the
-plain instance name `NO-TRANSIT`, the filter-type form `reject-asn:NO-TRANSIT`,
-and the plugin form `bgp-filter-path-asn:NO-TRANSIT`.
+Chains are cumulative across config levels (bgp > group > peer). A member is
+the plain instance name of a filter. A BGP chain reaches a `prefix-list`,
+`as-path-list`, `as-path-length`, `community-match` or `reject-asn` list
+through a `match` instance whose condition names it
+(`match NO-TRANSIT-IN { reject-asn NO-TRANSIT; }`, then the member
+`NO-TRANSIT-IN`); a BGP chain naming the list itself is refused at commit. A
+type that serves a filter role of its own can also be written in the
+filter-type form `modify:NAME` or the plugin form `bgp-filter-modify:NAME`,
+and both resolve to the same dispatch target as the plain name.
 
 The most-specific present direction supplies the final disposition; an absent
 child inherits it. Each original bgp, group and peer layer is validated before

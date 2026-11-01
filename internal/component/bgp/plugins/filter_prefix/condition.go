@@ -37,9 +37,8 @@ func compileRouteCondition(value any, resolve policy.InstanceResolver) (policy.R
 // compileBGPCondition compiles the same value into its check over one NLRI
 // prefix of a BGP UPDATE (policychain.MatchRoute): the prefix passes when the
 // list's first matching entry accepts it. The match walks the UPDATE's
-// prefixes and answers it from the per-prefix verdicts, as the list's own
-// filter does (handleFilterUpdate). An invalid prefix fails: absence is never
-// a match.
+// prefixes and answers it from the per-prefix verdicts. An invalid prefix
+// fails: absence is never a match.
 func compileBGPCondition(value any, resolve policy.InstanceResolver) (policy.ConditionCheck[policychain.MatchRoute], error) {
 	entries, err := conditionEntries(value, resolve)
 	if err != nil {
@@ -53,8 +52,7 @@ func compileBGPCondition(value any, resolve policy.InstanceResolver) (policy.Con
 	}, nil
 }
 
-// The decision lines the prefix-list filter writes (handleFilterUpdate),
-// which a match naming a prefix-list writes too.
+// The decision lines a match naming a prefix-list writes.
 const (
 	lineAccept = "prefix-list accept"
 	lineReject = "prefix-list reject"

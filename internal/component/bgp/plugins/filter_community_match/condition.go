@@ -1,7 +1,7 @@
 // Design: docs/guide/route-policy.md -- the match filter type and its conditions
 // Related: register.go -- registers the community condition for the BGP view
 // Related: config.go -- parseCommunityEntries, the entry parse the condition shares
-// Related: match.go -- evaluateCommunities, the first-match walk over the text form
+// Related: match.go -- the community entry types the check walks
 //
 // The community match condition: a match instance's `community NAME` passes
 // a route whose communities the named community-match list accepts. It reads
@@ -35,8 +35,7 @@ type wireEntry struct {
 // compileBGPCondition compiles a match instance's community value, the name
 // of one community-match instance, into its check over a BGP UPDATE. The
 // route passes when the list's first entry whose community the UPDATE
-// carries accepts; a route no entry matches fails (the implicit deny of
-// evaluateCommunities). An attribute the view refuses as malformed is an
+// carries accepts; a route no entry matches fails (implicit deny). An attribute the view refuses as malformed is an
 // error, so the member fails closed.
 func compileBGPCondition(value any, resolve policy.InstanceResolver) (policy.ConditionCheck[policychain.MatchRoute], error) {
 	entries, err := conditionEntries(value, resolve)
@@ -132,8 +131,7 @@ func kindField(kind communityType) policy.Field {
 	}
 }
 
-// The decision lines the community-match filter writes (handleFilterUpdate), which a
-// match naming a community-match list writes too.
+// The decision lines a match naming a community-match list writes.
 const (
 	lineAccept = "community-match accept"
 	lineReject = "community-match reject"

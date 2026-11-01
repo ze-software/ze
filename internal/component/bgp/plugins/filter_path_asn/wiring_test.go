@@ -11,26 +11,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgpconfig "github.com/ze-software/ze/internal/component/bgp/config"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	_ "github.com/ze-software/ze/internal/component/bgp/yang"
 	"github.com/ze-software/ze/internal/component/config"
 	_ "github.com/ze-software/ze/internal/component/hub/yang"
-	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// canonicalRef is the chain entry a bare NO-TRANSIT resolves to once the
-// registration declares the reject-asn filter type. A chain that resolves to
-// anything else never reaches this plugin.
-const canonicalRef = "bgp-filter-path-asn:NO-TRANSIT"
+// wiringMatch is the match instance the peer's chain names: its reject-asn
+// condition names the NO-TRANSIT list.
+const wiringMatch = "no-transit"
 
-// deliveredName is what the plugin sees in FilterUpdateInput.Filter.
-// PolicyFilterChain (internal/component/bgp/reactor/filter_chain.go) cuts the
-// canonical ref at the colon and passes the plugin name and the filter name as
-// separate arguments, so the bare list name is what arrives over the RPC.
-const deliveredName = "NO-TRANSIT"
-
-// wiringConfig is one peer whose named chain carries the list, written the way
-// an operator writes it: the bare list name, JunOS style.
+// wiringConfig is one peer whose named chain carries a match instance naming
+// the list, written the way an operator writes it.
 //
 // chain is "import" or "export", so both directions come off one config.
 func wiringConfig(chain string) string {
@@ -57,7 +51,7 @@ bgp {
             }
         }
         filter {
-            ` + chain + ` { filters [ NO-TRANSIT ]; final accept; }
+            ` + chain + ` { filters [ ` + wiringMatch + ` ]; final accept; }
         }
     }
 }
@@ -65,93 +59,79 @@ policy {
     reject-asn NO-TRANSIT {
         indirect [ 3356 ]
     }
+    match ` + wiringMatch + ` {
+        reject-asn NO-TRANSIT;
+    }
 }
 `
 }
 
-// deliverConfig parses the config text, checks that the peer's chain resolves
-// to this plugin, and hands the BGP subtree to the plugin the way the engine
-// hands it over: the subtree config.ExtractConfigSubtree cuts, marshaled
-// to JSON. It answers the bare list name, which is what the engine puts in
-// FilterUpdateInput.Filter after PolicyFilterChain has cut the plugin prefix off
-// the canonical ref.
-func deliverConfig(t *testing.T, chain string) string {
+// peerChain parses the config text and answers the library chain the peer's
+// chain compiled to at peer load: the chain names the match instance, and the
+// match's reject-asn condition is what judges the route.
+func peerChain(t *testing.T, chain string) *policychain.Chain {
 	t.Helper()
 
 	tree, err := config.ParseTreeWithYANG(wiringConfig(chain), nil)
-	require.NoError(t, err, "the reject-asn list and its position leaf must parse against the registered YANG")
+	require.NoError(t, err, "the reject-asn list, its position leaf and the match must parse against the registered YANG")
 
 	peers, err := bgpconfig.PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
 
-	got := peers[0].ImportPolicy.Filters()
+	p := peers[0].ImportPolicy
 	if chain == "export" {
-		got = peers[0].ExportPolicy.Filters()
+		p = peers[0].ExportPolicy
 	}
-	require.Equal(t, []policy.Ref{{Name: canonicalRef}}, got,
-		"the bare list name must canonicalize to this plugin: that resolution is the whole reachability chain")
-
-	require.NoError(t, configure(treeSections(t, tree)))
-
-	return deliveredName
+	require.Equal(t, []policy.Ref{{Name: wiringMatch}}, p.Filters(),
+		"the chain must name the match instance")
+	compiled, ok := p.Library().(*policychain.Chain)
+	require.True(t, ok, "a chain naming a match instance must compile to the library chain")
+	return compiled
 }
 
-// leakedUpdate renders the filter text for a route that reached peer AS65001
-// through AS3356, using the producer of that format so the two cannot drift.
-func leakedUpdate() string {
-	path := &attribute.ASPath{Segments: []attribute.ASPathSegment{{
-		Type: attribute.ASSequence,
-		ASNs: []uint32{65001, 3356, 65002},
-	}}}
-	buf := attribute.Origin(0).AppendText(nil)
-	buf = append(buf, ' ')
-	buf = path.AppendText(buf)
-	return string(buf)
+// judgeLeak runs chain over a route that reached AS65001 through AS3356.
+// On import the session names the sender; on export it names none.
+func judgeLeak(t *testing.T, chain *policychain.Chain, session policyview.Session) policychain.Outcome {
+	t.Helper()
+	var view policyview.View
+	view.Reset(pathUpdate(t, 65001, 3356, 65002), session)
+	defer view.Clear()
+	outcome := chain.Run(&view, new(policychain.RunSets))
+	require.False(t, outcome.Failed, "the chain failed the route: %+v", outcome)
+	return outcome
 }
 
 // TestPathASNFilterReachedFromPeerImportChain drives the import half of the
-// wiring: an operator's bare list name in a peer's import chain reaches this
-// plugin's handler, and the handler rejects a path that runs through a listed
-// ASN.
+// wiring: a match instance naming the list in a peer's import chain compiles
+// to the peer's library chain, whose reject-asn condition rejects a path that
+// runs through a listed ASN.
 //
 // VALIDATES: the Wiring Test row for the import chain.
-// PREVENTS: a registered filter type that no peer chain can reach, which passes
+// PREVENTS: a registered condition that no peer chain can reach, which passes
 // every unit test of the matcher and filters nothing.
 func TestPathASNFilterReachedFromPeerImportChain(t *testing.T) {
-	filter := deliverConfig(t, "import")
+	chain := peerChain(t, "import")
 
-	out := handleFilterUpdate(&sdk.FilterUpdateInput{
-		Filter:    filter,
-		Direction: "import",
-		Peer:      "10.0.0.1",
-		PeerAS:    65001,
-		Update:    leakedUpdate(),
-	})
+	outcome := judgeLeak(t, chain, policyview.Session{EBGP: true, Sender: 65001, SenderKnown: true})
 
-	assert.Equal(t, sdk.FilterReject, out.Action,
+	assert.Equal(t, policychain.OutcomeReject, outcome.Action,
 		"AS3356 is transit in this path, so the route the peer leaked must be rejected")
 }
 
-// TestPathASNFilterReachedFromPeerExportChain drives the export half. The
-// engine supplies the destination peer here, so no ASN is the neighbor and via
+// TestPathASNFilterReachedFromPeerExportChain drives the export half. An
+// export session names no sender, so no ASN is the neighbor and indirect
 // covers the whole path.
 //
 // VALIDATES: the Wiring Test row for the export chain.
 // PREVENTS: a list that attaches to import only, leaving RFC 7454 Section 9's
 // export recommendation with no producer.
 func TestPathASNFilterReachedFromPeerExportChain(t *testing.T) {
-	filter := deliverConfig(t, "export")
+	chain := peerChain(t, "export")
 
-	out := handleFilterUpdate(&sdk.FilterUpdateInput{
-		Filter:    filter,
-		Direction: "export",
-		Peer:      "10.0.0.1",
-		PeerAS:    65001,
-		Update:    leakedUpdate(),
-	})
+	outcome := judgeLeak(t, chain, policyview.Session{EBGP: true})
 
-	assert.Equal(t, sdk.FilterReject, out.Action,
+	assert.Equal(t, policychain.OutcomeReject, outcome.Action,
 		"a path through AS3356 must not be advertised to a peer whose export chain names the list")
 }
 

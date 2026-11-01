@@ -6,8 +6,8 @@
 // The reject-asn match condition: a match instance's `reject-asn NAME` passes
 // a route the named reject-asn list does not reject. It reads the list's own
 // definition and judges the same AS-path text with the same position and
-// pattern arms the list's filter uses, with the sender read off the view's
-// session, which is known on import only, as senderOf reads it.
+// pattern arms (match.go), with the sender read off the view's session, which
+// is known on import only.
 
 package filter_path_asn
 
@@ -27,11 +27,10 @@ import (
 // of one reject-asn instance, into its check over a BGP UPDATE. The route
 // passes when the list rejects it on neither arm. A reject that refuses the
 // route on a live run (MatchRoute.Reports: action accept, not a display-only
-// trace) is counted under the direction and the slot that decided it, as
-// handleFilterUpdate counts every route it refuses. A list rejecting a
+// trace) is counted under the direction and the slot that decided it. A list rejecting a
 // route under action reject lets it pass, so nothing is refused and nothing
 // is counted. A match judging each NLRI entry counts one refusal per UPDATE
-// (MatchRoute.Counted), as the filter answered once per UPDATE. An AS_PATH the view refuses as malformed is an error, so the
+// (MatchRoute.Counted). An AS_PATH the view refuses as malformed is an error, so the
 // member fails closed.
 //
 // RFC 7454 Section 9: "This loose policy could be combined with filters for
@@ -42,6 +41,11 @@ func compileBGPCondition(value any, resolve policy.InstanceResolver) (policy.Con
 	if err != nil {
 		return nil, err
 	}
+	return conditionCheck(list), nil
+}
+
+// conditionCheck is the check over one parsed reject-asn list.
+func conditionCheck(list *rejectList) policy.ConditionCheck[policychain.MatchRoute] {
 	return func(r *policychain.MatchRoute) (bool, error) {
 		text, err := r.View.ASPathText()
 		if err != nil {
@@ -72,7 +76,7 @@ func compileBGPCondition(value any, resolve policy.InstanceResolver) (policy.Con
 			return false, nil
 		}
 		return true, nil
-	}, nil
+	}
 }
 
 // conditionList reads the reject-asn list the condition value names.

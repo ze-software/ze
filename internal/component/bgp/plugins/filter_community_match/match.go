@@ -1,12 +1,12 @@
 // Design: docs/architecture/core-design.md -- community match filter matching
 // Related: config.go -- community-list config parsing
-// Related: filter_community_match.go -- SDK entry point and handleFilterUpdate
+// Related: condition.go -- the community condition of a match instance
 //
-// The matching algorithm walks an ordered list of community match entries.
-// For each entry, the UPDATE's community attribute (standard, large, or
-// extended) is extracted from the filter text format, parsed into individual
-// values, and checked for presence of the entry's match value. First match
-// wins; no match yields actionReject (implicit deny).
+// A community-match list is an ordered list of match entries. The community
+// condition (condition.go) checks, for each entry in order, whether the
+// UPDATE's community attribute (standard, large, or extended) carries the
+// entry's value. First match wins; no match yields actionReject (implicit
+// deny).
 //
 // Like AS-path filtering, community matching is attribute-level: the result
 // is always accept or reject for the whole UPDATE (never modify).
@@ -53,17 +53,4 @@ type communityEntry struct {
 type communityList struct {
 	name    string
 	entries []communityEntry
-}
-
-// evaluateCommunities walks the entries in order and returns the action of
-// the first entry whose community value is found in the UPDATE's community
-// attributes. Returns actionReject if no entry matches (implicit deny).
-func evaluateCommunities(entries []communityEntry, updateText string) action {
-	for i := range entries {
-		e := &entries[i]
-		if filtertext.HasCommunity(updateText, e.ctype, e.community) {
-			return e.action
-		}
-	}
-	return actionReject
 }

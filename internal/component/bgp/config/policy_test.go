@@ -180,7 +180,7 @@ func TestPolicyDynamicTemplateFinal(t *testing.T) {
 			t.Fatalf("dynamic final %s lost: %+v", final, importPolicy)
 		}
 		loops, bound := filterapi.BindInProcess(policy.Ref{Name: "LOOPS"}, "loop-detection")
-		want := []policy.Ref{loops, {Name: "bgp-filter-prefix:MEMBERS"}, {Name: "bgp-filter-prefix:MEMBERS"}}
+		want := []policy.Ref{loops, {Name: "MEMBERS"}, {Name: "MEMBERS"}}
 		if !slices.Equal(importPolicy.Filters(), want) || !bound || !importPolicy.InProcess(0) || importPolicy.InProcess(1) || importPolicy.InProcess(2) {
 			t.Fatalf("dynamic filters = %+v, want %+v", importPolicy.Filters(), want)
 		}

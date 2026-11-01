@@ -39,7 +39,6 @@ func init() {
 		ConfigReads:  []string{policy.RootName},
 		Dependencies: []string{configRootBGP, policy.PluginName},
 		YANG:         fayang.ZeFilterAsPathYANG,
-		FilterTypes:  []string{filterTypeName},
 		RunEngine:    runFilterAsPath,
 		CLIHandler:   func(_ []string) int { return 0 },
 	})

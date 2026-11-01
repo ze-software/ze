@@ -848,10 +848,12 @@ NAME { ... } }`. Each list is a sequence of `entry <CIDR>` blocks with
 optional `ge` / `le` bounds and an `action` of `accept` or `reject`; the
 first matching entry wins and no match is an implicit deny.
 
-Filter chain references use the standard `<plugin>:<filter>` form:
-`bgp-filter-prefix:CUSTOMERS`. The shorter form `prefix-list:CUSTOMERS` also
-resolves to the same plugin via the filter-type registration, and a bare
-`CUSTOMERS` resolves if no other filter plugin claims a filter of that name.
+A BGP peer chain reaches a list through a `match` instance:
+`policy { match FROM-CUSTOMERS { prefix-list CUSTOMERS; } }`, then
+`filters [ FROM-CUSTOMERS ]`. The daemon judges the match in process over the
+UPDATE, so the plugin answers no `filter-update`. A BGP chain that names the
+list itself, as `CUSTOMERS` or `prefix-list:CUSTOMERS`, is refused at commit:
+no BGP filter serves the prefix-list type.
 
 A prefix-list can also run in a Loc-RIB import chain, named there by its bare
 instance name. It judges one route at a time with the same entry matching: the
@@ -859,23 +861,17 @@ first matching entry decides and no match rejects the route
 ([Route Policy at the Loc-RIB](route-policy.md)).
 <!-- source: internal/component/bgp/plugins/filter_prefix/rib_evaluator.go -- compileRouteEvaluator -->
 
-| UPDATE content | Filter action |
-|----------------|---------------|
-| Single prefix, accepted | `accept` (passes through) |
-| Single prefix, denied | `reject` (update dropped) |
-| Multi-prefix, all accepted | `accept` (passes through) |
-| Multi-prefix, all denied | `reject` (update dropped) |
-| Multi-prefix, mixed | `modify` -- rewrites the UPDATE NLRI section to carry only the accepted prefixes, denied prefixes are silently removed. cmd-4 phase 2. |
+The match judges each prefix of the UPDATE on its own, in the legacy NLRI and
+Withdrawn Routes and in each MP_REACH_NLRI and MP_UNREACH_NLRI, so an IPv6
+UPDATE or IPv4 unicast carried in MP_REACH_NLRI is judged the same way. An
+UPDATE whose prefixes are all accepted passes, one whose prefixes are all
+denied is rejected, and a mixed one passes with its denied prefixes dropped. A FlowSpec UPDATE with a
+denied destination is rejected whole, because the engine does not rewrite a
+FlowSpec NLRI ([Route Policy at the Loc-RIB](route-policy.md), "The `match`
+conditions").
 
-The mixed case is judged block by block: the legacy NLRI and Withdrawn Routes,
-and each MP_REACH_NLRI and MP_UNREACH_NLRI, so an IPv6 UPDATE or IPv4 unicast
-carried in MP_REACH_NLRI loses its denied prefixes the same way. A FlowSpec
-UPDATE with a denied destination is rejected whole, because the engine does
-not rewrite a FlowSpec NLRI.
-
-<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, buildModifyDelta -->
-<!-- source: internal/component/bgp/plugins/filter_prefix/match.go -- partitionUpdate -->
-<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/condition.go -- compileBGPCondition -->
+<!-- source: internal/component/bgp/policychain/match.go -- compileMatchEvaluator, matchWalk -->
 
 ### AS-Path Filter (`bgp-filter-aspath`)
 
@@ -885,11 +881,12 @@ accept|reject; } } }`. Each entry's regex is matched against the AS-path
 string using Go's RE2 engine (linear time, inherently ReDoS-safe). First
 match wins; no match is implicit deny.
 
-Chain references: `bgp-filter-aspath:NAME`, `as-path-list:NAME`, or bare
-`NAME`. Config authors should use `[0-9]` instead of `\d` in regex strings
-because ze's config parser interprets backslash as an escape character.
+Config authors should use `[0-9]` instead of `\d` in regex strings because
+ze's config parser interprets backslash as an escape character.
 
-The plugin also registers the `as-path` condition of a `match` instance:
+A BGP chain reaches a list only through the `as-path` condition of a `match`
+instance, which the plugin registers; a chain naming the list itself is
+refused at commit:
 `policy { match FROM-65001 { as-path TRANSIT; } }` passes an UPDATE the
 `TRANSIT` list accepts and rejects any other, the same regexes over the same
 AS-path string the list judges as a chain member. Only a BGP chain judges it:
@@ -901,8 +898,9 @@ other is refused.
 <!-- source: internal/component/bgp/plugins/filter_aspath/register.go -- MustRegisterMatchCondition -->
 <!-- source: internal/component/bgp/policyview/aspath_text.go -- ASPathText -->
 
-**The AS-path string every filter matches against.** One reader produces it,
-`filtertext.ASPath`, and every AS-path filter takes it from there. It is the
+**The AS-path string every pattern matches against.** One reader produces it,
+the route view's `ASPathText`, and the `as-path` condition takes it from
+there. It is the
 space-separated decimal ASNs with no brackets, for example `65001 65002 65003`.
 Two properties of it are load-bearing for a pattern you write:
 
@@ -917,17 +915,9 @@ Two properties of it are load-bearing for a pattern you write:
   filter sees the text (RFC 6793 Section 4.2.3), so a pattern and a hop count
   read the real AS numbers and never AS_TRANS.
 - **A route with no AS_PATH gives the empty string**, and a route with one ASN
-  gives that ASN alone. The producer writes one ASN unbracketed (`as-path
-  65001`) and several in brackets (`as-path [65001 65002]`), and the reader
-  strips the brackets, so a pattern never sees one. A plugin that rewrites the
-  AS path can pad the inside of the brackets, `as-path [ 65001 65002 ]`, and the
-  reader trims that padding too. A pattern and a hop count therefore read the
-  same list whether the path came off the wire or out of a plugin.
+  gives that ASN alone, with no brackets around it.
 
-<!-- source: internal/component/bgp/plugins/filter_aspath/filter_aspath.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/plugins/filter_aspath/match.go -- evaluateASPath -->
-<!-- source: internal/component/bgp/filtertext/aspath.go -- ASPath -->
-<!-- source: internal/core/bgp/attribute/text_append.go -- AppendText -->
+<!-- source: internal/component/bgp/plugins/filter_aspath/match.go -- evaluateASPathText -->
 <!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter -->
 
 ### Reject-ASN Filter (`bgp-filter-path-asn`)
@@ -1017,7 +1007,10 @@ and a keyword nobody declared are both refused by the config parser.
 Every reject logs the offending ASN or pattern, the position it matched at, the
 list, the peer and the direction.
 
-Chain references: bare `NAME`, `reject-asn:NAME`, or `bgp-filter-path-asn:NAME`.
+A BGP chain reaches a list through the `reject-asn` condition of a `match`
+instance: `policy { match NO-TRANSIT-IN { reject-asn NO-TRANSIT; } }`, then
+`filters [ NO-TRANSIT-IN ]`. A chain naming the list itself is refused at
+commit.
 
 Every reject also increments `ze_filter_path_asn_rejects_total`, labeled with
 the direction, the position that matched and the reason. The peer stays in the
@@ -1031,7 +1024,7 @@ curated date as comments, and after the paste the config holds the numbers.
 `show bgp reject-asn` lists what each list holds, and
 `show bgp reject-asn name <name>` answers for one of them.
 
-<!-- source: internal/component/bgp/plugins/filter_path_asn/filter_path_asn.go -- handleFilterUpdate, senderOf -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/condition.go -- compileBGPCondition, conditionCheck -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/command.go -- showRejectASN, showKnownTransitFree -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/config.go -- positionsByKey, parseRejectASNLists -->
@@ -1049,17 +1042,15 @@ Separate from the tag/strip community plugin (`bgp-filter-community`) because
 intent differs: this plugin filters (accept/reject), that one modifies
 (tag/strip). They can coexist in the same deployment.
 
-Chain references: `bgp-filter-community-match:NAME` or `community-match:NAME`.
-A `match` instance can name the same list with its `community NAME`
-condition, which the package also registers: a BGP chain judges it in the
-daemon over the attributes' octets, with the list's own first-match order
-and implicit deny (`docs/guide/route-policy.md`, "The `match` conditions").
+A BGP chain reaches a list through the `community NAME` condition of a
+`match` instance, which the package registers: the daemon judges it over the
+attributes' octets, with the list's own first-match order and implicit deny
+(`docs/guide/route-policy.md`, "The `match` conditions"). A chain naming the
+list itself is refused at commit.
 
 Well-known community names (`no-export`, `no-advertise`, `blackhole`, etc.)
-work as match values because the filter text format renders them as names.
+work as match values.
 
-<!-- source: internal/component/bgp/plugins/filter_community_match/filter_community_match.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/plugins/filter_community_match/match.go -- evaluateCommunities -->
 <!-- source: internal/component/bgp/plugins/filter_community_match/condition.go -- compileBGPCondition -->
 
 ### Route Attribute Modifier (`bgp-filter-modify`)
@@ -1150,9 +1141,8 @@ filter {
 Chain references: `bgp-filter-modify:NAME` or `modify:NAME`.
 
 <!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDynamicDelta -->
-<!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDelta, buildDynamicDelta -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- evaluateModify, medRemoveFor -->
+<!-- source: internal/component/bgp/plugins/filter_modify/config.go -- buildSets, buildCommunitySets -->
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps, communityDirectives -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractMEDRemoveOps -->
@@ -1168,10 +1158,9 @@ and an ASN of a confederation segment each count as one hop. That is the
 filter's own count, not the RFC 4271 Section 9.1.2.2 path length best-path
 selection uses, which counts an AS_SET as 1.
 
-Chain references: `bgp-filter-aspath-length:NAME` or `as-path-length:NAME`.
-
-The plugin also registers the `as-path-length` condition of a `match`
-instance: `policy { match NOT-LONG { as-path-length REJECT-LONG; } }` passes
+A BGP chain reaches an instance only through the `as-path-length` condition
+of a `match` instance, which the plugin registers; a chain naming the
+instance itself is refused at commit: `policy { match NOT-LONG { as-path-length REJECT-LONG; } }` passes
 an UPDATE whose hop count lies within `REJECT-LONG`'s bounds and rejects any
 other, counting the hops the filter counts. Only a BGP chain judges it: a
 Loc-RIB route carries no AS path, so a match naming `as-path-length` there is
@@ -1181,8 +1170,7 @@ any other is refused.
 <!-- source: internal/component/bgp/plugins/filter_aspath_length/condition.go -- compileBGPCondition -->
 <!-- source: internal/component/bgp/plugins/filter_aspath_length/register.go -- MustRegisterMatchCondition -->
 
-<!-- source: internal/component/bgp/plugins/filter_aspath_length/filter_aspath_length.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/plugins/filter_aspath_length/aspath_length.go -- evaluateASPathLength, countASPathHops, pathHops -->
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/aspath_length.go -- evaluateASPathLength, pathHops -->
 
 ### Remove Private AS (`bgp-filter-remove-private-as`)
 

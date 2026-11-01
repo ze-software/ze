@@ -1,23 +1,34 @@
-# Test: a reload that edits an as-path-list's entries makes bgp-filter-aspath
-#       answer with the new definition.
+# Test: a reload that edits an as-path-list's entries makes the match naming
+#       it judge with the new definition.
 # Initial config: one dynamic group (iBGP, AS 65533) whose import chain is
-#                 `bgp-filter-aspath:ALLOW-$remote_as`; as-path-list ALLOW-65533
-#                 (entry "65001" accept). The test peer dials Ze.
+#                 `ALLOW-$remote_as`, a match instance; match ALLOW-65533
+#                 names as-path-list ALLOW-LIST-65533 (entry "65001" accept).
+#                 The test peer dials Ze.
 # Live change:    the staged fixture (reload/live-stages, run inside the daemon)
-#                 rewrites the entry's action to reject and sends SIGHUP.
-#                 Nothing else changes: the chain still names ALLOW-65533.
-# Expected:       the same UPDATE (AS_PATH 65001, 10.0.0.0/24) evaluated
-#                 against the peer's live chain answers accept before the
-#                 reload and reject after it, which it can only do when the
-#                 plugin installed the edited list at config-apply.
+#                 rewrites the entry's action to reject, adds an entry "65002"
+#                 accept, and sends SIGHUP. Nothing else changes: the chain
+#                 still names ALLOW-65533.
+# Expected:       two UPDATEs for 10.0.0.0/24 evaluated against the peer's
+#                 live chain. Before the reload AS_PATH 65001 answers accept
+#                 and AS_PATH 65002, which no entry matches, reject. After it
+#                 AS_PATH 65002 answers accept and AS_PATH 65001 reject. Only
+#                 the edited list's new entry can accept AS_PATH 65002, so the
+#                 accept proves the reload recompiled the peer's match from
+#                 the edited list: a peer that kept the startup chain, or
+#                 holds a chain whose name resolves to no match, answers
+#                 reject for it.
 #
-# VALIDATES: spec-plugin-reload-applies-or-refuses AC-1 for bgp-filter-aspath.
-# PREVENTS: the silent reload: with OnConfigure alone the SDK answered
-#           config-apply OK and the plugin kept its startup lists.
+# VALIDATES: spec-plugin-reload-applies-or-refuses AC-1 for an as-path-list
+#            definition, on the match path that judges it.
+# PREVENTS: the silent reload: a running peer whose chain is unchanged keeps
+#           the match compiled from the startup list.
 #
-# DISCRIMINATION: with newAsPathConfigTx().Register(p) replaced by
-# p.OnConfigure(newAsPathConfigTx().Configure), the after-reload policy test
-# answers accept and the stage fails.
+# DISCRIMINATION: the reload half is proven by the AS_PATH 65002 accept after
+# the reload, which no stale or unresolved chain can answer. Two breaks of
+# writeDynamicTemplateLocked (reactor_dynamic.go) each turn that stage red,
+# the answer staying reject: resolving the startup template
+# (p.dynImportPolicy) instead of next.ImportPolicy, the stale chain; and
+# writing next.ImportPolicy unresolved, so ALLOW-$remote_as names no match.
 option=timeout:value=60s
 option=env:var=ze.log.bgp.reactor:value=info
 
@@ -53,10 +64,13 @@ plugin {
 }
 
 	policy {
-		as-path-list ALLOW-65533 {
+		as-path-list ALLOW-LIST-65533 {
 			entry "65001" {
 				action accept
 			}
+		}
+		match ALLOW-65533 {
+			as-path ALLOW-LIST-65533
 		}
 	}
 
@@ -94,7 +108,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import { filters [ bgp-filter-aspath:ALLOW-$remote_as ]; final accept; }
+			import { filters [ ALLOW-$remote_as ]; final accept; }
 		}
 		attach process bgp-rib {
 			receive [ update-received state ]
@@ -103,8 +117,8 @@ bgp {
 }
 EOF_CONF
 
-# The second config: the action of ALLOW-65533's one entry is the ONLY
-# difference (accept -> reject). The chain and the plugin block are
+# The second config: ALLOW-LIST-65533 is the ONLY difference: its entry's
+# action (accept -> reject) and a new entry "65002" accept. The chain and the plugin block are
 # byte-identical, so no peer is touched and the staged fixture survives.
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
@@ -118,10 +132,16 @@ plugin {
 }
 
 	policy {
-		as-path-list ALLOW-65533 {
+		as-path-list ALLOW-LIST-65533 {
 			entry "65001" {
 				action reject
 			}
+			entry "65002" {
+				action accept
+			}
+		}
+		match ALLOW-65533 {
+			as-path ALLOW-LIST-65533
 		}
 	}
 
@@ -159,7 +179,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import { filters [ bgp-filter-aspath:ALLOW-$remote_as ]; final accept; }
+			import { filters [ ALLOW-$remote_as ]; final accept; }
 		}
 		attach process bgp-rib {
 			receive [ update-received state ]
@@ -169,19 +189,23 @@ bgp {
 EOF_CONF2
 
 tmpfs=stages.script:terminator=EOF_SCRIPT
-# Before the reload: ALLOW-65533 accepts an AS_PATH of 65001.
+# Before the reload: ALLOW-65533 accepts an AS_PATH of 65001 and matches no
+# entry for 65002.
 await-file established
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "action":"accept"
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA40030401010101180A0000 => "action":"reject"
 reload config2.conf
-# After it: the same chain names the edited list, which now rejects.
+# After it: the same chain names the edited list. Its new entry accepts 65002,
+# its edited one rejects 65001.
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA40030401010101180A0000 => "action":"accept"
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "action":"reject"
-say AS-PATH-LIST-RELOAD: the edited as-path-list rejects
+say AS-PATH-LIST-RELOAD: the edited as-path-list accepts 65002 and rejects 65001
 EOF_SCRIPT
 
 cmd=background:seq=1:exec=le test peer --dial 127.0.0.1:$PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-aspath -:stdin=ze-bgp:timeout=60s
 
-expect=stderr:contains=AS-PATH-LIST-RELOAD: the edited as-path-list rejects
+expect=stderr:contains=AS-PATH-LIST-RELOAD: the edited as-path-list accepts 65002 and rejects 65001
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=dynamic peer restart required
 # The session under test is a DYNAMIC peer's, built once, before the reload.

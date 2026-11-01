@@ -1,5 +1,4 @@
 // Design: docs/architecture/core-design.md -- AS-path regex filter plugin
-// Related: filter_aspath.go -- listsByName, the state an install replaces
 
 package filter_aspath
 
@@ -9,18 +8,18 @@ import (
 )
 
 // newAsPathConfigTx is the filter's side of the config transaction: the as-path-list definitions
-// are its config, and an install stores them whole, so a filter-update reads
-// the old set or the new one and never a mix. Before any install none is
-// defined.
+// are its config. Nothing reads an installed set: a BGP chain judges a
+// definition through a match instance compiled from the policy tree
+// (condition.go). What the transaction keeps is the verify: a candidate the
+// parser refuses is refused before any plugin applies it.
 func newAsPathConfigTx() *sdk.ConfigTx[map[string]*aspathList] {
 	parse := policy.SectionParser("filter-aspath", errFilterAspathInvalidBgpConfigJson, parseAsPathLists)
 	return sdk.NewConfigTx(map[string]*aspathList(nil), parse, installAsPathLists)
 }
 
-// installAsPathLists makes the definitions every later filter-update reads. It
+// installAsPathLists records what an install accepted. It holds no state, so it
 // cannot fail.
 func installAsPathLists(defs map[string]*aspathList) error {
-	listsByName.Store(&defs)
 	logger().Debug("configured", "as-path-lists", len(defs))
 	return nil
 }

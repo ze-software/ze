@@ -3,9 +3,6 @@ package filter_aspath_length
 import (
 	"strings"
 	"testing"
-
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
-	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // VALIDATES: AC-9 -- as-path-length max rejects long paths.
@@ -79,58 +76,6 @@ func TestAsPathLengthMinMaxCombined(t *testing.T) {
 			got := evaluateASPathLength(tt.pathLen, def)
 			if got != tt.want {
 				t.Errorf("evaluateASPathLength(%d, min=2, max=30) = %v, want %v", tt.pathLen, got, tt.want)
-			}
-		})
-	}
-}
-
-// TestCountASPathHops feeds the shapes filtertext.ASPath returns: the ASNs
-// separated by one space, and the empty string for an update with no AS path.
-// The bracketed forms of the filter text format are the reader's cases, and
-// TestASPath in that package covers them.
-func TestCountASPathHops(t *testing.T) {
-	tests := []struct {
-		name   string
-		asPath string
-		want   int
-	}{
-		{"no_as_path", "", 0},
-		{"single_asn", "65001", 1},
-		{"two_asns", "65001 65002", 2},
-		{"five_asns", "65001 65002 65003 65004 65005", 5},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := countASPathHops(tt.asPath)
-			if got != tt.want {
-				t.Errorf("countASPathHops(%q) = %d, want %d", tt.asPath, got, tt.want)
-			}
-		})
-	}
-}
-
-// TestCountASPathHopsThroughReader counts the hops of an update text whose
-// as-path brackets carry padding, which a plugin delta can write and the wire
-// producer never does. It drives the whole caller path, filtertext.ASPath then
-// countASPathHops, because the padding is the reader's to remove and a count
-// taken over it rejects a route the limit accepts.
-func TestCountASPathHopsThroughReader(t *testing.T) {
-	tests := []struct {
-		name       string
-		updateText string
-		want       int
-	}{
-		{"padded_brackets", "origin igp as-path [ 65001 65002 ] next-hop 10.0.0.1", 2},
-		{"unpadded_brackets", "origin igp as-path [65001 65002] next-hop 10.0.0.1", 2},
-		{"padded_brackets_one_asn", "origin igp as-path [ 65001 ] next-hop 10.0.0.1", 1},
-		{"brackets_holding_only_spaces", "origin igp as-path [   ] next-hop 10.0.0.1", 0},
-		{"empty_brackets", "origin igp as-path [] next-hop 10.0.0.1", 0},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := countASPathHops(filtertext.ASPath(tt.updateText))
-			if got != tt.want {
-				t.Errorf("countASPathHops(filtertext.ASPath(%q)) = %d, want %d", tt.updateText, got, tt.want)
 			}
 		})
 	}
@@ -225,73 +170,6 @@ func TestParseAsPathLengthDefs(t *testing.T) {
 			}
 			if len(defs) != tt.wantCount {
 				t.Fatalf("expected %d defs, got %d", tt.wantCount, len(defs))
-			}
-		})
-	}
-}
-
-func TestHandleFilterUpdate(t *testing.T) {
-	defs := map[string]*asPathLengthDef{
-		"REJECT-LONG":  {name: "REJECT-LONG", max: 3, min: -1},
-		"REJECT-SHORT": {name: "REJECT-SHORT", max: -1, min: 2},
-	}
-	defsByName.Store(&defs)
-	defer defsByName.Store(nil)
-
-	tests := []struct {
-		name       string
-		filterName string
-		update     string
-		wantAction sdk.FilterAction
-	}{
-		{
-			name:       "accept_short_path",
-			filterName: "REJECT-LONG",
-			update:     "origin igp as-path [65001 65002] next-hop 10.0.0.1",
-			wantAction: sdk.FilterAccept,
-		},
-		{
-			name:       "reject_long_path",
-			filterName: "REJECT-LONG",
-			update:     "origin igp as-path [65001 65002 65003 65004] next-hop 10.0.0.1",
-			wantAction: sdk.FilterReject,
-		},
-		{
-			name:       "accept_at_max",
-			filterName: "REJECT-LONG",
-			update:     "origin igp as-path [65001 65002 65003] next-hop 10.0.0.1",
-			wantAction: sdk.FilterAccept,
-		},
-		{
-			name:       "reject_too_short",
-			filterName: "REJECT-SHORT",
-			update:     "origin igp as-path 65001 next-hop 10.0.0.1",
-			wantAction: sdk.FilterReject,
-		},
-		{
-			name:       "accept_long_enough",
-			filterName: "REJECT-SHORT",
-			update:     "origin igp as-path [65001 65002 65003] next-hop 10.0.0.1",
-			wantAction: sdk.FilterAccept,
-		},
-		{
-			name:       "unknown_filter_rejects",
-			filterName: "NONEXISTENT",
-			update:     "origin igp as-path 65001",
-			wantAction: sdk.FilterReject,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			in := &sdk.FilterUpdateInput{
-				Filter: tt.filterName,
-				Peer:   "127.0.0.1",
-				Update: tt.update,
-			}
-			out := handleFilterUpdate(in)
-			if out.Action != tt.wantAction {
-				t.Errorf("action = %v, want %v", out.Action, tt.wantAction)
 			}
 		})
 	}

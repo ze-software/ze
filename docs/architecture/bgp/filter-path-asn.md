@@ -9,8 +9,8 @@ operator has to reset it by hand.
 operator lists the ASNs that must not be reached through a peer. A route whose
 AS_PATH carries one of them is dropped and the session stays up.
 
-<!-- source: internal/component/bgp/plugins/filter_path_asn/filter_path_asn.go -- plugin entry point, configure, senderOf, handleFilterUpdate -->
-<!-- source: internal/component/bgp/plugins/filter_path_asn/register.go -- registration and the reject-asn filter type -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/filter_path_asn.go -- plugin entry point, configure -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/register.go -- registration and the reject-asn match condition -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/config.go -- position, positionSet, positionsByKey, parseRejectASNLists -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/match.go -- senderASN, matchPositions, matchPattern, pathShape, positionAt -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang -- the config schema -->
@@ -64,9 +64,9 @@ bgp {
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 The chain names the match instance by its bare name, JunOS style, and the
-match's `reject-asn` condition names the list. `reject-asn:NAME` and
-`bgp-filter-path-asn:NAME` also still resolve to the list's own filter, for a
-tree where two filter types share a name.
+match's `reject-asn` condition names the list. A chain naming the list
+itself, as `NAME` or `reject-asn:NAME`, is refused at commit: no BGP filter
+serves the reject-asn type.
 
 ## The position vocabulary
 
@@ -368,7 +368,8 @@ hands the handler an empty args slice. `forwardShowRejectASNName` reads
 
 One metric: `ze_filter_path_asn_rejects_total`, a CounterVec labeled
 `direction` (import, export), `position` (direct, transit, origin, nth, regex,
-unspecified) and `reason` (listed-asn, unknown-list, unconfigured).
+unspecified) and `reason` (listed-asn, the one value: a match naming an
+undefined list is refused at config load, so no fail-closed reject is counted).
 
 A dropped route is otherwise invisible: the reject log sits at Info and says
 nothing about rate. The counter answers how many and which rule; the log line

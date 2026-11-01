@@ -24,8 +24,7 @@ import (
 // passes when the list's first matching entry accepts its AS path, read as
 // the flat decimal text (policyview.View.ASPathText); a path no entry
 // matches fails (the implicit deny of evaluateASPathText). An UPDATE with no
-// AS path is judged as the empty text, as the list's own filter judges it
-// (handleFilterUpdate). A malformed AS path fails the member.
+// AS path is judged as the empty text. A malformed AS path fails the member.
 func compileBGPCondition(value any, resolve policy.InstanceResolver) (policy.ConditionCheck[policychain.MatchRoute], error) {
 	entries, err := conditionEntries(value, resolve)
 	if err != nil {
@@ -60,8 +59,7 @@ func conditionEntries(value any, resolve policy.InstanceResolver) ([]aspathEntry
 	return parseAsPathEntries(name, instance)
 }
 
-// The decision lines the as-path-list filter writes (handleFilterUpdate), which a
-// match naming a as-path-list list writes too.
+// The decision lines a match naming an as-path-list writes.
 const (
 	lineAccept = "as-path-list accept"
 	lineReject = "as-path-list reject"

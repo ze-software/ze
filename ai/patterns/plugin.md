@@ -225,26 +225,28 @@ filter's module adds with `augment "/policy:policy"`. `policy.BuildRegistry`
 `policy.PluginName` in `Dependencies`; a filter type that also reads BGP
 settings adds `ConfigReads ["bgp"]` and parses both roots with
 `policy.SectionsParser`. The plugin answers each dispatch through its filter
-evaluator (below). This is the route `filter_aspath`, `filter_prefix` and
-`filter_path_asn` take:
+evaluator (below). This is the route `filter_modify` takes:
 
 ```go
-FilterTypes: []string{"as-path-list"},   // the YANG list name under the policy root
+FilterTypes: []string{"modify"},   // the YANG list name under the policy root
 ```
 
-**A filter type that discharges a config obligation declares which one.** A
+A list type that a BGP chain judges in the daemon registers no filter type: it
+registers a `match` condition, and a chain reaches the list through a `match`
+instance naming it. `filter_prefix`, `filter_aspath`, `filter_aspath_length`,
+`filter_community_match` and `filter_path_asn` take this route
+(`docs/guide/route-policy.md`, "The `match` conditions").
+
+**A match condition that discharges a config obligation declares which one.** A
 config rule can require a peer to name a filter that performs a given check, and
-the rule must not spell a filter type: it asks the registry which types carry
-the obligation (`registry.FilterTypesDischarging`). Declaring it keeps the type
-name inside the plugin, and lets a second implementation qualify later:
+the rule must not spell a condition: it asks which conditions carry the
+obligation (`policy.MatchConditionsDischarging`). The plugin declares it with
+`policy.MustDeclareMatchConditionObligation` from its `register.go`, which
+keeps the condition name inside the plugin and lets a second implementation
+qualify later.
 
-```go
-FilterObligations: []string{filterapi.ObligationTransitLeak},
-```
-
-The obligation names are constants in the domain that defines them, and an
-obligation declared by a plugin owning no filter type is a registration error.
-The one obligation today is the transit-leak check RFC 7454 Section 9
+The obligation names are constants in the domain that defines them. The one
+obligation today is the transit-leak check RFC 7454 Section 9
 recommends, required of a peer that declares an RFC 9234 role
 (`internal/component/bgp/config/peers.go`, `validateLeakFilterObligations`).
 

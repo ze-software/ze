@@ -42,7 +42,6 @@ func init() {
 		ConfigReads:  []string{policy.RootName},
 		Dependencies: []string{configRootBGP, policy.PluginName},
 		YANG:         fpyang.ZeFilterPrefixYANG,
-		FilterTypes:  []string{filterTypeName},
 		RunEngine:    RunFilterPrefix,
 		CLIHandler:   func(_ []string) int { return 0 },
 	})

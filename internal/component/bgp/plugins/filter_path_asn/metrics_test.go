@@ -63,17 +63,13 @@ func TestSlotsAlignWithPositions(t *testing.T) {
 		require.Less(t, slot, slotCount, "position %s has no counter slot", p)
 		assert.Equal(t, p.String(), slotPositionLabels[slot],
 			"the slot for position %s must carry that position's own word", p)
-		assert.Equal(t, reasonLabelListedASN, slotReasonLabels[slot],
-			"a position match is always a listed ASN")
 	}
 
 	assert.Equal(t, positionLabelRegex, slotPositionLabels[slotPattern])
-	assert.Equal(t, reasonLabelUnknownList, slotReasonLabels[slotUnknownList])
-	assert.Equal(t, reasonLabelUnconfigured, slotReasonLabels[slotUnconfigured])
 }
 
-// TestRejectIncrementsCounter drives every reject the filter can produce from
-// its real entry point and reads the exposed counter back.
+// TestRejectIncrementsCounter drives every reject the reject-asn condition can
+// produce on a live run (judgeUpdate) and reads the exposed counter back.
 //
 // VALIDATES: AC-26. Each reject increments ze_filter_path_asn_rejects_total
 // under the direction, position and reason that decided it, and an accepted
@@ -128,14 +124,6 @@ func TestRejectIncrementsCounter(t *testing.T) {
 		action: sdk.FilterReject,
 		series: `direction="import",position="regex",reason="listed-asn"`,
 	}, {
-		name: "unknown_list_on_import",
-		in: sdk.FilterUpdateInput{
-			Filter: "NOT-CONFIGURED", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-			Update: updateFor(sequence(65001, 65002)),
-		},
-		action: sdk.FilterReject,
-		series: `direction="import",position="unspecified",reason="unknown-list"`,
-	}, {
 		name: "clean_path_counts_nothing",
 		in: sdk.FilterUpdateInput{
 			Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
@@ -148,7 +136,7 @@ func TestRejectIncrementsCounter(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			before := scrapeRejects(t, reg)
 
-			out := handleFilterUpdate(&tc.in)
+			out := judgeUpdate(t, &tc.in)
 			require.Equal(t, tc.action, out.Action, "the decision this case is counting")
 
 			if tc.series == "" {
@@ -160,22 +148,6 @@ func TestRejectIncrementsCounter(t *testing.T) {
 				"the reject must be counted under the labels that decided it")
 		})
 	}
-
-	// The fail-closed reject before any delivery. It runs last because it drops
-	// the configured lists.
-	t.Run("before_configure_on_import", func(t *testing.T) {
-		held := installedRejectASN.Load()
-		t.Cleanup(func() { installedRejectASN.Store(held) })
-		installedRejectASN.Store(nil)
-
-		out := handleFilterUpdate(&sdk.FilterUpdateInput{
-			Filter: "NO-TRANSIT", Direction: "import", Peer: "10.0.0.1", PeerAS: 65001,
-			Update: updateFor(sequence(65001, 65002)),
-		})
-		require.Equal(t, sdk.FilterReject, out.Action)
-		assert.Contains(t, scrapeRejects(t, reg),
-			metricRejects+`{direction="import",position="unspecified",reason="unconfigured"} 1`)
-	})
 }
 
 // TestRejectLabelsAreBounded holds the cardinality rule the metrics page states:
@@ -197,7 +169,7 @@ func TestRejectLabelsAreBounded(t *testing.T) {
 
 	series := regexp.MustCompile(`^` + regexp.QuoteMeta(metricRejects) +
 		`\{direction="(import|export)",position="(direct|transit|origin|nth|regex|unspecified)",` +
-		`reason="(listed-asn|unknown-list|unconfigured)"\} 0$`)
+		`reason="listed-asn"\} 0$`)
 	for _, line := range lines {
 		assert.Regexp(t, series, line, "a label value outside the closed vocabulary")
 	}

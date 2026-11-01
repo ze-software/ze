@@ -1,5 +1,4 @@
 // Design: docs/architecture/core-design.md -- AS-path length policy filter
-// Related: filter_aspath_length.go -- defsByName, the state an install replaces
 
 package filter_aspath_length
 
@@ -9,18 +8,18 @@ import (
 )
 
 // newAsPathLengthConfigTx is the filter's side of the config transaction: the as-path-length filter definitions
-// are its config, and an install stores them whole, so a filter-update reads
-// the old set or the new one and never a mix. Before any install none is
-// defined.
+// are its config. Nothing reads an installed set: a BGP chain judges a
+// definition through a match instance compiled from the policy tree
+// (condition.go). What the transaction keeps is the verify: a candidate the
+// parser refuses is refused before any plugin applies it.
 func newAsPathLengthConfigTx() *sdk.ConfigTx[map[string]*asPathLengthDef] {
 	parse := policy.SectionParser("filter-aspath-length", errAsPathLengthInvalidBgpConfigJSON, parseAsPathLengthDefs)
 	return sdk.NewConfigTx(map[string]*asPathLengthDef(nil), parse, installAsPathLengthDefs)
 }
 
-// installAsPathLengthDefs makes the definitions every later filter-update reads. It
+// installAsPathLengthDefs records what an install accepted. It holds no state, so it
 // cannot fail.
 func installAsPathLengthDefs(defs map[string]*asPathLengthDef) error {
-	defsByName.Store(&defs)
 	logger().Debug("configured", "filters", len(defs))
 	return nil
 }

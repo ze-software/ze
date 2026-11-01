@@ -110,7 +110,7 @@ func init() {
 
 // TestBGPMatchRejectASNCountsOncePerUpdate proves a reject-asn refusal is
 // counted once per UPDATE when the match judges each NLRI entry, as the
-// filter-update handler counted it: one handleFilterUpdate call, one verdict,
+// filter-update handler counted it: one filter-update call, one verdict,
 // one count per UPDATE (filter_path_asn.go). Method: a match naming a
 // per-prefix condition and the reject-asn condition judges an UPDATE of two
 // prefixes over a refused AS_PATH, and the counter reads 1.

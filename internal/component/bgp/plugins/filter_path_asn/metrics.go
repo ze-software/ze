@@ -1,7 +1,6 @@
 // Design: docs/plugin-development/metrics.md -- reject-asn operator signal
 // Detail: config.go -- the position vocabulary the position label names
-// Related: filter_path_asn.go -- handleFilterUpdate, a caller of recordReject
-// Related: condition.go -- compileBGPCondition, the other caller of recordReject
+// Related: condition.go -- conditionCheck, the caller of recordReject
 //
 // The one counter this filter publishes.
 //
@@ -56,25 +55,22 @@ const (
 	// applies to a pattern, so the position label carries the keyword an operator
 	// wrote it under.
 	slotPattern rejectSlot = slotNth + 1
-	// slotUnknownList and slotUnconfigured are the two fail-closed rejects. No
-	// ASN and no pattern decided them, so their position label is the word the
-	// position enum answers for a value that is not a place.
-	slotUnknownList  rejectSlot = slotPattern + 1
-	slotUnconfigured rejectSlot = slotUnknownList + 1
 
 	// slotCount is the array length, never a real slot. Each value above states
 	// its own predecessor because the first four are pinned to the position
 	// constants, which breaks the iota run they would otherwise continue.
-	slotCount rejectSlot = slotUnconfigured + 1
+	slotCount rejectSlot = slotPattern + 1
 )
 
 // Label values. Bounded and compile-time constant.
 const (
 	positionLabelRegex = "regex"
 
-	reasonLabelListedASN    = "listed-asn"
-	reasonLabelUnknownList  = "unknown-list"
-	reasonLabelUnconfigured = "unconfigured"
+	// reasonLabelListedASN is the one reason: every reject is the operator's
+	// listing, and the position label says which arm of it decided. A match
+	// naming a list that is not defined is refused at config load, so no
+	// fail-closed reject reaches the counter.
+	reasonLabelListedASN = "listed-asn"
 )
 
 // slotPositionLabels names where in the AS_PATH the reject was decided.
@@ -83,28 +79,12 @@ const (
 // with no index: the index is unbounded operator input and belongs in the log
 // line rather than in a label that would grow the series count.
 var slotPositionLabels = [slotCount]string{
-	slotUnspecified:  positionUnspecified.String(),
-	slotDirect:       positionDirect.String(),
-	slotTransit:      positionTransit.String(),
-	slotOrigin:       positionOrigin.String(),
-	slotNth:          positionNth.String(),
-	slotPattern:      positionLabelRegex,
-	slotUnknownList:  positionUnspecified.String(),
-	slotUnconfigured: positionUnspecified.String(),
-}
-
-// slotReasonLabels names what the filter was acting on. A pattern match reads
-// listed-asn beside position="regex": both arms of a list are the operator's
-// listing, and the position label is what separates them.
-var slotReasonLabels = [slotCount]string{
-	slotUnspecified:  reasonLabelListedASN,
-	slotDirect:       reasonLabelListedASN,
-	slotTransit:      reasonLabelListedASN,
-	slotOrigin:       reasonLabelListedASN,
-	slotNth:          reasonLabelListedASN,
-	slotPattern:      reasonLabelListedASN,
-	slotUnknownList:  reasonLabelUnknownList,
-	slotUnconfigured: reasonLabelUnconfigured,
+	slotUnspecified: positionUnspecified.String(),
+	slotDirect:      positionDirect.String(),
+	slotTransit:     positionTransit.String(),
+	slotOrigin:      positionOrigin.String(),
+	slotNth:         positionNth.String(),
+	slotPattern:     positionLabelRegex,
 }
 
 // flow is the direction dimension of the counter. It is an index rather than the
@@ -118,8 +98,8 @@ const (
 )
 
 // directionExport is the direction label for every call that is not an import.
-// senderOf takes the same reading of a direction it does not recognize: what is
-// not an import carries the destination peer, so it is an export.
+// The condition takes the same reading of a session with no known sender: what
+// is not an import carries the destination peer, so it is an export.
 const directionExport = "export"
 
 var flowLabels = [flowCount]string{
@@ -158,7 +138,7 @@ func buildMetrics(reg metrics.Registry) *filterMetrics {
 	m := &filterMetrics{}
 	for f := range int(flowCount) {
 		for s := range int(slotCount) {
-			m.rejects[f][s] = rejects.With(flowLabels[f], slotPositionLabels[s], slotReasonLabels[s])
+			m.rejects[f][s] = rejects.With(flowLabels[f], slotPositionLabels[s], reasonLabelListedASN)
 		}
 	}
 	return m

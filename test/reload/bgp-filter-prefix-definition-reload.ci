@@ -1,30 +1,41 @@
-# Test: a reload that edits a prefix-list's entries makes bgp-filter-prefix
-#       answer with the new definition.
+# Test: a reload that edits a prefix-list's entries makes the match naming it
+#       judge with the new definition.
 # Initial config: one dynamic group (iBGP, AS 65533) whose import chain is
-#                 `bgp-filter-prefix:ALLOW-$remote_as`; prefix-list ALLOW-65533
-#                 (10.0.0.0/8 ge 16 le 24 accept). The test peer dials Ze and
-#                 announces 10.1.0.0/24.
+#                 `ALLOW-$remote_as`, a match instance; match ALLOW-65533
+#                 names prefix-list ALLOW-LIST-65533 (10.0.0.0/8 ge 16 le 24
+#                 accept). The test peer dials Ze and announces 10.1.0.0/24.
 # Live change:    the staged fixture (reload/live-stages, run inside the daemon)
-#                 rewrites ALLOW-65533's entry action to reject and sends SIGHUP.
-#                 Nothing else changes: the chain still names ALLOW-65533.
-# Expected:       the same UPDATE (10.0.0.0/24) evaluated against the peer's
-#                 live chain answers accept before the reload and reject after
-#                 it, which it can only do when the plugin installed the edited
-#                 list at config-apply. 10.1.0.0/24, accepted before the reload,
-#                 is still received after it: the apply re-evaluates no stored
-#                 route (import re-evaluation is spec-bgp-filtered-route-storage
-#                 AC-3).
+#                 rewrites ALLOW-LIST-65533's entry action to reject, adds an
+#                 entry 20.0.0.0/8 ge 16 le 24 accept, and sends SIGHUP.
+#                 Nothing else changes: the chain still names
+#                 ALLOW-$remote_as, resolved to the match ALLOW-65533.
+# Expected:       two UPDATEs evaluated against the peer's live chain. Before
+#                 the reload 10.0.0.0/24 answers accept and 20.0.0.0/24, which
+#                 no entry matches, reject. After it 20.0.0.0/24 answers accept
+#                 and 10.0.0.0/24 reject. Only the edited list's new entry can
+#                 accept 20.0.0.0/24, so the accept proves the reload recompiled
+#                 the peer's match from the edited list: a peer that kept the
+#                 startup chain, or holds a chain whose name resolves to no
+#                 match, answers reject for it. 10.1.0.0/24, accepted before
+#                 the reload, is still received after it: the apply
+#                 re-evaluates no stored route (import re-evaluation is
+#                 spec-bgp-filtered-route-storage AC-3).
 #
-# VALIDATES: spec-plugin-reload-applies-or-refuses AC-1 and wiring row "SIGHUP
-#            after editing a prefix-list's entries -> filter_prefix apply swaps
-#            listsByName".
-# PREVENTS: the silent reload: with OnConfigure alone the SDK answered
-#           config-apply OK and the plugin kept its startup lists, so the
-#           commit reported success and the edited list never filtered.
+# VALIDATES: spec-plugin-reload-applies-or-refuses AC-1 for a prefix-list
+#            definition, on the match path that judges it, for a dynamic
+#            peer whose chain names the match through `$remote_as`.
+# PREVENTS: the silent reload: a running peer whose chain is unchanged keeps
+#           the match compiled from the startup list, so the commit reports
+#           success and the edited list never filters.
 #
-# DISCRIMINATION: with the ConfigTx registration replaced by OnConfigure alone
-# (newPrefixConfigTx().Register(p) -> p.OnConfigure(newPrefixConfigTx().Configure)),
-# the after-reload policy test answers accept and the stage fails.
+# DISCRIMINATION: the reload half is proven by the 20.0.0.0/24 accept after
+# the reload, which no stale or unresolved chain can answer. Two breaks of
+# writeDynamicTemplateLocked (reactor_dynamic.go) each turn that stage red,
+# the answer staying reject: resolving the startup template
+# (p.dynImportPolicy) instead of next.ImportPolicy, the stale chain; and
+# writing next.ImportPolicy unresolved, so ALLOW-$remote_as names no match.
+# With the peer's announcement removed (the action=send line), the first
+# `show bgp rib received` stage answers no 10.1.0.0/24 and fails.
 option=timeout:value=60s
 option=env:var=ze.log.bgp.reactor:value=info
 
@@ -37,8 +48,7 @@ option=timeout:value=50s
 option=established-file:path=established
 # 10.1.0.0/24, origin IGP, empty AS_PATH (iBGP), next-hop 10.0.0.1,
 # LOCAL_PREF 100: announced once the OPEN exchange is done. ALLOW-65533 accepts it.
-# Sent once. The dynamic session is held until every plugin, bgp-filter-prefix
-# included, finished startup (Reactor.peersStarted), so this one copy meets a
+# Sent once. The dynamic session is held until every plugin finished startup (Reactor.peersStarted), so this one copy meets a
 # connected filter plugin; the stage's `show bgp rib received` reads it.
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0100
 # EOR from ze
@@ -60,12 +70,15 @@ plugin {
 }
 
 	policy {
-		prefix-list ALLOW-65533 {
+		prefix-list ALLOW-LIST-65533 {
 			entry 10.0.0.0/8 {
 				ge 16
 				le 24
 				action accept
 			}
+		}
+		match ALLOW-65533 {
+			prefix-list ALLOW-LIST-65533
 		}
 	}
 
@@ -103,7 +116,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import { filters [ bgp-filter-prefix:ALLOW-$remote_as ]; final accept; }
+			import { filters [ ALLOW-$remote_as ]; final accept; }
 		}
 		attach process bgp-rib {
 			receive [ update-received state ]
@@ -112,8 +125,8 @@ bgp {
 }
 EOF_CONF
 
-# The second config: the action of ALLOW-65533's one entry is the ONLY
-# difference (accept -> reject). The chain and the plugin block are
+# The second config: ALLOW-LIST-65533 is the ONLY difference: its entry's
+# action (accept -> reject) and a new entry 20.0.0.0/8 accept. The chain and the plugin block are
 # byte-identical, so no peer is touched and the staged fixture survives.
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
@@ -127,12 +140,20 @@ plugin {
 }
 
 	policy {
-		prefix-list ALLOW-65533 {
+		prefix-list ALLOW-LIST-65533 {
 			entry 10.0.0.0/8 {
 				ge 16
 				le 24
 				action reject
 			}
+			entry 20.0.0.0/8 {
+				ge 16
+				le 24
+				action accept
+			}
+		}
+		match ALLOW-65533 {
+			prefix-list ALLOW-LIST-65533
 		}
 	}
 
@@ -170,7 +191,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import { filters [ bgp-filter-prefix:ALLOW-$remote_as ]; final accept; }
+			import { filters [ ALLOW-$remote_as ]; final accept; }
 		}
 		attach process bgp-rib {
 			receive [ update-received state ]
@@ -180,20 +201,24 @@ bgp {
 EOF_CONF2
 
 tmpfs=stages.script:terminator=EOF_SCRIPT
-# Before the reload: ALLOW-65533 accepts and the peer's route is in.
+# Before the reload: ALLOW-LIST-65533 accepts 10.0.0.0/24, matches no entry
+# for 20.0.0.0/24, and the peer's route is in.
 await-file established
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "action":"accept"
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040101010118140000 => "action":"reject"
 has show bgp rib received => 10.1.0.0/24
 reload config2.conf
-# After it: the same chain names the edited list, which now rejects; the route
+# After it: the same chain's match names the edited list. Its new entry
+# accepts 20.0.0.0/24, its edited one rejects 10.0.0.0/24, and the route
 # accepted before stays.
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040101010118140000 => "action":"accept"
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "action":"reject"
 has show bgp rib received => 10.1.0.0/24
 say PREFIX-LIST-RELOAD: the edited prefix-list rejects, the route accepted before stays
 EOF_SCRIPT
 
 cmd=background:seq=1:exec=le test peer --dial 127.0.0.1:$PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-prefix -:stdin=ze-bgp:timeout=60s
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
 
 expect=stderr:contains=PREFIX-LIST-RELOAD: the edited prefix-list rejects, the route accepted before stays
 reject=stderr:pattern=ZE-OBSERVER-FAIL

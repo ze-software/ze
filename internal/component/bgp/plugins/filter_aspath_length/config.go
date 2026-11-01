@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- AS-path length filter config parsing
-// Related: filter_aspath_length.go -- SDK entry point and handleFilterUpdate
+// Related: filter_aspath_length.go -- SDK entry point and the installed definitions
 // Related: aspath_length.go -- path length evaluation and AS-path extraction
 
 package filter_aspath_length

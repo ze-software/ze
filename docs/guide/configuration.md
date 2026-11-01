@@ -1819,26 +1819,23 @@ in the order they appear; the first match determines the action. A route
 that matches no entry is implicitly rejected.
 
 **Multi-prefix UPDATEs.** When an UPDATE carries several prefixes and the
-prefix-list accepts some but rejects others, the filter returns `modify`:
-the UPDATE is rewritten to carry only the accepted prefixes in each rewritable
-CIDR-family block, including legacy NLRI and MP_REACH/MP_UNREACH sections.
-A rejected prefix in a non-rewritable family, such as a FlowSpec destination
-component, rejects the whole UPDATE. The rewritten result still receives the
-policy's final decision; `modify` does not grant acceptance.
+prefix-list accepts some but rejects others, the match drops the rejected
+prefixes: the UPDATE carries on with only the accepted prefixes in each
+rewritable section, legacy NLRI and MP_REACH/MP_UNREACH alike. A rejected
+prefix in a section that cannot be rewritten, such as a FlowSpec destination
+component, rejects the whole UPDATE. The result still receives the policy's
+final decision; a drop does not grant acceptance.
 
-Filter instance names are globally unique under the `policy` root. Use the plain
-name as the primary reference form. Prefixed forms are accepted for
-disambiguation or advanced use:
-
-| Form | Example |
-|------|---------|
-| Plain filter name (preferred) | `CUSTOMERS` |
-| `<filter-type>:<filter>` | `prefix-list:CUSTOMERS` |
-| `<plugin>:<filter>` | `bgp-filter-prefix:CUSTOMERS` |
+Filter instance names are globally unique under the `policy` root. A BGP peer
+chain names the `match` instance (`CUSTOMERS-IN` above), never the prefix-list:
+a BGP chain naming `CUSTOMERS` or `prefix-list:CUSTOMERS` is refused at
+commit, because no BGP filter serves the prefix-list type. A Loc-RIB import chain judges a
+prefix-list itself ([Route Policy at the Loc-RIB](route-policy.md)).
 
 <!-- source: internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang -- prefix-list YANG container -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/config.go -- parsePrefixLists -->
-<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, per-prefix partition modify path -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/condition.go -- compileBGPCondition -->
+<!-- source: internal/component/bgp/policychain/chain.go -- compileMember -->
 
 ### IRR Prefix-List Filter
 
@@ -2017,8 +2014,10 @@ destination peer rather than the sender, so nothing is `direct` there and
 `indirect` covers the whole path.
 
 The same ASN under two keywords unions rather than replacing, so `indirect` plus
-`direct` is `anywhere`. A chain names a list by its bare name, or as
-`reject-asn:NAME`, or as `bgp-filter-path-asn:NAME`.
+`direct` is `anywhere`. A BGP chain reaches a list through a `match` instance
+whose `reject-asn` condition names it
+(`policy { match NO-TRANSIT-IN { reject-asn NO-TRANSIT; } }`); a chain naming
+the list itself is refused at commit.
 
 In the config editor, Tab inside a `reject-asn` list offers all seven keywords
 with what each one covers, and Tab on any ASN leaf-list offers the well-known

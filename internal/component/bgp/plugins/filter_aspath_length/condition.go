@@ -25,9 +25,8 @@ import (
 // compileBGPCondition compiles a match instance's as-path-length value, the
 // name of one as-path-length instance, into its check over a BGP UPDATE: the
 // UPDATE passes when its AS path hop count (pathHops) lies within the
-// instance's min and max. An UPDATE with no AS path counts no hops, as the
-// filter counts it (handleFilterUpdate). A malformed AS path fails the
-// member.
+// instance's min and max. An UPDATE with no AS path counts no hops. A
+// malformed AS path fails the member.
 func compileBGPCondition(value any, resolve policy.InstanceResolver) (policy.ConditionCheck[policychain.MatchRoute], error) {
 	def, err := conditionDef(value, resolve)
 	if err != nil {
@@ -66,9 +65,8 @@ func conditionDef(value any, resolve policy.InstanceResolver) (*asPathLengthDef,
 	return parseAsPathLengthDef(name, instance)
 }
 
-// lineReject is the decision line the as-path-length filter writes for a
-// reject (handleFilterUpdate), which a match naming an as-path-length
-// instance writes too. Neither writes a line for an accept.
+// lineReject is the decision line a match naming an as-path-length instance
+// writes for a reject. It writes no line for an accept.
 const lineReject = "as-path-length reject"
 
 // bgpReportEnabled reports whether the decision line is written: Info on the

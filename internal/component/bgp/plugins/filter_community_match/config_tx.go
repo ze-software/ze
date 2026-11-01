@@ -1,5 +1,4 @@
 // Design: docs/architecture/core-design.md -- community match filter plugin
-// Related: filter_community_match.go -- listsByName, the state an install replaces
 
 package filter_community_match
 
@@ -9,18 +8,18 @@ import (
 )
 
 // newCommunityMatchConfigTx is the filter's side of the config transaction: the community-list definitions
-// are its config, and an install stores them whole, so a filter-update reads
-// the old set or the new one and never a mix. Before any install none is
-// defined.
+// are its config. Nothing reads an installed set: a BGP chain judges a
+// definition through a match instance compiled from the policy tree
+// (condition.go). What the transaction keeps is the verify: a candidate the
+// parser refuses is refused before any plugin applies it.
 func newCommunityMatchConfigTx() *sdk.ConfigTx[map[string]*communityList] {
 	parse := policy.SectionParser("filter-community-match", errFilterCommunityMatchInvalidBgpConfig, parseCommunityLists)
 	return sdk.NewConfigTx(map[string]*communityList(nil), parse, installCommunityLists)
 }
 
-// installCommunityLists makes the definitions every later filter-update reads. It
+// installCommunityLists records what an install accepted. It holds no state, so it
 // cannot fail.
 func installCommunityLists(defs map[string]*communityList) error {
-	listsByName.Store(&defs)
 	logger().Debug("configured", "community-lists", len(defs))
 	return nil
 }

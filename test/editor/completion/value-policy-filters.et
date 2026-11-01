@@ -5,9 +5,10 @@
 #            community-match C, which reads a community IS-IS routes never
 #            carry (ze:reference "policy-filter", policy filterReference).
 # VALIDATES: AC-4 -- Tab on a BGP peer's `filters [ ` offers every instance
-#            the bgp import attachment accepts: P, C and the match
-#            prefix-list-P, not the match TAGGED, because a BGP chain cannot
-#            judge its tag condition.
+#            the bgp import attachment accepts: the match prefix-list-P, not
+#            the bare lists P and C, which no BGP filter serves (a BGP chain
+#            judges a list through a match instance), and not the match
+#            TAGGED, because a BGP chain cannot judge its tag condition.
 # PREVENTS: completion offering a filter that commit then refuses, or a
 #           chain completing only a type hint.
 
@@ -72,6 +73,6 @@ input=enter
 expect=context:path=bgp/peer/peer1/filter/import
 input=type:text=set filters [
 input=space
-expect=completion:contains=C,P
 expect=completion:contains=prefix-list-P
+expect=completion:excludes=C,P
 expect=completion:excludes=TAGGED

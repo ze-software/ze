@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- community match filter config parsing
 // Related: match.go -- community matching algorithm
-// Related: filter_community_match.go -- SDK entry point and handleFilterUpdate
+// Related: filter_community_match.go -- SDK entry point and the installed definitions
 //
 // Config parsing for the bgp-filter-community-match plugin.
 //

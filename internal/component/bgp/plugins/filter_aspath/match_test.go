@@ -137,9 +137,9 @@ func TestEvaluateASPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := evaluateASPath(tt.entries, tt.asPathStr)
+			got := evaluateASPathText(tt.entries, []byte(tt.asPathStr))
 			if got != tt.want {
-				t.Errorf("evaluateASPath() = %v, want %v", got, tt.want)
+				t.Errorf("evaluateASPathText() = %v, want %v", got, tt.want)
 			}
 		})
 	}

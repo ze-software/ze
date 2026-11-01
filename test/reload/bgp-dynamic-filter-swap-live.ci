@@ -2,19 +2,24 @@
 #       the RUNNING dynamic session and enforces the new chain, resolved with the
 #       AS the peer announced.
 # Initial config: one dynamic group (iBGP, AS 65533) whose import chain is
-#                 `bgp-filter-prefix:ALLOW-$remote_as`; prefix-lists ALLOW-65533
-#                 (10.0.0.0/8 ge 16 le 24 accept) and DENY-65533 (same entry,
-#                 reject). The test peer dials Ze and announces 10.1.0.0/24.
+#                 `DENY-$remote_as`, a match instance; matches DENY-65533 and
+#                 ALLOW-65533 name prefix-lists DENY-LIST-65533 (10.0.0.0/16
+#                 ge 24 le 24 reject, then 10.0.0.0/8 ge 16 le 24 accept) and
+#                 ALLOW-LIST-65533 (10.0.0.0/8 ge 16 le 24 accept). The test
+#                 peer dials Ze and announces 10.1.0.0/24, which both accept.
 # Live change:    the staged fixture (reload/live-stages, run inside the daemon)
-#                 rewrites the chain to `bgp-filter-prefix:DENY-$remote_as` and
+#                 rewrites the chain to `ALLOW-$remote_as` and
 #                 sends SIGHUP.
 # Expected:       one TCP connection. The same UPDATE (10.0.0.0/24) evaluated
-#                 against the dynamic peer's live chain answers accept before
-#                 the reload and reject after it, which it can only do when the
-#                 template's `$remote_as` was resolved to 65533 against the
-#                 running peer. 10.1.0.0/24, accepted before the reload, is still
-#                 received after it: the swap re-imports nothing (R-21, re-import
-#                 owned by spec-bgp-filtered-route-storage AC-3).
+#                 against the dynamic peer's live chain answers reject before
+#                 the reload and accept after it. Only ALLOW-65533 accepts it,
+#                 so the accept proves the running peer holds the new
+#                 template with `$remote_as` resolved to 65533: a peer that kept
+#                 the startup chain answers DENY-65533's reject, and one that
+#                 holds `ALLOW-$remote_as` unresolved names no match and
+#                 rejects. 10.1.0.0/24, accepted before the reload, is still
+#                 received after it: the swap re-imports nothing (R-21,
+#                 re-import owned by spec-bgp-filtered-route-storage AC-3).
 #
 # VALIDATES: spec-bgp-live-receive-binding-and-bfd-keep-session AC-22 (wiring
 #            row "dynamic step -> write section resolves next against the learned
@@ -22,10 +27,16 @@
 #            reload-import-policy-applies.ci (show policy test reads the chain
 #            runIngressPolicyChain reads).
 # PREVENTS: a dynamic import-policy edit that resets every dynamic session, and a
-#           swap that writes the template chain unresolved (`DENY-$remote_as`
-#           names no prefix-list) onto a running peer.
+#           swap that writes the template chain unresolved (`ALLOW-$remote_as`
+#           names no match instance) onto a running peer.
 #
-# DISCRIMINATION: the continuity carrier is the clean-shutdown NOTIFICATION, as
+# DISCRIMINATION: the swap is proven by the 10.0.0.0/24 accept after the
+# reload. Two breaks of writeDynamicTemplateLocked (reactor_dynamic.go) each
+# turn that stage red, the answer staying reject: resolving the startup
+# template (p.dynImportPolicy) instead of next.ImportPolicy, the stale chain;
+# and writing next.ImportPolicy unresolved.
+#
+# The continuity carrier is the clean-shutdown NOTIFICATION, as
 # in reload-dynamic-peer-survives.ci: the peer dials once and never re-dials, so
 # the Cease/Administrative Shutdown it expects arrives on the first connection
 # only when the reload kept it.
@@ -45,7 +56,7 @@ option=timeout:value=50s
 # holds its first read until it exists.
 option=established-file:path=established
 # 10.1.0.0/24, origin IGP, empty AS_PATH (iBGP), next-hop 10.0.0.1,
-# LOCAL_PREF 100: announced once the OPEN exchange is done. ALLOW-65533 accepts it.
+# LOCAL_PREF 100: announced once the OPEN exchange is done. DENY-65533 accepts it.
 # Sent once. The dynamic session is held until every plugin, bgp-filter-prefix
 # included, finished startup (Reactor.peersStarted), so this one copy meets a
 # connected filter plugin; the stage's `show bgp rib received` reads it.
@@ -69,19 +80,30 @@ plugin {
 }
 
 	policy {
-		prefix-list ALLOW-65533 {
+		prefix-list ALLOW-LIST-65533 {
 			entry 10.0.0.0/8 {
 				ge 16
 				le 24
 				action accept
 			}
 		}
-		prefix-list DENY-65533 {
-			entry 10.0.0.0/8 {
-				ge 16
+		match ALLOW-65533 {
+			prefix-list ALLOW-LIST-65533
+		}
+		prefix-list DENY-LIST-65533 {
+			entry 10.0.0.0/16 {
+				ge 24
 				le 24
 				action reject
 			}
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				action accept
+			}
+		}
+		match DENY-65533 {
+			prefix-list DENY-LIST-65533
 		}
 	}
 
@@ -119,7 +141,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import { filters [ bgp-filter-prefix:ALLOW-$remote_as ]; final accept; }
+			import { filters [ DENY-$remote_as ]; final accept; }
 		}
 		attach process bgp-rib {
 			receive [ update-received state ]
@@ -128,7 +150,7 @@ bgp {
 }
 EOF_CONF
 
-# The second config: the import chain is the ONLY difference (ALLOW -> DENY).
+# The second config: the import chain is the ONLY difference (DENY -> ALLOW).
 # The plugin block is byte-identical, so the staged fixture survives the reload.
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
@@ -142,19 +164,30 @@ plugin {
 }
 
 	policy {
-		prefix-list ALLOW-65533 {
+		prefix-list ALLOW-LIST-65533 {
 			entry 10.0.0.0/8 {
 				ge 16
 				le 24
 				action accept
 			}
 		}
-		prefix-list DENY-65533 {
-			entry 10.0.0.0/8 {
-				ge 16
+		match ALLOW-65533 {
+			prefix-list ALLOW-LIST-65533
+		}
+		prefix-list DENY-LIST-65533 {
+			entry 10.0.0.0/16 {
+				ge 24
 				le 24
 				action reject
 			}
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				action accept
+			}
+		}
+		match DENY-65533 {
+			prefix-list DENY-LIST-65533
 		}
 	}
 
@@ -192,7 +225,7 @@ bgp {
 			group-updates disable
 		}
 		filter {
-			import { filters [ bgp-filter-prefix:DENY-$remote_as ]; final accept; }
+			import { filters [ ALLOW-$remote_as ]; final accept; }
 		}
 		attach process bgp-rib {
 			receive [ update-received state ]
@@ -202,21 +235,21 @@ bgp {
 EOF_CONF2
 
 tmpfs=stages.script:terminator=EOF_SCRIPT
-# Before the reload: the live chain is ALLOW-65533 and the peer's route is in.
+# Before the reload: the live chain is DENY-65533 and the peer's route is in.
 await-file established
-has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "action":"accept"
-has show bgp rib received => 10.1.0.0/24
-reload config2.conf
-# After it: the live chain is DENY-65533, and the route accepted before stays.
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "action":"reject"
 has show bgp rib received => 10.1.0.0/24
-say DYNAMIC-FILTER-SWAP: the reloaded chain rejects, the route accepted before stays
+reload config2.conf
+# After it: the live chain is ALLOW-65533, and the route accepted before stays.
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "action":"accept"
+has show bgp rib received => 10.1.0.0/24
+say DYNAMIC-FILTER-SWAP: the reloaded chain accepts, the route accepted before stays
 EOF_SCRIPT
 
 cmd=background:seq=1:exec=le test peer --dial 127.0.0.1:$PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-prefix -:stdin=ze-bgp:timeout=60s
 
-expect=stderr:contains=DYNAMIC-FILTER-SWAP: the reloaded chain rejects, the route accepted before stays
+expect=stderr:contains=DYNAMIC-FILTER-SWAP: the reloaded chain accepts, the route accepted before stays
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=dynamic peer restart required
 # The session under test is a DYNAMIC peer's, built once, before the reload.

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
 )
@@ -119,10 +120,13 @@ bgp {
 	}
 }
 policy {
-	prefix-list MEMBERS {
+	prefix-list MEMBERS-LIST {
 		entry 10.0.0.0/8 {
 			action accept;
 		}
+	}
+	match MEMBERS {
+		prefix-list MEMBERS-LIST
 	}
 	loop-detection LOOPS {
 		allow-own-as 2;
@@ -178,6 +182,20 @@ func TestDynamicGroupTemplateMatchesAStaticPeer(t *testing.T) {
 		if _, ok := diverge[name]; ok {
 			continue
 		}
+		// A policy whose chain names a match instance carries the chain compiled
+		// for it, built afresh for each peer and holding funcs, so no two compiles
+		// compare equal. It is compiled from the policy's own refs and final
+		// (Policy.WithLibrary), so the refs, the final, the in-process bindings
+		// and whether a compiled chain is present are what can diverge.
+		if staticPolicy, ok := sv.Field(i).Interface().(filterapi.Policy); ok {
+			dynPolicy, isPolicy := dv.Field(i).Interface().(filterapi.Policy)
+			require.True(t, isPolicy, "PeerSettings.%s", name)
+			assert.Equalf(t, staticPolicy.Library() != nil, dynPolicy.Library() != nil,
+				"PeerSettings.%s: one side compiled a library chain and the other did not", name)
+			assert.Equalf(t, staticPolicy.WithLibrary(nil), dynPolicy.WithLibrary(nil),
+				"PeerSettings.%s differs between a static peer and a dynamic group configured identically.", name)
+			continue
+		}
 		assert.Equalf(t, sv.Field(i).Interface(), dv.Field(i).Interface(),
 			"PeerSettings.%s differs between a static peer and a dynamic group configured identically.\n"+
 				"Both are parsed by reactor.parsePeerSettings and both walk peersAndDynamicGroups, so a "+
@@ -213,8 +231,10 @@ func TestDynamicGroupInheritsTheFilterChain(t *testing.T) {
 
 	// LOOPS first: prependDefaultFilters puts loop detection at the head of every
 	// import chain (RFC 4271 Section 9). Then MEMBERS twice, once from the bgp
-	// level and once from the group, because the chains accumulate.
-	require.Equal(t, []string{"loop:LOOPS", "bgp-filter-prefix:MEMBERS", "bgp-filter-prefix:MEMBERS"}, names)
+	// level and once from the group, because the chains accumulate. MEMBERS is
+	// a match instance, which no filter plugin serves, so it keeps its plain
+	// name.
+	require.Equal(t, []string{"loop:LOOPS", "MEMBERS", "MEMBERS"}, names)
 
 	// The loop-detection entry's own settings landed too, which is the layer that
 	// reads the chain it was just given.

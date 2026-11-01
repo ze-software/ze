@@ -1509,15 +1509,15 @@ shape of each one, is "The Attribute Names in the Filter Text Protocol" in
 records what it reads and does not narrow the subject.
 
 FlowSpec UPDATEs expose each destination prefix component to the same
-prefix-list policy used for unicast (`prefix`, `ge`, and `le`). Other flow
-components remain in the original NLRI. A missing destination or an IPv6
-nonzero-offset destination cannot be represented by CIDR policy and is denied.
-Every destination in a multi-NLRI UPDATE must pass: a mixed result rejects the
-whole UPDATE rather than rewriting its flow components. This operator policy
-is separate from the RIB's mandatory FlowSpec-origin validation.
+prefix-list condition a `match` instance applies to unicast (`prefix`, `ge`,
+and `le`). Other flow components are not judged. A FlowSpec UPDATE with no
+destination is denied. Every destination in a multi-NLRI UPDATE must pass: a
+rejected one rejects the whole UPDATE, because a drop cannot rewrite a
+FlowSpec section. This operator policy is separate from the RIB's mandatory
+FlowSpec-origin validation.
 
-<!-- source: internal/component/bgp/reactor/filter_flowspec.go -- appendFlowSpecFilterBlock -->
-<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate FlowSpec whole-update policy -->
+<!-- source: internal/component/bgp/policychain/match.go -- evaluate -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/condition.go -- compileBGPCondition -->
 
 The route attribute modifier (`bgp-filter-modify`) computes an `increment` or a
 `decrement` from the value the subject carries. When the subject carries none,

@@ -4,66 +4,47 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/configorder"
-	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // Config spelling must not change the value matched against formatted UPDATEs.
 func TestConfiguredCommunityMatchesAttributeValue(t *testing.T) {
-	target20 := attribute.ExtendedCommunity{0, 2, 0xfd, 0xe8, 0, 0, 0, 20}
-	target10 := attribute.ExtendedCommunity{0, 2, 0xfd, 0xe8, 0, 0, 0, 10}
-	origin20 := attribute.ExtendedCommunity{0, 3, 0xfd, 0xe8, 0, 0, 0, 20}
-	targetText := string(attribute.ExtendedCommunities{target20}.AppendText(nil))
-	otherTargetText := string(attribute.ExtendedCommunities{target10}.AppendText(nil))
-	noExportText := string(attribute.Communities{0xffffff01}.AppendText(nil))
-	noAdvertiseText := string(attribute.Communities{0xffffff02}.AppendText(nil))
-	previous := listsByName.Load()
-	t.Cleanup(func() { listsByName.Store(previous) })
+	target20 := [8]byte{0, 2, 0xfd, 0xe8, 0, 0, 0, 20}
+	target10 := [8]byte{0, 2, 0xfd, 0xe8, 0, 0, 0, 10}
+	origin20 := [8]byte{0, 3, 0xfd, 0xe8, 0, 0, 0, 20}
+	noExport := standardCommunities(0xffffff01)
+	noAdvertise := standardCommunities(0xffffff02)
 
 	for _, tc := range []struct {
-		name, configured, kind, matching, other string
+		name, configured, kind string
+		matching, other        []byte
 	}{
 		{"standard", "65001:100", "standard",
-			string(attribute.Communities{65001<<16 | 100}.AppendText(nil)),
-			string(attribute.Communities{65001<<16 | 200}.AppendText(nil))},
-		{"well-known name", "no-export", "", noExportText, noAdvertiseText},
-		{"numeric well-known", "65535:65281", "", noExportText, noAdvertiseText},
+			standardCommunities(65001<<16 | 100), standardCommunities(65001<<16 | 200)},
+		{"well-known name", "no-export", "", noExport, noAdvertise},
+		{"numeric well-known", "65535:65281", "", noExport, noAdvertise},
 		{"large decimal", "065001:00100:00200", "large",
-			string(attribute.LargeCommunities{{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 200}}.AppendText(nil)),
-			string(attribute.LargeCommunities{{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 201}}.AppendText(nil))},
-		{"route target", "target:65000:20", "extended", targetText, otherTargetText},
-		{"site of origin", "origin:65000:20", "extended",
-			string(attribute.ExtendedCommunities{origin20}.AppendText(nil)), targetText},
-		{"raw extended hex", "0002FDE800000014", "extended", targetText, otherTargetText},
+			largeCommunity(65001, 100, 200), largeCommunity(65001, 100, 201)},
+		{"route target", "target:65000:20", "extended", extendedCommunities(target20), extendedCommunities(target10)},
+		{"site of origin", "origin:65000:20", "extended", extendedCommunities(origin20), extendedCommunities(target20)},
+		{"raw extended hex", "0002FDE800000014", "extended", extendedCommunities(target20), extendedCommunities(target10)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			entry := map[string]any{}
 			if tc.kind != "" {
 				entry["type"] = tc.kind
 			}
-			lists, err := parseCommunityLists(map[string]any{
-				"community-match": map[string]any{
-					"SERVICE": map[string]any{
-						"entry": map[string]any{
-							tc.configured: entry,
-						},
-					},
-				},
-			})
-			if err != nil {
+			listCfg := map[string]any{"entry": map[string]any{tc.configured: entry}}
+			if _, err := parseCommunityLists(map[string]any{
+				"community-match": map[string]any{"SERVICE": listCfg},
+			}); err != nil {
 				t.Fatal(err)
 			}
-			listsByName.Store(&lists)
-			if got := handleFilterUpdate(&sdk.FilterUpdateInput{
-				Filter: "SERVICE", Update: "origin igp " + tc.matching + " nlri ipv4 unicast add 198.51.100.0/24",
-			}); got.Action != sdk.FilterAccept {
-				t.Fatalf("matching attribute rejected: %s", tc.matching)
+			if got := judgeList(t, listCfg, tc.matching); got != actionAccept {
+				t.Fatalf("matching attribute rejected: %x", tc.matching)
 			}
-			if got := handleFilterUpdate(&sdk.FilterUpdateInput{
-				Filter: "SERVICE", Update: "origin igp " + tc.other + " nlri ipv4 unicast add 198.51.100.0/24",
-			}); got.Action != sdk.FilterReject {
-				t.Fatalf("different attribute accepted: %s", tc.other)
+			if got := judgeList(t, listCfg, tc.other); got != actionReject {
+				t.Fatalf("different attribute accepted: %x", tc.other)
 			}
 		})
 	}
@@ -120,10 +101,14 @@ func TestParseCommunityLists_ListForm_OrderPreserved(t *testing.T) {
 		t.Fatalf("parseCommunityLists: %v", err)
 	}
 	ordered := lists["ORDERED"]
-	if got := evaluateCommunities(ordered.entries, "community [65001:100 65001:200]"); got != actionReject {
+	if len(ordered.entries) != 2 {
+		t.Fatalf("parsed %d entries, want 2", len(ordered.entries))
+	}
+	listCfg, _ := bgpCfg["community-match"].(map[string]any)["ORDERED"].(map[string]any)
+	if got := judgeList(t, listCfg, standardCommunities(65001<<16|100, 65001<<16|200)); got != actionReject {
 		t.Fatalf("first matching entry did not reject: %v", got)
 	}
-	if got := evaluateCommunities(ordered.entries, "community 65001:200"); got != actionAccept {
+	if got := judgeList(t, listCfg, standardCommunities(65001<<16|200)); got != actionAccept {
 		t.Fatalf("second matching entry did not accept: %v", got)
 	}
 }
@@ -216,11 +201,11 @@ func TestParseCommunityListsTwoEntriesInNonLexicalOrder(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parseCommunityLists: %v", err)
 			}
-			ordered, ok := lists["ORDERED"]
-			if !ok {
+			if _, ok := lists["ORDERED"]; !ok {
 				t.Fatal("ORDERED list missing")
 			}
-			if got := evaluateCommunities(ordered.entries, "community [65001:100 65001:200]"); got != tc.wantAction {
+			listCfg, _ := list(tc.order)["community-match"].(map[string]any)["ORDERED"].(map[string]any)
+			if got := judgeList(t, listCfg, standardCommunities(65001<<16|100, 65001<<16|200)); got != tc.wantAction {
 				t.Errorf("filter action is %v, want %v", got, tc.wantAction)
 			}
 		})

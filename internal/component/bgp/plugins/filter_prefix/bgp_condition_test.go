@@ -102,25 +102,13 @@ func matchChain(t *testing.T) *policychain.Chain {
 }
 
 // TestBGPMatchPrefixListParity proves a match naming a prefix-list judges a
-// BGP UPDATE as the list's own filter judges its text: accept, reject, or
-// the denied prefixes dropped (announced and withdrawn), a denied or absent
+// BGP UPDATE as the list's own filter judged it: accept, reject, or the
+// denied prefixes dropped (announced and withdrawn), a denied or absent
 // FlowSpec destination rejecting the whole UPDATE. Method: each case is one
-// UPDATE given both as wire bytes, run through a compiled chain, and as the
-// filter text the reactor renders for it, run through handleFilterUpdate;
-// the verdicts and the dropped prefixes must agree.
+// UPDATE as wire bytes, run through a compiled chain; the verdict and the
+// dropped prefixes must be the ones the filter answered, fixed in the table.
 func TestBGPMatchPrefixListParity(t *testing.T) {
 	family.RegisterTestFamilies()
-	listCfg := map[string]any{"entry": map[string]any{
-		"10.0.0.0/8": map[string]any{"ge": "16", "le": "24", "action": "accept"}}}
-	entries, err := parsePrefixListEntries("protected", listCfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	old := listsByName.Load()
-	t.Cleanup(func() { listsByName.Store(old) })
-	lists := map[string]*prefixList{"protected": {name: "protected", entries: entries}}
-	listsByName.Store(&lists)
-
 	v4 := func(octets ...byte) []byte { return octets }
 	accepted := v4(24, 10, 1, 0) // 10.1.0.0/24
 	denied := v4(24, 192, 0, 2)  // 192.0.2.0/24
@@ -136,61 +124,40 @@ func TestBGPMatchPrefixListParity(t *testing.T) {
 	cases := []struct {
 		name                   string
 		withdrawn, attrs, nlri []byte
-		text                   string
 		action                 sdk.FilterAction
 		drops                  map[policychain.NLRISection][]uint16
 	}{
-		{"accepted prefix", nil, nil, accepted, "nlri add 10.1.0.0/24", sdk.FilterAccept, nil},
-		{"denied prefix", nil, nil, denied, "nlri add 192.0.2.0/24", sdk.FilterReject, nil},
-		{"mixed announce", nil, nil, append(slices.Clone(accepted), denied...),
-			"nlri add 10.1.0.0/24 192.0.2.0/24", sdk.FilterModify,
+		{"accepted prefix", nil, nil, accepted, sdk.FilterAccept, nil},
+		{"denied prefix", nil, nil, denied, sdk.FilterReject, nil},
+		{"mixed announce", nil, nil, append(slices.Clone(accepted), denied...), sdk.FilterModify,
 			map[policychain.NLRISection][]uint16{policychain.NLRISectionAnnounce: {4}}},
-		{"denied withdrawal beside accepted announce", denied, nil, accepted,
-			"nlri del 192.0.2.0/24 nlri add 10.1.0.0/24", sdk.FilterModify,
+		{"denied withdrawal beside accepted announce", denied, nil, accepted, sdk.FilterModify,
 			map[policychain.NLRISection][]uint16{policychain.NLRISectionWithdrawn: {0}}},
-		{"denied withdrawal only", denied, nil, nil, "nlri del 192.0.2.0/24", sdk.FilterReject, nil},
-		{"no prefix", nil, nil, nil, "", sdk.FilterAccept, nil},
-		{"ipv6 prefix against an ipv4 list", nil, mpReach(2, 1, make([]byte, 16), v6), nil,
-			"mp ipv6/unicast add 2001:db8::/32", sdk.FilterReject, nil},
-		{"mixed mp-reach", nil, mpReach(1, 1, nh4, append(slices.Clone(accepted), denied...)), nil,
-			"mp ipv4/unicast add 10.1.0.0/24 192.0.2.0/24", sdk.FilterModify,
+		{"denied withdrawal only", denied, nil, nil, sdk.FilterReject, nil},
+		{"no prefix", nil, nil, nil, sdk.FilterAccept, nil},
+		{"ipv6 prefix against an ipv4 list", nil, mpReach(2, 1, make([]byte, 16), v6), nil, sdk.FilterReject, nil},
+		{"mixed mp-reach", nil, mpReach(1, 1, nh4, append(slices.Clone(accepted), denied...)), nil, sdk.FilterModify,
 			map[policychain.NLRISection][]uint16{policychain.NLRISectionMPReach: {4}}},
-		{"flowspec accepted destination", nil, mpReach(1, 133, nil, flowRule(false, destination(24, 10, 1, 0)...)), nil,
-			"mp ipv4/flow add 10.1.0.0/24", sdk.FilterAccept, nil},
-		{"flowspec destination too long", nil, mpReach(1, 133, nil, flowRule(false, destination(25, 10, 1, 0, 0)...)), nil,
-			"mp ipv4/flow add 10.1.0.0/25", sdk.FilterReject, nil},
-		{"flowspec denied destination", nil, mpReach(1, 133, nil, flowRule(false, destination(24, 192, 0, 2)...)), nil,
-			"mp ipv4/flow add 192.0.2.0/24", sdk.FilterReject, nil},
-		{"flowspec absent destination", nil, mpReach(1, 133, nil, flowRule(false, source...)), nil,
-			"mp ipv4/flow add invalid", sdk.FilterReject, nil},
+		{"flowspec accepted destination", nil, mpReach(1, 133, nil, flowRule(false, destination(24, 10, 1, 0)...)), nil, sdk.FilterAccept, nil},
+		{"flowspec destination too long", nil, mpReach(1, 133, nil, flowRule(false, destination(25, 10, 1, 0, 0)...)), nil, sdk.FilterReject, nil},
+		{"flowspec denied destination", nil, mpReach(1, 133, nil, flowRule(false, destination(24, 192, 0, 2)...)), nil, sdk.FilterReject, nil},
+		{"flowspec absent destination", nil, mpReach(1, 133, nil, flowRule(false, source...)), nil, sdk.FilterReject, nil},
 		{"flowspec mixed rules", nil, mpReach(1, 133, nil, append(flowRule(false, destination(24, 10, 1, 0)...),
-			flowRule(false, destination(24, 192, 0, 2)...)...)), nil,
-			"mp ipv4/flow add 10.1.0.0/24 192.0.2.0/24", sdk.FilterReject, nil},
-		{"flowspec vpn accepted destination", nil, mpReach(1, 134, nil, flowRule(true, destination(24, 10, 1, 0)...)), nil,
-			"mp ipv4/flow-vpn add 10.1.0.0/24", sdk.FilterAccept, nil},
-		{"labeled accepted prefix", nil, mpReach(1, 4, nh4, labeledAccepted), nil,
-			"mp ipv4/mpls-label add 10.1.0.0/24", sdk.FilterAccept, nil},
-		{"labeled denied prefix", nil, mpReach(1, 4, nh4, labeledDenied), nil,
-			"mp ipv4/mpls-label add 192.0.2.0/24", sdk.FilterReject, nil},
-		{"labeled two-label stack accepted", nil, mpReach(1, 4, nh4, labeled(twoLabels, 10, 1, 0)), nil,
-			"mp ipv4/mpls-label add 10.1.0.0/24", sdk.FilterAccept, nil},
-		{"labeled mixed mp-reach", nil, mpReach(1, 4, nh4, append(slices.Clone(labeledAccepted), labeledDenied...)), nil,
-			"mp ipv4/mpls-label add 10.1.0.0/24 192.0.2.0/24", sdk.FilterModify,
+			flowRule(false, destination(24, 192, 0, 2)...)...)), nil, sdk.FilterReject, nil},
+		{"flowspec vpn accepted destination", nil, mpReach(1, 134, nil, flowRule(true, destination(24, 10, 1, 0)...)), nil, sdk.FilterAccept, nil},
+		{"labeled accepted prefix", nil, mpReach(1, 4, nh4, labeledAccepted), nil, sdk.FilterAccept, nil},
+		{"labeled denied prefix", nil, mpReach(1, 4, nh4, labeledDenied), nil, sdk.FilterReject, nil},
+		{"labeled two-label stack accepted", nil, mpReach(1, 4, nh4, labeled(twoLabels, 10, 1, 0)), nil, sdk.FilterAccept, nil},
+		{"labeled mixed mp-reach", nil, mpReach(1, 4, nh4, append(slices.Clone(labeledAccepted), labeledDenied...)), nil, sdk.FilterModify,
 			map[policychain.NLRISection][]uint16{policychain.NLRISectionMPReach: {7}}},
 		{"labeled denied withdrawal beside accepted announce", nil,
-			append(mpReach(1, 4, nh4, labeledAccepted), mpUnreach(1, 4, labeled(compat, 192, 0, 2))...), nil,
-			"mp ipv4/mpls-label add 10.1.0.0/24 mp ipv4/mpls-label del 192.0.2.0/24", sdk.FilterModify,
+			append(mpReach(1, 4, nh4, labeledAccepted), mpUnreach(1, 4, labeled(compat, 192, 0, 2))...), nil, sdk.FilterModify,
 			map[policychain.NLRISection][]uint16{policychain.NLRISectionMPUnreach: {0}}},
-		{"labeled accepted withdrawal, zero Compatibility", nil, mpUnreach(1, 4, labeled([]byte{0, 0, 0}, 10, 1, 0)), nil,
-			"mp ipv4/mpls-label del 10.1.0.0/24", sdk.FilterAccept, nil},
+		{"labeled accepted withdrawal, zero Compatibility", nil, mpUnreach(1, 4, labeled([]byte{0, 0, 0}, 10, 1, 0)), nil, sdk.FilterAccept, nil},
 	}
 	chain := matchChain(t)
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			text := handleFilterUpdate(&sdk.FilterUpdateInput{Filter: "protected", Update: tc.text})
-			if text.Action != tc.action {
-				t.Fatalf("text path answered %v, want %v", text.Action, tc.action)
-			}
 			var view policyview.View
 			view.Reset(bgpUpdate(t, tc.withdrawn, tc.attrs, tc.nlri), policyview.Session{})
 			defer view.Clear()
@@ -204,7 +171,7 @@ func TestBGPMatchPrefixListParity(t *testing.T) {
 				want = policychain.OutcomeReject
 			}
 			if outcome.Action != want {
-				t.Fatalf("BGP chain answered %+v, text answered %v", outcome, tc.action)
+				t.Fatalf("BGP chain answered %+v, want %v", outcome, tc.action)
 			}
 			if want == policychain.OutcomeReject {
 				return

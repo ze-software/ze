@@ -74,20 +74,11 @@ func communityChain(t *testing.T) *policychain.Chain {
 }
 
 // TestBGPMatchCommunityParity proves the community condition at a BGP chain
-// gives the verdict the community-match filter gives over the same route's
-// text form. Method: each case holds typed communities; the text is what
-// their AppendText producers write, the wire is their RFC 1997, 4360 and
-// 8092 encoding, and both paths judge the same list.
+// gives the verdict the community-match filter gave for the same route.
+// Method: each case holds typed communities, encoded as their RFC 1997, 4360
+// and 8092 attributes, and the chain's verdict must be the one the filter
+// answered, fixed in the table.
 func TestBGPMatchCommunityParity(t *testing.T) {
-	entries, err := parseCommunityEntries("cl", testListConfig())
-	if err != nil {
-		t.Fatal(err)
-	}
-	old := listsByName.Load()
-	t.Cleanup(func() { listsByName.Store(old) })
-	lists := map[string]*communityList{"cl": {name: "cl", entries: entries}}
-	listsByName.Store(&lists)
-
 	target, err := attribute.ParseSingleExtCommunity("target:65000:5")
 	if err != nil {
 		t.Fatal(err)
@@ -120,9 +111,8 @@ func TestBGPMatchCommunityParity(t *testing.T) {
 	chain := communityChain(t)
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var text, attrs []byte
+			var attrs []byte
 			if len(tc.standard) > 0 {
-				text = tc.standard.AppendText(text)
 				var value []byte
 				for _, c := range tc.standard {
 					value = binary.BigEndian.AppendUint32(value, uint32(c))
@@ -130,7 +120,6 @@ func TestBGPMatchCommunityParity(t *testing.T) {
 				attrs = append(attrs, optionalTransitive(8, value)...)
 			}
 			if len(tc.extended) > 0 {
-				text = append(tc.extended.AppendText(append(text, ' ')), ' ')
 				var value []byte
 				for _, e := range tc.extended {
 					value = append(value, e[:]...)
@@ -138,7 +127,6 @@ func TestBGPMatchCommunityParity(t *testing.T) {
 				attrs = append(attrs, optionalTransitive(16, value)...)
 			}
 			if len(tc.large) > 0 {
-				text = tc.large.AppendText(append(text, ' '))
 				var value []byte
 				for _, l := range tc.large {
 					value = binary.BigEndian.AppendUint32(value, l.GlobalAdmin)
@@ -146,10 +134,6 @@ func TestBGPMatchCommunityParity(t *testing.T) {
 					value = binary.BigEndian.AppendUint32(value, l.LocalData2)
 				}
 				attrs = append(attrs, optionalTransitive(32, value)...)
-			}
-			got := handleFilterUpdate(&sdk.FilterUpdateInput{Filter: "cl", Update: string(text) + " nlri add 10.1.0.0/24"})
-			if got.Action != tc.action {
-				t.Fatalf("text path answered %v, want %v (text %q)", got.Action, tc.action, text)
 			}
 			var view policyview.View
 			view.Reset(conditionUpdate(t, attrs), policyview.Session{})
@@ -163,7 +147,7 @@ func TestBGPMatchCommunityParity(t *testing.T) {
 				want = policychain.OutcomeReject
 			}
 			if outcome.Action != want {
-				t.Fatalf("BGP chain answered %+v, text answered %v", outcome, tc.action)
+				t.Fatalf("BGP chain answered %+v, want %v", outcome, tc.action)
 			}
 		})
 	}

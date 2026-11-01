@@ -489,11 +489,11 @@ as capability-only, but it filters every UPDATE on ingress and egress, so each
 of its refusal paths carries a reason-labeled counter.
 
 A route filter is the same case. `bgp-filter-path-asn` refuses a route whose
-AS_PATH carries a listed ASN, and it also refuses one fail-closed when the named
-list is unknown or no config has arrived yet. Its counter separates the three
-with a `reason` label and says where in the path the match was with a `position`
-label, so an operator reads which rule is eating the routes rather than only how
-many. The peer is in the log line: a peer address in a label would grow the
+AS_PATH carries a listed ASN. A match naming a list that is not defined is
+refused at config load, so no fail-closed reject reaches the counter, and its
+`reason` label has the one value `listed-asn`. A `position` label says where in
+the path the match was, so an operator reads which rule is eating the routes
+rather than only how many. The peer is in the log line: a peer address in a label would grow the
 series count with the session count.
 
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->

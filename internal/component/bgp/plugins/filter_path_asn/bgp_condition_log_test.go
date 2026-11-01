@@ -57,7 +57,7 @@ func wantLine(t *testing.T, lines string, want ...string) {
 }
 
 // TestBGPMatchLogsRejectASNDecision proves a match naming a reject-asn list
-// writes the lines the list's own filter wrote (handleFilterUpdate,
+// writes the lines the list's own filter wrote (the removed filter-update handler,
 // logListedReject, logPatternReject): Debug for an accept, Info for a
 // reject naming the ASN and its position or the pattern, each with the list
 // as filter=, the direction, the peer and the AS path, and none in a

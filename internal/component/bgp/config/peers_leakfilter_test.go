@@ -13,15 +13,15 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // The tests below drive the obligation from the config text an operator types,
-// through the peer pipeline, to the accept or the refusal. They name no filter
-// type of their own where the rule reads one: the declaring type comes from the
-// registry, exactly as it does at runtime.
+// through the peer pipeline, to the accept or the refusal. A chain discharges
+// the obligation by naming a match instance whose condition declares it; the
+// rule reads that condition off the condition registry, exactly as it does at
+// runtime.
 //
 // The reject-asn list, the prefix-list and the role container reach the schema
 // through the plugin registrations loader_test.go links (plugin/all), which is
@@ -37,8 +37,9 @@ type leakChains struct {
 }
 
 // leakPeerConfig builds one eBGP peer carrying the given role and chains, with
-// both a declaring filter (the reject-asn list) and a non-declaring one (a
-// prefix-list) defined under policy so a chain can name either.
+// two match instances defined under policy so a chain can name either: GUARD
+// carries the reject-asn condition, which declares the obligation, and
+// CUSTOMER-ONLY carries only a prefix-list, which declares none.
 //
 // role is the RFC 9234 role, or empty for a peer that declares none.
 func leakPeerConfig(role string, chains leakChains) string {
@@ -51,6 +52,12 @@ policy {
     prefix-list CUSTOMERS {
         entry 10.0.0.0/8 {
         }
+    }
+    match GUARD {
+        reject-asn NO-TRANSIT
+    }
+    match CUSTOMER-ONLY {
+        prefix-list CUSTOMERS
     }
 }
 bgp {
@@ -138,9 +145,9 @@ func TestObligationMatrixEveryRoleAndDirection(t *testing.T) {
 	}
 	populations := map[string]leakChains{
 		"neither chain": {},
-		"import only":   {importChain: "NO-TRANSIT"},
-		"export only":   {exportChain: "NO-TRANSIT"},
-		"both chains":   {importChain: "NO-TRANSIT", exportChain: "NO-TRANSIT"},
+		"import only":   {importChain: "GUARD"},
+		"export only":   {exportChain: "GUARD"},
+		"both chains":   {importChain: "GUARD", exportChain: "GUARD"},
 	}
 
 	for role, obligation := range requires {
@@ -194,26 +201,28 @@ func TestRefusalMessageNamesPeerRoleAndChain(t *testing.T) {
 // want and being unable to load their config.
 func TestInactiveRefSatisfiesObligation(t *testing.T) {
 	err := loadLeakConfig(t, leakPeerConfig("peer", leakChains{
-		importChain: "inactive:NO-TRANSIT",
-		exportChain: "inactive:NO-TRANSIT",
+		importChain: "inactive:GUARD",
+		exportChain: "inactive:GUARD",
 	}))
 	assert.NoError(t, err)
 }
 
-// TestUnrelatedFilterDoesNotSatisfyObligation names a filter of a type that
-// declares no obligation.
+// TestUnrelatedFilterDoesNotSatisfyObligation names a match instance whose
+// condition declares no obligation.
 //
-// VALIDATES: AC-37. A prefix-list in the chain does not discharge a transit-leak
-// obligation.
+// VALIDATES: AC-37. A match on a prefix-list in the chain does not discharge a
+// transit-leak obligation.
 // PREVENTS: the rule counting any filter at all, which would make it a check
 // that the chain is non-empty rather than a check that the leak is covered.
 func TestUnrelatedFilterDoesNotSatisfyObligation(t *testing.T) {
 	err := loadLeakConfig(t, leakPeerConfig("peer", leakChains{
-		importChain: "CUSTOMERS",
-		exportChain: "CUSTOMERS",
+		importChain: "CUSTOMER-ONLY",
+		exportChain: "CUSTOMER-ONLY",
 	}))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "peer-a")
+	assert.Contains(t, err.Error(), "requires a filter against a transit leak",
+		"the refusal must be the obligation's, not another config error")
 }
 
 // TestInheritedGroupRoleBindsThePeer sets the role on the group.
@@ -314,7 +323,7 @@ bgp {
 }
 
 // TestNoDeclaringFilterTypeMeansNoEnforcement drives the rule with an empty set
-// of declaring filter types, which is what a build with the implementing
+// of discharging match conditions, which is what a build with the implementing
 // plugin's feature tag off hands it.
 //
 // VALIDATES: AC-40. This is a GUARD: an obligation nothing in the binary can
@@ -331,21 +340,8 @@ func TestNoDeclaringFilterTypeMeansNoEnforcement(t *testing.T) {
 	peers, err := reactor.PeersFromTree(bgpTree)
 	require.NoError(t, err)
 
-	assert.NoError(t, validateLeakFilterObligations(peerRoles(bgpTree, peers, nil), nil, nil, nil),
-		"no declaring filter type means no enforcement")
-}
-
-// TestRuleReadsTheObligationFromTheRegistry proves the rule and the plugin meet
-// only through the registry declaration.
-//
-// VALIDATES: the coupling the design forbids. The rule asks which filter types
-// discharge the obligation; the answer comes from the plugin's registration.
-// PREVENTS: internal/component/bgp/config naming a plugin's filter type, the
-// coupling behind the loop-detection defect in plan/journal/unwired-feature.md.
-func TestRuleReadsTheObligationFromTheRegistry(t *testing.T) {
-	assert.Equal(t, []string{"reject-asn"},
-		registry.FilterTypesDischarging(filterapi.ObligationTransitLeak),
-		"the reject-asn plugin is the filter type that discharges the transit-leak obligation")
+	assert.NoError(t, validateLeakFilterObligations(peerRoles(bgpTree, peers, nil), nil, nil),
+		"no discharging condition means no enforcement")
 }
 
 // TestFilterInstanceNameStripsEveryPrefixForm checks the four chain-ref forms
@@ -379,8 +375,8 @@ func TestTransitLeakDischargedByCondition(t *testing.T) {
 	require.Equal(t, []string{"reject-asn"}, conditions,
 		"the reject-asn condition declares the transit-leak obligation")
 	withMatch := func(body string) string {
-		return strings.Replace(leakPeerConfig("peer", leakChains{importChain: "GUARD", exportChain: "GUARD"}),
-			"policy {\n", "policy {\n    match GUARD {\n        "+body+"\n    }\n", 1)
+		return strings.Replace(leakPeerConfig("peer", leakChains{importChain: "LEAK-CHECK", exportChain: "LEAK-CHECK"}),
+			"policy {\n", "policy {\n    match LEAK-CHECK {\n        "+body+"\n    }\n", 1)
 	}
 
 	tree, err := config.ParseTreeWithYANG(withMatch(conditions[0]+" NO-TRANSIT"), nil)

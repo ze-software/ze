@@ -7,10 +7,11 @@
 //
 // The plugin loads named reject-asn definitions from
 // policy { reject-asn NAME { indirect [ N N ]; regex [ "P" ]; } }
-// at Stage 2 and on every reload. At runtime, a peer filter chain names a list by its
-// bare name, or as reject-asn:NAME, or as bgp-filter-path-asn:NAME. The engine
-// dispatches each match through CallFilterUpdate (the filter-update RPC) and
-// the plugin answers it in OnFilterUpdate.
+// at Stage 2 and on every reload. A BGP chain reaches a list only through a
+// match instance whose reject-asn condition names it (condition.go), judged in
+// process over the route view, so the plugin answers no filter-update. The
+// plugin process serves the `show ... reject-asn` commands from the installed
+// config.
 //
 // A list is an unordered reject set with two arms. A route is rejected when a
 // position leaf-list holds an ASN the AS_PATH carries at that position, or when
@@ -23,11 +24,9 @@
 // specific 2-byte or 4-byte AS paths that must not be accepted if advertised by
 // the customer, such as upstream transit providers or peer ASNs."
 //
-// The plugin declares ZERO filters at Stage 1, exactly as filter_aspath does:
-// filter names come from config (Stage 2), never from compile-time
-// registration. The registration declares the filter TYPE instead, and
-// policy.BuildRegistry (internal/component/policy) discovers each instance
-// from the ze:filter marker on the YANG list under the top-level policy root.
+// policy.BuildRegistry (internal/component/policy) discovers each list
+// instance from the ze:filter marker on the YANG list under the top-level
+// policy root.
 package filter_path_asn
 
 import (
@@ -35,7 +34,6 @@ import (
 	"net"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -48,9 +46,9 @@ var logger = slogutil.LazyLogger("bgp.filter.path.asn")
 const (
 	configRootBGP = "bgp"
 
-	// directionImport is the direction string the ingress chain supplies
-	// ((*Reactor).runIngressPolicyChain, internal/component/bgp/reactor/filter_ordered.go).
-	// It is the one direction whose PeerAS names the peer that SENT the route.
+	// directionImport is the direction label of an import chain, the one
+	// direction whose session names the peer that SENT the route
+	// (policyview.Session.SenderKnown, condition.go).
 	directionImport = "import"
 )
 
@@ -67,11 +65,11 @@ type rejectASNConfig struct {
 // installRejectASN (Stage 2 and each reload's apply and rollback) so the hot
 // path reads it without a lock.
 //
-// A nil pointer means no delivery has arrived yet, which handleFilterUpdate
-// answers by rejecting: it is a state, not an empty list.
+// A nil pointer means no delivery has arrived yet, which a show command
+// answers as such: it is a state, not an empty list.
 //
 // Safe for concurrent use. The value it points at MUST NOT be written after
-// the Store, because every filter-update reads it without a lock.
+// the Store, because every show command reads it without a lock.
 var installedRejectASN atomic.Pointer[rejectASNConfig]
 
 // runFilterPathASN runs the reject-asn filter plugin over the SDK RPC protocol.
@@ -81,10 +79,6 @@ func runFilterPathASN(conn net.Conn) int {
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
 	newRejectASNConfigTx().Register(p)
-
-	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
-		return handleFilterUpdate(in), nil
-	})
 
 	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
 		return handleCommand(command, args)
@@ -124,7 +118,7 @@ func parseRejectASNConfig(policyCfg, bgpCfg map[string]any) (*rejectASNConfig, e
 	return &rejectASNConfig{lists: lists, attachments: countAttachments(policyCfg, bgpCfg)}, nil
 }
 
-// installRejectASN makes cfg what every later filter-update and show reads.
+// installRejectASN makes cfg what every later show reads.
 // A rollback of the first apply installs nil, the "no delivery" state. It
 // cannot fail.
 func installRejectASN(cfg *rejectASNConfig) error {
@@ -133,76 +127,6 @@ func installRejectASN(cfg *rejectASNConfig) error {
 		logger().Debug("configured", "reject-asn-lists", len(cfg.lists))
 	}
 	return nil
-}
-
-// senderOf reads the sending peer's ASN off the filter input.
-//
-// FilterUpdateInput.PeerAS means the peer that SENT the route on import, and the
-// DESTINATION peer on export ((*Peer).buildForwardFacts,
-// internal/component/bgp/reactor/reactor_api_forward.go). So the `direct`
-// position has an input on import and none on export, where `indirect`
-// therefore covers the whole path. This is the one place the direction is read.
-//
-// A direction that is neither is treated as export. An unknown sender puts more
-// of the path under transit and origin, so the unrecognized case rejects more
-// rather than less.
-func senderOf(in *sdk.FilterUpdateInput) senderASN {
-	if in.Direction != directionImport {
-		return senderASN{}
-	}
-	return senderASN{asn: in.PeerAS, known: true}
-}
-
-// handleFilterUpdate answers one filter-update RPC.
-//
-//   - the list holds an ASN the path carries at a position it rejects: reject,
-//     naming the ASN and the position
-//   - a pattern of the list matches the whole path: reject, naming the pattern
-//   - neither: accept. That is also the answer for an UPDATE with no AS_PATH,
-//     because an empty path carries no token for a position to match (AC-19)
-//   - the named list is not held: reject, fail-closed (AC-22)
-//   - no configure delivery has arrived: reject, fail-closed (AC-23)
-//
-// Every reject increments ze_filter_path_asn_rejects_total under the direction
-// and the slot that decided it (recordReject, metrics.go). An accept is counted
-// nowhere: the engine already counts the routes that pass.
-//
-// in.Filter is the BARE list name. PolicyFilterChain
-// (internal/component/bgp/reactor/filter_chain.go) cuts the plugin prefix off
-// the chain reference before the RPC, so a chain naming
-// bgp-filter-path-asn:NO-TRANSIT reaches here as NO-TRANSIT.
-func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
-	held := installedRejectASN.Load()
-	if held == nil {
-		recordReject(in.Direction, slotUnconfigured)
-		logger().Warn("reject-asn filter-update before configure -- fail-closed",
-			"filter", in.Filter, "direction", in.Direction, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
-	}
-	list, ok := held.lists[in.Filter]
-	if !ok {
-		recordReject(in.Direction, slotUnknownList)
-		logger().Warn("unknown reject-asn list -- fail-closed",
-			"filter", in.Filter, "direction", in.Direction, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
-	}
-
-	asPath := filtertext.ASPath(in.Update)
-
-	if found, ok := matchPositions(asPath, senderOf(in), list.positions, list.nth); ok {
-		recordReject(in.Direction, rejectSlot(found.at))
-		logListedReject(list.name, in.Direction, in.Peer, found, asPath)
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
-	}
-	if pattern, ok := matchPattern(asPath, list.patterns); ok {
-		recordReject(in.Direction, slotPattern)
-		logPatternReject(list.name, in.Direction, in.Peer, pattern, asPath)
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
-	}
-
-	logger().Debug("reject-asn accept",
-		"filter", list.name, "direction", in.Direction, "peer", in.Peer, "as-path", asPath)
-	return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 }
 
 // commandDecls names the commands this plugin serves and states what each

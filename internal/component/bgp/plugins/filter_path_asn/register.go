@@ -31,8 +31,9 @@ func init() {
 	policychain.MustAddMatchReporter(rejectASNCondition,
 		policychain.MatchReporter{Enabled: bgpReportEnabled, Compile: compileBGPReport})
 	// RFC 7454 Section 9: a match naming the condition discharges the
-	// transit-leak obligation a declared RFC 9234 role carries, as a
-	// reject-asn chain member does (FilterObligations below).
+	// transit-leak obligation a declared RFC 9234 role carries. The config
+	// rule that makes the check mandatory reads this declaration, so the rule
+	// holds no condition name.
 	policy.MustDeclareMatchConditionObligation(rejectASNCondition, filterapi.ObligationTransitLeak)
 	// The match leaf naming a list completes and is checked at commit
 	// through this source (reject_asn_reference.go).
@@ -45,15 +46,9 @@ func init() {
 		ConfigReads:  []string{policy.RootName},
 		Dependencies: []string{configRootBGP, policy.PluginName},
 		YANG:         fpayang.ZeFilterPathAsnYANG,
-		FilterTypes:  []string{filterTypeName},
-		// A reject-asn list is what discharges the transit-leak obligation: it
-		// refuses a route whose AS_PATH carries a listed ASN. The config rule
-		// that makes the check mandatory for a peer with a declared RFC 9234
-		// role reads this declaration, so the rule holds no filter type name.
-		FilterObligations: []string{filterapi.ObligationTransitLeak},
-		RunEngine:         runFilterPathASN,
-		Commands:          commandDecls(),
-		CLIHandler:        func(_ []string) int { return 0 },
+		RunEngine:    runFilterPathASN,
+		Commands:     commandDecls(),
+		CLIHandler:   func(_ []string) int { return 0 },
 		ConfigureMetrics: func(reg metrics.Registry) {
 			setMetricsRegistry(reg)
 		},

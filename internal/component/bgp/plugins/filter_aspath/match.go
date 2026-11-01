@@ -1,12 +1,11 @@
 // Design: docs/architecture/core-design.md -- AS-path regex filter matching
 // Related: config.go -- AS-path list config parsing
-// Related: filter_aspath.go -- SDK entry point and handleFilterUpdate
-// Related: internal/component/bgp/filtertext -- the reader of the filter text format
+// Related: condition.go -- the as-path condition of a match instance
 //
 // The matching algorithm walks an ordered list of compiled regex entries.
-// filtertext.ASPath reads the UPDATE's AS-path attribute out of the filter text
-// format as a space-separated decimal string, and each entry's regex is matched
-// against it. First match wins; no match yields actionReject (implicit deny).
+// The BGP view answers the UPDATE's AS path as a space-separated decimal text,
+// and each entry's regex is matched against it. First match wins; no match
+// yields actionReject (implicit deny).
 //
 // Unlike prefix-list which operates per-prefix and can partition, AS-path
 // filtering is attribute-level: the entire UPDATE shares one AS-path, so
@@ -43,22 +42,10 @@ type aspathList struct {
 	entries []aspathEntry
 }
 
-// evaluateASPath walks the entries in order and returns the action of the
-// first entry whose regex matches the AS-path string. Returns actionReject
-// if no entry matches (implicit deny).
-func evaluateASPath(entries []aspathEntry, asPathStr string) action {
-	for i := range entries {
-		e := &entries[i]
-		if e.regex.MatchString(asPathStr) {
-			return e.action
-		}
-	}
-	return actionReject
-}
-
-// evaluateASPathText is evaluateASPath over the text as bytes, the form the
-// BGP view answers (condition.go): the same entries in the same order, so
-// both judge one path alike, and no string is built for the regex.
+// evaluateASPathText walks the entries in order and returns the action of the
+// first entry whose regex matches the AS-path text, in the bytes the BGP view
+// answers (condition.go), so no string is built for the regex. Returns
+// actionReject if no entry matches (implicit deny).
 func evaluateASPathText(entries []aspathEntry, text []byte) action {
 	for i := range entries {
 		e := &entries[i]

@@ -40,7 +40,6 @@ func init() {
 		ConfigReads:  []string{policy.RootName},
 		Dependencies: []string{configRootBGP, policy.PluginName},
 		YANG:         cmyang.ZeFilterCommunityMatchYANG,
-		FilterTypes:  []string{filterTypeName},
 		RunEngine:    runFilterCommunityMatch,
 		CLIHandler:   func(_ []string) int { return 0 },
 	})

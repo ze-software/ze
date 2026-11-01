@@ -87,24 +87,10 @@ func matchChain(t *testing.T, list string) *policychain.Chain {
 }
 
 // TestBGPMatchASPathParity proves a match naming an as-path-list judges a BGP
-// UPDATE as the list's own filter judges its text. Method: each case is one
-// AS path, encoded as the UPDATE's AS_PATH and run through a compiled chain,
-// and rendered by the producer of the filter text (ASPath.AppendText) and
-// run through handleFilterUpdate; the two verdicts must agree, and each must
-// be the one the case names.
+// UPDATE as the list's own filter judged it. Method: each case is one AS
+// path, encoded as the UPDATE's AS_PATH and run through a compiled chain; the
+// verdict must be the one the filter answered, fixed in the table.
 func TestBGPMatchASPathParity(t *testing.T) {
-	old := listsByName.Load()
-	t.Cleanup(func() { listsByName.Store(old) })
-	lists := map[string]*aspathList{}
-	for name, cfg := range testLists() {
-		entries, err := parseAsPathEntries(name, cfg)
-		if err != nil {
-			t.Fatal(err)
-		}
-		lists[name] = &aspathList{name: name, entries: entries}
-	}
-	listsByName.Store(&lists)
-
 	seq := func(asns ...uint32) attribute.ASPathSegment {
 		return attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: asns}
 	}
@@ -134,15 +120,9 @@ func TestBGPMatchASPathParity(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var attrs []byte
-			var text []byte
 			if tc.segments != nil {
 				path := &attribute.ASPath{Segments: tc.segments}
 				attrs = asPathAttr(path)
-				text = path.AppendText(nil)
-			}
-			textOut := handleFilterUpdate(&sdk.FilterUpdateInput{Filter: tc.list, Update: string(text) + " nlri add 10.1.0.0/24"})
-			if textOut.Action != tc.action {
-				t.Fatalf("text path answered %v for %q, want %v", textOut.Action, text, tc.action)
 			}
 			var view policyview.View
 			view.Reset(bgpUpdate(t, attrs), policyview.Session{})
@@ -156,7 +136,7 @@ func TestBGPMatchASPathParity(t *testing.T) {
 				want = policychain.OutcomeReject
 			}
 			if outcome.Action != want {
-				t.Fatalf("BGP chain answered %+v, text answered %v", outcome, tc.action)
+				t.Fatalf("BGP chain answered %+v, want %v", outcome, tc.action)
 			}
 		})
 	}

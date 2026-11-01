@@ -93,7 +93,13 @@ func TestLoopPolicyExportRemedy(t *testing.T) {
 						if !reflect.DeepEqual(exportPolicy.WithFilters(external), before[i].ExportPolicy) {
 							t.Fatalf("remediation changed unrelated export refs or final: %+v -> %+v", before[i].ExportPolicy, exportPolicy)
 						}
-						if !reflect.DeepEqual(settings.ImportPolicy, before[i].ImportPolicy) {
+						// The import chain names a match instance, so it carries a
+						// compiled library chain that no second compile equals:
+						// compare what it was compiled from, and its presence.
+						if (settings.ImportPolicy.Library() == nil) != (before[i].ImportPolicy.Library() == nil) {
+							t.Fatal("export remediation changed whether the import policy has a compiled chain")
+						}
+						if !reflect.DeepEqual(settings.ImportPolicy.WithLibrary(nil), before[i].ImportPolicy.WithLibrary(nil)) {
 							t.Fatal("export remediation changed the import policy")
 						}
 					}
