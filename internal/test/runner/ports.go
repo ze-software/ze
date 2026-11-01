@@ -156,7 +156,7 @@ const TestPortSpan = 3
 
 // portPlaceholder matches every $PORT spelling a .ci file can write, with the
 // digits that follow it.
-var portPlaceholder = regexp.MustCompile(`\$PORT([0-9]*)`)
+var portPlaceholder = regexp.MustCompile(`\$PORT(\d*)`)
 
 // ExpandPorts replaces $PORT, $PORT2 and $PORT3 in text with the first, second
 // and third port of a lease that starts at port. It is the one expansion every
@@ -374,7 +374,7 @@ func isWouldBlock(err error) bool {
 // file, comments included: a placeholder in a comment describes a port the
 // test means to use, so it is held to the same span.
 func checkPortPlaceholdersInFile(ciFile string) error {
-	text, err := os.ReadFile(ciFile)
+	text, err := os.ReadFile(ciFile) //nolint:gosec // a .ci path the runner itself selected from the test tree
 	if err != nil {
 		return fmt.Errorf("parse %s: %w", ciFile, err)
 	}

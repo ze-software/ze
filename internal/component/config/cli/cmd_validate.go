@@ -246,8 +246,7 @@ func runValidation(input, path string) *validationResult {
 		// A node the schema carries only on another OS (ze:os) is a verdict
 		// about this host, not about the config, so it carries its own code.
 		code := "config-parse"
-		var otherOS *config.NodeOfAnotherOSError
-		if errors.As(err, &otherOS) {
+		if _, ok := errors.AsType[*config.NodeOfAnotherOSError](err); ok {
 			code = diagnostic.CodeConfigNodeOtherOS
 		}
 		result.addErrorLine(code, withoutLinePrefix(err.Error(), line), line)

@@ -460,7 +460,8 @@ func ciCommandUse(path string, parsed *tmpfs.Tmpfs) ciUse {
 	if err != nil || rec == nil {
 		return use // A .ci the runner refuses fails its own suite.
 	}
-	for _, cmd := range rec.RunCommands {
+	for i := range rec.RunCommands {
+		cmd := &rec.RunCommands[i]
 		words, splitErr := runner.SplitCommand(runner.ExpandPorts(cmd.Exec, sweepRecordPort))
 		if splitErr != nil || len(words) == 0 || words[0] != "ze" {
 			continue
@@ -578,7 +579,7 @@ func (s *sweepContext) tapeSequences(tape string, loaded map[string]bool) []load
 			continue
 		}
 		match := loadCommand.FindStringSubmatch(line)
-		if match == nil || !strings.HasPrefix(match[2], demoSourceRoot) {
+		if len(match) < 3 || !strings.HasPrefix(match[2], demoSourceRoot) {
 			continue
 		}
 		fragmentPath := filepath.Join(s.root, filepath.FromSlash(strings.TrimPrefix(match[2], demoSourceRoot)))
@@ -987,7 +988,7 @@ func TestTapeSequencesStartFreshPerLab(t *testing.T) {
 		"Type \"load file absolute merge /src/demos/terminal/topics/b.conf\"\n")
 
 	s := &sweepContext{t: t, root: root, report: &sweepReport{}}
-	sequences := s.tapeSequences(filepath.Join(root, "demos/terminal/show/demo.tape"), map[string]bool{})
+	sequences := s.tapeSequences(filepath.Join(root, "demos", "terminal", "show", "demo.tape"), map[string]bool{})
 	if len(sequences) != 1 {
 		t.Fatalf("got %d sequences, want 1 (the good lab)", len(sequences))
 	}
