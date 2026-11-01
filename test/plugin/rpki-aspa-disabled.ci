@@ -39,7 +39,7 @@ plugin {
 	}
 }
 
-policy { reject-asn NO-TRANSIT { indirect [ 64496 ]; } }
+policy { reject-asn NO-TRANSIT { indirect [ 64496 ]; } match reject-asn-NO-TRANSIT { reject-asn NO-TRANSIT; } }
 
 bgp {
 	rpki {
@@ -54,7 +54,7 @@ bgp {
 	peer peer1 {
 		role { import provider; }
 		# Isolate ASPA from the independent transit-leak filter.
-		filter { import { filters [ inactive:NO-TRANSIT ]; final accept; } }
+		filter { import { filters [ inactive:reject-asn-NO-TRANSIT ]; final accept; } }
 		connection {
 			remote {
 				ip 127.0.0.1
