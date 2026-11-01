@@ -271,11 +271,9 @@ state from an atomically swapped snapshot. Its test passes
 checks each clause on both transports
 (`docs/plugin-development/handlers.md`, "Route filters").
 
-`p.OnFilterUpdate(fn)` is the adapter for a filter written against the
-`filter-update` input: it registers `fn` through `OnFilter`, and calls it one
-route at a time on one worker, each call bounded by `rpc.FilterUpdateTimeout`.
-Phase 4 of `spec-filter-wire-0-umbrella` removes it, so a new filter uses
-`OnFilter`.
+`OnFilter` is the only filter registration. An evaluator that needs the
+route as one `filter-update` input (its text `Update` form) calls
+`route.Input()`, and still meets the fast-path contract.
 
 **A filter whose name is fixed at COMPILE time registers with `filterapi`.** It
 lives in the BGP-owned seam package `internal/component/bgp/filterapi`, not in

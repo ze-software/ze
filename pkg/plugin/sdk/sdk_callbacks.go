@@ -91,9 +91,6 @@ type ConfigOperationCommitHandler func(ConfigOperationCommitInput) error
 // ValidateOpenHandler handles OPEN validation requests. Returns accept/reject decision.
 type ValidateOpenHandler func(*ValidateOpenInput) *ValidateOpenOutput
 
-// FilterUpdateHandler handles route filter requests (accept/reject/modify with optional delta).
-type FilterUpdateHandler func(*FilterUpdateInput) (*FilterUpdateOutput, error)
-
 // FilterEvaluator judges one route for a filter, on either transport: the
 // verdict and the sets, or an error that fails the route under the filter's
 // on-error (OnFilter).
@@ -890,29 +887,6 @@ func answerFilterBatch(eval FilterEvaluator, params json.RawMessage) (json.RawMe
 		out.Verdicts[i] = *verdict
 	}
 	return json.Marshal(out)
-}
-
-// OnFilterUpdate installs fn as the plugin's filter evaluator through
-// OnFilter, for a filter written against the filter-update input. It is the
-// same registration, adapted: fn receives the route as one input (a fast-path
-// route's fields encoded for it), and its calls run one at a time on one
-// worker, as the plugin's callback loop ran them before the fast path, so a
-// handler that keeps unsnapshotted state stays race-free. Each call waits at
-// most rpc.FilterUpdateTimeout, the deadline of a filter-update exchange: a
-// handler that blocks fails the routes waiting on it under the filter's
-// on-error instead of holding the engine's goroutine (filterSerializer). A
-// filter that meets the fast-path contract registers with OnFilter instead
-// and is called concurrently with nothing encoded.
-func (p *Plugin) OnFilterUpdate(fn FilterUpdateHandler) {
-	serial := newFilterSerializer(fn)
-	p.mu.Lock()
-	previous := p.filterSerial
-	p.filterSerial = serial
-	p.mu.Unlock()
-	if previous != nil {
-		previous.stop()
-	}
-	p.OnFilter(serial.call)
 }
 
 // OnDoctorCheck sets the handler for doctor check requests.

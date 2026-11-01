@@ -426,19 +426,14 @@ forked plugin's decoded answer is, and you never write into `route.Raw()`.
 <!-- source: pkg/plugin/rpc/types.go -- FilterUpdateOutput, FilterSet, FilterSetAction -->
 <!-- source: pkg/plugin/rpc/filter_slot.go -- FilterSlotHandler, ownRawRewrite -->
 
-`p.OnFilterUpdate(fn)` is the same registration, adapted for a handler
-written against `*sdk.FilterUpdateInput`: the SDK encodes a fast-path route's
-fields for it and runs its calls one at a time on one worker goroutine, so a
-handler that keeps unsnapshotted state stays race-free. Each call waits at
-most `rpc.FilterUpdateTimeout` (5 s), as a filter-update exchange does: while
-the handler blocks, the route it holds and every route waiting behind it take
-the filter's `on-error` once that deadline passes, and a route whose deadline
-passed before the worker took it is never judged late. After the plugin
-closes, a call answers `rpc.ErrBridgeClosed` ("unavailable"). The adapter is
-removed once every filter registers with `OnFilter`.
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, OnFilterUpdate -->
-<!-- source: pkg/plugin/sdk/filter_serial.go -- filterSerializer -->
-<!-- source: pkg/plugin/sdk/filter_serial.go -- filterUpdateWait -->
+`OnFilter` is the only registration of a filter. An evaluator that reads the
+route as one `*sdk.FilterUpdateInput` (the text form in its `Update`
+field, for example) calls `route.Input()`, which encodes a fast-path route's
+fields for that call. It is still an evaluator under the contract above:
+its calls run concurrently, so state it keeps is guarded or snapshotted, and
+it does not block.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter -->
+<!-- source: pkg/plugin/rpc/filter_slot.go -- Input -->
 <!-- source: pkg/plugin/sdk/filter_conformance.go -- CheckFilterConformance -->
 
 ### OnBye

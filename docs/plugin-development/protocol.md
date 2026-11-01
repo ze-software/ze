@@ -518,7 +518,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-complete` | `OnConfigComplete` | `ConfigCompleteInput` | `ConfigCompleteOutput` | Acknowledge cleanup for the named original transaction after acceptance or completed abort |
 | `ze-plugin-callback:source-policy` | `OnSourcePolicy` | `rpc.SourcePolicyInput` | `rpc.SourcePolicyOutput` | Settle prepare/apply/abort/finalize for a captured retained source |
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
-| `ze-plugin-callback:filter-update` | `OnFilter` (or `OnFilterUpdate`, its adapter) | `FilterUpdateBatchInput` (`routes`, each a `FilterUpdateInput`) | `FilterUpdateBatchOutput` (`verdicts`, each a `FilterUpdateOutput`) | Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits `rpc.FilterUpdateTimeout` (5 s) for the whole batch, then applies the filter's `on-error` policy to each of its routes, so a handler MUST NOT wait on its own data: it answers from what it holds, and a route it could not judge yet is re-judged later (for an import filter, by asking the peer with `request peer <peer> refresh <family>`, as `bgp-filter-irr` does) |
+| `ze-plugin-callback:filter-update` | `OnFilter` | `FilterUpdateBatchInput` (`routes`, each a `FilterUpdateInput`) | `FilterUpdateBatchOutput` (`verdicts`, each a `FilterUpdateOutput`) | Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits `rpc.FilterUpdateTimeout` (5 s) for the whole batch, then applies the filter's `on-error` policy to each of its routes, so a handler MUST NOT wait on its own data: it answers from what it holds, and a route it could not judge yet is re-judged later (for an import filter, by asking the peer with `request peer <peer> refresh <family>`, as `bgp-filter-irr` does) |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check |
 | `ze-plugin-callback:resolver-cache-clear` | `OnResolverCacheClear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear a declared resolver cache of the plugin's current clients, answering the entries removed |
 | `ze-plugin-callback:enrich-show` | `OnEnrichShow` | `EnrichShowInput` | `EnrichShowOutput` | Add data to show output |
@@ -784,7 +784,7 @@ the value in the field's shape:
 <!-- source: internal/component/bgp/policyview/fields_json.go -- appendOverlaid -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterSet, FilterSetAction -->
 
-### The Filter Text an `OnFilterUpdate` Handler Reads
+### The Filter Text a Filter Reads
 
 `FilterUpdateInput.Update` is the UPDATE as text: `<name> <value>` attribute
 pairs, then one NLRI block for each section the UPDATE carries.

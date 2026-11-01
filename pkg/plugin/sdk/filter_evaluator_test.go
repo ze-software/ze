@@ -86,24 +86,3 @@ func TestSDKInstallsEvaluatorPerTransport(t *testing.T) {
 		t.Fatalf("fast %v, forked %v: want reject on both transports", fast.Action, batch.Verdicts[0].Action)
 	}
 }
-
-// TestFilterUpdateAdapterSerializesAndEncodes proves OnFilterUpdate is the
-// adapter over OnFilter: on the fast path its handler receives the route as
-// one input with the view's fields encoded.
-func TestFilterUpdateAdapterSerializesAndEncodes(t *testing.T) {
-	p, _, bridge := newBridgedTestPair(t)
-	var got string
-	p.OnFilterUpdate(func(in *FilterUpdateInput) (*FilterUpdateOutput, error) {
-		got = string(in.Fields)
-		return &FilterUpdateOutput{Action: rpc.FilterAccept}, nil
-	})
-	p.activateBridge()
-	header := rpc.FilterUpdateInput{Filter: "f"}
-	route := rpc.ViewFilterRoute(&header, evaluatorView{})
-	if _, err := bridge.CallFilterSlot(&route); err != nil {
-		t.Fatal(err)
-	}
-	if got != `{"med":7}` {
-		t.Fatalf("handler saw fields %q", got)
-	}
-}
