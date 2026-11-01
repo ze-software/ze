@@ -3,6 +3,8 @@
 // Related: check_bfd_link_local.go -- checkBFDLinkLocalTwoLinks, the checker these make discriminating.
 package bgp
 
+import "github.com/ze-software/ze/internal/test/labconfig"
+
 // bfdLinkLocalTwoLinksZePrestart runs in Ze's container before ze starts.
 //
 // Two links: VLANs 101 and 102 over eth0 split the lab bridge into two
@@ -17,8 +19,8 @@ package bgp
 // sweeps it.
 const bfdLinkLocalTwoLinksZePrestart = `ip link add link eth0 name eth1 type vlan id 101
 ip link add link eth0 name eth2 type vlan id 102
-ip -6 address add ` + zeLinkLocalPlaceholder + `/64 dev eth1 nodad
-ip -6 address add ` + zeLinkLocalPlaceholder + `/64 dev eth2 nodad
+ip -6 address add ` + labconfig.ZeLinkLocalPlaceholder + `/64 dev eth1 nodad
+ip -6 address add ` + labconfig.ZeLinkLocalPlaceholder + `/64 dev eth2 nodad
 ip link set eth1 up
 ip link set eth2 up
 nft -f - <<'NFT'
@@ -37,8 +39,8 @@ NFT
 // the address alone cannot tell the two sessions apart: only the link can.
 const bfdLinkLocalTwoLinksFRRPrestart = `ip link add link eth0 name eth1 type vlan id 101
 ip link add link eth0 name eth2 type vlan id 102
-ip -6 address add ` + frrLinkLocalPlaceholder + `/64 dev eth1 nodad
-ip -6 address add ` + frrLinkLocalPlaceholder + `/64 dev eth2 nodad
+ip -6 address add ` + labconfig.FRRLinkLocalPlaceholder + `/64 dev eth1 nodad
+ip -6 address add ` + labconfig.FRRLinkLocalPlaceholder + `/64 dev eth2 nodad
 ip link set eth1 up
 ip link set eth2 up
 `

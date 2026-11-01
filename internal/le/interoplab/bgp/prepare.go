@@ -18,6 +18,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/labconfig"
 )
 
 const (
@@ -233,7 +234,7 @@ func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareCo
 	for owner := range linkLocalOwners {
 		var address netip.Addr
 		if linkLocals[owner] {
-			address = linkLocalAt(prepare.Network, linkLocalOwners[owner].host)
+			address = labconfig.LinkLocalAt(prepare.Network.IPv6, linkLocalOwners[owner].host)
 		}
 		if !address.IsValid() && links[owner] == "" {
 			continue
@@ -283,16 +284,14 @@ func renderScenario(source, target string, network interoplab.Network) (rendered
 			if ipv6Token != "" {
 				text = strings.ReplaceAll(text, baseIPv6Prefix, ipv6Token)
 			}
-			for owner := range linkLocalOwners {
-				placeholder := linkLocalOwners[owner].placeholder
-				if !strings.Contains(text, placeholder) {
-					continue
-				}
-				if !network.IPv6.IsValid() {
-					return errors.New(placeholder + " in " + relative + " needs an IPv6 lab network, and the scenario selected none")
-				}
-				text = strings.ReplaceAll(text, placeholder, linkLocalAt(network, linkLocalOwners[owner].host).String())
-				linkLocals[owner] = true
+			var carried renderedLinkLocals
+			var renderErr error
+			text, carried, renderErr = labconfig.RenderLinkLocals(text, network.IPv6)
+			if renderErr != nil {
+				return fmt.Errorf("%s: %w", relative, renderErr)
+			}
+			for owner := range carried {
+				linkLocals[owner] = linkLocals[owner] || carried[owner]
 			}
 			if relative == "inject.msg" {
 				text = renderInjectedNextHops(text, ipv4)
@@ -712,16 +711,8 @@ func networkHostAddress6(network interoplab.Network, host uint8) string {
 // zeHostNumber and frrHostNumber are the last byte of the Ze and FRR
 // containers' lab addresses, and of the link-local each one owns.
 const (
-	zeHostNumber  uint8 = 2
-	frrHostNumber uint8 = 3
-)
-
-// The link-local placeholders a scenario file may carry. Each renders to the
-// address of one container, which prepareScenario assigns to that container.
-const (
-	zeLinkLocalPlaceholder      = "@ZE_LINK_LOCAL@"
-	frrLinkLocalPlaceholder     = "@FRR_LINK_LOCAL@"
-	frrSinkLinkLocalPlaceholder = "@FRR_SINK_LINK_LOCAL@"
+	zeHostNumber  = labconfig.ZeHost
+	frrHostNumber = labconfig.FRRHost
 )
 
 // linkLocalOwner is the container a link-local placeholder names: its peer,
@@ -738,11 +729,12 @@ type linkLocalOwner struct {
 
 // zeLinkLocalOwner, frrLinkLocalOwner and frrSinkLinkLocalOwner name each
 // owner's index, so a table indexed by owner (ownerPrestarts, a labLink's
-// members) is written by name, never by position.
+// members) is written by name, never by position. They are the indexes the
+// placeholder grammar declares (labconfig.LinkLocals).
 const (
-	zeLinkLocalOwner = iota
-	frrLinkLocalOwner
-	frrSinkLinkLocalOwner
+	zeLinkLocalOwner      = labconfig.ZeLinkLocal
+	frrLinkLocalOwner     = labconfig.FRRLinkLocal
+	frrSinkLinkLocalOwner = labconfig.FRRSinkLinkLocal
 )
 
 // linkLocalOwners is every link-local placeholder and its owner. Ze's image
@@ -752,30 +744,20 @@ const (
 // and Cmd ["/usr/lib/frr/docker-start"]; Docker drops that Cmd once
 // --entrypoint replaces the entrypoint, so the wrapper passes it back. The
 // second FRR, frr-sink, runs the same image, so its start is FRR's.
-var linkLocalOwners = [...]linkLocalOwner{
-	zeLinkLocalOwner: {placeholder: zeLinkLocalPlaceholder, peer: "ze", host: zeHostNumber, entrypoint: "ze"},
-	frrLinkLocalOwner: {placeholder: frrLinkLocalPlaceholder, peer: peerFRR, host: frrHostNumber, entrypoint: "/sbin/tini",
+var linkLocalOwners = [len(labconfig.LinkLocals)]linkLocalOwner{
+	zeLinkLocalOwner: {placeholder: labconfig.LinkLocals[zeLinkLocalOwner].Placeholder, peer: "ze",
+		host: labconfig.LinkLocals[zeLinkLocalOwner].Host, entrypoint: "ze"},
+	frrLinkLocalOwner: {placeholder: labconfig.LinkLocals[frrLinkLocalOwner].Placeholder, peer: peerFRR,
+		host: labconfig.LinkLocals[frrLinkLocalOwner].Host, entrypoint: "/sbin/tini",
 		imageCommand: []string{"--", "/usr/lib/frr/docker-start"}},
-	frrSinkLinkLocalOwner: {placeholder: frrSinkLinkLocalPlaceholder, peer: peerFRRSink, host: extendedSinkHost, entrypoint: "/sbin/tini",
+	frrSinkLinkLocalOwner: {placeholder: labconfig.LinkLocals[frrSinkLinkLocalOwner].Placeholder, peer: peerFRRSink,
+		host: labconfig.LinkLocals[frrSinkLinkLocalOwner].Host, entrypoint: "/sbin/tini",
 		imageCommand: []string{"--", "/usr/lib/frr/docker-start"}},
 }
 
 // renderedLinkLocals records, by index into linkLocalOwners, which
 // placeholders a scenario's files carried.
-type renderedLinkLocals [len(linkLocalOwners)]bool
-
-// linkLocalAt puts the selected lab prefix and a container's host number in
-// the interface identifier. prepareScenario assigns it to that container's
-// eth0 before startup; rendering and the checkers use this same address
-// rather than an unowned literal.
-func linkLocalAt(network interoplab.Network, host uint8) netip.Addr {
-	prefix := network.IPv6.Masked().Addr().As16()
-	return netip.AddrFrom16([16]byte{
-		0xfe, 0x80,
-		8: prefix[0], 9: prefix[1], 10: prefix[2], 11: prefix[3],
-		12: prefix[4], 13: prefix[5], 15: host,
-	})
-}
+type renderedLinkLocals = labconfig.RenderedLinkLocals
 
 // ownerPrestarts holds, by index into linkLocalOwners, the shell one scenario
 // runs in each owner's container before its daemon starts, empty for an owner
@@ -808,10 +790,9 @@ func renderPrestarts(scenario string, prestarts ownerPrestarts, linkLocals rende
 				" runs only once its link-local is assigned, and no file of the scenario carries " +
 				linkLocalOwners[owner].placeholder + "; use the placeholder where the scenario needs that address, or remove the prestart")
 		}
-		text := prestarts[owner]
-		for named := range linkLocalOwners {
-			text = strings.ReplaceAll(text, linkLocalOwners[named].placeholder,
-				linkLocalAt(network, linkLocalOwners[named].host).String())
+		text, _, err := labconfig.RenderLinkLocals(prestarts[owner], network.IPv6)
+		if err != nil {
+			return rendered, fmt.Errorf("%s's prestart for %s: %w", scenario, linkLocalOwners[owner].peer, err)
 		}
 		rendered[owner] = text
 	}

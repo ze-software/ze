@@ -1093,6 +1093,16 @@ that owns it:
 | `@FRR_LINK_LOCAL@` | `frr` | 3 |
 | `@FRR_SINK_LINK_LOCAL@` | `frr-sink` | 15 |
 
+The placeholders, their hosts and the renderer are declared once, in
+`internal/test/labconfig` (`LinkLocals`, `RenderLinkLocals`), outside
+`internal/le` so the repository config sweep (`TestRepositoryConfigsValidate`)
+renders a scenario's `ze.conf` exactly as the lab does before validating it.
+The IPsec lab's `%%PKI_B64:<file>%%` placeholder renders there too
+(`RenderPKIPlaceholders`, reading the scenario's `pki` directory or the shared
+`test/interop-ipsec/pki`, `FindPKIDir`).
+
+<!-- source: internal/test/labconfig/labconfig.go -- LinkLocals, RenderLinkLocals, RenderPKIPlaceholders, FindPKIDir -->
+
 When any file of the scenario carries a placeholder, its owner's start is
 wrapped: `/bin/sh` assigns the address to `eth0` with `nodad`, then execs the
 start it replaced (Ze's `ze`, or FRR's image entrypoint `/sbin/tini` with its

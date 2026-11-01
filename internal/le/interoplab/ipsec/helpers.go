@@ -20,6 +20,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/labconfig"
 )
 
 const (
@@ -70,12 +71,10 @@ const (
 )
 
 var (
-	pkiPlaceholder = regexp.MustCompile(`%%PKI_B64:([A-Za-z0-9._-]+)%%`)
-	pemHeader      = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*:`)
-	spiPattern     = regexp.MustCompile(`proto \w+ spi (0x[0-9a-fA-F]+)`)
-	espSPIPattern  = regexp.MustCompile(`proto esp spi (0x[0-9a-fA-F]+)`)
-	xfrmBytes      = regexp.MustCompile(`(\d+)\(bytes\)`)
-	srcDstPattern  = regexp.MustCompile(`^src (\S+) dst (\S+)`)
+	spiPattern    = regexp.MustCompile(`proto \w+ spi (0x[0-9a-fA-F]+)`)
+	espSPIPattern = regexp.MustCompile(`proto esp spi (0x[0-9a-fA-F]+)`)
+	xfrmBytes     = regexp.MustCompile(`(\d+)\(bytes\)`)
+	srcDstPattern = regexp.MustCompile(`^src (\S+) dst (\S+)`)
 
 	pingLossPattern = regexp.MustCompile(`(\d+)% packet loss`)
 )
@@ -846,7 +845,7 @@ func (l *scenarioLab) reloadZe(ctx context.Context, source string) error {
 	if l.state.renderedConfig == "" {
 		return errors.New("scenario rendered config path is empty")
 	}
-	pkiDir := findPKIDir(l.state.root, l.check.Source.Directory)
+	pkiDir := labconfig.FindPKIDir(l.state.root, l.check.Source.Directory)
 	if err := renderZeConfig(source, pkiDir, l.state.renderedConfig); err != nil {
 		return err
 	}

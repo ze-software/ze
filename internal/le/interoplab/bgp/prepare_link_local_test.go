@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/labconfig"
 )
 
 // VALIDATES: the link-local an interop container owns is decided by the
@@ -27,8 +28,8 @@ func TestLinkLocalAssignmentFollowsThePlaceholders(t *testing.T) {
 		IPv4: netip.MustParsePrefix("172.30.44.0/24"),
 		IPv6: netip.MustParsePrefix("fd00:1e:2c::/64"),
 	}
-	zeAddress := linkLocalAt(network, zeHostNumber).String()
-	frrAddress := linkLocalAt(network, frrHostNumber).String()
+	zeAddress := labconfig.LinkLocalAt(network.IPv6, zeHostNumber).String()
+	frrAddress := labconfig.LinkLocalAt(network.IPv6, frrHostNumber).String()
 	if zeAddress != "fe80::fd00:1e:2c:2" {
 		t.Fatalf("Ze's link-local = %s, want fe80::fd00:1e:2c:2 (prefix in the identifier, host 2 last)", zeAddress)
 	}
@@ -42,9 +43,9 @@ func TestLinkLocalAssignmentFollowsThePlaceholders(t *testing.T) {
 		wrapZe    bool
 		wrapFRR   bool
 	}{
-		{"ze-only", "neighbor " + zeLinkLocalPlaceholder + "\n", "bfd\n", true, false},
-		{"frr-only", "bfd {}\n", "peer " + frrLinkLocalPlaceholder + "\n", false, true},
-		{"both", "local " + zeLinkLocalPlaceholder + "\n", "peer " + frrLinkLocalPlaceholder + " " + zeLinkLocalPlaceholder + "\n", true, true},
+		{"ze-only", "neighbor " + labconfig.ZeLinkLocalPlaceholder + "\n", "bfd\n", true, false},
+		{"frr-only", "bfd {}\n", "peer " + labconfig.FRRLinkLocalPlaceholder + "\n", false, true},
+		{"both", "local " + labconfig.ZeLinkLocalPlaceholder + "\n", "peer " + labconfig.FRRLinkLocalPlaceholder + " " + labconfig.ZeLinkLocalPlaceholder + "\n", true, true},
 		// The name the harness used to compare against: carrying no placeholder,
 		// it gets no assignment, so the name no longer decides.
 		{"bgp-rfc2545-linklocal-nexthop-frr", "bgp {}\n", "router bgp 65002\n", false, false},
@@ -261,7 +262,7 @@ func TestPrestartRunsBeforeTheDaemon(t *testing.T) {
 		var linkLocals renderedLinkLocals
 		linkLocals[frrLinkLocalOwner] = true
 		_, err := renderPrestarts("fixture", ownerPrestarts{zeLinkLocalOwner: "true\n"}, linkLocals, network)
-		want := "no file of the scenario carries " + zeLinkLocalPlaceholder
+		want := "no file of the scenario carries " + labconfig.ZeLinkLocalPlaceholder
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Fatalf("error = %v, want it to contain %q", err, want)
 		}

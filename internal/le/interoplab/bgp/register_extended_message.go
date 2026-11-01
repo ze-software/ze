@@ -1,9 +1,11 @@
 // Design: docs/architecture/testing/interop.md -- RFC 8654 directional matrix.
 package bgp
 
+import "github.com/ze-software/ze/internal/test/labconfig"
+
 const (
 	peerFRRSink      = "frr-sink"
-	extendedSinkHost = 15
+	extendedSinkHost = labconfig.FRRSinkHost
 )
 
 // extendedMessageCase describes the OPENs as Ze sees them, never FRR's rewritten

@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/test/labconfig"
 )
 
 type fakeCheckerLab struct {
@@ -373,11 +374,11 @@ func TestParseXFRMCountersRefusesADumpWithNoDirection(t *testing.T) {
 // VALIDATES: PEM rendering preserves the one base64 DER body exactly.
 // PREVENTS: encrypted, bundled, or malformed fixture material entering Ze config.
 func TestPEMBase64DERFailsClosed(t *testing.T) {
-	body, err := pemBase64DER("-----BEGIN CERTIFICATE-----\nYWJj\n-----END CERTIFICATE-----\n", "fixture.pem")
+	body, err := labconfig.PEMBase64DER("-----BEGIN CERTIFICATE-----\nYWJj\n-----END CERTIFICATE-----\n", "fixture.pem")
 	if err != nil || body != "YWJj" {
 		t.Fatalf("body=%q err=%v", body, err)
 	}
-	if _, err := pemBase64DER("-----BEGIN CERTIFICATE-----\nYWJj\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\nZA==\n-----END CERTIFICATE-----\n", "bundle.pem"); err == nil {
+	if _, err := labconfig.PEMBase64DER("-----BEGIN CERTIFICATE-----\nYWJj\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\nZA==\n-----END CERTIFICATE-----\n", "bundle.pem"); err == nil {
 		t.Fatal("PEM bundle accepted")
 	}
 }
@@ -421,7 +422,7 @@ func TestAssertESPAdvancedUsesSurvivingSPIs(t *testing.T) {
 func TestPEMBase64DERInputPopulation(t *testing.T) {
 	withParameters := "-----BEGIN EC PARAMETERS-----\nYWJj\n-----END EC PARAMETERS-----\n" +
 		"-----BEGIN EC PRIVATE KEY-----\nZA==\n-----END EC PRIVATE KEY-----\n"
-	if got, err := pemBase64DER(withParameters, "client-key.pem"); err != nil || got != "ZA==" {
+	if got, err := labconfig.PEMBase64DER(withParameters, "client-key.pem"); err != nil || got != "ZA==" {
 		t.Fatalf("EC key body = %q, error = %v", got, err)
 	}
 
@@ -438,7 +439,7 @@ func TestPEMBase64DERInputPopulation(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := pemBase64DER(test.pem, "fixture.pem"); err == nil {
+			if _, err := labconfig.PEMBase64DER(test.pem, "fixture.pem"); err == nil {
 				t.Fatal("invalid PEM accepted")
 			}
 		})
@@ -456,17 +457,17 @@ func TestResolvePKIPlaceholdersFailsClosed(t *testing.T) {
 		t.Fatal(err)
 	}
 	input := `certificate "%%PKI_B64:ca.pem%%";`
-	if got, err := resolvePKIPlaceholders(input, pki); err != nil || got != `certificate "YWJj";` {
+	if got, err := labconfig.RenderPKIPlaceholders(input, pki); err != nil || got != `certificate "YWJj";` {
 		t.Fatalf("resolved config = %q, error = %v", got, err)
 	}
 	plain := `certificate "already-inlined";`
-	if got, err := resolvePKIPlaceholders(plain, ""); err != nil || got != plain {
+	if got, err := labconfig.RenderPKIPlaceholders(plain, ""); err != nil || got != plain {
 		t.Fatalf("plain config = %q, error = %v", got, err)
 	}
-	if _, err := resolvePKIPlaceholders(input, ""); err == nil {
+	if _, err := labconfig.RenderPKIPlaceholders(input, ""); err == nil {
 		t.Fatal("placeholder accepted without a PKI directory")
 	}
-	if _, err := resolvePKIPlaceholders(`certificate "%%PKI_B64:missing.pem%%";`, pki); err == nil {
+	if _, err := labconfig.RenderPKIPlaceholders(`certificate "%%PKI_B64:missing.pem%%";`, pki); err == nil {
 		t.Fatal("missing PKI fixture accepted")
 	}
 }
@@ -541,7 +542,7 @@ func TestReestablishCheckersRefuseEmptyBaseline(t *testing.T) {
 // VALIDATES: The valid fixture body remains decodable after conversion.
 // PREVENTS: Validation changing the exact text that is written into configuration.
 func TestPEMBase64DEROutputIsDecodable(t *testing.T) {
-	body, err := pemBase64DER("-----BEGIN CERTIFICATE-----\nYWJj\n-----END CERTIFICATE-----\n", "fixture.pem")
+	body, err := labconfig.PEMBase64DER("-----BEGIN CERTIFICATE-----\nYWJj\n-----END CERTIFICATE-----\n", "fixture.pem")
 	if err != nil {
 		t.Fatal(err)
 	}

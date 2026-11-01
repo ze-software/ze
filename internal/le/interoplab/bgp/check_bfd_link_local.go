@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/labconfig"
 )
 
 const (
@@ -76,7 +77,7 @@ func checkBFDLinkLocalTwoLinks(ctx context.Context, check *interoplab.CheckConte
 	if !check.Network.IPv6.IsValid() {
 		return checkerFailure(ctx, check.Lab, bfdLinkLocalTwoLinksScenario, 1, errors.New("no IPv6 lab network was selected, so no link-local exists"))
 	}
-	frrAddress := linkLocalAt(check.Network, frrHostNumber)
+	frrAddress := labconfig.LinkLocalAt(check.Network.IPv6, frrHostNumber)
 	sessions := zeCommand(zeShowBFDSessions)
 	var links []string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
@@ -107,8 +108,8 @@ func checkBFDLinkLocalTwoLinks(ctx context.Context, check *interoplab.CheckConte
 // hold each other's discriminator. Its failures are numbered 2 to 5 under
 // scenario.
 func checkBFDLinkLocalOn(ctx context.Context, check *interoplab.CheckContext, scenario, link string) error {
-	zeAddress := linkLocalAt(check.Network, zeHostNumber)
-	frrAddress := linkLocalAt(check.Network, frrHostNumber)
+	zeAddress := labconfig.LinkLocalAt(check.Network.IPv6, zeHostNumber)
+	frrAddress := labconfig.LinkLocalAt(check.Network.IPv6, frrHostNumber)
 	var text textbuf.Buffer
 	frrPeer := []string{cmdVtysh, "-c", text.Str("show bfd peer ").Addr(zeAddress).Str(" interface ").Str(link).Str(" json").String()}
 

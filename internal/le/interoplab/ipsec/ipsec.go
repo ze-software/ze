@@ -7,7 +7,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -24,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/test/labconfig"
 )
 
 const (
@@ -253,7 +253,7 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		return interoplab.PreparedScenario{Cleanup: cleanup}, cause
 	}
 
-	pkiDir := findPKIDir(root, source.Directory)
+	pkiDir := labconfig.FindPKIDir(root, source.Directory)
 	renderedConfig := filepath.Join(workDir, "ze.conf")
 	if err := renderZeConfig(filepath.Join(source.Directory, "ze.conf"), pkiDir, renderedConfig); err != nil {
 		return fail(err)
@@ -413,7 +413,7 @@ func renderZeConfig(source, pkiDir, destination string) error {
 	if err != nil {
 		return fmt.Errorf("read ze config: %w", err)
 	}
-	resolved, err := resolvePKIPlaceholders(string(content), pkiDir)
+	resolved, err := labconfig.RenderPKIPlaceholders(string(content), pkiDir)
 	if err != nil {
 		return err
 	}
@@ -432,98 +432,6 @@ func zeCLIConfig() string {
 		Str("\n\t\t}\n\t}\n}\n\nenvironment {\n\tssh {\n\t\tenabled true\n").
 		Str("\t\tserver main {\n\t\t\tip 127.0.0.1;\n\t\t\tport ").Str(zeCLIPort).
 		Str(";\n\t\t}\n\t}\n}\n").String()
-}
-
-func resolvePKIPlaceholders(content, pkiDir string) (string, error) {
-	matches := pkiPlaceholder.FindAllStringSubmatch(content, -1)
-	if len(matches) == 0 {
-		return content, nil
-	}
-	if pkiDir == "" {
-		return "", errors.New("config needs PKI material and the scenario has no pki directory")
-	}
-	cache := make(map[string]string)
-	for _, match := range matches {
-		name := match[1]
-		if _, ok := cache[name]; ok {
-			continue
-		}
-		path := filepath.Join(pkiDir, name)
-		text, err := readFileUnder(pkiDir, name)
-		if err != nil {
-			return "", fmt.Errorf("cannot read PKI file %s: %w", path, err)
-		}
-		body, err := pemBase64DER(string(text), path)
-		if err != nil {
-			return "", err
-		}
-		cache[name] = body
-	}
-	return pkiPlaceholder.ReplaceAllStringFunc(content, func(token string) string {
-		name := pkiPlaceholder.FindStringSubmatch(token)[1]
-		return cache[name]
-	}), nil
-}
-
-func pemBase64DER(text, source string) (string, error) {
-	type block struct{ label, body string }
-	var blocks []block
-	label := ""
-	var body textbuf.Buffer
-	for raw := range strings.SplitSeq(text, "\n") {
-		line := strings.TrimSpace(raw)
-		if strings.HasPrefix(line, "-----BEGIN ") && strings.HasSuffix(line, "-----") {
-			label = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "-----BEGIN "), "-----"))
-			if label == "ENCRYPTED PRIVATE KEY" {
-				return "", fmt.Errorf("%s: PEM block %q holds encrypted key material", source, label)
-			}
-			body.Reset()
-			continue
-		}
-		if strings.HasPrefix(line, "-----END ") && strings.HasSuffix(line, "-----") {
-			if label == "" {
-				continue
-			}
-			if label != "EC PARAMETERS" {
-				if body.Len() == 0 {
-					return "", fmt.Errorf("%s: PEM block %q holds no data", source, label)
-				}
-				blocks = append(blocks, block{label: label, body: body.String()})
-			}
-			label = ""
-			body.Reset()
-			continue
-		}
-		if label == "" || line == "" {
-			continue
-		}
-		if pemHeader.MatchString(line) {
-			return "", fmt.Errorf("%s: PEM block %q carries encrypted RFC 1421 header %q", source, label, line)
-		}
-		body.Str(line)
-	}
-	if len(blocks) == 0 {
-		return "", fmt.Errorf("%s: no complete PEM block found", source)
-	}
-	if len(blocks) != 1 {
-		return "", fmt.Errorf("%s: the file holds %d PEM blocks, and a pki leaf holds one value", source, len(blocks))
-	}
-	if _, err := base64.StdEncoding.DecodeString(blocks[0].body); err != nil {
-		return "", fmt.Errorf("%s: PEM block %q does not hold valid base64: %w", source, blocks[0].label, err)
-	}
-	return blocks[0].body, nil
-}
-
-func findPKIDir(root, scenarioDir string) string {
-	local := filepath.Join(scenarioDir, "pki")
-	if directoryExists(local) {
-		return local
-	}
-	shared := filepath.Join(root, "test", "interop-ipsec", "pki")
-	if directoryExists(shared) && fileExists(filepath.Join(shared, "ca.pem")) {
-		return shared
-	}
-	return ""
 }
 
 func readFileUnder(directory, name string) ([]byte, error) {

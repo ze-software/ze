@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/labconfig"
 )
 
 // RFC requirement: RFC7911-2-2 positive -- a BGP speaker that re-advertises a route
@@ -564,7 +565,7 @@ func checkRFC2545NextHops(ctx context.Context, check *interoplab.CheckContext) e
 	expectedGlobal := check.Network.IPv6.Masked().Addr().Next().Next()
 	// The renderer and startup provisioner use this same topology-owned address.
 	// Both assertions therefore require the next hop owned by Ze's eth0.
-	linkLocal := linkLocalAt(check.Network, zeHostNumber)
+	linkLocal := labconfig.LinkLocalAt(check.Network.IPv6, zeHostNumber)
 	onLink, err := queryFRRNextHops(ctx, check.Lab, onLinkRoute.argument)
 	if err != nil {
 		return fail(4, err)
@@ -687,7 +688,7 @@ func checkVPNFRR(ctx context.Context, check *interoplab.CheckContext) error {
 		return fail(9, err)
 	}
 	expectedGlobal := check.Network.IPv6.Masked().Addr().Next().Next()
-	if err := requireBIRDNextHops(onLink, expectedGlobal, linkLocalAt(check.Network, zeHostNumber)); err != nil {
+	if err := requireBIRDNextHops(onLink, expectedGlobal, labconfig.LinkLocalAt(check.Network.IPv6, zeHostNumber)); err != nil {
 		return fail(9, fmt.Errorf("on-link VPN-IPv6 route: %w", err))
 	}
 
