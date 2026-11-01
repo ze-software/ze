@@ -235,6 +235,12 @@ func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
 		if decision == DecisionReject {
 			return Outcome{Action: OutcomeReject, Member: m.name}
 		}
+		if err := c.overlayNumeric(view, &sets.member); err != nil {
+			if c.fail(m, err) {
+				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
+			}
+			continue // fail-open: none of the member's sets apply
+		}
 		if err := sets.folded.merge(&sets.member); err != nil {
 			if c.fail(m, err) {
 				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
@@ -251,6 +257,44 @@ func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
 	// Compile accepts only a verified final; anything else is a Ze defect,
 	// and the run fails closed on it.
 	return Outcome{Action: OutcomeReject, Failed: true}
+}
+
+// overlayNumeric resolves the member's numeric sets against what the view
+// answers now (the route's value, or an earlier member's set), records each
+// as a plain set, and overlays the view so a later member reads it
+// (read-after-set). An increment or decrement of an absent attribute starts
+// from the chain's base.
+func (c *Chain) overlayNumeric(view *policyview.View, member *Sets) error {
+	if member.written&setKindLocalPreference.bit() != 0 {
+		value, err := resolveOnView(view, c.localPreference, member.localPreference, c.bases.LocalPreference)
+		if err != nil {
+			return fmt.Errorf("local-preference: %w", err)
+		}
+		member.localPreference = numericSet{replace: true, base: value}
+		if err := view.SetNumber(c.localPreference, uint64(value)); err != nil {
+			return fmt.Errorf("local-preference: %w", err)
+		}
+	}
+	if member.written&setKindMED.bit() != 0 {
+		value, err := resolveOnView(view, c.med, member.med, c.bases.MED)
+		if err != nil {
+			return fmt.Errorf("med: %w", err)
+		}
+		member.med = numericSet{replace: true, base: value}
+		if err := view.SetNumber(c.med, uint64(value)); err != nil {
+			return fmt.Errorf("med: %w", err)
+		}
+	}
+	return nil
+}
+
+// resolveOnView answers the value set gives the field reader reads.
+func resolveOnView(view *policyview.View, reader policyview.Reader, set numericSet, base uint32) (uint32, error) {
+	current, present, err := numberOf(view, reader)
+	if err != nil {
+		return 0, err
+	}
+	return set.resolve(current, present, base, true)
 }
 
 // Refused answers how many routes a member of this chain failed.

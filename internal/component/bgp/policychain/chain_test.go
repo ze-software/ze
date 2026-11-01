@@ -28,6 +28,7 @@ const (
 	typeUndeclared = "policychain-test-undeclared"   // declares local-preference, writes med
 	typeCommunity  = "policychain-test-community"    // sets community
 	typeNoEval     = "policychain-test-no-evaluator" // declared fields, no evaluator
+	typeGate100    = "policychain-test-gate-100"     // reads local-preference, rejects unless 100
 )
 
 // numericConfig is the instance config the test evaluators read: an action
@@ -65,6 +66,23 @@ func init() {
 	policy.MustRegisterFilterType(typeUndeclared, nil, []policy.Field{lp})
 	policy.MustRegisterFilterType(typeCommunity, nil, []policy.Field{comm})
 	policy.MustRegisterFilterType(typeNoEval, nil, nil)
+	policy.MustRegisterFilterType(typeGate100, []policy.Field{lp}, nil)
+	MustRegisterEvaluator(typeGate100, rpc.OnErrorReject, func(string, map[string]any) (Evaluator, error) {
+		reader, err := policyview.ReaderFor(lp)
+		if err != nil {
+			return nil, err
+		}
+		return func(view *policyview.View, _ *Sets) (Decision, error) {
+			value, err := view.Read(reader)
+			if err != nil {
+				return DecisionUnspecified, err
+			}
+			if number, _ := value.Number(); value.Present() && number == 100 {
+				return DecisionPass, nil
+			}
+			return DecisionReject, nil
+		}, nil
+	})
 
 	MustRegisterEvaluator(typeSetLocal, rpc.OnErrorReject, numericEvaluator((*Sets).LocalPreference, lp))
 	MustRegisterEvaluator(typeSetMED, rpc.OnErrorReject, numericEvaluator((*Sets).MED, med))
@@ -375,5 +393,29 @@ func TestSetsCommunityBound(t *testing.T) {
 	}
 	if err := sets.AddCommunity(99); !errors.Is(err, ErrTooManyCommunities) {
 		t.Fatalf("add past the bound: err = %v, want ErrTooManyCommunities", err)
+	}
+}
+
+// TestChainReadAfterSet proves read-after-set: a later member reads the value
+// an earlier member set, not the received one. The route carries
+// LOCAL_PREF 7; the first member sets 100 and increments resolve against it;
+// the gate passes only a LOCAL_PREF of 100.
+func TestChainReadAfterSet(t *testing.T) {
+	chain := compile(t, policy.FinalAccept,
+		policy.Instance{Name: "lp-set", Type: typeSetLocal, Config: numericConfig(NumericActionSet, 100)},
+		policy.Instance{Name: "gate", Type: typeGate100})
+	if outcome, _ := run(t, chain, update(t, localPref(7))); outcome.Action != OutcomeAccept {
+		t.Fatalf("outcome = %+v, want accept: the gate must read the 100 the first member set", outcome)
+	}
+
+	chain = compile(t, policy.FinalAccept,
+		policy.Instance{Name: "lp-inc", Type: typeSetLocal, Config: numericConfig(NumericActionIncrement, 93)},
+		policy.Instance{Name: "gate", Type: typeGate100})
+	outcome, sets := run(t, chain, update(t, localPref(7)))
+	if outcome.Action != OutcomeAccept {
+		t.Fatalf("outcome = %+v, want accept: 7 incremented by 93 reads as 100", outcome)
+	}
+	if ops := applied(t, sets.Folded(), Current{}); len(ops) != 1 || !bytes.Equal(ops[0].Buf, []byte{0, 0, 0, 100}) {
+		t.Fatalf("ops = %+v, want one local-preference set of 100", ops)
 	}
 }

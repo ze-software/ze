@@ -1608,7 +1608,11 @@ the text subject is still what every configured BGP filter reads.
   and the fields it changes as `policychain.Sets`: `local-preference` and `med`
   set, increment or decrement, `community` add and remove. The run folds them
   in chain order (a later set overrides an earlier increment; an increment adds
-  to an earlier set), and `Sets.ApplyTo` writes them as `ModAccumulator`
+  to an earlier set). A member's `local-preference` or `med` resolves against
+  what the view answers when it ran, and `Chain.Run` overlays the view with the
+  result (`View.SetNumber`), so a later member reads the value an earlier one
+  set. Community sets have no overlay yet: a later member reads the received
+  COMMUNITY. `Sets.ApplyTo` writes the folded sets as `ModAccumulator`
   operations, so `buildModifiedPayload` stays the one apply engine.
   `Chain.Apply` reads the route's current LOCAL_PREF or MED from the view only
   for a field the sets change. Arithmetic on an absent attribute starts from
@@ -1625,7 +1629,8 @@ the text subject is still what every configured BGP filter reads.
   each goroutine brings one view and one `policychain.RunSets`, reused across
   runs, and neither escapes the synchronous run.
 
-<!-- source: internal/component/bgp/policychain/chain.go -- Compile, Chain.Run, MustRegisterEvaluator, refuseUndeclared -->
+<!-- source: internal/component/bgp/policychain/chain.go -- Compile, Chain.Run, MustRegisterEvaluator, refuseUndeclared, overlayNumeric -->
+<!-- source: internal/component/bgp/policyview/view.go -- View.SetNumber -->
 <!-- source: internal/component/bgp/policychain/sets.go -- Sets, numericSet.resolve, Sets.ApplyTo -->
 <!-- source: internal/component/bgp/policychain/apply.go -- Bases, Chain.Apply -->
 <!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->

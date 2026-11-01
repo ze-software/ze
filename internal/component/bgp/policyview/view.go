@@ -125,6 +125,22 @@ func (v *View) Read(r Reader) (Value, error) {
 	return value, err
 }
 
+// SetNumber overlays a numeric field for the rest of this run: a later Read
+// of r answers number, present. The chain calls it once a member's set of the
+// field folds, so a later member reads what an earlier one set
+// (read-after-set). Reset and Clear drop it with every cached slot.
+func (v *View) SetNumber(r Reader, number uint64) error {
+	if v.update == nil {
+		return ErrNoUpdate
+	}
+	if r.slot == 0 {
+		return errZeroReader
+	}
+	s := &v.slots[r.slot-1]
+	s.run, s.value, s.err = v.run, Value{present: true, number: number, numbered: true}, nil
+	return nil
+}
+
 // Decodes answers what this run decoded so far.
 func (v *View) Decodes() Decodes { return v.decodes }
 
