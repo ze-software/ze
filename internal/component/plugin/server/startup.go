@@ -252,8 +252,9 @@ func (s *Server) refuseBootAutoLoad(trigger string, err error) {
 // Stage 1 because a chain the loaded config holds names a filter its
 // declaration does not cover or fit (registry.ErrLoadedChainRefused). The
 // config cannot be applied as written, so ze does not start with it, whatever
-// the plugin's failure policy: a reload refuses the same chain at config load,
-// and startup refuses it here, where the reference is first judged.
+// the plugin's failure policy: a reload refuses the same chain at config load
+// (or, for a plugin the reload starts, through reloadChainRefusal), and
+// startup refuses it here, where the reference is first judged.
 //
 // It records the first such refusal only, and only before startup completes:
 // WaitForStartupComplete answers it, and cmd/ze/hub exits on it.

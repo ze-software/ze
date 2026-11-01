@@ -330,7 +330,7 @@ func (s *Server) startAutoLoaded(ctx context.Context, plugins []plugin.PluginCon
 			started[i] = p.Name
 		}
 		stopErr := s.autoStopPluginNames(started)
-		return nil, errors.Join(fmt.Errorf("config-path auto-load startup: %w", startErr), stopErr)
+		return nil, errors.Join(fmt.Errorf("config-path auto-load startup: %w", reloadChainRefusal(startErr)), stopErr)
 	}
 
 	// Tell the reactor that a plugin phase has settled. This is a sync.Once
@@ -727,4 +727,19 @@ func appendHeldNeedProviders(needed []string, seen map[string]bool, needHolds re
 		}
 	}
 	return needed
+}
+
+// reloadChainRefusal adds the operator's next step to a reload whose new
+// plugin refused, at Stage 1, a chain the candidate config holds
+// (registry.ErrLoadedChainRefused). The defect is the config, not the plugin:
+// the caller refuses the whole reload before anything is applied, so the
+// running config stays in force, which is what the message says. Startup
+// refuses the same chain through refuseStartupOnLoadedChain. Any other error
+// is returned unchanged.
+func reloadChainRefusal(err error) error {
+	if !errors.Is(err, registry.ErrLoadedChainRefused) {
+		return err
+	}
+	return fmt.Errorf("%w; the reload is refused and the running config stays in force: correct the chain "+
+		"reference in the config, or the plugin's filter declaration, then reload again", err)
 }

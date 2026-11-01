@@ -349,9 +349,14 @@ failure policy: the config cannot be applied as written, so ze exits naming the
 reference and the fix, as a reload refuses the same chain at load. A
 declaration refused on its own (an unknown field, `raw` as a set) holds no
 loaded chain, and the plugin's failure policy decides what ze does. A reload
-judges a reference at once.
+judges a reference at once when its plugin already runs. When the reload itself
+starts the plugin (its config root is new), the reference is judged at that
+plugin's Stage 1, and a refusal refuses the whole reload before anything is
+applied: the running config stays in force, ze keeps running, and the error
+names the reference and the fix.
 <!-- source: internal/component/plugin/registry/filter_declaration.go -- CompileFilterDeclarations, CheckFilterDeclarations, ErrLoadedChainRefused -->
 <!-- source: internal/component/plugin/server/startup.go -- refuseStartupOnLoadedChain -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- reloadChainRefusal -->
 <!-- source: internal/component/bgp/config/external_filters.go -- checkExternalChainRef, checkFilterDeclarations -->
 <!-- source: internal/component/policy/declared_fields.go -- CheckDeclaredFilter -->
 
