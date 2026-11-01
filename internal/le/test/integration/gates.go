@@ -252,9 +252,15 @@ func Table() []Action {
 		},
 		// ── Integration (network namespace) ───────────────────────────────
 		{
-			Verb:    "iface",
-			Does:    doesRun,
-			Argv:    goTest("120s", "./internal/component/iface/..."),
+			Verb: "iface",
+			Does: doesRun,
+			// Since 813ee68c52 and cf1fe4693e every kernel test of the package
+			// re-executes its race binary in a user namespace of its own, and the
+			// six DHCPv6 lease tests wait out real retransmissions, 11 to 18 s
+			// each. The package then outran a 120 s bound on the runner two
+			// nights running (evidence-nightly runs 41190043397 and 41298258262),
+			// killed mid-test with no verdict, where it had finished in 84 s.
+			Argv:    goTest("600s", "./internal/component/iface/..."),
 			Summary: "test the iface component against a real kernel",
 			Why: "the iface component against a real kernel: netlink link, address and" +
 				" route programming. Needs CAP_NET_ADMIN",
