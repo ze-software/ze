@@ -113,8 +113,11 @@ func (s *Sets) RemovePrivateAS(mode RemovePrivateMode) error {
 
 // DropNLRI asks the NLRI entry at offset of section out of the UPDATE. offset
 // is where the entry starts in the section's bytes as the view answers them,
-// path identifier included; an offset that starts no entry fails the route
-// when the reactor applies the sets.
+// path identifier included: after an earlier member's drop that is the subset
+// it left, and the chain folds the offset at the entry's place in the
+// received section (overlayPrefix). An offset that starts no entry of the
+// body NLRI or MP_REACH_NLRI fails the member under its on-error; one of a
+// withdrawn section fails the route when the reactor applies the sets.
 func (s *Sets) DropNLRI(section NLRISection, offset uint16) error {
 	if section == NLRISectionUnspecified || section >= nlriSectionCount {
 		return fmt.Errorf("NLRI section %d is not a section of an UPDATE", section)

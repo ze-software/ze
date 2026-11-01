@@ -1792,7 +1792,8 @@ RFC 8277 label stack are not rendered, and the engine keeps them when it
 rewrites the section. A section that does not parse ends its block with the
 token `invalid`.
 <!-- source: internal/component/bgp/reactor/filter_format.go -- AppendUpdateForFilter, appendLegacyBlock, appendMPBlock -->
-<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- appendCIDRPrefixes, cidrEntry -->
+<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- appendCIDRPrefixes -->
+<!-- source: internal/component/bgp/wireu/nlri_cidr.go -- CIDREntry -->
 
 A `modify` answer that carries an NLRI block replaces the whole NLRI value, so
 it carries every block it keeps, with the same keywords. The engine rewrites

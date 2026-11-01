@@ -1647,7 +1647,7 @@ the text subject is still what every configured BGP filter reads.
   (`filter_delta.go`), not applied toward an internal peer on export (RFC 4271
   Section 5.1.2); `nlriSectionOf`, `dropNLRI` and `recordNLRIRewrite`
   (`filter_nlri_delta.go`) over all four NLRI sections, the walk the text
-  path's `subsetNLRI` shares through `nlriCursor`. An offset that starts no
+  path's `subsetNLRI` shares through `wireu.CIDRCursor`. An offset that starts no
   entry, a drop from a section the UPDATE lacks, and a drop from a family
   whose NLRI is not a CIDR prefix drop the route. A stripped section is
   rewritten empty, which drops an MP attribute whole: the body
@@ -1659,8 +1659,17 @@ the text subject is still what every configured BGP filter reads.
   is what a later text filter reads too: the text delta carries
   `as-path-prepend N` as a directive beside the `as-path` field, and the wire
   rebuild applies it. A later member that reads `prefix` after a `DropNLRI`
-  still reads the received NLRI, while a later text filter reads the subset
-  an earlier one returned; that overlay is not built yet.
+  reads the subset the drop left, as a later text filter reads the subset an
+  earlier one returned (the text NLRI delta replaces the `nlri` slot):
+  `overlayPrefix` rebuilds the body NLRI and the MP_REACH_NLRI value less the
+  drops into two alternating `RunSets` buffers per section, with the same
+  `wireu.DropCIDREntries` walk the reactor applies, and an MP_REACH_NLRI left
+  with no NLRI reads as absent, as the reactor drops it. A later member's
+  offsets name the subset, and the chain folds each at its entry's offset in
+  the received section, where the reactor counts. A drop at an offset that
+  starts no entry of either section, from an MP_REACH_NLRI the UPDATE lacks or
+  of a family whose NLRI is not a CIDR prefix fails the member under its
+  on-error. A chain that drops nothing reads the wire and allocates nothing.
 - **A failed member applies its on-error.** A read that answers an error (a
   malformed attribute, `policyview.ErrMalformed`) and a write to a field the
   member did not declare (`policy.InstanceSets`) each fail the route under the
@@ -1672,7 +1681,9 @@ the text subject is still what every configured BGP filter reads.
   runs, and neither escapes the synchronous run.
 
 <!-- source: internal/component/bgp/policychain/chain.go -- Compile, Chain.Run, MustRegisterEvaluator, refuseUndeclared, overlayNumeric, overlayCommunity -->
-<!-- source: internal/component/bgp/policyview/view.go -- View.SetNumber, View.SetWire -->
+<!-- source: internal/component/bgp/policyview/view.go -- View.SetNumber, View.SetWire, View.SetPrefix, View.AddPath -->
+<!-- source: internal/component/bgp/policychain/prefix_overlay.go -- overlayPrefix, receivedDrops -->
+<!-- source: internal/component/bgp/wireu/nlri_cidr.go -- CIDRCursor, DropCIDREntries -->
 <!-- source: internal/component/bgp/policychain/intents.go -- PrependASPath, RemovePrivateAS, DropNLRI, StripFamily -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- prependASPathOps, removePrivateASOps -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- aspathHandler -->

@@ -129,6 +129,8 @@ type Chain struct {
 	localPreference, med policyview.Reader
 	// community serves the community overlay (overlayCommunity).
 	community policyview.Reader
+	// prefix serves the prefix overlay (overlayPrefix).
+	prefix policyview.Reader
 	// refused counts the routes a member failed under its on-error.
 	refused atomic.Uint64
 }
@@ -161,6 +163,9 @@ func Compile(attachment string, reg *policy.Registry, members []Member, final po
 		return nil, fmt.Errorf("BUG: policychain: %w", err)
 	}
 	if chain.med, err = policyview.ReaderFor(policy.FieldMED); err != nil {
+		return nil, fmt.Errorf("BUG: policychain: %w", err)
+	}
+	if chain.prefix, err = policyview.ReaderFor(policy.FieldPrefix); err != nil {
 		return nil, fmt.Errorf("BUG: policychain: %w", err)
 	}
 	if chain.community, err = policyview.ReaderFor(policy.FieldCommunity); err != nil {
@@ -245,6 +250,8 @@ type RunSets struct {
 	// member adds, and keeps its storage across runs.
 	communityWire [2][]byte
 	communityNext uint8
+	// prefix holds the NLRI the prefix overlay answers a later member.
+	prefix prefixOverlay
 	// route is what an external member is sent beside the view; fields the
 	// fields object it is sent, kept across runs.
 	route  ExternalRoute
@@ -270,6 +277,7 @@ func (r *RunSets) Folded() *Sets { return &r.folded }
 // nothing on the pass and reject paths.
 func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
 	sets.folded.Reset()
+	sets.prefix.receivedSet = false
 	for i := range c.members {
 		m := &c.members[i]
 		sets.member.Reset()
@@ -305,6 +313,9 @@ func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
 		err = c.overlayNumeric(view, &sets.member)
 		if err == nil {
 			err = c.overlayCommunity(view, sets)
+		}
+		if err == nil {
+			err = c.overlayPrefix(view, sets)
 		}
 		if err != nil {
 			if c.fail(m, onError, err) {

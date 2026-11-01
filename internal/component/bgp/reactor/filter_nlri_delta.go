@@ -357,32 +357,6 @@ func recordNLRIRewrite(section nlriSection, kept []byte, override *[]byte, mods 
 	}
 }
 
-// nlriCursor walks the entries of one section of a CIDR family in wire order.
-// Both subset forms walk through it: the text answer's ordered prefix list
-// (subsetNLRI) and the library chain's dropped offsets (dropNLRI).
-type nlriCursor struct {
-	section []byte
-	off     int
-	addPath bool
-	bad     bool // the section did not frame
-}
-
-// next answers the next entry, its part after any path identifier, and its
-// offset in the section. ok is false at the end of the section, and when it
-// does not frame, which bad then records.
-func (c *nlriCursor) next() (entry, cidr []byte, start int, ok bool) {
-	if c.off >= len(c.section) {
-		return nil, nil, 0, false
-	}
-	entry, cidr, next, framed := cidrEntry(c.section, c.off, c.addPath)
-	if !framed {
-		c.bad = true
-		return nil, nil, 0, false
-	}
-	start, c.off = c.off, next
-	return entry, cidr, start, true
-}
-
 // withdraws reports whether the section lists withdrawn routes, whose key
 // nlrisplit frames without a label stack (RFC 8277 Section 2.4).
 func (s nlriSection) withdraws() bool {
@@ -408,9 +382,9 @@ func subsetNLRI(scratch *valueScratch, source nlriSource, keep string) ([]byte, 
 	if !ok {
 		return nil, false
 	}
-	cursor := nlriCursor{section: source.raw, addPath: source.addPath}
+	cursor := wireu.NewCIDRCursor(source.raw, source.addPath)
 	for wantKey != nil {
-		entry, cidr, _, more := cursor.next()
+		entry, cidr, _, more := cursor.Next()
 		if !more {
 			break
 		}
@@ -426,7 +400,7 @@ func subsetNLRI(scratch *valueScratch, source nlriSource, keep string) ([]byte, 
 			return nil, false
 		}
 	}
-	if cursor.bad {
+	if cursor.Bad() {
 		return nil, false
 	}
 	if wantKey != nil {
@@ -442,57 +416,7 @@ func subsetNLRI(scratch *valueScratch, source nlriSource, keep string) ([]byte, 
 // false when an offset starts no entry of the section, or the section does not
 // parse. The walk is bounded by the section length and allocates nothing.
 func dropNLRI(scratch *valueScratch, source nlriSource, drops []uint16) ([]byte, bool) {
-	out := scratch.carveBytes(len(source.raw))[:0]
-	cursor := nlriCursor{section: source.raw, addPath: source.addPath}
-	for {
-		entry, _, start, more := cursor.next()
-		if !more {
-			break
-		}
-		if len(drops) > 0 && int(drops[0]) < start {
-			return nil, false // the offset fell inside the entry before this one
-		}
-		if len(drops) > 0 && int(drops[0]) == start {
-			drops = drops[1:]
-			continue
-		}
-		out = append(out, entry...)
-	}
-	if cursor.bad {
-		return nil, false
-	}
-	if len(drops) > 0 {
-		return nil, false // an offset past the last entry
-	}
-	return out, true
-}
-
-// cidrEntry frames the NLRI at off of a section of a CIDR family (filtertext.CIDRFamily),
-// returning the whole NLRI, its part after any path identifier, and the offset
-// past it. ok == false when the section is truncated at off.
-//
-// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending the
-// Path Identifier field, which is of four octets."
-// RFC 4760 Section 5: "The Length field indicates the length, in bits, of the
-// address prefix."
-// RFC 8277 Section 2.2: "It specifies the length in bits of the remainder of the
-// NLRI field." A label stack, or a withdrawal's Compatibility field, sits
-// inside the length, so every CIDR family frames the same way.
-//
-//	+0 [Path Identifier(4), ADD-PATH only] Length(1) Prefix(ceil(Length/8))
-func cidrEntry(section []byte, off int, addPath bool) (entry, cidr []byte, next int, ok bool) {
-	pos := off
-	if addPath {
-		pos += 4
-	}
-	if pos >= len(section) {
-		return nil, nil, 0, false
-	}
-	end := pos + 1 + (int(section[pos])+7)/8
-	if end > len(section) {
-		return nil, nil, 0, false
-	}
-	return section[off:end], section[pos:end], end, true
+	return wireu.DropCIDREntries(scratch.carveBytes(len(source.raw))[:0], source.raw, source.addPath, drops)
 }
 
 // nextPrefixKey encodes the next token of tokens as the CIDR key
@@ -522,7 +446,7 @@ func nextPrefixKey(tokens *filterTokens, fam family.Family, buf []byte) ([]byte,
 }
 
 // appendCIDRPrefixes appends " <prefix>" for every NLRI of a CIDR-family
-// section, framed by cidrEntry and named by the family's route key, so the
+// section, framed by wireu.CIDREntry and named by the family's route key, so the
 // subject shows exactly the prefixes subsetNLRI matches an answer against: a
 // path identifier or a label stack is never read as prefix bits. A section that
 // does not frame or key ends with the token "invalid", which no prefix filter
@@ -531,7 +455,7 @@ func appendCIDRPrefixes(buf []byte, fam family.Family, section []byte, addPath, 
 	routeKey := nlrisplit.GetPrefixKey(fam)
 	var scratch [nlrisplit.PrefixKeyScratchSize]byte
 	for off := 0; off < len(section); {
-		_, cidr, next, ok := cidrEntry(section, off, addPath)
+		_, cidr, next, ok := wireu.CIDREntry(section, off, addPath)
 		if !ok {
 			return append(buf, " invalid"...)
 		}

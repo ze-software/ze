@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -155,6 +156,36 @@ func (v *View) SetWire(r Reader, wire []byte) error {
 	s := &v.slots[r.slot-1]
 	s.run, s.value, s.err = v.run, Value{present: len(wire) > 0, wire: wire}, nil
 	return nil
+}
+
+// SetPrefix overlays prefix (the field r reads) with body as the body NLRI
+// and mpReach as the MP_REACH_NLRI value for the rest of this run, so a later
+// read answers the subset an earlier chain member's drops left
+// (read-after-set). A nil mpReach is an UPDATE that carries none, as the
+// reactor drops an MP_REACH_NLRI whose NLRI are all dropped. Both are
+// borrowed, and the caller MUST keep them unchanged until the run ends.
+func (v *View) SetPrefix(r Reader, body []byte, mpReach wireu.MPReachWire) error {
+	if v.update == nil {
+		return ErrNoUpdate
+	}
+	if r.slot == 0 {
+		return errZeroReader
+	}
+	s := &v.slots[r.slot-1]
+	s.run, s.value, s.err = v.run, Value{present: len(body) > 0 || mpReach != nil, wire: body, mpReach: mpReach}, nil
+	return nil
+}
+
+// AddPath reports whether the session the UPDATE came from negotiated
+// ADD-PATH for fam on receive, so its NLRI carry a path identifier: the
+// answer the reactor's own NLRI walk takes from the same encoding context
+// (nlriSectionOf). An UPDATE whose context is not registered carries none.
+func (v *View) AddPath(fam family.Family) (bool, error) {
+	if v.update == nil {
+		return false, ErrNoUpdate
+	}
+	ctx := bgpctx.Registry.Get(v.update.SourceCtxID())
+	return ctx != nil && ctx.AddPath(fam), nil
 }
 
 // Decodes answers what this run decoded so far.

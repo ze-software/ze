@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -60,7 +61,7 @@ func dropCIDRs(t *testing.T, drop ...string) func(*policyview.View, *policychain
 	}
 	walk := func(sets *policychain.Sets, section policychain.NLRISection, raw []byte) error {
 		for off := 0; off < len(raw); {
-			_, cidr, next, ok := cidrEntry(raw, off, false)
+			_, cidr, next, ok := wireu.CIDREntry(raw, off, false)
 			if !ok {
 				t.Fatalf("section %d does not frame at %d", section, off)
 			}
