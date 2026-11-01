@@ -45,6 +45,17 @@
   },
   {
     "rid": "RFC6996-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996ExportRemovesPrivateUseASNsFromASPath",
+    "unit-sha": "c00a4bbf4969cd42",
+    "claim-sha": "4a305fc60f53c61e",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/filter_delta.go::rewriteASPathRemovePrivate",
+    "producer-sha": "12efc48c05f5f896",
+    "break": "body of rewriteASPathRemovePrivate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6996-4-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges",
     "unit-sha": "d09eeb18e5f8abee",
