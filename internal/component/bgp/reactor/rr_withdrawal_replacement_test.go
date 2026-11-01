@@ -425,7 +425,16 @@ func TestRRDepartureHonoursRetention(t *testing.T) {
 	// peer for all the address families that were previously received in
 	// the Graceful Restart Capability and MUST mark them as stale routing
 	// information."
-	purgeRIBCommand(t, r, "request bgp rib retain-routes", source, "ipv4/unicast")
+	//
+	// C holding A's reflected route proves bgp-rr forwarded it, not that
+	// bgp-rib has read A's UPDATE from its own event stream. retain-routes
+	// retains only a peer whose routes bgp-rib holds, so a retain sent before
+	// that read retains nothing: A's route is then neither retained nor
+	// stale, and its departure and purge do not act on it. Retaining is
+	// idempotent, so it is repeated until bgp-rib answers that it retained A.
+	lowEventually(t, func() bool {
+		return grRetainedPeers(t, r, source) == 1
+	}, "bgp-rib retaining "+source+"'s routes")
 	retained := retention.Publish(func(peer string, fam family.Family) bool {
 		return peer == source && fam == family.IPv4Unicast
 	})
@@ -514,7 +523,16 @@ func rrGRPurgeRecovers(t *testing.T, how grPurge, withB bool) {
 	// peer for all the address families that were previously received in
 	// the Graceful Restart Capability and MUST mark them as stale routing
 	// information."
-	purgeRIBCommand(t, r, "request bgp rib retain-routes", source, "ipv4/unicast")
+	//
+	// C holding A's reflected route proves bgp-rr forwarded it, not that
+	// bgp-rib has read A's UPDATE from its own event stream. retain-routes
+	// retains only a peer whose routes bgp-rib holds, so a retain sent before
+	// that read retains nothing: A's route is then neither retained nor
+	// stale, and its departure and purge do not act on it. Retaining is
+	// idempotent, so it is repeated until bgp-rib answers that it retained A.
+	lowEventually(t, func() bool {
+		return grRetainedPeers(t, r, source) == 1
+	}, "bgp-rib retaining "+source+"'s routes")
 	retained := retention.Publish(func(peer string, fam family.Family) bool {
 		return peer == source && fam == family.IPv4Unicast
 	})
