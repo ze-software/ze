@@ -136,19 +136,20 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   the running kernel is not Ze's, and is proven on booted Debian, Ubuntu,
   Rocky and Fedora VMs: the one exception to Ze's kernel in test guests, and
   only for behaviour that exists off Ze's kernel.
-- The Linux host is too busy for full test runs: there, run scoped tests
-  only, and never run `./le verify worktree`, a full functional suite or a
-  full `./le go lint run`. Full runs happen on another host. "Scoped" limits
-  how many tests run, never which kind: the host is Linux, so a scoped QEMU,
-  netns, `caps=` or `needs-linux` run of the tests the work reaches is done
-  here, never deferred. Only a performance figure, or a test that runs only on
-  macOS, waits for the Mac.
-- Performance is measured only on Thomas's Mac, whose hardware is known: a
-  number that is reported, compared or recorded comes from there. An agent may
-  run a perf harness or benchmark on the Linux host to check that it works
-  (it builds, runs and produces output), and never reports or compares the
-  figures such a run prints. A Linux-only harness is measured on the Mac
-  inside a Linux QEMU guest.
+- A performance figure (a number that is reported, compared or recorded)
+  comes only from a machine whose performance is known: real hardware, or a
+  VM running on a host whose performance is known, so the VM's resources are
+  guaranteed. Thomas's Mac is such a host, and so is a real Linux host. A VM
+  on a host nobody here knows, such as the Linux development VM, gives no
+  figure: that host may overprovision its resources. On such a VM an agent
+  may run a perf harness or benchmark to check that it works (it builds,
+  runs and produces output), and never reports or compares the figures it
+  prints. A Linux-only harness is measured on the Mac inside a Linux QEMU
+  guest, whose resources the Mac guarantees.
+- Running on an unknown host limits only performance figures. Every test runs on whatever
+  host the agent is on: on Linux, QEMU guests, netns runs, `caps=` and
+  `needs-linux` tests included. Only a test that runs only on another OS
+  waits for a host of that OS.
 - Kernel work uses the architecture of the machine the agent is on. Never
   cross-compile or emulate the other architecture's kernel locally; its proof
   comes from a host that runs it natively.
