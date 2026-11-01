@@ -155,7 +155,10 @@ func AppendFields(buf []byte, v *View, names []string) ([]byte, error) {
 // formatted answers the write of a field whose value the registered event
 // formatter of code writes, from the attribute the UPDATE carries.
 func formatted(code attribute.AttributeCode) writeFunc {
-	return func(buf []byte, v *View, _ Value) ([]byte, bool, error) {
+	return func(buf []byte, v *View, value Value) ([]byte, bool, error) {
+		if value.overlaid {
+			return appendOverlaid(buf, code, value.wire)
+		}
 		attrs, err := v.attrs()
 		if err != nil {
 			return buf, false, err
@@ -169,6 +172,21 @@ func formatted(code attribute.AttributeCode) writeFunc {
 		}
 		return appendFormatted(buf, code, attr)
 	}
+}
+
+// appendOverlaid writes the value an earlier chain member set (View.SetWire)
+// through the event formatter of code, so a later member is sent the set
+// value rather than the received one (read-after-set). The chain sees an
+// UPDATE in the four-octet AS form the ingest collapse produces.
+func appendOverlaid(buf []byte, code attribute.AttributeCode, wire []byte) ([]byte, bool, error) {
+	attr, known, err := attribute.ParseKnownAttribute(code, wire, true)
+	if err != nil {
+		return buf, false, errors.Join(ErrMalformed, err)
+	}
+	if !known {
+		return buf, false, errors.New("BUG: policyview: attribute " + strconv.Itoa(int(code)) + " has no parser for its set value")
+	}
+	return appendFormatted(buf, code, attr)
 }
 
 // appendFormatted writes attr through the event formatter of code.

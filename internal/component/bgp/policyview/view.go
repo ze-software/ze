@@ -161,7 +161,7 @@ func (v *View) SetWire(r Reader, wire []byte) error {
 		return errZeroReader
 	}
 	s := &v.slots[r.slot-1]
-	s.run, s.value, s.err = v.run, Value{present: len(wire) > 0, wire: wire}, nil
+	s.run, s.value, s.err = v.run, Value{present: len(wire) > 0, wire: wire, overlaid: true}, nil
 	return nil
 }
 
@@ -268,6 +268,9 @@ type Value struct {
 	numbered bool
 	ebgp     bool
 	family   family.Family
+	// overlaid marks a value SetWire wrote: a chain member's set, which the
+	// UPDATE's own attributes do not carry (formatted writes it from wire).
+	overlaid bool
 }
 
 // Present reports whether the UPDATE carries the field. An absent field is

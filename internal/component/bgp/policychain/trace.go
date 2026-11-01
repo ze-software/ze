@@ -116,7 +116,9 @@ func (s *Sets) AppendText(buf []byte) []byte {
 	if s.written&setKindLocalPreference.bit() != 0 {
 		buf = appendNumericText(buf, "local-preference", s.localPreference)
 	}
-	if s.written&setKindMED.bit() != 0 {
+	if s.written&setKindMED.bit() != 0 && s.med.remove {
+		buf = appendWord(buf, "med remove")
+	} else if s.written&setKindMED.bit() != 0 {
 		buf = appendNumericText(buf, "med", s.med)
 	}
 	for _, community := range s.communityRemove[:s.communityRemN] {
@@ -146,7 +148,7 @@ func (s *Sets) AppendText(buf []byte) []byte {
 	for _, fam := range s.intents.families[:s.intents.familiesN] {
 		buf = append(appendWord(buf, "family strip "), fam.String()...)
 	}
-	return buf
+	return s.appendAttributesText(buf)
 }
 
 // nlriSectionWords names each section in AppendText.

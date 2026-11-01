@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strconv"
 
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/policy"
@@ -150,7 +149,9 @@ func (c *Chain) judgeExternal(m *member, view *policyview.View, run *RunSets) (e
 	if err != nil {
 		return externalVerdict{}, decl.OnError, err
 	}
-	verdict, err := externalAnswer(out, &decl, m.settable, &run.member, intentTarget{view: view, prefix: c.prefix})
+	verdict, err := externalAnswer(out, &decl, m.settable, &run.member, intentTarget{
+		view: view, prefix: c.prefix, importSide: route.Direction == directionImport,
+	})
 	return verdict, decl.OnError, err
 }
 
@@ -258,19 +259,15 @@ func externalIntentsOfReads(reads []string) setMask {
 
 func applyExternalSet(sets *Sets, kind setKind, set *rpc.FilterSet, target intentTarget) error {
 	switch kind {
-	case setKindLocalPreference, setKindMED:
-		action, ok := numericActionOf(set.Action)
-		if !ok {
-			return errors.New("the field takes set, increment or decrement")
+	case setKindMED:
+		if set.Action == rpc.FilterSetActionRemove {
+			return removeMED(sets, target)
 		}
-		value, err := strconv.ParseUint(string(set.Value), 10, 32)
-		if err != nil {
-			return errors.New("the value is not a number from 0 to 4294967295")
-		}
-		if kind == setKindMED {
-			return sets.MED(action, uint32(value))
-		}
-		return sets.LocalPreference(action, uint32(value))
+		return applyNumericSet(sets, kind, set)
+	case setKindLocalPreference, setKindAIGP:
+		return applyNumericSet(sets, kind, set)
+	case setKindOrigin, setKindNextHop, setKindLargeCommunity, setKindExtendedCommunity:
+		return applyAttributeSet(sets, kind, set)
 	case setKindCommunity:
 		community, err := communityValue(set.Value)
 		if err != nil {

@@ -37,6 +37,14 @@ func (c *Chain) Apply(view *policyview.View, sets *RunSets, acc *filterapi.ModAc
 		}
 		current.LocalPreference, current.HasLocalPreference = value, present
 	}
+	if folded.written&setKindAIGP.bit() != 0 {
+		value, err := view.Read(c.aigp)
+		if err != nil {
+			return fmt.Errorf("aigp: %w", err)
+		}
+		metric, numbered := value.Number()
+		current.AIGP, current.HasAIGP = metric, numbered && value.Present()
+	}
 	if folded.written&setKindMED.bit() != 0 {
 		value, present, err := numberOf(view, c.med)
 		if err != nil {

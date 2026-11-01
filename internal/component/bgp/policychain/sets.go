@@ -41,19 +41,29 @@ const (
 	setKindASPath // the AS-path intents: prepend and remove-private
 	setKindPrefix // the NLRI subset intent
 	setKindFamily // the family-strip intent
-	setKindCount  // the number of kinds plus one; never a kind
+	setKindOrigin
+	setKindNextHop
+	setKindAIGP
+	setKindLargeCommunity
+	setKindExtendedCommunity
+	setKindCount // the number of kinds plus one; never a kind
 )
 
 // setKindFields is the vocabulary field each kind writes. The chain compiles a
 // member's declared sets into a mask over these kinds, so a run checks a
 // member's writes against what it may set with one AND (D-9).
 var setKindFields = [setKindCount]policy.Field{
-	setKindLocalPreference: policy.FieldLocalPreference,
-	setKindMED:             policy.FieldMED,
-	setKindCommunity:       policy.FieldCommunity,
-	setKindASPath:          policy.FieldASPath,
-	setKindPrefix:          policy.FieldPrefix,
-	setKindFamily:          policy.FieldFamily,
+	setKindLocalPreference:   policy.FieldLocalPreference,
+	setKindMED:               policy.FieldMED,
+	setKindCommunity:         policy.FieldCommunity,
+	setKindASPath:            policy.FieldASPath,
+	setKindPrefix:            policy.FieldPrefix,
+	setKindFamily:            policy.FieldFamily,
+	setKindOrigin:            policy.FieldOrigin,
+	setKindNextHop:           policy.FieldNextHop,
+	setKindAIGP:              policy.FieldAIGP,
+	setKindLargeCommunity:    policy.FieldLargeCommunity,
+	setKindExtendedCommunity: policy.FieldExtendedCommunity,
 }
 
 // intentsOfReads answers the per-route intents a member that reads fields may
@@ -75,7 +85,7 @@ func intentsOfReads(reads []policy.Field) setMask {
 }
 
 // setMask holds one bit per setKind.
-type setMask uint8
+type setMask uint16
 
 func (k setKind) bit() setMask { return 1 << k }
 
@@ -111,10 +121,20 @@ type numericSet struct {
 	replace bool
 	base    uint32
 	delta   int64
+	// remove takes the attribute off the route (MED only, RemoveMED), and
+	// absent makes an increment or decrement that followed a removal in the
+	// same member start from the absent attribute.
+	remove, absent bool
+	// metric is AIGP's replacement value, which is eight octets wide
+	// (resolveAIGP); the four-octet fields use base.
+	metric uint64
 }
 
 // fold applies one more action on top of what the earlier members asked.
 func (n *numericSet) fold(action NumericAction, value uint32) error {
+	if n.remove {
+		n.remove, n.absent = false, true
+	}
 	switch action {
 	case NumericActionSet:
 		n.replace, n.base, n.delta = true, value, 0
@@ -140,7 +160,7 @@ func (n numericSet) resolve(current uint32, present bool, absentBase uint32, has
 	switch {
 	case n.replace:
 		start = n.base
-	case present:
+	case present && !n.absent:
 	case hasBase:
 		start = absentBase
 	default:
@@ -168,6 +188,12 @@ type Sets struct {
 	communityAddN   uint8
 	communityRemN   uint8
 	intents         intents
+	// The attribute fields (sets_attributes.go).
+	origin   attribute.Origin
+	nextHop  [4]byte
+	aigp     numericSet
+	large    valueList[attribute.LargeCommunity]
+	extended valueList[attribute.ExtendedCommunity]
 	// matchRoute is the route a match judges, held here rather than on the
 	// evaluator's stack so a check's pointer to it allocates nothing
 	// (match.go). It is scratch: no reader of the sets sees it.
@@ -264,14 +290,20 @@ func (s *Sets) merge(later *Sets) error {
 	if err := s.intents.merge(&later.intents); err != nil {
 		return err
 	}
+	if err := s.mergeAttributes(later); err != nil {
+		return err
+	}
 	s.written |= later.written
 	return nil
 }
 
 // foldNumeric answers earlier followed by later.
 func foldNumeric(earlier, later numericSet) numericSet {
-	if later.replace {
+	if later.replace || later.remove {
 		return later
+	}
+	if earlier.remove {
+		return numericSet{absent: true, delta: later.delta}
 	}
 	earlier.delta += later.delta
 	return earlier
@@ -284,6 +316,9 @@ type Current struct {
 	HasLocalPreference, HasMED         bool
 	LocalPreferenceBase, MEDBase       uint32
 	HasLocalPreferenceBase, HasMEDBase bool
+	// AIGP is the route's AIGP metric, read only when the sets change it.
+	AIGP    uint64
+	HasAIGP bool
 }
 
 // ApplyTo writes the sets as ModAccumulator operations, one per attribute
@@ -303,7 +338,12 @@ func (s *Sets) ApplyTo(acc *filterapi.ModAccumulator, current Current) error {
 		binary.BigEndian.PutUint32(value[:], v)
 		acc.OpCopy(uint8(attribute.AttrLocalPref), filterapi.AttrModSet, value[:])
 	}
-	if s.written&setKindMED.bit() != 0 {
+	if s.written&setKindMED.bit() != 0 && s.med.remove {
+		// RFC 4271 Section 5.1.4: "A BGP speaker MUST implement a mechanism (based on local configuration) that allows the MULTI_EXIT_DISC attribute to be removed from a route."
+		// The run forgot a removal from a route with no MULTI_EXIT_DISC
+		// (Chain.overlayMEDRemove), so one here has work.
+		acc.OpCopy(uint8(attribute.AttrMED), filterapi.AttrModSuppress, nil)
+	} else if s.written&setKindMED.bit() != 0 {
 		v, err := s.med.resolve(current.MED, current.HasMED, current.MEDBase, current.HasMEDBase)
 		if err != nil {
 			return fmt.Errorf("med: %w", err)
@@ -320,6 +360,7 @@ func (s *Sets) ApplyTo(acc *filterapi.ModAccumulator, current Current) error {
 		binary.BigEndian.PutUint32(value[:], community)
 		acc.OpCopy(uint8(attribute.AttrCommunity), filterapi.AttrModRemove, value[:])
 	}
+	s.applyAttributesTo(acc, current)
 	return nil
 }
 

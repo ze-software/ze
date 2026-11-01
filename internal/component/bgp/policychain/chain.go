@@ -132,6 +132,9 @@ type Chain struct {
 	localPreference, med policyview.Reader
 	// community serves the community overlay (overlayCommunity).
 	community policyview.Reader
+	// origin, nextHop, aigp, large and extended serve the attribute
+	// overlays (overlayAttributes) and Apply's AIGP arithmetic.
+	origin, nextHop, aigp, large, extended policyview.Reader
 	// prefix serves the prefix overlay (overlayPrefix).
 	prefix policyview.Reader
 	// refused counts the routes a member failed under its on-error.
@@ -173,6 +176,9 @@ func Compile(attachment string, reg *policy.Registry, members []Member, final po
 	}
 	if chain.community, err = policyview.ReaderFor(policy.FieldCommunity); err != nil {
 		return nil, fmt.Errorf("BUG: policychain: %w", err)
+	}
+	if err := chain.compileAttributeReaders(); err != nil {
+		return nil, err
 	}
 	for _, m := range members {
 		if m.Plugin != "" {
@@ -277,6 +283,9 @@ type RunSets struct {
 	// member adds, and keeps its storage across runs.
 	communityWire [2][]byte
 	communityNext uint8
+	// attributes holds the values the attribute overlays answer
+	// (overlayAttributes).
+	attributes attributeWire
 	// prefix holds the NLRI the prefix overlay answers a later member.
 	prefix prefixOverlay
 	// raw is the whole UPDATE body an external member's terminal rewrite
@@ -369,6 +378,9 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 			err = c.overlayCommunity(view, sets)
 		}
 		if err == nil {
+			err = c.overlayAttributes(view, sets)
+		}
+		if err == nil {
 			err = c.overlayPrefix(view, sets)
 		}
 		if err != nil {
@@ -434,6 +446,9 @@ func (c *Chain) overlayNumeric(view *policyview.View, member *Sets) error {
 			return fmt.Errorf("local-preference: %w", err)
 		}
 	}
+	if member.written&setKindMED.bit() != 0 && member.med.remove {
+		return c.overlayMEDRemove(view, member)
+	}
 	if member.written&setKindMED.bit() != 0 {
 		value, err := resolveOnView(view, c.med, member.med, c.bases.MED)
 		if err != nil {
@@ -443,6 +458,27 @@ func (c *Chain) overlayNumeric(view *policyview.View, member *Sets) error {
 		if err := view.SetNumber(c.med, uint64(value)); err != nil {
 			return fmt.Errorf("med: %w", err)
 		}
+	}
+	return nil
+}
+
+// overlayMEDRemove overlays the view with the member's MULTI_EXIT_DISC
+// removal. A route with no MULTI_EXIT_DISC at this point, neither received
+// nor set by an earlier member, has nothing to remove, and the removal is
+// forgotten so the route is not rebuilt for an octet that is not there
+// (medRemoveHasWork, reactor/filter_delta.go).
+func (c *Chain) overlayMEDRemove(view *policyview.View, member *Sets) error {
+	_, present, err := numberOf(view, c.med)
+	if err != nil {
+		return fmt.Errorf("med: %w", err)
+	}
+	if !present {
+		member.written &^= setKindMED.bit()
+		member.med = numericSet{}
+		return nil
+	}
+	if err := view.SetWire(c.med, nil); err != nil {
+		return fmt.Errorf("med: %w", err)
 	}
 	return nil
 }

@@ -43,6 +43,9 @@ var errPrefixNotAnnounced = errors.New("the route announces no NLRI with that pr
 type intentTarget struct {
 	view   *policyview.View
 	prefix policyview.Reader
+	// importSide is set on an import chain, the only one a MULTI_EXIT_DISC
+	// removal is honored on (errMEDRemoveOnExport).
+	importSide bool
 }
 
 // applyASPathIntent answers an as-path set: prepend a count of local AS

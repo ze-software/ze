@@ -724,11 +724,19 @@ the value in the field's shape:
 | `local-preference` | `set`, `increment`, `decrement` | a number from 0 to 4294967295 | `{"field":"local-preference","action":"set","value":200}` |
 | `med` | `set`, `increment`, `decrement` | a number from 0 to 4294967295 | `{"field":"med","action":"increment","value":10}` |
 | `community` | `add`, `remove` | one community string | `{"field":"community","action":"add","value":"65000:100"}` |
+| `med` | `remove` | `null`; honored on an import chain only (RFC 4271 Section 5.1.4), so on an export chain the route fails | `{"field":"med","action":"remove","value":null}` |
+| `aigp` | `set`, `increment`, `decrement` | a number from 0 to 4294967295; an increment or decrement of a route with no AIGP changes nothing | `{"field":"aigp","action":"increment","value":10}` |
+| `origin` | `set` | `"igp"`, `"egp"` or `"incomplete"` | `{"field":"origin","action":"set","value":"egp"}` |
+| `next-hop` | `set` | one IPv4 address | `{"field":"next-hop","action":"set","value":"192.0.2.1"}` |
+| `large-community` | `add`, `remove` | one large community string | `{"field":"large-community","action":"add","value":"65000:1:2"}` |
+| `extended-community` | `add`, `remove` | one extended community string, in the form the UPDATE event writes | `{"field":"extended-community","action":"add","value":"target:65000:100"}` |
 | `as-path` | `prepend` | a count of local AS copies, 1 to 32 | `{"field":"as-path","action":"prepend","value":2}` |
 | `as-path` | `remove` | `"private"` removes the private-use AS numbers; `"private-peer-as"` replaces each with the peer AS | `{"field":"as-path","action":"remove","value":"private"}` |
 | `prefix` | `remove` | one announced prefix, in the shape the `prefix` field is sent: the prefix string, or under ADD-PATH `{"prefix":...,"path-id":...}` | `{"field":"prefix","action":"remove","value":"10.0.9.0/24"}` |
 | `family` | `remove` | one family name | `{"field":"family","action":"remove","value":"ipv6/unicast"}` |
 
+- A later filter of the chain is sent the value an earlier filter's sets
+  left, not the received one.
 - An increment or decrement starts from the route's value, or from
   `bgp defaults attribute` when the route carries none, and stays within 0 and
   4294967295. The changes fold in chain order with the in-process filters'
@@ -766,6 +774,9 @@ the value in the field's shape:
 <!-- source: internal/component/bgp/policychain/chain.go -- rawOutcome -->
 <!-- source: internal/component/bgp/policychain/external_intents.go -- applyASPathIntent, applyPrefixIntent, applyFamilyIntent -->
 <!-- source: internal/component/bgp/policychain/external.go -- externalIntentsOfReads -->
+<!-- source: internal/component/bgp/policychain/external_attributes.go -- applyAttributeSet, removeMED -->
+<!-- source: internal/component/bgp/policychain/chain_overlay_attributes.go -- overlayAttributes -->
+<!-- source: internal/component/bgp/policyview/fields_json.go -- appendOverlaid -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterSet, FilterSetAction -->
 
 ### The Filter Text an `OnFilterUpdate` Handler Reads
