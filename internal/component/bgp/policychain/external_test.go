@@ -234,7 +234,7 @@ func TestExternalRefusedSetsFailTheRoute(t *testing.T) {
 				if outcome != want {
 					t.Fatalf("outcome = %+v, want %+v", outcome, want)
 				}
-				_, _, err := judgeExternal(&chain.members[0], viewOf(t, localPref(100)), routeSets(caller))
+				_, _, err := chain.judgeExternal(&chain.members[0], viewOf(t, localPref(100)), routeSets(caller))
 				if err == nil || !strings.Contains(err.Error(), tc.want) {
 					t.Fatalf("err = %v, want it to say %q", err, tc.want)
 				}

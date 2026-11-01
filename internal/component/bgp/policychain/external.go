@@ -1,5 +1,6 @@
 // Design: plan/post-release/engineering/spec-filter-wire-0-umbrella.md -- D-1, D-5, D-9, D-12, a plugin's filter as a chain member
 // Related: chain.go -- Run, which judges an external member through judgeExternal
+// Related: external_intents.go -- the named intents of a reply's sets
 // Related: ../policyview/fields_json.go -- AppendFields, the fields an external member is sent
 //
 // A chain member may be a filter a plugin runs, named `<plugin>:<filter>` in
@@ -15,7 +16,6 @@
 package policychain
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"slices"
@@ -105,7 +105,7 @@ type externalVerdict struct {
 // judgeExternal sends m's filter the route view holds and folds its answer's
 // sets into sets. It answers the on-error that decides a failure: the
 // declared one, or reject when the filter is not declared.
-func judgeExternal(m *member, view *policyview.View, run *RunSets) (externalVerdict, rpc.OnErrorPolicy, error) {
+func (c *Chain) judgeExternal(m *member, view *policyview.View, run *RunSets) (externalVerdict, rpc.OnErrorPolicy, error) {
 	route := &run.route
 	if route.Caller == nil {
 		return externalVerdict{}, rpc.OnErrorReject, errors.New("no plugin server reaches the filter")
@@ -138,12 +138,12 @@ func judgeExternal(m *member, view *policyview.View, run *RunSets) (externalVerd
 	if err != nil {
 		return externalVerdict{}, decl.OnError, err
 	}
-	verdict, err := externalAnswer(out, &decl, m.settable, &run.member)
+	verdict, err := externalAnswer(out, &decl, m.settable, &run.member, intentTarget{view: view, prefix: c.prefix})
 	return verdict, decl.OnError, err
 }
 
 // externalAnswer maps one reply onto a decision and the member's sets.
-func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, settable setMask, sets *Sets) (externalVerdict, error) {
+func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, settable setMask, sets *Sets, target intentTarget) (externalVerdict, error) {
 	verdict := externalVerdict{teardown: out.Teardown, notifyCode: out.NotifyCode, notifySub: out.NotifySubcode}
 	if out.Update != "" {
 		return verdict, errExternalAnsweredText
@@ -162,7 +162,7 @@ func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, sett
 		if len(out.Raw) > 0 {
 			return verdict, errExternalAnsweredRaw
 		}
-		if err := applyExternalSets(sets, decl, settable, out.Sets); err != nil {
+		if err := applyExternalSets(sets, decl, settable, out.Sets, target); err != nil {
 			return verdict, err
 		}
 		verdict.decision = DecisionPass
@@ -175,7 +175,8 @@ func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, sett
 // applyExternalSets writes a reply's sets through the Sets methods an
 // in-process member calls (D-5). The first refused set fails the route, and
 // the caller discards the member's Sets, so none of the route's sets apply.
-func applyExternalSets(sets *Sets, decl *ExternalDeclaration, settable setMask, replies []rpc.FilterSet) error {
+// target is what the named intents resolve against.
+func applyExternalSets(sets *Sets, decl *ExternalDeclaration, settable setMask, replies []rpc.FilterSet, target intentTarget) error {
 	for i := range replies {
 		set := &replies[i]
 		if !slices.Contains(decl.Sets, set.Field) {
@@ -188,14 +189,14 @@ func applyExternalSets(sets *Sets, decl *ExternalDeclaration, settable setMask, 
 		if settable&kind.bit() == 0 {
 			return fmt.Errorf("sets %s, which a filter at this attachment may not set", set.Field)
 		}
-		if err := applyExternalSet(sets, kind, set); err != nil {
+		if err := applyExternalSet(sets, kind, set, target); err != nil {
 			return fmt.Errorf("%s %s: %w", set.Field, set.Action, err)
 		}
 	}
 	return nil
 }
 
-func applyExternalSet(sets *Sets, kind setKind, set *rpc.FilterSet) error {
+func applyExternalSet(sets *Sets, kind setKind, set *rpc.FilterSet, target intentTarget) error {
 	switch kind {
 	case setKindLocalPreference, setKindMED:
 		action, ok := numericActionOf(set.Action)
@@ -220,11 +221,16 @@ func applyExternalSet(sets *Sets, kind setKind, set *rpc.FilterSet) error {
 			return sets.AddCommunity(community)
 		case rpc.FilterSetActionRemove:
 			return sets.RemoveCommunity(community)
-		case rpc.FilterSetActionSet, rpc.FilterSetActionIncrement, rpc.FilterSetActionDecrement:
+		case rpc.FilterSetActionSet, rpc.FilterSetActionIncrement, rpc.FilterSetActionDecrement,
+			rpc.FilterSetActionPrepend:
 		}
 		return errors.New("the field takes add or remove")
-	case setKindASPath, setKindPrefix, setKindFamily:
-		return errors.New("filter-update carries no named intent yet; an in-process filter sets it")
+	case setKindASPath:
+		return applyASPathIntent(sets, set)
+	case setKindPrefix:
+		return applyPrefixIntent(sets, set, target)
+	case setKindFamily:
+		return applyFamilyIntent(sets, set)
 	case setKindUnspecified, setKindCount:
 	}
 	return fmt.Errorf("BUG: policychain: set kind %d has no external form", kind)
@@ -249,19 +255,19 @@ func numericActionOf(action rpc.FilterSetAction) (NumericAction, bool) {
 		return NumericActionIncrement, true
 	case rpc.FilterSetActionDecrement:
 		return NumericActionDecrement, true
-	case rpc.FilterSetActionAdd, rpc.FilterSetActionRemove:
+	case rpc.FilterSetActionAdd, rpc.FilterSetActionRemove, rpc.FilterSetActionPrepend:
 	}
 	return NumericActionUnspecified, false
 }
 
 // communityValue reads a community string, the shape the UPDATE event's attr
-// map writes ("65000:100"). The value is a plain JSON string: an escape is no
-// part of any community spelling, so one is refused rather than decoded.
+// map writes ("65000:100").
 func communityValue(value []byte) (uint32, error) {
-	if len(value) < 2 || value[0] != '"' || value[len(value)-1] != '"' || bytes.IndexByte(value, '\\') >= 0 {
+	text, ok := plainString(value)
+	if !ok {
 		return 0, errors.New("the value is not a community string such as \"65000:100\"")
 	}
-	community, err := attribute.ParseCommunity(string(value[1 : len(value)-1]))
+	community, err := attribute.ParseCommunity(text)
 	if err != nil {
 		return 0, err
 	}

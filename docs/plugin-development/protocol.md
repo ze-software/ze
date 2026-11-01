@@ -723,6 +723,10 @@ the value in the field's shape:
 | `local-preference` | `set`, `increment`, `decrement` | a number from 0 to 4294967295 | `{"field":"local-preference","action":"set","value":200}` |
 | `med` | `set`, `increment`, `decrement` | a number from 0 to 4294967295 | `{"field":"med","action":"increment","value":10}` |
 | `community` | `add`, `remove` | one community string | `{"field":"community","action":"add","value":"65000:100"}` |
+| `as-path` | `prepend` | a count of local AS copies, 1 to 32 | `{"field":"as-path","action":"prepend","value":2}` |
+| `as-path` | `remove` | `"private"` removes the private-use AS numbers; `"private-peer-as"` replaces each with the peer AS | `{"field":"as-path","action":"remove","value":"private"}` |
+| `prefix` | `remove` | one announced prefix, in the shape the `prefix` field is sent: the prefix string, or under ADD-PATH `{"prefix":...,"path-id":...}` | `{"field":"prefix","action":"remove","value":"10.0.9.0/24"}` |
+| `family` | `remove` | one family name | `{"field":"family","action":"remove","value":"ipv6/unicast"}` |
 
 - An increment or decrement starts from the route's value, or from
   `bgp defaults attribute` when the route carries none, and stays within 0 and
@@ -733,13 +737,20 @@ the value in the field's shape:
   a field the chain's attachment does not let a filter set, or a field no BGP
   chain sets; when the action is not one the field takes; or when the value has
   the wrong shape. The other routes are judged on their own.
+- The `as-path`, `prefix` and `family` entries are intents Ze resolves with
+  state the plugin does not hold: a prepend uses the local AS and the
+  session's AS number width, `"private-peer-as"` the peer AS, a prefix remove
+  drops the entry from the body NLRI and from MP_REACH_NLRI (an MP_REACH_NLRI
+  left empty leaves the UPDATE), and a family remove drops that family's
+  MP_REACH_NLRI and MP_UNREACH_NLRI (the body NLRI and withdrawn routes for
+  `ipv4/unicast`). Prepends add up across the chain to at most 32. A prefix
+  the route does not announce, or one with host bits set, fails the route.
 - The route fails the same way when the answer carries `sets` beside `accept`
-  or `reject`, a text `update`, or a `raw` rewrite. The AS-path, prefix and
-  family intents are not carried by `filter-update` yet: an in-process filter
-  sets them.
+  or `reject`, a text `update`, or a `raw` rewrite.
 - `teardown` on an import route closes the session, as in a chain of plugin
   filters only; on export it is ignored and the action stands.
 <!-- source: internal/component/bgp/policychain/external.go -- externalAnswer, applyExternalSets -->
+<!-- source: internal/component/bgp/policychain/external_intents.go -- applyASPathIntent, applyPrefixIntent, applyFamilyIntent -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterSet, FilterSetAction -->
 
 ### The Filter Text an `OnFilterUpdate` Handler Reads

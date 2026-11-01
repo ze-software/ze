@@ -568,7 +568,7 @@ to the single document the record path would have carried.";
                     leaf field {
                         type string;
                         mandatory true;
-                        ze:help "Vocabulary field name (local-preference, med, community)";
+                        ze:help "Vocabulary field name (local-preference, med, community, as-path, prefix, family)";
                     }
                     leaf action {
                         type enumeration {
@@ -576,13 +576,14 @@ to the single document the record path would have carried.";
                             enum increment { ze:help "Add to the current value"; }
                             enum decrement { ze:help "Subtract from the current value"; }
                             enum add { ze:help "Add one value to a list field"; }
-                            enum remove { ze:help "Remove one value from a list field"; }
+                            enum remove { ze:help "Remove one value: a community, private AS numbers, a prefix, a family"; }
+                            enum prepend { ze:help "Prepend local AS copies to the AS path"; }
                         }
                         mandatory true;
                         ze:help "How the field changes";
                     }
                     anyxml value {
-                        ze:help "The value in the field's shape: a number, or a community string";
+                        ze:help "The value in the field's shape: a number, a community, a mode, a prefix or a family";
                     }
                 }
                 leaf error {

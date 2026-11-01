@@ -1641,7 +1641,12 @@ the text subject is still what every configured BGP filter reads.
   Routes, MP_REACH_NLRI or MP_UNREACH_NLRI, named by its offset in the section
   bytes the view answers) and `StripFamily` (every section of one family, at
   most three). They write `as-path`, `prefix` and `family`, so a member that
-  did not declare those is refused like any other undeclared set.
+  did not declare those is refused like any other undeclared set. A plugin
+  filter in the chain answers the same intents as `filter-update` sets
+  (`external_intents.go`): `applyPrefixIntent` maps the prefix it names, in
+  the event's NLRI shape, to the offset of each entry carrying it in the body
+  NLRI and MP_REACH_NLRI the view answered, walked with `wireu.CIDRCursor`,
+  and calls `DropNLRI`, so both kinds of member produce the same bytes.
   `runLibraryChain` resolves them through the cores the text delta reaches,
   never a copy: `prependASPathOps` and `removePrivateASOps`
   (`filter_delta.go`), not applied toward an internal peer on export (RFC 4271

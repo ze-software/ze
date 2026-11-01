@@ -673,7 +673,10 @@ type FilterUpdateOutput struct {
 // FilterSet is one change a filter answers for one route: the vocabulary
 // field it changes, how, and the value in the field's shape (a JSON number
 // for local-preference and med, a community string such as "65000:100" for
-// community).
+// community). The as-path, prefix and family fields carry the named intents
+// Ze resolves with state the plugin lacks: an as-path prepend count, the
+// remove-private mode "private" or "private-peer-as", an announced prefix in
+// the UPDATE event's NLRI shape, and a family name.
 type FilterSet struct {
 	Field  string          `json:"field"`
 	Action FilterSetAction `json:"action"`
@@ -694,8 +697,12 @@ const (
 	FilterSetActionDecrement FilterSetAction = "decrement"
 	// FilterSetActionAdd adds one value to a list field (community).
 	FilterSetActionAdd FilterSetAction = "add"
-	// FilterSetActionRemove removes one value from a list field (community).
+	// FilterSetActionRemove removes one value from a list field (community),
+	// private AS numbers from the AS path (as-path), one announced prefix
+	// (prefix), or every section of one family (family).
 	FilterSetActionRemove FilterSetAction = "remove"
+	// FilterSetActionPrepend prepends a count of local AS copies (as-path).
+	FilterSetActionPrepend FilterSetAction = "prepend"
 )
 
 // ConfigSection is a single config section delivered to the plugin.

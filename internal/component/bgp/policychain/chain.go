@@ -292,7 +292,7 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		var err error
 		if m.external != nil {
 			var verdict externalVerdict
-			verdict, onError, err = judgeExternal(m, view, sets)
+			verdict, onError, err = c.judgeExternal(m, view, sets)
 			decision = verdict.decision
 			if err == nil && verdict.teardown && sets.route.Direction == directionImport {
 				traceStep(record, m, TraceReject, nil, nil)
