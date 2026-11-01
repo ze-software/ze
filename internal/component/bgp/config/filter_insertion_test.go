@@ -9,19 +9,22 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // insertionConfig puts peer A in group G, whose session carries the leaf the
-// test insertions read, and peer B outside it with no such leaf.
+// test insertions read (insertionTestYANG), and peer B outside it with no
+// such leaf.
 const insertionConfig = `
 bgp {
 	router-id 1.2.3.4;
 	session { asn { local 65000; } }
 	group G {
-		session { route-reflector-client true; asn { remote 65000; } }
+		session { asn { remote 65000; } }
+		insertion-test { mode on; }
 		peer A {
 			connection { remote { ip 192.0.2.1; } local { ip 192.0.2.254; } }
 			%A%
@@ -34,13 +37,30 @@ bgp {
 }
 `
 
-// registerInserter registers a compiled-in plugin that declares the given
-// insertions, restoring the registry when the test ends.
+// insertionTestYANG is the inserting plugin's own module: it adds the
+// container the test conditions read to a peer and a group, so a condition
+// names config the plugin owns, as the loader requires of a compiled-in
+// plugin (config.CheckFilterInsertionPaths).
+const insertionTestYANG = `module ze-test-inserter-conf {
+    namespace "urn:ze:test:inserter";
+    prefix ti;
+    import ze-bgp-conf { prefix bgp; }
+    grouping inserter { container insertion-test { leaf mode { type string; } } }
+    augment "/bgp:bgp/bgp:peer" { uses inserter; }
+    augment "/bgp:bgp/bgp:group" { uses inserter; }
+    augment "/bgp:bgp/bgp:group/bgp:peer" { uses inserter; }
+}`
+
+// registerInserter registers a compiled-in plugin, with insertionTestYANG as
+// its module, that declares the given insertions, restoring the registry and
+// the module set when the test ends.
 func registerInserter(t *testing.T, insertions ...rpc.FilterInsertion) {
 	t.Helper()
 	snap := registry.Snapshot()
 	t.Cleanup(func() { registry.Restore(snap) })
+	t.Cleanup(configyang.RegisterModuleForTest("ze-test-inserter-conf.yang", insertionTestYANG))
 	require.NoError(t, registry.Register(registry.Registration{
+		YANG:        insertionTestYANG,
 		Name:        "fake-inserter",
 		Description: "test plugin declaring filter insertions",
 		RunEngine:   func(net.Conn) int { return 0 },
@@ -79,9 +99,10 @@ func refNames(refs []policy.Ref) []string {
 	return names
 }
 
-// rrClient is the condition the test insertions read: the group's session
-// leaf, so peer A meets it by inheritance and peer B does not.
-var rrClient = []string{"session", "route-reflector-client"}
+// rrClient is the condition the test insertions read: the group's leaf the
+// plugin's own module adds, so peer A meets it by inheritance and peer B does
+// not.
+var rrClient = []string{"insertion-test", "mode"}
 
 // TestInsertionFollowsPeerConfig checks spec-filter-wire-6-stage-filters
 // AC-1 at the loader: a declared insertion lands in the named list of exactly
@@ -90,7 +111,7 @@ var rrClient = []string{"session", "route-reflector-client"}
 // a group leaf; A inherits it, B does not carry it.
 func TestInsertionFollowsPeerConfig(t *testing.T) {
 	registerInserter(t, rpc.FilterInsertion{Filter: "fake-inserter:late", Direction: rpc.FilterImport,
-		Priority: 5, Config: rrClient, Values: []string{"true"}})
+		Priority: 5, Config: rrClient, Values: []string{"on"}})
 
 	peers, err := insertionPeers(t, "")
 	require.NoError(t, err)
@@ -113,7 +134,7 @@ func TestInsertionsSortByPriority(t *testing.T) {
 		rpc.FilterInsertion{Filter: "fake-inserter:late", Direction: rpc.FilterExport, Priority: 20, Config: rrClient},
 		rpc.FilterInsertion{Filter: "fake-inserter:early", Direction: rpc.FilterExport, Priority: 10, Config: rrClient},
 		rpc.FilterInsertion{Filter: "fake-inserter:early", Direction: rpc.FilterImport, Priority: 1,
-			Config: rrClient, Values: []string{"false"}},
+			Config: rrClient, Values: []string{"off"}},
 	)
 
 	peers, err := insertionPeers(t, "")
@@ -123,7 +144,7 @@ func TestInsertionsSortByPriority(t *testing.T) {
 	require.Equal(t, []string{"fake-inserter:early", "fake-inserter:late"}, export[:2],
 		"priority 10 runs before priority 20")
 	require.NotContains(t, refNames(peers["A"].ImportPolicy.Filters()), "fake-inserter:early",
-		"the leaf is true, so a condition asking for false inserts nothing")
+		"the leaf is on, so a condition asking for off inserts nothing")
 }
 
 // TestRequiredInsertionRefusesOperatorReference checks spec AC-7 at the
@@ -154,4 +175,27 @@ func TestRequiredInsertionRefusesOperatorReference(t *testing.T) {
 		}
 	}
 	require.Equal(t, 1, count, "the operator placed the non-required member; it is not inserted again")
+}
+
+// TestCompiledInsertionMustConditionOnOwnConfig checks AC-2 at the loader
+// for a compiled-in plugin: a condition on config another module defines is
+// refused, naming that module, because only the plugin's own config both
+// means the peer needs the member and loads the plugin that serves it; a
+// path the schema does not hold is refused too (A-10).
+func TestCompiledInsertionMustConditionOnOwnConfig(t *testing.T) {
+	for _, tc := range []struct {
+		path []string
+		want string
+	}{
+		{[]string{"session", "route-reflector-client"}, "ze-bgp-conf defines"},
+		{[]string{"insertion-test", "nope"}, "bgp peer insertion-test nope"},
+	} {
+		t.Run(tc.want, func(t *testing.T) {
+			registerInserter(t, rpc.FilterInsertion{Filter: "fake-inserter:late", Direction: rpc.FilterImport,
+				Priority: 5, Config: tc.path})
+			_, err := insertionPeers(t, "")
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.want)
+		})
+	}
 }

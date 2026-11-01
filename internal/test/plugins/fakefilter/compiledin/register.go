@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/test/plugins/fakefilter"
+	fakefilteryang "github.com/ze-software/ze/internal/test/plugins/fakefilter/compiledin/yang"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -32,6 +33,8 @@ func init() {
 		Description: "Test-only: file fakefilter creates once it has stopped", Private: true})
 	env.MustRegister(env.EnvEntry{Key: fakefilter.EnvRestart, Type: "bool", Default: "false",
 		Description: "Test-only: fakefilter declares the restart failure policy", Private: true})
+	env.MustRegister(env.EnvEntry{Key: fakefilter.EnvInsert, Type: "bool", Default: "false",
+		Description: "Test-only: fakefilter declares its filter insertion at Stage 1", Private: true})
 	env.MustRegister(env.EnvEntry{Key: fakefilter.EnvRespawnFile, Type: envTypeString,
 		Description: "Test-only: file fakefilter creates once its restarted run has started", Private: true})
 
@@ -41,6 +44,10 @@ func init() {
 		RunEngine:   runEngine,
 		// The Stage 1 declaration: config load knows fakefilter serves filters.
 		Filters: fakefilter.FilterDecls(),
+		// The insertion config load applies: its condition names the leaf
+		// fakefilteryang adds, so it lands only where a peer sets it.
+		FilterInsertions: fakefilter.FilterInsertions(),
+		YANG:             fakefilteryang.ZeFakefilterConfYANG,
 	}
 	reg.CLIHandler = func(args []string) int {
 		return cli.RunPlugin(cli.BaseConfig(&reg), args)

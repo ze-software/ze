@@ -37,6 +37,7 @@ import (
 	"strconv"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -169,6 +170,7 @@ const (
 	EnvStoppedFile  = "ze.fakefilter.stopped.file"
 	EnvRestart      = "ze.fakefilter.restart"
 	EnvRespawnFile  = "ze.fakefilter.respawned.file"
+	EnvInsert       = "ze.fakefilter.insert"
 )
 
 // TriggerFrom reads the trigger through lookup, which answers a key's value
@@ -186,6 +188,13 @@ func TriggerFrom(lookup func(key string) string) (Trigger, error) {
 			return Trigger{}, fmt.Errorf("%s %q is not a whole number: %w", EnvStopAfter, value, err)
 		}
 		tr.StopAfter = stopAfter
+	}
+	if value := lookup(EnvInsert); value != "" {
+		insert, err := strconv.ParseBool(value)
+		if err != nil {
+			return Trigger{}, fmt.Errorf("%s %q is not true or false: %w", EnvInsert, value, err)
+		}
+		tr.Insert = insert
 	}
 	if value := lookup(EnvRestart); value != "" {
 		restart, err := strconv.ParseBool(value)
@@ -209,6 +218,12 @@ type Trigger struct {
 	// generation's startup is done.
 	Restart       bool
 	RespawnedFile string
+	// Insert sends FilterInsertions in the Stage 1 registration. It is asked
+	// for, not implied, because a forked copy run under another name (an
+	// alias such as fakefilter-forked) serves fakefilter-forked:judge, and
+	// the judge refuses an insertion of a reference the process does not
+	// serve.
+	Insert bool
 	// generation is set by startGeneration, never by the environment.
 	generation int
 }
@@ -229,10 +244,35 @@ func startGeneration(tr Trigger) Trigger {
 	return tr
 }
 
-// Registration is what the plugin declares at Stage 1: its filter, and the
-// restart failure policy when the test asks for it.
+// InsertCondition is the config path, under a peer, of the leaf this
+// plugin's own module adds (compiledin/yang): a peer that sets it to true
+// carries fakefilter:judge in its import list without naming it.
+var InsertCondition = []string{"fakefilter", "insert"}
+
+// FilterInsertions is the plugin's one auto-insertion
+// (spec-filter-wire-6-stage-filters AC-1): fakefilter:judge, first in the
+// import list of every peer whose resolved config sets InsertCondition true.
+// Like FilterDecls it has two readers and MUST stay one function:
+// compiledin's registry.Registration, which config load reads, and the
+// Stage 1 registration Run sends when the trigger asks for it.
+func FilterInsertions() []rpc.FilterInsertion {
+	return []rpc.FilterInsertion{{
+		Filter:    Name + ":" + FilterName,
+		Direction: rpc.FilterImport,
+		Priority:  100,
+		Config:    InsertCondition,
+		Values:    []string{"true"},
+	}}
+}
+
+// Registration is what the plugin declares at Stage 1: its filter, its
+// insertion when the test asks for it, and the restart failure policy when
+// the test asks for it.
 func Registration(tr Trigger) *sdk.Registration {
 	reg := &sdk.Registration{Filters: FilterDecls()}
+	if tr.Insert {
+		reg.FilterInsertions = FilterInsertions()
+	}
 	if tr.Restart {
 		reg.FailurePolicy = sdk.FailureRestart
 	}

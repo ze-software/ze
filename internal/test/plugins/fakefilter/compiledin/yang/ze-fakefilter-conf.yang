@@ -1,0 +1,36 @@
+module ze-fakefilter-conf {
+  namespace "urn:ze:test:fakefilter";
+  prefix "fakefilter";
+
+  import ze-bgp-conf { prefix bgp; }
+
+  organization "Ze Project";
+  description "Test-only: the peer config that makes fakefilter auto-insert
+               fakefilter:judge into the peer's import list
+               (spec-filter-wire-6-stage-filters AC-1).";
+
+  revision 2026-11-01 {
+    description "Initial revision: fakefilter insert.";
+  }
+
+  grouping fakefilter-insert {
+    container fakefilter {
+      description "Test-only fakefilter settings of a peer.";
+      leaf insert {
+        type boolean;
+        description "When true, fakefilter inserts fakefilter:judge first in the
+                     peer's import filter list.";
+      }
+    }
+  }
+
+  augment "/bgp:bgp/bgp:peer" {
+    uses fakefilter-insert;
+  }
+  augment "/bgp:bgp/bgp:group" {
+    uses fakefilter-insert;
+  }
+  augment "/bgp:bgp/bgp:group/bgp:peer" {
+    uses fakefilter-insert;
+  }
+}
