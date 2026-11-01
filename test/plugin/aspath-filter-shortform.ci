@@ -1,15 +1,23 @@
-# Test: as-path-list filter works with short-form reference
-# VALIDATES: AC-1 -- filter works via as-path-list:NAME reference (short form)
-# VALIDATES: AC-8 -- composable (standalone chain with short-form reference)
-# PREVENTS: Short-form reference "as-path-list:NAME" not resolved to plugin
+# Test: the remove-private-as filter works through its short-form reference
+# VALIDATES: a filter-type short form `remove-private-as:NAME` resolves to the
+#   bgp-filter-remove-private-as plugin (policy.CanonicalName through
+#   registry.FilterTypesMap), a second type beside prefix-filter-shortform's
+#   `modify:NAME`.
+# VALIDATES: composable (standalone chain with a short-form reference)
+# PREVENTS: Short-form reference "<type>:NAME" not resolved to its plugin
+#
+# The as-path-list type no longer owns a filter role (a chain reaches an
+# as-path-list through a match instance, which has no short form), so the
+# type-prefix form is proven with `remove-private-as`, a type that still
+# serves one.
 #
 # Flow:
 # 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
-# 2. Filter chain resolves short-form "as-path-list:CUSTOMERS" to bgp-filter-aspath:CUSTOMERS
-# 3. Regex "65001" matches "65001" -> accept
-# 4. Assertions on stderr confirm the decision log.
-
-option=env:var=ze.log.bgp.filter.aspath:value=info
+# 2. Filter chain resolves short-form "remove-private-as:CUSTOMERS" to
+#    bgp-filter-remove-private-as:CUSTOMERS
+# 3. The plugin answers modify for the private AS 65001.
+# 4. Assertions on stderr confirm the decision log and no "unknown plugin".
+option=env:var=ze.log.bgp.filter.remove-private-as:value=info
 
 stdin=peer:terminator=EOF_PEER
 # The peer has no expectation left once it sends, so without linger it closes
@@ -31,10 +39,7 @@ plugin {
 	}
 }
 policy {
-	as-path-list CUSTOMERS {
-		entry "65001" {
-			action accept
-		}
+	remove-private-as CUSTOMERS {
 	}
 }
 
@@ -61,7 +66,7 @@ bgp {
 		}
 
 		filter {
-			import { filters [ as-path-list:CUSTOMERS ]; final accept; }
+			import { filters [ remove-private-as:CUSTOMERS ]; final accept; }
 		}
 
 		attach process bgp-adj-rib-in {
@@ -72,8 +77,8 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-aspath --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-remove-private-as --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
-expect=stderr:pattern=as-path-list accept
+expect=stderr:pattern=remove-private-as modify
 expect=stderr:pattern=filter=CUSTOMERS
-reject=stderr:pattern=as-path-list reject
+reject=stderr:pattern=unknown plugin

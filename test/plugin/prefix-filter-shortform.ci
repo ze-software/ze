@@ -1,20 +1,23 @@
-# Test: prefix-list filter chain refs in short forms (type prefix, plain name)
-# VALIDATES: ISSUE 6 fix -- users can write `prefix-list:NAME` or plain `NAME`
-#   instead of the full `bgp-filter-prefix:NAME` plugin-process form.
-# VALIDATES: Framework's FilterTypes resolver canonicalizes refs at parse time.
-# PREVENTS: Regression where the canonicalizer drops a form or resolves to the
-#   wrong plugin.
+# Test: a filter-type short form `<type>:<name>` resolves to its plugin
+# VALIDATES: ISSUE 6 fix -- users can write `modify:NAME` instead of the full
+#   `bgp-filter-modify:NAME` plugin-process form.
+# VALIDATES: Framework's FilterTypes resolver canonicalizes refs at parse time
+#   (policy.CanonicalName through registry.FilterTypesMap).
+# PREVENTS: Regression where the canonicalizer drops the type-prefix form or
+#   resolves it to the wrong plugin.
+#
+# The prefix-list type no longer owns a filter role (a chain reaches a
+# prefix-list through a match instance, which has no short form), so the
+# type-prefix form is proven with `modify`, a type that still serves one.
 #
 # Flow:
-# 1. Config defines one prefix-list CUSTOMERS.
-# 2. Two peers share the list via different ref forms:
-#    - peer1 uses `prefix-list:CUSTOMERS` (filter-type prefix form)
-#    - peer2 uses `CUSTOMERS` (plain, no prefix)
-# 3. ze-peer sends UPDATE: NLRI=10.0.0.0/24 to both peers.
-# 4. Both peers should invoke bgp-filter-prefix with filter=CUSTOMERS and accept.
-# 5. Two "prefix-list accept" Info logs must appear in stderr (one per peer).
+# 1. Config defines one modify instance CUSTOMERS setting local-preference 200.
+# 2. peer1 names it as `modify:CUSTOMERS` (filter-type prefix form).
+# 3. ze-peer sends UPDATE: NLRI=10.0.0.0/24.
+# 4. bgp-filter-modify must be invoked with filter=CUSTOMERS and apply the delta.
+# 5. The "modify apply" Info log must appear, and no "unknown plugin" refusal.
 
-option=env:var=ze.log.bgp.filter.prefix:value=info
+option=env:var=ze.log.bgp.filter.modify:value=info
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -31,11 +34,9 @@ plugin {
 	}
 }
 policy {
-	prefix-list CUSTOMERS {
-		entry 10.0.0.0/8 {
-			ge 16
-			le 24
-			action accept
+	modify CUSTOMERS {
+		set {
+			local-preference 200
 		}
 	}
 }
@@ -62,9 +63,9 @@ bgp {
 			}
 		}
 
-		# Filter-type prefix form: `prefix-list` resolves to bgp-filter-prefix.
+		# Filter-type prefix form: `modify` resolves to bgp-filter-modify.
 		filter {
-			import { filters [ prefix-list:CUSTOMERS ]; final accept; }
+			import { filters [ modify:CUSTOMERS ]; final accept; }
 		}
 		attach process bgp-adj-rib-in {
 			receive [ update-received state ]
@@ -74,9 +75,10 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-prefix --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-modify --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
-# The filter-type-prefix form dispatched to the prefix filter plugin.
-expect=stderr:pattern=prefix-list accept
+# The filter-type-prefix form dispatched to the modify filter plugin.
+expect=stderr:pattern=modify apply
 expect=stderr:pattern=filter=CUSTOMERS
+expect=stderr:pattern=local-preference 200
 reject=stderr:pattern=unknown plugin
