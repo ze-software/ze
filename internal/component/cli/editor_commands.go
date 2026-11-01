@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/suggest"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -149,7 +151,11 @@ func (e *Editor) CreateEntry(path []string) error {
 // set appends one member (idempotently); it never replaces the list. The
 // member lands in the multi-value store — the store every serializer reads —
 // not the scalar map, where it would be silently dropped.
+// A path or key the schema does not hold is refused before anything is written.
 func (e *Editor) SetValue(path []string, key, value string) error {
+	if err := e.refuseUnknownSetting(path, key); err != nil {
+		return err
+	}
 	if e.isValueOrArrayLeaf(path, key) {
 		return e.setLeafListMember(path, key, value)
 	}
@@ -458,6 +464,88 @@ func (e *Editor) walkSchema(path []string) schemaGetter {
 		}
 	}
 	return current
+}
+
+// refuseUnknownSetting refuses a SetValue whose path or key the schema does not
+// hold. Every surface reaches SetValue (the SSH editor validates first; web,
+// REST, gRPC, gNMI and load do not), and a name the schema lacks would be
+// written to the change file that no parser can then read back, so every later
+// edit and commit of that user would refuse. An editor with no schema has
+// nothing to check against and accepts the name, as it always has. A
+// freeform block takes any word, so nothing under one is refused.
+func (e *Editor) refuseUnknownSetting(path []string, key string) error {
+	if e.schema == nil {
+		return nil
+	}
+	var current schemaGetter = e.schema
+	words := append(slices.Clip(path), key)
+	for i := 0; i < len(words); i++ {
+		name := words[i]
+		node := current.Get(name)
+		if node == nil {
+			return unknownSettingError(words[:i], name, current)
+		}
+		if i == len(words)-1 {
+			return nil
+		}
+		switch n := node.(type) {
+		case *config.ContainerNode:
+			current = n
+		case *config.ListNode:
+			current = n
+			i += config.ListAddressLen(n, words[i+1:len(words)-1])
+		case *config.FlexNode:
+			current = n
+		case *config.InlineListNode:
+			current = n
+			if i+1 < len(words)-1 && n.Get(words[i+1]) == nil {
+				i++
+			}
+		case *config.FreeformNode:
+			return nil // A freeform block takes any word.
+		case *config.LeafNode, *config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode:
+			return unknownSettingError(words[:i+1], words[i+1], nil)
+		}
+	}
+	return nil
+}
+
+// unknownSettingError is the refusal for name under parent, a level of the
+// configuration that does not define it. It names the place and the word,
+// says why the change cannot be kept, and gives the closest valid command or
+// the names the level accepts.
+func unknownSettingError(parent []string, name string, level schemaGetter) error {
+	var b textbuf.Buffer
+	b.Str("set refused: ")
+	if len(parent) == 0 {
+		b.Str("the configuration")
+	} else {
+		b.Join(parent, " ")
+	}
+	b.Str(" has no setting named ").Str(name).Str(".\n")
+	b.Str("The configuration schema does not define it, so a commit could never apply it.\n")
+	lister, ok := level.(interface{ Children() []string })
+	if !ok {
+		b.Str("Nothing can be set under ").Join(parent, " ").Str(": it is a single value.")
+		return errors.New(b.String())
+	}
+	known := lister.Children()
+	if closest := suggest.Command(name, known); closest != "" {
+		b.Str("Did you mean:\n  set ")
+		if len(parent) != 0 {
+			b.Join(parent, " ").Byte(' ')
+		}
+		b.Str(closest)
+		switch level.Get(closest).(type) {
+		case *config.LeafNode, *config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode:
+			b.Str(" <value>")
+		default:
+			b.Str(" ...") // A block: its own settings follow the name.
+		}
+		return errors.New(b.String())
+	}
+	b.Str("The names it accepts are: ").Join(known, ", ").Byte('.')
+	return errors.New(b.String())
 }
 
 // isListKeyLeafPath checks if the last two path elements are a list name
