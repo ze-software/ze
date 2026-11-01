@@ -49,16 +49,38 @@ func (c *Chain) Trace(view *policyview.View, sets *RunSets, record func(MemberTr
 	return c.run(view, sets, record)
 }
 
+// Only answers a chain of c's one member named name, under c's final, for
+// show policy test's single-filter override: the text path's
+// Policy.WithFilters keeps the final the same way. name is the member's
+// reference, as MemberTrace.Name gives it. The chain is display only: it
+// shares c's compiled member, and its Refused starts at zero. false when c
+// holds no member of that name.
+func (c *Chain) Only(name string) (*Chain, bool) {
+	for i := range c.members {
+		if traceName(&c.members[i]) != name {
+			continue
+		}
+		return &Chain{attachment: c.attachment, members: c.members[i : i+1 : i+1], final: c.final, bases: c.bases,
+			localPreference: c.localPreference, med: c.med, community: c.community, prefix: c.prefix}, true
+	}
+	return nil, false
+}
+
+// traceName is the reference a trace names m by: the instance name, or
+// plugin:filter for an external member.
+func traceName(m *member) string {
+	if m.external != nil {
+		return m.external.plugin + ":" + m.external.filter
+	}
+	return m.name
+}
+
 // traceStep hands record one member's step, and does nothing on a live run.
 func traceStep(record func(MemberTrace), m *member, step TraceStep, err error, sets *Sets) {
 	if record == nil {
 		return
 	}
-	name := m.name
-	if m.external != nil {
-		name = m.external.plugin + ":" + m.external.filter
-	}
-	record(MemberTrace{Name: name, Step: step, Err: err, Sets: sets})
+	record(MemberTrace{Name: traceName(m), Step: step, Err: err, Sets: sets})
 }
 
 // AppendText appends the sets as one line of text for an operator, in the

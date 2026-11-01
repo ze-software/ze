@@ -62,6 +62,20 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryD
 	return PolicyChainResult{Action: PolicyAccept, Text: string(AppendUpdateForFilter(nil, attrs, modified, nil))}, trace
 }
 
+// libraryMember answers the library chain of the one member ref names, for a
+// single-filter override (Chain.Only); false when the chain holds none.
+func libraryMember(library filterapi.LibraryChain, ref string) (filterapi.LibraryChain, bool) {
+	chain, ok := library.(*policychain.Chain)
+	if !ok {
+		panic("BUG: reactor: a policy's library chain is not a *policychain.Chain")
+	}
+	only, ok := chain.Only(ref)
+	if !ok {
+		return nil, false
+	}
+	return only, true
+}
+
 // libraryTraceEntry renders one member's step as a dry-run trace entry.
 func libraryTraceEntry(step policychain.MemberTrace) plugin.PolicyTraceEntry {
 	entry := plugin.PolicyTraceEntry{Filter: step.Name, Canonical: step.Name}

@@ -470,7 +470,8 @@ reports `reject` without resulting text; neither is a successful withdrawal.
 A chain that names a library filter instance runs in the dry-run exactly as on
 the session, without counting or logging a failure: a member's trace entry
 shows what it set in `delta` (for example `local-preference 200`), and why it
-failed in `error`.
+failed in `error`. A single-filter override on such a chain runs that one
+filter the same way, followed by the policy's final.
 
 The dry-run covers the per-peer external-policy stage, not the full ingress
 protocol pipeline. An active named in-process check appears in `trace` with

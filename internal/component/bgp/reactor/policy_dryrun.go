@@ -207,6 +207,15 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 			}
 		}
 		policy = policy.WithFilters([]routepolicy.Ref{{Name: ref}})
+		if library := policy.Library(); library != nil {
+			// The library chain runs the one member, display only, as the
+			// whole chain runs below: no plugin serves a library member.
+			only, ok := libraryMember(library, ref)
+			if !ok {
+				return nil, errFilterNotFound
+			}
+			policy = policy.WithLibrary(only)
+		}
 	}
 
 	// Validate the UPDATE body parses correctly before proceeding.
@@ -240,7 +249,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 
 	var result PolicyChainResult
 	var trace []plugin.PolicyTraceEntry
-	if library := policy.Library(); library != nil && filterOverride == "" {
+	if library := policy.Library(); library != nil {
 		// D-11: a library chain runs as it runs live, display only, its
 		// plugin members reached through the chain (traceLibraryChain).
 		dry := libraryDryRun{wireUpdate: wu, payload: updateBody, ctxID: ctxID, direction: direction, peer: peerAddr, internal: internal,

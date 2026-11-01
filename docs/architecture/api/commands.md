@@ -281,10 +281,13 @@ filter-update is sent for a library member. Each member's trace entry has
 text (`local-preference 200`), `error` why a failed member failed (its
 on-error decided the action), and an empty `text-after`, because a library
 member reads the route, not a text subject; the result's `text-after` is the
-rewritten UPDATE. A single-filter override on such a chain still takes the
-text path.
-<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain, libraryTraceEntry -->
-<!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Sets.AppendText -->
+rewritten UPDATE. A single-filter override on such a chain runs that one
+member through the chain, display only, under the policy's final, as the
+text path's override keeps the final; a name the chain does not hold is
+refused as not in the peer's chain. The reported `policy` stays the whole
+chain the live session runs.
+<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain, libraryTraceEntry, libraryMember -->
+<!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Chain.Only, Sets.AppendText -->
 
 An unresolved remote AS returns `action: "undetermined"` with a `reason` telling
 the operator to wait for establishment and repeat `show policy test`. No filter
