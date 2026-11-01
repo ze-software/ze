@@ -5,7 +5,7 @@
 #
 # Flow:
 # 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001 65002], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
-# 2. Filter chain calls bgp-filter-aspath:ALLOW-PEER
+# 2. Filter chain names the match instance as-path-list-ALLOW-PEER
 # 3. as-path-list ALLOW-PEER has regex "^65002" (paths from AS 65002) -> "65001 65002" starts with 65001 -> no match -> implicit deny
 # 4. Plugin emits Info log "as-path-list reject ... filter=ALLOW-PEER"
 # 5. Assertions on stderr confirm the decision log.

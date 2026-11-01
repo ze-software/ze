@@ -1,10 +1,10 @@
 # Test: as-path-length filter rejects routes with long AS paths
 # VALIDATES: AC-9 -- as-path-length max rejects paths exceeding limit
-# PREVENTS: as-path-length plugin not loaded, filter not dispatched
+# PREVENTS: as-path-length condition not compiled, match not judged
 #
 # Flow:
 # 1. ze-peer sends UPDATE with 4-hop AS_PATH [65001 65002 65003 65004]
-# 2. Filter chain calls bgp-filter-aspath-length:REJECT-LONG (max=3)
+# 2. Filter chain names the match instance as-path-length-REJECT-LONG (max=3)
 # 3. Plugin counts 4 hops > max 3, returns reject
 # 4. Route is dropped
 

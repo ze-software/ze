@@ -1,12 +1,12 @@
 # Test: prefix-list filter accepts matching routes
 # VALIDATES: AC-1 -- prefix within ge/le range matches and is accepted
 # VALIDATES: AC-9 -- IPv4 prefix matching end-to-end through filter chain
-# VALIDATES: AC-11 -- chain reference bgp-filter-prefix:NAME wired correctly
+# VALIDATES: AC-11 -- a chain naming a match instance on a prefix-list wired correctly
 # PREVENTS: Route silently dropped when prefix-list should allow it
 #
 # Flow:
 # 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
-# 2. Filter chain calls bgp-filter-prefix:CUSTOMERS
+# 2. Filter chain names the match instance prefix-list-CUSTOMERS
 # 3. prefix-list CUSTOMERS allows 10.0.0.0/8 with ge=16 le=24 -> 10.0.0.0/24 matches -> accept
 # 4. Plugin emits Info log "prefix-list accept ... filter=CUSTOMERS"; observer verifies
 #    route reached adj-rib-in (count >= 1).

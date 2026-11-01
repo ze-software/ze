@@ -4,7 +4,7 @@
 #
 # Flow:
 # 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
-# 2. Import chain: [as-path-list:ALLOW-AS, bgp-filter-prefix:ALLOW-PREFIX]
+# 2. Import chain: [as-path-list-ALLOW-AS, prefix-list-ALLOW-PREFIX], two match instances
 # 3. AS-path filter: "65001" matches "^65001" -> accept, pass to next filter
 # 4. Prefix filter: 10.0.0.0/24 matches 10.0.0.0/8 ge 16 le 24 -> accept
 # 5. Assertions on stderr confirm both filters accepted.

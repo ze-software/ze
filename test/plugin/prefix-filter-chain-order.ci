@@ -6,7 +6,7 @@
 #
 # Flow:
 # 1. Two named prefix-lists: ALLOW (permissive) and DENY (explicit reject)
-# 2. Peer's import chain: [ bgp-filter-prefix:ALLOW bgp-filter-prefix:DENY ]
+# 2. Peer's import chain: [ prefix-list-ALLOW prefix-list-DENY ], two match instances
 #    ALLOW runs first, accepts -> chain continues
 #    DENY runs second, rejects -> chain short-circuits
 # 3. ze-peer sends UPDATE: NLRI=10.0.0.0/24

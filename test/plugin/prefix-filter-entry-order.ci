@@ -14,7 +14,7 @@
 #
 # Flow:
 # 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
-# 2. Filter chain calls bgp-filter-prefix:ORDERED
+# 2. Filter chain names the match instance prefix-list-ORDERED
 # 3. 10.0.0.0/24 is inside 10.0.0.0/8 (entry 1, reject) and inside 0.0.0.0/0
 #    (entry 2, accept). Only the order decides.
 # 4. Entry 1 wins: the plugin logs "prefix-list reject" and adj-rib-in stays empty.

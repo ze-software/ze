@@ -5,7 +5,7 @@
 #
 # Flow:
 # 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
-# 2. Filter chain calls bgp-filter-prefix:ONLY_V6
+# 2. Filter chain names the match instance prefix-list-ONLY_V6
 # 3. prefix-list ONLY_V6 only allows 2001:db8::/32 entries -> IPv4 route does not match -> implicit deny
 # 4. Plugin emits Info log "prefix-list reject ... filter=ONLY_V6"; observer verifies
 #    no route reached adj-rib-in (count == 0).

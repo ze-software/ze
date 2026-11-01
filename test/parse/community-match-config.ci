@@ -1,6 +1,6 @@
 # Test: ze config validate accepts community-match config
 # VALIDATES: AC-1 -- community-match YANG config parses correctly
-# VALIDATES: Filter chain reference community-match:NAME resolves
+# VALIDATES: a filter chain naming a match on a community-match resolves
 # PREVENTS: YANG schema or augment regression breaking community-match parsing
 stdin=config:terminator=EOF_CONF
 	policy {

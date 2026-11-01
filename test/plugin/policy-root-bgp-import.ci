@@ -11,8 +11,9 @@
 # 1. ze-peer sends one UPDATE with three prefixes: 10.0.1.0/24 (inside
 #    10.0.0.0/8 ge 16 le 24: accept), 10.0.2.0/24 (accept), 192.168.1.0/24
 #    (no entry matches: implicit deny).
-# 2. The peer's import chain names bgp-filter-prefix:CUSTOMERS, defined in
-#    `policy { prefix-list CUSTOMERS }` at the top level of the config.
+# 2. The peer's import chain names the match instance prefix-list-CUSTOMERS,
+#    which names `policy { prefix-list CUSTOMERS }` at the top level of the
+#    config.
 # 3. The filter partitions the UPDATE: accepted=2, rejected=1, and the engine
 #    rewrites the NLRI to the accepted subset.
 # 4. The observer (fixture plugin/prefix-filter-modify-partial) polls
