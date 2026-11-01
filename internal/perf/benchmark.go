@@ -82,6 +82,22 @@ type BenchmarkConfig struct {
 	BatchSize      int
 	PassiveListen  bool // Listen on port 179 for inbound DUT connections (requires root)
 	SenderFirst    bool // Connect sender before receiver (measures RIB propagation)
+
+	// senderListenPort and receiverListenPort replace 179 as the passive-listen
+	// port of each role. Only tests set them (export_test.go), so the passive
+	// path runs unprivileged with both roles on one loopback address.
+	senderListenPort   int
+	receiverListenPort int
+}
+
+// passiveListenPort is the port a role listens on in passive-listen mode: the
+// well-known BGP port, unless a test chose another.
+func passiveListenPort(override int) int {
+	if override > 0 {
+		return override
+	}
+
+	return 179 //nolint:mnd // RFC 4271 Section 8.2.1: BGP listens on TCP port 179
 }
 
 // RunBenchmark runs the full benchmark: generate routes, run iterations,
@@ -231,12 +247,12 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		senderCh := make(chan connResult, 1)
 
 		go func() {
-			conn, err := connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout, true)
+			conn, err := acceptBGP(ctx, cfg.ReceiverAddr, passiveListenPort(cfg.receiverListenPort), cfg.ConnectTimeout)
 			receiverCh <- connResult{conn: conn, err: err}
 		}()
 
 		go func() {
-			conn, err := connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout, true)
+			conn, err := acceptBGP(ctx, cfg.SenderAddr, passiveListenPort(cfg.senderListenPort), cfg.ConnectTimeout)
 			senderCh <- connResult{conn: conn, err: err}
 		}()
 
@@ -257,17 +273,17 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		}
 		receiverConn = receiverRes.conn
 	case cfg.SenderFirst:
-		senderConn, err = connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout, false)
+		senderConn, err = connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout)
 		if err != nil {
 			return IterationResult{}, fmt.Errorf("connecting sender: %w", err)
 		}
 	default:
-		receiverConn, err = connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout, false)
+		receiverConn, err = connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout)
 		if err != nil {
 			return IterationResult{}, fmt.Errorf("connecting receiver: %w", err)
 		}
 
-		senderConn, err = connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout, false)
+		senderConn, err = connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout)
 		if err != nil {
 			receiverConn.Close() //nolint:errcheck // cleanup
 			return IterationResult{}, fmt.Errorf("connecting sender: %w", err)
@@ -285,27 +301,23 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		Family:   cfg.Family,
 	}
 
+	// The receiver connection is closed on every return, including the
+	// handshake failures below. In sender-first mode without passive listen it
+	// is dialed later, so the deferred function reads the variable at return.
+	defer func() {
+		if receiverConn != nil {
+			receiverConn.Close() //nolint:errcheck // cleanup
+		}
+	}()
+
 	// In receiver-first mode, handshake receiver before sender (matches
-	// the test forwarder's accept-handshake-accept-handshake sequence).
-	if !cfg.SenderFirst && !cfg.PassiveListen {
-		receiverCfg := SessionConfig{
-			ASN:      uint32(cfg.ReceiverASN), //nolint:gosec // CLI-validated range
-			RouterID: mustRouterID(cfg.ReceiverAddr),
-			HoldTime: 90,
-			Family:   cfg.Family,
-		}
-
-		if err := receiverConn.SetDeadline(time.Now().Add(cfg.ConnectTimeout)); err != nil {
-			return IterationResult{}, fmt.Errorf("setting receiver deadline: %w", err)
-		}
-
-		receiverSetup, err = doHandshake(receiverConn, receiverCfg)
+	// the test forwarder's accept-handshake-accept-handshake sequence). A
+	// connection the DUT opened (passive listen) owes the same handshake as
+	// one le perf dialed: the DUT has sent its OPEN and waits for ours.
+	if !cfg.SenderFirst {
+		receiverSetup, err = handshakeReceiver(receiverConn, cfg)
 		if err != nil {
-			return IterationResult{}, fmt.Errorf("receiver handshake: %w", err)
-		}
-
-		if err := receiverConn.SetDeadline(time.Time{}); err != nil {
-			return IterationResult{}, fmt.Errorf("clearing receiver deadline: %w", err)
+			return IterationResult{}, err
 		}
 	}
 
@@ -425,35 +437,23 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 			}
 		}
 
-		// Connect receiver after RIB populated.
+		// Connect receiver after RIB populated. In passive-listen mode the DUT
+		// opened the receiver connection before the routes were sent; its
+		// handshake still waits until now, so the DUT holds every route
+		// before the receiver session is established.
 		if !cfg.PassiveListen {
-			receiverConn, err = connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout, false)
+			receiverConn, err = connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout)
 			if err != nil {
 				return IterationResult{}, fmt.Errorf("connecting receiver: %w", err)
 			}
-
-			rcfg := SessionConfig{
-				ASN:      uint32(cfg.ReceiverASN), //nolint:gosec // CLI-validated range
-				RouterID: mustRouterID(cfg.ReceiverAddr),
-				HoldTime: 90,
-				Family:   cfg.Family,
-			}
-
-			if err := receiverConn.SetDeadline(time.Now().Add(cfg.ConnectTimeout)); err != nil {
-				return IterationResult{}, fmt.Errorf("setting receiver deadline: %w", err)
-			}
-
-			receiverSetup, err = doHandshake(receiverConn, rcfg)
-			if err != nil {
-				return IterationResult{}, fmt.Errorf("receiver handshake: %w", err)
-			}
-
-			if err := receiverConn.SetDeadline(time.Time{}); err != nil {
-				return IterationResult{}, fmt.Errorf("clearing receiver deadline: %w", err)
-			}
-
-			recvBufReader = bufio.NewReaderSize(receiverConn, 65536)
 		}
+
+		receiverSetup, err = handshakeReceiver(receiverConn, cfg)
+		if err != nil {
+			return IterationResult{}, err
+		}
+
+		recvBufReader = bufio.NewReaderSize(receiverConn, 65536)
 
 		recvKaWg.Go(func() {
 			keepaliveLoop(recvKaCtx, receiverConn)
@@ -633,10 +633,6 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	// Give 100ms for NOTIFICATION to be sent before closing.
 	time.Sleep(100 * time.Millisecond)
 
-	if receiverConn != nil {
-		receiverConn.Close() //nolint:errcheck // cleanup before next iteration
-	}
-
 	return IterationResult{
 		ConvergenceMs:     convergenceMs,
 		FirstRouteMs:      firstRouteMs,
@@ -651,6 +647,32 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		SessionSenderMs:   int(senderSetup / time.Millisecond),
 		SessionReceiverMs: int(receiverSetup / time.Millisecond),
 	}, nil
+}
+
+// handshakeReceiver runs the receiver's OPEN/KEEPALIVE exchange on conn under
+// the connect timeout and returns how long it took.
+func handshakeReceiver(conn net.Conn, cfg BenchmarkConfig) (time.Duration, error) {
+	rcfg := SessionConfig{
+		ASN:      uint32(cfg.ReceiverASN), //nolint:gosec // CLI-validated range
+		RouterID: mustRouterID(cfg.ReceiverAddr),
+		HoldTime: 90,
+		Family:   cfg.Family,
+	}
+
+	if err := conn.SetDeadline(time.Now().Add(cfg.ConnectTimeout)); err != nil {
+		return 0, fmt.Errorf("setting receiver deadline: %w", err)
+	}
+
+	setup, err := doHandshake(conn, rcfg)
+	if err != nil {
+		return 0, fmt.Errorf("receiver handshake: %w", err)
+	}
+
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		return 0, fmt.Errorf("clearing receiver deadline: %w", err)
+	}
+
+	return setup, nil
 }
 
 // writeSendBatches writes pre-built UPDATE batches to the sender, recording per-prefix send times.
@@ -716,38 +738,36 @@ func sendWithdrawals(conn net.Conn, sender *Sender, prefixes []netip.Prefix, bat
 	}
 }
 
-// connectBGP establishes a BGP TCP connection.
-//
-// When passiveListen is false, le perf dials out to remoteAddr from localAddr.
-// When passiveListen is true, le perf listens on localAddr:179 and waits for
-// the DUT to initiate the session. This matches the CLI flag semantics and
-// avoids opening a competing outbound connection that can trigger collision
-// handling in implementations that actively connect to their peers.
-func connectBGP(ctx context.Context, localAddr, remoteAddr string, timeout time.Duration, passiveListen bool) (net.Conn, error) {
+// connectBGP dials remoteAddr from localAddr: le perf opens the BGP session.
+func connectBGP(ctx context.Context, localAddr, remoteAddr string, timeout time.Duration) (net.Conn, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// Resolve local address for dialing.
 	local, err := net.ResolveTCPAddr("tcp", localAddr+":0")
 	if err != nil {
 		return nil, fmt.Errorf("resolving local address %s: %w", localAddr, err)
 	}
 
-	// When passive listen is disabled, use dial-only path.
-	if !passiveListen {
-		dialer := net.Dialer{LocalAddr: local, Timeout: timeout}
+	dialer := net.Dialer{LocalAddr: local, Timeout: timeout}
 
-		conn, dialErr := dialer.DialContext(ctx, "tcp", remoteAddr)
-		if dialErr != nil {
-			return nil, fmt.Errorf("dialing %s: %w", remoteAddr, dialErr)
-		}
-
-		return tuneTCP(conn)
+	conn, err := dialer.DialContext(ctx, "tcp", remoteAddr)
+	if err != nil {
+		return nil, fmt.Errorf("dialing %s: %w", remoteAddr, err)
 	}
 
-	// Passive-listen mode waits for the DUT to connect to us on the well-known
-	// BGP port. This requires root or CAP_NET_BIND_SERVICE.
-	listenAddr := net.JoinHostPort(localAddr, "179")
+	return tuneTCP(conn)
+}
+
+// acceptBGP listens on localAddr:port and waits up to timeout for the DUT to
+// open the BGP session (--passive-listen). It opens no competing outbound
+// connection, which would trigger collision handling in an implementation
+// that connects to its peers itself. Port 179 needs root or
+// CAP_NET_BIND_SERVICE.
+func acceptBGP(ctx context.Context, localAddr string, port int, timeout time.Duration) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	listenAddr := net.JoinHostPort(localAddr, strconv.Itoa(port))
 
 	var lc net.ListenConfig
 
@@ -765,9 +785,9 @@ func connectBGP(ctx context.Context, localAddr, remoteAddr string, timeout time.
 	inConn, err := listener.Accept()
 	if err != nil {
 		if ctx.Err() != nil {
-			return nil, fmt.Errorf("accepting inbound from DUT: %w", ctx.Err())
+			return nil, fmt.Errorf("accepting inbound from DUT on %s: %w", listenAddr, ctx.Err())
 		}
-		return nil, fmt.Errorf("accepting inbound from DUT: %w", err)
+		return nil, fmt.Errorf("accepting inbound from DUT on %s: %w", listenAddr, err)
 	}
 
 	return tuneTCP(inConn)
