@@ -17,6 +17,22 @@ module ze-filter-community-match {
         description "Initial revision";
     }
 
+    augment "/policy:policy/policy:match" {
+        description "The community condition of a match instance: the community match filter
+                     registers it, so a build without BGP has no such condition.";
+        leaf community {
+            type string { length "1..max"; }
+            ze:reference "policy-community-match";
+            description "The route passes this condition when the named community-match list accepts
+                         it: the list's first entry whose community the route carries decides, and a
+                         route no entry matches fails. The list is a policy community-match instance:
+                         the editor completes the configured ones, and a commit naming any other is
+                         refused. A BGP chain judges it; a Loc-RIB chain refuses it, as its routes
+                         carry no community.";
+            ze:help "Match routes the named community-match list accepts";
+        }
+    }
+
     augment "/policy:policy" {
         list community-match {
             ze:filter;

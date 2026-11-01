@@ -11,6 +11,7 @@
 package filtertext
 
 import (
+	"encoding/binary"
 	"slices"
 	"strings"
 
@@ -60,13 +61,7 @@ func CanonicalCommunity(text string, kind CommunityKind) (string, error) {
 		}
 		return value.String(), nil
 	case CommunityExtended:
-		var value attribute.ExtendedCommunity
-		var err error
-		if strings.Contains(text, ":") {
-			value, err = attribute.ParseSingleExtCommunity(text)
-		} else {
-			value, err = attribute.ParseExtendedCommunityHex(text)
-		}
+		value, err := parseExtendedCommunity(text)
 		if err != nil {
 			return "", err
 		}
@@ -75,6 +70,53 @@ func CanonicalCommunity(text string, kind CommunityKind) (string, error) {
 	default:
 		panic("BUG: invalid community kind")
 	}
+}
+
+// CommunityWire parses one configured value into the octets the attribute
+// carries for it, so a check over the wire compares octets and parses
+// nothing per UPDATE. It answers the value in the first octets of wire and
+// how many it used: 4 standard, 12 large, 8 extended.
+func CommunityWire(text string, kind CommunityKind) (wire [12]byte, octets int, err error) {
+	switch kind {
+	case CommunityStandard:
+		// RFC 1997, COMMUNITIES attribute: "The attribute consists of a
+		// set of four octet values, each of which specify a community."
+		value, err := attribute.ParseCommunity(text)
+		if err != nil {
+			return wire, 0, err
+		}
+		binary.BigEndian.PutUint32(wire[:], value)
+		return wire, 4, nil
+	case CommunityLarge:
+		// RFC 8092 Section 3: "Each BGP Large Community value is encoded as a
+		// 12-octet quantity, as follows:"
+		value, err := attribute.ParseLargeCommunity(text)
+		if err != nil {
+			return wire, 0, err
+		}
+		binary.BigEndian.PutUint32(wire[0:], value.GlobalAdmin)
+		binary.BigEndian.PutUint32(wire[4:], value.LocalData1)
+		binary.BigEndian.PutUint32(wire[8:], value.LocalData2)
+		return wire, 12, nil
+	case CommunityExtended:
+		value, err := parseExtendedCommunity(text)
+		if err != nil {
+			return wire, 0, err
+		}
+		copy(wire[:], value[:])
+		return wire, 8, nil
+	default:
+		panic("BUG: invalid community kind")
+	}
+}
+
+// parseExtendedCommunity reads an extended community written as
+// type:admin:value, or as its 16 hex digits.
+func parseExtendedCommunity(text string) (attribute.ExtendedCommunity, error) {
+	if strings.Contains(text, ":") {
+		return attribute.ParseSingleExtCommunity(text)
+	}
+	return attribute.ParseExtendedCommunityHex(text)
 }
 
 // FieldName returns the attribute keyword this kind carries in the filter text

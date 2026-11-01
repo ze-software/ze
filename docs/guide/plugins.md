@@ -1035,12 +1035,17 @@ intent differs: this plugin filters (accept/reject), that one modifies
 (tag/strip). They can coexist in the same deployment.
 
 Chain references: `bgp-filter-community-match:NAME` or `community-match:NAME`.
+A `match` instance can name the same list with its `community NAME`
+condition, which the package also registers: a BGP chain judges it in the
+daemon over the attributes' octets, with the list's own first-match order
+and implicit deny (`docs/guide/route-policy.md`, "The `match` conditions").
 
 Well-known community names (`no-export`, `no-advertise`, `blackhole`, etc.)
 work as match values because the filter text format renders them as names.
 
 <!-- source: internal/component/bgp/plugins/filter_community_match/filter_community_match.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/plugins/filter_community_match/match.go -- evaluateCommunities -->
+<!-- source: internal/component/bgp/plugins/filter_community_match/condition.go -- compileBGPCondition -->
 
 ### Route Attribute Modifier (`bgp-filter-modify`)
 
