@@ -28,6 +28,7 @@ developer host.
 | `./le perf track --check` against `test/perf/history/ze.ndjson` | `perf-nightly.yml`, job `perf-regression-check` | schedule `42 3 * * *` | advisory | <!-- doc-links: ignore (the history file is written by the nightly job and is not committed; perf-nightly.yml:33 guards on its absence) -->
 | `./le verify deps vulnerability` | `govulncheck.yml` | schedule `37 5 * * *` | advisory |
 | CodeQL | `codeql.yml` | push, pull_request, schedule `21 16 * * 3` | as configured by the action |
+| Re-applying the vendor patches (`internal/le/vendorpatch/patches`) that a Dependabot Go update drops, then dispatching `verify.yml` on the patched commit | `dependabot-vendor-patches.yml`, job `apply` | push to `dependabot/go_modules/**` by Dependabot | yes: a patch that no longer applies fails it |
 
 ## What every verify shard prepares
 
@@ -118,7 +119,8 @@ It asserts that `verify.yml` stays a push and pull_request gate whose only
 direct native action is `verify list`, that every verify shard lifts the
 user-namespace restriction and loads the L2TP modules before its first stage,
 that each nightly is scheduled-only with every job advisory, that each nightly
-invokes the native actions it is supposed to, that the four Docker lab jobs
+invokes the native actions it is supposed to, that a Dependabot Go branch gets
+every vendor patch back and a verify run on the result, that the four Docker lab jobs
 reach their labs through `docker-lab` on the cached runtime kernel, that every `./le` action a workflow names is registered
 in the Go action tables, and that a capability-gated `.ci` test has a VM home.
 
@@ -130,4 +132,5 @@ in the Go action tables, and that a capability-gated `.ci` test has a VM home.
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere -->
 <!-- source: internal/le/rfc/carriers.go -- nativeActionsIn, actionsInCommand, nestedLeWords -->
 <!-- source: .github/workflows/qemu-nightly.yml -- needs-linux, protocol-labs, runtime-kernel-labs -->
-<!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestVerifyWorkflowIsTheFastMergeGate, TestVerifyPreparesTheRunnerKernelBeforeReadingStages, TestVerifyInstallsPinnedNativeTools, TestEvidenceNightlyScheduleActionsAndPrivileges, TestQEMUNightlyScheduleActionsCachesAndBudgets, TestEveryWorkflowNativeActionExists, TestCapabilityGatedTestsHaveANativeVMHome -->
+<!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestVerifyWorkflowIsTheFastMergeGate, TestVerifyPreparesTheRunnerKernelBeforeReadingStages, TestVerifyInstallsPinnedNativeTools, TestEvidenceNightlyScheduleActionsAndPrivileges, TestQEMUNightlyScheduleActionsCachesAndBudgets, TestEveryWorkflowNativeActionExists, TestCapabilityGatedTestsHaveANativeVMHome, TestDependabotBranchesGetTheVendorPatches -->
+<!-- source: .github/workflows/dependabot-vendor-patches.yml -- apply -->

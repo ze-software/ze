@@ -6,6 +6,11 @@ name: verify
 on:
   push:
   pull_request:
+  # dependabot-vendor-patches.yml pushes the patched vendor tree with the
+  # workflow token, which starts no push run, and dispatches this one instead.
+  # A dispatch carries no previous tip, so the anchor step below judges it on
+  # what it adds to the default branch.
+  workflow_dispatch:
 
 permissions:
   contents: read

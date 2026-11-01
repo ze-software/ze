@@ -439,6 +439,16 @@ A plain `go mod vendor` drops every patch. Run `./le setup install` instead, or
 apply each patch with `git apply <patch>` afterwards; the upstream check names
 the module whose patches are missing either way.
 
+Dependabot runs that plain `go mod vendor` for every Go update it opens, so its
+branch loses every patch, whatever module it moved, and le no longer builds from
+it. `.github/workflows/dependabot-vendor-patches.yml` runs on each Dependabot
+push to a `dependabot/go_modules/` branch, applies every patch with the
+already-applied probe `applyVendorPatches` uses, pushes the result to the
+branch, and dispatches `verify.yml` on it. It does not read the review stamps:
+`./le go patch-stamps check` in that verify run refuses a patch whose module
+the update moved, and a patch that no longer applies fails the job by name.
+<!-- source: .github/workflows/dependabot-vendor-patches.yml -- apply -->
+
 To add a change: vendor the upstream release, make the change in
 `vendor/<module>/`, write the diff with `git diff --no-index` between the
 upstream file (from `go mod download -json <module>@<version>`, field `Dir`) and

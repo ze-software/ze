@@ -1,0 +1,81 @@
+name: dependabot vendor patches
+
+# Ze keeps each change it needs in a third-party Go module as a diff against
+# the upstream release, under internal/le/vendorpatch/patches, and commits the
+# patched vendor/ tree (docs/contributing/patching-the-standard-library.md,
+# "Patching a vendored module"). `./le setup install` re-vendors and then
+# applies the patches (applyVendorPatches, internal/le/setup/install.go).
+# Dependabot runs a plain `go mod vendor`, which returns every vendored file to
+# upstream, so each of its Go updates dropped every patch, whatever module it
+# moved: PR #38 (locafero) lost the netlink SrcPortMask fields and no verify
+# shard could build le. le cannot repair the branch, because le is built from
+# that tree, so this job applies the patches with the same git probes
+# applyVendorPatches uses and pushes the result to Dependabot's branch.
+#
+# The review stamp is not checked here: `./le go patch-stamps check`, a verify
+# stage, refuses a patch whose stamp no longer names the vendored version, so an
+# update of a patched module still waits for a person to read upstream again. A
+# patch that no longer applies fails this job and names the patch.
+on:
+  push:
+    branches:
+      - "dependabot/go_modules/**"
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    # Only Dependabot's own push: this job's push carries the workflow token,
+    # which starts no workflow, so it cannot trigger itself.
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Apply the vendor patches Dependabot's re-vendor dropped
+        id: apply
+        run: |
+          set -uo pipefail
+          changed=no
+          for patch in internal/le/vendorpatch/patches/*.patch; do
+            if git apply --reverse --check "$patch" 2>/dev/null; then
+              echo "already applied: $patch"
+              continue
+            fi
+            if ! git apply --check "$patch"; then
+              echo "::error::$patch no longer applies to the vendored module Dependabot updated, so the module's change must be read against the new upstream release. Fix: follow 'Patching a vendored module' in docs/contributing/patching-the-standard-library.md, regenerate the patch, and push it to this branch." >&2
+              exit 1
+            fi
+            git apply "$patch"
+            echo "applied: $patch"
+            changed=yes
+          done
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+      - name: Commit the patched vendor tree to Dependabot's branch
+        if: steps.apply.outputs.changed == 'yes'
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -uo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vendor
+          git commit -m "vendor: re-apply Ze's vendor patches after the Dependabot re-vendor" \
+            -m "go mod vendor returned every vendored file to upstream; the patches under internal/le/vendorpatch/patches are applied again."
+          git push origin "HEAD:refs/heads/$BRANCH"
+
+      # A push made with the workflow token starts no workflow, so the patched
+      # commit would carry no verify run. A dispatch is the one event that
+      # token may start.
+      - name: Verify the patched commit
+        if: steps.apply.outputs.changed == 'yes'
+        env:
+          BRANCH: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run verify.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"

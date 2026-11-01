@@ -781,6 +781,42 @@ func TestVulnerabilityWorkflowRemainsScheduledAndUsesSharedAction(t *testing.T) 
 	}
 }
 
+// TestDependabotBranchesGetTheVendorPatches pins the repair of a Dependabot Go
+// update. Dependabot runs a plain `go mod vendor`, which returns every
+// vendored file to upstream and drops Ze's vendor patches
+// (internal/le/vendorpatch/patches): PR #38 lost the netlink SrcPortMask
+// patch, and every verify shard failed to build le. VALIDATES: a workflow
+// runs on Dependabot's go_modules branches, applies every patch of the
+// directory (never a list of its own) with the already-applied probe
+// applyVendorPatches uses, pushes the result back, and dispatches verify on it,
+// because a push made with the workflow token starts no workflow; verify.yml
+// accepts that dispatch. METHOD: read both workflow files.
+func TestDependabotBranchesGetTheVendorPatches(t *testing.T) {
+	const name = "dependabot-vendor-patches.yml"
+	on := onBlock(t, name)
+	if !strings.Contains(on, "dependabot/go_modules/**") {
+		t.Errorf("%s must run on Dependabot's go_modules branches", name)
+	}
+	source := stripComments(workflowSource(t, name))
+	for _, required := range []string{
+		"github.actor == 'dependabot[bot]'",
+		"contents: write",
+		"actions: write",
+		"internal/le/vendorpatch/patches/*.patch",
+		`git apply --reverse --check "$patch"`,
+		`git apply "$patch"`,
+		"git push",
+		"gh workflow run verify.yml",
+	} {
+		if !strings.Contains(source, required) {
+			t.Errorf("%s lacks %q", name, required)
+		}
+	}
+	if !strings.Contains(onBlock(t, "verify.yml"), "workflow_dispatch:") {
+		t.Error("verify.yml must accept workflow_dispatch, or the patched Dependabot commit is never verified")
+	}
+}
+
 func TestCodeQLKeepsOnlyTheShippedLanguagePopulation(t *testing.T) {
 	source := workflowSource(t, "codeql.yml")
 	languageRow := regexp.MustCompile(`(?m)^\s*-\s+language:\s+([a-z-]+)\s*$`)
