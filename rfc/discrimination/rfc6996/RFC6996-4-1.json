@@ -3,23 +3,45 @@
     "rid": "RFC6996-4-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996KeepsASNsOutsideThePrivateUseRanges",
-    "unit-sha": "946ea34640a632b8",
-    "claim-sha": "cc2d20b447090c06",
-    "route": "revert",
+    "unit-sha": "081ca3c088dd620c",
+    "claim-sha": "1bb844eb55c39bd0",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/filter_remove_private_as/private_as.go::isPrivateASN",
     "producer-sha": "99baf33a6b49fe39",
-    "break": "body of isPrivateASN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 46: \"asn \u003c= 65534\" -\u003e \"asn \u003c= 65535\""
   },
   {
     "rid": "RFC6996-4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes",
-    "unit-sha": "1c38a24daeb9ab28",
-    "claim-sha": "bfec604d066e4798",
-    "route": "revert",
+    "unit-sha": "a62e93bf003ed41e",
+    "claim-sha": "489e58ee5cd9c785",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/filter_remove_private_as/private_as.go::isPrivateASN",
     "producer-sha": "99baf33a6b49fe39",
-    "break": "body of isPrivateASN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 46: \"asn \u003e= 64512\" -\u003e \"asn \u003e 64512\""
+  },
+  {
+    "rid": "RFC6996-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996KeepsPublicASN",
+    "unit-sha": "3209c54bc1fcf8bf",
+    "claim-sha": "0fa5c22ee0d6117c",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/filter_remove_private_as/private_as.go::asPathFieldHasPrivateASN",
+    "producer-sha": "a38ae8d05023578e",
+    "break": "line 66: \"digits \u0026\u0026 isPrivateASN(uint32(asn))\" -\u003e \"digits\""
+  },
+  {
+    "rid": "RFC6996-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996StripsPrivateUseASN",
+    "unit-sha": "5b732c75f4de6652",
+    "claim-sha": "596021f9252ad573",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/filter_remove_private_as/private_as.go::isPrivateASN",
+    "producer-sha": "99baf33a6b49fe39",
+    "break": "line 46: \"asn \u003e= 64512\" -\u003e \"asn \u003e 64512\""
   },
   {
     "rid": "RFC6996-4-1",

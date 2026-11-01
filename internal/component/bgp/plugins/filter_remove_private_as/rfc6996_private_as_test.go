@@ -25,31 +25,34 @@ func TestIsPrivateASN(t *testing.T) {
 	}
 }
 
-// VALIDATES: flat filter text is rewritten for downstream policy filters.
-// PREVENTS: later filters in a chain seeing stale private ASNs.
-func TestRewriteASPathText(t *testing.T) {
-	got, changed := rewriteASPathText("64496 64512 64497", removeModeStrip, 65001)
-	if !changed || got != "[64496 64497]" {
-		t.Fatalf("strip rewrite = (%q,%v), want ([64496 64497], true)", got, changed)
+// VALIDATES: the as-path field scan finds a Private Use ASN in a sequence
+// and in a nested AS_SET, and finds none in a path of public ASNs or in an
+// object with no as-path.
+// PREVENTS: a private ASN missed in a set, or a public one taken as private.
+func TestASPathFieldHasPrivateASN(t *testing.T) {
+	cases := []struct {
+		fields string
+		want   bool
+	}{
+		{`{"as-path":[64496,64512,64497]}`, true},
+		{`{"as-path":[64496,[64497,4200000000]]}`, true},
+		{`{"as-path":[64496,64497]}`, false},
+		{`{}`, false},
+		{``, false},
 	}
-
-	got, changed = rewriteASPathText("64496 64512 64497", removeModePeerAS, 65001)
-	if !changed || got != "[64496 65001 64497]" {
-		t.Fatalf("peer-as rewrite = (%q,%v), want ([64496 65001 64497], true)", got, changed)
-	}
-
-	got, changed = rewriteASPathText("64496 64497", removeModeStrip, 65001)
-	if changed || got != "64496 64497" {
-		t.Fatalf("public rewrite = (%q,%v), want unchanged false", got, changed)
+	for _, c := range cases {
+		if got := asPathFieldHasPrivateASN([]byte(c.fields)); got != c.want {
+			t.Errorf("asPathFieldHasPrivateASN(%s) = %v, want %v", c.fields, got, c.want)
+		}
 	}
 }
 
 // RFC requirement: RFC6996-4-1 positive -- a Private Use ASN present in the AS path
-// is removed before advertisement: strip drops 64512 from [64496 64512 64497].
+// is removed before advertisement: 64512 in [64496 64512 64497] draws the
+// remove-private intent.
 func TestRFC6996StripsPrivateUseASN(t *testing.T) {
-	got, changed := rewriteASPathText("64496 64512 64497", removeModeStrip, 65001)
-	if !changed || got != "[64496 64497]" {
-		t.Fatalf("strip [64496 64512 64497] = (%q,%v), want ([64496 64497], true)", got, changed)
+	if !asPathFieldHasPrivateASN([]byte(`{"as-path":[64496,64512,64497]}`)) {
+		t.Fatal("[64496 64512 64497] carries no Private Use ASN, want 64512 found")
 	}
 }
 
@@ -57,8 +60,7 @@ func TestRFC6996StripsPrivateUseASN(t *testing.T) {
 // range: an AS path of only non-private ASNs is advertised unchanged, so a
 // non-private ASN is never stripped as if it were private.
 func TestRFC6996KeepsPublicASN(t *testing.T) {
-	got, changed := rewriteASPathText("64496 64497", removeModeStrip, 65001)
-	if changed || got != "64496 64497" {
-		t.Fatalf("strip 64496 64497 = (%q,%v), want unchanged (false)", got, changed)
+	if asPathFieldHasPrivateASN([]byte(`{"as-path":[64496,64497]}`)) {
+		t.Fatal("[64496 64497] carries a Private Use ASN, want none")
 	}
 }

@@ -1,21 +1,18 @@
 // Design: docs/architecture/core-design.md -- remove-private-as policy action
 // RFC: rfc/short/rfc6996.md -- Private Use ASN ranges
-// Related: filter_remove_private_as.go -- SDK entry point and filter handler
+// Related: filter_remove_private_as.go -- SDK entry point and filter evaluator
 
 package filter_remove_private_as
 
 import (
 	"encoding/binary"
-	"strconv"
-	"strings"
-
-	"github.com/ze-software/ze/internal/core/textbuf"
+	"encoding/json"
+	"math"
 )
 
 const (
-	removePrivateASDirective = "remove-private"
-	removeModeStripText      = "strip"
-	removeModePeerASText     = "peer-as"
+	removeModeStripText  = "strip"
+	removeModePeerASText = "peer-as"
 )
 
 type removeMode uint8
@@ -32,78 +29,46 @@ func (m removeMode) String() string {
 	return removeModeStripText
 }
 
+// intentValue is the value of the as-path remove intent for the mode, a JSON
+// string: "private" strips each Private Use ASN, "private-peer-as" replaces
+// it with the peer's AS (docs/plugin-development/protocol.md, "The Sets of a
+// filter-update answer").
+func (m removeMode) intentValue() json.RawMessage {
+	if m == removeModePeerAS {
+		return json.RawMessage(`"private-peer-as"`)
+	}
+	return json.RawMessage(`"private"`)
+}
+
 // RFC 6996 Section 5: Private Use ASNs are 64512-65534 and
 // 4200000000-4294967294, inclusive.
 func isPrivateASN(asn uint32) bool {
 	return (asn >= 64512 && asn <= 65534) || (asn >= 4200000000 && asn <= 4294967294)
 }
 
-// rewriteASPathText takes the AS path as filtertext.ASPath returns it, and
-// gives back the value in the shape the "as-path" field of the filter text
-// format carries: bare for one ASN, bracketed for several. The reactor performs
-// the authoritative wire rewrite; this text rewrite lets later text filters in
-// the same chain see the intended path.
-//
-// The second return reports whether a Private Use ASN was rewritten. It is
-// false for a path that carries none, which the first return then echoes back
-// unchanged, and false for a path this reader cannot parse, which returns the
-// empty string because there is no path to advertise.
-func rewriteASPathText(asPath string, mode removeMode, peerAS uint32) (string, bool) {
-	tokens := strings.Fields(asPath)
-	if len(tokens) == 0 {
-		return "", false
-	}
-
-	out := make([]uint32, 0, len(tokens))
-	changed := false
-	for _, tok := range tokens {
-		asn64, err := strconv.ParseUint(tok, 10, 32)
-		if err != nil {
-			return "", false
-		}
-		asn := uint32(asn64) //nolint:gosec // bounded by ParseUint 32-bit
-		if !isPrivateASN(asn) {
-			out = append(out, asn)
+// asPathFieldHasPrivateASN reports whether the fields object the engine sent
+// carries a Private Use ASN in its as-path. The filter declares as-path as its
+// only route field, so the object is {"as-path":[...]} (an AS_SET nested as
+// an array) and every number in it is an ASN: the scan reads each decimal run
+// in place and allocates nothing. An absent as-path carries none.
+func asPathFieldHasPrivateASN(fields []byte) bool {
+	var asn uint64
+	digits := false
+	for _, c := range fields {
+		if c >= '0' && c <= '9' {
+			asn = asn*10 + uint64(c-'0')
+			digits = true
+			if asn > math.MaxUint32 {
+				return false // no ASN: the engine writes 32-bit ASNs only
+			}
 			continue
 		}
-		changed = true
-		if mode == removeModePeerAS {
-			out = append(out, peerAS)
+		if digits && isPrivateASN(uint32(asn)) {
+			return true
 		}
+		asn, digits = 0, false
 	}
-	if !changed {
-		return asPath, false
-	}
-	return formatASPathTokens(out), true
-}
-
-func formatASPathTokens(asns []uint32) string {
-	if len(asns) == 0 {
-		return "[]"
-	}
-	var b textbuf.Buffer
-	if len(asns) > 1 {
-		b.Byte('[')
-	}
-	for i, asn := range asns {
-		if i > 0 {
-			b.Byte(' ')
-		}
-		b.Uint32(asn)
-	}
-	if len(asns) > 1 {
-		b.Byte(']')
-	}
-	return b.String()
-}
-
-func buildDirectiveDelta(mode removeMode, asPathValue string, asPathChanged bool) string {
-	var b textbuf.Buffer
-	if asPathChanged {
-		b.Str("as-path ").Str(asPathValue).Byte(' ')
-	}
-	b.Str(removePrivateASDirective).Byte(' ').Str(mode.String())
-	return b.String()
+	return digits && isPrivateASN(uint32(asn))
 }
 
 func hasPrivateAS4PathPayload(payload []byte) bool {

@@ -1227,7 +1227,12 @@ unique, reference it directly (e.g. `STRIP`). The prefixed forms
 `remove-private-as:STRIP` and `bgp-filter-remove-private-as:STRIP` remain
 accepted for disambiguation or advanced use.
 
-The plugin emits policy intent only. The reactor performs the wire rewrite so
+The plugin emits policy intent only: for a route whose AS_PATH or AS4_PATH
+carries a Private Use ASN it answers the `as-path` remove intent (`private`,
+or `private-peer-as` in `peer-as` mode), read from the route's declared
+`as-path` field and raw body, through one evaluator whether it runs internal
+or forked. A chain naming it runs on the in-process library chain, which
+applies the intent. The reactor performs the wire rewrite so
 AS_SEQUENCE, AS_SET, and confederation segment structure is preserved. On export
 to EBGP peers, private-AS removal runs before the normal local-AS prepend. On
 export to an IBGP peer (peer AS equals local AS, or equals the configured
@@ -1236,8 +1241,8 @@ RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to
 an internal peer, so the route leaves with its AS_PATH unchanged.
 
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- runEgressPolicyChainASN4 -->
-<!-- source: internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractRemovePrivateASOps -->
+<!-- source: internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go -- evaluateRemovePrivateAS -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- libraryASPathOps -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- export policy before EBGP prepend -->
 
 To test what a filter would do without sending traffic, use `show policy test`:

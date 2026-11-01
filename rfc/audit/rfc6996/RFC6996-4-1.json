@@ -1,21 +1,21 @@
 {
-  "note": "Both clauses, both polarities, at the range edges. Positive: plugin TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes rewrites AS_PATH [64496 64512 65534 4200000000 4294967294 64497] to [64496 64497] and draws the strip directive for an AS4_PATH holding 4294967294; reactor TestRFC6996StripRemovesPrivateUseASNsFromAS4Path asserts the exact AS4_PATH rewrite to [64496 64497]. Negative: 64511/65535/4199999999/4294967295 kept in AS_PATH and AS4_PATH at both tiers (accept, zero ops), so an off-by-one bound in either range goes red. All four new units carry observed-red revert records (isPrivateASN, isRFC6996PrivateASN). The two older private_as_test.go units are subsets with no record.",
+  "note": "Re-judged after the remove-private-as plugin moved to intents: the four plugin units now assert only the as-path remove \"private\" intent, and the AS_PATH byte rewrite moved to the reactor. What the tagged set proves: the intent is drawn for 64512, 65534, 4200000000 and 4294967294 in AS_PATH and for 4294967294 in AS4_PATH behind AS_TRANS, and withheld for 64511, 65535, 4199999999 and 4294967295 in both attributes (plugin units, mutant records on isPrivateASN bounds and the as-path scan); reactor TestRFC6996StripRemovesPrivateUseASNsFromAS4Path asserts the exact AS4_PATH rewrite to [64496 64497] and its negative asserts zero ops. What no tagged unit proves: the removal from AS_PATH itself. A reactor that stopped rewriting AS_PATH, or a policychain that dropped the \"private\" intent, leaves every tagged unit green. The AS_PATH rewrite is tested only by the untagged reactor TestExtractRemovePrivateASOps (64512 and 65534, segment types kept), which carries no tag and no record. Repair: tag a reactor unit asserting the exact AS_PATH rewrite at the range edges, with its record, then re-judge.",
   "requirement_sha": "09430783143eaffb",
   "tests": {
-    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996KeepsASNsOutsideThePrivateUseRanges": "e324b1a9204010e2",
-    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes": "e324b1a9204010e2",
-    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996KeepsPublicASN": "778d71b3e2da3a82",
-    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996StripsPrivateUseASN": "778d71b3e2da3a82",
+    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996KeepsASNsOutsideThePrivateUseRanges": "80c2cae1d4a34766",
+    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes": "80c2cae1d4a34766",
+    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996KeepsPublicASN": "eedc541ca064e83e",
+    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996StripsPrivateUseASN": "eedc541ca064e83e",
     "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges": "f84fb4c5830c79e4",
     "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripRemovesPrivateUseASNsFromAS4Path": "f84fb4c5830c79e4"
   },
   "units": {
-    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996KeepsASNsOutsideThePrivateUseRanges": "49caefdf040a863a",
-    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes": "cbae8e4552cbf170",
-    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996KeepsPublicASN": "8ecfe8d3e74b323a",
-    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996StripsPrivateUseASN": "adf187dd868f22eb",
+    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996KeepsASNsOutsideThePrivateUseRanges": "9c9df0cf4a8fa55d",
+    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes": "cccbc7fb400d60e1",
+    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996KeepsPublicASN": "5863ae54536991b9",
+    "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996StripsPrivateUseASN": "d81a5a58cbbebd7b",
     "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges": "2942ec14910653c4",
     "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripRemovesPrivateUseASNsFromAS4Path": "9562158165b22011"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

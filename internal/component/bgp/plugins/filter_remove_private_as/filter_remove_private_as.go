@@ -1,7 +1,6 @@
 // Design: docs/architecture/core-design.md -- remove-private-as policy action filter
 // Detail: config.go -- policy/remove-private-as config parsing
-// Detail: private_as.go -- Private Use ASN detection and text rewrite
-// Related: internal/component/bgp/filtertext -- the reader of the filter text format
+// Detail: private_as.go -- Private Use ASN detection
 
 package filter_remove_private_as
 
@@ -10,12 +9,20 @@ import (
 	"net"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-var errRemovePrivateASInvalidBgpConfigJSON = errors.New("filter-remove-private-as: invalid bgp config JSON")
+var (
+	errRemovePrivateASInvalidBgpConfigJSON = errors.New("filter-remove-private-as: invalid bgp config JSON")
+	errFilterBeforeConfigure               = errors.New("filter-remove-private-as: a route arrived before the configuration")
+	errUnknownRemovePrivateAS              = errors.New("filter-remove-private-as: no remove-private-as of this name is configured")
+)
+
+// fieldASPath is the route field the filter reads and the intent it answers
+// names (policy.FieldASPath on the wire).
+const fieldASPath = "as-path"
 
 var logger = slogutil.LazyLogger("bgp.filter.remove-private-as")
 
@@ -27,9 +34,9 @@ func runFilterRemovePrivateAS(conn net.Conn) int {
 
 	newRemovePrivateASConfigTx().Register(p)
 
-	p.OnFilterUpdate(func(in *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
-		return handleFilterUpdate(in), nil
-	})
+	// One evaluator for both transports (D-12): the typed bridge slot when
+	// the plugin runs internal, the filter-update batch when it runs forked.
+	p.OnFilter(evaluateRemovePrivateAS)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -38,8 +45,8 @@ func runFilterRemovePrivateAS(conn net.Conn) int {
 		Filters: []sdk.FilterDecl{{
 			NamePattern: ".+",
 			Direction:   sdk.FilterBoth,
-			Reads:       []string{sdk.FilterFieldRaw},
-			Attributes:  []string{"as-path", removePrivateASDirective},
+			Reads:       []string{fieldASPath, sdk.FilterFieldRaw},
+			Sets:        []string{fieldASPath},
 			OnError:     sdk.OnErrorReject,
 		}},
 	}); err != nil {
@@ -49,27 +56,30 @@ func runFilterRemovePrivateAS(conn net.Conn) int {
 	return 0
 }
 
-func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
+// evaluateRemovePrivateAS answers the remove-private intent for a route whose
+// AS_PATH or AS4_PATH carries a Private Use ASN, and accepts the rest
+// unchanged. The engine performs the rewrite of both attributes, in peer-as
+// mode with the session's peer AS (policychain RemovePrivateAS). It reads
+// only the configured definitions, swapped whole by the config transaction
+// (defsByName), so it is safe for concurrent use and never blocks.
+func evaluateRemovePrivateAS(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
 	defsP := defsByName.Load()
 	if defsP == nil {
-		logger().Warn("filter-update before configure", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+		return nil, errFilterBeforeConfigure
 	}
-	defs := *defsP
-	def, ok := defs[in.Filter]
+	def, ok := (*defsP)[route.Filter()]
 	if !ok {
-		logger().Warn("unknown remove-private-as", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+		return nil, errUnknownRemovePrivateAS
 	}
-
-	asPath := filtertext.ASPath(in.Update)
-	rewritten, asPathChanged := rewriteASPathText(asPath, def.mode, in.PeerAS)
-	as4Changed := hasPrivateAS4PathPayload(in.Raw)
-	if !asPathChanged && !as4Changed {
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
+	fields, err := route.Fields()
+	if err != nil {
+		return nil, err
 	}
-
-	delta := buildDirectiveDelta(def.mode, rewritten, asPathChanged)
-	logger().Info("remove-private-as modify", "filter", in.Filter, "peer", in.Peer, "mode", def.mode.String())
-	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: delta}
+	if !asPathFieldHasPrivateASN(fields) && !hasPrivateAS4PathPayload(route.Raw()) {
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
+	}
+	logger().Info("remove-private-as modify", "filter", route.Filter(), "peer", route.Peer(), "mode", def.mode.String())
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: []rpc.FilterSet{{
+		Field: fieldASPath, Action: rpc.FilterSetActionRemove, Value: def.mode.intentValue(),
+	}}}, nil
 }
