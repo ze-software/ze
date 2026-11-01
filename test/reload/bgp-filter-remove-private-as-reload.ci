@@ -7,9 +7,11 @@
 #                 sends SIGHUP. Nothing else changes.
 # Expected:       the same UPDATE (AS_PATH 65001, 10.0.0.0/24) evaluated
 #                 against the peer's live chain answers as-path 65533 before
-#                 the reload and "delta":"as-path [] remove-private strip"
-#                 after it, which it can only do when the plugin installed the
-#                 edited definition at config-apply.
+#                 the reload and, after it, a STRIP trace entry whose delta is
+#                 "remove-private-as" (the strip intent, where replace-peer
+#                 reads "remove-private-as replace-peer") and whose text-after
+#                 carries no as-path, which it can only do when the plugin
+#                 installed the edited definition at config-apply.
 #
 # VALIDATES: spec-plugin-reload-applies-or-refuses AC-1 for
 #            bgp-filter-remove-private-as.
@@ -152,7 +154,7 @@ await-file established
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => as-path 65533
 reload config2.conf
 # After it: it removes 65001 instead.
-has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "delta":"as-path [] remove-private strip"
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "delta":"remove-private-as","filter":"STRIP","text-after":"origin igp next-hop 1.1.1.1 nlri add 10.0.0.0/24"
 say REMOVE-PRIVATE-AS-RELOAD: the edited definition removes
 EOF_SCRIPT
 
