@@ -168,6 +168,10 @@ type Sets struct {
 	communityAddN   uint8
 	communityRemN   uint8
 	intents         intents
+	// matchRoute is the route a match judges, held here rather than on the
+	// evaluator's stack so a check's pointer to it allocates nothing
+	// (match.go). It is scratch: no reader of the sets sees it.
+	matchRoute MatchRoute
 }
 
 // Reset forgets every change, so one Sets serves the next member or route.

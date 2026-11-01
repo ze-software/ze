@@ -5,7 +5,12 @@
 
 package nlrisplit
 
-import "fmt"
+import (
+	"fmt"
+	"net/netip"
+
+	"github.com/ze-software/ze/internal/core/family"
+)
 
 // flowSpecExtendedLength is the first value RFC 8955 Section 4 encodes in two
 // octets. Below it the length is one octet; at or above it the length is two
@@ -87,4 +92,64 @@ func SplitFlowSpec(data []byte, addPath bool, fn func(nlri []byte) bool) (int, e
 	}
 
 	return count, nil
+}
+
+// IsFlowSpec reports whether fam is IPv4 or IPv6 FlowSpec or FlowSpec VPN
+// (SAFI 133 or 134).
+func IsFlowSpec(fam family.Family) bool {
+	return (fam.AFI == family.AFIIPv4 || fam.AFI == family.AFIIPv6) &&
+		(fam.SAFI == family.SAFIFlowSpec || fam.SAFI == family.SAFIFlowSpecVPN)
+}
+
+// FlowSpecDestination reads only the first, destination-prefix component of
+// one FlowSpec NLRI, the projection a prefix policy judges. An absent or
+// nonzero-offset destination has no CIDR equivalent: it answers an invalid
+// prefix, which a caller denies.
+//
+// RFC 8955 Section 4.2.2.1: "Defines the destination prefix to match.  The length and prefix
+// fields are encoded as in BGP UPDATE messages [RFC4271]."
+// Receive validation already checks component ordering and the remaining rule;
+// filter text is a projection, not a second FlowSpec parser or a unicast rewrite.
+// one MUST be a complete native NLRI returned by SplitFlowSpec.
+func FlowSpecDestination(fam family.Family, one []byte) netip.Prefix {
+	off := 1
+	if one[0] >= 240 {
+		off = 2
+	}
+	if fam.SAFI == family.SAFIFlowSpecVPN {
+		off += 8
+	}
+	if off+2 > len(one) {
+		return netip.Prefix{}
+	}
+	if one[off] != 1 {
+		return netip.Prefix{}
+	}
+	bits := int(one[off+1])
+	off += 2
+	width := 4
+	if fam.AFI == family.AFIIPv6 {
+		width = 16
+		if off == len(one) {
+			return netip.Prefix{}
+		}
+		if one[off] != 0 {
+			return netip.Prefix{}
+		}
+		off++
+	}
+	if bits > width*8 {
+		return netip.Prefix{}
+	}
+	n := (bits + 7) / 8
+	if off+n > len(one) {
+		return netip.Prefix{}
+	}
+	var addr [16]byte
+	copy(addr[:], one[off:off+n])
+	ip := netip.AddrFrom16(addr)
+	if width == 4 {
+		ip = netip.AddrFrom4([4]byte(addr[:4]))
+	}
+	return netip.PrefixFrom(ip, bits).Masked()
 }

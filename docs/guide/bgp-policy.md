@@ -162,6 +162,24 @@ references are all inactive, still applies it. A raw full-UPDATE rewrite stops
 later filters, but still receives the policy final. An earlier reject,
 fail-closed error, or teardown cannot be turned into acceptance by `final accept`.
 
+A `match` instance naming a `prefix-list` judges each prefix of the UPDATE,
+announced and withdrawn, as the `prefix-list` filter does: an UPDATE with no
+prefix, or none the list denies, passes; one whose every prefix is denied is
+rejected; otherwise the denied prefixes are dropped and the rest passes on. A
+FlowSpec rule is judged by its destination prefix, and a denied or absent
+destination rejects the whole UPDATE.
+
+```
+policy {
+    prefix-list CUSTOMERS { entry 10.0.0.0/8 { ge 16; le 24; action accept; } }
+    match customers-only { prefix-list CUSTOMERS; }
+}
+bgp { peer p1 { filter { import { filters [ customers-only ]; final accept; } } } }
+```
+
+<!-- source: internal/component/bgp/policychain/match.go -- matchWalk -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/condition.go -- compileBGPCondition -->
+
 Each plugin declares whether an internal error fails open or closed. Security filters should normally reject on failure. Operational policy should make that choice explicit rather than depending on an unavailable external service.
 
 ## Common policy building blocks

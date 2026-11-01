@@ -7,6 +7,8 @@ package reactor
 import (
 	"reflect"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -79,14 +81,14 @@ func AppendUpdateForFilter(buf []byte, attrs *attribute.AttributesWire, wireUpda
 
 	// MP_REACH_NLRI and MP_UNREACH_NLRI (RFC 4760).
 	if mp, err := wireUpdate.MPReach(); err == nil && mp != nil {
-		if isFlowSpecFamily(mp.Family()) {
+		if nlrisplit.IsFlowSpec(mp.Family()) {
 			buf = appendFlowSpecFilterBlock(buf, mp.Family(), nlriOpAdd, mp.NLRIBytes(), ctx != nil && ctx.AddPath(mp.Family()), len(buf) == start)
 		} else {
 			buf = appendMPBlock(buf, mp.Family(), nlriOpAdd, mp.NLRIBytes(), ctx != nil && ctx.AddPath(mp.Family()), len(buf) == start)
 		}
 	}
 	if mpu, err := wireUpdate.MPUnreach(); err == nil && mpu != nil {
-		if isFlowSpecFamily(mpu.Family()) {
+		if nlrisplit.IsFlowSpec(mpu.Family()) {
 			buf = appendFlowSpecFilterBlock(buf, mpu.Family(), nlriOpDel, mpu.WithdrawnBytes(), ctx != nil && ctx.AddPath(mpu.Family()), len(buf) == start)
 		} else {
 			buf = appendMPBlock(buf, mpu.Family(), nlriOpDel, mpu.WithdrawnBytes(), ctx != nil && ctx.AddPath(mpu.Family()), len(buf) == start)

@@ -294,16 +294,17 @@ message names the chain and the fix:
 | A filter that reads a field the routes do not carry | For example, a community match on IS-IS routes |
 | A filter type with no Loc-RIB route evaluator | The message lists the filter types that have one |
 | A `family-filter` with `action tear-down` | A Loc-RIB route has no session to close |
-| A `match` instance on a BGP peer chain | No BGP filter serves `match`, so it could never run there. A `modify` that sets `distance` or `tag` on a BGP chain is refused the same way, naming the field |
+| A `match` condition on a BGP peer chain that reads a field BGP routes do not carry | A `match` runs at a BGP chain over the conditions BGP can judge, `prefix-list` today; one that reads `tag`, `metric` or `level` is refused naming the field. A `modify` that sets `distance` or `tag` on a BGP chain is refused the same way |
 <!-- source: internal/component/bgp/config/peers.go -- validateChainNames, bgpServesFilterType -->
 <!-- source: internal/component/policy/rib_compile.go -- readRIBChain, compileRIBChain -->
 <!-- source: internal/component/policy/fields.go -- CheckChain -->
+<!-- source: internal/component/bgp/policychain/match.go -- compileMatchEvaluator, matchWalk -->
 <!-- source: internal/component/bgp/plugins/filter_family/rib_evaluator.go -- compileRouteEvaluator -->
 
 Tab on `filters` offers the filter instances this chain accepts, and only
 those: every entry of a filter type list under `policy` whose fields fit the
 attachment, so `isis filter import filters [ ` offers a `prefix-list` and not a
-`community-match`, and a BGP chain offers no `match`. A `policy route` entry is
+`community-match`. A `policy route` entry is
 never offered. Commit asks the same question of every name, member by member,
 with the refusals in the table above, so a name the editor did not offer still
 commits when the attachment accepts it: a qualified `prefix-list:NAME`, or an

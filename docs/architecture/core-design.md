@@ -1548,8 +1548,10 @@ below), and the text chain reads it too: a plugin filter there is sent the
 `fields` its declared reads name, written from the view (`filterFields`,
 `policyview.AppendFields`). A chain runs on the view in place of the text
 subject only when it names a member whose filter type registered an in-process
-BGP evaluator, and no shipped type registers one yet, so every chain an
-operator configures today still runs the text subject above.
+BGP evaluator. `match` is the shipped type that has one
+(`policychain/register.go`), so a chain naming a `match` instance runs on the
+view; every other chain an operator configures today still runs the text
+subject above.
 
 - **One reader per field, registered from the BGP side.** The field names stay
   declared in the policy library (`internal/component/policy/register.go`);
@@ -1589,10 +1591,22 @@ operator configures today still runs the text subject above.
 
 `internal/component/bgp/policychain` compiles and runs a BGP chain whose
 members are filter types with an in-process BGP evaluator, over the view
-above. No shipped filter type registers a BGP evaluator yet
-(`policychain.MustRegisterEvaluator` has no caller outside tests), so no
-configured chain compiles to one: `compileLibraryChain` leaves a chain with no
-library member on the text chain, where a plugin filter is sent the update
+above. The shipped one is `match` (`compileMatchEvaluator`, `match.go`): it
+compiles its conditions over `policychain.MatchConditions`, the BGP set a
+condition's package adds its check to (filter_prefix adds `prefix-list`), and
+a condition with no BGP check is refused naming it. A match whose conditions
+read `prefix` judges each NLRI entry of the UPDATE, body and MP_REACH_NLRI
+announcements and body and MP_UNREACH_NLRI withdrawals (`View.Withdrawn`), as
+a `policychain.MatchRoute`: no entry, or none rejected, passes; every entry
+rejected rejects; otherwise it passes and drops each rejected entry
+(`DropNLRI`). A FlowSpec rule is judged by its destination prefix
+(`nlrisplit.FlowSpecDestination`, shared with the text projection): an absent
+destination, or a rejected one, rejects the whole UPDATE, since a rule is
+never rewritten. A labeled-unicast section fails the member: the walk does not
+read its label stack. Each compiler gets the chain's
+`policy.InstanceResolver` (`registryResolver`), so a match compiles the
+prefix-list it names from instance config. `compileLibraryChain` leaves a
+chain with no library member on the text chain, where a plugin filter is sent the update
 text beside its declared `fields`. A plugin filter in a chain that does hold a
 library member joins that chain as a member (below).
 
@@ -1738,6 +1752,7 @@ library member joins that chain as a member (below).
   runs, and neither escapes the synchronous run.
 
 <!-- source: internal/component/bgp/policychain/chain.go -- Compile, Chain.Run, MustRegisterEvaluator, refuseUndeclared, overlayNumeric, overlayCommunity -->
+<!-- source: internal/component/bgp/policychain/match.go -- compileMatchEvaluator, MatchConditions, matchWalk -->
 <!-- source: internal/component/bgp/policyview/view.go -- View.SetNumber, View.SetWire, View.SetNLRI, View.AddPath -->
 <!-- source: internal/component/bgp/policychain/prefix_overlay.go -- overlayPrefix, receivedDrops -->
 <!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Chain.Only, MemberTrace.Apply, Sets.AppendText -->

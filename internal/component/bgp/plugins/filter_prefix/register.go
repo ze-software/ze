@@ -2,6 +2,7 @@ package filter_prefix
 
 import (
 	fpyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_prefix/yang"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
@@ -25,6 +26,8 @@ func init() {
 	prefixListCondition := policy.MustRegisterMatchCondition(filterTypeName,
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily}, false)
 	policy.RouteConditions.MustAdd(prefixListCondition, compileRouteCondition)
+	// The same condition at a BGP chain, judged prefix by prefix.
+	policychain.MatchConditions.MustAdd(prefixListCondition, compileBGPCondition)
 	// The match leaf naming a list completes and is checked at commit
 	// through this source (prefix_list_reference.go).
 	yang.RegisterReferenceSource(prefixListReferenceSource, prefixListReference)

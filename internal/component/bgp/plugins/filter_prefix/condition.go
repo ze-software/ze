@@ -1,5 +1,5 @@
 // Design: docs/guide/route-policy.md -- the match filter type and its conditions
-// Related: register.go -- registers the prefix-list condition
+// Related: register.go -- registers the prefix-list condition for both views
 // Related: match.go -- evaluatePrefix, the first-match walk the condition shares
 // Related: config.go -- parsePrefixListEntries, the entry parse the condition shares
 //
@@ -13,6 +13,7 @@ package filter_prefix
 import (
 	"errors"
 
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/policy"
 	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
@@ -27,6 +28,25 @@ func compileRouteCondition(value any, resolve policy.InstanceResolver) (policy.R
 		return nil, err
 	}
 	return func(r *ribpolicy.Route) (bool, error) {
+		return evaluatePrefix(entries, r.Prefix) == actionAccept, nil
+	}, nil
+}
+
+// compileBGPCondition compiles the same value into its check over one NLRI
+// prefix of a BGP UPDATE (policychain.MatchRoute): the prefix passes when the
+// list's first matching entry accepts it. The match walks the UPDATE's
+// prefixes and answers it from the per-prefix verdicts, as the list's own
+// filter does (handleFilterUpdate). An invalid prefix fails: absence is never
+// a match.
+func compileBGPCondition(value any, resolve policy.InstanceResolver) (policy.ConditionCheck[policychain.MatchRoute], error) {
+	entries, err := conditionEntries(value, resolve)
+	if err != nil {
+		return nil, err
+	}
+	return func(r *policychain.MatchRoute) (bool, error) {
+		if !r.Prefix.IsValid() {
+			return false, nil
+		}
 		return evaluatePrefix(entries, r.Prefix) == actionAccept, nil
 	}, nil
 }
