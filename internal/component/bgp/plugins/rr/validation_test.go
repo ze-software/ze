@@ -16,18 +16,16 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-type validationTestBus struct {
-	handler func(any)
-}
-
-func (b *validationTestBus) Emit(_, _ string, payload any) (int, error) {
-	b.handler(payload)
-	return 0, nil
-}
-
-func (b *validationTestBus) Subscribe(_, _ string, handler func(any)) func() {
-	b.handler = handler
-	return func() { b.handler = nil }
+// validationEvent is the bgp-rib/validation-change event as bgp-rr's SDK
+// subscription delivers it, enveloped, on either transport.
+func validationEvent(t *testing.T, routes ...ribevents.ValidationRoute) string {
+	t.Helper()
+	batch, err := json.Marshal(routes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return `{"namespace":"` + ribevents.Namespace + `","event":"` + ribevents.EventValidationChange +
+		`","payload":` + string(batch) + `}`
 }
 
 // A unicast eligibility event must reconcile its ADD-PATH identity. An RPC can
@@ -42,7 +40,7 @@ func TestValidationReplaysRetainedUnicastDuringReentrantBurst(t *testing.T) {
 	plugin := sdk.NewWithConn("rr-validation-test", rpc.NewBridgedConn(pluginEnd, bridge))
 	t.Cleanup(func() { _ = plugin.Close() })
 	calls := make(chan replayDispatchCall, 4)
-	bus := &validationTestBus{}
+	var rr *routeReflector
 	key := ribevents.ValidationRoute{
 		Peer: netip.MustParseAddr("192.0.2.1"), Family: family.IPv4Unicast,
 		Prefix: netip.MustParsePrefix("203.0.113.0/24"), PathID: 7,
@@ -52,9 +50,7 @@ func TestValidationReplaysRetainedUnicastDuringReentrantBurst(t *testing.T) {
 		if first {
 			first = false
 			for range 65 {
-				if _, err := ribevents.ValidationChange.Emit(bus, []ribevents.ValidationRoute{key}); err != nil {
-					return nil, err
-				}
+				rr.dispatchText(validationEvent(t, key))
 			}
 		}
 		calls <- replayDispatchCall{command: command, args: slices.Clone(args), peer: peer}
@@ -72,18 +68,16 @@ func TestValidationReplaysRetainedUnicastDuringReentrantBurst(t *testing.T) {
 		return nil
 	})
 	bridge.SetReady()
-	rr := &routeReflector{plugin: plugin, peers: map[string]*peerState{
+	rr = &routeReflector{plugin: plugin, peers: map[string]*peerState{
 		"192.0.2.1": {Up: true, Families: map[family.Family]bool{family.IPv4Unicast: true}},
 		"192.0.2.2": {Up: true, Families: map[family.Family]bool{family.IPv4Unicast: true}},
 		"192.0.2.3": {Up: false, Families: map[family.Family]bool{family.IPv4Unicast: true}},
 	}}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	stop := rr.startValidation(ctx, bus)
+	stop := rr.startValidation(ctx)
 	defer stop()
-	if _, err := ribevents.ValidationChange.Emit(bus, []ribevents.ValidationRoute{key}); err != nil {
-		t.Fatal(err)
-	}
+	rr.dispatchText(validationEvent(t, key))
 	for range 2 {
 		select {
 		case call := <-calls:

@@ -373,10 +373,6 @@ func RunRouteServer(conn net.Conn) int {
 	defer rs.workers.Stop()
 	defer rs.stopDepartures()
 	defer stopDown()
-	if bus := validationBus.Load(); bus != nil {
-		unsubscribe := ribevents.ValidationChange.Subscribe(*bus, rs.validationChanged)
-		defer unsubscribe()
-	}
 
 	rs.wireFlowControl()
 	defer rs.resumeAllPaused()
@@ -490,6 +486,9 @@ func RunRouteServer(conn net.Conn) int {
 	// bgp-gr's per-DOWN retention verdict, enveloped so dispatchText tells it
 	// from the BGP text events. RFC 4724 Section 4.2 (handleStateDown).
 	p.AddStartupSubscriptionsIn(retention.Namespace, []string{retention.EventType})
+	// The receive store's eligibility change, through the SDK so a forked
+	// bgp-rs hears it too: the daemon's own bus never reaches a subprocess.
+	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange})
 	p.SetEnvelope(true)
 
 	ctx := context.Background()
@@ -694,6 +693,16 @@ func (rs *routeServer) dispatchText(text string) {
 		if err := rs.retained.Record(envelope); err != nil {
 			logger().Warn("bgp-rs: retention verdict refused", "err", err)
 		}
+		return
+	}
+	// The receive store's eligibility change: the revalidation relay.
+	routes, matched, err := ribevents.DecodeValidationChange(text)
+	if err != nil {
+		logger().Warn("bgp-rs: validation-change refused", "err", err)
+		return
+	}
+	if matched {
+		rs.validationChanged(routes)
 		return
 	}
 

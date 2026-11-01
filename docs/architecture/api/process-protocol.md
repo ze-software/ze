@@ -178,10 +178,18 @@ it holds, and each peer added or accepted later, is named in an error log
 `ReadyInput.subscriptions` carries further blocks, each naming its own
 `namespace`, which the engine registers in the same step, before any event
 flows (`sdk.Plugin.AddStartupSubscriptionsIn`). `bgp-rr` and `bgp-rs` use it to
-hear `bgp-gr/retention` beside their `bgp` events. Format, encoding and
-envelope stay per process, set by the first block.
+hear `bgp-gr/retention` and `bgp-rib/validation-change` beside their `bgp`
+events, the same way internal and forked. Format, encoding and envelope stay
+per process, set by the first block.
 <!-- source: internal/component/plugin/server/startup.go -- onReady -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- AddStartupSubscriptionsIn -->
+
+A `bgp-rib/validation-change` payload is a JSON array of received paths, each
+`{"peer-address", "family", "prefix", "path-id", "nlri"}`. `nlri` is the hex of
+the native NLRI of a non-CIDR route (FlowSpec), absent for a CIDR one, and a
+path whose `nlri` is not hex refuses the whole batch
+(`ribevents.DecodeValidationChange`).
+<!-- source: internal/core/bgp/ribevents/validation.go -- ValidationRoute.MarshalJSON, DecodeValidationChange -->
 
 **Protocol version.** Every `declare-registration` carries `protocol-version`,
 the highest plugin protocol version the plugin speaks, and the engine's Stage 1

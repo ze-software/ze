@@ -7,15 +7,11 @@ import (
 	"encoding/hex"
 	"slices"
 	"strconv"
-	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"github.com/ze-software/ze/pkg/ze"
 )
-
-var validationBus atomic.Pointer[ze.EventBus]
 
 // validationChanged only queues keys. The emitting Adj-RIB-In command handler
 // cannot service a replay RPC until this callback returns, so forwarding MUST

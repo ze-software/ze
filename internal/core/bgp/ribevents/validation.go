@@ -3,11 +3,14 @@
 package ribevents
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"net/netip"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // ValidationRoute identifies a received path without its attribute bytes.
@@ -20,6 +23,44 @@ type ValidationRoute struct {
 	// ADD-PATH. FlowSpec uses FlowSpecKey's shortest length encoding.
 	// A string keeps the key comparable and owns its bytes.
 	NLRI string
+}
+
+// validationRouteJSON is ValidationRoute as a plugin-process subscriber of
+// ValidationChange receives it: kebab-case keys, and the NLRI as hex, because
+// JSON replaces bytes that are not valid UTF-8 and a FlowSpec key is binary.
+type validationRouteJSON struct {
+	Peer   netip.Addr    `json:"peer-address"`
+	Family family.Family `json:"family"`
+	Prefix netip.Prefix  `json:"prefix"`
+	PathID uint32        `json:"path-id"`
+	NLRI   string        `json:"nlri,omitempty"`
+}
+
+// MarshalJSON writes the route in the form validationRouteJSON names.
+func (r ValidationRoute) MarshalJSON() ([]byte, error) {
+	return json.Marshal(validationRouteJSON{
+		Peer:   r.Peer,
+		Family: r.Family,
+		Prefix: r.Prefix,
+		PathID: r.PathID,
+		NLRI:   hex.EncodeToString([]byte(r.NLRI)),
+	})
+}
+
+// UnmarshalJSON reads the form MarshalJSON writes. An nlri that is not hex
+// refuses the route, so a decoder never invents a key; r changes only on
+// success.
+func (r *ValidationRoute) UnmarshalJSON(data []byte) error {
+	var wire validationRouteJSON
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	nlri, err := hex.DecodeString(wire.NLRI)
+	if err != nil {
+		return err
+	}
+	*r = ValidationRoute{Peer: wire.Peer, Family: wire.Family, Prefix: wire.Prefix, PathID: wire.PathID, NLRI: string(nlri)}
+	return nil
 }
 
 // ValidationLookup reads the authoritative Adj-RIB-In eligibility. A zero msgID
@@ -86,3 +127,29 @@ const EventValidationChange = "validation-change"
 // MUST emit after releasing the receive-store lock. Consumers MUST re-read the
 // gate rather than trusting event order; independent plugin delivery can race.
 var ValidationChange = events.Register[[]ValidationRoute](Namespace, EventValidationChange)
+
+// DecodeValidationChange reads an enveloped delivered event: matched reports
+// whether it is the ValidationChange event, and err refuses a batch that does
+// not decode, so a consumer never acts on half a batch. A plugin process
+// subscribed to ValidationChange through the SDK (AddStartupSubscriptionsIn
+// with SetEnvelope) receives it this way on both transports, where the
+// typed Subscribe reaches only a subscriber holding the daemon's own bus.
+func DecodeValidationChange(delivered string) (routes []ValidationRoute, matched bool, err error) {
+	if delivered == "" || delivered[0] != '{' {
+		return nil, false, nil
+	}
+	envelope, err := rpc.ParseEventEnvelope(delivered)
+	if err != nil {
+		return nil, false, nil //nolint:nilerr // a text event is not an envelope: not this event, nothing refused
+	}
+	if envelope.Namespace != Namespace {
+		return nil, false, nil
+	}
+	if envelope.Event != EventValidationChange {
+		return nil, false, nil
+	}
+	if err := json.Unmarshal(envelope.Payload, &routes); err != nil {
+		return nil, true, err
+	}
+	return routes, true, nil
+}

@@ -9,15 +9,11 @@ import (
 	"errors"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"github.com/ze-software/ze/pkg/ze"
 )
-
-var validationBus atomic.Pointer[ze.EventBus]
 
 // validationQueue is the reflector's revalidation worker state: notifications
 // coalesce by received path in pending while the worker performs RPC, and a
@@ -44,11 +40,10 @@ func (q *validationQueue) signal() {
 
 // startValidation MUST be paired with the returned stop function before closing
 // the SDK connection, and MUST be called before the source-policy worker runs
-// (before Run): it publishes the queue settleValidation reads. Notifications
-// coalesce by received path while the worker performs RPC. The callback MUST
-// NOT wait for that worker: its RPC may need the same receive-store command
-// handler that is publishing the notification.
-func (rr *routeReflector) startValidation(parent context.Context, bus ze.EventBus) func() {
+// and before Run: it publishes the queue settleValidation and
+// validationChanged read. Notifications coalesce by received path while the
+// worker performs RPC.
+func (rr *routeReflector) startValidation(parent context.Context) func() {
 	ctx, cancel := context.WithCancel(parent)
 	q := &validationQueue{
 		pending: make(map[ribevents.ValidationRoute]struct{}),
@@ -56,20 +51,28 @@ func (rr *routeReflector) startValidation(parent context.Context, bus ze.EventBu
 		done:    make(chan struct{}),
 	}
 	rr.validation = q
-	unsubscribe := ribevents.ValidationChange.Subscribe(bus, func(routes []ribevents.ValidationRoute) {
-		q.mu.Lock()
-		for _, route := range routes {
-			q.pending[route] = struct{}{}
-		}
-		q.mu.Unlock()
-		q.signal()
-	})
 	go rr.runValidation(ctx, q)
 	return func() {
 		cancel()
-		unsubscribe()
 		<-q.done
 	}
+}
+
+// validationChanged queues a bgp-rib/validation-change batch for the worker
+// and returns. It MUST NOT wait for that worker: the worker's RPC may need the
+// receive-store command handler that published the notification.
+func (rr *routeReflector) validationChanged(routes []ribevents.ValidationRoute) {
+	q := rr.validation
+	if q == nil {
+		logger().Warn("bgp-rr: validation-change before the revalidation worker started, dropped", "routes", len(routes))
+		return
+	}
+	q.mu.Lock()
+	for _, route := range routes {
+		q.pending[route] = struct{}{}
+	}
+	q.mu.Unlock()
+	q.signal()
 }
 
 // runValidation is the revalidation worker startValidation starts: it relays
@@ -106,7 +109,7 @@ func (rr *routeReflector) runValidation(ctx context.Context, q *validationQueue)
 // source-policy phase runs at a time, so at most one barrier waits.
 func (rr *routeReflector) settleValidation(ctx context.Context) error {
 	q := rr.validation
-	// refuse-by-default: guards startValidation -- with no event bus no worker was started, so no revalidation can be queued
+	// refuse-by-default: guards startValidation -- before it runs no worker exists, so no revalidation can be queued
 	if q == nil {
 		return nil
 	}

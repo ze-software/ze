@@ -82,7 +82,7 @@ func (e *spEngine) take() []string {
 // DirectBridge, with its revalidation worker running and the three peers up
 // for IPv4 unicast; the source holds 10.1.0.0/24 and 10.2.0.0/24, the other
 // source 10.1.0.0/24, all admitted at epoch 5.
-func newSourcePolicyReflector(t *testing.T) (*routeReflector, *spEngine, *validationTestBus) {
+func newSourcePolicyReflector(t *testing.T) (*routeReflector, *spEngine) {
 	t.Helper()
 	engine := &spEngine{entered: make(chan string, 16)}
 	bridge := rpc.NewDirectBridge()
@@ -128,15 +128,14 @@ func newSourcePolicyReflector(t *testing.T) (*routeReflector, *spEngine, *valida
 				"ipv4/unicast|10.1.0.0/24": {Family: family.IPv4Unicast, Prefix: "prefix 10.1.0.0/24", SourcePolicyEpoch: 5},
 			},
 		}}
-	bus := &validationTestBus{}
 	ctx, cancel := context.WithCancel(context.Background())
-	stop := rr.startValidation(ctx, bus)
+	stop := rr.startValidation(ctx)
 	t.Cleanup(func() {
 		cancel()
 		stop()
 	})
 	t.Cleanup(rr.stopDepartures)
-	return rr, engine, bus
+	return rr, engine
 }
 
 // spInput is one lifecycle request of transaction tx for the source,
@@ -185,7 +184,7 @@ func spSameEpochs(t *testing.T, what string, got, want map[string]uint64) {
 // PREVENTS: the removed relays coming back, which sent duplicate UPDATEs and
 // destroyed the released receipt bgp-rib's abort needs at ADD-PATH clients.
 func TestRFC8212RouteReflectorWritesNothingDownstream(t *testing.T) {
-	rr, engine, _ := newSourcePolicyReflector(t)
+	rr, engine := newSourcePolicyReflector(t)
 	for _, step := range []struct {
 		tx   string
 		op   rpc.SourcePolicyOperation
@@ -200,7 +199,7 @@ func TestRFC8212RouteReflectorWritesNothingDownstream(t *testing.T) {
 			t.Fatalf("%s operation %d: %v", step.tx, step.op, err)
 		}
 	}
-	rr, engine2, _ := newSourcePolicyReflector(t)
+	rr, engine2 := newSourcePolicyReflector(t)
 	for _, step := range []struct {
 		op   rpc.SourcePolicyOperation
 		next uint64
@@ -225,7 +224,7 @@ func TestRFC8212RouteReflectorWritesNothingDownstream(t *testing.T) {
 // PREVENTS: a denial that loses the routes an abort must restore, and a
 // finalize that keeps denied state a later departure would withdraw again.
 func TestRFC8212RouteReflectorApplyKeepsFinalizeDrops(t *testing.T) {
-	rr, _, _ := newSourcePolicyReflector(t)
+	rr, _ := newSourcePolicyReflector(t)
 	if err := spPhase(rr, rpc.SourcePolicyPrepare, 0); err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +270,7 @@ func TestRFC8212RouteReflectorApplyKeepsFinalizeDrops(t *testing.T) {
 // denied.
 func TestRFC8212RouteReflectorAbortTargets(t *testing.T) {
 	t.Run("zero before apply", func(t *testing.T) {
-		rr, _, _ := newSourcePolicyReflector(t)
+		rr, _ := newSourcePolicyReflector(t)
 		if err := spPhase(rr, rpc.SourcePolicyPrepare, 0); err != nil {
 			t.Fatal(err)
 		}
@@ -293,7 +292,7 @@ func TestRFC8212RouteReflectorAbortTargets(t *testing.T) {
 			name = "target from prepare"
 		}
 		t.Run(name, func(t *testing.T) {
-			rr, _, _ := newSourcePolicyReflector(t)
+			rr, _ := newSourcePolicyReflector(t)
 			if err := spPhase(rr, rpc.SourcePolicyPrepare, 0); err != nil {
 				t.Fatal(err)
 			}
@@ -329,13 +328,13 @@ func TestRFC8212RouteReflectorAbortTargets(t *testing.T) {
 // PREVENTS: pins taken for a source the reflector cannot act for, and a
 // valid reload refused for a family the owner never re-decides.
 func TestRFC8212RouteReflectorRefusals(t *testing.T) {
-	rr, _, _ := newSourcePolicyReflector(t)
+	rr, _ := newSourcePolicyReflector(t)
 	rr.peers[spSource].Up = false
 	err := spPhase(rr, rpc.SourcePolicyPrepare, 0)
 	if err == nil || !strings.Contains(err.Error(), spSource) || !strings.Contains(err.Error(), "no established session") {
 		t.Fatalf("prepare of a down source: %v", err)
 	}
-	rr, _, _ = newSourcePolicyReflector(t)
+	rr, _ = newSourcePolicyReflector(t)
 	rr.withdrawals[spSource]["ipv4/unicast|10.3.0.0/24"] = withdrawalInfo{Family: family.IPv4Unicast, SourcePolicyEpoch: 6}
 	err = spPhase(rr, rpc.SourcePolicyPrepare, 0)
 	if err == nil || !strings.Contains(err.Error(), spSource) || !strings.Contains(err.Error(), "capture the source again") {
@@ -344,7 +343,7 @@ func TestRFC8212RouteReflectorRefusals(t *testing.T) {
 	if rr.sourcePolicy[spSource] != nil {
 		t.Fatal("a refused prepare installed a transaction")
 	}
-	rr, _, _ = newSourcePolicyReflector(t)
+	rr, _ = newSourcePolicyReflector(t)
 	if err := spPhase(rr, rpc.SourcePolicyPrepare, 0); err != nil {
 		t.Fatal(err)
 	}
@@ -359,7 +358,7 @@ func TestRFC8212RouteReflectorRefusals(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), spSource) || !strings.Contains(err.Error(), "tx1") {
 		t.Fatalf("prepare of a source another applied transaction holds: %v", err)
 	}
-	rr, _, _ = newSourcePolicyReflector(t)
+	rr, _ = newSourcePolicyReflector(t)
 	flowspec := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	rr.withdrawals[spSource]["ipv4/flowspec|x"] = withdrawalInfo{Family: flowspec, WireForm: true, SourcePolicyEpoch: 5}
 	if err := spPhase(rr, rpc.SourcePolicyPrepare, 0); err != nil {
@@ -380,8 +379,8 @@ func TestRFC8212RouteReflectorRefusals(t *testing.T) {
 // PREVENTS: a receipt sent while a forward or relay of the source is still on
 // its way, which the coordinator's writer join would not see.
 func TestRFC8212RouteReflectorPhasesSettleWork(t *testing.T) {
-	work := map[string]func(*routeReflector, *validationTestBus) error{
-		"departure": func(rr *routeReflector, _ *validationTestBus) error {
+	work := map[string]func(*testing.T, *routeReflector) error{
+		"departure": func(_ *testing.T, rr *routeReflector) error {
 			if !rr.enqueueDeparture(netip.MustParseAddr(spSource), map[string]withdrawalInfo{
 				"ipv4/unicast|10.9.0.0/24": {Family: family.IPv4Unicast, Prefix: "prefix 10.9.0.0/24", Generation: 2},
 			}) {
@@ -389,16 +388,16 @@ func TestRFC8212RouteReflectorPhasesSettleWork(t *testing.T) {
 			}
 			return nil
 		},
-		"forward": func(rr *routeReflector, _ *validationTestBus) error {
+		"forward": func(_ *testing.T, rr *routeReflector) error {
 			go rr.dispatchText("peer " + spSource + " remote as 65001 received update 100 source-policy-epoch 5 " +
 				"origin igp next " + spSource + " nlri ipv4/unicast add 10.4.0.0/24\n")
 			return nil
 		},
-		"validation": func(_ *routeReflector, bus *validationTestBus) error {
-			_, err := ribevents.ValidationChange.Emit(bus, []ribevents.ValidationRoute{{
+		"validation": func(t *testing.T, rr *routeReflector) error {
+			rr.dispatchText(validationEvent(t, ribevents.ValidationRoute{
 				Peer: netip.MustParseAddr(spSource), Family: family.IPv4Unicast,
-				Prefix: netip.MustParsePrefix("10.1.0.0/24")}})
-			return err
+				Prefix: netip.MustParsePrefix("10.1.0.0/24")}))
+			return nil
 		},
 	}
 	phases := []struct {
@@ -414,7 +413,7 @@ func TestRFC8212RouteReflectorPhasesSettleWork(t *testing.T) {
 	for kind, start := range work {
 		for _, phase := range phases {
 			t.Run(kind+"/"+phase.name, func(t *testing.T) {
-				rr, engine, bus := newSourcePolicyReflector(t)
+				rr, engine := newSourcePolicyReflector(t)
 				for _, op := range phase.before {
 					next := uint64(0)
 					if op == rpc.SourcePolicyApply {
@@ -426,7 +425,7 @@ func TestRFC8212RouteReflectorPhasesSettleWork(t *testing.T) {
 				}
 				release := engine.arm()
 				t.Cleanup(release)
-				if err := start(rr, bus); err != nil {
+				if err := start(t, rr); err != nil {
 					t.Fatal(err)
 				}
 				select {
@@ -463,7 +462,7 @@ func TestRFC8212RouteReflectorPhasesSettleWork(t *testing.T) {
 // PREVENTS: a phase that hangs past its deadline, or pins over a route set a
 // departure is still changing.
 func TestRFC8212RouteReflectorSettleRefusesAtDeadline(t *testing.T) {
-	rr, engine, _ := newSourcePolicyReflector(t)
+	rr, engine := newSourcePolicyReflector(t)
 	release := engine.arm()
 	t.Cleanup(release)
 	if !rr.enqueueDeparture(netip.MustParseAddr(spSource), map[string]withdrawalInfo{

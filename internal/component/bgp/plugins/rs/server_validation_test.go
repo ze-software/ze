@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -444,5 +445,45 @@ func TestFlowSpecValidationDroppedWhenSourceGoesDown(t *testing.T) {
 	}
 	if parked := f.rs.workerBatch(f.key).parked; len(parked) != 0 {
 		t.Fatalf("source down left %d parked validations behind", len(parked))
+	}
+}
+
+// validationEvent is the bgp-rib/validation-change event as bgp-rs's SDK
+// subscription delivers it, enveloped, on either transport.
+func validationEvent(t *testing.T, routes ...ribevents.ValidationRoute) string {
+	t.Helper()
+	batch, err := json.Marshal(routes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return `{"namespace":"` + ribevents.Namespace + `","event":"` + ribevents.EventValidationChange +
+		`","payload":` + string(batch) + `}`
+}
+
+// TestValidationChangeArrivesThroughEventDelivery proves the revalidation
+// relay starts from the event delivery bgp-rs receives on both transports
+// (D-13), not from a daemon-only bus handle a forked process never holds.
+// Method: deliver the enveloped event through dispatchText, the handler the
+// SDK calls, and observe the retained-path replay the worker asks for.
+// PREVENTS: a forked bgp-rs that never relays an RPKI revalidation (AC-17).
+func TestValidationChangeArrivesThroughEventDelivery(t *testing.T) {
+	rs := newTestRouteServer(t)
+	source := "10.0.0.1"
+	target := "10.0.0.2"
+	rs.peers[source] = &PeerState{Address: source, Up: true}
+	rs.peers[target] = &PeerState{Address: target, Up: true}
+	var replayed []string
+	rs.dispatchCommandHook = func(command string, args []string, _ string) (string, json.RawMessage, error) {
+		replayed = append(replayed, command+" "+strings.Join(args, " "))
+		return statusDone, json.RawMessage(`{"routes":[],"last-index":0,"more":false}`), nil
+	}
+	rs.dispatchText(validationEvent(t, ribevents.ValidationRoute{
+		Peer: netip.MustParseAddr(source), Family: family.IPv4Unicast,
+		Prefix: netip.MustParsePrefix("192.0.2.0/24"), PathID: 7,
+	}))
+	rs.workers.Stop()
+	want := ribevents.ReplayPathCommand + " " + target + " " + source + " ipv4/unicast 192.0.2.0/24 7"
+	if !slices.Equal(replayed, []string{want}) {
+		t.Fatalf("replays = %q, want %q", replayed, want)
 	}
 }

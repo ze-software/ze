@@ -33,7 +33,7 @@ func (settledAtDeadline) Err() error { return context.DeadlineExceeded }
 // PREVENTS: a late prepare recording StagePrepared that refuses every later
 // transaction for the source until its session drops.
 func TestRFC8212PrepareTimeoutDoesNotLockSource(t *testing.T) {
-	rr, _, _ := newSourcePolicyReflector(t)
+	rr, _ := newSourcePolicyReflector(t)
 	input := func(tx string, op rpc.SourcePolicyOperation) rpc.SourcePolicyInput {
 		in := rpc.SourcePolicyInput{TransactionID: tx, Operation: op,
 			Source: rpc.SourcePolicyIdentity{Peer: spSource, PeerOwner: 1, SessionGeneration: 3,

@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/pkg/ze"
 )
 
 // appendOriginatorIDJSON renders ORIGINATOR_ID as the address it is.
@@ -88,9 +87,6 @@ func init() {
 		FencesLiveForwards: true,
 		RunEngine:          runRouteReflector,
 		Commands:           commandDecls(),
-		ConfigureEventBus: func(bus ze.EventBus) {
-			validationBus.Store(&bus)
-		},
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

@@ -11,7 +11,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/pkg/ze"
 )
 
 func init() {
@@ -78,9 +77,6 @@ func init() {
 		RelaysOnRSFastPath: true,
 		RunEngine:          RunRouteServer,
 		Commands:           commandDecls(),
-		ConfigureEventBus: func(bus ze.EventBus) {
-			validationBus.Store(&bus)
-		},
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},
