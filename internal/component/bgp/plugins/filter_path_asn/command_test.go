@@ -17,10 +17,12 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// showConfig is two lists and three chain references, written the three ways an
-// operator can write one: the bare name, the filter-type form and the plugin
-// form. All three name the same list, which is what the attachment counts have
-// to see through.
+// showConfig is two lists, a match instance for each, and three chain
+// references. A chain reaches a reject-asn list only through a match instance
+// whose reject-asn condition names it, so every reference names
+// guard-transit, and the counts have to see through it to NO-TRANSIT.
+// guard-unused names UNUSED and no chain names guard-unused, so a defined match
+// instance alone attaches nothing.
 const showConfig = `
 bgp {
     router-id 1.2.3.4;
@@ -44,8 +46,8 @@ bgp {
             }
         }
         filter {
-            import { filters [ NO-TRANSIT ]; final accept; }
-            export { filters [ reject-asn:NO-TRANSIT ]; final accept; }
+            import { filters [ guard-transit ]; final accept; }
+            export { filters [ guard-transit ]; final accept; }
         }
     }
     peer peer-b {
@@ -63,7 +65,7 @@ bgp {
             }
         }
         filter {
-            import { filters [ bgp-filter-path-asn:NO-TRANSIT ]; final accept; }
+            import { filters [ guard-transit ]; final accept; }
         }
     }
 }
@@ -77,6 +79,12 @@ policy {
     reject-asn UNUSED {
         anywhere [ 6939 ]
         nth 2 [ 3491 ]
+    }
+    match guard-transit {
+        reject-asn NO-TRANSIT
+    }
+    match guard-unused {
+        reject-asn UNUSED
     }
 }
 `
@@ -207,17 +215,18 @@ func TestShowPrintsEffectivePositionPerASN(t *testing.T) {
 // safety filter, which is the same failure the parse refuses for an empty list.
 // The parse cannot see peers, so the count is what surfaces it here.
 //
-// VALIDATES: AC-24's peer counts, over all three spellings of a chain reference.
-// PREVENTS: a count that reads only the bare form, which would report zero for
-// an operator who wrote reject-asn:NAME and let them believe the list is inert.
+// VALIDATES: AC-24's peer counts, through the match instance a chain names.
+// PREVENTS: a count that reads the chain member as the list name, which would
+// report zero for every list a chain reaches through match, and let the
+// operator believe the list is inert.
 func TestShowCountsPeersPerDirection(t *testing.T) {
 	deliverShowConfig(t)
 
 	answer := answerOf(t, cmdShowRejectASN)
 
 	attached := listNamed(t, answer, "NO-TRANSIT")
-	assert.Equal(t, float64(2), attached["import-peers"], "peer-a bare, peer-b through the plugin form")
-	assert.Equal(t, float64(1), attached["export-peers"], "peer-a through the filter-type form")
+	assert.Equal(t, float64(2), attached["import-peers"], "peer-a and peer-b through guard-transit")
+	assert.Equal(t, float64(1), attached["export-peers"], "peer-a through guard-transit")
 
 	unused := listNamed(t, answer, "UNUSED")
 	assert.Equal(t, float64(0), unused["import-peers"], "a list no chain names is attached to nothing")
@@ -377,14 +386,20 @@ func TestShowPrintsNthPositions(t *testing.T) {
 
 // TestAttachmentCountsPreserveFinalOnlyPolicies distinguishes an empty policy
 // from its final and still counts references beneath an explicit rejecting final.
+// The chain names guard-transit, the match instance whose reject-asn condition
+// names NO-TRANSIT, which is the only way a chain reaches a list, so the count
+// lands on the list and never on the instance name.
 func TestAttachmentCountsPreserveFinalOnlyPolicies(t *testing.T) {
+	policyCfg := map[string]any{"match": map[string]any{
+		"guard-transit": map[string]any{"reject-asn": "NO-TRANSIT"},
+	}}
 	cfg := map[string]any{"peer": map[string]any{"edge": map[string]any{
 		"filter": map[string]any{
 			"import": map[string]any{"final": "reject"},
-			"export": map[string]any{"filters": []string{"NO-TRANSIT"}, "final": "reject"},
+			"export": map[string]any{"filters": []string{"guard-transit"}, "final": "reject"},
 		},
 	}}}
-	counts := countAttachments(nil, cfg)
+	counts := countAttachments(policyCfg, cfg)
 	if len(counts) != 1 {
 		t.Fatalf("attachment names = %+v, want only NO-TRANSIT", counts)
 	}
@@ -396,27 +411,35 @@ func TestAttachmentCountsPreserveFinalOnlyPolicies(t *testing.T) {
 // TestShowCountsDynamicTemplateAttachments delivers real config and reads the
 // command answer: a template counts once, separately from its named member and
 // a standalone peer with the same name as the group. Repeated references at
-// different levels must not count one visit twice.
+// different levels must not count one visit twice. Every chain names
+// guard-used, the match instance whose reject-asn condition names USED, as the
+// config tree delivers it; guard-unused names UNUSED and no chain names it.
 func TestShowCountsDynamicTemplateAttachments(t *testing.T) {
 	held := installedRejectASN.Load()
 	t.Cleanup(func() { installedRejectASN.Store(held) })
-	err := configure([]sdk.ConfigSection{{Root: policy.RootName, Data: `{"policy":{"reject-asn":{
-		"USED":{"anywhere":["6939"]},
-		"UNUSED":{"anywhere":["174"]}
-	}}}`}, {Root: configRootBGP, Data: `{"bgp":{
+	err := configure([]sdk.ConfigSection{{Root: policy.RootName, Data: `{"policy":{
+		"reject-asn":{
+			"USED":{"anywhere":["6939"]},
+			"UNUSED":{"anywhere":["174"]}
+		},
+		"match":{
+			"guard-used":{"reject-asn":"USED"},
+			"guard-unused":{"reject-asn":"UNUSED"}
+		}
+	}}`}, {Root: configRootBGP, Data: `{"bgp":{
 		"peer":{"ix":{
 			"connection":{"remote":{"ip":"198.51.100.1"}},
-			"filter":{"import":{"filters":["USED"],"final":"accept"}}
+			"filter":{"import":{"filters":["guard-used"],"final":"accept"}}
 		}},
 		"group":{"ix":{
 			"connection":{"remote":{"ip":"dynamic","range":["192.0.2.0/24"]}},
 			"filter":{
-				"import":{"filters":["bgp-filter-path-asn:USED"],"final":"accept"},
-				"export":{"filters":["reject-asn:USED"],"final":"reject"}
+				"import":{"filters":["guard-used"],"final":"accept"},
+				"export":{"filters":["guard-used"],"final":"reject"}
 			},
 			"peer":{"named":{
 				"connection":{"remote":{"ip":"192.0.2.7"}},
-				"filter":{"import":{"filters":["USED"],"final":"accept"}}
+				"filter":{"import":{"filters":["guard-used"],"final":"accept"}}
 			}}
 		}}
 	}}`}})
@@ -440,32 +463,96 @@ func TestShowCountsDynamicTemplateAttachments(t *testing.T) {
 	}
 }
 
+// matchConditionConfig is one list reached through two match instances, and
+// two peers. Peer a names guard-used on import and on export. Peer b names both
+// instances on import, so it reaches USED twice, and names guard-used on export
+// only as a deactivated member.
+const matchConditionConfig = `
+bgp {
+    router-id 1.2.3.4;
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer a {
+        connection {
+            remote {
+                ip 198.51.100.1
+            }
+            local {
+                ip auto
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+        filter {
+            import { filters [ guard-used ]; final accept; }
+            export { filters [ guard-used ]; final accept; }
+        }
+    }
+    peer b {
+        connection {
+            remote {
+                ip 198.51.100.2
+            }
+            local {
+                ip auto
+            }
+        }
+        session {
+            asn {
+                remote 65002
+            }
+        }
+        filter {
+            import { filters [ guard-used guard-also ]; final accept; }
+            export {
+                filters [ guard-used ];
+                inactive: filters guard-used;
+                final accept;
+            }
+        }
+    }
+}
+policy {
+    reject-asn USED {
+        anywhere [ 6939 ]
+    }
+    match guard-used {
+        reject-asn USED
+    }
+    match guard-also {
+        reject-asn USED
+    }
+}
+`
+
 // TestShowCountsMatchConditionAttachments proves a chain naming a match
 // instance whose reject-asn condition names a list counts as an attachment of
-// that list, as a chain naming the list does: the match is how a chain now
-// reaches the list. Method: real config through configure, read back through
-// the show command. A peer naming the list both ways counts once.
+// that list: the match is how a chain reaches the list. A peer reaching one
+// list through two instances counts once. A deactivated reference is not an
+// attachment: the filter never runs for that session, and the config a plugin
+// receives (Tree.ToPluginMap) carries no deactivated leaf-list member, so the
+// show answer says the list is inert for it. Method: real config parsed
+// against the YANG, delivered through configure, read back through the show
+// command.
 func TestShowCountsMatchConditionAttachments(t *testing.T) {
 	held := installedRejectASN.Load()
 	t.Cleanup(func() { installedRejectASN.Store(held) })
-	err := configure([]sdk.ConfigSection{{Root: policy.RootName, Data: `{"policy":{
-		"reject-asn":{"USED":{"anywhere":["6939"]}},
-		"match":{"guard-used":{"reject-asn":"USED"}}
-	}}`}, {Root: configRootBGP, Data: `{"bgp":{"peer":{
-		"a":{"connection":{"remote":{"ip":"198.51.100.1"}},
-			"filter":{"import":{"filters":["guard-used"],"final":"accept"}}},
-		"b":{"connection":{"remote":{"ip":"198.51.100.2"}},
-			"filter":{"import":{"filters":["guard-used","USED"],"final":"accept"},
-				"export":{"filters":["inactive:guard-used"],"final":"accept"}}}
-	}}}`}})
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	tree, err := config.ParseTreeWithYANG(matchConditionConfig, nil)
+	require.NoError(t, err, "the config must parse against the registered YANG")
+	require.NoError(t, configure(treeSections(t, tree)))
+
 	used := listNamed(t, answerOf(t, cmdShowRejectASN), "USED")
 	if got := used["import-peers"]; got != float64(2) {
 		t.Errorf("import attachments = %v, want both peers, b once", got)
 	}
 	if got := used["export-peers"]; got != float64(1) {
-		t.Errorf("export attachments = %v, want peer b", got)
+		t.Errorf("export attachments = %v, want peer a only: b's reference is deactivated", got)
 	}
 }

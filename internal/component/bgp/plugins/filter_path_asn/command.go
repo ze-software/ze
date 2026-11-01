@@ -63,6 +63,14 @@ type attachment struct {
 // (instanceName); a peer reaching one list through several instances or levels
 // counts once.
 //
+// A deactivated chain member is not an attachment: the filter never runs for
+// that session, so the list is inert for it, which is what the counts exist to
+// show. The plugin's config never carries one (Tree.ToPluginMap emits only
+// active leaf-list members), so nothing here has to skip it. The RFC 9234
+// obligation check reads the tree itself and does count one
+// (chainDischarges), because there the reference records the operator's
+// decision rather than a filter that runs.
+//
 // A dynamic group's template counts as one attachment. Its members do not exist
 // in the config document (configjson.ForEachPeer), so the template is the only
 // thing there is to count, and reporting zero for a listen-range group would say

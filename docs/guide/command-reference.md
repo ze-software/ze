@@ -2972,7 +2972,7 @@ unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `show bgp reject-asn` | read-only | Every reject-asn list: each ASN with its effective position set, the network the curated table names for it, and the peers that name the list on import and on export |
+| `show bgp reject-asn` | read-only | Every reject-asn list: each ASN with its effective position set, the network the curated table names for it, and the peers whose import and export chains reach the list through a match instance, a deactivated reference not counted |
 | `show bgp reject-asn name <name>` | read-only | The same answer for one list |
 | `show bgp reject-asn known transit-free` | read-only | Print the well-known transit-free ASNs as an `indirect [ ... ];` block to paste inside a `reject-asn` list, with the sources and the curated date as comments <!-- source: internal/component/bgp/plugins/filter_path_asn/command.go -- handleCommand, showRejectASN, showRejectASNName, showKnownTransitFree --> |
 
