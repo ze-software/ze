@@ -56,9 +56,17 @@ redistribute {
 // tested is gone: a family is now a match filter's condition.)
 //
 // VALIDATES: A-5 -- making the error fatal has to be judged on both error
-// paths, not on the one the YANG validator already guards.
+// paths, not on the one the YANG validator already guards. V4 is defined, so
+// the `redistribute import filter` validator accepts the name and the load
+// reaches the "no final" refusal this test names, not "unknown filter".
 func TestUnknownRedistributeFamilyRefusesLoad(t *testing.T) {
 	_, err := loadReactor(redistConfig(`
+policy {
+    match V4 {
+        family [ ipv4/unicast ]
+    }
+}
+
 redistribute {
     destination bgp {
         import connected {
