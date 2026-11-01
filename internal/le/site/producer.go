@@ -112,6 +112,7 @@ func writeNamedArtifact(output, name, content string) error {
 // build writes turns the check red, which is the correct answer: either the
 // producer is missing or the name is wrong.
 var namedArtifacts = []string{
+	artifactIgnoreFile,
 	"assets/header.html",
 	blogFeedDest,
 	catalogFile,

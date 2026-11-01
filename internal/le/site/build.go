@@ -138,6 +138,9 @@ func Build(options BuildOptions) (BuildReport, error) {
 	if err := removeSourceOnly(paths.Output); err != nil {
 		return BuildReport{}, err
 	}
+	if err := writeArtifactIgnore(paths.Output); err != nil {
+		return BuildReport{}, err
+	}
 	published := buildClock()
 	unstamped, err := stampArtifact(paths.Output, published)
 	if err != nil {

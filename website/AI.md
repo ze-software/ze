@@ -7,6 +7,13 @@ Published site: landing page + talks. `./le site build` builds the Pages artifac
 Website sources live in `website/` on the main branch.
 All `../gh-pages` content MUST be generated from this repository.
 `./le site build` replaces that worktree with the publishable artifact and keeps `.git`.
+It writes the artifact's own root `.gitignore` (`tmp/` and `.DS_Store`), which keeps
+the commit scripts and logs sessions leave in that checkout off the published branch.
+`website/.gitignore` is source and never ships: the build deletes any staged copy
+before it writes the artifact's list (`internal/le/site/artifactignore.go`).
+<!-- source: internal/le/site/artifactignore.go -- artifactIgnoreContent, writeArtifactIgnore -->
+<!-- source: internal/le/site/build.go -- Build -->
+
 It reuses the existing demo artifacts unless the checked-in tape definitions changed.
 Use `./le site terminal-demo render all` to force new demo artifacts.
 A recording runs in a container this repository builds, so run
@@ -141,7 +148,10 @@ a stale recorded run; `./le site build refresh` re-records those first
   route two producers wrote, where registration order alone decides which
   content a reader sees. `./le site check` exits 1 on FOUR conditions, not one:
   a published source-only path, a public route with no Markdown mirror, a named
-  artifact that is absent or empty, and a red `Coverage`. It takes the same
+  artifact that is absent or empty, and a red `Coverage`. The root `.gitignore`
+  is the one source-only name the artifact may carry, and only while it holds
+  exactly the artifact's own list; any other content there is the source file
+  leaking, and `publishedSourceOnly` reports it. It takes the same
   `output <directory>` keyword the build takes, so a session can check the
   artifact it just built rather than only the published tree.
 - **Command surfaces.** Three producers in `internal/le/site` publish them from

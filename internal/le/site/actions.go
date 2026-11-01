@@ -135,25 +135,7 @@ func runCheck(arguments leaction.Arguments) (any, int) {
 		return nil, 2
 	}
 	report := checkReport{Output: paths.Output}
-	err = filepath.WalkDir(paths.Output, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if path == paths.Output {
-			return nil
-		}
-		relative, relErr := filepath.Rel(paths.Output, path)
-		if relErr != nil {
-			return relErr
-		}
-		if isSourceOnly(relative) {
-			report.SourceOnly = append(report.SourceOnly, filepath.ToSlash(relative))
-			if entry.IsDir() {
-				return filepath.SkipDir
-			}
-		}
-		return nil
-	})
+	report.SourceOnly, err = publishedSourceOnly(paths.Output)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
