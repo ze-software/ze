@@ -5,9 +5,11 @@ package fixture
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -21,7 +23,15 @@ const (
 	// peers are done: each peer sends one route fakefilter accepts and one it
 	// rejects.
 	filterThirdpartyRoutesWant = 2
+	// filterThirdpartyRejected is the prefix both peers send and fakefilter
+	// rejects (the .ci sets ze_fakefilter_reject_prefix to it).
+	filterThirdpartyRejected = "10.99.0.0/24"
 )
+
+// filterThirdpartyAccepted names the route each transport accepted: peer1's,
+// judged through the internal copy's slot, and peer2's, judged by the forked
+// copy over the batch.
+var filterThirdpartyAccepted = []string{"10.0.0.0/24", "10.1.0.0/24"}
 
 // filterWireThirdpartyCompiledIn waits for every peer's End-of-RIB, which a
 // session counts only after the import verdict of every UPDATE before it, so
@@ -48,9 +58,38 @@ func filterWireThirdpartyCompiledIn(ctx context.Context, args []string) error {
 			return fmt.Errorf("the RIB holds %d routes, want %d: a fakefilter verdict was not applied on one transport",
 				count, filterThirdpartyRoutesWant)
 		}
+		rib, err := ribReceivedText(ctx, p)
+		if err != nil {
+			return err
+		}
+		for _, prefix := range filterThirdpartyAccepted {
+			if !strings.Contains(rib, `"`+prefix+`"`) {
+				return fmt.Errorf("the RIB lacks %s, which fakefilter accepts: %.400s", prefix, rib)
+			}
+		}
+		if strings.Contains(rib, `"`+filterThirdpartyRejected+`"`) {
+			return fmt.Errorf("the RIB holds %s, which fakefilter rejects: %.400s", filterThirdpartyRejected, rib)
+		}
 		os.Stderr.WriteString("OK: the RIB holds the 2 routes fakefilter accepted, none it rejected\n") //nolint:errcheck // stderr write; the runner reads it
 		return nil
 	})
+}
+
+// ribReceivedText answers the received RIB as JSON text, for a search by
+// prefix.
+func ribReceivedText(ctx context.Context, p *sdk.Plugin) (string, error) {
+	status, value, err := dispatchValue(ctx, p, "show bgp rib received")
+	if err != nil {
+		return "", fmt.Errorf("show bgp rib received: %w", err)
+	}
+	if status != statusDone {
+		return "", fmt.Errorf("show bgp rib received answered status %s", status)
+	}
+	text, err := json.Marshal(value)
+	if err != nil {
+		return "", fmt.Errorf("show bgp rib received: encode the answer: %w", err)
+	}
+	return string(text), nil
 }
 
 // everyPeerSentEndOfRIB answers whether want peers are listed and each has

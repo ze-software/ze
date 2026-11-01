@@ -174,6 +174,12 @@ func run(conn net.Conn, tr trigger, log *slog.Logger) int {
 	// Closed before the stopped file exists: once it does, the bridge slot
 	// answers ErrBridgeClosed, which a test holding on the file relies on.
 	closeErr := p.Close()
+	// Run answers nil when the engine closed the connection first, its clean
+	// shutdown; the Close after it then meets the closed connection, which is
+	// that same shutdown and not a failure.
+	if errors.Is(closeErr, net.ErrClosed) {
+		closeErr = nil
+	}
 	if ctx.Err() != nil {
 		log.Info("fakefilter stopped", "stop-after", tr.stopAfter)
 	}

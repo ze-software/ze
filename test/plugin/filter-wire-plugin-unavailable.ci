@@ -15,8 +15,8 @@
 #
 # Flow:
 # 1. peer1 (127.0.0.1, AS 65001) sends 10.0.0.0/24. fakefilter accepts it and,
-#    told ze.fakefilter.stop-after=1, cancels its run. Once closed it creates
-#    fakefilter.stopped (ze.fakefilter.stopped-file).
+#    told ze.fakefilter.stop.after=1, cancels its run. Once closed it creates
+#    fakefilter.stopped (ze.fakefilter.stopped.file).
 # 2. peer2 (127.0.0.2, AS 65002) holds its UPDATE until that file exists
 #    (await-file), so its route is judged with the slot already closed. It
 #    sends 10.1.0.0/24, then an End-of-RIB.
@@ -24,8 +24,8 @@
 #    waits for that End-of-RIB, counted only after the UPDATE's import
 #    verdict, and checks bgp-rib holds exactly one route.
 
-option=env:var=ze.fakefilter.stop-after:value=1
-option=env:var=ze.fakefilter.stopped-file:value=fakefilter.stopped
+option=env:var=ze.fakefilter.stop.after:value=1
+option=env:var=ze.fakefilter.stopped.file:value=fakefilter.stopped
 option=env:var=ze.log.fakefilter:value=info
 
 stdin=peer1:terminator=EOF_PEER1

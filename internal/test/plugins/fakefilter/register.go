@@ -13,11 +13,15 @@ import (
 )
 
 // The trigger's keys. Each is read when the plugin starts, so a forked
-// `ze plugin fakefilter` reads them from the environment it inherits.
+// `ze plugin fakefilter` reads them from the environment it inherits. No key
+// holds a hyphen: a forked copy is started through `sh -c`, which drops a
+// variable whose name is not a shell identifier, so a test sets the
+// underscore spelling (ze_fakefilter_reject_prefix), which env.Get reads as
+// the dotted key; a hyphen has no such spelling.
 const (
-	envRejectPrefix = "ze.fakefilter.reject-prefix"
-	envStopAfter    = "ze.fakefilter.stop-after"
-	envStoppedFile  = "ze.fakefilter.stopped-file"
+	envRejectPrefix = "ze.fakefilter.reject.prefix"
+	envStopAfter    = "ze.fakefilter.stop.after"
+	envStoppedFile  = "ze.fakefilter.stopped.file"
 )
 
 func init() {
