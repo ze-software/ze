@@ -478,8 +478,8 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 	// The third-party plugin binary is built from its own main package, with
 	// no ze tag: it links the SDK alone, as an outside author's build does.
 	fake := strings.Join(commands[4], " ")
-	if !strings.HasSuffix(fake, filepath.Join("out", "bin", FakeFilter)+" "+fakeFilterPackage) {
-		t.Errorf("the fakefilter build is not %s from %s: %s", FakeFilter, fakeFilterPackage, fake)
+	if !strings.HasSuffix(fake, filepath.Join("out", "bin", runner.FakeFilterBinary)+" "+runner.FakeFilterPackage) {
+		t.Errorf("the fakefilter build is not %s from %s: %s", runner.FakeFilterBinary, runner.FakeFilterPackage, fake)
 	}
 	if strings.Contains(fake, "-tags") || strings.Contains(fake, "-cover") {
 		t.Errorf("the fakefilter build carries ze tags or coverage: %s", fake)

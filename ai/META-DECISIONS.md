@@ -136,20 +136,19 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   the running kernel is not Ze's, and is proven on booted Debian, Ubuntu,
   Rocky and Fedora VMs: the one exception to Ze's kernel in test guests, and
   only for behaviour that exists off Ze's kernel.
-- The Linux host is too busy for full test runs: there, run scoped package
-  tests only, and never run `./le verify worktree`, a full functional suite or
-  a full `./le go lint run`. Full runs happen on another host.
+- The Linux host is too busy for full test runs: there, run scoped tests
+  only, and never run `./le verify worktree`, a full functional suite or a
+  full `./le go lint run`. Full runs happen on another host. "Scoped" limits
+  how many tests run, never which kind: the host is Linux, so a scoped QEMU,
+  netns, `caps=` or `needs-linux` run of the tests the work reaches is done
+  here, never deferred. Only a performance figure, or a test that runs only on
+  macOS, waits for the Mac.
 - Performance is measured only on Thomas's Mac, whose hardware is known: a
   number that is reported, compared or recorded comes from there. An agent may
   run a perf harness or benchmark on the Linux host to check that it works
   (it builds, runs and produces output), and never reports or compares the
   figures such a run prints. A Linux-only harness is measured on the Mac
   inside a Linux QEMU guest.
-- Everything except a performance figure runs on the Linux host: QEMU guests,
-  netns runs, `caps=` and `needs-linux` tests, interop labs. "Needs another
-  host" is never a reason to defer them; the work runs them, scoped to the
-  tests it reaches. Only a performance figure, or a test that runs only on
-  macOS, waits for the Mac.
 - Kernel work uses the architecture of the machine the agent is on. Never
   cross-compile or emulate the other architecture's kernel locally; its proof
   comes from a host that runs it natively.

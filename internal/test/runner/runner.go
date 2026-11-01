@@ -330,8 +330,8 @@ func (r *Runner) childWorkingDirectory(binName string, args []string, rec *Recor
 	return rec.WorkDir
 }
 
-// Build compiles ze, the one binary a run builds: every harness command is the
-// runner's own le (lePath).
+// Build compiles ze and the ze-fakefilter test plugin, the binaries a run
+// builds: every harness command is the runner's own le (lePath).
 //
 // LE_TEST_NO_BUILD=1 skips the in-process `go build` and uses a pre-built ze
 // already present at r.zePath. This lets a slow target (e.g. a QEMU
@@ -361,6 +361,17 @@ func (r *Runner) Build(ctx context.Context) error {
 		return fmt.Errorf("build ze: %w", err)
 	}
 
+	// The third-party plugin binary goes beside ze, on every child's PATH
+	// (childPathEnv), so a .ci forks it as `run "ze-fakefilter"`. It links
+	// the SDK alone and takes no tag.
+	fake := exec.CommandContext(ctx, "go", "build", "-o", filepath.Join(filepath.Dir(r.zePath), FakeFilterBinary), FakeFilterPackage) //nolint:gosec // paths from internal runner
+	fake.Dir = r.baseDir
+	fake.Env = childEnv("CGO_ENABLED=0")
+	if output, err := fake.CombinedOutput(); err != nil {
+		r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
+		return fmt.Errorf("build %s: %w", FakeFilterBinary, err)
+	}
+
 	if err := r.setupBinShims(); err != nil {
 		r.display.buildStatus(false, err)
 		return err
@@ -370,10 +381,20 @@ func (r *Runner) Build(ctx context.Context) error {
 	return nil
 }
 
+// FakeFilterBinary is the fakefilter test plugin built as its own binary, the
+// way a third party builds a Go filter plugin (spec-filter-wire-0-umbrella
+// AC-35, test/plugin/filter-wire-thirdparty-compiled-in.ci). Build puts it
+// beside ze, and every binary set the functional harness prepares carries it.
+const FakeFilterBinary = "ze-fakefilter"
+
+// FakeFilterPackage is the main package of FakeFilterBinary.
+const FakeFilterPackage = "./internal/test/plugins/fakefilter/cmd/ze-fakefilter"
+
 // verifyPrebuilt is the LE_TEST_NO_BUILD path: it checks that the ze the
-// runner would otherwise build already exists, rather than building it. It is
-// the only binary the runner builds: every `le` head runs the runner's own
-// executable, the chaos suites' `le chaos run` included.
+// runner would otherwise build already exists, rather than building it. Every
+// `le` head runs the runner's own executable, the chaos suites' `le chaos run`
+// included. FakeFilterBinary is not checked: only the .ci that forks it needs
+// it, and that test then fails naming the missing command.
 func (r *Runner) verifyPrebuilt() error {
 	r.display.buildStatus(true, nil)
 
