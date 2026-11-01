@@ -55,8 +55,8 @@ EOF_CONF
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=firewall config applied
 cmd=foreground:seq=2:exec=le test fixture firewall/firewall-set-element-timeout:timeout=10s
 expect=exit:code=0
-expect=stderr:contains=firewall config applied
 expect=stdout:contains=10.0.0.1 timeout 1h
 expect=stdout:contains=10.0.0.2

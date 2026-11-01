@@ -73,5 +73,5 @@ expect=exit:code=0
 
 # NO NEEDLE MAY HOLD A COLON: the runner splits a directive on ':' to read its
 # keys (record_parse.go).
-expect=stdout:contains=before the change -> records 203.0.113.10 status NOERROR
-expect=stdout:contains=after the change -> records 203.0.113.11 status NOERROR
+expect=stderr:contains=before the change -> records 203.0.113.10 status NOERROR
+expect=stderr:contains=after the change -> records 203.0.113.11 status NOERROR

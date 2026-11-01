@@ -41,13 +41,16 @@ EOF_CONF
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=firewall config applied
 cmd=foreground:seq=2:exec=le test fixture firewall/firewall-match-in-set-addr:timeout=10s
 expect=exit:code=0
-expect=stderr:contains=firewall config applied
 expect=stdout:contains=set blocked
 # The set lookup carries the same `meta nfproto ipv4` guard as a literal
 # prefix match, so nft recovers the field and renders `ip saddr @blocked`.
 # Without that guard the rule prints raw as `@nh,96,32 @blocked`, and it also
 # matches IPv6 packets, because an inet chain applies the raw network-header
 # offset to both families.
-expect=stdout:contains=ip saddr @blocked drop
+# ze places an anonymous counter at the term's match/action boundary
+# (withCounter, internal/plugins/firewall/nft/lower_linux.go), so nft prints it
+# between the match and the verdict.
+expect=stdout:pattern=ip saddr @blocked counter packets [0-9]+ bytes [0-9]+ drop

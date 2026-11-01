@@ -44,10 +44,13 @@ EOF_CONF
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=firewall config applied
 cmd=foreground:seq=2:exec=le test fixture firewall/firewall-icmp-type:timeout=10s
 expect=exit:code=0
-expect=stderr:contains=firewall config applied
 expect=stdout:contains=table inet ze_fw8_012
 # nft renders numeric ICMP types as symbolic names (8 -> echo-request); accept either.
-expect=stdout:pattern=icmp type (8|echo-request) accept
-expect=stdout:pattern=icmpv6 type (128|echo-request) accept
+# ze places an anonymous counter at the term's match/action boundary
+# (withCounter, internal/plugins/firewall/nft/lower_linux.go), so nft prints it
+# between the match and the verdict.
+expect=stdout:pattern=icmp type (8|echo-request) counter packets [0-9]+ bytes [0-9]+ accept
+expect=stdout:pattern=icmpv6 type (128|echo-request) counter packets [0-9]+ bytes [0-9]+ accept

@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -400,6 +401,15 @@ func firewallLegacySweep(ctx context.Context, _ []string) error {
 	return nil
 }
 
+// reloadRule22 and reloadRule443 match the one rule each firewall-reload.ci
+// config programs. ze places an anonymous counter at the term's match/action
+// boundary (withCounter, internal/plugins/firewall/nft/lower_linux.go), so nft
+// prints it between the port match and the verdict.
+var (
+	reloadRule22  = regexp.MustCompile(`dport 22 counter packets [0-9]+ bytes [0-9]+ accept`)
+	reloadRule443 = regexp.MustCompile(`dport 443 counter packets [0-9]+ bytes [0-9]+ accept`)
+)
+
 func firewallReload(ctx context.Context, _ []string) error {
 	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
@@ -408,7 +418,7 @@ func firewallReload(ctx context.Context, _ []string) error {
 	var before string
 	if !Poll(ctx, 100, 50*time.Millisecond, func() bool {
 		before, err = netfilterCommandOutput(ctx, "nft", "list", "table", "inet", "ze_fw10_002")
-		return err == nil && strings.Contains(before, "dport 22 accept")
+		return err == nil && reloadRule22.MatchString(before)
 	}) {
 		return fmt.Errorf("initial state missing dport 22 rule")
 	}
@@ -421,7 +431,9 @@ func firewallReload(ctx context.Context, _ []string) error {
 	var after string
 	if !Poll(ctx, 200, 50*time.Millisecond, func() bool {
 		after, err = netfilterCommandOutput(ctx, "nft", "list", "table", "inet", "ze_fw10_002")
-		return err == nil && !strings.Contains(after, "dport 22 accept") && strings.Contains(after, "dport 443 accept")
+		// The old rule's absence is read on the port alone, so a counter or
+		// verdict rendered differently cannot make a surviving rule look gone.
+		return err == nil && !strings.Contains(after, "dport 22 ") && reloadRule443.MatchString(after)
 	}) {
 		return fmt.Errorf("reload did not converge; got:\n%s", after)
 	}

@@ -84,13 +84,13 @@ expect=exit:code=0
 # dnsAnswerLine (internal/test/fixture/plugin_fixture_dns_stub.go) renders the
 # OBSERVED answer, with "none" for no records and "NOERROR" for the status field
 # handleDNSLookup omits on a successful answer.
-expect=stdout:contains=web.example.test type A -> records 203.0.113.10 status NOERROR
+expect=stderr:contains=web.example.test type A -> records 203.0.113.10 status NOERROR
 # The IPv6 address holds colons, so this needle stops before the first one. The
 # family and the status are what this row is asserting.
-expect=stdout:contains=web.example.test type AAAA -> records 2001
-expect=stdout:contains=v4only.example.test type A -> records 198.51.100.10 status NOERROR
+expect=stderr:contains=web.example.test type AAAA -> records 2001
+expect=stderr:contains=v4only.example.test type A -> records 198.51.100.10 status NOERROR
 # The AAAA of an IPv4-only name answers NOERROR with no records (RFC 2308
 # Section 2.2). NXDOMAIN here would say the name is gone and would empty a live
 # firewall set, which is the failure this stub exists to avoid.
-expect=stdout:contains=v4only.example.test type AAAA -> records none status NOERROR
-expect=stdout:contains=absent.example.test type A -> records none status NXDOMAIN
+expect=stderr:contains=v4only.example.test type AAAA -> records none status NOERROR
+expect=stderr:contains=absent.example.test type A -> records none status NXDOMAIN

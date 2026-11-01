@@ -34,9 +34,9 @@ EOF_CONF
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=firewall config applied
 cmd=foreground:seq=2:exec=le test fixture firewall/firewall-setdscp-inet:timeout=10s
 expect=exit:code=0
-expect=stderr:contains=firewall config applied
 # nft renders the unqualified dport as `tcp dport` or generic `th dport` by version.
 expect=stdout:pattern=(tcp|th) dport 5060
 # nft renders a DSCP set as `ip dscp set` or the raw payload `@nh,8,8 set` by version.

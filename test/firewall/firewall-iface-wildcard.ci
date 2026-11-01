@@ -34,8 +34,11 @@ EOF_CONF
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+expect=stderr:contains=firewall config applied
 cmd=foreground:seq=2:exec=le test fixture firewall/firewall-iface-wildcard:timeout=10s
 expect=exit:code=0
-expect=stderr:contains=firewall config applied
 expect=stdout:contains=table inet ze_fw8_013
-expect=stdout:contains=iifname "l2tp*" accept
+# ze places an anonymous counter at the term's match/action boundary
+# (withCounter, internal/plugins/firewall/nft/lower_linux.go), so nft prints it
+# between the match and the verdict.
+expect=stdout:pattern=iifname "l2tp\*" counter packets [0-9]+ bytes [0-9]+ accept
