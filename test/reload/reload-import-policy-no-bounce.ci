@@ -1,6 +1,6 @@
 # Test: Config reload changes a peer's import policy WITHOUT restarting the session
-# Initial config: peer1 imports bgp-filter-prefix:ALLOW
-# After SIGHUP:   peer1 imports bgp-filter-prefix:DENY -- nothing else differs
+# Initial config: peer1 imports prefix-list-ALLOW (a match on prefix-list ALLOW)
+# After SIGHUP:   peer1 imports prefix-list-DENY (a match on prefix-list DENY) -- nothing else differs
 # Expected: one TCP connection for the whole run, and ze reports the change as an
 #           in-place settings swap rather than a peer restart.
 #

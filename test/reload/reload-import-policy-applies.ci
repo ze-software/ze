@@ -1,6 +1,6 @@
 # Test: an import-policy edit is ENFORCED after reload, not merely displayed
-# Initial config: peer1 imports bgp-filter-prefix:ALLOW (10.0.0.0/8 ge 16 le 24 -> accept)
-# After SIGHUP:   peer1 imports bgp-filter-prefix:DENY  (same entry -> reject)
+# Initial config: peer1 imports prefix-list-ALLOW (match on prefix-list ALLOW: 10.0.0.0/8 ge 16 le 24 -> accept)
+# After SIGHUP:   peer1 imports prefix-list-DENY  (match on prefix-list DENY: same entry -> reject)
 # Expected: the SAME route evaluates to accept before the reload and reject after it.
 #
 # VALIDATES: AC-1 -- "the new chain is enforced on subsequently evaluated routes;
