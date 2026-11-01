@@ -29,6 +29,8 @@ func init() {
 		Name:        Name,
 		Description: "Test-only SDK filter plugin, compiled in, with a stop trigger (spec-filter-wire-0-umbrella AC-33, AC-35)",
 		RunEngine:   runEngine,
+		// The Stage 1 declaration: config load knows fakefilter serves filters.
+		Filters: filterDecls(),
 	}
 	reg.CLIHandler = func(args []string) int {
 		return cli.RunPlugin(cli.BaseConfig(&reg), args)

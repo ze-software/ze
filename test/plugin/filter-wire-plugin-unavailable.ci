@@ -1,0 +1,122 @@
+# Test: a filter plugin running internal stops mid-flow; its member answers
+# "unavailable" and takes its on-error
+#
+# VALIDATES: spec-filter-wire-0-umbrella AC-33 (FR-11) end to end: fakefilter
+# (internal/test/plugins/fakefilter), an SDK-only filter plugin compiled in and
+# run internal, judges the first route through its typed DirectBridge slot,
+# then ends its own run. The next route meets the closed slot: the plugin
+# server answers `plugin "fakefilter" is unavailable` (ErrBridgeClosed), the
+# chain logs it naming the plugin, the filter and the on-error, and the
+# member's declared on-error (reject) decides the route. No verdict comes from
+# the stopped plugin: it never judges the second route.
+# PREVENTS: a stopped internal filter plugin's routes being accepted, judged by
+# its stale state, or stalling the session, and the unavailable answer losing
+# the plugin's name.
+#
+# Flow:
+# 1. peer1 (127.0.0.1, AS 65001) sends 10.0.0.0/24. fakefilter accepts it and,
+#    told ze.fakefilter.stop-after=1, cancels its run. Once closed it creates
+#    fakefilter.stopped (ze.fakefilter.stopped-file).
+# 2. peer2 (127.0.0.2, AS 65002) holds its UPDATE until that file exists
+#    (await-file), so its route is judged with the slot already closed. It
+#    sends 10.1.0.0/24, then an End-of-RIB.
+# 3. The observer (internal/test/fixture/plugin_fixture_filter_unavailable.go)
+#    waits for that End-of-RIB, counted only after the UPDATE's import
+#    verdict, and checks bgp-rib holds exactly one route.
+
+option=env:var=ze.fakefilter.stop-after:value=1
+option=env:var=ze.fakefilter.stopped-file:value=fakefilter.stopped
+option=env:var=ze.log.fakefilter:value=info
+
+stdin=peer1:terminator=EOF_PEER1
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+# UPDATE: ORIGIN=IGP, AS_PATH=AS_SEQ[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER1
+
+stdin=peer2:terminator=EOF_PEER2
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=linger:value=true
+# Hold the UPDATE until fakefilter has stopped and closed its bridge.
+option=await-file:path=fakefilter.stopped
+# UPDATE: ORIGIN=IGP, AS_PATH=AS_SEQ[65002], NEXT_HOP=1.1.1.1, NLRI=10.1.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA40030401010101180A0100
+# End-of-RIB (IPv4 unicast): counted only after the UPDATE's import verdict.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER2
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal fakefilter {
+		use fakefilter
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+	external observer {
+		run "le test fixture plugin/filter-wire-plugin-unavailable"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		filter {
+			import { filters [ fakefilter:judge ]; final accept; }
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+	peer peer2 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		filter {
+			import { filters [ fakefilter:judge ]; final accept; }
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer1
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0
+# The live plugin judged the first route through its slot, then stopped.
+expect=stderr:pattern=fakefilter judged a route.*prefix=10\.0\.0\.0/24.*verdict=accept
+expect=stderr:contains=fakefilter stopped
+# The second route met the closed slot: unavailable, naming the plugin and the
+# member's on-error, and the stopped plugin never judged it.
+expect=stderr:pattern=policy filter failed, its on-error decides the route.*attachment=.bgp import. filter=fakefilter:judge.*on-error=reject.*plugin .{0,2}fakefilter.{0,2} is unavailable
+# The daemon kept running without the plugin rather than stopping.
+expect=stderr:contains=plugin exited and is not to be started again, so ze continues without it
+reject=stderr:pattern=fakefilter judged a route.*prefix=10\.1\.0\.0/24
+# The RIB outcome: only the route the live plugin accepted is installed.
+expect=stderr:contains=OK: the RIB holds only the route the live filter accepted
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered

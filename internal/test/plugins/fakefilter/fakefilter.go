@@ -40,9 +40,11 @@ const (
 	fieldPrefix = "prefix"
 )
 
-// filterDecls is the plugin's one filter declaration, sent in the Stage 1
-// registration the daemon reads. On-error is reject, so a route the plugin
-// cannot judge, or meets stopped, fails closed.
+// filterDecls is the plugin's one filter declaration. It has two readers and
+// MUST stay one function: register.go puts it on registry.Registration.Filters,
+// which config load reads before any plugin runs, and run sends it in the
+// Stage 1 registration, which the daemon judges the chain against. On-error is
+// reject, so a route the plugin cannot judge, or meets stopped, fails closed.
 func filterDecls() []sdk.FilterDecl {
 	return []sdk.FilterDecl{{
 		Name:      FilterName,
