@@ -65,6 +65,8 @@ type adjOutWrite struct {
 	pathSources []wireu.SentPathSource
 	raw         bool
 	ordinals    map[family.Family]uint32
+	// recoveryAnswers is not staged: both filter passes share it (recoveryOwedFor).
+	recoveryAnswers []adjOutRecoveryAnswer
 	// Counts come from the existing final-body record walk, before acceptance.
 	announcedRoutes uint64
 	withdrawnRoutes uint64
@@ -149,6 +151,8 @@ func (w *adjOutWrite) release() {
 	clear(w.withdrawn)
 	w.clearStaged()
 	clear(w.ordinals)
+	clear(w.recoveryAnswers) // Drops the Peer references a pooled write would keep alive.
+	w.recoveryAnswers = w.recoveryAnswers[:0]
 	w.session, w.table = nil, nil
 	w.encoding = nil
 	w.removed, w.suppressed = 0, 0
@@ -514,8 +518,8 @@ func (w *adjOutWrite) stageOwe(fam family.Family, raw []byte) adjOutOwe {
 // when the writer is source-bound (a forwarded owner withdrawal, received or
 // synthesized, or a bgp-rib lifecycle removal), a recovery owner is
 // registered, and that owner receives the owning source's UPDATEs
-// (Session.recoveryOwedFor). A recovery write is the decision itself and is
-// never owed.
+// (adjOutWrite.recoveryOwedFor, one answer per source per write). A recovery
+// write is the decision itself and is never owed.
 // RFC 4271 Section 9.2: "All newly installed routes and all newly unfeasible
 // routes for which there is no replacement route SHALL be advertised to its
 // peers by means of an UPDATE message." Whether a replacement exists is the
@@ -538,7 +542,7 @@ func (w *adjOutWrite) owesWithdrawal(key adjOutKey, entry *adjRIBOutRoute) bool 
 	case adjOutUnspecified, adjOutRecovery, adjOutInitial:
 		return false
 	}
-	return w.session.recoveryOwedFor(entry.owner.source)
+	return w.recoveryOwedFor(entry.owner.source)
 }
 
 // oweAnnouncement reports whether a source-bound announcement (forwarded or
@@ -562,7 +566,7 @@ func (w *adjOutWrite) oweAnnouncement(fam family.Family, key adjOutKey, entry *a
 		return false
 	}
 	w.contested[key] = struct{}{}
-	if !w.session.recoveryOwedFor(owner.source) {
+	if !w.recoveryOwedFor(owner.source) {
 		return false
 	}
 	w.announces[key] = owner

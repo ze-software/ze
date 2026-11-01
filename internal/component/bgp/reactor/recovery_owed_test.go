@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
@@ -467,4 +468,84 @@ func TestOwedKeyAnnouncementWithdrawFraming(t *testing.T) {
 			require.False(t, bytes.Contains(update.PathAttributes, announce[1:10]), "no label of the stack is withdrawn")
 		})
 	}
+}
+
+// TestOwesWithdrawalReadsRecoveryOwnerOncePerWrite proves a write takes the
+// recovery owner's answer once per source and every key of the write sees it.
+// Method: the source announces K1..Kn and L1..Ln. Its withdrawal of K1..Kn
+// through the writer owes all n keys and emits nothing. A write probing
+// L1..Ln detaches the owner after the first key: every key still reads the
+// answer the write took first, so the owner was read once, not once per key.
+// The owner stays detached, and the source's withdrawal of L1..Ln through the
+// next write is emitted, because that write reads the owner afresh.
+//
+// VALIDATES: AC-5, A-2 (one answer per source per write, never stale across
+// writes or pooled reuse).
+// PREVENTS: a delivery-graph read per withdrawn NLRI, and one UPDATE whose keys
+// are split between owed and written by an owner change mid-write.
+func TestOwesWithdrawalReadsRecoveryOwnerOncePerWrite(t *testing.T) {
+	const keys = 8
+	rail := newOwedRail(t)
+	owedKeys := make([]byte, 0, 4*keys)
+	probeKeys := make([]byte, 0, 4*keys)
+	for i := range keys {
+		owedKeys = append(owedKeys, 24, 192, 0, byte(i))
+		probeKeys = append(probeKeys, 24, 192, 1, byte(i))
+	}
+	rail.forward(t, false, owedKeys)
+	rail.forward(t, false, probeKeys)
+	require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2, "both announcements are written")
+
+	rail.forward(t, true, owedKeys)
+	require.Len(t, rail.owed(), keys, "every withdrawn key is owed to the recovery owner")
+	require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2, "an owed withdrawal emits nothing")
+	require.Len(t, rail.request(t).Keys, keys, "the worker asks the RIB about every owed key")
+
+	owed := owesWithdrawalProbe(t, rail, probeKeys, func() { detachRecoveryOwner(t, rail) })
+	require.Equal(t, keys, owed, "one write reads the recovery owner once: a detach after the first key changes no later answer")
+
+	rail.forward(t, true, probeKeys)
+	updates := recoveryWrittenUpdates(t, rail.conn.written())
+	require.Len(t, updates, 3, "the next write reads the detached owner and emits its withdrawal")
+	require.Equal(t, probeKeys, updates[2].WithdrawnRoutes)
+	require.Len(t, rail.owed(), keys, "the detached owner's write owes nothing more")
+}
+
+// owesWithdrawalProbe opens one forwarded write from rail's source, as
+// ownershipWriterForward does, asks owesWithdrawal about each /24 in raw, and
+// runs between after the first key. It returns how many keys were owed.
+func owesWithdrawalProbe(t *testing.T, rail *owedRail, raw []byte, between func()) int {
+	t.Helper()
+	s := rail.destination.currentSession()
+	item := fwdItem{peer: rail.destination, session: s, receivedPeer: rail.source,
+		receivedGeneration: rail.source.forwardGeneration.Load(), authority: adjOutForwarded}
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	s.sentForward = &item
+	defer func() { s.sentForward = nil }()
+	w, err := s.beginAdjOut(false)
+	require.NoError(t, err)
+	defer w.release()
+	owed := 0
+	for offset := 0; offset < len(raw); offset += 4 {
+		key, err := w.key(family.IPv4Unicast, raw[offset:offset+4], true)
+		require.NoError(t, err)
+		entry := w.table.routes[key]
+		require.NotNil(t, entry, "the source owns the probed key")
+		if w.owesWithdrawal(key, entry) {
+			owed++
+		}
+		if offset == 0 {
+			between()
+		}
+	}
+	return owed
+}
+
+// detachRecoveryOwner publishes a delivery graph in which the recovery owner no
+// longer receives rail's source's UPDATEs, as removing its attach block does.
+func detachRecoveryOwner(t *testing.T, rail *owedRail) {
+	t.Helper()
+	rail.source.settings.ProcessBindings = nil
+	rail.r.api.UpdateDeliveryGraph(bgpevents.Namespace, deliveryPeersFromSettings([]*PeerSettings{rail.source.settings}))
 }

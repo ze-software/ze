@@ -619,7 +619,11 @@ of that source's routes, so its election is not the forwarder's and its answer
 would only queue the withdrawal behind the source's later UPDATEs. The
 withdrawal is then written as it stands, in order, and one warning per
 destination session names the source and the attach block that fixes it
-(`Session.recoveryOwedFor`). A departure is not subject to this test: the RIB's
+(`Session.recoveryOwedFor`). The writer takes this answer once per owning
+source per write, under the write lock, and every key of the UPDATE, in both
+filter passes, reads that one answer, so an owner attached or detached during a
+write reaches the next write whole rather than splitting one UPDATE's keys
+between owed and written (`adjOutWrite.recoveryOwedFor`). A departure is not subject to this test: the RIB's
 own command owes its keys. A destination with ADD-PATH send keeps every path
 and owes nothing.
 
@@ -727,7 +731,7 @@ counted the same way.
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal, stageMover, applyStaged -->
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjOutOwed, owe, exclude, removeOwed, dropOwed -->
 <!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoverNLRIBatch, oweDeparture, recoveryAdmission.admit, settle, admitRecovery -->
-<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker, run, stallWait -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryWorker, run, stallWait, recoveryOwedFor -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, closeRecoveryWrites -->
 
 Ordinary UPDATE sizing follows the final policy and next-hop result, after AIGP

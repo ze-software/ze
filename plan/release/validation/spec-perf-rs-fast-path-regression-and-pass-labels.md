@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P2 |
 | Release reason | Release validation: the route-server fast path measures about 5x slower than it did on 2026-09-21, and the comparison report shows Ze's sender-first pass under the bare DUT name, so the published convergence figure for Ze is the wrong pass |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 3/6 |
 | Handoff | - |
 | Updated | 2026-11-01 |
 
@@ -193,10 +193,10 @@ pass, with the pass named in one declaration.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The regression is the ownership bookkeeping, not another change since 2026-09-21 | The profile table above; `bufio.Write` 0.02 s | The fixes here do not reach AC-1 | AC-1 run with a fresh profile: `record`, `filter` and `allow` cumulative fall and convergence follows | unvalidated |
-| A-2 | Within one write, the recovery owner answer for a source cannot change in a way the write must see | `recoveryOwedFor` reads an atomic worker pointer and an immutable delivery-graph snapshot; the write runs under `writeMu` | A concurrent owner change mid-write would split one UPDATE's keys between owed and written | A unit test that changes the owner between two writes sees the new answer on the second write; per-NLRI reads today can already split one write, so one read per write is never less consistent | unvalidated |
-| A-3 | No `*adjRIBOutRoute` is held past its key's deletion or the table's reset | `recordDeletion`, `keepReleased`, `takeReleased`, `setOwner` | A reused slot would carry another key's owner: a wrong withdrawal or election | Grep every place that stores an entry pointer outside `table.routes` before phase 2; the released-receipt and tombstone tests stay green | unvalidated |
+| A-2 | Within one write, the recovery owner answer for a source cannot change in a way the write must see | `recoveryOwedFor` reads an atomic worker pointer and an immutable delivery-graph snapshot; the write runs under `writeMu` | A concurrent owner change mid-write would split one UPDATE's keys between owed and written | A unit test that changes the owner between two writes sees the new answer on the second write; per-NLRI reads today can already split one write, so one read per write is never less consistent | confirmed (phase 3, `TestOwesWithdrawalReadsRecoveryOwnerOncePerWrite`): a write that detaches the owner after its first key still owes all 8 keys (per-key reads at HEAD owed 1 of 8), and the next write reads the detached owner and emits its withdrawal; the answer lives in `adjOutWrite.recoveryAnswers`, taken by `adjOutWrite.recoveryOwedFor` under `writeMu` after `beginAdjOut`, shared by both filter passes, cleared in `release` |
+| A-3 | No `*adjRIBOutRoute` is held past its key's deletion or the table's reset | `recordDeletion`, `keepReleased`, `takeReleased`, `setOwner` | A reused slot would carry another key's owner: a wrong withdrawal or election | Grep every place that stores an entry pointer outside `table.routes` before phase 2; the released-receipt and tombstone tests stay green | confirmed (phase 1, `gopls references` on `adjRIBOutRoute`): the only field of that type is `adjRIBOut.routes`; every other reference is a call-scoped parameter under the table mutex (`keepReleased`, `oweReleasedRestore`, `bindSourcePath`, `owesWithdrawal`, `oweAnnouncement`, `adjOutContests`, `adjOutExactNLRI`, `adjOutHolds`, `departedOwner`, `adjOutWithdrawalNLRI`, `setOwner`, `releasePath`); no entry field address is taken; `adjOutReleased` copies owner and revision by value; `adjOutWithdrawalNLRI` copies `exactNLRI` out. Two sites the entry store must respect: `recordDeletion` reads `entry.owner` after `delete(w.table.routes, key)`, so the slot is freed after that read; `adj_rib_out_released.go` passes a temporary `&adjRIBOutRoute{owner: owner}` to `releasePath`, which is not a table slot and never enters the free list |
 | A-4 | The 2026-09-21 build is a fair baseline although it had no ownership semantics | Thomas asked for the main pass "back near" that figure | AC-1's bound is unreachable with the semantics kept | Phase 4 measures; if the floor with every AC-4 test green stays above the bound, the implementer stops with the profile and asks Thomas which way to proceed | unvalidated |
-| A-5 | No committed result file depends on the old JSON shape | `git ls-files test/perf/results` is empty | Old files would render as an unrecorded pass | Same command at implementation | unvalidated |
+| A-5 | No committed result file depends on the old JSON shape | `git ls-files test/perf/results` is empty | Old files would render as an unrecorded pass | Same command at implementation | confirmed 2026-11-01: `git ls-files test/perf/results` printed nothing; a pre-field file renders `not recorded` (`TestComparisonUnrecordedPassIsNamed`) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -245,9 +245,9 @@ pass, with the pass named in one declaration.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAdjOutForwardedWriteAllocations` | `internal/component/bgp/reactor/session_ownership_bench_test.go` | AC-3 | |
-| `BenchmarkAdjOutForwardedWrite` | `internal/component/bgp/reactor/session_ownership_bench_test.go` | AC-2, owner-run on the Mac | |
-| `TestOwesWithdrawalReadsRecoveryOwnerOncePerWrite` | `internal/component/bgp/reactor/recovery_owed_test.go` | AC-5 | |
+| `TestAdjOutForwardedWriteAllocations` | `internal/component/bgp/reactor/session_ownership_bench_test.go` (built `!race`; `session_ownership_bench_race_test.go` skips the name under `-race`, whose `sync.Pool` drops make counts the detector's) | AC-3 | written, red at HEAD |
+| `BenchmarkAdjOutForwardedWrite` | `internal/component/bgp/reactor/session_ownership_bench_test.go` | AC-2, owner-run on the Mac | written, smoke-run `-benchtime=1x` only |
+| `TestOwesWithdrawalReadsRecoveryOwnerOncePerWrite` | `internal/component/bgp/reactor/recovery_owed_test.go` | AC-5 | written, red at HEAD (owed 1 of 8), green after phase 3 |
 | `TestAdjOutEntryStoreReusesFreedSlots` | `internal/component/bgp/reactor/adj_rib_out_test.go` | A freed slot is reused for a new key and carries none of the old key's owner, revision, signature or contested bit; `clearRoutes` drops every chunk (A-3, R-2) | |
 | `TestRunResultRecordsPass` | `internal/perf/benchmark_test.go` | AC-6 | |
 | `TestComparisonRendersBothPassesOfOneDUT` | `internal/perf/report/report_test.go` | AC-7, AC-8, AC-9 | |
@@ -284,6 +284,7 @@ pass, with the pass named in one declaration.
 
 ## Files to Create
 - `internal/component/bgp/reactor/session_ownership_bench_test.go` - AC-2, AC-3
+- `internal/component/bgp/reactor/session_ownership_bench_race_test.go` - the AC-3 test name under `-race`, skipped with its reason
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |

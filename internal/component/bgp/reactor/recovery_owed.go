@@ -141,6 +141,9 @@ func (s *Session) recoveryOwed() bool {
 // withdrawal behind every later UPDATE: the writer sends it as it stands.
 // A departure keeps recoveryOwed alone: its keys come from the RIB's own
 // command, so an owner is already engaged.
+// The writer MUST ask through adjOutWrite.recoveryOwedFor, which calls this
+// once per source per write; a call per key would let one UPDATE's keys see
+// two answers and read the delivery graph once per NLRI.
 func (s *Session) recoveryOwedFor(source *Peer) bool {
 	worker := s.recovery.Load()
 	if worker == nil {
@@ -151,6 +154,34 @@ func (s *Session) recoveryOwedFor(source *Peer) bool {
 		return false
 	}
 	return worker.ownerReceives(command, source)
+}
+
+// adjOutRecoveryAnswer is the recovery answer one write took for one owning
+// source.
+type adjOutRecoveryAnswer struct {
+	source *Peer
+	owed   bool
+}
+
+// recoveryOwedFor answers Session.recoveryOwedFor for source once per write:
+// the first key source owns reads the recovery worker, its owner and the
+// delivery graph, and every later key of the write, in either filter pass,
+// reuses that answer. One answer per write is never less consistent than one
+// per key: the worker pointer is an atomic load and the graph an immutable
+// snapshot, so per-key reads could only split one UPDATE between owed and
+// written when the owner changes mid-write. MUST be called between
+// beginAdjOut and release, under writeMu; the next write asks afresh.
+// The linear scan is bounded by the distinct sources one write's keys name,
+// one for a forwarded UPDATE.
+func (w *adjOutWrite) recoveryOwedFor(source *Peer) bool {
+	for i := range w.recoveryAnswers {
+		if w.recoveryAnswers[i].source == source {
+			return w.recoveryAnswers[i].owed
+		}
+	}
+	owed := w.session.recoveryOwedFor(source)
+	w.recoveryAnswers = append(w.recoveryAnswers, adjOutRecoveryAnswer{source: source, owed: owed})
+	return owed
 }
 
 // ownerReceives reports whether the delivery graph grants command's process
