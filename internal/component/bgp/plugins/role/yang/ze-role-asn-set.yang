@@ -1,0 +1,42 @@
+module ze-role-asn-set {
+    namespace "urn:ze:role:asn-set";
+    prefix roleasn;
+
+    import ze-policy-conf { prefix policy; }
+    import ze-extensions { prefix ze; }
+
+    description "The policy asn-set data type, owned by the bgp-role plugin, whose role transit-asns leaf
+                 names one. A module of its own, so a loader of ze-role alone needs no policy module.";
+
+    revision 2026-11-01 {
+        description "Initial revision";
+    }
+
+    augment "/policy:policy" {
+        list asn-set {
+            key "name";
+            description "A plain set of AS numbers, with no position and no action. It is data another feature
+                reads: role transit-asns names one to add the providers this router does not peer with to the
+                RFC 7454 Section 9 upstream check. A filter chain cannot name an asn-set entry.";
+            ze:help "A named set of AS numbers";
+
+            leaf name {
+                type string {
+                    length "1..255";
+                    pattern '[A-Za-z0-9][A-Za-z0-9_.-]*';
+                }
+                description "The set's name, which role transit-asns names.";
+                ze:help "ASN set name";
+            }
+
+            leaf-list asn {
+                type uint32 {
+                    range "1..4294967295";
+                }
+                ze:syntax "bracket";
+                description "The AS numbers of the set, in plain decimal. 0 is reserved (RFC 7607) and refused.";
+                ze:help "AS numbers of the set";
+            }
+        }
+    }
+}

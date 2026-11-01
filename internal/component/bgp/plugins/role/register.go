@@ -5,8 +5,10 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	roleyang "github.com/ze-software/ze/internal/component/bgp/plugins/role/yang"
+	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -38,17 +40,28 @@ func init() {
 		os.Exit(1)
 	}
 
+	// role transit-asns completes and is checked at commit against the
+	// asn-sets the policy root defines (upstream.go).
+	yang.RegisterReferenceSource(asnSetReferenceSource, asnSetReference)
+
 	reg := registry.Registration{
-		Name:            "bgp-role",
-		Description:     "RFC 9234 BGP Role capability",
-		RFCs:            []string{"9234"},
-		SupportsCapa:    true,
-		Features:        "capa yang",
-		ConfigRoots:     []string{configRootBGP},
-		Dependencies:    []string{configRootBGP},
-		YANG:            roleyang.ZeRoleYANG,
-		CapabilityCodes: []uint8{roleCapCode},
-		RunEngine:       RunRolePlugin,
+		Name:         "bgp-role",
+		Description:  "RFC 9234 BGP Role capability",
+		RFCs:         []string{"9234"},
+		SupportsCapa: true,
+		Features:     "capa yang",
+		ConfigRoots:  []string{configRootBGP},
+		// The policy root holds the asn-sets role transit-asns names; a
+		// read root never auto-loads the plugin.
+		ConfigReads:  []string{policy.RootName},
+		Dependencies: []string{configRootBGP, policy.PluginName},
+		// The RFC 7454 Section 9 upstream check (upstream.go): its filter,
+		// and the role peers it is inserted on.
+		Filters:          upstreamFilterDecls(),
+		FilterInsertions: upstreamInsertions(),
+		YANG:             roleyang.ZeRoleYANG,
+		CapabilityCodes:  []uint8{roleCapCode},
+		RunEngine:        RunRolePlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			ConfigureLogger(slogutil.Logger(loggerName))
 		},

@@ -5,10 +5,12 @@ package yang
 import (
 	// The packages registering the modules these modules import.
 	_ "github.com/ze-software/ze/internal/component/bgp/yang"
+	_ "github.com/ze-software/ze/internal/component/policy/yang"
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 )
 
 func init() {
+	configyang.RegisterModule("ze-role-asn-set.yang", ZeRoleAsnSetYANG)
 	configyang.RegisterModule("ze-role.yang", ZeRoleYANG)
 }

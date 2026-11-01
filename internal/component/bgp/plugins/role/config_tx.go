@@ -6,9 +6,12 @@
 package role
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -36,6 +39,8 @@ type roleConfig struct {
 	// the set of the last prune, so only a commit that removes a peer drops
 	// its learned role.
 	peerKeys map[string]struct{}
+	// upstream is the RFC 7454 Section 9 upstream set (deriveUpstreamSet).
+	upstream upstreamSet
 }
 
 // roleConfigTx is the role plugin's config transaction. It differs from a
@@ -84,6 +89,10 @@ func (t *roleConfigTx) committed(_ string) error {
 // It changes no state, so a refused verify and a CLI validate leave the
 // running filters as they were.
 func parseRoleConfig(sections []sdk.ConfigSection) (roleConfig, bool, error) {
+	policyRoot, err := policySection(sections)
+	if err != nil {
+		return roleConfig{}, false, err
+	}
 	for _, section := range sections {
 		if section.Root != configRootBGP {
 			continue
@@ -92,10 +101,38 @@ func parseRoleConfig(sections []sdk.ConfigSection) (roleConfig, bool, error) {
 		if !ok {
 			return roleConfig{}, false, errRoleInvalidBGPConfigJSON
 		}
+		upstream, err := deriveUpstreamSet(bgpSubtree, policyRoot)
+		if err != nil {
+			return roleConfig{}, false, err
+		}
 		peers, nameToIP := extractPeerRoleConfigs(section.Data)
-		return roleConfig{peers: peers, nameToIP: nameToIP, peerKeys: configuredPeerKeys(bgpSubtree)}, true, nil
+		return roleConfig{peers: peers, nameToIP: nameToIP, peerKeys: configuredPeerKeys(bgpSubtree),
+			upstream: upstream}, true, nil
 	}
 	return roleConfig{}, false, nil
+}
+
+// policySection answers the policy root's body, the asn-sets transit-asns
+// names; nil when no policy section was delivered. The policy root is a
+// ConfigReads root, delivered whole beside bgp whenever either changes
+// (docs/architecture/config/transaction-protocol.md).
+func policySection(sections []sdk.ConfigSection) (map[string]any, error) {
+	for _, section := range sections {
+		if section.Root != policy.RootName {
+			continue
+		}
+		var root map[string]any
+		if err := json.Unmarshal([]byte(section.Data), &root); err != nil {
+			return nil, fmt.Errorf("bgp-role: the policy config section is not valid JSON: %w; "+
+				"fix: check the candidate with `ze config validate <file>`", err)
+		}
+		// The section carries the root keyed by its name, as the bgp one does.
+		if inner, wrapped := root[policy.RootName].(map[string]any); wrapped {
+			return inner, nil
+		}
+		return root, nil
+	}
+	return nil, nil
 }
 
 // installRoleConfig makes cfg the config the filters and OnValidateOpen
@@ -106,6 +143,10 @@ func installRoleConfig(cfg roleConfig) error {
 	filterNameToIP = cfg.nameToIP
 	filterPeerKeys = cfg.peerKeys
 	filterMu.Unlock()
+	// The upstream set swaps whole: a reload that adds or removes a provider
+	// peer, or edits an asn-set, changes what the next route compares, with
+	// no chain rebuilt and no session reset.
+	installUpstreamSet(cfg.upstream)
 	return nil
 }
 
@@ -115,5 +156,9 @@ func installRoleConfig(cfg roleConfig) error {
 func installedRoleConfig() roleConfig {
 	filterMu.RLock()
 	defer filterMu.RUnlock()
-	return roleConfig{peers: filterPeerConfigs, nameToIP: filterNameToIP, peerKeys: filterPeerKeys}
+	cfg := roleConfig{peers: filterPeerConfigs, nameToIP: filterNameToIP, peerKeys: filterPeerKeys}
+	if set := upstreamASNs.Load(); set != nil {
+		cfg.upstream = *set
+	}
+	return cfg
 }

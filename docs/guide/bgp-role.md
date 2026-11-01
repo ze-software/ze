@@ -169,6 +169,56 @@ When `strict true` is set, ze requires the peer to advertise the Role capability
 
 When strict mode is off (default), ze proceeds even if the peer does not advertise Role. OTC filtering is applied based on the locally configured role.
 
+## The Upstream Check a Role Inserts
+
+A declared role puts one more member in the peer's filter list, with nothing
+for you to write: `bgp-role:upstream-asn`. It rejects a route whose AS path
+carries the ASN of one of your transit providers, at any position, an AS_SET
+member included. RFC 7454 Section 9 recommends it twice: a customer's routes
+"must not be accepted" when their paths hold "upstream transit providers", and
+"Network administrators SHOULD NOT advertise prefixes with upstream AS numbers
+in the AS path to their peering AS".
+
+| Your `role import` | The session is to | The check runs on |
+|--------------------|-------------------|-------------------|
+| `provider` | a customer | import |
+| `peer` | a peer | import and export |
+| `rs` | an RS-client | import |
+| `rs-client` | a route server | export |
+| `customer` | a provider | nowhere: every route a provider sends carries its own ASN |
+
+The providers are derived from the config you already wrote: the remote ASN
+of every peer whose `role import` is `customer` (RFC 9234 Section 3.1: "the
+local AS is a transit customer of the remote AS"). A provider this router does
+not peer with, one reached through another router of your network, goes in a
+`policy asn-set`, named by `role transit-asns` on any peer or group. The check
+compares the union of the two, and never the session's own remote ASN.
+
+```
+policy {
+    asn-set far-transit {
+        asn [ 64700 64701 ];
+    }
+}
+bgp {
+    group customers {
+        role {
+            import provider;
+            transit-asns far-transit;
+        }
+    }
+}
+```
+
+With no provider peer and no `transit-asns`, the set is empty and the member
+rejects nothing: a network with no transit provider has no upstream ASN that
+can leak. Adding or removing a provider peer, or editing the asn-set, takes
+effect on the next route with no session reset. The member is not required,
+because RFC 7454 is a Best Current Practice: name it as
+`inactive:bgp-role:upstream-asn` in a chain to run that session without it.
+<!-- source: internal/component/bgp/plugins/role/upstream.go -- upstreamInsertions, deriveUpstreamSet, evaluateUpstream -->
+<!-- source: internal/component/bgp/plugins/role/yang/ze-role.yang -- transit-asns, asn-set -->
+
 ## A Declared Role Carries a Config Obligation
 
 Declaring a role states a business relationship, and ze holds the config to it.

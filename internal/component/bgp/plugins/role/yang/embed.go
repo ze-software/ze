@@ -4,5 +4,8 @@ package yang
 
 import _ "embed"
 
+//go:embed ze-role-asn-set.yang
+var ZeRoleAsnSetYANG string
+
 //go:embed ze-role.yang
 var ZeRoleYANG string

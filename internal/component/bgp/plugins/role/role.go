@@ -16,6 +16,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/policy"
+
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/role/yang"
@@ -411,8 +413,14 @@ func RunRolePlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
+	// RFC 7454 Section 9: the upstream check the loader inserts on role
+	// peers (upstream.go), one evaluator on both transports.
+	p.OnFilter(evaluateUpstream)
+
 	err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{configRootBGP},
+		WantsConfig:      []string{configRootBGP, policy.RootName},
+		Filters:          upstreamFilterDecls(),
+		FilterInsertions: upstreamInsertions(),
 	})
 	if err != nil {
 		logger().Error("role plugin failed", "error", err)

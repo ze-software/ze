@@ -65,6 +65,22 @@ module ze-role {
                     import beside it, because Ze validates no OPEN for a peer that declares no local role.";
                 ze:help "Require peer to send Role capability";
             }
+
+            leaf transit-asns {
+                type string {
+                    length "1..255";
+                }
+                ze:reference "policy-asn-set";
+                description "Names a policy asn-set holding the ASNs of transit providers this router does not
+                    peer with, for example a provider reached through another router of the network. It is
+                    optional: the provider set is derived from the config, as the remote ASN of every peer whose
+                    role import is customer (RFC 9234 Section 3.1: the remote AS is then Ze's provider), and the
+                    upstream check uses the union of that derived set and every asn-set a transit-asns leaf
+                    names, on any peer or group. RFC 7454 Section 9: the check rejects a route whose AS path
+                    carries one of those ASNs, on import from a customer, a peer or an RS-client, and on export
+                    to a peer or a route server; the session to a provider never compares its own ASN.";
+                ze:help "asn-set of transit providers this router does not peer with";
+            }
         }
     }
 
