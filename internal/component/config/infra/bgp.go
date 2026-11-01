@@ -132,9 +132,14 @@ func ValidateBGPPeers(tree *config.Tree) error {
 // RFC 8212 policy absences of a config that passes it. It returns nothing when
 // no engine is compiled in: without a BGP speaker there is no peer to validate
 // and no session RFC 8212 can close.
+//
+// With a peer validator registered and no policy validator, it still runs the
+// peer validator and reports no absence. The policy seam only adds the RFC
+// 8212 report, so a missing one must not turn peer validation off: `ze config
+// validate` and every editor's commit verify reach peers only through here.
 func ValidateBGPPeersWithPolicy(tree *config.Tree) ([]BGPPolicyAbsence, error) {
 	if bgpPolicyValidator == nil {
-		return nil, nil
+		return nil, ValidateBGPPeers(tree)
 	}
 	return bgpPolicyValidator(tree)
 }

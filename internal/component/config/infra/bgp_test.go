@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -104,6 +105,55 @@ func TestValidateBGPPeersWithoutEngineIsNoOp(t *testing.T) {
 
 	if err := ValidateBGPPeers(config.NewTree()); err != nil {
 		t.Errorf("ValidateBGPPeers with no engine = %v, want nil", err)
+	}
+}
+
+// TestValidateBGPPeersWithPolicyRunsPeerValidatorAlone proves the policy seam
+// never switches peer validation off.
+//
+// GOAL: `ze config validate` and commit verify call only
+// ValidateBGPPeersWithPolicy, so a build or a test that registers the peer
+// validator without the policy validator must still have its peers judged.
+// METHOD: register a refusing peer validator with the policy seam empty, then
+// a policy validator, and read what each call answers.
+//
+// VALIDATES: with no policy validator the peer validator's refusal is
+// returned; with one registered its answer is returned.
+// PREVENTS: a config the peer validator refuses being called valid because
+// the RFC 8212 policy seam was nil.
+func TestValidateBGPPeersWithPolicyRunsPeerValidatorAlone(t *testing.T) {
+	prevPeer, prevPolicy := bgpPeerValidator, bgpPolicyValidator
+	defer func() { bgpPeerValidator, bgpPolicyValidator = prevPeer, prevPolicy }()
+
+	refused := errors.New("peer check refused")
+	bgpPeerValidator = func(*config.Tree) error { return refused }
+	bgpPolicyValidator = nil
+	absences, err := ValidateBGPPeersWithPolicy(config.NewTree())
+	if !errors.Is(err, refused) {
+		t.Fatalf("ValidateBGPPeersWithPolicy with only a peer validator = %v, want %v", err, refused)
+	}
+	if absences != nil {
+		t.Errorf("absences = %v, want none without a policy validator", absences)
+	}
+
+	bgpPolicyValidator = func(*config.Tree) ([]BGPPolicyAbsence, error) {
+		return []BGPPolicyAbsence{{}}, nil
+	}
+	absences, err = ValidateBGPPeersWithPolicy(config.NewTree())
+	if err != nil {
+		t.Fatalf("ValidateBGPPeersWithPolicy with a policy validator = %v, want its nil", err)
+	}
+	if len(absences) != 1 {
+		t.Errorf("absences = %v, want the policy validator's one", absences)
+	}
+
+	bgpPeerValidator, bgpPolicyValidator = nil, nil
+	absences, err = ValidateBGPPeersWithPolicy(config.NewTree())
+	if err != nil {
+		t.Errorf("ValidateBGPPeersWithPolicy with no engine = %v, want nil", err)
+	}
+	if absences != nil {
+		t.Errorf("absences with no engine = %v, want none", absences)
 	}
 }
 
