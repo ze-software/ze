@@ -7,10 +7,8 @@ canonical configuration is `.claude/settings.json`; each such entry invokes:
 $CLAUDE_PROJECT_DIR/le ai hooks <hook-name>
 ```
 
-One display-only hook is a shell script: `bash-timestamp.sh` prints a `▶ HH:MM:SS`
-line before a Bash call, at most once a minute per session (override the gap
-with `CLAUDE_BASH_STAMP_QUIET` in seconds). It never judges a command and never
-blocks.
+Every hook, the display-only one included, is that command: no hook is a shell
+script.
 
 The runtime lives in `internal/le/hookruntime`. `internal/le/ai/hooks` owns the
 registered command surface, the 208 typed dispatcher fixtures, and the 607 typed
@@ -47,7 +45,7 @@ in-process rather than launching a second implementation.
 |---|---|---|
 | SessionStart | every | `session-start` |
 | UserPromptSubmit | every | `compaction-reminder` |
-| PreToolUse | `Bash` | `pretool-bash`, `bash-timestamp.sh` |
+| PreToolUse | `Bash` | `pretool-bash`, `bash-timestamp` |
 | PreToolUse | `Write\|Edit\|MultiEdit\|NotebookEdit` | `pretool-writeedit` |
 | PostToolUse | `LSP` | `mark-lsp-invoked` |
 | PostToolUse | `Read` | `mark-source-read` |
@@ -184,6 +182,7 @@ These return hook protocol output directly rather than a check verdict, so
 | `mark-source-read` | PostToolUse `Read` | A Read of a gated document in this checkout (`docs/contributing/ze-go-style.md`, or a page under `ai/doors/`) that returns every line (no offset past line 1, and a limit, or the tool's 2000-line cap, that reaches the last line) writes that document's read marker, which `writeStyleGuideRead`, `writeDesignDoorsRead` and `writeSpecDoorsRead` read. A Read of a `.go`, `.sh`, `.yang`, `.mk` or `Makefile` path writes a source-read evidence marker for its kind. Neither inspects what the Read returned. |
 | `mark-agent-spawned` | PostToolUse `Task\|Agent` | Writes the session-scoped agent marker. |
 | `validate-spec` | PostToolUse `Write\|Edit` | `hookValidateSpec` validates the spec's Wiring Test table. |
+| `bash-timestamp` | PreToolUse `Bash` | `hookBashTimestamp` (`timestamp.go`) prints a `▶ HH:MM:SS` system message before a Bash call, at most once a minute per session (`CLAUDE_BASH_STAMP_QUIET` sets the gap in seconds). It never judges a command and never blocks. |
 
 `writeDesignEvidence` in `writeedit.go` consumes the LSP and source-read markers
 before a design or spec write, and `hookStop` reads the agent marker. Reads never
