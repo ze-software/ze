@@ -1576,6 +1576,41 @@ and until it lands the text subject above is what filters read.
 <!-- source: internal/component/bgp/config/register.go -- init, the attachment carries and the reader check -->
 <!-- source: internal/component/policy/fields.go -- MustRegisterFieldSynonym, synonymHint -->
 
+#### The in-process BGP chain
+
+`internal/component/bgp/policychain` compiles and runs a BGP chain whose
+members are filter types with an in-process BGP evaluator, over the view
+above. No peer chain runs through it yet: no filter type registers a BGP
+evaluator until the plugin filters move onto it (`spec-filter-wire-0-umbrella`,
+phases 3b and 4), so the text subject is still what every BGP filter reads.
+
+- **Checked by the library, compiled by BGP.** `policychain.Compile` refuses
+  the chain with `policy.CheckChain`, exactly as `validateChainNames` does, then
+  compiles each member with the evaluator its type registered
+  (`policychain.MustRegisterEvaluator`). A type with no evaluator is refused by
+  name, so the library never learns a BGP type.
+- **Set fields, never a rewritten UPDATE.** A member answers pass or reject
+  and the fields it changes as `policychain.Sets`: `local-preference` and `med`
+  set, increment or decrement, `community` add and remove. The run folds them
+  in chain order (a later set overrides an earlier increment; an increment adds
+  to an earlier set), and `Sets.ApplyTo` writes them as `ModAccumulator`
+  operations, so `buildModifiedPayload` stays the one apply engine. Arithmetic
+  on an absent attribute starts from the configured base and is refused
+  without one; a decrement clamps at zero.
+- **A failed member applies its on-error.** A read that answers an error (a
+  malformed attribute, `policyview.ErrMalformed`) and a write to a field the
+  member did not declare (`policy.InstanceSets`) each fail the route under the
+  member's on-error, logged and counted (`Chain.Refused`). Fail-closed rejects
+  the route as a failure rather than a policy decision; fail-open passes it on
+  with none of that member's sets.
+- **Allocation-free per route.** The compiled chain is immutable and shared;
+  each goroutine brings one view and one `policychain.RunSets`, reused across
+  runs, and neither escapes the synchronous run.
+
+<!-- source: internal/component/bgp/policychain/chain.go -- Compile, Chain.Run, MustRegisterEvaluator, refuseUndeclared -->
+<!-- source: internal/component/bgp/policychain/sets.go -- Sets, numericSet.resolve, Sets.ApplyTo -->
+<!-- source: internal/component/policy/fields.go -- InstanceSets -->
+
 ---
 
 ## 10. What Gets Eliminated

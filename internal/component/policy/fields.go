@@ -160,6 +160,26 @@ func CheckChain(attachment string, reg *Registry, names []string) error {
 	return vocab.checkChain(attachment, reg, names)
 }
 
+// InstanceSets answers the fields inst declares it sets: its own config's
+// fields when its type registered MustRegisterInstanceFields, else the type's
+// declaration. A chain that compiles its members checks each run's writes
+// against it, so a member that sets a field it never declared fails its route
+// rather than changing it (spec-filter-wire-0-umbrella, D-9). A type that
+// declared no fields is refused.
+func InstanceSets(inst Instance) ([]Field, error) {
+	vocab.mu.RLock()
+	defer vocab.mu.RUnlock()
+	ft, ok := vocab.filterTypes[inst.Type]
+	if !ok {
+		return nil, fmt.Errorf("filter %q (%s): the filter type declares no route fields", inst.Name, inst.Type)
+	}
+	if fields, ok := vocab.perInstance[inst.Type]; ok {
+		_, sets := fields(inst.Config)
+		return sets, nil
+	}
+	return ft.second, nil
+}
+
 func (v *vocabulary) mustRegisterField(name string, view RouteView) Field {
 	v.mu.Lock()
 	defer v.mu.Unlock()
