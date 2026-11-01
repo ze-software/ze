@@ -154,16 +154,30 @@ func (p *lowLivePeer) send(t *testing.T, frame []byte) {
 	}
 }
 
+// lowEventually polls ready until it answers true, and fails the test after
+// five seconds.
+//
+// The pause between two polls is at least as long as the last poll took, so
+// the poller never holds more than half of one CPU. A predicate such as
+// ownershipLiveRead decodes the recipient's whole TCP history and, under
+// -race, takes longer than a millisecond: a fixed 1 ms ticker then polled
+// back to back. With GOMAXPROCS=1, or on a loaded CI runner, that loop
+// starved the reactor goroutines whose output it was waiting for, and the
+// condition stayed false until the deadline.
 func lowEventually(t *testing.T, ready func() bool, what string) {
 	t.Helper()
 	deadline := time.NewTimer(5 * time.Second)
 	defer deadline.Stop()
-	tick := time.NewTicker(time.Millisecond)
-	defer tick.Stop()
-	for !ready() {
+	for {
+		start := time.Now()
+		if ready() {
+			return
+		}
+		pause := time.NewTimer(max(time.Millisecond, time.Since(start)))
 		select {
-		case <-tick.C:
+		case <-pause.C:
 		case <-deadline.C:
+			pause.Stop()
 			t.Fatalf("timed out waiting for %s", what)
 		}
 	}

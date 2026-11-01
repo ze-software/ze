@@ -227,18 +227,24 @@ func ownershipLiveDecided(t *testing.T, peer *lowLivePeer, prefix netip.Prefix) 
 
 func ownershipLiveRead(t *testing.T, peer *lowLivePeer) ownershipLiveProjection {
 	t.Helper()
+	// Only the frame list is read under the lock. readFrames appends and never
+	// rewrites a retained frame, so the frames up to this length stay valid
+	// while they are decoded below. Decoding under the lock kept readFrames
+	// from taking the next frame off the synchronous pipe, which stalled the
+	// recipient's writer for as long as a poller kept reading.
 	peer.mu.Lock()
-	defer peer.mu.Unlock()
-	if peer.dropped != 0 {
+	frames, dropped := peer.frames, peer.dropped
+	peer.mu.Unlock()
+	if dropped != 0 {
 		t.Fatalf("recipient %s sent %d frames past the %d retained: the TCP history is incomplete",
-			peer.peer.Settings().Address, peer.dropped, lowLiveFramesMax)
+			peer.peer.Settings().Address, dropped, lowLiveFramesMax)
 	}
 	view := ownershipLiveProjection{
 		routes:        make(map[netip.Prefix][]byte),
 		announcements: make(map[netip.Prefix][][]byte),
 		withdrawals:   make(map[netip.Prefix]int),
 	}
-	for _, frame := range peer.frames {
+	for _, frame := range frames {
 		if frame[18] == byte(msgtype.TypeNOTIFICATION) {
 			t.Fatalf("recipient received NOTIFICATION: %x", frame[message.HeaderLen:])
 		}
