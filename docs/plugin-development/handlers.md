@@ -384,6 +384,48 @@ kept slice whose reuse changes an answer, a fast-path verdict that differs
 from the forked transport's, and concurrent calls that answer otherwise,
 each report naming the filter and the clause.
 
+**Building the answer.** `eval` answers one `*sdk.FilterUpdateOutput` per
+route, in one of three shapes. The shapes below are what a filter answers in
+a chain that also holds an in-process filter; a chain of plugin filters only
+still reads the text `Update` delta. The wire form of each change, and every
+reason a route fails, is `protocol.md`, "The Sets of a filter-update answer".
+
+| Answer | `Action` | Carries | The filter declares |
+|--------|----------|---------|---------------------|
+| Keep or drop the route as received | `sdk.FilterAccept`, `sdk.FilterReject` | nothing else: `Sets` beside them fails the route | its `Reads` |
+| Change named fields | `sdk.FilterModify` | `Sets`, one `rpc.FilterSet` per change | each field it changes in `Sets` |
+| Replace the whole UPDATE body | `sdk.FilterModify` | `Raw`, the new body, and no `Sets` | `sdk.FilterFieldRaw` in `Reads` |
+
+A field set holds the field name, an `rpc.FilterSetAction`, and the value as
+JSON in the field's shape:
+
+```go
+out := &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: []rpc.FilterSet{
+	{Field: "local-preference", Action: rpc.FilterSetActionSet, Value: json.RawMessage(`200`)},
+	{Field: "community", Action: rpc.FilterSetActionAdd, Value: json.RawMessage(`"65000:100"`)},
+}}
+```
+
+The `as-path`, `prefix` and `family` fields take intents rather than values,
+because Ze resolves them with state the plugin does not hold:
+`rpc.FilterSetActionPrepend` with a count, `rpc.FilterSetActionRemove` with
+`"private"` or `"private-peer-as"` for the AS path, with one announced prefix
+as the `prefix` field reads it, or with one family name. A prepend never names
+an AS number, and a prefix remove never names an offset: Ze finds each entry
+in the body NLRI and in MP_REACH_NLRI. Every set of a route fails with the
+route when one of them is refused, so an answer never applies half its
+changes.
+
+A `Raw` rewrite is terminal. The later filters of the chain are not called,
+and the rewrite is refused when an earlier filter already set a field, since
+it was built from the received body. The engine keeps the rewrite past the
+call, so on the fast path it copies the bytes you answered (`ownRawRewrite`):
+building the rewrite in a scratch buffer you reuse on the next call is safe.
+Every other slice of the answer is the engine's from your return, as a
+forked plugin's decoded answer is, and you never write into `route.Raw()`.
+<!-- source: pkg/plugin/rpc/types.go -- FilterUpdateOutput, FilterSet, FilterSetAction -->
+<!-- source: pkg/plugin/rpc/filter_slot.go -- FilterSlotHandler, ownRawRewrite -->
+
 `p.OnFilterUpdate(fn)` is the same registration, adapted for a handler
 written against `*sdk.FilterUpdateInput`: the SDK encodes a fast-path route's
 fields for it and runs its calls one at a time on one worker goroutine, so a

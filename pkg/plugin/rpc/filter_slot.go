@@ -5,6 +5,7 @@
 package rpc
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 )
@@ -120,7 +121,12 @@ func (r *FilterRoute) Input() (FilterUpdateInput, error) {
 // concurrently, so it MUST honor the fast-path contract
 // (docs/plugin-development/handlers.md, "Route filters"): non-blocking,
 // bounded, safe for concurrent calls, keeping nothing of route past its
-// return, reading its state from a snapshot its own goroutines swap.
+// return, reading its state from a snapshot its own goroutines swap. The
+// answer and every slice it holds pass to the engine at return, as a forked
+// plugin's decoded answer does, so the evaluator never writes them
+// afterwards; the whole-body rewrite, the one slice the engine keeps past the
+// call, is copied by CallFilterSlot. The evaluator never writes into
+// route.Raw().
 type FilterSlotHandler func(route *FilterRoute) (*FilterUpdateOutput, error)
 
 // errFilterSlotUnset answers a call on a bridge whose plugin installed no
@@ -168,5 +174,29 @@ func (b *DirectBridge) CallFilterSlot(route *FilterRoute) (out *FilterUpdateOutp
 			out, err = nil, fmt.Errorf("filter %s panicked: %v", route.Filter(), r)
 		}
 	}()
-	return b.filterSlot(route)
+	out, err = b.filterSlot(route)
+	if err != nil || out == nil {
+		return out, err
+	}
+	return out, ownRawRewrite(route.Filter(), out)
+}
+
+// ownRawRewrite makes out's whole-body rewrite the engine's own copy. The
+// engine keeps a rewrite past the call (it replaces the received body in the
+// cache and on the wire), while the slice the evaluator answered can alias a
+// scratch buffer the plugin reuses on its next call or the engine's borrowed
+// received body (route.Raw()). A forked plugin's rewrite is decoded into a
+// fresh slice, so only this transport copies. The copy is bounded as the
+// forked transport is: a rewrite wider than MaxMessageSize has no wire form
+// there, so it is refused here too, for its route alone.
+func ownRawRewrite(filter string, out *FilterUpdateOutput) error {
+	if len(out.Raw) == 0 {
+		return nil
+	}
+	if len(out.Raw) > MaxMessageSize {
+		return fmt.Errorf("filter %s answered a rewrite of %d octets, wider than the %d a filter-update answer carries",
+			filter, len(out.Raw), MaxMessageSize)
+	}
+	out.Raw = bytes.Clone(out.Raw)
+	return nil
 }
