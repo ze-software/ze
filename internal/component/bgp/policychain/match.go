@@ -35,6 +35,11 @@ type MatchRoute struct {
 	// only (Chain.Trace). A condition that counts the routes it refuses,
 	// as its filter did, does so only when Reports is set.
 	Reports bool
+	// Counted is set by a condition that counted its refusal in this run,
+	// so a match judging each NLRI entry counts one refusal per UPDATE, as
+	// the condition's filter, answering once per UPDATE, did. evaluate
+	// clears it with the rest of the route at every run.
+	Counted bool
 }
 
 // MatchConditions holds the checks of the match conditions a BGP chain can

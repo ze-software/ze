@@ -26,7 +26,8 @@ import (
 // trace) is counted under the direction and the slot that decided it, as
 // handleFilterUpdate counts every route it refuses. A list rejecting a
 // route under action reject lets it pass, so nothing is refused and nothing
-// is counted. An AS_PATH the view refuses as malformed is an error, so the
+// is counted. A match judging each NLRI entry counts one refusal per UPDATE
+// (MatchRoute.Counted), as the filter answered once per UPDATE. An AS_PATH the view refuses as malformed is an error, so the
 // member fails closed.
 //
 // RFC 7454 Section 9: "This loose policy could be combined with filters for
@@ -53,14 +54,16 @@ func compileBGPCondition(value any, resolve policy.InstanceResolver) (policy.Con
 			sender = senderASN{asn: session.Sender, known: true}
 		}
 		if found, ok := matchPositions(asPath, sender, list.positions, list.nth); ok {
-			if r.Reports {
+			if r.Reports && !r.Counted {
 				recordReject(direction, rejectSlot(found.at))
+				r.Counted = true
 			}
 			return false, nil
 		}
 		if _, ok := matchPattern(asPath, list.patterns); ok {
-			if r.Reports {
+			if r.Reports && !r.Counted {
 				recordReject(direction, slotPattern)
+				r.Counted = true
 			}
 			return false, nil
 		}

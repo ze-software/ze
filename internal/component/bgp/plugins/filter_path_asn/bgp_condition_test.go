@@ -14,10 +14,14 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-const testAttachmentBGP = "filter-path-asn-test bgp import"
+const (
+	testAttachmentBGP    = "filter-path-asn-test bgp import"
+	testAttachmentPrefix = "filter-path-asn-test bgp prefix import"
+)
 
 func init() {
 	policy.MustRegisterAttachment("bgp", testAttachmentBGP, []policy.Field{policy.FieldASPath}, nil)
+	policy.MustRegisterAttachment("bgp", testAttachmentPrefix, []policy.Field{policy.FieldASPath, policy.FieldPrefix}, nil)
 }
 
 // conditionListConfig is one reject-asn list: 3356 anywhere past the sender,
