@@ -954,7 +954,7 @@ site.
 | `decode-capability` | `DecodeCapabilityInput` | `{"json":<raw JSON>}` | Decode a capability |
 | `bye` | `ByeInput` | `ok` or error | Acknowledged cleanup; an error leaves the plugin running |
 | `drain` | `DrainInput` | `DrainOutput` or error | Stop drain before whole-daemon shutdown ("The stop drain") |
-| `filter-update` | `FilterUpdateInput` | `FilterUpdateOutput` | Route filter request |
+| `filter-update` | `FilterUpdateBatchInput` | `FilterUpdateBatchOutput` | Route filter request: a batch of routes, one verdict each |
 | `doctor-check` | `DoctorCheckInput` | `DoctorCheckOutput` | Doctor readiness check |
 | `resolver-cache-clear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear one declared resolver cache |
 | `enrich-show` | `EnrichShowInput` | `EnrichShowOutput` | Show command enrichment |
@@ -1198,9 +1198,18 @@ handler calls `show.Enrich()` (mode "detail") or `show.EnrichBrief()` (mode "bri
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEnrichShow -->
 <!-- source: internal/component/plugin/server/enricher.go -- registerProxyEnrichers, makeProxyCall -->
 
-**filter-update:** Engine sends UPDATE attributes to a named filter.
-Plugin responds accept, reject, or modify (delta-only changed attributes).
-Includes filter name so the plugin can dispatch to the correct handler.
+**filter-update:** Engine sends a batch of routes to a plugin's filters, and
+the plugin answers one verdict per route, in request order: accept, reject, or
+modify (delta-only changed attributes, or sets). Each route names its filter so
+the plugin can dispatch to the correct handler. A batch holds the routes queued
+for the plugin when the exchange starts, at most `rpc.FilterUpdateBatchMax`
+(64), under one `rpc.FilterUpdateTimeout`; a failed batch (timeout, error, a
+reply with the wrong number of verdicts) applies each route's filter
+`on-error`, and a verdict carrying `error` fails its route alone. One worker per
+plugin connection owns the exchanges, and each caller waits for its own
+verdict, so the borrowed route bytes stay valid until the batch is sent
+(protocol.md, "The filter-update batch").
+<!-- source: internal/component/plugin/ipc/filter_batch.go -- SendFilterUpdate, filterBatcher -->
 Beside the text `update`, the request carries `fields`: one JSON object holding
 exactly the route fields the filter declared in `reads`, keyed by vocabulary
 field name, each value in the UPDATE event's `attr` shape. A declared field the
@@ -2069,7 +2078,7 @@ not just a goroutine waiting for an uncancelled writer.
 | Plugin to Engine dispatch-command-args | JSON marshal `DispatchCommandArgsInput` -> RPC -> unmarshal -> exact command route | `bridge.DispatchCommandArgs(ctx, command, args, peer)` -> `dispatchCommandArgs()` directly (Go args slice, no tokenizer) |
 | Plugin to Engine emit-event | JSON marshal `EmitEventInput` -> RPC -> unmarshal -> deliver | `bridge.EmitEvent(namespace, eventType, ...)` -> `deliverEvent()` directly (Go strings, no JSON) |
 | Engine to Plugin callbacks | MuxConn RPC + 3-way select | `bridge.SendCallback()` -> callback channel -> `bridgeEventLoop` 2-way select |
-| Engine to Plugin `filter-update` | `CallFilterUpdate` -> `SendFilterUpdate` -> `CallRPC` -> MuxConn RPC | No typed slot: `CallRPC` marshals the text-subject `FilterUpdateInput` to JSON and calls the generic `bridge.SendCallback()`, so the callback skips the pipe but still pays for the text subject and JSON both ways |
+| Engine to Plugin `filter-update` | `CallFilterUpdate` -> `SendFilterUpdate` (queued on the connection's batch worker) -> `CallRPC` -> MuxConn RPC | No typed slot: `CallRPC` marshals the batch of text-subject `FilterUpdateInput` routes to JSON and calls the generic `bridge.SendCallback()`, so the callback skips the pipe but still pays for the text subject and JSON both ways |
 
 **Callback dispatch:** Both event loops (pipe and bridge) dispatch through a generic
 callback registry (`map[string]callbackHandler`). Each `On*` method registers a typed

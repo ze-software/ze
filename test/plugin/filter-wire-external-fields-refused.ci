@@ -89,17 +89,20 @@ def answer(line):
     if ":" not in verb:
         return
     if verb == "ze-plugin-callback:filter-update":
-        # Every key the request carries, nested objects included, so a test
-        # asserts which fields were sent without matching the encoding.
-        keys = []
-        def walk(obj, path):
-            for k, v in obj.items():
-                keys.append(path + k)
-                if isinstance(v, dict):
-                    walk(v, path + k + ".")
-        walk(json.loads(payload), "")
-        log("filter-update to " + os.environ["ZE_PLUGIN_NAME"] + " keys=" + ",".join(sorted(keys)) + ";")
-        send(ident + ' ok {"action":"accept"}')
+        # A batch of routes (D-3): every key each route carries, nested
+        # objects included, so a test asserts which fields were sent without
+        # matching the encoding; one accept verdict per route, in order.
+        routes = json.loads(payload)["routes"]
+        for route in routes:
+            keys = []
+            def walk(obj, path):
+                for k, v in obj.items():
+                    keys.append(path + k)
+                    if isinstance(v, dict):
+                        walk(v, path + k + ".")
+            walk(route, "")
+            log("filter-update to " + os.environ["ZE_PLUGIN_NAME"] + " keys=" + ",".join(sorted(keys)) + ";")
+        send(ident + " ok " + json.dumps({"verdicts": [{"action": "accept"}] * len(routes)}, separators=(",", ":")))
         return
     send(ident + " ok")
     if verb == "ze-plugin-callback:bye":

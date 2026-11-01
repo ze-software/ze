@@ -52,8 +52,9 @@ type ExternalCaller interface {
 	// when it has declared no such filter (it has not reached Stage 1, or
 	// it has gone).
 	FilterDeclaration(plugin, filter string) (ExternalDeclaration, bool)
-	// CallFilter sends input to plugin and answers its reply, bounded by
-	// rpc.FilterUpdateTimeout. It MUST NOT keep input past its return.
+	// CallFilter sends input to plugin, in a filter-update batch bounded by
+	// rpc.FilterUpdateTimeout, and answers the route's verdict. It MUST NOT
+	// keep input past its return.
 	CallFilter(plugin string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error)
 }
 

@@ -30,6 +30,8 @@ type PluginConn struct {
 	*rpc.Conn
 	mux    *rpc.MuxConn                     // Non-nil for single-conn mode.
 	bridge atomic.Pointer[rpc.DirectBridge] // Published after bridge transport negotiation.
+	// filters batches the routes sent to this plugin's filters (filter_batch.go).
+	filters filterBatcher
 }
 
 // NewPluginConn creates a PluginConn that reads from readConn and writes to writeConn.
@@ -155,6 +157,7 @@ func (pc *PluginConn) SendCodedError(ctx context.Context, id uint64, code, messa
 
 // Close closes the underlying connection.
 func (pc *PluginConn) Close() error {
+	pc.filters.close()
 	if pc.mux != nil {
 		return pc.mux.Close()
 	}
@@ -481,20 +484,6 @@ func valueAnswer(out *rpc.ExecuteCommandOutput) *rpc.Answer {
 		return rpc.NewAnswer(head, rpc.AnswerTail{}, nil)
 	}
 	return rpc.NewAnswer(head, rpc.AnswerTail{Count: 1}, slices.Values([]rpc.Record{{Item: out.Data}}))
-}
-
-// SendFilterUpdate sends a filter-update request to the plugin.
-// The plugin evaluates the update against the named filter and returns accept/reject/modify.
-func (pc *PluginConn) SendFilterUpdate(ctx context.Context, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
-	result, err := pc.CallRPC(ctx, "ze-plugin-callback:filter-update", input)
-	if err != nil {
-		return nil, err
-	}
-	var out rpc.FilterUpdateOutput
-	if err := json.Unmarshal(result, &out); err != nil {
-		return nil, fmt.Errorf("unmarshal filter-update result: %w", err)
-	}
-	return &out, nil
 }
 
 // SendConfigVerify sends a config verification request to the plugin.

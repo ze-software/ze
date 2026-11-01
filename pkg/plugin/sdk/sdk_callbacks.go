@@ -841,20 +841,32 @@ func (p *Plugin) OnValidateOpen(fn ValidateOpenHandler) {
 	}
 }
 
-// OnFilterUpdate sets the handler for route filter requests (redistribution).
-// The handler receives filter input (filter name, direction, peer, update text)
-// and returns a PolicyResponse (accept/reject/modify with optional delta).
+// OnFilterUpdate sets the handler for route filter requests. The engine sends
+// a batch of routes in one filter-update exchange (rpc.FilterUpdateBatchInput);
+// the SDK calls fn once per route, in request order, and answers one verdict
+// per route. An error fn returns fails that route alone: its verdict carries
+// the error, and the engine applies the filter's on-error to it.
 func (p *Plugin) OnFilterUpdate(fn FilterUpdateHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackFilterUpdate] = func(params json.RawMessage) (json.RawMessage, error) {
-		var input rpc.FilterUpdateInput
-		if err := json.Unmarshal(params, &input); err != nil {
+		var batch rpc.FilterUpdateBatchInput
+		if err := json.Unmarshal(params, &batch); err != nil {
 			return nil, fmt.Errorf("unmarshal filter-update: %w", err)
 		}
-		out, err := fn(&input)
-		if err != nil {
-			return nil, err
+		out := rpc.FilterUpdateBatchOutput{Verdicts: make([]rpc.FilterUpdateOutput, len(batch.Routes))}
+		for i := range batch.Routes {
+			verdict, err := fn(&batch.Routes[i])
+			if err != nil {
+				out.Verdicts[i] = rpc.FilterUpdateOutput{Action: rpc.FilterReject, Error: err.Error()}
+				continue
+			}
+			if verdict == nil {
+				out.Verdicts[i] = rpc.FilterUpdateOutput{Action: rpc.FilterReject,
+					Error: "the filter handler answered no verdict"}
+				continue
+			}
+			out.Verdicts[i] = *verdict
 		}
 		return json.Marshal(out)
 	}

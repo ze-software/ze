@@ -41,9 +41,13 @@ const (
 	// UPDATE waits. It is comfortably above a typical IRR round-trip yet short
 	// enough that a genuinely-unreachable IRR server fails the UPDATE closed
 	// promptly rather than hanging the route's processing. It sits one second
-	// below rpc.FilterUpdateTimeout, the reactor's deadline for this call: the
-	// verdict given when the wait expires, the fail-closed reject, only counts if it reaches the reactor before that deadline rejects
-	// the UPDATE on its own.
+	// below rpc.FilterUpdateTimeout, the deadline of the whole filter-update
+	// batch that carries this UPDATE: the verdict given when the wait expires,
+	// the fail-closed reject, only counts if the batch is answered before that
+	// deadline. The routes of a batch share the budget, so when the wait runs
+	// out for one route, the batch's later routes waiting on the same ASN take
+	// the filter's on-error, which is the same fail-closed reject (R-8: phase 4
+	// deletes the wait).
 	firstResolveWait = rpc.FilterUpdateTimeout - time.Second
 )
 

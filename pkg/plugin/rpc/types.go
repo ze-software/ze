@@ -582,13 +582,40 @@ type FilterDecl struct {
 // It is the only read that is not a route field of the policy vocabulary.
 const FilterFieldRaw = "raw"
 
-// FilterUpdateTimeout is the reactor's deadline for one filter-update call.
-// When it expires the reactor applies the filter's on-error policy without the
-// plugin's verdict, so a plugin that waits inside its handler MUST bound that
-// wait below this value for its own verdict to count.
+// FilterUpdateTimeout is the deadline of one filter-update exchange, which
+// carries a batch of routes (FilterUpdateBatchInput). When it expires the
+// engine applies the filter's on-error policy to every route of the batch, so
+// a plugin MUST answer the whole batch within it: a handler that waits on its
+// own data bounds that wait well below it, since the routes of one batch share
+// the budget.
 const FilterUpdateTimeout = 5 * time.Second
 
-// FilterUpdateInput is the input for ze-plugin-callback:filter-update (runtime).
+// FilterUpdateBatchMax bounds the routes of one filter-update exchange. The
+// engine sends a filter's plugin what is queued for that plugin when the
+// exchange starts, up to this many routes, so a lone route goes at once and a
+// burst shares one round trip. 64 keeps a batch of the largest routes (a
+// 65535-octet UPDATE base64 encoded as raw, beside its text and fields, about
+// 200 KiB) under MaxMessageSize (16 MiB) on one line.
+const FilterUpdateBatchMax = 64
+
+// FilterUpdateBatchInput is the input of ze-plugin-callback:filter-update: the
+// routes of one exchange, between 1 and FilterUpdateBatchMax, in the order the
+// engine queued them. Routes from one source are queued in the order that
+// source produced them, and a later batch holds only routes queued after the
+// earlier one was sent, so per-source order holds within and across batches.
+type FilterUpdateBatchInput struct {
+	Routes []FilterUpdateInput `json:"routes"`
+}
+
+// FilterUpdateBatchOutput is the output of ze-plugin-callback:filter-update:
+// one verdict per route, in request order. A reply holding more or fewer
+// verdicts than the request held routes is malformed: the engine applies none
+// of it, and each route of the batch takes its filter's on-error.
+type FilterUpdateBatchOutput struct {
+	Verdicts []FilterUpdateOutput `json:"verdicts"`
+}
+
+// FilterUpdateInput is one route of a filter-update exchange.
 type FilterUpdateInput struct {
 	Filter    string `json:"filter"`    // Filter name to invoke
 	Direction string `json:"direction"` // "import" or "export"
@@ -610,7 +637,7 @@ type FilterUpdateInput struct {
 	Raw []byte `json:"raw,omitempty"`
 }
 
-// FilterUpdateOutput is the output for ze-plugin-callback:filter-update.
+// FilterUpdateOutput is the verdict on one route of a filter-update exchange.
 type FilterUpdateOutput struct {
 	Action FilterAction `json:"action"`           // Typed decision; wire form is "accept"/"reject"/"modify"
 	Update string       `json:"update,omitempty"` // Delta-only modified attributes (only for action=modify)
@@ -636,6 +663,11 @@ type FilterUpdateOutput struct {
 	Teardown      bool  `json:"teardown,omitempty"`
 	NotifyCode    uint8 `json:"notify-code,omitempty"`
 	NotifySubcode uint8 `json:"notify-subcode,omitempty"`
+
+	// Error, when set, says the filter could not judge this route: the engine
+	// applies the filter's on-error to this route alone and reads nothing else
+	// of the verdict. The other routes of the batch keep their own verdicts.
+	Error string `json:"error,omitempty"`
 }
 
 // FilterSet is one change a filter answers for one route: the vocabulary

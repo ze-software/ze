@@ -518,7 +518,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-complete` | `OnConfigComplete` | `ConfigCompleteInput` | `ConfigCompleteOutput` | Acknowledge cleanup for the named original transaction after acceptance or completed abort |
 | `ze-plugin-callback:source-policy` | `OnSourcePolicy` | `rpc.SourcePolicyInput` | `rpc.SourcePolicyOutput` | Settle prepare/apply/abort/finalize for a captured retained source |
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
-| `ze-plugin-callback:filter-update` | `OnFilterUpdate` | `FilterUpdateInput` | `FilterUpdateOutput` | Filter a route update. The reactor waits `rpc.FilterUpdateTimeout` (5 s) for the answer, then applies the filter's `on-error` policy, so a handler that waits MUST bound the wait below it |
+| `ze-plugin-callback:filter-update` | `OnFilterUpdate` | `FilterUpdateBatchInput` (`routes`, each a `FilterUpdateInput`) | `FilterUpdateBatchOutput` (`verdicts`, each a `FilterUpdateOutput`) | Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits `rpc.FilterUpdateTimeout` (5 s) for the whole batch, then applies the filter's `on-error` policy to each of its routes, so a handler that waits MUST bound the wait well below it |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check |
 | `ze-plugin-callback:resolver-cache-clear` | `OnResolverCacheClear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear a declared resolver cache of the plugin's current clients, answering the entries removed |
 | `ze-plugin-callback:enrich-show` | `OnEnrichShow` | `EnrichShowInput` | `EnrichShowOutput` | Add data to show output |
@@ -630,6 +630,42 @@ session's routes (`docs/architecture/plugin/rib-storage-design.md`,
 "Source-DOWN replacement and sent ordering").
 <!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent -->
 <!-- source: internal/component/bgp/plugins/cmd/update/recovery.go -- recoveryFromMeta -->
+
+### The filter-update batch
+
+One `filter-update` exchange carries a batch of routes. The request is
+`{"routes":[...]}`, each entry one route as `FilterUpdateInput` describes it
+(`filter`, `direction`, `peer`, `peer-as`, `update`, `fields`, `raw`). The
+answer is `{"verdicts":[...]}`, one `FilterUpdateOutput` per route, at the
+position of its route.
+
+```
+#7 ze-plugin-callback:filter-update {"routes":[{"filter":"lp","direction":"import","peer":"192.0.2.1","peer-as":65001,"update":"","fields":{"prefix":["10.0.0.0/24"]}},{"filter":"lp","direction":"import","peer":"192.0.2.1","peer-as":65001,"update":"","fields":{"prefix":["10.0.1.0/24"]}}]}
+#7 ok {"verdicts":[{"action":"reject"},{"action":"modify","sets":[{"field":"med","action":"set","value":50}]}]}
+```
+
+- **What a batch holds.** Ze sends the routes queued for the plugin when the
+  exchange starts, at most `rpc.FilterUpdateBatchMax` (64). A lone route goes
+  at once in a batch of one; routes that queue while an exchange is in flight
+  go together in the next one. Routes from one source are queued in the order
+  that source produced them, and a later batch holds only routes queued after
+  the earlier one was sent, so per-source order holds within and across
+  batches.
+- **One timeout per batch.** `rpc.FilterUpdateTimeout` (5 s) bounds the whole
+  exchange. When it expires, or the plugin answers an error, each route of the
+  batch takes its filter's `on-error`, one outcome per route.
+- **One verdict per route.** A reply with more or fewer verdicts than the
+  request held routes is malformed: no verdict of it is applied, and each
+  route of the batch takes its filter's `on-error`. The next batch is judged
+  normally.
+- **A route the filter cannot judge.** A verdict carrying `error` (a string)
+  fails that route alone under its filter's `on-error`; the other routes of
+  the batch keep their verdicts. The Go SDK answers a handler's returned error
+  this way: `OnFilterUpdate` calls the handler once per route, in request
+  order, so a Go filter is written for one route.
+<!-- source: pkg/plugin/rpc/types.go -- FilterUpdateBatchMax, FilterUpdateBatchInput, FilterUpdateBatchOutput -->
+<!-- source: internal/component/plugin/ipc/filter_batch.go -- SendFilterUpdate, filterBatcher -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate -->
 
 ### The Route Fields of filter-update
 

@@ -452,122 +452,146 @@ to the single document the record path would have carried.";
 
     rpc filter-update {
         ze:method "ze-plugin-callback:filter-update";
-        description "Plugin responds accept, reject, or modify (delta-only).";
+        description
+            "The engine sends the routes queued for the plugin when the exchange starts,
+             at most 64 (FilterUpdateBatchMax), and the plugin answers one verdict per
+             route in request order, all within one 5 second timeout.";
         ze:help "Engine sends UPDATE attributes to a named filter plugin.";
         input {
-            leaf filter {
-                type string;
-                mandatory true;
+            list routes {
                 description
-                    "The name is the one the peer's filter block references, without the
-                     plugin prefix. The engine reads the on-error policy and the declared reads from
-                     the declaration of this name, or from a name-pattern it matches when none does.";
-                ze:help "Filter name (declared at stage 1)";
-            }
-            leaf direction {
-                type string;
-                mandatory true;
-                description
-                    "The value is import for an UPDATE the peer sent and export for one Ze is
-                     about to send. A teardown answer is honored on import alone.";
-                ze:help "import or export";
-            }
-            leaf peer {
-                type string;
-                mandatory true;
-                description
-                    "The address of the peer the UPDATE was received from, or the peer it is
-                     about to be sent to.";
-                ze:help "Peer IP address";
-            }
-            leaf peer-as {
-                type uint32;
-                mandatory true;
-                description
-                    "The value is the AS number of that same peer, as a plain number.";
-                ze:help "Peer ASN";
-            }
-            leaf update {
-                type string;
-                mandatory true;
-                description
-                    "The text is the chain's running result, so a modify an earlier filter
-                     answered is already applied when this filter reads it. A modify this filter
-                     answers is applied before the next filter runs.";
-                ze:help "Text-format attributes and NLRI (only declared attributes)";
-            }
-            anyxml fields {
-                description
-                    "A JSON object holding the route fields the filter declared it reads, keyed
-                     by vocabulary field name, each value in the shape the UPDATE event's attr map
-                     uses. A declared field the route does not carry is left out, and the member
-                     is absent when the filter declared no route field. The values are the route
-                     as the chain received it: a modify an earlier filter answered reaches this
-                     filter in update alone.";
-                ze:help "Declared route fields keyed by field name (JSON object)";
-            }
-            leaf raw {
-                type string;
-                description
-                    "The bytes are the UPDATE body after the 19-byte header, base64 encoded
-                     because the field is bytes on the wire. It is present when the filter
-                     declared raw true and the engine holds the body.";
-                ze:help "Base64-encoded raw UPDATE body (if filter declared raw=true)";
+                    "One entry per route of the exchange, in the order the engine queued them:
+                     routes from one source keep the order that source produced them.";
+                ze:help "The routes of one exchange";
+                leaf filter {
+                    type string;
+                    mandatory true;
+                    description
+                        "The name is the one the peer's filter block references, without the
+                         plugin prefix. The engine reads the on-error policy and the declared reads from
+                         the declaration of this name, or from a name-pattern it matches when none does.";
+                    ze:help "Filter name (declared at stage 1)";
+                }
+                leaf direction {
+                    type string;
+                    mandatory true;
+                    description
+                        "The value is import for an UPDATE the peer sent and export for one Ze is
+                         about to send. A teardown answer is honored on import alone.";
+                    ze:help "import or export";
+                }
+                leaf peer {
+                    type string;
+                    mandatory true;
+                    description
+                        "The address of the peer the UPDATE was received from, or the peer it is
+                         about to be sent to.";
+                    ze:help "Peer IP address";
+                }
+                leaf peer-as {
+                    type uint32;
+                    mandatory true;
+                    description
+                        "The value is the AS number of that same peer, as a plain number.";
+                    ze:help "Peer ASN";
+                }
+                leaf update {
+                    type string;
+                    mandatory true;
+                    description
+                        "The text is the chain's running result, so a modify an earlier filter
+                         answered is already applied when this filter reads it. A modify this filter
+                         answers is applied before the next filter runs.";
+                    ze:help "Text-format attributes and NLRI (only declared attributes)";
+                }
+                anyxml fields {
+                    description
+                        "A JSON object holding the route fields the filter declared it reads, keyed
+                         by vocabulary field name, each value in the shape the UPDATE event's attr map
+                         uses. A declared field the route does not carry is left out, and the member
+                         is absent when the filter declared no route field. The values are the route
+                         as the chain received it: a modify an earlier filter answered reaches this
+                         filter in update alone.";
+                    ze:help "Declared route fields keyed by field name (JSON object)";
+                }
+                leaf raw {
+                    type string;
+                    description
+                        "The bytes are the UPDATE body after the 19-byte header, base64 encoded
+                         because the field is bytes on the wire. It is present when the filter
+                         declared raw true and the engine holds the body.";
+                    ze:help "Base64-encoded raw UPDATE body (if filter declared raw=true)";
+                }
             }
         }
         output {
-            leaf action {
-                type enumeration {
-                    enum accept { ze:help "Pass update unchanged"; }
-                    enum reject { ze:help "Drop update, short-circuit chain"; }
-                    enum modify { ze:help "Apply delta changes"; }
-                }
-                mandatory true;
+            list verdicts {
                 description
-                    "A value outside the three is read as reject, and the chain records that
-                     the filter failed rather than decided.";
-                ze:help "Filter decision";
-            }
-            leaf update {
-                type string;
-                description
-                    "The text names the attributes to change and nothing else. The engine
-                     rejects the route when the delta touches an attribute the filter did not
-                     declare.";
-                ze:help "Delta-only modified attributes (action=modify)";
-            }
-            leaf raw {
-                type string;
-                description
-                    "The bytes replace the whole UPDATE body, base64 encoded like the input
-                     field. The engine reads it on a modify answer alone.";
-                ze:help "Base64-encoded full raw UPDATE body replacement (action=modify with raw)";
-            }
-            list sets {
-                description
-                    "Read on action=modify for a filter in a chain that also holds in-process
-                     members. A set of a field the filter did not declare in its sets, an action
-                     the field does not take, or a value of the wrong shape fails the route under
-                     the filter's on-error, and none of the route's sets apply.";
-                ze:help "Route fields the filter changes (action=modify)";
-                leaf field {
-                    type string;
-                    mandatory true;
-                    ze:help "Vocabulary field name (local-preference, med, community)";
-                }
+                    "One entry per route, in request order. A reply with more or fewer
+                     verdicts than routes is malformed: none is applied, and every route of the
+                     batch takes the filter's on-error.";
+                ze:help "One verdict per route, in request order";
                 leaf action {
                     type enumeration {
-                        enum set { ze:help "Replace the value"; }
-                        enum increment { ze:help "Add to the current value"; }
-                        enum decrement { ze:help "Subtract from the current value"; }
-                        enum add { ze:help "Add one value to a list field"; }
-                        enum remove { ze:help "Remove one value from a list field"; }
+                        enum accept { ze:help "Pass update unchanged"; }
+                        enum reject { ze:help "Drop update, short-circuit chain"; }
+                        enum modify { ze:help "Apply delta changes"; }
                     }
                     mandatory true;
-                    ze:help "How the field changes";
+                    description
+                        "A value outside the three is read as reject, and the chain records that
+                         the filter failed rather than decided.";
+                    ze:help "Filter decision";
                 }
-                anyxml value {
-                    ze:help "The value in the field's shape: a number, or a community string";
+                leaf update {
+                    type string;
+                    description
+                        "The text names the attributes to change and nothing else. The engine
+                         rejects the route when the delta touches an attribute the filter did not
+                         declare.";
+                    ze:help "Delta-only modified attributes (action=modify)";
+                }
+                leaf raw {
+                    type string;
+                    description
+                        "The bytes replace the whole UPDATE body, base64 encoded like the input
+                         field. The engine reads it on a modify answer alone.";
+                    ze:help "Base64-encoded full raw UPDATE body replacement (action=modify with raw)";
+                }
+                list sets {
+                    description
+                        "Read on action=modify for a filter in a chain that also holds in-process
+                         members. A set of a field the filter did not declare in its sets, an action
+                         the field does not take, or a value of the wrong shape fails the route under
+                         the filter's on-error, and none of the route's sets apply.";
+                    ze:help "Route fields the filter changes (action=modify)";
+                    leaf field {
+                        type string;
+                        mandatory true;
+                        ze:help "Vocabulary field name (local-preference, med, community)";
+                    }
+                    leaf action {
+                        type enumeration {
+                            enum set { ze:help "Replace the value"; }
+                            enum increment { ze:help "Add to the current value"; }
+                            enum decrement { ze:help "Subtract from the current value"; }
+                            enum add { ze:help "Add one value to a list field"; }
+                            enum remove { ze:help "Remove one value from a list field"; }
+                        }
+                        mandatory true;
+                        ze:help "How the field changes";
+                    }
+                    anyxml value {
+                        ze:help "The value in the field's shape: a number, or a community string";
+                    }
+                }
+                leaf error {
+                    type string;
+                    description
+                        "Set when the filter could not judge this route: the engine applies the
+                         filter's on-error to this route alone and reads nothing else of the
+                         verdict.";
+                    ze:help "Why the filter could not judge the route";
                 }
             }
         }

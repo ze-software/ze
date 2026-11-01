@@ -138,7 +138,10 @@ func (c libraryCaller) FilterDeclaration(plugin, filter string) (policychain.Ext
 	return policychain.ExternalDeclaration{Reads: reads, Sets: sets, OnError: onError}, ok
 }
 
-// CallFilter bounds the call by rpc.FilterUpdateTimeout, as the text chain does.
+// CallFilter sends the route in the plugin's next filter-update batch. The
+// context bounds the wait for room in the plugin's queue; the batch itself is
+// bounded by rpc.FilterUpdateTimeout (ipc SendFilterUpdate), as the text
+// chain's is.
 func (c libraryCaller) CallFilter(plugin string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), rpc.FilterUpdateTimeout)
 	defer cancel()
