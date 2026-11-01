@@ -77,6 +77,12 @@ var tunnelTTLExpectations08 = []tunnelTTLExpectation08{
 // TTL mismatch, which tells the reader whether the apply or the default is at
 // fault.
 func tunnelTTLDefault08(ctx context.Context, p *sdk.Plugin) error {
+	// The .ci peer expects its End-of-RIB, and this scenario reads only kernel
+	// links: ended without the wait, Observe quiesces and stops ze while the
+	// session is still opening (TestPluginObservers08WaitForTheScriptedPeer).
+	if err := waitPeerEOR08(ctx, p); err != nil {
+		return err
+	}
 	if _, err := requireDone08(ctx, p, "show interface"); err != nil {
 		return err
 	}

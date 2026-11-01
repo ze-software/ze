@@ -483,6 +483,12 @@ func ifaceRouteProtocol08(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func ifaceTunnelKinds08(ctx context.Context, p *sdk.Plugin) error {
+	// The .ci peer expects its End-of-RIB, and this scenario reads only kernel
+	// links: ended without the wait, Observe quiesces and stops ze while the
+	// session is still opening (TestPluginObservers08WaitForTheScriptedPeer).
+	if err := waitPeerEOR08(ctx, p); err != nil {
+		return err
+	}
 	raw, err := requireDone08(ctx, p, "show interface")
 	if err != nil {
 		return err
