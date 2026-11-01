@@ -15,7 +15,12 @@
 // answers the Nth route and then ends its own run, so later routes meet a
 // stopped plugin and take the member's on-error. Once the plugin is closed it
 // creates the stopped file, so a test peer can hold its next route until the
-// slot is known to answer "unavailable".
+// slot is known to answer "unavailable". Told to restart, it declares the
+// restart failure policy, so ze starts it again; a run that finds the stopped
+// file already there is that second generation: it never stops, and once its
+// startup is done it creates the respawned file, so a test peer can hold its
+// next route until the new slot answers. Every judged route is logged with the
+// generation that judged it.
 package fakefilter
 
 import (
@@ -64,10 +69,11 @@ func filterDecls() []sdk.FilterDecl {
 
 // judgement is what the evaluator reports for one prefix of a judged route.
 type judgement struct {
-	peer      string
-	prefix    string
-	transport string // transportSlot or transportBatch
-	verdict   string // "accept" or "reject"
+	generation int // 1, or 2 for the run ze started again
+	peer       string
+	prefix     string
+	transport  string // transportSlot or transportBatch
+	verdict    string // "accept" or "reject"
 }
 
 // judge is the evaluator's state: the prefix it rejects, how many routes it
@@ -80,7 +86,9 @@ type judge struct {
 	rejectPrefix string
 	// stopAfter is the route count after which the plugin stops; 0 never.
 	stopAfter int64
-	judged    atomic.Int64
+	// generation is 1, or 2 for the run ze started again after a stop.
+	generation int
+	judged     atomic.Int64
 	// stop ends the plugin's run. It MUST NOT block: it runs inside the slot
 	// call, on the caller's goroutine (the fast-path contract).
 	stop   func()
@@ -88,7 +96,8 @@ type judge struct {
 }
 
 func newJudge(tr trigger, stop func(), report func(judgement)) *judge {
-	return &judge{rejectPrefix: tr.rejectPrefix, stopAfter: tr.stopAfter, stop: stop, report: report}
+	return &judge{rejectPrefix: tr.rejectPrefix, stopAfter: tr.stopAfter, generation: tr.generation,
+		stop: stop, report: report}
 }
 
 // routeFields is the part of the fields object the filter reads: family to
@@ -123,7 +132,7 @@ func (j *judge) evaluate(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error
 	}
 	for _, prefixes := range fields.Prefix {
 		for _, prefix := range prefixes {
-			j.report(judgement{peer: route.Peer(), prefix: prefix, transport: transport, verdict: verdict})
+			j.report(judgement{generation: j.generation, peer: route.Peer(), prefix: prefix, transport: transport, verdict: verdict})
 		}
 	}
 	if j.judged.Add(1) == j.stopAfter {
@@ -153,11 +162,45 @@ type trigger struct {
 	rejectPrefix string
 	stopAfter    int64
 	stoppedFile  string
+	// restart declares the restart failure policy, so ze starts the plugin
+	// again once it stops; respawnedFile ("" none) is created once that second
+	// generation's startup is done.
+	restart       bool
+	respawnedFile string
+	// generation is set by startGeneration, never by the environment.
+	generation int
+}
+
+// startGeneration answers the trigger this run obeys. A run that finds the
+// stopped file is the generation ze started again after the stop: it never
+// stops, so the test sees one stop and one respawn, not a respawn loop.
+func startGeneration(tr trigger) trigger {
+	tr.generation = 1
+	if tr.stoppedFile == "" {
+		return tr
+	}
+	if _, err := os.Stat(tr.stoppedFile); err != nil {
+		return tr
+	}
+	tr.generation = 2
+	tr.stopAfter = 0
+	return tr
+}
+
+// registration is what the plugin declares at Stage 1: its filter, and the
+// restart failure policy when the test asks for it.
+func registration(tr trigger) *sdk.Registration {
+	reg := &sdk.Registration{Filters: filterDecls()}
+	if tr.restart {
+		reg.FailurePolicy = sdk.FailureRestart
+	}
+	return reg
 }
 
 // run is the plugin's engine, over the connection the daemon gives it
 // (internal) or the TLS connect-back (forked). It returns the exit code.
 func run(conn net.Conn, tr trigger, log *slog.Logger) int {
+	tr = startGeneration(tr)
 	p := sdk.NewWithConn(Name, conn)
 
 	signalled, cancelSignals := sdk.SignalContext()
@@ -166,11 +209,21 @@ func run(conn net.Conn, tr trigger, log *slog.Logger) int {
 	defer stop()
 
 	report := func(j judgement) {
-		log.Info("fakefilter judged a route", "filter", FilterName, "peer", j.peer, "prefix", j.prefix,
+		log.Info("fakefilter judged a route", "filter", FilterName, "generation", j.generation, "peer", j.peer, "prefix", j.prefix,
 			"transport", j.transport, "verdict", j.verdict)
 	}
 	p.OnFilter(newJudge(tr, stop, report).evaluate)
-	runErr := p.Run(ctx, &sdk.Registration{Filters: filterDecls()})
+	if tr.generation == 2 && tr.respawnedFile != "" {
+		p.OnStarted(func(context.Context) error {
+			log.Info("fakefilter started again", "generation", tr.generation)
+			return os.WriteFile(tr.respawnedFile, nil, 0o600)
+		})
+	}
+	runErr := p.Run(ctx, registration(tr))
+	// Only the first generation stops, so only it creates the stopped file.
+	if tr.generation != 1 {
+		tr.stoppedFile = ""
+	}
 	// Closed before the stopped file exists: once it does, the bridge slot
 	// answers ErrBridgeClosed, which a test holding on the file relies on.
 	closeErr := p.Close()

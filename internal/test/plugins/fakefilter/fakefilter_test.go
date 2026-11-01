@@ -2,6 +2,8 @@ package fakefilter
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
 	"sync/atomic"
 	"testing"
@@ -142,5 +144,53 @@ func TestFakeFilterDeclaration(t *testing.T) {
 	}
 	if len(decl.Reads) != 1 || decl.Reads[0] != fieldPrefix {
 		t.Fatalf("reads = %q, want [%q]", decl.Reads, fieldPrefix)
+	}
+}
+
+// TestFakeFilterRespawnedGenerationNeverStops proves the AC-33 respawn trigger:
+// a run that finds the stopped file is generation 2, which drops the stop
+// trigger (so ze's restart does not loop) and reports its generation; a run
+// that does not is generation 1 and keeps it. Method: startGeneration before
+// and after the file exists, then one judged route of each.
+func TestFakeFilterRespawnedGenerationNeverStops(t *testing.T) {
+	stopped := filepath.Join(t.TempDir(), "fakefilter.stopped")
+	asked := trigger{stopAfter: 1, stoppedFile: stopped, restart: true}
+
+	first := startGeneration(asked)
+	if first.generation != 1 || first.stopAfter != 1 {
+		t.Fatalf("before the stop: generation %d stop-after %d, want 1 and 1", first.generation, first.stopAfter)
+	}
+	if err := os.WriteFile(stopped, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	second := startGeneration(asked)
+	if second.generation != 2 || second.stopAfter != 0 {
+		t.Fatalf("after the stop: generation %d stop-after %d, want 2 and 0", second.generation, second.stopAfter)
+	}
+
+	var stops atomic.Int32
+	var judged []judgement
+	j := newJudge(second, func() { stops.Add(1) }, func(r judgement) { judged = append(judged, r) })
+	route := rpc.InputFilterRoute(&rpc.FilterUpdateInput{Filter: FilterName, Direction: "import", Peer: "127.0.0.2",
+		Fields: json.RawMessage(`{"prefix":{"ipv4/unicast":["10.1.0.0/24"]}}`)})
+	if _, err := j.evaluate(&route); err != nil {
+		t.Fatal(err)
+	}
+	if stops.Load() != 0 {
+		t.Fatalf("generation 2 stopped %d times, want never", stops.Load())
+	}
+	if len(judged) != 1 || judged[0].generation != 2 {
+		t.Fatalf("judged = %+v, want one route reported by generation 2", judged)
+	}
+}
+
+// TestFakeFilterDeclaresRestartWhenAsked proves the Stage 1 declaration
+// carries the restart failure policy only when the test asks for it.
+func TestFakeFilterDeclaresRestartWhenAsked(t *testing.T) {
+	if got := registration(trigger{}).FailurePolicy; got != rpc.FailureUnspecified {
+		t.Fatalf("unasked failure policy = %v, want unspecified", got)
+	}
+	if got := registration(trigger{restart: true}).FailurePolicy; got != sdk.FailureRestart {
+		t.Fatalf("asked failure policy = %v, want restart", got)
 	}
 }

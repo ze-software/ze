@@ -22,6 +22,8 @@ const (
 	envRejectPrefix = "ze.fakefilter.reject.prefix"
 	envStopAfter    = "ze.fakefilter.stop.after"
 	envStoppedFile  = "ze.fakefilter.stopped.file"
+	envRestart      = "ze.fakefilter.restart"
+	envRespawnFile  = "ze.fakefilter.respawned.file"
 )
 
 func init() {
@@ -31,6 +33,10 @@ func init() {
 		Description: "Test-only: fakefilter stops after judging this many routes (0 never)", Private: true})
 	env.MustRegister(env.EnvEntry{Key: envStoppedFile, Type: "string",
 		Description: "Test-only: file fakefilter creates once it has stopped", Private: true})
+	env.MustRegister(env.EnvEntry{Key: envRestart, Type: "bool", Default: "false",
+		Description: "Test-only: fakefilter declares the restart failure policy", Private: true})
+	env.MustRegister(env.EnvEntry{Key: envRespawnFile, Type: "string",
+		Description: "Test-only: file fakefilter creates once its restarted run has started", Private: true})
 
 	reg := registry.Registration{
 		Name:        Name,
@@ -50,9 +56,11 @@ func init() {
 // runEngine runs the plugin with the trigger the environment asks for.
 func runEngine(conn net.Conn) int {
 	tr := trigger{
-		rejectPrefix: env.Get(envRejectPrefix),
-		stopAfter:    env.GetInt64(envStopAfter, 0),
-		stoppedFile:  env.Get(envStoppedFile),
+		rejectPrefix:  env.Get(envRejectPrefix),
+		stopAfter:     env.GetInt64(envStopAfter, 0),
+		stoppedFile:   env.Get(envStoppedFile),
+		restart:       env.GetBool(envRestart, false),
+		respawnedFile: env.Get(envRespawnFile),
 	}
 	return run(conn, tr, slogutil.Logger(Name))
 }
