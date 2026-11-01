@@ -40,6 +40,8 @@ ze_{scope}_{subject}_{detail}
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- ze_rib_* metric names -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- ze_gr_* metric names -->
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- ze_peer_* metric names -->
+<!-- source: internal/component/plugin/ipc/filter_batch_metrics.go -- SetFilterMetrics -->
+<!-- source: internal/component/bgp/policychain/metrics.go -- SetMetricsRegistry, countSetRefusal -->
 <!-- source: internal/component/bgp/filterapi/metrics.go -- ze_bgp_attr_mod_* metric names -->
 
 ### Type-Specific Rules
@@ -215,6 +217,8 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_managed_config_fetch_total` | CounterVec | result | managed (hub server) |
 | `ze_managed_config_changed_pushed_total` | Counter | | managed (hub server) |
 | `ze_plugin_write_watchdog_total` | CounterVec | transport | plugin (server) |
+| `ze_plugin_filter_batch_routes` | Histogram | | plugin (ipc): the routes one filter-update exchange with a forked plugin carried, buckets 1 to 64 (`rpc.FilterUpdateBatchMax`); a plugin running internal is called through its filter slot and observes nothing |
+| `ze_policy_route_set_refusals_total` | CounterVec | filter | bgp library chains (policychain): one per route a plugin filter failed by answering a set Ze refused (undeclared, not settable at the attachment, unknown, or of the wrong shape), whichever `on-error` then decided the route. `filter` is the chain reference, `<plugin>:<filter>` |
 | `ze_iface_owned_devices` | GaugeVec | owner | iface (owned-device registry) |
 | `ze_iface_link_events_coalesced_total` | CounterVec | name | iface (link event queue) |
 | `ze_iface_carrier_resyncs_total` | CounterVec | name | iface (carrier resync) |

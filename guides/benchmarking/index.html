@@ -67,6 +67,7 @@ including Ze.</p>
 <li><a href="#passes">Passes</a></li>
 <li><a href="#manual-reports">Manual Reports</a></li>
 </ol></li>
+<li><a href="#filter-throughput">Filter throughput</a></li>
 <li><a href="#tracking-performance-over-time">Tracking Performance Over Time</a>
 <ol>
 <li><a href="#ndjson-history">NDJSON History</a></li>
@@ -207,10 +208,26 @@ least <code>--repeat 10</code>:</p>
 <td><code>3s</code></td>
 <td>Delay between iterations</td>
 </tr>
+<tr>
+<td><code>--reconnect-wait</code></td>
+<td><code>0</code></td>
+<td>How long to keep dialing a DUT that refuses the next iteration's session</td>
+</tr>
 </tbody>
 </table>
 <p>The <code>--iter-delay</code> flag controls whether iterations run back-to-back or with
 a pause. Longer delays give the DUT time to settle between measurements.</p>
+<p>Every iteration ends its sessions with a Cease and opens new ones. A DUT may
+hold a peer in Idle after a reset, as RFC 4271 Section 8.1.1 allows: OpenBGPD
+holds it 30 s after the second reset and doubles the hold after each later
+one, closing every connection the peer opens meanwhile. With
+<code>--reconnect-wait</code>, <code>le perf send</code> dials such a DUT again every second until
+it accepts the session or the wait runs out; timing starts only once the
+session is up, so the wait is not measured. With the default <code>0</code>, the run
+fails at the first connection the DUT closes before its OPEN, and the error
+names the flag. <code>./le perf run</code> passes <code>--reconnect-wait 10m</code>.</p>
+<!-- source: internal/perf/benchmark.go -- dialSession -->
+<!-- source: internal/test/perfrunner/run.go -- Runner.runPerf -->
 <h2 id="cross-implementation-comparison">Cross-Implementation Comparison</h2>
 <h3 id="automated-docker-runner">Automated Docker Runner</h3>
 <p>The included test runner benchmarks all eight supported implementations in Docker:</p>
@@ -416,6 +433,47 @@ however many passes it has.</p>
 <!-- source: internal/perf/report/markdown.go -- Markdown report generation -->
 <!-- source: internal/perf/report/html.go -- HTML report generation -->
 <p>For the full flag reference, see <a href="../command-reference/#le-perf-compare">le perf compare</a>.</p>
+<h2 id="filter-throughput">Filter throughput</h2>
+<p><code>./le perf filter</code> is the throughput harness of the route filter paths. It
+covers three sets of Go benchmarks, and needs no Docker and no DUT:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Benchmarks</th>
+<th>Package</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>In-process: the typed DirectBridge filter slot</td>
+<td><code>BenchmarkFilterFastPath</code></td>
+<td><code>pkg/plugin/sdk</code></td>
+</tr>
+<tr>
+<td>External: one <code>filter-update</code> batch of 1, 16 and 64 routes</td>
+<td><code>BenchmarkFilterForkedBatch</code></td>
+<td><code>pkg/plugin/sdk</code></td>
+</tr>
+<tr>
+<td>Text <code>filter-update</code>, the before figure</td>
+<td><code>BenchmarkFilterModifyEgress</code>, <code>BenchmarkAppendUpdateForFilter_Reused</code>, <code>BenchmarkAppendAttrsForFilter_Reused</code></td>
+<td><code>internal/component/bgp/reactor</code> (<code>ze_bgp</code>)</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-bash"># Check the harness builds: compile each package, list the benchmarks,
+# measure nothing, and print the go command of each set.
+./le perf filter
+
+# Measure: every set, ten runs each, with allocations. macOS only.
+./le perf filter measure
+</code></pre>
+<p><code>measure</code> refuses to run anywhere but macOS, because performance is measured
+on the owner's Mac alone, whose hardware is known. The bare form is the check
+an agent runs: it fails when a package no longer builds its benchmarks or a
+benchmark the harness names was renamed.</p>
+<!-- source: internal/le/perf/filter.go -- filterBenches, filterHere, measureFilters, listFilters -->
 <h2 id="tracking-performance-over-time">Tracking Performance Over Time</h2>
 <h3 id="ndjson-history">NDJSON History</h3>
 <p>Each <code>le perf send --json</code> invocation produces a single JSON object. Append
@@ -677,7 +735,7 @@ result inconclusive and say which answer is missing.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 14:11 UTC</span>
                 </div>
             </div>
         </footer>

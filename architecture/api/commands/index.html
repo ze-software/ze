@@ -537,6 +537,23 @@ has a trace entry with <code>action: "not-evaluated"</code> and empty <code>text
 filter-update RPC was made for it. Selecting such a check as a single-filter
 override is refused with instructions to test it on the peer session.</p>
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- tracePolicyFilterChain, PolicyDryRun -->
+<p>A chain with a library member (an in-process filter instance) runs in the
+dry-run as it runs live, through the same chain, display only: no failure is
+counted or logged. Its plugin members are reached through the chain, and no
+filter-update is sent for a library member. Each member's trace entry has
+<code>action</code> accept, modify or reject, <code>delta</code> the sets a passing member asked as
+text (<code>local-preference 200</code>), <code>error</code> why a failed member failed (its
+on-error decided the action), and <code>text-after</code> the UPDATE as the chain
+rewrote it up to that member (after a failed-open member, the earlier
+members' changes only), built the way the result's is; a rejecting member's
+entry carries none, as a rejecting text filter's. The result's <code>text-after</code>
+is the rewritten UPDATE. A single-filter override on such a chain runs that one
+member through the chain, display only, under the policy's final, as the
+text path's override keeps the final; a name the chain does not hold is
+refused as not in the peer's chain. The reported <code>policy</code> stays the whole
+chain the live session runs.</p>
+<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain, libraryTraceEntry, libraryTraceText, libraryMember -->
+<!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Chain.Only, MemberTrace.Apply, Sets.AppendText -->
 <p>An unresolved remote AS returns <code>action: "undetermined"</code> with a <code>reason</code> telling
 the operator to wait for establishment and repeat <code>show policy test</code>. No filter
 executes, including a single-filter override. Trace, input and resulting text
@@ -2139,7 +2156,17 @@ update text mp ipv4/flow del \
 <hr>
 <h2 id="filter-callbacks">Filter Callbacks</h2>
 <p>The engine sends <code>filter-update</code> callbacks to external plugin filters during
-UPDATE processing. This is a callback RPC (engine to plugin), not a user command.</p>
+UPDATE processing. This is a callback RPC (engine to plugin), not a user command.
+One exchange carries a batch: the request is <code>{"routes":[...]}</code>
+(<code>rpc.FilterUpdateBatchInput</code>), at most <code>rpc.FilterUpdateBatchMax</code> (64) routes
+in the order the engine queued them, and the answer is <code>{"verdicts":[...]}</code>
+(<code>rpc.FilterUpdateBatchOutput</code>), one verdict per route in request order, all
+within one <code>rpc.FilterUpdateTimeout</code> (5 s). A reply with more or fewer verdicts
+than routes is malformed: the engine applies none of it, and every route of the
+batch takes its filter's on-error. A plugin running internal that registered
+with <code>sdk.OnFilter</code> is called through its typed filter slot instead, with the
+same verdict and no JSON (<code>PluginConn.CallFilter</code>).</p>
+<p>Each route of <code>routes</code>:</p>
 <table>
 <thead>
 <tr>
@@ -2172,12 +2199,65 @@ UPDATE processing. This is a callback RPC (engine to plugin), not a user command
 <tr>
 <td><code>update</code></td>
 <td>string</td>
-<td>Text-format attributes and NLRI (only declared attributes)</td>
+<td>Text-format attributes and NLRI (only declared attributes). Empty in a chain that also holds in-process members, which sends <code>fields</code> only</td>
+</tr>
+<tr>
+<td><code>fields</code></td>
+<td>object</td>
+<td>The route fields the filter declared in <code>reads</code>, keyed by vocabulary field name, in the UPDATE event's attr-map shape. A field the route does not carry is left out, and the key is absent when the filter declared no route field</td>
+</tr>
+<tr>
+<td><code>raw</code></td>
+<td>bytes (base64)</td>
+<td>The UPDATE body after the 19-byte header, sent when the filter declared the <code>raw</code> read</td>
 </tr>
 </tbody>
 </table>
-<p>Response: <code>{"action":"accept"}</code>, <code>{"action":"reject"}</code>, or
-<code>{"action":"modify","update":"&lt;delta&gt;"}</code> with only changed fields.</p>
+<p>Each verdict of <code>verdicts</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>action</code></td>
+<td>string</td>
+<td><code>accept</code>, <code>reject</code> or <code>modify</code></td>
+</tr>
+<tr>
+<td><code>update</code></td>
+<td>string</td>
+<td>A text delta of the changed attributes, on <code>modify</code>. Refused in a chain that holds in-process members</td>
+</tr>
+<tr>
+<td><code>sets</code></td>
+<td>list</td>
+<td>The route fields the filter changes, on <code>modify</code>: each a <code>field</code>, an <code>action</code> and a <code>value</code>. Read in a chain that holds in-process members</td>
+</tr>
+<tr>
+<td><code>raw</code></td>
+<td>bytes (base64)</td>
+<td>A whole-body replacement, on <code>modify</code>, from a filter that declared the <code>raw</code> read. It ends the chain</td>
+</tr>
+<tr>
+<td><code>teardown</code>, <code>notify-code</code>, <code>notify-subcode</code></td>
+<td>bool, uint8</td>
+<td>Close the session after the import chain. Honored on import only</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>string</td>
+<td>The filter could not judge this route: the engine applies its on-error to this route alone and reads nothing else of the verdict</td>
+</tr>
+</tbody>
+</table>
+<!-- source: pkg/plugin/rpc/types.go -- FilterUpdateBatchInput, FilterUpdateBatchOutput, FilterUpdateInput, FilterUpdateOutput -->
+<!-- source: internal/component/bgp/policychain/external.go -- judgeExternal, externalAnswer -->
+<!-- source: internal/component/plugin/ipc/filter_slot.go -- CallFilter -->
 <p><strong><code>peer</code> and <code>peer-as</code> change meaning with the direction, and the callback says
 so only through <code>direction</code>.</strong> The import chain passes the sending peer
 (<code>runIngressPolicyChain</code>) and the export chain passes the destination
@@ -2192,7 +2272,7 @@ one direction only tests <code>direction</code> itself.</p>
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChain, runEgressPolicyChainASN4 -->
 <!-- source: internal/component/plugin/server/startup.go -- the one writer of FilterRegistration.Direction -->
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate builds the filter-update request -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate handles it plugin-side -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch handle it plugin-side -->
 <hr>
 <h2 id="response-format">Response Format</h2>
 <h3 id="success-with-serial-prefix">Success (with serial prefix)</h3>
@@ -4159,7 +4239,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 12:24 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 14:11 UTC</span>
                 </div>
             </div>
         </footer>

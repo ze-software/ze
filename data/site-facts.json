@@ -216,13 +216,13 @@
     },
     "assert-nothing": {
       "inert": {
-        "denominator": "40518",
+        "denominator": "40573",
         "numerator": "112",
         "percent": "0.3"
       },
       "value": {
         "1": "112",
-        "2": "40518",
+        "2": "40573",
         "3": "111"
       }
     },
@@ -237,14 +237,14 @@
         "1": "6"
       },
       "detail": {
-        "1": "7148",
+        "1": "7175",
         "2": "95",
-        "3": "154",
-        "4": "2677",
+        "3": "156",
+        "4": "2681",
         "5": "201"
       },
       "value": {
-        "1": "40557"
+        "1": "40612"
       }
     },
     "known-failures": {
@@ -257,13 +257,13 @@
     },
     "negative-tests": {
       "overall": {
-        "denominator": "7148",
-        "numerator": "2667",
+        "denominator": "7175",
+        "numerator": "2676",
         "percent": "37.3"
       },
       "value": {
-        "1": "2667",
-        "2": "7148"
+        "1": "2676",
+        "2": "7175"
       },
       "worst": {
         "1": {
@@ -423,7 +423,7 @@
     "targets": 13
   },
   "plugin_registrations": 96,
-  "published_at": "2026-11-01T12:26:36Z",
+  "published_at": "2026-11-01T14:07:42Z",
   "release": null,
   "repo": {
     "design_comments": 7751,
@@ -457,13 +457,13 @@
     "summaries_display": "229"
   },
   "tests": {
-    "e2e": 2677,
+    "e2e": 2681,
     "e2e_display": "2,600+",
     "editor": 201,
     "editor_display": "200+",
     "fuzz": 95,
     "fuzz_display": "95",
-    "unit": 40557,
-    "unit_display": "40,500+"
+    "unit": 40612,
+    "unit_display": "40,600+"
   }
 }

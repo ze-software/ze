@@ -24494,7 +24494,7 @@
             "type": "string"
           },
           {
-            "description": "The route passes this condition when the named prefix-list accepts its prefix.\nThe prefix-list is a policy prefix-list instance: the editor completes the\nconfigured ones, and a commit naming any other is refused. The prefix-list\nlist belongs to the prefix filter, which a build without BGP leaves out, so\nthis is a ze:reference, not a leafref.",
+            "description": "The route passes this condition when the named prefix-list accepts its prefix.\nThe prefix-list is a policy prefix-list instance: the editor completes the\nconfigured ones, and a commit naming any other is refused.",
             "kind": "leaf",
             "name": "prefix-list",
             "short-help": "Match routes the named prefix-list accepts",

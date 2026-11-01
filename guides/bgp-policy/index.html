@@ -52,6 +52,7 @@
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#policy-model">Policy model</a></li>
+<li><a href="#a-chain-that-names-a-plugin-filter">A chain that names a plugin filter</a></li>
 <li><a href="#filter-outcomes">Filter outcomes</a></li>
 <li><a href="#common-policy-building-blocks">Common policy building blocks</a></li>
 <li><a href="#rejecting-a-path-through-a-transit-provider">Rejecting a path through a transit provider</a></li>
@@ -157,6 +158,34 @@ This preserves the existing API ownership contract rather than introducing a
 second route store. Explicit withdrawals remain effective under <code>final reject</code>.
 Reloading a filter definition without changing the final is a separate operation.</p>
 <!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal -->
+<h2 id="a-chain-that-names-a-plugin-filter">A chain that names a plugin filter</h2>
+<p>A chain member written <code>&lt;plugin&gt;:&lt;filter&gt;</code> names a filter that plugin declares
+when it starts. Ze checks the reference against that declaration: the plugin
+must declare a filter of that name (or a name pattern it matches), and the
+fields the filter declares it reads and sets must be ones the attachment
+carries and lets a filter set. When the check fails, the config is not
+applied:</p>
+<ul>
+<li><strong>At startup, ze does not start.</strong> The plugin is refused at its first stage,
+whatever its failure policy, and ze exits with the reason and the fix.</li>
+<li><strong>On a reload, the reload is refused and the running config stays in
+force.</strong> Nothing of the new config is applied.</li>
+</ul>
+<p>The message names the chain and what the plugin declares:</p>
+<pre><code class="language-text">peer upstream import filters: chain names "acme:clean", and plugin "acme" declares no filter of that name; it declares filter scrub
+</code></pre>
+<p>or the field the attachment refuses:</p>
+<pre><code class="language-text">peer upstream import filters: bgp import filter "acme:clean" reads &lt;field&gt;, which bgp import routes do not carry; remove it from this chain or use a filter that reads only &lt;fields&gt;
+peer upstream import filters: bgp import filter "acme:clean" sets &lt;field&gt;, which a filter at bgp import may not set; remove it from this chain
+</code></pre>
+<p>At startup, ze adds <code>; ze does not start with a config whose filter chain names a filter its plugin refuses: correct the chain reference in the config, or the plugin's filter declaration, then start ze again</code>. On a reload that
+starts the plugin, it adds <code>; the reload is refused and the running config stays in force: correct the chain reference in the config, or the plugin's filter declaration, then reload again</code>. Fix the chain reference, or the
+plugin's declaration, and start or reload again.</p>
+<!-- source: internal/component/bgp/config/external_filters.go -- checkExternalChainRef, judgeExternalChainRef, checkFilterDeclarations -->
+<!-- source: internal/component/policy/declared_fields.go -- CheckDeclaredFilter -->
+<!-- source: internal/component/plugin/server/startup.go -- refuseStartupOnLoadedChain -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- reloadChainRefusal -->
+<!-- source: internal/component/plugin/registry/filter_declaration.go -- ErrLoadedChainRefused -->
 <h2 id="filter-outcomes">Filter outcomes</h2>
 <p>A filter can:</p>
 <ul>
@@ -549,6 +578,11 @@ accepts on IBGP. With a rejecting final, a pure withdrawal remains <code>accept<
 text. A mixed announcement and withdrawal reports <code>modify</code>, with only its explicit
 withdrawals in the resulting text. A filter execution failure or teardown still
 reports <code>reject</code> without resulting text; neither is a successful withdrawal.</p>
+<p>A chain that names a library filter instance runs in the dry-run exactly as on
+the session, without counting or logging a failure: a member's trace entry
+shows what it set in <code>delta</code> (for example <code>local-preference 200</code>), and why it
+failed in <code>error</code>. A single-filter override on such a chain runs that one
+filter the same way, followed by the policy's final.</p>
 <p>The dry-run covers the per-peer external-policy stage, not the full ingress
 protocol pipeline. An active named in-process check appears in <code>trace</code> with
 <code>action: not-evaluated</code> and empty <code>text-after</code>; it is not an accepting filter
@@ -630,7 +664,7 @@ ze cli -c "show bgp peer transit-b rib"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 14:11 UTC</span>
                 </div>
             </div>
         </footer>

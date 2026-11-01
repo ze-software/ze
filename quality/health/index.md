@@ -12,7 +12,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 |---|---|---|---|
 | RFC MUST requirements proven by test, over the RFCs ze implements | Q2 | **2102 / 4737** (attention) | Write a test for a {gap} requirement, or for one carrying no test and no annotation, then record its break with `./le rfc record`: a requirement counts as proven only when a discrimination record still verifies on a walked summary. Not-applicable needs no test. |
 | Enrolled RFCs with zero test-proven requirements | Q2 | **30 / 198** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Tests with no reachable failure call | Q1 | **112 / 40518 (floor 111)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
+| Tests with no reachable failure call | Q1 | **112 / 40573 (floor 111)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
 | Logged known-failing tests | Q3 | **3** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
 5 further metric(s) are within threshold and are listed in full below.
@@ -23,7 +23,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**112 / 40518 (floor 111)** (attention)
+**112 / 40573 (floor 111)** (attention)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -85,15 +85,15 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**40557 test functions** (ok)
+**40612 test functions** (ok)
 
-7148 Go test files, 95 fuzz targets, 154 benchmarks, 2677 .ci scenarios, 201 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+7175 Go test files, 95 fuzz targets, 156 benchmarks, 2681 .ci scenarios, 201 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Test files that expect a specific error
 
-**2667 / 7148** (ok)
+**2676 / 7175** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 

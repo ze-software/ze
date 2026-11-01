@@ -108,6 +108,46 @@ second route store. Explicit withdrawals remain effective under `final reject`.
 Reloading a filter definition without changing the final is a separate operation.
 <!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal -->
 
+## A chain that names a plugin filter
+
+A chain member written `<plugin>:<filter>` names a filter that plugin declares
+when it starts. Ze checks the reference against that declaration: the plugin
+must declare a filter of that name (or a name pattern it matches), and the
+fields the filter declares it reads and sets must be ones the attachment
+carries and lets a filter set. When the check fails, the config is not
+applied:
+
+- **At startup, ze does not start.** The plugin is refused at its first stage,
+  whatever its failure policy, and ze exits with the reason and the fix.
+- **On a reload, the reload is refused and the running config stays in
+  force.** Nothing of the new config is applied.
+
+The message names the chain and what the plugin declares:
+
+```text
+peer upstream import filters: chain names "acme:clean", and plugin "acme" declares no filter of that name; it declares filter scrub
+```
+
+or the field the attachment refuses:
+
+```text
+peer upstream import filters: bgp import filter "acme:clean" reads <field>, which bgp import routes do not carry; remove it from this chain or use a filter that reads only <fields>
+peer upstream import filters: bgp import filter "acme:clean" sets <field>, which a filter at bgp import may not set; remove it from this chain
+```
+
+At startup, ze adds `; ze does not start with a config whose filter chain
+names a filter its plugin refuses: correct the chain reference in the config,
+or the plugin's filter declaration, then start ze again`. On a reload that
+starts the plugin, it adds `; the reload is refused and the running config
+stays in force: correct the chain reference in the config, or the plugin's
+filter declaration, then reload again`. Fix the chain reference, or the
+plugin's declaration, and start or reload again.
+<!-- source: internal/component/bgp/config/external_filters.go -- checkExternalChainRef, judgeExternalChainRef, checkFilterDeclarations -->
+<!-- source: internal/component/policy/declared_fields.go -- CheckDeclaredFilter -->
+<!-- source: internal/component/plugin/server/startup.go -- refuseStartupOnLoadedChain -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- reloadChainRefusal -->
+<!-- source: internal/component/plugin/registry/filter_declaration.go -- ErrLoadedChainRefused -->
+
 ## Filter outcomes
 
 A filter can:
@@ -466,6 +506,12 @@ accepts on IBGP. With a rejecting final, a pure withdrawal remains `accept` with
 text. A mixed announcement and withdrawal reports `modify`, with only its explicit
 withdrawals in the resulting text. A filter execution failure or teardown still
 reports `reject` without resulting text; neither is a successful withdrawal.
+
+A chain that names a library filter instance runs in the dry-run exactly as on
+the session, without counting or logging a failure: a member's trace entry
+shows what it set in `delta` (for example `local-preference 200`), and why it
+failed in `error`. A single-filter override on such a chain runs that one
+filter the same way, followed by the policy's final.
 
 The dry-run covers the per-peer external-policy stage, not the full ingress
 protocol pipeline. An active named in-process check appears in `trace` with

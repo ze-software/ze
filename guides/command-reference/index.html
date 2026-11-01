@@ -3206,6 +3206,12 @@ measures how quickly they propagate through to the receiver.</p>
 <td>Delay between iterations</td>
 </tr>
 <tr>
+<td><code>--reconnect-wait</code></td>
+<td>duration</td>
+<td><code>0</code></td>
+<td>How long to keep dialing a DUT that closes a new connection before sending its OPEN, as a DUT holding the peer idle after the previous iteration's reset does (OpenBGPD). <code>0</code> fails the run at the first such close</td>
+</tr>
+<tr>
 <td><code>--batch-size</code></td>
 <td>int</td>
 <td><code>0</code></td>
@@ -4867,7 +4873,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 14:11 UTC</span>
                 </div>
             </div>
         </footer>

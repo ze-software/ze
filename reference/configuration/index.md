@@ -6015,7 +6015,7 @@ Each filter type is a list that its plugin adds through an augment and marks ze:
   - **next-hop** `string[]`: Match routes whose next hop is in this prefix
     An address prefix the route's next hop lies in, such as 192.0.2.0/24 or 2001:db8::1/128. A route with no next hop (connected) does not match.
   - **prefix-list** `string`: Match routes the named prefix-list accepts
-    The route passes this condition when the named prefix-list accepts its prefix. The prefix-list is a policy prefix-list instance: the editor completes the configured ones, and a commit naming any other is refused. The prefix-list list belongs to the prefix filter, which a build without BGP leaves out, so this is a ze:reference, not a leafref.
+    The route passes this condition when the named prefix-list accepts its prefix. The prefix-list is a policy prefix-list instance: the editor completes the configured ones, and a commit naming any other is refused.
   - **protocol** `string[]`: Match routes from this source
     A route source registered by this build (static, connected, ospf, isis, bgp, ...), or ebgp or ibgp for the class of a BGP best. An unknown name is refused at load.
   - **route-type** `enumeration[]`: Match OSPF routes of this path type

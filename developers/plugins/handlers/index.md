@@ -352,6 +352,95 @@ p.OnValidateOpen(func(input *sdk.ValidateOpenInput) *sdk.ValidateOpenOutput {
 
 If no handler is registered, OPEN validation returns `{accept: true}` (no-op).
 
+### Route filters
+
+A filter has one evaluator for both transports. Register it with
+`p.OnFilter(eval)`, where `eval` takes one `*sdk.FilterRoute` and answers the
+verdict and the sets (`*sdk.FilterUpdateOutput`), or an error that fails that
+route under the filter's `on-error`.
+
+| The plugin runs | The SDK installs `eval` as | The route carries |
+|-----------------|----------------------------|-------------------|
+| Internal (a goroutine in the daemon) | The typed `DirectBridge` filter slot, at Stage 5 | The engine's lazy view: `Fields()` encodes the declared fields only when called, `Raw()` the raw body, `Engine()` the engine's typed view for a filter compiled with it |
+| Forked (any process) | The `filter-update` batch handler | The decoded input: `Fields()` and `Raw()` answer what the message carried, `Engine()` is nil |
+
+The slot is callable only from Stage 5 until the bridge closes. A stopped,
+crashed or respawning plugin is unavailable: the engine applies the filter's
+`on-error` and never answers from the old plugin's state.
+
+**The fast-path contract.** Internal, `eval` runs on the engine's goroutines,
+concurrently. It MUST be non-blocking and bounded, MUST be safe for
+concurrent calls, MUST NOT keep the route, or any slice it answered, past its
+return, and MUST read its state from a snapshot its own goroutines swap
+atomically. Data it has not resolved yet takes the filter's `on-error`; once
+resolved, the plugin asks Ze to re-judge the routes, which at HEAD is
+`request peer <peer> refresh <family>` (RFC 2918).
+
+**The conformance harness.** Every fast-path filter's test MUST pass
+`sdk.CheckFilterConformance(t, name, eval, routes)` under `-race`. It refuses
+a call past `sdk.FilterCallDeadline`, a repeat call that answers differently
+(state written without a snapshot), a view read after its call returned or a
+kept slice whose reuse changes an answer, a fast-path verdict that differs
+from the forked transport's, and concurrent calls that answer otherwise,
+each report naming the filter and the clause.
+
+**Building the answer.** `eval` answers one `*sdk.FilterUpdateOutput` per
+route, in one of three shapes. The shapes below are what a filter answers in
+a chain that also holds an in-process filter; a chain of plugin filters only
+still reads the text `Update` delta. The wire form of each change, and every
+reason a route fails, is `protocol.md`, "The Sets of a filter-update answer".
+
+| Answer | `Action` | Carries | The filter declares |
+|--------|----------|---------|---------------------|
+| Keep or drop the route as received | `sdk.FilterAccept`, `sdk.FilterReject` | nothing else: `Sets` beside them fails the route | its `Reads` |
+| Change named fields | `sdk.FilterModify` | `Sets`, one `rpc.FilterSet` per change | each field it changes in `Sets` |
+| Replace the whole UPDATE body | `sdk.FilterModify` | `Raw`, the new body, and no `Sets` | `sdk.FilterFieldRaw` in `Reads` |
+
+A field set holds the field name, an `rpc.FilterSetAction`, and the value as
+JSON in the field's shape:
+
+```go
+out := &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: []rpc.FilterSet{
+	{Field: "local-preference", Action: rpc.FilterSetActionSet, Value: json.RawMessage(`200`)},
+	{Field: "community", Action: rpc.FilterSetActionAdd, Value: json.RawMessage(`"65000:100"`)},
+}}
+```
+
+The `as-path`, `prefix` and `family` fields take intents rather than values,
+because Ze resolves them with state the plugin does not hold:
+`rpc.FilterSetActionPrepend` with a count, `rpc.FilterSetActionRemove` with
+`"private"` or `"private-peer-as"` for the AS path, with one announced prefix
+as the `prefix` field reads it, or with one family name. A prepend never names
+an AS number, and a prefix remove never names an offset: Ze finds each entry
+in the body NLRI and in MP_REACH_NLRI. Every set of a route fails with the
+route when one of them is refused, so an answer never applies half its
+changes.
+
+A `Raw` rewrite is terminal. The later filters of the chain are not called,
+and the rewrite is refused when an earlier filter already set a field, since
+it was built from the received body. The engine keeps the rewrite past the
+call, so on the fast path it copies the bytes you answered (`ownRawRewrite`):
+building the rewrite in a scratch buffer you reuse on the next call is safe.
+Every other slice of the answer is the engine's from your return, as a
+forked plugin's decoded answer is, and you never write into `route.Raw()`.
+<!-- source: pkg/plugin/rpc/types.go -- FilterUpdateOutput, FilterSet, FilterSetAction -->
+<!-- source: pkg/plugin/rpc/filter_slot.go -- FilterSlotHandler, ownRawRewrite -->
+
+`p.OnFilterUpdate(fn)` is the same registration, adapted for a handler
+written against `*sdk.FilterUpdateInput`: the SDK encodes a fast-path route's
+fields for it and runs its calls one at a time on one worker goroutine, so a
+handler that keeps unsnapshotted state stays race-free. Each call waits at
+most `rpc.FilterUpdateTimeout` (5 s), as a filter-update exchange does: while
+the handler blocks, the route it holds and every route waiting behind it take
+the filter's `on-error` once that deadline passes, and a route whose deadline
+passed before the worker took it is never judged late. After the plugin
+closes, a call answers `rpc.ErrBridgeClosed` ("unavailable"). The adapter is
+removed once every filter registers with `OnFilter`.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, OnFilterUpdate -->
+<!-- source: pkg/plugin/sdk/filter_serial.go -- filterSerializer -->
+<!-- source: pkg/plugin/sdk/filter_serial.go -- filterUpdateWait -->
+<!-- source: pkg/plugin/sdk/filter_conformance.go -- CheckFilterConformance -->
+
 ### OnBye
 
 Called when the engine sends `bye`: when it removes the plugin while the

@@ -44822,7 +44822,7 @@
         "audited": 5,
         "discrimination-records": 108,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 7
       },
       "requirements": [
         {
@@ -44833,7 +44833,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go` `TestSRPolicyConfigNextHopWire` (unit/verify), `internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go` `TestSRPolicyEncodeNextHopWire` (unit/verify), `internal/component/bgp/reactor/next_hop_family_admission_test.go` `TestFamilyNextHopOriginationAdmission` (unit/verify), `internal/component/bgp/reactor/next_hop_family_admission_test.go` `TestFamilyConfiguredBuilderAdmission` (unit/verify), `internal/component/bgp/reactor/next_hop_family_admission_test.go` `TestFamilyNextHopForwardAdmission` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestDefaultOriginateAppendsLinkLocalWhenSection3Holds` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestDefaultOriginateRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/peer_static_group_next_hop_test.go` `TestStaticGroupedResolvedNextHopWire` (unit/verify), `internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go` `TestSessionSendAnnounceAcceptsLinkLocalSecondAddress` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestAPIBatchRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestQueuedOriginateRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestNamedCommitRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestOriginatedIPv6NextHopAdmissionAfterExportPolicy` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545ReceivedUnusableGlobalRefused` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545ReceivedPairSecondAddressValidated` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545ReceivedPairFirstAddressValidated` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545EffectivePairPolicyAndMixedSibling` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545ReceivedSingleGlobalAddressValidated` (unit/verify), `internal/component/bgp/reactor/rfc2545_peer_send_test.go` `TestSendAnnounceAppendsLinkLocalWhenSection3Holds` (unit/verify), `internal/component/bgp/reactor/rfc2545_static_origination_test.go` `TestStaticOriginateIPv6NextHopAdmission` (unit/verify), `internal/component/bgp/reactor/rfc2545_static_origination_test.go` `TestStaticOriginateContinuesAfterUnusablePolicyNextHop` (unit/verify), `test/exabgp-compat/encoding/conf-llnh-update.ci` (functional/verify), `test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go` `TestSRPolicyEncodeRejectsInvalidIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/next_hop_family_admission_test.go` `TestFamilyNextHopOriginationAdmission` (unit/verify), `internal/component/bgp/reactor/next_hop_family_admission_test.go` `TestFamilyConfiguredBuilderAdmission` (unit/verify), `internal/component/bgp/reactor/next_hop_family_admission_test.go` `TestFamilyNextHopForwardAdmission` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestDefaultOriginateRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go` `TestSendAnnounceRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go` `TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestAPIBatchRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestQueuedOriginateRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestNamedCommitRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestOriginatedIPv6NextHopAdmissionAfterExportPolicy` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545ReceivedUnusableGlobalRefused` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545ReceivedPairSecondAddressValidated` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545ReceivedPairFirstAddressValidated` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545EffectivePairPolicyAndMixedSibling` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545ReceivedSingleGlobalAddressValidated` (unit/verify), `internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go` `TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink` (unit/verify), `internal/component/bgp/reactor/rfc2545_static_origination_test.go` `TestStaticOriginateIPv6NextHopAdmission` (unit/verify), `internal/component/bgp/reactor/rfc2545_static_origination_test.go` `TestStaticOriginateContinuesAfterUnusablePolicyNextHop` (unit/verify), `internal/component/bgp/reactor/rfc4659_link_local_peering_test.go` `TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair` (unit/verify), `test/encode/new-v6.ci` (functional/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -44908,16 +44908,17 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateRefusesUnusableIPv6NextHop",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 694,
+              "line": 698,
               "carrier": "unit/verify",
               "claim": "-- unusable IPv6 next hops do not reach the originated default route's global-address field.",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
                 "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -45282,16 +45283,17 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 632,
+              "line": 636,
               "carrier": "unit/verify",
               "claim": "-- the Next Hop field of the originated default route carries the global IPv6 address of the next hop followed by the link-local IPv6 address of the next hop.",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
                 "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -45299,16 +45301,17 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateRefusesUnusableIPv6NextHop",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 696,
+              "line": 700,
               "carrier": "unit/verify",
               "claim": "-- a genuine global IPv6 next hop still reaches the originated default route's sixteen-octet next-hop field. MUTATION: bypass BuildUnicast's IPv6 next-hop admission; the invalid cases must emit only End-of-RIB, not an UPDATE announcing ::/0.",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
                 "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -45589,7 +45592,12 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-31 by an independent auditor who authored none of 6b0a55d9b9. RFC 2545 Section 3 read: \"A BGP speaker shall advertise to its peer in the Network Address of Next Hop field the global IPv6 address of the next hop, potentially followed by the link-local IPv6 address of the next hop.\" 6b0a55d9b9 changed only the RFC2545-3-1 claim comment of test/encode/new-v6.ci; every cmd, expect and config line and the 3-2 and 3-4 tags are byte-identical. The old claim (nothing appended after the global) was 3-4's subject; the new one says the field carries the configured next hop's own global and an encoder writing any other address in the first slot fails. That is exactly what the body checks: both expect=bgp lines pin the whole UPDATE, 800E26 0002 01 10 then 2A020B80000000020000000000000001, the configured 2A02:B80:0:2::1, so the claim no longer states more than the bytes prove. Producer read: buildMPReach (update_build.go) writes nextHops[0] = p.NextHop and appends unicastLinkLocalNextHop(p) only when valid; MPReachNLRI.WriteTo writes the list in order. The recorded mutant nextHops[0] = p.NextHop.Next() goes red as a mismatch on the received field, so this carrier discriminates the global-in-first-slot clause and nothing wider. Polarity: new-v6 is a conforming-output assertion whose negative half is that recorded break, not a violating input; the violating-input negatives of 3-1 (TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress, TestSendAnnounceRefusesUnusableIPv6NextHop, the API, queued, commit, static and forward refusal units, TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink) are byte-identical and their judgement stands, as do the positives for the global-plus-link-local form (TestSessionSendAnnounceAcceptsLinkLocalSecondAddress, TestSendAnnounceAppendsLinkLocalWhenSection3Holds, conf-llnh-update.ci, adj-rib-in-replay-rfc2545-next-hop.ci). Both clauses (global first; link-local only as the potential second address) stay covered. Ran ./le test bgp encode new-v6: PASS. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds",
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateRefusesUnusableIPv6NextHop",
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateRefusesUnusableIPv6NextHop#2"
+            ]
           }
         },
         {
@@ -45600,7 +45608,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go` `TestSRPolicyConfigNextHopWire` (unit/verify), `internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go` `TestSRPolicyEncodeNextHopWire` (unit/verify), `internal/component/bgp/reactor/next_hop_family_admission_test.go` `TestFamilyNextHopOriginationAdmission` (unit/verify), `internal/component/bgp/reactor/next_hop_family_admission_test.go` `TestFamilyNextHopForwardAdmission` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestDefaultOriginateAppendsLinkLocalWhenSection3Holds` (unit/verify), `internal/component/bgp/reactor/peer_static_group_next_hop_test.go` `TestStaticGroupedResolvedNextHopWire` (unit/verify), `internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go` `TestSessionSendAnnounceAcceptsLinkLocalSecondAddress` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestAPIBatchRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestQueuedOriginateRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestNamedCommitRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestOriginatedIPv6NextHopAdmissionAfterExportPolicy` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545EffectivePairPolicyAndMixedSibling` (unit/verify), `internal/component/bgp/reactor/rfc2545_peer_send_test.go` `TestSendAnnounceAppendsLinkLocalWhenSection3Holds` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkRFC2545NextHops` (interop/nightly), `test/exabgp-compat/encoding/conf-llnh-update.ci` (functional/verify), `test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/reactor/next_hop_family_admission_test.go` `TestFamilyNextHopOriginationAdmission` (unit/verify), `internal/component/bgp/reactor/next_hop_family_admission_test.go` `TestFamilyNextHopForwardAdmission` (unit/verify), `internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go` `TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestAPIBatchRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestQueuedOriginateRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestNamedCommitRefusesUnusableIPv6NextHop` (unit/verify), `internal/component/bgp/reactor/rfc2545_api_origination_test.go` `TestOriginatedIPv6NextHopAdmissionAfterExportPolicy` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545EffectivePairPolicyAndMixedSibling` (unit/verify), `test/encode/new-v6.ci` (functional/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -45820,16 +45828,17 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 636,
+              "line": 640,
               "carrier": "unit/verify",
               "claim": "-- the Length of Next Hop Network Address octet is 32 (0x20) because a link-local address is also included.",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
                 "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -46025,7 +46034,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-31 by an independent auditor who authored none of 6b0a55d9b9. RFC 2545 Section 3 read: \"The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field.\" 6b0a55d9b9 changed only the RFC2545-3-1 comment of test/encode/new-v6.ci; the RFC2545-3-2 negative tag and every expect line are byte-identical, and the hex still pins the octet as 0x10 before one 16-octet global. That carrier proves nothing for 3-2 on its own: the journal row of 414927494d (reference-checked-claim-unchecked, owned by spec-bgp-one-off-defects) records that no break can discriminate it, because MPReachNLRI.WriteTo writes the octet from nextHopLen over the same NextHops list writeNextHops serialises, and a break of the octet alone yields a malformed attribute that writeUpdateGated refuses, so the run goes red by absence, not on the octet assertion. Its negative is also nominal: the input conforms and nothing violating is fed. So this verdict does not rest on new-v6.ci; the tag stays unproven in ./le rfc discriminate until the owed internal/core/bgp/attribute unit test of the octet WriteTo writes is tagged and recorded. What the verdict rests on is unchanged: positives whose oracle builds the octet independently (mpReachIPv6Attr computes byte(len(nh)) from the expected addresses, not from the encoder) pin 0x10 and 0x20 on the wire on the announce, default-originate, static-group, API, queued, commit and forward rails, plus conf-llnh-update.ci, adj-rib-in-replay-rfc2545-next-hop.ci and the FRR interop check checkRFC2545NextHops; negatives refuse every width outside 16 and 32 for IPv6 unicast (four-octet IPv4, 24/48-octet VPN shapes) and a 32-octet field whose second address is not link-local, on recorded carriers. Remaining limit, stated plainly: no recorded break anywhere isolates the octet write itself (buf[off+3] = byte(nhLen)); the stack cannot emit a mismatched octet because the octet and the field share one source and the writer gate refuses a malformed attribute, and the exact-byte positives would fail if one reached the wire. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds"
+            ]
           }
         },
         {
@@ -46036,7 +46048,7 @@
           "gated": true,
           "positive-test": "scoped evidence: `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestDefaultOriginateAppendsLinkLocalWhenSection3Holds` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go` `TestRFC2545ForwardPolicyOwnGlobalJointSubnet` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545ReceivedPairSubnetConditions` (unit/verify), `internal/component/bgp/reactor/rfc2545_joint_subnet_test.go` `TestRFC2545JointSubnetWriter` (unit/verify), `internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go` `TestOrdinaryIPv6OwnGlobalJointSubnet` (unit/verify), `internal/component/bgp/reactor/rfc2545_peer_send_test.go` `TestSendAnnounceAppendsLinkLocalWhenSection3Holds` (unit/verify), `internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go` `TestRFC2545ThirdPartyLinkLocalAnnounce` (unit/verify), `internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go` `TestRFC2545ThirdPartyLinkLocalForward` (unit/verify), `internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go` `TestRFC2545StaticLabeledIPv6LinkLocalCommonSubnet` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkRFC2545NextHops` (interop/nightly), `internal/le/interoplab/bgp/check_rfc2545_third_party.go` `checkRFC2545ThirdPartyLinkLocal` (interop/nightly), `test/exabgp-compat/encoding/conf-llnh-update.ci` (functional/verify), `test/plugin/rfc2545-joint-subnet.ci` (functional/verify)",
           "negative-test": "scoped evidence: `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink` (unit/verify), `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` `TestRFC2545ReceivedPairSubnetConditions` (unit/verify), `internal/component/bgp/reactor/rfc2545_joint_subnet_test.go` `TestRFC2545JointSubnetWriter` (unit/verify), `internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go` `TestOrdinaryIPv6PolicyPairJointSubnet` (unit/verify), `internal/component/bgp/reactor/rfc2545_peer_send_test.go` `TestSendAnnounceOmitsLinkLocalWhenPeerOffLink` (unit/verify), `internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go` `TestRFC2545ThirdPartyLinkLocalAnnounce` (unit/verify), `internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go` `TestRFC2545ThirdPartyLinkLocalForward` (unit/verify), `internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go` `TestRFC2545StaticLabeledIPv6LinkLocalCommonSubnet` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkRFC2545NextHops` (interop/nightly), `test/exabgp-compat/encoding/conf-llnh-lla-only.ci` (functional/verify), `test/plugin/rfc2545-joint-subnet.ci` (functional/verify)",
-          "note": "**audit: partial** {partial} tested \"only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\"; gap \"The link-local address shall be included in the Next Hop field if\"; internal/component/bgp/reactor/link_scope.go::thirdPartyLinkLocal is the missing-address boundary: Tested covers exclusion outside one common subnet, with conforming inclusion controls where the next-hop entity's link-local is known at advertisement: a supplied pair, the configured speaker-owned address after a speaker global, or a third-party router's own link-local that the kernel neighbor table pairs with its global by device and link-layer address, on the announce, origination and both forwarding rails. Gap is the include case for a third-party global on the common subnet when the neighbor table holds no entry for it, holds it unresolved, holds two candidate link-locals, or cannot be read: the field then goes out with the global alone while the condition holds, and the route is not re-advertised when the table later names the link-local. The speaker's own link-local is never substituted, and no Neighbor Discovery probe or liveness feature is implied Parent quote: The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to. (§3) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: fresh",
+          "note": "**audit: partial, shifted** {partial} tested \"only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\"; gap \"The link-local address shall be included in the Next Hop field if\"; internal/component/bgp/reactor/link_scope.go::thirdPartyLinkLocal is the missing-address boundary: Tested covers exclusion outside one common subnet, with conforming inclusion controls where the next-hop entity's link-local is known at advertisement: a supplied pair, the configured speaker-owned address after a speaker global, or a third-party router's own link-local that the kernel neighbor table pairs with its global by device and link-layer address, on the announce, origination and both forwarding rails. Gap is the include case for a third-party global on the common subnet when the neighbor table holds no entry for it, holds it unresolved, holds two candidate link-locals, or cannot be read: the field then goes out with the global alone while the condition holds, and the route is not re-advertised when the table later names the link-local. The speaker's own link-local is never substituted, and no Neighbor Discovery probe or liveness feature is implied Parent quote: The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to. (§3) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: shifted scoped tag claims are not all backed by current producer-break records",
           "nightly-only": false,
           "annotation": {
             "kind": "partial",
@@ -46050,16 +46062,17 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 666,
+              "line": 670,
               "carrier": "unit/verify",
               "claim": "-- the peer half of the condition fails (2001:db8:dead:beef::2 sits on no locally connected subnet), so the link-local address is NOT included even though the leaf names one.",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
                 "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -46237,16 +46250,17 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 639,
+              "line": 643,
               "carrier": "unit/verify",
               "claim": "-- both halves of the condition hold: the speaker's connected-scope snapshot includes the entity named by the global next hop (2001:db8:1::1) and the peer (2001:db8:1::2).",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
                 "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -46459,7 +46473,11 @@
             "verdict": "partial",
             "meaning": "the tests enforce only the declared tested scope; the whole requirement remains unmet",
             "note": "Re-judged 2026-10-31 by an independent auditor who authored none of e509c7b0a8. RFC 2545 Section 3 re-read. e509c7b0a8 changed only the four ze.conf blocks of test/plugin/rfc2545-joint-subnet.ci: each adds a bgp-level filter { import { final accept; } export { final accept; } } because ff2aac12b0 made an EBGP direction with no policy reject every route (RFC 8212 Section 3), so before it the cases hit their completion deadline with nothing relayed. The diff is additions only: every expect (the 0x20 pair on same-link, the 0x10 global-only field on split-link, entity-off-link and recipient-off-link), every reject of FE800000000000000000000000000009 and of a withdrawal, the TOPOLOGY/WIRE markers and the RFC requirement tags are byte-identical. A final-accept chain names no filter and carries no modifier, and the peers keep next-hop unchanged, so the next-hop field is still decided by the egress link-scope code (linkLocalNextHop), not by policy, and each case still isolates its own subnet condition. The discrimination records on this carrier verify. Verdict unchanged. Earlier judgement, still standing: The partial stands: thirdPartyLinkLocal and linkLocalNextHop are unchanged since the last judgement, so the include case for a third-party global the neighbor table cannot pair still sends the global alone. Re-judged 2026-10-31 by an independent auditor who authored none of 8b062b45a8. RFC 2545 Section 3: \"The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" 8b062b45a8 gave linkLocalNextHop a nextHopRouterThirdParty branch that, under the RFC 2545 joint condition only, returns thirdPartyLinkLocal(global): the fe80::/10 entry the neighbor table pairs with the global by device and MAC. New tags TestRFC2545ThirdPartyLinkLocalAnnounce and TestRFC2545ThirdPartyLinkLocalForward assert exact MP_REACH bytes: positive global 2001:db8:1::9 then fe80::9 with length 0x20 (and NotContains the speaker fe80::1 after it), negatives the 16-octet global alone for a peer off the subnet and for a global off the recipient subnet, on the announce, cached and rs rails; checkRFC2545ThirdPartyLinkLocal carries it to interop. Earlier tags unchanged in what they assert (TestRFC2545ForwardPolicyOwnGlobalJointSubnet still pins own global plus configured link-local after policy). The commit removed {partial}, but the include half is not whole: thirdPartyLinkLocal returns the zero address, sending the global alone while the common subnet holds, when the table has no entry, an unresolved one, two candidates, or cannot be read (TestRFC2545ThirdPartyLinkLocalMisses pins exactly that), and refreshPeerLinkScopes states it triggers no re-advertisement, so such a route stays at 16 octets. Annotation restored with that gap. Verdict: partial. Tested: \"only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" Gap: \"The link-local address shall be included in the Next Hop field if\". Producer: internal/component/bgp/reactor/link_scope.go::thirdPartyLinkLocal, with linkLocalNextHop.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds",
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink"
+            ]
           }
         },
         {
@@ -46581,7 +46599,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/peer_initial_sync_test.go` `TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink` (unit/verify), `internal/component/bgp/reactor/rfc2545_joint_subnet_test.go` `TestRFC2545JointSubnetWriter` (unit/verify), `internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go` `TestOrdinaryIPv6PolicyPairJointSubnet` (unit/verify), `internal/component/bgp/reactor/rfc2545_peer_send_test.go` `TestSendAnnounceOmitsLinkLocalWhenPeerOffLink` (unit/verify), `test/encode/new-v6.ci` (functional/verify), `test/plugin/rfc2545-joint-subnet.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go` `TestRFC2545ForwardPolicyOwnGlobalJointSubnet` (unit/verify), `internal/component/bgp/reactor/rfc2545_joint_subnet_test.go` `TestRFC2545JointSubnetWriter` (unit/verify), `internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go` `TestOrdinaryIPv6OwnGlobalJointSubnet` (unit/verify), `test/exabgp-compat/encoding/conf-llnh-update.ci` (functional/verify), `test/plugin/rfc2545-joint-subnet.ci` (functional/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -46673,16 +46691,17 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 670,
+              "line": 674,
               "carrier": "unit/verify",
               "claim": "-- \"in all other cases\" the speaker advertises only the global address and sets the length octet to 16.",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
                 "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -46776,7 +46795,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-31 by an independent auditor who authored none of 6b0a55d9b9. RFC 2545 Section 3 read: \"In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16).\" 6b0a55d9b9 changed only the RFC2545-3-1 comment of test/encode/new-v6.ci; the RFC2545-3-4 positive tag, the config (IBGP over 127.0.0.1, no link-local, next hop 2A02:B80:0:2::1 on no connected subnet, so the Section 3 condition does not hold) and both expect=bgp lines are byte-identical. The hex pins length 0x10 and exactly one 16-octet global before the Reserved octet, and attribute length 0x26 leaves no room for a second address. Producers read: buildMPReach appends a second address only when unicastLinkLocalNextHop(p) is valid, and normalizeOrdinaryNextHop (egress_inject_filter.go) keeps a 32-octet field only when scope.sharesNextHopSubnet(global) holds and otherwise rewrites the field to its first 16 octets. The recorded paired break (linkLocal forced to fe80::1 in buildMPReach together with the sharesNextHopSubnet test forced true in normalizeOrdinaryNextHop) goes red on this carrier, and each break alone stays green, which shows the egress normaliser itself enforces the all-other-cases branch on this rail. Its record's unit sha matches the current file and ./le rfc discriminate lists it as verified. The other carriers (TestRFC2545JointSubnetWriter, TestOrdinaryIPv6OwnGlobalJointSubnet, TestRFC2545ForwardPolicyOwnGlobalJointSubnet, rfc2545-joint-subnet.ci split-link, entity-off-link and recipient-off-link cases, conf-llnh-update.ci negative, TestSendAnnounceOmitsLinkLocalWhenPeerOffLink, TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink) are byte-identical and their judgement stands; both halves (global only, length 16) are asserted. Ran ./le test bgp encode new-v6: PASS. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink"
+            ]
           }
         },
         {
@@ -123544,7 +123566,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/rfc4724_eor_test.go` `TestBuildEOR_IPv4Unicast` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestInitialSyncEORReachesTheSilentFamilyToo` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestRoutePushingBindingsCountBothRails` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestInitialSyncMarkerWaitsForNoProcess` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkNoFamilyEndOfRIB` (interop/nightly)",
           "negative-test": "`internal/component/bgp/message/rfc4724_eor_test.go` `TestIsEndOfRIBAnyFamily` (unit/verify), `internal/component/bgp/reactor/rfc4724_reactor_b_test.go` `TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -123586,7 +123608,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 106,
+              "line": 110,
               "carrier": "unit/verify",
               "claim": "-- \"The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established\" (RFC 4724 Section 4). ipv6/unicast is the parenthesised case: it has no update to send and its marker is owed all the same.",
               "tags": 1
@@ -123595,7 +123617,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 760,
+              "line": 764,
               "carrier": "unit/verify",
               "claim": "-- \"The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established\" (RFC 4724 Section 4). A session where neither side advertised a Multiprotocol capability still exchanges IPv4 unicast under RFC 4271, so IPv4 unicast is \"an address family\" here and its marker is owed.",
               "tags": 1
@@ -123604,7 +123626,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 793,
+              "line": 797,
               "carrier": "unit/verify",
               "claim": "-- \"The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update ... for an address family\" (RFC 4724 Section 4). That update is ze's OWN table: a process which creates routes stands where a peer stands, and ze never holds its own marker for a peer's (owner ruling, 2026-09-18, recorded by `./le rfc approve`). So the marker is owed the moment ze's table is on the wire, and a process that has not reported cannot postpone it.",
               "tags": 1
@@ -123613,7 +123635,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 348,
+              "line": 352,
               "carrier": "unit/verify",
               "claim": "-- \"The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update ... for an address family\" (RFC 4724 Section 4). That update is ze's own table: a process which creates routes stands where a peer stands (owner ruling, 2026-09-18, recorded by `./le rfc approve`), so the marker follows the table and the split is what keeps the queueing gate from outliving it.",
               "tags": 1
@@ -123622,7 +123644,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 426,
+              "line": 430,
               "carrier": "unit/verify",
               "claim": "-- the marker is owed once the initial routing update completes, and the owner ruled on 2026-08-30 that a plugin-injected route belongs to that update however the plugin injects it.",
               "tags": 1
@@ -123641,7 +123663,14 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. Positives: sendInitialRoutes puts one End-of-RIB per negotiated family on the wire, including a silent family and a no-MP session. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: while a plugin producing the initial update has not acknowledged peer-up, sendInitialRoutes is observed waiting and nothing is on the wire (EORSent 0); after the acknowledgement exactly the IPv4 unicast marker is written. Red on a marker sent ahead of the initial update or not sent after it. TestIsEndOfRIBAnyFamily is a neighbouring detector rule. Rejudged 2026-10-12 after commit ce62c78c3b moved peer_initial_sync_test.go around these units: the tagged functions there were re-read and are byte-identical, their assertions and fixtures still carry the evidence this note cites, and the other cited units did not change, so the verdict stands. Rejudged 2026-10-12 after 7a637d6df5 renamed SendUpdateHeld to sendUpdateHeld in two comments of peer_initial_sync_test.go: every tagged unit cited here is byte-identical (gate-verified), the comment edits sit outside them, and the assertions and fixtures still carry the evidence this note cites, so the verdict stands.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo",
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily",
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess",
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker",
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails"
+            ]
           }
         },
         {
@@ -124536,7 +124565,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/rfc4724_eor_test.go` `TestBuildEOR_IPv4Unicast` (unit/verify), `internal/component/bgp/reactor/peer_initial_sync_test.go` `TestInitialSyncEORReachesTheSilentFamilyToo` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/rfc4724_eor_test.go` `TestIsEndOfRIBAnyFamily` (unit/verify), `internal/component/bgp/reactor/rfc4724_reactor_b_test.go` `TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -124578,7 +124607,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo",
               "file": "internal/component/bgp/reactor/peer_initial_sync_test.go",
-              "line": 111,
+              "line": 115,
               "carrier": "unit/verify",
               "claim": "-- the same frame satisfies the Receiving Speaker's obligation to mark the end of its initial update per address family.",
               "tags": 1
@@ -124588,7 +124617,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. Positive TestInitialSyncEORReachesTheSilentFamilyToo proves the marker is sent including for a family with no routes. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: no End-of-RIB before the initial update for IPv4 unicast completes (plugin barrier held, sendInitialRoutes observed waiting, wire empty), then exactly that marker once it does. TestBuildEOR_IPv4Unicast proves encoding only. Rejudged 2026-10-12 after commit ce62c78c3b moved peer_initial_sync_test.go around these units: the tagged functions there were re-read and are byte-identical, their assertions and fixtures still carry the evidence this note cites, and the other cited units did not change, so the verdict stands. Rejudged 2026-10-12 after 7a637d6df5 renamed SendUpdateHeld to sendUpdateHeld in two comments of peer_initial_sync_test.go: every tagged unit cited here is byte-identical (gate-verified), the comment edits sit outside them, and the assertions and fixtures still carry the evidence this note cites, so the verdict stands.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo"
+            ]
           }
         },
         {

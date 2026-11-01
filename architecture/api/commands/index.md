@@ -273,6 +273,24 @@ filter-update RPC was made for it. Selecting such a check as a single-filter
 override is refused with instructions to test it on the peer session.
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- tracePolicyFilterChain, PolicyDryRun -->
 
+A chain with a library member (an in-process filter instance) runs in the
+dry-run as it runs live, through the same chain, display only: no failure is
+counted or logged. Its plugin members are reached through the chain, and no
+filter-update is sent for a library member. Each member's trace entry has
+`action` accept, modify or reject, `delta` the sets a passing member asked as
+text (`local-preference 200`), `error` why a failed member failed (its
+on-error decided the action), and `text-after` the UPDATE as the chain
+rewrote it up to that member (after a failed-open member, the earlier
+members' changes only), built the way the result's is; a rejecting member's
+entry carries none, as a rejecting text filter's. The result's `text-after`
+is the rewritten UPDATE. A single-filter override on such a chain runs that one
+member through the chain, display only, under the policy's final, as the
+text path's override keeps the final; a name the chain does not hold is
+refused as not in the peer's chain. The reported `policy` stays the whole
+chain the live session runs.
+<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain, libraryTraceEntry, libraryTraceText, libraryMember -->
+<!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Chain.Only, MemberTrace.Apply, Sets.AppendText -->
+
 An unresolved remote AS returns `action: "undetermined"` with a `reason` telling
 the operator to wait for establishment and repeat `show policy test`. No filter
 executes, including a single-filter override. Trace, input and resulting text
@@ -1315,6 +1333,17 @@ update text mp ipv4/flow del \
 
 The engine sends `filter-update` callbacks to external plugin filters during
 UPDATE processing. This is a callback RPC (engine to plugin), not a user command.
+One exchange carries a batch: the request is `{"routes":[...]}`
+(`rpc.FilterUpdateBatchInput`), at most `rpc.FilterUpdateBatchMax` (64) routes
+in the order the engine queued them, and the answer is `{"verdicts":[...]}`
+(`rpc.FilterUpdateBatchOutput`), one verdict per route in request order, all
+within one `rpc.FilterUpdateTimeout` (5 s). A reply with more or fewer verdicts
+than routes is malformed: the engine applies none of it, and every route of the
+batch takes its filter's on-error. A plugin running internal that registered
+with `sdk.OnFilter` is called through its typed filter slot instead, with the
+same verdict and no JSON (`PluginConn.CallFilter`).
+
+Each route of `routes`:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -1322,10 +1351,24 @@ UPDATE processing. This is a callback RPC (engine to plugin), not a user command
 | `direction` | string | `import` or `export` |
 | `peer` | string | The peer that SENT the route on import, the DESTINATION peer on export |
 | `peer-as` | uint32 | That peer's ASN, with the same meaning as `peer` |
-| `update` | string | Text-format attributes and NLRI (only declared attributes) |
+| `update` | string | Text-format attributes and NLRI (only declared attributes). Empty in a chain that also holds in-process members, which sends `fields` only |
+| `fields` | object | The route fields the filter declared in `reads`, keyed by vocabulary field name, in the UPDATE event's attr-map shape. A field the route does not carry is left out, and the key is absent when the filter declared no route field |
+| `raw` | bytes (base64) | The UPDATE body after the 19-byte header, sent when the filter declared the `raw` read |
 
-Response: `{"action":"accept"}`, `{"action":"reject"}`, or
-`{"action":"modify","update":"<delta>"}` with only changed fields.
+Each verdict of `verdicts`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `action` | string | `accept`, `reject` or `modify` |
+| `update` | string | A text delta of the changed attributes, on `modify`. Refused in a chain that holds in-process members |
+| `sets` | list | The route fields the filter changes, on `modify`: each a `field`, an `action` and a `value`. Read in a chain that holds in-process members |
+| `raw` | bytes (base64) | A whole-body replacement, on `modify`, from a filter that declared the `raw` read. It ends the chain |
+| `teardown`, `notify-code`, `notify-subcode` | bool, uint8 | Close the session after the import chain. Honored on import only |
+| `error` | string | The filter could not judge this route: the engine applies its on-error to this route alone and reads nothing else of the verdict |
+
+<!-- source: pkg/plugin/rpc/types.go -- FilterUpdateBatchInput, FilterUpdateBatchOutput, FilterUpdateInput, FilterUpdateOutput -->
+<!-- source: internal/component/bgp/policychain/external.go -- judgeExternal, externalAnswer -->
+<!-- source: internal/component/plugin/ipc/filter_slot.go -- CallFilter -->
 
 **`peer` and `peer-as` change meaning with the direction, and the callback says
 so only through `direction`.** The import chain passes the sending peer
@@ -1343,7 +1386,7 @@ one direction only tests `direction` itself.
 <!-- source: internal/component/plugin/server/startup.go -- the one writer of FilterRegistration.Direction -->
 
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate builds the filter-update request -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate handles it plugin-side -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch handle it plugin-side -->
 
 ---
 

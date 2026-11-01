@@ -518,7 +518,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-complete` | `OnConfigComplete` | `ConfigCompleteInput` | `ConfigCompleteOutput` | Acknowledge cleanup for the named original transaction after acceptance or completed abort |
 | `ze-plugin-callback:source-policy` | `OnSourcePolicy` | `rpc.SourcePolicyInput` | `rpc.SourcePolicyOutput` | Settle prepare/apply/abort/finalize for a captured retained source |
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
-| `ze-plugin-callback:filter-update` | `OnFilterUpdate` | `FilterUpdateInput` | `FilterUpdateOutput` | Filter a route update. The reactor waits `rpc.FilterUpdateTimeout` (5 s) for the answer, then applies the filter's `on-error` policy, so a handler that waits MUST bound the wait below it |
+| `ze-plugin-callback:filter-update` | `OnFilter` (or `OnFilterUpdate`, its adapter) | `FilterUpdateBatchInput` (`routes`, each a `FilterUpdateInput`) | `FilterUpdateBatchOutput` (`verdicts`, each a `FilterUpdateOutput`) | Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits `rpc.FilterUpdateTimeout` (5 s) for the whole batch, then applies the filter's `on-error` policy to each of its routes, so a handler that waits MUST bound the wait well below it |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check |
 | `ze-plugin-callback:resolver-cache-clear` | `OnResolverCacheClear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear a declared resolver cache of the plugin's current clients, answering the entries removed |
 | `ze-plugin-callback:enrich-show` | `OnEnrichShow` | `EnrichShowInput` | `EnrichShowOutput` | Add data to show output |
@@ -631,6 +631,43 @@ session's routes (`docs/architecture/plugin/rib-storage-design.md`,
 <!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent -->
 <!-- source: internal/component/bgp/plugins/cmd/update/recovery.go -- recoveryFromMeta -->
 
+### The filter-update batch
+
+One `filter-update` exchange carries a batch of routes. The request is
+`{"routes":[...]}`, each entry one route as `FilterUpdateInput` describes it
+(`filter`, `direction`, `peer`, `peer-as`, `update`, `fields`, `raw`). The
+answer is `{"verdicts":[...]}`, one `FilterUpdateOutput` per route, at the
+position of its route.
+
+```
+#7 ze-plugin-callback:filter-update {"routes":[{"filter":"lp","direction":"import","peer":"192.0.2.1","peer-as":65001,"update":"","fields":{"prefix":["10.0.0.0/24"]}},{"filter":"lp","direction":"import","peer":"192.0.2.1","peer-as":65001,"update":"","fields":{"prefix":["10.0.1.0/24"]}}]}
+#7 ok {"verdicts":[{"action":"reject"},{"action":"modify","sets":[{"field":"med","action":"set","value":50}]}]}
+```
+
+- **What a batch holds.** Ze sends the routes queued for the plugin when the
+  exchange starts, at most `rpc.FilterUpdateBatchMax` (64). A lone route goes
+  at once in a batch of one; routes that queue while an exchange is in flight
+  go together in the next one. Routes from one source are queued in the order
+  that source produced them, and a later batch holds only routes queued after
+  the earlier one was sent, so per-source order holds within and across
+  batches.
+- **One timeout per batch.** `rpc.FilterUpdateTimeout` (5 s) bounds the whole
+  exchange. When it expires, or the plugin answers an error, each route of the
+  batch takes its filter's `on-error`, one outcome per route.
+- **One verdict per route.** A reply with more or fewer verdicts than the
+  request held routes is malformed: no verdict of it is applied, and each
+  route of the batch takes its filter's `on-error`. The next batch is judged
+  normally.
+- **A route the filter cannot judge.** A verdict carrying `error` (a string)
+  fails that route alone under its filter's `on-error`; the other routes of
+  the batch keep their verdicts. The Go SDK answers this way when the
+  evaluator fails: `answerFilterBatch` calls the evaluator `OnFilter`
+  installed once per route, in request order, and an error it returns or a
+  nil verdict fails that route alone, so a Go filter is written for one route.
+<!-- source: pkg/plugin/rpc/types.go -- FilterUpdateBatchMax, FilterUpdateBatchInput, FilterUpdateBatchOutput -->
+<!-- source: internal/component/plugin/ipc/filter_batch.go -- SendFilterUpdate, filterBatcher -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch -->
+
 ### The Route Fields of filter-update
 
 `FilterUpdateInput.Fields` (`fields` on the wire) is one JSON object holding the
@@ -661,13 +698,75 @@ For example, a filter that declared `community`, `as-path` and
 - Stage 1 refuses a declared BGP field this binary cannot write: the
   community fields need `bgp-filter-community`, `originator-id` and
   `cluster-list` need `bgp-rr`, and `aigp` needs `bgp-aigp`.
-- The values are the route as the chain received it. A modify an earlier
-  filter in the chain answered reaches this filter in the text `update` only,
-  as it does for `raw`.
+- In a chain that holds only plugin filters, the values are the route as the
+  chain received it: a modify an earlier filter answered reaches this filter
+  in the text `update` only, as it does for `raw`.
+- In a chain that also holds an in-process filter, the values are the route
+  as the earlier members left it: a local-preference, med or community an
+  earlier member set, in process or in a plugin, is what this filter reads.
+  `raw` is still the received body. Such a chain sends no text `update`, so a
+  filter that declared no `reads` fails the route under its `on-error`.
 <!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
 <!-- source: internal/component/bgp/policyview/register_writers.go -- the field writers -->
 <!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
+<!-- source: internal/component/bgp/policychain/external.go -- judgeExternal -->
+
+### The Sets of a filter-update answer
+
+A filter in a chain that also holds an in-process filter answers its changes
+in `FilterUpdateOutput.Sets` (`sets` on the wire), with `"action":"modify"`.
+Each entry names one field the filter declared in `sets`, how it changes, and
+the value in the field's shape:
+
+| Field | Actions | Value | Example |
+|-------|---------|-------|---------|
+| `local-preference` | `set`, `increment`, `decrement` | a number from 0 to 4294967295 | `{"field":"local-preference","action":"set","value":200}` |
+| `med` | `set`, `increment`, `decrement` | a number from 0 to 4294967295 | `{"field":"med","action":"increment","value":10}` |
+| `community` | `add`, `remove` | one community string | `{"field":"community","action":"add","value":"65000:100"}` |
+| `as-path` | `prepend` | a count of local AS copies, 1 to 32 | `{"field":"as-path","action":"prepend","value":2}` |
+| `as-path` | `remove` | `"private"` removes the private-use AS numbers; `"private-peer-as"` replaces each with the peer AS | `{"field":"as-path","action":"remove","value":"private"}` |
+| `prefix` | `remove` | one announced prefix, in the shape the `prefix` field is sent: the prefix string, or under ADD-PATH `{"prefix":...,"path-id":...}` | `{"field":"prefix","action":"remove","value":"10.0.9.0/24"}` |
+| `family` | `remove` | one family name | `{"field":"family","action":"remove","value":"ipv6/unicast"}` |
+
+- An increment or decrement starts from the route's value, or from
+  `bgp defaults attribute` when the route carries none, and stays within 0 and
+  4294967295. The changes fold in chain order with the in-process filters'
+  changes and produce the same UPDATE bytes.
+- The route fails under the filter's `on-error`, logged and counted, with none
+  of its sets applied, when an entry names a field the filter did not declare,
+  a field the chain's attachment does not let a filter set, or a field no BGP
+  chain sets; when the action is not one the field takes; or when the value has
+  the wrong shape. The other routes are judged on their own.
+- A `prefix` remove needs only that the filter declares it reads `prefix`, and
+  a `family` remove that it reads `family`. Each drops only what the filter
+  was shown, so neither is a set the filter declares, and both work at a BGP
+  attachment, which lets no filter set `prefix` or `family`.
+- The `as-path`, `prefix` and `family` entries are intents Ze resolves with
+  state the plugin does not hold: a prepend uses the local AS and the
+  session's AS number width, `"private-peer-as"` the peer AS, a prefix remove
+  drops the entry from the body NLRI and from MP_REACH_NLRI (an MP_REACH_NLRI
+  left empty leaves the UPDATE), and a family remove drops that family's
+  MP_REACH_NLRI and MP_UNREACH_NLRI (the body NLRI and withdrawn routes for
+  `ipv4/unicast`). Prepends add up across the chain to at most 32. A prefix
+  the route does not announce, or one with host bits set, fails the route.
+- The route fails the same way when the answer carries `sets` beside `accept`
+  or `reject`, or a text `update`.
+- A filter that declares `raw` among its reads may answer `"action":"modify"`
+  with a whole-body `raw` rewrite and no `sets`. The rewrite is terminal: the
+  later filters of the chain are not called, the chain's final still decides
+  the route, and the rewrite is sent in place of the received body. The route
+  fails under the filter's `on-error` when the filter did not declare `raw`,
+  when the rewrite is shorter than the 4 octets of an UPDATE body's two length
+  fields, and when an earlier filter of the chain already set a field: the
+  rewrite was made from the received body, so it would discard that change.
+- `teardown` on an import route closes the session, as in a chain of plugin
+  filters only; on export it is ignored and the action stands.
+<!-- source: internal/component/bgp/policychain/external.go -- externalAnswer, applyExternalSets, rawAnswer -->
+<!-- source: internal/component/bgp/policychain/chain.go -- rawOutcome -->
+<!-- source: internal/component/bgp/policychain/external_intents.go -- applyASPathIntent, applyPrefixIntent, applyFamilyIntent -->
+<!-- source: internal/component/bgp/policychain/external.go -- externalIntentsOfReads -->
+<!-- source: pkg/plugin/rpc/types.go -- FilterSet, FilterSetAction -->
 
 ### The Filter Text an `OnFilterUpdate` Handler Reads
 

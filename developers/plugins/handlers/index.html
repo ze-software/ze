@@ -64,6 +64,7 @@ They are registered on the <code>sdk.Plugin</code> before calling <code>Run()</c
 <li><a href="#declareappliesnothing">DeclareAppliesNothing</a></li>
 <li><a href="#a-plugin-with-no-apply-handler">A plugin with no apply handler</a></li>
 <li><a href="#onvalidateopen">OnValidateOpen</a></li>
+<li><a href="#route-filters">Route filters</a></li>
 <li><a href="#onbye">OnBye</a></li>
 <li><a href="#onstarted">OnStarted</a></li>
 <li><a href="#nlri-handlers">NLRI Handlers</a></li>
@@ -552,6 +553,123 @@ set to <code>true</code> in the Stage 1 registration.</p>
 </tbody>
 </table>
 <p>If no handler is registered, OPEN validation returns <code>{accept: true}</code> (no-op).</p>
+<h3 id="route-filters">Route filters</h3>
+<p>A filter has one evaluator for both transports. Register it with
+<code>p.OnFilter(eval)</code>, where <code>eval</code> takes one <code>*sdk.FilterRoute</code> and answers the
+verdict and the sets (<code>*sdk.FilterUpdateOutput</code>), or an error that fails that
+route under the filter's <code>on-error</code>.</p>
+<table>
+<thead>
+<tr>
+<th>The plugin runs</th>
+<th>The SDK installs <code>eval</code> as</th>
+<th>The route carries</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Internal (a goroutine in the daemon)</td>
+<td>The typed <code>DirectBridge</code> filter slot, at Stage 5</td>
+<td>The engine's lazy view: <code>Fields()</code> encodes the declared fields only when called, <code>Raw()</code> the raw body, <code>Engine()</code> the engine's typed view for a filter compiled with it</td>
+</tr>
+<tr>
+<td>Forked (any process)</td>
+<td>The <code>filter-update</code> batch handler</td>
+<td>The decoded input: <code>Fields()</code> and <code>Raw()</code> answer what the message carried, <code>Engine()</code> is nil</td>
+</tr>
+</tbody>
+</table>
+<p>The slot is callable only from Stage 5 until the bridge closes. A stopped,
+crashed or respawning plugin is unavailable: the engine applies the filter's
+<code>on-error</code> and never answers from the old plugin's state.</p>
+<p><strong>The fast-path contract.</strong> Internal, <code>eval</code> runs on the engine's goroutines,
+concurrently. It MUST be non-blocking and bounded, MUST be safe for
+concurrent calls, MUST NOT keep the route, or any slice it answered, past its
+return, and MUST read its state from a snapshot its own goroutines swap
+atomically. Data it has not resolved yet takes the filter's <code>on-error</code>; once
+resolved, the plugin asks Ze to re-judge the routes, which at HEAD is
+<code>request peer &lt;peer&gt; refresh &lt;family&gt;</code> (RFC 2918).</p>
+<p><strong>The conformance harness.</strong> Every fast-path filter's test MUST pass
+<code>sdk.CheckFilterConformance(t, name, eval, routes)</code> under <code>-race</code>. It refuses
+a call past <code>sdk.FilterCallDeadline</code>, a repeat call that answers differently
+(state written without a snapshot), a view read after its call returned or a
+kept slice whose reuse changes an answer, a fast-path verdict that differs
+from the forked transport's, and concurrent calls that answer otherwise,
+each report naming the filter and the clause.</p>
+<p><strong>Building the answer.</strong> <code>eval</code> answers one <code>*sdk.FilterUpdateOutput</code> per
+route, in one of three shapes. The shapes below are what a filter answers in
+a chain that also holds an in-process filter; a chain of plugin filters only
+still reads the text <code>Update</code> delta. The wire form of each change, and every
+reason a route fails, is <code>protocol.md</code>, "The Sets of a filter-update answer".</p>
+<table>
+<thead>
+<tr>
+<th>Answer</th>
+<th><code>Action</code></th>
+<th>Carries</th>
+<th>The filter declares</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Keep or drop the route as received</td>
+<td><code>sdk.FilterAccept</code>, <code>sdk.FilterReject</code></td>
+<td>nothing else: <code>Sets</code> beside them fails the route</td>
+<td>its <code>Reads</code></td>
+</tr>
+<tr>
+<td>Change named fields</td>
+<td><code>sdk.FilterModify</code></td>
+<td><code>Sets</code>, one <code>rpc.FilterSet</code> per change</td>
+<td>each field it changes in <code>Sets</code></td>
+</tr>
+<tr>
+<td>Replace the whole UPDATE body</td>
+<td><code>sdk.FilterModify</code></td>
+<td><code>Raw</code>, the new body, and no <code>Sets</code></td>
+<td><code>sdk.FilterFieldRaw</code> in <code>Reads</code></td>
+</tr>
+</tbody>
+</table>
+<p>A field set holds the field name, an <code>rpc.FilterSetAction</code>, and the value as
+JSON in the field's shape:</p>
+<pre><code class="language-go">out := &amp;sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: []rpc.FilterSet{
+	{Field: "local-preference", Action: rpc.FilterSetActionSet, Value: json.RawMessage(`200`)},
+	{Field: "community", Action: rpc.FilterSetActionAdd, Value: json.RawMessage(`"65000:100"`)},
+}}
+</code></pre>
+<p>The <code>as-path</code>, <code>prefix</code> and <code>family</code> fields take intents rather than values,
+because Ze resolves them with state the plugin does not hold:
+<code>rpc.FilterSetActionPrepend</code> with a count, <code>rpc.FilterSetActionRemove</code> with
+<code>"private"</code> or <code>"private-peer-as"</code> for the AS path, with one announced prefix
+as the <code>prefix</code> field reads it, or with one family name. A prepend never names
+an AS number, and a prefix remove never names an offset: Ze finds each entry
+in the body NLRI and in MP_REACH_NLRI. Every set of a route fails with the
+route when one of them is refused, so an answer never applies half its
+changes.</p>
+<p>A <code>Raw</code> rewrite is terminal. The later filters of the chain are not called,
+and the rewrite is refused when an earlier filter already set a field, since
+it was built from the received body. The engine keeps the rewrite past the
+call, so on the fast path it copies the bytes you answered (<code>ownRawRewrite</code>):
+building the rewrite in a scratch buffer you reuse on the next call is safe.
+Every other slice of the answer is the engine's from your return, as a
+forked plugin's decoded answer is, and you never write into <code>route.Raw()</code>.</p>
+<!-- source: pkg/plugin/rpc/types.go -- FilterUpdateOutput, FilterSet, FilterSetAction -->
+<!-- source: pkg/plugin/rpc/filter_slot.go -- FilterSlotHandler, ownRawRewrite -->
+<p><code>p.OnFilterUpdate(fn)</code> is the same registration, adapted for a handler
+written against <code>*sdk.FilterUpdateInput</code>: the SDK encodes a fast-path route's
+fields for it and runs its calls one at a time on one worker goroutine, so a
+handler that keeps unsnapshotted state stays race-free. Each call waits at
+most <code>rpc.FilterUpdateTimeout</code> (5 s), as a filter-update exchange does: while
+the handler blocks, the route it holds and every route waiting behind it take
+the filter's <code>on-error</code> once that deadline passes, and a route whose deadline
+passed before the worker took it is never judged late. After the plugin
+closes, a call answers <code>rpc.ErrBridgeClosed</code> ("unavailable"). The adapter is
+removed once every filter registers with <code>OnFilter</code>.</p>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, OnFilterUpdate -->
+<!-- source: pkg/plugin/sdk/filter_serial.go -- filterSerializer -->
+<!-- source: pkg/plugin/sdk/filter_serial.go -- filterUpdateWait -->
+<!-- source: pkg/plugin/sdk/filter_conformance.go -- CheckFilterConformance -->
 <h3 id="onbye">OnBye</h3>
 <p>Called when the engine sends <code>bye</code>: when it removes the plugin while the
 daemon keeps running (reason <code>removed</code>), and when it stops a subsystem process.
@@ -745,7 +863,7 @@ return fmt.Errorf("validation failed")
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 1 November 2026 14:11 UTC</span>
                 </div>
             </div>
         </footer>

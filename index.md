@@ -89,7 +89,7 @@ Tests help catch changes that break existing behavior. Go tests, end-to-end scen
 - Until 2026-10-31 the figure counted every MUST row but rollups, annotated rows included
 - Tests tied to requirements
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**40,500+ Go tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**40,600+ Go tests**
 
 - Check encoded bytes and parsed values.
 - Verify config, state transitions and plugins.

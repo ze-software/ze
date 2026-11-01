@@ -38,7 +38,7 @@ If you are evaluating Ze for one role, start with Coverage by profile. To check 
 
 The gate holds Ze to every MUST-level requirement of the RFCs it implements. The bars and the Total row below put each MUST row of a walked enrolled RFC in one section: proven by Ze's tests, verified in the operating system, not owed, or still owed by Ze or by the operating system's tests. The cards after them say how many tagged tests carry a recorded break and whether the gate passes.
 
-RED. 21 open gate issues. Check results below names them, up to the 25 this page inlines. Contributors reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 21 violation(s)`.
+RED. 45 open gate issues. Check results below names them, up to the 25 this page inlines. Contributors reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 45 violation(s)`.
 
 ### How the enrolled RFCs' requirements are answered
 
@@ -60,7 +60,7 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Proven by a recorded break | 6,402 | 6,402 of 9,234 tagged units in enrolled RFCs, 11 escaped and 14 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 6,395 | 6,395 of 9,234 tagged units in enrolled RFCs, 11 escaped and 21 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -68,7 +68,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Semantic verdicts | 2,273 | 11 shifted, 4 stale, 2,499 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
+| Semantic verdicts | 2,267 | 17 shifted, 4 stale, 2,499 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
 
 ### Negative
 
@@ -76,7 +76,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gate verdict | RED | 21 open gate issues | whether ./le rfc check passes over this tree |
+| Gate verdict | RED | 45 open gate issues | whether ./le rfc check passes over this tree |
 
 No card above is a part of a population, so there is nothing to add up.
 
@@ -90,12 +90,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 21 |
+| Gate issues | 45 |
 | Resolved test tags | 9,546 |
 | Declared gaps | 1,540 |
 | RFCs with declared gaps | 132 |
-| Fresh semantic audit verdicts | 2,273 |
-| Shifted semantic audit verdicts | 11 |
+| Fresh semantic audit verdicts | 2,267 |
+| Shifted semantic audit verdicts | 17 |
 | Stale semantic audit verdicts | 4 |
 | MUST rows of the walked enrolled RFCs | 4,787 |
 | Enrolled RFCs | 203 |
@@ -214,7 +214,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 56 
 | Enrolment | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 203 enrolled RFCs |
 | Test tags | `internal/`, `pkg/`, `test/` | 9,546 resolved tags |
 | Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 132 RFCs with gaps |
-| Semantic audits | `rfc/audit/*/*.json` | 2,273 fresh, 11 shifted, 4 stale, 2,499 missing |
+| Semantic audits | `rfc/audit/*/*.json` | 2,267 fresh, 17 shifted, 4 stale, 2,499 missing |
 | Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 56 full-mode stages |
 | Published artifacts | `data/rfc-compliance.json`, `data/rfc-requirements.json` | the same answers this page renders, machine-readable |
 
@@ -226,17 +226,25 @@ The gate runs several groups of checks. Each line below says what one group veri
 - **Test evidence:** Passed. Every gated MUST-level requirement has its tests, or an annotation that says why not, test evidence already recorded is not lost, and every test that claims a requirement compiles and is named for what it covers.
 - **Requirement annotations:** Passed. Every annotation that excuses a requirement from Ze's own tests still names code that exists, quotes the RFC sentence it relies on, or names a verified blocking kernel entry in the Linux limitations register with evidence for that exact requirement at the shipped kernel version.
 - **Published ledger rows:** Passed. Every enrolled RFC with an unmet requirement renders a public row that discloses it, a public row never disappears while its summary remains, and each summary's enrolment disposition gives a reason a reviewer can check.
-- **Reviewer verdicts:** Failed, 16 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.
-- **Recorded breaks:** Failed, 5 problems. Each recorded break still matches the test, the claim and the code it was recorded against, and no recorded proof is lost. What this means: A test's proof is missing or no longer matches what it rests on, so it is not counted as proven by a recorded break.
+- **Reviewer verdicts:** Failed, 24 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.
+- **Recorded breaks:** Failed, 21 problems. Each recorded break still matches the test, the claim and the code it was recorded against, and no recorded proof is lost. What this means: A test's proof is missing or no longer matches what it rests on, so it is not counted as proven by a recorded break.
 - **Reviews of RFC text:** Passed. Each sign-off of a sentence-by-sentence review of an RFC's text is valid and current.
 
 ### For contributors: the raw findings and the commands that fix them
 
 | RFC | Requirement | Level | What is wrong | The requirement |
 |---|---|---|---|---|
+| - | `-` | - | RFC2545-3-3 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink | - |
+| - | `-` | - | RFC2545-3-3 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds | - |
 | - | `-` | - | rfc/short/draft-ietf-sidrops-aspa-verification.md:354: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReceiveRecovery, internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReplacementWithdrawal), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem draft-ietf-sidrops-aspa-verification | - |
+| - | `-` | - | rfc/short/rfc2545.md:203: RFC2545-3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds, internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateRefusesUnusableIPv6NextHop, internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateRefusesUnusableIPv6NextHop#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc2545 | - |
+| - | `-` | - | rfc/short/rfc2545.md:204: RFC2545-3-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc2545 | - |
+| - | `-` | - | rfc/short/rfc2545.md:205: RFC2545-3-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds, internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc2545 | - |
+| - | `-` | - | rfc/short/rfc2545.md:207: RFC2545-3-4 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc2545 | - |
 | - | `-` | - | rfc/short/rfc4271.md:789: RFC4271-5.1.4-1 has a STALE audit verdict -- what it judged changed: test/plugin/med-locally-set-reaches-peer.ci (file-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4271 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 | - | `-` | - | rfc/short/rfc4271.md:820: RFC4271-8.2.2-13 has a STALE audit verdict -- what it judged changed: internal/component/bgp/fsm/fsm.go::handleActive (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4271 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
+| - | `-` | - | rfc/short/rfc4724.md:402: RFC4724-4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo, internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily, internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess, internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker, internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc4724 | - |
+| - | `-` | - | rfc/short/rfc4724.md:420: RFC4724-4.2-9 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc4724 | - |
 | - | `-` | - | rfc/short/rfc7911.md:271: RFC7911-2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/adj_rib_out.go::clearRoutes (func-scoped), internal/component/bgp/reactor/session_ownership.go::recordDeletion (func-scoped), internal/component/bgp/reactor/session_ownership.go::recordSection (func-scoped), internal/component/bgp/reactor/session_ownership.go::release (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7911 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 | - | `-` | - | rfc/short/rfc7911.md:272: RFC7911-2-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/adj_rib_out.go::clearRoutes (func-scoped), internal/component/bgp/reactor/session_ownership.go::recordDeletion (func-scoped), internal/component/bgp/reactor/session_ownership.go::recordSection (func-scoped), internal/component/bgp/reactor/session_ownership.go::release (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7911 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 | - | `-` | - | rfc/short/rfc8277.md:418: RFC8277-2.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers, internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc8277 | - |
@@ -250,11 +258,9 @@ The gate runs several groups of checks. Each line below says what one group veri
 | - | `-` | - | rfc/short/rfc9069.md:106: RFC9069-5.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc9069 | - |
 | - | `-` | - | rfc/short/rfc9552.md:720: RFC9552-5.2.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc9552 | - |
 | - | `-` | - | rfc/short/rfc9552.md:721: RFC9552-5.3.2.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFInterASRouterIDsReachExporter, internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDAbsenceReachExporter, internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem rfc9552 | - |
-| - | `-` | - | rfc/discrimination/rfc4271/RFC4271-9.2-7.json: the mutant record for RFC4271-9.2-7 negative at internal/component/bgp/reactor/rfc4271_rs_replacement_test.go::TestRFC4271RouteServerOwnerWithdrawalSendsReplacement no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break "line 422: \\"entry == nil\\" -> \\"true\\"" was observed to redden that unit when applied to internal/component/bgp/reactor/session_ownership.go::owesWithdrawal. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
-| - | `-` | - | rfc/discrimination/rfc4271/RFC4271-9.2-8.json: the mutant record for RFC4271-9.2-8 negative at internal/component/bgp/reactor/rfc4271_rs_replacement_test.go::TestRFC4271RouteServerStillFeasibleRouteIsNotWithdrawn no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break "line 459: \\"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\\" -> \\"true\\"" was observed to redden that unit when applied to internal/component/bgp/reactor/session_ownership.go::oweAnnouncement. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
-| - | `-` | - | rfc/discrimination/rfc7947/RFC7947-x-5.json: the mutant record for RFC7947-x-5 positive at internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go::TestRSAnnouncementAddPathClientGetsEveryPath no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break "line 557: \\"key.addPath\\" -> \\"false\\"" was observed to redden that unit when applied to internal/component/bgp/reactor/session_ownership.go::oweAnnouncement. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
-| - | `-` | - | rfc/discrimination/rfc7947/RFC7947-x-5.json: the mutant record for RFC7947-x-5 negative at internal/component/bgp/reactor/rfc7947_rs_decision_test.go::TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break "line 459: \\"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\\" -> \\"true\\"" was observed to redden that unit when applied to internal/component/bgp/reactor/session_ownership.go::oweAnnouncement. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
-| - | `-` | - | rfc/discrimination/rfc7947/RFC7947-x-5.json: the mutant record for RFC7947-x-5 positive at internal/component/bgp/reactor/rfc7947_rs_decision_test.go::TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break "line 459: \\"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\\" -> \\"true\\"" was observed to redden that unit when applied to internal/component/bgp/reactor/session_ownership.go::oweAnnouncement. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
+| - | `-` | - | rfc/discrimination/rfc2545/RFC2545-3-1.json: the revert record for RFC2545-3-1 positive at internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break "body of sendDefaultOriginateRoutes replaced by panic(\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\")" was observed to redden that unit when applied to internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
+
+20 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
 
 ## Enrolled RFCs
 
