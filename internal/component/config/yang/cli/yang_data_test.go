@@ -18,7 +18,8 @@ import (
 // top-level nodes. A declaration that disagrees with the answer publishes a
 // refusal the product does not make.
 func TestDataTreeAnswersRows(t *testing.T) {
-	payload, code := dataTree(commandtest.Args())
+	payloadAnswer := dataTree(commandtest.Args())
+	payload, code := payloadAnswer.Payload, payloadAnswer.Code
 	if code != 0 {
 		t.Fatalf("dataTree exited %d", code)
 	}
@@ -38,11 +39,13 @@ func TestDataTreeAnswersRows(t *testing.T) {
 // the flag words would be accepted and silently ignored, which is the shape of
 // defect this whole spec exists to end.
 func TestDataTreeFilterNarrows(t *testing.T) {
-	all, code := dataTree(commandtest.Args())
+	allAnswer := dataTree(commandtest.Args())
+	all, code := allAnswer.Payload, allAnswer.Code
 	if code != 0 {
 		t.Fatalf("dataTree exited %d", code)
 	}
-	commands, code := dataTree(commandtest.Args(flagCommands))
+	commandsAnswer := dataTree(commandtest.Args(flagCommands))
+	commands, code := commandsAnswer.Payload, commandsAnswer.Code
 	if code != 0 {
 		t.Fatalf("dataTree --commands exited %d", code)
 	}
@@ -58,7 +61,8 @@ func TestDataTreeFilterNarrows(t *testing.T) {
 
 // TestDataCompletionAnswersCollisions covers the second converted command.
 func TestDataCompletionAnswersCollisions(t *testing.T) {
-	payload, code := dataCompletion(commandtest.Args())
+	payloadAnswer := dataCompletion(commandtest.Args())
+	payload, code := payloadAnswer.Payload, payloadAnswer.Code
 	if code != 0 {
 		t.Fatalf("dataCompletion exited %d", code)
 	}
@@ -90,7 +94,8 @@ func TestTreeCommandFormsShareOptionSemantics(t *testing.T) {
 	}
 	for _, tt := range valid {
 		t.Run(tt.name, func(t *testing.T) {
-			local, localCode := dataTree(commandtest.Args(tt.args...))
+			localAnswer := dataTree(commandtest.Args(tt.args...))
+			local, localCode := localAnswer.Payload, localAnswer.Code
 			if localCode != 0 {
 				t.Fatalf("dataTree exited %d", localCode)
 			}
@@ -131,7 +136,7 @@ func TestTreeCommandFormsShareOptionSemantics(t *testing.T) {
 			if code := cmdTree(tt.args); code != 1 {
 				t.Errorf("cmdTree exited %d, want 1", code)
 			}
-			if _, code := dataTree(commandtest.Args(tt.args...)); code != 1 {
+			if code := dataTree(commandtest.Args(tt.args...)).Code; code != 1 {
 				t.Errorf("dataTree exited %d, want 1", code)
 			}
 		})
@@ -156,7 +161,8 @@ func TestCompletionCommandFormsShareOptionSemantics(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			args := []string{"--min-prefix", tt.value}
-			local, localCode := dataCompletion(commandtest.Args(args...))
+			localAnswer := dataCompletion(commandtest.Args(args...))
+			local, localCode := localAnswer.Payload, localAnswer.Code
 			if localCode != tt.code {
 				t.Errorf("dataCompletion exited %d, want %d", localCode, tt.code)
 			}
@@ -191,7 +197,7 @@ func TestCompletionCommandFormsShareOptionSemantics(t *testing.T) {
 	if code := cmdCompletion(args); code != 1 {
 		t.Errorf("cmdCompletion with unknown option exited %d, want 1", code)
 	}
-	if _, code := dataCompletion(commandtest.Args(args...)); code != 1 {
+	if code := dataCompletion(commandtest.Args(args...)).Code; code != 1 {
 		t.Errorf("dataCompletion with unknown option exited %d, want 1", code)
 	}
 }
@@ -204,13 +210,13 @@ func TestBothFormsRefuseTheDeletedRenderingOption(t *testing.T) {
 	if code := cmdTree([]string{"--json"}); code != 1 {
 		t.Errorf("cmdTree --json exited %d, want 1", code)
 	}
-	if _, code := dataTree(commandtest.Args("--json")); code != 1 {
+	if code := dataTree(commandtest.Args("--json")).Code; code != 1 {
 		t.Errorf("dataTree --json exited %d, want 1", code)
 	}
 	if code := cmdCompletion([]string{"--json"}); code != 1 {
 		t.Errorf("cmdCompletion --json exited %d, want 1", code)
 	}
-	if _, code := dataCompletion(commandtest.Args("--json")); code != 1 {
+	if code := dataCompletion(commandtest.Args("--json")).Code; code != 1 {
 		t.Errorf("dataCompletion --json exited %d, want 1", code)
 	}
 }

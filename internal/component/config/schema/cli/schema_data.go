@@ -16,8 +16,6 @@
 package cli
 
 import (
-	"fmt"
-	"os"
 	"slices"
 	"sort"
 
@@ -35,18 +33,19 @@ const (
 	keyDescription = "description"
 )
 
-// writeSchemaError reports why the schema registry could not be built. The
-// printers report it the same way, so both spellings of the failure agree.
-func writeSchemaError(err error) {
-	fmt.Fprintln(os.Stderr, "error:", err)
+// schemaRefusal is the answer when the schema registry could not be built. It
+// carries the line the printers write for the same failure, so both spellings
+// of the failure agree. The handler writes nothing itself
+// (command.LocalDataHandler).
+func schemaRefusal(err error) command.LocalAnswer {
+	return command.LocalRefusal(1, command.LocalErrorLine(err))
 }
 
 // dataList answers `show schema list`: every registered module.
-func dataList(command.ValidatedArgs) (any, int) {
+func dataList(command.ValidatedArgs) command.LocalAnswer {
 	registry, err := buildSchemaRegistry(nil)
 	if err != nil {
-		writeSchemaError(err)
-		return nil, 1
+		return schemaRefusal(err)
 	}
 	modules := registry.ListModules()
 	slices.Sort(modules)
@@ -66,17 +65,16 @@ func dataList(command.ValidatedArgs) (any, int) {
 		}
 		rows = append(rows, row)
 	}
-	return map[string]any{"schemas": rows}, 0
+	return command.LocalAnswer{Payload: map[string]any{"schemas": rows}}
 }
 
 // dataHandlers answers `show schema handlers` as ROWS rather than as the
 // path-to-module map the deleted rendering option emitted. A map keyed by path
 // carries the same facts, and rows are what a row operator can act on.
-func dataHandlers(command.ValidatedArgs) (any, int) {
+func dataHandlers(command.ValidatedArgs) command.LocalAnswer {
 	registry, err := buildSchemaRegistry(nil)
 	if err != nil {
-		writeSchemaError(err)
-		return nil, 1
+		return schemaRefusal(err)
 	}
 	handlers := registry.ListHandlers()
 	paths := make([]string, 0, len(handlers))
@@ -89,11 +87,11 @@ func dataHandlers(command.ValidatedArgs) (any, int) {
 	for _, path := range paths {
 		rows = append(rows, map[string]any{"handler": path, keyModule: handlers[path]})
 	}
-	return map[string]any{subHandlers: rows}, 0
+	return command.LocalAnswer{Payload: map[string]any{subHandlers: rows}}
 }
 
 // dataMethods answers `show schema methods [module]`.
-func dataMethods(validated command.ValidatedArgs) (any, int) {
+func dataMethods(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	return schemaEntryRows(args, "methods", func(reg *pluginserver.SchemaRegistry, module string) []schemaEntry {
 		rpcs := reg.ListRPCs(module)
@@ -106,7 +104,7 @@ func dataMethods(validated command.ValidatedArgs) (any, int) {
 }
 
 // dataEvents answers `show schema events [module]`.
-func dataEvents(validated command.ValidatedArgs) (any, int) {
+func dataEvents(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	return schemaEntryRows(args, "events", func(reg *pluginserver.SchemaRegistry, module string) []schemaEntry {
 		notifs := reg.ListNotifications(module)
@@ -122,15 +120,14 @@ func dataEvents(validated command.ValidatedArgs) (any, int) {
 // methods, optionally narrowed to one module.
 func schemaEntryRows(args []string, key string,
 	listFn func(*pluginserver.SchemaRegistry, string) []schemaEntry,
-) (any, int) {
+) command.LocalAnswer {
 	var module string
 	if len(args) > 0 {
 		module = args[0]
 	}
 	registry, err := buildSchemaRegistry(nil)
 	if err != nil {
-		writeSchemaError(err)
-		return nil, 1
+		return schemaRefusal(err)
 	}
 
 	entries := listFn(registry, module)
@@ -146,15 +143,15 @@ func schemaEntryRows(args []string, key string,
 	// and exits 0, which is what lets a caller tell "no methods" from "the
 	// command did not run". The printer exits 1 for a named module with none,
 	// and that stays its own behavior.
-	return map[string]any{key: rows}, 0
+	return command.LocalAnswer{Payload: map[string]any{key: rows}}
 }
 
 // dataProtocol answers `show schema protocol`. It is ONE document rather than
 // rows, and it declares that shape, so the row operators are refused by name
 // over it instead of answering something plausible.
-func dataProtocol(command.ValidatedArgs) (any, int) {
-	return map[string]any{
+func dataProtocol(command.ValidatedArgs) command.LocalAnswer {
+	return command.LocalAnswer{Payload: map[string]any{
 		subProtocol: "Hub Architecture",
 		"version":   "1.0",
-	}, 0
+	}}
 }

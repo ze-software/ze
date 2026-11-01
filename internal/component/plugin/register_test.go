@@ -65,7 +65,8 @@ func registerProbePlugin(t *testing.T) {
 func TestShowPluginListAnswersEveryRegisteredPlugin(t *testing.T) {
 	registerProbePlugin(t)
 
-	payload, code := dataPlugins(commandtest.Args())
+	payloadAnswer := dataPlugins(commandtest.Args())
+	payload, code := payloadAnswer.Payload, payloadAnswer.Code
 	if code != 0 {
 		t.Fatalf("show plugin list exit code = %d, want 0", code)
 	}
@@ -248,7 +249,8 @@ func TestShowPluginListCarriesTheRecordedSetupOutcome(t *testing.T) {
 	registerPlugin(t, recordingPluginName)
 	registry.RecordSetup(recordingPluginName, registry.SetupFailedSoft, "RLIMIT_MEMLOCK is too small")
 
-	payload, code := dataPlugins(commandtest.Args())
+	payloadAnswer := dataPlugins(commandtest.Args())
+	payload, code := payloadAnswer.Payload, payloadAnswer.Code
 	if code != 0 {
 		t.Fatalf("show plugin list exit code = %d, want 0", code)
 	}

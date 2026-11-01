@@ -168,17 +168,28 @@ data-handler and local-handler registries live in package `command` rather than
 in `command/registry`, because that package cannot import `command` and so
 cannot name the value.
 
-The handler returns a payload AND an exit code, and the two are independent. The
-code carries the verdict, the payload carries the evidence, and `show config validation`
-is the command that needs both: it answers the diagnostics of a configuration it
-rejects and exits 1. The answer therefore goes to stdout whatever the code is,
-because a payload on stderr is a payload no pipe operator can reach. A handler
-with nothing to say writes its reason to stderr itself and returns a nil payload,
-which prints nothing. The one local result stdout never sees is a pipe error,
-which is a diagnostic about the operator's own chain rather than an answer to
-their question.
+The handler returns a `command.LocalAnswer`: a payload, an exit code and a
+diagnostic, and the three are independent. The code carries the verdict, the
+payload carries the evidence, and `show config validation` is the command that
+needs both: it answers the diagnostics of a configuration it rejects and exits
+1. The answer therefore goes to stdout whatever the code is, because a payload
+on stderr is a payload no pipe operator can reach.
+
+A handler writes nothing to the process's stdout or stderr, and neither does
+any helper it calls. A handler with nothing to answer returns a nil payload and
+its reason in the diagnostic (`command.LocalRefusal`), whole lines that each end
+in a newline. A diagnostic beside a payload is a warning about the answer, such
+as the parse warnings `show config dump` reports for a config it still
+resolved. The route that ran the handler decides where the diagnostic goes: the
+local routes (`ServeLocal`, the plain `ze <verb>` handler, and `le`'s `Run`)
+print it verbatim on stderr before the payload. A handler that wrote its own
+refusal put it on whatever stderr the running process had, which for a daemon
+route is the daemon's, and the caller got an empty failure. The one local
+result stdout never sees is a pipe error, which is a diagnostic about the
+operator's own chain rather than an answer to their question.
 <!-- source: internal/component/cli/client/main.go -- emitLocalResult -->
-<!-- source: internal/component/command/local_data.go -- LocalDataHandler, RegisterLocalData, LookupLocalData -->
+<!-- source: internal/component/command/local_data.go -- LocalDataHandler, LocalAnswer, LocalRefusal, LocalErrorLine, writeLocalDiagnostic, plainLocalData, ServeLocal, RegisterLocalData, LookupLocalData -->
+<!-- source: internal/le/le/root/leroot.go -- toolHandler, Run -->
 
 Before the handler runs, `ServeLocal` judges the arguments against the leaves
 the command's YANG declares, with `command.ValidateArgs`, the same validator the

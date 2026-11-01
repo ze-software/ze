@@ -16,6 +16,7 @@ import (
 func TestMain(m *testing.M) {
 	env.MustRegister(env.EnvEntry{Key: "ze.test.environ.public", Type: "string", Default: "pub", Description: "public test var"})
 	env.MustRegister(env.EnvEntry{Key: "ze.test.environ.secret", Type: "string", Default: "sec", Description: "private test var", Private: true})
+	env.MustRegister(env.EnvEntry{Key: "ze.test.environ.token", Type: "string", Description: "secret test var", Secret: true})
 	os.Exit(m.Run())
 }
 

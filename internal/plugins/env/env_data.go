@@ -57,32 +57,33 @@ const keyVariables = "variables"
 
 // dataList answers `show env list`. The rows carry their effective values,
 // because a reader asking a machine for the list wants what is in force.
-func dataList(command.ValidatedArgs) (any, int) {
-	return map[string]any{keyVariables: envRows(true)}, 0
+func dataList(command.ValidatedArgs) command.LocalAnswer {
+	return command.LocalAnswer{Payload: map[string]any{keyVariables: envRows(true)}}
 }
 
 // dataRegistered answers `show env registered`: what the code declares, with no
 // effective value, which is the difference between the two commands.
-func dataRegistered(command.ValidatedArgs) (any, int) {
-	return map[string]any{keyVariables: envRows(false)}, 0
+func dataRegistered(command.ValidatedArgs) command.LocalAnswer {
+	return command.LocalAnswer{Payload: map[string]any{keyVariables: envRows(false)}}
 }
 
 // dataGet answers `show env get <key>` with the one variable, or refuses by
 // name. It answers the same row shape as the list, so a caller parses one thing.
-func dataGet(validated command.ValidatedArgs) (any, int) {
+//
+// The row carries the value currentValue answers, so a secret is masked here,
+// in the handler, and every route that runs it answers the same mask.
+func dataGet(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	if len(args) == 0 {
-		writeErr("error: show env get requires a key")
-		return nil, 1
+		return command.LocalRefusal(1, "error: show env get requires a key\n")
 	}
 	key := args[0]
 	for _, row := range envRows(true) {
 		if row.Key == key {
-			return map[string]any{keyVariables: []envRow{row}}, 0
+			return command.LocalAnswer{Payload: map[string]any{keyVariables: []envRow{row}}}
 		}
 	}
 	var tb textbuf.Buffer
-	tb.Str("error: no environment variable named ").Str(key)
-	writeErr(tb.String())
-	return nil, 1
+	tb.Str("error: no environment variable named ").Str(key).Byte('\n')
+	return command.LocalRefusal(1, tb.String())
 }

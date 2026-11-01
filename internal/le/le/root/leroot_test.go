@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/command"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
@@ -57,11 +56,11 @@ func TestRunAllowsLocalSave(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "answer.json")
 	var stdout, stderr bytes.Buffer
 
-	code := Run("example", func(command.ValidatedArgs) (any, int) {
+	code := Run("example", toolHandler(func([]string) (any, int) {
 		return struct {
 			Answer string `json:"answer"`
 		}{Answer: "saved locally"}, 0
-	}, []string{"|", "save", path, "|", "json"}, &stdout, &stderr)
+	}), []string{"|", "save", path, "|", "json"}, &stdout, &stderr)
 
 	if code != 0 {
 		t.Fatalf("Run answered %d, want 0: %s", code, stderr.String())
@@ -87,11 +86,11 @@ func TestRunAllowsLocalSave(t *testing.T) {
 	invalidPath := filepath.Join(t.TempDir(), "missing", "answer.json")
 	stdout.Reset()
 	stderr.Reset()
-	code = Run("example", func(command.ValidatedArgs) (any, int) {
+	code = Run("example", toolHandler(func([]string) (any, int) {
 		return struct {
 			Answer string `json:"answer"`
 		}{Answer: "not saved"}, 0
-	}, []string{"|", "save", invalidPath, "|", "json"}, &stdout, &stderr)
+	}), []string{"|", "save", invalidPath, "|", "json"}, &stdout, &stderr)
 
 	// A destination whose parent does not exist is a write the environment
 	// refused, not a malformed chain: le could not deliver its answer, 3

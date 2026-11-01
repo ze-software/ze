@@ -16,27 +16,25 @@
 package cli
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// writeStorageError reports why the store could not be opened, the same way the
-// printers do, so both spellings of the failure agree.
-func writeStorageError(err error) {
-	fmt.Fprintln(os.Stderr, "error:", err)
+// storageRefusal is the answer when the store could not be opened or read. It
+// carries the line the printers write for the same failure, so both spellings
+// of the failure agree. The handler writes nothing itself
+// (command.LocalDataHandler).
+func storageRefusal(err error) command.LocalAnswer {
+	return command.LocalRefusal(2, command.LocalErrorLine(err))
 }
 
 // dataList answers `show data list [prefix]`: the keys the store holds.
-func dataList(validated command.ValidatedArgs) (any, int) {
+func dataList(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	storePath, remaining := extractPathFlag(args)
 	s, err := openStore(storePath, false)
 	if err != nil {
-		writeStorageError(err)
-		return nil, 2
+		return storageRefusal(err)
 	}
 	defer s.Close() //nolint:errcheck // best-effort close
 
@@ -46,19 +44,18 @@ func dataList(validated command.ValidatedArgs) (any, int) {
 	}
 	keys, err := s.ListKeys(prefix)
 	if err != nil {
-		writeStorageError(err)
-		return nil, 2
+		return storageRefusal(err)
 	}
 	rows := make([]map[string]any, 0, len(keys))
 	for _, key := range keys {
 		rows = append(rows, map[string]any{"key": key})
 	}
-	return map[string]any{"keys": rows}, 0
+	return command.LocalAnswer{Payload: map[string]any{"keys": rows}}
 }
 
 // dataRegistered answers `show data registered [pattern]`: the key patterns the
 // code declares, and what each one holds.
-func dataRegistered(validated command.ValidatedArgs) (any, int) {
+func dataRegistered(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	entries := zefs.Entries()
 	rows := make([]map[string]any, 0, len(entries))
@@ -70,5 +67,5 @@ func dataRegistered(validated command.ValidatedArgs) (any, int) {
 			"pattern": e.Pattern, "description": e.Description,
 		})
 	}
-	return map[string]any{"patterns": rows}, 0
+	return command.LocalAnswer{Payload: map[string]any{"patterns": rows}}
 }

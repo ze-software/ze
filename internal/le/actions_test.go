@@ -241,7 +241,8 @@ func judged(t *testing.T, area string, handler command.LocalDataHandler) func(ar
 		if err != nil {
 			t.Fatalf("area %q: judging %v against no definitions: %v", area, args, err)
 		}
-		return handler(validated)
+		answer := handler(validated)
+		return answer.Payload, answer.Code
 	}
 }
 

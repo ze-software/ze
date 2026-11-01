@@ -596,7 +596,8 @@ func TestValidateConfigAnswersDiagnosticsAndFails(t *testing.T) {
 	configPath := dir + "/broken.conf"
 	require.NoError(t, os.WriteFile(configPath, []byte("invalid config syntax"), 0o600))
 
-	payload, code := dataValidate(commandtest.Args(configPath))
+	payloadAnswer := dataValidate(commandtest.Args(configPath))
+	payload, code := payloadAnswer.Payload, payloadAnswer.Code
 	assert.Equal(t, exitInvalid, code, "a rejected configuration must fail")
 	require.NotNil(t, payload, "a rejected configuration must still answer its diagnostics")
 
@@ -625,7 +626,8 @@ func TestValidateConfigAnswersAValidConfiguration(t *testing.T) {
 	configPath := dir + "/good.conf"
 	require.NoError(t, os.WriteFile(configPath, []byte(validConfig), 0o600))
 
-	payload, code := dataValidate(commandtest.Args(configPath))
+	payloadAnswer := dataValidate(commandtest.Args(configPath))
+	payload, code := payloadAnswer.Payload, payloadAnswer.Code
 	require.Equal(t, exitOK, code)
 	require.NotNil(t, payload)
 
@@ -647,11 +649,13 @@ func TestValidateConfigNamesABadArgumentCount(t *testing.T) {
 	configPath := dir + "/good.conf"
 	require.NoError(t, os.WriteFile(configPath, []byte(validConfig), 0o600))
 
-	payload, code := dataValidate(commandtest.Args(configPath, configPath))
+	payloadAnswer := dataValidate(commandtest.Args(configPath, configPath))
+	payload, code := payloadAnswer.Payload, payloadAnswer.Code
 	assert.Nil(t, payload)
 	assert.Equal(t, exitError, code)
 
-	payload, code = dataValidate(commandtest.Args())
+	payloadAnswer = dataValidate(commandtest.Args())
+	payload, code = payloadAnswer.Payload, payloadAnswer.Code
 	assert.Nil(t, payload)
 	assert.Equal(t, exitError, code)
 }

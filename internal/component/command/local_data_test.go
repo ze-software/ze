@@ -14,9 +14,9 @@ import (
 func TestServeLocalRefusesInvalidChainBeforeCallingProducer(t *testing.T) {
 	called := 0
 	const path = "show test local validation order"
-	if err := RegisterLocalData(path, func(ValidatedArgs) (any, int) {
+	if err := RegisterLocalData(path, func(ValidatedArgs) LocalAnswer {
 		called++
-		return func() {}, 0
+		return LocalAnswer{Payload: func() {}}
 	}, registry.Meta{}, func(string, any) int { return 0 }); err != nil {
 		t.Fatalf("register local data handler: %v", err)
 	}
@@ -55,9 +55,9 @@ func withArgDefSource(t *testing.T, source ArgDefSource) {
 func TestServeLocalJudgesArgumentsAgainstTheirDefinitions(t *testing.T) {
 	const path = "show test local argument length"
 	var got []string
-	if err := RegisterLocalData(path, func(args ValidatedArgs) (any, int) {
+	if err := RegisterLocalData(path, func(args ValidatedArgs) LocalAnswer {
 		got = args.Tokens()
-		return map[string]any{"ok": true}, 0
+		return LocalAnswer{Payload: map[string]any{"ok": true}}
 	}, registry.Meta{}, func(string, any) int { return 0 }); err != nil {
 		t.Fatalf("register local data handler: %v", err)
 	}
@@ -96,9 +96,9 @@ func TestServeLocalJudgesArgumentsAgainstTheirDefinitions(t *testing.T) {
 func TestServeLocalRefusesWithoutArgDefSource(t *testing.T) {
 	const path = "show test local no source"
 	called := 0
-	if err := RegisterLocalData(path, func(ValidatedArgs) (any, int) {
+	if err := RegisterLocalData(path, func(ValidatedArgs) LocalAnswer {
 		called++
-		return map[string]any{}, 0
+		return LocalAnswer{Payload: map[string]any{}}
 	}, registry.Meta{}, func(string, any) int { return 0 }); err != nil {
 		t.Fatalf("register local data handler: %v", err)
 	}

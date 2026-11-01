@@ -522,7 +522,8 @@ func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter)
 // code sent that payload to stderr, where no pipe operator can reach it, and
 // `| json`, `| yaml` and `| table` are three renderings of one payload
 // (ai/rules/cli.md). A handler with nothing to say returned a nil payload, which
-// arrives here as the empty string: its reason is already on stderr, and
+// arrives here as the empty string: command.ServeLocal already printed the
+// reason the handler returned (LocalAnswer.Diagnostic) on stderr, and
 // WriteAnswer prints nothing for it.
 func emitLocalResult(input, answer string, code int, tw *unicli.TranscriptWriter) int {
 	if tw != nil {

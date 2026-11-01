@@ -37,7 +37,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -54,11 +54,10 @@ const (
 // It is storageShortcut's half that acquires the store, without the half that
 // dispatches a subcommand by name, so a data handler reaches the same storage
 // the printing handler does.
-func withRuntimeStore(configPath string, fn func(storage.Storage) (any, int)) (any, int) {
+func withRuntimeStore(configPath string, fn func(storage.Storage) command.LocalAnswer) command.LocalAnswer {
 	store, err := storage.OpenReadOnly(resolve.StoreDir(configPath))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: config storage: %v\n", err)
-		return nil, exitError
+		return command.LocalRefusal(exitError, command.LocalErrorLine(fmt.Errorf("config storage: %w", err)))
 	}
 	defer func() {
 		if err := store.Close(); err != nil {
@@ -74,7 +73,7 @@ func withRuntimeStore(configPath string, fn func(storage.Storage) (any, int)) (a
 // row operator is refused over it by name instead of answering something
 // plausible. The payload is the map `--json` emits, from the same
 // resolveDump call, so the two spellings cannot disagree.
-func dataDump(validated command.ValidatedArgs) (any, int) {
+func dataDump(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	stripPrivate := false
 	var configPath string
@@ -104,17 +103,20 @@ func dataDump(validated command.ValidatedArgs) (any, int) {
 	// process, so it cannot say what a running daemon applied. The refusal
 	// names the daemon-side command that can.
 	if configPath == "" {
-		fmt.Fprintln(os.Stderr, "error: show config dump needs a config file to read (use - for stdin).")
-		fmt.Fprintln(os.Stderr, "To see the configuration the running daemon applied, run:")
-		fmt.Fprintln(os.Stderr, "  show config running")
-		return nil, 1
+		return command.LocalRefusal(1,
+			"error: show config dump needs a config file to read (use - for stdin).\n"+
+				"To see the configuration the running daemon applied, run:\n"+
+				"  show config running\n")
 	}
 
-	res, code := resolveDump(configPath, stripPrivate)
+	var diag textbuf.Buffer
+	res, code := resolveDump(configPath, stripPrivate, &diag)
 	if code != 0 {
-		return nil, code
+		return command.LocalRefusal(code, diag.String())
 	}
-	return res.dumpMap, 0
+	// A config that resolved can still carry parse warnings: they travel
+	// beside the payload, and the local route prints them before it.
+	return command.LocalAnswer{Payload: res.dumpMap, Diagnostic: diag.String()}
 }
 
 // dataList answers `show config list`: every configuration the daemon can see,
@@ -123,13 +125,12 @@ func dataDump(validated command.ValidatedArgs) (any, int) {
 // The printer wrote `[data] <key>` and `[fs] <path>` lines. The bracket prefix
 // becomes a FIELD, which is what a row operator can select on: `| match data`
 // used to match the prefix by accident of it being in the line.
-func dataList(validated command.ValidatedArgs) (any, int) {
+func dataList(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	if len(args) != 0 {
-		fmt.Fprintln(os.Stderr, "usage: show config list")
-		return nil, exitError
+		return command.LocalRefusal(exitError, "usage: show config list\n")
 	}
-	return withRuntimeStore("", func(store storage.Storage) (any, int) {
+	return withRuntimeStore("", func(store storage.Storage) command.LocalAnswer {
 		rows := make([]map[string]any, 0)
 
 		for _, prefix := range []string{zefs.KeyFileActive.Dir(), zefs.KeyFileDraft.Dir()} {
@@ -156,7 +157,7 @@ func dataList(validated command.ValidatedArgs) (any, int) {
 				})
 			}
 		}
-		return map[string]any{"configs": rows}, 0
+		return command.LocalAnswer{Payload: map[string]any{"configs": rows}}
 	})
 }
 
@@ -167,23 +168,20 @@ func dataList(validated command.ValidatedArgs) (any, int) {
 // so a caller sees one list and can select on it. The printer wrote
 // `draft  (editing in progress)` before the numbered revisions, which no row
 // operator could reach.
-func dataHistory(validated command.ValidatedArgs) (any, int) {
+func dataHistory(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "error: requires exactly one config file")
-		return nil, exitError
+		return command.LocalRefusal(exitError, "error: requires exactly one config file\n")
 	}
 	if cliio.IsStdin(args[0]) {
-		fmt.Fprintln(os.Stderr,
-			`error: history needs on-disk revision history; a config read from stdin ("-") has none`)
-		return nil, exitError
+		return command.LocalRefusal(exitError,
+			"error: history needs on-disk revision history; a config read from stdin (\"-\") has none\n")
 	}
 
-	return withRuntimeStore(args[0], func(store storage.Storage) (any, int) {
+	return withRuntimeStore(args[0], func(store storage.Storage) command.LocalAnswer {
 		backups, err := store.ListVersions(args[0])
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
-			return nil, exitError
+			return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 		}
 
 		rows := make([]map[string]any, 0, len(backups)+1)
@@ -197,7 +195,7 @@ func dataHistory(validated command.ValidatedArgs) (any, int) {
 				keyPath:     b.Path,
 			})
 		}
-		return map[string]any{"revisions": rows}, 0
+		return command.LocalAnswer{Payload: map[string]any{"revisions": rows}}
 	})
 }
 
@@ -207,30 +205,28 @@ func dataHistory(validated command.ValidatedArgs) (any, int) {
 // The exit code is the verdict and the payload is the evidence, so a rejected
 // configuration answers its diagnostics AND exits 1
 // (command.LocalDataHandler).
-func dataValidate(validated command.ValidatedArgs) (any, int) {
+func dataValidate(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	if len(args) == 0 {
-		helpfmt.WriteError(os.Stderr, false, "missing config file (use - for stdin)")
-		return nil, exitError
+		return command.LocalRefusal(exitError, "error: missing config file (use - for stdin)\n")
 	}
 	if len(args) > 1 {
-		helpfmt.WriteError(os.Stderr, false,
-			"show config validation takes one config file, got %d", len(args))
-		return nil, exitError
+		var reason textbuf.Buffer
+		reason.Str("error: show config validation takes one config file, got ").Int(int64(len(args))).Byte('\n')
+		return command.LocalRefusal(exitError, reason.String())
 	}
 
 	data, err := cliio.ReadFile(args[0])
 	if err != nil {
-		helpfmt.WriteError(os.Stderr, false, "%v", err)
-		return nil, exitError
+		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
 
 	result := runValidation(string(data), args[0])
 	payload := diagnostic.NewValidateResult(result.Path, result.Valid, result.Diagnostics, result.Config)
 	if result.Valid {
-		return payload, exitOK
+		return command.LocalAnswer{Payload: payload, Code: exitOK}
 	}
-	return payload, exitInvalid
+	return command.LocalAnswer{Payload: payload, Code: exitInvalid}
 }
 
 // dataDiff answers `show config diff <file1> <file2>` and
@@ -238,15 +234,16 @@ func dataValidate(validated command.ValidatedArgs) (any, int) {
 // agree about, with every secret value masked.
 //
 // It is ONE document holding three keyed sets rather than rows.
-func dataDiff(validated command.ValidatedArgs) (any, int) {
+func dataDiff(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
-	diff, code := resolveDiff(nil, args)
+	var diag textbuf.Buffer
+	diff, code := resolveDiff(nil, args, &diag)
 	if diff == nil {
-		return nil, code
+		return command.LocalRefusal(code, diag.String())
 	}
-	return map[string]any{
+	return command.LocalAnswer{Payload: map[string]any{
 		"added":   diff.Added,
 		"removed": diff.Removed,
 		"changed": diff.Changed,
-	}, exitOK
+	}, Code: exitOK}
 }

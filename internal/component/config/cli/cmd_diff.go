@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/resolve"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func cmdDiffWithStorage(store storage.Storage, args []string) int {
@@ -68,7 +69,9 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 		store = backup
 	}
 
-	diff, code := resolveDiff(store, fs.Args())
+	var diag textbuf.Buffer
+	diff, code := resolveDiff(store, fs.Args(), &diag)
+	diag.StdErr() //nolint:errcheck // CLI diagnostic, nothing to report a stderr failure to.
 	if code != exitOK {
 		if fs.NArg() < 2 {
 			fs.Usage()
@@ -83,9 +86,12 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 //
 // It is the payload half of cmdDiffImpl, lifted so `show config diff` answers
 // with DATA (dataDiff, config_data.go) and the two spellings cannot drift.
-func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int) {
+//
+// It writes nothing itself: a refusal goes into diag as whole lines, and each
+// caller prints diag where its route puts diagnostics.
+func resolveDiff(store storage.Storage, args []string, diag *textbuf.Buffer) (*config.ConfigDiff, int) {
 	if len(args) != 2 {
-		fmt.Fprintf(os.Stderr, "error: requires exactly two config files, or revision number and config file\n")
+		diag.Str("error: requires exactly two config files, or revision number and config file\n")
 		return nil, exitError
 	}
 
@@ -101,7 +107,7 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 		if store == nil {
 			revisionStore, err = storage.OpenReadOnly(resolve.StoreDir(file2))
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: config diff history: %v\n", err)
+				diag.Str("error: config diff history: ").Err(err).Byte('\n')
 				return nil, exitError
 			}
 			defer revisionStore.Close() //nolint:errcheck // Read-only history.
@@ -110,7 +116,7 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 		}
 		resolved, data, err := resolveRollbackVersion(revisionStore, file2, n)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			diag.Str("error: ").Err(err).Byte('\n')
 			return nil, exitError
 		}
 		file1 = resolved
@@ -120,7 +126,7 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 
 	schema, err := config.YANGSchema()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: YANG schema: %v\n", err)
+		diag.Str("error: YANG schema: ").Err(err).Byte('\n')
 		return nil, exitError
 	}
 
@@ -135,13 +141,13 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 		tree1, err = loadAndResolve(firstStore, schema, file1)
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %s: %v\n", file1, err)
+		diag.Str("error: ").Str(file1).Str(": ").Err(err).Byte('\n')
 		return nil, exitError
 	}
 
 	tree2, err := loadAndResolve(store, schema, file2)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %s: %v\n", file2, err)
+		diag.Str("error: ").Str(file2).Str(": ").Err(err).Byte('\n')
 		return nil, exitError
 	}
 

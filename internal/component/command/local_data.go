@@ -56,12 +56,55 @@ import (
 // ai/rules/cli.md gives for every other handler: `| json`, `| yaml` and
 // `| table` are three renderings of ONE payload.
 //
-// The two results are INDEPENDENT. The payload says whether there is an answer
-// to render, the code says what the process exits with, and a command MAY have
-// both: `show config validation` answers the diagnostics of a config it rejects and
-// exits 1. A handler with nothing to say MUST write its reason to stderr and
-// return a nil payload.
-type LocalDataHandler func(args ValidatedArgs) (any, int)
+// A handler MUST NOT write to the process's stdout or stderr, and neither may
+// any helper it calls. Everything it has to say comes back in its LocalAnswer,
+// and the route that called it decides where that goes: the local routes print
+// it, and a route that serves the command for a remote caller hands it back to
+// that caller. A handler that wrote its own refusal to stderr put that refusal
+// on the daemon's stderr when the daemon ran it, and the caller got an empty
+// failure.
+type LocalDataHandler func(args ValidatedArgs) LocalAnswer
+
+// LocalAnswer is everything a local-data handler has to say.
+//
+// The three fields are INDEPENDENT. Payload says whether there is an answer to
+// render, Code says what the process exits with, and a command MAY have both:
+// `show config validation` answers the diagnostics of a config it rejects and
+// exits 1. Diagnostic is text for the operator, rendered by the local routes
+// verbatim on stderr, before the payload on stdout.
+//
+// A handler with nothing to answer returns a nil Payload and its reason in
+// Diagnostic: that pair is a refusal. A Diagnostic beside a payload is a
+// warning about the answer, such as the parse warnings `show config dump`
+// reports for a config it still resolved. Diagnostic holds whole lines, each
+// ending in a newline, exactly as the operator reads them.
+type LocalAnswer struct {
+	Payload    any
+	Code       int
+	Diagnostic string
+}
+
+// LocalRefusal is the answer of a handler with nothing to answer: no payload,
+// the exit code, and the reason the operator reads.
+func LocalRefusal(code int, diagnostic string) LocalAnswer {
+	return LocalAnswer{Code: code, Diagnostic: diagnostic}
+}
+
+// LocalErrorLine is one refusal line in the shape every local-data handler
+// writes: "error: <reason>" and a newline.
+func LocalErrorLine(err error) string {
+	var tb textbuf.Buffer
+	return tb.Str("error: ").Err(err).Byte('\n').String()
+}
+
+// writeLocalDiagnostic prints a handler's Diagnostic on stderr, verbatim. It is
+// the local routes' half of the contract that a handler writes nothing itself.
+func writeLocalDiagnostic(diagnostic string) {
+	if diagnostic == "" {
+		return
+	}
+	os.Stderr.WriteString(diagnostic) //nolint:errcheck // CLI diagnostic
+}
 
 // localData holds the commands that answer with data in this process. It lives
 // here rather than in the registry package because its handler type names
@@ -116,14 +159,15 @@ func plainLocalData(path string, handler LocalDataHandler, render func(string, a
 		// nonzero on, not an error with nothing to say: `show config validation`
 		// renders the diagnostics of a config it rejects and exits 1. The
 		// renderer's own failure wins, because then nothing was printed.
-		payload, code := handler(validated)
-		if payload == nil {
-			return code
+		answer := handler(validated)
+		writeLocalDiagnostic(answer.Diagnostic)
+		if answer.Payload == nil {
+			return answer.Code
 		}
-		if renderCode := render(path, payload); renderCode != 0 {
+		if renderCode := render(path, answer.Payload); renderCode != 0 {
 			return renderCode
 		}
-		return code
+		return answer.Code
 	}
 }
 
@@ -204,14 +248,16 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	// decides what the process exits with. They are independent: `validate
 	// config` answers the diagnostics of a config it rejects and exits 1, so a
 	// handler that returns both MUST have both honored. A handler with nothing
-	// to say has already written its reason to stderr and returns a nil
-	// payload.
-	payload, code := handler(validated)
-	if payload == nil {
-		return "", code, true
+	// to say returns a nil payload and its reason as the diagnostic, which
+	// this local route prints on stderr where the operator always read it.
+	result := handler(validated)
+	writeLocalDiagnostic(result.Diagnostic)
+	if result.Payload == nil {
+		return "", result.Code, true
 	}
+	code = result.Code
 
-	encoded, err := json.Marshal(payload)
+	encoded, err := json.Marshal(result.Payload)
 	if err != nil {
 		var tb textbuf.Buffer
 		return pipeError(tb.Str("the answer could not be encoded: ").Str(err.Error()).String()), 1, true
@@ -276,8 +322,9 @@ func ValidateModelArgs(path string, args []string, preMatched map[string]string)
 // definition source.
 var errNoArgDefSource = errors.New("argument definitions are not loaded in this process")
 
-// writeLocalRefusal writes an argument refusal to stderr, where a local-data
-// handler writes its own refusals, so the operator reads both on one channel.
+// writeLocalRefusal writes an argument refusal to stderr, where the local
+// routes print a local-data handler's own refusals, so the operator reads both
+// on one channel.
 //
 // invocation is the command as the operator types it on the calling route,
 // without its arguments. A missing mandatory argument is followed by the help

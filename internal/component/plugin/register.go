@@ -111,8 +111,8 @@ func init() {
 //
 // It takes no arguments: the answer is the whole set, and a reader who wants
 // one plugin narrows it with `| match <name>`.
-func dataPlugins(command.ValidatedArgs) (any, int) {
-	return Map{keyPlugins: pluginRows()}, 0
+func dataPlugins(command.ValidatedArgs) command.LocalAnswer {
+	return command.LocalAnswer{Payload: Map{keyPlugins: pluginRows()}}
 }
 
 // pluginRows joins each recorded setup outcome to the registration of the same

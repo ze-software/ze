@@ -21,10 +21,13 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"flag"
 	"os"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // The two filter flags `show yang tree` accepts, spelled as an operator types
@@ -35,19 +38,40 @@ const (
 	flagConfig   = "--config"
 )
 
+// yangRefusal is the answer of a handler that could not build its payload: the
+// same "error: <reason>" line the printers write. The handler writes nothing
+// itself (command.LocalDataHandler).
+func yangRefusal(err error) command.LocalAnswer {
+	return command.LocalRefusal(1, command.LocalErrorLine(err))
+}
+
+// optionRefusal is the answer to an option the parser refused. A help request
+// is not a failure: it answers the command's help page with exit code 0, as
+// writeOptionError does for the printing form.
+//
+// The page is colored when the local route's stderr is a terminal, so the
+// operator reads what the printing form shows. A route that serves the command
+// for a remote caller reads the same text.
+func optionRefusal(err error, page *helpfmt.Page) command.LocalAnswer {
+	if !errors.Is(err, flag.ErrHelp) {
+		return yangRefusal(err)
+	}
+	var help bytes.Buffer
+	page.WriteTo(&help, slogutil.UseColor(os.Stderr))
+	return command.LocalRefusal(0, help.String())
+}
+
 // decodeWritten runs a JSON writer and answers what it wrote, decoded.
-func decodeWritten(write func(w *bytes.Buffer) error) (any, int) {
+func decodeWritten(write func(w *bytes.Buffer) error) command.LocalAnswer {
 	var buf bytes.Buffer
 	if err := write(&buf); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return nil, 1
+		return yangRefusal(err)
 	}
 	var payload any
 	if err := json.Unmarshal(buf.Bytes(), &payload); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return nil, 1
+		return yangRefusal(err)
 	}
-	return payload, 0
+	return command.LocalAnswer{Payload: payload}
 }
 
 // dataTree answers `show yang tree [--commands|--config]`: the unified config
@@ -56,17 +80,16 @@ func decodeWritten(write func(w *bytes.Buffer) error) (any, int) {
 // Its ROWS are the top-level nodes, each carrying its own children, because
 // that is what formatTreeJSON emits. `| first 1` therefore answers one subtree
 // whole, and `| match` keeps the roots holding the text.
-func dataTree(validated command.ValidatedArgs) (any, int) {
+func dataTree(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	options, err := parseTreeOptions(args)
 	if err != nil {
-		return nil, writeOptionError(err)
+		return optionRefusal(err, treeHelpPage())
 	}
 
 	root, err := buildUnifiedTree()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return nil, 1
+		return yangRefusal(err)
 	}
 	return decodeWritten(
 		func(w *bytes.Buffer) error { return formatTreeJSON(w, root, options.filter) })
@@ -74,17 +97,16 @@ func dataTree(validated command.ValidatedArgs) (any, int) {
 
 // dataCompletion answers `show yang completion`: the prefix collisions in the
 // config and command trees, as rows.
-func dataCompletion(validated command.ValidatedArgs) (any, int) {
+func dataCompletion(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	options, err := parseCompletionOptions(args)
 	if err != nil {
-		return nil, writeOptionError(err)
+		return optionRefusal(err, completionHelpPage())
 	}
 
 	root, err := buildUnifiedTree()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return nil, 1
+		return yangRefusal(err)
 	}
 	groups := collectCollisions(root, options.minPrefix)
 	return decodeWritten(func(w *bytes.Buffer) error { return formatCollisionsJSON(w, groups) })

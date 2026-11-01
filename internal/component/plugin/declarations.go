@@ -183,14 +183,13 @@ func SetConfiguredPluginReader(read ConfiguredPluginReader) {
 //
 // It takes no argument: the answer is the whole set, and a reader who wants one
 // plugin narrows it with `| match <name>`.
-func dataDeclarations(validated command.ValidatedArgs) (any, int) {
+func dataDeclarations(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	if len(args) > 0 {
 		var tb textbuf.Buffer
-		writeDeclarationError(errors.New(tb.Str("show plugin declarations takes no value, and ").
+		return declarationRefusal(errors.New(tb.Str("show plugin declarations takes no value, and ").
 			Str(args[0]).Str(" follows it: name a config file with ").Str(keywordConfig).
 			Str(" <path>").String()))
-		return nil, 1
 	}
 	return answerDeclarations("")
 }
@@ -201,25 +200,23 @@ func dataDeclarations(validated command.ValidatedArgs) (any, int) {
 // The keyword is a command word rather than a value, so the CLI tree carries it
 // and completion offers it (`ai/rules/cli.md`, keyword before value). What
 // reaches this handler is the path alone.
-func dataDeclarationsConfig(validated command.ValidatedArgs) (any, int) {
+func dataDeclarationsConfig(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	path, err := declarationConfigPath(args)
 	if err != nil {
-		writeDeclarationError(err)
-		return nil, 1
+		return declarationRefusal(err)
 	}
 	return answerDeclarations(path)
 }
 
 // answerDeclarations builds the payload both handlers answer with, so the two
 // commands are two entry points into one answer rather than two answers.
-func answerDeclarations(configPath string) (any, int) {
+func answerDeclarations(configPath string) command.LocalAnswer {
 	rows, err := declarationRows(configPath)
 	if err != nil {
-		writeDeclarationError(err)
-		return nil, 1
+		return declarationRefusal(err)
 	}
-	return Map{keyDeclarations: rows}, 0
+	return command.LocalAnswer{Payload: Map{keyDeclarations: rows}}
 }
 
 // declarationConfigPath reads the path typed after the `config` keyword.
@@ -683,11 +680,11 @@ func readConfiguredPlugins(path string) ([]PluginConfig, error) {
 	return read(path)
 }
 
-// writeDeclarationError puts the reason on stderr, where a local-data command's
-// diagnostics go: stdout carries the payload, so a pipe operator reaches the
-// answer and never the complaint (docs/architecture/api/commands.md).
-func writeDeclarationError(err error) {
-	var tb textbuf.Buffer
-	//nolint:errcheck // a failed write to stderr has nowhere left to report it
-	tb.Str("error: ").Err(err).Byte('\n').StdErr()
+// declarationRefusal is the answer of a declarations handler with nothing to
+// answer. The reason travels as the answer's diagnostic, which the local routes
+// print on stderr: stdout carries the payload, so a pipe operator reaches the
+// answer and never the complaint (docs/architecture/api/commands.md). The
+// handler writes nothing itself (command.LocalDataHandler).
+func declarationRefusal(err error) command.LocalAnswer {
+	return command.LocalRefusal(1, command.LocalErrorLine(err))
 }

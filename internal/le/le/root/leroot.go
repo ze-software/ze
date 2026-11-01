@@ -114,8 +114,9 @@ func Register(name string, group Group, answer Answer, meta registry.Meta) {
 // token slice, and every route that runs the registered handler has judged
 // them first: ServeLocal, the plain local handler, and Run.
 func toolHandler(answer Answer) command.LocalDataHandler {
-	return func(args command.ValidatedArgs) (any, int) {
-		return answer(args.Tokens())
+	return func(args command.ValidatedArgs) command.LocalAnswer {
+		payload, code := answer(args.Tokens())
+		return command.LocalAnswer{Payload: payload, Code: code}
 	}
 }
 
@@ -370,7 +371,9 @@ func Run(name string, handler command.LocalDataHandler, args []string, out, errO
 		fmt.Fprintln(errOut, tb.Str("error: ").Str(err.Error()).String()) //nolint:errcheck // CLI output
 		return 2
 	}
-	payload, code := handler(validated)
+	answer := handler(validated)
+	io.WriteString(errOut, answer.Diagnostic) //nolint:errcheck // CLI output
+	payload, code := answer.Payload, answer.Code
 	if payload == nil {
 		return code
 	}

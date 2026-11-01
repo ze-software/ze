@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // A loose set remains useful without storage and tells the operator that it
@@ -59,9 +60,10 @@ func TestOfflineSetRefusesLiveOwner(t *testing.T) {
 func TestDiffDistinctExplicitPaths(t *testing.T) {
 	first := writeTestConfig(t, strings.Replace(testConfigBase, "router-id 1.1.1.1", "router-id 192.0.2.1", 1))
 	second := writeTestConfig(t, strings.Replace(testConfigBase, "router-id 1.1.1.1", "router-id 192.0.2.2", 1))
-	diff, code := resolveDiff(nil, []string{first, second})
+	var diag textbuf.Buffer
+	diff, code := resolveDiff(nil, []string{first, second}, &diag)
 	if code != exitOK {
-		t.Fatalf("diff exit %d", code)
+		t.Fatalf("diff exit %d: %s", code, diag.String())
 	}
 	pair, ok := diff.Changed["router-id"]
 	if !ok || pair.Old != "192.0.2.1" || pair.New != "192.0.2.2" {

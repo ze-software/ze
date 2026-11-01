@@ -313,7 +313,8 @@ func actionExists(t *testing.T, identity string) {
 	// `help` asks every tabled area for its listing. A bare name is no longer
 	// that question: an area with one action runs it bare (D-P3-bare), so a
 	// bare call here would run `build host-driver`.
-	payload, code := handler(commandtest.Args("help"))
+	payloadAnswer := handler(commandtest.Args("help"))
+	payload, code := payloadAnswer.Payload, payloadAnswer.Code
 	list, ok := payload.(leaction.List)
 	if !ok {
 		t.Fatalf("native root %q answered %T with code %d, want leaction.List", area, payload, code)

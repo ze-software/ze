@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/aihelp/reference"
-	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
@@ -60,9 +59,9 @@ func helpAI(program string, args []string) int {
 				Str(program).Str(" help ai '|' json").String())
 		}
 	}
-	return Run("", func(validated command.ValidatedArgs) (any, int) {
-		return answerHelpAI(program, validated.Tokens())
-	}, args, os.Stdout, os.Stderr)
+	return Run("", toolHandler(func(words []string) (any, int) {
+		return answerHelpAI(program, words)
+	}), args, os.Stdout, os.Stderr)
 }
 
 // answerHelpAI builds the reference for the selected sections, or refuses a

@@ -60,10 +60,10 @@ func TestHandlerTypesTakeValidatedArguments(t *testing.T) {
 	t.Run("LocalDataHandler", func(t *testing.T) {
 		var received ValidatedArgs
 		calls := 0
-		withLocalDataArgs(t, func(args ValidatedArgs) (any, int) {
+		withLocalDataArgs(t, func(args ValidatedArgs) LocalAnswer {
 			received = args
 			calls++
-			return map[string]any{"ok": true}, 0
+			return LocalAnswer{Payload: map[string]any{"ok": true}}
 		})
 
 		if _, code, served := ServeLocal(localDataArgsPath+" abcd", ""); !served || code != 0 {
@@ -161,9 +161,9 @@ func assertReceivedName(t *testing.T, route string, received ValidatedArgs, want
 // through InvokeLocal, the judgment every `ze <verb>` route runs.
 func TestLocalDataPlainHandlerJudgesArguments(t *testing.T) {
 	calls := 0
-	withLocalDataArgs(t, func(ValidatedArgs) (any, int) {
+	withLocalDataArgs(t, func(ValidatedArgs) LocalAnswer {
 		calls++
-		return nil, 0
+		return LocalAnswer{}
 	})
 	plain, args, err := LookupLocal([]string{"show", "test", "local", "data", "args", "abcde"}, notDeclared)
 	if err != nil {

@@ -152,7 +152,7 @@ func Dispatch(program string, args []string) int {
 		if len(args) == 0 && interactive() {
 			return openMenu(program)
 		}
-		return Run("", func(command.ValidatedArgs) (any, int) { return manifestOf(program), 0 }, args, os.Stdout, os.Stderr)
+		return Run("", toolHandler(func([]string) (any, int) { return manifestOf(program), 0 }), args, os.Stdout, os.Stderr)
 	}
 	if isHelpArg(args[0]) {
 		if len(args) == 1 {

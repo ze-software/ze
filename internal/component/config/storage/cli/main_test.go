@@ -159,7 +159,8 @@ func TestDataRawKeyParity(t *testing.T) {
 			if err := reader.Close(); err != nil {
 				t.Fatal(err)
 			}
-			answer, code := dataList(commandtest.Args("--path", path, "custom/"))
+			listAnswer := dataList(commandtest.Args("--path", path, "custom/"))
+			answer, code := listAnswer.Payload, listAnswer.Code
 			if code != 0 {
 				t.Fatalf("list returned %d", code)
 			}
@@ -207,7 +208,7 @@ func TestDataRefusesOwnedStoreMutation(t *testing.T) {
 	if code := cmdRm(path, []string{"meta/held"}); code != 2 {
 		t.Fatalf("owned-store remove returned %d", code)
 	}
-	if _, code := dataList(commandtest.Args("--path", path)); code != 0 {
+	if code := dataList(commandtest.Args("--path", path)).Code; code != 0 {
 		t.Fatalf("read-only inspection returned %d", code)
 	}
 	data, err := owner.ReadKey("meta/held")

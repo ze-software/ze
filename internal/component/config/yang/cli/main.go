@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/suggest"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -82,7 +83,7 @@ func usage() {
 func cmdCompletion(args []string) int {
 	options, err := parseCompletionOptions(args)
 	if err != nil {
-		return writeOptionError(err)
+		return writeOptionError(err, completionHelpPage())
 	}
 
 	root, err := buildUnifiedTree()
@@ -109,7 +110,9 @@ func parseCompletionOptions(args []string) (completionOptions, error) {
 	fs.SetOutput(io.Discard)
 	fs.IntVar(&options.minPrefix, "min-prefix", 1,
 		"minimum disambiguation depth to report (1-10)")
-	fs.Usage = completionUsage
+	// A help request comes back as flag.ErrHelp and the caller prints the
+	// page: the parser also serves a data handler, which writes nothing.
+	fs.Usage = func() {}
 	if err := fs.Parse(args); err != nil {
 		return completionOptions{}, err
 	}
@@ -127,8 +130,9 @@ func parseCompletionOptions(args []string) (completionOptions, error) {
 	return options, nil
 }
 
-func completionUsage() {
-	p := helpfmt.Page{
+// completionHelpPage is the help page of `ze yang completion`.
+func completionHelpPage() *helpfmt.Page {
+	return &helpfmt.Page{
 		Command:   "ze yang completion",
 		ShortHelp: "Detect prefix collisions in config and command trees",
 		Usage:     []string{"ze yang completion [--min-prefix N]"},
@@ -138,13 +142,12 @@ func completionUsage() {
 			}},
 		},
 	}
-	p.WriteErr()
 }
 
 func cmdTree(args []string) int {
 	options, err := parseTreeOptions(args)
 	if err != nil {
-		return writeOptionError(err)
+		return writeOptionError(err, treeHelpPage())
 	}
 
 	root, err := buildUnifiedTree()
@@ -173,7 +176,9 @@ func parseTreeOptions(args []string) (treeOptions, error) {
 	fs.SetOutput(io.Discard)
 	fs.BoolVar(&commands, FilterCommands, false, "show command nodes only")
 	fs.BoolVar(&config, "config", false, "show config nodes only")
-	fs.Usage = treeUsage
+	// A help request comes back as flag.ErrHelp and the caller prints the
+	// page: the parser also serves a data handler, which writes nothing.
+	fs.Usage = func() {}
 	if err := fs.Parse(args); err != nil {
 		return treeOptions{}, err
 	}
@@ -194,8 +199,9 @@ func parseTreeOptions(args []string) (treeOptions, error) {
 	return options, nil
 }
 
-func treeUsage() {
-	p := helpfmt.Page{
+// treeHelpPage is the help page of `ze yang tree`.
+func treeHelpPage() *helpfmt.Page {
+	return &helpfmt.Page{
 		Command:   "ze yang tree",
 		ShortHelp: "Print unified config + command tree",
 		Usage:     []string{"ze yang tree [--commands] [--config]"},
@@ -206,14 +212,17 @@ func treeUsage() {
 			}},
 		},
 	}
-	p.WriteErr()
 }
 
-func writeOptionError(err error) int {
+// writeOptionError reports an option the parser refused, for the printing
+// form of a command. A help request prints the command's help page and exits
+// 0, which is not a failure.
+func writeOptionError(err error, page *helpfmt.Page) int {
 	if errors.Is(err, flag.ErrHelp) {
+		page.WriteErr()
 		return 0
 	}
-	fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	os.Stderr.WriteString(command.LocalErrorLine(err)) //nolint:errcheck // CLI diagnostic
 	return 1
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/secret"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func cmdDump(args []string) int {
@@ -49,7 +50,9 @@ func cmdDump(args []string) int {
 
 	configPath := fs.Arg(0)
 
-	res, code := resolveDump(configPath, *stripPrivate)
+	var diag textbuf.Buffer
+	res, code := resolveDump(configPath, *stripPrivate, &diag)
+	diag.StdErr() //nolint:errcheck // CLI diagnostic
 	if code != 0 {
 		return code
 	}
@@ -174,32 +177,37 @@ type dumpResult struct {
 //
 // It is the payload half of cmdDump, lifted so `show config dump` answers with
 // DATA and the two spellings cannot drift.
-func resolveDump(configPath string, stripPrivate bool) (dumpResult, int) {
+//
+// It writes nothing itself. What the operator must read (a refusal, or the
+// parse warnings of a config it still resolved) goes into diag, whole lines,
+// and each caller prints diag where its route puts diagnostics: a data handler
+// runs on routes that are not the operator's terminal.
+func resolveDump(configPath string, stripPrivate bool, diag *textbuf.Buffer) (dumpResult, int) {
 
 	data, err := cliio.ReadFile(configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
+		diag.Str("Error reading config: ").Err(err).Byte('\n')
 		return dumpResult{}, 1
 	}
 
 	schema, err := config.YANGSchema()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		diag.Str("error: ").Err(err).Byte('\n')
 		return dumpResult{}, 1
 	}
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing config: %v\n", err)
+		diag.Str("Error parsing config: ").Err(err).Byte('\n')
 		return dumpResult{}, 1
 	}
 
 	if warnings := p.Warnings(); len(warnings) > 0 {
-		fmt.Fprintf(os.Stderr, "Warnings:\n")
+		diag.Str("Warnings:\n")
 		for _, w := range warnings {
-			fmt.Fprintf(os.Stderr, "  %s\n", w)
+			diag.Str("  ").Str(w).Byte('\n')
 		}
-		fmt.Fprintln(os.Stderr)
+		diag.Byte('\n')
 	}
 
 	// Resolve the bgp{} section through the always-on seam. On a binary built
@@ -209,7 +217,7 @@ func resolveDump(configPath string, stripPrivate bool) (dumpResult, int) {
 	// BGP-less dump (the seam fails closed).
 	bgpTree, err := infra.ResolveBGPTree(tree)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error resolving config: %v\n", err)
+		diag.Str("Error resolving config: ").Err(err).Byte('\n')
 		return dumpResult{}, 1
 	}
 
