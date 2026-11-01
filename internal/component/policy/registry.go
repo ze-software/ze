@@ -102,7 +102,11 @@ func NewRegistry(instances ...Instance) (*Registry, error) {
 	return reg, nil
 }
 
-// collect records the entries of one list under the policy root.
+// collect records the entries of one list under the policy root. An
+// instance's config is lowered by Tree.ToPluginMap, the lowering that carries
+// list entry order, because a compiler reads it as a plugin reads its payload:
+// a first-match-wins list (a prefix-list's entries) is read through
+// configorder.Entries, which refuses two entries delivered with no order.
 func (r *Registry) collect(listName string, filter bool, policyTree *config.Tree) error {
 	for name, entry := range policyTree.GetList(listName) {
 		if !filter {
@@ -116,7 +120,7 @@ func (r *Registry) collect(listName string, filter bool, policyTree *config.Tree
 				name, existing.Type, listName,
 			)
 		}
-		r.instances[name] = Instance{Name: name, Type: listName, Config: entry.ToMap()}
+		r.instances[name] = Instance{Name: name, Type: listName, Config: entry.ToPluginMap()}
 	}
 	return nil
 }

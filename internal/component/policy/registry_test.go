@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/configorder"
 )
 
 // testPolicyModules augments the policy root with one ze:filter list and one
@@ -140,4 +141,30 @@ func TestPolicyRegistryNamesSorted(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, reg.Len())
 	assert.Equal(t, []string{"A", "B"}, reg.Names())
+}
+
+// TestPolicyRegistryKeepsEntryOrder: an instance's config carries the order the
+// operator wrote its list entries in, so a first-match-wins list compiled from
+// the registry (a match naming a prefix-list at a BGP chain) evaluates its
+// entries in that order and a list of two entries is not refused. Method:
+// build a prefix-list instance of two entries written against their key
+// order, and read its config back through configorder.Entries.
+func TestPolicyRegistryKeepsEntryOrder(t *testing.T) {
+	list := config.NewTree()
+	list.AddListEntry("entry", "10.0.2.0/24", config.NewTree())
+	list.AddListEntry("entry", "0.0.0.0/0", config.NewTree())
+	tree := config.NewTree()
+	tree.AddListEntry("prefix-list", "NO-TEN-TWO", list)
+
+	reg, err := BuildRegistry(tree, policySchema(t))
+	require.NoError(t, err)
+	inst, ok := reg.Lookup("NO-TEN-TWO")
+	require.True(t, ok)
+	entries, err := configorder.Entries(inst.Config, "entry", "prefix")
+	require.NoError(t, err)
+	keys := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		keys = append(keys, entry.Key)
+	}
+	assert.Equal(t, []string{"10.0.2.0/24", "0.0.0.0/0"}, keys)
 }
