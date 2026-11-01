@@ -52,8 +52,11 @@ jobs:
           PUSH_BEFORE: ${{ github.event.before }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        # A run step with no shell key already runs as `bash -e {0}`, so a
+        # failed command stops this step; the explicit flags add only -u and
+        # pipefail, and the stage loop below is the step that must not stop.
         run: |
-          set -euo pipefail
+          set -uo pipefail
           if [ "$EVENT" = pull_request ]; then
             base="$PR_BASE"
           else
@@ -174,6 +177,9 @@ jobs:
       # still answers every package the push did not move. The key names what
       # invalidates it (the Go toolchain, the vendored Staticcheck, go.sum) and
       # the piece this shard judges; the commit makes each run save afresh.
+      # A run killed at its deadline still saves what it analysed, but leaves
+      # the cache without its verdict mark (judgedMarker, judge.go), so the next
+      # run gets the cold bound rather than 90s a row over a partial cache.
       - name: Read the vendored Staticcheck version
         id: staticcheck-version
         run: |

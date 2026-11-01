@@ -553,13 +553,23 @@ func TestVerifyInstallsPinnedNativeTools(t *testing.T) {
 	for _, command := range []string{
 		"go install -mod=vendor github.com/golangci/golangci-lint/v2/cmd/golangci-lint\n",
 		"go install -mod=vendor honnef.co/go/tools/cmd/staticcheck\n",
-		"golang.org/x/vuln/cmd/govulncheck@v1.4.0",
+		vendoredGovulncheck,
 	} {
 		if strings.Count(source, command) != 1 {
 			t.Errorf("verify.yml must install %q exactly once", command)
 		}
 	}
+	// A vendored install builds the version go.mod requires, so that version
+	// must be vendored for the install to have one.
+	modules := readFile(t, filepath.Join(repoRoot(t), "vendor", "modules.txt"))
+	if !strings.Contains(modules, "\n# golang.org/x/vuln ") {
+		t.Error("vendor/modules.txt vendors no golang.org/x/vuln, so the vendored govulncheck install has no pinned version")
+	}
 }
+
+// vendoredGovulncheck is the one install line both verify.yml and
+// govulncheck.yml run, so the nightly scanner is the version verification uses.
+const vendoredGovulncheck = "go install -mod=vendor golang.org/x/vuln/cmd/govulncheck\n"
 
 func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 	const name = "evidence-nightly.yml"
@@ -766,7 +776,7 @@ func TestVulnerabilityWorkflowRemainsScheduledAndUsesSharedAction(t *testing.T) 
 	if actions := nativeActions(t, name); !slices.Equal(actions, []string{"verify deps/vulnerability"}) {
 		t.Fatalf("govulncheck.yml actions = %v", actions)
 	}
-	if !strings.Contains(workflowSource(t, name), "golang.org/x/vuln/cmd/govulncheck@v1.4.0") {
+	if strings.Count(stripComments(workflowSource(t, name)), vendoredGovulncheck) != 1 {
 		t.Error("govulncheck.yml must install the scanner version used by verification")
 	}
 }

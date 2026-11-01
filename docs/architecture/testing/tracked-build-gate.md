@@ -54,9 +54,21 @@ amortized it, and a 6-row CI piece pays it alone, so every piece of verify run
 41071626530 exceeded its 9m0s or 10m30s bound on a fresh runner. A cold run is
 therefore bounded at no less than `deadlineCold`, two and a half times that
 23m36s whole-matrix measurement (59m). A piece judges a subset of the matrix,
-so the whole matrix's cold cost bounds it. CI restores the cache between runs
-(`.github/workflows/verify.yml`), so the floor applies to the first run after a
-key change.
+so the whole matrix's cold cost bounds it.
+
+A cache is warm only when the last run over it reached a verdict, not when it
+merely holds entries. Staticcheck writes each package's result as it finishes
+it, so a run killed at its deadline leaves a partial cache behind. CI restores
+the cache the previous run saved (`.github/workflows/verify.yml`), and while one
+entry was enough to call a cache warm, every shard of verify runs 41289750811
+and 41295105997 restored the partial cache a killed run had left, was bounded
+at 90 seconds a row, and was killed again. `Judge` therefore removes a mark
+file (`judgedMarker`) from the cache before Staticcheck starts and writes it
+back only when Staticcheck exits with a verdict, clean or failing, and
+`CacheCold` answers cold whenever the mark is absent. A run killed at the
+per-row bound leaves the next run the cold floor, which lets it finish and mark
+the cache.
+<!-- source: internal/le/go/staticcheck/judge.go -- CacheCold, judgedMarker -->
 
 The deadline measures the type check, not the cache. Staticcheck trims its
 cache when it closes, after the verdict exists, at most once a day, and it

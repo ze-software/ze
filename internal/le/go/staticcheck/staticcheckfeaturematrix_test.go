@@ -649,12 +649,15 @@ func TestMatrixRowFilterCatchesAGatedBreak(t *testing.T) {
 	}
 }
 
-// VALIDATES: CacheCold calls a cache cold until a file sits in one of its
-// subdirectories. METHOD: build an absent, an opened-but-empty and a filled
-// cache in a temporary directory and ask each.
+// VALIDATES: CacheCold calls a cache cold until a Staticcheck run over it has
+// reached a verdict, however many entries it holds. METHOD: build an absent, an
+// opened-but-empty, a filled-but-unmarked and a marked cache in a temporary
+// directory and ask each.
 // PREVENTS: a piece starting from an empty cache bounded as if warm, which
-// declared every CI piece unjudgeable in verify run 41071626530.
-func TestCacheColdNeedsAnEntry(t *testing.T) {
+// declared every CI piece unjudgeable in verify run 41071626530, and a piece
+// starting from the partial cache a killed run left bounded as if warm, which
+// did the same in every shard of verify runs 41289750811 and 41295105997.
+func TestCacheColdUntilARunReachesAVerdict(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "staticcheck-matrix")
 	if cold, err := CacheCold(dir); err != nil || !cold {
 		t.Fatalf("an absent cache answers (%v, %v), want cold", cold, err)
@@ -671,7 +674,13 @@ func TestCacheColdNeedsAnEntry(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "00", "abc-a"), []byte("entry"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if cold, err := CacheCold(dir); err != nil || !cold {
+		t.Fatalf("a cache holding entries no finished run vouches for answers (%v, %v), want cold", cold, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, judgedMarker), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if cold, err := CacheCold(dir); err != nil || cold {
-		t.Fatalf("a cache holding an entry answers (%v, %v), want warm", cold, err)
+		t.Fatalf("a cache a run reached its verdict over answers (%v, %v), want warm", cold, err)
 	}
 }

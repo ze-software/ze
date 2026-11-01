@@ -114,6 +114,67 @@ func TestJudgeCompilesBeforeTheDeadlineStarts(t *testing.T) {
 	}
 }
 
+// TestJudgeMarksTheCacheOnlyAfterAVerdict proves Judge leaves its cache warm
+// only when Staticcheck reached a verdict over it: a clean exit and a
+// type-check failure both mark it, and a run killed at its deadline leaves it
+// cold, even when an earlier run had marked it.
+//
+// Method: fake `go` and `staticcheck` binaries on PATH; the fake Staticcheck
+// exits 0, exits 1 with a diagnostic, or outlives the deadline Judge is given.
+// CacheCold is then asked about the tree's cache. A killed run leaves entries
+// behind, and verify runs 41289750811 and 41295105997 restored such a partial
+// cache in every shard, were bounded as warm, and were killed again.
+func TestJudgeMarksTheCacheOnlyAfterAVerdict(t *testing.T) {
+	cases := []struct {
+		name        string
+		staticcheck string
+		markedFirst bool
+		judged      bool
+		cold        bool
+	}{
+		{"a clean verdict marks the cache", "#!/bin/sh\ncat > /dev/null\nexit 0\n", false, true, false},
+		{"a failing verdict marks the cache", "#!/bin/sh\ncat > /dev/null\necho 'a.go:1:1: broken'\nexit 1\n", false, true, false},
+		// sleep(external): the fake Staticcheck must outlive the deadline so
+		// Judge kills it; the delay IS the property under test.
+		{"a killed run clears the mark", "#!/bin/sh\ncat > /dev/null\nexec sleep 5\n", true, false, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			bin := t.TempDir()
+			fakeGo := "#!/bin/sh\nif [ \"$1\" = env ]; then echo; exit 0; fi\nexit 0\n"
+			for name, body := range map[string]string{"go": fakeGo, "staticcheck": tc.staticcheck} {
+				if err := os.WriteFile(filepath.Join(bin, name), []byte(body), 0o700); err != nil { //nolint:gosec // an executable test double
+					t.Fatalf("write the fake %s: %v", name, err)
+				}
+			}
+			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+			t.Setenv("GOFLAGS", "")
+
+			tree := t.TempDir()
+			if tc.markedFirst {
+				if err := os.MkdirAll(CacheDir(tree), 0o750); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(CacheDir(tree), judgedMarker), nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			matrix := Matrix{{Name: "core_only", Tags: []string{"ze_a"}}}
+			_, judged, err := Judge(tree, matrix, 500*time.Millisecond)
+			if judged != tc.judged {
+				t.Fatalf("judged = %v (err %v), want %v", judged, err, tc.judged)
+			}
+			cold, err := CacheCold(CacheDir(tree))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cold != tc.cold {
+				t.Errorf("after the run the cache answers cold = %v, want %v", cold, tc.cold)
+			}
+		})
+	}
+}
+
 // lastValue answers the value the child process reads for key: the last entry.
 func lastValue(environ []string, key string) string {
 	value := ""
