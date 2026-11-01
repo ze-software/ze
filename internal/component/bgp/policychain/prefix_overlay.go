@@ -41,17 +41,22 @@ type prefixOverlay struct {
 // offsets name entries of the section as the view answered it; once the
 // section is overlaid that is the subset, so they are rewritten to the
 // entry's offset in the received section, which is where the folded drops
-// and the reactor's rewrite (libraryNLRIOps) count. It runs only for a member
-// that dropped from the body NLRI or MP_REACH_NLRI, the two sections prefix
-// reads, so a chain that drops nothing reads the wire and allocates nothing.
+// and the reactor's rewrite (libraryNLRIOps) count. A family the member
+// strips leaves prefix with its section, as the reactor's rewrite removes it
+// whatever the drops name, so a later member reads none of its NLRI, as a
+// later text filter reads none after an earlier delta removed them. It runs
+// only for a member that dropped from the body NLRI or MP_REACH_NLRI, the two
+// sections prefix reads, or that stripped a family, so a chain that does
+// neither reads the wire and allocates nothing.
 func (c *Chain) overlayPrefix(view *policyview.View, sets *RunSets) error {
 	member := &sets.member
-	if member.written&setKindPrefix.bit() == 0 {
+	strips := member.written&setKindFamily.bit() != 0
+	if member.written&setKindPrefix.bit() == 0 && !strips {
 		return nil
 	}
 	announce := member.NLRIDrops(NLRISectionAnnounce)
 	mpReach := member.NLRIDrops(NLRISectionMPReach)
-	if len(announce) == 0 && len(mpReach) == 0 {
+	if len(announce) == 0 && len(mpReach) == 0 && !strips {
 		return nil // withdrawn drops: prefix reads no withdrawn section
 	}
 	current, err := view.Read(c.prefix)
@@ -63,13 +68,21 @@ func (c *Chain) overlayPrefix(view *policyview.View, sets *RunSets) error {
 		overlay.received, overlay.receivedSet = current, true
 	}
 	body := current.Wire()
-	if len(announce) > 0 {
+	switch {
+	case member.StripsFamily(family.IPv4Unicast):
+		// RFC 4271 Section 4.3: the body NLRI field carries IPv4 unicast only.
+		body = nil
+	case len(announce) > 0:
 		if body, err = c.dropBody(view, sets, body, announce); err != nil {
 			return err
 		}
 	}
 	mp := current.MPReach()
-	if len(mpReach) > 0 {
+	switch {
+	case mp != nil && member.StripsFamily(mp.Family()):
+		// RFC 4760 Section 2: the family leaves the UPDATE with its section.
+		mp = nil
+	case len(mpReach) > 0:
 		if mp, err = c.dropMPReach(view, sets, mp, mpReach); err != nil {
 			return err
 		}

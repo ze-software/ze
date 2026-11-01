@@ -1669,7 +1669,13 @@ the text subject is still what every configured BGP filter reads.
   the received section, where the reactor counts. A drop at an offset that
   starts no entry of either section, from an MP_REACH_NLRI the UPDATE lacks or
   of a family whose NLRI is not a CIDR prefix fails the member under its
-  on-error. A chain that drops nothing reads the wire and allocates nothing.
+  on-error. A later member that reads `prefix` after a `StripFamily` reads
+  none of that family: the overlay empties the body NLRI for IPv4 unicast and
+  reads the MP_REACH_NLRI of the stripped family as absent, as the reactor
+  removes the family's sections whatever the drops name, and as a later text
+  filter reads none of the NLRI an earlier delta removed. A later drop from a
+  stripped section names no entry, so it fails the member. A chain that drops
+  and strips nothing reads the wire and allocates nothing.
 - **A failed member applies its on-error.** A read that answers an error (a
   malformed attribute, `policyview.ErrMalformed`) and a write to a field the
   member did not declare (`policy.InstanceSets`) each fail the route under the
