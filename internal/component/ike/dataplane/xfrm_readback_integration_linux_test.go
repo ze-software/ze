@@ -341,14 +341,28 @@ func TestXFRMReadbackWildcardOwners(t *testing.T) {
 			Dir: SADirIn, Proto: ProtoESP, Mode: ModeTransport,
 			IfID: ifID, ReqID: readbackReqID, Owner: "ipv4-nil-selectors",
 		},
+		// The two narrower outbound selectors below sit under a full tunnel of the
+		// same family, on the same if_id, held by another owner: the readback must
+		// join each to its own exact selector, never to the covering wildcard.
+		// They are tunnel mode because claim refuses a transport-mode selector
+		// overlapping another owner's transport-mode one, after RFC 3948
+		// Section 5.2: "If the <traffic desc1> overlaps <traffic desc2>, then
+		// simple filter lookups may not be sufficient to determine which SA has to
+		// be used to send traffic.  Implementations MUST handle this situation,
+		// either by disallowing conflicting connections, or by other means."
+		// The mode is in neither policySelectorKey nor the readback's owner join
+		// (policyInfoFromKernel), and nothing below reads it, so it changes no
+		// input the assertions judge.
 		{
 			Src: mustCIDR(t, "::/0"), Dst: mustCIDR(t, "2001:db8::/32"),
-			Dir: SADirOut, Proto: ProtoESP, Mode: ModeTransport,
+			Dir: SADirOut, Proto: ProtoESP, Mode: ModeTunnel,
+			TunnelSrc: net.ParseIP("2001:db9::1"), TunnelDst: net.ParseIP("2001:db9::2"),
 			IfID: ifID, ReqID: readbackReqID, Owner: "ipv6-zero-tail",
 		},
 		{
 			Src: mustCIDR(t, "0.0.0.0/0"), Dst: mustCIDR(t, "32.1.13.184/32"),
-			Dir: SADirOut, Proto: ProtoESP, Mode: ModeTransport,
+			Dir: SADirOut, Proto: ProtoESP, Mode: ModeTunnel,
+			TunnelSrc: net.ParseIP("192.0.2.1"), TunnelDst: net.ParseIP("192.0.2.2"),
 			IfID: ifID, ReqID: readbackReqID, Owner: "ipv4-same-union-bytes",
 		},
 	}
