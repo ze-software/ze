@@ -62,11 +62,13 @@ jobs:
           echo "GOROOT=$tree" >> "$GITHUB_ENV"
           echo "GOTOOLCHAIN=local" >> "$GITHUB_ENV"
           echo "$tree/bin" >> "$GITHUB_PATH"
-      - name: Cross-build native guest binaries
-        run: |
-          FEATURES='ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web'
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_core zetest ze_distro ze_setup $FEATURES" -o bin/ze-linux-amd64 ./cmd/ze
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags 'ze_core' -o bin/ze-stripped-linux-amd64 ./cmd/ze
+      # The guest set comes from the producer `test qemu all` checks against
+      # (testfunctional.PrepareGuest): ze, ze-stripped, ze-stripped-flow and
+      # ze-fakefilter, under tmp/qemu/linux-amd64/bin. A hand-written build
+      # list here once left ze-stripped-flow out, and every run refused before
+      # its first test.
+      - name: Cross-build the guest daemons
+        run: ./le test qemu guest-binaries
       - name: Run every Linux-only functional test in the VM
         env:
           ZE_QEMU_MEMORY: "8192"
@@ -78,7 +80,7 @@ jobs:
           kernel tmp/kernel/build/vmlinuz
           packages "coreutils nftables iproute2 iputils-ping kmod iptables libcap e2fsprogs e2fsprogs-extra"
           timeout 5400s
-          command 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN=bin/ze-linux-amd64 ZE_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_QEMU_SKIP_SUITES=web ZE_QEMU_PARALLEL=2 tmp/qemu/linux-amd64/le test qemu all'
+          command 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN=tmp/qemu/linux-amd64/bin/ze ZE_STRIPPED_BIN=tmp/qemu/linux-amd64/bin/ze-stripped ZE_STRIPPED_FLOW_BIN=tmp/qemu/linux-amd64/bin/ze-stripped-flow ZE_QEMU_SKIP_SUITES=web ZE_QEMU_PARALLEL=2 tmp/qemu/linux-amd64/le test qemu all'
 
   protocol-labs:
     runs-on: ubuntu-latest

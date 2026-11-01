@@ -28,9 +28,7 @@ const OneCIPackages = "coreutils nftables iproute2 iputils-ping kmod iptables li
 // from the checkout it mounts at GuestWorkspace.
 func OneCICommand(binaries, file, goarch string) string {
 	var command textbuf.Buffer
-	command.Str("ZE_BIN=").Str(filepath.ToSlash(filepath.Join(binaries, zeName))).
-		Str(" ZE_STRIPPED_BIN=").Str(filepath.ToSlash(filepath.Join(binaries, zeStrippedName))).
-		Byte(' ').Str(strippedFlowBinKey).Byte('=').Str(filepath.ToSlash(filepath.Join(binaries, zeStrippedFlowName))).
+	command.Str(GuestBinaryEnvironment(binaries)).
 		Byte(' ').Str(filepath.ToSlash(GuestLeRel(goarch))).
 		Str(" test qemu all ").Str(testKeyword).Byte(' ').Str(file)
 	return command.String()

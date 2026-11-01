@@ -97,6 +97,16 @@ var actions = leaction.New(area,
 		AnswerArgs: runQEMUHere,
 	},
 	leaction.Action{
+		Verb:    guestBinariesVerb,
+		Does:    "build",
+		Summary: "build the daemons a QEMU guest tests against",
+		Why: "cross-build ze, ze-stripped, ze-stripped-flow and ze-fakefilter for the guest" +
+			" architecture into tmp/qemu/linux-<arch>/bin, through the one list a guest run" +
+			" needs (PrepareGuest), and answer the ZE_BIN, ZE_STRIPPED_BIN and" +
+			" ZE_STRIPPED_FLOW_BIN assignments a `test qemu all` command passes",
+		Answer: runGuestBinariesHere,
+	},
+	leaction.Action{
 		Verb:    "installer",
 		Does:    doesRun,
 		Summary: "test the installer over HTTP in QEMU",
