@@ -1796,7 +1796,7 @@ each section from its own block:
   log the family and the reason under `ze.log.bgp.reactor.forward`. Such a
   filter declares
   the `raw` read and returns the rewritten body, or rejects the whole UPDATE.
-<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta, mpSectionDelta, subsetNLRI -->
+<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta, nlriSectionOf, subsetNLRI -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler, mpUnreachNLRIHandler -->
 
 **Subscription fields:**

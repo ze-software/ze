@@ -38,7 +38,10 @@ const (
 	setKindLocalPreference
 	setKindMED
 	setKindCommunity
-	setKindCount // the number of kinds plus one; never a kind
+	setKindASPath // the AS-path intents: prepend and remove-private
+	setKindPrefix // the NLRI subset intent
+	setKindFamily // the family-strip intent
+	setKindCount  // the number of kinds plus one; never a kind
 )
 
 // setKindFields is the vocabulary field each kind writes. The chain compiles a
@@ -48,6 +51,9 @@ var setKindFields = [setKindCount]policy.Field{
 	setKindLocalPreference: policy.FieldLocalPreference,
 	setKindMED:             policy.FieldMED,
 	setKindCommunity:       policy.FieldCommunity,
+	setKindASPath:          policy.FieldASPath,
+	setKindPrefix:          policy.FieldPrefix,
+	setKindFamily:          policy.FieldFamily,
 }
 
 // setMask holds one bit per setKind.
@@ -143,10 +149,19 @@ type Sets struct {
 	communityRemove [communitiesMax]uint32
 	communityAddN   uint8
 	communityRemN   uint8
+	intents         intents
 }
 
 // Reset forgets every change, so one Sets serves the next member or route.
-func (s *Sets) Reset() { *s = Sets{} }
+// The NLRI drop lists keep their storage, so a reused Sets allocates only
+// when a route drops more NLRI than any route before it.
+func (s *Sets) Reset() {
+	drops := s.intents.drops
+	*s = Sets{}
+	for section := range drops {
+		s.intents.drops[section] = drops[section][:0]
+	}
+}
 
 // Empty reports that the Sets asks no change.
 func (s *Sets) Empty() bool { return s.written == 0 }
@@ -192,7 +207,8 @@ func (s *Sets) RemoveCommunity(community uint32) error {
 }
 
 // merge folds a later member's sets onto s: numeric sets fold in order, and
-// community additions and removals accumulate.
+// community additions and removals accumulate, a later remove cancelling an
+// earlier add.
 func (s *Sets) merge(later *Sets) error {
 	if later.written&setKindLocalPreference.bit() != 0 {
 		s.localPreference = foldNumeric(s.localPreference, later.localPreference)
@@ -200,15 +216,23 @@ func (s *Sets) merge(later *Sets) error {
 	if later.written&setKindMED.bit() != 0 {
 		s.med = foldNumeric(s.med, later.med)
 	}
+	for _, community := range later.communityRemove[:later.communityRemN] {
+		// A later remove cancels an earlier add: the handler removes from the
+		// source alone and appends every add, so the add would survive it.
+		s.cancelCommunityAdd(community)
+		if err := s.RemoveCommunity(community); err != nil {
+			return err
+		}
+	}
+	// The later member's own adds come after its removes, as the handler
+	// applies one member's operations: a value it both removes and adds stays.
 	for _, community := range later.communityAdd[:later.communityAddN] {
 		if err := s.AddCommunity(community); err != nil {
 			return err
 		}
 	}
-	for _, community := range later.communityRemove[:later.communityRemN] {
-		if err := s.RemoveCommunity(community); err != nil {
-			return err
-		}
+	if err := s.intents.merge(&later.intents); err != nil {
+		return err
 	}
 	s.written |= later.written
 	return nil
@@ -267,4 +291,27 @@ func (s *Sets) ApplyTo(acc *filterapi.ModAccumulator, current Current) error {
 		acc.OpCopy(uint8(attribute.AttrCommunity), filterapi.AttrModRemove, value[:])
 	}
 	return nil
+}
+
+// removesCommunity reports whether s removes community.
+func (s *Sets) removesCommunity(community uint32) bool {
+	for _, removed := range s.communityRemove[:s.communityRemN] {
+		if removed == community {
+			return true
+		}
+	}
+	return false
+}
+
+// cancelCommunityAdd forgets every add of community, keeping the others in
+// order.
+func (s *Sets) cancelCommunityAdd(community uint32) {
+	kept := uint8(0)
+	for _, added := range s.communityAdd[:s.communityAddN] {
+		if added != community {
+			s.communityAdd[kept] = added
+			kept++
+		}
+	}
+	s.communityAddN = kept
 }

@@ -364,7 +364,11 @@ func TestSubsetNLRIKeepsPathIDAndLabels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			section := nlriHex(t, tt.section)
 			assert.Equal(t, tt.subject, string(appendCIDRPrefixes(nil, tt.fam, section, tt.addPath, tt.withdraw)))
-			got, ok := subsetNLRI(newTestScratch(t), tt.fam, section, tt.addPath, tt.withdraw, tt.keep)
+			source := nlriSource{section: sectionMPReach, fam: tt.fam, raw: section, addPath: tt.addPath, present: true}
+			if tt.withdraw {
+				source.section = sectionMPUnreach
+			}
+			got, ok := subsetNLRI(newTestScratch(t), source, tt.keep)
 			require.True(t, ok)
 			assert.Equal(t, strings.ReplaceAll(tt.want, " ", ""), hex.EncodeToString(got))
 		})

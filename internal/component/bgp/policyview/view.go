@@ -141,6 +141,22 @@ func (v *View) SetNumber(r Reader, number uint64) error {
 	return nil
 }
 
+// SetWire overlays the field r reads with wire for the rest of this run, so a
+// later read answers the value an earlier chain member set (read-after-set):
+// the field is present when wire is not empty. wire is borrowed, and the
+// caller MUST keep it unchanged until the run ends.
+func (v *View) SetWire(r Reader, wire []byte) error {
+	if v.update == nil {
+		return ErrNoUpdate
+	}
+	if r.slot == 0 {
+		return errZeroReader
+	}
+	s := &v.slots[r.slot-1]
+	s.run, s.value, s.err = v.run, Value{present: len(wire) > 0, wire: wire}, nil
+	return nil
+}
+
 // Decodes answers what this run decoded so far.
 func (v *View) Decodes() Decodes { return v.decodes }
 

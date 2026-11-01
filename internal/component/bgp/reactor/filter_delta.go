@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
@@ -509,17 +510,34 @@ func stripAttrHeader(wire []byte) []byte {
 // that does not decode as one AS_PATH.
 //
 // Does nothing if the modified attributes do not contain as-path-prepend.
+// The text names the count; prependASPathOps, which the library chain's
+// prepend intent reaches too, writes the operations.
 func ExtractASPathPrependOps(scratch *valueScratch, modAttrs *filterAttrs, attrs *attribute.AttributesWire, asn4 bool, localAS uint32, mods *filterapi.ModAccumulator) {
 	countStr, ok := modAttrs.get(faASPathPrepend)
 	if !ok || countStr == "" {
 		return
 	}
 	count, err := strconv.ParseUint(countStr, 10, 8)
-	if err != nil || count == 0 || count > 32 {
+	if err != nil || count == 0 || count > policychain.ASPathPrependMax {
 		fwdLogger().Warn("as-path-prepend: invalid count", "value", countStr)
 		return
 	}
+	prependASPathOps(scratch, attrs, asn4, localAS, uint8(count), mods)
+}
 
+// prependASPathOps records the AS_PATH prepend of count copies of localAS,
+// and the AS4_PATH RFC 6793 Section 4.2.2 owes beside it, on mods. count is
+// 1..policychain.ASPathPrependMax, which both callers check. It is the wire
+// half of the prepend intent: the text delta (ExtractASPathPrependOps) and the
+// library chain (libraryIntentOps) both reach it, so the two paths write
+// identical bytes. asn4 is the width of the payload the segment joins (see
+// ExtractASPathPrependOps).
+//
+// RFC 4271 Section 5.1.2: "Whenever the modification of the AS_PATH attribute calls for
+// including or prepending the AS number of the local system, the local
+// system MAY include/prepend more than one instance of its own AS
+// number in the AS_PATH attribute."
+func prependASPathOps(scratch *valueScratch, attrs *attribute.AttributesWire, asn4 bool, localAS uint32, count uint8, mods *filterapi.ModAccumulator) {
 	// The AS numbers this directive prepends. They are all localAS, but the
 	// slice is what the AS4_PATH derivation below takes, and it is the same
 	// shape wireu.ASPathIntent.Prepend carries on the ordinary prepend rail.
@@ -702,7 +720,23 @@ func pendingAttrValue(mods *filterapi.ModAccumulator, code attribute.AttributeCo
 // before being advertised to the global Internet.
 func ExtractRemovePrivateASOps(scratch *valueScratch, modAttrs *filterAttrs, attrs *attribute.AttributesWire, asn4 bool, peerAS uint32, mods *filterapi.ModAccumulator) {
 	mode, ok := extractRemovePrivateASMode(modAttrs)
-	if !ok || attrs == nil {
+	if !ok {
+		return
+	}
+	removePrivateASOps(scratch, attrs, asn4, mode, peerAS, mods)
+}
+
+// removePrivateASOps records the AS_PATH and AS4_PATH rewrite that removes,
+// or with RemovePrivatePeerAS replaces by peerAS, every private-use AS
+// number, segment by segment. It is the wire half of the remove-private
+// intent, reached by the text delta (ExtractRemovePrivateASOps) and the
+// library chain (libraryIntentOps) alike.
+//
+// RFC 6996 Section 4: "Private Use ASNs MUST be removed from AS path attributes (including
+// AS4_PATH if utilizing a four-octet AS number space) before being
+// advertised to the global Internet."
+func removePrivateASOps(scratch *valueScratch, attrs *attribute.AttributesWire, asn4 bool, mode policychain.RemovePrivateMode, peerAS uint32, mods *filterapi.ModAccumulator) {
+	if attrs == nil {
 		return
 	}
 
@@ -729,21 +763,25 @@ func ExtractRemovePrivateASOps(scratch *valueScratch, modAttrs *filterAttrs, att
 	}
 }
 
-func extractRemovePrivateASMode(modAttrs *filterAttrs) (string, bool) {
+// extractRemovePrivateASMode answers the text's remove-private mode, and
+// false when the text names none or an unknown one.
+func extractRemovePrivateASMode(modAttrs *filterAttrs) (policychain.RemovePrivateMode, bool) {
 	mode, ok := modAttrs.get(faRemovePrivate)
 	if !ok {
-		return "", false
+		return policychain.RemovePrivateUnspecified, false
 	}
 	switch mode {
-	case removePrivateASStrip, removePrivateASPeerAS:
-		return mode, true
+	case removePrivateASStrip:
+		return policychain.RemovePrivateStrip, true
+	case removePrivateASPeerAS:
+		return policychain.RemovePrivatePeerAS, true
 	default:
 		fwdLogger().Warn("remove-private-as: invalid mode", "mode", mode)
-		return "", false
+		return policychain.RemovePrivateUnspecified, false
 	}
 }
 
-func rewriteASPathRemovePrivate(scratch *valueScratch, value []byte, asn4 bool, mode string, peerAS uint32) ([]byte, bool) {
+func rewriteASPathRemovePrivate(scratch *valueScratch, value []byte, asn4 bool, mode policychain.RemovePrivateMode, peerAS uint32) ([]byte, bool) {
 	path, err := attribute.ParseASPath(value, asn4)
 	if err != nil {
 		fwdLogger().Warn("remove-private-as: parse AS_PATH failed", "error", err)
@@ -759,7 +797,7 @@ func rewriteASPathRemovePrivate(scratch *valueScratch, value []byte, asn4 bool, 
 	return buf, true
 }
 
-func rewriteAS4PathRemovePrivate(scratch *valueScratch, value []byte, mode string, peerAS uint32) ([]byte, bool) {
+func rewriteAS4PathRemovePrivate(scratch *valueScratch, value []byte, mode policychain.RemovePrivateMode, peerAS uint32) ([]byte, bool) {
 	path, err := attribute.ParseAS4Path(value)
 	if err != nil {
 		fwdLogger().Warn("remove-private-as: parse AS4_PATH failed", "error", err)
@@ -775,7 +813,7 @@ func rewriteAS4PathRemovePrivate(scratch *valueScratch, value []byte, mode strin
 	return buf, true
 }
 
-func rewritePrivateASSegments(scratch *valueScratch, segments []attribute.ASPathSegment, mode string, peerAS uint32) ([]attribute.ASPathSegment, bool) {
+func rewritePrivateASSegments(scratch *valueScratch, segments []attribute.ASPathSegment, mode policychain.RemovePrivateMode, peerAS uint32) ([]attribute.ASPathSegment, bool) {
 	out := scratch.carveSegments(len(segments))
 	changed := false
 	for _, seg := range segments {
@@ -786,7 +824,7 @@ func rewritePrivateASSegments(scratch *valueScratch, segments []attribute.ASPath
 				continue
 			}
 			changed = true
-			if mode == removePrivateASPeerAS {
+			if mode == policychain.RemovePrivatePeerAS {
 				asns = append(asns, peerAS)
 			}
 		}

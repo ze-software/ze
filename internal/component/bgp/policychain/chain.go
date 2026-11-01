@@ -17,6 +17,7 @@
 package policychain
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"maps"
@@ -122,6 +123,8 @@ type Chain struct {
 	// bases and the two readers serve Apply's increment and decrement.
 	bases                Bases
 	localPreference, med policyview.Reader
+	// community serves the community overlay (overlayCommunity).
+	community policyview.Reader
 	// refused counts the routes a member failed under its on-error.
 	refused atomic.Uint64
 }
@@ -145,6 +148,9 @@ func Compile(attachment string, reg *policy.Registry, names []string, final poli
 		return nil, fmt.Errorf("BUG: policychain: %w", err)
 	}
 	if chain.med, err = policyview.ReaderFor(policy.FieldMED); err != nil {
+		return nil, fmt.Errorf("BUG: policychain: %w", err)
+	}
+	if chain.community, err = policyview.ReaderFor(policy.FieldCommunity); err != nil {
 		return nil, fmt.Errorf("BUG: policychain: %w", err)
 	}
 	for _, name := range names {
@@ -206,6 +212,12 @@ type Outcome struct {
 type RunSets struct {
 	member Sets
 	folded Sets
+	// communityWire holds the COMMUNITY value the overlay answers a later
+	// member. Two buffers alternate, because each overlay is built from the
+	// one before it. Each is bounded by the attribute plus the 16 values one
+	// member adds, and keeps its storage across runs.
+	communityWire [2][]byte
+	communityNext uint8
 }
 
 // Folded answers the sets the chain asked, valid until the next Run.
@@ -235,7 +247,11 @@ func (c *Chain) Run(view *policyview.View, sets *RunSets) Outcome {
 		if decision == DecisionReject {
 			return Outcome{Action: OutcomeReject, Member: m.name}
 		}
-		if err := c.overlayNumeric(view, &sets.member); err != nil {
+		err = c.overlayNumeric(view, &sets.member)
+		if err == nil {
+			err = c.overlayCommunity(view, sets)
+		}
+		if err != nil {
 			if c.fail(m, err) {
 				return Outcome{Action: OutcomeReject, Failed: true, Member: m.name}
 			}
@@ -284,6 +300,41 @@ func (c *Chain) overlayNumeric(view *policyview.View, member *Sets) error {
 		if err := view.SetNumber(c.med, uint64(value)); err != nil {
 			return fmt.Errorf("med: %w", err)
 		}
+	}
+	return nil
+}
+
+// overlayCommunity overlays the view's COMMUNITY with what the member's adds
+// and removes make of it, so a later member reads the set value
+// (read-after-set). The value is what the COMMUNITY handler writes for the
+// same operations: the current values no remove names, in order, then the
+// additions. It runs only for a member that changed communities, so a chain
+// whose members set none reads the wire bytes and allocates nothing.
+func (c *Chain) overlayCommunity(view *policyview.View, sets *RunSets) error {
+	member := &sets.member
+	if member.written&setKindCommunity.bit() == 0 {
+		return nil
+	}
+	current, err := view.Read(c.community)
+	if err != nil {
+		return fmt.Errorf("community: %w", err)
+	}
+	buf := &sets.communityWire[sets.communityNext]
+	sets.communityNext ^= 1
+	out := (*buf)[:0]
+	wire := current.Wire()
+	// RFC 1997: "The attribute consists of a set of four octet values, each of which specify a community."
+	for i := 0; i+4 <= len(wire); i += 4 {
+		if !member.removesCommunity(binary.BigEndian.Uint32(wire[i:])) {
+			out = append(out, wire[i:i+4]...)
+		}
+	}
+	for _, community := range member.communityAdd[:member.communityAddN] {
+		out = binary.BigEndian.AppendUint32(out, community)
+	}
+	*buf = out
+	if err := view.SetWire(c.community, out); err != nil {
+		return fmt.Errorf("community: %w", err)
 	}
 	return nil
 }

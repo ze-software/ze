@@ -1611,14 +1611,39 @@ the text subject is still what every configured BGP filter reads.
   to an earlier set). A member's `local-preference` or `med` resolves against
   what the view answers when it ran, and `Chain.Run` overlays the view with the
   result (`View.SetNumber`), so a later member reads the value an earlier one
-  set. Community sets have no overlay yet: a later member reads the received
-  COMMUNITY. `Sets.ApplyTo` writes the folded sets as `ModAccumulator`
+  set. A member's community adds and removes overlay the view's COMMUNITY
+  (`View.SetWire`, `Chain.overlayCommunity`) with the value the COMMUNITY
+  handler writes for them: the current values no remove names, in order, then
+  the adds. The value is built in one of two buffers `RunSets` alternates,
+  kept across runs, so a chain that sets no community reads the wire bytes and
+  allocates nothing. A later remove cancels an earlier member's add of the same
+  value, because the handler removes from the route's own values only.
+  `Sets.ApplyTo` writes the folded sets as `ModAccumulator`
   operations, so `buildModifiedPayload` stays the one apply engine.
   `Chain.Apply` reads the route's current LOCAL_PREF or MED from the view only
   for a field the sets change. Arithmetic on an absent attribute starts from
   the base in `bgp { defaults { attribute { } } }` (`parseAttributeBases`, each
   absent leaf at its YANG default). A decrement clamps at zero, and an
   increment clamps at 4294967295.
+- **Named intents, resolved by the reactor.** A change that needs state no
+  member holds is a named intent on `Sets` (`intents.go`):
+  `PrependASPath` (the local AS, 1 to 32 copies over the whole chain),
+  `RemovePrivateAS` (strip, or replace with the peer AS, at the AS_PATH width
+  the payload carries), `DropNLRI` (an entry of the body NLRI, the Withdrawn
+  Routes, MP_REACH_NLRI or MP_UNREACH_NLRI, named by its offset in the section
+  bytes the view answers) and `StripFamily` (every section of one family, at
+  most three). They write `as-path`, `prefix` and `family`, so a member that
+  did not declare those is refused like any other undeclared set.
+  `runLibraryChain` resolves them through the cores the text delta reaches,
+  never a copy: `prependASPathOps` and `removePrivateASOps`
+  (`filter_delta.go`), not applied toward an internal peer on export (RFC 4271
+  Section 5.1.2); `nlriSectionOf`, `dropNLRI` and `recordNLRIRewrite`
+  (`filter_nlri_delta.go`) over all four NLRI sections, the walk the text
+  path's `subsetNLRI` shares through `nlriCursor`. An offset that starts no
+  entry, a drop from a section the UPDATE lacks, and a drop from a family
+  whose NLRI is not a CIDR prefix drop the route. A stripped section is
+  rewritten empty, which drops an MP attribute whole: the body
+  `filter_family`'s raw rewrite produces.
 - **A failed member applies its on-error.** A read that answers an error (a
   malformed attribute, `policyview.ErrMalformed`) and a write to a field the
   member did not declare (`policy.InstanceSets`) each fail the route under the
@@ -1629,11 +1654,14 @@ the text subject is still what every configured BGP filter reads.
   each goroutine brings one view and one `policychain.RunSets`, reused across
   runs, and neither escapes the synchronous run.
 
-<!-- source: internal/component/bgp/policychain/chain.go -- Compile, Chain.Run, MustRegisterEvaluator, refuseUndeclared, overlayNumeric -->
-<!-- source: internal/component/bgp/policyview/view.go -- View.SetNumber -->
+<!-- source: internal/component/bgp/policychain/chain.go -- Compile, Chain.Run, MustRegisterEvaluator, refuseUndeclared, overlayNumeric, overlayCommunity -->
+<!-- source: internal/component/bgp/policyview/view.go -- View.SetNumber, View.SetWire -->
+<!-- source: internal/component/bgp/policychain/intents.go -- PrependASPath, RemovePrivateAS, DropNLRI, StripFamily -->
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- prependASPathOps, removePrivateASOps -->
+<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- nlriSectionOf, recordNLRIRewrite, dropNLRI, subsetNLRI -->
 <!-- source: internal/component/bgp/policychain/sets.go -- Sets, numericSet.resolve, Sets.ApplyTo -->
 <!-- source: internal/component/bgp/policychain/apply.go -- Bases, Chain.Apply -->
-<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, libraryASPathOps, libraryNLRIOps -->
 <!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChains, refuseMixedLibraryChain, parseAttributeBases -->
 <!-- source: internal/component/policy/fields.go -- InstanceSets -->
 

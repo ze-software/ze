@@ -203,55 +203,38 @@ func sectionNLRIDelta(scratch *valueScratch, original, modified string, wireUpda
 	}
 
 	ctx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
-	v4 := family.IPv4Unicast
-	v4AddPath := ctx != nil && ctx.AddPath(v4)
 	var override []byte
-
-	// RFC 4271 Section 4.3: the legacy Network Layer Reachability Information.
-	o, m := orig.find(sectionAnnounce, ""), mod.find(sectionAnnounce, "")
-	if orig.text(o) != mod.text(m) {
-		raw, err := wireUpdate.NLRI()
+	var names [sectionCount]string
+	for section := sectionAnnounce; section < sectionCount; section++ {
+		source, err := nlriSectionOf(wireUpdate, ctx, section)
 		if err != nil {
-			return nil, nlriRefusal{family: v4.String(), reason: refuseMalformed}, false
+			// Only a changed block reads the section, so a malformed one the
+			// answer left alone is not refused.
+			if orig.text(orig.find(section, "")) != mod.text(mod.find(section, "")) {
+				return nil, nlriRefusal{family: source.fam.String(), reason: refuseMalformed}, false
+			}
+			continue
 		}
-		kept, ok := subsetNLRI(scratch, v4, raw, v4AddPath, false, mod.body(m))
-		if !ok {
-			return nil, nlriRefusal{family: v4.String(), reason: refuseNotSubset}, false
+		if !source.present {
+			continue
 		}
-		override = kept
-		if override == nil {
-			override = []byte{} // the source carried none, and the answer keeps none
+		name := ""
+		if section.multiprotocol() {
+			name = source.fam.String()
+			names[section] = name
 		}
-	}
-
-	// RFC 4271 Section 4.3: the legacy Withdrawn Routes field.
-	o, m = orig.find(sectionWithdrawn, ""), mod.find(sectionWithdrawn, "")
-	if orig.text(o) != mod.text(m) {
-		raw, err := wireUpdate.Withdrawn()
-		if err != nil {
-			return nil, nlriRefusal{family: v4.String(), reason: refuseMalformed}, false
+		o, m := orig.find(section, name), mod.find(section, name)
+		if orig.text(o) == mod.text(m) {
+			continue
 		}
-		kept, ok := subsetNLRI(scratch, v4, raw, v4AddPath, true, mod.body(m))
-		if !ok {
-			return nil, nlriRefusal{family: v4.String(), reason: refuseNotSubset}, false
-		}
-		mods.SetWithdrawnRewrite(kept)
-	}
-
-	var reachName, unreachName string
-	if mp, err := wireUpdate.MPReach(); err == nil && mp != nil {
-		fam := mp.Family()
-		reachName = fam.String()
-		if refusal, ok := mpSectionDelta(scratch, &orig, &mod, fam, reachName, sectionMPReach, mp.NLRIBytes(), ctx != nil && ctx.AddPath(fam), mods); !ok {
+		if refusal, ok := nlriSubsetRefusal(source, name); !ok {
 			return nil, refusal, false
 		}
-	}
-	if mpu, err := wireUpdate.MPUnreach(); err == nil && mpu != nil {
-		fam := mpu.Family()
-		unreachName = fam.String()
-		if refusal, ok := mpSectionDelta(scratch, &orig, &mod, fam, unreachName, sectionMPUnreach, mpu.WithdrawnBytes(), ctx != nil && ctx.AddPath(fam), mods); !ok {
-			return nil, refusal, false
+		kept, ok := subsetNLRI(scratch, source, mod.body(m))
+		if !ok {
+			return nil, nlriRefusal{family: source.fam.String(), reason: refuseNotSubset}, false
 		}
+		recordNLRIRewrite(section, kept, &override, mods)
 	}
 
 	// Every block of the answer names a section the UPDATE carries, once. An
@@ -261,12 +244,8 @@ func sectionNLRIDelta(scratch *valueScratch, original, modified string, wireUpda
 	for i := range mod.n {
 		blk := &mod.blk[i]
 		switch blk.section {
-		case sectionMPReach:
-			if blk.family != reachName {
-				return nil, nlriRefusal{family: blk.family, reason: refuseNoSection}, false
-			}
-		case sectionMPUnreach:
-			if blk.family != unreachName {
+		case sectionMPReach, sectionMPUnreach:
+			if blk.family != names[blk.section] {
 				return nil, nlriRefusal{family: blk.family, reason: refuseNoSection}, false
 			}
 		case sectionAnnounce, sectionWithdrawn, sectionCount:
@@ -280,26 +259,212 @@ func sectionNLRIDelta(scratch *valueScratch, original, modified string, wireUpda
 	return override, nlriRefusal{}, true
 }
 
-// mpSectionDelta records the rewrite of one MP section when its block changed.
-func mpSectionDelta(scratch *valueScratch, orig, mod *nlriBlockTable, fam family.Family, name string, section nlriSection, nlri []byte, addPath bool, mods *filterapi.ModAccumulator) (nlriRefusal, bool) {
-	o, m := orig.find(section, name), mod.find(section, name)
-	if orig.text(o) == mod.text(m) {
-		return nlriRefusal{}, true
+// multiprotocol reports whether the section is the NLRI of an MP attribute.
+func (s nlriSection) multiprotocol() bool {
+	return s == sectionMPReach || s == sectionMPUnreach
+}
+
+// nlriSource is one NLRI section of the UPDATE as it sits on the wire: its
+// family, its bytes, and whether the sending session negotiated ADD-PATH for
+// that family. present is false for an MP section the UPDATE does not carry;
+// a legacy section is always present, empty or not.
+type nlriSource struct {
+	section nlriSection
+	fam     family.Family
+	raw     []byte
+	addPath bool
+	present bool
+}
+
+// nlriSectionOf reads one section from the wire. It is the single place both
+// the text delta (sectionNLRIDelta) and the library chain's NLRI intents
+// (libraryNLRIOps) find a section, so the two rewrite the same four sections:
+// a rewrite that skipped MP_REACH_NLRI leaked the IPv6 prefixes a filter
+// dropped (plan/journal/guard-added-to-one-half-of-a-pair.md, 2026-10-17).
+// An MP attribute that does not parse reads as absent, as it always has; a
+// legacy section that does not parse is the error.
+func nlriSectionOf(wireUpdate *wireu.WireUpdate, ctx *bgpctx.EncodingContext, section nlriSection) (nlriSource, error) {
+	source := nlriSource{section: section, fam: family.IPv4Unicast}
+	switch section {
+	case sectionAnnounce:
+		// RFC 4271 Section 4.3: the legacy Network Layer Reachability Information.
+		raw, err := wireUpdate.NLRI()
+		if err != nil {
+			return source, err
+		}
+		source.raw, source.present = raw, true
+	case sectionWithdrawn:
+		// RFC 4271 Section 4.3: the legacy Withdrawn Routes field.
+		raw, err := wireUpdate.Withdrawn()
+		if err != nil {
+			return source, err
+		}
+		source.raw, source.present = raw, true
+	case sectionMPReach:
+		mp, err := wireUpdate.MPReach()
+		if err != nil || mp == nil {
+			return source, nil
+		}
+		source.fam, source.raw, source.present = mp.Family(), mp.NLRIBytes(), true
+	case sectionMPUnreach:
+		mpu, err := wireUpdate.MPUnreach()
+		if err != nil || mpu == nil {
+			return source, nil
+		}
+		source.fam, source.raw, source.present = mpu.Family(), mpu.WithdrawnBytes(), true
+	case sectionCount:
+		return source, nil
 	}
-	if !filtertext.CIDRFamily(fam) {
+	source.addPath = ctx != nil && ctx.AddPath(source.fam)
+	return source, nil
+}
+
+// nlriSubsetRefusal refuses a subset of a family whose NLRI is not a CIDR
+// prefix: the engine cannot frame such a section entry by entry. name is the
+// family as the answer names it, empty for a legacy section.
+func nlriSubsetRefusal(source nlriSource, name string) (nlriRefusal, bool) {
+	if !source.section.multiprotocol() {
+		return nlriRefusal{}, true // the legacy sections are IPv4 unicast, a CIDR family
+	}
+	if !filtertext.CIDRFamily(source.fam) {
 		return nlriRefusal{family: name, reason: refuseNonCIDR}, false
 	}
-	withdraw := section == sectionMPUnreach
-	kept, ok := subsetNLRI(scratch, fam, nlri, addPath, withdraw, mod.body(m))
-	if !ok {
-		return nlriRefusal{family: name, reason: refuseNotSubset}, false
-	}
-	code := attribute.AttrMPReachNLRI
-	if withdraw {
-		code = attribute.AttrMPUnreachNLRI
-	}
-	mods.Op(uint8(code), filterapi.AttrModReplaceNLRI, kept)
 	return nlriRefusal{}, true
+}
+
+// recordNLRIRewrite records the kept NLRI of one section, the subset a filter
+// left, where buildModifiedPayload reads it:
+//   - legacy NLRI: *override, which replaces the source NLRI (an empty,
+//     non-nil override drops them all);
+//   - legacy Withdrawn Routes: a withdrawn rewrite on mods;
+//   - MP_REACH_NLRI / MP_UNREACH_NLRI: an AttrModReplaceNLRI op on code 14 /
+//     15, which keeps AFI, SAFI and the next hop, and drops the attribute when
+//     kept is empty.
+func recordNLRIRewrite(section nlriSection, kept []byte, override *[]byte, mods *filterapi.ModAccumulator) {
+	switch section {
+	case sectionAnnounce:
+		*override = kept
+		if *override == nil {
+			*override = []byte{} // the source carried none, and the answer keeps none
+		}
+	case sectionWithdrawn:
+		mods.SetWithdrawnRewrite(kept)
+	case sectionMPReach:
+		mods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModReplaceNLRI, kept)
+	case sectionMPUnreach:
+		mods.Op(uint8(attribute.AttrMPUnreachNLRI), filterapi.AttrModReplaceNLRI, kept)
+	case sectionCount:
+	}
+}
+
+// nlriCursor walks the entries of one section of a CIDR family in wire order.
+// Both subset forms walk through it: the text answer's ordered prefix list
+// (subsetNLRI) and the library chain's dropped offsets (dropNLRI).
+type nlriCursor struct {
+	section []byte
+	off     int
+	addPath bool
+	bad     bool // the section did not frame
+}
+
+// next answers the next entry, its part after any path identifier, and its
+// offset in the section. ok is false at the end of the section, and when it
+// does not frame, which bad then records.
+func (c *nlriCursor) next() (entry, cidr []byte, start int, ok bool) {
+	if c.off >= len(c.section) {
+		return nil, nil, 0, false
+	}
+	entry, cidr, next, framed := cidrEntry(c.section, c.off, c.addPath)
+	if !framed {
+		c.bad = true
+		return nil, nil, 0, false
+	}
+	start, c.off = c.off, next
+	return entry, cidr, start, true
+}
+
+// withdraws reports whether the section lists withdrawn routes, whose key
+// nlrisplit frames without a label stack (RFC 8277 Section 2.4).
+func (s nlriSection) withdraws() bool {
+	return s == sectionWithdrawn || s == sectionMPUnreach
+}
+
+// subsetNLRI returns the NLRI of the source section, in source order, whose
+// prefix appears in keep, the space-separated prefix tokens of the answer's
+// block, which MUST list the kept prefixes in the same order. Each source NLRI
+// is copied whole, path identifier and label stack included. The result is
+// carved from scratch; an empty result means "keep none".
+//
+// The walk is one merge of the two ordered lists, bounded by the section
+// length, and allocates nothing. ok == false when keep names a prefix the
+// section does not carry at that position, a token is not a prefix of the
+// section's address family, or the section does not parse.
+func subsetNLRI(scratch *valueScratch, source nlriSource, keep string) ([]byte, bool) {
+	routeKey := nlrisplit.GetPrefixKey(source.fam) // filtertext.CIDRFamily: a CIDR key, never the opaque default
+	out := scratch.carveBytes(len(source.raw))[:0]
+	var want, have [nlrisplit.PrefixKeyScratchSize]byte
+	tokens := filterTokens{text: keep}
+	wantKey, ok := nextPrefixKey(&tokens, source.fam, want[:0])
+	if !ok {
+		return nil, false
+	}
+	cursor := nlriCursor{section: source.raw, addPath: source.addPath}
+	for wantKey != nil {
+		entry, cidr, _, more := cursor.next()
+		if !more {
+			break
+		}
+		key, err := routeKey(cidr, have[:], source.section.withdraws())
+		if err != nil {
+			return nil, false
+		}
+		if !bytes.Equal(key, wantKey) {
+			continue // dropped by the filter
+		}
+		out = append(out, entry...)
+		if wantKey, ok = nextPrefixKey(&tokens, source.fam, want[:0]); !ok {
+			return nil, false
+		}
+	}
+	if cursor.bad {
+		return nil, false
+	}
+	if wantKey != nil {
+		return nil, false // a kept prefix the section never reached
+	}
+	return out, true
+}
+
+// dropNLRI returns the NLRI of the source section, in source order, less the
+// entries that start at an offset in drops, which MUST be ascending and each
+// once (policychain.Sets.NLRIDrops answers them so). Each kept NLRI is copied
+// whole, path identifier and label stack included, carved from scratch. ok ==
+// false when an offset starts no entry of the section, or the section does not
+// parse. The walk is bounded by the section length and allocates nothing.
+func dropNLRI(scratch *valueScratch, source nlriSource, drops []uint16) ([]byte, bool) {
+	out := scratch.carveBytes(len(source.raw))[:0]
+	cursor := nlriCursor{section: source.raw, addPath: source.addPath}
+	for {
+		entry, _, start, more := cursor.next()
+		if !more {
+			break
+		}
+		if len(drops) > 0 && int(drops[0]) < start {
+			return nil, false // the offset fell inside the entry before this one
+		}
+		if len(drops) > 0 && int(drops[0]) == start {
+			drops = drops[1:]
+			continue
+		}
+		out = append(out, entry...)
+	}
+	if cursor.bad {
+		return nil, false
+	}
+	if len(drops) > 0 {
+		return nil, false // an offset past the last entry
+	}
+	return out, true
 }
 
 // cidrEntry frames the NLRI at off of a section of a CIDR family (filtertext.CIDRFamily),
@@ -328,49 +493,6 @@ func cidrEntry(section []byte, off int, addPath bool) (entry, cidr []byte, next 
 		return nil, nil, 0, false
 	}
 	return section[off:end], section[pos:end], end, true
-}
-
-// subsetNLRI returns the NLRI of section, in source order, whose prefix appears
-// in keep, the space-separated prefix tokens of the answer's block, which MUST
-// list the kept prefixes in the same order. Each source NLRI is copied whole,
-// path identifier and label stack included. The result is carved from scratch;
-// an empty result means "keep none".
-//
-// The walk is one merge of the two ordered lists, bounded by the section
-// length, and allocates nothing. ok == false when keep names a prefix the
-// section does not carry at that position, a token is not a prefix of fam's
-// address family, or the section does not parse.
-func subsetNLRI(scratch *valueScratch, fam family.Family, section []byte, addPath, withdraw bool, keep string) ([]byte, bool) {
-	routeKey := nlrisplit.GetPrefixKey(fam) // filtertext.CIDRFamily: a CIDR key, never the opaque default
-	out := scratch.carveBytes(len(section))[:0]
-	var want, have [nlrisplit.PrefixKeyScratchSize]byte
-	tokens := filterTokens{text: keep}
-	wantKey, ok := nextPrefixKey(&tokens, fam, want[:0])
-	if !ok {
-		return nil, false
-	}
-	for off := 0; off < len(section) && wantKey != nil; {
-		entry, cidr, next, framed := cidrEntry(section, off, addPath)
-		if !framed {
-			return nil, false
-		}
-		off = next
-		key, err := routeKey(cidr, have[:], withdraw)
-		if err != nil {
-			return nil, false
-		}
-		if !bytes.Equal(key, wantKey) {
-			continue // dropped by the filter
-		}
-		out = append(out, entry...)
-		if wantKey, ok = nextPrefixKey(&tokens, fam, want[:0]); !ok {
-			return nil, false
-		}
-	}
-	if wantKey != nil {
-		return nil, false // a kept prefix the section never reached
-	}
-	return out, true
 }
 
 // nextPrefixKey encodes the next token of tokens as the CIDR key
