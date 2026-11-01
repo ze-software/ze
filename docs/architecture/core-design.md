@@ -1970,6 +1970,7 @@ in the diagnostic.
 | **Schema reader** | `getBackendExtension` in `yang_schema.go` mirrors `getOSExtension`; stores the de-duplicated name list on the schema `Node` (`LeafNode.Backend`, `ContainerNode.Backend`, `ListNode.Backend`). |
 | **Walker** | `config.validateBackendFeatures(tree, schema, root, activeBackend, backendLeafPath)` descends the parsed JSON tree alongside the schema and emits one error per YANG path where the node's annotation excludes the active backend. |
 | **Narrowest wins** | A descendant annotation that accepts the active backend suppresses an outer annotation that rejects it, so per-case overrides work. |
+| **No backend on this host** | An empty active backend means the config names none and this OS has no default (netlink, nft and tc are the Linux defaults). The walker's refusal, and each component's "no backend configured and no OS default available", is marked `diagnostic.HostVerdict`, so `ze config validate` reports it under the host-verdict code `config-host-backend` rather than as a config defect. |
 | **Wiring** | iface, firewall, and traffic plugins call the gate in `OnConfigure` (startup) and `OnConfigVerify` (reload). `ze config validate` calls the same helper so offline validation matches daemon commit. Runtime `errNotSupported` returns in `ifacevpp` stay as defence-in-depth. |
 | **Initial coverage** | iface: `bridge`, `tunnel`, `wireguard`, `veth`, `mirror` annotated `ze:backend "netlink"`. firewall: seven `ze:backend "nft"` annotations on conntrack-driven matches (`connection-state`, `connection-mark`) and nft-only action/modifier leaves. traffic: carries a `leaf backend` default (`tc`); per-feature annotations land with `spec-fw-7-traffic-vpp`. |
 
@@ -1980,6 +1981,7 @@ in the diagnostic.
 <!-- source: internal/component/firewall/engine.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
 <!-- source: internal/component/traffic/register.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
 <!-- source: internal/component/config/cli/cmd_validate.go -- runValidation, backend-gate loop over gated components -->
+<!-- source: internal/core/diagnostic/host_verdict.go -- HostVerdict, IsHostVerdict -->
 
 ---
 

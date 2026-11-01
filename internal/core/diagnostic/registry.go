@@ -15,6 +15,12 @@ type CodeMeta struct {
 	Description  string
 	Examples     []string
 	RelatedCodes []string
+	// HostVerdict is true for a code that judges the host running the
+	// command (its kernel, its OS, its hardware), not the configuration: the
+	// same config validates on a host that has what it needs. A tool that
+	// judges configs written for another machine reads it to tell the two
+	// apart, never the message text.
+	HostVerdict bool
 }
 
 var (

@@ -243,7 +243,14 @@ func runValidation(input, path string) *validationResult {
 	}
 	if err != nil {
 		line := extractLine(err.Error())
-		result.addErrorLine("config-parse", withoutLinePrefix(err.Error(), line), line)
+		// A node the schema carries only on another OS (ze:os) is a verdict
+		// about this host, not about the config, so it carries its own code.
+		code := "config-parse"
+		var otherOS *config.NodeOfAnotherOSError
+		if errors.As(err, &otherOS) {
+			code = diagnostic.CodeConfigNodeOtherOS
+		}
+		result.addErrorLine(code, withoutLinePrefix(err.Error(), line), line)
 		return result
 	}
 
@@ -353,7 +360,14 @@ func runValidation(input, path string) *validationResult {
 	for _, verr := range config.VerifyPluginConfig(tree) {
 		var extractErr *config.PluginExtractionError
 		if !errors.As(verr, &extractErr) {
-			result.addError("config-plugin-verify", verr.Error())
+			// A verifier that marks its refusal a verdict about this host
+			// (no OS default backend, no hardware inventory) is reported
+			// under its own code, so it is never read as a config defect.
+			code := "config-plugin-verify"
+			if diagnostic.IsHostVerdict(verr) {
+				code = diagnostic.CodeConfigHostBackend
+			}
+			result.addError(code, verr.Error())
 			continue
 		}
 		if extractErr.Section == string(config.ConfigTypeBGP) {

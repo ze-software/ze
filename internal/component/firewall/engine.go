@@ -19,13 +19,14 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
 var (
-	errFirewallNoBackendConfiguredAndNo      = errors.New("firewall: no backend configured and no OS default available")
+	errFirewallNoBackendConfiguredAndNo      = diagnostic.HostVerdict(errors.New("firewall: no backend configured and no OS default available"))
 	errFirewallConfigApplyNoBackendAvailable = errors.New("firewall config apply: no backend available")
 )
 

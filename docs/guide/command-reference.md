@@ -129,6 +129,22 @@ the running daemon produces on reload. See
 <!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate, backend-gate loop -->
 <!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures -->
 
+Some refusals are about the machine running the command, not about the file.
+Each carries a code of its own, so a config written for a router and
+validated on a workstation is not mistaken for a broken one; the same file
+validates on the host it is written for:
+
+| Code | When |
+|------|------|
+| `config-kernel-capability` | The config uses a subsystem this kernel cannot carry |
+| `config-node-other-os` | The config uses a node the schema holds only on another operating system (`interface xfrm`, `interface pppoe-client` and `mirror` exist only on Linux). The message names the node and its OS, and says to validate on that OS |
+| `config-host-backend` | A subsystem names no backend and this OS has no default (interface, firewall and traffic-control default to netlink, nft and tc on Linux only), or a hardware inventory a verifier reads (the CPU list for VPP) is absent here |
+
+`ze show diagnostic <code>` explains each one.
+<!-- source: internal/component/config/os_restricted.go -- NodeOfAnotherOSError -->
+<!-- source: internal/core/diagnostic/host_verdict.go -- HostVerdict, IsHostVerdict -->
+<!-- source: internal/core/diagnostic/codes.go -- CodeConfigNodeOtherOS, CodeConfigHostBackend -->
+
 Validation warns, and still exits 0, for every EBGP peer direction that has no
 explicit import or export policy. RFC 8212 Section 3 closes that direction: Ze
 uses none of the routes the peer sends, or sends it none, so the session comes

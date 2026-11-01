@@ -522,6 +522,9 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 				comments.end(child, fieldName, "")
 				continue
 			}
+			if err := nodeOfAnotherOS(node, name, fieldName, tok.line); err != nil {
+				return err
+			}
 			hint := node.relocatedHint(fieldName)
 			if hint == "" {
 				hint = node.retiredHint(fieldName)

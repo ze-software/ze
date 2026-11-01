@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/cpulist"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 )
 
@@ -187,7 +188,9 @@ func (cpu *CPUSettings) validate() error {
 
 	inv, err := hostCPUInventory()
 	if err != nil {
-		return fmt.Errorf("vpp cpu: %w", err)
+		// The inventory is this host's: a host that exposes none (no
+		// /sys/devices/system/cpu/online) answers about itself, not the config.
+		return fmt.Errorf("vpp cpu: %w", diagnostic.HostVerdict(err))
 	}
 	return cpu.validateAgainst(inv)
 }

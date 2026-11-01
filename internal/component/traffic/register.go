@@ -19,13 +19,14 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	trafficyang "github.com/ze-software/ze/internal/component/traffic/yang"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var (
-	errTrafficControlNoBackendConfiguredAnd = errors.New("traffic-control: no backend configured and no OS default available")
+	errTrafficControlNoBackendConfiguredAnd = diagnostic.HostVerdict(errors.New("traffic-control: no backend configured and no OS default available"))
 	errTrafficControlConfigApplyNoBackend   = errors.New("traffic-control config apply: no backend available")
 )
 

@@ -24,6 +24,8 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // validateBackendFeatures walks the parsed JSON config tree under
@@ -56,7 +58,9 @@ func validateBackendFeatures(
 	backendLeafPath string,
 ) []error {
 	if activeBackend == "" {
-		return []error{fmt.Errorf("backend feature gate: no backend configured at %s", backendLeafPath)}
+		// The callers pass the configured backend, else this OS's default, so
+		// an empty one means this host has no default: a host verdict.
+		return []error{diagnostic.HostVerdict(fmt.Errorf("backend feature gate: no backend configured at %s", backendLeafPath))}
 	}
 	if schema == nil || tree == nil {
 		return nil

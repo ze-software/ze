@@ -20,6 +20,7 @@ import (
 	ifaceyang "github.com/ze-software/ze/internal/component/iface/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/health"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
@@ -35,7 +36,7 @@ import (
 )
 
 var (
-	errInterfaceNoBackendConfiguredAndNo   = errors.New("interface: no backend configured and no OS default available")
+	errInterfaceNoBackendConfiguredAndNo   = diagnostic.HostVerdict(errors.New("interface: no backend configured and no OS default available"))
 	errInterfaceConfigApplyNoBackendLoaded = errors.New("interface config apply: no backend loaded")
 )
 

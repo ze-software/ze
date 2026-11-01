@@ -30,6 +30,8 @@ const exampleConfigValidate = "ze config validate ze.conf"
 // Only the codes another package emits are exported. The three under them are
 // named for a RelatedCodes cross-reference inside this file.
 const (
+	CodeConfigNodeOtherOS                          = "config-node-other-os"
+	CodeConfigHostBackend                          = "config-host-backend"
 	CodeConfigYANGCardinality                      = "config-yang-cardinality"
 	CodeConfigYANGEnum                             = "config-yang-enum"
 	CodeConfigYANGLength                           = "config-yang-length"
@@ -195,6 +197,21 @@ var builtinCodes = []CodeMeta{
 		Title:       "Kernel capability missing for a configured subsystem",
 		Description: "The configuration uses a subsystem this kernel cannot carry. Every failing subsystem is named, with the kernel feature it needs and the configuration that asked for it. `ze` refuses to start on the same verdict, so a config that fails here would produce a daemon that comes up and does not work. The verdict is about the host running the command: validating a config written for another machine answers about this one. Remedy: run the kernel feature the message names, or remove the configuration that needs it.",
 		Examples:    []string{exampleConfigValidate, "ze show diagnostic config-kernel-capability"},
+		HostVerdict: true,
+	},
+	{
+		Code:        CodeConfigNodeOtherOS,
+		Title:       "Config node exists only on another operating system",
+		Description: "The configuration uses a node the schema carries only on another operating system (YANG ze:os), such as interface xfrm, interface pppoe-client or a mirror container, which exist only on Linux. The schema of this build has no such node, because the operating system is fixed for the binary. The verdict is about the host running the command, not about the config: the same file validates on the operating system the message names. Remedy: validate the config on a host of that operating system, or remove the node if the config is meant for this one.",
+		Examples:    []string{exampleConfigValidate, "ze show diagnostic config-node-other-os"},
+		HostVerdict: true,
+	},
+	{
+		Code:        CodeConfigHostBackend,
+		Title:       "No backend this host can provide",
+		Description: "A plugin verifier refused the configuration for a reason that belongs to the host running the command: a subsystem that names no backend has no default on this operating system (interface, firewall and traffic-control default to netlink, nft and tc on Linux only), or a hardware inventory the verifier reads (the CPU list for VPP) is not present here. The same file validates on a host that has it. Remedy: validate the config on the host it is written for, or name a backend this host provides.",
+		Examples:    []string{exampleConfigValidate, "ze show diagnostic config-host-backend"},
+		HostVerdict: true,
 	},
 	{
 		Code:        CodeConfigGNMIInvalid,

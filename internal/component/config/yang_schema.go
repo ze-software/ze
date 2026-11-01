@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -176,6 +175,14 @@ type resolvedCache[T any] struct {
 	err   error
 }
 
+// reset forgets the cached value, so the next get builds it again.
+func (c *resolvedCache[T]) reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var none T
+	c.built, c.key, c.value, c.err = false, nil, none, nil
+}
+
 // get answers the value built from DefaultLoader's current module set,
 // building it with build the first time that set is asked for.
 func (c *resolvedCache[T]) get(build func(*yang.Resolved) (T, error)) (T, error) {
@@ -296,6 +303,7 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 // schemaFromResolved builds the config schema over one resolved module set.
 func schemaFromResolved(loader *yang.Resolved) (*Schema, error) {
 	resetSchemaBuildErrors()
+	resetOtherOSNodes()
 	schema := NewSchema()
 
 	// Walk every loaded YANG module whose name ends with "-conf"
@@ -334,6 +342,7 @@ func schemaFromResolved(loader *yang.Resolved) (*Schema, error) {
 
 	markRelocations(schema)
 	markRetiredLeaves(schema)
+	markOtherOSNodes(schema)
 	return schema, nil
 }
 
@@ -397,7 +406,10 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 	}
 
 	// Skip nodes restricted to a different OS via ze:os extension.
-	if requiredOS := getOSExtension(entry); requiredOS != "" && requiredOS != runtime.GOOS {
+	// The parent records the name, so the parser refuses it as a node of
+	// another OS rather than as an unknown field (os_restricted.go).
+	if requiredOS := getOSExtension(entry); requiredOS != "" && requiredOS != schemaOS {
+		recordOtherOSNode(path, requiredOS)
 		return nil
 	}
 

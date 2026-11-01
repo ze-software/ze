@@ -197,6 +197,7 @@ type ContainerNode struct {
 	cases        choiceMembers     // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
 	relocated    map[string]string // child name -> this container's name, for children that moved to a top-level root of the same name (see relocated.go)
 	retired      map[string]string // retired leaf name -> its refusal hint (see retired_leaf.go)
+	otherOS      map[string]string // child name -> the GOOS whose ze:os the build pruned it for (see os_restricted.go)
 }
 
 func (n *ContainerNode) Kind() NodeKind { return NodeContainer }
@@ -239,6 +240,7 @@ type ListNode struct {
 	order       []string
 	cases       choiceMembers     // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
 	retired     map[string]string // retired leaf name -> its refusal hint (see retired_leaf.go)
+	otherOS     map[string]string // child name -> the GOOS whose ze:os the build pruned it for (see os_restricted.go)
 }
 
 func (n *ListNode) Kind() NodeKind { return NodeList }

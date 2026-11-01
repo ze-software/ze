@@ -1986,7 +1986,7 @@ Ze defines custom extensions in `ze-extensions.yang` that control config parsing
 | `ze:hidden` | value | leaf | Hidden from config display and web editor |
 | `ze:allow-unknown-fields` | -- | container | Container accepts arbitrary key-value pairs |
 | `ze:route-attributes` | -- | inline-list | Node accepts standard BGP route attributes |
-| `ze:os` | goos | any node | Restricts node to a specific OS (any GOOS value); excluded from schema on other platforms |
+| `ze:os` | goos | any node | Restricts node to a specific OS (any GOOS value); excluded from schema on other platforms, where the parser refuses its name as a node of that OS, not as an unknown field |
 
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- all ze: extensions -->
 

@@ -202,7 +202,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, p.unknownFieldHint(name, parent))
+		return p.unknownField(lineNum, name, parent)
 	}
 
 	//nolint:gocritic // if-else chain preferred over type switch for exhaustive node handling
@@ -552,7 +552,7 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, p.unknownFieldHint(name, parent))
+		return p.unknownField(lineNum, name, parent)
 	}
 
 	if _, ok := node.(*LeafNode); ok {
@@ -672,7 +672,7 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, p.unknownFieldHint(name, parent))
+		return p.unknownField(lineNum, name, parent)
 	}
 
 	// Leaf-list member delete: `delete <path> <member>` removes one member, of
@@ -902,6 +902,28 @@ func resolveSchemaNode(schema *Schema, parent Node, name string) Node {
 		return il.Get(name)
 	}
 	return nil
+}
+
+// unknownField refuses a name the schema does not hold under parent: as a node
+// of another OS when the build pruned it for its ze:os, else as an unknown
+// field with unknownFieldHint's hint.
+func (p *SetParser) unknownField(lineNum int, name string, parent Node) error {
+	if parent == nil {
+		parent = p.schema.root
+	}
+	if err := nodeOfAnotherOS(parent, parentLabel(p.schema, parent), name, lineNum); err != nil {
+		return err
+	}
+	return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, p.unknownFieldHint(name, parent))
+}
+
+// parentLabel names a schema node in a refusal: "the top level" for the
+// root, and "" below it, where the set parser walks a path and holds no name.
+func parentLabel(schema *Schema, parent Node) string {
+	if container, ok := parent.(*ContainerNode); ok && container == schema.root {
+		return "the top level"
+	}
+	return ""
 }
 
 // unknownFieldHint answers what the refusal of an unknown field adds after its
