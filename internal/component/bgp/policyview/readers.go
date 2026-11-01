@@ -34,7 +34,13 @@ func readPrefix(v *View) (Value, error) {
 	if err != nil {
 		return Value{}, err
 	}
-	return Value{present: len(body) > 0 || mpReach != nil, wire: body, mpReach: mpReach}, nil
+	return prefixValue(body, mpReach), nil
+}
+
+// prefixValue is prefix over the body NLRI and the MP_REACH_NLRI value, the
+// sections as received or as View.SetNLRI overlaid them.
+func prefixValue(body []byte, mpReach wireu.MPReachWire) Value {
+	return Value{present: len(body) > 0 || mpReach != nil, wire: body, mpReach: mpReach}
 }
 
 // readFamily serves family: IPv4 unicast for the body NLRI (RFC 4271 carries
@@ -44,11 +50,17 @@ func readFamily(v *View) (Value, error) {
 	if err != nil {
 		return Value{}, err
 	}
+	return familyValue(body, mpReach), nil
+}
+
+// familyValue is family over the body NLRI and the MP_REACH_NLRI value, the
+// sections as received or as View.SetNLRI overlaid them.
+func familyValue(body []byte, mpReach wireu.MPReachWire) Value {
 	x := Value{present: len(body) > 0 || mpReach != nil, mpReach: mpReach}
 	if len(body) > 0 {
 		x.family = family.IPv4Unicast
 	}
-	return x, nil
+	return x
 }
 
 // readNextHop serves next-hop: the NEXT_HOP attribute for the body NLRI, and
@@ -67,7 +79,14 @@ func readNextHop(v *View) (Value, error) {
 	if raw != nil && len(raw) != 4 {
 		return Value{}, malformed(attribute.AttrNextHop, "length is not 4")
 	}
-	return Value{present: raw != nil || mpReach != nil, wire: raw, mpReach: mpReach}, nil
+	return nextHopValue(raw, mpReach), nil
+}
+
+// nextHopValue is next-hop over the NEXT_HOP attribute value and the
+// MP_REACH_NLRI value, as received or as View.SetNLRI overlaid it. NEXT_HOP is
+// an attribute of its own, so no NLRI change removes it.
+func nextHopValue(raw []byte, mpReach wireu.MPReachWire) Value {
+	return Value{present: raw != nil || mpReach != nil, wire: raw, mpReach: mpReach}
 }
 
 // readProtocol serves protocol: every route on this view came from BGP, so

@@ -1686,7 +1686,15 @@ the text subject is still what every configured BGP filter reads.
   reads the MP_REACH_NLRI of the stripped family as absent, as the reactor
   removes the family's sections whatever the drops name, and as a later text
   filter reads none of the NLRI an earlier delta removed. A later drop from a
-  stripped section names no entry, so it fails the member. A chain that drops
+  stripped section names no entry, so it fails the member. The overlay sets
+  the view's NLRI sections (`View.SetNLRI`), from which `family` and
+  `next-hop` are answered too, so a later member that reads `family` after a
+  drop or a strip reads no family whose NLRI are gone, and reads `next-hop`
+  without the next hop of an MP_REACH_NLRI that left, as a later text filter
+  sees no `nlri` or `mp` block of it. `next-hop` keeps the NEXT_HOP
+  attribute, which no NLRI change removes and which the text keeps as its
+  `next-hop` token. A field a member read earlier in the run is answered again
+  from the overlay without decoding NEXT_HOP a second time. A chain that drops
   and strips nothing reads the wire and allocates nothing.
 - **A failed member applies its on-error.** A read that answers an error (a
   malformed attribute, `policyview.ErrMalformed`) and a write to a field the
@@ -1712,7 +1720,7 @@ the text subject is still what every configured BGP filter reads.
   runs, and neither escapes the synchronous run.
 
 <!-- source: internal/component/bgp/policychain/chain.go -- Compile, Chain.Run, MustRegisterEvaluator, refuseUndeclared, overlayNumeric, overlayCommunity -->
-<!-- source: internal/component/bgp/policyview/view.go -- View.SetNumber, View.SetWire, View.SetPrefix, View.AddPath -->
+<!-- source: internal/component/bgp/policyview/view.go -- View.SetNumber, View.SetWire, View.SetNLRI, View.AddPath -->
 <!-- source: internal/component/bgp/policychain/prefix_overlay.go -- overlayPrefix, receivedDrops -->
 <!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Chain.Only, MemberTrace.Apply, Sets.AppendText -->
 <!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain, libraryTraceText -->

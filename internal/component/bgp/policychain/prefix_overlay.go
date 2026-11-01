@@ -44,7 +44,10 @@ type prefixOverlay struct {
 // and the reactor's rewrite (libraryNLRIOps) count. A family the member
 // strips leaves prefix with its section, as the reactor's rewrite removes it
 // whatever the drops name, so a later member reads none of its NLRI, as a
-// later text filter reads none after an earlier delta removed them. It runs
+// later text filter reads none after an earlier delta removed them. The view
+// answers family and next-hop from the same overlaid sections (SetNLRI), so a
+// later member reads no family, and no MP_REACH_NLRI next hop, the drops or
+// the strip removed, as a later text filter reads no block of it. It runs
 // only for a member that dropped from the body NLRI or MP_REACH_NLRI, the two
 // sections prefix reads, or that stripped a family, so a chain that does
 // neither reads the wire and allocates nothing.
@@ -87,7 +90,7 @@ func (c *Chain) overlayPrefix(view *policyview.View, sets *RunSets) error {
 			return err
 		}
 	}
-	if err := view.SetPrefix(c.prefix, body, mp); err != nil {
+	if err := view.SetNLRI(body, mp); err != nil {
 		return fmt.Errorf("prefix: %w", err)
 	}
 	return nil

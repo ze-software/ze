@@ -158,22 +158,46 @@ func (v *View) SetWire(r Reader, wire []byte) error {
 	return nil
 }
 
-// SetPrefix overlays prefix (the field r reads) with body as the body NLRI
-// and mpReach as the MP_REACH_NLRI value for the rest of this run, so a later
-// read answers the subset an earlier chain member's drops left
-// (read-after-set). A nil mpReach is an UPDATE that carries none, as the
-// reactor drops an MP_REACH_NLRI whose NLRI are all dropped. Both are
-// borrowed, and the caller MUST keep them unchanged until the run ends.
-func (v *View) SetPrefix(r Reader, body []byte, mpReach wireu.MPReachWire) error {
+// SetNLRI overlays the NLRI sections with body as the body NLRI and mpReach
+// as the MP_REACH_NLRI value for the rest of this run, so a later read of
+// prefix, family or next-hop answers what an earlier chain member's drops or
+// family strip left (read-after-set), each from the same sections. A nil
+// mpReach is an UPDATE that carries none, as the reactor drops an
+// MP_REACH_NLRI whose NLRI are all dropped, so its family and its next hop
+// leave family and next-hop with it; the NEXT_HOP attribute stays. A field
+// read earlier in the run is answered again from the overlay, and NEXT_HOP is
+// not decoded a second time. Both are borrowed, and the caller MUST keep them
+// unchanged until the run ends.
+func (v *View) SetNLRI(body []byte, mpReach wireu.MPReachWire) error {
 	if v.update == nil {
 		return ErrNoUpdate
 	}
-	if r.slot == 0 {
-		return errZeroReader
+	v.nlri = shared{run: v.run, body: body, mpReach: mpReach}
+	if s := v.current(policy.FieldPrefix); s != nil {
+		s.value, s.err = prefixValue(body, mpReach), nil
 	}
-	s := &v.slots[r.slot-1]
-	s.run, s.value, s.err = v.run, Value{present: len(body) > 0 || mpReach != nil, wire: body, mpReach: mpReach}, nil
+	if s := v.current(policy.FieldFamily); s != nil {
+		s.value, s.err = familyValue(body, mpReach), nil
+	}
+	if s := v.current(policy.FieldNextHop); s != nil && s.err == nil {
+		s.value = nextHopValue(s.value.wire, mpReach)
+	}
 	return nil
+}
+
+// current answers the slot of field's reader when this run already read it,
+// and nil when it did not.
+func (v *View) current(field policy.Field) *slot {
+	index, ok := readerTable.slots[field]
+	// refuse-by-default: guards SetNLRI -- a field with no reader has no answer cached to refresh
+	if !ok {
+		return nil
+	}
+	s := &v.slots[index]
+	if s.run != v.run {
+		return nil
+	}
+	return s
 }
 
 // AddPath reports whether the session the UPDATE came from negotiated
