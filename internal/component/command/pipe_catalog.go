@@ -37,12 +37,18 @@ const (
 	ShapeMap
 	// ShapeTab is rows read against column names the answer head declares.
 	ShapeTab
+	// ShapeBlob is text or bytes read as they are (Blob): a stored file, a
+	// formatted config, a page of documentation. It has no rows and no fields,
+	// so every data operator is refused by name. No answer head writes it: a
+	// Blob travels in a `doc` answer as its JSON form, and the command's
+	// declaration is what says the document is a blob.
+	ShapeBlob
 )
 
 // allShapes is every shape, in wire order. It is the ONE statement of the
 // population: anyShape, Shapes and ParseAnswerShape each read it, so a shape
 // added to this list reaches all three.
-var allShapes = []AnswerShape{ShapeDoc, ShapeMap, ShapeTab}
+var allShapes = []AnswerShape{ShapeDoc, ShapeMap, ShapeTab, ShapeBlob}
 
 // String answers the wire spelling of the shape.
 func (s AnswerShape) String() string {
@@ -53,9 +59,28 @@ func (s AnswerShape) String() string {
 		return "tab"
 	case ShapeDoc:
 		return "doc"
+	case ShapeBlob:
+		return "blob"
 	default:
 		panic("BUG: unknown answer shape")
 	}
+}
+
+// AnswerShapeSpellings answers every shape's wire spelling, for a refusal that
+// names what a declaration may say: "doc, map, tab or blob".
+func AnswerShapeSpellings() string {
+	var tb textbuf.Buffer
+	for i, shape := range allShapes {
+		switch {
+		case i == 0:
+		case i == len(allShapes)-1:
+			tb.Str(" or ")
+		default:
+			tb.Str(", ")
+		}
+		tb.Str(shape.String())
+	}
+	return tb.String()
 }
 
 // ParseAnswerShape answers the shape a wire spelling names, and reports whether
@@ -284,7 +309,8 @@ func (op PipeOperator) Shapes() []AnswerShape {
 // anyShape is every shape: the global class acts on an answer whatever it holds.
 var anyShape = setOf(allShapes...)
 
-// rowShapes are the shapes that carry rows. ShapeDoc is one value and has none.
+// rowShapes are the shapes that carry rows. ShapeDoc is one value and has none,
+// and ShapeBlob is bytes with no structure at all.
 var rowShapes = setOf(ShapeMap, ShapeTab)
 
 // pipeCatalog is the operator language, in the order published surfaces show

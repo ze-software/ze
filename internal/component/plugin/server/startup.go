@@ -1538,8 +1538,8 @@ func validateShapeDecls(commands []rpc.CommandDecl) error {
 			return fmt.Errorf("answer shape %q is declared for no command path", clampDeclared(c.Shape))
 		}
 		if _, known := command.ParseAnswerShape(c.Shape); !known {
-			return fmt.Errorf("command %q declares answer shape %q, which is not doc, map or tab",
-				clampDeclared(c.Name), clampDeclared(c.Shape))
+			return fmt.Errorf("command %q declares answer shape %q, which is not %s",
+				clampDeclared(c.Name), clampDeclared(c.Shape), command.AnswerShapeSpellings())
 		}
 		if len(c.Columns) > maxColumns {
 			return fmt.Errorf("command %q declares %d columns (max %d)",
@@ -1710,8 +1710,8 @@ func registerPluginShapes(owner string, commands []rpc.CommandDecl) error {
 		}
 		shape, known := command.ParseAnswerShape(c.Shape)
 		if !known {
-			return fmt.Errorf("command %q declares answer shape %q, which is not doc, map or tab",
-				clampDeclared(c.Name), clampDeclared(c.Shape))
+			return fmt.Errorf("command %q declares answer shape %q, which is not %s",
+				clampDeclared(c.Name), clampDeclared(c.Shape), command.AnswerShapeSpellings())
 		}
 		declared = append(declared, command.PluginShape{
 			Command:       c.Name,

@@ -536,7 +536,8 @@ type CommandDecl struct {
 
 	// Shape is the wire spelling of what the answer holds: "doc" for one
 	// document or one value, "map" for rows that carry their own keys, "tab"
-	// for rows read against column names. It is a string because this package
+	// for rows read against column names, "blob" for text or bytes read as
+	// they are. It is a string because this package
 	// is the plugin contract and the typed value lives under internal/; the
 	// engine parses it once, at Stage 1, and refuses any other spelling.
 	Shape string `json:"shape,omitempty"`

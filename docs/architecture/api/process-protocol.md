@@ -721,7 +721,7 @@ that sends none keeps the behavior it had before these fields existed.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `commands[].shape` | string | `doc` for one document or one value, `map` for rows that carry their own keys, `tab` for rows read against column names |
+| `commands[].shape` | string | `doc` for one document or one value, `map` for rows that carry their own keys, `tab` for rows read against column names, `blob` for text or bytes read as they are |
 | `commands[].columns` | []string | The answer's keys, lowercase kebab-case, in the order a person reads them. Needs a shape that has rows. Maximum 64, each name 1 to 64 bytes |
 | `commands[].address-fields` | []string | The keys whose value holds an IP address or a prefix. Needs a shape. Maximum 16, each name 1 to 64 bytes |
 
@@ -1305,6 +1305,10 @@ field name, each value in the UPDATE event's `attr` shape. A declared field the
 route does not carry is left out, `fields` is absent for a filter that declared
 no route field, the announced NLRI are the `prefix` field and the withdrawn
 ones the read-only `withdrawn` field, and `raw` is sent only to a filter that declared the `raw` read.
+The same object carries the session facts the filter declared (`peer-name`,
+`peer-as`, `ibgp`, `rs-client`, the `source-peer-*` facts on export, and the
+rest of the table), so a filter learns which peer a route belongs to without a
+header member of its own.
 A field Ze cannot read (a malformed attribute) applies the filter's `on-error`
 instead of sending the message. The value shapes are in
 `docs/plugin-development/protocol.md`, "The Route Fields of filter-update".

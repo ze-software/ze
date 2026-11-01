@@ -67,7 +67,7 @@ func TestEveryOperatorStatesItsContract(t *testing.T) {
 		}
 		// The owner's first class: a global operation acts on the answer
 		// whatever it holds, so every command owes it on every shape.
-		if op.Class == ClassGlobal && len(op.Shapes()) != 3 {
+		if op.Class == ClassGlobal && len(op.Shapes()) != len(allShapes) {
 			t.Errorf("operator %q is global but acts on %v; a global operator owes every shape",
 				op.Name, op.Shapes())
 		}
@@ -76,9 +76,12 @@ func TestEveryOperatorStatesItsContract(t *testing.T) {
 		if op.Class == ClassData && op.Applies(ShapeDoc) {
 			t.Errorf("operator %q is data-dependent but applies to doc, which has no rows", op.Name)
 		}
+		if op.Class == ClassData && op.Applies(ShapeBlob) {
+			t.Errorf("operator %q is data-dependent but applies to blob, which has no rows", op.Name)
+		}
 		// The third acts on a SEQUENCE of answers, so it says nothing about
 		// what one answer holds and must apply to every shape.
-		if op.Class == ClassStream && len(op.Shapes()) != 3 {
+		if op.Class == ClassStream && len(op.Shapes()) != len(allShapes) {
 			t.Errorf("operator %q acts on a stream but applies to %v; the shape of one answer does not decide it",
 				op.Name, op.Shapes())
 		}

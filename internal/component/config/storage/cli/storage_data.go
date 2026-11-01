@@ -6,12 +6,10 @@
 // returned an exit code, while YANG declared a wire method for each that no
 // daemon handler implements.
 //
-// `show data cat` is deliberately NOT converted. It answers the BYTES of one
-// stored file, which may be YAML, JSON, a certificate or a binary blob. Those
-// bytes are the answer; wrapping them in a record would corrupt the one use the
-// command has, and no pipe operator has anything to do with them. It keeps its
-// plain handler, and the published page says it reaches no pipe layer, which is
-// the truth rather than an omission.
+// `show data cat` answers the BYTES of one stored file, which may be YAML,
+// JSON, a certificate or a binary blob. Those bytes are the answer, so it
+// answers a command.Blob: the local routes print the bytes unchanged, and a
+// route that carries the answer as JSON names the encoding they travel in.
 
 package cli
 
@@ -68,4 +66,32 @@ func dataRegistered(validated command.ValidatedArgs) command.LocalAnswer {
 		})
 	}
 	return command.LocalAnswer{Payload: map[string]any{"patterns": rows}}
+}
+
+// catAnswer answers `show data cat [--path <store>] <key>`: the bytes of the
+// stored file as a Blob, or the refusal in Diagnostic. It writes nothing itself
+// (command.LocalDataHandler).
+func catAnswer(storePath string, args []string) command.LocalAnswer {
+	if len(args) != 1 {
+		return command.LocalRefusal(1, "usage: ze data cat <key>\n")
+	}
+
+	s, err := openStore(storePath, false)
+	if err != nil {
+		return storageRefusal(err)
+	}
+	defer s.Close() //nolint:errcheck // best-effort close
+
+	data, err := s.ReadKey(args[0])
+	if err != nil {
+		return storageRefusal(err)
+	}
+	return command.LocalAnswer{Payload: command.Blob(data), Code: 0}
+}
+
+// dataCat answers `show data cat`. The store path may be given as --path
+// anywhere among the words, as `ze data --path <store> cat <key>` takes it.
+func dataCat(validated command.ValidatedArgs) command.LocalAnswer {
+	storePath, remaining := extractPathFlag(validated.Tokens())
+	return catAnswer(storePath, remaining)
 }

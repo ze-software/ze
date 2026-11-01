@@ -8,10 +8,10 @@ offline to already-captured output.
 Which operators a given command owes is a property of that command, not of the
 language: `ze help command --json` publishes the list per command, and an
 operator the command's answer cannot support is refused by name rather than
-answered wrongly. A command that only ever prints text, with no handler on any
-surface answering with data, reaches no pipe layer at all and publishes no
-operator: `show data cat` returns the bytes of one stored file, and wrapping
-them in a record would corrupt its one use.
+answered wrongly. A command whose answer is text or bytes, such as `show data
+cat` returning the bytes of one stored file, declares the `blob` shape: it
+prints the bytes unchanged, `| json` shows them inside an envelope that names
+their encoding, and every row operator is refused by name.
 <!-- source: cmd/ze/help_command.go -- operatorsFor, pathHasOnlyPlainLocalHandler -->
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 
@@ -173,7 +173,8 @@ The three classes are the contract:
 `shapes` names the answer shapes the operator applies to, using the same words
 the answer head uses on the wire: `doc` for one document or one value, `map`
 for rows that describe themselves, `tab` for rows read against declared column
-names.
+names. `blob` names text or bytes read as they are, which no answer head
+writes: a `blob` command's answer travels in a `doc` head.
 
 <!-- source: cmd/ze/ze_core_pipe.go -- printPipeCatalogJSON -->
 <!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->

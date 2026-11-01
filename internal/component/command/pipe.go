@@ -919,9 +919,15 @@ func validateDeclaredShape(command string, ops []pipeOp) string {
 		// arguments, so naming it here would echo a file path back at an
 		// operator who just typed it.
 		var tb textbuf.Buffer
-		return tb.Str(entry.Name).Str(" cannot apply here: this command answers ").
+		tb.Str(entry.Name).Str(" cannot apply here: this command answers ").
 			Str(shapeDescription(shape)).Str(", and ").Str(entry.Name).
-			Str(" acts on ").Str(operatorNeeds(entry)).String()
+			Str(" acts on ").Str(operatorNeeds(entry))
+		if shape == ShapeBlob {
+			// The bytes have no rows to select from, so the fix is to read
+			// them whole, or to take the encoded form a program can parse.
+			tb.Str("; read it whole with | text, or as JSON with | json")
+		}
+		return tb.String()
 	}
 	return ""
 }
@@ -948,6 +954,8 @@ func shapeDescription(shape AnswerShape) string {
 		return "rows that describe themselves"
 	case ShapeTab:
 		return "rows read against a declared column order"
+	case ShapeBlob:
+		return "text or bytes, which hold no rows or fields"
 	default:
 		panic("BUG: unknown answer shape")
 	}
@@ -1624,6 +1632,17 @@ func configuredDefault(sessionFormat string) pipeKind {
 	}
 }
 
+// defaultFormatFor answers the format a chain naming none renders in. A
+// command declaring ShapeBlob renders as text whatever the configured default
+// is, because its text rendering is the bytes the operator asked for: a stored
+// file shown as a table or as YAML of its envelope is not the file.
+func defaultFormatFor(command, sessionFormat string) pipeKind {
+	if shape, declared := ShapeForCommand(command); declared && shape == ShapeBlob {
+		return pipeText
+	}
+	return configuredDefault(sessionFormat)
+}
+
 // ProcessPipesDefaultFormatChecked is processPipesChecked with the configured
 // default appended when the chain names no explicit format.
 //
@@ -1659,7 +1678,7 @@ func processPipesDefaultFormat(input, sessionFormat string, saveAllowed bool) (c
 	}
 
 	if !hasFormatOp(ops) {
-		ops = append(ops, pipeOp{kind: configuredDefault(sessionFormat)})
+		ops = append(ops, pipeOp{kind: defaultFormatFor(command, sessionFormat)})
 	}
 
 	return command, func(rawJSON string) string {

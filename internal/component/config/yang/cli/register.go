@@ -62,11 +62,9 @@ func init() {
 	// `show yang doc` renders documentation PROSE for a reader, and the same
 	// facts already reach a machine through `ze help command --json`.
 	// Inventing a second record for them would be a second surface to keep
-	// true, so it keeps its plain handler.
-	command.MustRegisterLocal("show yang doc", func(validated command.ValidatedArgs) int {
-		args := validated.Tokens()
-		return Run(append([]string{subDoc}, args...))
-	})
+	// true, so it answers the prose as a command.Blob, printed unchanged.
+	command.MustRegisterLocalData("show yang doc", dataDoc, registry.Meta{}, command.RenderLocalAnswer)
+	command.RegisterShape([]string{"show yang doc"}, command.ShapeBlob)
 
 	// Both answer ROWS. The tree's rows are its TOP-LEVEL nodes, each carrying
 	// its own children, so `| first 1` answers one subtree and `| match` keeps

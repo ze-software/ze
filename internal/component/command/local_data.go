@@ -155,20 +155,31 @@ func RegisterLocalData(path string, handler LocalDataHandler, meta registry.Meta
 // with a 129-character key reached it although the leaf declares 1..128.
 func plainLocalData(path string, handler LocalDataHandler, render func(string, any) int) LocalHandler {
 	return func(validated ValidatedArgs) int {
-		// A nonzero code with a payload is an ANSWER the command exits
-		// nonzero on, not an error with nothing to say: `show config validation`
-		// renders the diagnostics of a config it rejects and exits 1. The
-		// renderer's own failure wins, because then nothing was printed.
-		answer := handler(validated)
-		writeLocalDiagnostic(answer.Diagnostic)
-		if answer.Payload == nil {
-			return answer.Code
-		}
-		if renderCode := render(path, answer.Payload); renderCode != 0 {
-			return renderCode
-		}
+		return printLocalAnswer(path, handler(validated), render)
+	}
+}
+
+// PrintLocalAnswer prints a local-data answer the way the `ze <verb>` route
+// does: its Diagnostic on stderr, then its payload through RenderLocalAnswer,
+// and answers the exit code. An owner's own root spelling of a command (`ze
+// config cat`) prints through here, so the two spellings cannot drift apart.
+func PrintLocalAnswer(path string, answer LocalAnswer) int {
+	return printLocalAnswer(path, answer, RenderLocalAnswer)
+}
+
+func printLocalAnswer(path string, answer LocalAnswer, render func(string, any) int) int {
+	// A nonzero code with a payload is an ANSWER the command exits nonzero
+	// on, not an error with nothing to say: `show config validation` renders
+	// the diagnostics of a config it rejects and exits 1. The renderer's own
+	// failure wins, because then nothing was printed.
+	writeLocalDiagnostic(answer.Diagnostic)
+	if answer.Payload == nil {
 		return answer.Code
 	}
+	if renderCode := render(path, answer.Payload); renderCode != 0 {
+		return renderCode
+	}
+	return answer.Code
 }
 
 // MustRegisterLocalData is RegisterLocalData, and panics rather than letting a
@@ -356,7 +367,15 @@ func HasLocalData(path string) bool {
 //
 // It is what a data handler's `ze <verb>` form uses, so the two forms of one
 // command render through the same code and cannot drift apart.
+//
+// A Blob is printed as its bytes, unchanged: no format is applied and no
+// newline is added, because the bytes are the answer (a stored file, a
+// formatted config) and a shell redirect of this route must reproduce them.
 func RenderLocalAnswer(path string, payload any) int {
+	if blob, isBlob := payload.(Blob); isBlob {
+		os.Stdout.Write(blob) //nolint:errcheck // CLI output, as WriteAnswer
+		return 0
+	}
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		return 1

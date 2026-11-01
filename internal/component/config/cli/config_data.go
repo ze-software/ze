@@ -51,9 +51,9 @@ const (
 
 // withRuntimeStore runs fn against the process's config storage.
 //
-// It is storageShortcut's half that acquires the store, without the half that
-// dispatches a subcommand by name, so a data handler reaches the same storage
-// the printing handler does.
+// It opens the store the `ze config` subcommands open when no store is handed
+// to RunWithStorage, so a data handler reaches the same storage the printing
+// handler does.
 func withRuntimeStore(configPath string, fn func(storage.Storage) command.LocalAnswer) command.LocalAnswer {
 	store, err := storage.OpenReadOnly(resolve.StoreDir(configPath))
 	if err != nil {

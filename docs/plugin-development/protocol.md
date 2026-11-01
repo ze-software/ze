@@ -226,7 +226,7 @@ Each `CommandDecl` has these fields:
 | `completable` | `bool` | Whether the command supports tab completion |
 | `hidden` | `bool` | Whether the command is left out of help and completion |
 | `deprecated-names` | `[]string` | Older spellings that still reach this command |
-| `shape` | `string` | What the answer holds: `doc`, `map` or `tab` |
+| `shape` | `string` | What the answer holds: `doc`, `map`, `tab` or `blob` |
 | `columns` | `[]string` | The answer's keys, in the order a person reads them. Needs a `shape` that has rows. Maximum 64 |
 | `address-fields` | `[]string` | The keys whose value holds an IP address or a prefix. Needs a `shape`. Maximum 16 |
 
@@ -687,6 +687,25 @@ shapes:
 | `protocol` | `"ebgp"` or `"ibgp"`: the session the route came from (import) or goes to (export) | `"ebgp"` |
 | `origin-as` | the origin AS number, or `"none"` for RFC 6811's NONE | `65002` |
 
+A filter may also declare the facts of the session the route is judged on.
+The plain names describe the session's peer: the peer the route came from on
+import, the peer it goes to on export. The `source-` names describe, on
+export, the peer a forwarded route came from; a route Ze originated has none.
+A fact the session does not hold is left out, never sent as a zero or an
+empty string.
+
+| Field | Shape | Left out when | Example |
+|-------|-------|---------------|---------|
+| `peer-name`, `source-peer-name` | string: the peer's config name | never, once the peer is known | `"edge"` |
+| `peer-group`, `source-peer-group` | string: the peer's group | the peer is in no group | `"clients"` |
+| `peer-address`, `source-peer-address` | string: the peer's address | never, once the peer is known | `"192.0.2.1"` |
+| `local-as` | the local AS number on this session | the session has none yet | `65000` |
+| `peer-as`, `source-peer-as` | the peer's AS number | a dynamic peer still resolving its AS | `65001` |
+| `route-server-as` | the AS the route server acts on for a route-server client | the peer is not a route-server client | `64999` |
+| `ibgp`, `source-ibgp` | boolean: an internal session, an RFC 7705 migration session included | never, once the peer is known | `false` |
+| `rs-client`, `source-rs-client` | boolean: the peer is a configured route-server client | never, once the peer is known | `true` |
+| `llgr-advertised` | boolean: the OPEN Ze sent this session carried the Long-Lived Graceful Restart Capability (RFC 9494 Section 3) | on export: only the received path knows it | `true` |
+
 For example, a filter that declared `community`, `as-path` and
 `local-preference` reads
 `"fields":{"community":["65001:100"],"as-path":[65001,65002],"local-preference":100}`.
@@ -709,6 +728,8 @@ For example, a filter that declared `community`, `as-path` and
   filter that declared no `reads` fails the route under its `on-error`.
 <!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
 <!-- source: internal/component/bgp/policyview/register_writers.go -- the field writers -->
+<!-- source: internal/component/bgp/policyview/session.go -- ImportSession, ExportSession, the session fact answers -->
+<!-- source: internal/component/bgp/policyview/register.go -- sessionFacts -->
 <!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON, AppendWithdrawnNLRIJSON -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
 <!-- source: internal/component/bgp/policychain/external.go -- judgeExternal -->

@@ -219,6 +219,37 @@ value. The tool's own `leroot.Answer` keeps the token slice and reads the judged
 tokens.
 <!-- source: internal/le/le/root/leroot.go -- Register, toolHandler, Run -->
 
+#### Text and bytes answers
+
+A command whose answer IS text or bytes (a stored file, a formatted config, a
+page of documentation) answers a `command.Blob` and declares the `blob` shape
+(`command.ShapeBlob`). `show config cat`, `show config fmt`, `show config graph`,
+`show data cat` and `show yang doc` answer this way. The bytes are what the
+operator asked for, so the plain `ze <verb>` route prints them unchanged, with
+no format applied and no newline added (`RenderLocalAnswer`), and the root
+spellings (`ze config cat`, `ze data cat`, `ze yang doc`) print the same answer
+through `command.PrintLocalAnswer`. A help page, a refusal, a password warning,
+`fmt --check`'s verdict and `fmt --diff`'s hunks travel in the diagnostic and
+reach stderr, where they always went.
+
+A route that carries the answer as JSON receives
+`{"blob":{"encoding":"utf-8","content":"..."}}`. Content that is not valid
+UTF-8 travels as `"encoding":"base64"`, because `json.Marshal` would replace each
+invalid byte and the caller could not recover the file; `command.DecodeBlob`
+reverses either form and refuses an encoding it does not know. The text
+renderer registered under `blob` prints the content, and a chain naming no
+format renders a `blob` command as text whatever the configured default is, so
+`ze cli -c "show data cat <key>"` prints the file and `| json` prints the
+envelope. The global operators act on a blob as on any answer. Every data
+operator is refused by name before the command runs, because bytes have no
+rows or fields: `match cannot apply here: this command answers text or bytes,
+which hold no rows or fields, and match acts on rows; read it whole with | text,
+or as JSON with | json`.
+<!-- source: internal/component/command/blob.go -- Blob, MarshalJSON, DecodeBlob, renderBlobText -->
+<!-- source: internal/component/command/pipe_catalog.go -- ShapeBlob, AnswerShapeSpellings -->
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape, defaultFormatFor -->
+<!-- source: internal/component/command/local_data.go -- RenderLocalAnswer, PrintLocalAnswer -->
+
 This differs from the offline fallback above: a fallback is a second answer for
 a command the daemon normally serves, tried only after the connection fails. A
 local-data command has no daemon side at all, registers no RPC, and therefore
@@ -2748,14 +2779,14 @@ so a plugin written before this channel existed keeps its old behavior.
 
 | Field | Holds |
 |-------|-------|
-| `shape` | `doc`, `map` or `tab`, the same three words the answer head uses on the wire |
+| `shape` | `doc`, `map` or `tab`, the three words the answer head uses on the wire, or `blob` for text or bytes read as they are (a `blob` answer travels in a `doc` head) |
 | `columns` | the answer's keys, in the order a person reads them. It needs a shape with rows |
 | `address-fields` | the keys whose value holds an address. It needs a shape |
 
 `validateShapeDecls` reads the three fields where `validatePipeDecls` reads the
 aliases. It refuses four declarations by name:
 
-- a spelling that is not one of the three words.
+- a spelling that is not one of the four words.
 - a column or address-field list with no shape.
 - a declaration on a blank command path.
 - a list or a name past its bound.

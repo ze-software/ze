@@ -1397,7 +1397,7 @@ Commands: []sdk.CommandDecl{{
 }},
 ```
 
-The shape MUST be `doc`, `map` or `tab`, and a column or address-field list MUST
+The shape MUST be `doc`, `map`, `tab` or `blob`, and a column or address-field list MUST
 come with a shape. One command path carries one declaration, so make every
 branch of your handler answer the same shape whatever argument it takes. The
 field list, the bounds and the four refusals are in

@@ -32,14 +32,6 @@ func subcommands() string {
 	return textbuf.Join(cmds, ", ")
 }
 
-// storageShortcut shares argument parsing with the config root command.
-func storageShortcut(sub string) command.LocalHandler {
-	return func(validated command.ValidatedArgs) int {
-		args := validated.Tokens()
-		return Run(append([]string{sub}, args...))
-	}
-}
-
 func init() {
 	registry.MustRegisterRootHandler("config", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
@@ -83,25 +75,24 @@ func init() {
 		ShortHelp: "Show what changed between the running and candidate configurations.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
-	command.MustRegisterLocalMeta("show config fmt", func(validated command.ValidatedArgs) int {
-		args := validated.Tokens()
-		return Run(append([]string{"fmt"}, args...))
-	}, registry.Meta{ShortHelp: "Pretty-print the config with consistent formatting and ordering."})
+	command.MustRegisterLocalData("show config fmt", func(validated command.ValidatedArgs) command.LocalAnswer {
+		return fmtAnswer(validated.Tokens())
+	}, registry.Meta{ShortHelp: "Pretty-print the config with consistent formatting and ordering."},
+		command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config validation", dataValidate, registry.Meta{
 		ShortHelp: "Check a config for errors without applying it.",
 		Description: "Both the grammar of the file and the meaning of its values are checked, and each " +
 			"problem is reported with the diagnostic code that explains it.",
 		Mode: modeOffline,
 	}, command.RenderLocalAnswer)
-	command.MustRegisterLocalMeta("show config graph", func(validated command.ValidatedArgs) int {
-		args := validated.Tokens()
-		return Run(append([]string{"graph"}, args...))
+	command.MustRegisterLocalData("show config graph", func(validated command.ValidatedArgs) command.LocalAnswer {
+		return graphAnswer(validated.Tokens())
 	}, registry.Meta{
 		ShortHelp: "Show how components and peers depend on each other, as JSON.",
 		Description: "It takes a config file path, or - to read the file on stdin. Inactive blocks are " +
 			"pruned before the graph is built, so a deactivated peer contributes no edge and the " +
 			"answer describes the config as it would run.",
-	})
+	}, command.RenderLocalAnswer)
 
 	// History shortcuts resolve the store lazily after parsing arguments.
 	command.MustRegisterLocalData("show config history", dataHistory, registry.Meta{
@@ -124,6 +115,15 @@ func init() {
 	command.RegisterColumns([]string{"show config history"},
 		command.ColumnOrder{keyRevision, "timestamp", keyPath, "state"})
 	command.RegisterColumns([]string{"show config list"}, command.ColumnOrder{keySource, keyPath})
-	command.MustRegisterLocalMeta("show config cat", storageShortcut("cat"),
-		registry.Meta{ShortHelp: "Print the full configuration text for a stored snapshot."})
+	command.MustRegisterLocalData("show config cat", func(validated command.ValidatedArgs) command.LocalAnswer {
+		return catAnswer(nil, validated.Tokens())
+	}, registry.Meta{ShortHelp: "Print the full configuration text for a stored snapshot."},
+		command.RenderLocalAnswer)
+
+	// cat, fmt and graph answer TEXT the operator reads as it is (a stored
+	// file, a formatted config, the graph's indented JSON), so each answers a
+	// command.Blob, prints unchanged, and refuses the row operators by name.
+	command.RegisterShape([]string{
+		"show config cat", "show config fmt", "show config graph",
+	}, command.ShapeBlob)
 }

@@ -292,7 +292,7 @@ Commands are declared with these fields:
 | `Description` | string | No | The LONG explanation this command's own help page prints, under the summary. At most 4096 bytes, newlines kept |
 | `Args` | []string | No | Expected argument names (for help/completion) |
 | `Completable` | bool | No | Whether the command supports tab completion |
-| `Shape` | string | No | What the answer holds: `doc`, `map` or `tab` |
+| `Shape` | string | No | What the answer holds: `doc`, `map`, `tab` or `blob` |
 | `Columns` | []string | No | The answer's keys, in the order a person reads them. Needs a `Shape` that has rows |
 | `AddressFields` | []string | No | The keys whose value holds an IP address or a prefix. Needs a `Shape` |
 
@@ -333,7 +333,7 @@ err := p.Run(ctx, &sdk.Registration{
 
 Four rules decide whether the engine accepts the declaration:
 
-- The shape MUST be `doc`, `map` or `tab`. Any other spelling fails startup.
+- The shape MUST be `doc`, `map`, `tab` or `blob`. Any other spelling fails startup.
 - A `Columns` or `AddressFields` list MUST come with a `Shape`.
 - A column name MUST be a key your handler writes, in the same spelling. The
   engine cannot check this, and a name that names nothing orders nothing.

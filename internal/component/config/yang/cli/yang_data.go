@@ -11,10 +11,10 @@
 // two offline introspection commands. It buys one definition of the answer's
 // shape, rather than two somebody has to keep in step.
 //
-// `show yang doc` is NOT converted. It renders documentation PROSE for a
-// reader, and the same facts already reach a machine as structured data
-// through `ze help command --json`. Inventing a second record for them would
-// be a second surface to keep true.
+// `show yang doc` renders documentation PROSE for a reader, and the same facts
+// already reach a machine as structured data through `ze help command --json`.
+// Inventing a second record for them would be a second surface to keep true,
+// so it answers the prose itself, as a command.Blob.
 
 package cli
 
@@ -28,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The two filter flags `show yang tree` accepts, spelled as an operator types
@@ -110,4 +111,47 @@ func dataCompletion(validated command.ValidatedArgs) command.LocalAnswer {
 	}
 	groups := collectCollisions(root, options.minPrefix)
 	return decodeWritten(func(w *bytes.Buffer) error { return formatCollisionsJSON(w, groups) })
+}
+
+// dataDoc answers `show yang doc`.
+func dataDoc(validated command.ValidatedArgs) command.LocalAnswer {
+	return docAnswer(validated.Tokens())
+}
+
+// docAnswer answers `yang doc [--list] [<command>]`: the documentation text as
+// a Blob, or the refusal in Diagnostic. It writes nothing itself
+// (command.LocalDataHandler).
+func docAnswer(args []string) command.LocalAnswer {
+	var diag textbuf.Buffer
+	fs := flag.NewFlagSet("yang doc", flag.ContinueOnError)
+	fs.SetOutput(&diag)
+	list := fs.Bool("list", false, "list all commands")
+	fs.Usage = func() { docHelpPage().WriteTo(&diag, slogutil.UseColor(os.Stderr)) }
+
+	// The flag package wrote the help page, or the flag error and the page,
+	// into diag. `-h` asked for the page, so it succeeds as it always did, and
+	// a refused flag exits 2 as the flag package's own exit did.
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return command.LocalRefusal(0, diag.String())
+		}
+		return command.LocalRefusal(2, diag.String())
+	}
+
+	var out bytes.Buffer
+	if *list {
+		if err := formatDocList(&out); err != nil {
+			return yangRefusal(err)
+		}
+		return command.LocalAnswer{Payload: command.Blob(out.Bytes()), Code: 0}
+	}
+
+	if fs.NArg() < 1 {
+		return command.LocalRefusal(1, "Usage: ze yang doc <command> or ze yang doc --list\n")
+	}
+
+	if err := formatDocCommand(&out, textbuf.Join(fs.Args(), " ")); err != nil {
+		return yangRefusal(err)
+	}
+	return command.LocalAnswer{Payload: command.Blob(out.Bytes()), Code: 0}
 }

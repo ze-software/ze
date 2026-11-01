@@ -36,16 +36,13 @@ func init() {
 	}, command.RenderLocalAnswer)
 
 	// `show data cat` answers the BYTES of one stored file, which may be YAML,
-	// JSON, a certificate or a binary blob. Those bytes are the answer: wrapping
-	// them in a record would corrupt the one use the command has, and no pipe
-	// operator has anything to do with them. It keeps its plain handler, and the
-	// published page says it reaches no pipe layer, which is the truth.
-	command.MustRegisterLocal("show data cat", func(validated command.ValidatedArgs) int {
-		args := validated.Tokens()
-		return Run(append([]string{"cat"}, args...))
-	})
+	// JSON, a certificate or a binary blob. Those bytes are the answer, so it
+	// answers a command.Blob, prints them unchanged, and refuses the row
+	// operators by name.
+	command.MustRegisterLocalData("show data cat", dataCat, registry.Meta{}, command.RenderLocalAnswer)
 
 	command.RegisterShape([]string{"show data list", "show data registered"}, command.ShapeTab)
+	command.RegisterShape([]string{"show data cat"}, command.ShapeBlob)
 	command.RegisterColumns([]string{"show data list"}, command.ColumnOrder{"key"})
 	command.RegisterColumns([]string{"show data registered"},
 		command.ColumnOrder{"pattern", "description"})

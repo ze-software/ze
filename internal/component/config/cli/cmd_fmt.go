@@ -10,9 +10,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -24,31 +26,38 @@ var ErrOldConfig = errors.New("config needs migration")
 // input and acting on -w, --check or --diff, so the unit tests and the command
 // run one path. source names the input in a refusal: the path, or "-" for stdin.
 func configFmtBytes(source string, input []byte) (string, bool, error) {
+	formatted, hasChanges, _, err := formatConfigBytes(source, input)
+	return formatted, hasChanges, err
+}
+
+// formatConfigBytes is configFmtBytes with the advisory weakness of each
+// password it hashed, which the command reports beside its answer. It writes
+// nothing: the caller decides where the warnings go.
+func formatConfigBytes(source string, input []byte) (string, bool, []string, error) {
 	// The set and set-meta forms are flat command lists, the form the editor
 	// stores. The hierarchical parser would refuse their first word as an
 	// unknown keyword, which names neither the form nor the conversion.
 	if form := config.DetectFormat(string(input)); form != config.FormatHierarchical {
-		return "", false, setFormRefusal(source, form)
+		return "", false, nil, setFormRefusal(source, form)
 	}
 
 	schema, err := config.YANGSchema()
 	if err != nil {
-		return "", false, fmt.Errorf("YANG schema: %w", err)
+		return "", false, nil, fmt.Errorf("YANG schema: %w", err)
 	}
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(input))
 	if err != nil {
-		return "", false, fmt.Errorf("parse error: %w", err)
+		return "", false, nil, fmt.Errorf("parse error: %w", err)
 	}
 
 	formatted, weaknesses, err := fmtTree(tree, schema)
 	if err != nil {
-		return "", false, err
+		return "", false, nil, err
 	}
-	printPasswordWeaknesses(weaknesses)
 	hasChanges := string(input) != formatted
 
-	return formatted, hasChanges, nil
+	return formatted, hasChanges, weaknesses, nil
 }
 
 // fmtTree prints a parsed tree as fmt writes it, after the one transform
@@ -86,9 +95,15 @@ func hashPlaintextPasswords(tree *config.Tree, schema *config.Schema) ([]string,
 // printPasswordWeaknesses shows on stderr each weakness hashPlaintextPasswords
 // returned, the last point the writer still holds the plaintext.
 func printPasswordWeaknesses(weaknesses []string) {
+	var b textbuf.Buffer
+	writePasswordWeaknesses(&b, weaknesses)
+	b.StdErr() //nolint:errcheck // terminal output, advisory
+}
+
+// writePasswordWeaknesses writes one warning line for each weakness.
+func writePasswordWeaknesses(diag *textbuf.Buffer, weaknesses []string) {
 	for _, weakness := range weaknesses {
-		var b textbuf.Buffer
-		b.Str("warning: ").Str(weakness).Byte('\n').StdErr() //nolint:errcheck // terminal output, advisory
+		diag.Str("warning: ").Str(weakness).Byte('\n')
 	}
 }
 
@@ -106,116 +121,140 @@ func setFormRefusal(source string, form config.ConfigFormat) error {
 		Str(formKeyword).Str(" ").Str(formHierarchical).Str(" ").Str(source).String())
 }
 
+// cmdFmt is `ze config fmt`: the answer of `show config fmt`, printed.
 func cmdFmt(args []string) int {
-	fs := flag.NewFlagSet("config fmt", flag.ExitOnError)
+	return command.PrintLocalAnswer("show config fmt", fmtAnswer(args))
+}
+
+// fmtHelpPage is the help page of `ze config fmt`.
+func fmtHelpPage() *helpfmt.Page {
+	return &helpfmt.Page{
+		Command:   "ze config fmt",
+		ShortHelp: "Format and normalize configuration file",
+		Usage:     []string{"ze config fmt [options] <config-file>"},
+		Sections: []helpfmt.HelpSection{
+			{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
+				{Name: "-w", Desc: "Write result to source file"},
+				{Name: "--check", Desc: "Check if formatting needed (exit 1 if changes)"},
+				{Name: "--diff", Desc: "Show unified diff of changes"},
+			}},
+			{Title: helpSectionExitCodes, Entries: []helpfmt.HelpEntry{
+				{Name: "0", Desc: "Success (or no changes needed with --check)"},
+				{Name: "1", Desc: "Changes needed (with --check)"},
+				{Name: "2", Desc: "Error (file not found, parse error, old config detected)"},
+			}},
+		},
+		Examples: []string{
+			"ze config fmt config.conf          Print formatted config to stdout",
+			"ze config fmt -w config.conf       Write back to file",
+			"ze config fmt --check config.conf  Check if formatting needed (for CI)",
+			"ze config fmt --diff config.conf   Show what would change",
+			"ze config fmt -                    Read from stdin, write to stdout",
+		},
+	}
+}
+
+// writeFmtUsage writes the help page and the note that follows it. The page is
+// colored when stderr, where the local routes print it, is a terminal.
+func writeFmtUsage(diag *textbuf.Buffer) {
+	fmtHelpPage().WriteTo(diag, slogutil.UseColor(os.Stderr))
+	diag.Str("\nFormats current config files only. For old configs, run \"ze config migrate\" first.\n")
+}
+
+// fmtAnswer answers `show config fmt`: the formatted config as a Blob, and
+// every line the command reports (the help page, a refusal, a password
+// warning, the --check verdict, the --diff hunks) in Diagnostic. It writes
+// nothing itself (command.LocalDataHandler); with -w it writes the config file
+// it was given, which is what -w asks for.
+func fmtAnswer(args []string) command.LocalAnswer {
+	var diag textbuf.Buffer
+	fs := flag.NewFlagSet("config fmt", flag.ContinueOnError)
+	fs.SetOutput(&diag)
 	write := fs.Bool("w", false, "write result to source file")
 	check := fs.Bool("check", false, "check if formatting needed (exit 1 if changes)")
 	diff := fs.Bool("diff", false, "show unified diff of changes")
+	fs.Usage = func() { writeFmtUsage(&diag) }
 
-	fs.Usage = func() {
-		p := helpfmt.Page{
-			Command:   "ze config fmt",
-			ShortHelp: "Format and normalize configuration file",
-			Usage:     []string{"ze config fmt [options] <config-file>"},
-			Sections: []helpfmt.HelpSection{
-				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
-					{Name: "-w", Desc: "Write result to source file"},
-					{Name: "--check", Desc: "Check if formatting needed (exit 1 if changes)"},
-					{Name: "--diff", Desc: "Show unified diff of changes"},
-				}},
-				{Title: helpSectionExitCodes, Entries: []helpfmt.HelpEntry{
-					{Name: "0", Desc: "Success (or no changes needed with --check)"},
-					{Name: "1", Desc: "Changes needed (with --check)"},
-					{Name: "2", Desc: "Error (file not found, parse error, old config detected)"},
-				}},
-			},
-			Examples: []string{
-				"ze config fmt config.conf          Print formatted config to stdout",
-				"ze config fmt -w config.conf       Write back to file",
-				"ze config fmt --check config.conf  Check if formatting needed (for CI)",
-				"ze config fmt --diff config.conf   Show what would change",
-				"ze config fmt -                    Read from stdin, write to stdout",
-			},
-		}
-		p.WriteErr()
-		fmt.Fprintf(os.Stderr, "\nFormats current config files only. For old configs, run \"ze config migrate\" first.\n")
-	}
-
+	// The flag package wrote the help page, or the flag error and the page,
+	// into diag. `-h` asked for the page, so it succeeds as it always did.
 	if err := fs.Parse(args); err != nil {
-		return exitError
+		if errors.Is(err, flag.ErrHelp) {
+			return command.LocalRefusal(exitOK, diag.String())
+		}
+		return command.LocalRefusal(exitError, diag.String())
 	}
 
 	if fs.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "error: missing config file (use - for stdin)\n")
-		fs.Usage()
-		return exitError
+		diag.Str("error: missing config file (use - for stdin)\n")
+		writeFmtUsage(&diag)
+		return command.LocalRefusal(exitError, diag.String())
 	}
 
 	configPath := fs.Arg(0)
 
 	input, err := cliio.ReadFile(configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return exitError
+		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
 
-	formatted, hasChanges, err := configFmtBytes(configPath, input)
+	formatted, hasChanges, weaknesses, err := formatConfigBytes(configPath, input)
 	if err != nil {
-		var tb textbuf.Buffer
-		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // terminal output, the command is failing
-		return exitError
+		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
+	writePasswordWeaknesses(&diag, weaknesses)
 
 	if *check {
-		if hasChanges {
-			if configPath == "-" {
-				fmt.Fprintf(os.Stderr, "stdin needs formatting\n")
-			} else {
-				fmt.Fprintf(os.Stderr, "%s needs formatting\n", configPath)
-			}
-			return 1
+		if !hasChanges {
+			return command.LocalAnswer{Code: exitOK, Diagnostic: diag.String()}
 		}
-		return exitOK
+		if configPath == "-" {
+			diag.Str("stdin needs formatting\n")
+		} else {
+			diag.Str(configPath).Str(" needs formatting\n")
+		}
+		return command.LocalRefusal(1, diag.String())
 	}
 
 	if *diff {
 		if hasChanges {
-			printDiff(configPath, string(input), formatted)
+			writeFmtDiff(&diag, configPath, string(input), formatted)
 		}
-		return exitOK
+		return command.LocalAnswer{Code: exitOK, Diagnostic: diag.String()}
 	}
 
 	if *write {
-		if cliio.IsStdin(configPath) {
-			// `fmt -w -` emits the formatted config to stdout (a pipeline stage),
-			// always -- even when the input was already formatted. Routed through
-			// cliio (not fmt.Print) so it shares the one stdout sink.
-			if err := cliio.WriteFile(configPath, []byte(formatted), 0o600); err != nil {
-				fmt.Fprintf(os.Stderr, "error: %v\n", err)
-				return exitError
-			}
-			return exitOK
-		}
-		if hasChanges {
-			if err := cliio.WriteFile(configPath, []byte(formatted), 0o600); err != nil {
-				fmt.Fprintf(os.Stderr, "error: %v\n", err)
-				return exitError
-			}
-			fmt.Fprintf(os.Stderr, "Formatted: %s\n", configPath)
-		}
-		return exitOK
+		return fmtWriteAnswer(&diag, configPath, formatted, hasChanges)
 	}
 
-	fmt.Print(formatted)
-	return exitOK
+	return command.LocalAnswer{Payload: command.Blob(formatted), Code: exitOK, Diagnostic: diag.String()}
 }
 
-func printDiff(path, original, formatted string) {
+// fmtWriteAnswer answers `fmt -w`. `fmt -w -` answers the formatted config on
+// stdout (a pipeline stage), always, even when the input was already
+// formatted. A named file is rewritten only when formatting changed it.
+func fmtWriteAnswer(diag *textbuf.Buffer, configPath, formatted string, hasChanges bool) command.LocalAnswer {
+	if cliio.IsStdin(configPath) {
+		return command.LocalAnswer{Payload: command.Blob(formatted), Code: exitOK, Diagnostic: diag.String()}
+	}
+	if !hasChanges {
+		return command.LocalAnswer{Code: exitOK, Diagnostic: diag.String()}
+	}
+	if err := cliio.WriteFile(configPath, []byte(formatted), 0o600); err != nil {
+		diag.Str(command.LocalErrorLine(err))
+		return command.LocalRefusal(exitError, diag.String())
+	}
+	diag.Str("Formatted: ").Str(configPath).Byte('\n')
+	return command.LocalAnswer{Code: exitOK, Diagnostic: diag.String()}
+}
+
+// writeFmtDiff writes the hunks `fmt --diff` reports, which the local routes
+// print on stderr as they always did.
+func writeFmtDiff(diag *textbuf.Buffer, path, original, formatted string) {
 	origLines := strings.Split(original, "\n")
 	fmtLines := strings.Split(formatted, "\n")
 
-	fmt.Fprintf(os.Stderr, "--- %s (original)\n", path)
-	fmt.Fprintf(os.Stderr, "+++ %s (formatted)\n", path)
+	diag.Str("--- ").Str(path).Str(" (original)\n")
+	diag.Str("+++ ").Str(path).Str(" (formatted)\n")
 
 	maxLines := max(len(fmtLines), len(origLines))
 
@@ -237,21 +276,22 @@ func printDiff(path, original, formatted string) {
 				inHunk = true
 				hunkStart = i
 				start := max(i-3, 0)
-				fmt.Fprintf(os.Stderr, "@@ -%d,%d +%d,%d @@\n", start+1, len(origLines)-start, start+1, len(fmtLines)-start)
+				diag.Str("@@ -").Int(int64(start + 1)).Byte(',').Int(int64(len(origLines) - start)).
+					Str(" +").Int(int64(start + 1)).Byte(',').Int(int64(len(fmtLines) - start)).Str(" @@\n")
 				for j := start; j < i; j++ {
 					if j < len(origLines) {
-						fmt.Fprintf(os.Stderr, " %s\n", origLines[j])
+						diag.Byte(' ').Str(origLines[j]).Byte('\n')
 					}
 				}
 			}
 			if i < len(origLines) && origLine != "" {
-				fmt.Fprintf(os.Stderr, "-%s\n", origLine)
+				diag.Byte('-').Str(origLine).Byte('\n')
 			}
 			if i < len(fmtLines) && fmtLine != "" {
-				fmt.Fprintf(os.Stderr, "+%s\n", fmtLine)
+				diag.Byte('+').Str(fmtLine).Byte('\n')
 			}
 		} else if inHunk {
-			fmt.Fprintf(os.Stderr, " %s\n", origLine)
+			diag.Byte(' ').Str(origLine).Byte('\n')
 			if i-hunkStart > 6 {
 				inHunk = false
 			}

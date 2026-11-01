@@ -16,7 +16,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/suggest"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // helpSectionOptions is the section title every usage page in this file carries.
@@ -226,43 +225,21 @@ func writeOptionError(err error, page *helpfmt.Page) int {
 	return 1
 }
 
+// cmdDoc is `ze yang doc`: the answer of `show yang doc`, printed.
 func cmdDoc(args []string) int {
-	fs := flag.NewFlagSet("yang doc", flag.ExitOnError)
-	list := fs.Bool("list", false, "list all commands")
-	fs.Usage = func() {
-		p := helpfmt.Page{
-			Command:   "ze yang doc",
-			ShortHelp: "Command documentation",
-			Usage:     []string{"ze yang doc [--list] [<command>]"},
-			Sections: []helpfmt.HelpSection{
-				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
-					{Name: "--list", Desc: "List all commands"},
-				}},
-			},
-		}
-		p.WriteErr()
-	}
-	if err := fs.Parse(args); err != nil {
-		return 1
-	}
+	return command.PrintLocalAnswer("show yang doc", docAnswer(args))
+}
 
-	if *list {
-		if err := formatDocList(os.Stdout); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			return 1
-		}
-		return 0
+// docHelpPage is the help page of `ze yang doc`.
+func docHelpPage() *helpfmt.Page {
+	return &helpfmt.Page{
+		Command:   "ze yang doc",
+		ShortHelp: "Command documentation",
+		Usage:     []string{"ze yang doc [--list] [<command>]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
+				{Name: "--list", Desc: "List all commands"},
+			}},
+		},
 	}
-
-	if fs.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "Usage: ze yang doc <command> or ze yang doc --list\n")
-		return 1
-	}
-
-	cliCommand := textbuf.Join(fs.Args(), " ")
-	if err := formatDocCommand(os.Stdout, cliCommand); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 1
-	}
-	return 0
 }

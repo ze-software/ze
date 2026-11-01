@@ -11,6 +11,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -266,27 +267,9 @@ func cmdList(storePath string, args []string) int {
 	return 0
 }
 
+// cmdCat is `ze data cat`: the answer of `show data cat`, printed.
 func cmdCat(storePath string, args []string) int {
-	if len(args) != 1 {
-		fmt.Fprintf(os.Stderr, "usage: ze data cat <key>\n")
-		return 1
-	}
-
-	s, err := openStore(storePath, false)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 2
-	}
-	defer s.Close() //nolint:errcheck // best-effort close
-
-	data, readErr := s.ReadKey(args[0])
-	if readErr != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", readErr)
-		return 2
-	}
-
-	os.Stdout.Write(data) //nolint:errcheck // stdout write
-	return 0
+	return command.PrintLocalAnswer("show data cat", catAnswer(storePath, args))
 }
 
 func cmdRegistered(_ string, args []string) int {

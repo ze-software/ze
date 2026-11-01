@@ -10,8 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/resolve"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -118,26 +120,29 @@ func configSearchDirs() []string {
 
 // cmdCatWithStorage prints the content of a stored key.
 func cmdCatWithStorage(store storage.Storage, args []string) int {
+	return command.PrintLocalAnswer("show config cat", catAnswer(store, args))
+}
+
+// catAnswer answers `show config cat <key>`: the stored file's bytes as a
+// Blob, or the refusal in Diagnostic. A nil store opens the default store
+// read-only. It writes nothing itself (command.LocalDataHandler).
+func catAnswer(store storage.Storage, args []string) command.LocalAnswer {
 	if len(args) != 1 {
-		fmt.Fprintf(os.Stderr, "usage: ze config cat <key>\n")
-		return 1
+		return command.LocalRefusal(1, "usage: ze config cat <key>\n")
 	}
 	if store == nil {
 		var err error
 		store, err = storage.OpenReadOnly(resolve.StoreDir(""))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: config cat: %v\n", err)
-			return exitError
+			var tb textbuf.Buffer
+			return command.LocalRefusal(exitError, tb.Str("error: config cat: ").Err(err).Byte('\n').String())
 		}
 		defer store.Close() //nolint:errcheck // Read-only inspection.
 	}
 
 	data, err := store.ReadFile(args[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return exitError
+		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
-
-	os.Stdout.Write(data) //nolint:errcheck // stdout write
-	return exitOK
+	return command.LocalAnswer{Payload: command.Blob(data), Code: exitOK}
 }

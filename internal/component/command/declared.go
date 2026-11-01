@@ -297,7 +297,7 @@ func ColumnNames(orders []ColumnOrder) [][]string {
 // writes nothing for one, and that is the ONE such declaration a daemon
 // tolerates. validateShapeDecls (internal/component/plugin/server/startup.go)
 // judges the list before any registry is written, and it returns an error both
-// for a shape that is not doc, map or tab and for an empty shape carrying a
+// for a shape no AnswerShape spells (AnswerShapeSpellings) and for an empty shape carrying a
 // column order or an address field. That error fails the WHOLE Stage 1
 // registration, so a plugin declaring either serves none of its commands. What
 // reaches registerPluginShapes, and what this walk passes over, is a
