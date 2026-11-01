@@ -92,3 +92,46 @@ func TestDynamicPeerFailsClosedOnAnUnresolvableChain(t *testing.T) {
 	openAndResolve(peer)
 	require.Equal(t, compiledMarker{first: "fail-closed"}, peer.ImportPolicy().Library())
 }
+
+// definitionTemplated is a TemplatedChain built from one config's definitions:
+// definition stands for the list a member's match names, so two values differ
+// only when a reload edited a definition, never a ref.
+type definitionTemplated struct{ definition string }
+
+func (d definitionTemplated) CompileResolved(resolved filterapi.Policy) (filterapi.Policy, error) {
+	return resolved.WithLibrary(compiledMarker{first: resolved.Filters()[0].Name + "@" + d.definition}), nil
+}
+
+func definitionGroup(t *testing.T, definition string) *DynamicGroupConfig {
+	t.Helper()
+	dg := dynamicReloadGroup(t)
+	dg.Settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "ALLOW-$remote_as"}}, routepolicy.FinalAccept).
+		WithTemplated(definitionTemplated{definition: definition})
+	return dg
+}
+
+// TestDynamicPeerRecompilesOnADefinitionOnlyReload proves that a reload which
+// leaves an established dynamic peer's chain refs unchanged and edits only a
+// definition the chain's match reaches recompiles the peer's running chain
+// from the new template, in place.
+//
+// VALIDATES: planDynamicGroupsLocked reads the changed template as a change
+// (peerSettingsEqual over the templated chain) and writeDynamicTemplateLocked
+// compiles the swapped template for the learned AS.
+// PREVENTS: the silent reload: the commit succeeds and the peer keeps the
+// match compiled from the startup list.
+func TestDynamicPeerRecompilesOnADefinitionOnlyReload(t *testing.T) {
+	addr := netip.MustParseAddr("185.1.69.48")
+	r, peer := newDynamicReloadReactor(t, definitionGroup(t, "startup"), addr, nil)
+
+	openAndResolve(peer)
+	require.Equal(t, compiledMarker{first: "ALLOW-65010@startup"}, peer.ImportPolicy().Library())
+	session := peer.currentSession()
+
+	reloadDynamicGroups(t, r, definitionGroup(t, "edited"))
+	got := peer.ImportPolicy()
+	assert.Equal(t, []routepolicy.Ref{{Name: "ALLOW-65010"}}, got.Filters())
+	assert.Equal(t, compiledMarker{first: "ALLOW-65010@edited"}, got.Library(), "the running chain is compiled from the edited definition")
+	assert.False(t, got.Templated(), "the running chain is resolved, never the template")
+	assert.Same(t, session, peer.currentSession(), "the swap keeps the session")
+}
