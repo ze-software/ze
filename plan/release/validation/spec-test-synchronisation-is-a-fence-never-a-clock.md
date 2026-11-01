@@ -74,6 +74,12 @@ terminator. That finding must be checked against the current capture producer
 when this spec resumes; it is not a current reproduction or proof that the
 capture obligation has been met.
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `wait-outlives-the-process-it-waits-on.md` | 2026-11-01 | runner `waitReady` polls daemon.ready to its deadline after a foreground ze exited |
+
 ## Required Reading
 
 ### Architecture Docs
