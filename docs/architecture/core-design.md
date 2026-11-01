@@ -1615,7 +1615,11 @@ member decision after the walk, never in a display-only `Chain.Trace` run. A
 live run asks each report's `Enabled` first and collects the judged prefixes
 only when some line is on, so with every line off the walk allocates nothing. `compileLibraryChain` leaves a
 chain with no library member on the text chain, where a plugin filter is sent the update
-text beside its declared `fields`. A plugin filter in a chain that does hold a
+text beside its declared `fields`, unless the chain names a filter type whose plugin
+answers over the route view: its plugin registered the type with
+`policychain.MustRegisterViewFilter` because it answers sets and intents, which only
+the library chain applies, so the chain compiles to the library chain with every plugin
+filter an external member. A plugin filter in a chain that does hold a
 library member joins that chain as a member (below).
 
 - **Wired at peer load and on both policy steps.** `bgpServesFilterType`
@@ -1775,6 +1779,7 @@ library member joins that chain as a member (below).
 <!-- source: internal/component/bgp/policychain/apply.go -- Bases, Chain.Apply -->
 <!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, libraryASPathOps, libraryNLRIOps -->
 <!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChains, compileLibraryChain, parseAttributeBases -->
+<!-- source: internal/component/bgp/policychain/plugin_filters.go -- MustRegisterViewFilter, AnswersOverView -->
 <!-- source: internal/component/bgp/policychain/external.go -- judgeExternal, applyExternalSets -->
 <!-- source: internal/component/bgp/reactor/filter_library.go -- libraryCaller -->
 <!-- source: internal/component/policy/fields.go -- InstanceSets -->

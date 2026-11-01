@@ -39,7 +39,9 @@ func compileLibraryChains(settings []*reactor.PeerSettings, reg *policy.Registry
 }
 
 // compileLibraryChain answers p with its library chain, p itself when the
-// chain names no library member. A plugin filter in the same chain becomes an
+// chain names neither a library member nor a filter type whose plugin answers
+// over the route view (policychain.AnswersOverView). A plugin filter in the
+// same chain becomes an
 // external member of the library chain, in chain order: it is sent the
 // fields it declared through the chain's view, so it reads what an earlier
 // member set, and its sets fold beside theirs (policychain external.go). The
@@ -60,6 +62,9 @@ func compileLibraryChain(p filterapi.Policy, reg *policy.Registry, bases policyc
 			members = append(members, policychain.Member{Name: entry.Name})
 			library = true
 			continue
+		}
+		if ok && policychain.AnswersOverView(entry.Type) {
+			library = true // its sets apply only on the library chain
 		}
 		pluginName, filterName, _ := strings.Cut(ref.Name, ":")
 		members = append(members, policychain.Member{Name: filterName, Plugin: pluginName})
