@@ -42,6 +42,10 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		// ecf2804fc1, whose comment no longer cites the owner decision by label.
 		// Repinned for b0f097d650: accounting now goes to accounting-port, 1813
 		// by default, so 04-radius-acct-attrs names 1812, where its mock listens.
+		// Repinned for 747d82e911: 02-ppp-bgp-redistribute-frr ze.conf states a
+		// bgp-level filter with import and export final accept, because RFC 8212
+		// (ff2aac12b0) refuses an EBGP direction with no policy and the scenario
+		// redistributes the subscriber route to FRR over EBGP (65001 to 65002).
 		"Dockerfile.ze":                                      "87225f0aa63c839df3ec291de8b4a734091022569c7583104dc006f47dde968f",
 		"Dockerfile.lac":                                     "ce8cb0c18ee610e092dd37b966c683a11baa63605675ec6b799d99cdda2c4b4f",
 		"daemons":                                            "6c0f1be1b722ff89041b5bea87ed1212dd0595019b44730616de9e338cb08cd0",
@@ -50,7 +54,7 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		"scenarios/01-ppp-ipv4/xl2tpd.conf":                  "37c2eb77bfdb632f4c03ef5ba06a71b3ddb8200369e30395d6bf8b5d738a3cae",
 		"scenarios/01-ppp-ipv4/ppp-options":                  "f09bbbc2e509408723541c5009d4819b9d01cc9d81b4f0961117c31f53314004",
 		"scenarios/01-ppp-ipv4/l2tp-secrets":                 "6c08c01fa683780b644f441f8d7f4191d64feaf05a035fe4fe79f63e7365b7e5",
-		"scenarios/02-ppp-bgp-redistribute-frr/ze.conf":      "439e7a53836e4ef5a0e4994897fb9fcbebb7471da1f5785b9563e679628d60b9",
+		"scenarios/02-ppp-bgp-redistribute-frr/ze.conf":      "631a1d25346c81b46cb2a022436663969147319753f423c9f9ff492059df4ac1",
 		"scenarios/02-ppp-bgp-redistribute-frr/xl2tpd.conf":  "37c2eb77bfdb632f4c03ef5ba06a71b3ddb8200369e30395d6bf8b5d738a3cae",
 		"scenarios/02-ppp-bgp-redistribute-frr/ppp-options":  "f09bbbc2e509408723541c5009d4819b9d01cc9d81b4f0961117c31f53314004",
 		"scenarios/02-ppp-bgp-redistribute-frr/l2tp-secrets": "6c08c01fa683780b644f441f8d7f4191d64feaf05a035fe4fe79f63e7365b7e5",
