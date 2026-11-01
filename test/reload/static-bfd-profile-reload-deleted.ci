@@ -1,6 +1,6 @@
 # Test: a bfd-only edit that deletes a profile a static next-hop names is refused
 #
-# VALIDATES: a SIGHUP whose only change deletes profile fast is refused by static, because the bfd change makes static a participant.
+# VALIDATES: a SIGHUP whose only change deletes profile fast is refused, naming the static next-hop leaf that still references it.
 # PREVENTS: a bfd-only change reaching only the bfd plugin, so the commit accepts a profile a next-hop still names.
 #
 # Method: ze starts on the first config, the trigger fixture copies the second
@@ -39,7 +39,7 @@ static {
 }
 EOF_CONF
 
-tmpfs=next.conf:terminator=EOF_NEXT
+tmpfs=next.conf:refused=config-yang-reference:terminator=EOF_NEXT
 bfd {
 	enabled true
 	profile slow {
@@ -64,8 +64,9 @@ cmd=background:seq=1:exec=le test fixture reload/static-bfd-profile-reload-delet
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
 # Stop once the refused reload has reported, never after a timer.
 await=stderr:contains=reload error:then=stop
-# The refusal names the plugin that verified, so another plugin's check cannot
-# stand in for this one.
-expect=stderr:contains=plugin static verify failed: static route
-expect=stderr:contains=is not defined under bfd
+# The refusal names the leaf that still references the deleted profile: the
+# bfd-profile reference is a YANG reference (bfd profile, declared once), so
+# the reload is refused at validation, before any plugin is asked.
+expect=stderr:contains=static/table[default]/route[192.0.2.0/24]/next/hop[10.0.0.1]/bfd-profile
+expect=stderr:contains=no bfd-profile "fast" is configured
 reject=stderr:contains=sighup reload complete

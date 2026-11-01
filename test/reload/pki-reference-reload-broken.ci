@@ -41,7 +41,7 @@ environment {
 }
 EOF_CONF
 
-tmpfs=broken.conf:terminator=EOF_BROKEN
+tmpfs=broken.conf:refused=config-yang-reference:terminator=EOF_BROKEN
 plugin {
 }
 
@@ -75,6 +75,6 @@ await=stderr:contains=reload error:then=stop
 await=stderr:contains=no-such-certificate
 expect=exit:code=0
 expect=stderr:contains=reload error
-expect=stderr:contains=environment.web.certificate
+expect=stderr:contains=environment/web/certificate
 expect=stderr:contains=no-such-certificate
 reject=stderr:pattern=sighup reload complete
