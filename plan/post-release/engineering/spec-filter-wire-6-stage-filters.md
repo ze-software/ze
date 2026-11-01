@@ -1,13 +1,13 @@
-# Spec: filter-wire-6-stage-filters -- stage-attached plugin filters replace `filterapi.Register`
+# Spec: filter-wire-6-stage-filters -- every `filterapi.Register` row becomes a plugin filter on both transports
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | plugin |
 | Priority | P3 |
 | Release reason | Child of `spec-filter-wire-0-umbrella` (post-release engineering). It also fixes shipped misbehaviour: `bgp-role` (RFC 9234 Section 5) and `bgp-filter-community` (RFC 7999 Section 3.1, RFC 8195) run forked accept every route with no error, which a release owes fixed whatever bucket the mechanism sits in |
 | RFC gaps | - |
-| Depends | `spec-filter-wire-0-umbrella` phases 1 and 3 (landed: 1a179d341e Stage 1 reads/sets, 29fc996ece batched `filter-update`, 4ee9ba017c typed bridge slot); the umbrella's D-13 `loop` row (engine step, in the parent session's tree at writing, committed before this spec starts) |
+| Depends | `spec-filter-wire-0-umbrella` phases 1 and 3 (landed: 1a179d341e Stage 1 reads/sets, 29fc996ece batched `filter-update`, 4ee9ba017c typed bridge slot); the umbrella's D-13 `loop` row (engine step, committed before this spec starts) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-01 |
@@ -20,76 +20,130 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 family into the one plugin filter mechanism (D-12): every filter owned by its
 plugin, called through the typed `DirectBridge` slot when the plugin runs
 internal and through the batched `filter-update` message when it runs forked.
-D-13 named the outcome for each row, but nobody designed the mechanism four of
-the rows need: a filter that is **attached to a fixed direction, stage and
-priority and applies to every peer**, with no operator chain reference. Today
-only `filterapi.Register` gives that, and only as a Go function pointer in the
-daemon.
 
-The defect this closes, read at the producer (umbrella session handoff, D-13
-inventory, re-read here): `bgp-filter-community`, `bgp-filter-community-relation`
-and `bgp-role` keep their per-peer config (and, for role, the role each peer's
-OPEN announced) in package globals their plugin's own callbacks fill. Run forked
-(`plugin { external ... }`), those callbacks fill the subprocess's copy, the
-daemon's copy stays empty, and the daemon-side filter functions find no config
-for any peer and accept every route unchanged. No error, no log line: RFC 9234
-Section 5 ingress and egress procedures, the RFC 7999 BLACKHOLE withholding and
-the RFC 8195 relation tags silently stop. `bgp-gr` and `bgp-rs` refuse to start
-forked for a separate reason (the `retention.Family` same-process call), so their
-rows are not silently broken today, but they hold the same function-pointer hooks.
+Thomas's decisions of 2026-11-01 (Key Design Decisions, "owner, 2026-11-01")
+fix the shape:
 
-Goal: one filter mechanism. A plugin declares at Stage 1 that a filter is
-attached at (direction, stage, priority); the reactor builds its ordered ingress
-and egress steps from those declarations, runs each through the existing
-external-member path of the library chain (slot internal, batch forked), and
-`filterapi.Filter`, `Register`, `IngressOrdered`, `EgressOrdered`,
-`ReadvertiseEgressFuncs`, `NotifyPeerRemoved` and `PreserveOpaqueAttributesFor`
-are deleted. Each moved filter's existing `.ci` passes with its plugin internal,
-and a forked twin of it that is red at HEAD passes after.
+1. **Everything is a filter.** Every row that used `filterapi.Register`
+   (`bgp-filter-community`, `bgp-filter-community-relation`, `bgp-role`, both
+   `bgp-gr` LLGR rows, `bgp-rs`) becomes a plugin filter served on both
+   transports.
+2. **A filter runs only on peers where it is set up.** There is no "every peer"
+   attachment and no runtime peer-declaration RPC. Two kinds of filter result:
+   - **Operator policy** (`bgp-filter-community` tag and strip, the community
+     relation tag): an ordinary chain member the operator names in the peer's
+     `filter import` / `filter export` chain, run only where named.
+   - **Mandatory protocol procedures** (`bgp-role` RFC 9234 Section 5 OTC;
+     `bgp-gr` LLGR ingress and egress, RFC 9494): enabled on a peer by that
+     peer's own feature config (`role`, the LLGR config), never by a chain
+     entry, because RFC 9234 Section 5: "The operator MUST NOT have the ability
+     to modify the procedures defined in this section." Such a filter is a
+     **bound procedure**: the plugin declares at Stage 1 which peer config path
+     binds it, and the engine binds it to exactly the peers whose resolved
+     config carries that path, outside the operator's chain.
+3. **`bgp-gr` and `bgp-rs` become real filters too, forked included.** This spec
+   moves graceful-restart retention (`retention.Family`, the same-process call
+   that makes `bgp-gr`, `bgp-rr` and `bgp-rs` refuse to run forked) onto the
+   event bus, so all three run on both transports with forked-run tests.
+
+The defect this closes, read at the producer (umbrella D-13 inventory, re-read
+here): `bgp-filter-community`, `bgp-filter-community-relation` and `bgp-role`
+keep their per-peer config (and, for role, the role each peer's OPEN announced)
+in package globals their plugin's own callbacks fill. Run forked, those
+callbacks fill the subprocess's copy, the daemon's copy stays empty, and the
+daemon-side filter functions accept every route unchanged. No error, no log
+line: RFC 9234 Section 5 ingress and egress procedures, the RFC 7999 BLACKHOLE
+withholding and the RFC 8195 relation tags silently stop. `bgp-gr`, `bgp-rr` and
+`bgp-rs` refuse to start forked (the `retention.Family` same-process call), so
+their rows are not silently broken today, but they cannot run forked at all.
+
+Goal: one filter mechanism, and no BGP plugin that must run in the daemon's
+process for its procedures to hold. `filterapi.Filter`, `Register`,
+`IngressOrdered`, `EgressOrdered`, `ReadvertiseEgressFuncs`, `NotifyPeerRemoved`,
+`PreserveOpaqueAttributesFor`, `retention.Publish` and `retention.Family` are
+deleted. Each moved filter's existing `.ci` passes with its plugin internal, and
+a forked twin of it that is red at HEAD (or, for gr, rr and rs, refused at
+HEAD) passes after.
 
 ## Required Reading
 
 ### Design doors
 
 - [ ] `ai/doors/system.md`
-  → Constraint: a plugin can run in another process; a plain Go call or package global that only the same-process callback fills is the classic silent defect. A per-route callback reaches DirectBridge as a typed slot of the protocol, and the same evaluator answers the batched message forked.
-  → Constraint: `pkg/plugin/rpc` is a published contract: the Stage 1 attachment, any new `FilterAction`, and any new field are wire changes, made on purpose with their pages (`process-protocol.md`, `docs/plugin-development/`).
+  → Constraint: a plugin can run in another process; a plain Go call or package global that only the same-process callback fills is the classic silent defect. A per-route callback reaches DirectBridge as a typed slot of the protocol, and the same evaluator answers the batched message forked. One-to-many notification with no answer goes on the EventBus: retention is that shape once the DOWN order is used.
+  → Constraint: `pkg/plugin/rpc` is a published contract: the Stage 1 binding, the `withdraw` `FilterAction`, and any new field are wire changes, made on purpose with their pages (`process-protocol.md`, `docs/plugin-development/`).
 - [ ] `ai/doors/bgp-engine.md`
   → Constraint: the engine reaches plugin features only through what they register, and never names a plugin package from the reactor. The "filterapi.Register for compiled-in filters" boundary and "A filterapi filter is in-process only" both stay true until the last row moves, and are edited in that commit.
   → Constraint: received bytes are borrowed (`IsAsyncSafe` false); the slot path reads them on the reactor goroutine, the forked path encodes declared fields only (D-12).
 - [ ] `ai/doors/bgp-plugins.md`
-  → Constraint: a plugin declares twice (`registry.Registration` and the `sdk.Registration` passed to `p.Run`) and both must agree; `./le plugin declarations check` judges it. The attachment is declared in both, from one `filterDecls()` value as `fakefilter` does.
+  → Constraint: a plugin declares twice (`registry.Registration` and the `sdk.Registration` passed to `p.Run`) and both must agree; `./le plugin declarations check` judges it. The binding is declared in both, from one `filterDecls()` value as `fakefilter` does.
+  → Constraint: "Another plugin" depends on "the dependency order on state events (`bgp-gr` before `bgp-rib`)": the retention event relies on that order and the page names it.
   → Decision: the hook table row "`filterapi.Register` filters -- in-process only" is deleted by this spec, and the typed filter slot with its forked equivalent stays the only filter hook.
 - [ ] `ai/doors/plugin-infra.md`
-  → Constraint: one engine-op entry per RPC; the SDK stays generic: no new `On*` callback for attached filters, `sdk.OnFilter` already installs one evaluator on both transports. `sdk.CheckFilterConformance` under `-race` is the fast-path contract gate for every evaluator this spec writes.
+  → Constraint: one engine-op entry per RPC; the SDK stays generic: no new `On*` callback for bound filters, `sdk.OnFilter` already installs one evaluator on both transports. `sdk.CheckFilterConformance` under `-race` is the fast-path contract gate for every evaluator this spec writes.
   → Constraint: one plugin failure stops the startup tier (owner ruling); a declaration refused at Stage 1 fails that plugin.
+  → Constraint: a name off the wire is looked up, never registered: a forked plugin's `bound-by` path is checked against the compiled schema, never added to it.
 - [ ] `ai/doors/core.md`
-  → Constraint: a registry holds value types and is the only list; `./le arch enumeration check` refuses a literal that restates it. The attached-step list is derived from declarations, never written.
+  → Constraint: a registry holds value types and is the only list; `./le arch enumeration check` refuses a literal that restates it. The bound-step list is derived from declarations and peer config, never written. Events register their payload type once (`events.Register[T]`).
 - [ ] `ai/doors/api-surfaces.md`
   → Constraint: no new command; the filter metrics stay named as they are (a Prometheus rename breaks dashboards).
+- [ ] `ai/doors/config-yang.md`
+  → Constraint: a backend that cannot apply a config exactly refuses it at verify: a peer whose config carries `filter ingress community` / `filter egress community` settings while its chain names no `bgp-filter-community` member is refused at verify, never accepted as a no-op.
+  → Constraint: values arrive as strings; a `bound-by` boolean leaf is read in its string form (`./le config coercion check`).
 - [ ] `ai/doors/le-tooling.md`
   → Constraint: forked twins are `.ci` files under `test/plugin/` run by `./le test`; a compiled Go fixture returns an error when an assertion fails; scoped package tests carry `-tags ze_bgp` through `./le job run`.
 
 ### Architecture Docs
 
 - [ ] `docs/architecture/core-design.md` "Ingress Filter Pipeline", "Policy Filter Chain"
-  → Constraint: ingress order is a declared property: stage, then priority, then name (`filterapi.LessOrder`), loop detection at `FilterStageProtocol`, the per-peer chain at `FilterStagePeerChain` (300) after every attached step. The new step list must sort identically.
-- [ ] `docs/architecture/api/process-protocol.md` "Runtime hot path", the Stage 1 `declare-registration`
-  → Constraint: `FilterDecl` (`name`, `name-pattern`, `direction`, `reads`, `sets`, `on-error`) is the Stage 1 filter contract; `registry.CheckFilterDeclarations` judges it in `runStartupHandshake`. The attachment extends this declaration and this judge, not a second declaration.
+  → Constraint: ingress order is a declared property: stage, then priority, then name (`filterapi.LessOrder`), loop detection at `FilterStageProtocol`, the per-peer chain at `FilterStagePeerChain` (300) after every bound step. Bound procedures keep their HEAD stages; community and relation leave the stage list for the chain (D-6 below).
+- [ ] `docs/architecture/api/process-protocol.md` "Runtime hot path", the Stage 1 `declare-registration`, "emit-event"
+  → Constraint: `FilterDecl` (`name`, `name-pattern`, `direction`, `reads`, `sets`, `on-error`) is the Stage 1 filter contract; `registry.CheckFilterDeclarations` judges it in `runStartupHandshake`. The binding extends this declaration and this judge, not a second declaration.
 - [ ] `docs/plugin-development/handlers.md` "Route filters"
-  → Constraint: an evaluator answers from what it holds and never waits on its own data (the batch shares one `FilterUpdateTimeout`). Role's and community's evaluators read only plugin memory and the declared fields: they satisfy this.
+  → Constraint: an evaluator answers from what it holds and never waits on its own data (the batch shares one `FilterUpdateTimeout`). Role's, community's, gr's and rs's evaluators read only plugin memory and the declared fields: they satisfy this.
 - [ ] `docs/architecture/meta/README.md`, `meta/role.md`, `meta/filter-community.md`
   → Constraint: route metadata keys `src-role`, `src-peer-role`, `stale`, `rebuilt` are a cross-plugin contract with fixed types (string, string, uint8, bool); the RIB reads `stale` from the received event's `Meta`. Moving the writers must keep the key, the type, and that the map reaches the received event and the egress steps.
 - [ ] `plan/post-release/engineering/spec-filter-wire-0-umbrella.md` D-12, D-13, R-14, AC-37
-  → Decision: this spec is the home of D-13's plugin rows (community, relation, role, gr, rs); AC-37 is closed through AC-6 to AC-13 here, and the umbrella's phase 4 table names this spec.
+  → Decision: this spec is the home of D-13's plugin rows (community, relation, role, gr, rs); AC-37 is closed through AC-6 to AC-13 here, and the umbrella's phase 4 row 4g names this spec.
 - [ ] `docs/architecture/api/architecture.md` "Attaching a Process to a Peer"
-  → Constraint: which process sees which peer's events is the peer's `attach process` block; an attached-filter plugin attached to no peer receives no `state` event today, which is why `PeerRemoved` exists. The scope Q-2 settles becomes that plugin's implicit attach for `state` only, and the page says so.
+  → Constraint: which process sees which peer's events is the peer's `attach process` block. A bound procedure's plugin receives the `state` event of every peer its filter is bound to (an implicit attach for `state` only), so the removal reaches it on both transports; the page says so.
 - [ ] `docs/architecture/api/ipc_protocol.md`
-  → Constraint: a request line is framed by its newline and answer lines are width-framed; the attachment and `withdraw` travel inside the existing JSON payloads, so framing is unchanged.
+  → Constraint: a request line is framed by its newline and answer lines are width-framed; the binding, `withdraw` and the retention event travel inside existing JSON payloads, so framing is unchanged.
 - [ ] `docs/architecture/config/syntax.md`
-  → Constraint: no config syntax changes: an attached filter is declared by its plugin, never written in a peer's `filter import`/`filter export` chain (alternative B rejected).
+  → Constraint: no config grammar changes. A bound procedure is never written in a chain; an operator-policy filter is named with the existing chain reference form.
+- [ ] `docs/features/ai-first.md` "diagnostic code registry" (the design doc `internal/core/diagnostic/codes.go` and `registry.go` declare)
+  → Constraint: a diagnostic code is registered once; deleting `doctor-bgp-gr-out-of-process` removes its registry entry and its `ze show diagnostic` text in the same commit, and the page's code list is regenerated, never hand-edited.
 - [ ] `docs/plugin-development/metrics.md` "When ConfigureMetrics Runs"
   → Constraint: `registry.Registration.ConfigureMetrics` is the plugin metrics hook; `filterapi.Filter.ConfigureMetrics` duplicates it for `bgp-filter-community` and goes.
+- [ ] `docs/guide/graceful-restart.md` "Keep the bgp-gr engine in the daemon process", the route-server and reflector DOWN paragraph
+  → Constraint: rr and rs decide retention while they handle the DOWN, synchronously, so a reconnect or Restart Time expiry that follows cannot change which families that DOWN withdraws. `bgp-gr` orders itself before both (`OptionalDependencies: bgp-rs`, `StartAfter: bgp-rr`, `gr/register.go`). The retention event keeps both properties.
+
+### Source read for the owner's decisions
+
+- [ ] `internal/component/bgp/retention/retention.go` - `Owner`, `Publish`, `Close`, `Family`: one process-global `atomic.Pointer` to gr's `familyRetained` lookup; `Family` answers false with no owner, a guard the comment names and that the three refusals depend on.
+  → Constraint: callers are exactly `rr/rr.go` `handleStateDown` (line ~433) and `rs/server_handlers.go` `handleStateDown` (line ~184), each once per distinct family of the departed source; gr publishes in `runGRPlugin` (`gr.go`). Nothing else reads it.
+- [ ] `internal/component/bgp/plugins/gr/gr_state.go` - `familyRetained` reads `peers[addr].staleFamilies`, set in `onSessionDownDeferred` while gr handles the DOWN.
+  → Constraint: the answer rr and rs need is fixed when gr's DOWN handler returns: it is the set gr computed for that DOWN.
+- [ ] `internal/component/bgp/server/events.go` `onPeerStateChange`, `deliverPeerState`, `sortByReverseDependencyTier`
+  → Constraint: "Deliver sequentially in dependency order — each process must complete before the next starts": the engine waits for each process's `EventResult` before delivering the same state event to the next, dependents first. gr is delivered the DOWN, and returns, before rr and rs are delivered it.
+- [ ] `internal/component/plugin/process/delivery.go` `Deliver`
+  → Constraint: every delivery to a process (state events and emitted bus events alike) goes into that process's one `eventChan`, FIFO.
+- [ ] `internal/component/plugin/server/dispatch.go` `deliverEvent`
+  → Constraint: `emit-event` enqueues into each subscriber's `eventChan` (`p.Deliver`) before the RPC returns, so an event gr emits inside its DOWN handler is queued to rr and rs before the engine delivers them the DOWN. An event with no peer address is not peer-scoped and reaches every subscriber with no `attach` grant; a peer-scoped one goes through `PeerScopedProcs`.
+- [ ] `internal/component/bgp/config/peers.go` `prependDefaultFilters`, `filterChainContains`
+  → Constraint: prepending into `ImportPolicy` makes the member an operator chain entry, so `inactive:` on it reaches it and an export member takes a destination off the RS fast path (`hasActiveFilter`, `forward_rs.go`). A bound procedure therefore lives beside the chain, never in it.
+- [ ] `internal/component/bgp/reactor/peer_settings.go` `PeerSettings` (`ImportPolicy`, `ExportPolicy`, `RSClient`, `RawCapabilityConfig`, `CapabilityConfigJSON`); `reactor/config.go` (`session rs-client` read from the peer's resolved map)
+  → Constraint: PeerSettings is built from the peer's resolved config map (bgp, group and peer levels merged). It already keeps derived forms of that map for plugin delivery (`CapabilityConfigJSON`); the binding reads the same resolved map, so group inheritance binds the same way it configures.
+- [ ] `internal/component/bgp/plugins/role/yang/ze-role.yang` - `container role` augmented at `/bgp/peer`, `/bgp/group/peer`, `/bgp/group`; "A peer with no role container sends no" role capability.
+  → Decision: `role` presence in the peer's resolved config binds `bgp-role`'s ingress and egress procedures.
+- [ ] `internal/component/bgp/plugins/gr/yang/` - `leaf long-lived-stale-time` under `session capability graceful-restart` at the three scopes: "When this leaf is set, Ze advertises the LLGR capability (code 71)".
+  → Decision: that leaf's presence binds the LLGR procedures; RFC 9494 Section 4.3 obliges exactly a speaker "that has advertised the Long-Lived Graceful Restart Capability to a neighbor".
+- [ ] `internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang` - `filter ingress community` / `filter egress community` (`tag`, `strip`, `relation-tag`, `relation-function`, `scrub-own-ga`, `scrub-keep-function`) at bgp, group and peer.
+  → Constraint: these settings stay where they are; what changes is that they apply only on a peer whose chain names the filter, and a peer carrying them without the member is refused at verify.
+- [ ] `internal/component/bgp/plugins/filter_community/blackhole.go` `blackholeReadvertiseRefused`; `internal/component/bgp/blackholecfg`; the `blackhole` container is `bgp-rib`'s YANG (`rib/yang/ze-rib.yang`)
+  → Constraint: the withholding refuses BLACKHOLE toward every eBGP, non-RS-client destination with no agreement. Its population is the peers WITHOUT the feature config, so no config-presence binding reaches it: Q-5.
+- [ ] `internal/component/bgp/plugins/rs/register.go`, `rs/server.go`, `rs/server_validation.go`
+  → Constraint: besides the retention refusal, `rs` reads `bgp-rib/validation-change` through `validationBus`, a `ze.EventBus` handle that `Registration.ConfigureEventBus` fills in the daemon only. Forked, `validationBus.Load()` is nil and the subscription is skipped with no log line (journal row below). `EnableRSForwarding` and `RelaysOnRSFastPath` are read by the daemon from the compiled registration and stay valid forked.
 
 ### RFC Summaries (Scope: protocol)
 
@@ -98,321 +152,376 @@ and a forked twin of it that is red at HEAD passes after.
   → Constraint (Section 5, ingress 3): "If a route is received from a Provider, a Peer, or an RS and the OTC Attribute is not present, then it MUST be added with a value equal to the AS number of the remote AS."
   → Constraint (Section 5, egress 1, a line break falls inside "RS-Client" as printed): "If a route is to be advertised to a Customer, a Peer, or an RS- Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS."
   → Constraint (Section 5, egress 2): "If a route already contains the OTC Attribute, it MUST NOT be propagated to Providers, Peers, or RSes."
-  → Constraint (Section 5, last paragraph): "The operator MUST NOT have the ability to modify the procedures defined in this section." So the OTC filter cannot be an operator chain member (an operator can mark a chain reference `inactive:`): it must be attached by the plugin. This decides alternative B below.
+  → Constraint (Section 5, last paragraph): "The operator MUST NOT have the ability to modify the procedures defined in this section." So the OTC filter is never an operator chain member: it is a bound procedure the operator cannot name, reorder or mark `inactive:`; removing the `role` container removes the role, and with it the obligation.
 - [ ] `rfc/short/rfc9494.md`, text `rfc/full/rfc9494.txt` Sections 4.3 and 4.6
-  → Constraint (4.3): "A BGP speaker that has advertised the Long-Lived Graceful Restart Capability to a neighbor MUST perform the following upon receiving a route from that neighbor with the LLGR_STALE community or upon attaching the LLGR_STALE community itself per Section 4.2:" then "The route SHOULD NOT be advertised to any neighbor from which the Long-Lived Graceful Restart Capability has not been received." So the ingress step needs "Ze advertised LLGR on this session" synchronously (today `PeerFilterInfo.LLGRAdvertised`), and the egress step needs "LLGR received from this destination" and a withdraw toward it.
-  → Constraint (4.6): "The neighbors MUST be internal (Internal BGP (IBGP) or Confederation) neighbors." "The NO_EXPORT community [RFC1997] MUST be attached to the stale routes." "The stale routes MUST have their LOCAL_PREF set to zero." So egress needs the destination's iBGP fact and community add and local-preference set, both already settable fields.
-- [ ] `rfc/short/rfc7999.md` Section 3.1, `rfc/short/rfc8195.md` Section 3.2
-  → Constraint: the BLACKHOLE withholding toward a non-agreeing eBGP destination is an egress suppress decision (`blackholeReadvertiseRefused`); the relation tag needs the source's iBGP fact and the source peer role `src-peer-role`.
+  → Constraint (4.3): "A BGP speaker that has advertised the Long-Lived Graceful Restart Capability to a neighbor MUST perform the following upon receiving a route from that neighbor with the LLGR_STALE community or upon attaching the LLGR_STALE community itself per Section 4.2:" then "The route SHOULD NOT be advertised to any neighbor from which the Long-Lived Graceful Restart Capability has not been received." So the ingress step is bound on the receiving peer and needs `llgr-advertised` synchronously; the egress step is keyed on the route's SOURCE (the neighbor Ze advertised LLGR to), runs toward every destination, and needs "LLGR received from this destination" and a withdraw toward it.
+  → Constraint (4.6): "The neighbors MUST be internal (Internal BGP (IBGP) or Confederation) neighbors." "The NO_EXPORT community [RFC1997] MUST be attached to the stale routes." "The stale routes MUST have their LOCAL_PREF set to zero." So egress needs the destination's iBGP fact, community add and local-preference set, both already settable fields.
+- [ ] `rfc/short/rfc4724.md`, text Section 4.2
+  → Constraint: the receiving speaker "MUST retain the routes received from the peer for all the address families that were previously received in the Graceful Restart Capability" (quoted at `rr.go` `handleStateDown`). Forked rr and rs must withhold the same families internal ones do.
+- [ ] `rfc/short/rfc7999.md`, text Section 3.1; `rfc/short/rfc8195.md` Section 3.2
+  → Constraint (7999 Section 3.1): "In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it." It binds every bilateral eBGP destination, configured or not (Q-5).
+  → Constraint: the relation tag needs the source's iBGP fact and the source peer role `src-peer-role`.
+- [ ] `rfc/short/rfc7947.md`, text Section 2.2
+  → Constraint: "Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients." This is `bgp-rs`'s egress procedure toward RS-client destinations, bound by `session rs-client`.
 
 **Key insights:**
-- The forked breakage is not a missing transport for a daemon-side function: the state those functions read lives in the plugin process. Running the evaluator in the plugin (`sdk.OnFilter`) puts the reader where the writer is, so role's `OnValidateOpen` learned roles and community's config apply are coherent internal and forked with no state shipped to the daemon.
-- What the plugin cannot know itself is reactor state: which peer (name, group, address) and, per route, `LLGRAdvertised`, the iBGP fact, local AS, route-server AS, the source peer on egress, and the ingress metadata. Those become declared reads, encoded only when declared (D-10 rule: the declared set is what is sent).
-- Every moved filter already has a library-chain-shaped answer except two: writing a route metadata key, and turning an announce into a withdraw (OTC ingress "ineligible" today rewrites the payload to its withdrawal, LLGR egress calls `ModAccumulator.SetWithdraw`).
+- The forked breakage is a reader in the wrong process, not a missing transport for a daemon-side function. Running the evaluator in the plugin (`sdk.OnFilter`) puts the reader where the writer is, so role's `OnValidateOpen` learned roles, community's config apply and gr's LLGR capability state are coherent internal and forked with no state shipped to the daemon.
+- What the plugin cannot know itself is reactor state: which peer, and per route `llgr-advertised`, the iBGP fact, local AS, route-server AS, the source peer on egress, the ingress metadata. Those become declared reads, encoded only when declared (D-10).
+- Two filter kinds, one mechanism: an operator chain member and a bound procedure both run as a one-member external chain through `runLibraryChain`. They differ only in who places them: the operator's chain, or the plugin's declared `bound-by` path evaluated against the peer's resolved config.
+- Retention needs no request and response: the state DOWN is delivered sequentially in reverse dependency order and every delivery to a process is FIFO, so a retention event gr emits inside its DOWN handler is already queued to rr and rs when their DOWN arrives.
 
 ## Current Behavior (MANDATORY)
 
-Read at HEAD 357b33c57c plus the parent session's uncommitted `loop` row.
+Read at HEAD 357b33c57c plus the parent session's `loop` row; the owner-decision sources re-read at ff15eecba0.
 
 **Source files read:**
-- [ ] `internal/component/bgp/filterapi/filterapi.go` - `Filter` (Name, Stage, Priority, Ingress, Egress, Readvertise, PreserveOpaqueAttributes, PeerRemoved, ConfigureMetrics), `Register`, `IngressOrdered`, `EgressOrdered`, `ReadvertiseEgressFuncs`, `IngressFilters`, `EgressFilters`, `NotifyPeerRemoved`, `PreserveOpaqueAttributesFor`, `LessOrder`, the stage constants (Protocol 0, Policy 100, Annotation 200, PeerChain 300), `PeerFilterInfo` (Address, PeerAS, LocalAS, RouterID, ASN4, Name, GroupName, AllowOwnAS, ClusterID, LoopDisabled, RSClient, RouteServerAS, IsIBGP, LLGRAdvertised), `EnableRSForwarding`, `SetMetricsRegistry`.
+- [ ] `internal/component/bgp/filterapi/filterapi.go` - `Filter` (Name, Stage, Priority, Ingress, Egress, Readvertise, PreserveOpaqueAttributes, PeerRemoved, ConfigureMetrics), `Register`, `IngressOrdered`, `EgressOrdered`, `ReadvertiseEgressFuncs`, `IngressFilters`, `EgressFilters`, `NotifyPeerRemoved`, `PreserveOpaqueAttributesFor`, `LessOrder`, the stage constants (Protocol 0, Policy 100, Annotation 200, PeerChain 300), `PeerFilterInfo`, `EnableRSForwarding`, `SetMetricsRegistry`.
 - [ ] `internal/component/bgp/reactor/filter_ordered.go` - `buildOrderedIngressSteps` (engine loop step, `IngressOrdered`, peer-chain step, stable sort by `LessOrder`), `buildOrderedEgressSteps`, `runIngressPolicyChain`, `runEgressPolicyChain`, `ingressPolicyWithdrawals`.
-- [ ] `internal/component/bgp/reactor/reactor_notify.go` - the ingress pass over `orderedIngressSteps`: an in-process step gets one shared `ingressMeta` map, a modified payload rebuilds the `WireUpdate`; the map becomes `msg.Meta` on the received event.
-- [ ] `internal/component/bgp/reactor/reactor.go` - `egressFilters` (`filterapi.EgressFilters`), `orderedIngressSteps`, `orderedEgressSteps`, `readvertiseEgressFilters` built at startup; the metrics-enable block calls `filterapi.SetMetricsRegistry`.
-- [ ] Egress rails reading `r.egressFilters` directly: `forward_rs.go` (RS fast path, two sites), `reactor_api_forward.go` (one site, plus the ordered `forwardUpdateCore` loop), `reactor_api_forward_batch.go`, `reactor_api_relay.go`; the stale readvertise rail `reactor_api_batch.go` (`readvertiseEgressFilters`). Six rails in all.
-- [ ] `internal/component/bgp/reactor/reactor_peers.go` - removal calls `filterapi.NotifyPeerRemoved` with Address, Name, GroupName.
-- [ ] `internal/component/bgp/reactor/peer_forward_facts.go` - `facts.preserveOpaqueAttributes = filterapi.PreserveOpaqueAttributesFor(facts.filterInfo)` once per snapshot.
-- [ ] `internal/component/bgp/reactor/filter_library.go` - `runLibraryChain`: view reset, `ExternalRoute` (direction, peer, peer AS, raw), `libraryCaller.CallFilter` to `CallFilterUpdate` under `FilterUpdateTimeout`, `Chain.Apply` into a `ModAccumulator`, `rewriteLibrary`.
-- [ ] `internal/component/bgp/policychain/external.go`, `external_view.go` - `Member{Name, Plugin}`, `ExternalDeclaration{Reads, Sets, OnError}`, `ExternalCaller`, `judgeExternal`, `applyExternalSets`, `memberView` (fields encoded on first `Fields()` call only).
+- [ ] `internal/component/bgp/reactor/reactor_notify.go` - the ingress pass over `orderedIngressSteps`: an in-process step gets one shared `ingressMeta` map; the map becomes `msg.Meta` on the received event.
+- [ ] `internal/component/bgp/reactor/reactor.go` - `egressFilters`, `orderedIngressSteps`, `orderedEgressSteps`, `readvertiseEgressFilters` built once at startup; `filterapi.SetMetricsRegistry`.
+- [ ] Egress rails reading `r.egressFilters` directly: `forward_rs.go` (RS fast path, two sites), `reactor_api_forward.go` (one site, plus the ordered `forwardUpdateCore` loop), `reactor_api_forward_batch.go`, `reactor_api_relay.go`; the stale readvertise rail `reactor_api_batch.go`. Six rails in all.
+- [ ] `internal/component/bgp/reactor/reactor_peers.go` - removal calls `filterapi.NotifyPeerRemoved`.
+- [ ] `internal/component/bgp/reactor/peer_forward_facts.go` - `facts.preserveOpaqueAttributes = filterapi.PreserveOpaqueAttributesFor(facts.filterInfo)` once per snapshot, part of the fan-out dedup identity and the body cache key in `forward_rs.go` and `reactor_api_forward.go`.
+- [ ] `internal/component/bgp/reactor/filter_library.go` - `runLibraryChain`, `libraryCaller.CallFilter` to `CallFilterUpdate` under `FilterUpdateTimeout`, `Chain.Apply` into a `ModAccumulator`, `rewriteLibrary`.
+- [ ] `internal/component/bgp/policychain/external.go`, `external_view.go` - `Member{Name, Plugin}`, `ExternalDeclaration{Reads, Sets, OnError}`, `ExternalCaller`, `judgeExternal`, `applyExternalSets`, `memberView`.
 - [ ] `internal/component/bgp/policyview/view.go`, `register.go`, `fields_json.go` - `View`, `Session{EBGP, Sender, SenderKnown}`, the field readers and JSON writers registered from `init()`.
-- [ ] `internal/component/policy/fields.go`, `internal/component/bgp/config/register.go` - `MustRegisterField`, `MustRegisterAttachment`; BGP's `carries` and `settable` lists for `bgp import`/`bgp export`.
-- [ ] `pkg/plugin/rpc/types.go`, `enums.go`, `filter_slot.go` - `FilterDecl`, `FilterUpdateInput` (filter, direction, peer, peer-as, update, fields, raw), `FilterUpdateOutput` (action, update, raw, sets, teardown, notify codes, error), `FilterSet{field, action, value}` with actions set/increment/decrement/add/remove, `FilterAction` accept/reject/modify, `FilterView`, `FilterRoute`, `DirectBridge.SetFilterSlot`/`CallFilterSlot`.
+- [ ] `internal/component/policy/fields.go`, `internal/component/bgp/config/register.go` - `MustRegisterField`, `MustRegisterAttachment`; BGP's `carries` and `settable` lists.
+- [ ] `pkg/plugin/rpc/types.go`, `enums.go`, `filter_slot.go` - `FilterDecl`, `FilterUpdateInput`, `FilterUpdateOutput`, `FilterSet`, `FilterAction` accept/reject/modify, `FilterView`, `FilterRoute`, `DirectBridge.SetFilterSlot`/`CallFilterSlot`.
 - [ ] `internal/component/plugin/registry/filter_declaration.go`, `registry.go` - `DeclaredFilter`, `CheckFilterDeclarations`, `SetRuntimeFilterDeclarations`/`RuntimeFilterDeclarations`, `Registration.Filters`.
-- [ ] `internal/component/plugin/registration.go` - `FilterRegistration` carries `Overrides` ("Default filters this filter replaces"), copied at `startup.go` and read nowhere else found.
-- [ ] `internal/component/bgp/config/peers.go` - `prependDefaultFilters`: config `loop-detection` entries are prepended to every peer's import chain unless the chain already names them.
-- [ ] Plugins: `filter_community/register.go`, `filter_community.go` (`ingressFilter`, `egressFilter`, `relationIngressFilter`, globals `definitions`, `peerConfigs`, `agreements`), `role/register.go`, `role/otc.go` (`OTCIngressFilter`, `OTCEgressFilter`), `role/role.go` (`getFilterConfig`, `filterRemoteRoles` filled by `OnValidateOpen`, `forgetRemovedPeer`, `pruneLearnedRoles` at commit), `gr/register.go`, `gr/gr_egress.go` (`LLGREgressFilter`, `egressState`), `gr/gr_ingress.go` (`LLGRIngressFilter`), `gr/gr.go` and `rs/server.go` (both refuse `!p.IsInternal()`), `rs/register.go` (`preserveOpaqueAttributes` returns `peer.RSClient`).
+- [ ] `internal/component/plugin/registration.go` - `FilterRegistration.Overrides`, copied at `startup.go`, read nowhere else found.
+- [ ] Plugins: `filter_community/register.go`, `filter_community.go`, `blackhole.go`; `role/register.go`, `role/otc.go`, `role/role.go`; `gr/register.go`, `gr/gr.go` (`runGRPlugin` refusal, `retention.Publish`, `setEgressState`), `gr/gr_egress.go`, `gr/gr_ingress.go`, `gr/gr_state.go`, `gr/doctor.go` (`doctor-bgp-gr-out-of-process`); `rr/rr.go` (refusal, `retention.Family`); `rs/server.go` (refusal, `validationBus`), `rs/server_handlers.go` (`retention.Family`), `rs/register.go` (`preserveOpaqueAttributes` returns `peer.RSClient`, `ConfigureEventBus`).
 
 **The rows this spec moves:**
 
-| Row | Stage / prio | Hooks | Reads besides the UPDATE | Writes | Forked today |
-|-----|--------------|-------|--------------------------|--------|--------------|
-| `bgp-filter-community` | Policy 0 | ingress (tag, strip), egress (tag, strip, BLACKHOLE withhold), `ConfigureMetrics` | own config by Name/GroupName; LocalAS, PeerAS, RouteServerAS; dest Name/GroupName/IsIBGP on egress | payload rewrite (ingress), `ModAccumulator` community ops (egress), suppress | silently accepts everything (daemon globals empty) |
+| Row | Stage / prio at HEAD | Hooks | Reads besides the UPDATE | Writes | Forked today |
+|-----|----------------------|-------|--------------------------|--------|--------------|
+| `bgp-filter-community` | Policy 0 | ingress (tag, strip, scrub), egress (tag, strip, BLACKHOLE withhold), `ConfigureMetrics` | own config by Name/GroupName; LocalAS, PeerAS, RouteServerAS; dest Name/GroupName/IsIBGP/RSClient on egress | payload rewrite (ingress), community ops (egress), suppress | silently accepts everything |
 | `bgp-filter-community-relation` | Annotation 1 | ingress | own config; `meta["src-peer-role"]`; IsIBGP | RFC 8195 community tag | silently tags nothing |
-| `bgp-role` | Annotation 0 | ingress, egress, `PeerRemoved` | own config by Address/GroupName; role learned from OPEN (`OnValidateOpen`, plugin process); src and dest identity on egress; `meta["src-role"]` | `meta["src-role"]`, `meta["src-peer-role"]`, OTC insert, payload-to-withdrawal (ingress leak), suppress (egress) | silently skips every RFC 9234 Section 5 MUST |
-| `bgp-gr` LLGR egress | Annotation 0, `Readvertise` | egress on the forward rails and the stale readvertise rail | `meta["stale"]`, `meta["rebuilt"]`, `src.LLGRAdvertised`; `egressState` (LLGR caps from OPEN, plugin memory); dest Address, PeerAS, LocalAS | community add NO_EXPORT, LOCAL_PREF 0, `SetWithdraw` | refuses to start forked (`gr.go` `runGRPlugin`, `test/plugin/gr-external-refuses.ci`) |
+| `bgp-role` | Annotation 0 | ingress, egress, `PeerRemoved` | own config by Address/GroupName; role learned from OPEN (plugin process); src and dest identity on egress; `meta["src-role"]` | `meta["src-role"]`, `meta["src-peer-role"]`, OTC insert, payload-to-withdrawal (ingress leak), suppress (egress) | silently skips every RFC 9234 Section 5 MUST |
+| `bgp-gr` LLGR egress | Annotation 0, `Readvertise` | egress on the forward rails and the stale readvertise rail | `meta["stale"]`, `meta["rebuilt"]`, `src.LLGRAdvertised`; `egressState` (plugin memory, published to the daemon by `setEgressState`); dest Address, PeerAS, LocalAS | community add NO_EXPORT, LOCAL_PREF 0, `SetWithdraw` | refuses to start forked (`gr-external-refuses.ci`) |
 | `bgp-gr-llgr-ingress` | Protocol 0 | ingress | `src.LLGRAdvertised`, COMMUNITIES | `meta["stale"] = 2` | refuses forked (same plugin) |
-| `bgp-rs` | none | `PreserveOpaqueAttributes` only | `peer.RSClient` | none (forwarding choice) | refuses forked (`rs/server.go`) |
+| `bgp-rs` | none | `PreserveOpaqueAttributes` only | `peer.RSClient` | none (forwarding treatment) | refuses forked (`rs-external-refuses.ci`) |
+| retention (`bgp-rr`, `bgp-rs` asking `bgp-gr`) | - | `retention.Family` on DOWN | gr's `staleFamilies` for the departed peer | which families the DOWN withdraws | rr, rs and gr each refuse forked |
 
 **Behavior to preserve:**
-- The ingress order: loop (Protocol), `bgp-gr-llgr-ingress` (Protocol), `bgp-filter-community` (Policy 0), `bgp-role` (Annotation 0), `bgp-filter-community-relation` (Annotation 1), the per-peer chain (PeerChain); egress likewise. `TestOrderedIngressCarriesTheEngineLoopStep` and the order tests in `unified_filter_order_test.go` keep their expectations.
-- Every `.ci` of the moved filters, unchanged expectations, with the plugin internal: `role-otc-*.ci`, `community-tag.ci`, `community-strip.ci`, `community-relation-tag.ci`, `community-blackhole-noexport.ci`, `rfc7999-blackhole-*.ci`, `bgp-filter-community-reload.ci`, `bgp-role-export-reload.ci`, `role-learned-cleared-on-peer-delete.ci`, `llgr-*.ci`, `graceful-restart-llgr.ci`, the `bgp-rs-*` forwarding tests.
+- The order of the engine and procedure steps: loop (Protocol), `bgp-gr-llgr-ingress` (Protocol), `bgp-role` (Annotation 0), then the per-peer chain (PeerChain); egress likewise with role and gr egress at Annotation 0 and rs transparency before the chain. `TestOrderedIngressCarriesTheEngineLoopStep` keeps its expectation.
+- Every `.ci` of the moved filters with the plugin internal, expectations unchanged: `role-otc-*.ci`, `community-tag.ci`, `community-strip.ci`, `community-relation-tag.ci`, `community-blackhole-noexport.ci`, `community-scrub-own-ga.ci`, `rfc7999-blackhole-readvertise-agreement.ci`, `bgp-filter-community-reload.ci`, `bgp-role-export-reload.ci`, `role-learned-cleared-on-peer-delete.ci`, `llgr-*.ci`, `graceful-restart-llgr.ci`, `addpath-departure-rr-gr-retained.ci`, `addpath-departure-rr-gr-expiry.ci`, `bgp-rs-withdrawal-replacement-gr.ci`, the `bgp-rs-*` forwarding tests. The community tests' configs gain the chain member the operator now names (D-6); that config edit goes to `ze-test-judge` with the owner decision as its source.
 - Route metadata keys, types, and their presence on the received event (`RawMessage.Meta`, JSON `route-meta`).
 - The stale readvertise rail runs only readvertise-opted egress steps, never the full egress set.
 - `bgp-role` frees a removed peer's learned role before the removal returns (internal) and before a re-created peer's OPEN (both transports).
+- rr and rs decide retention synchronously while handling the DOWN, from gr's decision for that DOWN, and a reconnect or expiry after it cannot change it.
+- The BLACKHOLE withholding toward every non-agreeing bilateral eBGP destination (Q-5 reading).
 - The filter_community metric names and labels.
 
 **Behavior to change:**
-- `bgp-role`, `bgp-filter-community`, `bgp-filter-community-relation` run forked apply their procedures exactly as internal.
-- `filterapi.Register` and the hooks it carries no longer exist; the doors' "in-process only" filter row is deleted.
+- `bgp-role`, `bgp-filter-community`, `bgp-filter-community-relation`, `bgp-gr`, `bgp-rr` and `bgp-rs` run forked and apply their procedures exactly as internal. The three refusals, `doctor-bgp-gr-out-of-process` and the three `*-external-refuses.ci` go.
+- Community tag, strip, scrub and relation run only on peers whose chain names the filter; settings without the member are refused at verify.
+- `filterapi.Register`, the hooks it carries and `retention.Publish`/`Family` no longer exist; the doors' "in-process only" filter row is deleted.
 
 ## Existing Mechanisms (MANDATORY)
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| `filterapi` ordered stages | `filterapi/filterapi.go` `Filter`, `Register`, `IngressOrdered`, `EgressOrdered`, `ReadvertiseEgressFuncs`, `LessOrder`, `FilterStage*`; `reactor/filter_ordered.go` `buildOrderedIngressSteps`/`buildOrderedEgressSteps` | Go function pointers registered from `init()` at (stage, priority), sorted with the engine loop step and the per-peer chain step into one pass; six egress rails | **Replaced**, per `ai/rules/no-layering.md`: the registry and its function types are deleted first. `LessOrder` and the stage constants **stay** (the sort key and the stage vocabulary the attachment names). `buildOrdered*Steps` are **extended**: their step kinds become engine loop, attached plugin filter, peer chain; their input becomes the runtime filter declarations instead of `IngressOrdered` |
-| Stage 1 filter declarations | 1a179d341e; `rpc.FilterDecl`; `registry.Registration.Filters`; `registry.CheckFilterDeclarations`, `SetRuntimeFilterDeclarations`/`RuntimeFilterDeclarations`; `process-protocol.md` Stage 1 | A plugin declares each filter's name or pattern, direction, reads, sets and on-error; the engine judges them at the handshake and judges chain references against them | **Extended**: `FilterDecl` gains an optional attachment (stage, priority, readvertise opt-in); an attached declaration names one filter (no pattern), and is judged by the same check plus the attachment rules. The reactor reads attached declarations from the same runtime store the chain check reads, so a compiled-in and a forked plugin attach the same way |
-| Typed DirectBridge filter slot | 4ee9ba017c; `rpc.DirectBridge.SetFilterSlot`/`CallFilterSlot`, `rpc.FilterView`, `rpc.FilterRoute`; `sdk.OnFilter`; `ipc.PluginConn.CallFilter`; `server.CallFilterUpdate` | One evaluator per filter, called on the reactor goroutine with a lazy view internal; `ErrBridgeClosed` answers unavailable and the member's on-error applies | **Reused unchanged** as the internal transport of every attached step. The moved evaluators are written once against `sdk.OnFilter` and pass `sdk.CheckFilterConformance` |
-| Batched `filter-update` | 29fc996ece; `rpc.FilterUpdateBatchInput`/`Output`, `ipc/filter_batch.go` `filterBatcher`, `FilterUpdateBatchMax`, `FilterUpdateTimeout` | One exchange per plugin connection carries what is queued, up to 64 routes, one verdict each, per-source FIFO by construction (the reactor judges each source synchronously) | **Reused unchanged** as the forked transport. An attached step is one more caller of it |
-| Library chain and external member | `policychain.Chain`, `Member{Plugin}`, `ExternalCaller`, `judgeExternal`, `applyExternalSets`, `memberView`; `reactor/filter_library.go` `runLibraryChain`, `libraryCaller`, `rewriteLibrary` | Runs a chain whose external members are plugin filters: encodes declared reads lazily, calls the filter, checks and applies its sets through `ModAccumulator` and the library rewrite, applies on-error | **Extended**: an attached step is run as a one-member external chain compiled from its declaration, through `runLibraryChain`, so verdicts, sets, on-error, metrics and the rewrite are the chain's own. New: sets on route metadata fields write the run's metadata map, and a `withdraw` verdict |
-| `policyview` field registry | `policyview/register.go` `MustRegisterReader`, `fields_json.go` `mustRegisterWriter`; `policy.MustRegisterField`; `bgp/config/register.go` `carries`/`settable` | Per-field readers and JSON writers over the BGP view, registered from `init()`; the attachments list which fields a chain member may read and set | **Extended**: session facts (`peer-name`, `peer-group`, `peer-address`, `local-as`, `route-server-as`, `ibgp`, `llgr-advertised`, and the source peer's facts on egress) and route metadata (`src-role`, `src-peer-role`, `stale`, `rebuilt`) become fields with readers; `otc` becomes a readable and settable attribute field with its wire handler. Each is registered by its owner: session facts by the BGP view, metadata keys by the plugin that writes them, `otc` by `bgp-role` (as its `AttrModHandler` and `attribute.RegisterName` already are). Q-4 asks whether BGP's hand-written `carries`/`settable` lists become registrations in the same change |
-| `ModAccumulator` and attribute mod handlers | `filterapi.ModAccumulator`, `RegisterAttrModHandler`; `reactor/forward_build.go` `buildModifiedPayload` | Per-attribute ops, a withdraw flag, NLRI rewrite; `role` registers the OTC handler, `filter_community` the three community handlers | **Kept**: sets from attached steps reach it through `Chain.Apply`, as chain sets do; `SetWithdraw` is reached by the new egress `withdraw` verdict |
-| Route metadata map | `reactor_notify.go` `ingressMeta` to `msg.Meta`; `docs/architecture/meta/README.md` | One map per received UPDATE shared by the in-process ingress steps, published on the received event and read on egress | **Extended**: the map is fed by metadata-field sets of attached steps instead of direct writes; egress steps read it as declared fields |
-| Default chain filters | `bgp/config/peers.go` `prependDefaultFilters`; `FilterDecl.Overrides` / `FilterRegistration.Overrides` | Config `loop-detection` entries are prepended to every peer's import chain; `Overrides` is declared and copied but read nowhere found | **Does not apply**: an operator can mark a chain reference `inactive:`, which RFC 9234 Section 5 forbids for OTC, and an export chain member takes a destination off the RS fast path (`hasActiveFilter`, `forward_rs.go`). `Overrides` looks dead and is checked, not reused (A-6) |
-| Peer removal notice | `filterapi.NotifyPeerRemoved` / `Filter.PeerRemoved`; the peer `state` event with reason `removed` (`process-protocol.md`), delivered to attached processes only; `role.pruneLearnedRoles` at commit | Frees per-peer filter state on every removal path, internal only; forked, only the commit prune runs | **Replaced**: a plugin that declares an attached filter receives the `state` event of every peer in its scope (the attachment is its attach), so the removal reaches it on both transports. Q-2 settles the scope |
-| Plugin metrics hook | `registry.Registration.ConfigureMetrics`, `registry.InjectPluginMetrics` | Hands an in-process plugin the metrics registry | **Reused**: `filter_community` moves its counters from `filterapi.Filter.ConfigureMetrics` to its `Registration`. Forked counters are A-5 |
-| RS forwarding activation | `filterapi.EnableRSForwarding`, `RSForwardingEnabled`; reactor `rsForwardingEnabled` | `bgp-rs` activates the reactor RS fast path from `init()` | **Extended**: `peer_forward_facts.go` derives preserve-opaque-attributes from `rsForwardingEnabled && RSClient`; `rs`'s `PreserveOpaqueAttributes` hook and `PreserveOpaqueAttributesFor` are deleted (umbrella D-13 inventory) |
-| Forked test launch | `le mock plugin-external <name>` (`internal/test/cli/cmd_plugin_external.go`; `test/plugin/gr-external-refuses.ci`) | Runs a registered engine's `RunEngine` over a real TLS connect-back | **Reused** for every forked `.ci` |
+| `filterapi` ordered stages | `filterapi/filterapi.go` `Filter`, `Register`, `IngressOrdered`, `EgressOrdered`, `ReadvertiseEgressFuncs`, `LessOrder`, `FilterStage*`; `reactor/filter_ordered.go` `buildOrdered*Steps` | Go function pointers registered from `init()` at (stage, priority), sorted with the engine loop step and the per-peer chain step; six egress rails | **Replaced** (`ai/rules/no-layering.md`): the registry and its function types are deleted first. `LessOrder` and the stage constants **stay**. `buildOrdered*Steps` are **extended**: step kinds become engine loop, bound procedure, peer chain; their input becomes the runtime filter declarations and the peer's bindings |
+| Stage 1 filter declarations | 1a179d341e; `rpc.FilterDecl`; `registry.CheckFilterDeclarations`, `RuntimeFilterDeclarations`; `process-protocol.md` Stage 1 | A plugin declares each filter's name, direction, reads, sets and on-error; judged at the handshake | **Extended**: `FilterDecl` gains an optional `binding` (stage, priority, `bound-by`, `keyed-on`, `readvertise`). A declaration with no binding is an operator chain filter, as today. A bound declaration names one filter (no pattern) and is judged by the same check plus the binding rules |
+| Default chain filters | `bgp/config/peers.go` `prependDefaultFilters` | Config `loop-detection` entries are prepended to every peer's import chain unless named | **Does not apply**, and the reason is the owner's: a prepended member is an operator chain entry, so `inactive:` reaches it (RFC 9234 Section 5 forbids that for OTC) and an export member takes the destination off the RS fast path. A bound procedure sits in the per-peer step list beside the chain, where no chain grammar, `inactive:`, ordering or `Overrides` reaches it |
+| Peer resolved config | `PeerSettings` built from the merged bgp/group/peer map (`reactor/config.go`); `CapabilityConfigJSON` | The loader derives settings and plugin-delivery forms from the peer's resolved map | **Extended**: PeerSettings keeps the resolved map's set of present paths that some declaration names as `bound-by`, and the reactor evaluates bindings from it. Group inheritance binds as it configures, and a reload rebuilds bindings with the settings |
+| Typed DirectBridge filter slot | 4ee9ba017c; `rpc.DirectBridge.SetFilterSlot`/`CallFilterSlot`; `sdk.OnFilter`; `server.CallFilterUpdate` | One evaluator per filter, called on the reactor goroutine internal | **Reused unchanged** as the internal transport of every bound and chain step |
+| Batched `filter-update` | 29fc996ece; `ipc/filter_batch.go` `filterBatcher` | One exchange per plugin connection, up to 64 routes, one verdict each | **Reused unchanged** as the forked transport |
+| Library chain and external member | `policychain.Chain`, `Member{Plugin}`, `judgeExternal`, `applyExternalSets`; `reactor/filter_library.go` `runLibraryChain` | Runs a chain whose external members are plugin filters | **Extended**: a bound step runs as a one-member external chain compiled from its declaration through `runLibraryChain`. New: metadata-field sets and a `withdraw` verdict |
+| `policyview` field registry | `policyview/register.go`, `fields_json.go`; `policy.MustRegisterField`; `bgp/config/register.go` | Per-field readers and JSON writers registered from `init()` | **Extended**: session facts (`peer-name`, `peer-group`, `peer-address`, `local-as`, `route-server-as`, `ibgp`, `rs-client`, `llgr-advertised`, the source peer's facts on egress), route metadata (`src-role`, `src-peer-role`, `stale`, `rebuilt`), `otc`, and the forwarding treatment `preserve-opaque-attributes` become fields, each registered by its owner from `init()`. BGP's `carries`/`settable` become those registrations (Q-4 rule, D-9) |
+| `ModAccumulator` and attribute mod handlers | `filterapi.ModAccumulator`, `RegisterAttrModHandler`; `forward_build.go` `buildModifiedPayload` | Per-attribute ops, a withdraw flag, NLRI rewrite | **Kept**: sets reach it through `Chain.Apply`; `SetWithdraw` is reached by `withdraw`; `preserve-opaque-attributes` replaces the per-snapshot `facts.preserveOpaqueAttributes` in the dedup identity and body cache key |
+| Route metadata map | `reactor_notify.go` `ingressMeta`; `meta/README.md` | One map per received UPDATE shared by in-process steps | **Extended**: fed by metadata-field sets; egress steps read it as declared fields |
+| Peer removal notice | `filterapi.NotifyPeerRemoved`; peer `state` with reason `removed`; `role.pruneLearnedRoles` | Frees per-peer filter state, internal only | **Replaced**: a bound procedure's plugin receives the `state` event of every peer it is bound to (implicit attach for `state`) |
+| State delivery order | `bgp/server/events.go` `deliverPeerState` (sequential, reverse dependency tier, waits for each `EventResult`); `process/delivery.go` one FIFO `eventChan` per process | gr handles a DOWN before rr and rs are delivered it | **Reused** as the ordering guarantee of the retention event (D-11) |
+| Retention query | `bgp/retention` `Publish`, `Family`; callers rr and rs `handleStateDown`; publisher gr `runGRPlugin` | A process-global function pointer, answering false with no owner | **Replaced** by the `bgp-gr/retention` bus event: `Publish`, `Family` and `Owner` are deleted first, the package keeps the event's name and its registered payload type (D-11) |
+| EventBus emit and subscribe | `sdk.EmitEvent`, `server.deliverEvent`, `events.Register[T]`, `RegisterNamespace`/`RegisterEventType` | Plugin-emitted events reach subscribers on both transports | **Extended** with one event type; rs's `bgp-rib/validation-change` moves from the in-process `ConfigureEventBus` handle to the same SDK subscription, so it holds forked |
+| Plugin metrics hook | `registry.Registration.ConfigureMetrics`, `registry.InjectPluginMetrics` | Hands an in-process plugin the metrics registry | **Reused**: `filter_community` moves its counters there. Forked counters are A-5 |
+| RS forwarding activation | `filterapi.EnableRSForwarding`; `registry.RelaysOnRSFastPath` | `bgp-rs`'s `init()` activates the reactor RS fast path in the daemon binary | **Kept**: both are read in the daemon from the compiled registration, which holds whether rs runs internal or forked |
+| Forked test launch | `le mock plugin-external <name>` (`internal/test/cli/cmd_plugin_external.go`) | Runs a registered engine's `RunEngine` over a real TLS connect-back | **Reused** for every forked `.ci` |
+| Doctor check for gr placement | `gr/doctor.go` `checkGRInProcess`, `doctor-bgp-gr-out-of-process` | Reports a forked gr from the config | **Replaced** by nothing: the arrangement becomes valid; the check, its diagnostic code and its doc text are deleted with the refusal |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- Stage 1 `declare-registration` from a plugin (in-process `registry.Registration.Filters` and the `sdk.Registration`, or a forked plugin's line): the attached `FilterDecl`.
+- Stage 1 `declare-registration` (in-process `registry.Registration.Filters` and the `sdk.Registration`, or a forked plugin's line): `FilterDecl`, with or without `binding`.
+- Config load and reload: each peer's resolved map, from which the loader records the present `bound-by` paths.
 - Per route: a received UPDATE on a session read goroutine (ingress), and each destination of a forward on the six egress rails.
+- Per DOWN: the engine's sequential `state` delivery.
 
 ### Transformation Path
-1. Handshake: `CheckFilterDeclarations` judges each declaration, including attachment rules (named filter, known stage, direction import/export/both, priority bound, readvertise only on export); the runtime store records it.
-2. Reactor start and every change of the runtime store (plugin start, respawn, stop): the ordered ingress and egress step lists are rebuilt from the engine loop step, the attached declarations and the peer-chain step, sorted by `LessOrder`, and published by atomic pointer (today they are built once at `startAPIServer`).
-3. Ingress, per route: each attached step runs `runLibraryChain` over a one-member chain; the view's session carries the source facts; metadata-field sets land in the run's metadata map, attribute sets are applied, `reject` drops, `withdraw` keeps the withdrawal half (`ingressPolicyWithdrawals`).
+1. Handshake: `CheckFilterDeclarations` judges each declaration including the binding rules (named filter, known stage other than PeerChain, priority bound, `bound-by` a schema node under `bgp peer`, `keyed-on` and `readvertise` on export only); the runtime store records it.
+2. After the plugin phases, and on every change of the runtime store or of a peer's settings: each peer's ingress and egress step lists are built from the engine loop step, the bound declarations whose condition the peer's settings or session satisfy (evaluated generically from the declaration store, D-5a), and the peer-chain step, sorted by `LessOrder`, and published by atomic pointer.
+3. Ingress, per route: each bound step of the receiving peer runs `runLibraryChain` over a one-member chain; metadata-field sets land in the run's map, attribute sets apply, `reject` drops, `withdraw` keeps the withdrawal half (`ingressPolicyWithdrawals`). The operator chain then runs, community and relation among its members where named.
 4. The map becomes `msg.Meta` as today.
-5. Egress, per destination: each attached export step runs the same way with the destination's facts and the source facts as declared reads and the ingress map as metadata reads; `reject` suppresses for this destination, `withdraw` sets `SetWithdraw`, sets accumulate.
-6. Stale readvertise: only readvertise-opted export steps run.
+5. Egress, per destination: the destination-keyed bound steps of the destination and the source-keyed bound steps of the route's source run, with destination and source facts and the ingress map as declared reads; `reject` suppresses for this destination, `withdraw` sets `SetWithdraw`, sets accumulate (`preserve-opaque-attributes` included); then the destination's export chain.
+6. Stale readvertise: only readvertise-opted bound steps run.
+7. DOWN: gr's handler computes the retained families and emits `bgp-gr/retention` {peer address, retained families} before returning, for every DOWN it handles (an empty list included); rr and rs, delivered that event first by FIFO, record it, then consume it when their own DOWN for that peer arrives.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Engine to internal plugin | typed `DirectBridge` filter slot, lazy view, on the reactor goroutine | No |
 | Engine to forked plugin | batched `filter-update`, declared fields only, `FilterUpdateTimeout` | No |
-| Engine to plugin, peer lifecycle | peer `state` event with reason `removed` | No |
+| Engine to plugin, peer lifecycle | peer `state` event with reason `removed`, implicit for bound plugins | No |
+| gr to rr and rs | `emit-event` `bgp-gr/retention`, not peer-scoped, FIFO ahead of the DOWN | No |
 
 ### Integration Points
-- `runLibraryChain` / `policychain.Chain` - attached steps are one-member chains.
-- `registry.RuntimeFilterDeclarations` - the source of attached steps.
+- `runLibraryChain` / `policychain.Chain` - bound steps are one-member chains.
+- `registry.RuntimeFilterDeclarations` - the source of bound steps.
+- `PeerSettings` - the peer's present `bound-by` paths.
 - `policyview` readers and writers - the new fields.
-- `ModAccumulator` - egress sets and withdraw.
+- `ModAccumulator` - egress sets, withdraw, preserve-opaque.
+- `server.deliverEvent`, `deliverPeerState` - the retention ordering.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | to prove: attached steps call only `CallFilterUpdate` |
+| No bypassed layers (data flows through the intended path) | No | to prove: bound steps call only `CallFilterUpdate` |
 | No unintended coupling (components stay isolated) | No | to prove: the reactor names no plugin package; `./le arch tier check` |
-| No duplicated functionality (extends existing, does not recreate) | No | to prove: no second call path beside `runLibraryChain` |
+| No duplicated functionality (extends existing, does not recreate) | No | to prove: no second call path beside `runLibraryChain`; no retention query beside the event |
 | Zero-copy preserved where applicable (refs, not copies) | No | to prove: slot path encodes nothing undeclared (`BenchmarkFilterFastPath` allocations) |
 | Registration over hardcoding, outbound | No | to prove: new fields registered by their owners from `init()` |
-| Registration over hardcoding, inbound | No | to prove: the reactor holds no list of attached filter names; grep of `bgp-role`, `bgp-filter-community`, `bgp-gr` under `internal/component/bgp/reactor` is empty |
+| Registration over hardcoding, inbound | No | to prove (D-5a): grep of `bgp-role`, `bgp-filter-community`, `bgp-gr`, `bgp-rs`, `bgp-rr`, `role`, `long-lived-stale-time`, `rs-client`, `retention` as binding or dispatch literals under `internal/component/bgp/reactor`, `bgp/config`, `bgp/server`, `policyview` and `plugin/server` is empty; `./le arch enumeration check` passes; `fakefilter` binds with no engine edit (AC-1) |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Forked role and community accept every route unchanged today | umbrella handoff D-13 inventory; globals read in `filter_community.go` `ingressFilter`, `role.go` `getFilterConfig`, filled by plugin callbacks | the forked `.ci` twins are not red at HEAD and the journal row overstates | each forked twin observed red at HEAD before the move | unvalidated |
-| A-2 | Every state the moved evaluators read lives in the plugin process or is a reactor fact a declared read can carry | role learns roles in `OnValidateOpen` (plugin process); community config from its config apply; gr caps from OPEN events in the plugin | a filter needs state only the daemon holds and no field can carry | the Current Behavior table, re-read per row at implementation | unvalidated |
-| A-3 | `LLGRAdvertised` must stay a synchronous reactor fact, never an event the plugin records | `gr_ingress.go` `llgrStaleFromSource` comment: the sent-OPEN event is asynchronous, so first UPDATEs could be judged before the record | the ingress step reads a stale answer on a session's first UPDATEs | the declared `llgr-advertised` field is read from the session on the read goroutine | unvalidated |
-| A-4 | The library chain's external member answers everything the moved filters need once `withdraw` and metadata sets exist | `judgeExternal`, `applyExternalSets`; the Writes column | a filter needs a payload rewrite the sets cannot express (OTC ingress leak withdrawal is the `withdraw` verdict) | each evaluator's unit tests through `CheckFilterConformance` | unvalidated |
-| A-5 | Forked plugins have no metrics export path, so a forked `bgp-filter-community` counts nothing visible | `docs/plugin-development/metrics.md`: `ConfigureMetrics` is injected in process | forked counters already reach the registry and nothing is owed | read `registry.InjectPluginMetrics` for the forked branch | unvalidated |
-| A-6 | `FilterDecl.Overrides` is dead | `startup.go` copies it, no reader found by grep | it is live and an attached filter interacts with it | grep `Overrides` under `internal/` and `pkg/` | unvalidated |
-| A-7 | Rebuilding the ordered steps on plugin start, stop and respawn is safe against a concurrent pass | steps are read without a lock today because they are built once | a pass sees a torn list | atomic-pointer publish; `-race` test with a respawn during traffic | unvalidated |
-| A-8 | `le mock plugin-external bgp-role` and `bgp-filter-community` start those engines forked (`filter_community`'s `CLIHandler` returns 0, so `ze plugin bgp-filter-community` does not) | `gr-external-refuses.ci` uses the mock launcher | the forked twins need another launcher | first forked twin starts and logs the plugin's handshake | unvalidated |
+| A-1 | Forked role and community accept every route unchanged today | umbrella D-13 inventory; globals read in `filter_community.go`, `role.go` | the forked twins are not red at HEAD | each forked twin observed red at HEAD before the move | unvalidated |
+| A-2 | Every state the moved evaluators read lives in the plugin process or is a reactor fact a declared read can carry | role learns roles in `OnValidateOpen`; community config from its apply; gr caps from OPEN events in the plugin | a filter needs daemon-only state | the Current Behavior table, re-read per row | unvalidated |
+| A-3 | `llgr-advertised` must stay a synchronous reactor fact | `gr_ingress.go` `llgrStaleFromSource` comment | first UPDATEs judged before the record | the declared field is read from the session on the read goroutine | unvalidated |
+| A-4 | The external member answers everything once `withdraw`, metadata sets and `preserve-opaque-attributes` exist | `judgeExternal`, `applyExternalSets`; the Writes column | a filter needs a rewrite the sets cannot express | each evaluator's tests through `CheckFilterConformance` | unvalidated |
+| A-5 | Forked plugins have no metrics export path | `metrics.md`: `ConfigureMetrics` is injected in process | forked counters already reach the registry | read `registry.InjectPluginMetrics` for the forked branch | unvalidated |
+| A-6 | `FilterDecl.Overrides` is dead | `startup.go` copies it, no reader found | it is live and interacts with bindings | grep `Overrides` under `internal/` and `pkg/` | unvalidated |
+| A-7 | Rebuilding the step lists on plugin lifecycle and peer settings change is safe against a concurrent pass | atomic-pointer publish | a pass sees a torn list | `-race` test with a respawn and a reload during traffic | unvalidated |
+| A-8 | `le mock plugin-external` starts each of `bgp-role`, `bgp-filter-community`, `bgp-gr`, `bgp-rr`, `bgp-rs` forked | `gr-external-refuses.ci` uses it | the twins need another launcher | first forked twin starts and logs its handshake | unvalidated |
+| A-9 | A forked process's `EventResult` for a state event is returned after its handler returns, so gr's emit precedes the engine's next delivery | `deliverPeerState` comment "each process must complete before the next starts"; `deliveryLoop` | rr or rs could see its DOWN before gr's retention event | read the forked deliver path in `process/delivery.go`; `TestRetentionEventPrecedesDown` over both transports | unvalidated |
+| A-10 | The binding paths a declaration names are schema nodes the daemon has compiled (role, gr and rs YANG ship in the daemon) | `config-yang.md`: an external plugin's own YANG is not compiled | a third-party bound procedure cannot bind on its own config | the judge refuses an unknown path with the reason; the limit is written in `handlers.md` | unvalidated |
+| A-11 | Nothing besides `retention.Family`, `setEgressState` and `validationBus` keeps gr, rr or rs in the daemon process | the three refusal comments; `rs/register.go` | another in-process reliance breaks a forked run silently | `./le plugin boundary check` and a read of each `register.go` at the start of phase 5; each forked twin | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A forked attached filter adds a round trip to every route of every peer, and a slow or hung plugin stalls ingress for all peers up to `FilterUpdateTimeout` | functional run time of the forked twins; `BenchmarkFilterForkedBatch` | batching already shares one exchange across sources; Q-2 decides whether a peer scope bounds it; the docs say what forked costs |
-| R-2 | An attached filter's plugin dies: fail-closed drops every route, fail-open skips an RFC MUST | AC-33-style `.ci` with a stopped plugin | each plugin declares its on-error: role and community declare reject (an RFC 9234 Section 5 MUST cannot fail open); stated in the plugin pages |
-| R-3 | Ordering drifts because steps now come from runtime declarations that arrive in tier order | order tests read a different list | the sort key is unchanged; `TestAttachedStepsSortLikeTheRegistry` pins the six-step order |
-| R-4 | Egress rails that read `r.egressFilters` (RS fast path, relay, batch) miss the attached steps after the switch | an RS fast-path `.ci` (`role-otc-rs-client-dest-stamp.ci`) passes internal only by accident | one egress step list consumed by all six rails; a wiring test per rail |
-| R-5 | Metadata reads on egress for a rebuilt route (`rebuilt`) lose the gr recovery path | `llgr-readvertise*.ci` red | `rebuilt` and the source's `llgr-advertised` are declared reads of the gr egress step |
-| R-6 | Peer identity: role keys config by Address then group key, community by Name then GroupName; dynamic peers are named `dyn-<addr>` | `dynamic-peer-gets-group-role-capability.ci` red forked | `peer-name`, `peer-group`, `peer-address` are all declared reads; the plugins keep their lookup code |
-| R-7 | A third-party plugin claims `FilterStageProtocol` priority 0 ahead of the RFC checks | review | Q-1 |
-| R-8 | `bgp-gr` and `bgp-rs` cannot be proven forked here because they refuse to start forked for `retention.Family` | the forked twin for gr cannot start | Q-3 |
+| R-1 | A forked bound procedure adds a round trip per route of each bound peer, and a slow plugin stalls ingress up to `FilterUpdateTimeout` | functional run time of the twins; `BenchmarkFilterForkedBatch` | binding bounds the cost to configured peers; batching shares one exchange; the docs say what forked costs |
+| R-2 | A bound procedure's plugin dies: fail-closed drops routes, fail-open skips an RFC MUST | a `.ci` with a stopped plugin | role, gr and rs declare `on-error reject`; the plugin pages state it |
+| R-3 | Ordering drifts because steps come from runtime declarations | order tests | the sort key is unchanged; `TestBoundStepsSortLikeTheRegistry` pins the procedure order |
+| R-4 | An egress rail misses bound steps | `role-otc-rs-client-dest-stamp.ci` passes internal only by accident | one per-peer egress step list consumed by all six rails; a wiring test per rail |
+| R-5 | `rebuilt` loses the gr recovery path | `llgr-readvertise*.ci` red | `rebuilt` and the source's `llgr-advertised` are declared reads of the gr egress step |
+| R-6 | Peer identity drift: role keys by Address then group, community by Name then GroupName; dynamic peers are `dyn-<addr>` | `dynamic-peer-gets-group-role-capability.ci` red forked | `peer-name`, `peer-group`, `peer-address` are declared reads |
+| R-7 | A third-party plugin binds a procedure at `FilterStageProtocol` priority 0 ahead of the RFC checks | review | any configured plugin may bind (Q-1 rule); it binds only on peers whose config carries its own path, and ties sort by name |
+| R-8 | An operator with community settings forgets the chain member after the change | `bgp-filter-community-reload.ci` | verify refuses settings without the member, naming the peer, the setting and the member to add |
+| R-9 | Community moved from Policy 0 to the chain reorders it against role | `unified_filter_order_test.go` | role reads no community and community reads no role output except relation, which stays after role; the order test is changed through `ze-test-judge` with D-6 as source |
+| R-10 | A stale retention verdict from an earlier DOWN is consumed at a later one | `addpath-departure-rr-gr-retained.ci` forked | rr and rs consume and clear the verdict at each DOWN; gr emits one for every DOWN it handles, an empty list included |
+| R-11 | A peer gr does not receive state for yields no verdict and reads as not retained | a GR peer outside gr's attach | gr already retains only peers it sees; a missing verdict means no gr state, the answer `Family` gave with no owner; the page states it |
+| R-12 | rs's per-route `preserve-opaque-attributes` set replaces a per-snapshot fact on the RS fast path | `bgp-rs-fastpath*.ci`, fan-out dedup tests | the field joins the dedup identity and body cache key as the snapshot fact did; internal it is one slot call per route per RS-client destination |
+| R-13 | Deleting the three `*-external-refuses.ci` and `doctor-bgp-gr-out-of-process` loses proof | review | each is replaced by a forked twin proving more (the plugin runs and its procedure holds); the deletions go to `ze-test-judge` |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | Routes mis-filtered on every BGP peer: OTC leaks accepted or valid routes dropped, BLACKHOLE leaked, LLGR stale routes advertised to non-LLGR eBGP peers |
-| How is it reverted? | Per plugin row, each a commit; the mechanism commit reverts alone while no row uses it |
-| Who else touches this path? | `spec-filter-wire-0-umbrella` phase 4 rows (filter_family, filter_irr, the five match providers), phase 5 deletion of the text machinery; any session editing `reactor/filter_ordered.go`, `reactor_notify.go`, `pkg/plugin/rpc/types.go` |
+| What breaks if this is wrong? | Routes mis-filtered on BGP peers: OTC leaks accepted or valid routes dropped, BLACKHOLE leaked, LLGR stale routes advertised to non-LLGR eBGP peers, a restarting peer's routes withdrawn by a route server or reflector |
+| How is it reverted? | Per phase, each a commit; the mechanism commit reverts alone while no row uses it |
+| Who else touches this path? | `spec-filter-wire-0-umbrella` phase 4 rows (filter_family, filter_irr, the five match providers), phase 5 deletion of the text machinery; any session editing `reactor/filter_ordered.go`, `reactor_notify.go`, `pkg/plugin/rpc/types.go`, `bgp/plugins/rr`, `bgp/plugins/rs`, `bgp/plugins/gr` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Stage 1 attached `FilterDecl` from a compiled-in plugin | → | `CheckFilterDeclarations` attachment rules, runtime store | `TestAttachedFilterDeclarationJudged` (`internal/component/plugin/registry/filter_declaration_test.go`) |
-| Runtime declarations | → | `buildOrderedIngressSteps`/`buildOrderedEgressSteps` from declarations | `TestAttachedStepsSortLikeTheRegistry` (`internal/component/bgp/reactor/unified_filter_order_test.go`) |
-| Received UPDATE, plugin forked | → | attached step through `runLibraryChain` and the batch | `test/plugin/stage-filter-forked.ci` with `fakefilter` declaring an attachment |
-| Each of the six egress rails | → | the one egress step list | `TestEveryEgressRailRunsAttachedSteps` (`internal/component/bgp/reactor/filter_attached_test.go`) |
-| Peer removal | → | `state` removed delivered to an attached-filter plugin | `test/plugin/role-learned-cleared-on-peer-delete-forked.ci` |
+| Stage 1 bound `FilterDecl` from a compiled-in plugin | → | `CheckFilterDeclarations` binding rules, runtime store | `TestBoundFilterDeclarationJudged` (`internal/component/plugin/registry/filter_declaration_test.go`) |
+| Runtime declarations and peer settings | → | per-peer `buildOrderedIngressSteps`/`buildOrderedEgressSteps` | `TestBoundStepsSortLikeTheRegistry`, `TestBindingFollowsPeerConfig` (`internal/component/bgp/reactor/unified_filter_order_test.go`, `filter_bound_test.go`) |
+| Received UPDATE, plugin forked, peer bound | → | bound step through `runLibraryChain` and the batch | `test/plugin/stage-filter-forked.ci` with `fakefilter` declaring a binding |
+| Received UPDATE, peer not bound | → | no call | `test/plugin/stage-filter-unbound-peer.ci` |
+| Each of the six egress rails | → | the per-peer egress step list | `TestEveryEgressRailRunsBoundSteps` (`internal/component/bgp/reactor/filter_bound_test.go`) |
+| Peer removal | → | `state` removed delivered to a bound plugin | `test/plugin/role-learned-cleared-on-peer-delete-forked.ci` |
+| DOWN of a GR peer, gr and rr forked | → | `bgp-gr/retention` event before the DOWN | `test/plugin/addpath-departure-rr-gr-retained-forked.ci` |
+| Community settings without a chain member | → | verify refusal | `test/reload/community-settings-without-member-refused.ci` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | A plugin declares a filter with an attachment (direction, stage, priority) at Stage 1, internal or forked | Its evaluator is called for every route at that position of the ingress or egress pass, for every peer in scope (Q-2), with no chain reference in config |
-| AC-2 | An attached declaration with a name pattern, an unknown stage, `FilterStagePeerChain`, readvertise on import, or a duplicate (stage, priority, name) | The plugin is refused at Stage 1 with a message naming the filter, the rule and the fix |
-| AC-3 | The six positions registered today (loop, llgr-ingress, community, role, relation, peer chain) | The built ingress and egress step lists are in the same order as at HEAD |
-| AC-4 | An attached step answers reject, modify with sets, withdraw, or fails (timeout, unavailable, malformed) | Ingress: drop, apply, keep the withdrawal half, on-error; egress: suppress for that destination, apply, withdraw toward it, on-error; identical to a chain member's handling |
-| AC-5 | An attached ingress step sets a metadata field (`src-role`, `src-peer-role`, `stale`) | The key is in the received event's `Meta` with its registered type, and later ingress and egress steps read it as a declared field |
+| AC-1 | A plugin declares a bound filter (direction, stage, priority, and a `bound-by`, `bound-by-capability` or `bound-by-session` condition) at Stage 1, internal or forked, with no engine edit (`fakefilter` proves it: no file under `reactor`, `bgp/config`, `policyview` or `plugin/server` changes for it) | Its evaluator is called for every route at that position on exactly the peers whose resolved config (bgp, group, peer) or session satisfies the condition, and never on other peers; no chain entry exists or can be written for it |
+| AC-2 | A bound declaration with a name pattern, an unknown stage, `FilterStagePeerChain`, a priority outside 0-9999, a `bound-by` path that is not a compiled schema node under `bgp peer`, a `bound-by-session` field no owner registered, more than one condition, `keyed-on` or `readvertise` on import, or a duplicate (stage, priority, name) | The plugin is refused at Stage 1 with a message naming the filter, the rule and the fix |
+| AC-3 | The procedure positions (loop, llgr-ingress, role ingress; role egress, gr egress, rs transparency) and the peer chain | The built lists put them in their HEAD order; community and relation run inside the chain at the operator's position, and relation still reads the `src-peer-role` role wrote |
+| AC-4 | A bound step answers reject, modify with sets, withdraw, or fails (timeout, unavailable, malformed) | Ingress: drop, apply, keep the withdrawal half, on-error; egress: suppress for that destination, apply, withdraw toward it, on-error; identical to a chain member's handling |
+| AC-5 | A bound ingress step sets a metadata field (`src-role`, `src-peer-role`, `stale`) | The key is in the received event's `Meta` with its registered type, and later ingress and egress steps read it as a declared field |
 | AC-6 | `bgp-role` forked: route with OTC from a customer; route without OTC from a provider; export to a customer without OTC; export with OTC to a provider | Ineligible (withdrawn); OTC added with the remote AS; OTC added with the local AS; not propagated; each the same internal and forked (forked twins of `role-otc-ingress-reject.ci`, `role-otc-egress-stamp.ci`, `role-otc-egress-filter.ci`, `role-otc-rs-client-dest-stamp.ci`, `role-otc-unicast-scope.ci`), each twin observed red at HEAD |
-| AC-7 | `bgp-filter-community` forked: ingress tag and strip, egress tag and strip, BLACKHOLE toward a non-agreeing eBGP destination | Same wire result as internal (forked twins of `community-tag.ci`, `community-strip.ci`, `community-blackhole-noexport.ci`, `rfc7999-blackhole-readvertise-agreement.ci`), each red at HEAD |
-| AC-8 | `bgp-filter-community-relation` forked, eBGP source with a resolved peer role, and an iBGP source | Tag written for the eBGP source, none for iBGP (forked twin of `community-relation-tag.ci`), red at HEAD |
-| AC-9 | `bgp-role` forked, peer deleted then re-created under the same name before its OPEN | The re-created peer reads no learned role (forked twin of `role-learned-cleared-on-peer-delete.ci`) |
-| AC-10 | `bgp-gr` LLGR ingress and egress as attached filters, internal | Every `llgr-*.ci` and `graceful-restart-llgr.ci` passes unchanged, the readvertise rail runs only the LLGR egress step; the forked proof is as Q-3 decides |
-| AC-11 | `bgp-rs` | Preserve-opaque-attributes is derived from RS forwarding enabled and the client flag; `bgp-rs-*` tests unchanged; `TestPreserveOpaqueAttributesUsesRegisteredSelector` and `forward_role_cache_test.go` changed only with the `ze-test-judge` approval |
-| AC-12 | Every evaluator moved here | Passes `sdk.CheckFilterConformance` under `-race`, including transport equality |
-| AC-13 | After the last row | `filterapi.Filter`, `Register`, `IngressOrdered`, `EgressOrdered`, `ReadvertiseEgressFuncs`, `IngressFilters`, `EgressFilters`, `NotifyPeerRemoved`, `PreserveOpaqueAttributesFor`, `IngressFilterFunc`, `EgressFilterFunc` and `filterapi.SetMetricsRegistry` do not exist; `r.egressFilters` and `readvertiseEgressFilters` are gone; grep proves it |
-| AC-14 | A plugin restart or respawn under traffic | The step list is republished; no pass sees a torn list (`-race`); the respawned plugin's slot answers |
-| AC-15 | The named interop scenario `bgp-role-otc-withdraw-frr` | Passes with `bgp-role` internal, the OTC wire behaviour unchanged |
+| AC-7 | `bgp-role` on a peer whose config has no `role` container, and an operator who writes `inactive:` or names the role filter in a chain | No role procedure runs on that peer; a chain reference to a bound filter is refused at verify, naming the filter as a protocol procedure bound by `role` |
+| AC-8 | `bgp-filter-community` forked, named in the chain: ingress tag and strip, egress tag and strip, scrub | Same wire result as internal (forked twins of `community-tag.ci`, `community-strip.ci`, `community-scrub-own-ga.ci`), each red at HEAD |
+| AC-9 | BLACKHOLE toward a non-agreeing bilateral eBGP destination, `bgp-filter-community` forked | Withheld as internal (forked twins of `community-blackhole-noexport.ci`, `rfc7999-blackhole-readvertise-agreement.ci`), each red at HEAD; bound as the Q-5 reading states until Thomas answers Q-5 |
+| AC-10 | `bgp-filter-community-relation` forked, named in the chain, eBGP source with a resolved peer role, and an iBGP source | Tag written for the eBGP source, none for iBGP (forked twin of `community-relation-tag.ci`), red at HEAD |
+| AC-11 | A peer carrying `filter ingress community` or `filter egress community` settings whose matching chain names no `bgp-filter-community` member | Refused at verify and at boot with a message naming the peer, the setting and the chain member to add |
+| AC-12 | `bgp-role` forked, peer deleted then re-created under the same name before its OPEN | The re-created peer reads no learned role (forked twin of `role-learned-cleared-on-peer-delete.ci`) |
+| AC-13 | `bgp-gr` LLGR ingress bound by `long-lived-stale-time` on the receiving peer, LLGR egress keyed on the source, both transports | Every `llgr-*.ci` and `graceful-restart-llgr.ci` passes unchanged internal; forked twins of `graceful-restart-llgr.ci`, `llgr-readvertise.ci`, `llgr-transition.ci`, `llgr-import-no-llgr.ci` pass; the readvertise rail runs only the LLGR egress step |
+| AC-14 | A GR peer goes down with `bgp-gr` and `bgp-rr` forked, then with `bgp-gr` and `bgp-rs` forked, and with mixed placements | The retained families are kept and the others withdrawn exactly as internal (forked twins of `addpath-departure-rr-gr-retained.ci`, `addpath-departure-rr-gr-expiry.ci`, `bgp-rs-withdrawal-replacement-gr.ci`); a DOWN after a NOTIFICATION retains nothing |
+| AC-15 | `bgp-gr`, `bgp-rr`, `bgp-rs` started forked | Each starts and runs; no refusal, no `doctor-bgp-gr-out-of-process`; `retention.Publish`, `retention.Family` and the three refusals do not exist |
+| AC-16 | `bgp-rs` forked and internal, RS-client destination bound by `session rs-client` | Opaque attributes pass to RS clients as at HEAD (forked twins of `bgp-rs-fastpath.ci`, `bgp-rs-relay-aspath-transparency.ci`, `bgp-rs-rpki-revalidate-relay.ci`); `preserve-opaque-attributes` is a set of the rs filter, not a snapshot fact; `TestPreserveOpaqueAttributesUsesRegisteredSelector` and `forward_role_cache_test.go` changed only with `ze-test-judge` approval |
+| AC-17 | `bgp-rs` forked receives `bgp-rib/validation-change` | Its revalidation relay runs as internal (the `bgp-rs-rpki-revalidate-relay.ci` twin), through the SDK subscription |
+| AC-18 | Every evaluator moved here | Passes `sdk.CheckFilterConformance` under `-race`, including transport equality |
+| AC-19 | After the last row | `filterapi.Filter`, `Register`, `IngressOrdered`, `EgressOrdered`, `ReadvertiseEgressFuncs`, `IngressFilters`, `EgressFilters`, `NotifyPeerRemoved`, `PreserveOpaqueAttributesFor`, `IngressFilterFunc`, `EgressFilterFunc`, `filterapi.SetMetricsRegistry`, `retention.Owner`, `Publish` and `Family` do not exist; `r.egressFilters` and `readvertiseEgressFilters` are gone; grep proves it |
+| AC-20 | A plugin restart or respawn under traffic, and a reload that adds or removes a peer's `role` | The step lists are republished; no pass sees a torn list (`-race`); the respawned plugin's slot answers; the binding follows the new config |
+| AC-21 | The named interop scenario `bgp-role-otc-withdraw-frr` | Passes with `bgp-role` internal and forked, the OTC wire behaviour unchanged |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Operator runs `bgp-role` forked and sets `role import customer` | Stage 1 attachment, ingress step, batch, OTC verdict | forked twin of `role-otc-ingress-reject.ci` |
-| 2 | Operator runs `bgp-filter-community` forked with a tag on a peer | config apply in the plugin, ingress step, community set | forked twin of `community-tag.ci` |
-| 3 | Third-party author attaches a filter through the SDK | `sdk.OnFilter` plus attached `FilterDecl`, both transports | `test/plugin/stage-filter-forked.ci` and its internal twin |
+| 1 | Operator runs `bgp-role` forked and sets `role import customer` | config binds the procedure, ingress step, batch, OTC verdict | forked twin of `role-otc-ingress-reject.ci` |
+| 2 | Operator runs `bgp-filter-community` forked and names it in a peer's import chain with a tag | chain member, community set | forked twin of `community-tag.ci` |
+| 3 | Operator runs `bgp-gr` and `bgp-rs` forked on an IXP route server and a member restarts | retention event, rs keeps the retained families | forked twin of `bgp-rs-withdrawal-replacement-gr.ci` |
+| 4 | Third-party author binds a filter through the SDK | `sdk.OnFilter` plus bound `FilterDecl`, both transports | `test/plugin/stage-filter-forked.ci` and its internal twin |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAttachedFilterDeclarationJudged` | `internal/component/plugin/registry/filter_declaration_test.go` | AC-2 refusals and acceptance | |
-| `TestAttachedStepsSortLikeTheRegistry` | `internal/component/bgp/reactor/unified_filter_order_test.go` | AC-3 | |
-| `TestAttachedStepVerdicts` | `internal/component/bgp/reactor/filter_attached_test.go` | AC-4 ingress and egress | |
-| `TestAttachedStepMetadataSets` | same | AC-5 | |
-| `TestEveryEgressRailRunsAttachedSteps` | same | R-4, six rails | |
-| `TestAttachedStepsRepublishOnRespawn` | same | AC-14 under `-race` | |
+| `TestBoundFilterDeclarationJudged` | `internal/component/plugin/registry/filter_declaration_test.go` | AC-2 | |
+| `TestBoundStepsSortLikeTheRegistry` | `internal/component/bgp/reactor/unified_filter_order_test.go` | AC-3 | |
+| `TestBindingFollowsPeerConfig` | `internal/component/bgp/reactor/filter_bound_test.go` | AC-1, group inheritance, reload (AC-20) | |
+| `TestBoundStepVerdicts` | same | AC-4 | |
+| `TestBoundStepMetadataSets` | same | AC-5 | |
+| `TestEveryEgressRailRunsBoundSteps` | same | R-4, six rails, destination- and source-keyed | |
+| `TestBoundStepsRepublishOnRespawn` | same | AC-20 under `-race` | |
+| `TestChainReferenceToBoundFilterRefused` | `internal/component/bgp/config` | AC-7 | |
+| `TestCommunitySettingsNeedChainMember` | `internal/component/bgp/plugins/filter_community` | AC-11 | |
 | `TestWithdrawVerdict` | `pkg/plugin/rpc`, `internal/component/bgp/policychain` | the new action, both transports | |
 | `TestMetadataFieldRegistration`, `TestSessionFieldReaders` | `internal/component/bgp/policyview` | readers, writers, types; an absent key answers absent | |
-| conformance per evaluator | `role`, `filter_community`, `gr` test files | AC-12 | |
-| existing `otc_test.go`, `filter_community_test.go`, `gr_egress_test.go`, `gr_ingress_test.go` | plugin packages | the procedures, re-pointed at the evaluators; any assertion change goes to `ze-test-judge` | |
+| `TestRetentionEventPrecedesDown` | `internal/component/bgp/server` | A-9, both transports | |
+| `TestRetentionVerdictConsumedPerDown` | `internal/component/bgp/plugins/rr`, `rs` | R-10, R-11 | |
+| conformance per evaluator | `role`, `filter_community`, `gr`, `rs` test files | AC-18 | |
+| existing `otc_test.go`, `filter_community_test.go`, `gr_egress_test.go`, `gr_ingress_test.go`, `rfc4724_retention_test.go`, `external_refusal_test.go` | plugin packages | re-pointed at the evaluators and the event; any assertion change or deletion goes to `ze-test-judge` | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| attachment stage | the declared stage names (Protocol, Policy, Annotation) | Annotation | N/A (named) | PeerChain refused |
-| attachment priority | 0-9999 | 9999 | -1 | 10000 |
+| binding stage | the declared stage names (Protocol, Policy, Annotation) | Annotation | N/A (named) | PeerChain refused |
+| binding priority | 0-9999 | 9999 | -1 | 10000 |
 | `stale` metadata value | 0-255 (uint8) | 255 | N/A | 256 refused as a set |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `stage-filter-forked`, `stage-filter-internal` | `test/plugin/` | `fakefilter` attaches an ingress filter and judges every peer's route | |
+| `stage-filter-forked`, `stage-filter-internal`, `stage-filter-unbound-peer` | `test/plugin/` | `fakefilter` binds an ingress filter by a config path; only bound peers are judged | |
 | `role-otc-ingress-reject-forked`, `role-otc-egress-stamp-forked`, `role-otc-egress-filter-forked`, `role-otc-rs-client-dest-stamp-forked`, `role-otc-unicast-scope-forked` | `test/plugin/` | AC-6 | |
-| `role-learned-cleared-on-peer-delete-forked` | `test/plugin/` | AC-9 | |
-| `community-tag-forked`, `community-strip-forked`, `community-blackhole-noexport-forked`, `rfc7999-blackhole-readvertise-agreement-forked` | `test/plugin/` | AC-7 | |
-| `community-relation-tag-forked` | `test/plugin/` | AC-8 | |
+| `role-learned-cleared-on-peer-delete-forked` | `test/plugin/` | AC-12 | |
+| `community-tag-forked`, `community-strip-forked`, `community-scrub-own-ga-forked` | `test/plugin/` | AC-8 | |
+| `community-blackhole-noexport-forked`, `rfc7999-blackhole-readvertise-agreement-forked` | `test/plugin/` | AC-9 | |
+| `community-relation-tag-forked` | `test/plugin/` | AC-10 | |
+| `community-settings-without-member-refused` | `test/reload/` | AC-11 | |
+| `graceful-restart-llgr-forked`, `llgr-readvertise-forked`, `llgr-transition-forked`, `llgr-import-no-llgr-forked` | `test/plugin/` | AC-13 | |
+| `addpath-departure-rr-gr-retained-forked`, `addpath-departure-rr-gr-expiry-forked`, `bgp-rs-withdrawal-replacement-gr-forked` | `test/plugin/` | AC-14 | |
+| `bgp-rs-fastpath-forked`, `bgp-rs-relay-aspath-transparency-forked`, `bgp-rs-rpki-revalidate-relay-forked` | `test/plugin/` | AC-16, AC-17 | |
 | the existing internal tests in Behavior to preserve | `test/plugin/` | unchanged | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-role-otc-withdraw-frr` | `test/interop/scenarios/` | FRR | AC-15, OTC on the wire unchanged | |
+| `bgp-role-otc-withdraw-frr` | `test/interop/scenarios/` | FRR | AC-21, OTC on the wire unchanged | |
 
 ## Files to Modify
-- `pkg/plugin/rpc/types.go`, `enums.go` - attachment on `FilterDecl`; `withdraw` action
-- `internal/core/ipc/yang/ze-plugin-engine.yang`, `ze-plugin-callback.yang` - the attachment and the action
-- `internal/component/plugin/registry/filter_declaration.go`, `internal/component/plugin/registration.go`, `internal/component/plugin/server/startup.go` - judge and store attachments; deliver `state` to attached-filter plugins
-- `internal/component/bgp/filterapi/filterapi.go` - delete the registry and function types (AC-13); keep `LessOrder`, stages, `ModAccumulator`
-- `internal/component/bgp/reactor/filter_ordered.go`, `reactor_notify.go`, `reactor.go`, `forward_rs.go`, `reactor_api_forward.go`, `reactor_api_forward_batch.go`, `reactor_api_relay.go`, `reactor_api_batch.go`, `reactor_peers.go`, `peer_forward_facts.go`, `filter_library.go`
+- `pkg/plugin/rpc/types.go`, `enums.go` - `binding` on `FilterDecl`; `withdraw` action
+- `internal/core/ipc/yang/ze-plugin-engine.yang`, `ze-plugin-callback.yang` - the binding and the action
+- `internal/component/plugin/registry/filter_declaration.go`, `internal/component/plugin/registration.go`, `internal/component/plugin/server/startup.go` - judge and store bindings; deliver `state` to bound plugins
+- `internal/component/bgp/filterapi/filterapi.go` - delete the registry and function types (AC-19); keep `LessOrder`, stages, `ModAccumulator`, `EnableRSForwarding`
+- `internal/component/bgp/reactor/filter_ordered.go`, `reactor_notify.go`, `reactor.go`, `forward_rs.go`, `reactor_api_forward.go`, `reactor_api_forward_batch.go`, `reactor_api_relay.go`, `reactor_api_batch.go`, `reactor_peers.go`, `peer_forward_facts.go`, `peer_settings.go`, `config.go`, `filter_library.go`
+- `internal/component/bgp/config/peers.go`, `register.go` - present `bound-by` paths on PeerSettings; refuse a chain reference to a bound filter; field registrations
 - `internal/component/bgp/policychain/external.go`, `sets.go` - metadata sets, withdraw
-- `internal/component/bgp/policyview/register.go`, `readers.go`, `fields_json.go`, `view.go` - session facts
-- `internal/component/bgp/config/register.go` - attachment fields
-- `internal/component/bgp/plugins/role/register.go`, `otc.go`, `role.go`; `filter_community/register.go`, `filter_community.go`, `filter.go`, `metrics.go`; `gr/register.go`, `gr_egress.go`, `gr_ingress.go`; `rs/register.go`
-- `internal/test/plugins/fakefilter/fakefilter.go` - an attached declaration
-- `docs/architecture/core-design.md` (Ingress Filter Pipeline), `docs/architecture/api/process-protocol.md`, `docs/plugin-development/handlers.md`, `docs/plugin-development/protocol.md`, `docs/architecture/meta/README.md`, `docs/architecture/meta/role.md`, `docs/architecture/meta/filter-community.md`, `ai/doors/bgp-engine.md`, `ai/doors/bgp-plugins.md`, `ai/patterns/plugin.md` "Route Filters"
+- `internal/component/bgp/policyview/register.go`, `readers.go`, `fields_json.go`, `view.go` - session facts, treatment field
+- `internal/component/bgp/retention/retention.go` - delete `Owner`, `Publish`, `Family`; the `bgp-gr/retention` name and payload type, registered once
+- `internal/component/bgp/plugins/role/register.go`, `otc.go`, `role.go`; `filter_community/register.go`, `filter_community.go`, `blackhole.go`, `filter.go`, `metrics.go`; `gr/register.go`, `gr.go`, `gr_egress.go`, `gr_ingress.go`, `gr_state.go`, `doctor.go`; `rr/rr.go`; `rs/register.go`, `server.go`, `server_handlers.go`, `server_validation.go`
+- `internal/core/diagnostic/codes.go`, `registry.go` - drop `doctor-bgp-gr-out-of-process`
+- `internal/test/plugins/fakefilter/fakefilter.go` - a bound declaration
+- `test/plugin/` community `.ci` configs - the chain member (judge)
+- `docs/architecture/core-design.md` (Ingress Filter Pipeline), `docs/architecture/api/process-protocol.md`, `docs/architecture/api/architecture.md`, `docs/plugin-development/handlers.md`, `docs/plugin-development/protocol.md`, `docs/architecture/meta/README.md`, `meta/role.md`, `meta/filter-community.md`, `docs/guide/graceful-restart.md`, `docs/guide/plugins.md`, `docs/architecture/plugin/plugin-relationships.md` (Cross-Plugin Bus Dependencies), `ai/doors/bgp-engine.md`, `ai/doors/bgp-plugins.md`, `ai/patterns/plugin.md` "Route Filters"
 
 ## Files to Create
-- `internal/component/bgp/reactor/filter_attached.go`, `filter_attached_test.go`
-- the forked `.ci` twins named in Functional Tests, under `test/plugin/`
+- `internal/component/bgp/reactor/filter_bound.go`, `filter_bound_test.go`
+- the forked `.ci` twins named in Functional Tests, under `test/plugin/`, and `test/reload/community-settings-without-member-refused.ci`
+
+## Files to Delete (through `./le commit create` `remove`, each judged)
+- `test/plugin/gr-external-refuses.ci`, `rr-external-refuses.ci`, `rs-external-refuses.ci`; `gr/external_refusal_test.go` if it tests only the refusal
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `ze-plugin-engine.yang` (attachment in the declaration), `ze-plugin-callback.yang` (`withdraw`); no config leaf |
+| YANG schema (new RPCs/config) | Yes | `ze-plugin-engine.yang` (binding in the declaration), `ze-plugin-callback.yang` (`withdraw`); no config leaf |
 | YANG validation constraints | Yes | stage enumeration, priority range in the declaration schema |
-| YANG custom validators | N-A | no config leaf |
+| YANG custom validators | Yes | the verify refusals of AC-7 and AC-11, in `bgp/config` and `filter_community` `OnConfigVerify` plus its `InProcessConfigVerifier`, so `ze config validate` agrees with boot |
 | CLI commands/flags | N-A | no command |
 | CLI grammar (keyword before value) | N-A | no command |
 | Editor autocomplete | N-A | no config leaf |
-| Functional test for new RPC/API | Yes | `test/plugin/stage-filter-forked.ci` |
+| Functional test for new RPC/API | Yes | `test/plugin/stage-filter-forked.ci`, `addpath-departure-rr-gr-retained-forked.ci` |
 | Pipe completeness | N-A | no output |
 | Env var registration | N-A | none added |
-| Doctor check for runtime dependencies | N-A | no new runtime dependency |
-| Prometheus counters/metrics | Yes | filter_community counters keep their names, registered through `Registration.ConfigureMetrics`; attached steps count through the chain's existing member metrics |
+| Doctor check for runtime dependencies | Yes | `doctor-bgp-gr-out-of-process` deleted with the arrangement it reported; no new runtime dependency |
+| Prometheus counters/metrics | Yes | filter_community counters keep their names, registered through `Registration.ConfigureMetrics` |
 | BGP family surface (new SAFI / capability / attribute) | N-A | OTC already registered by `bgp-role`; only its view field is new |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | the `features/` entries for BGP role and community filters gain forked evidence (`./le feature report` names them) |
-| 2 | Config syntax changed? | No | none |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | the `features/` entries for BGP role, community filters, graceful restart and route server gain forked evidence (`./le feature report` names them) |
+| 2 | Config syntax changed? | Yes | grammar unchanged; community settings now need the chain member: `docs/guide/plugins.md`, `meta/filter-community.md` |
 | 3 | CLI command added/changed? | No | none |
-| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/process-protocol.md` |
-| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` (role, community run forked) |
-| 6 | Has a user guide page? | No | none changes |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/process-protocol.md` (binding, `withdraw`, `bgp-gr/retention`) |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`, `docs/guide/graceful-restart.md` (gr, rr, rs run forked) |
+| 6 | Has a user guide page? | Yes | `docs/guide/graceful-restart.md` |
 | 7 | Wire format changed? | No | BGP wire unchanged |
 | 8 | Plugin SDK/protocol changed? | Yes | `ai/rules/plugins.md`, `process-protocol.md`, `docs/plugin-development/handlers.md`, `protocol.md` |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc9234.md`, `rfc9494.md`: forked proof; tags moved with their tests carry discrimination records |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` if `fakefilter`'s attachment adds an env key |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc9234.md`, `rfc9494.md`, `rfc4724.md`, `rfc7947.md`, `rfc7999.md`: forked proof; tags moved with their tests carry discrimination records |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` if `fakefilter`'s binding adds an env key |
 | 11 | Affects daemon comparison? | No | none |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` Ingress Filter Pipeline |
-| 13 | Route metadata keys added/changed? | Yes | `docs/architecture/meta/README.md`, `meta/role.md`, `meta/filter-community.md` (writers become field sets) |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` Ingress Filter Pipeline; `plugin-relationships.md` bus dependencies |
+| 13 | Route metadata keys added/changed? | Yes | `docs/architecture/meta/README.md`, `meta/role.md`, `meta/filter-community.md` |
 | 14 | Prometheus counters added/changed? | No | names unchanged |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | none |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | the `bgp-gr/retention` event type; the diagnostic code removed |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived by `./le spec citation anchors spec plan/post-release/engineering/spec-filter-wire-6-stage-filters.md` at implementation |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/plugin-development/handlers.md` filter examples |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/plugin-development/handlers.md` filter examples; community config examples |
 
-Discovery (`ai/rules/repo-maintenance.md`): an agent finds the mechanism from the `ai/INDEX.md` filter rows pointing at `core-design.md` and `handlers.md`; `./le plugin declarations check` keeps the two declarations agreeing; the runtime filter declaration store is the one registry; `./le mock plugin-external` and the forked twins prove it.
+Discovery (`ai/rules/repo-maintenance.md`): an agent finds the mechanism from the `ai/INDEX.md` filter rows pointing at `core-design.md` and `handlers.md`, and retention from `graceful-restart.md`; `./le plugin declarations check` keeps the two declarations agreeing; the runtime filter declaration store is the one registry; `./le mock plugin-external` and the forked twins prove it.
 
 ## Implementation Steps
 
-1. **Phase: Wiring** -- `FilterDecl` attachment, the judge, `fakefilter` attached, the reactor builds steps from declarations; `stage-filter-forked.ci` written failing
-   - Tests: `TestAttachedFilterDeclarationJudged`, `TestAttachedStepsSortLikeTheRegistry`, `stage-filter-forked`
-   - Files: rpc, YANG, registry, `filter_ordered.go`, `filter_attached.go`
+1. **Phase: Wiring** -- `FilterDecl.binding`, the judge, present `bound-by` paths on PeerSettings, per-peer step lists from declarations, `fakefilter` bound; `stage-filter-forked.ci` written failing
+   - Tests: `TestBoundFilterDeclarationJudged`, `TestBoundStepsSortLikeTheRegistry`, `TestBindingFollowsPeerConfig`, `stage-filter-forked`, `stage-filter-unbound-peer`
    - Verify: the forked `.ci` fails because the step is not yet called
-2. **Phase: Attached step execution** -- one-member chain through `runLibraryChain` on ingress and on all six egress rails; `withdraw`; metadata-field sets and reads; session fact fields; republish on plugin lifecycle
-   - Tests: `TestAttachedStepVerdicts`, `TestAttachedStepMetadataSets`, `TestEveryEgressRailRunsAttachedSteps`, `TestAttachedStepsRepublishOnRespawn`, `TestWithdrawVerdict`
-3. **Phase: `bgp-role`** -- evaluators on `sdk.OnFilter`, `otc` and metadata fields registered, attachment declared, `state` removed replaces `PeerRemoved`; forked twins red at HEAD then green. One commit
-4. **Phase: `bgp-filter-community` and relation** -- same; metrics to `Registration.ConfigureMetrics`. One commit
-5. **Phase: `bgp-gr`** -- both LLGR filters attached, readvertise opt-in, `stale`/`rebuilt`/`llgr-advertised` fields. One commit; forked proof per Q-3
-6. **Phase: `bgp-rs`** -- fold into RS forwarding; judge for the two tests. One commit
-7. **Phase: Delete** -- the `filterapi` registry and function types, `r.egressFilters`, `readvertiseEgressFilters`; doors and pages in the same commit (AC-13)
+2. **Phase: Bound step execution** -- one-member chain through `runLibraryChain` on ingress and on all six rails, destination- and source-keyed; `withdraw`; metadata-field sets and reads; session fact and treatment fields; implicit `state` delivery; republish on plugin lifecycle and settings change; chain references to bound filters refused
+   - Tests: `TestBoundStepVerdicts`, `TestBoundStepMetadataSets`, `TestEveryEgressRailRunsBoundSteps`, `TestBoundStepsRepublishOnRespawn`, `TestWithdrawVerdict`, `TestChainReferenceToBoundFilterRefused`
+3. **Phase: `bgp-role`** -- evaluators on `sdk.OnFilter`, bound by `role`, `otc` and metadata fields registered, `state` removed replaces `PeerRemoved`; forked twins red at HEAD then green. One commit
+4. **Phase: `bgp-filter-community` and relation** -- chain-member filters; the verify refusal; community `.ci` configs gain the member (judge); BLACKHOLE withholding as a bound procedure per the Q-5 reading; metrics to `Registration.ConfigureMetrics`; forked twins red at HEAD then green. One commit
+5. **Phase: Retention on the bus** -- `bgp-gr/retention` registered in `bgp/retention`; gr emits it in its DOWN handler; rr and rs record and consume it; `Owner`, `Publish`, `Family` deleted first; rs's validation-change through the SDK subscription; the A-11 sweep. Refusals not yet removed. One commit
+6. **Phase: `bgp-gr`** -- both LLGR filters bound (ingress on the receiving peer, egress keyed on the source, readvertise opt-in); `setEgressState` gone; the gr refusal, its doctor check and diagnostic code, and `gr-external-refuses.ci` removed (judge); gr forked twins. One commit
+7. **Phase: `bgp-rs` and `bgp-rr` forked** -- rs's transparency filter bound by `session rs-client` setting `preserve-opaque-attributes`; the rr and rs refusals and their `.ci` removed (judge); AC-14, AC-16, AC-17 twins; judge for the two rs unit tests. One commit
+8. **Phase: Delete** -- the `filterapi` registry and function types, `r.egressFilters`, `readvertiseEgressFilters`; doors and pages in the same commit (AC-19)
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
 | Feature completeness | Every user story has a working path |
-| Correctness | each forked twin observed red at HEAD and green after; order identical; readvertise rail runs only opted steps |
-| Naming | new fields and the attachment JSON keys kebab-case; metric names unchanged |
-| Data flow | the reactor names no plugin; attached steps reach plugins only through `CallFilterUpdate` |
-| Rule: no-layering | no attached row keeps a `filterapi.Register` beside its plugin filter, and the registry is deleted, not left empty |
+| Correctness | each forked twin observed red (or refused) at HEAD and green after; procedure order identical; readvertise rail runs only opted steps; no bound step on an unbound peer |
+| Naming | new fields, the binding and the event payload JSON keys kebab-case; metric names unchanged |
+| Data flow | the reactor names no plugin and no plugin config path; bound steps reach plugins only through `CallFilterUpdate`; rr and rs reach gr only through the event |
+| Rule: no-layering | no row keeps a `filterapi.Register` beside its plugin filter; `retention.Family` is deleted before the event lands; the registry is deleted, not left empty |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| registry gone | grep `filterapi.Register(` and `IngressOrdered` under `internal/` is empty |
+| registry gone | grep `filterapi.Register(`, `IngressOrdered`, `retention.Family`, `retention.Publish` under `internal/` is empty |
 | forked twins | the named `.ci` pass, with recorded reds at HEAD |
-| conformance | `-race` package tests of role, filter_community, gr |
+| conformance | `-race` package tests of role, filter_community, gr, rs, rr |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | a forked plugin's attachment, metadata set values and types, and `withdraw` on an unexpected direction are refused, never applied |
+| Input validation | a forked plugin's binding, metadata set values and types, `withdraw` on an unexpected direction, and a retention payload naming an unparseable family are refused, never applied |
 | Fail-open | an unavailable RFC-MUST filter does not silently accept (R-2) |
-| Resource exhaustion | a plugin cannot attach unbounded steps (one per declared filter, judged at Stage 1) |
+| Resource exhaustion | a plugin cannot bind unbounded steps (one per declared filter, judged at Stage 1) |
+| Operator override | no config form reaches a bound procedure (AC-7) |
 
 ### Failure Routing
 | Failure | Route To |
@@ -428,38 +537,49 @@ Discovery (`ai/rules/repo-maintenance.md`): an agent finds the mechanism from th
 ## Design Insights
 
 - The forked breakage is a reader in the wrong process, not a missing transport: moving the evaluator to the plugin makes the plugin's own state coherent on both transports, and only reactor facts need to cross.
+- The binding question "which peers" is answered by the config the operator already wrote, so no runtime peer list crosses the boundary and nothing the operator can edit reaches a procedure.
+- Retention needed no query: the order the engine already guarantees for state events carries a one-way event to the askers ahead of the DOWN they decide on.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `process-global-read-across-the-plugin-boundary.md` | 2026-11-01 | `filterapi.Register` filters of bgp-role and bgp-filter-community read config their forked plugin fills |
+| `process-global-read-across-the-plugin-boundary.md` | 2026-11-01 | `bgp-rs` `validationBus` filled only by the in-process `ConfigureEventBus` |
 
 ## Key Design Decisions
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| A (recommended): an attachment on the Stage 1 `FilterDecl`; the reactor runs each attached declaration as a one-member external chain through `runLibraryChain`, on both transports | B: BGP config prepends each plugin-declared filter to every peer's chain at load, as `prependDefaultFilters` does for `loop-detection`. C: keep `filterapi.Register` and give its function a forked transport | B lets an operator mark the reference `inactive:`, which RFC 9234 Section 5 forbids ("The operator MUST NOT have the ability to modify the procedures defined in this section."), puts an export member on every destination and so takes every peer off the RS fast path, and leaves the readvertise rail without the LLGR step. C is two filter mechanisms, the layering D-13 refuses. A reuses the declaration, the judge, the slot, the batch and the chain's verdict handling, adding only the attachment, `withdraw`, and fields |
-| Reactor facts cross as declared fields of the existing view, not as new header members of `FilterUpdateInput` | widen the header with every `PeerFilterInfo` field | fields are encoded only when declared (D-10), the forked message stays small, and a third party reads facts by the same vocabulary as route fields |
-| Route metadata keys become fields with readers and settable writers registered by the key's owner | a `meta` member in the verdict | one answer shape (sets) for every change, judged by the same declared-sets rule |
-| A metadata set is visible to later ingress steps of the same pass and on egress, as the shared map is today | per-step maps | preserves `bgp-role` writing `src-peer-role` at Annotation 0 for the relation filter at Annotation 1 |
-| `bgp-gr-llgr-ingress` becomes a plugin filter reading `llgr-advertised`, not engine code | engine-side like `loop` | `loop` is RFC 4271/4456 for every session; LLGR is gr's feature, and removing gr must remove it (`ai/rules/plugins.md`) |
+| D-1 (owner, 2026-11-01): everything is a filter. Every row that used `filterapi.Register` (community, relation, role, gr's two LLGR rows, rs) becomes a plugin filter served on both transports, typed slot internal and batched `filter-update` forked | keep some rows engine-side or as a declaration with no verdict (the earlier draft folded rs into `EnableRSForwarding`) | one mechanism; a row left outside it is the second mechanism D-13 refuses |
+| D-2 (owner, 2026-11-01): a filter runs only on peers where it is set up; no every-peer attachment, no runtime peer-declaration RPC. This replaces the draft's Q-2 | (a) every peer, the evaluator accepting unconfigured peers; (b) a runtime RPC through which the plugin declares its peers | (a) puts a forked round trip on every route of every peer; (b) adds an RPC and a reload reconcile for a fact the config already states |
+| D-3 (owner, 2026-11-01): operator policy (`bgp-filter-community` tag, strip and scrub; the community relation tag) is an ordinary chain member the operator names in the peer's `filter import`/`export` chain, run only where named | keep them stage-attached at Policy 0 and Annotation 1 | policy belongs to the operator's chain; settings without the member are refused at verify (AC-11), so the move cannot become a silent no-op |
+| D-4 (owner, 2026-11-01): a mandatory protocol procedure (`bgp-role` OTC, RFC 9234 Section 5; `bgp-gr` LLGR ingress and egress, RFC 9494) is enabled on a peer by that peer's own feature config, never by a chain entry, because RFC 9234 Section 5: "The operator MUST NOT have the ability to modify the procedures defined in this section." | `prependDefaultFilters` into the chain | a prepended member is a chain entry: `inactive:` reaches it and an export member takes the destination off the RS fast path |
+| D-5: the binding mechanism. A `FilterDecl` carries an optional `binding`: `stage`, `priority`, a condition (`bound-by`: a schema path under `bgp peer`, a container present or a leaf set, a boolean leaf set true; or `bound-by-capability`: a capability code advertised or negotiated on the session; or `bound-by-session`: a boolean session fact field some owner registered in the view, D-9), on export `keyed-on` (`destination`, default, or `source`) and `readvertise`, and `operator-editable: false`, implied. The config loader records on each `PeerSettings` the present paths of its resolved map that some declaration names, read generically from the declaration store; the reactor puts a bound step in a peer's lists exactly when that peer's settings or session satisfy its condition. Bound steps live in the per-peer step list beside the chain: no chain grammar names them, `inactive:` cannot reach them, the operator cannot reorder them, and a chain reference to one is refused at verify (AC-7). The only way to stop a procedure on a peer is to remove the feature config that makes the RFC obligation apply. The bindings, each a value in its own plugin's `filterDecls()` and none known to the engine (D-5a): `bgp-role` by `role` (ingress on the receiving peer, egress destination-keyed); `bgp-gr` by `session capability graceful-restart long-lived-stale-time` (ingress on the receiving peer; egress source-keyed, readvertise), because RFC 9494 Section 4.3 obliges a speaker "that has advertised the Long-Lived Graceful Restart Capability to a neighbor" for routes from that neighbor; `bgp-rs` by `session rs-client` (egress destination-keyed). Stages stay as at HEAD | (a) the plugin lists its peers at Stage 1 or at runtime (refused by D-2); (b) a `ze:` YANG extension on the plugin's augment naming the filter | (b) works only for compiled YANG and splits the declaration from `FilterDecl`; D-5 keeps one Stage 1 declaration that a forked and a compiled-in plugin make the same way, evaluated against config the daemon already resolves with group inheritance. The evaluator still checks per-session facts (`llgr-advertised`, the learned role), so the binding is a bound on who is called, never the procedure's whole condition |
+| D-5a (owner, 2026-11-01): the engine never names which filter binds to which peer feature. The binding of a protocol-procedure filter is DECLARED by the plugin that owns it, in the one Stage 1 `FilterDecl` both transports read (and its `registry.Registration` twin): the condition (`bound-by`: a path or leaf of the peer's config the plugin names, or `bound-by-capability`: a capability code the plugin names, advertised or negotiated on the session), its stage and priority, and `operator-editable: false`, implied by every binding. The engine keeps a registry of declared bindings (the runtime filter declaration store) and evaluates each one generically against `PeerSettings` and the session's capability facts. No switch, field list, path literal or plugin name for `role`, LLGR, community, gr or rs exists in `reactor`, `bgp/config`, `policyview` or `plugin/server`; the bindings D-5 lists are values in each plugin's own `filterDecls()`. Asked of every piece: a new plugin that declares a binding, with nobody editing the engine, is bound and run. The same holds for the view fields the filters read (each owner registers its field, D-9) and for retention (D-11), which uses only the generic `emit-event`, subscription and sequential state delivery: the engine has no gr-, rr- or rs-specific path | the engine maps known features to filters (a table keyed by `role`, `long-lived-stale-time`, `rs-client`) | a central map is a second declaration of what the plugin already owns and refuses a new plugin until edited (`ai/rules/principles.md`, registration over enumeration). `./le arch enumeration check` and the grep row of Architectural Verification prove the absence |
+| D-6: community and relation leave the stage list and run inside the chain at the operator's position, after the bound procedures | keep them at Policy 0 and Annotation 1 as engine-placed steps | D-3 makes them chain members; role reads no community, and relation, which reads role's `src-peer-role`, still runs after role. The order tests that pinned them change through `ze-test-judge` with D-3 as the source |
+| D-7: reactor facts cross as declared fields of the existing view, not as new header members of `FilterUpdateInput` | widen the header with every `PeerFilterInfo` field | fields are encoded only when declared (D-10), the forked message stays small, and a third party reads facts by the same vocabulary as route fields |
+| D-8: route metadata keys become fields with readers and settable writers registered by the key's owner; a metadata set is visible to later ingress steps of the same pass and on egress | a `meta` member in the verdict; per-step maps | one answer shape (sets), judged by the declared-sets rule; preserves role writing `src-peer-role` for relation |
+| D-9 (Q-4, settled by rule): BGP's `carries`/`settable` lists become registrations each field's owner makes, in this spec | add the new fields to the hand-written lists | `ai/rules/principles.md`: a feature registers and is discovered; a central list is a second declaration |
+| D-10 (Q-1, settled by rule): any plugin the operator configured may declare a bound filter, a third-party one included | only compiled-in plugins | the in-tree plugins hold no privilege on the protocol (`ai/doors/bgp-plugins.md`); a third-party binding binds only where its own path is configured, and A-10 states the compiled-schema limit |
+| D-11 (owner Q-3 = (b), 2026-11-01): `bgp-gr` and `bgp-rs` become real filters, forked included, and this spec moves retention onto the bus. `retention.Owner`, `Publish` and `Family` are deleted. `internal/component/bgp/retention` keeps the event's identity: namespace `bgp-gr`, type `retention`, payload {`peer-address`, `families` retained, as `<afi>/<safi>`}, registered once with `events.Register[T]`. gr, in its DOWN handler, emits the event for every DOWN it handles (an empty `families` after a NOTIFICATION or with no GR capability) before it returns. The engine delivers a state event sequentially in reverse dependency order and waits for each process's result (`deliverPeerState`), and every delivery to a process is FIFO on its one `eventChan` (`process.Deliver`, `server.deliverEvent`), so rr and rs have the event queued before their DOWN. On DOWN they consume and clear the recorded verdict for that peer, synchronously, as `handleStateDown` does today; no verdict means gr holds no state for the peer, the answer `Family` gave with no owner. The event carries no peer address, so it is not peer-scoped and needs no `attach` grant. The three refusals, `doctor-bgp-gr-out-of-process` and the three `*-external-refuses.ci` go | (a) keep retention in-process and prove gr internal only (the draft's Q-3 (a)); (b) rr and rs query gr through a text command on DOWN; (c) the engine attaches gr's answer to the DOWN it delivers next | (a) is the owner's rejected option. (b) is a request and response for a fact that is already settled when gr returns, and adds a dispatch round trip inside the DOWN handler. (c) puts GR knowledge in the engine, which holds no policy or GR state (`ai/doors/bgp-engine.md`). The event reuses the order the engine already guarantees and the bus both transports already have |
+| D-12: rs's filter is RFC 7947 Section 2.2 transparency toward RS-client destinations: it answers accept with the treatment field `preserve-opaque-attributes` set, which replaces the per-snapshot `facts.preserveOpaqueAttributes` in the dedup identity and the body cache key | derive the treatment in the reactor from `RSClient` (the earlier draft) | D-1 makes rs a filter; the treatment then has one producer, rs, on both transports |
+| D-13: rs's `bgp-rib/validation-change` subscription moves from the in-process `ConfigureEventBus` handle to the SDK subscription | leave it in-process | D-11 makes rs run forked, where the handle is nil and the subscription is skipped with no log line |
+| D-14: `bgp-gr-llgr-ingress` is a plugin filter reading `llgr-advertised`, not engine code | engine-side like `loop` | `loop` is RFC 4271/4456 for every session; LLGR is gr's feature, and removing gr must remove it (`ai/rules/plugins.md`) |
 
 ## Open Design Questions (for Thomas)
 
 | ID | Question | Options | What it changes |
 |----|----------|---------|-----------------|
-| Q-1 | May any plugin, a third-party one included, attach a filter that applies to every peer with no operator reference? | (a) any plugin the operator configured; (b) only compiled-in plugins; (c) any plugin, but the operator lists attached filters under the plugin block | (a) is the uniform contract (in-tree plugins hold no privilege). (b) keeps a privilege the doors say in-tree plugins do not hold. (c) adds a config leaf and makes OTC operator-modifiable, against RFC 9234 Section 5 |
-| Q-2 | Peer scope of an attached filter | (a) every peer, the evaluator accepts unconfigured peers cheaply; (b) the plugin declares the peers it judges at runtime through a new engine RPC | (a) is simplest, but a forked role adds a round trip to every route of every peer (R-1). (b) bounds forked cost and the `state` delivery, at the price of a new RPC and a reconcile on reload |
-| Q-3 | `bgp-gr` (and `bgp-rs`) refuse to start forked because of `retention.Family`, so the gr rows cannot get a forked `.ci` here | (a) this spec proves gr internal plus transport equality (`CheckFilterConformance`), and a new spec moves retention onto the bus and owes the forked twins; (b) this spec also moves retention | (a) keeps this spec to the filter mechanism and leaves the gr forked proof owed in a named spec. (b) widens scope into graceful-restart retention for rr and rs |
-| Q-4 | BGP's `carries`/`settable` lists in `bgp/config/register.go` are hand-written; the new fields must join them | (a) add the new fields to the lists; (b) turn the lists into registrations each field's owner makes, in this spec | (a) is one line per field but grows a central list (`ai/rules/principles.md`). (b) is the registration the rules ask for, touching every existing field once |
+| Q-5 | RFC 7999 Section 3.1: "In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it." The withholding (`blackholeReadvertiseRefused`) must therefore run toward every bilateral eBGP destination WITHOUT an agreement, and the agreement is `bgp-rib`'s `blackhole` container. No config-presence binding reaches "peers lacking the config", so D-2 and this MUST pull apart for this one procedure | (a) **the reading this spec proceeds under**: a bound procedure of `bgp-filter-community` declaring `bound-by-session` on the session facts the BGP view registers (`ebgp` true, `rs-client` false), set by every bilateral eBGP peer's own session config, evaluated generically like every other binding (D-5a); (b) make it an operator chain member and accept that a peer whose operator did not name it receives BLACKHOLE unagreed; (c) move the withholding to the `bgp-rib` feature that owns the agreement, bound where `blackhole` is configured on the source, and accept the same leak for unconfigured destinations | (a) keeps the shipped RFC behaviour and is the one binding that covers peers by session kind rather than by a feature path. (b) and (c) open an RFC 7999 MUST leak that a fix cannot ship (`ai/rules/rfc-compliance.md`). Only phase 4's BLACKHOLE step and AC-9 depend on the answer |
 
 ## Known Limitations
 
 - Forked metrics (A-5): if a forked plugin's counters reach no registry today, that is a plugin-infrastructure limit for every plugin, owed by a spec of its own if A-5 holds; this spec does not hide it.
+- A third-party plugin can bind only by a schema path the daemon has compiled (A-10), because an external plugin's own YANG is not compiled yet (`docs/plugin-development/schema.md`).
 
 ## RFC Documentation (Scope: protocol)
 Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
-The moved evaluators keep their RFC 9234 Section 5, RFC 9494 Sections 4.3 and 4.6, RFC 7999 Section 3.1 and RFC 8195 Section 3.2 quotes; each new call site names its RFC and section.
+The moved evaluators keep their RFC 9234 Section 5, RFC 9494 Sections 4.3 and 4.6, RFC 7999 Section 3.1, RFC 8195 Section 3.2 and RFC 7947 Section 2.2 quotes; the retention emit and consume keep RFC 4724 Section 4.2; each new call site names its RFC and section.
 
 ## Checklist
 
@@ -477,7 +597,7 @@ The moved evaluators keep their RFC 9234 Section 5, RFC 9494 Sections 4.3 and 4.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-15 all demonstrated
+- [ ] AC-1..AC-21 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass, and `./le verify changed` over the closing commits
