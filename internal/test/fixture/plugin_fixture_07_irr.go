@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -406,10 +407,15 @@ func firewallIRRUpdate07(ctx context.Context, p *sdk.Plugin) error {
 // came before the list. The first UPDATE event it saw must carry the
 // withdrawal of 10.9.0.0/24 and not the announced 10.0.0.0/24. Once the mock
 // answers, the readmitter's ROUTE-REFRESH (checked by the peer's script)
-// brings the route back, and the observer waits for it accepted.
+// brings the route back, and the observer waits for it accepted. The
+// End-of-RIB is an UPDATE (RFC 4724 Section 2) and reaches the plugin as an
+// UPDATE event once the ingress pass leaves it unjudged (reactor_notify.go),
+// so the observer counts it apart from the route events and requires it
+// delivered before the route sent again.
 func filterIRRUnresolved07(ctx context.Context, _ []string) error {
 	const name = "plugin/filter-wire-irr-unresolved"
 	updates := make(chan string, 4)
+	var markers atomic.Int32
 	setup := func(p *sdk.Plugin) error {
 		p.OnEvent(func(event string) error {
 			var decoded map[string]any
@@ -426,6 +432,12 @@ func filterIRRUnresolved07(ctx context.Context, _ []string) error {
 			// as its own text, which then names it in the failure.
 			observed := "no update object in the received event: " + event
 			if update, isUpdate := bgp["update"].(map[string]any); isUpdate {
+				// RFC 4724 Section 2: the End-of-RIB marker carries no NLRI and
+				// no withdrawn routes, so it is counted, not judged as a route.
+				if _, isMarker := update["eor"]; isMarker && len(update) == 1 {
+					markers.Add(1)
+					return nil
+				}
 				observed = text07(update)
 			}
 			select {
@@ -484,6 +496,11 @@ func filterIRRUnresolved07(ctx context.Context, _ []string) error {
 		case update := <-updates:
 			if !strings.Contains(update, "10.0.0.0/24") {
 				return fmt.Errorf("the route sent again is not 10.0.0.0/24: update=%s", update)
+			}
+			// Events reach the plugin in arrival order, and the peer sent its
+			// End-of-RIB before the ROUTE-REFRESH that brought the route back.
+			if markers.Load() == 0 {
+				return errors.New("the End-of-RIB the session counted never reached the plugin as an UPDATE event")
 			}
 			return nil
 		case <-time.After(wait):
