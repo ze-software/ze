@@ -157,7 +157,13 @@ func compileRouteEvaluator(name string, instance map[string]any, resolve policy.
 		return nil, err
 	}
 	return func(r ribpolicy.Route) policy.RouteResult {
-		if !cond.Matches(&r) {
+		matches, err := cond.Matches(&r)
+		if err != nil {
+			// The source condition could not judge the route, so the chain
+			// cannot pass it unchanged: it fails closed.
+			return policy.RouteResult{Reject: true}
+		}
+		if !matches {
 			return policy.RouteResult{}
 		}
 		return policy.RouteResult{Sets: sets}

@@ -15,6 +15,19 @@ module ze-filter-prefix {
         description "Initial revision";
     }
 
+    augment "/policy:policy/policy:match" {
+        description "The prefix-list condition of a match instance: the prefix filter registers
+                     it, so a build without BGP has no such condition.";
+        leaf prefix-list {
+            type string { length "1..max"; }
+            ze:reference "policy-prefix-list";
+            description "The route passes this condition when the named prefix-list accepts its prefix.
+                         The prefix-list is a policy prefix-list instance: the editor completes the
+                         configured ones, and a commit naming any other is refused.";
+            ze:help "Match routes the named prefix-list accepts";
+        }
+    }
+
     augment "/policy:policy" {
         list prefix-list {
             ze:filter;

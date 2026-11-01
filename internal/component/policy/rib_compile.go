@@ -272,13 +272,13 @@ func compileRIBChain(chain *ribChainConfig, policyCfg map[string]any) (*RouteCha
 // naming the types that have one.
 func compileRouteChain(attachment string, refs []string, instances []ribInstanceConfig, final Final, policyCfg map[string]any) (*RouteChain, error) {
 	compiled := &RouteChain{evaluators: make([]RouteEvaluator, len(refs)), final: final}
-	resolve := func(name, filterType string) (RouteEvaluator, error) {
+	resolve := func(name, filterType string) (map[string]any, error) {
 		instanceCfg, ok := policyCfg[filterType].(map[string]any)[name].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("%q is not a %s defined under the %s root; define policy %s %s, or name an existing one",
 				name, filterType, RootName, filterType, name)
 		}
-		return compileRIBEvaluator(filterType, name, instanceCfg, refuseNestedReference)
+		return instanceCfg, nil
 	}
 	for i, name := range refs {
 		filterType := instances[i].filterType
@@ -301,12 +301,6 @@ func compileRIBEvaluator(filterType, name string, instanceCfg map[string]any, re
 			filterType, strings.Join(ribReg.evaluatorTypes(), ", "))
 	}
 	return compile(name, instanceCfg, resolve)
-}
-
-// refuseNestedReference is the resolver a referenced instance compiles with:
-// references are one level deep (InstanceResolver).
-func refuseNestedReference(name, filterType string) (RouteEvaluator, error) {
-	return nil, fmt.Errorf("a referenced filter cannot reference another filter (%s %q); name it from the chain directly", filterType, name)
 }
 
 // RouteChain is one compiled engine-judged chain (CompileRouteChain): a Loc-RIB

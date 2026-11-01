@@ -21,7 +21,8 @@ Four filter types can run at a Loc-RIB attachment today:
 | `modify` | A route that meets its `match` block gets the values its `set` block names. At a Loc-RIB attachment, `set` takes `distance` and `tag`. The route always passes on |
 | `prefix-list` | The first entry that matches decides: `accept` passes the route on, `reject` stops the chain. A route that matches no entry is rejected |
 | `family-filter` | `action remove` rejects a route of the instance's family and passes every other route on. `action tear-down` closes a BGP session, so it is refused at a Loc-RIB attachment |
-<!-- source: internal/component/policy/match.go -- compileMatchEvaluator, RouteMatch.Rejects -->
+<!-- source: internal/component/policy/match_route.go -- compileMatchEvaluator -->
+<!-- source: internal/component/policy/match.go -- Match.Rejects -->
 <!-- source: internal/component/bgp/plugins/filter_modify/rib_evaluator.go -- compileRouteEvaluator -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/rib_evaluator.go -- compileRouteEvaluator -->
 <!-- source: internal/component/bgp/plugins/filter_family/rib_evaluator.go -- compileRouteEvaluator -->
@@ -35,7 +36,7 @@ IS-IS, OSPF, static or connected import chain starts without BGP. The BGP
 filter plugins themselves load only when the config holds a `bgp { }` block.
 <!-- source: feature-gates.txt -- ze_bgp -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/register.go -- MustRegisterRouteEvaluator, ConfigRoots -->
-<!-- source: internal/component/policy/register.go -- MatchFilterType -->
+<!-- source: internal/component/policy/register_match.go -- MatchFilterType -->
 <!-- source: internal/component/policy/rib_compile.go -- compileRIBChain -->
 
 ### The `match` conditions
@@ -44,6 +45,17 @@ A `match` instance names one or more conditions. A route must meet every
 condition it names, and a condition with several values is met by any one of
 them. A route that does not carry the field a condition reads never meets it:
 an untagged route fails `tag [ 0 ]`.
+
+Each condition is registered by the package that owns what it reads, and
+`match` itself names none: the policy component registers the conditions over
+the fields every route carries, and the prefix filter registers `prefix-list`.
+A build without the `ze_bgp` tag therefore has no `prefix-list` condition, as
+it has no prefix-list to name. A condition is a pure function of the route
+and the instance's config: it runs inside the chain, never in a plugin
+process.
+<!-- source: internal/component/policy/match.go -- MustRegisterMatchCondition, Conditions.MustAdd, CompileMatch -->
+<!-- source: internal/component/policy/register_match.go -- init -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/register.go -- MustRegisterMatchCondition -->
 
 | Condition | Met when |
 |-----------|----------|
@@ -56,7 +68,8 @@ an untagged route fails `tag [ 0 ]`.
 | `tag [ ... ]` | The route carries one of the tags |
 | `level [ ... ]` | The IS-IS level is listed, 1 or 2 |
 | `route-type [ ... ]` | The OSPF path type is listed: `intra-area`, `inter-area`, `external-1`, `external-2`, `nssa-1`, `nssa-2` |
-<!-- source: internal/component/policy/match.go -- matchConditions, RouteMatch.Matches -->
+<!-- source: internal/component/policy/match_route.go -- compileRouteFamily, compileRouteProtocol, compileRouteNextHop, compileRouteMetric, compileRouteTag -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/condition.go -- compileRouteCondition -->
 <!-- source: internal/component/policy/yang/ze-policy-conf.yang -- list match -->
 
 This hides every static route tagged 4242 and keeps the others:

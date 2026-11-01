@@ -199,6 +199,27 @@ func (v *vocabulary) mustRegisterFilterType(typeName string, reads, sets []Field
 	v.mustRegisterUse(v.filterTypes, "filter type", "", typeName, reads, sets)
 }
 
+// mustExtendFilterTypeReads adds reads to the fields typeName declares it
+// reads, for a type whose readers register after it (a match condition from
+// its own package). typeName MUST already be declared.
+func (v *vocabulary) mustExtendFilterTypeReads(typeName string, reads []Field) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	ft, declared := v.filterTypes[typeName]
+	if !declared {
+		panic("BUG: policy: reads of " + typeName + " extended before its filter type was declared")
+	}
+	for _, f := range reads {
+		if _, known := v.fields[f.name]; !known {
+			panic("BUG: policy: filter type " + typeName + " extended with unregistered field " + f.name)
+		}
+		if !slices.Contains(ft.first, f) {
+			ft.first = append(ft.first, f)
+		}
+	}
+	v.filterTypes[typeName] = ft
+}
+
 func (v *vocabulary) mustRegisterInstanceFields(typeName string, fields InstanceFields) {
 	v.mu.Lock()
 	defer v.mu.Unlock()

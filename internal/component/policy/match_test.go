@@ -69,12 +69,12 @@ func TestMatchConditions(t *testing.T) {
 			if err != nil {
 				t.Fatalf("compile: %v", err)
 			}
-			if !m.Matches(&tc.match) {
-				t.Errorf("did not match %+v", tc.match)
+			if matches, err := m.Matches(&tc.match); err != nil || !matches {
+				t.Errorf("did not match %+v (err %v)", tc.match, err)
 			}
 			for _, r := range tc.miss {
-				if m.Matches(&r) {
-					t.Errorf("matched %+v", r)
+				if matches, err := m.Matches(&r); err != nil || matches {
+					t.Errorf("matched %+v (err %v)", r, err)
 				}
 			}
 		})
@@ -150,7 +150,7 @@ func TestMatchAction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Rejects(&tagged) {
+	if rejects, err := m.Rejects(&tagged); err != nil || rejects {
 		t.Error("a source-only match read the action leaf")
 	}
 }

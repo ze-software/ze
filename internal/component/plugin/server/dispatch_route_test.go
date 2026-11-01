@@ -284,7 +284,7 @@ func TestRouteInstallTagReachesGate(t *testing.T) {
 		mu.Lock()
 		seen = append(seen, r)
 		mu.Unlock()
-		if reject4242.Rejects(&r) {
+		if rejects, err := reject4242.Rejects(&r); err != nil || rejects {
 			return ribpolicy.Verdict{Action: ribpolicy.ActionReject}
 		}
 		return ribpolicy.Verdict{Action: ribpolicy.ActionAccept}
