@@ -1108,8 +1108,13 @@ wrapped: `/bin/sh` assigns the address to `eth0` with `nodad`, then execs the
 start it replaced (Ze's `ze`, or FRR's image entrypoint `/sbin/tini` with its
 command `-- /usr/lib/frr/docker-start`). The daemon's first interface snapshot
 therefore already holds the address. A placeholder also selects an IPv6 lab
-network, because the address is built from its prefix. The scenario's name
-decides nothing.
+network, because the address is built from its prefix. So does a `ze.conf`
+that opens an `address-family` block inside its `ospf` block, in either
+spelling the parser accepts (`address-family ipv6 { ... }` or
+`address-family { ipv6 { ... } }`), because every family there is an OSPFv3
+instance sending from an IPv6 link-local, and Docker disables IPv6 on `eth0`
+of a network without it (`zeRunsOSPFv3` reads block paths, so a comment
+selects nothing). The scenario's name decides nothing.
 
 A scenario's prestart is Go, not a scenario file: its register file adds an
 `ownerPrestarts` entry, one shell fragment per link-local owner, to

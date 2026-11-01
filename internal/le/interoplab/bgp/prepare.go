@@ -192,13 +192,70 @@ func needsIPv6(root string) (bool, error) {
 				return nil
 			}
 		}
-		if relative == zeConfigFile &&
-			strings.Contains(text, "ospf") && strings.Contains(text, "address-family ipv6") {
+		if relative == zeConfigFile && zeRunsOSPFv3(text) {
 			returnValue = true
 		}
 		return nil
 	})
 	return returnValue, errors.Join(walkErr, scenarioRoot.Close())
+}
+
+// zeRunsOSPFv3 reports whether a Ze config opens an `address-family` block
+// inside an `ospf` block. Every family that container holds (ipv6,
+// ipv6-unicast, ipv6-multicast, ipv4-unicast, ipv4-multicast in
+// ze-ospf-conf.yang) is an OSPFv3 instance, RFC 5838 carrying IPv4 too, and
+// OSPFv3 sends from an IPv6 link-local, which Docker removes from eth0 on a
+// network without IPv6. The scan follows block paths rather than matching
+// text, because the parser accepts both `address-family ipv6 { ... }` and
+// `address-family { ipv6 { ... } }`, and a comment naming either configures
+// nothing. The input is a scenario file from the repository, so the open
+// block count is bounded by that file. An unterminated quote, which the
+// parser refuses, reads as one word running to the end of the file.
+func zeRunsOSPFv3(text string) bool {
+	var path []string      // The words of every open block, outermost first.
+	var depths []int       // The length of path before each open block.
+	var statement []string // The words since the last statement end.
+	for index := 0; index < len(text); index++ {
+		switch character := text[index]; character {
+		case '#':
+			for index < len(text) && text[index] != '\n' {
+				index++
+			}
+			statement = statement[:0]
+		case '\n', ';':
+			statement = statement[:0]
+		case ' ', '\t', '\r':
+		case '{':
+			depths = append(depths, len(path))
+			path = append(path, statement...)
+			statement = statement[:0]
+			ospf := slices.Index(path, "ospf")
+			if ospf >= 0 && slices.Contains(path[ospf+1:], "address-family") {
+				return true
+			}
+		case '}':
+			statement = statement[:0]
+			if len(depths) > 0 {
+				path = path[:depths[len(depths)-1]]
+				depths = depths[:len(depths)-1]
+			}
+		case '"', '\'':
+			end := strings.IndexByte(text[index+1:], character)
+			if end < 0 {
+				end = len(text) - index - 1
+			}
+			statement = append(statement, text[index+1:index+1+end])
+			index += end + 1
+		default:
+			end := index
+			for end < len(text) && !strings.ContainsRune(" \t\r\n;{}#\"'", rune(text[end])) {
+				end++
+			}
+			statement = append(statement, text[index:end])
+			index = end - 1
+		}
+	}
+	return false
 }
 
 func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareContext) (interoplab.PreparedScenario, error) {
