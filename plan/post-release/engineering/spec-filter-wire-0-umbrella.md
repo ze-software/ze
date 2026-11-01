@@ -636,7 +636,8 @@ test proves at least what the old one did.
 | `filter-wire-irr-two-transports` | `test/plugin/` | AC-31 | |
 | `filter-wire-irr-unresolved` | `test/plugin/` | AC-32 | |
 | `filter-wire-plugin-unavailable` | `test/plugin/` | AC-33 | |
-| `filter-wire-thirdparty-compiled-in` | `test/plugin/` | AC-35, a test fixture filter plugin compiled into the tree, run internal then forked | |
+| `filter-wire-plugin-respawn` | `test/plugin/` | AC-33: after an internal filter plugin is respawned, its new slot judges the routes that follow | |
+| `filter-wire-thirdparty-compiled-in` | `test/plugin/` | AC-35, an SDK-only test filter plugin run internal through its slot, and forked through the batch as its own binary, `ze-fakefilter`, built beside ze | |
 | `filter-wire-inprocess-family-forked` | `test/plugin/` | AC-37, each merged `filterapi` filter with its plugin forked | |
 | `filter-wire-match-conditions` | `test/plugin/` | AC-30: the five conditions in one `match` instance and singly, import and export, no `filter-update` sent, each package's plugin internal then external | |
 | `path-asn-show`, `completion-words-reject-asn-show` | `test/plugin/`, `test/ui/` | AC-40: the `show ... reject-asn` commands unchanged after the filter role goes | exist |
