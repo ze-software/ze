@@ -199,7 +199,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, wireUpd
 	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
 	// RFC 8212 Section 3.
 	res := PolicyFilterChain(policy, external, "import", peerAddr.String(), peerAS,
-		updateText, r.policyFilterFunc(payload),
+		updateText, r.policyFilterFunc(wireUpdate, payload, policyview.Session{EBGP: external}),
 	)
 
 	// Honor a policy teardown request (e.g. filter_family tear-down): the caller
@@ -371,7 +371,7 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 	updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
 	// RFC 8212 Section 3.
 	res := PolicyFilterChain(exportPolicy, !destInternal, "export", destAddrStr, destPeerAS,
-		updateText, r.policyFilterFunc(wireUpdate.Payload()),
+		updateText, r.policyFilterFunc(wireUpdate, wireUpdate.Payload(), policyview.Session{EBGP: !destInternal}),
 	)
 	if res.Action == PolicyReject {
 		// res.Failed is set when the reject came from an IPC error or an

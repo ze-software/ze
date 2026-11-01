@@ -595,6 +595,13 @@ type FilterUpdateInput struct {
 	Peer      string `json:"peer"`      // Peer IP address
 	PeerAS    uint32 `json:"peer-as"`   // Peer ASN
 	Update    string `json:"update"`    // Text-format attributes and NLRI
+	// Fields holds the route fields the filter declared it reads (the Reads
+	// of its FilterDecl, raw aside), as one JSON object keyed by vocabulary
+	// field name, each value in the shape the UPDATE event's attr map uses
+	// (docs/plugin-development/protocol.md, "The Route Fields of
+	// filter-update"). A declared field the route does not carry is left out.
+	// It is absent when the filter declared no route field.
+	Fields json.RawMessage `json:"fields,omitempty"`
 	// Raw is the raw BGP UPDATE body (RFC 4271 Section 4.3, without the 19-byte
 	// header) delivered when the filter declared the FilterFieldRaw read. A []byte field so
 	// encoding/json base64-encodes it on the wire (newline-safe, ~33% expansion)

@@ -6,12 +6,17 @@ package reactor
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -632,6 +637,9 @@ func formatFilterAttrs(attrs *filterAttrs) string {
 // replaces what the body TALKS TO, so a test using it drives the body itself.
 type filterTransport interface {
 	FilterInfo(pluginName, filterName string) (declaredAttrs []string, raw bool)
+	// FilterReads answers what the filter's declaration reads: vocabulary
+	// field names, and rpc.FilterFieldRaw for the raw UPDATE body.
+	FilterReads(pluginName, filterName string) []string
 	FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy
 	CallFilterUpdate(ctx context.Context, pluginName string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error)
 }
@@ -657,6 +665,9 @@ func (r *Reactor) filterAPI() filterTransport {
 // policyFilterFunc returns a PolicyFilterFunc that calls external plugins via IPC.
 // The reactor's API server is used to look up plugin connections.
 // rawPayload is the raw UPDATE body bytes for AC-15 (raw mode) - may be nil.
+// wireUpdate and session are the route the declared fields are read from
+// (spec-filter-wire-0-umbrella D-1, filterFields); wireUpdate is nil for a
+// synthetic route, which no field can be read from.
 // Implements AC-13 (reject modify of undeclared attributes) and AC-15 (raw mode).
 //
 // policyFilterSeam replaces the IPC body when set. It is nil in production and
@@ -667,7 +678,7 @@ func (r *Reactor) filterAPI() filterTransport {
 // cannot be applied -- have no other entry point. Testing those on the helper
 // instead of on runIngressPolicyChain / runEgressPolicyChainASN4 proves the
 // helper and not that a caller reaches it (ai/rules/evidence.md).
-func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
+func (r *Reactor) policyFilterFunc(wireUpdate *wireu.WireUpdate, rawPayload []byte, session policyview.Session) PolicyFilterFunc {
 	if r.policyFilterSeam != nil {
 		return r.policyFilterSeam
 	}
@@ -692,6 +703,11 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 			rawBytes = rawPayload
 		}
 
+		fields, err := filterFields(wireUpdate, session, api.FilterReads(pluginName, filterName))
+		if err != nil {
+			return filterOnErrorResponse(api, pluginName, filterName, "policy filter: the declared fields cannot be read", err)
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), rpc.FilterUpdateTimeout)
 		defer cancel()
 
@@ -701,19 +717,13 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 			Peer:      peer,
 			PeerAS:    peerAS,
 			Update:    updateText,
+			Fields:    fields,
 			Raw:       rawBytes,
 		}
 
 		out, err := api.CallFilterUpdate(ctx, pluginName, input)
 		if err != nil {
-			onError := api.FilterOnError(pluginName, filterName)
-			reactorLogger().Warn("policy filter IPC error", "plugin", pluginName, "filter", filterName, "on-error", onError, "error", err)
-			if onError == rpc.OnErrorAccept {
-				return PolicyResponse{Action: PolicyAccept}
-			}
-			// Failed: the filter never decided. Still rejected (fail-closed),
-			// but not a policy decision -- see PolicyResponse.Failed.
-			return PolicyResponse{Action: PolicyReject, Failed: true}
+			return filterOnErrorResponse(api, pluginName, filterName, "policy filter IPC error", err)
 		}
 
 		action, ok := toPolicyAction(out.Action)
@@ -748,6 +758,76 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 		}
 		return resp
 	}
+}
+
+// filterOnErrorResponse answers a filter that could not decide: its on-error
+// policy, logged with what stopped it. Accept forwards the route; reject drops
+// it with Failed set, because no filter chose to drop it.
+func filterOnErrorResponse(api filterTransport, pluginName, filterName, what string, err error) PolicyResponse {
+	onError := api.FilterOnError(pluginName, filterName)
+	reactorLogger().Warn(what, "plugin", pluginName, "filter", filterName, "on-error", onError, "error", err)
+	if onError == rpc.OnErrorAccept {
+		return PolicyResponse{Action: PolicyAccept}
+	}
+	// Failed: the filter never decided. Still rejected (fail-closed),
+	// but not a policy decision -- see PolicyResponse.Failed.
+	return PolicyResponse{Action: PolicyReject, Failed: true}
+}
+
+// errNoRouteForFields is answered for a filter that declared route fields
+// when the route is synthetic (the default-originate check) and carries no
+// UPDATE to read them from. Sending the message without them would read as a
+// route that carries none of them.
+var errNoRouteForFields = errors.New("the route has no UPDATE to read the declared fields from; " +
+	"a filter that reads route fields cannot gate a synthetic route such as default-originate")
+
+// filterViews holds the route views the policy step reads declared fields
+// through. The step runs on many goroutines (session readers, forward
+// workers), so a call takes a view from the pool rather than allocating one,
+// and the view never leaves the call.
+var filterViews = sync.Pool{New: func() any { return new(policyview.View) }}
+
+// filterFields answers the fields object of one filter-update: the route
+// fields reads declares, as policyview.AppendFields writes them, and nil when
+// reads declares none (a raw-only filter, or one that declared no read).
+//
+// The object is the route as the chain received it: an earlier member's text
+// modify reaches this filter in the update text only, as it does for raw.
+// The slice is the message's own: CallFilterUpdate marshals it, so it holds
+// no byte of the received buffer.
+func filterFields(wireUpdate *wireu.WireUpdate, session policyview.Session, reads []string) (json.RawMessage, error) {
+	if !declaresRouteField(reads) {
+		return nil, nil
+	}
+	if wireUpdate == nil {
+		return nil, errNoRouteForFields
+	}
+	view, ok := filterViews.Get().(*policyview.View)
+	if !ok {
+		panic("BUG: reactor: the filter view pool holds a foreign value")
+	}
+	defer filterViews.Put(view)
+
+	view.Reset(wireUpdate, session)
+	defer view.Clear()
+
+	return policyview.AppendFields(make([]byte, 0, filterFieldsOctets), view, reads)
+}
+
+// filterFieldsOctets is the starting capacity of a fields object: a prefix,
+// an AS path and a few communities fit, and a larger route grows the slice
+// once, as JSON marshaling does.
+const filterFieldsOctets = 512
+
+// declaresRouteField answers whether reads names a route field, every read
+// but the raw UPDATE body.
+func declaresRouteField(reads []string) bool {
+	for _, read := range reads {
+		if read != rpc.FilterFieldRaw {
+			return true
+		}
+	}
+	return false
 }
 
 // decodeFilterRawOverride validates a full UPDATE-body replacement from a raw

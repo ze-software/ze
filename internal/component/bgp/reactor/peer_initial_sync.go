@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -1157,7 +1158,7 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 		p.settings.Address.String(),
 		peerAS,
 		updateText,
-		p.reactor.policyFilterFunc(nil), // nil payload -- synthetic update
+		p.reactor.policyFilterFunc(nil, nil, policyview.Session{EBGP: external}), // synthetic update: no wire, no payload
 	)
 	return res.Action != PolicyReject
 }

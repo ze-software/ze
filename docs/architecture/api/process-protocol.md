@@ -323,7 +323,7 @@ optional overrides of default filters.
 | `filters[].name` | string | Filter name (referenced in config as `<plugin>:<name>`) |
 | `filters[].name-pattern` | string | RE2 expression a whole filter name matches, in place of `name`, for names made at run time (one per AS number) |
 | `filters[].direction` | enum | `import`, `export`, or `both` |
-| `filters[].reads` | list | Route fields of the policy vocabulary the filter reads (`prefix`, `as-path`, `community`, ...); `raw` asks for the raw UPDATE body in `filter-update`'s `raw` |
+| `filters[].reads` | list | Route fields of the policy vocabulary the filter reads (`prefix`, `as-path`, `community`, ...), sent in `filter-update`'s `fields`; `raw` asks for the raw UPDATE body in `filter-update`'s `raw`. Stage 1 refuses a BGP field whose value formatter this binary does not link (a community field without `bgp-filter-community`), naming the field and the plugin |
 | `filters[].sets` | list | Route fields of the policy vocabulary the filter may set |
 | `filters[].attributes` | list | Attribute names of the text `update` (the text era's subject) |
 | `filters[].nlri` | bool | Include parsed NLRI text; defaults to true |
@@ -1190,6 +1190,16 @@ handler calls `show.Enrich()` (mode "detail") or `show.EnrichBrief()` (mode "bri
 **filter-update:** Engine sends UPDATE attributes to a named filter.
 Plugin responds accept, reject, or modify (delta-only changed attributes).
 Includes filter name so the plugin can dispatch to the correct handler.
+Beside the text `update`, the request carries `fields`: one JSON object holding
+exactly the route fields the filter declared in `reads`, keyed by vocabulary
+field name, each value in the UPDATE event's `attr` shape. A declared field the
+route does not carry is left out, `fields` is absent for a filter that declared
+no route field, and `raw` is sent only to a filter that declared the `raw` read.
+A field Ze cannot read (a malformed attribute) applies the filter's `on-error`
+instead of sending the message. The value shapes are in
+`docs/plugin-development/protocol.md`, "The Route Fields of filter-update".
+<!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
 
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate -->
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate -->

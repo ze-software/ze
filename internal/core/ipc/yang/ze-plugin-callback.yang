@@ -496,6 +496,16 @@ to the single document the record path would have carried.";
                      answers is applied before the next filter runs.";
                 ze:help "Text-format attributes and NLRI (only declared attributes)";
             }
+            anyxml fields {
+                description
+                    "A JSON object holding the route fields the filter declared it reads, keyed
+                     by vocabulary field name, each value in the shape the UPDATE event's attr map
+                     uses. A declared field the route does not carry is left out, and the member
+                     is absent when the filter declared no route field. The values are the route
+                     as the chain received it: a modify an earlier filter answered reaches this
+                     filter in update alone.";
+                ze:help "Declared route fields keyed by field name (JSON object)";
+            }
             leaf raw {
                 type string;
                 description

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -93,8 +94,24 @@ func checkFilterDeclarations(pluginName string, declared []registry.DeclaredFilt
 		var who textbuf.Buffer
 		who.Str("plugin ").Quoted(pluginName).Str(" filter ").Str(d.Label())
 		declarer := who.String()
-		if err := policy.CheckFieldNames(declarer, fieldReads(d.Reads)); err != nil {
+		reads := fieldReads(d.Reads)
+		if err := policy.CheckFieldNames(declarer, reads); err != nil {
 			return err
+		}
+		// Every field read travels in the filter-update message, so a BGP
+		// field this binary cannot write is refused here rather than sent
+		// empty (spec-filter-wire-0-umbrella R-10, AC-29). A field no BGP
+		// route carries is left to the attachment check at config load
+		// (judgeExternalChainRef, checkChain), which names the attachment.
+		for _, read := range reads {
+			err := policyview.CheckFieldWriter(read)
+			if err == nil {
+				continue
+			}
+			if errors.Is(err, policyview.ErrNotBGPField) {
+				continue
+			}
+			return errors.New(declarer + " reads a field Ze cannot send it: " + err.Error())
 		}
 		for _, set := range d.Sets {
 			if set == rpc.FilterFieldRaw {

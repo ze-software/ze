@@ -631,6 +631,44 @@ session's routes (`docs/architecture/plugin/rib-storage-design.md`,
 <!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent -->
 <!-- source: internal/component/bgp/plugins/cmd/update/recovery.go -- recoveryFromMeta -->
 
+### The Route Fields of filter-update
+
+`FilterUpdateInput.Fields` (`fields` on the wire) is one JSON object holding the
+route fields the filter declared in `reads`, and no other. Each key is the
+vocabulary field name, never the UPDATE event's `attr` key: `community`, not
+`communities`. Each value takes the shape the event's `attr` map gives that
+attribute (`docs/architecture/api/json-format.md`, "Attributes"), written by
+the same formatter. The fields the `attr` table has no row for take these
+shapes:
+
+| Field | Shape | Example |
+|-------|-------|---------|
+| `prefix` | object: family to the list of announced NLRI, in the event's NLRI shapes (ADD-PATH adds `path-id`) | `{"ipv4/unicast":["10.0.0.0/24"]}` |
+| `family` | list of the announced families | `["ipv4/unicast","ipv6/unicast"]` |
+| `next-hop` | object: family to the next hop of its announced routes | `{"ipv4/unicast":"192.0.2.1"}` |
+| `protocol` | `"ebgp"` or `"ibgp"`: the session the route came from (import) or goes to (export) | `"ebgp"` |
+| `origin-as` | the origin AS number, or `"none"` for RFC 6811's NONE | `65002` |
+
+For example, a filter that declared `community`, `as-path` and
+`local-preference` reads
+`"fields":{"community":["65001:100"],"as-path":[65001,65002],"local-preference":100}`.
+
+- A declared field the route does not carry is left out of the object.
+- A filter that declared no route field (a raw-only filter) is sent no
+  `fields` member, and `raw` is sent only to a filter that declared `raw`.
+- A field Ze cannot read, such as a malformed attribute, is never sent empty:
+  the filter's `on-error` decides the route instead of the filter.
+- Stage 1 refuses a declared BGP field this binary cannot write: the
+  community fields need `bgp-filter-community`, `originator-id` and
+  `cluster-list` need `bgp-rr`, and `aigp` needs `bgp-aigp`.
+- The values are the route as the chain received it. A modify an earlier
+  filter in the chain answered reaches this filter in the text `update` only,
+  as it does for `raw`.
+<!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
+<!-- source: internal/component/bgp/policyview/register_writers.go -- the field writers -->
+<!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
+
 ### The Filter Text an `OnFilterUpdate` Handler Reads
 
 `FilterUpdateInput.Update` is the UPDATE as text: `<name> <value>` attribute

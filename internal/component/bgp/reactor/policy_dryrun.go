@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
@@ -237,7 +238,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	textBefore := string(buf)
 
 	// Run the trace chain using the real filter function (calls plugins via IPC).
-	callFilter := r.policyFilterFunc(updateBody)
+	callFilter := r.policyFilterFunc(wu, updateBody, policyview.Session{EBGP: !internal})
 	result, trace := tracePolicyFilterChain(
 		policy, !internal, direction, peerAddr, peerAS, textBefore, callFilter,
 	)

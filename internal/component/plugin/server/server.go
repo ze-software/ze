@@ -554,22 +554,40 @@ func (s *Server) FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy 
 // FilterInfo returns declaration info for a named filter: declared attributes and raw flag.
 // Returns nil attributes and false if the plugin or filter is not found.
 func (s *Server) FilterInfo(pluginName, filterName string) (declaredAttrs []string, raw bool) {
-	pm := s.procManager.Load()
-	if pm == nil {
-		return nil, false
-	}
-	proc := pm.GetProcess(pluginName)
-	if proc == nil {
-		return nil, false
-	}
-	reg := proc.Registration()
-	if reg == nil {
-		return nil, false
-	}
-	if f := findFilterRegistration(reg.Filters, filterName); f != nil {
+	if f := s.filterRegistration(pluginName, filterName); f != nil {
 		return f.Attributes, f.Raw
 	}
 	return nil, false
+}
+
+// FilterReads answers what the declaration serving filterName reads: route
+// field names of the policy vocabulary, and rpc.FilterFieldRaw for the raw
+// UPDATE body. The reactor sends exactly those fields in filter-update
+// (FilterUpdateInput.Fields). It answers nil when no running plugin declares
+// the filter, and the call that follows then fails as an IPC error.
+func (s *Server) FilterReads(pluginName, filterName string) []string {
+	if f := s.filterRegistration(pluginName, filterName); f != nil {
+		return f.Reads
+	}
+	return nil
+}
+
+// filterRegistration answers the declaration of a running plugin that serves
+// filterName, nil when the plugin is not running or declares no such filter.
+func (s *Server) filterRegistration(pluginName, filterName string) *plugin.FilterRegistration {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return nil
+	}
+	proc := pm.GetProcess(pluginName)
+	if proc == nil {
+		return nil
+	}
+	reg := proc.Registration()
+	if reg == nil {
+		return nil
+	}
+	return findFilterRegistration(reg.Filters, filterName)
 }
 
 // findFilterRegistration answers the filter that serves filterName: the one

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 )
@@ -459,7 +460,7 @@ func TestPolicyFilterChainPropagatesFailed(t *testing.T) {
 // operator's policy rejected this route".
 func TestPolicyFilterFuncFlagsNonDecisions(t *testing.T) {
 	r := &Reactor{} // no API server
-	resp := r.policyFilterFunc(nil)("p", "f", "export", "10.0.0.2", 65002, "origin igp")
+	resp := r.policyFilterFunc(nil, nil, policyview.Session{})("p", "f", "export", "10.0.0.2", 65002, "origin igp")
 	assert.Equal(t, PolicyReject, resp.Action, "no filter engine must fail closed")
 	assert.True(t, resp.Failed, "a guard miss is not a policy decision")
 }

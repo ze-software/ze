@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
@@ -45,6 +46,10 @@ type fakeFilterTransport struct {
 }
 
 func (f *fakeFilterTransport) FilterInfo(_, _ string) ([]string, bool) { return f.declared, f.raw }
+
+// FilterReads answers no route field: these tests drive the text and raw
+// branches, and the fields object is TestFilterMessageFieldShapes's.
+func (f *fakeFilterTransport) FilterReads(_, _ string) []string { return nil }
 
 func (f *fakeFilterTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy { return f.onError }
 
@@ -81,7 +86,7 @@ func TestPolicyFilterFailedFlagMarksANonDecision(t *testing.T) {
 	t.Run("an IPC error under a fail-closed policy", func(t *testing.T) {
 		r := &Reactor{api: liveFilterServer(t)}
 
-		got := r.policyFilterFunc(nil)(plug, filter, directionExport, "10.0.0.2", 65002, "origin igp")
+		got := r.policyFilterFunc(nil, nil, policyview.Session{})(plug, filter, directionExport, "10.0.0.2", 65002, "origin igp")
 
 		assert.Equal(t, PolicyReject, got.Action, "fail-closed: the route is still rejected")
 		assert.True(t, got.Failed, "no filter decided this; the call never reached one")
@@ -97,7 +102,7 @@ func TestPolicyFilterFailedFlagMarksANonDecision(t *testing.T) {
 			err:     errFilterIPCForTest,
 		}}
 
-		got := r.policyFilterFunc(nil)(plug, filter, directionExport, "10.0.0.2", 65002, "origin igp")
+		got := r.policyFilterFunc(nil, nil, policyview.Session{})(plug, filter, directionExport, "10.0.0.2", 65002, "origin igp")
 
 		assert.Equal(t, PolicyAccept, got.Action, "on-error accept forwards the route")
 		assert.False(t, got.Failed, "an accepted route carries no rejection to classify")
@@ -110,7 +115,7 @@ func TestPolicyFilterFailedFlagMarksANonDecision(t *testing.T) {
 			out:      &rpc.FilterUpdateOutput{Action: rpc.FilterModify, Update: "local-preference 200"},
 		}}
 
-		got := r.policyFilterFunc(nil)(plug, filter, directionExport, "10.0.0.2", 65002, "origin igp")
+		got := r.policyFilterFunc(nil, nil, policyview.Session{})(plug, filter, directionExport, "10.0.0.2", 65002, "origin igp")
 
 		assert.Equal(t, PolicyReject, got.Action,
 			"fail-closed: a modify ze will not apply must not forward the route unmodified")
@@ -128,7 +133,7 @@ func TestPolicyFilterFailedFlagMarksANonDecision(t *testing.T) {
 			out:      &rpc.FilterUpdateOutput{Action: rpc.FilterModify, Update: "origin incomplete"},
 		}}
 
-		got := r.policyFilterFunc(nil)(plug, filter, directionExport, "10.0.0.2", 65002, "origin igp")
+		got := r.policyFilterFunc(nil, nil, policyview.Session{})(plug, filter, directionExport, "10.0.0.2", 65002, "origin igp")
 
 		assert.Equal(t, PolicyModify, got.Action, "a declared attribute is the filter's to change")
 		assert.False(t, got.Failed, "nothing was overridden")
@@ -142,7 +147,7 @@ func TestPolicyFilterFailedFlagMarksANonDecision(t *testing.T) {
 			out:     &rpc.FilterUpdateOutput{Action: rpc.FilterAction(255)},
 		}}
 
-		got := PolicyFilterChain(mustPolicy(t, []routepolicy.Ref{{Name: plug + ":" + filter}}, routepolicy.FinalAccept), true, directionExport, "10.0.0.2", 65002, "origin igp", r.policyFilterFunc(nil))
+		got := PolicyFilterChain(mustPolicy(t, []routepolicy.Ref{{Name: plug + ":" + filter}}, routepolicy.FinalAccept), true, directionExport, "10.0.0.2", 65002, "origin igp", r.policyFilterFunc(nil, nil, policyview.Session{}))
 
 		assert.Equal(t, PolicyReject, got.Action, "unknown plugin actions are rejected even under on-error accept")
 		assert.True(t, got.Failed, "an invalid action is not a policy decision")
