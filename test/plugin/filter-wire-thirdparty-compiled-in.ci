@@ -1,34 +1,40 @@
-# Test: a third-party-style Go filter plugin, written against the SDK only and
-# compiled into the tree, judges routes through the typed slot when it runs
-# internal and through the batched filter-update message when it is forked
+# Test: a third-party-style Go filter plugin, written against the SDK only,
+# judges routes through the typed slot when it is compiled into the tree and
+# runs internal, and through the batched filter-update message when it is
+# built as its own binary and forked
 #
 # VALIDATES: spec-filter-wire-0-umbrella AC-35 (FR-8) end to end: fakefilter
 # (internal/test/plugins/fakefilter), an SDK-only filter plugin compiled into
 # the tree (R-13 bounds "compiled in"), runs twice in one daemon: internal
 # (`use fakefilter`, called through its DirectBridge filter slot) for peer1,
-# and forked (`ze plugin fakefilter`, the same code built into the ze binary
-# and started as its own process) for peer2. Each copy rejects 10.99.0.0/24
+# and forked for peer2 as ze-fakefilter, the same plugin built as its own
+# binary from internal/test/plugins/fakefilter/cmd/ze-fakefilter, which links
+# the SDK and the plugin and nothing that registers with ze (the runner
+# builds it beside ze, internal/test/runner FakeFilterBinary, and so does
+# every prebuilt and QEMU guest binary set). Each copy rejects 10.99.0.0/24
 # (ze.fakefilter.reject.prefix) and accepts every other route. Every judged
 # prefix is logged with the transport that carried it: "slot" when the route
 # arrived with the engine's typed view, "batch" when it arrived encoded.
 # PREVENTS: a compiled-in SDK filter that silently loses the fast path (its
-# routes take the batch while internal), a forked copy that cannot connect or
-# answer, and a verdict lost on either transport (a rejected route installed,
-# or an accepted one dropped).
+# routes take the batch while internal), a separately built plugin that cannot
+# declare its filter, connect or answer, and a verdict lost on either
+# transport (a rejected route installed, or an accepted one dropped).
 #
 # Flow:
 # 1. peer1 (127.0.0.1, AS 65001) sends 10.0.0.0/24 then 10.99.0.0/24, then an
 #    End-of-RIB; its import chain is [ fakefilter:judge ] (internal).
 # 2. peer2 (127.0.0.2, AS 65002) sends 10.1.0.0/24 then 10.99.0.0/24, then an
-#    End-of-RIB; its import chain is [ fakefilter-forked:judge ] (forked).
+#    End-of-RIB; its import chain is [ fakefilter-forked:judge ] (the
+#    ze-fakefilter binary, forked).
 # 3. The observer (internal/test/fixture/plugin_fixture_filter_thirdparty.go)
 #    waits for both End-of-RIBs, each counted only after the import verdicts
 #    of the UPDATEs before it, and checks bgp-rib holds exactly the two
 #    accepted routes.
 
-# The forked copy is started through `sh -c`, which drops a variable whose
-# name is not a shell identifier, so the keys it reads take their underscore
-# spelling (env.Get reads it as the dotted key).
+# The forked binary is started through `sh -c`, which drops a variable whose
+# name is not a shell identifier, so the keys take their underscore spelling:
+# the binary reads it (fakefilter.TriggerFrom over the process environment),
+# and so does the internal copy (env.Get reads it as the dotted key).
 option=env:var=ze_fakefilter_reject_prefix:value=10.99.0.0/24
 option=env:var=ze_log_fakefilter:value=info
 # The forked copy logs to its own stderr. The relay passes its INFO lines on
@@ -70,7 +76,7 @@ plugin {
 		use fakefilter
 	}
 	external fakefilter-forked {
-		run "ze plugin fakefilter"
+		run "ze-fakefilter"
 	}
 	internal bgp-rib {
 		use bgp-rib
@@ -93,6 +99,7 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		filter {
+			export { final accept; }
 			import { filters [ fakefilter:judge ]; final accept; }
 		}
 		attach process bgp-rib {
@@ -112,6 +119,7 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		filter {
+			export { final accept; }
 			import { filters [ fakefilter-forked:judge ]; final accept; }
 		}
 		attach process bgp-rib {
@@ -142,5 +150,6 @@ reject=stderr:pattern=policy filter failed
 # Neither copy ended its run with an error (the forked copy is stopped by the
 # daemon closing its connection, a clean shutdown).
 reject=stderr:pattern=fakefilter: run
+reject=stderr:pattern=ze-fakefilter:
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=panic recovered
