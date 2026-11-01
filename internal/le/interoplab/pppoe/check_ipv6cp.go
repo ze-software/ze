@@ -14,7 +14,7 @@
 // Related: check_ac.go -- the general Ze access-concentrator checker both
 // share their dial and session-wait helpers with.
 //
-// BLOCKED on plan/spec-l2tp-ipv6-subscriber.md, confirmed by reading both
+// BLOCKED on plan/post-release/features/spec-l2tp-ipv6-subscriber.md, confirmed by reading both
 // producers: poolPlugin.handle (internal/component/l2tp/plugins/pool/register.go)
 // answers every EventIPRequest whose Family != AddressFamilyIPv4 with
 // Accept: false, unconditionally; runNCPPhase
@@ -274,7 +274,8 @@ var errIPv6CPNeverEngaged = errors.New(
 	"ze sent no IPv6CP frame of any kind: poolPlugin.handle declines every " +
 		"non-IPv4 EventIPRequest and runNCPPhase reads that decline before " +
 		"the session reads a client frame, so IPv6CP's FSM never starts " +
-		"(plan/spec-l2tp-ipv6-subscriber.md; see this file's header comment)")
+		"(plan/post-release/features/spec-l2tp-ipv6-subscriber.md; " +
+		"see this file's header comment)")
 
 // checkZeAccessConcentratorIPv6CPZeroIdentifier proves RFC 5072 Section
 // 4.1's zero-identifier rule on a real pppd 2.5.4 session: a
