@@ -267,6 +267,18 @@ the route and both values. A value above 255 fits no octet and ExaBGP does not
 send it, so the migration leaves it and ze refuses the config.
 <!-- source: internal/exabgp/migration/migrate_flow_traffic_class.go -- flowTrafficClassDSCP -->
 
+### Flow label width
+
+ExaBGP 4.2 and 5.0 send a `flow-label` operand narrower than four octets (the
+frames `test/exabgp-compat/old-4.2/conf-flow.ci` and `old-5.0/conf-flow.ci`
+record differ there). Ze writes every flow-label operand as four octets, as RFC 8956
+Section 3.7 asks ("Type 13 component values SHOULD be encoded as 4-octet
+quantities (numeric_op len=10)") and as ExaBGP 6.0 sends it. The rule matches
+the same packets; only the operand's length on the wire differs, so a migrated
+flow route is not byte-identical to what the older ExaBGP sent. The encoding
+is described in [FlowSpec NLRI](../wire/nlri-flowspec.md).
+<!-- source: internal/core/bgp/nlri/flowspec/types_numeric.go -- operandWidth -->
+
 ### Redirect and copy
 
 Two drafts define a redirect to an address. The IETF one
