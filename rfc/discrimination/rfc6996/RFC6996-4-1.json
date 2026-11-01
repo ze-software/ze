@@ -37,11 +37,22 @@
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996StripsPrivateUseASN",
     "unit-sha": "5b732c75f4de6652",
-    "claim-sha": "596021f9252ad573",
+    "claim-sha": "a2ef6427a02df4b6",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/filter_remove_private_as/private_as.go::isPrivateASN",
     "producer-sha": "99baf33a6b49fe39",
     "break": "line 46: \"asn \u003e= 64512\" -\u003e \"asn \u003e 64512\""
+  },
+  {
+    "rid": "RFC6996-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go::TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path",
+    "unit-sha": "4c2ea5a53fd07e6b",
+    "claim-sha": "f06212020d7924fc",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/filter_delta.go::removePrivateASOps",
+    "producer-sha": "a5d79ccb9153abcd",
+    "break": "line 747: \"mods.Op(byte(attribute.AttrASPath), filterapi.AttrModSet, rewritten)\" -\u003e \"_ = rewritten\""
   },
   {
     "rid": "RFC6996-4-1",

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC6793-4.2.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go::TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path",
+    "unit-sha": "4c2ea5a53fd07e6b",
+    "claim-sha": "0ae0bfe1e5aea875",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/aspath.go::writeSegmentWithSplit",
+    "producer-sha": "d07efbd176e4df99",
+    "break": "line 184: \"as16 = 23456\" -\u003e \"as16 = uint16(asns[i])\""
+  }
+]

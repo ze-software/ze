@@ -48,8 +48,9 @@ func TestASPathFieldHasPrivateASN(t *testing.T) {
 }
 
 // RFC requirement: RFC6996-4-1 positive -- a Private Use ASN present in the AS path
-// is removed before advertisement: 64512 in [64496 64512 64497] draws the
-// remove-private intent.
+// is detected: the as-path field scan asPathFieldHasPrivateASN reports 64512 in
+// [64496 64512 64497] as a Private Use ASN. The intent the filter answers is
+// proven by TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes.
 func TestRFC6996StripsPrivateUseASN(t *testing.T) {
 	if !asPathFieldHasPrivateASN([]byte(`{"as-path":[64496,64512,64497]}`)) {
 		t.Fatal("[64496 64512 64497] carries no Private Use ASN, want 64512 found")

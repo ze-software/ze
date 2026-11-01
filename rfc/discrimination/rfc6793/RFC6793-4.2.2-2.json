@@ -31,5 +31,16 @@
     "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
     "producer-sha": "39b55b9d145492d7",
     "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6793-4.2.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go::TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path",
+    "unit-sha": "4c2ea5a53fd07e6b",
+    "claim-sha": "21743b9d49cfb455",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/as4.go::AS4PathFor",
+    "producer-sha": "735306fa81d6fd85",
+    "break": "line 434: \"return \u0026AS4Path{Segments: path.Segments}\" -\u003e \"return nil\""
   }
 ]

@@ -19,6 +19,7 @@ import (
 	"math"
 	"net"
 	"net/netip"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -338,13 +339,18 @@ type collapseDest struct {
 // Each aggregator carries a presence flag beside its value, because absence is
 // what RFC 6793 Section 4.2.2 requires for a mappable aggregating AS, and a
 // bare zero cannot be told from an AS number of 0.
+//
+// asPathValue and as4PathValue keep the attribute values as received, copied
+// out of the dispatched body, for a test that pins the exact octets.
 type collapseFrame struct {
-	asPath   []uint32
-	as4Path  []uint32
-	agg      uint32
-	aggOK    bool
-	as4Agg   uint32
-	as4AggOK bool
+	asPath       []uint32
+	as4Path      []uint32
+	asPathValue  []byte
+	as4PathValue []byte
+	agg          uint32
+	aggOK        bool
+	as4Agg       uint32
+	as4AggOK     bool
 }
 
 // collapseForwardEnv holds the reactor one forward run drives, with the source
@@ -419,11 +425,15 @@ func collapseForwardIngest(t *testing.T, attrs []byte, dests []collapseDest) *co
 				if !ok {
 					continue
 				}
-				frame := collapseFrame{asPath: collapseReadASNs(t, value, octetsFor[addr])}
+				frame := collapseFrame{
+					asPath:      collapseReadASNs(t, value, octetsFor[addr]),
+					asPathValue: slices.Clone(value),
+				}
 				// AS4_PATH is four-octet by definition (RFC 6793 Section 3), so
 				// its width never depends on what this destination negotiated.
 				if as4, hasAS4 := bodyPathAttr(t, body, byte(attribute.AttrAS4Path)); hasAS4 {
 					frame.as4Path = collapseReadASNs(t, as4, 4)
+					frame.as4PathValue = slices.Clone(as4)
 				}
 				if agg, hasAgg := bodyPathAttr(t, body, byte(attribute.AttrAggregator)); hasAgg {
 					frame.agg = collapseReadAggregator(t, agg, octetsFor[addr])
