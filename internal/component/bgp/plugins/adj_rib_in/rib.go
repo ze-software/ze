@@ -39,7 +39,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
-	"github.com/ze-software/ze/pkg/ze"
 )
 
 const (
@@ -174,7 +173,10 @@ type AdjRIBInManager struct {
 	// validationChanges is drained after mu is released, so selection can query
 	// this store without acquiring mu recursively.
 	validationChanges []ribevents.ValidationRoute
-	validationBus     ze.EventBus
+	// emitValidation hands a drained batch to the subscribers: the SDK
+	// emit-event in a running plugin (emitValidationEvent). Nil emits nothing,
+	// so a test manager with no engine notes no change.
+	emitValidation func([]ribevents.ValidationRoute) error
 	// validationGate is set, under mu, once this store's eligibility lookup is
 	// registered with ribevents. Only then does the forward path and selection
 	// consult this store, so only then can a store change alter a verdict
@@ -373,9 +375,7 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 		// event can observe it unset.
 		ingestTracked: p.IsInternal(),
 	}
-	if bus := validationBusPtr.Load(); bus != nil {
-		r.validationBus = *bus
-	}
+	r.emitValidation = r.emitValidationEvent
 	defer ribevents.RegisterValidationLookup(nil, nil)
 
 	// Structured event handler for DirectBridge delivery.

@@ -6,7 +6,18 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/pkg/ze"
 )
+
+// emitOnBus is the manager's emitter for a test that watches a fake bus: it
+// emits the batch as the typed ValidationChange event, the value an engine
+// subscriber receives after the engine decodes the plugin's emit-event.
+func emitOnBus(bus ze.EventBus) func([]ribevents.ValidationRoute) error {
+	return func(changes []ribevents.ValidationRoute) error {
+		_, err := ribevents.ValidationChange.Emit(bus, changes)
+		return err
+	}
+}
 
 // notifyTestBus counts ValidationChange emissions.
 type notifyTestBus struct {
@@ -39,7 +50,7 @@ func TestValidationChangeNeedsRegisteredGate(t *testing.T) {
 		bus := &notifyTestBus{}
 		r := newTestManager(t)
 		r.ingestTracked = true
-		r.validationBus = bus
+		r.emitValidation = emitOnBus(bus)
 		retainedReceive(t, r, 40, body)
 		require.Empty(t, bus.routes, "an install with no registered gate changed no verdict")
 	})
@@ -49,7 +60,7 @@ func TestValidationChangeNeedsRegisteredGate(t *testing.T) {
 		bus := &notifyTestBus{}
 		r := newTestManager(t)
 		r.ingestTracked = true
-		r.validationBus = bus
+		r.emitValidation = emitOnBus(bus)
 		_, _, err := r.handleCommand("request bgp adj-rib-in enable-validation", nil, "")
 		require.NoError(t, err)
 		_, _, err = r.handleCommand("request bgp adj-rib-in disable-validation", nil, "")

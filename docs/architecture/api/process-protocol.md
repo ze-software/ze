@@ -179,17 +179,23 @@ it holds, and each peer added or accepted later, is named in an error log
 `namespace`, which the engine registers in the same step, before any event
 flows (`sdk.Plugin.AddStartupSubscriptionsIn`). `bgp-rr` and `bgp-rs` use it to
 hear `bgp-gr/retention` and `bgp-rib/validation-change` beside their `bgp`
-events, the same way internal and forked. Format, encoding and envelope stay
+events, the same way internal and forked; `bgp-rib` uses it to hear
+`bgp-rib/validation-change` beside its own. Format, encoding and envelope stay
 per process, set by the first block.
 <!-- source: internal/component/plugin/server/startup.go -- onReady -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- AddStartupSubscriptionsIn -->
+<!-- source: internal/component/bgp/plugins/rib/rib_validation.go -- dispatchText -->
 
 A `bgp-rib/validation-change` payload is a JSON array of received paths, each
 `{"peer-address", "family", "prefix", "path-id", "nlri"}`. `nlri` is the hex of
 the native NLRI of a non-CIDR route (FlowSpec), absent for a CIDR one, and a
 path whose `nlri` is not hex refuses the whole batch
-(`ribevents.DecodeValidationChange`).
+(`ribevents.DecodeValidationChange`). `bgp-adj-rib-in` emits it through
+`emit-event` (`sdk.Plugin.EmitEvent`), so it holds no EventBus of its own.
+It emits only while its eligibility gate is registered, which happens only in
+the daemon process, so a forked `bgp-adj-rib-in` announces no change.
 <!-- source: internal/core/bgp/ribevents/validation.go -- ValidationRoute.MarshalJSON, DecodeValidationChange -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- emitValidationEvent -->
 
 **Protocol version.** Every `declare-registration` carries `protocol-version`,
 the highest plugin protocol version the plugin speaks, and the engine's Stage 1

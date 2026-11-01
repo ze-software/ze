@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/netip"
 	"strconv"
@@ -33,9 +34,20 @@ func startValidationReceiver(t *testing.T, bus *testEventBus) (*rpc.DirectBridge
 	if registration == nil {
 		t.Fatal("Adj-RIB-In registration missing")
 	}
-	registration.ConfigureEventBus(bus)
 	previousValidator := rpc.GetBatchValidator()
 	bridge := rpc.NewDirectBridge()
+	// The engine's part of Adj-RIB-In's emit-event: decode the payload and
+	// emit the typed event on the bus the selecting RIB subscribes to.
+	bridge.SetEmitEvent(func(namespace, eventType, _, _, event string) (int, error) {
+		if namespace != ribevents.Namespace || eventType != ribevents.EventValidationChange {
+			return 0, errors.New("unexpected emitted event " + namespace + "/" + eventType)
+		}
+		var changes []ribevents.ValidationRoute
+		if err := json.Unmarshal([]byte(event), &changes); err != nil {
+			return 0, err
+		}
+		return ribevents.ValidationChange.Emit(bus, changes)
+	})
 	pluginEnd, engineEnd := net.Pipe()
 	mux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
 	done := make(chan int, 1)
@@ -51,7 +63,6 @@ func startValidationReceiver(t *testing.T, bus *testEventBus) (*rpc.DirectBridge
 			t.Error("Adj-RIB-In did not stop")
 		}
 		rpc.RegisterBatchValidator(previousValidator)
-		registration.ConfigureEventBus(nil)
 	})
 	for stage := range 3 {
 		select {

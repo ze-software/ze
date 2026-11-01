@@ -34,6 +34,27 @@ func (r *RIBManager) validationEligible(peer netip.Addr, routes *storage.PeerRIB
 	}, msgID)
 }
 
+// dispatchText handles one event delivered as text: an enveloped
+// bgp-rib/validation-change from the receive store, or a BGP event. Safe for
+// the SDK's one event goroutine only.
+func (r *RIBManager) dispatchText(jsonStr string) {
+	routes, matched, err := ribevents.DecodeValidationChange(jsonStr)
+	if err != nil {
+		logger().Warn("bgp-rib: validation-change refused", "error", err)
+		return
+	}
+	if matched {
+		r.validationChanged(routes)
+		return
+	}
+	event, err := parseEvent([]byte(jsonStr))
+	if err != nil {
+		logger().Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
+		return // Don't fail on parse errors
+	}
+	r.dispatch(event)
+}
+
 // validationChanged reruns the same selection and Loc-RIB publication used by
 // received UPDATEs. Recovery therefore needs no new UPDATE from the neighbor.
 func (r *RIBManager) validationChanged(changes []ribevents.ValidationRoute) {

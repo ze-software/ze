@@ -710,11 +710,6 @@ func runRIBPlugin(conn net.Conn) int {
 	if r.locRIB.Load() == nil {
 		r.setupRemoteRIB()
 	}
-	if bus := getEventBus(); bus != nil {
-		unsubscribe := ribevents.ValidationChange.Subscribe(bus, r.validationChanged)
-		defer unsubscribe()
-	}
-
 	rpc.RegisterRouteInjector(r.handleInjectWireRoute)
 
 	// Structured event handler for DirectBridge delivery.
@@ -736,12 +731,7 @@ func runRIBPlugin(conn net.Conn) int {
 
 	// Fallback: JSON event handler for non-DirectBridge delivery (external plugins).
 	p.OnEvent(func(jsonStr string) error {
-		event, err := parseEvent([]byte(jsonStr))
-		if err != nil {
-			logger().Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
-			return nil // Don't fail on parse errors
-		}
-		r.dispatch(event)
+		r.dispatchText(jsonStr)
 		return nil
 	})
 
@@ -761,6 +751,11 @@ func runRIBPlugin(conn net.Conn) int {
 	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
 	// ensuring the rib sees every "sent" event from the very first route.
 	p.SetStartupSubscriptions([]string{"update direction sent", "update direction received", "state", "refresh"}, nil, "full")
+	// The receive store's eligibility change, through the SDK so a forked
+	// bgp-rib hears it too: the daemon's own bus never reaches a subprocess.
+	// Enveloped, so dispatchText tells it from the BGP events.
+	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange})
+	p.SetEnvelope(true)
 
 	// Start compaction scheduler after 5-stage startup completes.
 	// The scheduler runs as a goroutine tied to the plugin context,

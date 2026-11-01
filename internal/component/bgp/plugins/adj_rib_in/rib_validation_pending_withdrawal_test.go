@@ -34,7 +34,7 @@ func newPendingWithdrawalManager(t *testing.T) (*AdjRIBInManager, *notifyTestBus
 	bus := &notifyTestBus{}
 	r := newTestManager(t)
 	r.ingestTracked = true
-	r.validationBus = bus
+	r.emitValidation = emitOnBus(bus)
 	_, _, err := r.handleCommand("request bgp adj-rib-in enable-validation", nil, "")
 	require.NoError(t, err)
 	return r, bus

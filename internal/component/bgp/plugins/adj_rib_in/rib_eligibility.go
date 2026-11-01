@@ -3,17 +3,22 @@
 package adj_rib_in
 
 import (
+	"context"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"net/netip"
-	"sync/atomic"
+	"time"
 	"unique"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
-	"github.com/ze-software/ze/pkg/ze"
 )
 
-var validationBusPtr atomic.Pointer[ze.EventBus]
+// validationEmitTimeout bounds one validation-change hand-off to the engine.
+// The engine enqueues to each subscriber and answers, so only a dead engine
+// connection reaches it.
+const validationEmitTimeout = 30 * time.Second
 
 // validationRouteKey is the store key of the route a selection query names:
 // the prefix for a family keyed by CIDR, and the family's route identity,
@@ -121,7 +126,10 @@ func (r *AdjRIBInManager) routePresent(key ribevents.ValidationRoute) bool {
 // with the notified key finds the route. The caller MUST note such a route
 // while it is still stored: a removal notes before it deletes.
 func (r *AdjRIBInManager) noteValidationChange(peer netip.Addr, key compactRouteKey) {
-	if r.validationBus == nil || !r.validationGate {
+	if r.emitValidation == nil {
+		return
+	}
+	if !r.validationGate {
 		return
 	}
 	change := ribevents.ValidationRoute{Peer: peer, Family: key.Fam, Prefix: key.Prefix, PathID: key.PathID}
@@ -183,9 +191,27 @@ func (r *AdjRIBInManager) unlockValidation() {
 	if len(changes) == 0 {
 		return
 	}
-	if _, err := ribevents.ValidationChange.Emit(r.validationBus, changes); err != nil {
+	if err := r.emitValidation(changes); err != nil {
 		logger().Error("validation selection notification failed", "error", err)
 	}
+}
+
+// emitValidationEvent hands one batch to the engine as
+// bgp-rib/validation-change through the SDK, which reaches every subscriber
+// whether this plugin runs in the daemon or forked: the daemon's own EventBus
+// never reaches a subprocess. The payload is the JSON form
+// ribevents.DecodeValidationChange reads.
+func (r *AdjRIBInManager) emitValidationEvent(changes []ribevents.ValidationRoute) error {
+	payload, err := json.Marshal(changes)
+	if err != nil {
+		return fmt.Errorf("encode validation-change: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), validationEmitTimeout)
+	defer cancel()
+	if _, err := r.plugin.EmitEvent(ctx, ribevents.Namespace, ribevents.EventValidationChange, "", "", string(payload)); err != nil {
+		return fmt.Errorf("emit validation-change: %w", err)
+	}
+	return nil
 }
 
 // removeInstalled also invalidates a replaced path before its replacement has
