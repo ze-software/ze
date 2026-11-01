@@ -384,6 +384,9 @@ policy {
         }
         regex    [ "^3356 174 " ];
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT;
+    }
 }
 
 bgp {
@@ -399,11 +402,11 @@ bgp {
         }
         filter {
             import {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
             export {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
         }

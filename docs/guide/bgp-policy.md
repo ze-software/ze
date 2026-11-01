@@ -210,6 +210,9 @@ policy {
     reject-asn NO-TRANSIT {
         indirect [ 174 701 3356 ];
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT;
+    }
 }
 bgp {
     router-id 192.0.2.1
@@ -221,8 +224,8 @@ bgp {
     peer ix-member {
         role   { import peer; }
         filter {
-            import { filters [ NO-TRANSIT ]; final accept; }
-            export { filters [ NO-TRANSIT ]; final accept; }
+            import { filters [ reject-asn-NO-TRANSIT ]; final accept; }
+            export { filters [ reject-asn-NO-TRANSIT ]; final accept; }
         }
     }
 }

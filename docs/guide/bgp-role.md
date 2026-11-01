@@ -197,6 +197,9 @@ policy {
     reject-asn NO-TRANSIT {
         indirect [ 174 701 1299 3356 ]
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT
+    }
 }
 
 bgp {
@@ -212,7 +215,7 @@ bgp {
         }
         filter {
             export {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
         }
@@ -226,8 +229,8 @@ records the decision, and the filter never executes:
 ```
 filter {
     export {
-        filters [ NO-TRANSIT ];
-        inactive: filters NO-TRANSIT;
+        filters [ reject-asn-NO-TRANSIT ];
+        inactive: filters reject-asn-NO-TRANSIT;
         final accept;
     }
 }

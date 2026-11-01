@@ -35,6 +35,9 @@ policy {
     reject-asn NO-TRANSIT {
         indirect [ 174 3356 ]
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT
+    }
 }
 
 bgp {
@@ -47,11 +50,11 @@ bgp {
     peer peer-a {
         filter {
             import {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
             export {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
         }
@@ -60,9 +63,10 @@ bgp {
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
-The chain names the list by its bare name, JunOS style. `reject-asn:NAME` and
-`bgp-filter-path-asn:NAME` also resolve, for a tree where two filter types share
-a name.
+The chain names the match instance by its bare name, JunOS style, and the
+match's `reject-asn` condition names the list. `reject-asn:NAME` and
+`bgp-filter-path-asn:NAME` also still resolve to the list's own filter, for a
+tree where two filter types share a name.
 
 ## The position vocabulary
 

@@ -1961,6 +1961,9 @@ policy {
         indirect [ 174 3356 ]
         origin [ 65535 ]
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT
+    }
     reject-asn SHAPES {
         regex [ "^3356 174 " ]
     }
@@ -1975,8 +1978,8 @@ bgp {
     }
     peer peer-a {
         filter {
-            import { filters [ NO-TRANSIT ]; final accept; }
-            export { filters [ NO-TRANSIT ]; final accept; }
+            import { filters [ reject-asn-NO-TRANSIT ]; final accept; }
+            export { filters [ reject-asn-NO-TRANSIT ]; final accept; }
         }
     }
 }
@@ -2045,6 +2048,9 @@ policy {
     community-match BLOCK-NO-EXPORT {
         entry no-export { type standard; action reject }
     }
+    match community-BLOCK-NO-EXPORT {
+        community BLOCK-NO-EXPORT
+    }
     community-match ALLOW-CUSTOMER {
         entry 65001:100 { type standard; action accept }
         entry 65001:100:200 { type large; action accept }
@@ -2059,7 +2065,7 @@ bgp {
         }
     }
     peer transit-a {
-        filter { import { filters [ community-match:BLOCK-NO-EXPORT ]; final accept; } }
+        filter { import { filters [ community-BLOCK-NO-EXPORT ]; final accept; } }
     }
 }
 ```

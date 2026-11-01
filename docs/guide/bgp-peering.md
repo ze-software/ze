@@ -122,6 +122,9 @@ policy {
     reject-asn NO-TRANSIT {
         indirect [ 174 701 3356 ]
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT
+    }
 }
 
 bgp {
@@ -157,11 +160,11 @@ bgp {
         }
         filter {
             import {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
             export {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
         }
@@ -182,18 +185,18 @@ the `inactive:` member prefix. The member remains in the chain but never execute
 ```
 filter {
     import {
-        filters [ inactive:NO-TRANSIT ];
+        filters [ inactive:reject-asn-NO-TRANSIT ];
         final accept;
     }
     export {
-        filters [ inactive:NO-TRANSIT ];
+        filters [ inactive:reject-asn-NO-TRANSIT ];
         final accept;
     }
 }
 ```
 
 The prefix goes on the member, inside the brackets. Inside each direction block,
-`inactive: filters NO-TRANSIT;` deactivates an existing member. Keep the
+`inactive: filters reject-asn-NO-TRANSIT;` deactivates an existing member. Keep the
 `final accept;` decision when the member is inactive. That explicit final,
 not the inactive reference, supplies operator policy. See
 [config-deactivate.md](config-deactivate.md) for both forms, and

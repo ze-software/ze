@@ -59,6 +59,9 @@ policy {
     reject-asn NO-TRANSIT {
         indirect [ 174 701 3356 ]
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT
+    }
 }
 
 bgp {
@@ -93,11 +96,11 @@ bgp {
         }
         filter {
             import {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
             export {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
         }
@@ -118,18 +121,18 @@ The `role { import rs }` leaf makes both `filter` chains mandatory: a declared R
 ```
 filter {
     import {
-        filters [ inactive:NO-TRANSIT ];
+        filters [ inactive:reject-asn-NO-TRANSIT ];
         final accept;
     }
     export {
-        filters [ inactive:NO-TRANSIT ];
+        filters [ inactive:reject-asn-NO-TRANSIT ];
         final accept;
     }
 }
 ```
 
 The prefix goes on the member, inside the brackets. Inside each direction block,
-`inactive: filters NO-TRANSIT;` deactivates an existing member. Keep the
+`inactive: filters reject-asn-NO-TRANSIT;` deactivates an existing member. Keep the
 `final accept;` decision when the member is inactive. See
 [config deactivation](config-deactivate.md) for both forms.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
