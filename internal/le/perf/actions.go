@@ -97,6 +97,24 @@ var actions = leaction.New(area,
 		AnswerArgs: runHere,
 	},
 	leaction.Action{
+		Verb:    filterVerb,
+		Summary: "measure the route filter paths' throughput",
+		Why: "the throughput harness of the route filter paths: the in-process typed" +
+			" slot, the external filter-update batch at 1, 16 and 64 routes, and the" +
+			" text filter-update as the before figure. Bare, it compiles each benchmark" +
+			" package, lists the benchmarks, measures nothing and prints the command;" +
+			" `measure` runs them, on macOS only",
+		Parameters: []leaction.Parameter{{
+			Kind: leaction.KindEnum, Value: filterMode, Requirement: leaction.Optional,
+			Help:   "run the benchmarks instead of only checking that they build",
+			Values: []string{filterMeasure},
+			ValueHelp: map[string]string{
+				filterMeasure: "run every benchmark ten times, on macOS only",
+			},
+		}},
+		AnswerArgs: filterHere,
+	},
+	leaction.Action{
 		Verb:    sendVerb,
 		Summary: "send benchmark traffic at one DUT",
 		Why: "send benchmark traffic at one DUT and write the result, with the options" +

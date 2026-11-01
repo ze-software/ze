@@ -278,6 +278,32 @@ After running benchmarks, generate reports from the result files:
 
 For the full flag reference, see [le perf compare](command-reference.md#le-perf-compare).
 
+## Filter throughput
+
+`./le perf filter` is the throughput harness of the route filter paths. It
+covers three sets of Go benchmarks, and needs no Docker and no DUT:
+
+| Path | Benchmarks | Package |
+|------|------------|---------|
+| In-process: the typed DirectBridge filter slot | `BenchmarkFilterFastPath` | `pkg/plugin/sdk` |
+| External: one `filter-update` batch of 1, 16 and 64 routes | `BenchmarkFilterForkedBatch` | `pkg/plugin/sdk` |
+| Text `filter-update`, the before figure | `BenchmarkFilterModifyEgress`, `BenchmarkAppendUpdateForFilter_Reused`, `BenchmarkAppendAttrsForFilter_Reused` | `internal/component/bgp/reactor` (`ze_bgp`) |
+
+```bash
+# Check the harness builds: compile each package, list the benchmarks,
+# measure nothing, and print the go command of each set.
+./le perf filter
+
+# Measure: every set, ten runs each, with allocations. macOS only.
+./le perf filter measure
+```
+
+`measure` refuses to run anywhere but macOS, because performance is measured
+on the owner's Mac alone, whose hardware is known. The bare form is the check
+an agent runs: it fails when a package no longer builds its benchmarks or a
+benchmark the harness names was renamed.
+<!-- source: internal/le/perf/filter.go -- filterBenches, filterHere, measureFilters, listFilters -->
+
 ## Tracking Performance Over Time
 
 ### NDJSON History

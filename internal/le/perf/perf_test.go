@@ -81,7 +81,7 @@ func TestPerfVerbsAnswerAsTheirPredecessors(t *testing.T) {
 	for _, row := range Actions().Actions {
 		verbs = append(verbs, row.Verb)
 	}
-	want := []string{suggestVerb, recordVerb, runVerb, sendVerb, compareVerb, trackVerb}
+	want := []string{suggestVerb, recordVerb, runVerb, filterVerb, sendVerb, compareVerb, trackVerb}
 	if !slices.Equal(verbs, want) {
 		t.Fatalf("perf verbs = %q, want %q", verbs, want)
 	}
