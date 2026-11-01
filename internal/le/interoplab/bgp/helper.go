@@ -352,21 +352,21 @@ func runRawMEDFilter(name string) error {
 	if err != nil {
 		return err
 	}
-	plugin.OnFilterUpdate(func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
-		if input.Direction != "export" {
+	plugin.OnFilter(func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
+		if route.Direction() != "export" {
 			return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
 		}
-		if len(input.Raw) == 0 {
+		if len(route.Raw()) == 0 {
 			return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}, errors.New("RAW-MED-DROP: export callback had no raw body")
 		}
-		stripped, changed, err := dropMED(input.Raw)
+		stripped, changed, err := dropMED(route.Raw())
 		if err != nil {
 			return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}, err
 		}
 		if !changed {
 			return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
 		}
-		_, _ = fmt.Fprintf(os.Stderr, "RAW-MED-DROP: removed MULTI_EXIT_DISC for %s\n", input.Peer)
+		_, _ = fmt.Fprintf(os.Stderr, "RAW-MED-DROP: removed MULTI_EXIT_DISC for %s\n", route.Peer())
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Raw: stripped}, nil
 	})
 	return plugin.Run(context.Background(), &sdk.Registration{Filters: []sdk.FilterDecl{{

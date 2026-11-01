@@ -376,7 +376,11 @@ func filterSubjectPlugin(t *testing.T, r *Reactor) {
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(name, conn)
 			defer p.Close() //nolint:errcheck // The server owns shutdown.
-			p.OnFilterUpdate(func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
+			p.OnFilter(func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
+				input, err := route.Input()
+				if err != nil {
+					return nil, err
+				}
 				metric, present := parseFilterAttrs(input.Update).get(faMED)
 				if !present {
 					return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}, nil

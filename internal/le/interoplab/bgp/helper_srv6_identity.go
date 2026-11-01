@@ -35,6 +35,16 @@ type srv6IdentityPolicyLedger struct {
 	receipt srv6IdentityPolicyReceipt
 }
 
+// evaluate is the ledger's filter evaluator (sdk.OnFilter): it judges the
+// route as one filter-update input, the raw body and peer filter reads.
+func (ledger *srv6IdentityPolicyLedger) evaluate(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
+	input, err := route.Input()
+	if err != nil {
+		return nil, err
+	}
+	return ledger.filter(&input)
+}
+
 func (ledger *srv6IdentityPolicyLedger) filter(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
 	ledger.mutex.Lock()
 	defer ledger.mutex.Unlock()
@@ -119,7 +129,7 @@ func runSRv6IdentityPolicy(name string) error {
 		}
 		defer plugin.Close() //nolint:errcheck // Run reports SDK transport failure.
 		var ledger srv6IdentityPolicyLedger
-		plugin.OnFilterUpdate(ledger.filter)
+		plugin.OnFilter(ledger.evaluate)
 		plugin.OnExecuteCommand(func(_ string, command string, args []string, _ string) (string, any, error) {
 			if command == srv6IdentityRelease {
 				// This IPv4 readiness route goes ONLY to the injector. The three

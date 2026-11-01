@@ -56,7 +56,11 @@ func filterSubjectObserver(ctx context.Context, args []string) error {
 	}}}
 
 	setup := func(plugin *sdk.Plugin) error {
-		plugin.OnFilterUpdate(func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
+		plugin.OnFilter(func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
+			input, err := route.Input()
+			if err != nil {
+				return nil, err
+			}
 			state.mu.Lock()
 			state.subject = input.Update
 			state.mu.Unlock()

@@ -210,14 +210,14 @@ func medRawDrop09(ctx context.Context, _ []string) error {
 	defer plugin.Close() //nolint:errcheck // fixture teardown
 	var mu sync.Mutex
 	removed := 0
-	plugin.OnFilterUpdate(func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
-		if input.Direction != directionExport {
+	plugin.OnFilter(func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
+		if route.Direction() != directionExport {
 			return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
 		}
-		if len(input.Raw) == 0 {
+		if len(route.Raw()) == 0 {
 			return nil, fmt.Errorf("RAW-MED-DROP: export callback had no raw body")
 		}
-		stripped, changed, err := removeMED09(input.Raw)
+		stripped, changed, err := removeMED09(route.Raw())
 		if err != nil {
 			return nil, fmt.Errorf("RAW-MED-DROP: %w", err)
 		}
@@ -227,7 +227,7 @@ func medRawDrop09(ctx context.Context, _ []string) error {
 		mu.Lock()
 		removed++
 		mu.Unlock()
-		fmt.Fprintf(os.Stderr, "RAW-MED-DROP: removed MULTI_EXIT_DISC for %s\n", input.Peer)
+		fmt.Fprintf(os.Stderr, "RAW-MED-DROP: removed MULTI_EXIT_DISC for %s\n", route.Peer())
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Raw: stripped}, nil
 	})
 	result := make(chan error, 1)

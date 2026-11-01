@@ -17,12 +17,12 @@ import (
 func TestFilterUpdateAnswersOneVerdictPerRoute(t *testing.T) {
 	p, _ := newTestPair(t)
 	var seen []string
-	p.OnFilterUpdate(func(input *FilterUpdateInput) (*FilterUpdateOutput, error) {
-		seen = append(seen, input.Peer)
-		if input.Peer == "b" {
+	p.OnFilter(func(route *FilterRoute) (*FilterUpdateOutput, error) {
+		seen = append(seen, route.Peer())
+		if route.Peer() == "b" {
 			return nil, errors.New("no data for b")
 		}
-		if input.Peer == "a" {
+		if route.Peer() == "a" {
 			return &FilterUpdateOutput{Action: rpc.FilterAccept}, nil
 		}
 		return &FilterUpdateOutput{Action: rpc.FilterReject}, nil

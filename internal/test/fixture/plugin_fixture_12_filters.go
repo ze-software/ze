@@ -51,7 +51,7 @@ func p12RegisterFilterFixtures() {
 	))
 }
 
-func p12FilterDriver(name string, registration *sdk.Registration, handler sdk.FilterUpdateHandler, scenario p12Scenario) Driver {
+func p12FilterDriver(name string, registration *sdk.Registration, handler sdk.FilterEvaluator, scenario p12Scenario) Driver {
 	return func(ctx context.Context, args []string) error {
 		var marker string
 		if name == "filter-export-modify-test" {
@@ -70,7 +70,7 @@ func p12FilterDriver(name string, registration *sdk.Registration, handler sdk.Fi
 		}
 		defer plugin.Close() //nolint:errcheck // the run result carries transport failures
 		if handler != nil {
-			plugin.OnFilterUpdate(handler)
+			plugin.OnFilter(handler)
 		}
 
 		result := make(chan error, 1)
@@ -118,12 +118,12 @@ func p12FilterChainDriver() Driver {
 		{Name: filterNameFirst, Direction: sdk.FilterImport, Attributes: []string{fieldASPath}, OnError: sdk.OnErrorReject},
 		{Name: "second", Direction: sdk.FilterImport, Attributes: []string{fieldCommunity}, OnError: sdk.OnErrorReject},
 	}}
-	handler := func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
+	handler := func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
 		state.mu.Lock()
-		state.order = append(state.order, input.Filter)
+		state.order = append(state.order, route.Filter())
 		call := len(state.order)
 		state.mu.Unlock()
-		fmt.Fprintf(os.Stderr, "filter-update called: filter=%s (call #%d)\n", input.Filter, call)
+		fmt.Fprintf(os.Stderr, "filter-update called: filter=%s (call #%d)\n", route.Filter(), call)
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
 	}
 	scenario := func(ctx context.Context, plugin *sdk.Plugin) error {
@@ -177,7 +177,11 @@ func p12FilterExportModifyDriver() Driver {
 		Attributes: []string{fieldLocalPreference},
 		OnError:    sdk.OnErrorReject,
 	}}}
-	handler := func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
+	handler := func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
+		input, err := route.Input()
+		if err != nil {
+			return nil, err
+		}
 		if input.Direction == directionExport {
 			state.exportModified.Add(1)
 			fmt.Fprintf(os.Stderr, "filter-update EXPORT MODIFY: peer=%s update=%q\n", input.Peer, input.Update)
@@ -211,7 +215,11 @@ func p12FilterExportRejectDriver() Driver {
 		Attributes: []string{fieldASPath},
 		OnError:    sdk.OnErrorReject,
 	}}}
-	handler := func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
+	handler := func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
+		input, err := route.Input()
+		if err != nil {
+			return nil, err
+		}
 		if input.Direction != directionExport {
 			return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
 		}
@@ -252,7 +260,7 @@ func p12FilterImportDriver(name, filterName string, attributes []string, action 
 		Attributes: attributes,
 		OnError:    sdk.OnErrorReject,
 	}}}
-	handler := func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
+	handler := func(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
 		state.calls.Add(1)
 		var verb string
 		switch action {
@@ -265,7 +273,7 @@ func p12FilterImportDriver(name, filterName string, attributes []string, action 
 		default:
 			panic("BUG: unknown import-filter fixture action")
 		}
-		fmt.Fprintf(os.Stderr, "filter-update %s: filter=%s peer=%s\n", verb, input.Filter, input.Peer)
+		fmt.Fprintf(os.Stderr, "filter-update %s: filter=%s peer=%s\n", verb, route.Filter(), route.Peer())
 		output := &sdk.FilterUpdateOutput{Action: action}
 		if action == sdk.FilterModify {
 			output.Update = "local-preference 200"
