@@ -340,22 +340,38 @@ func TestCheckRefusesSupportedWithUnprovenRFC(t *testing.T) {
 // VALIDATES: a walked stem whose every attainable mandatory row is proven
 // meets S3 when its only unmet row is `{linux-limit}`, which Linux cannot
 // provide (owner rule).
-// METHOD: add a second MUST row, mapped by the sign-off, and judge it twice:
-// annotated `{linux-limit}` it is accepted; unannotated, the same row is
-// refused as 1 of 2, which shows the row is counted and the annotation alone
-// moves it out of the attainable rows.
-// PREVENTS: a kernel limit blocking a feature, or an S3 that never saw the row.
+// METHOD: add a second MUST row, mapped by the sign-off, and judge it three
+// times: annotated `{linux-limit}` with a verified kernel register entry that
+// blocks it, it is accepted; annotated with no register entry, and
+// unannotated, the same row is refused as 1 of 2. That shows the row is
+// counted, and only the annotation backed by its register evidence moves it
+// out of the attainable rows (a row leaves the count only with checked
+// evidence, notOwedGap).
+// PREVENTS: a kernel limit blocking a feature, an S3 that never saw the row,
+// or an annotation with no register entry excusing the row.
 func TestCheckAcceptsSupportedWithLinuxLimitOnly(t *testing.T) {
 	withRow := func(row string) func(string) string {
 		return func(summary string) string { return strings.TrimRight(summary, "\n") + "\n" + row + "\n" }
 	}
-	limited := judgeOne(t, fixtureTreeProving(t, same, withRow(fixtureRowDrop+fixtureLinuxLimit)))
+	const kernel = "7.2.9"
+	register := "# Linux limitations\n\n## Entries\n\n### LL-FIXTURE\n\n" +
+		"- **Kind:** kernel\n- **Effect:** blocks\n- **Status:** verified\n" +
+		"- **Checked:** Linux " + kernel + ", 2026-10-20\n" +
+		"- **Blocks:** " + fixtureRIDDrop + "\n- **Evidence:** net/widget.c, widget_drop has no primitive to keep it\n" +
+		"- **Re-check:** inspect widget_drop at the shipped kernel version\n"
+
+	limitedTree := fixtureTreeProving(t, same, withRow(fixtureRowDrop+fixtureLinuxLimit))
+	writeFile(t, limitedTree, "docs/architecture/linux-limitations.md", register)
+	writeFile(t, limitedTree, "internal/appliance/kernel.version", kernel+"\n")
+	limited := judgeOne(t, limitedTree)
 	if len(limited.Refusals) != 0 {
 		t.Fatalf("refusals with only a {linux-limit} row unmet: %v (unmet %v)", limited.Refusals, limited.Unmet)
 	}
 	if limited.Ceiling != LevelSupported {
 		t.Fatalf("ceiling %v, want supported; unmet %v", limited.Ceiling, limited.Unmet)
 	}
+	unregistered := judgeOne(t, fixtureTreeProving(t, same, withRow(fixtureRowDrop+fixtureLinuxLimit)))
+	requireRefused(t, &unregistered, "S3: "+rfc.FixtureStem+" mandatory 1 of 2 attainable proven")
 	unannotated := judgeOne(t, fixtureTreeProving(t, same, withRow(fixtureRowDrop)))
 	requireRefused(t, &unannotated, "S3: "+rfc.FixtureStem+" mandatory 1 of 2 attainable proven")
 }

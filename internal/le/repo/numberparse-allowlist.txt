@@ -30,6 +30,7 @@
 1 internal/component/bfd/auth/persist.go
 3 internal/component/bfd/config.go
 2 internal/component/bgp/config/bgp_routes.go
+1 internal/component/bgp/config/library_chains.go
 1 internal/component/bgp/config/peers.go
 1 internal/component/bgp/config/resolve.go
 2 internal/component/bgp/config/routeattr.go
@@ -42,9 +43,8 @@
 1 internal/component/bgp/plugins/cmd/update/update_text_vpls.go
 4 internal/component/bgp/plugins/filter_community/config.go
 2 internal/component/bgp/plugins/filter_modify/modify.go
-1 internal/component/bgp/plugins/filter_modify/rib_evaluator.go
+2 internal/component/bgp/plugins/filter_modify/rib_evaluator.go
 1 internal/component/bgp/plugins/filter_path_asn/match.go
-1 internal/component/bgp/plugins/filter_remove_private_as/private_as.go
 1 internal/component/bgp/plugins/gr/gr_llgr.go
 3 internal/component/bgp/plugins/nlri/evpn/encode.go
 2 internal/component/bgp/plugins/nlri/evpn/plugin.go
@@ -60,6 +60,7 @@
 2 internal/component/bgp/plugins/rs/server_text.go
 4 internal/component/bgp/plugins/watchdog/config.go
 1 internal/component/bgp/plugins/watchdog/server.go
+1 internal/component/bgp/policychain/external_attributes.go
 1 internal/component/bgp/reactor/config.go
 3 internal/component/bgp/reactor/filter_delta.go
 2 internal/component/bgp/route/route_flowspec.go
@@ -67,7 +68,6 @@
 1 internal/component/config/cli/cmd_validate.go
 1 internal/component/config/infra/authz.go
 1 internal/component/config/infra/ssh.go
-1 internal/component/config/loader_redistribute.go
 1 internal/component/config/schema.go
 1 internal/component/config/validators.go
 1 internal/component/config/yang/enum_assignment.go
@@ -85,7 +85,7 @@
 1 internal/component/l2tp/plugins/authradius/extract.go
 3 internal/component/l2tp/subsystem_reload.go
 1 internal/component/mtu/cmd/state.go
-1 internal/component/policy/match.go
+1 internal/component/policy/match_route.go
 1 internal/component/resolve/irr/client.go
 4 internal/component/resolve/irr/rir.go
 1 internal/component/resolve/irr/store/store.go
