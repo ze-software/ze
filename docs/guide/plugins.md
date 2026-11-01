@@ -1130,9 +1130,14 @@ route that must keep flowing untouched has nowhere to go. Use an earlier filter
 when you want the rest dropped:
 
 ```text
+policy {
+    match CUSTOMERS-IN {
+        prefix-list CUSTOMERS;
+    }
+}
 filter {
     import {
-        filters [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ];
+        filters [ CUSTOMERS-IN modify:PREFER-LOCAL ];
         final accept;
     }
 }

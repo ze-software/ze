@@ -810,11 +810,14 @@ policy {
     prefix-list ISIS-IN {
         entry 10.0.0.0/24 { action accept; }
     }
+    match ISIS-IN-PREFIXES {
+        prefix-list ISIS-IN;
+    }
 }
 isis {
     filter {
         import {
-            filters [ ISIS-IN ];
+            filters [ ISIS-IN-PREFIXES ];
             final accept;
         }
     }

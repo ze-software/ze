@@ -195,9 +195,15 @@ Section 9 transit-leak check), and `bgp-role` for RFC 9234
 roles enforcement. Filters compose in ordered chains:
 
 ```text
+policy {
+    match X-AND-Y {
+        prefix-list X;
+        as-path Y;
+    }
+}
 filter {
     import {
-        filters [ prefix-list:X as-path-list:Y modify:Z ];
+        filters [ X-AND-Y modify:Z ];
         final accept;
     }
 }

@@ -1062,6 +1062,9 @@ two-step form of the same idea:
 
 ```
 policy {
+    match AUTHORIZED-IN {
+        prefix-list AUTHORIZED;
+    }
     modify RTBH {
         match { community 65001:666; }
         set { next-hop 192.0.2.1; }
@@ -1076,7 +1079,7 @@ bgp {
         }
     }
     peer transit-a {
-        filter { import { filters [ prefix-list:AUTHORIZED modify:RTBH ]; final accept; } }
+        filter { import { filters [ AUTHORIZED-IN modify:RTBH ]; final accept; } }
     }
 }
 ```
@@ -1778,6 +1781,9 @@ policy {
             action reject
         }
     }
+    match CUSTOMERS-IN {
+        prefix-list CUSTOMERS;
+    }
 }
 
 bgp {
@@ -1793,7 +1799,7 @@ bgp {
             }
         }
         filter {
-            import { filters [ CUSTOMERS ]; final accept; }
+            import { filters [ CUSTOMERS-IN ]; final accept; }
         }
     }
 }
@@ -1917,6 +1923,9 @@ policy {
     as-path-list ALLOW-PEER {
         entry "^65001" { action accept }
     }
+    match ALLOW-PEER-IN {
+        as-path ALLOW-PEER;
+    }
     as-path-list TRANSIT {
         entry "^[0-9]+( [0-9]+)+" { action accept }
     }
@@ -1930,7 +1939,7 @@ bgp {
         }
     }
     peer customer-a {
-        filter { import { filters [ as-path-list:ALLOW-PEER ]; final accept; } }
+        filter { import { filters [ ALLOW-PEER-IN ]; final accept; } }
     }
 }
 ```
@@ -2075,6 +2084,9 @@ traversal, but it does not bypass `final reject`.
 
 ```
 policy {
+    match CUSTOMERS-IN {
+        prefix-list CUSTOMERS;
+    }
     modify PREFER-LOCAL {
         set {
             local-preference 200
@@ -2096,7 +2108,7 @@ bgp {
     }
     peer transit-a {
         filter {
-            import { filters [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]; final accept; }
+            import { filters [ CUSTOMERS-IN modify:PREFER-LOCAL ]; final accept; }
             export { filters [ modify:PREPEND-3 ]; final accept; }
         }
     }

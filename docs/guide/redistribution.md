@@ -421,6 +421,9 @@ policy {
     prefix-list loopbacks {
         entry 0.0.0.0/0 { ge 32; le 32; action accept; }
     }
+    match loopback-prefixes {
+        prefix-list loopbacks;
+    }
     modify loopback-metric {
         set { metric 10; }
     }
@@ -428,7 +431,7 @@ policy {
 isis {
     filter {
         export {
-            filters [ loopbacks loopback-metric ];
+            filters [ loopback-prefixes loopback-metric ];
             final accept;
         }
     }

@@ -211,22 +211,27 @@ policy {
     prefix-list ISIS-IN {
         entry 10.0.0.0/24 { action accept; }
     }
+    match ISIS-IN-PREFIXES {
+        prefix-list ISIS-IN;
+    }
 }
 isis {
     filter {
         import {
-            filters [ ISIS-IN ];
+            filters [ ISIS-IN-PREFIXES ];
             final accept;
         }
     }
 }
 ```
 
-10.0.0.0/24 matches the entry and passes on, and `final accept` accepts it.
-10.1.0.0/24 matches no entry, so the prefix-list rejects it. With
+10.0.0.0/24 matches the entry, so the prefix-list accepts it, the match
+passes it on, and `final accept` accepts it. 10.1.0.0/24 matches no entry, so
+the prefix-list does not accept it and the match rejects it. With
 `final reject` instead, the chain would reject both prefixes, because every
 route that passes the filters then meets the reject.
-<!-- source: internal/component/bgp/plugins/filter_prefix/match.go -- evaluatePrefix -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/condition.go -- compileRouteCondition -->
+<!-- source: internal/component/policy/match.go -- Match.Rejects -->
 <!-- source: internal/component/policy/rib_compile.go -- ribChain.Evaluate -->
 
 ## What a rejected route becomes

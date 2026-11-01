@@ -374,17 +374,18 @@ policy {
   prefix-list loopbacks {
     entry 0.0.0.0/0 { ge 32; le 32; action accept; }
   }
+  match loopback-prefixes { prefix-list loopbacks; }
   modify loopback-metric { set { metric 10; } }
 }
 isis {
   filter {
-    export { filters [ loopbacks loopback-metric ]; final accept; }
+    export { filters [ loopback-prefixes loopback-metric ]; final accept; }
   }
 }
 ```
 
 A filter's accept only passes the route on, so the chain ends in `final accept`;
-`loopbacks` rejects every prefix that matches no entry. TLV 135 (IPv4)
+`loopback-prefixes` rejects every prefix that no entry of `loopbacks` matches. TLV 135 (IPv4)
 carries **no external bit**. A redistributed route is an ordinary reachability
 entry; the only wire flag is the up/down bit (RFC 5305 sec 4), which IS-IS sets only
 when leaking a prefix to a lower level (RFC 2966), never to mark external origin.

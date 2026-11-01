@@ -130,9 +130,14 @@ Each direction lists named filter instances or explicit `<plugin>:<filter>`
 references under `filters` and requires `final accept;` or `final reject;`.
 
 ```text
+policy {
+    match CUSTOMERS-IN {
+        prefix-list CUSTOMERS;
+    }
+}
 filter {
     import {
-        filters [ prefix-list:CUSTOMERS ];
+        filters [ CUSTOMERS-IN ];
         final accept;
     }
 }
