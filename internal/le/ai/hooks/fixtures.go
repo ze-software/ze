@@ -302,11 +302,16 @@ var (
 	// runLifecycleHook (lifecycle.go), a display-only hook that answers 0 and
 	// never blocks (TestBashTimestampPrintsOncePerQuietGap). No other source in
 	// the population changed, and no existing verdict changed.
+	// Re-sealed 2026-11-02: timestamp.go, the bash-timestamp hook body, joins
+	// the population like every other hook body, and the bash-timestamp case
+	// in lifecycle.go answers 0 itself because hookBashTimestamp now returns no
+	// exit code (an unparam finding: it always answered 0). The hook still
+	// answers 0 and never blocks; no existing verdict changed.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x3e, 0x9c, 0xfc, 0xdc, 0xd1, 0xaf, 0x48, 0x43,
-		0x47, 0x2f, 0xc0, 0x58, 0xf4, 0x50, 0xd6, 0xd4,
-		0x3b, 0x85, 0xbb, 0x36, 0xc6, 0xe9, 0x72, 0xe6,
-		0x0d, 0xf6, 0xaf, 0x7f, 0x90, 0x5b, 0x0d, 0xeb,
+		0xf4, 0x07, 0x3a, 0x1a, 0xb2, 0x55, 0xda, 0x54,
+		0x20, 0x7a, 0x45, 0xb1, 0x03, 0x8c, 0xec, 0x5a,
+		0x51, 0xfa, 0x63, 0x7e, 0xf7, 0x67, 0x94, 0x35,
+		0x08, 0x31, 0x5c, 0xee, 0x70, 0x5f, 0x1b, 0x05,
 	}
 )
 
@@ -414,6 +419,7 @@ var hookSourcePaths = [...]string{
 	hookPostWriteFile,
 	"internal/le/hookruntime/postbash.go",
 	hookLifecycleFile,
+	"internal/le/hookruntime/timestamp.go",
 	"internal/le/hookruntime/readgate.go",
 	"internal/le/hookruntime/specdoors.go",
 	"internal/le/hookruntime/specmechanisms.go",
