@@ -261,7 +261,30 @@ func (p *Plugin) ResolveDNS(ctx context.Context, name string, qtype uint16) (rec
 // It is the buffered sibling of DispatchCommandAnswer, which yields the same
 // answer one row at a time. Both read one wire shape; this one holds the
 // answer, so a caller that must bound its memory takes the other.
+//
+// A command that completed with a warning answers status "warning"; the
+// warning text itself is what DispatchCommandResult adds.
 func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status string, data json.RawMessage, err error) {
+	result, err := p.DispatchCommandResult(ctx, command)
+	return result.Status, result.Data, err
+}
+
+// DispatchResult is the whole value a dispatched command answered with: the
+// status, the document its records carry, and the lines it stated about that
+// answer. Warnings is set only when Status is "warning", one line each without
+// the newline, and they are the text the operator's own surface prints beside
+// the same answer (the parse warnings of `show config dump`, for one).
+type DispatchResult struct {
+	Status   string
+	Data     json.RawMessage
+	Warnings []string
+}
+
+// DispatchCommandResult is DispatchCommand with the warning text: it
+// dispatches command through the engine's command dispatcher and returns the
+// whole answer, its warning lines included. The command's own failure is the
+// Go error, as for DispatchCommand.
+func (p *Plugin) DispatchCommandResult(ctx context.Context, command string) (DispatchResult, error) {
 	if p.bridge != nil && p.bridge.HasDispatchCommand() {
 		out, dispatchErr := p.bridge.DispatchCommand(ctx, command)
 		return dispatchDirectCommandResult(out, dispatchErr)
@@ -274,6 +297,13 @@ func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status st
 // arguments through the engine's command dispatcher. It preserves the external
 // dispatch-command API while avoiding command-string tokenization for internal data.
 func (p *Plugin) DispatchCommandArgs(ctx context.Context, command string, args []string, peer string) (status string, data json.RawMessage, err error) {
+	result, err := p.DispatchCommandArgsResult(ctx, command, args, peer)
+	return result.Status, result.Data, err
+}
+
+// DispatchCommandArgsResult is DispatchCommandArgs with the warning text, as
+// DispatchCommandResult is to DispatchCommand.
+func (p *Plugin) DispatchCommandArgsResult(ctx context.Context, command string, args []string, peer string) (DispatchResult, error) {
 	if p.bridge != nil && p.bridge.HasDispatchCommandArgs() {
 		out, dispatchErr := p.bridge.DispatchCommandArgs(ctx, command, args, peer)
 		return dispatchDirectCommandResult(out, dispatchErr)
@@ -316,22 +346,22 @@ func (p *Plugin) DispatchCommandAnswer(ctx context.Context, command string) (*rp
 // built {status, data, error} projection instead
 // (internal/component/plugin/server/dispatch_registry.go), so that transport
 // keeps its own reading.
-func (p *Plugin) dispatchCommandValue(ctx context.Context, method string, input any, label string) (string, json.RawMessage, error) {
+func (p *Plugin) dispatchCommandValue(ctx context.Context, method string, input any, label string) (DispatchResult, error) {
 	if !p.bridgeReady() {
 		answer, err := p.engineMux.CallAnswer(ctx, method, input)
 		if err != nil {
-			return "", nil, err
+			return DispatchResult{}, err
 		}
 		return answerValue(answer, label)
 	}
 
 	result, err := p.callEngineWithResult(ctx, method, input)
 	if err != nil {
-		return "", nil, err
+		return DispatchResult{}, err
 	}
 	out := new(rpc.DispatchCommandOutput)
 	if unmarshalErr := json.Unmarshal(result, out); unmarshalErr != nil {
-		return "", nil, fmt.Errorf("unmarshal %s result: %w", label, unmarshalErr)
+		return DispatchResult{}, fmt.Errorf("unmarshal %s result: %w", label, unmarshalErr)
 	}
 	return dispatchCommandResult(out, nil)
 }
@@ -344,55 +374,57 @@ func (p *Plugin) bridgeReady() bool {
 
 // answerValue walks answer to its end and rebuilds the value its command
 // produced: the status its terminator derives (done, or warning when the
-// terminator is spelled rpc.AnswerKindWarning), the document its records carry,
-// and the command's own failure as a Go error. label names the RPC in that
-// error.
+// terminator is spelled rpc.AnswerKindWarning, with the warning lines it
+// carries), the document its records carry, and the command's own failure as
+// a Go error. label names the RPC in that error.
 //
 // It is the buffered reading of an answer, so it holds what the walk produced.
 // A caller that must bound its memory reads Answer.Records itself.
-func answerValue(answer *rpc.Answer, label string) (string, json.RawMessage, error) {
+func answerValue(answer *rpc.Answer, label string) (DispatchResult, error) {
 	document, collapseErr := rpc.CollapseAnswer(answer)
 
 	// Read after the range, never before: the range is what fills them.
 	if err := answer.Err(); err != nil {
-		return "", nil, fmt.Errorf("%s answer: %w", label, err)
+		return DispatchResult{}, fmt.Errorf("%s answer: %w", label, err)
 	}
 	if collapseErr != nil {
-		return "", nil, fmt.Errorf("%s answer: %w", label, collapseErr)
+		return DispatchResult{}, fmt.Errorf("%s answer: %w", label, collapseErr)
 	}
 	// The terminator's message is the command's own failure text, and the ONLY
 	// place it is stated: the head declares no outcome, so an engine command
 	// that failed says so here. A caller reads it as a Go error, so the answer
 	// and the single-line frame it replaced fail a caller the same way.
 	if message := answer.Message(); message != "" {
-		return rpc.StatusError, nil, errors.New(message)
+		return DispatchResult{Status: rpc.StatusError}, errors.New(message)
 	}
 	// A warning terminator is a command that completed and states a warning,
 	// which is the status the in-process bridge hands the same caller.
 	if answer.Verdict() == rpc.VerdictWarning {
-		return rpc.StatusWarning, document, nil
+		return DispatchResult{Status: rpc.StatusWarning, Data: document, Warnings: answer.Warnings()}, nil
 	}
-	return rpc.StatusDone, document, nil
+	return DispatchResult{Status: rpc.StatusDone, Data: document}, nil
 }
 
 // dispatchDirectCommandResult projects an in-process result before it completes
 // the accepted action. The socket transport completes the action after writing
 // its response, but DirectBridge has no transport writer to own that boundary.
-func dispatchDirectCommandResult(out *rpc.DispatchCommandOutput, err error) (string, json.RawMessage, error) {
+func dispatchDirectCommandResult(out *rpc.DispatchCommandOutput, err error) (DispatchResult, error) {
 	if out != nil {
 		defer out.TransportComplete()
 	}
 	return dispatchCommandResult(out, err)
 }
 
-func dispatchCommandResult(out *rpc.DispatchCommandOutput, err error) (string, json.RawMessage, error) {
+// dispatchCommandResult reads the {status, data, error, warnings} projection
+// into the value a caller receives, the command's failure as its Go error.
+func dispatchCommandResult(out *rpc.DispatchCommandOutput, err error) (DispatchResult, error) {
 	if err != nil {
-		return "", nil, err
+		return DispatchResult{}, err
 	}
 	if out.Error != "" {
-		return out.Status, nil, errors.New(out.Error)
+		return DispatchResult{Status: out.Status}, errors.New(out.Error)
 	}
-	return out.Status, out.Data, nil
+	return DispatchResult{Status: out.Status, Data: out.Data, Warnings: out.Warnings}, nil
 }
 
 // EmitEvent pushes an event into the engine's delivery pipeline.

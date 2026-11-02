@@ -959,6 +959,14 @@ type AnswerTail struct {
 	// because the line ends the answer either way. A producer sets it on the
 	// AnswerTail it hands a writer, which then spells the terminator wrn.
 	Warning bool
+	// Warnings are the lines a warning terminator states, one line each and
+	// without the newline: what the command said about the answer it still
+	// gave, such as the parse warnings of a config it resolved. On the wire
+	// they ride in the message field of an AnswerKindWarning terminator as a
+	// JSON array of strings, which is why Message stays empty on such a line:
+	// a failure is never spelled wrn (appendAnswerTerminatorOf). A producer
+	// sets them beside Warning, and a writer ignores them without it.
+	Warnings []string
 	// Message is the terminator's operational text, which states why a walk
 	// produced fewer records than it set out to, or the not-understood answer's
 	// reason. It is empty for a walk that ran to its end with nothing to say.
@@ -987,9 +995,7 @@ func ParseAnswerTail(kind string, payload []byte) (AnswerTail, error) {
 	case AnswerKindTerminator:
 		return parseAnswerTerminator(payload)
 	case AnswerKindWarning:
-		tail, err := parseAnswerTerminator(payload)
-		tail.Warning = err == nil
-		return tail, err
+		return parseAnswerWarning(payload)
 	case AnswerKindNotUnderstood:
 		return parseAnswerNotUnderstood(payload)
 	}
@@ -1101,6 +1107,27 @@ func parseAnswerTerminator(payload []byte) (AnswerTail, error) {
 		return AnswerTail{}, fmt.Errorf("answer terminator carries %d bytes past its last field: %q", len(rest), truncate(rest, 40))
 	}
 	tail.Message = message
+	return tail, nil
+}
+
+// parseAnswerWarning reads a warning terminator: the terminator's fields, with
+// the message field holding the warning lines as a JSON array of strings rather
+// than a failure. An empty message field states no line. A message field that
+// is not such an array is refused, because reading it as a failure would turn a
+// completed command into an error.
+func parseAnswerWarning(payload []byte) (AnswerTail, error) {
+	tail, err := parseAnswerTerminator(payload)
+	if err != nil {
+		return AnswerTail{}, err
+	}
+	tail.Warning = true
+	if tail.Message == "" {
+		return tail, nil
+	}
+	if err := json.Unmarshal([]byte(tail.Message), &tail.Warnings); err != nil {
+		return AnswerTail{}, fmt.Errorf("answer warning terminator states %q, want a JSON array of warning lines: %w", truncate(tail.Message, 40), err)
+	}
+	tail.Message = ""
 	return tail, nil
 }
 

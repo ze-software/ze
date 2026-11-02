@@ -42,8 +42,9 @@ import (
 //
 // head states what the producer knows before the walk runs: Key is the envelope
 // the head opens the answer under, Fields is the column schema its positional
-// rows are read against, and Message and Warning are what the TERMINATOR
-// carries: its operational text, and whether it is spelled AnswerKindWarning.
+// rows are read against, and Message, Warning and Warnings are what the
+// TERMINATOR carries: its operational text, whether it is spelled
+// AnswerKindWarning, and the warning lines that spelling carries.
 // Type, Count and Faults are the walk's and are ignored here. The head line
 // states no outcome at all: the terminator is the one line that carries one.
 //
@@ -497,9 +498,31 @@ func noAnswerRows(func(RowRecord) bool) {}
 // when the command completed with a warning, AnswerKindTerminator otherwise. It
 // is the one place a writer chooses between them, so the record path and the
 // document path cannot spell one outcome two ways.
+//
+// A warning terminator's message field carries head.Warnings as a JSON array of
+// strings, empty when there is none, so a reader hands a plugin the text the
+// operator's own surface prints (parseAnswerWarning). A failure outranks the
+// warning (Verdict), so a head carrying both is spelled AnswerKindTerminator with
+// the failure as its message: the verdict a reader derives is the same, and the
+// wrn message field never holds a failure.
 func appendAnswerTerminatorOf(buf []byte, id uint64, head *AnswerTail, count, faults uint64) []byte {
-	if head.Warning {
-		return AppendAnswerWarning(buf, id, count, faults, head.Message)
+	if head.Warning && head.Message == "" {
+		return AppendAnswerWarning(buf, id, count, faults, warningLines(head.Warnings))
 	}
 	return AppendAnswerTerminator(buf, id, count, faults, head.Message)
+}
+
+// warningLines is the message field of a warning terminator: the lines as a
+// compact JSON array, or empty when there is none. A []string always marshals,
+// so the error branch is unreachable and answers no line rather than a
+// malformed field.
+func warningLines(warnings []string) string {
+	if len(warnings) == 0 {
+		return ""
+	}
+	encoded, err := json.Marshal(warnings)
+	if err != nil {
+		return ""
+	}
+	return string(encoded)
 }

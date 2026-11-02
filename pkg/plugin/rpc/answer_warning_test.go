@@ -53,3 +53,36 @@ func TestWriteDocumentAnswerWarning(t *testing.T) {
 	require.NoError(t, WriteDocumentAnswer(&wire, 4, AnswerTail{Warning: true}, []byte(`{"message":"m"}`)))
 	assert.Equal(t, "#4 top doc 0: 0:\n#4 row 15:{\"message\":\"m\"}\n#4 wrn 1 0 0:\n", wire.String())
 }
+
+// TestAnswerWarningTerminatorCarriesLines checks the warning lines a warning
+// terminator carries, from the bytes a writer appends to the lines a reader
+// returns. The method: write a document answer whose head states a warning and
+// two lines, compare the wire, and parse the terminator back.
+//
+// VALIDATES: journal row 2026-11-02 (format-cannot-hold-a-state-the-tree-holds)
+// -- the wrn message field carries the lines as a JSON array, read back as
+// Warnings with no failure Message; a failure is spelled end; an unreadable
+// field is refused.
+// PREVENTS: a warning reaching a plugin with its text dropped.
+func TestAnswerWarningTerminatorCarriesLines(t *testing.T) {
+	t.Parallel()
+
+	warnings := []string{`a "b"`, "c"}
+	var wire bytes.Buffer
+	require.NoError(t, WriteDocumentAnswer(&wire, 4, AnswerTail{Warning: true, Warnings: warnings}, []byte(`{}`)))
+	assert.Equal(t, "#4 top doc 0: 0:\n#4 row 2:{}\n#4 wrn 1 0 15:[\"a \\\"b\\\"\",\"c\"]\n", wire.String())
+
+	kind, tail, err := ParseAnswerLine([]byte(`wrn 1 0 15:["a \"b\"","c"]`))
+	require.NoError(t, err)
+	assert.Equal(t, AnswerKindWarning, kind)
+	assert.Equal(t, warnings, tail.Warnings)
+	assert.Empty(t, tail.Message, "the lines are no failure")
+	assert.Equal(t, VerdictWarning, Verdict(&tail))
+
+	var failed bytes.Buffer
+	require.NoError(t, WriteDocumentAnswer(&failed, 5, AnswerTail{Warning: true, Warnings: warnings, Message: "boom"}, nil))
+	assert.Contains(t, failed.String(), "#5 end 0 0 4:boom\n", "a failure outranks the warning and is never spelled wrn")
+
+	_, _, err = ParseAnswerLine([]byte("wrn 1 0 4:boom"))
+	require.Error(t, err, "a wrn field that holds no line array is refused, never read as a failure")
+}

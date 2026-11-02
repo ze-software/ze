@@ -2560,7 +2560,7 @@ positional. The six words:
 | `row` | one record the command produced | the payload |
 | `bad` | one record the command rejected. The walk goes on | the payload |
 | `end` | the terminator. It ends the answer and is always the last line for this id | records produced, rows rejected, message |
-| `wrn` | the terminator of a command that completed and states a warning, in place of `end` | records produced, rows rejected, message |
+| `wrn` | the terminator of a command that completed and states a warning, in place of `end` | records produced, rows rejected, warning lines as a JSON array of strings |
 | `nay` | the whole answer to a command text naming no command | error code, message |
 
 The head's item type is a three-byte word too, and it says how the records read:
@@ -2670,8 +2670,22 @@ Both APIs answer with a head, records, and a terminator. See
 A caller that reads that answer as one value gets `DispatchCommandOutput`. Its
 `data` field carries raw JSON (single-decode) and holds the document a bounded
 answer puts in its one record. On error the value uses a separate `error`
-field: `{"status":"error","error":"message"}`. The in-process `DirectBridge`
-carries that value directly, because it has no line to put a record on.
+field: `{"status":"error","error":"message"}`. A command that completed and
+stated a warning answers `{"status":"warning","data":...,"warnings":["line"]}`:
+the `warnings` lines are the text the operator's own surface prints beside the
+same answer, such as the parse warnings of `show config dump`. On the socket
+they ride in the `wrn` terminator (ipc_protocol.md, "Answer Protocol"). The
+in-process `DirectBridge` carries that value directly, because it has no line
+to put a record on.
+
+The Go SDK keeps `DispatchCommand` and `DispatchCommandArgs` answering
+`(status, data, err)`, so a plugin that reads only the status loses nothing it
+read before. `DispatchCommandResult` and `DispatchCommandArgsResult` answer a
+`DispatchResult` holding the status, the data and the warning lines, and a
+plugin reading the answer row by row through `DispatchCommandAnswer` reads
+`Answer.Warnings` after the range.
+<!-- source: internal/component/plugin/server/dispatch.go -- responseToDispatchOutput -->
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchResult, DispatchCommandResult, DispatchCommandArgsResult -->
 <!-- source: pkg/plugin/rpc/types.go -- DispatchCommandOutput -->
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.dispatchCommandValue, answerValue -->
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpDirect -->

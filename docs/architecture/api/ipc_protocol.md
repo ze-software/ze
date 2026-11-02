@@ -428,7 +428,7 @@ encoding.
 | result record | `row` | the row the command produced, counted | between head and terminator |
 | error record | `bad` | the row the command rejected, counted | between head and terminator |
 | terminator | `end` | records produced, rows rejected, message | last line for this id |
-| warning terminator | `wrn` | records produced, rows rejected, message | last line for this id, in place of `end` |
+| warning terminator | `wrn` | records produced, rows rejected, warning lines | last line for this id, in place of `end` |
 | not understood | `nay` | error code, message | the only line for this id |
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerFault, AppendAnswerTerminator, AppendAnswerWarning, AppendAnswerNotUnderstood -->
 
@@ -533,6 +533,21 @@ with the same fields, so the kind states the one fact no count carries and no
 reader that waits for the end of an answer can miss it. A parsed `wrn` line is a
 terminator with `Warning` set. A failure or a rejected row outranks the
 warning, because the counts are what an operator acts on first.
+
+A `wrn` line's third field carries the warning text rather than a failure: the
+lines the command stated about the answer it still gave, as a compact JSON
+array of strings (`#9 wrn 1 0 22:["config line 3: x"]`), or `0:` when it states
+none. The parsed line holds them as `Warnings` and leaves `Message` empty, so a
+reader that takes any message as a failure still reads `warning`. A failure is
+never spelled `wrn`: a producer that holds both a failure and a warning writes
+`end` with the failure, which derives the same verdict, so the field is never
+ambiguous. A reader that cannot decode the array refuses the line rather than
+read a completed command as failed. `Answer.Warnings` returns the lines after
+the range over the records has ended.
+<!-- source: pkg/plugin/rpc/answer_write.go -- appendAnswerTerminatorOf, warningLines -->
+<!-- source: pkg/plugin/rpc/message.go -- parseAnswerWarning -->
+<!-- source: pkg/plugin/rpc/types.go -- Answer.Warnings -->
+<!-- source: internal/component/plugin/dispatch.go -- answerWarnings -->
 
 | Terminator | Verdict |
 |------------|---------|

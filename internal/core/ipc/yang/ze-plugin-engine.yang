@@ -702,9 +702,10 @@ extracts only route counters, this preserves structured responses.";
             leaf status {
                 type string;
                 description
-                    "The value is done when the target handler answered and error when it
-                     failed. On error, the error field carries the message.";
-                ze:help "Response status (done or error)";
+                    "The value is done when the target handler answered, warning when it
+                     answered and stated a warning, and error when it failed. On error, the
+                     error field carries the message.";
+                ze:help "Response status (done, warning or error)";
             }
             leaf data {
                 type string;
@@ -713,6 +714,15 @@ extracts only route counters, this preserves structured responses.";
                      the caller. A handler that answered with records is collapsed into one
                      document here.";
                 ze:help "JSON-encoded response data from target handler";
+            }
+            leaf-list warnings {
+                type string;
+                description
+                    "Each entry is one line the command stated about the answer it still gave,
+                     without the newline, set only when status is warning. They are the text
+                     the operator's own surface prints beside the same answer. On the socket
+                     they ride in the warning terminator's message field as a JSON array.";
+                ze:help "Warning lines the command stated about its answer";
             }
         }
     }

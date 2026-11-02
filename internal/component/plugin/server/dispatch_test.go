@@ -807,3 +807,25 @@ func TestResponseToDispatchOutputSingleDecode(t *testing.T) {
 	require.NoError(t, json.Unmarshal(output.Data, &decoded))
 	assert.Equal(t, float64(7), decoded["count"])
 }
+
+// TestResponseToDispatchOutputWarnings checks that the projection the
+// DirectBridge hands a dispatching plugin carries the warning lines, and that
+// an answer with no warning keeps the old shape.
+//
+// VALIDATES: journal row 2026-11-02 (format-cannot-hold-a-state-the-tree-holds).
+// PREVENTS: responseToDispatchOutput passing status warning with its text dropped.
+func TestResponseToDispatchOutputWarnings(t *testing.T) {
+	t.Parallel()
+
+	warned := responseToDispatchOutput(&plugin.Response{Status: plugin.StatusWarning, Warnings: []string{"line 3: unknown leaf"}})
+	assert.Equal(t, plugin.StatusWarning, warned.Status)
+	assert.Equal(t, []string{"line 3: unknown leaf"}, warned.Warnings)
+	encoded, err := json.Marshal(warned)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"status":"warning","warnings":["line 3: unknown leaf"]}`, string(encoded))
+
+	done := responseToDispatchOutput(&plugin.Response{Status: plugin.StatusDone})
+	encoded, err = json.Marshal(done)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"status":"done"}`, string(encoded), "an answer with no warning keeps the old shape")
+}

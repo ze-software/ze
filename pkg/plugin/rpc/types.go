@@ -210,13 +210,24 @@ func (a *Answer) Message() string {
 	return a.terminator.Message
 }
 
+// Warnings reports the lines a warning terminator stated: what the command
+// said about the answer it still gave, one line each, without the newline. It
+// is empty for an answer that ended without a warning and when no terminator
+// arrived. MUST be read after the range over Records has returned.
+func (a *Answer) Warnings() []string {
+	if a.terminator == nil || !a.terminator.Warning {
+		return nil
+	}
+	return a.terminator.Warnings
+}
+
 // NewAnswer returns the answer an in-process producer hands its consumer, in
 // the shape the same answer has when it arrives over the socket.
 //
 // head is the line a peer would write to OPEN the answer, and only its Type,
 // Key and Fields are read. terminator is the line that would END it, and
-// only its Count, Faults and Message are read: the counts are the WALK's, which
-// the producer knows because it has run the walk, and they are not a count of
+// only its Count, Faults, Message, Warning and Warnings are read: the counts
+// are the WALK's, which the producer knows because it has run the walk, and they are not a count of
 // the records that follow. The two disagree for an answer whose short walk was
 // collapsed into one document, exactly as they disagree on the wire
 // (writeDocumentLines, answer_write.go).
@@ -1310,9 +1321,13 @@ type DispatchCommandArgsInput struct {
 // sharing the "done"/"error" status vocabulary. Unlike update-route (which
 // extracts only route counters), it preserves the complete response.
 type DispatchCommandOutput struct {
-	Status string          `json:"status"`         // "done" or "error" (see plugin.StatusDone/StatusError)
+	Status string          `json:"status"`         // "done", "warning" or "error" (plugin.StatusDone, StatusWarning, StatusError)
 	Data   json.RawMessage `json:"data,omitempty"` // raw JSON response data (single-decode)
 	Error  string          `json:"error,omitempty"`
+	// Warnings are the lines the command stated about the answer it still
+	// gave, set beside Status "warning" (plugin.Response.Warnings). A caller
+	// that reads only Status and Data loses nothing it read before.
+	Warnings []string `json:"warnings,omitempty"`
 
 	transportComplete func()
 }

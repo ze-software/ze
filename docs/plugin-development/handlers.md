@@ -628,6 +628,17 @@ Dispatches a command through the engine's command dispatcher (inter-plugin commu
 status, data, err := p.DispatchCommand(ctx, "rib adjacent inbound show")
 ```
 
+A command that completed and stated a warning answers status `warning`. The
+warning text, one line per entry, comes with `DispatchCommandResult`:
+
+```go
+result, err := p.DispatchCommandResult(ctx, "show config dump")
+for _, line := range result.Warnings {
+    slog.Warn("dispatched command warned", "line", line)
+}
+```
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchCommandResult, DispatchResult -->
+
 ### EmitEvent
 
 Pushes an event into the engine's delivery pipeline for plugin-to-plugin communication.

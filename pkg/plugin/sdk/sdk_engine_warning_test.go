@@ -72,3 +72,85 @@ func TestDispatchCommandReadsWarningTerminator(t *testing.T) {
 
 	shutdownPlugin(t, ctx, engine, errCh)
 }
+
+// TestDispatchCommandResultReadsWarningLines checks that a plugin dispatching a
+// command that warns receives the warning text over the socket, and that an
+// old-style DispatchCommand caller of the same answer still reads warning and
+// no error. The method: the fake engine answers two dispatches with a `wrn`
+// terminator carrying two lines, written as bytes so the test states the wire.
+//
+// VALIDATES: journal row 2026-11-02 (format-cannot-hold-a-state-the-tree-holds).
+// PREVENTS: the plugin IPC passing status warning with the text dropped, and a
+// warning line read as a failure by the three-value DispatchCommand.
+func TestDispatchCommandResultReadsWarningLines(t *testing.T) {
+	t.Parallel()
+
+	const document = `{"running":true}`
+	const lines = `["line 3: unknown leaf","line 9: deprecated"]`
+
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, &Registration{})
+	}()
+
+	req := readEngineRequest(t, ctx, engine.mux)
+	require.Equal(t, rpc.MethodDeclareRegistration, req.Method)
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
+
+	completeStartupFromStage2(t, ctx, engine)
+
+	// The engine answers the two dispatches this test makes. It touches no
+	// *testing.T, because the test goroutine can leave before this one runs.
+	go func() {
+		for range 2 {
+			var request *rpc.Request
+			select {
+			case request = <-engine.mux.Requests():
+			case <-ctx.Done():
+				return
+			}
+			id := "#" + strconv.FormatUint(request.ID, 10) + " "
+			answer := [][]byte{
+				[]byte(id + "top doc 0: 0:\n"),
+				[]byte(id + "row " + strconv.Itoa(len(document)) + ":" + document + "\n"),
+				[]byte(id + "wrn 1 0 " + strconv.Itoa(len(lines)) + ":" + lines + "\n"),
+			}
+			if err := writeAnswerLines(ctx, engine.mux, answer); err != nil {
+				return
+			}
+		}
+	}()
+
+	result, err := p.DispatchCommandResult(ctx, "show config dump")
+	require.NoError(t, err, "a warning is an outcome the command completed with, never a failure")
+	assert.Equal(t, "warning", result.Status)
+	assert.Equal(t, document, string(result.Data))
+	assert.Equal(t, []string{"line 3: unknown leaf", "line 9: deprecated"}, result.Warnings)
+
+	status, data, err := p.DispatchCommand(ctx, "show config dump")
+	require.NoError(t, err, "an old-style caller reads the warning lines as no failure")
+	assert.Equal(t, "warning", status)
+	assert.Equal(t, document, string(data))
+
+	shutdownPlugin(t, ctx, engine, errCh)
+}
+
+// TestDispatchCommandResultReadsBridgeWarnings checks the DirectBridge reading
+// of the same answer: the {status, data, warnings} projection the engine hands
+// an in-process plugin reaches it whole.
+//
+// VALIDATES: journal row 2026-11-02 (format-cannot-hold-a-state-the-tree-holds).
+// PREVENTS: the in-process transport dropping what the socket carries.
+func TestDispatchCommandResultReadsBridgeWarnings(t *testing.T) {
+	t.Parallel()
+
+	out := &rpc.DispatchCommandOutput{Status: "warning", Data: []byte(`{}`), Warnings: []string{"line 3: unknown leaf"}}
+	result, err := dispatchDirectCommandResult(out, nil)
+	require.NoError(t, err)
+	assert.Equal(t, DispatchResult{Status: "warning", Data: []byte(`{}`), Warnings: []string{"line 3: unknown leaf"}}, result)
+}

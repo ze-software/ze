@@ -263,6 +263,7 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 |--------|---------|
 | `UpdateRoute(ctx, peerSelector, command)` | Inject route updates to matching peers |
 | `DispatchCommand(ctx, command)` | Route a command through the engine's dispatcher |
+| `DispatchCommandResult(ctx, command)` | The same, with the warning lines the command stated |
 | `EmitEvent(ctx, namespace, eventType, direction, peerAddress, event)` | Push events to subscribers |
 | `SubscribeEvents(ctx, events, peers, format)` | Subscribe to event delivery |
 | `UnsubscribeEvents(ctx)` | Stop event delivery |

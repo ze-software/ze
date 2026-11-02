@@ -156,6 +156,11 @@ func responseToDispatchOutput(resp *plugin.Response) *rpc.DispatchCommandOutput 
 		output.Error = resp.Error
 		return output
 	}
+	// The warning lines ride beside a completed answer, as the warning
+	// terminator carries them on the socket (plugin.WriteAnswer).
+	if resp.Status == plugin.StatusWarning {
+		output.Warnings = resp.Warnings
+	}
 	if resp.Data != nil {
 		encoded, err := json.Marshal(resp.Data)
 		if err != nil {

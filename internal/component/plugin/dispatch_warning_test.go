@@ -82,3 +82,55 @@ func TestAnswerForWarning(t *testing.T) {
 	}
 	assert.Equal(t, "warning", answer.Verdict())
 }
+
+// TestWriteAnswerWarningCarriesText checks that the warning lines a Response
+// states reach the plugin that dispatched the command, on the socket and in
+// process. The method: the engine end of a pipe answers with WriteAnswer and
+// the plugin end reads through rpc.MuxConn.CallAnswer, then AnswerFor answers
+// the same Response in process; both are read after their records.
+//
+// VALIDATES: journal row 2026-11-02 (format-cannot-hold-a-state-the-tree-holds)
+// -- a plugin reads the warning text the operator's surface prints.
+// PREVENTS: the wrn terminator stating a warning whose text nobody receives.
+func TestWriteAnswerWarningCarriesText(t *testing.T) {
+	t.Parallel()
+
+	resp := warningResponse()
+	resp.Warnings = []string{`line 3: unknown leaf "x"`, "line 9: deprecated"}
+
+	pluginEnd, engineEnd := net.Pipe()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	go func() {
+		engineConn := rpc.NewConn(engineEnd, engineEnd)
+		req, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		WriteAnswer(engineEnd, req.ID, resp) //nolint:errcheck // the reader below reports a lost answer as truncated
+	}()
+
+	mux := rpc.NewMuxConn(rpc.NewConn(pluginEnd, pluginEnd))
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	answer, err := mux.CallAnswer(ctx, rpc.MethodDispatchCommand, nil)
+	require.NoError(t, err)
+	for range answer.Records {
+	}
+	require.NoError(t, answer.Err(), "the answer reached its terminator")
+	assert.Equal(t, "warning", answer.Verdict())
+	assert.Empty(t, answer.Message(), "the warning text is no failure text")
+	assert.Equal(t, resp.Warnings, answer.Warnings(), "the socket carries every warning line")
+
+	inProcess, err := AnswerFor(resp)
+	require.NoError(t, err)
+	for range inProcess.Records {
+	}
+	assert.Equal(t, "warning", inProcess.Verdict())
+	assert.Equal(t, resp.Warnings, inProcess.Warnings(), "the in-process answer carries the same lines")
+}
