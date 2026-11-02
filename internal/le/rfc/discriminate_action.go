@@ -723,21 +723,33 @@ func isMajorVersion(element string) bool {
 //
 // The opening brace is the first one that ENDS its line, which is what gofmt
 // writes for a declaration and what keeps a generic constraint's own brace --
-// `func F[T interface{ ~int }](x T) {` -- from being mistaken for it.
+// `func F[T interface{ ~int }](x T) {` -- from being mistaken for it. A line
+// comment after the brace (`{ //nolint:... // reason`) still ends the line, so
+// the halt goes after that comment rather than one line into the body.
 func disableBody(text string) (string, bool) {
-	open := -1
-	for index := 0; index+1 < len(text); index++ {
-		if text[index] == '{' && text[index+1] == '\n' {
-			open = index
+	lineEnd := -1
+	for index := 0; index < len(text); index++ {
+		if text[index] != '{' {
+			continue
+		}
+		rest := strings.TrimLeft(text[index+1:], " \t")
+		if strings.HasPrefix(rest, "\n") || strings.HasPrefix(rest, "//") {
+			lineEnd = strings.IndexByte(text[index:], '\n')
+			if lineEnd >= 0 {
+				lineEnd += index
+			}
 			break
 		}
 	}
 	closing := strings.LastIndex(text, "}")
-	if open < 0 || closing <= open {
+	if lineEnd < 0 {
+		return "", false
+	}
+	if closing <= lineEnd {
 		return "", false
 	}
 	var tb textbuf.Buffer
-	return tb.Str(text[:open+1]).Str("\n\t").Str(revertBody).Byte('\n').Str(text[closing:]).String(), true
+	return tb.Str(text[:lineEnd]).Str("\n\t").Str(revertBody).Byte('\n').Str(text[closing:]).String(), true
 }
 
 // mergeDiscrimination writes one record into its requirement's file.

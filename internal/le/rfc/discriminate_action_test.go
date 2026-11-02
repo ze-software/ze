@@ -203,3 +203,41 @@ func TestInteropScenarioOfConstantDeclarations(t *testing.T) {
 		})
 	}
 }
+
+// TestDisableBodyOpensAtABraceFollowedByAComment feeds a declaration whose
+// opening brace carries a trailing comment, the `//nolint` form gofmt keeps on
+// the signature line, and asserts the halt replaces the whole body while a
+// generic constraint's own brace is still never taken for the opening one.
+//
+// VALIDATES: the opening brace is the first one that ends its line, with or
+// without a trailing line comment after it.
+// PREVENTS: the halt landing one line into the body, leaving its first
+// statement's open brace unclosed, so the overlay fails to build and the
+// recorder refuses every revert of such a producer
+// (Reactor.runIngressPolicyChainMeta, 2026-11-02).
+func TestDisableBodyOpensAtABraceFollowedByAComment(t *testing.T) {
+	cases := []struct {
+		name, text, want string
+	}{
+		{
+			name: "trailing comment",
+			text: "func F(x int) int { //nolint:gocritic // a reason\n\tif x == 0 {\n\t\treturn 1\n\t}\n\treturn x\n}",
+			want: "func F(x int) int { //nolint:gocritic // a reason\n\t" + revertBody + "\n}",
+		},
+		{
+			name: "generic constraint",
+			text: "func G[T interface{ ~int }](x T) T {\n\tif x == 0 {\n\t\treturn 1\n\t}\n\treturn x\n}",
+			want: "func G[T interface{ ~int }](x T) T {\n\t" + revertBody + "\n}",
+		},
+	}
+	for _, tc := range cases {
+		got, ok := disableBody(tc.text)
+		if !ok {
+			t.Errorf("%s: disableBody refused %q", tc.name, tc.text)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("%s: disableBody = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
