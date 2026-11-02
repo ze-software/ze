@@ -5,7 +5,9 @@
 package reactor
 
 import (
+	"net"
 	"net/netip"
+	"slices"
 	"testing"
 	"time"
 
@@ -13,7 +15,10 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/selector"
 )
 
@@ -491,4 +496,74 @@ func forwardRSFencedMidPass(t *testing.T, pass bool) {
 	require.Equal(t, []netip.AddrPort{key.peerAddr}, skipped, "the fenced destination must be handed back, once")
 	require.Equal(t, 0, dispatched, "nothing may be dispatched to a fenced destination")
 	require.False(t, dst.forwardOverflowPending(), "nothing may be parked for the route server's replay to duplicate")
+}
+
+// rsFenceFixture is a route server that holds the replay fence: registered
+// with FencesLiveForwards and SignalsSessionReady, as bgp-rs is, and with
+// RelaysOnRSFastPath so the fast path reaches a destination granting it
+// `send [ update ]`.
+const rsFenceFixture = "rs-fence-fixture"
+
+// TestEstablishedIsPublishedBehindTheReplayFence proves that a destination's
+// replay fence is up before its session becomes Established to the fast path.
+//
+// VALIDATES: enterEstablished raises the replay fence (Peer.initialUpdateOwed)
+// for a peer whose route server declares it, before setState publishes
+// PeerStateEstablished. A fast-path forward that runs the instant Established
+// is visible hands the destination back to the route server, dispatches
+// nothing to it and parks nothing for it.
+//
+// PREVENTS: the window between the publication and the fence. The initial-sync
+// hold (Peer.forwardOrderHold) was up and the fence was not, so the fast path
+// parked the UPDATE in the destination's overflow, and the route server's
+// peer-up replay, whose cut was taken later, carried it too: the destination
+// received the announcement twice (RFC 4271 Section 9.2).
+//
+// Method: the forward runs inside the peer's state callback, which setState
+// calls right after it publishes the new state, so the interleaving is the
+// first moment another goroutine can see Established, with no timing involved.
+func TestEstablishedIsPublishedBehindTheReplayFence(t *testing.T) {
+	snapshot := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snapshot) })
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:                rsFenceFixture,
+		Description:         "route-server fixture that holds the replay fence",
+		RunEngine:           func(net.Conn) int { return 0 },
+		CLIHandler:          func([]string) int { return 0 },
+		RelaysOnRSFastPath:  true,
+		FencesLiveForwards:  true,
+		SignalsSessionReady: true,
+	}))
+
+	r, src, dst, conn, ctxID := newSyncOrderRail(t)
+	dst.mu.Lock()
+	dst.settings.ProcessBindings = []ProcessBinding{{
+		PluginName: rsFenceFixture,
+		Send:       map[string]bool{bgpevents.SendUpdate: true},
+		Receive:    map[string]events.Direction{bgpevents.EventState: events.DirReceived},
+	}}
+	dst.mu.Unlock()
+	dst.refreshForwardFacts()
+	dst.state.Store(int32(PeerStateConnecting))
+	dst.sendingInitialRoutes.Store(0)
+
+	update := syncOrderPublish(t, r, ctxID, 7750, syncOrderAnnounceBody)
+	var skipped []netip.AddrPort
+	dispatched := -1
+	dst.SetCallback(func(_, to PeerState) {
+		if to != PeerStateEstablished {
+			return
+		}
+		handed, sent := reactorForwardRS(r, update, 7750, netip.MustParseAddr(forwardSourceAddr), src)
+		skipped, dispatched = slices.Clone(handed), sent
+	})
+	dst.enterEstablished()
+
+	require.Equal(t, 0, dispatched, "nothing may be dispatched to a destination whose fence is owed")
+	require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the destination must be handed back to the route server")
+	require.False(t, dst.forwardOverflowPending(), "nothing may be parked for the route server's replay to duplicate")
+	require.True(t, dst.initialUpdateOwed.Load(), "the fence must be up once Established is published")
+
+	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(rsFenceFixture), dst.session.initialReplay))
+	require.Empty(t, parseWireUpdates(t, conn.written()), "lowering the fence must release nothing the fast path held")
 }

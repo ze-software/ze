@@ -960,9 +960,9 @@ func (p *Peer) resetAPISync(expected []string) {
 }
 
 // raiseReplayFence raises the replay fence for this session over the
-// reporters that declared it. Called after resetAPISync and before
-// startInitialRoutes (peer_run.go), so the initial-sync hold setState raised
-// covers every forward until the fence is up.
+// reporters that declared it. Called after resetAPISync and before setState
+// publishes Established (enterEstablished), so no forward sees the session
+// Established with the fence still down.
 func (p *Peer) raiseReplayFence() {
 	p.mu.Lock()
 	p.replayFence = p.replayFenceOwners()

@@ -510,21 +510,9 @@ func (p *Peer) runOnce() error {
 			// once per session and after the dynamic AS is known.
 			p.warnRFC8212AbsentPolicy()
 
-			// Reset per-session API sync: NAME the processes whose routes
-			// belong to this peer's INITIAL routing update. Each reports
-			// "plugin session ready" once its routes are out, and this peer's
-			// End-of-RIB waits for all of them (RFC 4724 Section 4: the marker
-			// is sent once the initial routing update completes).
-			//
-			// The names travel, not their count. Every plugin can dispatch that
-			// signal, and several do it for a peer that grants them no send word
-			// at all, so a barrier holding a count releases on the wrong
-			// plugin's word (Peer.SignalAPIReady). The names are also what the
-			// timeout diagnostic prints when one of them never reports.
-			p.resetAPISync(p.initialUpdateReporters())
-			// The replay fence: live forwards wait for the reporters that
-			// declared it (Peer.initialUpdateOwed).
-			p.raiseReplayFence()
+			// The per-session API sync and the replay fence were reset and
+			// raised by enterEstablished above, before Established was
+			// published (Peer.resetAPISync, Peer.raiseReplayFence).
 
 			// Reset the peer-up barrier for this session BEFORE plugins are
 			// notified below: the dispatcher raises its expected count and the

@@ -142,15 +142,38 @@ func (p *Peer) importDecisionFalls(next *PeerSettings, copy settingsCopier, unre
 // boundary once it found the peer not Established, before the publish.
 var importSwapGateHook func(*Peer)
 
-// enterEstablished publishes Established, then waits out an import swap
-// holding the boundary: one that found the peer not Established publishes its
-// rejecting policy before this returns, so no UPDATE of the new session is
-// admitted under the accepting one it removed.
+// enterEstablished raises the session's replay fence, publishes Established,
+// then waits out an import swap holding the boundary: one that found the peer
+// not Established publishes its rejecting policy before this returns, so no
+// UPDATE of the new session is admitted under the accepting one it removed.
 //
 // RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated with an
 // EBGP peer SHALL NOT be considered eligible in the Decision Process if no
 // explicit Import Policy has been applied."
+//
+// The fence goes up BEFORE the publication. The route-server fast path hands
+// a destination whose fence is up back to the route server, whose peer-up
+// replay carries every UPDATE at or below its cut. Raised after it, a forward
+// that saw Established with the fence still down parked under the initial-sync
+// hold (Peer.forwardOrderHold), and the replay carried the same UPDATE again,
+// so the peer received it twice. RFC 4271 Section 9.2: "All newly installed
+// routes and all newly unfeasible routes for which there is no replacement
+// route SHALL be advertised to its peers by means of an UPDATE message."
 func (p *Peer) enterEstablished() {
+	// Reset per-session API sync: NAME the processes whose routes belong to
+	// this peer's INITIAL routing update. Each reports "plugin session ready"
+	// once its routes are out (RFC 4724 Section 4: the marker is sent once the
+	// initial routing update completes).
+	//
+	// The names travel, not their count. Every plugin can dispatch that
+	// signal, and several do it for a peer that grants them no send word at
+	// all, so a barrier holding a count releases on the wrong plugin's word
+	// (Peer.SignalAPIReady). The names are also what the timeout diagnostic
+	// prints when one of them never reports.
+	p.resetAPISync(p.initialUpdateReporters())
+	// The replay fence: live forwards wait for the reporters that declared it
+	// (Peer.initialUpdateOwed).
+	p.raiseReplayFence()
 	p.setState(PeerStateEstablished)
 	p.establishGate.Lock()
 	p.establishGate.Unlock() //nolint:gocritic,staticcheck // badLock, SA2001: the empty critical section is the barrier

@@ -155,10 +155,14 @@ arrived, so an UPDATE it parked behind the fence was also in the replay: the
 destination received the announcement twice, the second copy after a later
 withdrawal was due. A destination whose fence went up between the passes
 leaves the by-section redo at the first section that sees it, and is handed
-back once.
+back once. The fence goes up before the session is published Established
+(`enterEstablished`), so no forward sees the destination Established with its
+fence down: one that did parked under the initial-sync hold instead, and the
+replay carried the same UPDATE again.
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS, reactorForwardRSSection, withoutPeerKeys -->
+<!-- source: internal/component/bgp/reactor/source_policy_reload.go -- enterEstablished -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- batchForwardUpdateSkipped -->
-<!-- test: internal/component/bgp/reactor/forward_replay_fence_test.go TestRSFastPathHandsAFencedDestinationBack, TestRSFastPathRedoHandsAFencedDestinationBack, TestLiveForwardWaitsForPeerUpReplay -->
+<!-- test: internal/component/bgp/reactor/forward_replay_fence_test.go TestRSFastPathHandsAFencedDestinationBack, TestRSFastPathRedoHandsAFencedDestinationBack, TestLiveForwardWaitsForPeerUpReplay, TestEstablishedIsPublishedBehindTheReplayFence -->
 
 Live cache entries and reconstructed stored-route replays retain their dispatch
 peer and session generation. Source removal or re-establishment invalidates
