@@ -399,11 +399,13 @@ func (s *validationSelection) flowSpecSection(data []byte, fam family.Family, an
 	if len(data) > len(s.scratch) {
 		return nil, nil, errRelayBufferPool
 	}
-	buf := s.scratch[:len(data)]
+	batch, ok := flowSpecRuleBatchPool.Get().(*flowSpecRuleBatch)
+	if !ok {
+		batch = new(flowSpecRuleBatch)
+	}
+	defer flowSpecRuleBatchPool.Put(batch)
+	batch.reset(s.scratch[:len(data)], announce)
 	s.scratch = s.scratch[len(data):]
-	// Kept rules fill [0, split), refused ones [split, front), and denied
-	// ones grow down from the back.
-	split, front, back := 0, 0, len(buf)
 	addPath := s.ctx != nil && s.ctx.AddPath(fam)
 	var keyErr error
 	_, err := nlrisplit.SplitFlowSpec(data, addPath, func(wire []byte) bool {
@@ -421,42 +423,154 @@ func (s *validationSelection) flowSpecSection(data []byte, fam family.Family, an
 			keyErr = errors.New("invalid FlowSpec route key")
 			return true
 		}
-		keep := !ribevents.RouteEligible(key, 0)
-		if announce {
-			keep = ribevents.RouteEligible(key, s.msgID)
-		}
-		if keep {
-			if announce {
-				// draft-simpson-idr-flowspec-redirect-02 Section 3
-				if ribevents.FlowSpecRedirectRefused(key, s.msgID) {
-					front += copy(buf[front:], wire)
-					return true
-				}
-			}
-			n := copy(buf[front:], wire)
-			rotateFlowSpecKept(buf[split:front+n], n)
-			split += n
-			front += n
-			return true
-		}
-		s.changed = true
-		if announce && !ribevents.RouteEligible(key, 0) {
-			back -= len(wire)
-			copy(buf[back:], wire)
+		if batch.add(key, s.msgID, wire) {
+			s.changed = batch.flush() || s.changed
 		}
 		return true
 	})
 	if err != nil {
+		batch.discard()
 		return nil, nil, err
 	}
 	if keyErr != nil {
+		batch.discard()
 		return nil, nil, keyErr
 	}
-	if split < front {
-		s.refused = buf[split:front]
+	s.changed = batch.flush() || s.changed
+	buf := batch.buf
+	if batch.split < batch.front {
+		s.refused = buf[batch.split:batch.front]
 		s.changed = true
 	}
-	return buf[:split], buf[back:], nil
+	kept, denied := buf[:batch.split], buf[batch.back:]
+	batch.buf = nil
+	return kept, denied, nil
+}
+
+// flowSpecRuleBatch collects one FlowSpec section's rules and their gate
+// queries, then sorts each rule into the kept, the redirect-refused or the
+// denied region of the section's scratch once the gate answered
+// (ribevents.RouteEligibleBatch, then ribevents.FlowSpecRedirectRefusedBatch
+// for the kept announcements). A selecting RIB in another process is thus
+// asked twice per chunk of rules rather than up to four times per rule.
+//
+// Kept rules fill [0, split), redirect-refused ones [split, front), and denied
+// ones grow down from back, so their combined size never exceeds the input.
+// Not safe for concurrent use: one section owns a batch from
+// flowSpecRuleBatchPool at a time.
+type flowSpecRuleBatch struct {
+	queries   [2 * eligibilityChunk]ribevents.EligibilityQuery
+	answers   [2 * eligibilityChunk]bool
+	redirects [eligibilityChunk]ribevents.EligibilityQuery
+	refused   [eligibilityChunk]bool
+	rules     [eligibilityChunk][]byte
+	count     int
+	buf       []byte
+	split     int
+	front     int
+	back      int
+	announce  bool
+}
+
+var flowSpecRuleBatchPool = sync.Pool{New: func() any { return new(flowSpecRuleBatch) }}
+
+func (b *flowSpecRuleBatch) reset(buf []byte, announce bool) {
+	b.count = 0
+	b.buf = buf
+	b.split = 0
+	b.front = 0
+	b.back = len(buf)
+	b.announce = announce
+}
+
+// add queues one rule, framed as received, and reports that the batch is full
+// and MUST be flushed before the next add.
+//
+// An announcement is kept when the received generation (msgID) is eligible,
+// and denied (withdrawn downstream) when no generation of the rule is. A
+// withdrawal is kept only when no generation of the rule is still eligible.
+func (b *flowSpecRuleBatch) add(key ribevents.ValidationRoute, msgID uint64, framed []byte) bool {
+	if b.announce {
+		b.queries[2*b.count] = ribevents.EligibilityQuery{Route: key, MsgID: msgID}
+		b.queries[2*b.count+1] = ribevents.EligibilityQuery{Route: key}
+	} else {
+		b.queries[b.count] = ribevents.EligibilityQuery{Route: key}
+	}
+	b.rules[b.count] = framed
+	b.count++
+	return b.count == eligibilityChunk
+}
+
+// flush asks the gate about every queued rule, places each, and reports
+// whether any was not kept as received.
+func (b *flowSpecRuleBatch) flush() bool {
+	if b.count == 0 {
+		return false
+	}
+	asked := b.count
+	if b.announce {
+		asked = 2 * b.count
+	}
+	ribevents.RouteEligibleBatch(b.queries[:asked], b.answers[:asked])
+	redirects := 0
+	if b.announce {
+		for i := range b.count {
+			if b.answers[2*i] {
+				b.redirects[redirects] = b.queries[2*i]
+				redirects++
+			}
+		}
+		// draft-simpson-idr-flowspec-redirect-02 Section 3
+		ribevents.FlowSpecRedirectRefusedBatch(b.redirects[:redirects], b.refused[:redirects])
+	}
+	changed := false
+	next := 0
+	for i := range b.count {
+		framed := b.rules[i]
+		if !b.announce {
+			if !b.answers[i] {
+				b.keep(framed)
+				continue
+			}
+			changed = true
+			continue
+		}
+		if b.answers[2*i] {
+			refused := b.refused[next]
+			next++
+			if refused {
+				b.front += copy(b.buf[b.front:], framed)
+				continue
+			}
+			b.keep(framed)
+			continue
+		}
+		changed = true
+		if !b.answers[2*i+1] {
+			b.back -= len(framed)
+			copy(b.buf[b.back:], framed)
+		}
+	}
+	b.discard()
+	return changed
+}
+
+// keep places one kept rule at the end of the kept run, in front of the
+// redirect-refused rules already placed.
+func (b *flowSpecRuleBatch) keep(framed []byte) {
+	n := copy(b.buf[b.front:], framed)
+	rotateFlowSpecKept(b.buf[b.split:b.front+n], n)
+	b.split += n
+	b.front += n
+}
+
+// discard drops the queued rules without placing them, releasing the
+// references into the section and the route keys.
+func (b *flowSpecRuleBatch) discard() {
+	clear(b.queries[:2*b.count])
+	clear(b.redirects[:b.count])
+	clear(b.rules[:b.count])
+	b.count = 0
 }
 
 // rotateFlowSpecKept moves the last n bytes of region, a rule just kept, in

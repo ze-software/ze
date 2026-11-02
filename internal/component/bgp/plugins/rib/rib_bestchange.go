@@ -1743,21 +1743,24 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 			sh.mu.RUnlock()
 		}
 		changes := make([]bestChangeEntry, 0, total)
+		// The receive gate is asked once for the family's whole table
+		// (dropIneligible), not once per path: queries[i] names
+		// changes[asked[i]].
+		validate := ribevents.ValidationEnabled()
+		var queries []ribevents.EligibilityQuery
+		var asked []int
 		appendRec := func(pfx netip.Prefix, prev bestPrevRecord) {
 			rec, pathID := prev.rec, prev.pathID
 			if !pfx.IsValid() {
 				return
 			}
-			if ribevents.ValidationEnabled() {
-				peer, err := netip.ParseAddr(r.bestPathInterner.peerAt(rec.peerIdx()))
+			var peer netip.Addr
+			if validate {
+				parsed, err := netip.ParseAddr(r.bestPathInterner.peerAt(rec.peerIdx()))
 				if err != nil {
 					return
 				}
-				if !ribevents.RouteEligible(ribevents.ValidationRoute{
-					Peer: peer, Family: fam, Prefix: pfx, PathID: pathID,
-				}, 0) {
-					return
-				}
+				peer = parsed
 			}
 			asPath, attrs, held := r.replayPath(fam, pfx, nil, r.bestPathInterner.peerAt(rec.peerIdx()), pathID)
 			if !held {
@@ -1765,6 +1768,12 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 			}
 			e := rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, pfx, pathID, prev.addPath)
 			setEntryPath(&e, asPath, attrs)
+			if validate {
+				asked = append(asked, len(changes))
+				queries = append(queries, ribevents.EligibilityQuery{Route: ribevents.ValidationRoute{
+					Peer: peer, Family: fam, Prefix: pfx, PathID: pathID,
+				}})
+			}
 			changes = append(changes, e)
 		}
 		for i := range fs.shards {
@@ -1794,6 +1803,7 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 			})
 			sh.mu.RUnlock()
 		}
+		changes = dropIneligible(changes, asked, queries)
 		if len(changes) > 0 {
 			changesByFamily[fam] = changes
 		}

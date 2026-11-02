@@ -1284,7 +1284,12 @@ answered by `{"answers": [<bool>, ...]}` in query order, at most
 `ribevents.EligibilityBatchMax` (1024) queries per command and
 `ribevents.GateLookupTimeout` (5 s) per answer. The reactor's forward path
 batches its questions per NLRI section, at most 256 prefixes a command
-(`eligibilityBatch`), rather than asking per prefix. Each process reaches the
+(`eligibilityBatch`), rather than asking per prefix. `bgp-rib` asks the same
+way: one command for each selection's candidate paths
+(`gatherPrefixCandidatesLocked` through `candidateGate`), one per family for a
+best-path replay (`collectBestPaths`) and for an Adj-RIB-Out refresh or replay
+(`replaySourceRefused`), and one for the unicast paths a FlowSpec
+reconciliation reads (`dropIneligible`), never one per path. Each process reaches the
 command through the dispatch it registers (`ribevents.RegisterGateDispatch`):
 the reactor through the daemon's command dispatcher, `bgp-rib` through
 `dispatch-command-args`. A query the store cannot answer (no dispatch, an
@@ -1312,7 +1317,9 @@ answered by `{"results": [{"verdict": <bool>, "path": <path>}], "routes": [<rout
 under the same batch bound, timeout and dispatch as the receive gate, with at
 most `ribevents.FlowSpecRoutesMax` (16384) routes per answer. The forward
 path's batch (`RouteEligibleBatch`) asks every FlowSpec rule of a batch in one
-command. An answer that cannot be obtained refuses: not eligible, no path (so
+command, and a stored FlowSpec relay asks a section's rules in two, at most
+256 rules each: one for their eligibility and one for the redirect verdict of
+the rules it keeps (`flowSpecRuleBatch`, `ribevents.FlowSpecRedirectRefusedBatch`). An answer that cannot be obtained refuses: not eligible, no path (so
 replay withdraws), redirect refused, no routes replayed. Every reader
 registers a dispatch: `bgp-rr`, `bgp-rs` and `bgp-adj-rib-in` through
 `dispatch-command-args`, the daemon through its command dispatcher.
@@ -1339,7 +1346,9 @@ bus subscription.
 <!-- source: internal/component/bgp/plugins/rib/rib_event_sdk.go -- sdkEventBus, dispatchReplayRequest -->
 <!-- source: internal/core/bgp/ribevents/validation.go -- NoteValidationGate, DecodeValidationGate, ValidationGate, RouteEligibleBatch -->
 <!-- source: internal/core/bgp/ribevents/gate_remote.go -- EligibilityRequest, AnswerEligibility, RegisterGateDispatch, askGateOwner -->
-<!-- source: internal/component/bgp/reactor/forward_validation.go -- eligibilityBatch -->
+<!-- source: internal/component/bgp/reactor/forward_validation.go -- eligibilityBatch, flowSpecRuleBatch -->
+<!-- source: internal/component/bgp/plugins/rib/rib_validation.go -- candidateGate, replaySourceRefused, dropIneligible -->
+<!-- source: internal/core/bgp/ribevents/flowspec.go -- FlowSpecRedirectRefusedBatch -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- announcedGateCommand, emitValidationGateEvent -->
 <!-- source: internal/component/bgp/reactor/reactor_validation_gate.go -- subscribeValidationGate, dispatchGateCommand -->
 

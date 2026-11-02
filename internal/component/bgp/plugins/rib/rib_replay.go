@@ -141,6 +141,7 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 		if hasFilter && fam != filterFam {
 			continue
 		}
+		refused := replaySourceRefused(fam, familyRoutes)
 		for key, entry := range familyRoutes {
 			if peerUp && entry.ConfigStatic {
 				continue
@@ -151,7 +152,7 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 			if peerUp && !current {
 				continue
 			}
-			if !replaySourceEligible(fam, key, entry.SourcePeer) {
+			if _, ineligible := refused[key]; ineligible {
 				continue
 			}
 			gk := groupKey{

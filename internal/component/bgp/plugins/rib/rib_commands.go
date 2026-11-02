@@ -1218,17 +1218,17 @@ func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.P
 	// Stack-backed: a prefix carries one to a few paths per peer, so the common
 	// case appends without allocating. A peer with more paths grows it once.
 	var pathsArray [4]storage.PrefixPath
-	validate := ribevents.ValidationEnabled()
+	// One receive-gate question per admitted path, asked for the whole
+	// selection at once: a gate owner in another process answers one command.
+	var gate *candidateGate
+	if ribevents.ValidationEnabled() {
+		gate = acquireCandidateGate()
+		defer releaseCandidateGate(gate)
+	}
 	for peer, peerRIB := range r.bgpPeers {
 		paths, peerAddPath := peerRIB.AppendPrefixPathsRetained(fam, pfx, pathsArray[:0])
 		for i := range paths {
 			path := &paths[i]
-			if validate && !ribevents.RouteEligible(ribevents.ValidationRoute{
-				Peer: peer, Family: fam, Prefix: pfx, PathID: path.PathID,
-			}, path.Entry.MsgID) {
-				path.Release()
-				continue
-			}
 			if !r.candidateAdmitted(fam, peerRIB, path.Entry, selfNextHops) {
 				path.Release()
 				continue
@@ -1238,7 +1238,16 @@ func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.P
 			c.AddPath = peerAddPath
 			c.entry, c.labelHandle = path.Entry, path.Labels
 			candidates = append(candidates, c)
+			if gate != nil {
+				gate.queries = append(gate.queries, ribevents.EligibilityQuery{
+					Route: ribevents.ValidationRoute{Peer: peer, Family: fam, Prefix: pfx, PathID: path.PathID},
+					MsgID: path.Entry.MsgID,
+				})
+			}
 		}
+	}
+	if gate != nil {
+		candidates = gate.filter(candidates)
 	}
 	return candidates
 }

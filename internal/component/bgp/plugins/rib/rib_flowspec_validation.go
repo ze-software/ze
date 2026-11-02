@@ -425,6 +425,11 @@ func (r *RIBManager) reconcileFlowSpecs() {
 		}
 	}
 	var unicast []flowSpecUnicast
+	// The receive gate is asked once for every relevant unicast path, after
+	// the peer lock is released (dropIneligible): queries[i] names
+	// unicast[asked[i]].
+	var queries []ribevents.EligibilityQuery
+	var asked []int
 	if len(flows) > 0 {
 		for peer, routes := range r.bgpPeers {
 			flags := routes.AddPathFamilies()
@@ -458,15 +463,17 @@ func (r *RIBManager) reconcileFlowSpecs() {
 					if !relevant {
 						return true
 					}
-					if storage.IsCIDRFamily(fam) {
-						pathID, _, _ := parsePrevKey(fam, raw, flags[fam])
-						if !ribevents.RouteEligible(ribevents.ValidationRoute{Peer: peer, Family: fam, Prefix: prefix, PathID: pathID}, entry.MsgID) {
-							return true
-						}
-					}
 					first, last, _, valid := flowSpecASPath(entry)
 					if !valid {
 						return true
+					}
+					if storage.IsCIDRFamily(fam) {
+						pathID, _, _ := parsePrevKey(fam, raw, flags[fam])
+						asked = append(asked, len(unicast))
+						queries = append(queries, ribevents.EligibilityQuery{
+							Route: ribevents.ValidationRoute{Peer: peer, Family: fam, Prefix: prefix, PathID: pathID},
+							MsgID: entry.MsgID,
+						})
 					}
 					candidate := r.extractCandidate(fam, peer, routes.PeerAddr(), entry)
 					unicast = append(unicast, flowSpecUnicast{domain: domain, prefix: prefix,
@@ -477,6 +484,7 @@ func (r *RIBManager) reconcileFlowSpecs() {
 		}
 	}
 	r.peerMu.RUnlock()
+	unicast = dropIneligible(unicast, asked, queries)
 	next := &flowSpecState{paths: make(map[ribevents.ValidationRoute]flowSpecVerdict, len(flows)), best: make(map[flowSpecRule]*flowSpecWinner)}
 	winners := make(map[flowSpecRule]*flowSpecRoute)
 	for i := range flows {

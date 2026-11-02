@@ -113,8 +113,8 @@ func FlowSpecRoutes() []ValidationRoute {
 // for the redirect address is looked up in the rule's own domain, and two
 // rules of one flow-vpn UPDATE can carry two Route Distinguishers. route is
 // keyed as RouteEligible keys it (FlowSpecKey, ADD-PATH removed). A forward
-// rail asks it for each rule it sends and moves a refused rule to a copy
-// without 0x0800. With no provider the answer is false: the eligibility gate
+// rail asks it (or FlowSpecRedirectRefusedBatch) for each rule it sends and
+// moves a refused rule to a copy without 0x0800. With no provider the answer is false: the eligibility gate
 // (RouteEligible) already forwards no FlowSpec route then. A process that
 // reaches the RIB in another process (NoteFlowSpecGate) asks it, and an
 // answer it cannot obtain is refused.
@@ -125,6 +125,37 @@ func FlowSpecRedirectRefused(route ValidationRoute, msgID uint64) bool {
 	}
 	provider := flowSpecLookup.Load()
 	return provider != nil && provider.redirect != nil && provider.redirect(route, msgID)
+}
+
+// FlowSpecRedirectRefusedBatch answers FlowSpecRedirectRefused for every
+// query's route and generation (Present is ignored) into refused
+// (len(refused) MUST be len(queries)). A RIB in another process is asked once
+// per EligibilityBatchMax rules rather than once per rule, which is why a
+// forward rail relaying a whole section uses it. An answer it cannot obtain
+// is refused, as FlowSpecRedirectRefused refuses it.
+func FlowSpecRedirectRefusedBatch(queries []EligibilityQuery, refused []bool) {
+	if local := flowSpecRedirect.Load(); local != nil {
+		for i := range queries {
+			refused[i] = (*local)(queries[i].Route, queries[i].MsgID)
+		}
+		return
+	}
+	provider := flowSpecLookup.Load()
+	// refuse-by-default: guards FlowSpecRedirectRefused -- with no remote redirect lookup the eligibility gate already forwards no FlowSpec route, and a local RIB without RegisterFlowSpecRedirectLookup refuses no redirect
+	if provider == nil || provider.redirect == nil {
+		clear(refused[:len(queries)])
+		return
+	}
+	asked := make([]FlowSpecQuery, len(queries))
+	results := make([]FlowSpecResult, len(queries))
+	for i := range queries {
+		asked[i] = FlowSpecQuery{Operation: FlowSpecRedirect, Route: queries[i].Route, MsgID: queries[i].MsgID}
+		results[i].Verdict = true
+	}
+	provider.batch(asked, results)
+	for i := range results {
+		refused[i] = results[i].Verdict
+	}
 }
 
 var flowSpecRedirect atomic.Pointer[func(ValidationRoute, uint64) bool]

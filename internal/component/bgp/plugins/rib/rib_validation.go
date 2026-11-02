@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/netip"
+	"slices"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -203,23 +205,131 @@ func (r *RIBManager) reconcileReceivedNLRIs(fam family.Family, data []byte, addP
 	}
 }
 
-// replaySourceEligible excludes a previously advertised path when validation
-// has since rejected its source. Locally injected routes have no source peer.
-func replaySourceEligible(fam family.Family, key ribOutKey, source string) bool {
-	if !key.Prefix.IsValid() {
-		return true
-	}
+// replaySourceRefused answers which copies in familyRoutes validation has
+// since rejected at their source, asking the receive gate once for the whole
+// family (ribevents.RouteEligibleBatch), so a gate owner in another process is
+// asked once per ribevents.EligibilityBatchMax copies rather than once per
+// route. A locally injected route has no source peer and is never refused. A
+// nil set refuses none. Caller MUST hold r.peerMu.
+func replaySourceRefused(fam family.Family, familyRoutes map[ribOutKey]ribOutEntry) map[ribOutKey]struct{} {
 	if !ribevents.ValidationEnabled() {
-		return true
+		return nil
 	}
-	if source == "" {
-		return true
+	var refused map[ribOutKey]struct{}
+	keys := make([]ribOutKey, 0, len(familyRoutes))
+	queries := make([]ribevents.EligibilityQuery, 0, len(familyRoutes))
+	for key, entry := range familyRoutes {
+		if !key.Prefix.IsValid() {
+			continue
+		}
+		if entry.SourcePeer == "" {
+			continue
+		}
+		peer, err := netip.ParseAddr(entry.SourcePeer)
+		if err != nil {
+			refused = refuseReplay(refused, key)
+			continue
+		}
+		keys = append(keys, key)
+		queries = append(queries, ribevents.EligibilityQuery{Route: ribevents.ValidationRoute{
+			Peer: peer, Family: fam, Prefix: key.Prefix, PathID: key.PathID,
+		}})
 	}
-	peer, err := netip.ParseAddr(source)
-	if err != nil {
-		return false
+	answers := make([]bool, len(queries))
+	ribevents.RouteEligibleBatch(queries, answers)
+	for i, eligible := range answers {
+		if !eligible {
+			refused = refuseReplay(refused, keys[i])
+		}
 	}
-	return ribevents.RouteEligible(ribevents.ValidationRoute{
-		Peer: peer, Family: fam, Prefix: key.Prefix, PathID: key.PathID,
-	}, 0)
+	return refused
+}
+
+// refuseReplay adds key to refused, making the set on first use.
+func refuseReplay(refused map[ribOutKey]struct{}, key ribOutKey) map[ribOutKey]struct{} {
+	if refused == nil {
+		refused = make(map[ribOutKey]struct{})
+	}
+	refused[key] = struct{}{}
+	return refused
+}
+
+// candidateGate holds one selection's receive-gate questions, one per
+// candidate, so the gate is asked once for the whole selection
+// (ribevents.RouteEligibleBatch) rather than once per path. The slices keep
+// their capacity in candidateGatePool, so a selection allocates nothing once
+// warm. Not safe for concurrent use: one selection owns a gate at a time.
+type candidateGate struct {
+	queries []ribevents.EligibilityQuery
+	answers []bool
+}
+
+var candidateGatePool = sync.Pool{New: func() any { return new(candidateGate) }}
+
+// acquireCandidateGate takes a gate from the pool. The caller MUST hand it
+// back with releaseCandidateGate.
+func acquireCandidateGate() *candidateGate {
+	gate, ok := candidateGatePool.Get().(*candidateGate)
+	if !ok {
+		gate = new(candidateGate)
+	}
+	return gate
+}
+
+// releaseCandidateGate returns gate to the pool. It MUST follow
+// acquireCandidateGate, once.
+func releaseCandidateGate(gate *candidateGate) {
+	clear(gate.queries)
+	gate.queries = gate.queries[:0]
+	gate.answers = gate.answers[:0]
+	candidateGatePool.Put(gate)
+}
+
+// filter asks the gate about every queued question, where queries[i] names
+// candidates[i], and returns the eligible candidates in order, releasing the
+// others (releaseCandidates).
+func (g *candidateGate) filter(candidates []*Candidate) []*Candidate {
+	if len(g.queries) == 0 {
+		return candidates
+	}
+	g.answers = slices.Grow(g.answers[:0], len(g.queries))[:len(g.queries)]
+	ribevents.RouteEligibleBatch(g.queries, g.answers)
+	kept := candidates[:0]
+	for i, c := range candidates {
+		if g.answers[i] {
+			kept = append(kept, c)
+			continue
+		}
+		releaseCandidates(candidates[i : i+1])
+	}
+	clear(candidates[len(kept):])
+	return kept
+}
+
+// dropIneligible removes from items every one the receive gate refuses,
+// asking it once for all of them (ribevents.RouteEligibleBatch), so a gate
+// owner in another process answers one command per
+// ribevents.EligibilityBatchMax questions: queries[i] names items[asked[i]],
+// and asked is ascending. An item no query names is kept. The order of the
+// kept items is unchanged.
+func dropIneligible[T any](items []T, asked []int, queries []ribevents.EligibilityQuery) []T {
+	if len(queries) == 0 {
+		return items
+	}
+	answers := make([]bool, len(queries))
+	ribevents.RouteEligibleBatch(queries, answers)
+	kept := items[:0]
+	next := 0
+	for i := range items {
+		if next < len(asked) && asked[next] == i {
+			eligible := answers[next]
+			next++
+			if !eligible {
+				continue
+			}
+		}
+		kept = append(kept, items[i])
+	}
+	clear(items[len(kept):])
+	return kept
 }

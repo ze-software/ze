@@ -265,8 +265,9 @@ func (r *RIBManager) collectRibOutRoutes(peerAddr netip.Addr, fam family.Family)
 		return nil
 	}
 	routes := make([]*Route, 0, len(familyRoutes))
+	refused := replaySourceRefused(fam, familyRoutes)
 	for key, entry := range familyRoutes {
-		if !replaySourceEligible(fam, key, entry.SourcePeer) {
+		if _, ineligible := refused[key]; ineligible {
 			continue
 		}
 		route := reconstructRoute(entry, fam, key)
