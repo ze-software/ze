@@ -343,11 +343,10 @@ answer:
 | Web CLI terminal | Above the rendered answer |
 
 A plugin that sends a command through the engine (`dispatch-command`) receives
-the status and the data, and the warning lines too when it negotiated Stage 1
-protocol version 2 (`rpc.ProtocolVersionWarningLines`): they ride the `wrn`
-terminator of the answer. A plugin at version 1 receives the bytes it received
-before the field existed (`docs/plugin-development/protocol.md`).
-<!-- source: pkg/plugin/rpc/types.go -- ProtocolVersionWarningLines -->
+the status, the data and the warning lines: the lines ride the `wrn`
+terminator of the answer (`docs/architecture/api/ipc_protocol.md`, "Answer
+Protocol").
+<!-- source: internal/component/plugin/dispatch.go -- WriteAnswer, answerWarnings -->
 
 Authorization reads the verb (`IsReadOnlyPath`), unless the registration
 declares its daemon form does more than read with `registry.Meta.NotReadOnly`.
