@@ -402,11 +402,22 @@ var scenarioExtras = map[string][]operation{
 		{kind: opExec, peer: "ze", command: zeCommand("debug ip ospf inject opaque scope area id 1 withdraw")},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 30 * time.Second},
 	},
+	// The injected Intra-Area-Prefix LSA (RFC 5340 A.4.10) carries one prefix,
+	// 2001:db8:99::/64, referencing Ze's Router-LSA: #Prefixes 1, Referenced
+	// LS Type 0x2001, Referenced Link State ID 0, Referenced Advertising Router
+	// 172.30.0.2, then PrefixLength 64, PrefixOptions 0, Metric 10 and the
+	// prefix's 8 octets. FRR drops a shorter body (ospf6_lsa_examin refuses an
+	// Intra-Area-Prefix LSA under OSPF6_INTRA_PREFIX_LSA_MIN_SIZE, 12 octets),
+	// and its database summary names a known type by its short name (INP,
+	// ospf6_lstype_short_name) and prints one line per prefix, so the prefix
+	// is what shows FRR filed the LSA, and its absence after the withdraw that
+	// FRR accepted the MaxAge flush.
 	"ospfv3-debug-inject-frr": {
 		{kind: opExec, peer: "ze", command: zeCommand("debug ospf inject enable")},
-		{kind: opExec, peer: "ze", command: zeCommand("debug ipv6 ospf inject lsa scope area type 0x2009 id 1 hex 00000000")},
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 database"}, contains: []string{"0x2009"}, timeout: 60 * time.Second},
+		{kind: opExec, peer: "ze", command: zeCommand("debug ipv6 ospf inject lsa scope area type 0x2009 id 1 hex 0001200100000000ac1e00024000000a20010db800990000")},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 database"}, contains: []string{"2001:db8:99::/64"}, timeout: 60 * time.Second},
 		{kind: opExec, peer: "ze", command: zeCommand("debug ipv6 ospf inject lsa scope area type 0x2009 id 1 withdraw")},
+		{kind: opWaitAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 database"}, absent: []string{"2001:db8:99::/64"}, proof: []string{"Area Scoped Link State Database"}, timeout: 60 * time.Second},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, timeout: 30 * time.Second},
 	},
 	"ospfv3-debug-decode-frr": {
@@ -474,9 +485,17 @@ var scenarioExtras = map[string][]operation{
 		// the type-5 leak was avoided.
 		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Database}, absent: []string{"ASE"}, proof: []string{ospf6NSSAPrefix, zeLabAddress}},
 	},
+	// FRR ospf6d implements no Router Information LSA: RI lives only in ospfd
+	// (ospf_ri.c), ospf6d installs no handler for function code 12
+	// (OSPF6_LSTYPE_SIZE is 0x000c) and has no `router-info` or
+	// `database router-information` command. It stores and floods Ze's RI
+	// LSAs as unknown types because their U-bit is set (RFC 5340 A.4.2.1),
+	// and its detail view names an unknown type by its hex code
+	// (ospf6_lstype_name), so 0xa00c (area scope) and 0xc00c (AS scope)
+	// under Ze's advertising router show FRR kept both.
 	"ospfv3-ri-frr": {
 		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf database router-information"), contains: []string{zeLabAddress}},
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 database router-information"}, contains: []string{zeLabAddress}},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 database adv-router * " + zeLabAddress + " detail"}, contains: []string{"Type: 0xa00c", "Type: 0xc00c"}, timeout: 60 * time.Second},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},
 	"ospfv3-sr-frr": {
