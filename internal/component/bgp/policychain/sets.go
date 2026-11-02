@@ -212,6 +212,9 @@ type Sets struct {
 	aigp     numericSet
 	large    valueList[attribute.LargeCommunity]
 	extended valueList[attribute.ExtendedCommunity]
+	// The route metadata sets (sets_metadata.go).
+	meta  [metadataSetsMax]metadataSet
+	metaN uint8
 	// matchRoute is the route a match judges, held here rather than on the
 	// evaluator's stack so a check's pointer to it allocates nothing
 	// (match.go). It is scratch: no reader of the sets sees it.

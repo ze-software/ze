@@ -148,13 +148,16 @@ func buildOrderedEgressSteps() []orderedEgressStep {
 	return steps
 }
 
-// runIngressPolicyChain runs the external policy step before eligible publication.
+// runIngressPolicyChainMeta runs the external policy step before eligible publication.
 // It renders text only for active external filters, then applies the final using
 // the same resolved peer generation. Rejection retains explicit withdrawals.
 // peer may be nil (peer disconnected) -- then the step is a no-op accept.
 // src holds the session facts the received path built for this UPDATE; the
-// chain's session fact fields read them (policyview.ImportSession).
-func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, src *filterapi.PeerFilterInfo, wireUpdate *wireu.WireUpdate, payload []byte) ingressStepResult {
+// chain's session fact fields read them (policyview.ImportSession). meta is
+// the pass's metadata map, made here when a library chain runs and is nil, so
+// a member's metadata set reaches the received event; a peer with no chain
+// allocates none.
+func (r *Reactor) runIngressPolicyChainMeta(peer *Peer, peerAddr netip.Addr, src *filterapi.PeerFilterInfo, meta *map[string]any, wireUpdate *wireu.WireUpdate, payload []byte) ingressStepResult {
 	if peer == nil {
 		return ingressStepResult{accept: true}
 	}
@@ -171,9 +174,12 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, src *fi
 	if library := policy.Library(); library != nil {
 		// An external member reaches its plugin through the API server; with
 		// none it fails under its on-error (runLibraryChain).
+		if *meta == nil {
+			*meta = make(map[string]any, 2)
+		}
 		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 		intent := libraryIntentContext{asn4: srcCtx != nil && srcCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: true}
-		res := r.runLibraryChain(library, wireUpdate, payload, importSession(src, external, peerAS), intent,
+		res := r.runLibraryChain(library, wireUpdate, payload, importSession(src, external, peerAS).WithImportMetadata(*meta), intent,
 			directionImport, modifySiteImportChain, peerAddr.String(), nil)
 		if res.outcome.Teardown {
 			return ingressStepResult{teardown: true, notifyCode: res.outcome.NotifyCode, notifySubcode: res.outcome.NotifySubcode}

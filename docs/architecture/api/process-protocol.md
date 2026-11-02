@@ -201,6 +201,12 @@ process that cannot read its lookup in memory asks through it, and refuses a
 route the command cannot answer (`ribevents.NoteValidationGate`,
 `docs/architecture/plugin/rib-storage-design.md`, "Validation eligibility").
 `bgp-rib` subscribes to it beside `bgp-rib/validation-change`.
+`bgp-rib` emits `bgp-rib/flowspec-gate`, `{"command": <string>}`, naming the
+hidden command that answers its FlowSpec lookup (`ribevents.NoteFlowSpecGate`;
+`bgp-rr`, `bgp-rs` and `bgp-adj-rib-in` subscribe to it). Any reader emits
+`bgp-rib/gate-query`, `{}`, once its subscriptions are live, and each gate
+owner then announces its gate again, so a late subscriber still learns it.
+<!-- source: internal/core/bgp/ribevents/flowspec_remote.go -- FlowSpecGateState, GateQueryRequest, NoteFlowSpecGate -->
 <!-- source: internal/core/bgp/ribevents/validation.go -- ValidationRoute.MarshalJSON, DecodeValidationChange -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- emitValidationEvent, emitValidationGateEvent -->
 
@@ -1310,7 +1316,10 @@ ones the read-only `withdrawn` field, and `raw` is sent only to a filter that de
 The same object carries the session facts the filter declared (`peer-name`,
 `peer-as`, `ibgp`, `rs-client`, the `source-peer-*` facts on export, and the
 rest of the table), so a filter learns which peer a route belongs to without a
-header member of its own.
+header member of its own. Route metadata keys (`src-role`, `src-peer-role`,
+`stale`, `rebuilt`) are fields too, and a filter at `bgp import` that
+declared one may answer a `set` of it, which lands in the route's metadata map
+(`docs/architecture/meta/README.md`).
 A field Ze cannot read (a malformed attribute) applies the filter's `on-error`
 instead of sending the message. The value shapes are in
 `docs/plugin-development/protocol.md`, "The Route Fields of filter-update".

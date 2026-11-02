@@ -705,6 +705,17 @@ empty string.
 | `ibgp`, `source-ibgp` | boolean: an internal session, an RFC 7705 migration session included | never, once the peer is known | `false` |
 | `rs-client`, `source-rs-client` | boolean: the peer is a configured route-server client | never, once the peer is known | `true` |
 | `llgr-advertised` | boolean: the OPEN Ze sent this session carried the Long-Lived Graceful Restart Capability (RFC 9494 Section 3) | on export: only the received path knows it | `true` |
+| `src-role`, `src-peer-role` | string: route metadata `bgp-role` registers, Ze's role toward the route's source peer and that peer's role toward Ze (`docs/architecture/meta/README.md`) | no ingress step set it | `"customer"` |
+| `stale` | the route's stale level, route metadata `bgp-gr` registers (0 to 255; 2 marks an LLGR-stale route) | no ingress step set it | `2` |
+| `rebuilt` | boolean: route metadata the engine registers, set on a route rebuilt from storage | a live route | `true` |
+
+A route metadata field is also a set: a filter at `bgp import` that declared
+it answers `{"field":"stale","action":"set","value":2}`, with the value in the
+field's type (a string, an integer from 0 to 255, or `true` or `false`).
+The engine writes it into the route's metadata map, so a later member of the
+chain reads it and the received event carries it in `route-meta`. A filter at
+`bgp export` reads the received route's map and may not set it: every
+destination shares that map.
 
 For example, a filter that declared `community`, `as-path` and
 `local-preference` reads
@@ -729,6 +740,8 @@ For example, a filter that declared `community`, `as-path` and
 <!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
 <!-- source: internal/component/bgp/policyview/register_writers.go -- the field writers -->
 <!-- source: internal/component/bgp/policyview/session.go -- ImportSession, ExportSession, the session fact answers -->
+<!-- source: internal/component/bgp/policyview/metadata.go -- MustRegisterMetadata, readMetadata, SetMetadata -->
+<!-- source: internal/component/bgp/policychain/sets_metadata.go -- applyExternalMetadata, metadataValue -->
 <!-- source: internal/component/bgp/policyview/register.go -- sessionFacts -->
 <!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON, AppendWithdrawnNLRIJSON -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->

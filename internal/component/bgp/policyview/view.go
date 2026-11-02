@@ -60,6 +60,14 @@ type Session struct {
 	// only when SourceKnown: the source-peer-* fields read it.
 	Source      filterapi.PeerFilterInfo
 	SourceKnown bool
+	// meta is the route's metadata map, which the metadata fields read
+	// (metadata.go): on import the map the ingress pass's steps share, which
+	// a metadata set writes (View.SetMetadata) and the received event
+	// carries; on export the received route's map, which every destination
+	// shares and so no set writes. Nil answers every metadata field absent.
+	// metaWritable marks the import map (WithImportMetadata).
+	meta         map[string]any
+	metaWritable bool
 	// receiving marks a session ImportSession built: the received path fills
 	// every fact of Peer, llgr-advertised included.
 	receiving bool

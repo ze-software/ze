@@ -5,6 +5,7 @@ package bgpconfig
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -47,8 +48,17 @@ func init() {
 	// Each attachment's chains sit at `bgp ... filter <direction> filters`,
 	// global, group and peer alike. The editor completes a chain, and commit
 	// judges it, with the check a peer's chain passes at load.
+	// A filter at bgp import may also set the route metadata fields
+	// (policyview.MetadataFields): the ingress pass's map is one per received
+	// UPDATE, so a set reaches later steps and the received event. An export
+	// rail reads the received route's map, which every destination shares,
+	// so no export filter sets one.
+	settableAt := map[string]func() []policy.Field{
+		"bgp import": importSettable,
+		"bgp export": policychain.SettableFields,
+	}
 	for _, attachment := range []string{"bgp import", "bgp export"} {
-		policy.MustRegisterDerivedAttachment(attachmentOwnerBGP, attachment, policyview.Fields, policychain.SettableFields)
+		policy.MustRegisterDerivedAttachment(attachmentOwnerBGP, attachment, policyview.Fields, settableAt[attachment])
 		policy.MustRegisterFieldSynonym(attachment, policy.FieldMetric, policy.FieldMED)
 		direction := strings.TrimPrefix(attachment, attachmentOwnerBGP+" ")
 		policy.MustRegisterChainLeaf(attachmentOwnerBGP, direction, attachment, func(reg *policy.Registry, member, context string) error {
@@ -266,4 +276,10 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 	}
 
 	return r, nil
+}
+
+// importSettable answers what a filter at bgp import may set: the chain's
+// set kinds and the route metadata fields their owners registered.
+func importSettable() []policy.Field {
+	return slices.Concat(policychain.SettableFields(), policyview.MetadataFields())
 }

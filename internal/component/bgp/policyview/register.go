@@ -35,6 +35,9 @@ func init() {
 		MustRegisterReader(fact.field, readSessionFact(fact.answer))
 		mustRegisterWriter(fact.field, fact.write, 0, "")
 	}
+	// rebuilt is the engine's metadata: the reactor marks a route it rebuilt
+	// from stored state rather than received (filterapi.MetaKeyRebuilt).
+	MustRegisterMetadata(FieldRebuilt, MetadataFlag)
 }
 
 // The session fact fields, registered by the BGP engine that owns the facts
@@ -42,7 +45,10 @@ func init() {
 // session's peer: the sender on import, the destination on export. The
 // source-peer forms describe the peer an exported route came from.
 var (
-	FieldPeerName       = policy.MustRegisterField("peer-name", policy.RouteView{})
+	FieldPeerName = policy.MustRegisterField("peer-name", policy.RouteView{})
+	// FieldRebuilt is the route metadata key the reactor sets on a route it
+	// rebuilt (metadata.go).
+	FieldRebuilt        = policy.MustRegisterField(filterapi.MetaKeyRebuilt, policy.RouteView{})
 	FieldPeerGroup      = policy.MustRegisterField("peer-group", policy.RouteView{})
 	FieldPeerAddress    = policy.MustRegisterField("peer-address", policy.RouteView{})
 	FieldLocalAS        = policy.MustRegisterField("local-as", policy.RouteView{})

@@ -7,8 +7,10 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	gryang "github.com/ze-software/ze/internal/component/bgp/plugins/gr/yang"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -22,7 +24,14 @@ const grPluginName = "bgp-gr"
 // configRootBGP is the configuration root this plugin reads its peers from.
 const configRootBGP = "bgp"
 
+// fieldStale is the route metadata key this plugin's LLGR ingress step
+// writes (gr_ingress.go), the stale level a uint8 holds, as a field of the
+// BGP route view (spec-filter-wire-6-stage-filters D-8).
+var fieldStale = policy.MustRegisterField("stale", policy.RouteView{})
+
 func init() {
+	policyview.MustRegisterMetadata(fieldStale, policyview.MetadataOctet)
+
 	// Register LLGR well-known community names (RFC 9494).
 	for _, c := range []struct {
 		value attribute.Community

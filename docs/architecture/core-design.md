@@ -1599,6 +1599,15 @@ subject above.
   never copied at registration, so a field an owner registers from its own
   `init` (the role or gr plugin, which `bgpconfig` does not import) is
   carried whatever order the packages initialize in.
+- **Route metadata keys are fields of the same view.** Each key's owner
+  registers it with `policyview.MustRegisterMetadata` and its type (a string,
+  a uint8 or a bool); the reader reads the route's metadata map the session
+  carries, and an absent key answers absent. A plugin filter's set of one
+  lands in the map through `View.SetMetadata` once the member's sets fold, so
+  a later member reads it and the received event carries it. Only the import
+  session's map is writable (`Session.WithImportMetadata`): `bgp import`
+  lets a filter set the metadata fields and `bgp export`, whose map every
+  destination shares, does not.
 - **Session facts are fields of the same view.** `policyview` registers
   `peer-name`, `peer-group`, `peer-address`, `local-as`, `peer-as`,
   `route-server-as`, `ibgp`, `rs-client` and `llgr-advertised` for the

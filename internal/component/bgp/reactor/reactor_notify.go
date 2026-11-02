@@ -593,7 +593,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 				// The external per-peer chain runs last, on the (possibly
 				// in-process-modified) payload. No-op accept when the peer has no
 				// import filters or no API server (hot-path gate inside).
-				res = r.runIngressPolicyChain(peer, peerAddr, &src, wireUpdate, payload)
+				// It shares the pass's metadata map, so a member's metadata
+				// set reaches the received event (policyview.SetMetadata).
+				res = r.runIngressPolicyChainMeta(peer, peerAddr, &src, &ingressMeta, wireUpdate, payload)
 			} else {
 				if ingressMeta == nil {
 					ingressMeta = make(map[string]any, 2)

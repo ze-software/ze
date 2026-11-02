@@ -14,6 +14,15 @@ Each plugin documents the meta keys it sets and reads below.
 | `stale` | gr (ingress, `LLGRIngressFilter`); rib (replay, resend and `rib_commands.go` refresh, from `storage.AdvertisedStaleLevel` over the copy's stale level and its source route's received LLGR_STALE) | rib (received store, `receivedLLGRStaleFromMeta`); gr (egress, `LLGREgressFilter`) | `uint8` | The route's stale level: 2 marks an LLGR-stale route. The ingress step writes 2 for a received route carrying LLGR_STALE on a session whose own OPEN carried the LLGR Capability (RFC 9494 Section 4.3), and writes nothing otherwise |
 | `rebuilt` | reactor (`buildRelayUpdate`, every route rebuilt from storage: the `bgp-adj-rib-in` replay and relay recovery) | gr (egress, `LLGREgressFilter` through `advertisedStaleLevel`) | `bool` | `true` on a route no ingress step ran on, so a key an ingress step writes is absent because nobody computed it. The GR egress step then recovers the stale level with its ingress predicate over the source's `LLGRAdvertised` and the stored bytes. A live route never carries it |
 
+**Each key is a field of the BGP route view.** Its owner registers it with
+`policyview.MustRegisterMetadata` from its own `init` (`bgp-role` for
+`src-role` and `src-peer-role`, `bgp-gr` for `stale`, the engine's
+`policyview` for `rebuilt`), with the type above. A plugin filter declares a
+read of it like any field, and a filter at `bgp import` may set it: the set
+lands in this map, so a later ingress step and the received event see it. An
+export filter reads the map and never writes it, because every destination
+of the route shares it.
+
 **Where the map is visible.** The reactor puts the ingress steps' map on the
 received event (`RawMessage.Meta`), so an in-process consumer reads the decision
 with no second scan, and a JSON event for a received UPDATE carries the same

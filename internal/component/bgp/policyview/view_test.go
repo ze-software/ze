@@ -400,6 +400,23 @@ func TestWireViewEveryReaderAllocationFree(t *testing.T) {
 	// present too and its allocation count is measured.
 	session := ImportSession(sessionPeer())
 	session.Source, session.SourceKnown = sessionPeer(), true
+	// A metadata map holding every registered key in its kind, so each
+	// metadata reader answers present too.
+	meta := make(map[string]any)
+	for _, field := range MetadataFields() {
+		m, _ := MetadataNamed(field.String())
+		switch m.Kind() {
+		case MetadataText:
+			meta[field.String()] = "customer"
+		case MetadataOctet:
+			meta[field.String()] = uint8(2)
+		case MetadataFlag:
+			meta[field.String()] = true
+		case MetadataUnspecified:
+			t.Fatalf("metadata field %s has no kind", field)
+		}
+	}
+	session = session.WithImportMetadata(meta)
 	for field := range readerTable.slots {
 		r := mustReader(t, field)
 		view.Reset(update, session)

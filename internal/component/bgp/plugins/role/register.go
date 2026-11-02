@@ -5,6 +5,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	roleyang "github.com/ze-software/ze/internal/component/bgp/plugins/role/yang"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -14,7 +15,20 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
+// The route metadata keys this plugin's ingress step writes (otc.go), as
+// fields of the BGP route view: a filter declares a read of them, and a
+// filter at bgp import may set them (spec-filter-wire-6-stage-filters D-8).
+var (
+	// fieldSrcRole is Ze's local role toward the peer a route came from.
+	fieldSrcRole = policy.MustRegisterField("src-role", policy.RouteView{})
+	// fieldSrcPeerRole is what that peer is to Ze.
+	fieldSrcPeerRole = policy.MustRegisterField("src-peer-role", policy.RouteView{})
+)
+
 func init() {
+	policyview.MustRegisterMetadata(fieldSrcRole, policyview.MetadataText)
+	policyview.MustRegisterMetadata(fieldSrcPeerRole, policyview.MetadataText)
+
 	// RFC 9234 Section 5: "The OTC Attribute is an optional transitive Path Attribute of
 	// the UPDATE message with Attribute Type Code 35 and a length of 4 octets." That
 	// sentence fixes both bits, so it travels with the name: recognition and the RFC 7606
