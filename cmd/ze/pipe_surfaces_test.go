@@ -114,6 +114,12 @@ func TestPipeCatalogJSONPublishesEveryContract(t *testing.T) {
 		t.Fatalf("catalog JSON does not parse: %v", err)
 	}
 
+	// Every shape a declaration may say, from the one statement of the
+	// population (command.AnswerShapeSpellings reads allShapes), so a shape
+	// added there is owed by every global operator without an edit here.
+	everyShape := strings.Split(strings.Replace(command.AnswerShapeSpellings(), " or ", ", ", 1), ", ")
+	slices.Sort(everyShape)
+
 	want := command.PipeOperatorCatalog()
 	if len(got) != len(want) {
 		t.Fatalf("published %d operators, catalog holds %d", len(got), len(want))
@@ -141,8 +147,12 @@ func TestPipeCatalogJSONPublishesEveryContract(t *testing.T) {
 		}
 		// A global operator that published fewer than every shape would tell a
 		// tool author it is refusable, which is the claim this class denies.
-		if op.Class == command.ClassGlobal && len(published.Shapes) != 3 {
-			t.Errorf("%s is global but publishes shapes %v", op.Name, published.Shapes)
+		if op.Class == command.ClassGlobal {
+			publishedShapes := slices.Clone(published.Shapes)
+			slices.Sort(publishedShapes)
+			if !slices.Equal(publishedShapes, everyShape) {
+				t.Errorf("%s is global but publishes shapes %v, want every shape %v", op.Name, published.Shapes, everyShape)
+			}
 		}
 	}
 }
