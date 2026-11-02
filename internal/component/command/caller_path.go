@@ -29,24 +29,33 @@ import (
 // route may read a named file from. The config owner registers it, because the
 // command layer knows no configuration location of its own.
 var callerPathDirs struct {
-	mu     sync.RWMutex
-	source func() []string
+	mu       sync.RWMutex
+	source   func() []string
+	withheld func(resolved string) string
 }
 
 // RegisterCallerPathDirs names the function that answers the directories a
-// daemon-route handler may read a caller-named file from. It is called once,
-// from the init of the package that owns the configuration locations; a second
-// registration is a Ze defect and panics.
-func RegisterCallerPathDirs(source func() []string) {
+// daemon-route handler may read a caller-named file from, and the function
+// that answers why a file inside them is withheld all the same ("" when it is
+// not). The second exists because the configuration store lives in one of
+// those directories and its own files hold every stored value: they are read
+// through the store's commands, never as a file. It is called once, from the
+// init of the package that owns the configuration locations; a nil function
+// or a second registration is a Ze defect and panics.
+func RegisterCallerPathDirs(source func() []string, withheld func(resolved string) string) {
 	callerPathDirs.mu.Lock()
 	defer callerPathDirs.mu.Unlock()
 	if source == nil {
 		panic("BUG: command.RegisterCallerPathDirs: nil source")
 	}
+	if withheld == nil {
+		panic("BUG: command.RegisterCallerPathDirs: nil withheld")
+	}
 	if callerPathDirs.source != nil {
 		panic("BUG: command.RegisterCallerPathDirs: registered twice")
 	}
 	callerPathDirs.source = source
+	callerPathDirs.withheld = withheld
 }
 
 // confinedDirs answers the registered directories, each made absolute and
@@ -96,7 +105,9 @@ func confinedDirs() []string {
 // directories; the resolved path is answered, so the read cannot follow a link
 // out again. A path outside them, a `..` that climbs out, a link that points
 // out and a file that does not exist are refused alike, so the refusal tells a
-// caller nothing about files outside the directories.
+// caller nothing about files outside the directories. A file inside them that
+// the registered withheld function names (one of the configuration store's
+// own files) is refused too, with the reason it gave.
 //
 // commandPath and tokens are the command and the words the caller typed after
 // it: the refusal names the local `ze` command that reads any file.
@@ -114,11 +125,39 @@ func CallerPath(route Route, commandPath string, tokens []string, path string) (
 		return "", callerPathOutside(commandPath, tokens, path, dirs)
 	}
 	for _, dir := range dirs {
-		if inside(dir, resolved) {
-			return resolved, nil
+		if !inside(dir, resolved) {
+			continue
 		}
+		if reason := callerPathWithheld(resolved); reason != "" {
+			return "", callerPathRefusal(commandPath, tokens, callerPathWithheldReason(path, reason))
+		}
+		return resolved, nil
 	}
 	return "", callerPathOutside(commandPath, tokens, path, dirs)
+}
+
+// callerPathWithheld answers why the registered withheld function keeps
+// resolved from a daemon-route read, or "" when it does not. With no
+// registration nothing is withheld, and nothing is admitted either:
+// confinedDirs then answers no directory, so no path reaches this call.
+func callerPathWithheld(resolved string) string {
+	callerPathDirs.mu.RLock()
+	withheld := callerPathDirs.withheld
+	callerPathDirs.mu.RUnlock()
+	// refuse-by-default: guards confinedDirs -- with no registration it admits no directory, so no path reaches here
+	if withheld == nil {
+		return ""
+	}
+	return withheld(resolved)
+}
+
+// callerPathWithheldReason is the reason a withheld file is refused: what it
+// is, and the command a caller reads a stored value with instead.
+func callerPathWithheldReason(path, what string) string {
+	var reason textbuf.Buffer
+	reason.Str("reads ").Quoted(path).Str(", which is the configuration store's own data (").Str(what).
+		Str("), not a configuration file: the daemon route reads a stored value only with 'show data cat <key>'")
+	return reason.String()
 }
 
 // resolveCallerPath makes path absolute, against the daemon's working

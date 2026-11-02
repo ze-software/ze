@@ -418,9 +418,17 @@ made absolute against the daemon's working directory before it is judged.
 The filesystem root never counts as one. A path
 outside them, a `..` that climbs out, a link that points out and a missing
 file are refused alike, so the refusal says nothing about files outside the
-directories, and it names the local `ze` command that reads any file. The
+directories, and it names the local `ze` command that reads any file. A file
+inside them that is one of the configuration store's own entries (the live
+tree under `database/`, its lock, a replaced tree or blob, a stage) is refused
+too, with the reason: those files carry every stored value, the HTTPS private
+key and the password hashes included, and a remote caller reads a stored value
+only with `show data cat <key>`, which is edit-authorized. The registration
+names that test (`callerPathWithheld`, which asks
+`storage.StoreOwnedPath`), so the command layer still knows no location. The
 commands that read through it are `show config dump`, `validation`, `diff`,
-`history` (whose store is opened beside the named file), `graph` and `fmt`,
+`history` (whose store is opened beside the resolved file, so a link placed
+outside the directories cannot choose the store), `graph` and `fmt`,
 `show plugin declarations config` and `show bgp decode pcap`.
 `show config fmt -w` rewrites its file, so it is refused on the daemon route
 whatever the path.
@@ -445,7 +453,8 @@ and the crash-capture readiness check read through `ReadConfig`, and the
 config commands above go through the parser alone. Ze's config grammar has no
 include statement, so the confined file is the only file a parse reads.
 <!-- source: internal/component/command/caller_path.go -- CallerPath, RegisterCallerPathDirs, confinedDirs -->
-<!-- source: internal/component/config/cli/register.go -- callerPathDirs -->
+<!-- source: internal/component/config/cli/register.go -- callerPathDirs, callerPathWithheld -->
+<!-- source: internal/component/config/storage/backup.go -- StoreOwnedPath, storeOwnedName -->
 <!-- source: internal/component/config/cli/cmd_list.go -- configSearchDirs -->
 <!-- source: internal/component/config/loader.go -- LoadConfig, ReadConfig, loadConfig -->
 <!-- source: internal/component/config/yang/cli/yang_data.go -- dataTree, dataCompletion, dataDoc, leafAndFlagRefusal -->

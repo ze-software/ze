@@ -195,19 +195,25 @@ func dataHistory(validated command.ValidatedArgs) command.LocalAnswer {
 	}
 
 	// The store opened is the one beside the named file, so on the daemon
-	// route the file must lie where the daemon reads configuration from.
-	if _, err := command.CallerPath(validated.Route(), "show config history", args, args[0]); err != nil {
+	// route the file must lie where the daemon reads configuration from. The
+	// store is opened beside the path CallerPath answers, with every link
+	// resolved: beside the typed spelling, a link placed anywhere that points
+	// into a configuration directory would open a store the confinement never
+	// judged. The revisions and the draft are named by that same path, since
+	// the store refuses a name outside its own folder.
+	storeBeside, err := command.CallerPath(validated.Route(), "show config history", args, args[0])
+	if err != nil {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
 
-	return withRuntimeStore(args[0], func(store storage.Storage) command.LocalAnswer {
-		backups, err := store.ListVersions(args[0])
+	return withRuntimeStore(storeBeside, func(store storage.Storage) command.LocalAnswer {
+		backups, err := store.ListVersions(storeBeside)
 		if err != nil {
 			return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 		}
 
 		rows := make([]map[string]any, 0, len(backups)+1)
-		if store.Exists(cli.DraftPath(args[0])) {
+		if store.Exists(cli.DraftPath(storeBeside)) {
 			rows = append(rows, map[string]any{keyRevision: "draft", "state": "editing in progress"})
 		}
 		for i, b := range backups {

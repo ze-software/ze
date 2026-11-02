@@ -148,6 +148,26 @@ func storeOwnedName(name string) string {
 	return ""
 }
 
+// StoreOwnedPath returns why path is one of the live store's own entries in
+// storeDir, or lies under one (a file of the live tree, of a replaced tree, of
+// a stage), or "" when the store does not own it. path is absolute with its
+// links resolved; storeDir is recognized by identity, so a symlinked spelling
+// of the store folder still matches. A reader that admits any file of
+// storeDir uses it to keep the stored values (keys, password hashes) out of
+// reach of a file read.
+//
+// The walk climbs one parent for each element of path, so the path's own
+// depth bounds it.
+func StoreOwnedPath(storeDir, path string) string {
+	child := path
+	for parent := filepath.Dir(child); parent != child; child, parent = parent, filepath.Dir(parent) {
+		if sameDirectory(parent, storeDir) {
+			return storeOwnedName(filepath.Base(child))
+		}
+	}
+	return ""
+}
+
 // sameDirectory reports whether a and b are the same directory by identity, so
 // a symlinked spelling of the store folder is still recognized. A path that
 // cannot be stat'ed is not the store folder: it does not exist yet.

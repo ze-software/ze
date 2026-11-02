@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -27,6 +28,17 @@ import (
 // reads any path its own operator names (command.CallerPath).
 func callerPathDirs() []string {
 	return []string{xdgConfigDir(), resolve.StoreDir("")}
+}
+
+// callerPathWithheld answers why a file inside those directories is still
+// refused to a daemon-route read: the store's directory holds the store's own
+// entries (the live tree, the lock, a replaced tree or blob), whose files carry
+// every stored value, the HTTPS private key and the password hashes included.
+// A caller reads a stored value with `show data cat`, which is
+// edit-authorized; a config reader naming the store's file is not a second
+// route to it.
+func callerPathWithheld(resolved string) string {
+	return storage.StoreOwnedPath(resolve.StoreDir(""), resolved)
 }
 
 // subcommands returns the sorted, comma-separated list of user-facing
@@ -47,7 +59,7 @@ func subcommands() string {
 func init() {
 	// A daemon-route handler reads a file its caller names only inside the
 	// places this package reads configuration from (command.CallerPath).
-	command.RegisterCallerPathDirs(callerPathDirs)
+	command.RegisterCallerPathDirs(callerPathDirs, callerPathWithheld)
 
 	registry.MustRegisterRootHandler("config", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
