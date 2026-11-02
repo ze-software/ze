@@ -40,9 +40,14 @@ Priority: **OS env > config block > YANG default**.
 The config loader maps `environment/log/*` to env vars via
 `slogutil.ApplyLogConfig` and everything else via `config.ApplyEnvConfig`.
 Each leaf writes the target env var at startup (never overwriting a
-pre-existing OS env var).
+pre-existing OS env var). Only `config.LoadConfig`, the load of the config the
+process runs, writes them. `config.ReadConfig` parses and validates the same
+way and writes nothing, so a command that only reads a config file (a show
+command, `ze doctor`, a candidate's validation) leaves the running process's
+settings as they were.
 <!-- source: internal/component/config/apply_env.go -- ApplyEnvConfig, envPlumbingTable -->
 <!-- source: internal/core/slogutil/slogutil.go -- ApplyLogConfig -->
+<!-- source: internal/component/config/loader.go -- LoadConfig, ReadConfig, applyParsedEnvironment -->
 
 ## Sections
 

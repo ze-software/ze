@@ -414,7 +414,7 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 		Version: fleet.VersionHash(data),
 		Handler: &managed.Handler{
 			Validate: func(cfgData []byte) error {
-				_, parseErr := config.LoadConfig(string(cfgData), "", nil)
+				_, parseErr := config.ReadConfig(string(cfgData), "", nil)
 				return parseErr
 			},
 		},

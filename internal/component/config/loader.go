@@ -38,7 +38,29 @@ type LoadConfigResult struct {
 
 // LoadConfig parses config with CLI plugin YANG schemas, extracts and resolves
 // the plugin list, and returns the parsed tree + plugins without creating a reactor.
+//
+// It is the loader of the config this process RUNS: once the tree passes the
+// validators it publishes the file's `environment { }` block into this
+// process's log and env layers. A caller that only reads a config (a show
+// command, a doctor or support report, a candidate's validation) calls
+// ReadConfig instead, or a read changes the running process's settings.
 func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
+	return loadConfig(input, configPath, cliPlugins, applyParsedEnvironment)
+}
+
+// ReadConfig answers what LoadConfig answers for the same input, through the
+// same validators, hashing and plugin resolution, and applies nothing to the
+// running process: the file's `environment { }` block stays in the returned
+// tree and never reaches this process's log or env layers.
+func ReadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
+	return loadConfig(input, configPath, cliPlugins, nil)
+}
+
+// loadConfig is the one body of LoadConfig and ReadConfig. publish is called
+// with the validated tree at the point where refusal by the validators is no
+// longer possible; nil publishes nothing, which is ReadConfig's whole
+// difference.
+func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tree)) (*LoadConfigResult, error) {
 	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
 
 	// The schema is kept, not rebuilt: ApplyPasswordHashing below is
@@ -80,7 +102,10 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 	}
 	// Validators use supplied values and registries, not candidate environment.
 	// Publish only after refusal is impossible at this validation boundary.
-	applyParsedEnvironment(tree)
+	// refuse-by-default: guards ReadConfig -- a nil publish is the read that applies nothing
+	if publish != nil {
+		publish(tree)
+	}
 
 	// Refuse a ze:bcrypt leaf holding the display placeholder, then hash the
 	// plaintext- sibling of every such leaf. The two calls are ONE pair, and the
@@ -161,9 +186,9 @@ func ParseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error
 }
 
 // applyParsedEnvironment pushes the tree's environment block into the log and
-// env layers. Both callers of parseTreeWithYANG do it, and they must do the
+// env layers. LoadConfig and ParseTreeWithYANG do it, and they must do the
 // same thing: LoadConfig cannot go through ParseTreeWithYANG because it needs
-// the schema that parse built.
+// the schema that parse built. ReadConfig is the parse that skips it.
 func applyParsedEnvironment(tree *Tree) {
 	envValues := ExtractEnvironment(tree)
 	slogutil.ApplyLogConfig(envValues)

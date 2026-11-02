@@ -431,7 +431,7 @@ func collectConfig(opts *collectOptions) (any, error) {
 		configName = opts.ConfigPath
 	}
 
-	result, parseErr := config.LoadConfig(string(configData), configName, nil)
+	result, parseErr := config.ReadConfig(string(configData), configName, nil)
 	if parseErr != nil {
 		return map[string]any{
 			keyAvailable:  true,

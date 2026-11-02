@@ -129,7 +129,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 		return diags
 	}
 
-	result, parseErr := config.LoadConfig(string(configData), configName, nil)
+	result, parseErr := config.ReadConfig(string(configData), configName, nil)
 	if parseErr != nil {
 		diags = append(diags, diagnostic.Diagnostic{
 			Code:     "doctor-config-parse",

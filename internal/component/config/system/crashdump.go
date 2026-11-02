@@ -74,7 +74,7 @@ func LoadCrashDumpIntent(configPath string) (crashlog.Intent, error) {
 // holds the text it started on, and its source may be "-", a stdin the daemon
 // has already consumed and cannot read again.
 func ParseCrashDumpIntent(name string, data []byte) (crashlog.Intent, error) {
-	result, parseErr := config.LoadConfig(string(data), name, nil)
+	result, parseErr := config.ReadConfig(string(data), name, nil)
 	if parseErr != nil {
 		return crashlog.Intent{}, fmt.Errorf("crash-dump intent: parse %s: %w", name, parseErr)
 	}

@@ -350,8 +350,18 @@ The same holds for `show config fmt check` and `diff` (`--check`, `--diff`),
 and `show yang doc list` and `command` (`--list`, and the command words). A
 keyword given beside the flag that makes the same choice is refused rather
 than resolved by a silent winner.
+
+A daemon-served command that parses a caller's config file reads it with
+`config.ReadConfig` or the bare parser, never `config.LoadConfig`, because
+`LoadConfig` publishes the file's `environment { }` block into the process
+that runs it: on the daemon route a read would change the daemon's log and env
+settings. `show plugin declarations config`, `ze doctor`, the support report
+and the crash-capture readiness check read through `ReadConfig`, and the
+config commands above go through the parser alone. Ze's config grammar has no
+include statement, so the confined file is the only file a parse reads.
 <!-- source: internal/component/command/caller_path.go -- CallerPath, RegisterCallerPathDirs, confinedDirs -->
 <!-- source: internal/component/config/cli/register.go -- callerPathDirs -->
+<!-- source: internal/component/config/loader.go -- LoadConfig, ReadConfig, loadConfig -->
 <!-- source: internal/component/config/yang/cli/yang_data.go -- dataTree, dataCompletion, dataDoc, leafAndFlagRefusal -->
 <!-- source: internal/component/plugin/server/command.go -- flagRefusal -->
 <!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, localDataHandler, localAnswerResponse -->
