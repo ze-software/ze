@@ -282,8 +282,8 @@ func libraryNLRIOps(scratch *valueScratch, folded *policychain.Sets, wireUpdate 
 		drops := folded.NLRIDrops(policySection(section))
 		source, err := nlriSectionOf(wireUpdate, ctx, section)
 		if err != nil {
-			if len(drops) > 0 || folded.StripsFamily(source.fam) {
-				return nil, nlriRefusal{family: source.fam.String(), reason: refuseMalformed}, false
+			if sectionTouched(folded, source, drops) {
+				return nil, nlriRefusal{family: source.familyName(), reason: refuseMalformed}, false
 			}
 			continue
 		}
@@ -313,6 +313,19 @@ func libraryNLRIOps(scratch *valueScratch, folded *policychain.Sets, wireUpdate 
 		recordNLRIRewrite(section, kept, &override, mods)
 	}
 	return override, nlriRefusal{}, true
+}
+
+// sectionTouched reports whether the folded intents act on a section that did
+// not parse: a drop from it, or a strip of its family. An MP section that did
+// not parse names no family, so any strip may name it and touches it.
+func sectionTouched(folded *policychain.Sets, source nlriSource, drops []uint16) bool {
+	if len(drops) > 0 {
+		return true
+	}
+	if source.section.multiprotocol() {
+		return folded.StripsAnyFamily()
+	}
+	return folded.StripsFamily(source.fam)
 }
 
 // policySection names a reactor NLRI section in the chain's vocabulary.

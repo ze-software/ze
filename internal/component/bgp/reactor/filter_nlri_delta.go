@@ -209,9 +209,10 @@ func sectionNLRIDelta(scratch *valueScratch, original, modified string, wireUpda
 		source, err := nlriSectionOf(wireUpdate, ctx, section)
 		if err != nil {
 			// Only a changed block reads the section, so a malformed one the
-			// answer left alone is not refused.
-			if orig.text(orig.find(section, "")) != mod.text(mod.find(section, "")) {
-				return nil, nlriRefusal{family: source.fam.String(), reason: refuseMalformed}, false
+			// answer left alone is not refused. An MP section that does not
+			// parse names no family, so every block of the section counts.
+			if sectionChanged(&orig, &mod, section) {
+				return nil, nlriRefusal{family: source.familyName(), reason: refuseMalformed}, false
 			}
 			continue
 		}
@@ -259,6 +260,32 @@ func sectionNLRIDelta(scratch *valueScratch, original, modified string, wireUpda
 	return override, nlriRefusal{}, true
 }
 
+// sectionChanged reports whether the answer changed any block of section:
+// a block of the subject the answer dropped or rewrote, or a block the answer
+// added. It matches blocks by family, so it serves a section whose family the
+// wire could not name.
+func sectionChanged(orig, mod *nlriBlockTable, section nlriSection) bool {
+	for i := range orig.n {
+		blk := &orig.blk[i]
+		if blk.section != section {
+			continue
+		}
+		if mod.text(mod.find(section, blk.family)) != blk.text {
+			return true
+		}
+	}
+	for i := range mod.n {
+		blk := &mod.blk[i]
+		if blk.section != section {
+			continue
+		}
+		if orig.find(section, blk.family) < 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // multiprotocol reports whether the section is the NLRI of an MP attribute.
 func (s nlriSection) multiprotocol() bool {
 	return s == sectionMPReach || s == sectionMPUnreach
@@ -276,17 +303,31 @@ type nlriSource struct {
 	present bool
 }
 
+// familyName names the section's family for a refusal, empty for an MP
+// section whose attribute did not parse far enough to name one.
+func (s nlriSource) familyName() string {
+	if s.fam == (family.Family{}) {
+		return ""
+	}
+	return s.fam.String()
+}
+
 // nlriSectionOf reads one section from the wire. It is the single place both
 // the text delta (sectionNLRIDelta) and the library chain's NLRI intents
 // (libraryNLRIOps) find a section, so the two rewrite the same four sections:
 // a rewrite that skipped MP_REACH_NLRI leaked the IPv6 prefixes a filter
 // dropped (plan/journal/guard-added-to-one-half-of-a-pair.md, 2026-10-17).
-// An MP attribute that does not parse reads as absent, as it always has; a
-// legacy section that does not parse is the error.
+// A section that does not parse is the error, never an absent section: a
+// caller that read a malformed MP attribute as absent let a strip or a dropped
+// block pass with the attribute still in the UPDATE. The source returned with
+// an MP error names no family (the zero family.Family), because the attribute
+// did not parse far enough to name one. A nil MP attribute with no error is
+// the absent section.
 func nlriSectionOf(wireUpdate *wireu.WireUpdate, ctx *bgpctx.EncodingContext, section nlriSection) (nlriSource, error) {
-	source := nlriSource{section: section, fam: family.IPv4Unicast}
+	source := nlriSource{section: section}
 	switch section {
 	case sectionAnnounce:
+		source.fam = family.IPv4Unicast
 		// RFC 4271 Section 4.3: the legacy Network Layer Reachability Information.
 		raw, err := wireUpdate.NLRI()
 		if err != nil {
@@ -294,6 +335,7 @@ func nlriSectionOf(wireUpdate *wireu.WireUpdate, ctx *bgpctx.EncodingContext, se
 		}
 		source.raw, source.present = raw, true
 	case sectionWithdrawn:
+		source.fam = family.IPv4Unicast
 		// RFC 4271 Section 4.3: the legacy Withdrawn Routes field.
 		raw, err := wireUpdate.Withdrawn()
 		if err != nil {
@@ -302,13 +344,19 @@ func nlriSectionOf(wireUpdate *wireu.WireUpdate, ctx *bgpctx.EncodingContext, se
 		source.raw, source.present = raw, true
 	case sectionMPReach:
 		mp, err := wireUpdate.MPReach()
-		if err != nil || mp == nil {
+		if err != nil {
+			return source, err
+		}
+		if mp == nil {
 			return source, nil
 		}
 		source.fam, source.raw, source.present = mp.Family(), mp.NLRIBytes(), true
 	case sectionMPUnreach:
 		mpu, err := wireUpdate.MPUnreach()
-		if err != nil || mpu == nil {
+		if err != nil {
+			return source, err
+		}
+		if mpu == nil {
 			return source, nil
 		}
 		source.fam, source.raw, source.present = mpu.Family(), mpu.WithdrawnBytes(), true

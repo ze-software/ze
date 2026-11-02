@@ -1805,7 +1805,11 @@ later member reads; a text delta and NLRI sets that both rewrite the NLRI are re
   (`filter_nlri_delta.go`) over all four NLRI sections, the walk the text
   path's `subsetNLRI` shares through `wireu.CIDRCursor`. An offset that starts no
   entry, a drop from a section the UPDATE lacks, and a drop from a family
-  whose NLRI is not a CIDR prefix drop the route. A stripped section is
+  whose NLRI is not a CIDR prefix drop the route, as do a drop from a
+  section that does not parse and a strip over an MP_REACH_NLRI or
+  MP_UNREACH_NLRI that does not parse: such an attribute names no family, so
+  any strip may name it, and `nlriSectionOf` answers its parse error rather
+  than an absent section. A stripped section is
   rewritten empty, which drops an MP attribute whole and leaves every other
   family's attribute in place. `bgp-filter-family` answers its remove action
   with this intent (`judgeFamily`), and rejects the UPDATE itself when the

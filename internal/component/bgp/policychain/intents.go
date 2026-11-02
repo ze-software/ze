@@ -173,6 +173,12 @@ func (s *Sets) StripsFamily(fam family.Family) bool {
 	return slices.Contains(s.intents.families[:s.intents.familiesN], fam)
 }
 
+// StripsAnyFamily reports whether the sets strip at least one family. A
+// section whose family the wire cannot name answers to every strip.
+func (s *Sets) StripsAnyFamily() bool {
+	return s.intents.familiesN > 0
+}
+
 // merge folds a later member's intents onto i: prepends add up, a later
 // remove-private mode replaces an earlier one, drops and stripped families
 // accumulate.
