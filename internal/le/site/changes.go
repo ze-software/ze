@@ -1,4 +1,4 @@
-// Design: website/AI.md -- the weekly changelog is one producer over changes/posts/*.md
+// Design: website/AI.md -- development updates share one producer over changes/posts/*.md.
 // Detail: markdown.go renders each section, shell.go wraps the page, feed.go the RSS.
 // Related: blog.go publishes the editorial articles, which are a different section.
 package site
@@ -19,7 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// The weekly changelog is registered from here, so a build discovers it through
+// The changelog is registered from here, so a build discovers it through
 // the registry rather than through a call the build states by name.
 func init() {
 	registerProducer(Producer{Name: changesProducer, Render: renderChanges})
@@ -46,12 +46,12 @@ const (
 	changesLegacyFeedDest  = "changes/feed.xml"
 	changesIndexFile       = "data/changes.json"
 	changesURL             = siteBase + changesDirectory + "/"
-	changesFeedTitle       = "Ze weekly updates"
+	changesFeedTitle       = "Ze development updates"
 )
 
 // changesIndexDescription is the meta description of the index, and the lead of
 // its Markdown mirror is the same sentence in longer form below.
-const changesIndexDescription = "What shipped in Ze, week by week: the weekly updates, newest first."
+const changesIndexDescription = "What shipped in Ze: development updates, newest first."
 
 // topicsVocabularyFile is the controlled tag vocabulary: every tag family a
 // week may carry, and the category that colors its chip.
@@ -85,15 +85,19 @@ type changeTopic struct {
 	Key      string `json:"key"`
 }
 
-// changeWeek is one week of the changelog as data/changes.json states it. The
+// changeWeek is one development update as data/changes.json states it. The
 // sections and optional homepage summary are not published in that file.
 type changeWeek struct {
-	Slug        string        `json:"slug"`
-	Intro       string        `json:"intro"`
-	IsDraft     bool          `json:"is_draft"`
-	Topics      []changeTopic `json:"topics"`
-	homeSummary string
-	sections    []weekSection
+	Slug          string        `json:"slug"`
+	CoverageStart string        `json:"coverage_start"`
+	CoverageEnd   string        `json:"coverage_end"`
+	DurationDays  int           `json:"duration_days"`
+	Duration      string        `json:"duration"`
+	Intro         string        `json:"intro"`
+	IsDraft       bool          `json:"is_draft"`
+	Topics        []changeTopic `json:"topics"`
+	homeSummary   string
+	sections      []weekSection
 }
 
 // weekSection is one themed part of a week: its header and its Markdown body.
@@ -237,7 +241,7 @@ func loadChangeWeeks(source string, vocabulary map[string]string) ([]changeWeek,
 		weeks = append(weeks, week)
 	}
 	if len(weeks) == 0 {
-		return nil, fmt.Errorf("no weekly post in %s; the site publishes a changelog over them", directory)
+		return nil, fmt.Errorf("no development update in %s; add a post to publish the changelog", directory)
 	}
 	sort.SliceStable(weeks, func(left, right int) bool { return weeks[left].Slug > weeks[right].Slug })
 	return weeks, nil
@@ -262,10 +266,11 @@ func readChangeWeek(sourcePath string, vocabulary map[string]string) (changeWeek
 	if covers == "" {
 		covers = strings.ReplaceAll(strings.TrimSuffix(filepath.Base(sourcePath), markdownExtension), "..", " .. ")
 	}
-	slug := weekSlug(covers)
-	if _, err := time.Parse(time.DateOnly, slug); err != nil {
-		return changeWeek{}, fmt.Errorf("covers %q does not start with a YYYY-MM-DD date", covers)
+	start, end, err := changeCoverage(covers)
+	if err != nil {
+		return changeWeek{}, err
 	}
+	days := int(end.Sub(start)/(24*time.Hour)) + 1
 	intro, sections, found := splitWeekSections(string(body))
 	if !found {
 		return changeWeek{}, fmt.Errorf("no themed section header; a week is written as **Header** lines")
@@ -275,21 +280,71 @@ func readChangeWeek(sourcePath string, vocabulary map[string]string) (changeWeek
 		return changeWeek{}, err
 	}
 	return changeWeek{
-		Slug:        slug,
-		Intro:       intro,
-		IsDraft:     strings.HasPrefix(strings.ToUpper(metadata["status"]), "DRAFT"),
-		Topics:      topics,
-		homeSummary: strings.TrimSpace(metadata["home-summary"]),
-		sections:    sections,
+		Slug:          start.Format(time.DateOnly),
+		CoverageStart: start.Format(time.DateOnly),
+		CoverageEnd:   end.Format(time.DateOnly),
+		DurationDays:  days,
+		Duration:      changeDuration(days),
+		Intro:         intro,
+		IsDraft:       strings.HasPrefix(strings.ToUpper(metadata["status"]), "DRAFT"),
+		Topics:        topics,
+		homeSummary:   strings.TrimSpace(metadata["home-summary"]),
+		sections:      sections,
 	}, nil
 }
 
-// weekSlug answers the date a week is published under: the first day its
-// covers line names. A covers line may state a time, which the slug drops.
-func weekSlug(covers string) string {
-	start, _, _ := strings.Cut(covers, "..")
-	day, _, _ := strings.Cut(strings.TrimSpace(start), " ")
-	return day
+// changeCoverage accepts calendar dates and the historical start-time form.
+// A lone date covers that day; a range MUST supply both valid boundaries.
+func changeCoverage(covers string) (time.Time, time.Time, error) {
+	first, last, ranged := strings.Cut(covers, "..")
+	start, err := changeCoverageDay(strings.TrimSpace(first))
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("invalid covers %q: %w; use YYYY-MM-DD .. YYYY-MM-DD", covers, err)
+	}
+	if !ranged {
+		return start, start, nil
+	}
+	end, err := changeCoverageDay(strings.TrimSpace(last))
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("invalid covers %q: %w; use YYYY-MM-DD .. YYYY-MM-DD", covers, err)
+	}
+	if end.Before(start) {
+		return time.Time{}, time.Time{}, fmt.Errorf("covers %q ends before it starts; put the earlier date first", covers)
+	}
+	return start, end, nil
+}
+
+// changeCoverageDay validates optional legacy clock text before taking its day.
+func changeCoverageDay(value string) (time.Time, error) {
+	layout := time.DateOnly
+	if strings.Contains(value, " ") {
+		layout = "2006-01-02 15:04"
+	}
+	parsed, err := time.Parse(layout, value)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, time.UTC), nil
+}
+
+// changeDuration names inclusive calendar spans without rounding partial weeks.
+func changeDuration(days int) string {
+	switch days {
+	case 1:
+		return "1 day"
+	case 7:
+		return "1 week"
+	case 14:
+		return "2 weeks"
+	default:
+		var label textbuf.Buffer
+		return label.Reset().Int(int64(days)).Str(" days").String()
+	}
+}
+
+// label is shared by pages, feeds and homepage links so coverage cannot drift.
+func (week changeWeek) label() string {
+	return week.CoverageStart + " – " + week.CoverageEnd + " (" + week.Duration + ")"
 }
 
 // splitWeekSections divides one week's body into its intro and its themed
@@ -360,12 +415,12 @@ func renderChangeWeek(output string, week changeWeek, links pageLinks) error {
 	if err != nil {
 		return err
 	}
-	description := "Ze weekly update."
+	description := week.label() + ". Development update."
 	if week.Intro != "" {
-		description = truncateRunes(trimIntroWhitespace(week.Intro), weekDescriptionMax)
+		description = truncateRunes(week.label()+". "+trimIntroWhitespace(week.Intro), weekDescriptionMax)
 	}
 	dest := week.dest()
-	title := "Week of " + week.Slug + " - Ze"
+	title := week.label() + " - Ze"
 	shell := pageShell{
 		Title:       title,
 		Description: description,
@@ -389,8 +444,8 @@ func changeWeekBody(week changeWeek, lead string) (string, error) {
 	if week.IsDraft {
 		page.Str(`                <span class="tag">Draft -- pending review</span>`).Byte('\n')
 	}
-	page.Str(pageHero("Week of "+week.Slug, lead, "Weekly update", ` id="post-title"`, heroClasses)).Byte('\n')
-	page.Str(`                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>`).Byte('\n')
+	page.Str(pageHero(week.label(), lead, "Development update · "+week.Duration, ` id="post-title"`, heroClasses)).Byte('\n')
+	page.Str(`                <p class="post-back"><a href="../">&larr; All development updates</a></p>`).Byte('\n')
 	page.Str("            </section>\n")
 	page.Str(`            <section class="blog-post reveal">`).Byte('\n')
 	page.Str(`                <div class="blog-grid">`).Byte('\n')
@@ -439,7 +494,7 @@ func blankLineBeforeLists(body string) string {
 
 // changeWeekMirror renders the Markdown sibling of one week.
 func changeWeekMirror(week changeWeek) string {
-	title := "Week of " + week.Slug
+	title := week.label()
 	if week.IsDraft {
 		title += " (Draft -- pending review)"
 	}
@@ -457,10 +512,10 @@ func changeWeekMirror(week changeWeek) string {
 
 // changesIndexLead is the paragraph the index hero carries. It is markup rather
 // than plain text, because it names the two neighboring pages as links.
-const changesIndexLead = "What shipped in Ze, newest first: the weekly updates, mined from git " +
-	"history and posted to Discord's <code>ze-news</code>. Each week's chips are the areas it " +
-	"touched; click a category to show just the weeks that touched it, click again to show " +
-	"everything, or click a week for the full write-up. Ze is pre-release, so the configuration " +
+const changesIndexLead = "What shipped in Ze, newest first: development updates, mined from git " +
+	"history and posted to Discord's <code>ze-news</code>. Each update's chips are the areas it " +
+	"touched; click a category to show just the updates that touched it, click again to show " +
+	"everything, or click an update for the full write-up. Ze is pre-release, so the configuration " +
 	`syntax can still change, and the <a href="../roadmap/">roadmap</a> tracks the path to a ` +
 	`stable release. For the landmark features on a timeline, see <a href="../milestones/">Milestones</a>.`
 
@@ -476,10 +531,10 @@ func changesIndexBody(weeks []changeWeek) string {
 
 	var page textbuf.Buffer
 	page.Reset().Str(`            <section aria-labelledby="changes-title">`).Byte('\n')
-	page.Str(pageHero("Changes.", changesIndexLead, "Weekly updates", ` id="changes-title"`,
+	page.Str(pageHero("Changes.", changesIndexLead, "Development updates", ` id="changes-title"`,
 		"section-head "+heroClasses)).Byte('\n')
 	page.Str(`                <div class="legend ch-filters reveal" role="group" `).
-		Str(`aria-label="Filter weeks by category">`).Byte('\n')
+		Str(`aria-label="Filter updates by category">`).Byte('\n')
 	for _, category := range categoryFilterOrder {
 		if !present[category] {
 			continue
@@ -492,7 +547,7 @@ func changesIndexBody(weeks []changeWeek) string {
 	for _, week := range weeks {
 		page.Str(changesIndexRow(week))
 	}
-	page.Str(`                    <p class="ch-empty filtered-out">No weeks in that category yet.</p>`).Byte('\n')
+	page.Str(`                    <p class="ch-empty filtered-out">No updates in that category yet.</p>`).Byte('\n')
 	page.Str("                </div>\n            </section>\n")
 	return page.String()
 }
@@ -503,13 +558,13 @@ func changesIndexRow(week changeWeek) string {
 	var row textbuf.Buffer
 	row.Reset().Str(`                    <a class="ch-week" data-cats="`).
 		Str(html.EscapeString(strings.Join(week.categories(), " "))).Str(`" href="`).Str(week.Slug).
-		Str(`/" aria-label="Read Week of `).Str(week.Slug).Str(`">`).Byte('\n')
+		Str(`/" aria-label="Read `).Str(html.EscapeString(week.label())).Str(`">`).Byte('\n')
 	row.Str(`                        <div class="ch-head">`).Byte('\n')
 	draft := ""
 	if week.IsDraft {
 		draft = `<span class="ch-draft">pending review</span>`
 	}
-	row.Str(`                            <h2><span class="ch-week-title">Week of `).Str(week.Slug).
+	row.Str(`                            <h2><span class="ch-week-title">`).Str(html.EscapeString(week.label())).
 		Str("</span>").Str(draft).Str("</h2>\n")
 	row.Str("                        </div>\n")
 	if week.Intro != "" {
@@ -533,13 +588,13 @@ func changesIndexRow(week changeWeek) string {
 func changesIndexMirror(weeks []changeWeek) string {
 	var mirror textbuf.Buffer
 	mirror.Reset().Str("# Changes\n\n")
-	mirror.Str("What shipped in Ze, newest first: the weekly updates, mined from git history ").
-		Str("and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for ").
+	mirror.Str("What shipped in Ze, newest first: development updates, mined from git history ").
+		Str("and posted to Discord's `ze-news`. Each update lists the areas it touched; click an update for ").
 		Str("the full write-up. Ze is pre-release, so the configuration syntax can still change, and the ").
 		Str("[roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a ").
 		Str("timeline, see [Milestones](../milestones/).\n\n")
 	for _, week := range weeks {
-		title := "Week of " + week.Slug
+		title := week.label()
 		if week.IsDraft {
 			title += " (pending review)"
 		}
@@ -574,12 +629,12 @@ func changesFeed(weeks []changeWeek) string {
 			built = week.Slug
 		}
 		link := changesURL + week.Slug + "/"
-		description := "Ze weekly update."
+		description := "Ze development update."
 		if week.Intro != "" {
 			description = trimIntroWhitespace(week.Intro)
 		}
 		items.Str("        <item>\n")
-		items.Str("            <title>Week of ").Str(week.Slug).Str("</title>\n")
+		items.Str("            <title>").Str(xmlText(week.label())).Str("</title>\n")
 		items.Str("            <link>").Str(link).Str("</link>\n")
 		items.Str(`            <guid isPermaLink="true">`).Str(link).Str("</guid>\n")
 		items.Str("            <pubDate>").Str(feedDate(week.Slug)).Str("</pubDate>\n")
@@ -592,7 +647,7 @@ func changesFeed(weeks []changeWeek) string {
 	feed.Str("    <channel>\n")
 	feed.Str("        <title>").Str(changesFeedTitle).Str("</title>\n")
 	feed.Str("        <link>").Str(changesURL).Str("</link>\n")
-	feed.Str("        <description>What shipped in Ze each week, in Zeledon's voice, ").
+	feed.Str("        <description>Ze development updates, in Zeledon's voice, ").
 		Str("mined from git history.</description>\n")
 	feed.Str("        <language>en</language>\n")
 	feed.Str("        <lastBuildDate>").Str(feedDate(built)).Str("</lastBuildDate>\n")

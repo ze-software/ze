@@ -549,11 +549,21 @@ controls and never autoplays. The columns stack at 960px.
 <!-- source: internal/le/site/home.go -- homeBody -->
 <!-- source: website/assets/js/site.js -- initTerminalDemoPlayers -->
 
-The homepage's weekly cards use the post's optional `home-summary:` front
+Development updates use the inclusive calendar dates in `covers:` as their
+reporting period. Pages, index cards, homepage teasers, feeds and Markdown
+mirrors show both dates and the duration: seven days is `1 week`, fourteen
+is `2 weeks`, and other spans use days. `data/changes.json` carries
+`coverage_start`, `coverage_end`, `duration_days` and `duration` beside the
+unchanged start-date `slug`. A missing `covers:` uses the filename; a lone
+date covers one day. Ranges require two valid dates in order. The historical
+`YYYY-MM-DD HH:MM` form is validated and counted by calendar date.
+<!-- source: internal/le/site/changes.go -- changeCoverage, changeDuration, readChangeWeek -->
+
+The homepage's development update cards use the post's optional `home-summary:` front
 matter. Write one short summary of at most 108 characters. Without it,
 the card uses the introduction's first paragraph. The renderer collapses
 whitespace and clips long summaries at a word boundary, with an ellipsis.
-The full weekly page, feed and changelog data keep the complete introduction.
+The full update page, feed and changelog data keep the complete introduction.
 <!-- source: internal/le/site/home.go -- blogTeaserCards, clipSummary -->
 <!-- source: internal/le/site/changes.go -- readChangeWeek, changeWeek -->
 
@@ -653,11 +663,16 @@ only the standalone bundle should change. The lower-level
 The activity page is one standalone document that carries its own stylesheet
 inside it, because a deck embeds it as an iframe where no link to the site's
 assets resolves. It draws the same measurement as `/project/activity/` and
-presents it differently: the published page is light, full size, and opens on a
+presents it differently: the published page follows the site's theme, is full size, and opens on a
 hero, while the deck embed is dark and sized in viewport units so the whole
 widget fits one slide. The two stylesheets are separate files, and neither
 rendering reads the other's rules. `today <date>` pins the window, so a
 published deck keeps the year it was presented with.
+
+The published calendar uses a sequential teal-green scale in each theme.
+Zero activity uses `--line`; borders use `--line-strong`. Its panels and text
+use the shared theme surfaces so low activity remains visible in dark mode.
+<!-- source: internal/le/site/activitystyle.go -- activityStyle -->
 
 ## Adding a new presentation
 
@@ -672,11 +687,11 @@ published deck keeps the year it was presented with.
 script. It refreshes live slide statistics and embedded activity when the deck
 uses them, then regenerates the standalone bundle.
 
-## Weekly Update Checklist
+## Development Update Checklist
 
-Trigger: a new `changes/posts/<start-date>.md` lands (the week's Discord
-`ze-news` update -- this is the weekly changelog source; the `blog/` section
-is now for occasional editorial articles, not the weekly update). Work through
+Trigger: a new `changes/posts/<start-date>.md` lands (the Discord
+`ze-news` update -- this is the development changelog source; the `blog/` section
+is now for occasional editorial articles, not the development update). Work through
 this before considering the update done.
 
 0. **Tag the week.** Give the new post a `tags:` front-matter line (comma-
@@ -689,7 +704,7 @@ this before considering the update done.
    never a tag. `./le site build` fails on a tag absent from `data/topics.json`; if
    the week did something genuinely new, add the tag to the vocabulary (with
    its category) rather than forcing a near-miss.
-   Weekly RFC counts are historical at publication. Keep
+   Update RFC counts are historical at publication. Keep
    `ze-stat-snapshot: true` in front matter, never in a body HTML comment.
 
    **Summarize for the homepage.** Add `home-summary:` using the
@@ -734,7 +749,7 @@ this before considering the update done.
    routine improvement), also add one node to `data/milestones.json` so the
    Milestones timeline stays current -- keep it coarse, one node per
    capability class, dated to the week's `covers` start so it links to the
-   right weekly page under `changes/`.
+   right update page under `changes/`.
 2. **Check Compare for drift.** Did the week close one of the
    "Where Ze is behind today" gaps, or change a Yes/No/Partial cell? Edit
    `../docs/comparison.md` first (the source of truth), then copy the

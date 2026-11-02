@@ -473,10 +473,10 @@ func whatsNewBand(data *whatsNewData, articles []blogArticle, weeks []changeWeek
 		newest := weeks[0]
 		intro := newest.Intro
 		if intro == "" {
-			intro = "What shipped that week."
+			intro = "Recent development changes."
 		}
 		items = append(items, whatsNewItem("Recently shipped", newest.cardCategory(),
-			changeWeek{Slug: newest.Slug}.route(), "Week of "+newest.Slug, clipSummary(intro)))
+			newest.route(), newest.label(), clipSummary(intro)))
 	}
 	if note := data.Note; note != nil {
 		href := data.Link.Href
@@ -531,7 +531,7 @@ func blogTeaserCards(weeks []changeWeek) string {
 			summary = week.Intro[:paragraphEnd]
 		}
 		if summary == "" {
-			summary = "Weekly update"
+			summary = "Development update"
 		}
 		var out textbuf.Buffer
 		out.Reset().Str("                    <article class=\"card card-post home-update-card cat-").
@@ -541,8 +541,8 @@ func blogTeaserCards(weeks []changeWeek) string {
 		out.Str("                            <span class=\"home-update-number\">").
 			Str(twoDigits(index + 1)).Str("</span>\n")
 		out.Str("                        </div>\n")
-		out.Str("                        <p class=\"home-update-date\">Week of ").
-			Str(html.EscapeString(week.Slug)).Str("</p>\n")
+		out.Str("                        <p class=\"home-update-date\">").
+			Str(html.EscapeString(week.label())).Str("</p>\n")
 		out.Str("                        <h3><a href=\"").Str(html.EscapeString(week.route())).
 			Str("\">").Str(html.EscapeString(clipSummary(summary))).Str("</a></h3>\n")
 		out.Str(homeUpdateTagRow(week.Topics))

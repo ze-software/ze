@@ -32,13 +32,13 @@ const activityStyle = `        <style>
         .activity-hero {
             position: relative;
             overflow: hidden;
-            border: 2px solid rgba(255, 255, 255, 0.92);
+            border: 2px solid var(--line-strong);
             border-radius: clamp(1.1rem, 2.5vw, 1.55rem);
             padding: clamp(1.15rem, 2.4vw, 1.65rem);
             background:
                 radial-gradient(circle at 86% 38%, rgba(157, 100, 245, 0.18), transparent 14rem),
                 radial-gradient(circle at 20% 18%, rgba(26, 188, 156, 0.14), transparent 16rem),
-                linear-gradient(135deg, rgba(255, 254, 254, 0.96), rgba(233, 245, 255, 0.84));
+                var(--panel);
             box-shadow: var(--clay), 0 1.7rem 4rem -2.2rem var(--shadow);
             color: var(--text);
             margin-bottom: 0;
@@ -115,12 +115,25 @@ const activityStyle = `        <style>
             line-height: 1.5;
         }
         .activity-widget {
-            --activity-ink: #09111d;
-            --activity-card: rgba(255, 255, 255, 0.74);
-            --activity-card-strong: rgba(255, 255, 255, 0.9);
-            --activity-border: rgba(255, 255, 255, 0.94);
+            --activity-ink: var(--text);
+            --activity-card: var(--panel);
+            --activity-card-strong: var(--panel-strong);
+            --activity-border: var(--line-strong);
+            --activity-level-0: var(--line);
+            --activity-level-1: #8fd5c4;
+            --activity-level-2: #45b69e;
+            --activity-level-3: #218872;
+            --activity-level-4: #12614f;
+            --activity-level-5: #083d32;
             display: grid;
             gap: 1rem;
+        }
+        :root[data-theme="dark"] .activity-widget {
+            --activity-level-1: #237e6c;
+            --activity-level-2: #2ca58d;
+            --activity-level-3: #54c9ad;
+            --activity-level-4: #8ae3c8;
+            --activity-level-5: #baf5dd;
         }
         .activity-widget .stats {
             display: grid;
@@ -134,9 +147,7 @@ const activityStyle = `        <style>
             border: 2px solid var(--activity-border);
             border-radius: 1.05rem;
             padding: 0.85rem;
-            background:
-                linear-gradient(145deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.52)),
-                var(--sky-tint);
+            background: var(--activity-card);
             box-shadow: var(--clay);
         }
         .activity-widget .stat::after {
@@ -199,11 +210,11 @@ const activityStyle = `        <style>
         }
         .activity-widget .pill {
             width: fit-content;
-            border: 1px solid rgba(15, 23, 42, 0.08);
+            border: 1px solid var(--activity-border);
             border-radius: 999px;
             padding: 0.4rem 0.65rem;
             color: var(--muted);
-            background: rgba(255, 255, 255, 0.62);
+            background: var(--activity-card);
             font-size: 0.74rem;
             font-weight: 800;
             white-space: nowrap;
@@ -217,19 +228,15 @@ const activityStyle = `        <style>
             border: 2px solid var(--activity-border);
             border-radius: 1.45rem;
             padding: clamp(1rem, 2vw, 1.25rem);
-            background:
-                linear-gradient(160deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.68)),
-                var(--panel-strong);
+            background: var(--activity-card-strong);
             box-shadow: var(--clay);
         }
         .activity-widget .chart-scroll {
             overflow-x: auto;
             padding: clamp(0.8rem, 1.4vw, 1rem);
-            border: 2px solid rgba(255, 255, 255, 0.94);
+            border: 2px solid var(--activity-border);
             border-radius: 1.15rem;
-            background:
-                radial-gradient(circle at 9% 16%, rgba(26, 188, 156, 0.15), transparent 18rem),
-                linear-gradient(145deg, rgba(255, 254, 254, 0.94), rgba(233, 245, 255, 0.82));
+            background: var(--activity-card);
             box-shadow: var(--clay);
         }
         .activity-widget .chart-scroll::-webkit-scrollbar {
@@ -285,9 +292,9 @@ const activityStyle = `        <style>
         .activity-widget .day-cell {
             width: 11px;
             height: 11px;
-            border: 1px solid rgba(255, 255, 255, 0.95);
+            border: 1px solid var(--activity-border);
             border-radius: 3px;
-            background: var(--grape-tint);
+            background: var(--activity-level-0);
             cursor: default;
             transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
         }
@@ -295,19 +302,16 @@ const activityStyle = `        <style>
         .activity-widget .activity-grid .day-cell:focus-visible {
             position: relative;
             z-index: 2;
-            border-color: rgba(255, 255, 255, 1);
+            border-color: var(--text);
             outline: none;
             box-shadow: 0 0 0 2px var(--grape-glow), var(--clay);
             transform: scale(1.22);
         }
-        .activity-widget .day-cell[data-level="1"] { background: var(--mint-chip); }
-        .activity-widget .day-cell[data-level="2"] { background: var(--mint-base); }
-        .activity-widget .day-cell[data-level="3"] { background: var(--teal-base); }
-        .activity-widget .day-cell[data-level="4"] { background: var(--sky-base); }
-        .activity-widget .day-cell[data-level="5"] {
-            background: var(--grape-base);
-            box-shadow: 0 0 0.65rem var(--grape-glow);
-        }
+        .activity-widget .day-cell[data-level="1"] { background: var(--activity-level-1); }
+        .activity-widget .day-cell[data-level="2"] { background: var(--activity-level-2); }
+        .activity-widget .day-cell[data-level="3"] { background: var(--activity-level-3); }
+        .activity-widget .day-cell[data-level="4"] { background: var(--activity-level-4); }
+        .activity-widget .day-cell[data-level="5"] { background: var(--activity-level-5); }
         .activity-widget .day-cell.pre-repo {
             border-color: transparent;
             background: transparent;
@@ -352,10 +356,10 @@ const activityStyle = `        <style>
         .activity-widget .go-bucket {
             display: grid;
             gap: 0.45rem;
-            border: 1px solid rgba(15, 23, 42, 0.07);
+            border: 1px solid var(--activity-border);
             border-radius: 0.95rem;
             padding: 0.65rem;
-            background: rgba(255, 255, 255, 0.58);
+            background: var(--activity-card);
         }
         .activity-widget .go-bucket h3 {
             margin: 0;
@@ -377,7 +381,7 @@ const activityStyle = `        <style>
             gap: 0.7rem;
             min-height: 0;
             padding: 0.4rem 0.48rem 0.48rem;
-            background: rgba(255, 255, 255, 0.62);
+            background: var(--activity-card);
             box-shadow: none;
         }
         .activity-widget .go-panel .stat strong {
@@ -397,7 +401,7 @@ const activityStyle = `        <style>
         .activity-widget th,
         .activity-widget td {
             padding: 0.52rem 0;
-            border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+            border-bottom: 1px solid var(--activity-border);
             text-align: left;
             font-size: 0.83rem;
         }
