@@ -461,6 +461,47 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 	ci.mu.Lock()
 	defer ci.mu.Unlock()
 
+	pending, err := ci.planLocked(caps, "")
+	if err != nil {
+		return err
+	}
+	ci.storeLocked(pending)
+	return nil
+}
+
+// ReplacePluginCapabilities swaps every capability caps.PluginName holds for
+// the ones caps declares, as one step: a reload's declaration for that plugin.
+// It refuses, leaving the store untouched, when a code conflicts with another
+// plugin's declaration for the same selector. The plugin's own previous
+// entries never conflict, because they are what the call replaces.
+func (ci *CapabilityInjector) ReplacePluginCapabilities(caps *PluginCapabilities) error {
+	ci.mu.Lock()
+	defer ci.mu.Unlock()
+
+	pending, err := ci.planLocked(caps, caps.PluginName)
+	if err != nil {
+		return err
+	}
+	ci.removeLocked(caps.PluginName)
+	ci.storeLocked(pending)
+	return nil
+}
+
+// CheckReplacePluginCapabilities answers what ReplacePluginCapabilities would
+// answer, without changing the store: config-verify asks it, so a conflict is
+// refused before any participant applies.
+func (ci *CapabilityInjector) CheckReplacePluginCapabilities(caps *PluginCapabilities) error {
+	ci.mu.RLock()
+	defer ci.mu.RUnlock()
+
+	_, err := ci.planLocked(caps, caps.PluginName)
+	return err
+}
+
+// planLocked decodes caps and checks every code against the store, ignoring
+// the entries owned by replacing (empty when nothing is replaced). It returns
+// the entries to store, or the first conflict. The caller holds ci.mu.
+func (ci *CapabilityInjector) planLocked(caps *PluginCapabilities, replacing string) ([]InjectedCapability, error) {
 	addedGlobals := make(map[uint8]string)
 	addedPeers := make(map[string]map[uint8]string)
 	pending := make([]InjectedCapability, 0, len(caps.Capabilities))
@@ -468,15 +509,15 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 	for _, cap := range caps.Capabilities {
 		value, err := decodeCapabilityPayload(cap)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if len(cap.Peers) == 0 {
-			if existing, ok := ci.globalByCode[cap.Code]; ok {
-				return fmt.Errorf("capability conflict: code %d already registered by %s", cap.Code, existing)
+			if existing, ok := ci.globalByCode[cap.Code]; ok && existing != replacing {
+				return nil, fmt.Errorf("capability conflict: code %d already registered by %s", cap.Code, existing)
 			}
 			if existing, ok := addedGlobals[cap.Code]; ok {
-				return fmt.Errorf("capability conflict: code %d already registered by %s", cap.Code, existing)
+				return nil, fmt.Errorf("capability conflict: code %d already registered by %s", cap.Code, existing)
 			}
 			addedGlobals[cap.Code] = caps.PluginName
 			pending = append(pending, InjectedCapability{
@@ -489,8 +530,8 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 
 		for _, peerAddr := range cap.Peers {
 			if peerCodes := ci.peerByCode[peerAddr]; peerCodes != nil {
-				if existing, ok := peerCodes[cap.Code]; ok {
-					return fmt.Errorf("capability conflict: code %d for peer %s already registered by %s",
+				if existing, ok := peerCodes[cap.Code]; ok && existing != replacing {
+					return nil, fmt.Errorf("capability conflict: code %d for peer %s already registered by %s",
 						cap.Code, peerAddr, existing)
 				}
 			}
@@ -498,7 +539,7 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 				addedPeers[peerAddr] = make(map[uint8]string)
 			}
 			if existing, ok := addedPeers[peerAddr][cap.Code]; ok {
-				return fmt.Errorf("capability conflict: code %d for peer %s already registered by %s",
+				return nil, fmt.Errorf("capability conflict: code %d for peer %s already registered by %s",
 					cap.Code, peerAddr, existing)
 			}
 			addedPeers[peerAddr][cap.Code] = caps.PluginName
@@ -511,6 +552,11 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 		}
 	}
 
+	return pending, nil
+}
+
+// storeLocked adds entries planLocked accepted. The caller holds ci.mu.
+func (ci *CapabilityInjector) storeLocked(pending []InjectedCapability) {
 	for _, cap := range pending {
 		if cap.PeerAddr == "" {
 			ci.globalCaps = append(ci.globalCaps, cap)
@@ -523,13 +569,17 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 		}
 		ci.peerByCode[cap.PeerAddr][cap.Code] = cap.Plugin
 	}
-	return nil
 }
 
 // RemovePluginCapabilities removes all injected capabilities owned by a plugin.
 func (ci *CapabilityInjector) RemovePluginCapabilities(pluginName string) {
 	ci.mu.Lock()
 	defer ci.mu.Unlock()
+	ci.removeLocked(pluginName)
+}
+
+// removeLocked drops every entry pluginName owns. The caller holds ci.mu.
+func (ci *CapabilityInjector) removeLocked(pluginName string) {
 
 	globalCaps := ci.globalCaps[:0]
 	for _, cap := range ci.globalCaps {
