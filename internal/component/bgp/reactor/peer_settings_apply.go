@@ -152,6 +152,10 @@ func peerSettingsRestartReason(current, next *PeerSettings, s *Session) string {
 //     RUNNING session, so it is asked only when the capabilities actually differ,
 //     and it answers false whenever it cannot prove the outcome identical.
 //
+// A plugin capability is neither: no PeerSettings field holds it, so it is
+// judged on the running session alone (Session.pluginCapabilitiesKept), and a
+// changed code the peer advertised restarts with "PluginCapabilities" named.
+//
 // Everything else restarts, including a field added to PeerSettings tomorrow: the
 // decision is !peerSettingsEqual over the whole struct, minus what a copier
 // neutralized (ai/rules/evidence.md, AC-6).
@@ -173,7 +177,11 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 	if !receiveBindingsDeliverable(current.ProcessBindings, c.ProcessBindings, s) {
 		c.ProcessBindings = current.ProcessBindings
 	}
-	if peerSettingsEqual(&c, next) {
+	// A plugin capability the running OPEN carried is judged apart from the
+	// settings, because a plugin changes it in the injector store and no
+	// PeerSettings field holds it (Session.pluginCapabilitiesKept).
+	pluginKept := s.pluginCapabilitiesKept()
+	if peerSettingsEqual(&c, next) && pluginKept {
 		return hotSwappableSettings, ""
 	}
 
@@ -196,6 +204,9 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 	// fix one and see the session flap again.
 	if !capabilitiesEqual(c.Capabilities, n.Capabilities) {
 		changed = append(changed, "Capabilities")
+	}
+	if !pluginKept {
+		changed = append(changed, "PluginCapabilities")
 	}
 	c.Capabilities, n.Capabilities = nil, nil
 

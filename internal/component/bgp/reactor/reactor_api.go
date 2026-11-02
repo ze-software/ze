@@ -1253,7 +1253,10 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 			toRemove = append(toRemove, key)
 			continue
 		}
-		if peerSettingsEqual(currentPeers[key], newSettings) {
+		// Equal settings are not yet an unchanged peer: a plugin capability the
+		// running OPEN carried may have changed in the injector store, which no
+		// PeerSettings field holds (Session.pluginCapabilitiesKept).
+		if peerSettingsEqual(currentPeers[key], newSettings) && currentSessions[key].pluginCapabilitiesKept() {
 			continue
 		}
 		// A change the running session can take applies WITHOUT a restart: the
@@ -1481,7 +1484,7 @@ func (a *reactorAPIAdapter) peerDiffCount(bgpTree map[string]any) (int, error) {
 			}
 		case !exists:
 			count++ // remove
-		case peerSettingsEqual(currentPeers[key], newSettings):
+		case peerSettingsEqual(currentPeers[key], newSettings) && currentSessions[key].pluginCapabilitiesKept():
 			// No change.
 		case peerSettingsRestartRequired(currentPeers[key], newSettings, currentSessions[key]):
 			count += 2 // remove + re-add

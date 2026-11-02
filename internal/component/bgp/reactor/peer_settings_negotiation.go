@@ -5,6 +5,7 @@
 package reactor
 
 import (
+	"maps"
 	"reflect"
 	"slices"
 
@@ -114,6 +115,42 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 	base := capability.Negotiate(baseCaps, peerCaps, identity)
 	candidate := capability.Negotiate(nextCaps, peerCaps, identity)
 	return negotiatedOutcomeEqual(base, candidate)
+}
+
+// pluginCapabilitiesKept reports whether this session can keep running on the
+// plugin capabilities its OPEN carried, judged on its own: it is the question a
+// reload owes a peer whose PeerSettings did not change, because a plugin
+// (bgp-role, bgp-softver, the ExaBGP bridge) changes its declaration in the
+// injector store and nowhere in PeerSettings. Without it the reconcile loop
+// skipped such a peer as unchanged and the session ran on under the old value.
+//
+// No OPEN sent means nothing is in use: the next OPEN reads the store. An OPEN
+// sent and none received yet means the peer may still accept what was sent, so
+// any difference restarts, and so does a peer OPEN that does not parse
+// (fail-closed, as negotiationOutcomeUnchanged).
+func (s *Session) pluginCapabilitiesKept() bool {
+	if s == nil {
+		return true
+	}
+
+	s.mu.RLock()
+	localOpen := s.localOpen
+	peerOpen := s.peerOpen
+	sentDecls := s.sentPluginDecls
+	s.mu.RUnlock()
+
+	if localOpen == nil {
+		return true
+	}
+	nextDecls := s.pluginDeclarations()
+	if peerOpen == nil {
+		return maps.EqualFunc(sentDecls, nextDecls, slices.Equal[[]string])
+	}
+	peerCaps, err := capability.ParseFromOptionalParams(peerOpen.OptionalParams, peerOpen.ExtendedParams)
+	if err != nil {
+		return maps.EqualFunc(sentDecls, nextDecls, slices.Equal[[]string])
+	}
+	return pluginDeclarationsKept(sentDecls, nextDecls, peerCaps)
 }
 
 // pluginDeclarations reads the plugin declarations for this session's peer,

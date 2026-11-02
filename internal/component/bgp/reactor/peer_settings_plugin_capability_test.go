@@ -104,3 +104,76 @@ func TestNegotiationPluginCapabilityChange(t *testing.T) {
 		})
 	}
 }
+
+// TestReloadPluginCapabilityChange runs a whole reload whose ONLY change is a
+// plugin's capability declaration.
+//
+// VALIDATES: AC-5 through the reload path. A reload whose PeerSettings are
+// unchanged still restarts a session whose OPEN carried a plugin capability
+// that changed for a code the peer advertised, and keeps a session whose peer
+// never advertised the code (RFC 5492 Section 1).
+// PREVENTS: the comparison living only in negotiationOutcomeUnchanged, which
+// the reconcile loop never reached for a peer whose settings were equal: a
+// Role, software-version or bridge change a plugin made left the session
+// running on the OPEN it had sent.
+// METHOD: adapter.Reload with the peer's own settings, after the test rewrote
+// the store the session's OPEN was built from. A restart replaces the *Peer
+// (reactor_peers.go AddPeer), so object identity is the assertion.
+func TestReloadPluginCapabilityChange(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name       string
+		sent, next []plugin.InjectedCapability
+		peerCaps   []capability.Capability
+		keepsGoing bool
+	}{
+		{
+			name: "changed code the peer advertised restarts",
+			sent: []plugin.InjectedCapability{roleCapability(0)}, next: []plugin.InjectedCapability{roleCapability(3)},
+			peerCaps: []capability.Capability{capIPv4(), capability.NewPlugin(9, []byte{3})},
+		},
+		{
+			name:     "added code the peer advertised restarts",
+			next:     []plugin.InjectedCapability{roleCapability(3)},
+			peerCaps: []capability.Capability{capIPv4(), capability.NewPlugin(9, []byte{3})},
+		},
+		{
+			name: "changed code the peer never advertised keeps the session",
+			sent: []plugin.InjectedCapability{roleCapability(0)}, next: []plugin.InjectedCapability{roleCapability(3)},
+			peerCaps: []capability.Capability{capIPv4()}, keepsGoing: true,
+		},
+		{
+			name: "unchanged declaration keeps the session",
+			sent: []plugin.InjectedCapability{roleCapability(0)}, next: []plugin.InjectedCapability{roleCapability(0)},
+			peerCaps: []capability.Capability{capIPv4(), capability.NewPlugin(9, []byte{3})}, keepsGoing: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			settings := negotiationSettings(capIPv4())
+			next := negotiationSettings(capIPv4())
+			r, peer := newSwapTestReactor(t, settings, next)
+			store := &pluginStore{}
+			store.set(tc.sent...)
+			r.pluginCapabilitySeam = store.get
+
+			s := establishNegotiatedSession(t, peer, tc.peerCaps...)
+			s.setPluginCapabilityGetter(peer.getPluginCapabilities)
+			s.setPluginDeclarationGetter(peer.pluginCapabilityDeclarations)
+			require.NoError(t, s.prepareOpen(), "the running OPEN carries the sent declaration")
+			peer.state.Store(int32(PeerStateEstablished))
+
+			store.set(tc.next...)
+			require.NoError(t, (&reactorAPIAdapter{r: r}).Reload())
+
+			r.mu.RLock()
+			after := r.peers[settings.PeerKey()]
+			r.mu.RUnlock()
+			require.NotNil(t, after, "the peer must still be configured after reload")
+			assert.Equal(t, tc.keepsGoing, after == peer,
+				"keepsGoing=%v: a restart replaces the peer object", tc.keepsGoing)
+		})
+	}
+}
