@@ -272,8 +272,15 @@ func forwardMPReach08(ctx context.Context, p *sdk.Plugin) error {
 	return nil
 }
 
+// forwardLoad08 serves the two-tier forward-pool .ci files, which both name
+// their peers source-peer and dest-peer.
 func forwardLoad08(expected int, required []string, label string) plugin08Scenario {
 	return func(ctx context.Context, p *sdk.Plugin) error {
+		// The flush and the metrics read below say nothing about either
+		// session, so wait for both before the scenario can end.
+		if err := waitPeersEOR08(ctx, p, "source-peer", "dest-peer"); err != nil {
+			return err
+		}
 		var total float64
 		if !Poll(ctx, 80, 250*time.Millisecond, func() bool {
 			status, raw, err := command08(ctx, p, "show bgp adj-rib-in status")
