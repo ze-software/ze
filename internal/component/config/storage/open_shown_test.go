@@ -132,3 +132,86 @@ func chmodShown(t *testing.T, dir string, mode os.FileMode) {
 		}
 	})
 }
+
+// TestOpenRefusalNamesTheFailingComponent proves a folder walk that fails
+// names the component the operator must fix, in the words of the caller.
+//
+// VALIDATES: a symbolic link on the path to the store, or the store folder
+// itself as a link, is named: on the local route (one spelling) a folder on
+// the path keeps zefs's own refusal, byte for byte what the open answered
+// before refusals named a shown folder; with a shown spelling the refusal
+// says the failure is on the path to the shown folder, or the folder itself.
+// PREVENTS: the operator reading only an errno with no hint of which folder
+// to fix, and the resolved path leaking into a remote caller's refusal.
+// Method: a link stands on the path, so every lstat follows it and only the
+// no-follow walk refuses it; the superuser is refused the same way.
+func TestOpenRefusalNamesTheFailingComponent(t *testing.T) {
+	const shown = "spelled/as/typed"
+	root := t.TempDir()
+	target := filepath.Join(root, "real")
+	if err := os.MkdirAll(filepath.Join(target, "store", treeName), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	below := filepath.Join(link, "store")
+
+	t.Run("local route keeps the walk's refusal", func(t *testing.T) {
+		_, want := openFolder(below)
+		if want == nil {
+			t.Fatalf("the walk opened %s through a link", below)
+		}
+		for name, open := range map[string]func(string) (Storage, error){"Open": Open, "OpenReadOnly": openReadOnly} {
+			store, err := open(below)
+			if err == nil {
+				t.Fatalf("%s(%s) succeeded (close: %v)", name, below, store.Close())
+			}
+			if err.Error() != want.Error() {
+				t.Errorf("%s refusal %q, want the walk's %q", name, err, want)
+			}
+			if !strings.Contains(err.Error(), "unsafe component "+link+":") {
+				t.Errorf("%s refusal %q does not name the link %s", name, err, link)
+			}
+			if !errors.Is(err, ErrPermissions) {
+				t.Errorf("%s refusal %q is not %v", name, err, ErrPermissions)
+			}
+		}
+	})
+
+	t.Run("shown route names a folder on the path", func(t *testing.T) {
+		store, err := OpenReadOnly(below, shown)
+		if err == nil {
+			t.Fatalf("open of %s succeeded (close: %v)", below, store.Close())
+		}
+		if !strings.Contains(err.Error(), "store folder "+shown+" cannot be opened: a folder on the path to it cannot be opened: ") {
+			t.Errorf("refusal %q does not say a folder on the path to %s failed", err, shown)
+		}
+		if strings.Contains(err.Error(), root) {
+			t.Errorf("refusal %q names the opened path under %s", err, root)
+		}
+		if !errors.Is(err, ErrPermissions) {
+			t.Errorf("refusal %q is not %v", err, ErrPermissions)
+		}
+	})
+
+	t.Run("the folder itself is named as spelled", func(t *testing.T) {
+		itself := filepath.Join(root, "itself")
+		if err := os.Symlink(filepath.Join(target, "store"), itself); err != nil {
+			t.Fatal(err)
+		}
+		for spelled, want := range map[string]string{itself: itself, shown: shown} {
+			store, err := OpenReadOnly(itself, spelled)
+			if err == nil {
+				t.Fatalf("open of %s succeeded (close: %v)", itself, store.Close())
+			}
+			if !strings.Contains(err.Error(), "store folder "+want+" cannot be opened: ") {
+				t.Errorf("refusal %q does not name the store folder %s", err, want)
+			}
+			if spelled == shown && strings.Contains(err.Error(), root) {
+				t.Errorf("refusal %q names the opened path under %s", err, root)
+			}
+		}
+	})
+}

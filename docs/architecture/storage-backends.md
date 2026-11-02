@@ -67,6 +67,13 @@ tree, an entry it cannot check, a folder it cannot open) names the folder as
 path it resolved and passes the folder of the path the caller typed, so the
 caller reads the refusal the local command prints and never a path it did not
 type. A caller with one spelling passes it twice.
+
+A folder that cannot be opened is named by the component the walk refused
+(`zefs.ComponentError`). The store folder itself is named as `shown` on every
+route. A folder on the path to it, such as a symbolic link or a parent with no
+search access, keeps zefs's own refusal, which names it by its absolute path,
+when `shown` and `dir` are the same spelling; otherwise the refusal says only
+that a folder on the path to `shown` cannot be opened, with its cause.
 <!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, storeFolder, detect, openLive, lockOwner, populateOwned -->
 <!-- source: internal/component/config/cli/config_data.go -- withRuntimeStore -->
 

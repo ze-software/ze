@@ -54,6 +54,9 @@ func OpenDirectory(path string, create bool) (*os.File, error) {
 		name := filepath.Join(current.Name(), part)
 		next, err := openDirectoryComponent(current, part, name, create)
 		if err != nil {
+			if refusal, ok := errors.AsType[*ComponentError](err); ok {
+				refusal.Folder = absolute
+			}
 			return nil, errors.Join(err, current.Close())
 		}
 		if err := current.Close(); err != nil {
@@ -63,6 +66,29 @@ func OpenDirectory(path string, create bool) (*os.File, error) {
 	}
 	return current, nil
 }
+
+// ComponentError is OpenDirectory refusing one component of the path it
+// walks. Parent, Component and Folder are absolute paths the walk built:
+// Folder is the whole path it was asked to open, Component the one it could
+// not, and Parent the folder holding it. A caller that names the folder in
+// other words than the ones the walk used compares Component with Folder to
+// tell the folder itself from a folder on the path to it, rather than reading
+// the message. It matches fs.ErrPermission and its cause.
+type ComponentError struct {
+	Parent    string
+	Component string
+	Folder    string
+	Err       error
+}
+
+// Error names the component by the absolute path the walk built.
+func (e *ComponentError) Error() string {
+	return "zefs: open " + e.Parent + ": unsafe component " + e.Component + ": " + e.Err.Error() + ": " + fs.ErrPermission.Error()
+}
+
+// Unwrap answers the cause and fs.ErrPermission, which every refusal of the
+// walk matches.
+func (e *ComponentError) Unwrap() []error { return []error{e.Err, fs.ErrPermission} }
 
 // openDirectoryComponent opens one component beneath parent, creating it 0700
 // when create is set and it is absent. A created component is fsynced with its
@@ -79,7 +105,7 @@ func openDirectoryComponent(parent *os.File, part, name string, create bool) (*o
 		fd, err = unix.Openat(int(parent.Fd()), part, frameDirectoryFlags, 0)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("zefs: open %s: unsafe component %s: %w: %w", parent.Name(), name, err, fs.ErrPermission)
+		return nil, &ComponentError{Parent: parent.Name(), Component: name, Err: err}
 	}
 	next := os.NewFile(uintptr(fd), name)
 	if !created {

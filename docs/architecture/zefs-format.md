@@ -308,7 +308,11 @@ CLI: `ze data check`, `ze data repair --output <path>`, `ze data encode`.
 Checks retain exit codes 0 for clean, 1 for corruption, and 2 for unreadable or
 unsafe paths.
 <!-- source: pkg/zefs/check.go -- Check, Repair, CheckPath, RepairPath, MoveAside -->
-<!-- source: pkg/zefs/check_tree_unix.go -- OpenDirectory, walkFrameTree, repairFrameTree -->
+`zefs.OpenDirectory` refuses a component it cannot open with a
+`ComponentError` that carries the refused component, its parent and the whole
+folder asked for, each as the absolute path the walk built, so a caller can
+tell the folder itself from a folder on the path to it without reading text.
+<!-- source: pkg/zefs/check_tree_unix.go -- OpenDirectory, ComponentError, walkFrameTree, repairFrameTree -->
 <!-- source: pkg/zefs/check_tree_linux.go -- RenameNoReplace -->
 <!-- source: pkg/zefs/check_tree_darwin.go -- RenameNoReplace, trustedFramePath -->
 <!-- source: pkg/zefs/check_tree_freebsd.go -- RenameNoReplace -->

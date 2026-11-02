@@ -77,21 +77,30 @@ func (f storeFolder) statRefusal(name string, err error) error {
 	return fmt.Errorf("cannot check %s: %w; give the user ze runs search access to %s", f.named(name), err, f.shown)
 }
 
-// open opens the folder for the open path. A failed walk names the folder as
-// shown: zefs names each component it reached by the absolute path it built,
-// a path a caller on another route never typed, so only the cause is kept.
+// open opens the folder for the open path. A refusal names the component
+// the walk could not open in the caller's words. The folder itself is named
+// as shown on every route. A folder on the path to it keeps zefs's own words
+// when the caller spelled the folder as the walk did, and is otherwise named
+// only as being on the path to the shown folder: zefs names it by the
+// absolute path it built, which a caller on another route never typed.
 func (f storeFolder) open() (*os.File, error) {
 	folder, err := openFolder(f.path)
 	if err == nil {
 		return folder, nil
 	}
-	var errno unix.Errno
-	if !errors.As(err, &errno) {
+	refusal, ok := errors.AsType[*zefs.ComponentError](err)
+	if !ok {
 		// Only the walk's start (the working directory, the root) fails
-		// without an errno, and neither names the store's path.
+		// without a component, and neither names the store's path.
 		return nil, err
 	}
-	return nil, fmt.Errorf("%w: store folder %s cannot be opened: %w; give the user ze runs as read and search access to it, with no symbolic link on its path", ErrPermissions, f.shown, errno)
+	if refusal.Component == filepath.Clean(refusal.Folder) {
+		return nil, fmt.Errorf("%w: store folder %s cannot be opened: %w; give the user ze runs as read and search access to it, with no symbolic link on its path", ErrPermissions, f.shown, refusal.Err)
+	}
+	if f.shown == f.path {
+		return nil, err
+	}
+	return nil, fmt.Errorf("%w: store folder %s cannot be opened: a folder on the path to it cannot be opened: %w; give the user ze runs search access to every folder on that path, with no symbolic link on it", ErrPermissions, f.shown, refusal.Err)
 }
 
 // OpenTree opens the exact offline tree path. The canonical database name uses
