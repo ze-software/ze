@@ -124,8 +124,8 @@ func communityInsertions() []rpc.FilterInsertion {
 	return []rpc.FilterInsertion{{
 		Filter: communityFilterRef(blackholeFilterName), Direction: rpc.FilterExport, Priority: blackholePriority,
 		Session: []rpc.FilterSessionFact{
-			{Fact: policyview.FieldIBGP.String(), Values: []string{"false"}},
-			{Fact: policyview.FieldRSClient.String(), Values: []string{"false"}},
+			{Fact: policyview.FieldIBGP.String(), Values: []string{sessionFactFalse}},
+			{Fact: policyview.FieldRSClient.String(), Values: []string{sessionFactFalse}},
 		},
 		Required: true, Reason: blackholeRequiredReason,
 	}}
@@ -175,6 +175,10 @@ func evaluateCommunityFilter(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, e
 }
 
 func acceptRoute() *sdk.FilterUpdateOutput { return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept} }
+
+// sessionFactFalse is the value a boolean session fact (ibgp, rs-client)
+// carries when the condition is that the fact does not hold.
+const sessionFactFalse = "false"
 
 // communityKinds are the three list attributes and the size of one value.
 var communityKinds = [...]struct {
