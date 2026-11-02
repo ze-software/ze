@@ -271,29 +271,19 @@ func matchArtifact(t *testing.T, d *pluginserver.Dispatcher, input string, artif
 	}
 }
 
-// matchArtifactDocument decodes one route's `| json` answer as an object. A
-// command that answers its document as JSON text (a command.Blob, as the
-// local route does under the declared LocalArgs) reaches `| json` wrapped as
-// {"blob":{"content":...}}, and the document is that content.
+// matchArtifactDocument decodes one route's `| json` answer as an object.
+// Both routes answer the command's typed document, so the answer is that
+// document; a blob, or any answer that is not one object, fails.
 func matchArtifactDocument(t *testing.T, input, route, answer string) map[string]any {
 	t.Helper()
 	var document map[string]any
 	if err := json.Unmarshal([]byte(answer), &document); err != nil {
 		t.Fatalf("%q: the %s answer is no JSON object: %v\n%s", input, route, err, answer)
 	}
-	blob, isBlob := document["blob"].(map[string]any)
-	if !isBlob {
-		return document
+	if _, isBlob := document["blob"]; isBlob {
+		t.Fatalf("%q: the %s answer is a blob, not the command's typed document: %s", input, route, answer)
 	}
-	content, isText := blob["content"].(string)
-	if !isText {
-		t.Fatalf("%q: the %s answer is a blob with no text content: %s", input, route, answer)
-	}
-	var inner map[string]any
-	if err := json.Unmarshal([]byte(content), &inner); err != nil {
-		t.Fatalf("%q: the %s answer's blob is no JSON object: %v\n%s", input, route, err, content)
-	}
-	return inner
+	return document
 }
 
 // matchArtifactFile fails unless location is the path of a regular file in
