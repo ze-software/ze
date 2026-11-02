@@ -31,5 +31,29 @@
     "producer": "internal/component/bgp/plugins/role/otc_filter.go::evaluateOTCIngress",
     "producer-sha": "bbf9d673afbe8f18",
     "break": "line 160: \"sdk.FilterWithdraw\" -\u003e \"sdk.FilterAccept\""
+  },
+  {
+    "rid": "RFC9234-5-12",
+    "polarity": "positive",
+    "unit": "test/plugin/role-otc-malformed-treat-as-withdraw.ci",
+    "unit-sha": "f2315104caf71b48",
+    "claim-sha": "a85339f680548946",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::checkOTCIngress",
+    "producer-sha": "a2326791096ae4c7",
+    "break": "line 264: \"isMalformed\" -\u003e \"isMalformed \u0026\u0026 false\"",
+    "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000"
+  },
+  {
+    "rid": "RFC9234-5-12",
+    "polarity": "negative",
+    "unit": "test/plugin/role-otc-malformed-treat-as-withdraw.ci",
+    "unit-sha": "f2315104caf71b48",
+    "claim-sha": "f157c27f2e9fafaa",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::findOTC",
+    "producer-sha": "26ba284f79356960",
+    "break": "line 59: \"attrLen != otcAttrLen\" -\u003e \"true\"",
+    "citation": "expect=bgp:conn=1:seq=1:contains=C023040000FDE9180A0000"
   }
 ]

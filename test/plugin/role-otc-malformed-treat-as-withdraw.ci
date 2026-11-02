@@ -1,0 +1,160 @@
+# Test: RFC 9234 malformed OTC -- treat-as-withdraw reaches the wire
+# VALIDATES: RFC 9234 Section 5: "The OTC Attribute is considered malformed if
+#            the length value is not 4. An UPDATE message with a malformed OTC
+#            Attribute SHALL be handled using the approach of "treat-as-withdraw"
+#            [RFC7606]."
+#
+# RFC requirement: RFC9234-5-12 positive -- a Provider re-sends 10.0.0.0/24
+# with an OTC Attribute of length 3, and the running daemon sends the Customer
+# dest the withdrawal of 10.0.0.0/24 (dest seq=2), so the earlier version it
+# had forwarded is removed on the wire.
+# RFC requirement: RFC9234-5-12 negative -- the same Provider's 10.0.0.0/24
+# with an OTC Attribute of length 4 is not malformed: the dest receives it as
+# an announcement still carrying that OTC (dest seq=1), not a withdrawal.
+#
+# PREVENTS: a malformed OTC answered as a reject (the earlier version stays in
+#           the dest's RIB) or as an accept, and a valid OTC read as malformed.
+#
+# NON-VACUITY: both halves run on one session to one dest. The source sends
+# nothing until it has received the dest's own 192.0.2.0/24, so the dest is an
+# established forward target before either UPDATE leaves the source, and the
+# withdrawal at dest seq=2 follows an announcement the same dest received.
+
+# Source peer (Provider, ASN 65001) on 127.0.0.1.
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=linger:value=true
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=00
+# seq=1 -- BARRIER: the dest's 192.0.2.0/24, forwarded to this peer.
+expect=bgp:conn=1:seq=1:contains=18C00002
+# seq=2 -- 10.0.0.0/24 with a well-formed OTC: C0 23 04 0000FDE9 (65001).
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C023040000FDE9180A0000
+# seq=3 -- 10.0.0.0/24 again, OTC length 3: C0 23 03 0000FD. Malformed.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001A4001010040020602010000FDE940030401010101C023030000FD180A0000
+EOF_SOURCE
+
+# Dest peer (Customer, ASN 65002) on 127.0.0.2 -- the wire assertions live here.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=linger:value=true
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+# The dest announces 192.0.2.0/24 (AS_PATH [65002], NEXT_HOP 2.2.2.2): the
+# source's barrier.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA4003040202020218C00002
+# seq=1 NEGATIVE -- an announcement of 10.0.0.0/24 that keeps the length-4 OTC
+# 65001 (a Provider's route already carries one, so none is stamped).
+expect=bgp:conn=1:seq=1:contains=C023040000FDE9180A0000
+# seq=2 POSITIVE -- the withdrawal of 10.0.0.0/24 and no path attribute.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
+EOF_DEST
+
+# Native compiled fixture: plugin/role-otc-malformed-treat-as-withdraw. It
+# holds the daemon up until the dest was sent both UPDATEs, then returns, which
+# requests shutdown; the dest's expect lines judge the bytes.
+# ze: Customer of the source (ASN 65000), Provider of the dest.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-malformed-otc {
+		run "le test fixture plugin/role-otc-malformed-treat-as-withdraw"
+		encoder json
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	internal rs {
+		use bgp-rs
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		# The export set adds customer so the source's 10.0.0.0/24 reaches the
+		# dest: default expands to provider, rs and peer only.
+		role {
+			import customer
+			export [ provider rs peer customer ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		# The export set adds provider so the dest's 192.0.2.0/24 reaches the
+		# source as its barrier: default expands to customer and rs-client
+		# only (docs/guide/bgp-role.md, "Export Set").
+		role {
+			import provider
+			export [ customer rs-client provider ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL
