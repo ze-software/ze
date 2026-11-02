@@ -222,6 +222,56 @@ Focused tests include `TestFilterBatchOrderAndVerdicts`,
 
 ## Blocker
 
+### Observed verification after restart (2026-11-02)
+
+AC-1 and AC-2 now have observed failures, not only missing evidence. The
+verification agent recovered the existing lint job, waited for PID 3187687
+with a Linux pidfd, and did not start another lint run. Its retained exit
+record reports 1. The command was `./le --name session job run label
+lint4-scoped-verification quiet command ./le --name session go lint run scope
+"./internal/component/plugin/... ./pkg/plugin/... ./internal/core/statestore/..."`.
+The default and Linux integration flavors each reported these four findings;
+the Darwin and capability flavors each reported the coordinator errcheck only.
+
+| Canonical source | Finding | Required correction |
+|------------------|---------|---------------------|
+| `internal/component/plugin/coordinator_test.go`, startup calls in the no-reactor test | `SignalPluginStartupComplete` error unchecked | Assert the returned error; `Coordinator.SignalPluginStartupComplete` returns the reactor or post-startup error, or nil when neither exists |
+| `internal/component/plugin/server/startup.go`, `registrationFromRPC` | `rangeValCopy`: copies a 160-byte filter declaration | Iterate by index and read the declaration through its address |
+| `internal/component/plugin/server/filter_reference_alias_test.go`, Stage 1 alias test | `cancelled` misspelling | Use `canceled` |
+| `internal/component/plugin/server/filter_reference_alias_test.go`, `aliasedSlotProcess` | `embedlit` on `DeclaredFilter` | Use the embedded-field literal form the linter requests |
+
+The remaining race command was `./le --name session job run label
+lint4-remaining-race quiet command go test -race -tags "$tags" -count=1 -v
+./internal/component/plugin ./internal/component/plugin/all
+./internal/component/plugin/cli ./internal/component/plugin/doctor
+./internal/component/plugin/manager ./internal/component/plugin/process
+./internal/component/plugin/yang ./pkg/plugin ./pkg/plugin/rpc`, with
+`CGO_ENABLED=1` and tags consisting of `ze_core` plus all unique first-column
+`ze_` entries in `feature-gates.txt`. It exited 1.
+
+| Package | Observed result |
+|---------|-----------------|
+| plugin root, doctor, manager, yang; `pkg/plugin`, `pkg/plugin/rpc` | PASS |
+| `internal/component/plugin/all` | FAIL: `TestRegisteredWireMethods` reports four additional methods: `ze-update:update-serve`, `ze-update:update-serve-start`, `ze-update:update-serve-stop`, `ze-update:update-serve-pause`. `TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig` finds an empty ingress filter population |
+| `internal/component/plugin/cli` | FAIL: `TestQueryAnswerIsTheSameLineFromBothWriters`; `answerQuery` omits protocol-version while `pkg/plugin/sdk/sdk_query.go` `runOrDeclare` sets it to 1. Align the actual writers, preserving the byte-equality assertion |
+| `internal/component/plugin/process` | FAIL: `TestRecoveryQueuedDeliveryTransport/direct/newer-target-owner/control`; `registry.CheckFilterDeclarations` refuses bgp-rs because its declaration judge is nil, then `recoveryDeliveryScenario` calls `HasStructuredHandler` on the absent process. Restore the real judge in the fixture and assert process presence before dereferencing it; do not bypass declaration validation |
+
+There were no explicit SKIP or race-detector warning lines in the new race
+log. The process panic stopped that package before its remaining tests, so
+it does not establish complete process coverage. The prior IPC, registry,
+server, statestore, SDK and `pkg/ze` package passes were read from the prior
+log and were not repeated. They remain historical evidence, not a fresh
+verdict on concurrent shared-checkout edits. No Go source was edited by this
+verification agent. Fixes and independent closure remain owed.
+
+Diagnostic logs (retained until the parent consumes them):
+`tmp/session/2026-11-02-220832/scratch/job-lint4-scoped-verification-08c4ecab.log`
+and `tmp/session/2026-11-02-220832/scratch/job-lint4-remaining-race-2ae0b12f.log`.
+The commands, canonical sources and observed results above are the durable
+record; the scratch paths are navigation aids only.
+
+### Earlier handback
+
 Closure needs AC-1 and the remainder of AC-2. The implementation is committed
 in `aaf2642dc1`: `ipc/filter_batch_test.go` `sendQueued`, its metrics-test
 caller, `registry/filter_declaration.go` `DeclaredFilter.ReadsRaw`, and
