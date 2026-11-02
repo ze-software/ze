@@ -3,7 +3,6 @@
 package hub
 
 import (
-	"os"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -21,16 +20,13 @@ import (
 // level; committedBaselineTree parses it, the tree must carry the block, and
 // the env key must still be unset (the block writes it only while unset).
 func TestWebBaselineReparseLeavesProcessEnvironment(t *testing.T) {
-	const levelKey = "ze.log" // The base level `log { level ... }` writes (slogutil envKeyBaseLevel).
+	// The environment block writes ze.log only while it is unset, so the test
+	// establishes that itself: an earlier test may have left a level behind.
+	isolateBaseLogLevel(t)
+	const levelKey = baseLogLevelKey
 	if before := env.Get(levelKey); before != "" {
 		t.Fatalf("%s is %q before the test: the environment block would not be written over it, so the test proves nothing", levelKey, before)
 	}
-	t.Cleanup(func() {
-		if err := os.Unsetenv(levelKey); err != nil {
-			t.Errorf("unset %s: %v", levelKey, err)
-		}
-		env.ResetCache()
-	})
 
 	store, err := storage.Create(t.TempDir())
 	if err != nil {
