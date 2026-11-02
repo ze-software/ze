@@ -537,6 +537,8 @@ No builtin command failed on any surface. Not enumerated by this binary: the loc
 | `inert-registration-offered-as-a-choice.md` | 2026-11-01 | G4: `ze cli` completion omits local-data commands it serves |
 | `check-mode-mutates-the-tree.md` | 2026-11-02 | `ParseTreeWithYANG` applies the environment block on a read (web start re-parse, `ze tacacs`) |
 | `format-cannot-hold-a-state-the-tree-holds.md` | 2026-11-02 | plugin `dispatch-command` drops a response's warning lines (awaits the plugin-contract decision) |
+| `process-global-read-across-the-plugin-boundary.md` | 2026-11-02 | `trafficstat` `Service.tick` reads the daemon's empty rate tracker |
+| `process-global-read-across-the-plugin-boundary.md` | 2026-11-02 | web interfaces page rate columns read the daemon's empty rate tracker |
 
 ## Key Design Decisions
 
