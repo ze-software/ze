@@ -767,57 +767,6 @@ func (a *allTestsRun) workspacePath(path string) string {
 	return filepath.Join(a.Workspace, path)
 }
 
-// shim builds the VM-local directory of stable binary names.
-//
-// Some UI tests exec `ze-stripped` through PATH, and the host cross-compiles to
-// arch-suffixed names so that bin/ze stays the host-native binary.
-//
-// The directory is TRAVERSABLE BY EVERY USER, not only by root. A suite in the
-// per-test network namespace runs ze as an ordinary user, ze relays a plugin
-// through `le test` on this PATH, and a 0750 root-owned directory answers that
-// exec with `/bin/sh: le test: Permission denied`. The plugin then never
-// starts and the test times out on a symptom that names neither the directory
-// nor the user: measured on 2026-09-05, 18 test/ospf tests timed out that way.
-// The links point into the read-only checkout, so a wider directory exposes
-// nothing the guest does not already share.
-func (a *allTestsRun) shim() error {
-	if err := os.MkdirAll(a.BinDir, 0o755); err != nil { //nolint:gosec // see the comment above: the dropped user must exec through it
-		return err
-	}
-	// MkdirAll leaves an EXISTING directory's mode alone, and a previous run in
-	// the same guest made this one 0750.
-	if err := os.Chmod(a.BinDir, 0o755); err != nil { //nolint:gosec // same reason
-		return err
-	}
-	// ze-fakefilter is the test plugin a .ci forks off the child PATH. The
-	// runner puts ze's directory on that PATH, which here is this shim
-	// directory, so it is linked from beside ZE_BIN, where
-	// testfunctional.PrepareGuest builds it. It is linked, never required:
-	// only the .ci that forks it needs it, and that test fails naming it.
-	for name, target := range map[string]string{
-		zeName:                  a.workspacePath(a.ZeBin),
-		zeStrippedName:          a.workspacePath(a.StrippedBin),
-		zeStrippedFlowName:      a.workspacePath(a.StrippedFlowBin),
-		runner.FakeFilterBinary: a.workspacePath(filepath.Join(filepath.Dir(a.ZeBin), runner.FakeFilterBinary)),
-	} {
-		link := filepath.Join(a.BinDir, name)
-		if err := os.Remove(link); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-		if err := os.Symlink(target, link); err != nil {
-			return err
-		}
-	}
-	// The harness is this run's own le. A suite runs as `le test <suite>`
-	// through this link, and the runner under it links `le` into its children's
-	// PATH the same way.
-	if _, err := guestLeLink(a.BinDir); err != nil {
-		return err
-	}
-	_, err := guestJobParent(a.BinDir)
-	return err
-}
-
 // environment is what every child of this run is given.
 //
 // ZE_REPO_ROOT is STATED rather than left to be derived. The repo-invariant

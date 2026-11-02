@@ -426,16 +426,14 @@ func TestTheBinaryShimIsBuiltBeforeTheSuitesRun(t *testing.T) {
 	run.Run = rec.run
 	run.Execute()
 
-	for _, name := range []string{"ze", "ze-stripped", "ze-stripped-flow"} {
-		link := filepath.Join(run.BinDir, name)
-		target, err := os.Readlink(link)
-		if err != nil {
-			t.Errorf("%s is not a symlink: %v", link, err)
-			continue
-		}
-		if !strings.HasPrefix(target, run.Workspace) {
-			t.Errorf("%s points at %s, which is outside the workspace", link, target)
-		}
+	// Each daemon is a guest-local copy of the workspace binary the run names
+	// (alltests_shim.go, shim), not a link into the 9p share.
+	for name, source := range map[string]string{
+		"ze":               run.ZeBin,
+		"ze-stripped":      run.StrippedBin,
+		"ze-stripped-flow": run.StrippedFlowBin,
+	} {
+		requireShimCopy(t, filepath.Join(run.BinDir, name), filepath.Join(run.Workspace, source))
 	}
 	// The harness is the run's own le: the suites run as `le test <suite>`.
 	self, err := os.Executable()

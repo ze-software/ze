@@ -127,7 +127,8 @@ func TestABinaryPathIsResolvedAgainstTheWorkspaceOnlyWhenItIsRelative(t *testing
 
 // The shim is rebuilt over whatever was there. A VM that ran once already holds
 // the last run's links, and a shim that refused to replace them would exec the
-// previous run's binaries.
+// previous run's binaries. The shim now holds a copy of this run's binary
+// (alltests_shim.go, shim), so the check is that copy's bytes.
 func TestTheShimReplacesTheLinksAPreviousRunLeft(t *testing.T) {
 	run := vmFixture(t)
 	if err := os.MkdirAll(run.BinDir, 0o750); err != nil {
@@ -141,13 +142,7 @@ func TestTheShimReplacesTheLinksAPreviousRunLeft(t *testing.T) {
 	if err := run.shim(); err != nil {
 		t.Fatalf("shim: %v", err)
 	}
-	target, err := os.Readlink(stale)
-	if err != nil {
-		t.Fatalf("readlink: %v", err)
-	}
-	if !strings.HasPrefix(target, run.Workspace) {
-		t.Errorf("the shim still points at %q", target)
-	}
+	requireShimCopy(t, stale, filepath.Join(run.Workspace, run.ZeBin))
 }
 
 // The shim links ze-fakefilter from beside ZE_BIN. A guest run is
@@ -157,6 +152,9 @@ func TestTheShimReplacesTheLinksAPreviousRunLeft(t *testing.T) {
 func TestTheShimLinksTheFakeFilterPluginBesideZe(t *testing.T) {
 	run := vmFixture(t)
 	run.ZeBin = filepath.Join("tmp", "guest", "ze")
+	// The shim copies the daemon it names, so that daemon has to exist, as
+	// verify already requires before any run reaches the shim.
+	writeExecutable(t, run.Workspace, run.ZeBin)
 
 	if err := run.shim(); err != nil {
 		t.Fatalf("shim: %v", err)
