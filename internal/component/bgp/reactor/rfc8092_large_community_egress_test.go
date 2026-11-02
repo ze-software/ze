@@ -153,7 +153,7 @@ func TestRFC8092PolicyAddOfPresentValueSentOnce(t *testing.T) {
 	policy := largeCommunityBody(bytes.Join([][]byte{x, z, x, y, y}, nil))
 	peer, conn := newAnnouncePeer(t, "192.0.2.2")
 	s := peer.session
-	s.egressRouteFilter = func([]byte) (bool, []byte) { return false, policy }
+	s.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return false, policy, nil }
 	sections, err := wire.ParseUpdateSections(received)
 	require.NoError(t, err)
 	require.NoError(t, s.SendUpdate(&message.Update{PathAttributes: sections.Attrs(received), NLRI: sections.NLRI(received)}))

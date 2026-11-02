@@ -115,7 +115,7 @@ func TestExportFilterForBodyDeactivatedChainAcceptsWithoutAPIServer(t *testing.T
 
 	r := &Reactor{}
 
-	suppress, override := r.exportFilterForBody(peer, []byte{0, 0, 0, 0})
+	suppress, override, _ := r.exportFilterForBody(peer, []byte{0, 0, 0, 0})
 	assert.False(t, suppress, "a deactivated ref applies no policy, so nothing suppresses the route")
 	assert.Nil(t, override, "no filter ran, so no filter rewrote the body")
 }

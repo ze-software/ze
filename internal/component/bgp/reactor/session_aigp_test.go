@@ -95,10 +95,10 @@ func TestAIGPOriginWriteDoesNotDeadlockTeardown(t *testing.T) {
 	entered := make(chan struct{})
 	release := make(chan struct{})
 	var releaseOnce sync.Once
-	session.egressRouteFilter = func([]byte) (bool, []byte) {
+	session.egressRouteFilter = func([]byte) (bool, []byte, []byte) {
 		close(entered)
 		<-release
-		return false, nil
+		return false, nil, nil
 	}
 	body := aigpTestBody(99)
 	sections, err := wire.ParseUpdateSections(body)

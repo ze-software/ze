@@ -76,22 +76,38 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryD
 
 // dryRunWithdrawal renders a member's withdraw verdict as the live import and
 // export paths apply it (ingressChainWithdrawal, egressInjectedWithdrawal): the
-// route's announcements as withdrawals, under the dry run's context. Display
-// only: it allocates the rendered text. A body the conversion refuses is a
-// failed reject, as the live paths drop or suppress it.
+// route's announcements as withdrawals, under the dry run's context. An UPDATE
+// naming two MP families is withdrawn as two UPDATEs (buildWithdrawalPayloads),
+// rendered one per line in the order they are sent. Display only: it
+// allocates the rendered text. A body the conversion refuses is a failed
+// reject, as the live paths drop or suppress it.
 func dryRunWithdrawal(dry libraryDryRun, trace []plugin.PolicyTraceEntry) (PolicyChainResult, []plugin.PolicyTraceEntry, []string) {
-	buf := make([]byte, len(dry.payload)+4)
-	n := buildWithdrawalPayload(dry.payload, buf, bgpctx.Registry.Get(dry.ctxID))
-	if n == 0 {
+	buf := make([]byte, 2*(len(dry.payload)+4))
+	first, second := buf[:len(dry.payload)+4], buf[len(dry.payload)+4:]
+	firstN, secondN := buildWithdrawalPayloads(dry.payload, first, second, bgpctx.Registry.Get(dry.ctxID))
+	if firstN == 0 {
 		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace, nil
 	}
-	withdrawal := wireu.NewWireUpdate(buf[:n], dry.ctxID)
+	text, ok := dryRunWithdrawalText(nil, first[:firstN], dry.ctxID)
+	if ok && secondN > 0 {
+		text = append(text, '\n')
+		text, ok = dryRunWithdrawalText(text, second[:secondN], dry.ctxID)
+	}
+	if !ok {
+		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace, nil
+	}
+	return PolicyChainResult{Action: PolicyAccept, Withdrawn: true, Text: string(text)}, trace, nil
+}
+
+// dryRunWithdrawalText appends the filter text of one withdrawal payload to
+// out, and reports false when its attributes do not parse.
+func dryRunWithdrawalText(out, payload []byte, ctxID bgpctx.ContextID) ([]byte, bool) {
+	withdrawal := wireu.NewWireUpdate(payload, ctxID)
 	attrs, err := withdrawal.Attrs()
 	if err != nil {
-		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace, nil
+		return out, false
 	}
-	return PolicyChainResult{Action: PolicyAccept, Withdrawn: true,
-		Text: string(AppendUpdateForFilter(nil, attrs, withdrawal, nil))}, trace, nil
+	return AppendUpdateForFilter(out, attrs, withdrawal, nil), true
 }
 
 // libraryTraceText renders the UPDATE as the chain rewrote it up to step,

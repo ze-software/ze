@@ -54,7 +54,7 @@ func TestRFC8212PolicyBeforeSnapshot(t *testing.T) {
 							t.Fatal(err)
 						}
 					}
-					suppress, override := (&Reactor{}).exportFilterForBody(peer, body)
+					suppress, override, _ := (&Reactor{}).exportFilterForBody(peer, body)
 					if suppress != (len(want) == 0) {
 						t.Fatalf("suppressed=%t, want %t", suppress, len(want) == 0)
 					}

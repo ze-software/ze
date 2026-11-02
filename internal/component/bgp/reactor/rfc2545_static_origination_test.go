@@ -230,7 +230,7 @@ func TestStaticOriginateContinuesAfterUnusablePolicyNextHop(t *testing.T) {
 					}
 					return PolicyResponse{Action: PolicyAccept}
 				}
-				peer.session.egressRouteFilter = func(body []byte) (bool, []byte) {
+				peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
 					hop := payloadNextHop(body)
 					policyHop = hop.mp
 					if !policyHop.IsValid() {

@@ -53,6 +53,12 @@ type ingressStepResult struct {
 	teardown        bool   // policy chain requested session teardown (import only)
 	notifyCode      uint8
 	notifySubcode   uint8
+	// followWithdrawal is a second UPDATE payload the step owes the RIB after
+	// this one: the other family's withdrawal when a withdraw verdict met an
+	// UPDATE naming two MP families (ingressChainWithdrawal). Owned. The
+	// caller MUST deliver it as its own received UPDATE, or the routes it
+	// withdraws stay.
+	followWithdrawal []byte
 }
 
 // orderedEgressStep is the egress twin of orderedIngressStep, used by
@@ -488,19 +494,27 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 // the treat-as-withdraw shape of RFC 7606 Section 2 ("as though all contained
 // routes had been withdrawn"), asked by policy rather than by an error.
 //
-// The result is owned: receive storage is reused. An UPDATE the conversion
-// refuses (malformed, or two MP families that one MP_UNREACH_NLRI cannot
-// carry, buildWithdrawalPayload) is dropped and the refusal logged at WARN,
-// because the withdraw then could not be honored.
+// An UPDATE whose MP_REACH_NLRI and MP_UNREACH_NLRI name two families is
+// withdrawn as two UPDATEs (buildWithdrawalPayloads): the first replaces this
+// one, the second rides followWithdrawal. The results are owned: receive
+// storage is reused. An UPDATE the conversion refuses (malformed) is dropped
+// and the refusal logged at WARN, because the withdraw then could not be
+// honored.
 func ingressChainWithdrawal(payload []byte, source *bgpctx.EncodingContext, peerAddr netip.Addr, member string) ingressStepResult {
-	buf := make([]byte, len(payload)+4)
-	n := buildWithdrawalPayload(payload, buf, source)
-	if n == 0 {
+	// One allocation for both halves: each MUST hold len(payload)+4 octets.
+	buf := make([]byte, 2*(len(payload)+4))
+	first, second := buf[:len(payload)+4], buf[len(payload)+4:]
+	firstN, secondN := buildWithdrawalPayloads(payload, first, second, source)
+	if firstN == 0 {
 		fwdLogger().Warn("import filter: a withdraw verdict cannot be applied to this UPDATE -- route dropped, an earlier version stays",
 			"peer", peerAddr.String(), "filter", member)
 		return ingressStepResult{} // accept == false: drop the route
 	}
-	return ingressStepResult{accept: true, modifiedPayload: buf[:n]}
+	res := ingressStepResult{accept: true, modifiedPayload: first[:firstN]}
+	if secondN > 0 {
+		res.followWithdrawal = second[:secondN]
+	}
+	return res
 }
 
 func ingressPolicyWithdrawals(payload []byte) ingressStepResult {

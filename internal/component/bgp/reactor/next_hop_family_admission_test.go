@@ -113,7 +113,7 @@ func TestFamilyNextHopOriginationAdmission(t *testing.T) {
 							mp = append(mp, 0)
 							mp = append(mp, raw...)
 							body := buildUpdatePayload(mixedAttrs(append([]byte{0x80, 14, byte(len(mp))}, mp...)), nil)
-							peer.session.egressRouteFilter = func([]byte) (bool, []byte) { return false, body }
+							peer.session.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return false, body, nil }
 						}
 						batch := bgptypes.NLRIBatch{Family: fc.fam, NLRIs: []nlri.NLRI{routeNLRI}, NextHop: bgptypes.NewNextHopExplicit(inputHop)}
 						if rail == "queued" {

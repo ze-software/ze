@@ -325,7 +325,7 @@ func newOrdinaryJointPeer(t *testing.T, recipient netip.Addr, source ordinaryJoi
 	// including peers with no export policy. Never replace it with normalization
 	// in the harness: the actual producer-to-consumer path is under test.
 	session.SetMessageCallback(peer.messageCallback)
-	session.egressRouteFilter = func(body []byte) (bool, []byte) {
+	session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
 		return r.exportFilterForBody(peer, body)
 	}
 	peer.refreshLinkScopeFrom([]netip.Prefix{netip.MustParsePrefix("2001:db8:a::1/64")})

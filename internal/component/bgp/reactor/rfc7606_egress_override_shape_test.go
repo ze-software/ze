@@ -35,7 +35,7 @@ func overrideShapeSend(t *testing.T, override []byte) [][]byte {
 	peer, conn := newAnnouncePeer(t, "192.0.2.2")
 	s := peer.session
 	source := append([]byte(nil), override...)
-	s.egressRouteFilter = func([]byte) (bool, []byte) { return false, override }
+	s.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return false, override, nil }
 	require.NoError(t, s.SendUpdate(&message.Update{
 		PathAttributes: forwardBodyBaseAttrs(t, 65000),
 		NLRI:           overrideShapeIPv4NLRI,

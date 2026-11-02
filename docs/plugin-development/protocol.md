@@ -805,8 +805,10 @@ the value in the field's shape:
 - `"action":"withdraw"` removes the route rather than only stopping it: on
   import the engine treats the route's announcements as withdrawn by the peer
   that sent them, so a version accepted earlier leaves the RIB; on export the
-  route is withdrawn toward that destination. The later filters of the chain
-  are not called.
+  route is withdrawn toward that destination. Every route of the UPDATE is
+  withdrawn: one whose MP_REACH_NLRI and MP_UNREACH_NLRI name two families is
+  withdrawn as two UPDATEs, one per family, because one UPDATE carries one
+  MP_UNREACH_NLRI. The later filters of the chain are not called.
 - The route fails the same way when the answer carries `sets` beside `accept`,
   `reject` or `withdraw`, or a text `update`.
 - A filter that declares `raw` among its reads may answer `"action":"modify"`

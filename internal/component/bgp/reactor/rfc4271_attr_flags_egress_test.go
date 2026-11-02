@@ -81,7 +81,7 @@ func egressWrite(t *testing.T, rail string, body []byte) []byte {
 	case "parsed":
 		err = s.SendUpdate(&message.Update{PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)})
 	case "override":
-		s.egressRouteFilter = func([]byte) (bool, []byte) { return false, body }
+		s.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return false, body, nil }
 		err = s.SendUpdate(&message.Update{PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)})
 	case "relay":
 		err = s.sendRawUpdateBody(body)

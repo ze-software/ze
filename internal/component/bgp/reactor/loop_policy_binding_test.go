@@ -264,11 +264,11 @@ func TestLoopPolicyManualExportRefusal(t *testing.T) {
 	peer := NewPeer(settings)
 	r := &Reactor{api: liveFilterServer(t)}
 	body := policyChainAdvertisingBody()
-	if suppress, _ := r.exportFilterForBody(peer, body); !suppress {
+	if suppress, _, _ := r.exportFilterForBody(peer, body); !suppress {
 		t.Fatal("pre-snapshot origination bypassed the unsupported internal ref")
 	}
 	peer.refreshForwardFacts()
-	if suppress, _ := r.exportFilterForBody(peer, body); !suppress {
+	if suppress, _, _ := r.exportFilterForBody(peer, body); !suppress {
 		t.Fatal("snapshot origination bypassed the unsupported internal ref")
 	}
 	result := r.runEgressPolicyChain(policy, settings.Address.String(), 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body))
@@ -379,12 +379,12 @@ func TestLoopPolicyExportOwnershipConsumers(t *testing.T) {
 			return PolicyResponse{Action: PolicyModify, Raw: body}
 		},
 	}
-	if suppress, override := r.exportFilterForBody(peer, body); !suppress || override != nil || calls != 0 {
+	if suppress, override, _ := r.exportFilterForBody(peer, body); !suppress || override != nil || calls != 0 {
 		t.Errorf("pre-snapshot export: suppress=%v override=%x calls=%d", suppress, override, calls)
 	}
 	peer.refreshForwardFacts()
 	calls = 0
-	if suppress, override := r.exportFilterForBody(peer, body); !suppress || override != nil || calls != 0 {
+	if suppress, override, _ := r.exportFilterForBody(peer, body); !suppress || override != nil || calls != 0 {
 		t.Errorf("snapshot export: suppress=%v override=%x calls=%d", suppress, override, calls)
 	}
 	calls = 0

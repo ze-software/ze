@@ -197,7 +197,7 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 					}
 					return PolicyResponse{Action: PolicyModify, Raw: body}
 				}
-				peer.session.egressRouteFilter = func(body []byte) (bool, []byte) {
+				peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
 					ipv6Policy = payloadNextHop(body).mp == batch.NextHop.Addr
 					return r.exportFilterForBody(peer, body)
 				}
@@ -415,7 +415,7 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 				}
 				return PolicyResponse{Action: PolicyAccept}
 			}
-			peer.session.egressRouteFilter = func(body []byte) (bool, []byte) {
+			peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
 				ipv6Policy = payloadNextHop(body).mpFamily == family.IPv6Unicast
 				return r.exportFilterForBody(peer, body)
 			}

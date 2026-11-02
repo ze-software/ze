@@ -509,10 +509,17 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	// bgp-adj-rib-in stored-route replay. End-of-RIB markers of any family are
 	// exempt: RFC 4724 graceful-restart signals are not routes.
 	if gate && s.egressRouteFilter != nil && !update.IsEndOfRIBAnyFamily() {
-		suppress, override := s.egressRouteFilter(body)
+		suppress, override, follow := s.egressRouteFilter(body)
 		if suppress {
 			// No BGP message was sent, so this attempt earns no SendHold restart.
 			return nil
+		}
+		if follow != nil {
+			// The other family's withdrawal of a withdraw verdict, its own
+			// UPDATE (exportFilterForBody), shaped as an override is.
+			if err := s.writeOrdinaryUpdateBody(follow, false, true); err != nil {
+				return err
+			}
 		}
 		if override != nil {
 			body = override
@@ -1279,9 +1286,15 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	// it is what makes this slice safe -- anyone splitting them owes this check.
 	body := s.writeBuf.Buffer()[message.HeaderLen:n]
 	if s.egressRouteFilter != nil {
-		suppress, override := s.egressRouteFilter(body)
+		suppress, override, follow := s.egressRouteFilter(body)
 		if suppress {
 			return nil
+		}
+		if follow != nil {
+			// As writeUpdateGated: a withdraw verdict's second family.
+			if err := s.writeOrdinaryUpdateBody(follow, false, true); err != nil {
+				return err
+			}
 		}
 		if override != nil {
 			body = override

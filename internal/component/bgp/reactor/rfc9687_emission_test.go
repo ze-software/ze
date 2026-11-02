@@ -85,7 +85,7 @@ func TestRFC9687SuppressedAttemptsDoNotRestartSendHold(t *testing.T) {
 			item := fwdItem{peer: peer, session: s, originated: true, updates: []*message.Update{update}}
 			switch name {
 			case "policy-update", "policy-held", "policy-batch":
-				s.egressRouteFilter = func([]byte) (bool, []byte) { return true, nil }
+				s.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return true, nil, nil }
 			case "duplicate-update", "duplicate-held", "duplicate-body", "duplicate-message":
 				if err := s.SendUpdate(update); err != nil {
 					t.Fatal(err)

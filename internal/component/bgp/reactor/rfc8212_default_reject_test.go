@@ -266,7 +266,7 @@ func TestRFC8212Section3AbsentExportRejectsOnEBGP(t *testing.T) {
 			}
 			r := &Reactor{}
 			body := policyChainAdvertisingBody()
-			if suppress, override := r.exportFilterForBody(peer, body); !suppress || override != nil {
+			if suppress, override, _ := r.exportFilterForBody(peer, body); !suppress || override != nil {
 				t.Fatalf("absent EBGP snapshot=%v exported %x", snapshot, override)
 			}
 			got := r.runEgressPolicyChain(settings.ExportPolicy, "192.0.2.2", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body))
@@ -279,7 +279,7 @@ func TestRFC8212Section3AbsentExportRejectsOnEBGP(t *testing.T) {
 				{"0000000d800f0a0002013020010db80001", "0000000d800f0a0002013020010db80001"},
 				{"00000000", "00000000"},
 			} {
-				suppress, override := r.exportFilterForBody(peer, mustHex(t, tc.body))
+				suppress, override, _ := r.exportFilterForBody(peer, mustHex(t, tc.body))
 				if suppress || !bytes.Equal(override, mustHex(t, tc.want)) {
 					t.Fatalf("withdrawal/EOR snapshot=%v suppress=%v body=%x want=%s", snapshot, suppress, override, tc.want)
 				}
@@ -309,7 +309,7 @@ func TestRFC8212AbsentPolicyAcceptsOnIBGP(t *testing.T) {
 			if snapshot {
 				peer.refreshForwardFacts()
 			}
-			if suppress, override := r.exportFilterForBody(peer, body); suppress || override != nil {
+			if suppress, override, _ := r.exportFilterForBody(peer, body); suppress || override != nil {
 				t.Fatalf("IBGP export migration=%d snapshot=%v changed: %v %x", migration, snapshot, suppress, override)
 			}
 		}

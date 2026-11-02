@@ -83,7 +83,7 @@ func TestRFC2918RefreshRunsCurrentExportPolicy(t *testing.T) {
 		}
 		return PolicyResponse{Action: PolicyReject}
 	}
-	peer.session.egressRouteFilter = func(body []byte) (bool, []byte) { return api.r.exportFilterForBody(peer, body) }
+	peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) { return api.r.exportFilterForBody(peer, body) }
 	batch := refreshFeedbackBatch()
 	before := len(conn.written())
 	if err := api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()); err != nil {

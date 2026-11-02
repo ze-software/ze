@@ -48,7 +48,7 @@ func vpnLLAPIAnnounce(t *testing.T, recipient string, nextHop netip.Addr) string
 	peer.fwdFacts.Store(peer.buildForwardFacts())
 
 	api := groupUpdatesReactor([]*Peer{peer}, false)
-	session.egressRouteFilter = func(body []byte) (bool, []byte) {
+	session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
 		return api.r.exportFilterForBody(peer, body)
 	}
 	routeNLRI, err := nlri.NewWireNLRI(vpnv6, mustHex(t, vpnLLAPINLRI), false)

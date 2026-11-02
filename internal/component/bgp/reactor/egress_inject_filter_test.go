@@ -66,7 +66,7 @@ func TestExportFilterForBodyNilAPIWithExportFiltersSuppressesAndWarns(t *testing
 	r := &Reactor{} // r.api is nil: the whole subject
 	peer := peerWithExportPolicy(t, "10.0.0.1", mustPolicy(t, []routepolicy.Ref{{Name: "reject-private-asn"}}, routepolicy.FinalAccept))
 
-	suppress, override := r.exportFilterForBody(peer, []byte{0x00})
+	suppress, override, _ := r.exportFilterForBody(peer, []byte{0x00})
 
 	require.True(t, suppress,
 		"nil API server with export filters configured must suppress the route (fail closed), not accept it unfiltered")
@@ -85,7 +85,7 @@ func TestExportFilterForBodyNoExportFiltersAccepts(t *testing.T) {
 	r := &Reactor{}
 	peer := peerWithExportPolicy(t, "10.0.0.2", filterapi.Policy{})
 
-	suppress, override := r.exportFilterForBody(peer, []byte{0x00})
+	suppress, override, _ := r.exportFilterForBody(peer, []byte{0x00})
 
 	assert.False(t, suppress,
 		"a peer with no export policy is a legitimate accept, not a guard miss")
@@ -113,7 +113,7 @@ func TestExportFilterForBodyNotEstablishedAccepts(t *testing.T) {
 	})
 	require.Nil(t, peer.forwardFacts(), "precondition: peer is not established (nil facts)")
 
-	suppress, override := r.exportFilterForBody(peer, []byte{0x00})
+	suppress, override, _ := r.exportFilterForBody(peer, []byte{0x00})
 
 	assert.False(t, suppress,
 		"a not-established peer has no wire session -- absent precondition, not a miss")
@@ -131,7 +131,7 @@ func TestExportFilterForBodyNotEstablishedAccepts(t *testing.T) {
 	})
 	require.Nil(t, absent.forwardFacts(), "precondition: peer is not established (nil facts)")
 
-	suppress, override = r.exportFilterForBody(absent, []byte{0x00})
+	suppress, override, _ = r.exportFilterForBody(absent, []byte{0x00})
 
 	assert.True(t, suppress,
 		"RFC 8212 Section 3: an EBGP peer with no export policy is not advertised the route")

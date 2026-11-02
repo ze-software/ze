@@ -117,7 +117,7 @@ func exportThroughSession(t *testing.T, settings *PeerSettings, delta string, bo
 		},
 		attrModHandlers: attrModHandlersWithDefaults(),
 	}
-	suppress, override := r.exportFilterForBody(peer, body)
+	suppress, override, _ := r.exportFilterForBody(peer, body)
 	require.False(t, suppress, "the export chain accepts the route")
 
 	payload := body

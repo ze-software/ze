@@ -92,7 +92,7 @@ func TestPolicyFinalNilAPIRails(t *testing.T) {
 			if out.accept != want || out.failed {
 				t.Fatalf("forward final=%v result=%+v", final, out)
 			}
-			suppress, _ := r.exportFilterForBody(peer, body)
+			suppress, _, _ := r.exportFilterForBody(peer, body)
 			if suppress == want {
 				t.Fatalf("originated final=%v suppress=%v", final, suppress)
 			}
@@ -133,7 +133,7 @@ func TestPolicyFinalIngressPreservesWithdrawals(t *testing.T) {
 				t.Fatalf("consumer received %x, want %s", delivered, tc.want)
 			}
 			destination := peerWithExportPolicy(t, "203.0.113.10", mustPolicy(t, nil, routepolicy.FinalReject))
-			suppress, withdrawals := r.exportFilterForBody(destination, body)
+			suppress, withdrawals, _ := r.exportFilterForBody(destination, body)
 			if suppress || !bytes.Equal(withdrawals, mustHex(t, tc.want)) {
 				t.Fatalf("API withdrawal suppressed=%v body=%x want=%s", suppress, withdrawals, tc.want)
 			}
@@ -273,7 +273,7 @@ func TestPolicyFinalOnlyDecisionDoesNotAllocate(t *testing.T) {
 	allocations := testing.AllocsPerRun(100, func() {
 		in := r.runIngressPolicyChain(peer, peer.Settings().Address, nil, update, body)
 		out := r.runEgressPolicyChain(policy, "192.0.2.1", 65001, 65000, false, policyview.Session{EBGP: true}, update)
-		suppressed, _ := r.exportFilterForBody(peer, body)
+		suppressed, _, _ := r.exportFilterForBody(peer, body)
 		if in.accept || out.accept || out.failed || !suppressed {
 			panic("final reject failed")
 		}

@@ -46,7 +46,7 @@ func TestRFC8669LabelIndexTransmissionClearsReservedAndFlags(t *testing.T) {
 				case "parsed":
 					err = s.SendUpdate(&message.Update{PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)})
 				case "override":
-					s.egressRouteFilter = func([]byte) (bool, []byte) { return false, body }
+					s.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return false, body, nil }
 					err = s.SendUpdate(&message.Update{PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)})
 				case "packet":
 					packet := message.PackTo(&message.Update{PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)}, nil)

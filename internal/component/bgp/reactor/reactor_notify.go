@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/source"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -269,7 +270,37 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 // direction is rpc.DirectionSent or rpc.DirectionReceived.
 // buf is the pool buffer for received messages (nil for sent).
 // Returns true if buf ownership was taken (caller should not return to pool).
+//
+// An import step can owe the RIB a second UPDATE after this one
+// (ingressStepResult.followWithdrawal: a withdraw verdict on an UPDATE naming
+// two MP families). It is delivered here, after the first returned and so
+// after its lock and publication ended, as a received UPDATE of its own: a
+// fresh heap body under the noPoolBufID sentinel, the way the session
+// delivers RFC 7606 treat-as-withdraw extras (processValidatedMessage), so
+// the forward cache finds it and eviction frees no pool slot. The loop ends:
+// a follow-up is a withdrawal of one family, whose conversion owes none.
 func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64) bool {
+	var follow []byte
+	var sourceCtxID bgpctx.ContextID
+	var sourceID source.SourceID
+	if wireUpdate != nil {
+		// Read before the call: the UPDATE's ownership may leave with it.
+		sourceCtxID, sourceID = wireUpdate.SourceCtxID(), wireUpdate.SourceID()
+	}
+	kept := r.notifyOneMessage(peerAddr, msgType, rawBytes, wireUpdate, ctxID, direction, buf, meta, sentSourcePeerStr, sourceMessageID, &follow)
+	for follow != nil {
+		body := follow
+		follow = nil
+		followUpdate := wireu.NewWireUpdate(body, sourceCtxID)
+		followUpdate.SetSourceID(sourceID)
+		r.notifyOneMessage(peerAddr, msgtype.TypeUPDATE, body, followUpdate, ctxID, direction, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0, &follow)
+	}
+	return kept
+}
+
+// notifyOneMessage is notifyMessageReceiver for one message. follow receives
+// the second UPDATE an import step owes, nil when none.
+func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64, follow *[]byte) bool {
 	r.mu.RLock()
 	// The region below decodes the peer's UPDATE (IsEOR) and runs per-peer
 	// hooks under the reactor-wide lock. A panic there unwinds to the read
@@ -642,6 +673,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 				msg.WireUpdate = wireUpdate
 				msg.AttrsWire = attrsWire
 				msg.ParseError = parseErr
+			}
+			if res.followWithdrawal != nil {
+				*follow = res.followWithdrawal
 			}
 		}
 		if len(ingressMeta) > 0 {

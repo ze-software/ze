@@ -1300,7 +1300,9 @@ the plugin answers one verdict per route, in request order: accept, reject,
 modify (delta-only changed attributes, or sets), or withdraw. A reject only
 stops the route, so a version the peer already holds stays; a withdraw removes
 it: on import the route is treated as withdrawn by the peer that sent it, on
-export it is withdrawn toward the destination. Withdraw is answered by a filter
+export it is withdrawn toward the destination. Every route of the UPDATE is
+withdrawn, as two UPDATEs when its MP_REACH_NLRI and MP_UNREACH_NLRI name two
+families. Withdraw is answered by a filter
 the policy chain runs as a member, and carries no sets; a text-mode filter
 answering it fails under its `on-error`. Each route names its filter so
 the plugin can dispatch to the correct handler. A batch holds the routes queued

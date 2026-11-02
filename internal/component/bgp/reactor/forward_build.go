@@ -861,48 +861,94 @@ func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
 // NLRI the writer refuses or a labeled family with a nil source, or buf is
 // too small.
 func buildWithdrawalPayload(payload, buf []byte, source *bgpctx.EncodingContext) int {
-	withdrawn, announced, mp, ok := withdrawalLayout(payload)
+	withdrawn, announced, mp, other, ok := withdrawalLayout(payload)
 	// refuse-by-default: guards fwdWithdrawal -- 0 octets is no UPDATE payload (one holds at least 4), so fwdWithdrawal.of refuses on it and the rail suppresses the route
 	if !ok {
+		return 0
+	}
+	// refuse-by-default: guards fwdWithdrawal -- two MP families need two UPDATEs (buildWithdrawalPayloads), so the rail splits by section instead
+	if other.afiSAFI != nil {
 		return 0
 	}
 	return writeWithdrawal(buf, withdrawn, announced, mp, source)
 }
 
+// buildWithdrawalPayloads converts an UPDATE payload into the withdrawal of
+// every route it names, as buildWithdrawalPayload does, for a caller that can
+// send two UPDATEs: a filter's withdraw verdict, which MUST withdraw every
+// route of the UPDATE whatever families it names. A payload whose
+// MP_REACH_NLRI and MP_UNREACH_NLRI name two families needs two withdrawals,
+// because one UPDATE carries at most one MP_UNREACH_NLRI (RFC 7606 Section
+// 3(g), see buildWithdrawalPayload), and each family's withdrawal stands on
+// its own. RFC 4760 Section 4: "An UPDATE message that contains the
+// MP_UNREACH_NLRI is not required to carry any other path attributes."
+//
+//	first  = legacy Withdrawn Routes + legacy NLRI, then MP_UNREACH_NLRI of
+//	         the MP_REACH_NLRI family carrying the routes it announces
+//	second = MP_UNREACH_NLRI of the other family carrying the routes the
+//	         source already withdrew in it, no other field
+//
+// Every other payload is converted into first alone, and secondN is 0. first
+// and second MUST each hold len(payload)+4 octets. Returns 0, 0 for every
+// payload buildWithdrawalPayload refuses other than the two-family shape, and
+// when either half cannot be written: a half-converted withdrawal would leave
+// routes the verdict asked to remove. Allocation-free.
+func buildWithdrawalPayloads(payload, first, second []byte, source *bgpctx.EncodingContext) (firstN, secondN int) {
+	withdrawn, announced, mp, other, ok := withdrawalLayout(payload)
+	if !ok {
+		return 0, 0
+	}
+	firstN = writeWithdrawal(first, withdrawn, announced, mp, source)
+	if firstN == 0 {
+		return 0, 0
+	}
+	if other.afiSAFI == nil {
+		return firstN, 0
+	}
+	secondN = writeWithdrawal(second, nil, nil, other, source)
+	if secondN == 0 {
+		return 0, 0
+	}
+	return firstN, secondN
+}
+
 // withdrawalLayout finds what buildWithdrawalPayload withdraws: the legacy
-// prefixes (Withdrawn Routes, then NLRI) and the multiprotocol halves. It
-// reports false for every payload buildWithdrawalPayload refuses, except a
-// buffer too small. Allocation-free: every slice aliases payload.
-func withdrawalLayout(payload []byte) (withdrawn, announced []byte, mp withdrawalMPHalves, ok bool) {
+// prefixes (Withdrawn Routes, then NLRI) and the multiprotocol halves. other
+// holds the MP_UNREACH_NLRI half when it names another family than the
+// MP_REACH_NLRI half (findWithdrawalMPHalves), the shape only
+// buildWithdrawalPayloads converts. It reports false for every other payload
+// buildWithdrawalPayload refuses, except a buffer too small. Allocation-free:
+// every slice aliases payload.
+func withdrawalLayout(payload []byte) (withdrawn, announced []byte, mp, other withdrawalMPHalves, ok bool) {
 	if len(payload) < 4 {
-		return nil, nil, withdrawalMPHalves{}, false
+		return nil, nil, withdrawalMPHalves{}, withdrawalMPHalves{}, false
 	}
 	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
 	attrOffset := 2 + withdrawnLen
 	if len(payload) < attrOffset+2 {
-		return nil, nil, withdrawalMPHalves{}, false
+		return nil, nil, withdrawalMPHalves{}, withdrawalMPHalves{}, false
 	}
 	attrLen := int(binary.BigEndian.Uint16(payload[attrOffset : attrOffset+2]))
 	attrStart := attrOffset + 2
 	attrEnd := attrStart + attrLen
 	if len(payload) < attrEnd {
-		return nil, nil, withdrawalMPHalves{}, false
+		return nil, nil, withdrawalMPHalves{}, withdrawalMPHalves{}, false
 	}
 	withdrawn = payload[2:attrOffset]
 	announced = payload[attrEnd:]
 
-	mp, ok = findWithdrawalMPHalves(payload[attrStart:attrEnd])
+	mp, other, ok = findWithdrawalMPHalves(payload[attrStart:attrEnd])
 	if !ok {
-		return nil, nil, withdrawalMPHalves{}, false
+		return nil, nil, withdrawalMPHalves{}, withdrawalMPHalves{}, false
 	}
 	if len(withdrawn)+len(announced) > 65535 {
-		return nil, nil, withdrawalMPHalves{}, false
+		return nil, nil, withdrawalMPHalves{}, withdrawalMPHalves{}, false
 	}
-	if len(withdrawn)+len(announced)+len(mp.unreach)+len(mp.reach) == 0 {
-		return nil, nil, withdrawalMPHalves{}, false
+	if len(withdrawn)+len(announced)+len(mp.unreach)+len(mp.reach)+len(other.unreach) == 0 {
+		return nil, nil, withdrawalMPHalves{}, withdrawalMPHalves{}, false
 	}
 
-	return withdrawn, announced, mp, true
+	return withdrawn, announced, mp, other, true
 }
 
 // withdrawalBySection reports whether a destination refused base must be sent
@@ -933,8 +979,11 @@ func withdrawalBySection(base *wireu.WireUpdate, nextHopWithheld bool) bool {
 	if nextHopWithheld {
 		return true
 	}
-	_, _, _, ok := withdrawalLayout(base.Payload())
-	return !ok
+	_, _, _, other, ok := withdrawalLayout(base.Payload())
+	if !ok {
+		return true
+	}
+	return other.afiSAFI != nil
 }
 
 // fwdWithdrawal holds the withdrawal one fan-out converted from one base wire,
@@ -1017,20 +1066,22 @@ type withdrawalMPHalves struct {
 }
 
 // findWithdrawalMPHalves finds both multiprotocol halves in an attribute
-// section, and reports false for a malformed section, a repeated MP attribute,
-// or two non-empty halves of different families (see buildWithdrawalPayload).
+// section, and reports false for a malformed section or a repeated MP
+// attribute. Two non-empty halves of different families cannot share one
+// MP_UNREACH_NLRI (see buildWithdrawalPayload): out then holds the
+// MP_REACH_NLRI half and other the MP_UNREACH_NLRI half, each under its own
+// family; other's afiSAFI is nil for every other section.
 // Allocation-free: every slice aliases attrs.
 //
 // MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NH(var) + Reserved(1) + NLRI(var).
 // MP_UNREACH_NLRI value: AFI(2) + SAFI(1) + NLRI(var).
-func findWithdrawalMPHalves(attrs []byte) (withdrawalMPHalves, bool) {
-	var out withdrawalMPHalves
+func findWithdrawalMPHalves(attrs []byte) (out, other withdrawalMPHalves, ok bool) {
 	var reachFamily, unreachFamily []byte
 	reachSeen, unreachSeen := false, false
 	off := 0
 	for off < len(attrs) {
 		if off+3 > len(attrs) {
-			return out, false
+			return out, other, false
 		}
 		flags := attrs[off]
 		code := attrs[off+1]
@@ -1038,7 +1089,7 @@ func findWithdrawalMPHalves(attrs []byte) (withdrawalMPHalves, bool) {
 		valLen := int(attrs[off+2])
 		if flags&0x10 != 0 { // Extended Length.
 			if off+4 > len(attrs) {
-				return out, false
+				return out, other, false
 			}
 			hdrLen = 4
 			valLen = int(binary.BigEndian.Uint16(attrs[off+2 : off+4]))
@@ -1046,7 +1097,7 @@ func findWithdrawalMPHalves(attrs []byte) (withdrawalMPHalves, bool) {
 		valStart := off + hdrLen
 		valEnd := valStart + valLen
 		if valEnd > len(attrs) {
-			return out, false
+			return out, other, false
 		}
 		val := attrs[valStart:valEnd]
 		off = valEnd
@@ -1054,25 +1105,25 @@ func findWithdrawalMPHalves(attrs []byte) (withdrawalMPHalves, bool) {
 		switch code {
 		case uint8(attribute.AttrMPReachNLRI):
 			if reachSeen {
-				return out, false
+				return out, other, false
 			}
 			reachSeen = true
 			if len(val) < 4 {
-				return out, false
+				return out, other, false
 			}
 			nlriStart := 4 + int(val[3]) + 1 // skip NH + reserved byte
 			if nlriStart > len(val) {
-				return out, false
+				return out, other, false
 			}
 			reachFamily = val[:3]
 			out.reach = val[nlriStart:]
 		case uint8(attribute.AttrMPUnreachNLRI):
 			if unreachSeen {
-				return out, false
+				return out, other, false
 			}
 			unreachSeen = true
 			if len(val) < 3 {
-				return out, false
+				return out, other, false
 			}
 			unreachFamily = val[:3]
 			out.unreach = val[3:]
@@ -1081,16 +1132,17 @@ func findWithdrawalMPHalves(attrs []byte) (withdrawalMPHalves, bool) {
 
 	switch {
 	case len(out.reach) > 0 && len(out.unreach) > 0:
-		if !bytes.Equal(reachFamily, unreachFamily) {
-			return out, false
-		}
 		out.afiSAFI = reachFamily
+		if !bytes.Equal(reachFamily, unreachFamily) {
+			other = withdrawalMPHalves{afiSAFI: unreachFamily, unreach: out.unreach}
+			out.unreach = nil
+		}
 	case len(out.reach) > 0:
 		out.afiSAFI = reachFamily
 	case len(out.unreach) > 0:
 		out.afiSAFI = unreachFamily
 	}
-	return out, true
+	return out, other, true
 }
 
 // writeWithdrawal writes the withdrawal buildWithdrawalPayload lays out into

@@ -139,7 +139,7 @@ func TestMappedPlainNextHopOrigination(t *testing.T) {
 						if postPolicy {
 							hop = netip.MustParseAddr("2001:db8:1::9")
 							body := buildUpdatePayload(attrs, nil)
-							peer.session.egressRouteFilter = func([]byte) (bool, []byte) { return false, body }
+							peer.session.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return false, body, nil }
 						}
 						routeNLRI, err := nlri.NewWireNLRI(fam, mustHex(t, raw), false)
 						if err != nil {

@@ -264,7 +264,7 @@ func TestFilterSubjectReadsUnmodifiableAttributes(t *testing.T) {
 				destination, socket := tePropagationPeer(t, "192.0.2.2", 65001, family.IPv4Unicast)
 				destination.settings.ExportPolicy = policy
 				destination.refreshForwardFacts()
-				destination.session.egressRouteFilter = func(body []byte) (bool, []byte) {
+				destination.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
 					return r.exportFilterForBody(destination, body)
 				}
 				update, err := message.UnpackUpdate(body)

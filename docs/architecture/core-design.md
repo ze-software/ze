@@ -1297,9 +1297,16 @@ code position:
    closes the session (import only). A library chain member's `withdraw`
    (`policychain.OutcomeWithdraw`) removes the route instead: on import the
    UPDATE's routes become withdrawals (`ingressChainWithdrawal`, through
-   `buildWithdrawalPayload`), so an earlier version leaves the RIB; on export
+   `buildWithdrawalPayloads`), so an earlier version leaves the RIB; on export
    the forward rail sets `SetWithdraw` toward that destination and the
-   originated rail sends the withdrawal (`egressInjectedWithdrawal`). A
+   originated rail sends the withdrawal (`egressInjectedWithdrawal`). An
+   UPDATE whose MP_REACH_NLRI and MP_UNREACH_NLRI name two families becomes
+   two withdrawals, one per family (RFC 7606 Section 3(g) allows one
+   MP_UNREACH_NLRI per UPDATE): on import the second is delivered as a
+   received UPDATE of its own after the first (`notifyMessageReceiver`), on
+   the originated rail the session writes it after the first (the
+   `egressRouteFilter` follow body), and the forward rail splits by section
+   (`withdrawalBySection`). A
    text-mode filter answering `withdraw` fails under its `on-error`. A raw override stops later filters but
    still receives the final decision. An accepted raw override or `Modify`
    text delta rebuilds the cached `WireUpdate` through the same progressive

@@ -57,7 +57,7 @@ import (
 // the forward pool skips export-filtered peers (forward_rs.go FastPathSkipped), so
 // it never contends for this peer's writeMu; the only serialized writes are this
 // peer's own keepalives/routes, which writeMu serializes regardless.
-func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, override []byte) {
+func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, override, follow []byte) {
 	facts := peer.forwardFacts()
 	if facts == nil {
 		var pending peerForwardFacts
@@ -83,11 +83,11 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 		}
 		facts = &pending
 		if facts.exportPolicy.RequiresIngress() {
-			return true, nil
+			return true, nil, nil
 		}
 		if facts.peerAS == 0 {
 			withdrawals := policyWithdrawals(body)
-			return withdrawals == nil, withdrawals
+			return withdrawals == nil, withdrawals, nil
 		}
 	}
 	// Final-only decisions run without transport or text formatting. Withdrawals
@@ -106,10 +106,10 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 			if !res.failed && !facts.exportPolicy.AcceptsAtEnd(facts.isEBGP) {
 				withdrawals := policyWithdrawals(body)
 				if withdrawals != nil {
-					return false, withdrawals
+					return false, withdrawals, nil
 				}
 			}
-			return true, nil
+			return true, nil, nil
 		}
 		if res.wireOverride != nil {
 			override = res.wireOverride.Payload()
@@ -117,7 +117,7 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 		}
 	} else if !facts.exportPolicy.AcceptsAtEnd(facts.isEBGP) { // RFC 8212 Section 3.
 		withdrawals := policyWithdrawals(body)
-		return withdrawals == nil, withdrawals
+		return withdrawals == nil, withdrawals, nil
 	}
 
 	// RFC 2545 Section 3: the common-subnet condition judges the effective
@@ -125,20 +125,20 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 	normalized, fail := r.normalizeOrdinaryNextHop(peer, facts, body)
 	r.recordModifyFailureAddr(fail, modifySiteExportChain, facts.addr)
 	if fail.failed() {
-		return true, nil
+		return true, nil, nil
 	}
 	if normalized != nil {
 		// The nil-pool rebuild owns this result; no second copy is needed.
-		return false, normalized
+		return false, normalized, nil
 	}
 	if override == nil {
-		return false, nil
+		return false, nil, nil
 	}
 	// A raw policy override may alias the session's writeBuf. Only copy when
 	// normalization did not already rebuild it into independently owned bytes.
 	out := make([]byte, len(override))
 	copy(out, override)
-	return false, out
+	return false, out, nil
 }
 
 // normalizeOrdinaryNextHop applies RFC 2545 Section 3 to a valid effective plain
@@ -298,18 +298,25 @@ func (r *Reactor) normalizeVPNNextHop(peer *Peer, facts *peerForwardFacts, body,
 // egressInjectedWithdrawal answers an export member's withdraw verdict on an
 // originated, injected or redistributed route: the body's announcements are
 // rewritten as withdrawals and sent instead, so a version the destination
-// holds leaves it, where a reject sends only the body's own withdrawals. The
-// body is encoded for the destination, so its send context frames the
-// conversion. A body the conversion refuses is suppressed, and the refusal is
-// logged at WARN, because the withdraw then could not be honored. The result
-// is owned, as the caller's override contract asks.
-func egressInjectedWithdrawal(body []byte, facts *peerForwardFacts) (suppress bool, override []byte) {
-	buf := make([]byte, len(body)+4)
-	n := buildWithdrawalPayload(body, buf, bgpctx.Registry.Get(facts.sendCtxID))
-	if n == 0 {
+// holds leaves it, where a reject sends only the body's own withdrawals. A
+// body whose MP_REACH_NLRI and MP_UNREACH_NLRI name two families is withdrawn
+// as two UPDATEs (buildWithdrawalPayloads): override, then follow. The body is
+// encoded for the destination, so its send context frames the conversion. A
+// body the conversion refuses (malformed) is suppressed, and the refusal is
+// logged at WARN, because the withdraw then could not be honored. The results
+// are owned, as the caller's override contract asks.
+func egressInjectedWithdrawal(body []byte, facts *peerForwardFacts) (suppress bool, override, follow []byte) {
+	// One allocation for both halves: each MUST hold len(body)+4 octets.
+	buf := make([]byte, 2*(len(body)+4))
+	first, second := buf[:len(body)+4], buf[len(body)+4:]
+	firstN, secondN := buildWithdrawalPayloads(body, first, second, bgpctx.Registry.Get(facts.sendCtxID))
+	if firstN == 0 {
 		fwdLogger().Warn("export filter: a withdraw verdict cannot be applied to this UPDATE -- route suppressed",
 			"peer", facts.addrStr)
-		return true, nil
+		return true, nil, nil
 	}
-	return false, buf[:n]
+	if secondN > 0 {
+		follow = second[:secondN]
+	}
+	return false, first[:firstN], follow
 }
