@@ -59,3 +59,30 @@ covers a5a167987f.
   protocol version 2.
 - No separate independent read of 232ad2a899 (plan only): the closure review
   gate reads the spec.
+
+## Post-closure
+
+- Citation: a03d4560f0 points `spec-plugin-smoke-run.md` at the bare stem
+  `spec-command-surface-parity` instead of the removed file. `./le spec
+  citation` no longer reports this spec. It still fails on two references
+  in `spec-prose-cites-symbols-not-facts.md` (lines 258 and 369), which
+  belong to another session's spec.
+- Long runs, `go test -race -timeout 25m` with every tag in
+  `feature-gates.txt` plus `ze_core`:
+  - `./internal/component/cli/` passed (log
+    `tmp/session/2026-11-01-124358/scratch/job-csp-cli-99fccb28.log`).
+  - `./internal/component/web/` passed (log
+    `tmp/session/2026-11-01-124358/scratch/job-csp-web-27006f67.log`).
+  - `./cmd/ze/hub/` failed, one test: `TestWebBaselineReparseLeavesProcessEnvironment`
+    (`service_web_baseline_test.go`:26, "ze.log is \"warn\" before the
+    test"). Log: `tmp/session/2026-11-01-124358/scratch/job-csp-hub-610fcee4.log`.
+    The fault is in this spec's work. c795f0545e added the test, and its
+    precondition needs `ze.log` to be unset. Older tests in the same
+    package apply `set environment log level warn` and never put it back:
+    `TestRunRepairedStore*` (`config_source_repaired_test.go`, 1d657d4179)
+    and `TestApplyEvolutions*` (`main_evolve_test.go` and
+    `main_evolve_notice_test.go`). The test passes when it runs alone, and
+    fails when paired with either group (logs `job-csp-hub-pair-779e0c9c.log`,
+    `job-csp-hub-pair-aa816182.log`). Not fixed here. The fix is to restore
+    `ze.log` (and call `env.ResetCache`) after those tests, or have the
+    baseline test save and clear `ze.log` itself.
