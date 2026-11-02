@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
@@ -288,7 +289,7 @@ func (s *Sets) RemoveCommunity(community uint32) error {
 }
 
 // merge folds a later member's sets onto s: numeric sets fold in order, and
-// community additions and removals accumulate, a later remove cancelling an
+// community additions and removals accumulate, a later remove canceling an
 // earlier add.
 func (s *Sets) merge(later *Sets) error {
 	if later.written&setKindLocalPreference.bit() != 0 {
@@ -393,12 +394,7 @@ func (s *Sets) ApplyTo(acc *filterapi.ModAccumulator, current Current) error {
 
 // removesCommunity reports whether s removes community.
 func (s *Sets) removesCommunity(community uint32) bool {
-	for _, removed := range s.communityRemove[:s.communityRemN] {
-		if removed == community {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.communityRemove[:s.communityRemN], community)
 }
 
 // cancelCommunityAdd forgets every add of community, keeping the others in

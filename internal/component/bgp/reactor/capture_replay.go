@@ -239,7 +239,7 @@ func (sc *sessionCapture) rotateAside() {
 // encoder's bound is the file cap less the tail reserve, so the closing lines
 // always fit.
 func (sc *sessionCapture) openFile() error {
-	f, err := os.OpenFile(sc.path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, captureFilePerm)
+	f, err := os.OpenFile(sc.path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, captureFilePerm) //nolint:gosec // G302: captureFilePerm deliberately grants the daemon group read access to routing captures; no access is granted to others.
 	if err != nil {
 		return errors.Join(ErrCaptureDirectory, err)
 	}

@@ -227,7 +227,7 @@ func TestAddressAddedOpensNoListenerForAnActiveOnlyPeer(t *testing.T) {
 }
 
 // TestAddressAddedReadiesAnAddressOnlyActivePeersUse proves an added address
-// that only peers dialling out are bound to emits (bgp, listener-ready), with
+// that only peers dialing out are bound to emits (bgp, listener-ready), with
 // no listener. It owes none, so it is ready as soon as it appears, and
 // MigrateInterface (iface/migrate_linux.go) waits for that event before it
 // removes the old address.

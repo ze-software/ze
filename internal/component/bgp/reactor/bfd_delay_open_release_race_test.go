@@ -76,7 +76,7 @@ func TestSessionBFDStrictDelayOpenImmediatePeerKeepalive(t *testing.T) {
 					gate.unblock()
 					if !writerJoined {
 						select {
-						case <-writerDone:
+						case <-writerDone: //nolint:errcheck // Cleanup joins after an earlier assertion failed; the normal path checks the release error.
 						case <-time.After(5 * time.Second):
 							t.Error("BFD release writer did not stop")
 						}
@@ -102,7 +102,7 @@ func TestSessionBFDStrictDelayOpenImmediatePeerKeepalive(t *testing.T) {
 					if !receiverJoined {
 						_ = far.Close() // Unblock the owned socket reader on an early assertion failure.
 						select {
-						case <-receiverDone:
+						case <-receiverDone: //nolint:errcheck // Cleanup closes the socket to stop the reader after an earlier assertion failed; its error is expected.
 						case <-time.After(5 * time.Second):
 							t.Error("KEEPALIVE receiver did not stop")
 						}

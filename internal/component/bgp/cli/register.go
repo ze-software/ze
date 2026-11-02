@@ -34,6 +34,9 @@ const (
 	bgpCmdHelp   = "help"
 )
 
+// bgpModeOffline labels commands that do not need a running daemon.
+const bgpModeOffline = "offline"
+
 // bgpCommands lists the bare user-facing subcommand names, kept in sync with
 // the switch cases in Run (main.go). Used for suggestion matching and as the
 // basis for the Subs string.
@@ -73,7 +76,7 @@ func init() {
 		return Run(args)
 	}, registry.Meta{
 		ShortHelp: "BGP protocol tools",
-		Mode:      "offline",
+		Mode:      bgpModeOffline,
 		Section:   registry.SectionSystem,
 		Subs:      subcommands(),
 	})
@@ -86,10 +89,10 @@ func init() {
 	command.MustRegisterTextRenderer(keyEncode, drawEncodeText)
 	command.MustRegisterLocalData("show bgp decode", dataDecode, registry.Meta{
 		ShortHelp: "Decode a hex-encoded BGP message into readable JSON.",
-		Mode:      "offline",
+		Mode:      bgpModeOffline,
 	}, renderDecode)
 	command.MustRegisterLocalData("show bgp encode", dataEncode, registry.Meta{
 		ShortHelp: "Turn a route announcement into wire-format hex.",
-		Mode:      "offline",
+		Mode:      bgpModeOffline,
 	}, command.RenderLocalAnswer)
 }

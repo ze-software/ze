@@ -187,8 +187,8 @@ func TestDynamicGroupTemplateMatchesAStaticPeer(t *testing.T) {
 		// compare equal. It is compiled from the policy's own refs and final
 		// (Policy.WithLibrary), so the refs, the final, the in-process bindings
 		// and whether a compiled chain is present are what can diverge.
-		if staticPolicy, ok := sv.Field(i).Interface().(filterapi.Policy); ok {
-			dynPolicy, isPolicy := dv.Field(i).Interface().(filterapi.Policy)
+		if staticPolicy, ok := reflect.TypeAssert[filterapi.Policy](sv.Field(i)); ok {
+			dynPolicy, isPolicy := reflect.TypeAssert[filterapi.Policy](dv.Field(i))
 			require.True(t, isPolicy, "PeerSettings.%s", name)
 			assert.Equalf(t, staticPolicy.Library() != nil, dynPolicy.Library() != nil,
 				"PeerSettings.%s: one side compiled a library chain and the other did not", name)

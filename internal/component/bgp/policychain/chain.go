@@ -680,5 +680,5 @@ func (c *Chain) failure(m *member, onError rpc.OnErrorPolicy, err error, record 
 }
 
 // directionImport is the direction an ExternalRoute names for a received
-// route, the only one on which a teardown is honoured.
+// route, the only one on which a teardown is honored.
 const directionImport = "import"

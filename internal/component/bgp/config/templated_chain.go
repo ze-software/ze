@@ -8,6 +8,7 @@ package bgpconfig
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -107,10 +108,8 @@ func checkTemplatedMember(reg *policy.Registry, name string, dynamic bool, attac
 	if err != nil {
 		return fmt.Errorf("%s: %w", context, err)
 	}
-	for _, instance := range reg.Names() {
-		if pattern.MatchString(instance) {
-			return nil
-		}
+	if slices.ContainsFunc(reg.Names(), pattern.MatchString) {
+		return nil
 	}
 	if strings.Contains(name, ":") {
 		return checkExternalChainRef(name, attachment, context)

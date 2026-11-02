@@ -5,6 +5,7 @@ package bgpconfig
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 
@@ -147,11 +148,9 @@ func checkFilterDeclarations(pluginName string, declared []registry.DeclaredFilt
 			}
 			return errors.New(declarer + " reads a field Ze cannot send it: " + err.Error())
 		}
-		for _, set := range d.Sets {
-			if set == rpc.FilterFieldRaw {
-				return errors.New(declarer + ` declares the raw read as a set; raw is read only, and a filter ` +
-					`that rewrites the whole UPDATE answers the raw modify (docs/plugin-development/protocol.md)`)
-			}
+		if slices.Contains(d.Sets, rpc.FilterFieldRaw) {
+			return errors.New(declarer + ` declares the raw read as a set; raw is read only, and a filter ` +
+				`that rewrites the whole UPDATE answers the raw modify (docs/plugin-development/protocol.md)`)
 		}
 		if err := policy.CheckFieldNames(declarer, d.Sets); err != nil {
 			return err

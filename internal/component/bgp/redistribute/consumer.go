@@ -117,7 +117,7 @@ func formatAnnounce(fam string, entry *redistribute.RouteEntry) string {
 	//		attr_new.med = red->redist_metric;
 	// Ze sends the metric only when a filter set it, the way BIRD sends a MED
 	// only when an export filter sets bgp_med: a producer's own metric (an IGP
-	// cost, a static route's zero) is not a figure a BGP neighbour can compare.
+	// cost, a static route's zero) is not a figure a BGP neighbor can compare.
 	if entry.HasMetric {
 		b.Str(" med ").Uint32(entry.Metric)
 	}

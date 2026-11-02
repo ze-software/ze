@@ -743,7 +743,7 @@ func TestOpenConfirmFailureEndsNegotiatedCache(t *testing.T) {
 			t.Fatal(err)
 		}
 		select {
-		case <-done:
+		case <-done: //nolint:errcheck // Closing the remote socket deliberately ends runOnce with a read error; this test checks cache cleanup after that failure.
 		case <-time.After(5 * time.Second):
 			t.Fatal("session teardown did not return")
 		}
@@ -885,13 +885,13 @@ func TestBFDNegotiatedPublicationJoinsSessionEnd(t *testing.T) {
 		return session.negotiationEnded
 	}, "publication admission sealed")
 	select {
-	case <-done:
-		t.Fatal("runOnce returned ahead of its admitted negotiation publication")
+	case err := <-done:
+		t.Fatalf("runOnce returned ahead of its admitted negotiation publication: %v", err)
 	default:
 	}
 	unblock()
 	select {
-	case <-done:
+	case <-done: //nolint:errcheck // The remote socket was closed to end the session; publication joining and cleanup are asserted below regardless of its read error.
 	case <-time.After(5 * time.Second):
 		t.Fatal("session end did not join the released publisher")
 	}

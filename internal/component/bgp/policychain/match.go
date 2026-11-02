@@ -103,6 +103,23 @@ func (e *matchEvaluator) evaluate(view *policyview.View, sets *Sets) (Decision, 
 	return decision, err
 }
 
+// matchWalk is one evaluate's walk over the NLRI sections.
+type matchWalk struct {
+	e     *matchEvaluator
+	sets  *Sets
+	route *MatchRoute // the Sets' scratch route
+	// accepted and rejected count the entries judged.
+	accepted, rejected int
+	// whole is set when the UPDATE is rejected whatever the counts: a FlowSpec
+	// destination that is absent or rejected, or a section that does not frame.
+	whole bool
+	// collecting is set when a decision line will be written, and judged then
+	// holds each judged prefix in walk order, for the line to name. Unset, the
+	// walk keeps nothing, so a run with every line off allocates nothing.
+	collecting bool
+	judged     []netip.Prefix
+}
+
 func (w *matchWalk) judge(view *policyview.View) (Decision, error) {
 	e := w.e
 	if !e.perPrefix {
@@ -133,23 +150,6 @@ func (w *matchWalk) judge(view *policyview.View) (Decision, error) {
 		}
 	}
 	return w.decision(), nil
-}
-
-// matchWalk is one evaluate's walk over the NLRI sections.
-type matchWalk struct {
-	e     *matchEvaluator
-	sets  *Sets
-	route *MatchRoute // the Sets' scratch route
-	// accepted and rejected count the entries judged.
-	accepted, rejected int
-	// whole is set when the UPDATE is rejected whatever the counts: a FlowSpec
-	// destination that is absent or rejected, or a section that does not frame.
-	whole bool
-	// collecting is set when a decision line will be written, and judged then
-	// holds each judged prefix in walk order, for the line to name. Unset, the
-	// walk keeps nothing, so a run with every line off allocates nothing.
-	collecting bool
-	judged     []netip.Prefix
 }
 
 func (w *matchWalk) verdict() (Decision, error) {

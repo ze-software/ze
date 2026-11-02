@@ -136,7 +136,8 @@ func (c *Chain) dropMPReach(view *policyview.View, sets *RunSets, mp wireu.MPRea
 	head := mp[:len(mp)-len(section)]
 	overlay := &sets.prefix
 	buf := &overlay.mpReach[overlay.mpNext]
-	out := append((*buf)[:0], head...)
+	out := (*buf)[:0]
+	out = append(out, head...)
 	out, ok := wireu.DropCIDREntries(out, section, addPath, drops)
 	if !ok {
 		return nil, fmt.Errorf("prefix: MP_REACH_NLRI %w", errStrayDrop)

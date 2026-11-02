@@ -147,7 +147,7 @@ func TestRecoveryWaitsForFilteredReceivedPublication(t *testing.T) {
 				gate.open()
 				cancel()
 				if !joined {
-					<-done
+					<-done //nolint:errcheck // Cleanup cancels recovery after an earlier assertion failed; the normal path checks its result.
 				}
 			})
 			go func() {

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math"
 	"net/netip"
+	"slices"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -60,12 +61,7 @@ func (l *valueList[T]) removeValue(value T) error {
 
 // removes reports whether l removes value.
 func (l *valueList[T]) removes(value T) bool {
-	for _, removed := range l.remove[:l.removeN] {
-		if removed == value {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(l.remove[:l.removeN], value)
 }
 
 // merge folds a later member's list onto l as Sets.merge folds COMMUNITY: a

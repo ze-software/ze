@@ -44,8 +44,8 @@ func TestFwdPool_Barrier_DrainsAll(t *testing.T) {
 
 	// Barrier should not complete yet (handler is blocked)
 	select {
-	case <-barrierDone:
-		t.Fatal("barrier returned before handler processed items")
+	case err := <-barrierDone:
+		t.Fatalf("barrier returned before handler processed items: %v", err)
 	case <-time.After(50 * time.Millisecond):
 		// expected — barrier is still waiting
 	}
@@ -198,8 +198,8 @@ func TestFwdPool_Barrier_WithOverflow(t *testing.T) {
 
 	// Barrier should not complete yet
 	select {
-	case <-barrierDone:
-		t.Fatal("barrier returned before overflow items processed")
+	case err := <-barrierDone:
+		t.Fatalf("barrier returned before overflow items processed: %v", err)
 	case <-time.After(50 * time.Millisecond):
 	}
 

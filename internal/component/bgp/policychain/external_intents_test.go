@@ -147,8 +147,10 @@ func TestExternalIntentsRefused(t *testing.T) {
 //	+0 Length(1) +1 Label(3: 20-bit label, TC, S) +4 Prefix(ceil((Length-24)/8))
 func labeledReach() []byte {
 	value := []byte{0, 1, byte(family.SAFIMPLSLabel), 4, 192, 0, 2, 254, 0}
-	value = append(value, 48, 0x00, 0x06, 0x41, 192, 0, 2) // label 100, S set
-	value = append(value, 48, 0x00, 0x0c, 0x81, 10, 0, 0)  // label 200, S set
+	value = append(value,
+		48, 0x00, 0x06, 0x41, 192, 0, 2, // label 100, S set
+		48, 0x00, 0x0c, 0x81, 10, 0, 0, // label 200, S set
+	)
 	return pathAttr(0x80, attribute.AttrMPReachNLRI, value)
 }
 
