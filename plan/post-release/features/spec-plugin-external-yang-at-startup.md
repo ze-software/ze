@@ -210,6 +210,12 @@ Draft, confirmed at DESIGN:
    - Verify: each red for the reason the AC names
 2. **Phase: two-phase load, compile, link** -- designed after Q8, Q9, Q10 are answered
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `unwired-feature.md` | 2026-11-02 | A plugin's Stage 1 `Schema.YANGText` is stored in `reg.PluginSchema` and never read, so its command arguments are judged only against compiled-in YANG |
+
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
