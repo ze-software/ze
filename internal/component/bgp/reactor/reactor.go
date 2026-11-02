@@ -506,6 +506,9 @@ type Reactor struct {
 	// hands over, through the same pipeline as reloadFunc. Set via
 	// SetTreeReloadFunc (reload_tree.go).
 	treeReloadFunc TreeReloadFunc
+	// bootPeersFunc builds the peers of the boot config text, read once by
+	// the first RebuildRunningPeers (SetBootPeersFunc). Guarded by mu.
+	bootPeersFunc BootPeersFunc
 
 	// postStartFunc is called after the API server starts.
 	// Used by config loader to wire deferred components (SSH executor, authz).

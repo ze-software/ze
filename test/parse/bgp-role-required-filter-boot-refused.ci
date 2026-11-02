@@ -1,0 +1,93 @@
+# Test: the daemon refuses at boot a config whose filter list names or deactivates a REQUIRED filter insertion.
+# VALIDATES: `ze --plugin ze.bgp-role -` given a config that `ze config validate -`
+#            refuses (peer peer1's role makes bgp-role insert its RFC 9234
+#            Section 5 OTC member, and the import chain names it, plainly or
+#            as inactive:) exits 1 at startup and prints the same refusal:
+#            the peer, the filter list, the reference, the RFC sentence and
+#            the fix.
+# PREVENTS:  the daemon logging the refusal from its post-startup peer
+#            rebuild and then running forever with no peer started
+#            (Coordinator.SignalPluginStartupComplete dropped the error of
+#            the bgp plugin's OnPostStartup callback).
+# DISCRIMINATION: making the OnPostStartup callback in
+#            internal/component/bgp/plugin/register.go log the rebuild error
+#            and return nil, as HEAD did, leaves both daemons running until
+#            the 30s timeout, so both exit expectations go red.
+stdin=named:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		role {
+			import provider
+		}
+		filter {
+			import { filters [ bgp-role:otc-ingress ]; final accept; }
+			export { final accept; }
+		}
+	}
+}
+EOF_CONF
+
+stdin=inactive:terminator=EOF_INACTIVE
+bgp {
+	router-id 1.2.3.4
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		role {
+			import provider
+		}
+		filter {
+			import { filters [ inactive:bgp-role:otc-ingress ]; final accept; }
+			export { final accept; }
+		}
+	}
+}
+EOF_INACTIVE
+
+cmd=foreground:seq=1:exec=ze --plugin ze.bgp-role -:stdin=named:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=peer peer1: the import filter list names bgp-role:otc-ingress, which its plugin inserts itself
+expect=stderr:contains=The operator MUST NOT have the ability to modify the procedures defined in this section.
+expect=stderr:contains=remove bgp-role:otc-ingress from the import filter list
+
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-role -:stdin=inactive:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=peer peer1: the import filter list names bgp-role:otc-ingress, which its plugin inserts itself
+expect=stderr:contains=The operator MUST NOT have the ability to modify the procedures defined in this section.

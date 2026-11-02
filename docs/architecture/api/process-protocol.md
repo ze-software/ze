@@ -154,6 +154,18 @@ and `StartPeers` starts it with the rest. A dynamic member therefore cannot
 reach Established before the filter plugins its import chain names are
 connected, where its first UPDATE would meet "plugin not connected".
 
+Before `StartPeers`, the post-startup callback rebuilds the peers once to
+place the filter insertions the running plugins declared. That first rebuild
+reads the boot config text, not the running tree: the tree carries only the
+active members of a filter list, and a deactivated member must still be seen.
+When the rebuild refuses the config (an operator names, moves or deactivates a
+required insertion), the callback returns the refusal, the plugin server makes
+it the startup error, and `ze` prints it and exits 1, as `ze config validate`
+refuses the same config. A daemon never runs on with its peers held.
+<!-- source: internal/component/bgp/plugin/register.go -- OnPostStartup -->
+<!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete -->
+<!-- source: internal/component/bgp/reactor/reload_tree.go -- RebuildRunningPeers, BootPeersFunc -->
+
 `StartPeers` refuses when a configured family has no decoder, and the daemon
 keeps running after it. The barrier then never lifts for that run, so each peer
 it holds, and each peer added or accepted later, is named in an error log

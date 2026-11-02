@@ -132,7 +132,7 @@ func (m *mockReactor) SignalAPIReady() {}
 
 func (m *mockReactor) AddAPIProcessCount(_ int) {}
 
-func (m *mockReactor) SignalPluginStartupComplete() {}
+func (m *mockReactor) SignalPluginStartupComplete() error { return nil }
 
 func (m *mockReactor) SignalPeerAPIReady(_ string, _ plugin.Sender, _ uint64) error { return nil }
 func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)                             {}

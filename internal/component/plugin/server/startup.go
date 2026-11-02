@@ -381,8 +381,21 @@ func (s *Server) signalStartupComplete() {
 	// sendPostStartupToAll's doc comment and startup_claims.go.
 	s.sendPostStartupToAll()
 
+	// A reactor's post-startup step can refuse the loaded config: the bgp
+	// plugin places the filter insertions every running plugin declared
+	// before it starts its peers, and a config that names or deactivates a
+	// required one is refused there (Coordinator.OnPostStartup). That refusal
+	// is the startup error, so WaitForStartupComplete answers it and
+	// cmd/ze/hub exits with it, as `ze config validate` refuses the same
+	// config. An earlier phase's failure stays the startup error: it is the
+	// cause, and this step ran after it.
 	if s.reactor != nil {
-		s.reactor.SignalPluginStartupComplete()
+		if err := s.reactor.SignalPluginStartupComplete(); err != nil {
+			logger().Error("plugin startup: the reactor refused the loaded config after every plugin phase", "error", err)
+			if s.startupErr == nil {
+				s.startupErr = err
+			}
+		}
 	}
 	s.startupDoneOnce.Do(func() { close(s.startupDone) })
 }

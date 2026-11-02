@@ -254,6 +254,21 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 		return nil, err
 	}
 
+	// The post-startup rebuild that places the filter insertions the running
+	// plugins declare builds from these bytes once (reactor.BootPeersFunc):
+	// the running tree has lost the deactivated filter list members, and a
+	// deactivated required insertion must be refused at boot as `ze config
+	// validate` refuses it. The bytes are parsed again, never result.Tree,
+	// which the reactor build above pruned and resolved.
+	bootData := string(data)
+	r.SetBootPeersFunc(func() ([]*reactor.PeerSettings, reactor.Globals, []*reactor.DynamicGroupConfig, error) {
+		loaded, loadErr := zeconfig.LoadConfig(bootData, configPath, cliPlugins)
+		if loadErr != nil {
+			return nil, reactor.Globals{}, nil, fmt.Errorf("parse boot config: %w", loadErr)
+		}
+		return reloadPeersFromTree(loaded.Tree)
+	})
+
 	// Chaos injection from hub-stored config.
 	injectChaos(r, coord)
 

@@ -108,7 +108,7 @@ func (r *reloadTestReactor) SetConfigTree(tree map[string]any) {
 }
 func (r *reloadTestReactor) SignalAPIReady()                                        {}
 func (r *reloadTestReactor) AddAPIProcessCount(int)                                 {}
-func (r *reloadTestReactor) SignalPluginStartupComplete()                           {}
+func (r *reloadTestReactor) SignalPluginStartupComplete() error                     { return nil }
 func (r *reloadTestReactor) SignalPeerAPIReady(string, plugin.Sender, uint64) error { return nil }
 func (m *reloadTestReactor) SetPeerUpBarrier(_ string, _ int)                       {}
 func (m *reloadTestReactor) SignalPeerUpBarrier(_ string)                           {}

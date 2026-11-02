@@ -333,16 +333,22 @@ func (s *Server) startAutoLoaded(ctx context.Context, plugins []plugin.PluginCon
 		return nil, errors.Join(fmt.Errorf("config-path auto-load startup: %w", reloadChainRefusal(startErr)), stopErr)
 	}
 
-	// Tell the reactor that a plugin phase has settled. This is a sync.Once
-	// inside the reactor, so on a reload it changes nothing; the first startup
-	// already closed the channel.
-	if s.reactor != nil {
-		s.reactor.SignalPluginStartupComplete()
-	}
-
 	started := make([]string, len(plugins))
 	for i, p := range plugins {
 		started[i] = p.Name
+	}
+
+	// Tell the reactor that a plugin phase has settled. The reactor's own
+	// startup channel is a sync.Once, so on a reload that part changes
+	// nothing, but the Coordinator runs the post-startup callback again, and
+	// the bgp one places the filter insertions the new plugins declare. A
+	// refusal there refuses the reload, and the plugins it started stop.
+	if s.reactor != nil {
+		if err := s.reactor.SignalPluginStartupComplete(); err != nil {
+			logger().Error("config reload: the reactor refused the config after the auto-loaded plugins started", "error", err)
+			stopErr := s.autoStopPluginNames(started)
+			return nil, errors.Join(fmt.Errorf("config-path auto-load post-startup: %w", err), stopErr)
+		}
 	}
 
 	// Deliver the post-startup callback to the plugins this phase started, and

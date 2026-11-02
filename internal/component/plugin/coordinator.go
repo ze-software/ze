@@ -31,7 +31,7 @@ type Coordinator struct {
 	configTree  map[string]any
 	reactors    map[string]any        // named protocol reactors (e.g., "bgp", "ospf")
 	bootstrap   registry.BGPBootstrap // config-load state handed to the BGP reactor factory
-	postStartup func()                // called by SignalPluginStartupComplete (e.g., start peers)
+	postStartup func() error          // called by SignalPluginStartupComplete (e.g., start peers)
 
 	// cacheConsumers records every live cache-consumer declaration: plugin name
 	// to its ack ordering (true = unordered). A config-path plugin declares this
@@ -431,23 +431,33 @@ func (c *Coordinator) AddAPIProcessCount(count int) {
 	}
 }
 
-// SignalPluginStartupComplete signals that all plugin phases are done. No-op without reactor.
-func (c *Coordinator) SignalPluginStartupComplete() {
+// SignalPluginStartupComplete signals that all plugin phases are done, then
+// runs the post-startup callback. Its error is the reactor's or the
+// callback's refusal of the config the daemon loaded: the plugin server makes
+// it the startup error, so the daemon exits with it rather than running with
+// no peer started. Without a reactor or a callback there is nothing to refuse.
+func (c *Coordinator) SignalPluginStartupComplete() error {
 	if r := c.getReactor(); r != nil {
-		r.SignalPluginStartupComplete()
+		if err := r.SignalPluginStartupComplete(); err != nil {
+			return err
+		}
 	}
 	c.mu.RLock()
 	fn := c.postStartup
 	c.mu.RUnlock()
-	if fn != nil {
-		fn()
+	// refuse-by-default: guards OnPostStartup -- no callback registered means no protocol deferred work to startup
+	if fn == nil {
+		return nil
 	}
+	return fn()
 }
 
 // OnPostStartup registers a callback invoked when all plugin startup phases
 // complete (after SignalPluginStartupComplete). Used by protocol reactors
 // to defer peer/neighbor establishment until plugins finish their handshake.
-func (c *Coordinator) OnPostStartup(fn func()) {
+// A non-nil error refuses the loaded config: SignalPluginStartupComplete
+// returns it, and at boot the daemon exits with it.
+func (c *Coordinator) OnPostStartup(fn func() error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.postStartup = fn

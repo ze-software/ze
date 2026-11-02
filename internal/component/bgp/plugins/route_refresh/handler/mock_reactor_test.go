@@ -66,7 +66,7 @@ func (m *mockReactor) RestoreCreatedPeers(map[string]any, map[netip.Addr]string)
 func (m *mockReactor) SetConfigTree(_ map[string]any)                               {}
 func (m *mockReactor) SignalAPIReady()                                              {}
 func (m *mockReactor) AddAPIProcessCount(_ int)                                     {}
-func (m *mockReactor) SignalPluginStartupComplete()                                 {}
+func (m *mockReactor) SignalPluginStartupComplete() error                           { return nil }
 func (m *mockReactor) SignalPeerAPIReady(_ string, _ plugin.Sender, _ uint64) error { return nil }
 func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)                             {}
 func (m *mockReactor) SignalPeerUpBarrier(_ string)                                 {}

@@ -273,24 +273,30 @@ func runBGPEngine(conn net.Conn) int {
 		// Register peer startup as post-startup callback. The coordinator
 		// calls this when SignalPluginStartupComplete fires (after all tiers
 		// and explicit plugins finish their 5-stage protocol).
-		coord.OnPostStartup(func() {
+		coord.OnPostStartup(func() error {
 			// A third-party plugin's filter insertions arrive at its Stage 1,
 			// and a compiled-in plugin's apply only once it runs, which may be
 			// after the peers were built from the config, so the peers are
 			// rebuilt once before they start (spec-filter-wire-6-stage-filters
-			// A-12).
+			// A-12). A config whose filter list names, moves or deactivates a
+			// required insertion is refused here, and the error is the
+			// daemon's startup error: ze exits with the refusal `ze config
+			// validate` prints for the same config, never runs on with no
+			// peer started.
 			if runningPluginsInsert() {
 				if rebuildErr := bgpReactor.RebuildRunningPeers(); rebuildErr != nil {
-					log.Error("bgp: peers not started: placing the filter insertions third-party plugins declared failed",
-						"error", rebuildErr)
-					return
+					return fmt.Errorf("bgp: peers not started, because placing the filter insertions the running plugins declare refused the config: %w", rebuildErr)
 				}
 			}
+			// The daemon keeps running when StartPeers refuses (a configured
+			// family with no decoder): each held peer is named in an error
+			// log (docs/architecture/api/process-protocol.md).
 			if peerErr := bgpReactor.StartPeers(); peerErr != nil {
 				log.Error("bgp: start peers failed", "error", peerErr)
-				return
+				return nil
 			}
 			log.Info("bgp peers started")
+			return nil
 		})
 
 		return nil

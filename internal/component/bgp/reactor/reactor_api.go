@@ -144,6 +144,10 @@ type reactorAPIAdapter struct {
 	// (R-10): a plugin respawning with a new filter declaration changed no
 	// config.
 	rebuild bool
+	// boot, when set, builds the peers in place of the tree reload: the first
+	// rebuild before any reload, from the boot config text
+	// (RebuildRunningPeers, SetBootPeersFunc).
+	boot BootPeersFunc
 }
 
 var _ plugin.FSMHistoryProvider = (*reactorAPIAdapter)(nil)
@@ -2042,8 +2046,9 @@ func (a *reactorAPIAdapter) AddAPIProcessCount(count int) {
 }
 
 // SignalPluginStartupComplete signals that all plugin phases are done.
-func (a *reactorAPIAdapter) SignalPluginStartupComplete() {
+func (a *reactorAPIAdapter) SignalPluginStartupComplete() error {
 	a.r.SignalPluginStartupComplete()
+	return nil
 }
 
 // SignalPeerAPIReady signals that a peer-specific API initialization is

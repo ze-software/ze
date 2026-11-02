@@ -83,7 +83,9 @@ type ReactorStartupCoordinator interface {
 	AddAPIProcessCount(count int)
 
 	// SignalPluginStartupComplete signals that all plugin phases are done.
-	SignalPluginStartupComplete()
+	// An error refuses the config the daemon loaded, and at boot the daemon
+	// exits with it.
+	SignalPluginStartupComplete() error
 
 	// SignalPeerAPIReady signals that a peer-specific API initialization is
 	// complete. sender names the reporting process; initialReplay is the token
@@ -136,7 +138,9 @@ type ProtocolReactor interface {
 	ApplyConfigDiff(configTree map[string]any) error
 
 	// SignalPluginStartupComplete signals that all plugin phases are done.
-	SignalPluginStartupComplete()
+	// An error refuses the config the daemon loaded, and at boot the daemon
+	// exits with it.
+	SignalPluginStartupComplete() error
 }
 
 // ResponseData is the marker interface for typed response payloads.

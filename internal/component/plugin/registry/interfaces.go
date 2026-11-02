@@ -231,7 +231,7 @@ type CoordinatorAccessor interface {
 	RegisterReactor(name string, r any)
 	Reactor(name string) any
 	Bootstrap() BGPBootstrap
-	OnPostStartup(fn func())
+	OnPostStartup(fn func() error)
 }
 
 // ReactorFactoryFunc creates a BGP reactor from coordinator-stored config state.

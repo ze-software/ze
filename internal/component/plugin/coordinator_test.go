@@ -405,7 +405,7 @@ func (m *mockReactor) SignalAPIReady() {
 	m.apiReadyCalled = true
 }
 func (m *mockReactor) AddAPIProcessCount(int)                          {}
-func (m *mockReactor) SignalPluginStartupComplete()                    {}
+func (m *mockReactor) SignalPluginStartupComplete() error              { return nil }
 func (m *mockReactor) SignalPeerAPIReady(string, Sender, uint64) error { return nil }
 func (m *mockReactor) SetPeerUpBarrier(peer string, expected int) {
 	m.barrierSet = peer

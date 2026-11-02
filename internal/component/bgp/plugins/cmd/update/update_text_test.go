@@ -1359,7 +1359,7 @@ func (m *mockReactorBatch) ReleaseUpdate(_ uint64, _ string) error              
 func (m *mockReactorBatch) ListUpdates() []uint64                                        { return nil }
 func (m *mockReactorBatch) SignalAPIReady()                                              {}
 func (m *mockReactorBatch) AddAPIProcessCount(_ int)                                     {}
-func (m *mockReactorBatch) SignalPluginStartupComplete()                                 {}
+func (m *mockReactorBatch) SignalPluginStartupComplete() error                           { return nil }
 func (m *mockReactorBatch) SignalPeerAPIReady(_ string, _ plugin.Sender, _ uint64) error { return nil }
 func (m *mockReactorBatch) SetPeerUpBarrier(_ string, _ int)                             {}
 func (m *mockReactorBatch) SignalPeerUpBarrier(_ string)                                 {}
