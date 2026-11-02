@@ -93,11 +93,15 @@ const (
 	OneShotStreamingOnly
 )
 
-// streamingRegistration is one streaming command: its handler and its
-// declared one-shot answer.
+// streamingRegistration is one streaming command: its handler, its declared
+// one-shot answer, and the plugin command its data comes from.
 type streamingRegistration struct {
 	handler StreamingHandler
 	oneShot OneShot
+	// pluginCommand is the runtime plugin command the handler forwards to for
+	// its data, the streaming counterpart of RPCRegistration.PluginCommand.
+	// Empty means the daemon itself produces the stream.
+	pluginCommand string
 }
 
 // streamingHandlers maps command prefix to its registration. Multiple streaming
@@ -111,8 +115,28 @@ var (
 // RegisterStreamingHandler registers a streaming command handler for a prefix,
 // with the answer the command gives on a one-shot surface. The prefix is
 // matched case-insensitively against command input. Called from plugin init()
-// functions.
+// functions. A handler that reads its data from a plugin process registers
+// with RegisterPluginStreamingHandler instead, so the plugin is declared.
 func RegisterStreamingHandler(prefix string, oneShot OneShot, h StreamingHandler) {
+	registerStreaming(prefix, oneShot, "", h)
+}
+
+// RegisterPluginStreamingHandler registers a streaming command whose handler
+// forwards to pluginCommand, a command a plugin serves (Dispatcher.ForwardToPlugin),
+// for its data. It declares that dependency the way RPCRegistration.PluginCommand
+// declares it for a builtin, so a reader of the registry (StreamingPluginCommand)
+// knows which plugin must run for the stream, or its one-shot sample, to answer.
+// Called from plugin init() functions.
+func RegisterPluginStreamingHandler(prefix string, oneShot OneShot, pluginCommand string, h StreamingHandler) {
+	if strings.TrimSpace(pluginCommand) == "" {
+		panic("BUG: RegisterPluginStreamingHandler(" + prefix + "): the plugin command is empty")
+	}
+	registerStreaming(prefix, oneShot, pluginCommand, h)
+}
+
+// registerStreaming stores one streaming registration. pluginCommand is empty
+// for a stream the daemon produces itself.
+func registerStreaming(prefix string, oneShot OneShot, pluginCommand string, h StreamingHandler) {
 	if strings.TrimSpace(prefix) == "" {
 		logger().Error("RegisterStreamingHandler called with empty prefix, ignoring")
 		return
@@ -129,7 +153,7 @@ func RegisterStreamingHandler(prefix string, oneShot OneShot, h StreamingHandler
 	if _, exists := streamingHandlers[key]; exists {
 		logger().Warn("duplicate streaming handler prefix, overwriting", "prefix", prefix)
 	}
-	streamingHandlers[key] = streamingRegistration{handler: h, oneShot: oneShot}
+	streamingHandlers[key] = streamingRegistration{handler: h, oneShot: oneShot, pluginCommand: pluginCommand}
 	streamingHandlersMu.Unlock()
 }
 
@@ -141,6 +165,18 @@ func StreamingOneShot(prefix string) (OneShot, bool) {
 	reg, ok := streamingHandlers[key]
 	streamingHandlersMu.RUnlock()
 	return reg.oneShot, ok
+}
+
+// StreamingPluginCommand answers the plugin command the streaming command
+// registered at exactly prefix declared it forwards to, and false when no
+// streaming command is registered there. A registered stream the daemon
+// produces itself answers "" and true.
+func StreamingPluginCommand(prefix string) (string, bool) {
+	key := strings.ToLower(strings.TrimSpace(prefix))
+	streamingHandlersMu.RLock()
+	reg, ok := streamingHandlers[key]
+	streamingHandlersMu.RUnlock()
+	return reg.pluginCommand, ok
 }
 
 // StreamingOnlyPrefixes returns the prefixes of the streaming commands

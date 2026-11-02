@@ -4,11 +4,15 @@
 package cmd
 
 import (
+	"github.com/ze-software/ze/internal/component/iface"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 func init() {
-	pluginserver.RegisterStreamingHandler("monitor interface rate", pluginserver.OneShotSample, streamInterfaceRate)
+	// The rates live in the iface plugin's tracker, so the stream and its
+	// one-shot sample forward to the command that plugin serves.
+	pluginserver.RegisterPluginStreamingHandler("monitor interface rate", pluginserver.OneShotSample,
+		iface.RateCommand, streamInterfaceRate)
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-iface:monitor-interface-rate",

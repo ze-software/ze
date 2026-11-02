@@ -909,6 +909,16 @@ be shown: MCP, REST, gRPC and the web admin console run a command once.
 | `OneShotSample` | Offered. The one-shot RPC answers one sample from the producer the stream reads | `monitor interface rate` (the rate tracker, as `show interface rate`), `monitor traffic stat` (the trafficstat snapshot, as `show traffic stat`), `monitor ping` (a bounded run of probes), `monitor traceroute` (one probe round) |
 | `OneShotStreamingOnly` | Not offered: the stream is a sequence of events, so no single answer holds its data. Typed in full, the command is refused with `StreamingOnlyError`, which names `ze <command>` and SSH, the places it streams | `monitor bgp`, `monitor event`, `monitor system netlink`, `monitor vpn ipsec` |
 
+A stream whose data lives in a plugin process registers with
+`RegisterPluginStreamingHandler(prefix, oneShot, pluginCommand, handler)`
+instead, naming the plugin command its handler forwards to
+(`Dispatcher.ForwardToPlugin`), the way `RPCRegistration.PluginCommand` names
+it for a builtin. `StreamingPluginCommand(prefix)` answers it, so a reader of
+the registry knows which plugin must run for the stream and its sample to
+answer. `monitor interface rate` declares `show interface rate`, which the
+iface plugin serves from its own rate tracker. With that plugin absent the
+sample is refused, naming the command that is not registered.
+
 The surface predicate (`command.AnswerSurface`) reads the declaration, so the
 MCP, REST and gRPC command list, the web admin tree and the web terminal
 completer leave a streaming-only command out, and the surface parity check
@@ -919,7 +929,7 @@ dispatcher (`Dispatcher.Dispatch`, which MCP, REST, gRPC, the web console and a
 plugin's `dispatch-command` use) and the wire-method route (`wrapHandler`).
 The command's RPC handler is `StreamingOnlyRPC`, which answers an error if a
 route ever skipped the refusal, never a reply.
-<!-- source: internal/component/plugin/server/handler.go -- OneShot, RegisterStreamingHandler, StreamingOneShot -->
+<!-- source: internal/component/plugin/server/handler.go -- OneShot, RegisterStreamingHandler, RegisterPluginStreamingHandler, StreamingPluginCommand, StreamingOneShot -->
 <!-- source: internal/component/plugin/server/streaming_only.go -- StreamingOnlyError, streamingOnlyRefusal, StreamingOnlyRPC -->
 <!-- source: cmd/ze/hub/streaming_surface.go -- streamingPathsOff -->
 <!-- source: cmd/ze/hub/surface_parity_test.go -- TestStreamingOneShotAnswersCarryData -->
