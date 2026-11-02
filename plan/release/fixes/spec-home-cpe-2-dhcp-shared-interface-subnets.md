@@ -6,7 +6,7 @@
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Release fix: an accepted configuration (two subnets on one LAN, a static reservation in the second) hands the reserved client a pool lease from the first subnet, and every listener answers for every subnet of every interface |
-| RFC gaps | RFC2131-4.1-1, RFC2131-4.1-2 |
+| RFC gaps | RFC2131-4.1-1, RFC2131-4.1-2, RFC2131-4.3.2-3, RFC2131-4.3.2-6 |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
@@ -16,7 +16,11 @@ Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 2).
 
 RFC gaps: RFC 2131 Section 4.1, `RFC2131-4.1-1` (accept any of the server's
 addresses as its identifier) and `RFC2131-4.1-2` (server identifier reachable
-from the client), both recorded as gaps in `rfc/short/rfc2131.md`.
+from the client), both recorded as gaps in `rfc/short/rfc2131.md`; and RFC 2131
+Section 4.3.2, `RFC2131-4.3.2-3` (an INIT-REBOOT request from a client the
+server has no record of MUST draw silence) and `RFC2131-4.3.2-6` (check
+`ciaddr` for correctness), recorded gaps no spec owned, taken here because the
+selection matrix rewrites the very `handleRequest` branches they name.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -52,7 +56,7 @@ optional `server-identifier` leaf lets the operator name that address.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/guide/configuration.md` (DHCP server section, `shared-network`, `subnet`, `static-mapping`, about line 4079) - the operator's view of the tree
+- [ ] `docs/guide/configuration.md` "DHCP Server" (`shared-network`, `subnet`, `static-mapping`) - the operator's view of the tree
   → Constraint: `shared-network` is documented as a "named grouping of subnets"; nothing documents which subnet a request is served from. This spec gives it the ISC and Kea meaning: the subnets of one shared network share one physical segment
   → Decision: the page gains a "Several subnets on one interface" subsection with the selection order of this spec
 - [ ] `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` - the container description says "every listener answers for every configured subnet"
@@ -75,9 +79,9 @@ optional `server-identifier` leaf lets the operator name that address.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/dhcpserver/register.go` - `bindListeners` (l.191) starts `dhcpServe` on every listener with the full handler list; `serveRequests` (l.251) offers each packet to each handler in configuration order and the first non-nil reply wins
-- [ ] `internal/plugins/dhcpserver/config_tx.go` - `buildHandlers` (l.126) makes one handler per subnet of every shared network, with no interface association; `subnetServerIP` (l.193) answers `default-router`, else the first range start, else the subnet address
-- [ ] `internal/plugins/dhcpserver/handler.go` - `handle` (l.106) calls `matchesSubnet` (l.143), which answers by `giaddr`, then `ciaddr`, then Requested IP, and answers true when all three are absent; `handleDiscover` (l.160) calls `allocateForClient` (l.219), which checks only its own subnet's `staticByMAC`, then its pool; `handleRequest` (l.168) drops a SELECTING request whose option 54 differs from its single `serverIP`, and in INIT-REBOOT commits any requested address inside its prefix without consulting a reservation held for the MAC elsewhere
+- [ ] `internal/plugins/dhcpserver/register.go` - `bindListeners` starts `dhcpServe` on every listener with the full handler list; `serveRequests` offers each packet to each handler in configuration order and the first non-nil reply wins
+- [ ] `internal/plugins/dhcpserver/config_tx.go` - `buildHandlers` makes one handler per subnet of every shared network, with no interface association; `subnetServerIP` answers `default-router`, else the first range start, else the subnet address
+- [ ] `internal/plugins/dhcpserver/handler.go` - `dhcpHandler.handle` calls `dhcpHandler.matchesSubnet`, which answers by `giaddr`, then `ciaddr`, then Requested IP, and answers true when all three are absent; `handleDiscover` calls `allocateForClient`, which checks only its own subnet's `staticByMAC`, then its pool, and never reads the Requested IP; `handleRequest` drops a SELECTING request whose option 54 differs from its single `serverIP`; in INIT-REBOOT it commits any requested address inside its prefix without consulting the lease table or a reservation held for the MAC elsewhere, so a client the server has no record of draws an ACK (`RFC2131-4.3.2-3`); in RENEWING and REBINDING it commits `ciaddr` with no correctness check (`RFC2131-4.3.2-6`)
 - [ ] `internal/plugins/dhcpserver/config.go` - `serverConfig`, `sharedNetwork`, `subnetConfig`, `staticMapping`; no interface or server-identifier field
 - [ ] `test/dhcp/dhcp-server-multi-subnet.ci` - parse-only; no test serves two subnets
 - [ ] `test/interop/scenarios/dns-resolver-dhcp-lan/` - dhcpcd against Ze, one subnet
@@ -114,16 +118,25 @@ optional `server-identifier` leaf lets the operator name that address.
 - Config: `service dhcp-server` tree, delivered to the plugin as SDK config sections.
 
 ### Transformation Path
-1. Config: `parseConfig` builds shared networks and subnets; a new optional `server-identifier` leaf per subnet is parsed and checked as an IPv4 unicast address inside the subnet.
+1. Config: `parseConfig` builds shared networks and subnets; a new optional `server-identifier` leaf per subnet is parsed and checked as an IPv4 unicast address that is not the network or broadcast address of the subnet it names. It is not required to fall inside that subnet: for a relay-only subnet the server holds no address inside it, and an address inside it would be the client's own network, not the server's. Whether the device holds it is a runtime fact, checked at reply time (step 5).
 2. Bind: each listener records its kernel device. The device's IPv4 addresses are read from netlink at bind and refreshed on address change (the plugin already learns its device through `dhcpResolveDevice`).
 3. Request: the listener resolves the segment. With `giaddr` set: the shared network holding a subnet that contains `giaddr`. With `giaddr` zero: the shared networks holding a subnet that contains an address of the receiving device. No match: no reply, one rate-limited log line naming the interface and the fix.
-4. Selection within the segment, in order:
-   1. `ciaddr` set (RENEWING, REBINDING): the segment's subnet containing it, or a DHCPNAK if none.
-   2. Requested IP present: the segment's subnet containing it; INIT-REBOOT outside every segment subnet is answered by DHCPNAK (Section 3.2).
-   3. A static reservation for the MAC in any subnet of the segment: that subnet and that address. A requested address different from the reservation gets a DHCPNAK, so the client restarts and is offered its reservation.
-   4. Otherwise the pool of the segment's subnet that contains the receiving device's primary address (relay: the subnet containing `giaddr`), then the pools of the other segment subnets in configuration order when it is exhausted.
-5. Reply: option 54 is the subnet's `server-identifier` when set, else the device's address inside the chosen subnet, else the device's primary address on the segment. Section 4.1's reachability holds in each case because the address is on the client's segment.
-6. DHCPREQUEST (SELECTING): accepted when option 54 equals any of the server's addresses on the segment or a configured `server-identifier` of the segment.
+4. Selection within the segment. The message state is classified first, as RFC 2131 Section 4.3.2 defines it (server identifier present: SELECTING; requested IP without server identifier and `ciaddr` zero: INIT-REBOOT; `ciaddr` set without either: RENEWING when unicast, REBINDING when broadcast). Hints (`ciaddr`, Requested IP) never pick a subnet ahead of a reservation: a reservation for the MAC anywhere on the segment is consulted first in every state, and a hint is then either a candidate (DISCOVER) or a claim checked against the reservation and the lease table (every DHCPREQUEST). One matrix, used by every section below:
+
+| State | Step 1: reservation for the MAC on the segment | Step 2: lease-table binding for the MAC on the segment | Step 3: hint | Step 4: no record | RFC 2131 text that decides |
+|-------|-----------------------------------------------|--------------------------------------------------------|--------------|-------------------|----------------------------|
+| DISCOVER | OFFER the reserved address; the Requested IP is ignored | OFFER the bound address | Requested IP inside a segment subnet and free in its pool: OFFER it | pool of the subnet holding the device's primary address (relay: the subnet holding `giaddr`), then the other segment subnets in configuration order; none free: silent | 4.3.1 order ("The client's current address ... ELSE ... The address requested in the 'Requested IP Address' option, if that address is valid and not already allocated, ELSE ... A new address allocated from the server's pool"), and "a server MAY, for administrative reasons, assign an address other than the one requested" |
+| SELECTING | option 54 not one of the server's own addresses on the segment: silent (another server's offer). Else Requested IP equal to the reservation: ACK; different: NAK | Requested IP equal to the offered or bound address: ACK | Requested IP free in a segment subnet pool: ACK | Requested IP outside every segment subnet: NAK | 4.1 (`RFC2131-4.1-1`) for option 54; 4.3.2 SELECTING |
+| INIT-REBOOT | Requested IP equal to the reservation: ACK; different: NAK | equal to the binding: ACK; different: NAK | Requested IP outside every segment subnet: NAK, whatever steps 1 and 2 say (wrong network) | in a segment subnet, no reservation, no binding: SILENT | 4.3.2: "Server SHOULD send a DHCPNAK message to the client if the 'requested IP address' is incorrect, or is on the wrong network." and "If the DHCP server has no record of this client, then it MUST remain silent" (`RFC2131-4.3.2-3`) |
+| RENEWING, REBINDING | `ciaddr` equal to the reservation: ACK; different: NAK, so the client returns to INIT and is offered its reservation | equal to the binding: ACK and extend | `ciaddr` outside every segment subnet, or bound or reserved to another MAC: NAK | `ciaddr` in a segment subnet, free: ACK and record the binding (the server lost its table, for example after a restart) | 4.3.2 REBINDING: "The DHCP server SHOULD check 'ciaddr' for correctness before replying to the DHCPREQUEST." (`RFC2131-4.3.2-6`); a reservation is the operator's statement of the correct address (4.3.1, "for administrative reasons") |
+
+   A NAK on a request with `giaddr` zero is broadcast, and with `giaddr` set carries the broadcast bit (4.3.2, existing `buildNak` and `replyDestination` behavior).
+5. Reply, option 54 (server identifier), one rule for every state:
+   1. The chosen subnet's `server-identifier`, when set AND the receiving device currently holds that address. Set but not held: the request is not answered and one rate-limited warning names the subnet, the address and the fix (add the address to the listen interface, or remove the leaf). Never a silent fallback.
+   2. Else, the receiving device's address inside the chosen subnet.
+   3. Else (the chosen subnet is relay-only: `giaddr` set and the device holds no address in that subnet), the receiving device's primary IPv4 address. RFC 2131 Section 4.1 asks for an address "that, to the best of the server's knowledge, is reachable from the client"; a relayed client reaches the server through the relay, and the relay reached the server on this device, so the device's primary address is the server's best knowledge. Relay-supplied override (RFC 5107 server identifier override, carried in option 82) is not read: Ze parses no option 82 (Known Limitations).
+   4. Else (no `giaddr` and no device address in the chosen subnet): unreachable, because step 3 of the transformation path already refused to serve such a segment.
+6. DHCPREQUEST (SELECTING): accepted when option 54 equals any address the server would send under step 5 for any subnet of the segment: every device address in a segment subnet, the device's primary address for a relayed segment, and every held `server-identifier` of the segment.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -153,16 +166,18 @@ optional `server-identifier` leaf lets the operator name that address.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The listen interface holds an IPv4 address inside at least one configured subnet in every working deployment | RFC 2131 Section 4.1 SHOULD (server uses its address on the subnet); ISC and Kea refuse to serve a segment they hold no address on | configs that relied on serving a subnet the router is not addressed in stop answering | grep of `test/dhcp/*.ci` and the interop scenarios for listen devices with no address in the subnet, before Phase 2 | unvalidated |
+| A-1 | For requests with `giaddr` zero, the listen interface holds an IPv4 address inside at least one configured subnet in every working deployment (relayed requests need none, AC-19) | RFC 2131 Section 4.1 SHOULD (server uses its address on the subnet); ISC and Kea refuse to serve a segment they hold no address on | configs that relied on serving a subnet the router is not addressed in stop answering | grep of `test/dhcp/*.ci` and the interop scenarios for listen devices with no address in the subnet, before Phase 2 | unvalidated |
 | A-2 | `shared-network` groups subnets of one segment in operator intent | ISC/Kea semantics; VyOS `shared-network-name` | a config with two segments in one shared network would mix reservations across segments | read every `shared-network` example in `docs/` and `test/` | unvalidated |
 | A-3 | dhcpcd sends DISCOVER with no Requested IP on first boot and an INIT-REBOOT REQUEST with its old address on restart | dhcpcd behaviour in the existing scenario | the interop test would not exercise step 3 or step 2 | the interop scenario captures both | unvalidated |
 | A-4 | A reload that adds an address to the listen device is seen without rebinding | netlink address events | a new subnet stays unserved until reload | unit test with a fake address source plus the `.ci` | unvalidated |
+| A-5 | Kea, which VyOS configurations run on, NAKs a renewal whose address differs from the client's host reservation, as AC-17 does | Kea ARM, "Conflicts in DHCPv4 Reservations" (documentation, not source); no Kea or dnsmasq checkout is on this host | AC-17 still stands on RFC 2131 Section 4.3.2 (`ciaddr` correctness) and the reservation as the administrative choice; only the claim "same as Kea" falls | read Kea `src/lib/dhcpsrv/alloc_engine.cc` (`AllocEngine::renewLease4` and the reservation checks it calls) at the release the VyOS image ships, before Phase 3, and quote the deciding function here | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Existing functional tests serve from a device with no address in the subnet (A-1) | `.ci` red after Phase 2 | give the test device an address in the subnet; never fall back to "answer anyway", which is the defect |
-| R-2 | A client holding a pool lease in subnet 1 keeps it after its reservation in subnet 2 is added | lease table shows both | step 3 NAKs the renewing address when a reservation exists for the MAC on the segment, so the client restarts and takes the reservation |
+| R-2 | A client holding a pool lease in subnet 1 keeps it after its reservation in subnet 2 is added | lease table shows both | the matrix's RENEWING and REBINDING row NAKs a `ciaddr` that differs from the MAC's reservation on the segment, so the client returns to INIT and its DISCOVER is offered the reservation (AC-17) |
+| R-4 | INIT-REBOOT silence (AC-16) after a Ze restart that lost the lease table delays a rebooting client until its INIT-REBOOT times out and it sends DISCOVER | client takes seconds longer to get an address after a Ze restart | the RFC MUST decides; a renewing client is unaffected (AC-18 records the binding) |
 | R-3 | Address refresh races a request | flaky test | address set read under the listener's own state, replaced atomically |
 
 ## Blast Radius
@@ -189,11 +204,17 @@ optional `server-identifier` leaf lets the operator name that address.
 | AC-2 | Same, MAC 02:00:00:00:00:01 reserved 192.168.50.20 | OFFER of 192.168.50.20, option 54 192.168.50.1 |
 | AC-3 | Same, unreserved MAC, primary address 192.168.50.1 | OFFER from the 192.168.50.0/24 pool |
 | AC-4 | 192.168.50.0/24 pool exhausted, unreserved MAC | OFFER from the 10.99.0.0/24 pool |
-| AC-5 | INIT-REBOOT REQUEST from the 10.99.0.20-reserved MAC asking 192.168.50.77 | DHCPNAK, broadcast (Section 4.3.2) |
+| AC-5 | INIT-REBOOT REQUEST from the 10.99.0.20-reserved MAC asking 192.168.50.77 | DHCPNAK, broadcast (Section 4.3.2); same MAC asking 10.99.0.20: DHCPACK |
 | AC-6 | INIT-REBOOT REQUEST asking an address outside every segment subnet | DHCPNAK |
-| AC-7 | SELECTING REQUEST naming option 54 10.99.0.1 for a 10.99.0.0/24 offer | ACK; a REQUEST naming 192.168.50.1 (also the server's) on the same segment is also accepted (`RFC2131-4.1-1`) |
+| AC-7 | SELECTING REQUEST naming option 54 10.99.0.1 for a 10.99.0.0/24 offer | ACK; a REQUEST naming 192.168.50.1 (also the server's) on the same segment is also accepted (`RFC2131-4.1-1`); a REQUEST naming 192.0.2.9 (not the server's) gets no reply |
 | AC-8 | Subnet with no `default-router` | option 54 is the device's address in that subnet, never a pool address or the network address (`RFC2131-4.1-2`) |
-| AC-9 | `server-identifier 10.99.0.1` set on a subnet | option 54 carries it; a value outside the subnet is refused at commit with an error naming the leaf, the value, the subnet and the fix |
+| AC-9 | `server-identifier 10.99.0.1` set on a subnet, device holds it | option 54 carries it. A value that is not unicast, or is the network or broadcast address of the subnet, is refused at commit with an error naming the leaf, the value, the subnet and the fix. Set but not held by the device at reply time: no reply, one warning naming the subnet, the address and the fix |
+| AC-14 | DISCOVER from the 10.99.0.20-reserved MAC carrying Requested IP 192.168.50.77 | OFFER of 10.99.0.20: the hint does not terminate selection |
+| AC-15 | DISCOVER from an unreserved MAC with Requested IP 10.99.0.50, free in the 10.99.0.0/24 pool | OFFER of 10.99.0.50 |
+| AC-16 | INIT-REBOOT REQUEST asking 192.168.50.77 inside a segment subnet from a MAC with no reservation and no binding | no reply (`RFC2131-4.3.2-3`) |
+| AC-17 | RENEWING REQUEST (unicast, `ciaddr` 192.168.50.30) from a MAC bound to it, after a reservation 10.99.0.20 was added for that MAC | DHCPNAK; the client's next DISCOVER is offered 10.99.0.20 (R-2) |
+| AC-18 | RENEWING and REBINDING REQUEST with `ciaddr` bound to the same MAC and no reservation | DHCPACK extending the binding; `ciaddr` outside every segment subnet, or bound to another MAC: DHCPNAK (`RFC2131-4.3.2-6`) |
+| AC-19 | Relayed DISCOVER, `giaddr` 172.16.5.1, shared network holding 172.16.5.0/24; the listen device holds 192.168.50.1/24 only, no address in 172.16.5.0/24, no `server-identifier` | OFFER from 172.16.5.0/24 sent to the relay, option 54 192.168.50.1; the client's SELECTING REQUEST naming 192.168.50.1 is ACKed |
 | AC-10 | Two listen interfaces, each addressed in its own shared network's subnet | a DISCOVER on interface A is never answered from interface B's subnets |
 | AC-11 | Listen device holds no address in any configured subnet, `giaddr` zero | no reply; one log line at warn naming the interface, its addresses and the fix (add an address in a configured subnet, or remove the interface from `listen-interface`); `ze doctor` reports the same |
 | AC-12 | Relayed DISCOVER, `giaddr` 10.99.0.254 | served from the shared network holding 10.99.0.0/24; reply sent to the relay |
@@ -216,7 +237,14 @@ optional `server-identifier` leaf lets the operator name that address.
 | `TestSegmentForGiaddr` | same | relay address selects the shared network | |
 | `TestSelectReservationAcrossSubnets` | same | AC-1, AC-2: reservation in a later subnet wins over an earlier pool | |
 | `TestSelectPrimaryPoolThenOthers` | same | AC-3, AC-4 | |
-| `TestInitRebootReservedElsewhereNaks` | `internal/plugins/dhcpserver/rfc2131_test.go` | AC-5, AC-6 | |
+| `TestDiscoverReservationBeatsRequestedIP` | `internal/plugins/dhcpserver/segment_test.go` | AC-14 (DISCOVER, step 1 before step 3) | |
+| `TestDiscoverRequestedIPIsCandidate` | `internal/plugins/dhcpserver/segment_test.go` | AC-15 | |
+| `TestInitRebootReservedElsewhereNaks` | `internal/plugins/dhcpserver/rfc2131_test.go` | AC-5, AC-6 (INIT-REBOOT, separately from DISCOVER) | |
+| `TestInitRebootNoRecordSilent` | `internal/plugins/dhcpserver/rfc2131_test.go` | AC-16, `RFC2131-4.3.2-3` tag | |
+| `TestRenewingReservedElsewhereNaks` | `internal/plugins/dhcpserver/rfc2131_test.go` | AC-17 (RENEWING) | |
+| `TestRebindingChecksCiaddr` | `internal/plugins/dhcpserver/rfc2131_test.go` | AC-18 (REBINDING and RENEWING), `RFC2131-4.3.2-6` tag | |
+| `TestServerIdentifierRelayOnlySubnet` | `internal/plugins/dhcpserver/rfc2131_identity_options_test.go` | AC-19, AC-12 with no device address in the relayed subnet | |
+| `TestServerIdentifierLeafNotHeld` | `internal/plugins/dhcpserver/rfc2131_identity_options_test.go` | AC-9 runtime half: leaf set, device lacks it, no reply, warning | |
 | `TestServerIdentifierIsSegmentAddress` | `internal/plugins/dhcpserver/rfc2131_identity_options_test.go` | AC-8, `RFC2131-4.1-2` tag | |
 | `TestSelectingAcceptsAnyOwnAddress` | same | AC-7, `RFC2131-4.1-1` tag | |
 | `TestServerIdentifierLeafParse` | `internal/plugins/dhcpserver/config_test.go` | AC-9 accept and refuse, error text names the fix | |
@@ -225,13 +253,15 @@ optional `server-identifier` leaf lets the operator name that address.
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| `server-identifier` | IPv4 unicast inside the subnet, not the network or broadcast address | subnet broadcast minus one | network address | broadcast address |
+| `server-identifier` | IPv4 unicast, not the network or broadcast address of its subnet | subnet broadcast minus one | network address | broadcast address |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `dhcpserver-shared-segment-reservation` | `test/dhcp/dhcpserver-shared-segment-reservation.ci` | AC-1..AC-4 through a real listener in a namespace, asserting lease table state (`show` output), not timing | |
 | `dhcpserver-server-identifier` | `test/dhcp/dhcpserver-server-identifier.ci` | AC-8, AC-9 | |
+| `dhcpserver-request-states` | `test/dhcp/dhcpserver-request-states.ci` | AC-5, AC-14, AC-16, AC-17, AC-18: one exchange per state (DISCOVER, SELECTING, INIT-REBOOT, RENEWING, REBINDING), each asserted separately on the reply type and the lease table | |
+| `dhcpserver-relay-only-subnet` | `test/dhcp/dhcpserver-relay-only-subnet.ci` | AC-19: relayed DISCOVER and SELECTING REQUEST for a subnet the listen device holds no address in | |
 | `dhcpserver-no-segment-address` | `test/dhcp/dhcpserver-no-segment-address.ci` | AC-11 warning and doctor finding | |
 
 ### Interop Tests (Scope: protocol)
@@ -241,28 +271,28 @@ optional `server-identifier` leaf lets the operator name that address.
 
 ## Files to Modify
 - `internal/plugins/dhcpserver/register.go` - `serveRequests` resolves the segment and selects; `bindListeners` records device addresses
-- `internal/plugins/dhcpserver/handler.go` - `handle` takes the selection result; `matchesSubnet` deleted; `handleRequest` server-identifier check against the segment's set; INIT-REBOOT reservation check
+- `internal/plugins/dhcpserver/handler.go` - `handle` takes the selection result; `matchesSubnet` deleted; `handleRequest` server-identifier check against the segment's set; INIT-REBOOT reservation, binding and no-record silence; RENEWING and REBINDING `ciaddr` check (the state table in Data Flow step 4)
 - `internal/plugins/dhcpserver/config_tx.go` - `buildHandlers` groups handlers by shared network; `subnetServerIP` deleted
 - `internal/plugins/dhcpserver/config.go` - `server-identifier` parsing and refusal
-- `internal/plugins/dhcpserver/neighbor_linux.go` (or a sibling `addresses_linux.go`) - device IPv4 address read and refresh
+- `internal/plugins/dhcpserver/neighbor_linux.go` - the netlink handle the new address read shares (no second client)
 - `internal/plugins/dhcpserver/doctor.go` - finding for AC-11
 - `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` - `server-identifier` leaf; container description rewritten
-- `rfc/short/rfc2131.md` - `RFC2131-4.1-1`, `RFC2131-4.1-2` gap annotations replaced by tests and discrimination records
+- `rfc/short/rfc2131.md` - `RFC2131-4.1-1`, `RFC2131-4.1-2`, `RFC2131-4.3.2-3`, `RFC2131-4.3.2-6` gap annotations replaced by tests and discrimination records
 - `internal/le/interoplab/bgp/` - check and registration for the new scenario, next to `check_dns_resolver.go`
 - `docs/architecture/provisioning/dhcp-server.md` - declared by every changed source file's `// Design:` header. "Decisions", "One socket per listen interface, with multi-handler dispatch" says the serving goroutine tries each subnet handler in order and that a bare DISCOVER "falls through to the first handler that has pool space"; the change makes that false, so the paragraph is rewritten to the segment resolution and selection order of this spec, and the page gains the `server-identifier` choice. "Config reload" stays true (sharing by address plan is kept)
 - `docs/architecture/config/transaction-protocol.md` - declared by `config_tx.go`'s `// Design:` header; nothing it says becomes wrong: it names dhcpserver only as a plugin whose running listeners may fail to rebind, which this change keeps
 
 ## Files to Create
 - `internal/plugins/dhcpserver/segment.go`, `segment_test.go` - segment resolution and selection
-- `test/dhcp/dhcpserver-shared-segment-reservation.ci`, `dhcpserver-server-identifier.ci`, `dhcpserver-no-segment-address.ci`
+- `test/dhcp/dhcpserver-shared-segment-reservation.ci`, `dhcpserver-server-identifier.ci`, `dhcpserver-request-states.ci`, `dhcpserver-relay-only-subnet.ci`, `dhcpserver-no-segment-address.ci`
 - `test/interop/scenarios/dhcpv4-server-shared-segment-dhcpcd/` - `ze.conf` and the client definitions
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
 | YANG schema (new RPCs/config) | Yes | `server-identifier` in `ze-dhcp-server-conf.yang` |
-| YANG validation constraints | Yes | `type zt:ipv4-address` (or the module's IPv4 type); the in-subnet check is custom |
-| YANG custom validators | Yes | in-subnet check at verify, in the plugin's `verifyDHCPConfig` |
+| YANG validation constraints | Yes | `type string`, as the module's other address leaves (`default-router`) are; the address checks are custom |
+| YANG custom validators | Yes | in the plugin's `verifyDHCPConfig`: IPv4 unicast, and not the network or broadcast address of the subnet that carries the leaf (Data Flow step 1; no in-subnet requirement, so a relay-only subnet can name an address of the server's) |
 | CLI commands/flags | N-A | no command |
 | CLI grammar (keyword before value) | N-A | no command |
 | Editor autocomplete | Yes | automatic for the typed leaf |
@@ -277,14 +307,14 @@ optional `server-identifier` leaf lets the operator name that address.
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or scope changed? | Yes | `features/` entry for the DHCP server: several subnets per segment |
-| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md` DHCP section: `server-identifier`, selection order |
+| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md`, section "DHCP Server": `server-identifier`, selection order |
 | 3 | CLI command added/changed? | No | none |
 | 4 | API/RPC added/changed? | No | none |
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` only if it describes subnet choice; check |
 | 6 | Has a user guide page? | Yes | `docs/guide/configuration.md` |
 | 7 | Wire format changed? | No | option 54 value only |
 | 8 | Plugin SDK/protocol changed? | No | none |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc2131.md` rows 4.1-1, 4.1-2; `docs/features/rfc-status.md` row |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc2131.md` rows `RFC2131-4.1-1`, `RFC2131-4.1-2`, `RFC2131-4.3.2-3`, `RFC2131-4.3.2-6`; `docs/features/rfc-status.md` row |
 | 10 | Test infrastructure changed? | Yes | new interop scenario: `docs/architecture/testing/interop.md` scenario list |
 | 11 | Affects daemon comparison? | No | none |
 | 12 | Internal architecture changed? | No | plugin-internal |
@@ -292,7 +322,7 @@ optional `server-identifier` leaf lets the operator name that address.
 | 14 | Prometheus counters added/changed? | No | none |
 | 15 | Registered plugin, event, command or inventory changed? | No | none |
 | 16 | Changed source files referenced by doc source anchors? | Yes | run `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-2-dhcp-shared-interface-subnets.md` at implementation |
-| 17 | Existing docs show examples for this area? | Yes | `docs/guide/configuration.md` l.4079 and `docs/guide/ze-install.md` shared-network examples |
+| 17 | Existing docs show examples for this area? | Yes | `docs/guide/configuration.md`, section "DHCP Server", and `docs/guide/ze-install.md` shared-network examples |
 
 ## Implementation Steps
 
@@ -300,8 +330,10 @@ optional `server-identifier` leaf lets the operator name that address.
    - Tests: `dhcpserver-shared-segment-reservation`
    - Files: `segment.go`, `register.go`
 2. **Phase: Device addresses** - netlink read and refresh, AC-10, AC-11, doctor finding.
-3. **Phase: Selection** - steps 1 to 4, AC-1..AC-6, R-2.
-4. **Phase: Server identifier** - option 54 from the segment, SELECTING check, `server-identifier` leaf, AC-7..AC-9; RFC rows and discrimination records (`./le rfc record`).
+3. **Phase: Selection** - the state table in Data Flow step 4, one row at a time: DISCOVER (AC-1..AC-4, AC-14, AC-15), INIT-REBOOT (AC-5, AC-6, AC-16), RENEWING and REBINDING (AC-17, AC-18, R-2), each state proven by its own test; AC-13 stays wire-identical. RFC rows `RFC2131-4.3.2-3` (AC-16, `TestInitRebootNoRecordSilent`) and `RFC2131-4.3.2-6` (AC-17, AC-18, `TestRebindingChecksCiaddr`): tag the tests, record each break with `./le rfc record`, replace the `{gap: ...}` annotations in `rfc/short/rfc2131.md`.
+   - Tests: the selection and state rows of the Unit Tests table, `dhcpserver-request-states`
+4. **Phase: Server identifier** - Data Flow steps 5 and 6: option 54 from the device's address in the chosen subnet, the relay-only subnet case (step 5.3: `giaddr` set and no device address in the relayed subnet, option 54 the device's primary address, AC-19, AC-12), the `server-identifier` leaf with its runtime "held" check (AC-9), and the SELECTING check against every own address of the segment (AC-7, AC-8). RFC rows `RFC2131-4.1-1` (AC-7) and `RFC2131-4.1-2` (AC-8, AC-19): tagged tests, discrimination records (`./le rfc record`), gap annotations replaced.
+   - Tests: `TestServerIdentifierRelayOnlySubnet`, `TestServerIdentifierLeafNotHeld`, `TestServerIdentifierIsSegmentAddress`, `TestSelectingAcceptsAnyOwnAddress`, `TestServerIdentifierLeafParse`, `dhcpserver-server-identifier`, `dhcpserver-relay-only-subnet`
 5. **Phase: Interop** - scenario `dhcpv4-server-shared-segment-dhcpcd`, red phase recorded.
 6. **Phase: Docs** - configuration guide, YANG descriptions, RFC summary.
 
@@ -318,7 +350,7 @@ optional `server-identifier` leaf lets the operator name that address.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Segment selection | `TestSelectReservationAcrossSubnets` and the `.ci` pass |
-| RFC rows proven | `./le rfc check` clean for rfc2131 4.1-1 and 4.1-2 |
+| RFC rows proven | `./le rfc check` clean, with `RFC2131-4.1-1`, `RFC2131-4.1-2`, `RFC2131-4.3.2-3` and `RFC2131-4.3.2-6` each tagged on its test, each carrying a discrimination record under `rfc/discrimination/rfc2131/` (one `<id>.json` per row), and none left with a `{gap: ...}` annotation in `rfc/short/rfc2131.md` |
 | Interop | scenario green, red phase recorded in the spec |
 
 ### Security Review Checklist
@@ -360,6 +392,7 @@ No open journal row describes this defect (grep of `plan/journal/` for `dhcpserv
 
 - Option 82 (relay agent information) and the link-selection sub-option (RFC 3527) are not used for selection; Ze implements neither today.
 - DHCPv6 server: not part of Ze; out of scope.
+- RFC 5107 (the server identifier override sub-option a relay carries in option 82) is not implemented: the plugin parses no option 82 (no option 82 code under `internal/plugins/dhcpserver/`). For a relay-only subnet, option 54 is therefore always the device's primary address (Data Flow step 5.3, AC-19), even where a relay would ask for an override.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -374,11 +407,12 @@ Add `// RFC 2131 Section 4.1: "..."` above the server identifier choice and the 
 - [ ] No code snippets
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-13 all demonstrated
+- [ ] AC-1..AC-19 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] Targeted tests pass: the scoped `internal/plugins/dhcpserver` package test, `./le test unit plugins`, `./le test dhcp`, and `./le test integration` for scenario `dhcpv4-server-shared-segment-dhcpcd`; then `./le verify changed` over the closing commits
+- [ ] Targeted tests pass: `./le job run label home-cpe-2 command go test -race ./internal/plugins/dhcpserver/`, `./le test dhcp`, and `INTEROP_SCENARIO=dhcpv4-server-shared-segment-dhcpcd ./le test integration interop`; then `./le verify changed` over the closing commits
 - [ ] `./le rfc check` clean for `RFC2131-4.1-1` and `RFC2131-4.1-2`, each with its discrimination record
+- [ ] `./le rfc check` clean for `RFC2131-4.3.2-3` (`TestInitRebootNoRecordSilent`) and `RFC2131-4.3.2-6` (`TestRebindingChecksCiaddr`), each with its discrimination record
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD
