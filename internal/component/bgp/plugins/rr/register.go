@@ -64,6 +64,12 @@ func appendClusterListJSON(buf []byte, attr attribute.Attribute) []byte {
 	return append(buf, ']')
 }
 
+// rrDependencies are the stores the reflector replays from. Declared once for
+// the registry and for Stage 1 (routeReflectorRegistration): a forked bgp-rr is
+// ordered by its Stage 1 edges alone, so it takes a DOWN before them as an
+// internal one does.
+var rrDependencies = []string{"bgp-adj-rib-in", "bgp-rib"}
+
 func init() {
 	attribute.RegisterJSONFormatter(attribute.AttrOriginatorID, "originator-id", appendOriginatorIDJSON)
 	attribute.RegisterJSONFormatter(attribute.AttrClusterList, "cluster-list", appendClusterListJSON)
@@ -72,7 +78,7 @@ func init() {
 		Name:         "bgp-rr",
 		Description:  "Route Reflector",
 		RFCs:         []string{"4456"},
-		Dependencies: []string{"bgp-adj-rib-in", "bgp-rib"},
+		Dependencies: rrDependencies,
 		// The reflector owns peer-up replay for peers whose state it receives.
 		// Share the RS claim so Adj-RIB-In stands down before the first peer
 		// establishes; UnheldRoles restores self-replay for other peers.

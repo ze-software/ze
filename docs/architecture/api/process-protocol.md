@@ -677,7 +677,9 @@ from this declaration alone, never from a registration that shares its name.
 `bgp-gr` declares `dependencies [bgp-rib]`, `optional-dependencies [bgp-rs]`
 and `start-after [bgp-rr]`, so a forked `bgp-gr` would take a DOWN, and emit
 its `bgp-gr/retention` verdict, before the route server, the route reflector
-and the RIB take theirs.
+and the RIB take theirs. An edge's target is matched forked too: an external
+program counts as the implementation its `run` line names (`ze plugin bgp-rr`)
+and as its process name, so the edge holds whichever side runs forked.
 
 | Field | Type | Description |
 |-------|------|-------------|

@@ -516,14 +516,23 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 	// ahead of their DOWN). A program that declared nothing stays at tier 0.
 	identity := make(map[*process.Process]string, len(procs))
 	declared := make(map[string][3][]string, len(procs))
+	// implements maps an implementation name to the external programs that
+	// run it (plugin.RegistryNames: the name its command derives, and its
+	// process name). An edge naming bgp-rr must hold whether bgp-rr runs
+	// internal or forked: bgp-gr's start-after bgp-rr is what queues its
+	// retention verdict ahead of a forked reflector's DOWN.
+	implements := make(map[string][]string, len(procs))
 	for _, p := range procs {
 		cfg := p.Config()
 		if cfg.RunsExternalProgram() {
+			name := externalIdentity + p.Name()
+			for _, implementation := range plugin.RegistryNames(cfg) {
+				implements[implementation] = append(implements[implementation], name)
+			}
 			reg := p.Registration()
 			if reg == nil {
 				continue
 			}
-			name := externalIdentity + p.Name()
 			identity[p] = name
 			declared[name] = [3][]string{reg.Dependencies, reg.OptionalDependencies, reg.StartAfter}
 			continue
@@ -540,7 +549,8 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 		declared[name] = edges
 	}
 
-	// An edge constrains the order only when its target is also selected.
+	// An edge constrains the order only when its target is also selected,
+	// internal under its registry name or forked under its external identity.
 	deps := make(map[string][]string, len(declared))
 	for name, edges := range declared {
 		deps[name] = nil
@@ -548,6 +558,11 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 			for _, dep := range list {
 				if _, selected := declared[dep]; selected {
 					deps[name] = append(deps[name], dep)
+				}
+				for _, target := range implements[dep] {
+					if _, selected := declared[target]; selected && target != name {
+						deps[name] = append(deps[name], target)
+					}
 				}
 			}
 		}

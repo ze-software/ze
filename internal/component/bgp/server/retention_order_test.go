@@ -25,7 +25,8 @@ import (
 // TestRetentionEventPrecedesDown proves the D-11 guarantee end to end through
 // the event dispatcher: bgp-gr, delivered a DOWN, emits its bgp-gr/retention
 // verdict inside its handler, and bgp-rr receives that verdict BEFORE its own
-// DOWN for the same peer, with bgp-gr internal and with bgp-gr forked.
+// DOWN for the same peer, with bgp-gr internal and forked, and with bgp-rr
+// internal and forked.
 //
 // Method: three processes (bgp-gr, bgp-rr, bgp-rib) take delivery over a pipe.
 // The gr responder emits the verdict through the server's bus before it
@@ -34,31 +35,61 @@ import (
 // dependency tier, sortByReverseDependencyTier) and the verdict is queued on
 // rr's one FIFO channel before the DOWN (process.Deliver). Forked, gr is an
 // external program, so its edges are the ones its Stage 1 declaration carries
-// (plugin.PluginRegistration), never a same-named registration's.
+// (plugin.PluginRegistration), never a same-named registration's. Forked, rr is
+// reached by gr's start-after bgp-rr edge through the implementation its
+// command names (plugin.RegistryNames), never by its process name's sort.
 //
 // RFC 4724 Section 4.2: "the Receiving Speaker MUST retain the routes received
 // from the peer for all the address families that were previously received in
 // the Graceful Restart Capability".
 func TestRetentionEventPrecedesDown(t *testing.T) {
+	internalRR := plugin.PluginConfig{Name: "bgp-rr", Internal: true, Run: "ze.bgp-rr"}
+	// A forked reflector under a process name that sorts before bgp-gr, so
+	// the order cannot come from the name tie-break: only bgp-gr's
+	// start-after bgp-rr edge, resolved to the external program, puts the
+	// DOWN to gr first. Its Stage 1 carries the reflector's own edges.
+	forkedRR := plugin.PluginConfig{Name: "a-reflector", Run: "ze plugin bgp-rr"}
+	forkedRRStage1 := &plugin.PluginRegistration{
+		Name:         "bgp-rr",
+		Dependencies: []string{"bgp-adj-rib-in", "bgp-rib"},
+	}
+	// What registrationFromRPC builds from gr's Stage 1 declaration.
+	forkedGRStage1 := &plugin.PluginRegistration{
+		Name:                 "bgp-gr",
+		Dependencies:         []string{"bgp-rib"},
+		OptionalDependencies: []string{"bgp-rs"},
+		StartAfter:           []string{"bgp-rr"},
+	}
 	for _, tc := range []struct {
-		name   string
-		gr     plugin.PluginConfig
-		stage1 *plugin.PluginRegistration
+		name     string
+		gr       plugin.PluginConfig
+		stage1   *plugin.PluginRegistration
+		rr       plugin.PluginConfig
+		rrStage1 *plugin.PluginRegistration
 	}{
 		{
 			name: "bgp-gr internal",
 			gr:   plugin.PluginConfig{Name: "bgp-gr", Internal: true, Run: "ze.bgp-gr"},
+			rr:   internalRR,
 		},
 		{
-			name: "bgp-gr forked",
-			gr:   plugin.PluginConfig{Name: "bgp-gr", Run: "ze plugin bgp-gr"},
-			// What registrationFromRPC builds from gr's Stage 1 declaration.
-			stage1: &plugin.PluginRegistration{
-				Name:                 "bgp-gr",
-				Dependencies:         []string{"bgp-rib"},
-				OptionalDependencies: []string{"bgp-rs"},
-				StartAfter:           []string{"bgp-rr"},
-			},
+			name:   "bgp-gr forked",
+			gr:     plugin.PluginConfig{Name: "bgp-gr", Run: "ze plugin bgp-gr"},
+			stage1: forkedGRStage1,
+			rr:     internalRR,
+		},
+		{
+			name:     "bgp-gr internal, bgp-rr forked",
+			gr:       plugin.PluginConfig{Name: "bgp-gr", Internal: true, Run: "ze.bgp-gr"},
+			rr:       forkedRR,
+			rrStage1: forkedRRStage1,
+		},
+		{
+			name:     "bgp-gr and bgp-rr forked",
+			gr:       plugin.PluginConfig{Name: "bgp-gr", Run: "ze plugin bgp-gr"},
+			stage1:   forkedGRStage1,
+			rr:       forkedRR,
+			rrStage1: forkedRRStage1,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -68,7 +99,10 @@ func TestRetentionEventPrecedesDown(t *testing.T) {
 			if tc.stage1 != nil {
 				grProc.SetRegistration(tc.stage1)
 			}
-			rrProc, rrConn := newConfiguredProcWithConn(t, plugin.PluginConfig{Name: "bgp-rr", Internal: true, Run: "ze.bgp-rr"})
+			rrProc, rrConn := newConfiguredProcWithConn(t, tc.rr)
+			if tc.rrStage1 != nil {
+				rrProc.SetRegistration(tc.rrStage1)
+			}
 			ribProc, ribConn := newConfiguredProcWithConn(t, plugin.PluginConfig{Name: "bgp-rib", Internal: true, Run: "ze.bgp-rib"})
 			for _, proc := range []*process.Process{grProc, rrProc, ribProc} {
 				subscribeState(srv, proc)
@@ -78,7 +112,7 @@ func TestRetentionEventPrecedesDown(t *testing.T) {
 				EventType: events.LookupEventTypeID(retention.EventType),
 				Direction: events.DirUnspecified,
 			})
-			attachForDelivery(t, srv, testPeerInfo(), "bgp-gr", "bgp-rr", "bgp-rib")
+			attachForDelivery(t, srv, testPeerInfo(), "bgp-gr", tc.rr.Name, "bgp-rib")
 
 			go retentionEmitter(t, grConn, srv)
 			rr := &receivedLog{}

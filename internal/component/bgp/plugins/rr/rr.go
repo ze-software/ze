@@ -1024,5 +1024,8 @@ func routeReflectorRegistration() *sdk.Registration {
 		// (RFC 8212 Section 3).
 		SourcePolicyOwner: true,
 		Commands:          commandDecls(),
+		// The registry's edges, so a forked reflector takes a DOWN before
+		// the stores it depends on, as an internal one does.
+		Dependencies: rrDependencies,
 	}
 }
