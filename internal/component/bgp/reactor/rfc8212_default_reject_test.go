@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"net"
 	"net/netip"
 	"reflect"
@@ -21,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/loopdetect"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"

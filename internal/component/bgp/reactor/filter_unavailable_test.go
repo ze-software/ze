@@ -86,7 +86,7 @@ func TestFilterUnavailableAppliesOnError(t *testing.T) {
 
 	t.Run("mixed library chain, on-error reject", func(t *testing.T) {
 		transport := &unavailableTransport{onError: rpc.OnErrorReject,
-			externalTransport: externalTransport{reads: []string{"local-preference"}}}
+			reads: []string{"local-preference"}}
 		r := &Reactor{attrModHandlers: attrModHandlersWithDefaults(), filterTransportSeam: transport}
 		received := libraryTestBody(100)
 		addr := netip.MustParseAddr("10.0.0.4")

@@ -86,7 +86,7 @@ func (t *libraryText) CallTextFilter(plugin, filter string) (policychain.TextAns
 	res := t.call(plugin, filter, t.direction, t.peer, t.peerAS, t.current)
 	if res.Teardown {
 		// The text chain rejects a teardown in both directions; the chain
-		// honours the teardown itself on import only.
+		// honors the teardown itself on import only.
 		return policychain.TextAnswer{Reject: true, Teardown: true, NotifyCode: res.NotifyCode, NotifySubcode: res.NotifySubcode}, nil
 	}
 	switch res.Action {

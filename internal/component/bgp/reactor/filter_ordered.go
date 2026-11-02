@@ -167,7 +167,7 @@ func buildOrderedEgressSteps() []orderedEgressStep {
 // the pass's metadata map, made here when a library chain runs and is nil, so
 // a member's metadata set reaches the received event; a peer with no chain
 // allocates none.
-func (r *Reactor) runIngressPolicyChainMeta(peer *Peer, peerAddr netip.Addr, src *filterapi.PeerFilterInfo, meta *map[string]any, wireUpdate *wireu.WireUpdate, payload []byte) ingressStepResult {
+func (r *Reactor) runIngressPolicyChainMeta(peer *Peer, peerAddr netip.Addr, src *filterapi.PeerFilterInfo, meta *map[string]any, wireUpdate *wireu.WireUpdate, payload []byte) ingressStepResult { //nolint:gocritic // ptrToRefParam: the map is made here only when a library chain runs, so a peer with no library chain allocates none
 	if peer == nil {
 		return ingressStepResult{accept: true}
 	}

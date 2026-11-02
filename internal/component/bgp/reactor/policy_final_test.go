@@ -3,12 +3,12 @@ package reactor
 
 import (
 	"bytes"
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"net/netip"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"

@@ -1,11 +1,11 @@
 package reactor
 
 import (
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"net/netip"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"

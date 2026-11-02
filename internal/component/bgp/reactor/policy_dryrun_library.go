@@ -35,7 +35,7 @@ type libraryDryRun struct {
 // failure's error, and in text-after the UPDATE as the chain rewrote it up to
 // that member (libraryTraceText). It also answers the attribute operations
 // the run applied, as the dry-run's wire-changes.
-func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryDryRun, textBefore string) (PolicyChainResult, []plugin.PolicyTraceEntry, []string) {
+func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry *libraryDryRun, textBefore string) (PolicyChainResult, []plugin.PolicyTraceEntry, []string) {
 	var trace []plugin.PolicyTraceEntry
 	record := func(step policychain.MemberTrace, running *libraryText) {
 		entry := libraryTraceEntry(step)
@@ -80,7 +80,7 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry libraryD
 // rendered one per line in the order they are sent. Display only: it
 // allocates the rendered text. A body the conversion refuses is a failed
 // reject, as the live paths drop or suppress it.
-func dryRunWithdrawal(dry libraryDryRun, trace []plugin.PolicyTraceEntry) (PolicyChainResult, []plugin.PolicyTraceEntry, []string) {
+func dryRunWithdrawal(dry *libraryDryRun, trace []plugin.PolicyTraceEntry) (PolicyChainResult, []plugin.PolicyTraceEntry, []string) {
 	buf := make([]byte, 2*(len(dry.payload)+4))
 	first, second := buf[:len(dry.payload)+4], buf[len(dry.payload)+4:]
 	firstN, secondN := buildWithdrawalPayloads(dry.payload, first, second, bgpctx.Registry.Get(dry.ctxID))
@@ -118,7 +118,7 @@ func dryRunWithdrawalText(out, payload []byte, ctxID bgpctx.ContextID) ([]byte, 
 // error says why the sets so far cannot be rendered, and the text is empty.
 //
 // running is the run's text as the text members up to step left it.
-func (r *Reactor) libraryTraceText(step policychain.MemberTrace, running *libraryText, dry libraryDryRun, textBefore string) (string, error) {
+func (r *Reactor) libraryTraceText(step policychain.MemberTrace, running *libraryText, dry *libraryDryRun, textBefore string) (string, error) {
 	switch step.Step {
 	case policychain.TraceReject, policychain.TraceWithdraw, policychain.TraceFailClosed:
 		return "", nil

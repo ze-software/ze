@@ -6,9 +6,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
+	"slices"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -23,12 +24,7 @@ type fieldsTransport struct {
 }
 
 func (f *fieldsTransport) FilterInfo(_, filterName string) ([]string, bool) {
-	for _, read := range f.reads[filterName] {
-		if read == rpc.FilterFieldRaw {
-			return nil, true
-		}
-	}
-	return nil, false
+	return nil, slices.Contains(f.reads[filterName], rpc.FilterFieldRaw)
 }
 
 // FilterReadvertise answers that the filter does not opt into the stale
@@ -51,7 +47,7 @@ func (f *fieldsTransport) CallFilterUpdate(_ context.Context, _ string, route *r
 	input := &inputValue
 	sent := *input
 	// The fields buffer returns to its pool once the call answers, as it does
-	// after the production transport marshalled the request, so the test
+	// after the production transport marshaled the request, so the test
 	// keeps a copy of what the plugin would have read.
 	sent.Fields = append(json.RawMessage(nil), input.Fields...)
 	f.sent = append(f.sent, sent)

@@ -1,7 +1,6 @@
 package reactor
 
 import (
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -81,7 +81,7 @@ func rfc6996ExportPolicy(t *testing.T) filterapi.Policy {
 // as-path remove "private" intent on the export step toward an EBGP peer turns
 // a four-octet AS_PATH of [64511 64512 65534 65535 4199999999 4200000000
 // 4294967294 4294967295] into exactly [64511 65535 4199999999 4294967295],
-// both ends of both Private Use ranges removed and their neighbours kept.
+// both ends of both Private Use ranges removed and their neighbors kept.
 //
 // VALIDATES: RFC 6996 Section 4 "Private Use ASNs MUST be removed from AS path attributes".
 // PREVENTS: the reactor dropping the remove-private intent, or rewriting AS_PATH wrongly at a range edge.

@@ -278,7 +278,7 @@ func libraryNLRIOps(scratch *valueScratch, folded *policychain.Sets, wireUpdate 
 	}
 	ctx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 	var override []byte
-	for section := sectionAnnounce; section < sectionCount; section++ {
+	for section := range sectionCount {
 		drops := folded.NLRIDrops(policySection(section))
 		source, err := nlriSectionOf(wireUpdate, ctx, section)
 		if err != nil {

@@ -2,7 +2,6 @@ package reactor
 
 import (
 	"encoding/hex"
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"net/netip"
 	"slices"
 	"strings"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/family"

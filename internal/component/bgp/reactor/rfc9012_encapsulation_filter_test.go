@@ -122,9 +122,9 @@ func (c *teCommunityTransport) decl(pluginName, filterName string) (rpc.FilterDe
 	if pluginName != "bgp-filter-community" {
 		return rpc.FilterDecl{}, false
 	}
-	for _, decl := range c.filters {
-		if decl.Name == filterName {
-			return decl, true
+	for i := range c.filters {
+		if c.filters[i].Name == filterName {
+			return c.filters[i], true
 		}
 	}
 	return rpc.FilterDecl{}, false

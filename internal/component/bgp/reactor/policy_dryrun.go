@@ -287,7 +287,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		// plugin members reached through the chain (traceLibraryChain).
 		dry := libraryDryRun{wireUpdate: wu, payload: updateBody, ctxID: ctxID, direction: direction, peer: peerAddr, session: dryRunSession(direction, facts),
 			intent: libraryIntentContext{asn4: asn4, localAS: localAS, peerAS: peerAS, asPathEditable: direction == directionImport || !internal}}
-		result, trace, wireChanges = r.traceLibraryChain(library, dry, textBefore)
+		result, trace, wireChanges = r.traceLibraryChain(library, &dry, textBefore)
 	} else {
 		// Run the trace chain using the real filter function (calls plugins via IPC).
 		callFilter := r.policyFilterFunc(wu, updateBody, dryRunSession(direction, facts))

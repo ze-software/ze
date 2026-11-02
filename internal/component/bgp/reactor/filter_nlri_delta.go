@@ -205,7 +205,7 @@ func sectionNLRIDelta(scratch *valueScratch, original, modified string, wireUpda
 	ctx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 	var override []byte
 	var names [sectionCount]string
-	for section := sectionAnnounce; section < sectionCount; section++ {
+	for section := range sectionCount {
 		source, err := nlriSectionOf(wireUpdate, ctx, section)
 		if err != nil {
 			// Only a changed block reads the section, so a malformed one the
