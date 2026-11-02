@@ -326,3 +326,50 @@ func TestReconcileNamesAProcessNoPeerAttaches(t *testing.T) {
 	s.subscriptions.subscriptions[silent] = nil
 	assert.Empty(t, s.deliveryDisagreements(silent))
 }
+
+// TestReconcileExemptsAnImplicitGrant verifies that a receive type the config
+// granted on its own, rather than an operator, is not reported as undeclared
+// when the plugin does not subscribe to it: the plugin whose filter member a
+// peer's chain carries is granted that peer's `state`, so its removal can
+// reach the plugin, and a filter plugin that keeps no per-peer state never
+// asks for it (spec-filter-wire-6-stage-filters, "Peer removal notice").
+//
+// VALIDATES: the implicit grant is silent when undeclared, an operator grant
+// beside it on the same edge is still judged, and the operator surface names
+// the implicit type.
+// PREVENTS: one false "the config grants an event the plugin never declared"
+// line per peer for every filter plugin a chain names.
+func TestReconcileExemptsAnImplicitGrant(t *testing.T) {
+	ns, update, _ := graphIDs(t)
+
+	s := &Server{subscriptions: newSubscriptionManager()}
+	s.UpdateDeliveryGraph(graphNS, []DeliveryPeer{{
+		Addr: "192.0.2.1", Name: "first",
+		Bindings: []plugin.PeerProcessBinding{{
+			PluginName: "policy-engine",
+			Receive:    map[string]events.Direction{graphUpdate: events.DirBoth, graphState: events.DirBoth},
+			Implicit:   map[string]bool{graphState: true},
+		}},
+	}})
+
+	engine := process.NewProcess(plugin.PluginConfig{Name: "policy-engine"})
+	s.subscriptions.Add(engine, &Subscription{Namespace: ns, EventType: update, Direction: events.DirBoth})
+	assert.Empty(t, s.deliveryDisagreements(nil),
+		"the implicit state grant is not a disagreement when the plugin never asked for state")
+
+	edges := s.DeliveryGraph().Inspect()[0].Processes[0]
+	assert.Equal(t, []string{graphState}, edges.Implicit, "the operator surface names the implicit grant")
+
+	// The same edge with state written by the operator is still judged.
+	s.UpdateDeliveryGraph(graphNS, []DeliveryPeer{{
+		Addr: "192.0.2.1", Name: "first",
+		Bindings: []plugin.PeerProcessBinding{{
+			PluginName: "policy-engine",
+			Receive:    map[string]events.Direction{graphUpdate: events.DirBoth, graphState: events.DirBoth},
+		}},
+	}})
+	assert.Equal(t, []deliveryDisagreement{{
+		peer: "192.0.2.1", process: "policy-engine",
+		reason: reasonUndeclared, granted: graphState,
+	}}, s.deliveryDisagreements(nil), "an operator grant nobody declared is still reported")
+}

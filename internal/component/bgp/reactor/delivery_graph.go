@@ -35,6 +35,7 @@ func deliveryPeersFromSettings(peers []*PeerSettings) []pluginserver.DeliveryPee
 				Format:     b.Format,
 				ReceiveAll: b.ReceiveAll,
 				Receive:    b.Receive,
+				Implicit:   b.Implicit,
 				SendAll:    b.SendAll,
 				Send:       b.Send,
 			})

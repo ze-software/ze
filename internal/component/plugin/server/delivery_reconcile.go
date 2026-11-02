@@ -116,7 +116,8 @@ func (s *Server) deliveryDisagreements(only *process.Process) []deliveryDisagree
 
 // edgeDisagreements judges one peer-to-process edge, in both directions: a type
 // the config grants that the plugin never declared, and a type the plugin
-// declared that this peer's attach block does not grant.
+// declared that this peer's attach block does not grant. A type the config
+// granted implicitly (ProcessEdges.Implicit) is not reported undeclared.
 func (s *Server) edgeDisagreements(g *DeliveryGraph, peer PeerEdges, edges ProcessEdges, proc *process.Process) []deliveryDisagreement {
 	var out []deliveryDisagreement
 	granted := make([]events.EventTypeID, 0, len(edges.Receive))
@@ -130,6 +131,12 @@ func (s *Server) edgeDisagreements(g *DeliveryGraph, peer PeerEdges, edges Proce
 		granted = append(granted, etID)
 
 		declared, declaredDir := s.subscriptions.declaredDirection(proc, g.ns, etID, peer.Peer, peer.Name)
+		// An implicit grant is the config's, not the operator's: a plugin
+		// that does not ask for it simply has no use for it, and there is
+		// nobody to tell.
+		if !declared && slices.Contains(edges.Implicit, eventType) {
+			continue
+		}
 		if !declared {
 			out = append(out, deliveryDisagreement{
 				peer: peer.Peer, process: edges.Process,

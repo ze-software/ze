@@ -685,6 +685,11 @@ type PeerProcessBinding struct {
 	ReceiveAll bool
 	Receive    map[string]events.Direction
 
+	// Implicit names the Receive types the config granted on its own rather
+	// than an operator (reactor.GrantImplicitReceive). Reconcile does not
+	// report one the plugin never declared.
+	Implicit map[string]bool
+
 	// Send settings (WHAT this process may generate toward the peer).
 	// SendAll is the "*" token.
 	SendAll bool

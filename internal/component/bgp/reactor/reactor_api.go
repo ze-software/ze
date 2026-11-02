@@ -1837,6 +1837,7 @@ func (a *reactorAPIAdapter) GetPeerProcessBindings(peerAddr netip.Addr) []plugin
 			Format:     format,
 			ReceiveAll: b.ReceiveAll,
 			Receive:    maps.Clone(b.Receive),
+			Implicit:   maps.Clone(b.Implicit),
 			SendAll:    b.SendAll,
 			Send:       maps.Clone(b.Send),
 		})

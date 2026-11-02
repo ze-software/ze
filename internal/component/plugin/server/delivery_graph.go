@@ -43,6 +43,10 @@ type ProcessEdges struct {
 	// index carries no edge for them. A guard that drops an edge in silence is
 	// a guard an operator cannot debug (ai/rules/evidence.md).
 	Unresolved []string `json:"unresolved,omitempty"`
+	// Implicit names the granted event types the config added on its own
+	// rather than an operator wrote (reactor.GrantImplicitReceive), so an
+	// operator reading the edge knows why a type they never typed is there.
+	Implicit []string `json:"implicit,omitempty"`
 }
 
 // PeerEdges is one peer's whole delivery relationship, for inspection.
@@ -92,6 +96,7 @@ type processDelivery struct {
 	name       string
 	send       []string
 	unresolved []string
+	implicit   []string
 }
 
 // emptyDeliveryGraph is what a server answers with before its first config
@@ -154,6 +159,9 @@ func (pd *peerDelivery) addBinding(namespace string, nsID events.NamespaceID, wi
 			continue
 		}
 		etID := events.LookupEventTypeID(et)
+		if b.Implicit[et] {
+			edges.implicit = append(edges.implicit, et)
+		}
 		// An event that carries no direction of its own matches any grant of
 		// its type (Subscription.Matches), so every grant is indexed under it.
 		pd.grant(deliveryKey{ns: nsID, et: etID, dir: events.DirUnspecified}, b.PluginName)
@@ -260,6 +268,7 @@ func (g *DeliveryGraph) Inspect() []PeerEdges {
 				Receive:    g.receiveTokens(addr, proc.name),
 				Send:       proc.send,
 				Unresolved: proc.unresolved,
+				Implicit:   proc.implicit,
 			})
 		}
 		out = append(out, peer)

@@ -680,6 +680,13 @@ type ProcessBinding struct {
 	ReceiveAll bool
 	Receive    map[string]events.Direction
 
+	// Implicit names the Receive types the config granted on its own rather
+	// than an operator: the peer's `state` for a plugin whose filter member
+	// the peer's chain carries (GrantImplicitReceive). Delivery reads Receive
+	// alone. The plugin server's reconcile does not report an implicit type
+	// the plugin never declared, because no operator asked for it.
+	Implicit map[string]bool
+
 	// Send settings (WHAT this process may generate toward the peer).
 	// SendAll is the "*" token and grants every type, named or not. Read both
 	// through MaySend.

@@ -183,8 +183,8 @@ bindings by inheritance.
 
 ### The Two Bindings Ze Derives
 
-Every binding in the index is one an operator wrote, with two exceptions. Both
-come from the `redistribute` root, and each is one end of the same route's
+Apart from the implicit state grant below, every binding in the index is one
+an operator wrote, with two exceptions. Both come from the `redistribute` root, and each is one end of the same route's
 journey through this index.
 
 | The rule | What it derives | Why there is no choice |
@@ -202,6 +202,26 @@ Three properties keep them from surprising a reader:
 
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
 <!-- source: internal/component/bgp/reactor/config.go -- EnsureProcessBinding -->
+
+### The Implicit State Grant
+
+One grant comes from the filter chain rather than from `redistribute`, and it
+is the one case where Ze widens a block the operator wrote. A plugin whose
+filter member a peer's import or export list carries, inserted by the plugin
+or named by the operator, is granted that peer's `state`. A member can keep
+state per peer, and the `state` event with reason `removed` is how the plugin
+learns to free it, on either transport.
+
+| Property | What it means |
+|----------|---------------|
+| Only `state` | the grant adds no other type and no send type |
+| The operator's block gains it | an `attach process` block for that plugin that lacks `state` gets it, because freeing the member's per-peer state is the plugin's obligation, not the operator's |
+| It is marked implicit | `show event delivery` lists it under `implicit`, and the delivery reconcile does not report it when the plugin never subscribes to `state` |
+| Delivery is still the overlap | a plugin that does not subscribe to `state` receives nothing more |
+
+<!-- source: internal/component/bgp/config/filter_state_binding.go -- grantFilterOwnersState -->
+<!-- source: internal/component/bgp/reactor/config.go -- GrantImplicitReceive -->
+<!-- source: internal/component/plugin/server/delivery_reconcile.go -- edgeDisagreements -->
 
 ### Key Differences from ExaBGP
 

@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net/netip"
 	"slices"
@@ -988,7 +989,8 @@ func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) error {
 // the one site that appends what the operator wrote.
 //
 // A binding an operator typed is the operator's decision about what that
-// process is fed. A derived binding never widens it. The peer's attach block is
+// process is fed. A derived binding never widens it; GrantImplicitReceive is
+// the one exception, for one type, marked implicit. The peer's attach block is
 // the receive authorization for every delivery to that process
 // (Server.PeerScopedProcs, internal/component/plugin/server/delivery_graph.go).
 // A second binding for one process would grant events nobody asked for.
@@ -1013,6 +1015,48 @@ func EnsureProcessBinding(ps *PeerSettings, processName, receive, send string) e
 		return fmt.Errorf("derived binding for process %q: %w", processName, err)
 	}
 	ps.ProcessBindings = append(ps.ProcessBindings, binding)
+	return nil
+}
+
+// GrantImplicitReceive grants processName one receive type on the peer that
+// no operator wrote, marked Implicit. It is the one exception to the
+// precedence EnsureProcessBinding keeps: an operator's block for the process
+// gains the type, because the obligation behind it is the plugin's, not the
+// operator's. A plugin whose filter member a peer's chain carries keeps
+// state for that peer, and the peer's `state` event with reason `removed` is
+// how it learns to free it (spec-filter-wire-6-stage-filters, "Peer removal
+// notice": "a bound procedure's plugin receives the `state` event of every
+// peer it is bound to"). A type the block already grants, by name or by "*",
+// is left as written and not marked. A type the event registry does not know
+// is an error, a Ze defect: the caller passes its own constant.
+func GrantImplicitReceive(ps *PeerSettings, processName, eventType string) error {
+	if ps == nil || processName == "" {
+		return nil
+	}
+	index := slices.IndexFunc(ps.ProcessBindings, func(b ProcessBinding) bool { return b.PluginName == processName })
+	if index < 0 {
+		ps.ProcessBindings = append(ps.ProcessBindings, ProcessBinding{PluginName: processName})
+		index = len(ps.ProcessBindings) - 1
+	}
+	if ps.ProcessBindings[index].ReceiveAll {
+		return nil
+	}
+	if _, granted := ps.ProcessBindings[index].Receive[eventType]; granted {
+		return nil
+	}
+	// A binding resolved from a group can share its slice and maps with the
+	// group's other peers, so the grant writes to copies of this peer's own.
+	ps.ProcessBindings = slices.Clone(ps.ProcessBindings)
+	binding := &ps.ProcessBindings[index]
+	binding.Receive = maps.Clone(binding.Receive)
+	binding.Implicit = maps.Clone(binding.Implicit)
+	if err := parseOneReceiveFlag(eventType, binding); err != nil {
+		return fmt.Errorf("implicit grant for process %q: %w", processName, err)
+	}
+	if binding.Implicit == nil {
+		binding.Implicit = make(map[string]bool, 1)
+	}
+	binding.Implicit[eventType] = true
 	return nil
 }
 

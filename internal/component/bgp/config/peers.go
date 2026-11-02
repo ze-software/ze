@@ -306,6 +306,11 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 		return nil, nil, err
 	}
 	prependDefaultFilters(policyTree, settings, filterReg)
+	// The plugin whose member a peer's chain carries is fed that peer's
+	// state, so its removal reaches the plugin (filter_state_binding.go).
+	if err := grantFilterOwnersState(tree, settings); err != nil {
+		return nil, nil, err
+	}
 
 	// Step 3b4: Compile the chains of the members that evaluate in process
 	// over the route view, after every ref is canonical and bound.
