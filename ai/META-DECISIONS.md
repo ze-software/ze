@@ -206,6 +206,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - No release, version, tag or user consumes `main`. A red test does not hold a
   commit: commit the work and name the red test and its cause in the body.
   Full rule: `ai/rules/pre-release.md`.
+- Before the first release, the plugin protocol and SDK owe no backward
+  compatibility to plugins built on an older SDK. A protocol change is made
+  directly, every plugin in the tree is rebuilt with it, and no version gate,
+  negotiation or fallback is added to keep an old plugin working.
 - A change to Ze's own config syntax converts the configs in the repository
   directly. No `ze config migrate` transformation, compatibility path or
   migrate hint is written for a form no release shipped, because the
