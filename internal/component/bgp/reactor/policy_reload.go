@@ -88,9 +88,14 @@ func (p *Peer) reconcileExportFinal() error {
 			ordinary = ordinary || supported && !ribevents.IsFlowSpec(fam)
 		}
 	}
-	hasReceiveStore := r.api.Dispatcher().Registry().Lookup(ribevents.ReplayRoutesCommand) != nil
-	if ordinary && !hasReceiveStore {
+	receiveStore := r.api.Dispatcher().Registry().Lookup(ribevents.ReplayRoutesCommand)
+	if ordinary && receiveStore == nil {
 		return errors.New("export final restoration of negotiated ordinary families needs the receive store: load bgp-adj-rib-in and attach it to route sources")
+	}
+	if ordinary {
+		if err := drainReceiveStore(ctx, receiveStore); err != nil {
+			return err
+		}
 	}
 	// This is a live session, unlike peer-up replay. Join every admitted writer
 	// while raising the existing live-order hold. Writers recheck it under the
@@ -156,6 +161,38 @@ func (p *Peer) reconcileExportFinal() error {
 		}
 	}
 	return errors.Join(err, p.flushPolicyReplay(ctx, session))
+}
+
+// drainReceiveStore waits until the receive store has applied every event
+// queued for it before the call, so the replay that follows reads each UPDATE
+// the reactor already delivered to it.
+//
+// The store answers a replay from what it has applied, and its event queue can
+// still hold UPDATEs the reactor forwarded long before. A replay that runs
+// ahead of them misses those routes for good: nothing sends them again once
+// the store takes them in, so the destination stays without a route its
+// export policy accepts. Under load the store's queue lagged by seconds and
+// TestPolicyFinalReloadRetainedRoutes and TestPolicyFinalReloadStoreSelfReplay
+// timed out in CI waiting for the restored route. The recovery owner is
+// drained the same way before its lookup (recoveryWorker.decide).
+//
+// It runs before beginPolicyReplay, so a slow store never holds the session's
+// live writes: an UPDATE that arrives after the drain is forwarded live under
+// the accepting policy, which is already visible. ctx bounds the wait, and no
+// lock is held across it.
+func drainReceiveStore(ctx context.Context, store *pluginserver.RegisteredCommand) error {
+	// refuse-by-default: guards RelayReplay -- the replay dispatch refuses a store with no process as ErrPluginProcessNotRunning, the precise reason
+	if store.Process == nil {
+		return nil
+	}
+	// refuse-by-default: guards RelayReplay -- a stopped store has no queue to drain, and the replay dispatch refuses it as ErrPluginProcessNotRunning
+	if !store.Process.Running() {
+		return nil
+	}
+	if err := store.Process.DrainEventsApplied(ctx); err != nil {
+		return fmt.Errorf("export final restoration: the receive store did not apply the UPDATEs queued before the replay: %w", err)
+	}
+	return nil
 }
 
 // beginPolicyReplay MUST precede accepting-facts publication and every retained

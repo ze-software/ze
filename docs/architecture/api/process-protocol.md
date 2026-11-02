@@ -553,11 +553,13 @@ rewrite stops later filters but still receives the final. Earlier reject,
 fail-closed error and teardown remain terminal. A final-only export change
 reconciles the current session: rejection withdraws recorded advertisements;
 acceptance regenerates configured routes and replays retained received routes
-under the actual configured replay owner's send grant. Runtime claims take
+under the actual configured replay owner's send grant. The replay waits until
+the receive store has applied every UPDATE event queued for it, so a route the
+store had not yet taken in is not left out for good. Runtime claims take
 precedence over compiled claims, including aliased plugins. No new persistence
 is added for one-shot API announcements: their producer must reannounce after
 acceptance returns. API withdrawal sections are not swallowed by final rejection.
-<!-- source: internal/component/bgp/reactor/policy_reload.go -- policyReplayOwner, reconcileExportFinal -->
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- policyReplayOwner, reconcileExportFinal, drainReceiveStore -->
 
 Operational `PeerInfo` carries `ImportPolicy` and `ExportPolicy` as optional
 `PolicyInfo` values rather than bare reference lists. Each carries `filters`
