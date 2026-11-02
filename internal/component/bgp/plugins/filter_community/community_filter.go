@@ -147,12 +147,12 @@ func evaluateCommunityFilter(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, e
 	}
 	switch route.Filter() {
 	case ingressFilterName:
-		_, modified := ingressFilter(session.peer, route.Raw(), nil)
-		return rewriteVerdict(route.Raw(), modified)
+		accept, modified := ingressFilter(session.peer, route.Raw(), nil)
+		return rewriteVerdict(accept, route.Raw(), modified)
 	case relationFilterName:
 		meta := map[string]any{srcPeerRoleName: session.srcPeerRole}
-		_, modified := relationIngressFilter(session.peer, route.Raw(), meta)
-		return rewriteVerdict(route.Raw(), modified)
+		accept, modified := relationIngressFilter(session.peer, route.Raw(), meta)
+		return rewriteVerdict(accept, route.Raw(), modified)
 	case egressFilterName:
 		var mods filterapi.ModAccumulator
 		if !egressFilter(filterapi.PeerFilterInfo{}, session.peer, route.Raw(), nil, &mods) {
@@ -190,12 +190,16 @@ var communityKinds = [...]struct {
 	{attribute.AttrExtCommunity, 8},
 }
 
-// rewriteVerdict turns a decision that answers a rewritten UPDATE body into
-// the sets that produce it: each value the body lost is removed, then each
-// value it gained is added, per list attribute. A nil body is no change.
+// rewriteVerdict preserves the ingress decision before deriving any edits.
+// Rejection wins over a rewritten body. For an accepted route, each value
+// the body lost is removed, then each value it gained is added, per list
+// attribute. A nil body is no change, not permission to accept a rejected route.
 // The sender sizes the lists, so each side is indexed once in a map rather
 // than scanned per value (handler.go containsValue says what a scan cost).
-func rewriteVerdict(original, modified []byte) (*sdk.FilterUpdateOutput, error) {
+func rewriteVerdict(accept bool, original, modified []byte) (*sdk.FilterUpdateOutput, error) {
+	if !accept {
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}, nil
+	}
 	if modified == nil {
 		return acceptRoute(), nil
 	}

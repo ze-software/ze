@@ -122,7 +122,7 @@ func TestCommunitySetsCarryWhatTheBodyChanged(t *testing.T) {
 	llgrStale := uint32(0xFFFF0006)
 	original := buildPayload(append(buildOriginAttr(), buildCommunityAttr(llgrStale, 0xFDE800C8)...))
 	modified := buildPayload(append(buildOriginAttr(), buildCommunityAttr(0xFDE800C8, 0xFDE90001)...))
-	out, err := rewriteVerdict(original, modified)
+	out, err := rewriteVerdict(true, original, modified)
 	require.NoError(t, err)
 	assert.Equal(t, sdk.FilterModify, out.Action)
 	assert.Equal(t, []rpc.FilterSet{
@@ -130,7 +130,7 @@ func TestCommunitySetsCarryWhatTheBodyChanged(t *testing.T) {
 		{Field: policy.FieldCommunity.String(), Action: rpc.FilterSetActionAdd, Value: []byte(`"65001:1"`)},
 	}, out.Sets)
 
-	unchanged, err := rewriteVerdict(original, nil)
+	unchanged, err := rewriteVerdict(true, original, nil)
 	require.NoError(t, err)
 	assert.Equal(t, sdk.FilterAccept, unchanged.Action)
 

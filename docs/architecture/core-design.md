@@ -2707,13 +2707,22 @@ retired.
 
 The per-consumer decision has one home, and it is the orchestrator: `handleBatch`
 calls `Accept(route, consumerName)` with the protocol that is actually importing.
-`TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig` runs every registered
-ingress filter over a received UPDATE with a destination-scoped evaluator
-installed, and requires each one to accept.
+`TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig` keeps the original
+received UPDATE and peer facts under a destination-scoped evaluator. In an
+isolated child process it runs every remaining legacy ingress callback, then
+the four migrated ingress members through real registered plugin startup and
+`filter-update`: community ingress, community relation, role OTC ingress and
+LLGR ingress. Every case must accept, and the actually executed population must
+be nonempty. This is a regression check of those callbacks, not a sweep of
+configurable filter instances or proof of peer-chain placement or Adj-RIB-In
+storage. The child keeps plugin startup's global state out of other tests.
+The community adapter preserves the original callback's acceptance decision
+before deriving any rewrite; a rejection cannot become an accepting verdict.
 
 <!-- source: internal/plugins/redistribute/redistribute.go -- handleBatch, the per-consumer Accept -->
 <!-- source: internal/component/config/redistribute/route.go -- ImportRule.Accept, destination scoping -->
 <!-- source: internal/component/plugin/all/ingress_redistribution_test.go -- the guard over the whole pipeline -->
+<!-- source: internal/component/bgp/plugins/filter_community/community_filter.go -- evaluateCommunityFilter, rewriteVerdict -->
 
 ### Redistribute Late-Join Replay
 
