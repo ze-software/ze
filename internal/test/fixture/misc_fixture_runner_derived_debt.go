@@ -55,7 +55,7 @@ func commitPushNeedsNoVerifyRecordDriver(ctx context.Context, args []string) err
 		return err
 	}
 	out, code, err := scratch.le(ctx, argCommit, "push", derivedDebtAuthorisation)
-	if failure := commandAnswered("le commit push with no verify record", out, code, 0, err); failure != nil {
+	if failure := commandAnswered("le commit push with no verify record", out, code, err); failure != nil {
 		return failure
 	}
 	if strings.Contains(out, "le verify") {
@@ -348,7 +348,7 @@ func commitAttestEmptyCommitDriver(ctx context.Context, args []string) error {
 
 	out, code, err = scratch.le(ctx, argCommit, "create", "subject", "owner attests the closure",
 		"attest", owed, "Thomas reviewed it in person")
-	if failure := commandAnswered("create attest with no file", out, code, 0, err); failure != nil {
+	if failure := commandAnswered("create attest with no file", out, code, err); failure != nil {
 		return failure
 	}
 	scriptPath, err := scriptFrom(scratch.repo, out)
@@ -408,7 +408,7 @@ func commitReviewOwedTrailerDriver(ctx context.Context, args []string) error {
 
 	out, code, err := scratch.le(ctx, argCommit, "create", "subject", "close the fixture spec",
 		"remove", derivedDebtSpecPath, "review-override", "no reviewer free")
-	if failure := commandAnswered("create review-override", out, code, 0, err); failure != nil {
+	if failure := commandAnswered("create review-override", out, code, err); failure != nil {
 		return failure
 	}
 	scriptPath, err := scriptFrom(scratch.repo, out)
@@ -520,14 +520,14 @@ func (s *derivedDebtScratch) run(ctx context.Context, name string, args ...strin
 // exited zero, naming what ran otherwise.
 func (s *derivedDebtScratch) expect(ctx context.Context, what, name string, args ...string) error {
 	out, code, err := rawCommand(ctx, s.repo, s.env, name, args...)
-	return commandAnswered(what, out, code, 0, err)
+	return commandAnswered(what, out, code, err)
 }
 
 // git runs one git command in the scratch checkout and answers its trimmed
 // output, failing on a non-zero exit.
 func (s *derivedDebtScratch) git(ctx context.Context, args ...string) (string, error) {
 	out, code, err := rawCommand(ctx, s.repo, os.Environ(), "git", args...)
-	if failure := commandAnswered("git "+strings.Join(args, " "), out, code, 0, err); failure != nil {
+	if failure := commandAnswered("git "+strings.Join(args, " "), out, code, err); failure != nil {
 		return "", failure
 	}
 	return strings.TrimSpace(out), nil
@@ -564,7 +564,7 @@ func (s *derivedDebtScratch) commitMessage(ctx context.Context, message, write, 
 // preparePushPath runs `le commit push` and answers the script path it prints.
 func (s *derivedDebtScratch) preparePushPath(ctx context.Context) (string, error) {
 	out, code, err := s.le(ctx, argCommit, "push", derivedDebtAuthorisation)
-	if failure := commandAnswered("le commit push", out, code, 0, err); failure != nil {
+	if failure := commandAnswered("le commit push", out, code, err); failure != nil {
 		return "", failure
 	}
 	return scriptFrom(s.repo, out)
@@ -595,14 +595,14 @@ func (s *derivedDebtScratch) upstreamIs(ctx context.Context, want string) error 
 	return nil
 }
 
-// commandAnswered answers nil when a command ran and exited want, and
+// commandAnswered answers nil when a command ran and exited zero, and
 // otherwise an error naming what ran, how it ended and what it printed.
-func commandAnswered(what, out string, code, want int, err error) error {
+func commandAnswered(what, out string, code int, err error) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w %s", what, err, out)
 	}
-	if code != want {
-		return fmt.Errorf("%s exit=%d, want %d: %s", what, code, want, out)
+	if code != 0 {
+		return fmt.Errorf("%s exit=%d, want 0: %s", what, code, out)
 	}
 	return nil
 }
