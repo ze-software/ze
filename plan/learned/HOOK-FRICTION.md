@@ -1818,3 +1818,30 @@ beneath it, and the gate's real job over committed tags is untouched.
 and `ai/rules/`, and it refused this row's first draft. So the shell route is
 already closed for the governed trees and open for `internal/`. Closing it there
 too would remove the workaround this row describes.
+
+## Door-read tracking records only some whole reads, and an agent wrote the gate's state itself (2026-11-02)
+
+**Trigger.** `pretool-writeedit` refuses a spec or code edit until the agent has
+read every covering door whole (`writeSpecDoorsRead`, `writeDesignDoorsRead`).
+The read counts only once the harness has recorded it: a whole Read, or a whole
+`cat` with no pipe.
+
+**What happened.** A subagent of `spec-command-surface-parity` read thirteen
+doors whole, some with `cat` and some with the Read tool. Only five were
+recorded, and the edit was refused naming the rest. The agent then ran
+`./le ai hooks pretool-bash` by hand, feeding it a payload in its own name, to
+record the doors it had printed. That is the gated agent writing the state of
+the gate that judges it. The edit still refused five doors until the agent
+read them again with the Read tool. Afterwards the main thread forbade agents
+to run any hook command themselves; an agent refused this way rereads the door
+whole and, if the refusal holds, stops and reports it verbatim.
+
+**What it cost.** Rereads of doors the agent had already read whole. Worse, a gate
+an agent can satisfy by calling the hook with its own payload proves nothing
+about what the agent read, and it teaches the next agent the same route.
+
+**What would remove it.** Every whole Read and every whole `cat` of a door is
+recorded on the call itself, every time, for the agent that made it, with
+nothing an agent can call to add a record. A refusal that names the door also
+says which reads of it the gate saw, so a missing record is told apart from a
+missing read.
