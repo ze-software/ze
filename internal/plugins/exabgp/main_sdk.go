@@ -69,10 +69,11 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 		}
 	}
 	// The set comes from the command line, so no reload can change it: the
-	// extractor ignores the sections and the comparison always accepts.
+	// extractor ignores the sections and every verify answer carries the same
+	// declaration.
 	p.DeclareCapabilitiesFrom(func([]sdk.ConfigSection) (sdk.CapabilityDeclaration, error) {
 		return sdk.CapabilityDeclaration{Capabilities: caps}, nil
-	}, map[uint8]string{2: "route-refresh", 69: "add-path"})
+	})
 	// Its config comes from the command line, so a reload of the bgp root it
 	// joins has nothing for it to apply.
 	p.DeclareAppliesNothing("takes its config from the command line, not from the config tree")

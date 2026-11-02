@@ -1,13 +1,17 @@
-# Test: a reload that removes software-version from a peer that stays
-#       configured is refused.
+# Test: a reload that adds a peer carrying software-version is accepted.
 # Initial config: peer1 advertises software-version.
-# Live change:    config2.conf drops the capability block; peer1 stays.
-# Expected:       the reload is refused naming peer1, the software-version leaf
-#                 and plugin bgp-softver; one TCP connection.
+# Live change:    config2.conf adds peer2 (192.0.2.2), which also advertises it.
+# Expected:       the reload is accepted (peer2 is listed, no refusal is
+#                 printed), and peer1's session, whose declaration is
+#                 unchanged, never restarts.
 #
-# VALIDATES: AC-2c of spec-bgp-open-session-rfc-defects: a code removed from a
-#            live peer is a change, unlike a removed peer.
-# PREVENTS:  ze continuing to send a capability the operator removed.
+# VALIDATES: spec-runtime-peer-plugin-capabilities AC-1 and AC-2 through
+#            bgp-softver: the verify answer carries the declaration for the
+#            added peer instead of refusing it. The OPEN bytes a peer added
+#            this way sends are proved by reload-add-peer-role-capability.
+# PREVENTS:  the refusal "capability software-version cannot change while ze
+#            runs" for a peer the reload adds, and a restart of a peer whose
+#            capabilities the reload did not change.
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER
@@ -93,6 +97,37 @@ bgp {
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
+			capability {
+				software-version {
+					encoding legacy
+				}
+			}
+		}
+	}
+	peer peer2 {
+		connection {
+			remote {
+				ip 192.0.2.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				software-version {
+					encoding legacy
+				}
+			}
 		}
 	}
 }
@@ -101,15 +136,15 @@ EOF_CONF2
 tmpfs=stages.script:terminator=EOF_SCRIPT
 await-file established
 reload config2.conf
-say SOFTVER-REMOVED-REFUSED: reload refused, session kept
+has show bgp peer list => 192.0.2.2
+say SOFTVER-ADD-PEER-ACCEPTED: reload applied, session kept
 EOF_SCRIPT
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-softver -:stdin=ze-bgp:timeout=60s
 
-expect=stderr:contains=peer peer1: capability software-version cannot change while ze runs (plugin bgp-softver).
-expect=stderr:contains=  under systemd: systemctl restart ze
-expect=stderr:contains=SOFTVER-REMOVED-REFUSED: reload refused, session kept
+expect=stderr:contains=SOFTVER-ADD-PEER-ACCEPTED: reload applied, session kept
+reject=stderr:pattern=cannot change while ze runs
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=peer restart required
 reject=stderr:pattern=ze signal restart

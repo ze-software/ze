@@ -73,16 +73,12 @@ func (c *fqdnConfig) encodeValue() string {
 // set by the hostname container.
 const fqdnCapCode = 73
 
-// hostnameCapabilities computes hostname's declaration from the bgp root, and
-// hostnameCapabilityLeaves names the leaf that sets each code.
-// runHostnamePlugin registers both; the tests drive the same pair through the
-// SDK's comparison.
-var (
-	hostnameCapabilities = configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
-		return extractHostnameCapabilities(data), nil
-	})
-	hostnameCapabilityLeaves = map[uint8]string{fqdnCapCode: hostnameCapabilityLeaf}
-)
+// hostnameCapabilities computes hostname's declaration from the bgp root.
+// runHostnamePlugin registers it; the tests drive it through the SDK's
+// CandidateCapabilities.
+var hostnameCapabilities = configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
+	return extractHostnameCapabilities(data), nil
+})
 
 // hostnameCapabilityLeaf is the capability container that sets code 73.
 const hostnameCapabilityLeaf = "hostname"
@@ -97,13 +93,13 @@ func runHostnamePlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-hostname", conn)
 	defer func() { _ = p.Close() }()
 
-	// The per-peer hostname/domain declaration is fixed for the process life:
-	// a reload that changes it is refused at config-verify
-	// (sdk.Plugin.DeclareCapabilitiesFrom).
-	p.DeclareCapabilitiesFrom(hostnameCapabilities, hostnameCapabilityLeaves)
+	// A reload's config-verify answer carries the candidate's per-peer
+	// hostname/domain declaration, which the engine installs when the reload
+	// applies (sdk.Plugin.DeclareCapabilitiesFrom).
+	p.DeclareCapabilitiesFrom(hostnameCapabilities)
 	// hostname reads no other leaf, so an accepted reload leaves it nothing
 	// to apply.
-	p.DeclareAppliesNothing("reads only the hostname capability leaves, fixed for the process life")
+	p.DeclareAppliesNothing("reads only the hostname capability leaves, whose declaration the engine installs")
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()

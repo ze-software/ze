@@ -52,13 +52,6 @@ const (
 	addPathCapCode      = 69 // RFC 7911
 )
 
-// bridgeCapabilityLeaves names the bridge leaf that sets each code, so a
-// refused reload names configuration.
-var bridgeCapabilityLeaves = map[uint8]string{
-	routeRefreshCapCode: "route-refresh",
-	addPathCapCode:      "add-path",
-}
-
 // capabilityDecls builds the Stage-3 capability declarations from config.
 // Both apply to every peer (no Peers selector). The add-path payload is built
 // from the bridge's families, so a family edit while add-path is set changes it.
@@ -149,7 +142,7 @@ func runInternalBridge(conn net.Conn) int {
 	// so the bridge (Stage 5) captures it; no-ops until the subprocesses start.
 	p.OnEvent(r.onEvent)
 
-	p.DeclareCapabilitiesFrom(bridgeCapabilities, bridgeCapabilityLeaves)
+	p.DeclareCapabilitiesFrom(bridgeCapabilities)
 	r.registerReloadHandlers(p)
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -212,10 +205,11 @@ func runInternalBridge(conn net.Conn) int {
 // see startWhenReady. The capabilities are declared by bridgeCapabilities.
 //
 // Reloads do not restart the subprocesses: a script owns its own lifecycle. A
-// reload that changes any other bridge leaf is refused at config-verify
-// (verifyReload), and one that changes the bridge's capabilities is refused
-// there too (sdk.Plugin.DeclareCapabilitiesFrom), because ze would keep
-// sending the old ones in its OPEN. So applyConfig runs only at Stage 2.
+// reload that changes any bridge leaf other than a capability leaf is refused
+// at config-verify (verifyReload). One that changes the bridge's capabilities
+// is accepted: its verify answer carries the new declaration, which the engine
+// installs (sdk.Plugin.DeclareCapabilitiesFrom), and no running script reads a
+// capability leaf. So applyConfig runs only at Stage 2.
 func (r *bridgeRunner) applyConfig(cfg bridgeConfig) error {
 	r.mu.Lock()
 	if r.started {

@@ -1,6 +1,7 @@
 package llnh
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -22,40 +23,41 @@ func llnhReloadConfig(edgeEnabled, bareEnabled bool) []sdk.ConfigSection {
 	return []sdk.ConfigSection{{Root: "bgp", Data: `{"bgp":{"peer":{` + edge + `,` + bare + `}}}`}}
 }
 
-// TestLLNHCapabilityExtractorRegistered checks that the extractor and the
-// leaves runLLNHPlugin registers make the SDK refuse a reload that removes
-// link-local-nexthop from a live peer and accept one that keeps it (AC-2d,
-// AC-2e), and that llnh's own refusal still covers a candidate the comparison
-// would also refuse: the SDK runs it first (TestDeclareCapabilitiesFromOwnVerifyAnswersFirst).
-// VALIDATES: llnhCapabilities and llnhCapabilityLeaves through
-// sdk.CheckCapabilityReload, and refuseLinkLocalCapabilityWithoutAddressSections.
-// PREVENTS: an llnh declaration the SDK cannot compare, or the missing-address
-// refusal replaced by the restart text.
+// llnhDeclared reports whether the candidate declares link-local-nexthop for
+// selector.
+func llnhDeclared(t *testing.T, sections []sdk.ConfigSection, selector string) bool {
+	t.Helper()
+	declared, err := sdk.CandidateCapabilities(llnhCapabilities, sections)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, decl := range declared.Capabilities {
+		if decl.Code == llnhCapCode && slices.Contains(decl.Peers, selector) {
+			return true
+		}
+	}
+	return false
+}
+
+// TestLLNHCapabilityExtractorRegistered checks that the extractor
+// runLLNHPlugin registers declares link-local-nexthop for a peer a reload
+// enables it on and drops it for a peer a reload disables it on, in the
+// declaration the config-verify answer carries (AC-2), and that llnh's own
+// refusal still covers a peer with no Link-Local address: the SDK runs it
+// first (TestDeclareCapabilitiesFromOwnVerifyAnswersFirst).
+// VALIDATES: llnhCapabilities through sdk.CandidateCapabilities, and
+// refuseLinkLocalCapabilityWithoutAddressSections.
+// PREVENTS: a reload-enabled link-local-nexthop that never reaches the OPEN,
+// a disabled one still sent, or the missing-address refusal lost.
 func TestLLNHCapabilityExtractorRegistered(t *testing.T) {
-	startup := llnhReloadConfig(true, false)
-
-	if err := sdk.CheckCapabilityReload("bgp-llnh", llnhCapabilities, llnhCapabilityLeaves,
-		startup, llnhReloadConfig(true, false)); err != nil {
-		t.Fatalf("an unchanged link-local-nexthop was refused: %v", err)
+	if llnhDeclared(t, llnhReloadConfig(false, false), "edge") {
+		t.Fatal("a disabled link-local-nexthop is declared for peer edge")
+	}
+	if !llnhDeclared(t, llnhReloadConfig(true, false), "edge") {
+		t.Fatal("a reload that enables link-local-nexthop on peer edge declares nothing for it")
 	}
 
-	err := sdk.CheckCapabilityReload("bgp-llnh", llnhCapabilities, llnhCapabilityLeaves,
-		startup, llnhReloadConfig(false, false))
-	if err == nil {
-		t.Fatal("removing link-local-nexthop from a live peer was accepted")
-	}
-	want := "peer edge: capability link-local-nexthop cannot change while ze runs (plugin bgp-llnh)."
-	if first, _, _ := strings.Cut(err.Error(), "\n"); first != want {
-		t.Errorf("refusal opens with %q, want %q", first, want)
-	}
-
-	// Enabling the capability on a peer with no Link-Local address is a
-	// change the comparison refuses too; llnh's own handler answers it first.
 	candidate := llnhReloadConfig(true, true)
-	if err := sdk.CheckCapabilityReload("bgp-llnh", llnhCapabilities, llnhCapabilityLeaves,
-		startup, candidate); err == nil {
-		t.Error("enabling link-local-nexthop on peer bare was accepted by the comparison")
-	}
 	own := refuseLinkLocalCapabilityWithoutAddressSections(candidate)
 	if own == nil {
 		t.Fatal("llnh's own verify accepted a peer with no Link-Local address")

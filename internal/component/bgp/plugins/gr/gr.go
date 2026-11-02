@@ -165,15 +165,15 @@ func runGRPlugin(conn net.Conn) int {
 	p.OnConfigVerify(refuseUncarriedGRSections)
 
 	// The per-peer restart-time and long-lived-stale-time declaration runs
-	// after OnConfigure and is fixed for the process life: a reload that
-	// changes it, a session family edit on a peer with no graceful-restart
-	// family list included, is refused at config-verify
-	// (sdk.Plugin.DeclareCapabilitiesFrom).
-	p.DeclareCapabilitiesFrom(grCapabilities, grCapabilityLeaves)
+	// after OnConfigure. A reload's config-verify answer carries the
+	// candidate's declaration, a session family edit on a peer with no
+	// graceful-restart family list included, and the engine installs it when
+	// the reload applies (sdk.Plugin.DeclareCapabilitiesFrom).
+	p.DeclareCapabilitiesFrom(grCapabilities)
 	// Every leaf gr reads either reaches that declaration or is checked by
 	// refuseUncarriedGRSections, so an accepted reload leaves gr nothing to
 	// apply.
-	p.DeclareAppliesNothing("reads only graceful-restart capability leaves, fixed for the process life")
+	p.DeclareAppliesNothing("reads only graceful-restart capability leaves, whose declaration the engine installs")
 
 	// OnConfigure callback: refuse a graceful-restart family the session does
 	// not carry, then install the LLGR egress filter state.

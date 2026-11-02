@@ -1,14 +1,15 @@
-# Test: a reload that changes the exabgp bridge's route-refresh is refused,
-#       naming every peer.
+# Test: a reload that changes the exabgp bridge's route-refresh is accepted.
 # Initial config: the exabgp bridge feeds peer1 with route-refresh false.
-# Live change:    config2.conf sets the bridge's route-refresh true.
-# Expected:       the reload is refused naming every peer, the route-refresh
-#                 leaf and plugin exabgp-bridge; one TCP connection.
+# Live change:    config2.conf sets the bridge's route-refresh true and adds
+#                 peer2 (192.0.2.2), which shows the reload committed.
+# Expected:       the reload is accepted (peer2 is listed, no refusal is
+#                 printed), and the bridge's scripts keep running.
 #
-# VALIDATES: AC-2f of spec-bgp-open-session-rfc-defects: the bridge registers
-#            its extractor for the exabgp root, and its all-peer declaration
-#            (an empty selector) is refused as "every peer".
-# PREVENTS:  a bridge setting accepted at runtime that no OPEN ever carries.
+# VALIDATES: spec-runtime-peer-plugin-capabilities AC-2: the bridge's verify
+#            answer carries its new all-peer declaration instead of refusing
+#            a capability leaf; the bridge refuses only its other leaves.
+# PREVENTS:  the refusal "capability route-refresh cannot change while ze
+#            runs" for a capability the engine can now install at reload.
 option=timeout:value=60s
 
 stdin=peer:terminator=EOF_PEER
@@ -130,21 +131,44 @@ bgp {
 			send [ * ]
 		}
 	}
+	peer peer2 {
+		connection {
+			remote {
+				ip 192.0.2.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
 }
 EOF_CONF2
 
 tmpfs=stages.script:terminator=EOF_SCRIPT
 await-file established
 reload config2.conf
-say BRIDGE-RR-REFUSED: reload refused, session kept
+has show bgp peer list => 192.0.2.2
+say BRIDGE-RR-ACCEPTED: reload applied
 EOF_SCRIPT
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
 
-expect=stderr:contains=every peer: capability route-refresh cannot change while ze runs (plugin exabgp-bridge).
-expect=stderr:contains=  under systemd: systemctl restart ze
-expect=stderr:contains=BRIDGE-RR-REFUSED: reload refused, session kept
+expect=stderr:contains=BRIDGE-RR-ACCEPTED: reload applied
 reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=cannot change while ze runs
+# ze-peer mirrors ze's first OPEN, which carried no route-refresh, so peer1
+# never advertised code 2 and its session must survive the reload.
 reject=stderr:pattern=peer restart required
 reject=stderr:pattern=ze signal restart

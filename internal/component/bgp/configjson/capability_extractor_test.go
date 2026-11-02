@@ -1,7 +1,6 @@
 package configjson
 
 import (
-	"maps"
 	"net/netip"
 	"slices"
 	"testing"
@@ -10,7 +9,7 @@ import (
 )
 
 // selectorTree holds a standalone peer with a remote IP, a grouped peer and a
-// dynamic group's template: the shapes a capability selector names.
+// dynamic group's template: the shapes a capability declaration reads.
 const selectorTree = `{"bgp":{
 	"peer":{"edge":{"connection":{"remote":{"ip":"192.0.2.1"}}}},
 	"group":{
@@ -19,27 +18,9 @@ const selectorTree = `{"bgp":{
 	}
 }}`
 
-// TestCapabilitySelectors checks the candidate peer set holds every selector of
-// every ForEachPeer visit: a peer's name and its remote IP (role declares under
-// the IP), and a dynamic group's template under its group selector, never the
-// group's "dynamic" placeholder address.
-func TestCapabilitySelectors(t *testing.T) {
-	bgpTree, ok := ParseBGPSubtree(selectorTree)
-	if !ok {
-		t.Fatal("selectorTree does not parse")
-	}
-	got := CapabilitySelectors(bgpTree)
-	slices.Sort(got)
-	want := []string{"edge", "192.0.2.1", CapabilityGroupKey("ix"), "rr1"}
-	slices.Sort(want)
-	if !slices.Equal(got, want) {
-		t.Fatalf("CapabilitySelectors = %v, want %v", got, want)
-	}
-}
-
-// TestPeerSelectors checks the one selector set the reactor injects from and a
-// reload candidate offers: name, then address, then the dynamic group, each
-// skipped when absent, and an address that is the name listed once.
+// TestPeerSelectors checks the one selector set the reactor injects from: name,
+// then address, then the dynamic group, each skipped when absent, and an
+// address that is the name listed once.
 func TestPeerSelectors(t *testing.T) {
 	addr := netip.MustParseAddr("192.0.2.1")
 	cases := []struct {
@@ -61,7 +42,7 @@ func TestPeerSelectors(t *testing.T) {
 }
 
 // TestBGPCapabilityExtractor checks the extractor reads only bgp sections,
-// reports every selector of the tree as a candidate peer, and refuses a
+// answers the declarations the bgp section's extract returns, and refuses a
 // section whose data is not JSON.
 func TestBGPCapabilityExtractor(t *testing.T) {
 	extract := BGPCapabilityExtractor(func(string) ([]sdk.CapabilityDecl, error) {
@@ -77,12 +58,8 @@ func TestBGPCapabilityExtractor(t *testing.T) {
 	if len(declaration.Capabilities) != 1 {
 		t.Errorf("capabilities = %v, want the one the bgp section declares", declaration.Capabilities)
 	}
-	if len(declaration.Peers) != 4 {
-		t.Errorf("peers = %v, want the four selectors of the tree", declaration.Peers)
-	}
-	wantLabels := map[string]string{CapabilityGroupKey("ix"): "peers of dynamic group ix"}
-	if !maps.Equal(declaration.Labels, wantLabels) {
-		t.Errorf("labels = %v, want only the dynamic group's template named as its group", declaration.Labels)
+	if got := declaration.Capabilities[0]; got.Code != 75 || !slices.Equal(got.Peers, []string{"edge"}) {
+		t.Errorf("capability = %+v, want code 75 for edge", got)
 	}
 	if _, err := extract([]sdk.ConfigSection{{Root: "bgp", Data: `not json`}}); err == nil {
 		t.Error("a bgp section that is not JSON was accepted")

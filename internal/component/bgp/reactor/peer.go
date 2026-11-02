@@ -1427,8 +1427,7 @@ func capabilitySelectors(settings *PeerSettings) []string {
 	if settings.IsDynamic {
 		dynamicGroup = settings.GroupName
 	}
-	// configjson.PeerSelectors is the one declaration of this set: a reload's
-	// candidate peer set (configjson.CapabilitySelectors) reads it too.
+	// configjson.PeerSelectors is the one declaration of this set.
 	return configjson.PeerSelectors(settings.Name, settings.Address, dynamicGroup)
 }
 

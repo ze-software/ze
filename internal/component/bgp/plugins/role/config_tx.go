@@ -28,9 +28,10 @@ var errRoleInvalidBGPConfigJSON = errors.New("bgp-role: the bgp config section i
 // and group, with or without a role block. It is one value, so the Section 5
 // filters and OnValidateOpen always read one snapshot of it.
 //
-// The role value itself also reaches the OPEN, and a change to it is refused
-// at verify by the capability comparison (sdk.Plugin.DeclareCapabilitiesFrom),
-// so a reload that this transaction applies never changes a role in an OPEN.
+// The role value itself also reaches the OPEN: the config-verify answer carries
+// the candidate's role declaration (sdk.Plugin.DeclareCapabilitiesFrom), and the
+// engine installs it and restarts a session whose OPEN it changes, so the role
+// this transaction applies and the role in the next OPEN are the same.
 type roleConfig struct {
 	peers    map[string]*peerRoleConfig
 	nameToIP map[string]string

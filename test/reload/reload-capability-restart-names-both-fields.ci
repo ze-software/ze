@@ -1,7 +1,8 @@
-# Test: Config reload REMOVES a capability the peer never used, and the session
-#       still restarts -- because a second field moves with it.
-# Initial config: peer1 declares capability extended-message enable
-# After SIGHUP:   the extended-message line is gone; nothing else in the file differs
+# Test: Config reload REMOVES a capability the peer used AND rotates the peer's
+#       router id, and the restart names both fields that forced it.
+# Initial config: peer1 declares capability extended-message enable, router-id 1.2.3.4
+# After SIGHUP:   the extended-message line is gone and router-id is 1.2.3.5;
+#                 nothing else in the file differs
 # Expected: the peer restarts, and the log names BOTH fields that forced it.
 #
 # VALIDATES: the boundary of the owner's ruling of 2026-08-07 -- "if capabilities
@@ -10,12 +11,12 @@
 #            re-negotiate". ze-peer mirrors ze's OPEN, so the peer DID advertise
 #            extended-message here and the negotiation genuinely changes. The
 #            capability half of the verdict is therefore restart on its own merits.
-#            The second name in the log is the finding: parseCapabilitiesFromTree
-#            (config_capabilities.go) also rewrites CapabilityConfigJSON, the blob
-#            that carries the capability block to plugins, from the SAME edit.
-#            negotiationOutcomeUnchanged (peer_settings_negotiation.go) cannot see
-#            what a plugin would inject once it received that blob, so the field
-#            restarts and no capability-block edit can reach the swap branch today.
+#            The router id is the second, independent cause. The capability
+#            block's plugin-delivery copy (CapabilityConfigJSON) changes with the
+#            same edit but is NOT named: no OPEN is built from it, and the plugin
+#            capabilities it feeds are unchanged (pluginCapabilityConfigSettings,
+#            peer_settings_negotiation.go), so naming it would send the operator
+#            after a field that forced nothing.
 # PREVENTS:  the restart reason naming one field when two forced it. An operator
 #            who reads "Capabilities", makes the capability set negotiate
 #            identically, and reloads again would watch the session flap a second
@@ -42,7 +43,8 @@ option=tcp_connections:value=2
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# After initial messages: drop the extended-message capability and SIGHUP.
+# After initial messages: drop the extended-message capability, rotate the
+# router id, and SIGHUP.
 action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
 action=sighup:conn=1:seq=2
 
@@ -101,7 +103,8 @@ bgp {
 }
 EOF_CONF
 
-# Rewritten config: extended-message is gone; nothing else differs.
+# Rewritten config: extended-message is gone and the router id rotated; nothing
+# else differs.
 tmpfs=config2.conf:terminator=EOF_CONF2
 bgp {
 	peer peer1 {
@@ -119,7 +122,7 @@ bgp {
 				local 1
 				remote 1
 			}
-			router-id 1.2.3.4
+			router-id 1.2.3.5
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -151,5 +154,8 @@ cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 
 # The restart names every field that forced it, in struct order after Capabilities.
 expect=stderr:pattern=peer restart required
-expect=stderr:pattern=changed=Capabilities,CapabilityConfigJSON
+expect=stderr:pattern=changed=Capabilities,RouterID
+# The plugin-delivery copy of the capability block forced nothing, so it is
+# never named.
+reject=stderr:pattern=CapabilityConfigJSON
 reject=stderr:pattern=peer settings swapped in place

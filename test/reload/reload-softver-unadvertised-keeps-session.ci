@@ -1,18 +1,25 @@
-# Test: a reload that adds a peer carrying software-version is refused.
-# Initial config: peer1 advertises software-version.
-# Live change:    config2.conf adds peer2 (192.0.2.2), which also advertises it.
-# Expected:       the reload is refused naming peer2, the software-version leaf
-#                 and plugin bgp-softver; peer1's session never restarts.
+# Test: a reload that changes the software-version encoding keeps the session
+#       when the peer never advertised software-version.
+# Initial config: peer1 advertises software-version with encoding legacy;
+#                 ze-peer drops code 75 from the OPEN it mirrors back.
+# Live change:    config2.conf sets the encoding to draft and adds peer2
+#                 (192.0.2.2), which shows the reload committed.
+# Expected:       no refusal and no restart: one TCP connection, closed only by
+#                 the clean shutdown after the last stage.
 #
-# VALIDATES: AC-2b of spec-bgp-open-session-rfc-defects: a new selector with a
-#            plugin-declared capability is a change the SDK refuses.
-# PREVENTS:  a peer added at runtime whose OPEN would lack the capability its
-#            config asks for, because the plugin declared only at start.
+# VALIDATES: spec-runtime-peer-plugin-capabilities AC-5: a changed plugin code
+#            the peer did not advertise is not in use on the session (RFC 5492
+#            Section 1), so the reload keeps it running.
+# PREVENTS:  a session flapped for a capability the peer never negotiated.
 option=timeout:value=60s
+# The reactor logs each restart decision, with its reason, at info.
+option=env:var=ze.log.bgp.reactor:value=info
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=50s
+# ze-peer advertises no software-version (code 75) back to ze.
+option=open:value=drop-capability:code=75
 # ze-peer creates this file on the daemon's first UPDATE; the staged fixture
 # holds its first reload until it exists.
 option=established-file:path=established
@@ -74,6 +81,28 @@ plugin {
 
 bgp {
 	router-id 1.2.3.4
+	# peer2 is the commit barrier: listing it proves the reload applied.
+	peer peer2 {
+		connection {
+			remote {
+				ip 192.0.2.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
 	peer peer1 {
 		connection {
 			remote {
@@ -95,33 +124,7 @@ bgp {
 			}
 			capability {
 				software-version {
-					encoding legacy
-				}
-			}
-		}
-	}
-	peer peer2 {
-		connection {
-			remote {
-				ip 192.0.2.2
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
-		}
-		session {
-			asn {
-				local 1
-				remote 1
-			}
-			router-id 1.2.3.4
-			family {
-				ipv4/unicast { prefix { maximum 10000; } }
-			}
-			capability {
-				software-version {
-					encoding legacy
+					encoding draft
 				}
 			}
 		}
@@ -132,15 +135,15 @@ EOF_CONF2
 tmpfs=stages.script:terminator=EOF_SCRIPT
 await-file established
 reload config2.conf
-say SOFTVER-ADD-PEER-REFUSED: reload refused, session kept
+has show bgp peer list => 192.0.2.2
+say SOFTVER-UNADVERTISED-KEPT: reload applied, session kept
 EOF_SCRIPT
 
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-softver -:stdin=ze-bgp:timeout=60s
 
-expect=stderr:contains=peer peer2: capability software-version cannot change while ze runs (plugin bgp-softver).
-expect=stderr:contains=  under systemd: systemctl restart ze
-expect=stderr:contains=SOFTVER-ADD-PEER-REFUSED: reload refused, session kept
+expect=stderr:contains=SOFTVER-UNADVERTISED-KEPT: reload applied, session kept
 reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=cannot change while ze runs
 reject=stderr:pattern=peer restart required
 reject=stderr:pattern=ze signal restart

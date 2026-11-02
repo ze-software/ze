@@ -37,19 +37,12 @@ const grConfigName = "graceful-restart"
 // RFC 4724 Section 3: "Capability code: 64".
 const grCapCode = 64
 
-// grCapabilities computes gr's declaration from the bgp root, and
-// grCapabilityLeaves names the leaf that sets each code. runGRPlugin registers
-// both; the tests drive the same pair through the SDK's comparison.
-var (
-	grCapabilities = configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
-		// RFC 9494: LLGR capability (code 71) declared alongside GR (code 64)
-		return append(extractGRCapabilities(data), extractLLGRCapabilities(data)...), nil
-	})
-	grCapabilityLeaves = map[uint8]string{
-		grCapCode:   grConfigName,
-		llgrCapCode: grConfigName + " long-lived-stale-time",
-	}
-)
+// grCapabilities computes gr's declaration from the bgp root. runGRPlugin
+// registers it; the tests drive it through the SDK's CandidateCapabilities.
+var grCapabilities = configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
+	// RFC 9494: LLGR capability (code 71) declared alongside GR (code 64)
+	return append(extractGRCapabilities(data), extractLLGRCapabilities(data)...), nil
+})
 
 // grRestartTimeDefault is the Restart Time Ze advertises when the
 // "restart-time" leaf is absent. It matches the YANG default.

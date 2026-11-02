@@ -75,13 +75,14 @@ func runLLNHPlugin(conn net.Conn) int {
 	p.OnConfigVerify(refuseLinkLocalCapabilityWithoutAddressSections)
 
 	// OnConfigure refuses a peer that would advertise capability 77 with no
-	// Link-Local address to send; the declaration then runs after it, and is
-	// fixed for the process life (sdk.Plugin.DeclareCapabilitiesFrom).
+	// Link-Local address to send; the declaration then runs after it, and a
+	// reload's config-verify answer carries the candidate's declaration
+	// (sdk.Plugin.DeclareCapabilitiesFrom).
 	p.OnConfigure(refuseLinkLocalCapabilityWithoutAddressSections)
-	p.DeclareCapabilitiesFrom(llnhCapabilities, llnhCapabilityLeaves)
+	p.DeclareCapabilitiesFrom(llnhCapabilities)
 	// llnh reads no other leaf, so an accepted reload leaves it nothing to
 	// apply.
-	p.DeclareAppliesNothing("reads only the link-local next-hop capability leaves, fixed for the process life")
+	p.DeclareAppliesNothing("reads only the link-local next-hop capability leaves, whose declaration the engine installs")
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -148,15 +149,12 @@ func llnhEnabledFor(peerMap, groupMap map[string]any) (bool, error) {
 	return groupEnabled, nil
 }
 
-// llnhCapabilities computes llnh's declaration from the bgp root, and
-// llnhCapabilityLeaves names the leaf that sets each code. runLLNHPlugin
-// registers both; the tests drive the same pair through the SDK's comparison.
-var (
-	llnhCapabilities = configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
-		return extractLLNHCapabilities(data), nil
-	})
-	llnhCapabilityLeaves = map[uint8]string{llnhCapCode: llnhCapabilityLeaf}
-)
+// llnhCapabilities computes llnh's declaration from the bgp root.
+// runLLNHPlugin registers it; the tests drive it through the SDK's
+// CandidateCapabilities.
+var llnhCapabilities = configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
+	return extractLLNHCapabilities(data), nil
+})
 
 // refuseLinkLocalCapabilityWithoutAddressSections runs
 // refuseLinkLocalCapabilityWithoutAddress over every bgp section delivered.

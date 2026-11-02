@@ -1,7 +1,7 @@
 package gr
 
 import (
-	"strings"
+	"slices"
 	"testing"
 
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -13,41 +13,55 @@ func grReloadSections(t *testing.T, sessionFamilies []string, gracefulRestartBod
 	return []sdk.ConfigSection{{Root: "bgp", Data: deliverBGPSection(t, grConfig(sessionFamilies, gracefulRestartBody))}}
 }
 
-// TestGRCapabilityExtractorRegistered checks that the extractor and the leaves
-// runGRPlugin registers make the SDK refuse a session family added on a peer
-// whose graceful-restart container has no family list (AC-2d: the payload
-// follows the session families), accept the same edit when an explicit family
-// list keeps the payload (AC-2g), accept an unchanged config (AC-2e), and that
-// gr's own refusal still covers a family the session does not carry: the SDK
-// runs it first (TestDeclareCapabilitiesFromOwnVerifyAnswersFirst).
-// VALIDATES: grCapabilities and grCapabilityLeaves through
-// sdk.CheckCapabilityReload, and refuseUncarriedGRSections.
-// PREVENTS: a family edit that reaches no OPEN accepted in silence, or an
-// explicit family list refused for a payload that does not change.
-func TestGRCapabilityExtractorRegistered(t *testing.T) {
-	check := func(startup, candidate []sdk.ConfigSection) error {
-		return sdk.CheckCapabilityReload("bgp-gr", grCapabilities, grCapabilityLeaves, startup, candidate)
+// grPayload answers the payload the candidate declares for peer1 under the
+// graceful-restart code, and whether it declares one.
+func grPayload(t *testing.T, sections []sdk.ConfigSection) (string, bool) {
+	t.Helper()
+	declared, err := sdk.CandidateCapabilities(grCapabilities, sections)
+	if err != nil {
+		t.Fatal(err)
 	}
+	for _, decl := range declared.Capabilities {
+		if decl.Code == grCapCode && slices.Contains(decl.Peers, "peer1") {
+			return decl.Payload, true
+		}
+	}
+	return "", false
+}
+
+// TestGRCapabilityExtractorRegistered checks that the extractor runGRPlugin
+// registers answers, in the declaration the config-verify answer carries, the
+// payload a session family edit gives a peer whose graceful-restart container
+// has no family list (AC-2: the payload follows the session families), keeps
+// the payload when an explicit family list holds it (AC-2g), and that gr's own
+// refusal still covers a family the session does not carry: the SDK runs it
+// first (TestDeclareCapabilitiesFromOwnVerifyAnswersFirst).
+// VALIDATES: grCapabilities through sdk.CandidateCapabilities, and
+// refuseUncarriedGRSections.
+// PREVENTS: a family edit whose graceful-restart payload never reaches the
+// OPEN, or an explicit family list whose payload a session edit rewrites.
+func TestGRCapabilityExtractorRegistered(t *testing.T) {
 	oneFamily := []string{"ipv4/unicast"}
 	explicit := "\t\t\t\t\tfamily {\n\t\t\t\t\t\tname ipv4/unicast\n\t\t\t\t\t}\n"
 
-	startup := grReloadSections(t, oneFamily, "")
-	if err := check(startup, grReloadSections(t, oneFamily, "")); err != nil {
-		t.Fatalf("an unchanged graceful-restart was refused: %v", err)
+	before, ok := grPayload(t, grReloadSections(t, oneFamily, ""))
+	if !ok {
+		t.Fatal("the startup config declares no graceful-restart for peer1")
+	}
+	after, ok := grPayload(t, grReloadSections(t, twoFamilies, ""))
+	if !ok {
+		t.Fatal("a session family edit declares no graceful-restart for peer1")
+	}
+	if after == before {
+		t.Errorf("a session family added with no graceful-restart family list still declares %q", after)
 	}
 
-	err := check(startup, grReloadSections(t, twoFamilies, ""))
-	if err == nil {
-		t.Fatal("a session family added with no graceful-restart family list was accepted")
+	explicitBefore, ok := grPayload(t, grReloadSections(t, oneFamily, explicit))
+	if !ok {
+		t.Fatal("an explicit family list declares no graceful-restart for peer1")
 	}
-	want := "peer peer1: capability graceful-restart cannot change while ze runs (plugin bgp-gr)."
-	if first, _, _ := strings.Cut(err.Error(), "\n"); first != want {
-		t.Errorf("refusal opens with %q, want %q", first, want)
-	}
-
-	startupExplicit := grReloadSections(t, oneFamily, explicit)
-	if err := check(startupExplicit, grReloadSections(t, twoFamilies, explicit)); err != nil {
-		t.Errorf("a session family added beside an explicit family list was refused: %v", err)
+	if explicitAfter, _ := grPayload(t, grReloadSections(t, twoFamilies, explicit)); explicitAfter != explicitBefore {
+		t.Errorf("a session family added beside an explicit family list changed the payload %q to %q", explicitBefore, explicitAfter)
 	}
 
 	uncarried := grReloadSections(t, oneFamily, "\t\t\t\t\tfamily {\n\t\t\t\t\t\tname ipv6/unicast\n\t\t\t\t\t}\n")

@@ -476,7 +476,7 @@ func TestSDKCapabilities(t *testing.T) {
 	}
 	p.DeclareCapabilitiesFrom(func([]ConfigSection) (CapabilityDeclaration, error) {
 		return CapabilityDeclaration{Capabilities: caps}, nil
-	}, map[uint8]string{64: "graceful-restart"})
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

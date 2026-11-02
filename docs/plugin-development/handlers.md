@@ -572,25 +572,23 @@ p.SetEncoding("text")
 ### DeclareCapabilitiesFrom
 
 Registers the extractor that computes the plugin's capability declaration from
-the config sections it receives, and the config leaf that sets each code. It is
-the only way a plugin declares capabilities, and it must be called before
-`Run()`. A plugin whose set does not come from config registers an extractor
-that ignores the sections.
-<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom, capabilityChanges -->
+the config sections it receives. It is the only way a plugin declares
+capabilities, and it must be called before `Run()`. A plugin whose set does not
+come from config registers an extractor that ignores the sections.
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom, composeCapabilityVerify, CandidateCapabilities -->
 
-`Run` calls the extractor once, on the Stage 2 configuration, and sends its
-capabilities at Stage 3. The engine puts that declaration in every OPEN until
-the plugin process ends, so it is never rewritten: a runtime `configure`
-redelivery reaches `OnConfigure` and never the extractor.
+`Run` calls the extractor on the Stage 2 configuration and sends its
+capabilities at Stage 3. A runtime `configure` redelivery reaches
+`OnConfigure` and never the extractor.
 
 At config-verify the plugin's own `OnConfigVerify` handler answers first. When
-it accepts, the SDK runs the extractor on the candidate sections and compares
-the two declarations per peer selector (`Peers`) and code. A changed payload, a
-code removed from a peer that stays configured, and a code added (a peer added
-with a capability included) are refused, naming the peer, the leaf and the
-plugin, followed by `sdk.RestartSteps()`. A peer the candidate no longer names
-is accepted: it sends no OPEN again. A declaration with no `Peers` applies to
-every peer and is compared as one selector, named `every peer`.
+it accepts, the SDK runs the extractor on the candidate sections and the answer
+carries the whole candidate declaration (`capabilities` in the config-verify
+answer). The engine installs it when the reload applies, so a peer the reload
+adds sends its OPEN with its capabilities, and a running session whose
+capability changed restarts when its peer advertised that code. A reload that
+does not commit puts the previous declaration back. `sdk.CandidateCapabilities`
+returns the declaration the answer carries, for a plugin's own tests.
 
 ```go
 p.DeclareCapabilitiesFrom(func(sections []sdk.ConfigSection) (sdk.CapabilityDeclaration, error) {
@@ -598,14 +596,13 @@ p.DeclareCapabilitiesFrom(func(sections []sdk.ConfigSection) (sdk.CapabilityDecl
         Capabilities: []sdk.CapabilityDecl{
             {Code: 64, Encoding: "hex", Payload: "0078", Peers: []string{"peer1"}},
         },
-        Peers: []string{"peer1"}, // every peer selector the config names
     }, nil
-}, map[uint8]string{64: "graceful-restart"})
+})
 ```
 
 A plugin that reads the `bgp` root wraps its per-section extraction with
-`configjson.BGPCapabilityExtractor`, which reports every peer selector of the
-tree (`configjson.CapabilitySelectors`).
+`configjson.BGPCapabilityExtractor`, which runs it on each `bgp` section and
+refuses a section whose data is not JSON.
 
 ## Engine Methods (Plugin to Engine)
 

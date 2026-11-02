@@ -16,10 +16,10 @@ import (
 // registerReloadHandlers binds the bridge's reload verify, apply and
 // rollback. The bridge has no live reconfigure path: its scripts run under the
 // config they started with (owner decision Q4 = e1). So verify refuses every
-// change under exabgp bridge other than a capability leaf, which the composed
-// capability check (DeclareCapabilitiesFrom) refuses in its own words, and an
-// accepted candidate is one the running bridge already serves: apply and
-// rollback have nothing to install.
+// change under exabgp bridge other than a capability leaf, whose candidate
+// declaration the composed verify answer carries for the engine to install
+// (DeclareCapabilitiesFrom), and an accepted candidate is one the running
+// bridge already serves: apply and rollback have nothing to install.
 func (r *bridgeRunner) registerReloadHandlers(p *sdk.Plugin) {
 	p.OnConfigVerify(r.verifyReload)
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error { return nil })

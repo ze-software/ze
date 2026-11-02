@@ -1,0 +1,129 @@
+# Test: a reload that adds a peer configured with `role` is accepted, and the
+#       new peer's OPEN carries the Role capability (RFC 9234 Section 4.1,
+#       code 9, value 3 = customer); the session establishes.
+# Initial config: peer-a (127.0.0.1) with no role.
+# Live change:    config2.conf adds peer-b (127.0.0.2) with `role { import customer }`.
+# Expected:       the reload is accepted; ze opens to peer-b with an OPEN whose
+#                 capabilities include 09 01 03; peer-b answers with the
+#                 complementary Provider role (0) and receives ze's End-of-RIB.
+#
+# VALIDATES: spec-runtime-peer-plugin-capabilities AC-1: a peer added at run
+#            time gets the plugin capability its config asks for.
+# PREVENTS:  the refusal "capability role cannot change while ze runs", and a
+#            new peer whose OPEN lacks the Role its config sets because the
+#            plugin declared its capabilities only at start.
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+option=asn:value=65001
+# ze-peer creates this file on the daemon's first UPDATE; the staged fixture
+# holds the reload until it exists.
+option=established-file:path=established
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=destb:terminator=EOF_DESTB
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+option=asn:value=65002
+# The first message is ze's OPEN itself, compared byte for byte.
+option=open:value=inspect-open-message
+# ze announces Role customer; ze-peer would mirror it, so peer-b answers with
+# the complementary Provider role (0) instead.
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=00
+option=established-file:path=b-up
+# ze's OPEN: version 4, AS 65000, hold 90, router-id 1.2.3.4, then one
+# capability parameter: multiprotocol ipv4/unicast (01 04 0001 0001), 4-octet
+# AS (41 04 0000FDE8) and the Role capability (09 01 03: customer).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E0104FDE8005A0102030411020F01040001000141040000FDE8090103
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_DESTB
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+await-file established
+reload config2.conf
+await-file b-up
+say ROLE-ADD-PEER: the peer added by reload established with its Role capability
+EOF_SCRIPT
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer-a {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer-a {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+	peer peer-b {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		role {
+			import customer
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=destb
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role -:stdin=ze-bgp:timeout=60s
+expect=stderr:contains=ROLE-ADD-PEER: the peer added by reload established with its Role capability
+reject=stderr:pattern=cannot change while ze runs
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=LIVE-STAGES line

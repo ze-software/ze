@@ -136,13 +136,10 @@ const softverCapCode = 75
 // softverCapabilityLeaf is the capability container that sets code 75.
 const softverCapabilityLeaf = "software-version"
 
-// softverCapabilities computes softver's declaration from the bgp root, and
-// softverCapabilityLeaves names the leaf that sets each code. RunSoftverPlugin
-// registers both; the tests drive the same pair through the SDK's comparison.
-var (
-	softverCapabilities     = configjson.BGPCapabilityExtractor(extractSoftverCapabilities)
-	softverCapabilityLeaves = map[uint8]string{softverCapCode: softverCapabilityLeaf}
-)
+// softverCapabilities computes softver's declaration from the bgp root.
+// RunSoftverPlugin registers it; the tests drive it through the SDK's
+// CandidateCapabilities.
+var softverCapabilities = configjson.BGPCapabilityExtractor(extractSoftverCapabilities)
 
 // RunSoftverPlugin runs the softver plugin using the SDK RPC protocol.
 func RunSoftverPlugin(conn net.Conn) int {
@@ -151,12 +148,13 @@ func RunSoftverPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-softver", conn)
 	defer func() { _ = p.Close() }()
 
-	// The declaration is fixed for the process life: a reload that changes
-	// it is refused at config-verify (sdk.Plugin.DeclareCapabilitiesFrom).
-	p.DeclareCapabilitiesFrom(softverCapabilities, softverCapabilityLeaves)
+	// A reload's config-verify answer carries the candidate's declaration,
+	// which the engine installs when the reload applies
+	// (sdk.Plugin.DeclareCapabilitiesFrom).
+	p.DeclareCapabilitiesFrom(softverCapabilities)
 	// softver reads no other leaf, so an accepted reload leaves it nothing to
 	// apply.
-	p.DeclareAppliesNothing("reads only the software-version capability leaves, fixed for the process life")
+	p.DeclareAppliesNothing("reads only the software-version capability leaves, whose declaration the engine installs")
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()

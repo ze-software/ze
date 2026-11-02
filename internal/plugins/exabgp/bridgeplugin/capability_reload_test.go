@@ -18,54 +18,69 @@ func bridgeReloadConfig(routeRefresh, addPath, families string) []sdk.ConfigSect
 	}}}`}}
 }
 
-// TestBridgeCapabilityExtractorRegistered checks that the extractor and the
-// leaves the bridge registers make the SDK refuse a changed route-refresh and
-// a family edit while add-path is set, each naming every peer and its leaf
-// (AC-2f), and accept an unchanged bridge (AC-2e).
-// VALIDATES: bridgeCapabilities and bridgeCapabilityLeaves through
-// sdk.CheckCapabilityReload, the comparison the composed config-verify runs.
-// PREVENTS: a family edit that changes the add-path payload accepted in
-// silence, or a refusal naming a peer when the declaration is for every peer.
+// bridgeDeclared answers the payload the candidate declares for every peer
+// under code, and whether it declares one.
+func bridgeDeclared(t *testing.T, sections []sdk.ConfigSection, code uint8) (string, bool) {
+	t.Helper()
+	declared, err := sdk.CandidateCapabilities(bridgeCapabilities, sections)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, decl := range declared.Capabilities {
+		if decl.Code != code {
+			continue
+		}
+		if len(decl.Peers) != 0 {
+			t.Errorf("code %d is declared for %v, want every peer", code, decl.Peers)
+		}
+		return decl.Payload, true
+	}
+	return "", false
+}
+
+// TestBridgeCapabilityExtractorRegistered checks that the extractor the bridge
+// registers answers, in the declaration the config-verify answer carries, a
+// route-refresh a reload removes as gone and an add-path mode a reload changes
+// as a new payload, each for every peer (AC-2f), and that the bridge's own
+// verify still refuses a family edit, which its running scripts cannot follow.
+// VALIDATES: bridgeCapabilities through sdk.CandidateCapabilities, and
+// bridgeRunner.verifyReload.
+// PREVENTS: a removed route-refresh still sent, a changed add-path mode never
+// sent, or a family edit accepted under scripts that started with the old one.
 func TestBridgeCapabilityExtractorRegistered(t *testing.T) {
-	check := func(candidate []sdk.ConfigSection) error {
-		startup := bridgeReloadConfig("true", "both", `"ipv4/unicast"`)
-		return sdk.CheckCapabilityReload("exabgp-bridge", bridgeCapabilities, bridgeCapabilityLeaves, startup, candidate)
+	startup := bridgeReloadConfig("true", "both", `"ipv4/unicast"`)
+	if _, ok := bridgeDeclared(t, startup, routeRefreshCapCode); !ok {
+		t.Fatal("the startup bridge declares no route-refresh")
+	}
+	before, ok := bridgeDeclared(t, startup, addPathCapCode)
+	if !ok {
+		t.Fatal("the startup bridge declares no add-path")
 	}
 
-	if err := check(bridgeReloadConfig("true", "both", `"ipv4/unicast"`)); err != nil {
-		t.Fatalf("an unchanged bridge was refused: %v", err)
+	if _, ok := bridgeDeclared(t, bridgeReloadConfig("false", "both", `"ipv4/unicast"`), routeRefreshCapCode); ok {
+		t.Error("a reload that removes route-refresh still declares it")
+	}
+	after, ok := bridgeDeclared(t, bridgeReloadConfig("true", "send", `"ipv4/unicast"`), addPathCapCode)
+	if !ok {
+		t.Fatal("a changed add-path mode declares no add-path")
+	}
+	if after == before {
+		t.Errorf("an add-path mode changed from both to send still declares %q", after)
 	}
 
-	cases := []struct {
-		name      string
-		candidate []sdk.ConfigSection
-		want      string
-	}{
-		{
-			name:      "route-refresh removed",
-			candidate: bridgeReloadConfig("false", "both", `"ipv4/unicast"`),
-			want:      "every peer: capability route-refresh cannot change while ze runs (plugin exabgp-bridge).",
-		},
-		{
-			name:      "add-path mode changed",
-			candidate: bridgeReloadConfig("true", "send", `"ipv4/unicast"`),
-			want:      "every peer: capability add-path cannot change while ze runs (plugin exabgp-bridge).",
-		},
-		{
-			name:      "family added while add-path is set",
-			candidate: bridgeReloadConfig("true", "both", `"ipv4/unicast","ipv6/unicast"`),
-			want:      "every peer: capability add-path cannot change while ze runs (plugin exabgp-bridge).",
-		},
+	running, err := parseConfig(startup[0].Data)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := check(tc.candidate)
-			if err == nil {
-				t.Fatal("accepted, want a refusal")
-			}
-			if first, _, _ := strings.Cut(err.Error(), "\n"); first != tc.want {
-				t.Errorf("refusal opens with %q, want %q", first, tc.want)
-			}
-		})
+	r := &bridgeRunner{config: running}
+	if err := r.verifyReload(bridgeReloadConfig("false", "send", `"ipv4/unicast"`)); err != nil {
+		t.Errorf("the bridge refused a change of its capability leaves alone: %v", err)
+	}
+	refusal := r.verifyReload(bridgeReloadConfig("true", "both", `"ipv4/unicast","ipv6/unicast"`))
+	if refusal == nil {
+		t.Fatal("the bridge accepted a family edit")
+	}
+	if !strings.Contains(refusal.Error(), "exabgp bridge family") {
+		t.Errorf("the refusal %q does not name the family leaf", refusal)
 	}
 }

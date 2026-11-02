@@ -28,15 +28,12 @@ import (
 // RFC 9234 Section 4.1: BGP Role Capability (Code 9, Length 1).
 const roleCapCode = 9
 
-// roleCapabilities computes role's declaration from the bgp root, and
-// roleCapabilityLeaves names the leaf that sets each code. RunRolePlugin
-// registers both; the tests drive the same pair through the SDK's comparison.
-var (
-	roleCapabilities = configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
-		return extractRoleCapabilities(data), nil
-	})
-	roleCapabilityLeaves = map[uint8]string{roleCapCode: roleKeyword}
-)
+// roleCapabilities computes role's declaration from the bgp root.
+// RunRolePlugin registers it; the tests drive it through the SDK's
+// CandidateCapabilities.
+var roleCapabilities = configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
+	return extractRoleCapabilities(data), nil
+})
 
 // roleKeyword is the word that names the RFC 9234 role everywhere it is spelled:
 // the YANG container a peer or group declares it in, the capability leaf, and
@@ -407,10 +404,10 @@ func RunRolePlugin(conn net.Conn) int {
 	// (filterapi.PeerFilterInfo.LocalAS), not parsed from the config.
 	newRoleConfigTx().register(p)
 
-	// The role capability declaration is fixed for the process life: a reload
-	// that changes it is refused at config-verify
-	// (sdk.Plugin.DeclareCapabilitiesFrom).
-	p.DeclareCapabilitiesFrom(roleCapabilities, roleCapabilityLeaves)
+	// The role capability declaration follows the config: a reload's
+	// config-verify answer carries the candidate's declaration, which the
+	// engine installs when the reload applies (sdk.Plugin.DeclareCapabilitiesFrom).
+	p.DeclareCapabilitiesFrom(roleCapabilities)
 
 	// RFC 9234 Section 4.2: Validate OPEN pairs for role compatibility.
 	// WantsValidateOpen is auto-set by SDK when this callback is registered.

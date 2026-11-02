@@ -123,8 +123,10 @@ type Plugin struct {
 	startupSubscriptionsMore []*rpc.SubscribeEventsInput
 
 	// capabilities is the Stage 3 declaration. Its one writer is
-	// handleStartupConfigure, which runs the extractor capabilitySource holds;
-	// nothing rewrites it after Stage 3 (DeclareCapabilitiesFrom).
+	// handleStartupConfigure, which runs the extractor capabilitySource holds.
+	// A reload's declaration travels in the config-verify answer and the
+	// engine installs it, so this field stays the Stage 3 one
+	// (DeclareCapabilitiesFrom).
 	capabilities     []CapabilityDecl
 	capabilitySource *capabilitySource
 
