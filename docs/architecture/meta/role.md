@@ -262,21 +262,22 @@ down names a generation above the role's stamp, and otherwise logs
 generation frees the role with a warning.
 
 A configured peer a commit removes is also handled by `pruneLearnedRoles` at
-config-committed, in whichever process holds the plugin. One entry is left
+config-committed, in whichever process holds the plugin. Entries are left
 behind:
 
 | Case | What is left |
 |------|--------------|
 | An OPEN validated for a peer after its removal down was handled, or after the reactor deleted it (the removal stops the session without waiting for a validation already in flight, and that OPEN's stamp is at or above the removal's) | the role under that peer's key, until an OPEN for the same name replaces it |
+| A dynamic group's member the reactor removes (`removeDynamicPeer`) or a reload replaces with a configured peer at its address: neither emits a down with reason `removed`, and the prune keeps a member's key while its group stays dynamic | the role under the member's `dyn-<addr>` name, until a connection from that address validates an OPEN |
+| A peer a reload added, removed again by that reload's rollback: no down with reason `removed`, and the prune runs only at config-committed | the role under that peer's key, until an OPEN for the same name replaces it |
 
-It costs one map entry. A peer created again under that name replaces it with
+Each costs one map entry. A peer created again under that name replaces it with
 its own OPEN, which `bgp-role` validates before the session can carry a route.
 
 <!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, recordLearnedRole, remoteRoleRecorded, filterKeyLocked, learnedRolePeerConfiguredLocked, forgetRemovedPeer -->
 <!-- source: internal/component/bgp/plugins/role/removal.go -- handleRoleStructuredEvents, handleRoleEvent -->
 <!-- source: internal/component/bgp/reactor/reactor_peers.go -- doRemovePeer -->
 <!-- source: internal/component/bgp/server/events.go -- getStructuredStateEvent, deliverPeerState -->
-<!-- source: internal/component/bgp/reactor/reactor_peers.go -- doRemovePeer, notifyFiltersPeerRemoved -->
 <!-- source: internal/component/bgp/config/filter_state_binding.go -- grantFilterOwnersState -->
 
 The `plugin.PeerInfo` `doRemovePeer` passes on carries the peer's AS as an `rpc.RemoteAS`, read through the guarded accessor; for a dynamic peer removed before its AS was negotiated it is the not-yet-known state, never AS 0.
