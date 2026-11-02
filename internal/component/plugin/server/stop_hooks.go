@@ -64,7 +64,7 @@ func (h *stopHooks) run() {
 }
 
 // OnStop registers fn to run when Stop stands the server down, after the
-// server's context is cancelled and before Stop returns, so the daemon's
+// server's context is canceled and before Stop returns, so the daemon's
 // ordered shutdown waits for fn. fn MUST return only once the work it ends has
 // ended, its goroutines included. The answer withdraws fn, and its owner MUST
 // call it when the work ends before the server does. Once Stop has started,

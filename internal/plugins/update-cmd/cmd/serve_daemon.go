@@ -245,7 +245,7 @@ func handleUpdateServePause(_ *pluginserver.CommandContext, _ command.ValidatedA
 // updateServeResponse answers a lifecycle command's state, or its refusal.
 func updateServeResponse(state updateServeState, err error) (*plugin.Response, error) {
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // the refusal travels in the Response, the dispatch succeeded
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: state}, nil
 }
