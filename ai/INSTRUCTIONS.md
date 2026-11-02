@@ -35,11 +35,10 @@ you have broken one, stop and tell the user.
 ## Worktrees
 - Never spawn a worktree agent unless the user instructs it.
 - Work that started in a worktree stays in that worktree.
-- Development never happens in a worktree, and verification always does:
-  `./le verify changed` judges a commit's change set in a throwaway worktree,
-  and is the agent's evidence. The full verification (`./le verify current`,
-  `./le verify worktree`) is the release check: an agent never starts it, and
-  a spec's closure never waits on it. GitHub CI/CD runs it on a pushed commit.
+- Development never happens in a worktree. No agent runs any `./le verify`
+  command, `./le verify changed` included: GitHub CI/CD verifies a pushed
+  commit, and an agent's evidence is the scoped test runs of what its change
+  reaches. A spec's closure never waits on a whole-tree check.
 - A worktree agent works and commits on its own branch. It never merges,
   cherry-picks, rebases or copies into main.
 

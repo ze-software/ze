@@ -231,6 +231,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   criteria name one cites that run as the evidence. Thomas may still run it
   himself when he chooses. The tooling refuses a full verification started
   without an interactive terminal.
+- No agent runs any `./le verify` command, `./le verify changed` included.
+  Verification is GitHub CI/CD's job on a pushed commit. An agent's evidence
+  is the scoped test runs of what its change reaches (the named tests, the
+  packages, the functional tests), run directly. A rule, skill, hook or tool
+  message that tells an agent to run `./le verify` is wrong and is corrected,
+  never followed.
 - Only Thomas knows when the machine will stay quiet long enough for a full
   verification: several agent sessions run at once nearly all the time, and
   he starts new sessions, agents start agents, and he tests features by hand.
