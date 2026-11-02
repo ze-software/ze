@@ -8,7 +8,8 @@
 #
 # This once ran bgp-gr forked to reach a daemon with no egress state at all.
 # The state now lives beside the evaluator in the plugin's own process, so a
-# forked run reaches the same state (llgr-readvertise-forked.ci), and a
+# forked run reaches the same state (llgr-readvertise-multipeer-forked.ci, a
+# non-LLGR destination answered by the forked llgr-egress member), and a
 # destination with no recorded capability is what the filter must answer.
 #
 # RFC 9494 Section 4.3 keys the decision on whether the LLGR Capability "has been
