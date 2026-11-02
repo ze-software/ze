@@ -618,16 +618,6 @@ type Filter struct {
 	// The callback MUST be pure and safe for concurrent calls; Register MUST
 	// finish before peers start. It MUST NOT retain a second peer inventory.
 	PreserveOpaqueAttributes func(PeerFilterInfo) bool
-	// PeerRemoved is told that the reactor removed a peer, so a filter that
-	// keeps per-peer state frees it. The reactor calls it for every peer it
-	// removes (NotifyPeerRemoved), whatever processes the peer attaches: the
-	// peer-scoped state event reaches only attached processes, and a filter's
-	// plugin is attached to none. It runs synchronously inside the removal,
-	// so the removal returns only after the state is gone and a peer created
-	// again under the same name meets none of it. It runs with the reactor
-	// lock held, before the removed peer's Cease is sent, so it MUST NOT call
-	// back into the reactor or block. Nil = no per-peer state.
-	PeerRemoved func(PeerFilterInfo)
 	// ConfigureMetrics hands the filter the daemon's metrics registry, so a
 	// filter that counts what it does builds its metrics without the reactor
 	// naming its package. SetMetricsRegistry calls it once, from the reactor's
@@ -693,7 +683,7 @@ func Register(f Filter) error {
 	if f.Name == "" {
 		return ErrEmptyFilterName
 	}
-	if f.Ingress == nil && f.Egress == nil && f.PreserveOpaqueAttributes == nil && f.PeerRemoved == nil {
+	if f.Ingress == nil && f.Egress == nil && f.PreserveOpaqueAttributes == nil {
 		return fmt.Errorf("%w: %q", ErrNoFilterFunc, f.Name)
 	}
 
@@ -704,23 +694,6 @@ func Register(f Filter) error {
 	}
 	filters[f.Name] = f
 	return nil
-}
-
-// NotifyPeerRemoved tells every registered filter that the reactor removed
-// peer (Filter.PeerRemoved). The reactor MUST call it on every path that takes
-// a peer out of its peer table, in the critical section that removes the peer
-// and so before the peer's Cease is sent: delete bgp peer and the restart
-// behind a peer edit, a dynamic member's removal, a reload's removal of a
-// dropped, restarted or replaced peer, and the undo of a reload's add. Safe
-// for concurrent use; registration MUST finish before peers start.
-func NotifyPeerRemoved(peer PeerFilterInfo) {
-	mu.RLock()
-	defer mu.RUnlock()
-	for _, f := range filters {
-		if f.PeerRemoved != nil {
-			f.PeerRemoved(peer)
-		}
-	}
 }
 
 // PreserveOpaqueAttributesFor resolves destination treatment from registered

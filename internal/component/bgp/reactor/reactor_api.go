@@ -1352,14 +1352,10 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 						peer.health.stop()
 					}
 					delete(r.peers, peerKey)
-					// The filters forget the peer here, under r.mu and before
-					// the deferred Cease, as every removal path does
-					// (notifyFiltersPeerRemoved). Without it a dynamic member
-					// replaced by a configured peer at its address left its
-					// learned role under the member's name.
-					notifyFiltersPeerRemoved(oldSettings.Address, oldSettings.Name, oldSettings.GroupName)
 					// The removal down with a fresh generation, as every
-					// removal path emits it (removalLocked).
+					// removal path emits it (removalLocked). Without it a
+					// dynamic member replaced by a configured peer at its
+					// address left its learned role under the member's name.
 					removal = r.removalLocked(peer, stop)
 					reactorLogger().Debug(label+": removed peer", "peer", peerKey)
 				}
@@ -1397,7 +1393,6 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 				delete(r.peers, addKey)
 				// An OPEN this peer validated before the rollback left
 				// state in the filters; the peer is gone, so is that.
-				notifyFiltersPeerRemoved(addSettings.Address, addSettings.Name, addSettings.GroupName)
 				// The removal down with a fresh generation, as every removal
 				// path emits it, so a plugin frees what that OPEN left
 				// (removalLocked). The peer stopped itself above, so the

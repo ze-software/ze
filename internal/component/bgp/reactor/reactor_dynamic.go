@@ -207,7 +207,6 @@ func (r *Reactor) removeDynamicPeer(peer *Peer, subcode uint8) peerRemoval {
 		peer.health.stop()
 	}
 	delete(r.peers, key)
-	notifyFiltersPeerRemoved(settings.Address, settings.Name, settings.GroupName)
 
 	if r.fwdWeights != nil {
 		r.fwdWeights.RemovePeer(peer.peerAddrLabel())
