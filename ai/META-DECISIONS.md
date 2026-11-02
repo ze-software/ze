@@ -23,6 +23,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   capabilities it implements. A missing RFC feature may wait until after the
   first release, and a partial implementation is never announced as full
   support.
+- Production is Linux. A check, test or defect that exists only on macOS
+  waits until after the first release.
 - A release profile owes exactly the RFCs declared for it, the ones its role
   implements, the way an established implementation of that role (BIRD for a
   route server) does. A normative citation is never an obligation: the RFC
