@@ -417,7 +417,7 @@ func TestBuildUnsupportedCapabilityDataCodes_Empty(t *testing.T) {
 	assert.Nil(t, data)
 }
 
-// Loop detection tests: moved to internal/component/bgp/reactor/loopdetect/loop_test.go.
+// Loop detection tests: moved to internal/component/bgp/reactor/loopdetect/rfc4271_loop_test.go.
 // The detectLoops session method was refactored to loopdetect.LoopIngress (the engine ingress loop step).
 // All 12 tests preserved with identical coverage in the new location.
 
