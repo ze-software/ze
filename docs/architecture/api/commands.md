@@ -506,7 +506,7 @@ daemon route like every other caller path (`command.CallerPath`).
 One predicate, `command.AnswerSurface`, answers for a command and a surface
 whether the surface must offer it, must not, or offers it with a qualifier,
 and why. It reads only the registration: its kind, and the hidden, streaming,
-streaming-only, TUI-only and daemon-path declarations. Each surface producer asks it, and
+streaming-only, TUI-only, daemon-path and modeled declarations. Each surface producer asks it, and
 `TestEveryCommandOnEverySurface` (`cmd/ze/hub`) asks each producer and fails a
 gap or an offer the predicate refuses, naming the command, the surface, the
 kind and the expected answer.
@@ -517,6 +517,7 @@ kind and the expected answer.
 | Builtin RPC, local, local-data | Offered | Offered | Offered: the daemon serves each through its handler |
 | Local or local-data at an offline root, with a declared daemon path | `ze cli` offers a local-data one, answered in its own process; SSH does not, and offers the daemon path | Offered | Not offered: the daemon path is, as its own registration |
 | Plugin command (Stage 1 declaration) | Offered | Not offered: no plugin runs in the shell's process | Offered |
+| Plugin command whose path is a schema node with no `ze:command` of its own (`Modeled`, as `show vrrp interface`, whose command node is `name` below it) | Offered | Offered: shell completion walks the shipped schema, which holds the node | Offered |
 | Streaming (`RegisterStreamingHandler`) | Offered as a stream | Offered as a stream | By its one-shot declaration: `OneShotSample` offered, `OneShotStreamingOnly` not ("One-shot answer of a streaming command") |
 | A live view with no RPC | Offered as TUI-only, when `cli.RegisterView` declares it | Not offered | Not offered. An undeclared one fails the check. No view is TUI-only today |
 

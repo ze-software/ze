@@ -482,12 +482,19 @@ func collectCommandRegistrations(t *testing.T, schema *yangloader.Resolved, view
 			daemonPaths = append(daemonPaths, e)
 		}
 	}
+	// A plugin command on a schema node with no `ze:command` of its own (`show
+	// vrrp interface`) is declared Modeled, read from the same schema shell
+	// completion walks.
+	commandTree := yangloader.BuildCommandTree(schema)
 	for _, r := range pluginreg.All() {
 		for _, decl := range r.Commands {
 			if yangPaths[strings.ToLower(decl.Name)] {
 				continue // a YANG node: classified by its builtin registration
 			}
-			add(command.CommandRegistration{Path: decl.Name, Kind: command.KindPlugin, Hidden: decl.Hidden})
+			add(command.CommandRegistration{
+				Path: decl.Name, Kind: command.KindPlugin, Hidden: decl.Hidden,
+				Modeled: treeHasPath(commandTree, decl.Name),
+			})
 		}
 	}
 	add(command.CommandRegistration{Path: surfaceFixtureVisible, Kind: command.KindPlugin})

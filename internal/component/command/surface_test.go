@@ -52,6 +52,8 @@ func TestSurfacePredicateByKind(t *testing.T) {
 		{"local-data", CommandRegistration{Path: "a b", Kind: KindLocalData}, every},
 		{"plugin without YANG", CommandRegistration{Path: "a b", Kind: KindPlugin}, daemonOnly},
 		{"hidden plugin", CommandRegistration{Path: "a b", Kind: KindPlugin, Hidden: true}, none},
+		{"plugin on a schema node", CommandRegistration{Path: "a b", Kind: KindPlugin, Modeled: true}, every},
+		{"hidden plugin on a schema node", CommandRegistration{Path: "a b", Kind: KindPlugin, Modeled: true, Hidden: true}, none},
 		{"streaming builtin", CommandRegistration{Path: "a b", Kind: KindBuiltin, Streaming: true}, streams},
 		{"hidden streaming", CommandRegistration{Path: "a b", Kind: KindBuiltin, Streaming: true, Hidden: true}, none},
 		{"streaming-only builtin", CommandRegistration{Path: "a b", Kind: KindBuiltin, Streaming: true, StreamingOnly: true}, streamsOnly},
@@ -90,6 +92,9 @@ func TestSurfacePredicateByKind(t *testing.T) {
 	}
 	if _, err := OffersCommand(CommandRegistration{Path: "a b"}, SurfaceSSH); err == nil {
 		t.Error("an unspecified kind was answered, want a refusal")
+	}
+	if _, err := OffersCommand(CommandRegistration{Path: "a b", Kind: KindBuiltin, Modeled: true}, SurfaceShell); err == nil {
+		t.Error("a builtin declared modeled was answered, want a refusal: only a plugin command may be")
 	}
 	if _, err := OffersCommand(CommandRegistration{Path: "a b", Kind: KindBuiltin}, SurfaceUnspecified); err == nil {
 		t.Error("an unspecified surface was answered, want a refusal")

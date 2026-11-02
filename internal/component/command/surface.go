@@ -76,7 +76,7 @@ const (
 	KindBuiltin                      // a RegisterRPCs entry under its YANG `ze:command` path
 	KindLocal                        // a MustRegisterLocal or MustRegisterLocalMeta handler
 	KindLocalData                    // a MustRegisterLocalData handler
-	KindPlugin                       // a plugin's Stage 1 command declaration with no YANG node
+	KindPlugin                       // a plugin's Stage 1 command declaration with no `ze:command` node of its own
 	KindView                         // a CLI live view with no other registration
 )
 
@@ -122,6 +122,12 @@ type CommandRegistration struct {
 	// that path in this one's place, and shell completion offers this one.
 	// Set only on a local or local-data registration.
 	DaemonPath string
+	// Modeled says a plugin command's path is a node of the shipped YANG
+	// schema although no `ze:command` sits on it (`show vrrp interface`,
+	// whose command node is `name` below it). Shell completion walks that
+	// schema with no daemon, so it offers the path. Set only on a plugin
+	// registration.
+	Modeled bool
 }
 
 // Offer is what one surface owes one command. The zero value is
@@ -179,6 +185,7 @@ const (
 	reasonStreaming    = "a monitor command streams live on the local terminal, `ze cli` and SSH"
 	reasonPluginDaemon = "a plugin command exists in a running daemon's registry, and every daemon surface reads it"
 	reasonPluginShell  = "a plugin command exists only in a running daemon's registry, and shell completion answers with no daemon"
+	reasonPluginSchema = "a plugin command whose path is a node of the shipped schema, which shell completion walks with no daemon"
 	reasonStreamingOff = "declared streaming-only: its stream is a sequence of events, so a one-shot surface has no answer to give"
 	reasonTUIOnly      = "declared TUI-only on its view: only the interactive CLI renders it"
 	reasonTUIOnlyOff   = "declared TUI-only on its view: a one-shot surface cannot render it"
@@ -209,7 +216,9 @@ const (
 //   - a builtin, local or local-data command is served by the daemon and by
 //     `ze <verb>`, so every surface offers it;
 //   - a plugin command with no YANG node exists only in a running daemon's
-//     registry, so every daemon surface offers it and shell completion does not.
+//     registry, so every daemon surface offers it and shell completion does not;
+//   - a plugin command whose path is a schema node with no `ze:command` of its
+//     own (Modeled) is offered by shell completion too, which walks the schema.
 func AnswerSurface(reg CommandRegistration, s Surface) (SurfaceAnswer, error) {
 	if s == SurfaceUnspecified {
 		return SurfaceAnswer{}, fmt.Errorf("command %q: the surface is unspecified", reg.Path)
@@ -219,6 +228,9 @@ func AnswerSurface(reg CommandRegistration, s Surface) (SurfaceAnswer, error) {
 	}
 	if reg.Kind == KindUnspecified {
 		return SurfaceAnswer{}, fmt.Errorf("command %q: registration kind is unspecified", reg.Path)
+	}
+	if reg.Modeled && reg.Kind != KindPlugin {
+		return SurfaceAnswer{}, fmt.Errorf("command %q: kind %s is declared modeled; only a plugin command may be", reg.Path, reg.Kind)
 	}
 	if reg.Hidden {
 		return SurfaceAnswer{Offer: OfferMustNot, Reason: reasonHidden}, nil
@@ -243,6 +255,9 @@ func AnswerSurface(reg CommandRegistration, s Surface) (SurfaceAnswer, error) {
 		return SurfaceAnswer{Offer: OfferMust, Reason: reasonServed}, nil
 	case KindPlugin:
 		if s == SurfaceShell {
+			if reg.Modeled {
+				return SurfaceAnswer{Offer: OfferMust, Reason: reasonPluginSchema}, nil
+			}
 			return SurfaceAnswer{Offer: OfferMustNot, Reason: reasonPluginShell}, nil
 		}
 		return SurfaceAnswer{Offer: OfferMust, Reason: reasonPluginDaemon}, nil
