@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/verify-freshness-scope.md -- the one owed rule every debt surface reads
+// Design: docs/contributing/committing.md -- the one owed rule every push debt surface reads
 //
 // VALIDATES: Data Flow step 6 and AC-22 at the surfaces that print the derived
 // debt (the create report, the session-start warning, debt-status); an
@@ -16,94 +16,57 @@ import (
 	"testing"
 
 	leaction "github.com/ze-software/ze/internal/le/le/action"
-	"github.com/ze-software/ze/internal/le/verify"
 )
 
-// TestDebtConsumersNeverSayZeroWithoutTarget validates Data Flow step 6 and
-// AC-22 at the surfaces that print the answer: with no push target and nothing
-// to list, the create report and the session-start warning each say HEAD's tree
-// is not covered by a green verify, name why and ./le verify worktree, and
-// never print a count of zero; debt-status answers owed. Two shapes reach it:
-// a green record over a tree this branch never held while HEAD is the upstream,
-// and no green record at all with only prose commits ahead of the upstream.
+// TestDebtConsumersNameAnOpenPersonAct validates Data Flow step 6 and AC-22 at
+// the surfaces that print the answer: with an open person act, the create
+// report and the session-start warning each count it and name the commit that
+// owes it, and debt-status answers owed. None of them names a verify.
 //
-// MUTATION: let DebtWarning or debtReport judge only the listed commits and the
-// open items, as they did, and both cases fail: the warning is empty and the
-// report reads "0 commit(s) owe a scoped verify".
-func TestDebtConsumersNeverSayZeroWithoutTarget(t *testing.T) {
-	cases := []struct {
-		name  string
-		build func(t *testing.T, root string)
-		says  string
-	}{
-		{name: "tree mismatch with an empty list", says: "the scoped record names", build: func(t *testing.T, root string) {
-			t.Helper()
-			other := newOwedRepository(t)
-			foreign := commitOwed(t, other, "a commit this checkout never saw", map[string]string{"x.txt": "x\n"}, nil)
-			record, err := scopedRecordFor(t, root, foreign, revParse(t, other, foreign+"^{tree}"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := verify.WriteScopedRecord(root, record); err != nil {
-				t.Fatal(err)
-			}
-		}},
-		{name: "no green record with prose-only commits", says: "no scoped record", build: func(t *testing.T, root string) {
-			t.Helper()
-			commitOwed(t, root, "a page", map[string]string{"docs/a.md": "a\n"}, nil)
-			commitOwed(t, root, "a spec", map[string]string{"plan/b.md": "b\n"}, nil)
-		}},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			root := newOwedRepository(t)
-			tc.build(t, root)
-			derived := deriveOwed(t, root, "")
-			if len(derived.LeftBehind) != 0 || derived.Target != pushTargetNone {
-				t.Fatalf("fixture: target %d left behind %+v, want no target and nothing listed",
-					derived.Target, derived.LeftBehind)
-			}
+// MUTATION: let DebtWarning or debtReport judge only the refusals and this
+// fails: the warning is empty and the report reads nothing owed.
+func TestDebtConsumersNameAnOpenPersonAct(t *testing.T) {
+	root := newOwedRepository(t)
+	closure := owedClosure(t, root)
 
-			warning, err := DebtWarning(root)
-			if err != nil {
-				t.Fatal(err)
+	warning, err := DebtWarning(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := debtReport(root)
+	for surface, text := range map[string]string{"session-start warning": warning, "create report": report} {
+		for _, want := range []string{"1 person act(s) owed"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("the %s is %q, want it to say %q", surface, text, want)
 			}
-			report := debtReport(root)
-			for surface, text := range map[string]string{"session-start warning": warning, "create report": report} {
-				for _, want := range []string{"HEAD's tree is not covered by a scoped verify", tc.says, scopedCommand} {
-					if !strings.Contains(text, want) {
-						t.Errorf("the %s is %q, want it to say %q", surface, text, want)
-					}
-				}
-				if strings.Contains(text, "0 commit(s)") {
-					t.Errorf("the %s is %q, a count of zero with no verified tree", surface, text)
-				}
-			}
-			if !strings.HasPrefix(warning, "verification debt: ") || !strings.Contains(warning, "push refused until cleared") {
-				t.Errorf("the warning is %q, want the AC-22 line shape", warning)
-			}
-			if _, code, err := answerDebtStatus(root, ""); err != nil || code != 1 {
-				t.Errorf("debt-status answered (%d, %v), want 1: owed", code, err)
-			}
-		})
+		}
+		if strings.Contains(text, "le verify") {
+			t.Errorf("the %s is %q, which sends an agent to a verify", surface, text)
+		}
+	}
+	if !strings.HasPrefix(warning, "push debt: ") || !strings.Contains(warning, "./le commit push refuses until they clear") ||
+		!strings.Contains(warning, shortSHA(closure)) {
+		t.Errorf("the warning is %q, want the AC-22 line shape naming %s", warning, shortSHA(closure))
+	}
+	if _, code, err := answerDebtStatus(root, ""); err != nil || code != 1 {
+		t.Errorf("debt-status answered (%d, %v), want 1: owed", code, err)
 	}
 }
 
-// TestDebtReportSaysNothingOwedOnlyWhenCovered pins the other side of the one
-// owed rule: a verified HEAD reads "nothing owed" on the create report and
-// nothing on the session-start warning, and never a count.
+// TestDebtReportSaysNothingOwedWithNoVerifyRecord pins the other side of the
+// one owed rule: a HEAD with no open person act and no refusal reads "nothing
+// owed" on the create report and nothing on the session-start warning, with
+// no verify record in the checkout.
 //
-// MUTATION: make owed answer true for a covered HEAD and this fails.
-func TestDebtReportSaysNothingOwedOnlyWhenCovered(t *testing.T) {
+// MUTATION: make owed answer true for a HEAD with nothing open and this fails.
+func TestDebtReportSaysNothingOwedWithNoVerifyRecord(t *testing.T) {
 	root := newOwedRepository(t)
-	green := commitOwed(t, root, "the verified change", map[string]string{"a.txt": "a\n"}, nil)
-	writeOwedGreen(t, root, green)
-	want := "nothing owed: HEAD's tree is covered by the scoped verify of " + shortSHA(green)
-	if report := debtReport(root); report != want {
-		t.Fatalf("the create report over a verified HEAD is %q, want %q", report, want)
+	commitOwed(t, root, "a change", map[string]string{"a.go": "package a\n"}, nil)
+	if report := debtReport(root); report != "nothing owed" {
+		t.Fatalf("the create report over a HEAD owing nothing is %q, want %q", report, "nothing owed")
 	}
 	if warning, err := DebtWarning(root); err != nil || warning != "" {
-		t.Fatalf("a verified HEAD warned %q (%v)", warning, err)
+		t.Fatalf("a HEAD owing nothing warned %q (%v)", warning, err)
 	}
 }
 
@@ -251,29 +214,25 @@ func TestEveryCreateKeywordReadsOptions(t *testing.T) {
 	}
 }
 
-// TestCreateDebtNeverReadsZeroWithoutGreenRecord validates Data Flow step 6 at
-// the surface the operator sees, Create's own result.Debt, rather than at
-// debtReport: with no green record and only prose commits ahead of the
-// upstream, the prepared commit says HEAD's tree is not covered and names the
-// command, never a count of zero and never nothing.
+// TestCreateDebtNamesAnOpenPersonAct validates Data Flow step 6 at the
+// surface the operator sees, Create's own result.Debt, rather than at
+// debtReport: with an open Review-owed ahead of the upstream, the prepared
+// commit counts the person act owed, never nothing and never a verify.
 //
 // MUTATION: drop result.Debt = debtReport(root) from Create and this fails.
-func TestCreateDebtNeverReadsZeroWithoutGreenRecord(t *testing.T) {
+func TestCreateDebtNamesAnOpenPersonAct(t *testing.T) {
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "create-debt-fixture")
-	owed := commitOwed(t, root, "a page that owes a review", map[string]string{"docs/a.md": "a\n"}, nil,
-		"Review-owed: demo: no reviewer")
+	owed := owedClosure(t, root)
 	options := Options{Subject: "the owner attests", Attest: owed, AttestWords: "the owner said yes", DryRun: true}
 	prepared, err := Create(root, &options)
 	if err != nil {
 		t.Fatalf("the attestation was refused: %v", err)
 	}
-	for _, want := range []string{"HEAD's tree is not covered by a scoped verify", "no scoped record", scopedCommand} {
-		if !strings.Contains(prepared.Debt, want) {
-			t.Errorf("Create's debt is %q, want it to say %q", prepared.Debt, want)
-		}
+	if !strings.Contains(prepared.Debt, "1 person act(s) owed") {
+		t.Errorf("Create's debt is %q, want it to count the person act owed", prepared.Debt)
 	}
-	if strings.Contains(prepared.Debt, "0 commit(s)") || strings.HasPrefix(prepared.Debt, "nothing owed") {
-		t.Errorf("Create's debt is %q with no green record: it reads as nothing owed", prepared.Debt)
+	if strings.HasPrefix(prepared.Debt, "nothing owed") || strings.Contains(prepared.Debt, "le verify") {
+		t.Errorf("Create's debt is %q over an open Review-owed", prepared.Debt)
 	}
 }

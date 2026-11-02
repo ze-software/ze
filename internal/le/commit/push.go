@@ -1,4 +1,4 @@
-// Design: docs/contributing/committing.md -- the push route over the derived verification debt
+// Design: docs/contributing/committing.md -- the push route over the derived push debt
 // Related: owed.go -- the derivation every answer here reads
 // Related: script.go -- the commit script whose marker and header the push-only script shares
 package commit
@@ -23,15 +23,14 @@ const pushTag = "push"
 // debtStatusCommand is the re-check the push-only script runs against P.
 const debtStatusCommand = "./le commit " + keywordDebtStatus + " commit "
 
-// pushPrepared is what `./le commit push` answers: the script it wrote, the
-// commit the script pushes, and the commits the push leaves behind.
+// pushPrepared is what `./le commit push` answers: the script it wrote and
+// the commit the script pushes.
 type pushPrepared struct {
-	Script     string       `json:"script"`
-	Target     string       `json:"target"`
-	Remote     string       `json:"remote"`
-	Branch     string       `json:"branch"`
-	Applicable bool         `json:"applicable"`
-	LeftBehind []owedCommit `json:"left-behind,omitempty"`
+	Script     string `json:"script"`
+	Target     string `json:"target"`
+	Remote     string `json:"remote"`
+	Branch     string `json:"branch"`
+	Applicable bool   `json:"applicable"`
 }
 
 // preparePush derives what a push owes and, when the derivation admits it,
@@ -62,7 +61,6 @@ func preparePush(root, authorisation string) (pushPrepared, int, error) {
 			return prepared, 3, fmt.Errorf("read the HEAD this push publishes: %w", err)
 		}
 	}
-	prepared.LeftBehind = derived.LeftBehind
 	prepared.Remote, prepared.Branch, err = upstreamOf(root)
 	if err != nil {
 		return prepared, 3, err
@@ -115,8 +113,8 @@ func upstreamOf(root string) (string, string, error) {
 // pushScriptPath answers where this session's push-only script goes. A
 // push-only script already there is prepared again in place, because P is
 // chosen again. A commit script with a block not yet run refuses the push:
-// its commit is neither verified nor published, and the session would read
-// the push as carrying it. A commit script whose every block ran is spent.
+// its commit is not published, and the session would read the push as
+// carrying it. A commit script whose every block ran is spent.
 func pushScriptPath(root, session string) (string, error) {
 	matches, err := filepath.Glob(filepath.Join(root, "tmp", "commit-"+session+"-*.sh"))
 	if err != nil {
@@ -146,8 +144,8 @@ func pushScriptPath(root, session string) (string, error) {
 		}
 		if pending := pendingBlocks(root, text); len(pending) != 0 {
 			return "", foundProblem(fmt.Errorf("push refused: %s holds commit block(s) %s not yet run, and an unrun commit is "+
-				"neither verified nor published; run it with: bash %s, then %s, then ./le commit push",
-				relative, strings.Join(pending, ", "), relative, scopedCommand))
+				"not published; run it with: bash %s, then %s",
+				relative, strings.Join(pending, ", "), relative, pushCommand))
 		}
 	}
 	if reuse != "" {
@@ -203,8 +201,8 @@ func renderPushScript(root, session, reason string, prepared *pushPrepared) stri
 	page.Str(commentLine("Push " + prepared.Target + " to " + prepared.Remote + " " + prepared.Branch +
 		". This script makes no commit.")).Byte('\n')
 	if prepared.Applicable {
-		page.Str("# The derivation again, against the prepared commit: a lost scoped record, a moved\n")
-		page.Str("# upstream or a rebase that took the commit off the branch stops the push here.\n")
+		page.Str("# The derivation again, against the prepared commit: a moved upstream, a rebase\n")
+		page.Str("# that took the commit off the branch or an open person act stops the push here.\n")
 		page.Str("if ! ").Str(debtStatusCommand).Str(prepared.Target).Str("; then\n")
 		page.Str("  echo ").Str(shellQuote("ERROR: the push of " + shortSHA(prepared.Target) +
 			" is refused by the re-check above, and nothing was pushed. Clear what it names, then prepare the push again with ./le commit push.")).
@@ -216,7 +214,7 @@ func renderPushScript(root, session, reason string, prepared *pushPrepared) stri
 }
 
 // Text prints the script path first, as create does, then what the push
-// carries and what it leaves behind.
+// carries.
 func (p *pushPrepared) Text() string {
 	var text textbuf.Buffer
 	text.Str("script=").Str(p.Script).Str("\npush=").Str(p.Target).Str(" -> ").Str(p.Remote).
@@ -224,22 +222,16 @@ func (p *pushPrepared) Text() string {
 	if !p.Applicable {
 		text.Str("verify=NOT-APPLICABLE (").Str(notCheckoutDetail).Str(")\n")
 	}
-	for _, left := range p.LeftBehind {
-		text.Str("not in this push, owes ").Str(scopedCommand).Str(": ").
-			Str(shortSHA(left.SHA)).Byte(' ').Str(left.Subject).Byte('\n')
-	}
 	return text.String()
 }
 
 // debtStatus is the answer of `./le commit debt-status [commit <rev>]`.
 type debtStatus struct {
-	Applicable bool         `json:"applicable"`
-	Owed       bool         `json:"owed"`
-	Target     string       `json:"target,omitempty"`
-	Scoped     string       `json:"scoped,omitempty"`
-	LeftBehind []owedCommit `json:"left-behind,omitempty"`
-	Items      []string     `json:"items,omitempty"`
-	Refusals   []string     `json:"refusals,omitempty"`
+	Applicable bool     `json:"applicable"`
+	Owed       bool     `json:"owed"`
+	Target     string   `json:"target,omitempty"`
+	Items      []string `json:"items,omitempty"`
+	Refusals   []string `json:"refusals,omitempty"`
 }
 
 // answerDebtStatus derives the debt for HEAD's choice of P, or for candidate,
@@ -254,8 +246,7 @@ func answerDebtStatus(root, candidate string) (debtStatus, int, error) {
 	}
 	status := debtStatus{
 		Applicable: derived.Target != pushTargetNotApplicable,
-		Target:     derived.TargetSHA, Scoped: derived.Scoped,
-		LeftBehind: derived.LeftBehind, Refusals: derived.Refusals,
+		Target:     derived.TargetSHA, Refusals: derived.Refusals,
 	}
 	for _, item := range derived.Items {
 		status.Items = append(status.Items, item.describe())
@@ -270,20 +261,15 @@ func answerDebtStatus(root, candidate string) (debtStatus, int, error) {
 // Text names the answer on its first line, then every reason it is owed.
 func (s *debtStatus) Text() string {
 	if !s.Applicable {
-		return "verification debt: not applicable (" + notCheckoutDetail + ")\n"
+		return "push debt: not applicable (" + notCheckoutDetail + ")\n"
 	}
 	if !s.Owed {
-		return "verification debt: nothing owed; push target " + shortSHA(s.Target) + "\n"
+		return "push debt: nothing owed; push target " + shortSHA(s.Target) + "\n"
 	}
 	var text textbuf.Buffer
-	text.Str("verification debt: owed\n  push target: ").Str(orNone(shortSHA(s.Target))).
-		Str("\n  scoped record: ").Str(orNone(shortSHA(s.Scoped))).Byte('\n')
+	text.Str("push debt: owed\n  push target: ").Str(orNone(shortSHA(s.Target))).Byte('\n')
 	for _, refusal := range s.Refusals {
 		text.Str("  refused: ").Str(refusal).Byte('\n')
-	}
-	for _, left := range s.LeftBehind {
-		text.Str("  not in the push target, owes ").Str(scopedCommand).Str(": ").
-			Str(shortSHA(left.SHA)).Byte(' ').Str(left.Subject).Byte('\n')
 	}
 	for _, item := range s.Items {
 		text.Str("  ").Str(item).Byte('\n')
@@ -303,9 +289,8 @@ func orNone(value string) string {
 const debtWarningItemsMax = 5
 
 // DebtWarning answers the session-start warning over the derived debt: one
-// line and at most five items under it (the commits left behind, the reasons
-// the push is refused, then the open person acts), or "" exactly when nothing
-// is owed (derivedDebt.owed). An error is "cannot answer", and the caller MUST
+// line and at most five items under it (the reasons the push is refused, then
+// the open person acts), or "" exactly when nothing is owed (derivedDebt.owed). An error is "cannot answer", and the caller MUST
 // NOT read it as nothing owed.
 func DebtWarning(root string) (string, error) {
 	derived, err := deriveDebt(root, "")
@@ -316,11 +301,8 @@ func DebtWarning(root string) (string, error) {
 		return "", nil
 	}
 	var text textbuf.Buffer
-	text.Str("verification debt: ").Str(derived.headline()).Str(", push refused until cleared\n")
-	lines := make([]string, 0, len(derived.LeftBehind)+len(derived.Refusals)+len(derived.Items))
-	for _, left := range derived.LeftBehind {
-		lines = append(lines, shortSHA(left.SHA)+" "+left.Subject)
-	}
+	text.Str("push debt: ").Str(derived.headline()).Str("; ").Str(pushCommand).Str(" refuses until they clear\n")
+	lines := make([]string, 0, len(derived.Refusals)+len(derived.Items))
 	lines = append(lines, derived.Refusals...)
 	for _, item := range derived.Items {
 		lines = append(lines, item.describe())
@@ -337,15 +319,15 @@ func DebtWarning(root string) (string, error) {
 
 // debtReport is the create report's `debt=` value, one line: what is owed and
 // why, from the same headline and the same owed predicate as the session-start
-// warning. A derivation that cannot answer says so; neither it nor a push
-// target that does not exist ever reads as zero owed.
+// warning. A derivation that cannot answer says so, and never reads as zero
+// owed.
 func debtReport(root string) string {
 	derived, err := deriveDebt(root, "")
 	if err != nil {
 		return "cannot answer: " + commentSafe(err.Error())
 	}
 	if !derived.owed() {
-		return "nothing owed: HEAD's tree is covered by the scoped verify of " + derived.since()
+		return "nothing owed"
 	}
 	report := derived.headline()
 	if len(derived.Refusals) != 0 {
@@ -354,38 +336,19 @@ func debtReport(root string) string {
 	return commentSafe(report)
 }
 
-// headline names what a derivation that owes something owes, most decisive
-// first: the commits a scoped verify must still cover, with the command that
-// covers them; else that HEAD's own tree
-// is not covered, with the command that covers it; else the refusal or the
-// person acts. It is never a count of zero: a derivation with no push target
-// at HEAD and nothing to list says the tree is not covered.
+// headline counts what a derivation that owes something owes: the refusals,
+// then the open person acts. A derivation with neither has no admissible push
+// target, and says so rather than a count of zero.
 func (d *derivedDebt) headline() string {
-	if len(d.LeftBehind) != 0 {
-		return strconv.Itoa(len(d.LeftBehind)) + " commit(s) owe a scoped verify since " + d.since() + ": run " + scopedCommand
-	}
-	if d.Target != pushTargetHead {
-		return "HEAD's tree is not covered by a scoped verify (" + d.coverage() + "): run " + scopedCommand
-	}
+	parts := make([]string, 0, 2)
 	if len(d.Refusals) != 0 {
-		return "the push of HEAD is refused"
+		parts = append(parts, strconv.Itoa(len(d.Refusals))+" refusal(s)")
 	}
-	return strconv.Itoa(len(d.Items)) + " person act(s) owed"
-}
-
-// coverage names what the scoped record is for a headline: absent, or the
-// commit it names.
-func (d *derivedDebt) coverage() string {
-	if d.Scoped == "" {
-		return "no scoped record"
+	if len(d.Items) != 0 {
+		parts = append(parts, strconv.Itoa(len(d.Items))+" person act(s) owed")
 	}
-	return "the scoped record names " + shortSHA(d.Scoped)
-}
-
-// since names the scoped record a debt is counted from.
-func (d *derivedDebt) since() string {
-	if d.Scoped == "" {
-		return "no scoped record"
+	if len(parts) == 0 {
+		return "no admissible push target"
 	}
-	return shortSHA(d.Scoped)
+	return strings.Join(parts, ", ")
 }

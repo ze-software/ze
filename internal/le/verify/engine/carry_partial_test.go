@@ -306,8 +306,9 @@ func TestAnUndeclaredSharedStageIsJudgedInPart(t *testing.T) {
 }
 
 // TestAnUnreadableVerifyRecordNamesTheScopedRun proves both unreadable-record
-// answers of the status check name the run an agent starts, and the release
-// check only as Thomas's, never "run a full verify" (AC-22).
+// answers of the status check say no agent starts the rerun, that Thomas starts
+// a verify and GitHub CI verifies a pushed commit, and never tell an agent to
+// run a verify (AC-22; ai/META-DECISIONS.md: no agent runs any ./le verify).
 //
 // Method: write a certificate, turn the manifest and then the status file into
 // directories so each read fails with an error other than not-exist, and read
@@ -332,11 +333,11 @@ func TestAnUnreadableVerifyRecordNamesTheScopedRun(t *testing.T) {
 		if got.Fresh {
 			t.Fatalf("%s unreadable reads fresh: %#v", rel, got)
 		}
-		if !strings.Contains(got.Reason, "unreadable") || !strings.Contains(got.Reason, "./le verify changed for an agent") ||
-			!strings.Contains(got.Reason, "a release check is Thomas's to start") {
-			t.Errorf("%s unreadable answers %q, want the scoped run and the release check as Thomas's", rel, got.Reason)
+		if !strings.Contains(got.Reason, "unreadable") || !strings.Contains(got.Reason, "no agent starts it") ||
+			!strings.Contains(got.Reason, "GitHub CI verifies a pushed commit") {
+			t.Errorf("%s unreadable answers %q, want no agent and the run as Thomas's or CI's", rel, got.Reason)
 		}
-		if strings.Contains(got.Reason, "full verify") {
+		if strings.Contains(got.Reason, "full verify") || strings.Contains(got.Reason, "./le verify changed") {
 			t.Errorf("%s unreadable answers %q, which tells an agent to run a full verify", rel, got.Reason)
 		}
 	}

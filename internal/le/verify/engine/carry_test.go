@@ -336,7 +336,7 @@ func TestAFailedIndexWriteSaysWhatItLeftAndTheFix(t *testing.T) {
 				"the earlier failure index at " + FailuresJSONPath + " was left unchanged",
 				"this run's reds were not published",
 				"then rerun the verify",
-				"./le verify changed for an agent; a release check is Thomas's to start",
+				"no agent starts it: Thomas starts a verify when he chooses, and GitHub CI verifies a pushed commit",
 			} {
 				if !strings.Contains(err.Error(), want) {
 					t.Fatalf("error = %q, want it to contain %q", err, want)
@@ -375,7 +375,7 @@ func TestAFailedCopyAfterTheIndexSaysTheGateReadsThisRun(t *testing.T) {
 				"the failure index at " + FailuresJSONPath + " holds this run's verdicts",
 				"but " + path + " still shows the earlier run",
 				"then rerun the verify",
-				"./le verify changed for an agent; a release check is Thomas's to start",
+				"no agent starts it: Thomas starts a verify when he chooses, and GitHub CI verifies a pushed commit",
 			} {
 				if !strings.Contains(err.Error(), want) {
 					t.Fatalf("error = %q, want it to contain %q", err, want)

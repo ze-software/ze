@@ -130,8 +130,8 @@ web, installer, appliance, l2tp-wire, isis-wire, ospf-wire, runner, bfd, dhcp, v
 
 `./le repo check` is a fast (~0.2s) post-verify check that catches recurring
 implementation mistakes: stale source anchors, line-number anchors, unwired
-exported symbols, and incomplete spec AC tables. Run it after `./le verify changed` passes,
-before presenting work as complete.
+exported symbols, and incomplete spec AC tables. Run it after the scoped tests
+of what you changed pass, before presenting work as complete.
 <!-- source: internal/le/verify/engine/stages.go -- StagesForMode -->
 <!-- source: internal/le/verify/deps/actions.go -- Actions -->
 <!-- source: internal/le/repo/actions.go -- Answer -->
@@ -552,7 +552,7 @@ and name, plus periodic progress while tests are still running.
 | Chaos | `le test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. Each test execs `le chaos run`; the run compiles the le personality (`ze_le` and every gate `feature-gates.txt` declares) into its temp directory. The daemon `le chaos run` forks is the runner's own `ze`, found as `ze` on the child PATH. |
 | Chaos web | `le test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. Each test execs `le chaos run --in-process --web`, against the same le build as the chaos suite. |
 | ExaBGP compatibility | `le test exabgp` | `test/exabgp-compat/{encoding,api,old-4.2,old-5.0}/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `le test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
-| Runner | `le test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, a commit never refused for a red (`commit-not-refused-for-a-red`), derived verification debt (`commit-push-refused-by-derived-debt` and `commit-push-script-rechecks` drive `./le commit push` and its push-only script, `verify-worktree-cut-sweep` writes the green record a full or cut verification earns, `verify-changed-record-clears-derived-debt` shows a green full verification leaves the push debt owed and the scoped record a green `./le verify changed` writes clears it, `commit-attest-empty-commit` and `commit-review-owed-trailer` answer a person act from the commit trailers), in-flight failure-query, change-set-selection and derived-artifact fixtures (`le-derived-artifact-lifecycle` drives `le ai hooks` over a scratch checkout: a session start renders an artifact the tree does not hold, a write to one of its inputs removes it, and a command naming it rebuilds it before that command runs; `le-rfc-ledger-is-derived` walks the same loop for the five RFC outputs, and runs `./le rfc check` over a tree holding none of them to prove the gate judges the summaries rather than a page). The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
+| Runner | `le test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, a commit never refused for a red (`commit-not-refused-for-a-red`), the derived push debt (`commit-push-needs-no-verify-record` and `commit-push-script-rechecks` drive `./le commit push` and its push-only script with no verify record, `verify-worktree-cut-sweep` writes the green record a full or cut verification earns, `verify-records-at-asking-root` shows the green and scoped records land at the asking root and change nothing a push owes, `commit-attest-empty-commit` and `commit-review-owed-trailer` answer a person act from the commit trailers), in-flight failure-query, change-set-selection and derived-artifact fixtures (`le-derived-artifact-lifecycle` drives `le ai hooks` over a scratch checkout: a session start renders an artifact the tree does not hold, a write to one of its inputs removes it, and a command naming it rebuilds it before that command runs; `le-rfc-ledger-is-derived` walks the same loop for the five RFC outputs, and runs `./le rfc check` over a tree holding none of them to prove the gate judges the summaries rather than a page). The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
 <!-- source: internal/test/cli/cmd_bgp.go -- BGP suite routing -->
 <!-- source: internal/test/cli/ci_runner.go -- shared .ci suites -->
 <!-- source: internal/test/cli/cmd_editor.go -- .et suite runner -->
@@ -712,7 +712,6 @@ component-group targets to test only the area you changed:
 | `./le test unit config` | `./internal/component/config/...` | about 20 seconds |
 | `./le test unit cli` | `./internal/component/cli/...` | about 10 seconds |
 | `./le test unit installer` | `./internal/install/...` behind the `ze_installer` tag | about 10 seconds |
-| `./le verify changed` | What the change reaches, in a throwaway worktree | depends on the change |
 
 The first five groups run with the test-only `CGO_ENABLED=1 go test -race` path
 on Linux and Darwin. These race-built test executables never ship or serve as
@@ -1357,21 +1356,23 @@ synthetic observations. The anomaly facts→judgment→response chain
 
 ### Development Workflow
 
-Use the narrowest test scope that covers your change, then widen to the change set once it is committed:
+Use the narrowest test scope that covers your change, then widen to the
+component group and the functional suite the change reaches, in the main
+checkout:
 
 ```
-single test  →  single package  →  component group  →  ./le verify changed
+single test  →  single package  →  component group  →  functional suite
 ```
 
 ```bash
 ./le job run label one-config-test command go test ./internal/component/config/system/... -run TestMyThing
 ./le test unit config
-./le verify changed
 ```
 
-`./le verify current`, the full verification, is Thomas's release check: it
-runs only when stdin and stdout are both terminals, and an agent gives him the
-exact command instead of running it.
+No agent runs any `./le verify` command, `./le verify changed` included:
+GitHub CI verifies the pushed commit. `./le verify current`, the full
+verification, is Thomas's release check: it runs only when stdin and stdout are
+both terminals.
 
 #### Test binaries are isolated from the development binary
 

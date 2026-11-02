@@ -298,19 +298,19 @@ func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
 
 // TestLossyPipeRefusalNamesTheScopedRun is the example the refusal teaches.
 //
-// VALIDATES: the lossy-filter refusal's example command is the scoped
-// `./le verify changed`, the run an agent owes.
-// PREVENTS: the refusal teaching an agent to start a full verification, which
-// is Thomas's release check and refuses an agent anyway.
+// VALIDATES: the lossy-filter refusal's example command is a scoped test run,
+// the evidence an agent owes.
+// PREVENTS: the refusal teaching an agent to start any `./le verify` command,
+// which no agent runs (ai/META-DECISIONS.md).
 func TestLossyPipeRefusalNamesTheScopedRun(t *testing.T) {
 	_, _, message := runHook(t, t.TempDir(), "pretool-bash", map[string]any{
 		"tool_name":  "Bash",
 		"tool_input": map[string]any{"command": "./le verify changed | tail -5"},
 	})
-	if !strings.Contains(message, `./le verify changed > "$dir/verify.log"`) {
+	if !strings.Contains(message, `./le test unit <group> > "$dir/test.log"`) {
 		t.Errorf("the refusal does not name the scoped run as its example: %s", message)
 	}
-	for _, full := range []string{"verify worktree", "verify current"} {
+	for _, full := range []string{"le verify"} {
 		if strings.Contains(message, full) {
 			t.Errorf("the refusal tells an agent to run %q: %s", full, message)
 		}

@@ -1,0 +1,28 @@
+# A green full verification and a green scoped verification each write their
+# record at the asking root, and neither changes what a push owes.
+#
+# The fixture builds a throwaway Ze checkout with a bare upstream, commits one
+# change, and asserts the REAL `le commit debt-status` exits 0: a push owes no
+# verify. It then runs verify.Run, the lifecycle `le verify worktree` answers
+# through, with a fixture action runner that answers every stage green: a
+# native run over the real population takes this machine's job slots for most
+# of an hour. It asserts the green record sits at the asking root naming HEAD,
+# uncut. It runs verify.Run over the changed population, the lifecycle
+# `le verify changed` answers through, with the same fixture action runner,
+# asserts the scoped record at the asking root names HEAD, and that
+# `le commit debt-status` still exits 0.
+#
+# Spec: spec-verification-debt-derived (closed; design in docs/architecture/testing/verify-freshness-scope.md) (AC-8).
+# Delete the green-record write from the lifecycle (internal/le/verify/lifecycle.go)
+# and seq=1 fails at green-record-at-asking-root; delete the scoped-record
+# write (recordChanged, internal/le/verify/changed.go) and seq=1 fails at
+# scoped-record-at-asking-root.
+
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=le test fixture runner/verify-records-at-asking-root
+expect=exit:code=0
+expect=stdout:contains=push-owes-no-verify
+expect=stdout:contains=green-record-at-asking-root
+expect=stdout:contains=scoped-record-at-asking-root
+expect=stdout:contains=push-still-owes-no-verify

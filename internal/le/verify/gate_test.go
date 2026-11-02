@@ -49,7 +49,7 @@ func assertRefusedAsAToolCall(t *testing.T, line []string) {
 	if len(*asked) != 1 || (*asked)[0] != given {
 		t.Fatalf("%s asked the gate about %q, want exactly %q", given, *asked, given)
 	}
-	for _, want := range []string{"a release check only Thomas starts", "stdin", "stdout", "\n    " + given + "\n", human.ScopedCommand} {
+	for _, want := range []string{"a release check only Thomas starts", "stdin", "stdout", "\n    " + given + "\n", human.AgentEvidence} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("%s refusal does not carry %q:\n%s", given, want, stderr)
 		}

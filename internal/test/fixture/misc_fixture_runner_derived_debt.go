@@ -7,22 +7,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
-	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 	"github.com/ze-software/ze/internal/le/verify"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
-// The drivers below prove the derived verification debt through the REAL `le`
-// binary over a throwaway checkout with a real bare upstream, and judge what
-// git and the product's own artifacts say afterwards: the commit the upstream
-// holds, the trailers a commit carries, the green record at the asking root.
+// The drivers below prove the derived push debt through the REAL `le` binary
+// over a throwaway checkout with a real bare upstream, and judge what git and
+// the product's own artifacts say afterwards: the commit the upstream holds,
+// the trailers a commit carries, the green record at the asking root.
 //
-// A push owes a scoped verification (`le verify changed`), so the push legs
-// stand in for that run with the scoped record it leaves at the asking root,
-// written through the product's own constructor and writer over the anchor the
-// product's own resolver computes (scratch.scoped).
+// A push owes no local verification: no agent runs `le verify`, and GitHub CI
+// verifies the pushed commit. The push legs therefore run with no verify
+// record at all.
 //
 // Two legs run in process rather than through `le verify worktree`, because a
 // native verification over the real population claims this machine's job
@@ -43,61 +40,53 @@ const (
 		"| Status | in-progress |\n| Scope | tooling |\n\n## Task\n\nA fixture.\n"
 )
 
-// commitPushRefusedByDerivedDebtDriver: a commit with no scoped record is
-// refused by `le commit push`, naming the scoped verify and never a full one;
-// once a scoped record covers HEAD the push-only script is prepared, re-derives against P and pushes P to
-// the upstream branch.
-func commitPushRefusedByDerivedDebtDriver(ctx context.Context, args []string) error {
+// commitPushNeedsNoVerifyRecordDriver: a commit with no verify record of any
+// kind is admitted by `le commit push`, whose answer names no verify; the
+// push-only script re-derives against P and pushes P to the upstream branch.
+func commitPushNeedsNoVerifyRecordDriver(ctx context.Context, args []string) error {
 	scratch, err := newDerivedDebtScratch(ctx, args)
 	if err != nil {
 		return err
 	}
 	defer scratch.remove()
 
-	head, err := scratch.commit(ctx, "an unverified change", "a.txt")
+	head, err := scratch.commit(ctx, "a change no verify ran over", "a.txt")
 	if err != nil {
 		return err
 	}
 	out, code, err := scratch.le(ctx, argCommit, "push", derivedDebtAuthorisation)
-	if err != nil {
-		return err
+	if failure := commandAnswered("le commit push with no verify record", out, code, 0, err); failure != nil {
+		return failure
 	}
-	if code == 0 {
-		return fmt.Errorf("le commit push over an unverified HEAD was admitted: %s", out)
+	if strings.Contains(out, "le verify") {
+		return fmt.Errorf("le commit push named a verify, which a push does not owe: %s", out)
 	}
-	if !strings.Contains(out, "no scoped record") {
-		return fmt.Errorf("le commit push refused an unverified HEAD without saying no scoped record exists: %s", out)
-	}
-	if !strings.Contains(out, verify.ChangedCommand) {
-		return fmt.Errorf("le commit push refused an unverified HEAD without naming %s: %s", verify.ChangedCommand, out)
-	}
-	if strings.Contains(out, "./le verify worktree") {
-		return fmt.Errorf("le commit push named the full verify, which a push does not owe: %s", out)
-	}
-	fmt.Fprintln(os.Stdout, "push-refused-without-green") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "push-prepared-without-verify-record") //nolint:errcheck // progress output
 
-	if err := scratch.scoped(ctx, head); err != nil {
-		return err
-	}
-	script, err := scratch.preparePush(ctx)
+	scriptPath, err := scriptFrom(scratch.repo, out)
 	if err != nil {
 		return err
 	}
+	content, err := os.ReadFile(scriptPath) //nolint:gosec // the script le printed for this scratch checkout
+	if err != nil {
+		return err
+	}
+	script := string(content)
 	for _, want := range []string{"debt-status commit " + head, head + ":" + derivedDebtBranchRef} {
 		if !strings.Contains(script, want) {
 			return fmt.Errorf("the push-only script does not carry %q:\n%s", want, script)
 		}
 	}
-	if strings.Contains(script, "commit-tree") {
-		return fmt.Errorf("the push-only script makes a commit:\n%s", script)
+	if strings.Contains(script, "commit-tree") || strings.Contains(script, "le verify") {
+		return fmt.Errorf("the push-only script makes a commit or runs a verify:\n%s", script)
 	}
 	fmt.Fprintln(os.Stdout, "push-script-prepared-for-head") //nolint:errcheck // progress output
 	return nil
 }
 
 // commitPushScriptRechecksDriver: the script pushes the prepared P even when a
-// commit lands after preparation, and refuses, pushing nothing, once the scoped
-// record it was prepared against is gone.
+// commit lands after preparation, and refuses, pushing nothing, once the
+// upstream moved to a commit P does not descend from.
 func commitPushScriptRechecksDriver(ctx context.Context, args []string) error {
 	scratch, err := newDerivedDebtScratch(ctx, args)
 	if err != nil {
@@ -105,11 +94,8 @@ func commitPushScriptRechecksDriver(ctx context.Context, args []string) error {
 	}
 	defer scratch.remove()
 
-	verified, err := scratch.commit(ctx, "the verified change", "a.txt")
+	prepared, err := scratch.commit(ctx, "the prepared change", "a.txt")
 	if err != nil {
-		return err
-	}
-	if err := scratch.scoped(ctx, verified); err != nil {
 		return err
 	}
 	scriptPath, err := scratch.preparePushPath(ctx)
@@ -122,23 +108,33 @@ func commitPushScriptRechecksDriver(ctx context.Context, args []string) error {
 	if err := scratch.expect(ctx, 0, "the push-only script", "bash", scriptPath); err != nil {
 		return err
 	}
-	if err := scratch.upstreamIs(ctx, verified); err != nil {
+	if err := scratch.upstreamIs(ctx, prepared); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stdout, "script-pushed-the-prepared-commit") //nolint:errcheck // progress output
 
-	latest, err := scratch.commit(ctx, "a second verified change", "c.txt")
-	if err != nil {
-		return err
-	}
-	if err := scratch.scoped(ctx, latest); err != nil {
+	if _, err := scratch.commit(ctx, "a second change", "c.txt"); err != nil {
 		return err
 	}
 	scriptPath, err = scratch.preparePushPath(ctx)
 	if err != nil {
 		return err
 	}
-	if err := os.Remove(filepath.Join(scratch.repo, filepath.FromSlash(verify.ChangedPath))); err != nil {
+	// The upstream moves to a commit the prepared P does not descend from, as
+	// a push from the other machine would move it.
+	tree, err := scratch.git(ctx, "rev-parse", prepared+"^{tree}")
+	if err != nil {
+		return err
+	}
+	moved, err := scratch.git(ctx, "-c", "user.email=t@t", "-c", "user.name=t", "commit-tree", tree, "-p", prepared,
+		"-m", "the other machine")
+	if err != nil {
+		return err
+	}
+	if _, err := scratch.git(ctx, "push", "-q", gitRemoteOrigin, moved+":"+derivedDebtBranchRef); err != nil {
+		return err
+	}
+	if _, err := scratch.git(ctx, "fetch", "-q", gitRemoteOrigin); err != nil {
 		return err
 	}
 	out, code, err := scratch.run(ctx, "bash", scriptPath)
@@ -146,21 +142,20 @@ func commitPushScriptRechecksDriver(ctx context.Context, args []string) error {
 		return err
 	}
 	if code == 0 {
-		return fmt.Errorf("the push-only script ran with its scoped record gone: %s", out)
+		return fmt.Errorf("the push-only script ran with the upstream moved: %s", out)
 	}
-	if err := scratch.upstreamIs(ctx, verified); err != nil {
+	if err := scratch.upstreamIs(ctx, moved); err != nil {
 		return fmt.Errorf("a refused script: %w", err)
 	}
-	fmt.Fprintln(os.Stdout, "script-refused-without-green") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "script-refused-when-upstream-moved") //nolint:errcheck // progress output
 	return nil
 }
 
-// verifyChangedRecordClearsDerivedDebtDriver: a commit owes a scoped verify.
-// A green full run over it writes the green record at the asking root and
-// still owes the push its scoped verify, because the debt is derived from the
-// scoped record alone; a green `le verify changed` over it writes the scoped
-// record naming HEAD, after which `le commit debt-status` answers nothing owed.
-func verifyChangedRecordClearsDerivedDebtDriver(ctx context.Context, args []string) error {
+// verifyRecordsAtAskingRootDriver: a green full run writes the green record at
+// the asking root, and a green `le verify changed` writes the scoped record
+// naming HEAD; `le commit debt-status` answers nothing owed before, between
+// and after, because a push reads neither record.
+func verifyRecordsAtAskingRootDriver(ctx context.Context, args []string) error {
 	scratch, err := newDerivedDebtScratch(ctx, args)
 	if err != nil {
 		return err
@@ -171,10 +166,10 @@ func verifyChangedRecordClearsDerivedDebtDriver(ctx context.Context, args []stri
 	if err != nil {
 		return err
 	}
-	if err := scratch.expect(ctx, 1, "debt-status before any verify", scratch.leBinary, argCommit, "debt-status"); err != nil {
+	if err := scratch.expect(ctx, 0, "debt-status before any verify", scratch.leBinary, argCommit, "debt-status"); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stdout, "debt-owed-before-verify") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "push-owes-no-verify") //nolint:errcheck // progress output
 
 	if report := verify.Run(ctx, scratch.repo, verify.Options{}, greenActionRunner); report.Code != 0 {
 		return fmt.Errorf("the fixture verification over %s exit=%d: %v", head, report.Code, report.Diagnostics)
@@ -190,11 +185,6 @@ func verifyChangedRecordClearsDerivedDebtDriver(ctx context.Context, args []stri
 		return fmt.Errorf("the green record holds a cut of %d, want 1", record.Pieces())
 	}
 	fmt.Fprintln(os.Stdout, "green-record-at-asking-root") //nolint:errcheck // progress output
-
-	if err := scratch.expect(ctx, 1, "debt-status after a green full verify of HEAD", scratch.leBinary, argCommit, "debt-status"); err != nil {
-		return err
-	}
-	fmt.Fprintln(os.Stdout, "full-verify-leaves-debt-owed") //nolint:errcheck // progress output
 
 	// The scoped run's worktree is detached, so it anchors on
 	// refs/remotes/origin/HEAD, which a clone sets and a pushed scratch
@@ -215,10 +205,10 @@ func verifyChangedRecordClearsDerivedDebtDriver(ctx context.Context, args []stri
 	}
 	fmt.Fprintln(os.Stdout, "scoped-record-at-asking-root") //nolint:errcheck // progress output
 
-	if err := scratch.expect(ctx, 0, "debt-status after a green scoped verify of HEAD", scratch.leBinary, argCommit, "debt-status"); err != nil {
+	if err := scratch.expect(ctx, 0, "debt-status after both verify records", scratch.leBinary, argCommit, "debt-status"); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stdout, "derived-debt-cleared") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "push-still-owes-no-verify") //nolint:errcheck // progress output
 	return nil
 }
 
@@ -330,8 +320,8 @@ func verifyWorktreeCutSweepDriver(ctx context.Context, args []string) error {
 
 // commitAttestEmptyCommitDriver: a commit carrying `Review-owed:` holds the
 // push; `le commit create attest <commit> "<words>"` with no file prepares an
-// empty commit carrying `Owner-attested:`; once it lands HEAD's tree is still
-// the scoped tree, so the push is admitted with P = HEAD and no new verify.
+// empty commit carrying `Owner-attested:`; once it lands the push is admitted
+// with P = HEAD.
 func commitAttestEmptyCommitDriver(ctx context.Context, args []string) error {
 	scratch, err := newDerivedDebtScratch(ctx, args)
 	if err != nil {
@@ -342,9 +332,6 @@ func commitAttestEmptyCommitDriver(ctx context.Context, args []string) error {
 	owed, err := scratch.commitMessage(ctx, "a closure nobody reviewed\n\nReview-owed: "+derivedDebtSpecStem+": no reviewer free",
 		"", derivedDebtSpecPath)
 	if err != nil {
-		return err
-	}
-	if err := scratch.scoped(ctx, owed); err != nil {
 		return err
 	}
 	out, code, err := scratch.le(ctx, argCommit, "push", derivedDebtAuthorisation)
@@ -405,7 +392,7 @@ func commitAttestEmptyCommitDriver(ctx context.Context, args []string) error {
 	if !strings.Contains(script, head+":"+derivedDebtBranchRef) {
 		return fmt.Errorf("the push after the attestation does not push HEAD %s:\n%s", head, script)
 	}
-	fmt.Fprintln(os.Stdout, "push-admitted-without-new-verify") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "push-admitted-after-attestation") //nolint:errcheck // progress output
 	return nil
 }
 
@@ -447,13 +434,6 @@ func commitReviewOwedTrailerDriver(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintln(os.Stdout, "review-owed-trailer-written") //nolint:errcheck // progress output
 
-	head, err := scratch.git(ctx, "rev-parse", "HEAD")
-	if err != nil {
-		return err
-	}
-	if err := scratch.scoped(ctx, head); err != nil {
-		return err
-	}
 	out, code, err = scratch.le(ctx, argCommit, "push", derivedDebtAuthorisation)
 	if err != nil {
 		return err
@@ -579,41 +559,6 @@ func (s *derivedDebtScratch) commitMessage(ctx context.Context, message, write, 
 		return "", err
 	}
 	return s.git(ctx, "rev-parse", "HEAD")
-}
-
-// scoped writes the record a green `le verify changed` over commit leaves at
-// the asking root, standing in for that run where the scenario is about its
-// reader. The anchor is the one repochanged.ResolveAnchor computes for the
-// checkout, as the run computes it, so the record is the product's own shape.
-// commit MUST be HEAD: the resolver anchors HEAD, as the run anchors the
-// commit it verified.
-func (s *derivedDebtScratch) scoped(ctx context.Context, commit string) error {
-	head, err := s.git(ctx, "rev-parse", "HEAD")
-	if err != nil {
-		return err
-	}
-	if head != commit {
-		return fmt.Errorf("a scoped record over %s, which is not HEAD %s", commit, head)
-	}
-	tree, err := s.git(ctx, "rev-parse", commit+"^{tree}")
-	if err != nil {
-		return err
-	}
-	anchor, err := repochanged.ResolveAnchor(s.repo, func(dir string, args ...string) (string, error) {
-		out, code, err := rawCommand(ctx, dir, os.Environ(), "git", args...)
-		if failure := commandAnswered("git "+strings.Join(args, " "), out, code, 0, err); failure != nil {
-			return "", failure
-		}
-		return out, nil
-	})
-	if err != nil {
-		return err
-	}
-	record, err := verify.NewScopedRecord(commit, tree, anchor, time.Now())
-	if err != nil {
-		return err
-	}
-	return verify.WriteScopedRecord(s.repo, record)
 }
 
 // preparePushPath runs `le commit push` and answers the script path it prints.

@@ -31,7 +31,6 @@ func TestALinuxLimitCommitOwesTheOwnersAttestation(t *testing.T) {
 		t.Fatalf("commit failed: %v\n%s", err, output)
 	}
 	changed := revParse(t, root, "HEAD")
-	writeOwedGreen(t, root, changed)
 	debt := deriveOwed(t, root, "")
 	assertOneItem(t, debt, changed, owedItemLinuxLimit, linuxLimitRID)
 	if err := debt.pushRefusal(); err == nil || !strings.Contains(err.Error(), "attest") {
@@ -188,9 +187,8 @@ func TestLinuxLimitMalformedDebtCannotBeAttested(t *testing.T) {
 		AttestWords: "I approve", DryRun: true}); err == nil {
 		t.Fatal("attest accepted an unreadable obligation")
 	}
-	attested := commitOwed(t, root, "owner answer", nil, nil,
+	commitOwed(t, root, "owner answer", nil, nil,
 		trailerOwnerAttested+stablePatchID(t, root, changed)+": I approve")
-	writeOwedGreen(t, root, attested)
 	debt := deriveOwed(t, root, "")
 	if err := debt.pushRefusal(); err == nil || !strings.Contains(err.Error(), "malformed") {
 		t.Fatalf("malformed obligation was discharged: %v", err)

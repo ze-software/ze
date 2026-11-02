@@ -212,11 +212,12 @@ func ReadCertificate(root string) (Certificate, error) {
 	}, nil
 }
 
-// agentRerun names the verify run that rewrites a verify record, for the agent
-// that reads the message: the scoped run, which an agent starts, and the
-// release check, which only Thomas starts. Every message that asks for a
-// rerun uses it, so none of them tells an agent to start a full verify.
-const agentRerun = "./le verify changed for an agent; a release check is Thomas's to start"
+// agentRerun names who starts the verify run that rewrites a verify record,
+// for the agent that reads the message: never the agent. No agent runs any
+// ./le verify command (ai/META-DECISIONS.md); Thomas starts one when he
+// chooses, and GitHub CI verifies a pushed commit. Every message that asks for
+// a rerun uses it, so none of them tells an agent to start a verify.
+const agentRerun = "no agent starts it: Thomas starts a verify when he chooses, and GitHub CI verifies a pushed commit"
 
 // Freshness is the structured answer to a status check.
 type Freshness struct {

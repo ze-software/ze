@@ -52,7 +52,7 @@ Write a bullet as `body "* item"`, or put a word before the dash, as in
 | `script` | no | The script to append to. `create` with no `script` always gets a distinct path |
 | `session` | no | The eight-hex commit namespace. `./le commit session` creates or reuses this harness session's |
 | `tag` | no | The block tag inside the script |
-| `attest` | no | Two values: a commit and the owner's words, `attest <commit> "<owner words>"`. Prepares an EMPTY commit (its parent's tree) whose message carries `Owner-attested: <stable patch-id>: <owner words>`, which answers every person act the named commit owes. Takes no `file` or `remove`: an attestation that changed the tree would owe the verify it exists to spare. Takes no `no-test`, `review-override`, `rfc-change-ok` or `ledger-carried` either: each acts on a commit that changes files, and an attestation changes none and runs no gate, so the value would be recorded nowhere. The refusal is derived from the create grammar (`createParameters`) and its policy (`createPolicy`), so a keyword added to the grammar is refused with `attest` until its policy declares it allowed. Refused for a commit already on the upstream, one not on this branch, and one carrying no owed trailer |
+| `attest` | no | Two values: a commit and the owner's words, `attest <commit> "<owner words>"`. Prepares an EMPTY commit (its parent's tree) whose message carries `Owner-attested: <stable patch-id>: <owner words>`, which answers every person act the named commit owes. Takes no `file` or `remove`: an attestation that changed the tree would carry code the owner never judged. Takes no `no-test`, `review-override`, `rfc-change-ok` or `ledger-carried` either: each acts on a commit that changes files, and an attestation changes none and runs no gate, so the value would be recorded nowhere. The refusal is derived from the create grammar (`createParameters`) and its policy (`createPolicy`), so a keyword added to the grammar is refused with `attest` until its policy declares it allowed. Refused for a commit already on the upstream, one not on this branch, and one carrying no owed trailer |
 | `ledger-carried` | yes | Only on the ledger-deletion commit (`remove` paths, no `file`): `"<sha> <gate key>: <reason>"`, the gate key `review-override` or `rfc-change-ok`. Writes one `Ledger-carried:` trailer. A row on a commit already on the upstream carries no patch-id and is audit only; a row on an unpushed commit carries that commit's stable patch-id, computed here and never given, and holds the push until it is answered |
 | `no-test` | no | The reason a commit carries no test evidence |
 | `rfc-change-ok` | no | The reason a commit changes an RFC-tagged test unit the owner has not approved yet. Instead of refusing, the message carries one `RFC-approval-owed: <package>.<TestName>: <reason>` trailer per unapproved unit, and the push derivation holds the push until the owner answers |
@@ -303,55 +303,55 @@ cd ../gh-pages && git -c core.quotePath=false status --porcelain |
   grep -v '^ D' | sed 's/^...//' > "$dir/add.txt"
 ```
 
-The command also checks verification freshness for the named file population,
-and never refuses a commit for a missing verification: that is owed before a
-push. Its output carries one `debt=` line, read from the derivation in
-`docs/architecture/testing/verify-freshness-scope.md`, "Verification debt,
-derived". When nothing is owed it reads `debt=nothing owed: HEAD's tree is
-covered by the scoped verify of <G>`. Otherwise it carries the same headline as
-the session-start warning, such as `debt=2 commit(s) owe a scoped verify since
-<G>: run ./le verify changed` or `debt=HEAD's tree is not covered by a scoped
-verify (<why>): run ./le verify changed`, followed by each reason the push is refused,
-separated by `; `. It never reads as a count of zero.
-`debt=cannot answer: <why>` means the derivation could not answer. Nothing is
-written: no commit carries a debt file.
+The command reports the verification certificate for the named file
+population and never refuses a commit for a missing verification: no agent runs
+any `./le verify` command, and GitHub CI verifies the pushed commit. Its
+`verify=` line reads `FRESH (...)` when a record Thomas's own run left covers
+those paths, and `CI (...)` otherwise; neither asks for a run. Its output also
+carries one `debt=` line, the push debt read from the derivation below. When
+nothing is owed it reads `debt=nothing owed`. Otherwise it carries the same
+headline as the session-start warning, a count of the refusals and of the open
+person acts (`debt=1 person act(s) owed`), followed by each reason the push is
+refused, separated by `; `. It never reads as a count of zero and never names a
+verify. `debt=cannot answer: <why>` means the derivation could not answer.
+Nothing is written: no commit carries a debt file.
 <!-- source: internal/le/commit/push.go -- debtReport, headline -->
+<!-- source: internal/le/commit/verification.go -- VerificationState.label -->
 
 The keywords `unverified` and `missing-full-verify-ok` were removed and are
-refused naming `./le verify changed`; `push` on `create` was removed and is
-refused naming `./le commit push "<owner authorisation>"`. The verbs
-`debt-list`, `debt-clear` and `debt-discharge` were removed too, each refused
-naming `./le commit debt-status`, `./le verify changed` or `create ... attest`.
+refused saying nothing replaces them, because no commit or push owes a local
+verify; `push` on `create` was removed and is refused naming
+`./le commit push "<owner authorisation>"`. The verbs `debt-list`,
+`debt-clear` and `debt-discharge` were removed too, refused naming
+`./le commit debt-status`, nothing, or `create ... attest`.
 
 ## Pushing
 
 `./le commit push "<owner authorisation>"` is the one push route, and only the
-owner orders it (`ai/rules/git-safety.md`). It derives the verification debt
-and chooses the push target P: HEAD when the scoped record `./le verify
-changed` wrote covers HEAD's tree, else the covered commit the walk from it
-reaches. A full verification is never asked: it is Thomas's release check. When
-the upstream moved past the scoped run's anchor, the run did not judge every
-commit the push publishes, so the push is refused and the refusal gives
-`git pull --rebase --no-autostash`, then `./le verify changed`. It is
-refused, exit 1, naming what clears each reason, when no P exists, when nothing
-verified is ahead of the upstream, when the upstream does not fast-forward to
-P, or while a person act is open on a commit `P ^@{u}` publishes. It answers
-exit 2 when the derivation cannot answer, such as a branch with no upstream
+owner orders it (`ai/rules/git-safety.md`). It derives the push debt from git
+and the commit trailers, and its push target P is HEAD. It reads no verify
+record and never asks for a verify: no agent runs one, and GitHub CI verifies
+the pushed commit. It is refused, exit 1, naming what clears each reason, when
+nothing is ahead of the upstream, when the upstream does not fast-forward to P
+(`git pull --rebase --no-autostash`, then `./le commit push`), when a commit
+`P ^@{u}` publishes carries a trailer nobody can read, or while a person act is
+open on one of those commits. It answers exit 3 when the derivation cannot
+answer, such as a branch with no upstream
 (`git branch --set-upstream-to=origin/<branch>`).
+<!-- source: internal/le/commit/owed.go -- deriveDebt, chooseTarget, pushRefusal -->
 
 When it admits, it writes a push-only script at the session's `script=` path
-and prints that line, the commit it pushes, and every commit the push leaves
-behind, each owing `./le verify changed`. The script makes no commit. It
+and prints that line and the commit it pushes. The script makes no commit. It
 re-runs `./le commit debt-status commit <P>` and pushes nothing when that
-fails (a lost scoped record, a moved upstream, a rebase that took P off the
-branch), then runs `git push <remote> <P>:<upstream branch ref>`. It pushes P
+fails (a moved upstream, a rebase that took P off the branch, a person act
+now open), then runs `git push <remote> <P>:<upstream branch ref>`. It pushes P
 by SHA, never the branch tip, so a commit that lands after the script was
 prepared is not published. Outside the Ze checkout P is HEAD and the script
 carries no re-check.
 
 | Script already at the session's path | `./le commit push` | `create ... append` |
 |--------------------------------------|--------------------|---------------------|
-| commit blocks not yet run | refused: run that script first, then verify and push | as before |
+| commit blocks not yet run | refused: run that script first, then push | as before |
 | a push-only script | prepared again in place, P chosen again | refused: an appended commit would not be published; run the push script first, or use `replace` |
 
 `./le commit debt-status` answers exit 0 when P is HEAD and nothing is owed, 1

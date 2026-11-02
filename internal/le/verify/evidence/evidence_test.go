@@ -411,7 +411,7 @@ func TestEvidenceRefusesBeforeDockerWithoutTerminal(t *testing.T) {
 	if len(asked) != 1 || asked[0] != given {
 		t.Fatalf("the gate was asked about %q, want exactly %q", asked, given)
 	}
-	for _, want := range []string{"a release check only Thomas starts", "\n    " + given + "\n", human.ScopedCommand} {
+	for _, want := range []string{"a release check only Thomas starts", "\n    " + given + "\n", human.AgentEvidence} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("refusal does not carry %q:\n%s", want, stderr)
 		}

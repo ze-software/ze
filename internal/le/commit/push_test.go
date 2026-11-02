@@ -1,11 +1,12 @@
 // Design: docs/contributing/committing.md -- the push route over the derived verification debt
 //
-// VALIDATES: the consumers of the derived verification debt (AC-1, AC-3..AC-5,
+// VALIDATES: the consumers of the derived push debt (AC-1, AC-3..AC-5,
 // AC-15, AC-21, AC-22, AC-25..AC-29): the push verb and its push-only script,
 // debt-status, the create report, the empty attestation commit and the
 // ledger-deletion route.
-// PREVENTS: a push of an unverified commit, an attestation that changes the
-// tree, and a commit appended behind a push that would not publish it.
+// PREVENTS: a push carrying an open person act, an attestation that changes
+// the tree, a commit appended behind a push that would not publish it, and a
+// push surface that sends an agent to `./le verify`.
 package commit
 
 import (
@@ -37,31 +38,28 @@ func readScript(t *testing.T, root, script string) string {
 }
 
 // TestDebtStatusExitCodes validates AC-25: exit 0 when P is HEAD and nothing
-// is owed, 1 when anything is owed, 2 when the derivation cannot answer; with
-// a named commit, what follows it on the branch does not count.
+// is owed, with no verify record at all, 1 when anything is owed, 3 when the
+// derivation cannot answer; with a named commit, what follows it on the branch
+// does not count.
 func TestDebtStatusExitCodes(t *testing.T) {
 	root := newOwedRepository(t)
-	verified := commitOwed(t, root, "the verified change", map[string]string{"a.txt": "a\n"}, nil)
-	if _, code, err := answerDebtStatus(root, ""); code != 1 || err != nil {
-		t.Fatalf("no green record: code %d err %v, want 1", code, err)
-	}
-	writeOwedGreen(t, root, verified)
+	plain := commitOwed(t, root, "a plain change", map[string]string{"a.txt": "a\n"}, nil)
 	if status, code, err := answerDebtStatus(root, ""); code != 0 || err != nil || status.Owed {
-		t.Fatalf("HEAD verified: code %d err %v status %+v, want 0", code, err, status)
+		t.Fatalf("no verify record and nothing owed: code %d err %v status %+v, want 0", code, err, status)
 	}
-	commitOwed(t, root, "a change after the verify", map[string]string{"b.txt": "b\n"}, nil)
+	closure := owedClosure(t, root)
 	status, code, err := answerDebtStatus(root, "")
 	if code != 1 || err != nil {
-		t.Fatalf("HEAD moved on: code %d err %v, want 1", code, err)
+		t.Fatalf("an open Review-owed: code %d err %v, want 1", code, err)
 	}
-	if !strings.Contains(status.Text(), "a change after the verify") || !strings.Contains(status.Text(), shortSHA(verified)) {
-		t.Fatalf("HEAD moved on: the answer does not name the owed commit and P:\n%s", status.Text())
+	if !strings.Contains(status.Text(), shortSHA(closure)) || !strings.Contains(status.Text(), "Review-owed") {
+		t.Fatalf("an open Review-owed: the answer does not name the owing commit:\n%s", status.Text())
 	}
-	if _, code, err := answerDebtStatus(root, verified); code != 0 || err != nil {
-		t.Fatalf("commit P with a later commit after it: code %d err %v, want 0", code, err)
+	if _, code, err := answerDebtStatus(root, plain); code != 0 || err != nil {
+		t.Fatalf("commit P with an owing commit after it: code %d err %v, want 0", code, err)
 	}
 	if _, code, err := answerDebtStatus(root, "HEAD"); code != 1 || err != nil {
-		t.Fatalf("commit HEAD the green record does not cover: code %d err %v, want 1", code, err)
+		t.Fatalf("commit HEAD with an open Review-owed: code %d err %v, want 1", code, err)
 	}
 	runCommitGit(t, root, "branch", "--unset-upstream")
 	// No upstream: the debt cannot be derived, so it could not run (D-Q8): 3.
@@ -72,15 +70,14 @@ func TestDebtStatusExitCodes(t *testing.T) {
 
 // TestPushScriptPushesPreparedSHAToUpstream validates AC-3 and A-2: the
 // push-only script re-derives against P before it pushes P, by SHA, to the
-// upstream's remote and branch, and makes no commit.
+// upstream's remote and branch, and makes no commit. No verify record exists.
 func TestPushScriptPushesPreparedSHAToUpstream(t *testing.T) {
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "push-script-fixture")
-	head := commitOwed(t, root, "the verified change", map[string]string{"a.txt": "a\n"}, nil)
-	writeOwedGreen(t, root, head)
+	head := commitOwed(t, root, "a change", map[string]string{"a.txt": "a\n"}, nil)
 	prepared, code, err := preparePush(root, pushTestAuthorisation)
 	if err != nil || code != 0 {
-		t.Fatalf("push over a verified HEAD: code %d err %v", code, err)
+		t.Fatalf("push over a HEAD owing nothing: code %d err %v", code, err)
 	}
 	if prepared.Target != head {
 		t.Fatalf("push target %s, want HEAD %s", prepared.Target, head)
@@ -97,28 +94,26 @@ func TestPushScriptPushesPreparedSHAToUpstream(t *testing.T) {
 	if !strings.Contains(prepared.Text(), "script="+prepared.Script) {
 		t.Fatalf("the answer does not print the script line:\n%s", prepared.Text())
 	}
+	if strings.Contains(prepared.Text(), "le verify") || strings.Contains(script, "le verify") {
+		t.Fatalf("the push sends an agent to a verify:\n%s\n%s", prepared.Text(), script)
+	}
 }
 
 // TestPushScriptPushesPreparedCommitAfterHeadMoved validates AC-4 and R-7:
-// with a commit after the green record, the script pushes the verified commit
-// G, and the answer names the later commit as left behind.
+// a commit that lands after the push was prepared is not in the script, which
+// pushes the commit HEAD was at preparation.
 func TestPushScriptPushesPreparedCommitAfterHeadMoved(t *testing.T) {
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "push-moved-fixture")
-	green := commitOwed(t, root, "the verified change", map[string]string{"a.txt": "a\n"}, nil)
-	writeOwedGreen(t, root, green)
-	later := commitOwed(t, root, "a change after the verify", map[string]string{"b.txt": "b\n"}, nil)
-	prepared, code, err := preparePush(root, pushTestAuthorisation)
+	prepared := commitOwed(t, root, "the prepared change", map[string]string{"a.txt": "a\n"}, nil)
+	push, code, err := preparePush(root, pushTestAuthorisation)
 	if err != nil || code != 0 {
-		t.Fatalf("push with HEAD past the green commit: code %d err %v", code, err)
+		t.Fatalf("push: code %d err %v", code, err)
 	}
-	script := readScript(t, root, prepared.Script)
-	if !strings.Contains(script, "'"+green+":refs/heads/main'") || strings.Contains(script, later) {
-		t.Fatalf("the script does not push exactly the green commit %s:\n%s", green, script)
-	}
-	text := prepared.Text()
-	if !strings.Contains(text, shortSHA(later)+" a change after the verify") || !strings.Contains(text, scopedCommand) {
-		t.Fatalf("the answer does not name the commit left behind and its verify:\n%s", text)
+	later := commitOwed(t, root, "a change after the push was prepared", map[string]string{"b.txt": "b\n"}, nil)
+	script := readScript(t, root, push.Script)
+	if !strings.Contains(script, "'"+prepared+":refs/heads/main'") || strings.Contains(script, later) {
+		t.Fatalf("the script does not push exactly the prepared commit %s:\n%s", prepared, script)
 	}
 }
 
@@ -133,14 +128,15 @@ func TestPushOntoCommitScriptRefused(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	writeOwedGreen(t, root, revParse(t, root, "HEAD"))
 	_, code, err := preparePush(root, pushTestAuthorisation)
 	// The push gate ran and found an unrun commit script (D-Q8): 1.
 	if err == nil || code != 1 || !strings.Contains(err.Error(), "bash "+created.Script) {
 		t.Fatalf("push over an unrun commit script: code %d err %v, want a refusal naming bash %s", code, err, created.Script)
 	}
+	if strings.Contains(err.Error(), "le verify") {
+		t.Fatalf("the refusal %q sends an agent to a verify", err)
+	}
 	runCommitScript(t, root, created.Script)
-	writeOwedGreen(t, root, revParse(t, root, "HEAD"))
 	if _, code, err := preparePush(root, pushTestAuthorisation); err != nil || code != 0 {
 		t.Fatalf("push once the commit script ran: code %d err %v", code, err)
 	}
@@ -152,7 +148,7 @@ func TestPushOntoCommitScriptRefused(t *testing.T) {
 func TestAppendOntoPushOnlyScriptRefused(t *testing.T) {
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "append-onto-push-fixture")
-	writeOwedGreen(t, root, commitOwed(t, root, "the verified change", map[string]string{"a.txt": "a\n"}, nil))
+	commitOwed(t, root, "a change", map[string]string{"a.txt": "a\n"}, nil)
 	prepared, _, err := preparePush(root, pushTestAuthorisation)
 	if err != nil {
 		t.Fatal(err)
@@ -179,7 +175,6 @@ func TestAttestPreparesEmptyCommit(t *testing.T) {
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "attest-empty-fixture")
 	closure := owedClosure(t, root)
-	writeOwedGreen(t, root, closure)
 	if derived := deriveOwed(t, root, ""); derived.pushRefusal() == nil {
 		t.Fatal("a push with an open Review-owed item was admitted")
 	}
@@ -202,7 +197,7 @@ func TestAttestPreparesEmptyCommit(t *testing.T) {
 		t.Fatalf("the attested push is still refused: %v", err)
 	}
 	if derived.Target != pushTargetHead {
-		t.Fatalf("push target %d, want HEAD with no new verify", derived.Target)
+		t.Fatalf("push target %d, want HEAD", derived.Target)
 	}
 }
 
@@ -265,13 +260,12 @@ func TestEmptyAttestationBlockRefusesAnyPath(t *testing.T) {
 }
 
 // TestCreateReportsDerivedDebt validates AC-1: create stages only the named
-// paths, no ledger file, and reports the derived count since the green record.
+// paths, no ledger file, and reports the derived push debt, which owes no
+// verify: the report names no verify command and no STALE verify state.
 func TestCreateReportsDerivedDebt(t *testing.T) {
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "create-debt-fixture")
-	green := commitOwed(t, root, "the verified change", map[string]string{"a.txt": "a\n"}, nil)
-	writeOwedGreen(t, root, green)
-	commitOwed(t, root, "a change after the verify", map[string]string{"b.txt": "b\n"}, nil)
+	commitOwed(t, root, "a change", map[string]string{"a.txt": "a\n"}, nil)
 	writeCommitFixture(t, root, "g.txt", "g\n")
 	prepared, err := Create(root, &Options{Subject: "one more", Files: []string{"g.txt"}, NoTest: "fixture"})
 	if err != nil {
@@ -280,9 +274,17 @@ func TestCreateReportsDerivedDebt(t *testing.T) {
 	if len(prepared.Added) != 1 || prepared.Added[0] != "g.txt" || len(prepared.Removed) != 0 {
 		t.Fatalf("create staged %v and removed %v, want g.txt alone", prepared.Added, prepared.Removed)
 	}
-	want := "debt=1 commit(s) owe a scoped verify since " + shortSHA(green) + ": run ./le verify changed"
-	if !strings.Contains(prepared.Text(), want) {
-		t.Fatalf("the create report is\n%s\nwant %q", prepared.Text(), want)
+	text := prepared.Text()
+	if !strings.Contains(text, "debt=nothing owed\n") {
+		t.Fatalf("the create report is\n%s\nwant debt=nothing owed", text)
+	}
+	if !strings.Contains(text, "verify=CI ") {
+		t.Fatalf("the create report is\n%s\nwant verify=CI", text)
+	}
+	for _, banned := range []string{"le verify", "STALE"} {
+		if strings.Contains(text, banned) {
+			t.Fatalf("the create report says %q:\n%s", banned, text)
+		}
 	}
 }
 
@@ -312,28 +314,27 @@ func TestLedgerCarriedTrailersKeyUnpushedRows(t *testing.T) {
 		t.Fatalf("trailers %q, want %q and %q", prepared.Trailers, wantAudit, wantGate)
 	}
 	runCommitScript(t, root, prepared.Script)
-	writeOwedGreen(t, root, revParse(t, root, "HEAD"))
 	assertOneItem(t, deriveOwed(t, root, ""), closure, owedItemReview, owedSpecStem)
 }
 
 // TestDebtWarningListsAtMostFiveItems validates AC-22: one line naming the
-// count and the green commit, at most five items, and the rest counted.
+// count, at most five items, and the rest counted.
 func TestDebtWarningListsAtMostFiveItems(t *testing.T) {
 	root := newOwedRepository(t)
-	green := commitOwed(t, root, "the verified change", map[string]string{"a.txt": "a\n"}, nil)
-	writeOwedGreen(t, root, green)
+	commitOwed(t, root, "a change", map[string]string{"a.txt": "a\n"}, nil)
 	if warning, err := DebtWarning(root); err != nil || warning != "" {
-		t.Fatalf("a verified HEAD warned %q (%v)", warning, err)
+		t.Fatalf("a HEAD owing nothing warned %q (%v)", warning, err)
 	}
 	for _, name := range []string{"h1", "h2", "h3", "h4", "h5", "h6", "h7"} {
-		commitOwed(t, root, "change "+name, map[string]string{name + ".txt": name + "\n"}, nil)
+		commitOwed(t, root, "change "+name, map[string]string{name + ".txt": name + "\n"}, nil,
+			"Review-owed: malformed "+name)
 	}
 	warning, err := DebtWarning(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSuffix(warning, "\n"), "\n")
-	if lines[0] != "verification debt: 7 commit(s) owe a scoped verify since "+shortSHA(green)+": run ./le verify changed, push refused until cleared" {
+	if lines[0] != "push debt: 7 refusal(s); ./le commit push refuses until they clear" {
 		t.Fatalf("first line %q", lines[0])
 	}
 	if len(lines) != 7 || !strings.Contains(lines[6], "and 2 more") {
@@ -345,7 +346,7 @@ func TestDebtWarningListsAtMostFiveItems(t *testing.T) {
 // derived debt removed from create is refused naming its replacement.
 func TestRemovedKeywordsNameReplacement(t *testing.T) {
 	for keyword, replacement := range map[string]string{
-		"unverified": "./le verify changed", "missing-full-verify-ok": "./le verify changed",
+		"unverified": "GitHub CI verifies the pushed commit", "missing-full-verify-ok": "GitHub CI verifies the pushed commit",
 		"push": `./le commit push "<owner authorisation>"`,
 	} {
 		_, err := parseCreate([]string{"subject", "s", keyword})
@@ -367,8 +368,7 @@ func TestRemovedKeywordsNameReplacement(t *testing.T) {
 func TestPushRefusedInLinkedWorktreeWithoutUpstream(t *testing.T) {
 	root := newOwedRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "push-worktree-fixture")
-	head := commitOwed(t, root, "the verified change", map[string]string{"a.txt": "a\n"}, nil)
-	writeOwedGreen(t, root, head)
+	commitOwed(t, root, "a change", map[string]string{"a.txt": "a\n"}, nil)
 	linked := filepath.Join(t.TempDir(), "linked")
 	runCommitGit(t, root, "worktree", "add", "-q", "-b", "feature", linked)
 	// The fixture's checkout markers are untracked, so the linked worktree is
@@ -376,7 +376,6 @@ func TestPushRefusedInLinkedWorktreeWithoutUpstream(t *testing.T) {
 	// derivation would answer NOT-APPLICABLE instead of judging the upstream.
 	writeCommitFixture(t, linked, "go.mod", "module fixture\n")
 	writeCommitFixture(t, linked, "feature-gates.txt", "")
-	writeOwedGreen(t, linked, head)
 
 	prepared, code, err := preparePush(linked, pushTestAuthorisation)
 	// No upstream: the push could not be prepared (D-Q8): 3.

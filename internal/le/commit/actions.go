@@ -14,7 +14,6 @@ import (
 	"github.com/ze-software/ze/internal/le/spec"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
-	"github.com/ze-software/ze/internal/le/verify"
 )
 
 const area = "commit"
@@ -46,7 +45,7 @@ const (
 // push keyword.
 const keywordPush = "push"
 
-// keywordDebtStatus is the verb that answers the derived verification debt.
+// keywordDebtStatus is the verb that answers the derived push debt.
 const keywordDebtStatus = "debt-status"
 
 // The create keywords that admit a commit the gates would otherwise refuse.
@@ -110,13 +109,18 @@ var declaredTrailers = []struct {
 	{trailerSpecWork, "./le commit create under a claim (./le spec claim), from the claimed spec", true},
 }
 
-// retiredVerbs maps each verb the derived debt removed to the command that
-// replaced it. It feeds only the refusal: none of these verbs dispatches.
+// retiredVerbs maps each verb the derived debt removed to what replaced it. It
+// feeds only the refusal: none of these verbs dispatches.
 var retiredVerbs = map[string]string{
-	"debt-list":      "./le commit " + keywordDebtStatus,
-	"debt-clear":     scopedCommand,
-	"debt-discharge": `./le commit create ... attest <commit> "<owner words>"`,
+	"debt-list":      "run ./le commit " + keywordDebtStatus + " instead",
+	"debt-clear":     noVerifyOwed,
+	"debt-discharge": `run ./le commit create ... attest <commit> "<owner words>" instead`,
 }
+
+// noVerifyOwed answers a retired word that once cleared or skipped a local
+// verify: no agent runs ./le verify, and nothing replaces it.
+const noVerifyOwed = "nothing replaces it: no commit or push owes a local verify, and GitHub CI verifies the pushed commit"
+
 
 // messageResult is a validated message preview.
 type messageResult struct {
@@ -135,8 +139,7 @@ func Answer(args []string) (any, int) {
 	if len(args) != 0 {
 		if replacement, retired := retiredVerbs[args[0]]; retired {
 			leaction.ReportError(errors.New("commit verb " + strconv.Quote(args[0]) +
-				" was removed: verification debt is derived from git and the green record; run " +
-				replacement + " instead"))
+				" was removed: " + replacement))
 			return nil, 2
 		}
 	}
@@ -370,8 +373,8 @@ var createParameters = []leaction.Parameter{
 	reasonParameter(keywordRFCChangeOK, "why the commit changes an unapproved RFC-tagged test unit"),
 	{Keyword: keywordDryRun, Kind: leaction.KindSwitch, Help: "print the message and the script and write neither"},
 	{Keyword: keywordPush, Retired: `./le commit push "<owner authorisation>"`},
-	{Keyword: "unverified", Retired: verify.ChangedCommand},
-	{Keyword: "missing-full-verify-ok", Retired: verify.ChangedCommand},
+	{Keyword: "unverified", Retired: noVerifyOwed},
+	{Keyword: "missing-full-verify-ok", Retired: noVerifyOwed},
 	// A red prevents a release, never a commit (ai/META-DECISIONS.md, "Ze is
 	// pre-release"), so no gate is left for these two to admit a commit past.
 	{Keyword: "structural-red-ok", Retired: redsInTheBody},
@@ -471,8 +474,7 @@ func optionsOf(args leaction.Arguments) (Options, error) {
 func (p *Prepared) Text() string {
 	var text textbuf.Buffer
 	text.Str("session=").Str(p.Session).Str("\nmessage=").Str(p.Message).
-		Str("\nscript=").Str(p.Script).Str("\nverify=").Str(strings.ToUpper(p.Verify.State)).
-		Str(" (").Str(p.Verify.Detail).Str(")\n")
+		Str("\nscript=").Str(p.Script).Str("\nverify=").Str(p.Verify.label()).Byte('\n')
 	if p.NoTest != "" {
 		text.Str("no-test=").Str(p.NoTest).Byte('\n')
 	}

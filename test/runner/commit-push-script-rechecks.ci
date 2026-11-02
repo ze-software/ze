@@ -2,19 +2,20 @@
 # while the derivation still admits it.
 #
 # The fixture prepares the script with the REAL `le commit push` over a
-# verified commit P, lands another commit, runs the script, and asserts the
-# bare upstream holds P and not the later commit (D-6, AC-5). It then prepares
-# a script again, removes the scoped record, runs it, and asserts it exits
-# non-zero and the upstream did not move (AC-6): the script's
-# `debt-status commit <P>` line is what stops it.
+# commit P, lands another commit, runs the script, and asserts the bare
+# upstream holds P and not the later commit (D-6, AC-5). It then prepares a
+# script again, moves the upstream to a commit P does not descend from, runs
+# the script, and asserts it exits non-zero and the upstream stayed where it
+# was moved (AC-6): the script's `debt-status commit <P>` line is what stops
+# it. No verify record exists at any point: a push owes none.
 #
 # Spec: spec-verification-debt-derived (closed; design in docs/architecture/testing/verify-freshness-scope.md).
 # Delete the re-check line from the push-only script (internal/le/commit/script.go)
-# and seq=1 fails at script-refused-without-green.
+# and seq=1 fails at script-refused-when-upstream-moved.
 
 option=timeout:value=60s
 
 cmd=foreground:seq=1:exec=le test fixture runner/commit-push-script-rechecks
 expect=exit:code=0
 expect=stdout:contains=script-pushed-the-prepared-commit
-expect=stdout:contains=script-refused-without-green
+expect=stdout:contains=script-refused-when-upstream-moved

@@ -2,6 +2,8 @@
 package commit
 
 import (
+	"strings"
+
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -39,4 +41,20 @@ func verificationState(root string, paths []string) VerificationState {
 		state.State = verifyFresh
 	}
 	return state
+}
+
+// ciDetail is what the create report says when no local verify record covers
+// the commit's paths: nothing is owed, because no agent runs ./le verify and
+// GitHub CI verifies the pushed commit (ai/META-DECISIONS.md).
+const ciDetail = "GitHub CI verifies the pushed commit; an agent's evidence is its scoped test runs"
+
+// label renders the create report's `verify=` value. A fresh record is named
+// with its detail. A stale or absent one is CI's to answer, so the report
+// never reads as a verify an agent owes.
+func (v VerificationState) label() string {
+	switch v.State {
+	case verifyFresh, verifyNotApplicable:
+		return strings.ToUpper(v.State) + " (" + v.Detail + ")"
+	}
+	return "CI (" + ciDetail + ")"
 }

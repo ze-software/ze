@@ -218,10 +218,11 @@ func TestValidateSpecPlaceholderScopedToDesignOnward(t *testing.T) {
 // VALIDATES: a spec naming only a targeted command (`./le verify changed`,
 // `./le test unit <group>`) is accepted, the legacy `./le verify worktree` and
 // `./le verify current fast` lines still are, and a spec naming no `./le test`
-// or `./le verify` command is refused with a message that names the scoped run.
+// or `./le verify` command is refused with a message that names the scoped
+// tests and no verify.
 // PREVENTS: the validator keeping the full gate as a mandatory spec item, or
-// its refusal teaching an agent a full run. Agents run targeted tests and the
-// scoped verify, and the full run is the release check Thomas starts.
+// its refusal teaching an agent a verify run. Agents run targeted tests and no
+// `./le verify` command, and the full run is the release check CI runs.
 func TestValidateSpecNeedsATestCommandNotTheFullGate(t *testing.T) {
 	const legacy = "- [ ] `./le verify worktree` passes\n"
 	base := specFixture("internal/probe/probe.go")
@@ -257,12 +258,12 @@ func TestValidateSpecNeedsATestCommandNotTheFullGate(t *testing.T) {
 	if got == "" {
 		t.Fatalf("a spec naming no ./le test or ./le verify command was accepted")
 	}
-	for _, want := range []string{"./le test unit", "./le verify changed"} {
+	for _, want := range []string{"./le test unit", "./le test functional"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the refusal does not tell the author what to write (%q): %s", want, got)
 		}
 	}
-	for _, full := range []string{"verify current", "verify worktree"} {
+	for _, full := range []string{"verify current", "verify worktree", "verify changed"} {
 		if strings.Contains(got, full) {
 			t.Errorf("the refusal tells the author an agent's full run (%q): %s", full, got)
 		}

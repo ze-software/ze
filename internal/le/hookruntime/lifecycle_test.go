@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/verify-freshness-scope.md -- the session hook reads the ledger's one producer
+// Design: docs/contributing/committing.md -- the session hook reads the push debt derivation
 package hookruntime
 
 import (
@@ -14,10 +14,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/derived"
-	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 	"github.com/ze-software/ze/internal/le/rfc"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
-	"github.com/ze-software/ze/internal/le/verify"
 )
 
 // TestSubagentContextResolvesClaim drives the JSON hook entry over every current
@@ -496,51 +494,46 @@ func TestSessionStartPrintsAReadyReportPastTheDeadline(t *testing.T) {
 
 // TestSessionStartReportsDerivedDebt drives the session-start hook over real
 // git checkouts with a real upstream and asserts the debt line the derivation
-// produces: one warning and the owed commits when HEAD's tree is not the green
-// tree, nothing when it is, a stderr note naming the fix when the main
-// checkout has no upstream, and silence in a linked worktree with none,
-// because a worktree agent never pushes. Each run stays inside the hook's
-// budget, which is what A-5 claims for one rev-list and one log.
+// produces: one warning naming the refusal when a pushed commit carries a
+// trailer nobody can read, nothing over a plain commit with no verify record,
+// a stderr note naming the fix when the main checkout has no upstream, and
+// silence in a linked worktree with none, because a worktree agent never
+// pushes. Each run stays inside the hook's budget, which is what A-5 claims
+// for one rev-list and one log.
 // VALIDATES: AC-22, AC-11, AC-12, A-5.
 func TestSessionStartReportsDerivedDebt(t *testing.T) {
-	const warning = "verification debt: 1 commit(s) owe a scoped verify since "
-	t.Run("a commit after the green record", func(t *testing.T) {
+	t.Run("a commit carrying a malformed trailer", func(t *testing.T) {
 		root := derivedDebtCheckout(t, true)
-		green := derivedDebtCommit(t, root, "the verified change")
-		derivedDebtGreen(t, root, green)
-		derivedDebtCommit(t, root, "a change after the verify")
+		derivedDebtCommit(t, root, "a change", "Review-owed: malformed")
 
 		started := time.Now()
 		printed, noted := runSessionStartStreams(t, root)
 		if elapsed := time.Since(started); elapsed >= sessionStartBudget {
 			t.Fatalf("the hook took %s, past its %s budget", elapsed, sessionStartBudget)
 		}
-		if !strings.Contains(printed, warning+green[:7]) {
-			t.Fatalf("the hook printed %q, want %q naming the green commit", printed, warning)
+		if !strings.Contains(printed, "push debt: 1 refusal(s); ./le commit push refuses until they clear") {
+			t.Fatalf("the hook printed %q, want the push debt line", printed)
 		}
-		if !strings.Contains(printed, "push refused until cleared") {
-			t.Fatalf("the hook printed %q, want the push refusal named", printed)
+		if !strings.Contains(printed, "malformed Review-owed: trailer") {
+			t.Fatalf("the hook printed %q, want the refusal named", printed)
 		}
-		if !strings.Contains(printed, "a change after the verify") {
-			t.Fatalf("the hook printed %q, want the owed commit's subject", printed)
-		}
-		if strings.Contains(noted, "verification debt") {
+		if strings.Contains(noted, "push debt") {
 			t.Fatalf("the hook said on stderr %q over a derivation that answered", noted)
 		}
 	})
-	t.Run("HEAD's tree is the green tree", func(t *testing.T) {
+	t.Run("a plain commit with no verify record", func(t *testing.T) {
 		root := derivedDebtCheckout(t, true)
-		derivedDebtGreen(t, root, derivedDebtCommit(t, root, "the verified change"))
+		derivedDebtCommit(t, root, "a change")
 		printed, noted := runSessionStartStreams(t, root)
-		if strings.Contains(printed, "verification debt") || strings.Contains(noted, "verification debt") {
-			t.Fatalf("the hook warned over a verified HEAD: stdout %q stderr %q", printed, noted)
+		if strings.Contains(printed, "push debt") || strings.Contains(noted, "push debt") {
+			t.Fatalf("the hook warned over a HEAD owing nothing: stdout %q stderr %q", printed, noted)
 		}
 	})
 	t.Run("the main checkout has no upstream", func(t *testing.T) {
 		root := derivedDebtCheckout(t, false)
-		derivedDebtGreen(t, root, derivedDebtCommit(t, root, "the verified change"))
+		derivedDebtCommit(t, root, "a change")
 		printed, noted := runSessionStartStreams(t, root)
-		if strings.Contains(printed, "verification debt") {
+		if strings.Contains(printed, "push debt") {
 			t.Fatalf("the hook printed %q, want nothing on stdout when it cannot derive", printed)
 		}
 		if !strings.Contains(noted, "git branch --set-upstream-to") {
@@ -555,7 +548,7 @@ func TestSessionStartReportsDerivedDebt(t *testing.T) {
 			writeHookFixture(t, linked, artifact.Path, "# derived\n")
 		}
 		printed, noted := runSessionStartStreams(t, linked)
-		if strings.Contains(printed, "verification debt") || strings.Contains(noted, "verification debt") {
+		if strings.Contains(printed, "push debt") || strings.Contains(noted, "push debt") {
 			t.Fatalf("a linked worktree with no upstream spoke of debt: stdout %q stderr %q", printed, noted)
 		}
 	})
@@ -586,68 +579,37 @@ func derivedDebtCheckout(t *testing.T, upstream bool) string {
 	return root
 }
 
-// derivedDebtCommit commits one new file named after the subject and answers
-// the commit's full SHA.
-func derivedDebtCommit(t *testing.T, root, subject string) string {
+// derivedDebtCommit commits one new file named after the subject, with each
+// trailer as a line of the message's last paragraph, and answers the commit's
+// full SHA.
+func derivedDebtCommit(t *testing.T, root, subject string, trailers ...string) string {
 	t.Helper()
 	path := "change-" + strings.ReplaceAll(subject, " ", "-") + ".txt"
 	writeHookFixture(t, root, path, subject+"\n")
 	derivedDebtGit(t, root, "add", "--", path)
+	message := subject
+	if len(trailers) != 0 {
+		message += "\n\n" + strings.Join(trailers, "\n")
+	}
 	derivedDebtGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
-		"commit", "-q", "-m", subject)
+		"commit", "-q", "-m", message)
 	return strings.TrimSpace(derivedDebtGit(t, root, "rev-parse", "HEAD"))
 }
 
-// derivedDebtGreen records a green, uncut verification over commit at root.
-// derivedDebtGreen records a green scoped verify (`./le verify changed`) over
-// commit at root, anchored where the run would anchor it: the merge-base of
-// commit and @{u}, or commit itself in a checkout with no upstream, where the
-// derivation refuses on the missing upstream before it reads the record.
-func derivedDebtGreen(t *testing.T, root, commit string) {
-	t.Helper()
-	tree := strings.TrimSpace(derivedDebtGit(t, root, "rev-parse", commit+"^{tree}"))
-	upstream, anchor := commit, commit
-	resolve := exec.CommandContext(t.Context(), "git", "rev-parse", "@{u}")
-	resolve.Dir = root
-	if out, err := resolve.Output(); err == nil {
-		upstream = strings.TrimSpace(string(out))
-		anchor = strings.TrimSpace(derivedDebtGit(t, root, "merge-base", commit, upstream))
-	}
-	record, err := verify.NewScopedRecord(commit, tree,
-		repochanged.Anchor{Commit: anchor, Upstream: "@{u}", UpstreamCommit: upstream}, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := verify.WriteScopedRecord(root, record); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// TestSessionStartDebtLineNamesVerifyChanged drives the session-start hook
-// over a checkout with an unpushed non-prose commit after the scoped record:
-// the debt line says the commits owe a scoped verify and names
-// `./le verify changed`, and it never names a full verify.
-// VALIDATES: AC-19.
-// PREVENTS: an agent told at session start to run the full gate it may not run.
-func TestSessionStartDebtLineNamesVerifyChanged(t *testing.T) {
+// TestSessionStartDebtLineNeverNamesVerify drives the session-start hook over
+// a checkout whose push is refused and asserts the debt line names no verify.
+// VALIDATES: the owner rule that no agent runs any `./le verify` command.
+// PREVENTS: an agent told at session start to run a verify it may not run.
+func TestSessionStartDebtLineNeverNamesVerify(t *testing.T) {
 	root := derivedDebtCheckout(t, true)
-	scoped := derivedDebtCommit(t, root, "the verified change")
-	derivedDebtGreen(t, root, scoped)
-	derivedDebtCommit(t, root, "a change after the verify")
+	derivedDebtCommit(t, root, "a change", "Review-owed: malformed")
 	printed, _ := runSessionStartStreams(t, root)
-	at := strings.Index(printed, "verification debt: ")
+	at := strings.Index(printed, "push debt: ")
 	if at < 0 {
 		t.Fatalf("the hook printed %q, want a debt line", printed)
 	}
-	line, _, _ := strings.Cut(printed[at:], "\n")
-	want := "1 commit(s) owe a scoped verify since " + scoped[:7] + ": run ./le verify changed"
-	if !strings.Contains(line, want) {
-		t.Fatalf("the debt line is %q, want %q", line, want)
-	}
-	for _, full := range []string{"full verify", "verify worktree", "verify current"} {
-		if strings.Contains(line, full) {
-			t.Fatalf("the debt line %q names a full verify (%q)", line, full)
-		}
+	if strings.Contains(printed[at:], "le verify") {
+		t.Fatalf("the debt warning %q names a verify", printed[at:])
 	}
 }
 

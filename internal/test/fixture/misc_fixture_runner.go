@@ -17,9 +17,9 @@ import (
 
 func init() {
 	Register("runner/commit-not-refused-for-a-red", commitNotRefusedForARedDriver)
-	Register("runner/commit-push-refused-by-derived-debt", commitPushRefusedByDerivedDebtDriver)
+	Register("runner/commit-push-needs-no-verify-record", commitPushNeedsNoVerifyRecordDriver)
 	Register("runner/commit-push-script-rechecks", commitPushScriptRechecksDriver)
-	Register("runner/verify-changed-record-clears-derived-debt", verifyChangedRecordClearsDerivedDebtDriver)
+	Register("runner/verify-records-at-asking-root", verifyRecordsAtAskingRootDriver)
 	Register("runner/verify-worktree-cut-sweep", verifyWorktreeCutSweepDriver)
 	Register("runner/commit-attest-empty-commit", commitAttestEmptyCommitDriver)
 	Register("runner/commit-review-owed-trailer", commitReviewOwedTrailerDriver)

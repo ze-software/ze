@@ -33,126 +33,77 @@ const (
 	owedTaggedUnit = "pkg.TestThing"
 )
 
-// TestDerivedDebtEmptyWhenTreesMatch proves the clear answer: one local commit,
-// a green record over it, and HEAD's tree is the green tree.
-// VALIDATES: AC-3; P is HEAD, nothing left behind, nothing owed, the push admitted.
-func TestDerivedDebtEmptyWhenTreesMatch(t *testing.T) {
+// TestPushTargetIsHeadWithNoVerifyRecord proves the push owes no local verify:
+// one local commit, no record of any `./le verify` run, and P is HEAD, nothing
+// is owed, and the push is admitted. GitHub CI verifies the pushed commit.
+// VALIDATES: the owner rule that no agent runs `./le verify` and a push does
+// not depend on a local verify record (ai/META-DECISIONS.md).
+// PREVENTS: a push refused until an agent runs `./le verify changed`.
+func TestPushTargetIsHeadWithNoVerifyRecord(t *testing.T) {
 	root := newOwedRepository(t)
-	head := commitOwed(t, root, "a verified change", map[string]string{"a.txt": "a\n"}, nil)
-	writeOwedGreen(t, root, head)
+	head := commitOwed(t, root, "a change", map[string]string{"a.go": "package a\n"}, nil)
 
 	derived := deriveOwed(t, root, "")
 	if derived.Target != pushTargetHead || derived.TargetSHA != head {
 		t.Fatalf("target %d %q, want HEAD %q", derived.Target, derived.TargetSHA, head)
 	}
-	if len(derived.LeftBehind) != 0 || len(derived.Items) != 0 || len(derived.Refusals) != 0 {
-		t.Fatalf("a verified HEAD owes something: %+v", derived)
+	if len(derived.Items) != 0 || len(derived.Refusals) != 0 {
+		t.Fatalf("a HEAD with no verify record owes something: %+v", derived)
 	}
 	if shas := owedSHAs(derived.Published); !slices.Equal(shas, []string{head}) {
-		t.Fatalf("published %v, want exactly the verified commit %s", shas, head)
+		t.Fatalf("published %v, want exactly the local commit %s", shas, head)
 	}
 	if err := derived.pushRefusal(); err != nil {
-		t.Fatalf("a verified HEAD with nothing owed refused its push: %v", err)
+		t.Fatalf("a HEAD with nothing owed refused its push: %v", err)
+	}
+	if derived.owed() {
+		t.Fatal("a HEAD with nothing owed reads as owed")
+	}
+}
+
+// TestPushTargetIgnoresAScopedRecord proves a scoped record left by an earlier
+// `./le verify changed` run moves nothing: P is still HEAD, every local commit
+// is published, and nothing is owed for the commits after the record.
+// VALIDATES: the push gate does not read the scoped record.
+func TestPushTargetIgnoresAScopedRecord(t *testing.T) {
+	root := newOwedRepository(t)
+	first := commitOwed(t, root, "first", map[string]string{"a.txt": "a\n"}, nil)
+	writeOwedGreen(t, root, first)
+	second := commitOwed(t, root, "second", map[string]string{"b.go": "package b\n"}, nil)
+
+	derived := deriveOwed(t, root, "")
+	if derived.Target != pushTargetHead || derived.TargetSHA != second {
+		t.Fatalf("target %d %q, want HEAD %q", derived.Target, derived.TargetSHA, second)
+	}
+	shas := owedSHAs(derived.Published)
+	slices.Sort(shas)
+	want := []string{first, second}
+	slices.Sort(want)
+	if !slices.Equal(shas, want) {
+		t.Fatalf("published %v, want both local commits %v", shas, want)
+	}
+	if derived.owed() || derived.pushRefusal() != nil {
+		t.Fatalf("a commit after a scoped record is owed: %+v", derived)
 	}
 }
 
 // TestSpecWorkTrailerOwesNothingAtPush pins that the attribution is a record
 // with no person act behind it.
-// VALIDATES: AC-6; a verified commit carrying `Spec-work: <stem>` derives no
+// VALIDATES: AC-6; a commit carrying `Spec-work: <stem>` derives no
 // malformed-trailer refusal and no owed item, and its push is admitted.
 // PREVENTS: R-2, the push parser shape-checking every declared key as
 // `<subject>: <reason>` and holding every push made under a claim.
 func TestSpecWorkTrailerOwesNothingAtPush(t *testing.T) {
 	root := newOwedRepository(t)
-	head := commitOwed(t, root, "a change made under a claim", map[string]string{"a.txt": "a\n"}, nil,
+	commitOwed(t, root, "a change made under a claim", map[string]string{"a.txt": "a\n"}, nil,
 		trailerSpecWork+"x")
-	writeOwedGreen(t, root, head)
 
 	derived := deriveOwed(t, root, "")
 	if len(derived.Items) != 0 || len(derived.Refusals) != 0 {
 		t.Fatalf("the attribution owes something: items %+v, refusals %q", derived.Items, derived.Refusals)
 	}
 	if err := derived.pushRefusal(); err != nil {
-		t.Fatalf("a verified commit carrying only the attribution refused its push: %v", err)
-	}
-}
-
-// TestDerivedDebtListsCommitsAfterGreen proves a commit after the green record
-// is named, by SHA and subject, as not in this push.
-// VALIDATES: AC-4; P is G, and the later commit is listed as left behind.
-func TestDerivedDebtListsCommitsAfterGreen(t *testing.T) {
-	root := newOwedRepository(t)
-	green := commitOwed(t, root, "the verified change", map[string]string{"a.txt": "a\n"}, nil)
-	writeOwedGreen(t, root, green)
-	later := commitOwed(t, root, "a change after the verify", map[string]string{"b.txt": "b\n"}, nil)
-
-	derived := deriveOwed(t, root, "")
-	if derived.Target != pushTargetRecord || derived.TargetSHA != green {
-		t.Fatalf("target %d %q, want the green commit %q", derived.Target, derived.TargetSHA, green)
-	}
-	if len(derived.LeftBehind) != 1 || derived.LeftBehind[0].SHA != later ||
-		derived.LeftBehind[0].Subject != "a change after the verify" {
-		t.Fatalf("left behind %+v, want exactly %s with its subject", derived.LeftBehind, later)
-	}
-}
-
-// TestPushTargetIsGreenCommitWhenHeadMovedOn proves D-6: HEAD moving on after
-// the verify does not void it, the push publishes G and only G's range.
-// VALIDATES: AC-4, D-6.
-func TestPushTargetIsGreenCommitWhenHeadMovedOn(t *testing.T) {
-	root := newOwedRepository(t)
-	first := commitOwed(t, root, "first", map[string]string{"a.txt": "a\n"}, nil)
-	green := commitOwed(t, root, "second", map[string]string{"b.txt": "b\n"}, nil)
-	writeOwedGreen(t, root, green)
-	commitOwed(t, root, "third", map[string]string{"c.txt": "c\n"}, nil)
-	commitOwed(t, root, "fourth", map[string]string{"d.txt": "d\n"}, nil)
-
-	derived := deriveOwed(t, root, "")
-	if derived.Target != pushTargetRecord || derived.TargetSHA != green {
-		t.Fatalf("target %d %q, want G %q", derived.Target, derived.TargetSHA, green)
-	}
-	if shas := owedSHAs(derived.Published); !slices.Equal(shas, []string{green, first}) &&
-		!slices.Equal(shas, []string{first, green}) {
-		t.Fatalf("published %v, want exactly %s and %s", shas, first, green)
-	}
-	if len(derived.LeftBehind) != 2 {
-		t.Fatalf("left behind %+v, want the two commits after G", derived.LeftBehind)
-	}
-	if err := derived.pushRefusal(); err != nil {
-		t.Fatalf("a push of G with nothing owed was refused: %v", err)
-	}
-}
-
-// TestDerivedDebtReportsTreeMismatchWithEmptyList proves the derivation half of
-// Data Flow step 6: HEAD is the upstream (nothing local to list) and the green
-// record names another tree, so the derivation finds no target, lists nothing,
-// records a refusal naming ./le verify worktree, and refuses the push.
-// VALIDATES: Data Flow step 6, the derivation's fields and pushRefusal only.
-// The surfaces that print the answer are TestDebtConsumersNeverSayZeroWithoutTarget.
-func TestDerivedDebtReportsTreeMismatchWithEmptyList(t *testing.T) {
-	root := newOwedRepository(t)
-	other := newOwedRepository(t)
-	foreign := commitOwed(t, other, "a commit this checkout never saw", map[string]string{"x.txt": "x\n"}, nil)
-	record, err := scopedRecordFor(t, root, foreign, revParse(t, other, foreign+"^{tree}"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := verify.WriteScopedRecord(root, record); err != nil {
-		t.Fatal(err)
-	}
-
-	derived := deriveOwed(t, root, "")
-	if derived.Target != pushTargetNone {
-		t.Fatalf("target %d, want none: HEAD's tree is not the green tree", derived.Target)
-	}
-	if len(derived.LeftBehind) != 0 {
-		t.Fatalf("left behind %+v, want none: HEAD is the upstream", derived.LeftBehind)
-	}
-	if !owedSaid(derived.Refusals, "./le verify changed") {
-		t.Fatalf("refusals %q do not name ./le verify changed", derived.Refusals)
-	}
-	if derived.pushRefusal() == nil {
-		t.Fatal("a push was admitted with no verified target")
+		t.Fatalf("a commit carrying only the attribution refused its push: %v", err)
 	}
 }
 
@@ -161,8 +112,6 @@ func TestDerivedDebtReportsTreeMismatchWithEmptyList(t *testing.T) {
 // VALIDATES: AC-11, R-2.
 func TestDerivedDebtRefusesWithoutUpstream(t *testing.T) {
 	root := newCommitRepository(t)
-	head := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
-	writeOwedGreen(t, root, head)
 
 	_, err := deriveDebt(root, "")
 	if err == nil {
@@ -187,32 +136,34 @@ func TestDerivedDebtNotApplicableOutsideCheckout(t *testing.T) {
 	}
 }
 
-// TestDerivedDebtRebaseReowesEveryLocalCommit proves a rebase over a moved
-// upstream re-owes every local commit: G leaves the branch, so no target.
-// VALIDATES: AC-17.
-func TestDerivedDebtRebaseReowesEveryLocalCommit(t *testing.T) {
+// TestRebasedBranchPushesHead proves a rebase over a moved upstream leaves
+// nothing owed: P is the rebased HEAD and both rebased local commits publish.
+// VALIDATES: AC-17, with no verify record to lose.
+func TestRebasedBranchPushesHead(t *testing.T) {
 	root := newOwedRepository(t)
 	commitOwed(t, root, "local one", map[string]string{"a.txt": "a\n"}, nil)
-	green := commitOwed(t, root, "local two", map[string]string{"b.txt": "b\n"}, nil)
-	writeOwedGreen(t, root, green)
+	commitOwed(t, root, "local two", map[string]string{"b.txt": "b\n"}, nil)
 
 	pushFromOtherMachine(t, root, "the other machine", "other.txt")
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
 		"pull", "-q", "--rebase", "--no-autostash")
 
 	derived := deriveOwed(t, root, "")
-	if derived.Target != pushTargetNone {
-		t.Fatalf("target %d %q after a rebase, want none", derived.Target, derived.TargetSHA)
+	if derived.Target != pushTargetHead || derived.TargetSHA != revParse(t, root, "HEAD") {
+		t.Fatalf("target %d %q after a rebase, want HEAD", derived.Target, derived.TargetSHA)
 	}
-	subjects := owedSubjects(derived.LeftBehind)
+	subjects := owedSubjects(derived.Published)
 	slices.Sort(subjects)
 	if !slices.Equal(subjects, []string{"local one", "local two"}) {
-		t.Fatalf("listed %v, want both rebased local commits", subjects)
+		t.Fatalf("published %v, want both rebased local commits", subjects)
+	}
+	if err := derived.pushRefusal(); err != nil {
+		t.Fatalf("a rebased branch refused its push: %v", err)
 	}
 }
 
 // TestDerivedDebtSkipsPulledCommits proves a commit the other machine pushed,
-// pulled through origin, is never owed here.
+// pulled through origin, is never published again from here.
 // VALIDATES: AC-18, D-2.
 func TestDerivedDebtSkipsPulledCommits(t *testing.T) {
 	root := newOwedRepository(t)
@@ -221,83 +172,8 @@ func TestDerivedDebtSkipsPulledCommits(t *testing.T) {
 	commitOwed(t, root, "local after pull", map[string]string{"a.txt": "a\n"}, nil)
 
 	derived := deriveOwed(t, root, "")
-	if subjects := owedSubjects(derived.LeftBehind); !slices.Equal(subjects, []string{"local after pull"}) {
-		t.Fatalf("listed %v, want only the local commit", subjects)
-	}
-}
-
-// TestDerivedDebtProseOnlyCommitIsCovered proves the coverage rule (D-9): a
-// commit changing only Markdown under docs/, ai/ or plan/ after the green
-// record owes nothing, so P is HEAD with no new verify. The same commit also
-// touching a root-level page, a .ci body, the RFC corpus or Go is owed: P
-// stops before it, a prose commit before it is still published with G, and a
-// prose commit after it is not listed as owing a verify.
-// VALIDATES: AC-19, D-9.
-func TestDerivedDebtProseOnlyCommitIsCovered(t *testing.T) {
-	t.Run("prose only", func(t *testing.T) {
-		root := newOwedRepository(t)
-		green := commitOwed(t, root, "code", map[string]string{"a.go": "package a\n"}, nil)
-		writeOwedGreen(t, root, green)
-		commitOwed(t, root, "prose only", map[string]string{
-			"docs/page.md": "# page\n", "ai/rules/r.md": "# r\n", "plan/s.md": "# s\n",
-		}, nil)
-
-		derived := deriveOwed(t, root, "")
-		if derived.Target != pushTargetHead || derived.TargetSHA != revParse(t, root, "HEAD") {
-			t.Fatalf("target %d %q, want HEAD: a prose-only commit owes no verify", derived.Target, derived.TargetSHA)
-		}
-		if len(derived.LeftBehind) != 0 {
-			t.Fatalf("left behind %+v, want none", derived.LeftBehind)
-		}
-		if err := derived.pushRefusal(); err != nil {
-			t.Fatalf("a prose-only commit after the green record refused the push: %v", err)
-		}
-	})
-	for _, owed := range []string{"AGENTS.md", "test/runner/a.ci", "rfc/short/rfc4271.md", "pkg/a.go", "docs/x.png"} {
-		t.Run(owed, func(t *testing.T) {
-			root := newOwedRepository(t)
-			green := commitOwed(t, root, "code", map[string]string{"a.go": "package a\n"}, nil)
-			writeOwedGreen(t, root, green)
-			prose := commitOwed(t, root, "prose before", map[string]string{"docs/before.md": "# b\n"}, nil)
-			mixed := commitOwed(t, root, "prose and "+owed, map[string]string{"docs/page.md": "# p\n", owed: "x\n"}, nil)
-			commitOwed(t, root, "prose after", map[string]string{"plan/after.md": "# a\n"}, nil)
-
-			derived := deriveOwed(t, root, "")
-			if derived.Target != pushTargetRecord || derived.TargetSHA != prose {
-				t.Fatalf("target %d %q, want the prose commit %q before the owed one", derived.Target, derived.TargetSHA, prose)
-			}
-			if shas := owedSHAs(derived.LeftBehind); !slices.Equal(shas, []string{mixed}) {
-				t.Fatalf("left behind %v, want exactly %s (the prose commit after it owes nothing)", shas, mixed)
-			}
-		})
-	}
-}
-
-// TestDerivedDebtDiffFailureIsNotCovered proves a comparison git cannot make
-// is never read as an empty diff: the green record names a real commit whose
-// recorded tree is not in the repository, so every `git diff` against it
-// fails. Read as empty, HEAD would be covered and pushed unverified.
-// VALIDATES: AC-35.
-func TestDerivedDebtDiffFailureIsNotCovered(t *testing.T) {
-	root := newOwedRepository(t)
-	head := commitOwed(t, root, "a change", map[string]string{"a.go": "package a\n"}, nil)
-	record, err := scopedRecordFor(t, root, head, "0123456789abcdef0123456789abcdef01234567")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := verify.WriteScopedRecord(root, record); err != nil {
-		t.Fatal(err)
-	}
-
-	derived := deriveOwed(t, root, "")
-	if derived.Target != pushTargetNone {
-		t.Fatalf("target %d %q, want none: no comparison with the green tree succeeded", derived.Target, derived.TargetSHA)
-	}
-	if !owedSaid(derived.Refusals, "cannot compare") || !owedSaid(derived.Refusals, "git -c core.quotePath=false diff") {
-		t.Fatalf("refusals %q do not name the failed git diff", derived.Refusals)
-	}
-	if derived.pushRefusal() == nil {
-		t.Fatal("a push was admitted over a diff git could not compute")
+	if subjects := owedSubjects(derived.Published); !slices.Equal(subjects, []string{"local after pull"}) {
+		t.Fatalf("published %v, want only the local commit", subjects)
 	}
 }
 
@@ -307,9 +183,8 @@ func TestDerivedDebtDiffFailureIsNotCovered(t *testing.T) {
 // VALIDATES: no silent zero over the Person-act trailers.
 func TestDerivedDebtRefusesMalformedTrailer(t *testing.T) {
 	root := newOwedRepository(t)
-	head := commitOwed(t, root, "a change", map[string]string{"a.txt": "a\n"}, nil,
+	commitOwed(t, root, "a change", map[string]string{"a.txt": "a\n"}, nil,
 		"Review-owed: no stem and no reason")
-	writeOwedGreen(t, root, head)
 
 	derived := deriveOwed(t, root, "")
 	if !owedSaid(derived.Refusals, "malformed Review-owed: trailer") {
@@ -330,7 +205,6 @@ func TestDerivedDebtReadsPersonActTrailers(t *testing.T) {
 		commitOwed(t, root, "the spec lands", map[string]string{owedSpecPath: specText("in-progress", "")}, nil)
 		closure := commitOwed(t, root, "the spec closes", nil, []string{owedSpecPath},
 			"Review-owed: "+owedSpecStem+": no reviewer free")
-		writeOwedGreen(t, root, closure)
 
 		derived := deriveOwed(t, root, "")
 		assertOneItem(t, derived, closure, owedItemReview, owedSpecStem)
@@ -338,18 +212,16 @@ func TestDerivedDebtReadsPersonActTrailers(t *testing.T) {
 			t.Fatal("a push with an open Review-owed item was admitted")
 		}
 
-		attest := commitOwed(t, root, "owner attests the closure", nil, nil,
+		commitOwed(t, root, "owner attests the closure", nil, nil,
 			"Owner-attested: "+stablePatchID(t, root, closure)+": Thomas reviewed it in person")
-		writeOwedGreen(t, root, attest)
 		if derived = deriveOwed(t, root, ""); len(derived.Items) != 0 {
 			t.Fatalf("an Owner-attested closure is still owed: %+v", derived.Items)
 		}
 	})
 	t.Run("review not applicable when nothing closes", func(t *testing.T) {
 		root := newOwedRepository(t)
-		plain := commitOwed(t, root, "a journal row", map[string]string{"plan/journal/a.md": "# a\n"}, nil,
+		commitOwed(t, root, "a journal row", map[string]string{"plan/journal/a.md": "# a\n"}, nil,
 			"Review-owed: "+owedSpecStem+": nothing to review")
-		writeOwedGreen(t, root, plain)
 		if derived := deriveOwed(t, root, ""); len(derived.Items) != 0 {
 			t.Fatalf("a commit closing no spec owes a review: %+v", derived.Items)
 		}
@@ -359,9 +231,8 @@ func TestDerivedDebtReadsPersonActTrailers(t *testing.T) {
 		commitOwed(t, root, "the spec lands", map[string]string{
 			owedSpecPath: specText("in-progress", reviewGateSection("Verdict", "clean")),
 		}, nil)
-		closure := commitOwed(t, root, "the spec closes", nil, []string{owedSpecPath},
+		commitOwed(t, root, "the spec closes", nil, []string{owedSpecPath},
 			"Review-owed: "+owedSpecStem+": gate recorded in the spec")
-		writeOwedGreen(t, root, closure)
 		if derived := deriveOwed(t, root, ""); len(derived.Items) != 0 {
 			t.Fatalf("a closure whose spec records its Review Gate is owed: %+v", derived.Items)
 		}
@@ -370,10 +241,9 @@ func TestDerivedDebtReadsPersonActTrailers(t *testing.T) {
 		const code = "pkg/thing.go"
 		root := newOwedRepository(t)
 		commitOwed(t, root, "the spec lands", map[string]string{owedSpecPath: specText("in-progress", "")}, nil)
-		closure := commitOwed(t, root, "the spec closes with code",
+		commitOwed(t, root, "the spec closes with code",
 			map[string]string{code: "package pkg\n\nfunc Thing() {}\n"}, []string{owedSpecPath},
 			"Review-owed: "+owedSpecStem+": reviewed later")
-		writeOwedGreen(t, root, closure)
 		if derived := deriveOwed(t, root, ""); len(derived.Items) != 1 {
 			t.Fatalf("items %+v before any artifact, want the review owed", derived.Items)
 		}
@@ -389,23 +259,20 @@ func TestDerivedDebtReadsPersonActTrailers(t *testing.T) {
 		changed := commitOwed(t, root, "the tagged test changes",
 			map[string]string{owedTaggedPath: taggedThingText("check(2)")}, nil,
 			"RFC-approval-owed: "+owedTaggedUnit+": owner away")
-		writeOwedGreen(t, root, changed)
 
 		derived := deriveOwed(t, root, "")
 		assertOneItem(t, derived, changed, owedItemRFCApproval, owedTaggedUnit)
 
-		approved := commitOwed(t, root, "owner approves", nil, nil,
+		commitOwed(t, root, "owner approves", nil, nil,
 			"RFC-approved: "+owedTaggedUnit+": Thomas approved the new assertion")
-		writeOwedGreen(t, root, approved)
 		if derived = deriveOwed(t, root, ""); len(derived.Items) != 0 {
 			t.Fatalf("an RFC-approved unit is still owed: %+v", derived.Items)
 		}
 	})
 	t.Run("rfc approval not applicable when no tagged unit moves", func(t *testing.T) {
 		root := newOwedRepository(t)
-		plain := commitOwed(t, root, "a prose edit", map[string]string{"docs/note.md": "# note\n"}, nil,
+		commitOwed(t, root, "a prose edit", map[string]string{"docs/note.md": "# note\n"}, nil,
 			"RFC-approval-owed: "+owedTaggedUnit+": nothing tagged moved")
-		writeOwedGreen(t, root, plain)
 		if derived := deriveOwed(t, root, ""); len(derived.Items) != 0 {
 			t.Fatalf("a commit moving no tagged unit owes an approval: %+v", derived.Items)
 		}
@@ -427,7 +294,6 @@ func TestOwnerAttestationSurvivesRebase(t *testing.T) {
 	pushFromOtherMachine(t, root, "an unrelated upstream change", "elsewhere.txt")
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
 		"pull", "-q", "--rebase", "--no-autostash")
-	writeOwedGreen(t, root, revParse(t, root, "HEAD"))
 	if derived := deriveOwed(t, root, ""); len(derived.Items) != 0 {
 		t.Fatalf("a clean rebase lost the attestation: %+v", derived.Items)
 	}
@@ -444,14 +310,14 @@ func TestOwnerAttestationSurvivesRebase(t *testing.T) {
 	resolved := commitOwed(t, other, "the spec closes", map[string]string{"shared.txt": "resolved differently\n"}, nil,
 		"Review-owed: "+owedSpecStem+": no reviewer")
 	commitOwed(t, other, "owner attests", nil, nil, "Owner-attested: "+attestedID+": Thomas read it")
-	writeOwedGreen(t, other, revParse(t, other, "HEAD"))
 	derived := deriveOwed(t, other, "")
 	assertOneItem(t, derived, resolved, owedItemReview, owedSpecStem)
 }
 
-// TestDebtStatusCommitRefusesCommitOffBranch proves a named candidate whose
-// tree is the green tree is still refused when it is not on HEAD's branch, so
-// a commit that left the branch is never published.
+// TestDebtStatusCommitRefusesCommitOffBranch proves a named candidate that is
+// not on HEAD's branch is refused, so a commit that left the branch is never
+// published, and that a named candidate on the branch is admissible whatever
+// follows it.
 // VALIDATES: AC-6, AC-25.
 func TestDebtStatusCommitRefusesCommitOffBranch(t *testing.T) {
 	root := newOwedRepository(t)
@@ -459,20 +325,19 @@ func TestDebtStatusCommitRefusesCommitOffBranch(t *testing.T) {
 	side := commitOwed(t, root, "a side commit", map[string]string{"side.txt": "s\n"}, nil)
 	runCommitGit(t, root, "checkout", "-q", "main")
 	commitOwed(t, root, "on main", map[string]string{"main.txt": "m\n"}, nil)
-	writeOwedGreen(t, root, side)
 
 	derived := deriveOwed(t, root, side)
 	if derived.Target != pushTargetNone {
 		t.Fatalf("target %d %q, want none for a commit off HEAD's branch", derived.Target, derived.TargetSHA)
 	}
+	if !owedSaid(derived.Refusals, "is not on HEAD's branch") {
+		t.Fatalf("refusals %q do not say the commit is off the branch", derived.Refusals)
+	}
 	if derived.pushRefusal() == nil {
 		t.Fatal("a commit off the branch was admitted as a push target")
 	}
 
-	// The same rule on the branch: a candidate on HEAD's branch whose tree is
-	// the green tree is admissible, whatever follows it.
-	onBranch := commitOwed(t, root, "verified", map[string]string{"v.txt": "v\n"}, nil)
-	writeOwedGreen(t, root, onBranch)
+	onBranch := commitOwed(t, root, "named", map[string]string{"v.txt": "v\n"}, nil)
 	commitOwed(t, root, "after", map[string]string{"after.txt": "a\n"}, nil)
 	derived = deriveOwed(t, root, onBranch)
 	if derived.Target != pushTargetNamed || derived.TargetSHA != onBranch {
@@ -481,30 +346,36 @@ func TestDebtStatusCommitRefusesCommitOffBranch(t *testing.T) {
 	if err := derived.pushRefusal(); err != nil {
 		t.Fatalf("an admissible named commit was refused: %v", err)
 	}
+
+	derived = deriveOwed(t, root, "no-such-revision")
+	if derived.Target != pushTargetNone || !owedSaid(derived.Refusals, "does not resolve") {
+		t.Fatalf("an unresolvable candidate: target %d refusals %q", derived.Target, derived.Refusals)
+	}
 }
 
 // TestPushRefusedWhenUpstreamMovedOrNothingAhead proves the two refusals that
-// are not owed commits: an upstream P does not fast-forward, and nothing
-// verified ahead of the upstream.
+// are not person acts: an upstream P does not fast-forward, and nothing ahead
+// of the upstream. Neither names a verify.
 // VALIDATES: AC-33.
 func TestPushRefusedWhenUpstreamMovedOrNothingAhead(t *testing.T) {
 	root := newOwedRepository(t)
-	green := commitOwed(t, root, "verified", map[string]string{"a.txt": "a\n"}, nil)
-	writeOwedGreen(t, root, green)
+	commitOwed(t, root, "local", map[string]string{"a.txt": "a\n"}, nil)
 	pushFromOtherMachine(t, root, "upstream moved", "moved.txt")
 	runCommitGit(t, root, "fetch", "-q")
 
 	derived := deriveOwed(t, root, "")
 	if !owedSaid(derived.Refusals, "git pull --rebase --no-autostash") ||
-		!owedSaid(derived.Refusals, "./le verify changed") {
-		t.Fatalf("refusals %q do not name the pull and the verify", derived.Refusals)
+		!owedSaid(derived.Refusals, "./le commit push") {
+		t.Fatalf("refusals %q do not name the pull and the push", derived.Refusals)
+	}
+	if owedSaid(derived.Refusals, "le verify") {
+		t.Fatalf("refusals %q name a verify", derived.Refusals)
 	}
 	if derived.pushRefusal() == nil {
 		t.Fatal("a push that does not fast-forward the upstream was admitted")
 	}
 
 	level := newOwedRepository(t)
-	writeOwedGreen(t, level, revParse(t, level, "HEAD"))
 	derived = deriveOwed(t, level, "")
 	if derived.Target != pushTargetHead || len(derived.Published) != 0 {
 		t.Fatalf("target %d published %+v, want HEAD with nothing ahead", derived.Target, derived.Published)
@@ -513,8 +384,8 @@ func TestPushRefusedWhenUpstreamMovedOrNothingAhead(t *testing.T) {
 	if err == nil {
 		t.Fatal("a push with nothing ahead of the upstream was admitted")
 	}
-	if !strings.Contains(err.Error(), "nothing verified is ahead of the upstream") {
-		t.Fatalf("the refusal %q does not say nothing verified is ahead", err)
+	if !strings.Contains(err.Error(), "nothing is ahead of the upstream") || strings.Contains(err.Error(), "le verify") {
+		t.Fatalf("the refusal %q does not say nothing is ahead, or names a verify", err)
 	}
 }
 
@@ -526,10 +397,9 @@ func TestCarriedRowOnUnpushedCommitGatesPush(t *testing.T) {
 	root := newOwedRepository(t)
 	commitOwed(t, root, "the spec lands", map[string]string{owedSpecPath: specText("in-progress", "")}, nil)
 	closure := commitOwed(t, root, "the spec closes", nil, []string{owedSpecPath})
-	deletion := commitOwed(t, root, "the ledger is deleted", nil, nil,
+	commitOwed(t, root, "the ledger is deleted", nil, nil,
 		"Ledger-carried: "+closure+" "+stablePatchID(t, root, closure)+" review-override: no reviewer",
 		"Ledger-carried: 0123456789abcdef0123456789abcdef01234567 review-override: published long ago")
-	writeOwedGreen(t, root, deletion)
 
 	derived := deriveOwed(t, root, "")
 	assertOneItem(t, derived, closure, owedItemReview, owedSpecStem)
@@ -539,7 +409,6 @@ func TestCarriedRowOnUnpushedCommitGatesPush(t *testing.T) {
 
 	commitOwed(t, root, "owner attests the carried closure", nil, nil,
 		"Owner-attested: "+stablePatchID(t, root, closure)+": Thomas reviewed it")
-	writeOwedGreen(t, root, revParse(t, root, "HEAD"))
 	if derived = deriveOwed(t, root, ""); len(derived.Items) != 0 {
 		t.Fatalf("an attested carried row is still owed: %+v", derived.Items)
 	}
@@ -615,7 +484,8 @@ func scopedRecordFor(t *testing.T, root, commit, tree string) (verify.ScopedReco
 		repochanged.Anchor{Commit: anchor, Upstream: "@{u}", UpstreamCommit: upstream}, time.Now())
 }
 
-// writeOwedGreen records a green scoped verification over commit at root.
+// writeOwedGreen leaves the record a green `./le verify changed` run over
+// commit writes at root, which the push gate must not read.
 func writeOwedGreen(t *testing.T, root, commit string) {
 	t.Helper()
 	record, err := scopedRecordFor(t, root, commit, revParse(t, root, commit+"^{tree}"))
@@ -698,100 +568,60 @@ func owedSaid(lines []string, want string) bool {
 	return slices.ContainsFunc(lines, func(line string) bool { return strings.Contains(line, want) })
 }
 
-// TestPushAdmitsScopedRecordCoveringHead proves a scoped record over HEAD,
-// anchored at the upstream, admits the push with no full verify asked (AC-15).
-func TestPushAdmitsScopedRecordCoveringHead(t *testing.T) {
-	root := newOwedRepository(t)
-	head := commitOwed(t, root, "a scoped change", map[string]string{"a.go": "package a\n"}, nil)
-	writeOwedGreen(t, root, head)
-	derived := deriveOwed(t, root, "")
-	if derived.Target != pushTargetHead || derived.TargetSHA != head || len(derived.Refusals) != 0 {
-		t.Fatalf("a scoped record over HEAD: target %d %q refusals %q", derived.Target, derived.TargetSHA, derived.Refusals)
+// TestNoPushSurfaceNamesVerify proves no answer of the push gate tells an agent
+// to run a verify: the derivation's refusals, the push refusal, the
+// session-start warning, the create report and debt-status, over a HEAD
+// with nothing owed, an upstream that moved, nothing ahead, and an open
+// person act.
+// VALIDATES: the owner rule that no agent runs any `./le verify` command.
+// PREVENTS: a tool message that sends an agent to `./le verify changed`.
+func TestNoPushSurfaceNamesVerify(t *testing.T) {
+	cases := map[string]func(t *testing.T) string{
+		"nothing owed": func(t *testing.T) string {
+			t.Helper()
+			root := newOwedRepository(t)
+			commitOwed(t, root, "a change", map[string]string{"a.go": "package a\n"}, nil)
+			return root
+		},
+		"upstream moved": func(t *testing.T) string {
+			t.Helper()
+			root := newOwedRepository(t)
+			commitOwed(t, root, "a change", map[string]string{"a.go": "package a\n"}, nil)
+			pushFromOtherMachine(t, root, "upstream moved", "moved.txt")
+			runCommitGit(t, root, "fetch", "-q")
+			return root
+		},
+		"nothing ahead": newOwedRepository,
+		"person act owed": func(t *testing.T) string {
+			t.Helper()
+			root := newOwedRepository(t)
+			owedClosure(t, root)
+			return root
+		},
 	}
-	if err := derived.pushRefusal(); err != nil {
-		t.Fatalf("a scoped record over HEAD refused its push: %v", err)
-	}
-}
-
-// TestPushCarriesProseAfterScopedRecord proves prose-only commits after the
-// recorded commit ride the push, as the walk always carried them (AC-16).
-func TestPushCarriesProseAfterScopedRecord(t *testing.T) {
-	root := newOwedRepository(t)
-	verified := commitOwed(t, root, "a scoped change", map[string]string{"a.go": "package a\n"}, nil)
-	writeOwedGreen(t, root, verified)
-	prose := commitOwed(t, root, "a page", map[string]string{"docs/a.md": "# a\n"}, nil)
-	derived := deriveOwed(t, root, "")
-	if derived.TargetSHA != prose || len(derived.Refusals) != 0 {
-		t.Fatalf("prose after the record: target %q refusals %q, want %s", derived.TargetSHA, derived.Refusals, prose)
-	}
-}
-
-// TestPushRefusesWhenUpstreamMovedPastAnchor proves a record whose anchor is
-// not an ancestor of the current @{u} proves no push (AC-17). The upstream is
-// rewritten, not advanced: an advanced @{u} still holds the anchor, so only a
-// rewrite reaches the anchor check, with HEAD rebuilt on the new tip so the
-// fast-forward check passes and the anchor refusal stands alone.
-func TestPushRefusesWhenUpstreamMovedPastAnchor(t *testing.T) {
-	root := newOwedRepository(t)
-	anchor := revParse(t, root, "@{u}")
-	// The upstream is rewritten under the run: its new tip shares no history
-	// with the anchor, and the branch is rebuilt on that tip, so the push still
-	// fast-forwards @{u} and only the anchor fails.
-	rewritten := strings.TrimSpace(runCommitGitOutputOr(root, "-c", "user.email=t@t", "-c", "user.name=t",
-		"commit-tree", anchor+"^{tree}", "-m", "the rewritten upstream"))
-	if rewritten == "" {
-		t.Fatal("git commit-tree made no commit")
-	}
-	runCommitGit(t, root, "update-ref", "refs/remotes/origin/main", rewritten)
-	runCommitGit(t, root, "checkout", "-q", "-B", "main", rewritten)
-	head := commitOwed(t, root, "a scoped change", map[string]string{"a.go": "package a\n"}, nil)
-	upstream := revParse(t, root, "@{u}")
-	if upstream != rewritten || upstream == anchor {
-		t.Fatalf("@{u} is %s, want the rewritten tip %s, not the anchor %s", upstream, rewritten, anchor)
-	}
-	if exec.CommandContext(t.Context(), "git", "-C", root, "merge-base", "--is-ancestor", anchor, upstream).Run() == nil { //nolint:gosec // test fixture revisions
-		t.Fatalf("the anchor %s is an ancestor of @{u} %s: the fixture tests an advanced upstream", anchor, upstream)
-	}
-	record, err := verify.NewScopedRecord(head, revParse(t, root, head+"^{tree}"),
-		repochanged.Anchor{Commit: anchor, Upstream: "@{u}", UpstreamCommit: anchor}, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := verify.WriteScopedRecord(root, record); err != nil {
-		t.Fatal(err)
-	}
-	derived := deriveOwed(t, root, "")
-	refusals := strings.Join(derived.Refusals, "\n")
-	for _, want := range []string{"moved past the scoped run's anchor " + shortSHA(anchor) + " without holding it",
-		"is not an ancestor of " + shortSHA(upstream), pullCommand, "./le verify changed"} {
-		if !strings.Contains(refusals, want) {
-			t.Errorf("refusals %q do not name %q", refusals, want)
-		}
-	}
-	if len(derived.Refusals) != 1 {
-		t.Errorf("refusals %q, want the anchor refusal alone: the push fast-forwards @{u}", refusals)
-	}
-	if derived.pushRefusal() == nil {
-		t.Error("a record whose anchor the upstream does not hold admitted the push")
-	}
-}
-
-// TestPushRefusalNamesVerifyChanged proves a checkout with no scoped record is
-// refused naming the scoped run, never a full verify (AC-18).
-func TestPushRefusalNamesVerifyChanged(t *testing.T) {
-	root := newOwedRepository(t)
-	commitOwed(t, root, "an unverified change", map[string]string{"a.go": "package a\n"}, nil)
-	derived := deriveOwed(t, root, "")
-	err := derived.pushRefusal()
-	if err == nil {
-		t.Fatal("no scoped record admitted the push")
-	}
-	text := err.Error() + strings.Join(derived.Refusals, "\n")
-	if !strings.Contains(text, "./le verify changed") {
-		t.Errorf("the refusal %q does not name ./le verify changed", text)
-	}
-	if strings.Contains(text, "verify worktree") || strings.Contains(text, "verify current") {
-		t.Errorf("the refusal %q names a full verify", text)
+	for name, build := range cases {
+		t.Run(name, func(t *testing.T) {
+			root := build(t)
+			derived := deriveOwed(t, root, "")
+			texts := slices.Clone(derived.Refusals)
+			if err := derived.pushRefusal(); err != nil {
+				texts = append(texts, err.Error())
+			}
+			warning, err := DebtWarning(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			status, _, err := answerDebtStatus(root, "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			texts = append(texts, warning, debtReport(root), status.Text())
+			for _, text := range texts {
+				if strings.Contains(text, "le verify") || strings.Contains(text, "scoped") {
+					t.Errorf("a push surface tells an agent to verify: %q", text)
+				}
+			}
+		})
 	}
 }
 

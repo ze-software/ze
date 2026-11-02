@@ -70,8 +70,8 @@ func assertRefusal(t *testing.T, err error, condition string) {
 			t.Errorf("refusal lacks %q:\n%s", want, text)
 		}
 	}
-	if !strings.HasSuffix(text, "\n    "+ScopedCommand) {
-		t.Errorf("refusal does not end with %q on its own line:\n%s", ScopedCommand, text)
+	if !strings.HasSuffix(text, "\n    "+AgentEvidence) {
+		t.Errorf("refusal does not end with %q on its own line:\n%s", AgentEvidence, text)
 	}
 }
 

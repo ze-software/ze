@@ -72,7 +72,7 @@ var actions = leaction.New(area,
 		Summary: "verify what the change set reaches",
 		Why: "run the scoped population (the tests, vet, lint, Staticcheck rows, race groups and functional suites " +
 			"of what the change set reaches) against a fixed commit in a fresh detached worktree; commit defaults to HEAD; " +
-			"a green run writes the scoped record a push reads; an agent runs this for its own evidence",
+			"a green run writes the scoped record; no agent runs it, and a push does not read it: GitHub CI verifies a pushed commit",
 		Writes:     false,
 		Parameters: []leaction.Parameter{{Keyword: commitKeyword, Kind: leaction.KindRevision, Help: "the commit whose change set is verified; HEAD when absent", Value: "revision", Requirement: leaction.Optional}},
 		AnswerArgs: changedHere,

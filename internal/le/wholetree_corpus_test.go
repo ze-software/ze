@@ -17,8 +17,9 @@
 // lists it only when it does not tell an agent to run the verb. A sentence that
 // bans the run, ties it to Thomas, or describes the release check qualifies.
 // One that tells an agent to run the verb, in any wording, is rewritten
-// instead: an agent's evidence is `./le verify changed`, and the full run is the
-// command the agent hands Thomas.
+// instead: an agent's evidence is the scoped test runs of what its change
+// reaches, no agent runs any `./le verify` command, and the full run is the
+// release check GitHub CI runs and Thomas starts.
 //
 // It runs in package le because the verb list is DERIVED from the action tables
 // the blank imports in register.go populate: every action that registers with
@@ -204,8 +205,8 @@ func reportJudgement(t *testing.T, found []mention, listed []string) {
 	unlisted, stale := judgeMentions(found, listed)
 	for _, m := range unlisted {
 		t.Errorf("%s:%d names %q in text the reviewed ledger %s does not list. "+
-			"If it tells an agent to run the verb, rewrite it: the agent's evidence is `./le verify changed`, "+
-			"and the full run is the command it hands Thomas. If it bans the run, ties it to Thomas or "+
+			"If it tells an agent to run the verb, rewrite it: the agent's evidence is its scoped test runs, "+
+			"no agent runs any ./le verify command, and the full run is CI's and Thomas's. If it bans the run, ties it to Thomas or "+
 			"describes the release check, a reviewer adds this entry:\n%s",
 			m.path, m.line, m.verb, mentionLedger, m.entry())
 	}

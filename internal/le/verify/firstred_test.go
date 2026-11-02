@@ -220,10 +220,11 @@ func TestRedsNamesAStoppedRun(t *testing.T) {
 		!strings.Contains(answer.Text(), "will never report") {
 		t.Fatalf("the answer does not name the stop:\n%s", answer.Text())
 	}
-	// AC-22: the answer names the scoped run an agent owes, and the full run
-	// only as the command it gives Thomas.
-	if !strings.Contains(answer.Text(), ChangedCommand+" judges what you changed") ||
-		!strings.Contains(answer.Text(), "./le verify worktree you give Thomas") {
-		t.Fatalf("the answer does not name the scoped run and the release check's owner:\n%s", answer.Text())
+	// AC-22: the answer names the scoped tests as an agent's evidence, the
+	// full run as CI's and Thomas's, and no verify an agent runs.
+	if !strings.Contains(answer.Text(), "the scoped tests of what you changed judge your change") ||
+		!strings.Contains(answer.Text(), "GitHub CI runs and Thomas starts") ||
+		strings.Contains(answer.Text(), ChangedCommand) {
+		t.Fatalf("the answer does not name the scoped tests and the release check's owner:\n%s", answer.Text())
 	}
 }

@@ -4,9 +4,8 @@
 # The fixture runs the REAL `le commit create ... remove <spec>
 # review-override "<reason>"` in a throwaway Ze checkout, runs the script, and
 # asserts the commit message carries `Review-owed: <stem>: <reason>` and the
-# commit holds no file under plan/verification-debt/. With a scoped record over
-# that commit, `le commit push` is refused naming the trailer and the
-# attestation that answers it (AC-13).
+# commit holds no file under plan/verification-debt/. `le commit push` is then
+# refused naming the trailer and the attestation that answers it (AC-13).
 #
 # Spec: spec-verification-debt-derived (closed; design in docs/architecture/testing/verify-freshness-scope.md).
 # Drop the Review-owed trailer from Message (internal/le/commit/input.go) and

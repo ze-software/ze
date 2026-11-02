@@ -25,9 +25,11 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// ScopedCommand is the verification an agent runs for its own change, and the
-// line every refusal gives it.
-const ScopedCommand = "./le verify changed"
+// AgentEvidence is what an agent runs for its own change, and the line every
+// refusal gives it: the scoped tests, never a verify. No agent runs any
+// ./le verify command (ai/META-DECISIONS.md), and GitHub CI verifies a pushed
+// commit.
+const AgentEvidence = "the scoped tests of what your change reaches, run in the main checkout; no agent runs any ./le verify command"
 
 // Question answers whether one stream is an interactive terminal. An error
 // means the question had no answer, which the gate refuses on: an unanswered
@@ -95,8 +97,8 @@ func refusal(condition, commandLine string) error {
 		Str("  a full verification loads the whole shared machine for its length, and only Thomas knows when that is safe\n").
 		Str("  give Thomas this command to run from his own terminal:\n").
 		Str("    ").Str(commandLine).Byte('\n').
-		Str("  for the evidence your own change owes, run the scoped verification:\n").
-		Str("    ").Str(ScopedCommand)
+		Str("  for the evidence your own change owes, run:\n").
+		Str("    ").Str(AgentEvidence)
 	return &Refusal{message: text.String()}
 }
 

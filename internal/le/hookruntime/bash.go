@@ -414,7 +414,7 @@ func bashLossyPipe(ctx context) *verdict {
 			}
 			return &verdict{2, "❌ Blocked: piping an expensive command's output through a lossy filter (" + fields[0] + ")\n" +
 				"  -- The truncated output is what you would judge the run by.\n" +
-				"  -- Use: dir=$(./le session scratch ensure); ./le verify changed > \"$dir/verify.log\" 2>&1\n" +
+				"  -- Use: dir=$(./le session scratch ensure); ./le test unit <group> > \"$dir/test.log\" 2>&1\n" +
 				"  -- Or:  dir=$(./le session scratch ensure); <command> 2>&1 | tee \"$dir/out.log\"\n" +
 				"  -- Then: Read the log with offset/limit"}
 		}

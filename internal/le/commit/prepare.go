@@ -79,9 +79,9 @@ type Prepared struct {
 	// `RFC-approval-owed:` and automatic `Linux-limit-owed:` annotations,
 	// plus owner attestations and carried obligations.
 	Trailers []string `json:"trailers,omitempty"`
-	// Debt is the derived verification debt as this commit is prepared: how
-	// many commits owe a scoped verify, and since which scoped record. It is
-	// empty outside the Ze checkout.
+	// Debt is the derived push debt as this commit is prepared: the refusals
+	// and the open person acts a push would meet. It is empty outside the Ze
+	// checkout.
 	Debt string `json:"debt,omitempty"`
 	// Stats is how much of each staged path this commit carries, measured
 	// against HEAD. See FileStat: it is printed, never enforced.
@@ -426,8 +426,8 @@ func mergeRFCApprovals(approvals RFCApprovals, weakening testweakened.Approvals)
 // checkVerificationGates judges the commit against the native verification
 // certificate and the independent-review artifact. It refuses a closure with
 // no clean review and no override, and answers the review re-check line the
-// script runs. It never refuses for a missing verification, which is owed
-// before a push and the push derives, nor for a red, which is owed at release
+// script runs. It never refuses for a missing verification, which GitHub CI
+// runs on the pushed commit, nor for a red, which is owed at release
 // (ai/META-DECISIONS.md, "Ze is pre-release").
 func checkVerificationGates(root string, options *Options, result *Prepared, paths, removed []string,
 	selection hunks.Selection,

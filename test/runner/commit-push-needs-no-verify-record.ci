@@ -1,0 +1,19 @@
+# An agent commits with no verify record of any kind, and `le commit push`
+# prepares the push-only script without naming a verify: no agent runs
+# `./le verify`, and GitHub CI verifies the pushed commit.
+#
+# The fixture builds a throwaway Ze checkout with a bare upstream (ZE_REPO_ROOT)
+# and drives the REAL `le commit push`. It asserts the answer names no verify,
+# and that the script makes no commit, runs no verify, re-derives with
+# `debt-status commit <P>`, and pushes `<P>:refs/heads/main`.
+#
+# Spec: spec-verification-debt-derived (closed; design in docs/contributing/committing.md) (AC-3).
+# Make deriveDebt (internal/le/commit/owed.go) refuse a HEAD with no verify
+# record and seq=1 fails at push-prepared-without-verify-record.
+
+option=timeout:value=60s
+
+cmd=foreground:seq=1:exec=le test fixture runner/commit-push-needs-no-verify-record
+expect=exit:code=0
+expect=stdout:contains=push-prepared-without-verify-record
+expect=stdout:contains=push-script-prepared-for-head

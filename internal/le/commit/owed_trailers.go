@@ -65,7 +65,7 @@ func (d *derivedDebt) readPersonActs(root, head string) error {
 	}
 	bodies, err := gitOutput(root, "log", "--no-show-signature", "--format=%x1e%H%x00%B", tip, "^"+d.Upstream, "--")
 	if err != nil {
-		return fmt.Errorf("cannot derive the verification debt: %w", err)
+		return fmt.Errorf("cannot derive the push debt: %w", err)
 	}
 	acts := parsePersonActs(bodies)
 	d.Refusals = append(d.Refusals, acts.problems...)
@@ -74,7 +74,7 @@ func (d *derivedDebt) readPersonActs(root, head string) error {
 	}
 	patchIDs, err := stablePatchIDs(root, tip, "^"+d.Upstream)
 	if err != nil {
-		return fmt.Errorf("cannot derive the verification debt: %w", err)
+		return fmt.Errorf("cannot derive the push debt: %w", err)
 	}
 	cache := newCommitCache()
 	shas := make([]string, 0, len(acts.owed)+len(patchIDs))

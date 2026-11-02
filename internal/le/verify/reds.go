@@ -383,9 +383,9 @@ func (r Reds) Text() string {
 	text.Byte('\n')
 	if r.StoppedAt != "" {
 		text.Str("the run stopped at its first red, ").Str(r.StoppedAt).
-			Str(", so its pending stages will never report; ").Str(ChangedCommand).
-			Str(" judges what you changed, and every stage runs only in the release check, ").
-			Str("whose command ./le verify worktree you give Thomas\n")
+			Str(", so its pending stages will never report; the scoped tests of what you changed ").
+			Str("judge your change, and every stage runs only in the release check, which GitHub CI ").
+			Str("runs and Thomas starts\n")
 	}
 	appendReds(&text, "reds naming this path:", r.Naming)
 	appendReds(&text, "reds naming no file, so any of them can be about this path:", r.Unattributed)

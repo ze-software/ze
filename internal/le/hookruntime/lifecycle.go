@@ -111,7 +111,7 @@ var sessionStartBudget = 3500 * time.Millisecond
 var sessionStartSteps = []sessionStartStep{
 	{name: "tree", run: reportTree},
 	{name: "specs", run: reportSpecs},
-	{name: "verification debt", run: reportDerivedDebt},
+	{name: "push debt", run: reportDerivedDebt},
 	{name: "session state", run: reportSessionState},
 	{name: "journal", run: reportDueJournal},
 	{name: "derived artifacts", run: buildDerivedArtifacts},
@@ -258,11 +258,12 @@ func reportTree(deadline stdcontext.Context, state *sessionStart, report *sessio
 	fmt.Fprintf(&report.out, "Warning: %d uncommitted: %dM %dA\n", len(lines), modified, added) //nolint:errcheck // hook protocol
 }
 
-// reportDerivedDebt prints the derived verification debt: one line and at
-// most five items, or nothing when nothing is owed. What is owed is
-// commit.DebtWarning's answer, which defers to derivedDebt.owed: it warns
-// for an uncovered HEAD, an open person act, and also for a covered HEAD whose
-// push is refused (its upstream moved), naming the refusal. A derivation that
+// reportDerivedDebt prints the derived push debt: one line and at most five
+// items, or nothing when nothing is owed. What is owed is
+// commit.DebtWarning's answer, which defers to derivedDebt.owed: it warns for
+// an open person act and for a push that is refused (its upstream moved, a
+// trailer nobody can read), naming the refusal. It never names a verify: no
+// push owes one. A derivation that
 // cannot answer is said on stderr with its fix, and is never read as nothing
 // owed. A linked worktree is the one silence: a worktree agent never pushes,
 // so its branch having no upstream is normal.
@@ -275,7 +276,7 @@ func reportDerivedDebt(deadline stdcontext.Context, state *sessionStart, report 
 	if linkedWorktree(deadline, state.ctx.root) {
 		return
 	}
-	report.note.WriteString("session-start: the verification debt was not derived, so it was not counted: " + err.Error() + "\n")
+	report.note.WriteString("session-start: the push debt was not derived, so it was not counted: " + err.Error() + "\n")
 }
 
 // linkedWorktree answers whether root is a linked worktree: its git dir is
@@ -795,14 +796,14 @@ func validateSpecText(root, text string) ([]string, []string) {
 		}
 	}
 	// A spec names how its work is tested, not the full gate: agents run
-	// targeted tests and `./le verify changed`, and the full run is the
-	// release check Thomas starts (ai/META-DECISIONS.md, "Ze is pre-release").
+	// targeted tests and never a `./le verify` command, and the full run is the
+	// release check GitHub CI runs and Thomas starts (ai/META-DECISIONS.md).
 	// Any `./le test` or `./le verify` command answers, so the specs that name
 	// `./le verify worktree` still validate.
 	if !strings.Contains(text, "./le test ") && !strings.Contains(text, "./le verify ") {
 		errors = append(errors, "Missing verification checklist item: the spec names no `./le test` or `./le verify` command, "+
 			"so nothing says how the work is proven. Name the targeted tests in the Checklist, for example "+
-			"`./le test unit <group>`, `./le test functional <suite>` or `./le verify changed`")
+			"`./le test unit <group>` or `./le test functional <suite>`")
 	}
 	if regexp.MustCompile("```(go|rust|java|c|cpp|javascript|typescript)").MatchString(text) {
 		errors = append(errors, "Specs MUST NOT contain code blocks. Use tables/prose instead")

@@ -208,7 +208,7 @@ func (s *Setup) Run() (*Report, int) {
 		return report, 1
 	}
 	if code == 0 {
-		report.Note("Verify with: ./le verify changed (a full verification, ./le verify current, starts only at a terminal)")
+		report.Note("Test with the scoped tests of what you change, for example: ./le job run label unit-pkg command go test ./internal/core/textbuf/ (GitHub CI verifies a pushed commit)")
 	}
 	return report, code
 }
