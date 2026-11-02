@@ -1,0 +1,38 @@
+module ze-record-plugin-cmd {
+    namespace "urn:ze:test:record-plugin:cmd";
+    prefix recordplugincmd;
+    import ze-extensions { prefix ze; }
+    description "Test-only command tree served by the external SDK plugin
+                 `le mock record-plugin` (internal/test/cli/cmd_record_plugin.go).
+                 Compiled only under the zetest build tag, so no shipped binary
+                 declares it. ze:hidden keeps it out of CLI completion.";
+    revision 2026-11-02 { description "Initial: a command with a bounded declared argument that only a plugin process serves."; }
+
+    container show {
+        config false;
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
+
+        container record-plugin {
+            ze:hidden true;
+            config false;
+            description "Commands the record-plugin test process answers. Nothing in
+the daemon serves them, so a command here reaches the plugin route alone.";
+            ze:help "Record-plugin test commands.";
+
+            container argument {
+                config false;
+                ze:command "ze-test-record-plugin:show-record-plugin-argument";
+                description "The engine judges id against the bound declared here before
+it asks the plugin, and the plugin answers the arguments it was given. A
+functional test reads that answer to prove which values reached the process.";
+                ze:help "Show the arguments the engine judged and sent to the plugin.";
+                leaf id {
+                    type string { length "1..128"; }
+                    mandatory true;
+                    description "Any value of 1 to 128 characters. The plugin echoes it back.";
+                    ze:help "Value the plugin echoes back.";
+                }
+            }
+        }
+    }
+}

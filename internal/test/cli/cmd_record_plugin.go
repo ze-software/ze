@@ -47,7 +47,7 @@ const (
 	recordEngineCommand   = "show test engine answer"
 	recordTableCommand    = "show test records table"
 	recordObjectCommand   = "show test records object"
-	recordArgumentCommand = "show config cat"
+	recordArgumentCommand = "show record-plugin argument"
 )
 
 // recordArgumentMarker opens the answer to recordArgumentCommand. No refusal
@@ -60,12 +60,14 @@ const recordArgumentMarker = "record-plugin received: "
 // definitions from the model compiled into it, so an external plugin's command
 // is judged only at a path that model declares. Every shipped plugin command
 // that declares an argument is also served by a builtin RPC, which judges the
-// arguments first, so none of them can show R9 refusing. `show config cat`
-// declares a mandatory id of 1..128 characters (internal/plugins/config-cli/
-// yang) and no builtin serves it in the daemon: `ze show config cat` runs in
-// the client. A plugin command MUST start with a verb, which rules out a root
-// such as `explain`. The plugin answers recordArgumentMarker and the arguments
-// it was given, which proves an accepted value reached the process.
+// arguments first, and a local-data command is answered in the client before
+// any daemon sees it, so no shipped command can show R9 refusing. This path is
+// a fixture of its own: internal/test/plugins/recordplugin/yang declares it
+// with a mandatory id of 1..128 characters, only the functional test DUT links
+// that module (the zetest build tag), and nothing but this process serves it.
+// A plugin command MUST start with a verb, which is why the path opens with
+// `show`. The plugin answers recordArgumentMarker and the arguments it was
+// given, which proves an accepted value reached the process.
 
 // recordTableCommand and recordObjectCommand answer ONE table in the two forms
 // a handler can produce it, and the pair is what makes the difference
