@@ -228,7 +228,7 @@ func dataHistory(validated command.ValidatedArgs) command.LocalAnswer {
 // configuration answers its diagnostics AND exits 1
 // (command.LocalDataHandler).
 func dataValidate(validated command.ValidatedArgs) command.LocalAnswer {
-	args := validated.Tokens()
+	args := fileLeafTokens(validated)
 	if len(args) == 0 {
 		return command.LocalRefusal(exitError, "error: missing config file (use - for stdin)\n")
 	}
@@ -260,6 +260,23 @@ func dataValidate(validated command.ValidatedArgs) command.LocalAnswer {
 	verdict.Str("error: ").Str(args[0]).Str(" is not a valid configuration: ").
 		Int(int64(len(result.Diagnostics))).Str(" diagnostic(s) in the answer say why\n")
 	return command.LocalAnswer{Payload: payload, Code: exitInvalid, Diagnostic: verdict.String()}
+}
+
+// fileLeafTokens answers the words of a command whose model declares a `file`
+// leaf (show config validation, show config graph) with that leaf's value as
+// a plain word: the file arrives positionally (`show config validation f`) or
+// by name (`show config validation file f`, the form a generated MCP tool
+// sends). Reading the raw tokens counted the keyword as a second file, so
+// validation refused the keyed form and graph read a file named "file".
+//
+// The keyed value goes LAST, after any option word, because graph hands the
+// words to a flag parser that stops at the first non-option.
+func fileLeafTokens(validated command.ValidatedArgs) []string {
+	words := validated.PositionalTokens()
+	if file, keyed := validated.Keyed("file"); keyed {
+		words = append(words, file)
+	}
+	return words
 }
 
 // dataDiff answers `show config diff <file1> <file2>` and

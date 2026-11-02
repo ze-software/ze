@@ -103,7 +103,7 @@ func init() {
 		Mode: modeOffline,
 	}, command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config graph", func(validated command.ValidatedArgs) command.LocalAnswer {
-		return graphAnswer(validated.Route(), validated.Tokens())
+		return graphAnswer(validated.Route(), fileLeafTokens(validated))
 	}, registry.Meta{
 		ShortHelp: "Show how components and peers depend on each other, as JSON.",
 		Description: "It takes a config file path, or - to read the file on stdin. Inactive blocks are " +
