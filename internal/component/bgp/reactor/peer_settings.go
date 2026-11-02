@@ -420,10 +420,12 @@ type PeerSettings struct {
 	// RSFastPath enables reactor-native RS forwarding for this peer's group.
 	// When true, received UPDATEs are forwarded directly from notifyMessageReceiver
 	// via reactorForwardRS, bypassing the plugin dispatch -> bgp-rs -> ForwardCached
-	// chain. Peers with an ACTIVE export filter are excluded from the fast path
-	// and fall back to bgp-rs ForwardCached. A chain of only deactivated refs
-	// applies no policy, so that peer keeps the fast path (hasActiveFilter,
-	// forward_rs.go).
+	// chain. The fast path runs a destination's ACTIVE export chain itself
+	// (exportChainActive, peer_forward_facts.go), and hands the destination
+	// back to bgp-rs ForwardCached only when that chain could not run, its
+	// refusal must be withdrawn one NLRI-bearing field at a time, or the
+	// export final rejects. A chain of only deactivated refs applies no policy
+	// (hasActiveFilter, forward_rs.go).
 	RSFastPath bool
 
 	// IgnoreFamilyMismatch ignores NLRI for non-negotiated AFI/SAFI instead of error.

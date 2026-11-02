@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -152,9 +153,12 @@ func sourceUsesCachedForward(peer *Peer, update *wireu.WireUpdate) bool {
 // number of peers it actually dispatched to. The caller stores the skipped list
 // on RawMessage.FastPathSkipped so bgp-rs can forward to them via ForwardCached.
 //
-// A peer is skipped when it carries an ACTIVE export filter or a rejecting
-// final, which this policy-agnostic rail cannot apply, or an in-process egress
-// filter panicked. Genuine in-process policy suppression is decided here.
+// A peer is skipped when it carries a rejecting final, which this rail leaves
+// to the plugin rail, when an in-process egress filter panicked or its
+// export chain could not run, or when its chain ran and its verdict must be
+// withdrawn one NLRI-bearing field at a time (withdrawalBySection). An active export chain is run here, whoever
+// placed its members (exportChainActive), and genuine policy suppression by
+// either is decided here.
 //
 // dispatched exists so the caller can tell "the fast path delivered this UPDATE"
 // from "the fast path matched nobody". Both used to look identical to bgp-rs,
@@ -265,10 +269,6 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
-		if hasActiveFilter(pf.exportPolicy, directionExport) {
-			skipped = append(skipped, pf.peerKey)
-			continue
-		}
 		if only != nil {
 			continue
 		}
@@ -289,9 +289,6 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// The retry rechecks the send permission with the other live facts:
 		// a reload between passes can revoke the grant.
 		if !pf.rsRelaySend {
-			continue
-		}
-		if hasActiveFilter(pf.exportPolicy, directionExport) {
 			continue
 		}
 		// RFC 8212 Section 3: retry uses the current coherent destination facts.
@@ -317,10 +314,12 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 
 	// Build source PeerFilterInfo once for egress filter chain.
 	var srcFilter filterapi.PeerFilterInfo
-	if len(r.egressFilters) > 0 {
+	var srcKnown bool
+	if len(r.egressFilters) > 0 || runsExportChain(matchingPeers) {
 		srcFilter = filterapi.PeerFilterInfo{Address: sourcePeerAddr}
 		r.mu.RLock()
 		if srcPeer, ok := r.findPeerByAddr(sourcePeerAddr); ok {
+			srcKnown = true
 			// Guarded PeerAS: the source peer may be dynamic and still resolving its ASN
 			// on another goroutine; Name/GroupName are immutable after construction.
 			srcFilter.PeerAS = srcPeer.PeerAS()
@@ -563,21 +562,66 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			}
 		}
 
+		// The destination's export chain runs here, whoever placed its
+		// members, after the in-process egress filters as the general rail's
+		// stage order puts it last (forwardUpdateCore), and through the same
+		// implementation. The rail shares nothing a member's verdict could
+		// leak between destinations: each destination owns its edit set, a
+		// rewrite becomes that destination's base for every edit below, and
+		// both the dedup and the withdrawal conversion key on the base. A
+		// received End-of-RIB or a withdrawal reaches the chain like any UPDATE,
+		// and a member that adds nothing to it leaves it byte-identical.
+		base := rsBaseOf(wire, srcNextHop, srcHasLocalPref, srcHasPrefixSID, srcMED)
+		if facts.exportChainActive && !mods.IsWithdraw() {
+			res := r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
+				policyview.ExportSession(facts.filterInfo, srcFilter, srcKnown).WithExportMetadata(update.Meta), wire)
+			if res.accept {
+				if res.wireOverride != nil {
+					// A policy replaces bytes, never the ingress path identity.
+					res.wireOverride.SetSourceID(wire.SourceID())
+					base = rsBaseOverride(res.wireOverride, srcNextHop)
+				}
+			} else {
+				if res.failed {
+					// A chain that could not run decided nothing: the plugin
+					// rail judges it again and drops it fail-closed, as for a
+					// panicked egress filter above.
+					fwdLogger().Warn("rs fast path: export chain failed, deferring the destination to the plugin rail",
+						"id", updateID, "peer", facts.addr, "src", sourcePeerAddr)
+					skipped = append(skipped, facts.peerKey)
+					continue
+				}
+				// A reject or a withdraw verdict: the client may hold the
+				// previous generation of the route, so it is sent the withdrawal.
+				// RFC 4724 Section 2: "An UPDATE message with no reachable
+				// Network Layer Reachability Information (NLRI) and empty
+				// withdrawn NLRI is specified as the End-of-RIB marker that can
+				// be used by a BGP speaker to indicate to its peer the
+				// completion of the initial routing update after the session is
+				// established." The marker names no route to refuse and
+				// converts to no withdrawal, so the client is sent it unchanged
+				// rather than nothing.
+				if _, isEOR := wire.IsEOR(); !isEOR {
+					mods.SetWithdraw()
+				}
+			}
+		}
+
 		// RFC 4456: Route reflection attribute injection for IBGP destinations.
 		if reflected {
 			mods.Op(9, filterapi.AttrModSet, origBuf[:])
 			mods.Op(10, filterapi.AttrModPrepend, facts.clusterIDBytes[:])
 		}
 
-		applyFactsNextHop(facts, &mods, srcNextHop.mpFamily)
-		applyNextHopFamily(facts, &mods, srcNextHop, wire.Payload())
+		applyFactsNextHop(facts, &mods, base.nextHop.mpFamily)
+		applyNextHopFamily(facts, &mods, base.nextHop, base.wire.Payload())
 		applyFactsSendCommunity(facts, &mods)
-		applyFactsAIGP(facts, srcAIGP, srcNextHop, wire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
+		applyFactsAIGP(facts, srcAIGP, srcNextHop, base.wire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
 
 		// RFC 2545 Section 3; draft-ietf-idr-linklocal-capability Section 4.
 		// Keep the effective Global unchanged (RFC 7947 Section 2.2.1),
 		// normalizing its Link-Local exactly as the cached forwarding rail.
-		applyEgressNextHopScope(peer, facts, &mods, wire.Payload(), srcNextHop.mpFamily)
+		applyEgressNextHopScope(peer, facts, &mods, base.wire.Payload(), base.nextHop.mpFamily)
 
 		// The egress gates that refuse an announcement because of the next hop
 		// about to be written. The general rail (forwardUpdateCore) asks the same
@@ -588,12 +632,12 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		if !mods.IsWithdraw() {
 			// RFC 4271 Section 5.1.3, RFC 8950 Section 4,
 			// draft-ietf-idr-linklocal-capability Sections 2 and 4.
-			if gate := egressNextHopWithheld(peer, facts, &mods, srcNextHop, reflected, sourcePeerAddr); gate != withholdNone {
+			if gate := egressNextHopWithheld(peer, facts, &mods, base.nextHop, reflected, sourcePeerAddr); gate != withholdNone {
 				nextHopWithheld = true
 				// A mixed UPDATE is judged again per section
 				// (withdrawalBySection), and the section logs the refusal.
-				if !wire.MixesNLRIFields() {
-					gate.warn(facts, sourcePeerAddr, &mods, srcNextHop)
+				if !base.wire.MixesNLRIFields() {
+					gate.warn(facts, sourcePeerAddr, &mods, base.nextHop)
 				}
 				mods.SetWithdraw()
 			}
@@ -604,22 +648,22 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// operation on code 5 and wins (filterapi.LastSetOrSuppress). This rail
 		// has no wire override, so the source payload is the base the rebuild
 		// runs over.
-		applyFactsLocalPref(facts, srcHasLocalPref, &mods)
+		applyFactsLocalPref(facts, base.hasLocalPref, &mods)
 
 		// RFC 8669 Section 8: the Prefix-SID leaves this AS only toward an EBGP
 		// neighbor the operator has placed inside the SR domain. Same base as
 		// the sibling above.
-		applyFactsPrefixSID(facts, srcHasPrefixSID, &mods)
+		applyFactsPrefixSID(facts, base.hasPrefixSID, &mods)
 		if !mods.IsWithdraw() {
 			// RFC 9252 Section 2: both rails share the effective-identity
 			// decision; configured mode alone never proves a change.
-			applyEgressPrefixSIDNextHop(facts, &mods, srcNextHop, srcNextHop, srcHasPrefixSID)
+			applyEgressPrefixSIDNextHop(facts, &mods, srcNextHop, base.nextHop, base.hasPrefixSID)
 		}
 
 		// RFC 4271 Section 5.1.4: a MED received from one neighboring AS never
 		// reaches another, and RFC 7947 Section 2.2.3 exempts a route server
 		// client. Same base as the sibling above (applyFactsMED, forward_med.go).
-		applyFactsMED(facts, srcMED, srcMED, wire.Payload(), &mods)
+		applyFactsMED(facts, srcMED, base.med, base.wire.Payload(), &mods)
 
 		// The AS-path family is recorded as INTENT, exactly as on the general
 		// forward rail, so the one-pass writer emits it into the client's buffer
@@ -655,7 +699,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			// RFC 7947 Section 2.2.2: RS clients omit the protocol prepend unless the
 			// route requests one; explicit override and width projection share the
 			// same intent.
-			changed, aspErr := aspathEdit.Record(&mods, wire.Payload(), intent)
+			changed, aspErr := aspathEdit.Record(&mods, base.wire.Payload(), intent)
 			if aspErr != nil {
 				fwdLogger().Warn("AS_PATH resolve failed, suppressing route",
 					"peer", facts.addr, "localAS", facts.localAS,
@@ -667,7 +711,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 
 		// No intermediate rewritten payload, so no read buffer is borrowed here and
 		// nothing is adopted onto the entry.
-		peerWire := wire
+		peerWire := base.wire
 		opaqueReady := false
 		var candidate fwdDedupCand
 		var materialization []byte
@@ -683,6 +727,18 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// the shared wire lets the body cache below build its body once too.
 		if mods.IsWithdraw() {
 			if withdrawalBySection(peerWire, nextHopWithheld) {
+				// The redo below splits the RECEIVED UPDATE and judges each
+				// section again, so it would ask the export chain about every
+				// section: a section the chain never saw alone could be
+				// accepted after the whole UPDATE was rejected, and a rewrite
+				// of the whole UPDATE would be applied to one section of it.
+				// The general rail partitions the judged output instead and
+				// invokes no policy again (forwardUpdateCore), so a destination
+				// whose chain ran is handed to it, as the plugin rail.
+				if facts.exportChainActive {
+					skipped = append(skipped, facts.peerKey)
+					continue
+				}
 				bySection = append(bySection, peer)
 				continue
 			}
@@ -813,7 +869,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 	dispatch:
 		// RFC 7911 Section 2: preserve ingress identity before final admission.
 		if err := prepareFwdProvenance(&item, update.WireUpdate, peerWire,
-			mods.IsWithdraw() || wire != update.WireUpdate); err != nil {
+			mods.IsWithdraw() || wire != update.WireUpdate || base.wire != wire); err != nil {
 			fwdLogger().Warn("forward provenance failed", "peer", facts.addr, "err", err)
 			dedup.abandon(candidate)
 			r.fwdPool.releaseItem(&item)

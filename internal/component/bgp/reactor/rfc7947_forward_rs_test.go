@@ -252,7 +252,8 @@ func TestReactorForwardRSBasic(t *testing.T) {
 	assert.False(t, peerAddrs[netip.MustParseAddr("10.0.0.1")], "source must be excluded")
 }
 
-// TestReactorForwardRSFallback verifies peers with ExportFilters are skipped
+// TestReactorForwardRSFallback verifies a peer whose export chain could not
+// run (an external member, and no filter engine in this reactor) is skipped
 // and returned in the FastPathSkipped list.
 func TestReactorForwardRSFallback(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)

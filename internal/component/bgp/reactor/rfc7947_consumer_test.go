@@ -6,11 +6,9 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	"github.com/ze-software/ze/internal/core/selector"
 )
 
 // lowRSAttributes includes every transparency category, with nonzero ORIGIN
@@ -78,13 +76,15 @@ func TestRouteServerTransparencyStopsAtOrdinaryPeer(t *testing.T) {
 	lowAssertAttribute(t, got, attribute.AttributeCode(241), []byte{0x11, 0x22, 0x33})
 }
 
-// TestRFC7947ClientPolicyControlsWire continues the fast path's skipped list
-// through ForwardUpdate and the actual socket worker. Each destination policy
-// is independently selected, and a denial must emit neither announcement nor
-// fallback copy. The second round reverses the decisions on the same clients.
+// TestRFC7947ClientPolicyControlsWire runs each client's export policy on the
+// route-server fast path and reads the actual socket worker's output. Each
+// destination policy is independently selected, and a denial must emit no
+// announcement, only the withdrawal. The fast path decides both clients
+// itself, so nothing is handed to the plugin rail and no second copy follows.
+// The second round reverses the decisions on the same clients.
 // RFC 7947 Section 2.1: "The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy."
-// RFC requirement: RFC7947-x-4 positive -- a route-server client deferred by the fast path receives the actual UPDATE when its own export policy accepts it, including after that client's policy changes from reject to accept.
-// RFC requirement: RFC7947-x-4 negative -- the same deferred client receives no announcement when its own policy rejects it, only the withdrawal of the prefix; acceptance by a different client does not bypass that rejection.
+// RFC requirement: RFC7947-x-4 positive -- a route-server client whose export policy the fast path runs receives the actual UPDATE when its own export policy accepts it, including after that client's policy changes from reject to accept.
+// RFC requirement: RFC7947-x-4 negative -- the same client receives no announcement when its own policy rejects it, only the withdrawal of the prefix; acceptance by a different client does not bypass that rejection.
 func TestRFC7947ClientPolicyControlsWire(t *testing.T) {
 	f := newAIGPReplayFixture(t, nil)
 	other, otherConn := newAnnouncePeer(t, "198.18.232.3")
@@ -103,8 +103,9 @@ func TestRFC7947ClientPolicyControlsWire(t *testing.T) {
 		p.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "client-policy"}}, routepolicy.FinalAccept)
 		p.refreshForwardFacts()
 	}
+	// The policy filter call goes through the plugin server; its seam
+	// replaces only the IPC body.
 	f.r.api = &pluginserver.Server{}
-	f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
 	for round := range 2 {
 		calls := make(map[string]int)
 		acceptedAddr := f.destination.settings.Address.String()
@@ -133,14 +134,13 @@ func TestRFC7947ClientPolicyControlsWire(t *testing.T) {
 		if !ok {
 			t.Fatal("source UPDATE missing from cache")
 		}
-		// RFC 7947 Section 2.1: no policy-agnostic send before fallback.
+		// RFC 7947 Section 2.1: the fast path runs each client's own policy
+		// and sends its verdict; no client is left to a policy-agnostic send.
 		skipped, sent := reactorForwardRS(f.r, update, id, f.source.settings.Address, f.source)
-		if sent != 0 || len(skipped) != 2 {
-			t.Fatalf("policy fallback = %v, sent=%d", skipped, sent)
+		if sent != 2 || len(skipped) != 0 {
+			t.Fatalf("fast path skipped %v, sent=%d; want none skipped, both clients sent their verdict", skipped, sent)
 		}
-		if err := (&reactorAPIAdapter{r: f.r}).ForwardUpdate(selector.All(), id, "aigp-forwarder", plugin.ProcessSender("aigp-forwarder")); err != nil {
-			t.Fatal(err)
-		}
+		f.source.session.flushFwdDirty()
 		forwardSocketBarrier(t, f.r)
 		for i, conn := range []*recordingConn{f.conn, otherConn} {
 			p := f.destination

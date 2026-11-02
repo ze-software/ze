@@ -558,6 +558,12 @@ func rfc2545AssertWithdrawnAtReceipt(t *testing.T, recipient, published []*messa
 }
 
 // rfc2545DispatchReceived forwards one published UPDATE on the selected rail.
+// "rs-export" is the route-server fast path toward a destination with an
+// active export chain: the fast path runs that chain itself and decides the
+// destination, as "rs" does for one without, except when the verdict must be
+// withdrawn one NLRI-bearing field at a time. That destination alone is
+// handed back and continues on the cached rail, which partitions the judged
+// output.
 func rfc2545DispatchReceived(t *testing.T, f *aigpReplayFixture, rail string, id uint64) {
 	t.Helper()
 	if rail != "rs" && rail != "rs-export" {
@@ -569,13 +575,12 @@ func rfc2545DispatchReceived(t *testing.T, f *aigpReplayFixture, rail string, id
 		t.Fatal("Session-delivered update missing before RS dispatch")
 	}
 	skipped, sent := reactorForwardRS(f.r, received, id, f.source.Settings().Address, f.source)
-	if rail == "rs-export" {
-		if sent != 0 || len(skipped) != 1 || skipped[0] != f.destination.Settings().PeerKey() {
-			t.Fatalf("RS export fallback: forwarded=%d skipped=%v, want this destination skipped", sent, skipped)
-		}
+	handedBack := len(skipped) == 1 && skipped[0] == f.destination.Settings().PeerKey() && sent == 0
+	switch {
+	case rail == "rs-export" && handedBack:
 		f.forward(t, id)
-	} else if len(skipped) != 0 || sent != 1 {
-		t.Fatalf("RS forwarded=%d skipped=%v, want one direct-rail decision", sent, skipped)
+	case len(skipped) != 0 || sent != 1:
+		t.Fatalf("RS (%s) forwarded=%d skipped=%v, want one direct-rail decision", rail, sent, skipped)
 	}
 	f.source.session.flushFwdDirty()
 }
@@ -837,6 +842,9 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 									return true
 								}
 								f.r.orderedEgressSteps = append(f.r.orderedEgressSteps, orderedEgressStepsFromFuncs(rewrite)...)
+								// The route-server fast path runs the in-process
+								// egress filters from this list.
+								f.r.egressFilters = []filterapi.EgressFilterFunc{rewrite}
 							}
 							if rail == "rs" {
 								dispatchRail = "rs-export"

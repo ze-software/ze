@@ -39,10 +39,11 @@ type RawMessage struct {
 	ReactorForwarded bool
 
 	// FastPathSkipped lists destination peers the reactor fast path did not
-	// decide for: they carry an ACTIVE export filter it cannot apply, or an
-	// egress filter panicked for them. A chain of only deactivated refs applies
-	// no policy, so such a peer stays on the fast path and is not listed here. bgp-rs forwards to only these peers via
-	// ForwardCached when ReactorForwarded is true. A peer the fast path
+	// decide for: their export final rejects, their export chain could not
+	// run, their chain's refusal must be withdrawn one NLRI-bearing field at a
+	// time, or an egress filter panicked for them. An active export chain is
+	// otherwise run and decided by the fast path itself. bgp-rs forwards to
+	// only these peers via ForwardCached when ReactorForwarded is true. A peer the fast path
 	// SUPPRESSED by policy is not listed -- that decision is final.
 	FastPathSkipped []netip.AddrPort
 }

@@ -113,6 +113,36 @@ neither rail relays that source.
 <!-- source: internal/component/plugin/registry/registry.go -- RelaysOnRSFastPath -->
 <!-- test: internal/component/bgp/reactor/forward_rs_permission_test.go TestReactorForwardRSHonorsRelaySendPermission, TestReactorForwardRSRetryRechecksRelaySend, TestRSFastPathGateHonorsSourceRelayReceive -->
 
+A destination whose export chain is active stays on the fast path, which runs
+the chain itself, after the in-process egress filters, through
+`runEgressPolicyChain`, the implementation the general rail runs. Who placed a
+member does not matter: an operator-named member and one a plugin's declared
+insertion placed (`rpc.FilterInsertion`, such as the RFC 9234 OTC stamp
+`bgp-role` inserts on a role peer) run alike. The fast path shares nothing a
+member's verdict could carry from one destination to another: each destination
+owns its edit set, a member's rewrite becomes that destination's base for
+every later edit, and both the shared encode (`fwdDedupIdentity`) and the
+withdrawal conversion (`fwdWithdrawal`) key on the base. A reject or withdraw
+verdict sends the withdrawal. A received End-of-RIB reaches the chain like any
+UPDATE and passes through it byte-identical: it names no route, so a reject
+verdict sends the marker unchanged (RFC 4724 Section 2), where the plugin rail
+would have replaced it with the route server's own marker. A chain that could
+not run hands the destination back to the plugin rail, which judges it again
+and fails closed, and so does a rejecting export final. So does a verdict that
+must be withdrawn one NLRI-bearing field at a time (`withdrawalBySection`: a
+next hop a gate withheld in an UPDATE that mixes fields, or an MP_REACH_NLRI
+and an MP_UNREACH_NLRI of two families). The fast path's by-section redo
+splits the received UPDATE and judges each section again, so it would ask the
+chain about a section it never saw alone and apply a whole-UPDATE rewrite to
+one section of it. The general rail partitions the judged output and invokes
+no policy again (`forwardUpdateCore`). The plugin rail runs the chain a second
+time for that destination.
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- exportChainActive -->
+<!-- source: internal/component/bgp/reactor/forward_rs_chain.go -- rsBaseOverride, runsExportChain -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
+<!-- test: internal/component/bgp/reactor/forward_rs_export_chain_test.go TestRSFastPathRunsTheExportChain -->
+<!-- test: test/plugin/role-otc-rs-withdraw-eor.ci -->
+
 Live cache entries and reconstructed stored-route replays retain their dispatch
 peer and session generation. Source removal or re-establishment invalidates
 queued dispatch, and destination workers check that generation before writing.

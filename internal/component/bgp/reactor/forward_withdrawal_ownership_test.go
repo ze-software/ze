@@ -31,7 +31,7 @@ import (
 // the last writer owns its non-ADD-PATH destination slot. The marker fences the
 // negative assertion; the final current-owner withdrawal is a separate control.
 func TestRSWithdrawalOwnershipRails(t *testing.T) {
-	for _, rail := range []string{"cached", "direct", "pool-fallback", "export-fallback"} {
+	for _, rail := range []string{"cached", "direct", "pool-fallback", "export-chain"} {
 		t.Run(rail, func(t *testing.T) {
 			f := ownershipRailNew(t, nil)
 			// RFC 4271 Section 4.3.
@@ -441,23 +441,21 @@ func (f *ownershipRailFixture) send(t *testing.T, rail string, source *Peer, ctx
 		}
 		return
 	}
-	if rail == "export-fallback" {
-		// Keep the active export chain on the real cached fallback. The existing
-		// policy seam accepts its input; it does not stand in for the writer.
+	if rail == "export-chain" {
+		// An active export chain runs on the fast path itself, through the
+		// policy seam that accepts its input, and the fast path is the writer:
+		// the destination is not handed back to the cached rail.
 		f.r.api = &pluginserver.Server{}
 		f.r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 			return PolicyResponse{Action: PolicyAccept}
 		}
-		f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
 		f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:ownership-rail"}}, routepolicy.FinalAccept)
 		f.destination.refreshForwardFacts()
 		skipped, _ := reactorForwardRS(f.r, update, f.id, source.Settings().Address, source)
-		if !reflect.DeepEqual(skipped, []netip.AddrPort{f.destination.Settings().PeerKey()}) {
-			t.Fatalf("fast-rail skipped destinations = %v", skipped)
+		if len(skipped) != 0 {
+			t.Fatalf("fast rail with an accepting export chain: skipped %v; want the destination written here", skipped)
 		}
-		if err := api.ForwardUpdatesDirect([]uint64{f.id}, skipped, "route-server", plugin.OperatorSender()); err != nil {
-			t.Fatal(err)
-		}
+		f.flush(t)
 		return
 	}
 	if rail == "pool-fallback" {

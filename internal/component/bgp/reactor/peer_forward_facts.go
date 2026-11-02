@@ -88,6 +88,11 @@ type peerForwardFacts struct {
 	name               string
 	groupName          string
 	exportPolicy       filterapi.Policy
+	// exportChainActive records that the export chain must run
+	// (hasActiveFilter): the route-server fast path runs it per destination,
+	// through the one implementation the general rail runs
+	// (runEgressPolicyChain), whoever placed its members.
+	exportChainActive bool
 
 	clusterID      uint32
 	clusterIDBytes [4]byte
@@ -439,6 +444,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 		name:               s.Name,
 		groupName:          s.GroupName,
 		exportPolicy:       exportPolicy,
+		exportChainActive:  hasActiveFilter(exportPolicy, directionExport),
 
 		sendCtxID:   sendCtxID,
 		sendASN4:    sendASN4,

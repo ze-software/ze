@@ -116,6 +116,10 @@ func rsSelectionWriter(t testing.TB, peer *Peer, writer io.Writer) *Session {
 // TestReactorForwardRSRetrySelection keeps an excluded destination, removes one,
 // replaces another at the same key, tears down one, and activates policy on one
 // between passes. Only the selected, current, unfiltered peer receives bytes.
+// The fast path runs an active export chain itself, so the selected peer whose
+// chain names a plugin this reactor cannot reach is the only one handed back
+// to the plugin rail; the filtered peer outside the retry selection is neither
+// sent to nor handed back, like every other unselected peer.
 // An IBGP RR-client source is outside the selected slice: its classification
 // must still allow reflection to the non-client and supply ORIGINATOR_ID.
 func TestReactorForwardRSRetrySelection(t *testing.T) {
@@ -157,13 +161,9 @@ func TestReactorForwardRSRetrySelection(t *testing.T) {
 	if dispatched != 1 || len(retry) != 0 {
 		t.Fatalf("dispatched %d, retry %d; want 1, 0", dispatched, len(retry))
 	}
-	if len(skipped) != 2 {
-		t.Fatalf("skipped %v; want both active-filter destinations", skipped)
-	}
-	for _, key := range skipped {
-		if key != h.dests[4].Settings().PeerKey() && key != h.dests[6].Settings().PeerKey() {
-			t.Fatalf("unexpected skipped peer %v", key)
-		}
+	if len(skipped) != 1 || skipped[0] != h.dests[4].Settings().PeerKey() {
+		t.Fatalf("skipped %v; want only the selected destination whose export chain cannot run (%v)",
+			skipped, h.dests[4].Settings().PeerKey())
 	}
 	for i, session := range sessions {
 		if err := session.bufWriter.Flush(); err != nil {

@@ -1147,8 +1147,11 @@ Three forwarding paths exist. The **reactor RS fast path** (rs-gap-1) runs
 inline in `notifyMessageReceiver` on the session read goroutine, after cache
 Add but before `deliverChan` enqueue. It calls the egress pipeline directly
 (`reactorForwardRS` in `forward_rs.go`), bypassing plugin dispatch, bgp-rs
-workers, and ForwardCached entirely. Peers with an ACTIVE export filter fall
-back to the plugin path via `FastPathSkipped` on `RawMessage`. A chain of only
+workers, and ForwardCached entirely. It runs each destination's ACTIVE export
+chain itself, through the implementation the general rail runs; a destination
+whose chain could not run, whose chain's refusal must be withdrawn one
+NLRI-bearing field at a time, or whose export final rejects, falls back to the
+plugin path via `FastPathSkipped` on `RawMessage`. A chain of only
 deactivated refs needs no filter RPC, but its final still applies. A rejecting
 final cannot use the no-policy acceptance shortcut. Enabled per peer group
 via `PeerSettings.RSFastPath`.
