@@ -1,7 +1,7 @@
 {
   "code": {
     "internal/component/bgp/reactor/adj_rib_out.go::adjOutSourceKeyFor": "187f5d07dbd82b34",
-    "internal/component/bgp/reactor/adj_rib_out.go::clearRoutes": "de47495f8e8a97ee",
+    "internal/component/bgp/reactor/adj_rib_out.go::clearRoutes": "a7d426aaf84a0c34",
     "internal/component/bgp/reactor/adj_rib_out.go::releasePath": "1764c405b6ac7083",
     "internal/component/bgp/reactor/adj_rib_out.go::setOwner": "0bb2cf4418584a3a",
     "internal/component/bgp/reactor/forward_path_id.go::generate": "3c9fb5b7d1f26dcc",
@@ -18,13 +18,15 @@
     "internal/component/bgp/reactor/session_ownership.go::beginAdjOut": "2f196d8453e64539",
     "internal/component/bgp/reactor/session_ownership.go::bindSourcePath": "e9fb3f220c4c91c2",
     "internal/component/bgp/reactor/session_ownership.go::filter": "bd62e97c08afa619",
-    "internal/component/bgp/reactor/session_ownership.go::recordDeletion": "686b2d84959cce58",
-    "internal/component/bgp/reactor/session_ownership.go::recordSection": "5dd1fedc8bd68d33",
-    "internal/component/bgp/reactor/session_ownership.go::release": "3f6f9aa830bb2865",
+    "internal/component/bgp/reactor/session_ownership.go::recordDeletion": "56c645b7aa5cc8af",
+    "internal/component/bgp/reactor/session_ownership.go::recordSection": "7cf9e2e0ede7807f",
+    "internal/component/bgp/reactor/session_ownership.go::release": "9c1aca5c5037c673",
+    "internal/component/bgp/reactor/session_ownership_walk.go::allowNLRI": "0ecd4eae79be1689",
+    "internal/component/bgp/reactor/session_ownership_walk.go::recordNLRI": "1a567afd68772de3",
     "internal/component/bgp/reactor/session_write.go::retireWrite": "8d1fe8fe152756e1",
     "internal/component/bgp/reactor/session_write.go::writeUpdateBody": "4f5e4354843aee34"
   },
-  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7911): \"However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor.\" Producers moved in a0589dd1d1, ff2aac12b0 and 30ff1fce91 (RFC 8212 import invalidation with reversible released receipts). Re-read each: session_ownership.go bindSourcePath now also treats a key another source released (releasedByOther) as taken, so a released receipt keeps its identifier slot and no second path is bound under that (Prefix, Path Identifier) while it is released; recordSection hands a released receipt's slot and identifier reservation back to the entry through takeReleased, and keeps a denied receipt's record for a non-ADD-PATH key; adj_rib_out.go clearRoutes now releases the identifier reservation of every released ADD-PATH key; recordDeletion keeps a released record; allow fences announcements by source policy epoch and re-sends a released receipt only as its abort restore (sentOwnerCurrent); release zeroes the write's policy epoch; session_write.go writeUpdateBody refuses raw writes under a rejecting export final and records SourcePolicyEpoch, retireWrite adds stopAdmission. None mints a new identifier or lets two paths share one toward a neighbor; the new released-slot rule strengthens uniqueness and is pinned by TestRFC8212ReleasedSlotAddPath (another source's announcement of the same prefix gets an identifier other than the released slot's), which is untagged for this row. The identifier producers in forward_path_id.go and both tagged units are byte-identical. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 7911 Section 3: \"However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor.\" Producers moved in 5f0aa168c2 (one recovery-owner answer per source per write: release now clears the cached answers) and 217c3e6fd5 (entries from a per-table slot store: clearRoutes clears the store, recordDeletion frees the slot after its last read, and the per-NLRI closures of recordSection and filterSection became the pooled walk's methods recordNLRI and allowNLRI in session_ownership_walk.go, now cited in the code map). Re-read: recordNLRI keeps the identifier logic byte-for-byte (takeReleased hands a released receipt's identifier reservation to the new entry, otherwise fwdPathIDs.retain(key.path.received) for an ADD-PATH key), a reused slot is zeroed so it carries no other key's owner, and recordDeletion still calls keepReleased or releasePath before the slot is freed. None mints an identifier, passes a received one through, or lets two paths share one toward a neighbor. Both tagged units are byte-identical and still require a stable identifier across updates and different identifiers for colliding sources. Verdict unchanged: enforced.",
   "requirement_sha": "5df8a5af519ff87a",
   "tests": {
     "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "8e4558cf2659911f",

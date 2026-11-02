@@ -1,5 +1,5 @@
 {
-  "note": "Re-judged 2026-11-02 (independent auditor, after efa0d0957e). RFC 9494 Section 4.3: \"The route SHOULD NOT be advertised to any neighbor from which the Long-Lived Graceful Restart Capability has not been received. The exception is described in Section 4.6.\" Section 4.6 allows stale routes to internal neighbors only with NO_EXPORT attached and LOCAL_PREF set to zero. efa0d0957e changed only the header comment of test/plugin/llgr-egress-state-unloaded.ci (bgp-gr may now run forked; the state lives beside the evaluator); every action, expectation and the config are byte-identical, so obsn (iBGP RR client, no LLGR Capability in its OPEN) must still first receive 10.0.0.0/24 and then an UPDATE carrying NO_EXPORT (FFFFFF01), which the source never sends. The producer moved rails, not decisions: gr_filter.go grInsertions places bgp-gr:llgr-egress on every peer's export list (FilterScopeAnyPeer, Required, Readvertise true) while any peer sets long-lived-stale-time, and evaluateLLGREgress calls LLGREgressFilter (gr_egress.go), whose hasLLGR-false, PeerAS==LocalAS branch adds NO_EXPORT and sets LOCAL_PREF 0; llgrEgressVerdict maps those mods to community add 65535:65281 and local-preference set 0, and an eBGP non-LLGR destination to FilterWithdraw. So the NO_EXPORT the .ci awaits can only come from this member answering the Section 4.6 exception, and an accept-unchanged break would never deliver it. The aliased-plugin Stage 1 red (9501e4a6f5) that hit this config shape is fixed by e05a3969a7. The Go units under the row (egress rails, nil-state eBGP withdraw, LLGR-peer pass-through, RIB replay level, cached and route-server forward withholding, relay rebuilt mark) are unchanged and still pair both polarities: withdraw toward eBGP non-LLGR, depreference toward iBGP non-LLGR, unchanged toward an LLGR peer, level 1 passes through. Comment nit, not a finding: the header cites llgr-readvertise-forked.ci for the forked state; llgr-readvertise-multipeer-forked.ci is the forked twin that carries the non-LLGR destination. No discrimination record exists for the .ci and this auditor did not run it; its green rests on efa0d0957e's worktree evidence. Verdict stands.",
+  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 9494 Section 4.3: \"The route SHOULD NOT be advertised to any neighbor from which the Long-Lived Graceful Restart Capability has not been received. The exception is described in Section 4.6.\" d4471ca683 changed only the header comment of test/plugin/llgr-egress-state-unloaded.ci, naming llgr-readvertise-multipeer-forked.ci as the forked non-LLGR twin (the nit the previous verdict recorded). Config, actions and expectations byte-identical: the iBGP non-LLGR destination must receive the route and then an UPDATE carrying NO_EXPORT (FFFFFF01), the Section 4.6 depreference only the llgr-egress member produces. Go units unchanged. Verdict unchanged: enforced.",
   "requirement_sha": "76231582d0f155d2",
   "tests": {
     "internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go::TestLLGREgressFilter_GRStaleLevelOnePassesThrough": "d16b69ebaeeb0457",
@@ -18,7 +18,7 @@
     "internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go::TestRFC9494RouteServerForwardWithholdsReceivedStale#2": "487d86551f07c03c",
     "internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go::TestBuildRelayUpdateMarksRebuilt": "59aea5219e1f9803",
     "internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go::TestBuildRelayUpdateMarksRebuilt#2": "59aea5219e1f9803",
-    "test/plugin/llgr-egress-state-unloaded.ci": "21cf6bea9f8769ee"
+    "test/plugin/llgr-egress-state-unloaded.ci": "b83df3282238d154"
   },
   "units": {
     "internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go::TestLLGREgressFilter_GRStaleLevelOnePassesThrough": "cd4501060d1c3778",
@@ -37,7 +37,7 @@
     "internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go::TestRFC9494RouteServerForwardWithholdsReceivedStale#2": "9eb645dbf47cbaae",
     "internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go::TestBuildRelayUpdateMarksRebuilt": "2a48a31ae4e739bb",
     "internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go::TestBuildRelayUpdateMarksRebuilt#2": "2a48a31ae4e739bb",
-    "test/plugin/llgr-egress-state-unloaded.ci": "21cf6bea9f8769ee"
+    "test/plugin/llgr-egress-state-unloaded.ci": "b83df3282238d154"
   },
   "verdict": "enforced"
 }

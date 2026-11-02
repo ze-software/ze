@@ -1,5 +1,5 @@
 {
-  "note": "Independent re-judge after 4ceb0f7416 (not the author of either changed unit). Section 4 read in rfc/full/rfc6996.txt: \"Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH if utilizing a four-octet AS number space) before being advertised to the global Internet.\" Changed units: (1) TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path (reactor) receives from an OLD speaker AS_PATH [65100 64496 64512 23456 23456 64497] + AS4_PATH [65100 64496 64512 4200000000 65536 64497], forwards through ForwardUpdate with an export member answering as-path remove \"private\" toward a two-octet EBGP peer, and asserts the exact AS_PATH value 0204 fde8 fbf0 5ba0 fbf1 and the exact AS4_PATH value [65000 64496 65536 64497]. Q1/Q4: this is the end-to-end proof the previous verdict said was owed: for a two-octet destination both emitted path attributes are free of 65100, 64512 and 4200000000, so an AS4_PATH transcoded from the received rather than the stripped path, or a strip applied to one attribute only, turns it red; the kept 65536 (RFC 5398, outside both ranges) also pins the outside-range side. Q3: input isolates the strip (no confed, no AS_SET). Strip-before-prepend is pinned by the expected local 65000; the fixture's local AS is itself private, which a speaker cannot remove (RFC 4271 prepend), so it does not contradict the requirement. Break filter_delta.go:747 removePrivateASOps dropping the AS_PATH set op is the real producer of the strip on this path and was observed red. (2) TestRFC6996StripsPrivateUseASN claim narrowed to detection: body asserts asPathFieldHasPrivateASN reports 64512 in [64496 64512 64497]; claim now equals assertion; break private_as.go:46 >= to > is the true lower-edge off-by-one, observed red. Unchanged units keep the earlier reading: the reactor export unit asserts exact stripped bytes at all four range edges, AS4_PATH units assert the exact set op and zero ops for outside neighbours, plugin units assert per-edge intent and accept for neighbours. Both polarities genuine.",
+  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 6996 Section 4: \"Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH if utilizing a four-octet AS number space) before being advertised to the global Internet.\" TestRFC6996ExportRemovesPrivateUseASNsFromASPath changed in 76c2b9156a (runEgressPolicyChainASN4 now takes the session facts, passed as policyview.Session{EBGP: true}, matching the EBGP destination the unit already names) and 5c1aea079c (comment spelling). The same four-octet AS_PATH [64511 64512 65534 65535 4199999999 4200000000 4294967294 4294967295] must still come out exactly [64511 65535 4199999999 4294967295] with accept and a wire override, so both edges of both ranges and their neighbours stay pinned. Other carriers byte-identical. Verdict unchanged: enforced.",
   "requirement_sha": "09430783143eaffb",
   "tests": {
     "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996KeepsASNsOutsideThePrivateUseRanges": "80c2cae1d4a34766",
@@ -7,9 +7,9 @@
     "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996KeepsPublicASN": "2068da0f3a6a9e3f",
     "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996StripsPrivateUseASN": "2068da0f3a6a9e3f",
     "internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go::TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path": "932ca6f20b67b6aa",
-    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996ExportRemovesPrivateUseASNsFromASPath": "db3cf16567c875e7",
-    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges": "db3cf16567c875e7",
-    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripRemovesPrivateUseASNsFromAS4Path": "db3cf16567c875e7"
+    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996ExportRemovesPrivateUseASNsFromASPath": "53bd056c32ad7aff",
+    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges": "53bd056c32ad7aff",
+    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripRemovesPrivateUseASNsFromAS4Path": "53bd056c32ad7aff"
   },
   "units": {
     "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996KeepsASNsOutsideThePrivateUseRanges": "9c9df0cf4a8fa55d",
@@ -17,7 +17,7 @@
     "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996KeepsPublicASN": "5863ae54536991b9",
     "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go::TestRFC6996StripsPrivateUseASN": "73198a55a57ea76d",
     "internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go::TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path": "42d13e52ef5237fc",
-    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996ExportRemovesPrivateUseASNsFromASPath": "e81ff2082d29b77a",
+    "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996ExportRemovesPrivateUseASNsFromASPath": "c500aea702fcd630",
     "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges": "2942ec14910653c4",
     "internal/component/bgp/reactor/rfc6996_remove_private_test.go::TestRFC6996StripRemovesPrivateUseASNsFromAS4Path": "9562158165b22011"
   },
