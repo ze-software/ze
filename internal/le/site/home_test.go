@@ -441,7 +441,7 @@ func TestTheLatestNewsBandTakesTheNewestArticleAndWeek(t *testing.T) {
 		`<span class="whats-new-label">Engineering note</span>`,
 		`<h3><a href="blog/reference-from-the-system/">A &lt;renderer&gt; &amp; its sources</a></h3>`,
 		`<span class="whats-new-label">Recently shipped</span>`,
-		`<h3><a href="project/changes/2026-08-17/">Week of 2026-08-17</a></h3>`,
+		`<h3><a href="project/changes/2026-08-17/">2026-08-17 – 2026-08-23 (1 week)</a></h3>`,
 		"<p>" + clipped + "</p>",
 		`<p>An index description, not the deck.</p>`,
 		`<span class="whats-new-label">RFC compliance progress</span>`,
@@ -531,7 +531,8 @@ func TestTheTeasersAreTheThreeNewestWeeks(t *testing.T) {
 		if !strings.Contains(card, `<span class="home-update-number">0`+strconv.Itoa(index+1)+`</span>`) {
 			t.Errorf("teaser %d is not numbered %02d", index+1, index+1)
 		}
-		if !strings.Contains(card, "Week of "+week) {
+		end := []string{"2026-08-23", "2026-08-16", "2026-08-09"}[index]
+		if !strings.Contains(card, week+" – "+end+" (1 week)") {
 			t.Errorf("teaser %d does not name the week %s", index+1, week)
 		}
 		for _, subject := range []string{`cat-routing">BGP`, `cat-operate">CLI`} {
@@ -703,7 +704,7 @@ func TestTheHomepageCarriesTheShellAndItsMirror(t *testing.T) {
 		t.Error("the homepage opened <main> with a class; it carries no sidebar and asks for no width")
 	}
 	for _, want := range []string{
-		"A <renderer> & its sources", "Week of 2026-08-17",
+		"A <renderer> & its sources", "2026-08-17 – 2026-08-23 (1 week)",
 	} {
 		if !strings.Contains(mirror, want) {
 			t.Errorf("the homepage mirror does not carry %q", want)

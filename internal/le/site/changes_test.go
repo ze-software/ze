@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // changesPaths gives the producer two published weeks and a newer draft. Their
@@ -152,7 +153,7 @@ func TestADraftWeekIsPublishedAndKeptOutOfTheFeed(t *testing.T) {
 	if !strings.Contains(changesIndexRow(draft), `<span class="ch-draft">pending review</span>`) {
 		t.Errorf("the index row carries no draft marker:\n%s", changesIndexRow(draft))
 	}
-	if !strings.Contains(changeWeekMirror(draft), "# Week of 2026-08-17 (Draft -- pending review)") {
+	if !strings.Contains(changeWeekMirror(draft), "# 2026-08-17 – 2026-08-23 (1 week) (Draft -- pending review)") {
 		t.Errorf("the mirror carries no draft marker:\n%s", changeWeekMirror(draft))
 	}
 }
@@ -160,7 +161,12 @@ func TestADraftWeekIsPublishedAndKeptOutOfTheFeed(t *testing.T) {
 // weekSource writes one minimal weekly post covering the week that starts on
 // the given day and carrying the tags given.
 func weekSource(start, tags string) string {
-	return "---\ncovers: " + start + " .. \ntags: " + tags + "\n---\n\n" +
+	day, err := time.Parse(time.DateOnly, start)
+	if err != nil {
+		panic("BUG: invalid fixture start date: " + start)
+	}
+	end := day.AddDate(0, 0, 6).Format(time.DateOnly)
+	return "---\ncovers: " + start + " .. " + end + "\ntags: " + tags + "\n---\n\n" +
 		"**Ze Weekly Update**\n\nThe intro.\n\n**BGP**\nSomething shipped.\n"
 }
 
@@ -179,9 +185,9 @@ func TestAWeekRendersItsAuthoredInputs(t *testing.T) {
 
 	page := readArtifact(t, paths.Output, "project/changes/2026-08-17/"+pageIndexFile)
 	for _, chrome := range []string{
-		"<title>Week of 2026-08-17 - Ze</title>",
+		"<title>2026-08-17 – 2026-08-23 (1 week) - Ze</title>",
 		`<link rel="canonical" href="https://ze-software.net/project/changes/2026-08-17/" />`,
-		`<link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />`,
+		`<link rel="alternate" type="application/rss+xml" title="Ze development updates" href="../feed.xml" />`,
 		`<link rel="stylesheet" href="../../../assets/site.css" />`,
 		`<main id="top" class="has-page-sidebar" tabindex="-1">`,
 		`<aside class="page-sidebar" aria-label="Related page links">`,
@@ -204,7 +210,7 @@ func TestAWeekRendersItsAuthoredInputs(t *testing.T) {
 		}
 	}
 	mirror := readArtifact(t, paths.Output, "project/changes/2026-08-17/"+pageMirrorFile)
-	want := "# Week of 2026-08-17\n\nA controlled week & its changes.\n\n" +
+	want := "# 2026-08-17 – 2026-08-23 (1 week)\n\nA controlled week & its changes.\n\n" +
 		"## Routing\n\nNew behavior:\n\n- One route.\n- Another route.\n\n" +
 		"## CLI\n\nUse **show** to inspect it.\n"
 	if mirror != want {
@@ -244,7 +250,7 @@ func TestTheChangesIndexRendersItsAuthoredInputs(t *testing.T) {
 	for _, chrome := range []string{
 		"<title>Changes - Ze</title>",
 		`<link rel="canonical" href="https://ze-software.net/project/changes/" />`,
-		`<link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="feed.xml" />`,
+		`<link rel="alternate" type="application/rss+xml" title="Ze development updates" href="feed.xml" />`,
 		".ch-chip.cat-meta {",
 		`<section aria-labelledby="changes-title">`,
 		`<main id="top" class="has-page-sidebar" tabindex="-1">`,
@@ -266,10 +272,10 @@ func TestTheChangesIndexRendersItsAuthoredInputs(t *testing.T) {
 			`href="2026-08-10/"`, "Presentation: Fixture",
 		}},
 		{"mirror", mirror, []string{
-			"## [Week of 2026-08-24 (pending review)](2026-08-24/index.md)",
-			"## [Week of 2026-08-17](2026-08-17/index.md)",
+			"## [2026-08-24 – 2026-08-30 (1 week) (pending review)](2026-08-24/index.md)",
+			"## [2026-08-17 – 2026-08-23 (1 week)](2026-08-17/index.md)",
 			"A controlled week & its changes.", "Areas: BGP, CLI",
-			"## [Week of 2026-08-10](2026-08-10/index.md)",
+			"## [2026-08-10 – 2026-08-16 (1 week)](2026-08-10/index.md)",
 			"Areas: Presentation: Fixture",
 		}},
 	} {
@@ -387,13 +393,13 @@ func TestTheChangesFeedIsPublishedAtBothAddresses(t *testing.T) {
 	}
 	for _, want := range []string{
 		`<rss version="2.0">`,
-		"<title>Ze weekly updates</title>",
+		"<title>Ze development updates</title>",
 		"<link>https://ze-software.net/project/changes/</link>",
 		"<lastBuildDate>Mon, 17 Aug 2026 00:00:00 +0000</lastBuildDate>",
-		"<title>Week of 2026-08-17</title>",
+		"<title>2026-08-17 – 2026-08-23 (1 week)</title>",
 		`<guid isPermaLink="true">https://ze-software.net/project/changes/2026-08-17/</guid>`,
 		"<pubDate>Mon, 17 Aug 2026 00:00:00 +0000</pubDate>",
-		"<title>Week of 2026-08-10</title>",
+		"<title>2026-08-10 – 2026-08-16 (1 week)</title>",
 		"<pubDate>Mon, 10 Aug 2026 00:00:00 +0000</pubDate>",
 	} {
 		if !strings.Contains(feed, want) {
