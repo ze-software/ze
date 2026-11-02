@@ -115,7 +115,7 @@ func decodePcapStream(source io.Reader, name string, request *decodeRequest) com
 			Flow: m.flow.String(),
 			Hex:  hexOf(m.bytes),
 		}
-		event, err := decodeHexPacket(entry.Hex, request.msgType, request.family, true)
+		event, err := decodeHexPacket(request.plugins, entry.Hex, request.msgType, request.family, true)
 		if err != nil {
 			diag.Str("error: decode the message at ").Str(entry.Time).Str(" from ").Str(entry.Flow).
 				Str(": ").Err(err).Byte('\n')
@@ -263,7 +263,7 @@ func decodeHexStdin(request *decodeRequest) command.LocalAnswer {
 		if strings.HasPrefix(payload, "#") {
 			continue
 		}
-		event, err := decodeHexPacket(payload, request.msgType, request.family, true)
+		event, err := decodeHexPacket(request.plugins, payload, request.msgType, request.family, true)
 		if err != nil {
 			diag.Str("error: line ").Int(int64(i + 1)).Str(": ").Err(err).Byte('\n')
 			messages = append(messages, decodedMessage{Hex: payload, Error: err.Error()})

@@ -41,7 +41,9 @@ const capNameUnknown = "unknown"
 
 // decodeHexPacket decodes a hex BGP packet and returns formatted output.
 // If outputJSON is true, returns JSON; otherwise returns human-readable format.
-func decodeHexPacket(hexStr, msgType, family string, outputJSON bool) (string, error) {
+// plugins are the plugins the operator named, asked before the registered
+// decoders for every capability and NLRI.
+func decodeHexPacket(plugins decodePlugins, hexStr, msgType, family string, outputJSON bool) (string, error) {
 	// Normalize hex input - remove colons, spaces, uppercase
 	hexStr = strings.ReplaceAll(hexStr, ":", "")
 	hexStr = strings.ReplaceAll(hexStr, " ", "")
@@ -66,16 +68,16 @@ func decodeHexPacket(hexStr, msgType, family string, outputJSON bool) (string, e
 
 	// For NLRI-only mode, don't wrap in envelope
 	if msgType == msgTypeNLRI {
-		return decodeNLRIOnly(data, family, outputJSON)
+		return decodeNLRIOnly(plugins, data, family, outputJSON)
 	}
 
 	// Build output based on message type
 	var result map[string]any
 	switch msgType {
 	case msgTypeOpen:
-		result, err = decodeOpenMessage(data, hasHeader)
+		result, err = decodeOpenMessage(plugins, data, hasHeader)
 	case msgTypeUpdate:
-		result, err = decodeUpdateMessage(data, family, hasHeader)
+		result, err = decodeUpdateMessage(plugins, data, family, hasHeader)
 	case msgTypeNotification:
 		result, err = decodeNotificationMessage(data, hasHeader)
 	case msgTypeKeepalive:

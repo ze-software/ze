@@ -1,0 +1,9 @@
+# Test: ze bgp decode refuses a --plugin no registered plugin decodes under
+# VALIDATES: the named plugin is read, not parsed and dropped: an unknown name
+# is refused with the names that decode, rather than silently ignored.
+# Exercises: cmdDecode -> parseDecode -> parseDecodePlugins
+
+cmd=foreground:seq=1:exec=ze bgp decode --plugin no-such-plugin --keepalive FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+expect=exit:code=1
+expect=stderr:contains=no plugin named "no-such-plugin" decodes
+expect=stderr:contains=bgp-hostname

@@ -21,7 +21,7 @@ import (
 )
 
 // decodeUpdateMessage decodes a BGP UPDATE message and returns Ze format.
-func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any, error) {
+func decodeUpdateMessage(plugins decodePlugins, data []byte, _ string, hasHeader bool) (map[string]any, error) {
 	body := data
 	if hasHeader {
 		if len(data) < message.HeaderLen {
@@ -55,7 +55,7 @@ func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any,
 	// Ze format: family is direct key under update (no "nlri" wrapper)
 	// Handle MP_REACH_NLRI (announcements)
 	if mpReach != nil {
-		fam, ops := buildMPReachZe(mpReach)
+		fam, ops := buildMPReachZe(plugins, mpReach)
 		if fam != "" && len(ops) > 0 {
 			updateContent[fam] = ops
 		}
@@ -63,7 +63,7 @@ func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any,
 
 	// Handle MP_UNREACH_NLRI (withdrawals)
 	if mpUnreach != nil {
-		fam, ops := buildMPUnreachZe(mpUnreach)
+		fam, ops := buildMPUnreachZe(plugins, mpUnreach)
 		if fam != "" && len(ops) > 0 {
 			if existing, ok := updateContent[fam].([]map[string]any); ok {
 				updateContent[fam] = append(existing, ops...)

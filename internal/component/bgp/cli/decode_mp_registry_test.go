@@ -75,7 +75,7 @@ func TestParseNLRIByFamilyReachesAPluginItDoesNotName(t *testing.T) {
 		t.Fatalf("family registry does not hold %s", claimable)
 	}
 
-	routes := parseNLRIByFamily(genericPrefixNLRI, fam.AFI, fam.SAFI, true)
+	routes := parseNLRIByFamily(nil, genericPrefixNLRI, fam.AFI, fam.SAFI, true)
 	if len(routes) != 1 {
 		t.Fatalf("want one decoded NLRI, got %d answers: %v", len(routes), routes)
 	}
@@ -111,7 +111,7 @@ func TestParseNLRIByFamilyCoversEveryRegisteredFamily(t *testing.T) {
 			t.Errorf("family %q is claimed by plugin %q and the family registry does not hold it", name, plugin)
 			continue
 		}
-		routes := parseNLRIByFamily(genericPrefixNLRI, fam.AFI, fam.SAFI, true)
+		routes := parseNLRIByFamily(nil, genericPrefixNLRI, fam.AFI, fam.SAFI, true)
 		if len(routes) == 0 {
 			t.Errorf("family %q: no answer at all", name)
 			continue
@@ -147,7 +147,7 @@ func TestParseNLRIByFamilyReadsUnclaimedFamilyAsPrefixes(t *testing.T) {
 		t.Fatalf("family registry does not hold %s", name)
 	}
 
-	routes := parseNLRIByFamily(genericPrefixNLRI, fam.AFI, fam.SAFI, true)
+	routes := parseNLRIByFamily(nil, genericPrefixNLRI, fam.AFI, fam.SAFI, true)
 	if len(routes) != 1 {
 		t.Fatalf("want one prefix, got %d answers: %v", len(routes), routes)
 	}

@@ -102,9 +102,9 @@ func TestShowBGPDecodeAnswersDataAndWritesNothing(t *testing.T) {
 // local routes and compares the bytes with what the decoder printed before the
 // conversion: its human text, or its compact JSON, and a newline.
 func TestShowBGPDecodeLocalOutputIsUnchanged(t *testing.T) {
-	human, err := decodeHexPacket(keepaliveHex, "", "", false)
+	human, err := decodeHexPacket(nil, keepaliveHex, "", "", false)
 	require.NoError(t, err)
-	compact, err := decodeHexPacket(keepaliveHex, "", "", true)
+	compact, err := decodeHexPacket(nil, keepaliveHex, "", "", true)
 	require.NoError(t, err)
 
 	stdout, stderr, code := run(t, func() int {

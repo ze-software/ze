@@ -34,6 +34,7 @@ const (
 	leafDecodeNLRI    = "nlri"
 	leafDecodeFamily  = "family"
 	leafDecodePcap    = "pcap"
+	leafDecodePlugin  = "plugin"
 	leafDecodeMessage = "message"
 )
 
@@ -75,6 +76,21 @@ func (r inputRoute) readsStdin() bool {
 	panic("BUG: bgp tools handler called with no input route")
 }
 
+// runsPrograms answers whether the route may start a program the operator
+// names by its path, as `--plugin /path/to/program` does. Only the operator's
+// own process may: on a remote route the path would name a program on the
+// daemon's host, started on a caller's word.
+func (r inputRoute) runsPrograms() bool {
+	switch r {
+	case inputRouteLocal:
+		return true
+	case inputRouteRemote:
+		return false
+	case inputRouteUnspecified:
+	}
+	panic("BUG: bgp tools handler called with no input route")
+}
+
 // stdinRefusal is the answer of a form that reads standard input on a route
 // that has none. It names the local command, which is the fix.
 func stdinRefusal(invocation string) command.LocalAnswer {
@@ -98,11 +114,14 @@ type decodeAnswer struct {
 
 // decodeResult is every message one decode read, the form it was read from,
 // and the reading it was decoded under. MessageType is empty when each
-// message's own header named its type.
+// message's own header named its type. Plugins is the plugins the operator
+// named, as typed, which decoded capabilities and NLRI before the registered
+// decoders.
 type decodeResult struct {
 	Input       string           `json:"input"`
 	MessageType string           `json:"message-type,omitempty"`
 	Family      string           `json:"family,omitempty"`
+	Plugins     []string         `json:"plugin,omitempty"`
 	Messages    []decodedMessage `json:"messages"`
 }
 
@@ -121,6 +140,7 @@ type decodedMessage struct {
 type decodeRequest struct {
 	msgType string
 	family  string
+	plugins decodePlugins
 	asJSON  bool
 	// inputs is the positional words: one hex payload (possibly split on
 	// spaces), the stdin token, or the pcap keyword and its path.
@@ -132,7 +152,10 @@ type decodeRequest struct {
 func (r *decodeRequest) answer(input string, messages []decodedMessage, code int, diagnostic string) command.LocalAnswer {
 	return command.LocalAnswer{
 		Payload: decodeAnswer{
-			Decode: decodeResult{Input: input, MessageType: r.msgType, Family: r.family, Messages: messages},
+			Decode: decodeResult{
+				Input: input, MessageType: r.msgType, Family: r.family,
+				Plugins: r.plugins.spellings(), Messages: messages,
+			},
 			asJSON: r.asJSON,
 		},
 		Code:       code,
@@ -161,7 +184,7 @@ func restWords(validated command.ValidatedArgs, leaf string) []string {
 // by keyword; words carries the rest of the line, offline flags included. The
 // root `ze bgp decode` route passes the zero ValidatedArgs, which binds none.
 func answerDecode(validated command.ValidatedArgs, words []string, route inputRoute) command.LocalAnswer {
-	request, refusal := parseDecode(validated, words)
+	request, refusal := parseDecode(validated, words, route)
 	if refusal != nil {
 		return *refusal
 	}
@@ -195,7 +218,7 @@ func answerDecode(validated command.ValidatedArgs, words []string, route inputRo
 // the output, with a nonzero exit.
 func decodeHexInput(payload string, request *decodeRequest) command.LocalAnswer {
 	message := decodedMessage{Hex: payload}
-	decoded, err := decodeHexPacket(payload, request.msgType, request.family, true)
+	decoded, err := decodeHexPacket(request.plugins, payload, request.msgType, request.family, true)
 	if err != nil {
 		message.Error = err.Error()
 		return request.answer(inputFormMessage, []decodedMessage{message}, 1, "")
@@ -205,9 +228,10 @@ func decodeHexInput(payload string, request *decodeRequest) command.LocalAnswer 
 }
 
 // parseDecode reads the decode the words and the bound leaves ask for. A word
-// the flag parser refuses, a help request and a missing payload come back as
-// the refusal, with the text the parser wrote; nothing reaches stderr.
-func parseDecode(validated command.ValidatedArgs, words []string) (decodeRequest, *command.LocalAnswer) {
+// the flag parser refuses, a help request, a plugin that cannot decode on this
+// route and a missing payload come back as the refusal, with the text the
+// parser wrote; nothing reaches stderr.
+func parseDecode(validated command.ValidatedArgs, words []string, route inputRoute) (decodeRequest, *command.LocalAnswer) {
 	var diag textbuf.Buffer
 	fs := flag.NewFlagSet("decode", flag.ContinueOnError)
 	fs.SetOutput(&diag)
@@ -221,7 +245,7 @@ func parseDecode(validated command.ValidatedArgs, words []string) (decodeRequest
 	fs.StringVar(fam, "family", "", "address family for UPDATE (long form of -f)")
 	outputJSON := fs.Bool("json", false, "output JSON instead of human-readable format")
 	var plugins pluginFlags
-	fs.Var(&plugins, "plugin", "plugin for capability/NLRI decoding (e.g., ze.hostname, flowspec)")
+	fs.Var(&plugins, "plugin", "plugin that decodes capabilities and NLRI first (e.g., ze.bgp-hostname, bgp-nlri-flowspec)")
 	fs.Usage = func() { writeDecodeUsage(&diag) }
 
 	if err := fs.Parse(words); err != nil {
@@ -250,7 +274,15 @@ func parseDecode(validated command.ValidatedArgs, words []string) (decodeRequest
 		return decodeRequest{}, &refusal
 	}
 
-	request := decodeRequest{asJSON: *outputJSON, inputs: inputs}
+	named, err := parseDecodePlugins(plugins, route.runsPrograms())
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n')
+		refusal := command.LocalRefusal(1, tb.String())
+		return decodeRequest{}, &refusal
+	}
+
+	request := decodeRequest{asJSON: *outputJSON, plugins: named, inputs: inputs}
 	switch {
 	case *openMsg:
 		request.msgType = msgTypeOpen
@@ -302,6 +334,13 @@ func applyDecodeLeaves(fs *flag.FlagSet, validated command.ValidatedArgs) *comma
 			return setRefusal(leafDecodeFamily, err)
 		}
 	}
+	// A list: the keyword's plugin joins the ones the options name, so
+	// naming plugins both ways is not a choice made twice.
+	if value, found := validated.Keyed(leafDecodePlugin); found {
+		if err := fs.Set("plugin", value); err != nil {
+			return setRefusal(leafDecodePlugin, err)
+		}
+	}
 	return nil
 }
 
@@ -351,15 +390,15 @@ func writeDecodeUsage(diag *textbuf.Buffer) {
 				{Name: "--nlri <family>", Desc: "Decode as NLRI with family (e.g., 'ipv4/flow')"},
 				{Name: "-f <family>", Desc: "Address family for UPDATE (e.g., 'ipv4/unicast', 'l2vpn/evpn')"},
 				{Name: "--json", Desc: "Output JSON instead of human-readable format"},
-				{Name: "--plugin <name>", Desc: "Plugin for capability/NLRI decoding (e.g., ze.hostname, flowspec)"},
+				{Name: "--plugin <name>", Desc: "Plugin that decodes capabilities and NLRI before the registered ones: <name>, ze.<name>, ze-<name> or a program path (repeatable)"},
 			}},
 		},
 		Examples: []string{
 			"ze bgp decode --open FFFF...                          Decode OPEN message",
 			"ze bgp decode --update FFFF...                        Decode UPDATE message",
-			"ze bgp decode --plugin ze.hostname --open FFFF...     Decode with hostname plugin",
+			"ze bgp decode --plugin ze.bgp-hostname --open FFFF... Decode with the hostname plugin",
 			"ze bgp decode --nlri l2vpn/evpn 02...                 Decode NLRI with family",
-			"ze bgp decode --plugin flowspec --nlri ipv4/flow 07...  Decode NLRI via plugin",
+			"ze bgp decode --plugin bgp-nlri-flowspec --nlri ipv4/flow 07...  Decode NLRI via plugin",
 			"ze bgp decode pcap session.pcap                       Decode a tcpdump or ze capture",
 			"tcpdump -w - port 179 | ze bgp decode pcap -           Decode a capture from a pipe",
 		},
@@ -372,7 +411,16 @@ func writeDecodeUsage(diag *textbuf.Buffer) {
 // always read it, a capture's messages headed by where they were captured.
 // The human reading is decoded again from the hexadecimal the answer carries,
 // so the drawing is the decoder's own text and cannot drift from it.
+//
+// The answer names its plugins as typed, and the drawing asks them again. A
+// program path among them was judged by the handler that built the answer,
+// which refuses one on a route that may not start programs, so the drawing
+// reads them as the local route does.
 func drawDecode(result *decodeResult) (string, error) {
+	plugins, err := parseDecodePlugins(result.Plugins, true)
+	if err != nil {
+		return "", err
+	}
 	var out textbuf.Buffer
 	for i := range result.Messages {
 		message := &result.Messages[i]
@@ -386,7 +434,7 @@ func drawDecode(result *decodeResult) (string, error) {
 			}
 			continue
 		}
-		text, err := decodeHexPacket(message.Hex, result.MessageType, result.Family, false)
+		text, err := decodeHexPacket(plugins, message.Hex, result.MessageType, result.Family, false)
 		if err != nil {
 			return "", err
 		}

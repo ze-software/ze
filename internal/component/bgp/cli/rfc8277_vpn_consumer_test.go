@@ -39,7 +39,7 @@ func TestVPNWithdrawalCLIDecoderIgnoresCompatibility(t *testing.T) {
 				mp := append([]byte{0, familyCase.afi, 128}, section...)
 				attrs := append([]byte{0x80, 15, byte(len(mp))}, mp...)
 				body := append([]byte{0, 0, 0, byte(len(attrs))}, attrs...)
-				encoded, err := decodeHexPacket(hex.EncodeToString(body), msgTypeUpdate, "", true)
+				encoded, err := decodeHexPacket(nil, hex.EncodeToString(body), msgTypeUpdate, "", true)
 				require.NoError(t, err)
 				var event struct {
 					BGP struct {

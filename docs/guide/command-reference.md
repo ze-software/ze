@@ -370,6 +370,7 @@ answered also has a keyword, which is the form a remote surface takes:
 | decode | `--nlri <family>` | `nlri <family>` |
 | decode | `-f`, `--family <family>` | `family <family>` |
 | decode | `pcap <file>` | `pcap <file>` |
+| decode | `--plugin <name>` (repeatable) | `plugin <name>` |
 | encode | `-f <family>` | `family <family>` |
 | encode | `-a <asn>`, `-z <asn>` | `local-as <asn>`, `peer-as <asn>` |
 | encode | `-i` | `path-id include` |
@@ -379,7 +380,19 @@ answered also has a keyword, which is the form a remote surface takes:
 A choice given both ways is refused. `--json` on decode is a rendering option of
 the local command only. The forms that read standard input (`decode -`,
 `decode pcap -`, and `encode` with no route) need the local `ze` process.
+
+A plugin named on decode is asked to decode every capability and NLRI before
+the registered decoders are, and the answer lists the plugins it was decoded
+under. The registered decoders answer what no named plugin decodes, so a
+registered plugin decodes its capabilities and families without being named.
+`<name>` forks `ze plugin <name> --decode`, `ze.<name>` runs the plugin in a
+goroutine and `ze-<name>` calls it in-process; a name no registered plugin
+decodes under is refused, with the names that do. `--plugin /path/to/program`
+runs a third-party program that answers the same `decode capability <code>
+<hex>` and `decode nlri <family> <hex>` requests on standard input. Only the
+local `ze` process runs a program path, so the `plugin` keyword takes a name.
 <!-- source: internal/component/bgp/cli/decode_answer.go -- answerDecode, applyDecodeLeaves, inputRoute -->
+<!-- source: internal/component/bgp/cli/decode_plugin.go -- parseDecodePlugin, decodePlugins -->
 <!-- source: internal/component/bgp/cli/encode.go -- answerEncode, applyEncodeLeaves -->
 <!-- source: internal/component/bgp/cli/yang/ze-bgp-tools-cmd.yang -- decode, encode -->
 
@@ -412,7 +425,7 @@ across, and a capture with no BGP in it exits non-zero naming what it examined.
 | `-i` | Enable ADD-PATH (include path-id) |
 | `-n` | Output only NLRI bytes |
 | `--no-header` | Exclude BGP header |
-| `--asn4` | 4-byte ASN (default: true) <!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode --> |
+| `--asn4` | 4-byte ASN (default: true) <!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode_answer.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode --> |
 
 An IPv4 unicast route needs an IPv4 `next-hop`. `encode` refuses any other
 next hop, and exits 1 with an error that names the requirement, rather than

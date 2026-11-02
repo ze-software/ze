@@ -82,7 +82,7 @@ func updateHex(t *testing.T, attrs []byte) []byte {
 func decodedAttributes(t *testing.T, hexMsg string) map[string]any {
 	t.Helper()
 
-	output, err := decodeHexPacket(hexMsg, "", "", true)
+	output, err := decodeHexPacket(nil, hexMsg, "", "", true)
 	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
@@ -215,7 +215,7 @@ func TestDecodeUpdateGivesAMalformedCommunityAttributeItsOctets(t *testing.T) {
 // human formatter asserted []any on both community keys, and neither producer
 // ever returned one, so every community was dropped there too.
 func TestFormatUpdateHumanNamesEveryCommunityAttribute(t *testing.T) {
-	output, err := decodeHexPacket(buildCommunityUpdate(t), "", "", false)
+	output, err := decodeHexPacket(nil, buildCommunityUpdate(t), "", "", false)
 	require.NoError(t, err, "decode failed")
 
 	assert.Contains(t, output, "community")

@@ -14,8 +14,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -67,6 +69,137 @@ func parsePluginName(input string) (name string, mode pluginMode, path string, a
 	}
 	// Plain name: fork subprocess.
 	return input, ModeFork, "", nil
+}
+
+// decodePlugin is one plugin the operator named with `--plugin`, or with the
+// plugin keyword, to decode capabilities and NLRI before the registered
+// decoders do. parseDecodePlugin builds it once the name was found in the
+// registry, or once the route was found to run a program path.
+type decodePlugin struct {
+	// spelling is the word as the operator typed it, which the answer names.
+	spelling string
+	name     string
+	mode     pluginMode
+	path     string
+	args     []string
+}
+
+// decodePlugins is the plugins the operator named, in the order given: the
+// first one that decodes a capability or an NLRI answers for it, and the
+// registered decoders answer what none of them decodes. Empty when none was
+// named.
+type decodePlugins []decodePlugin
+
+// parseDecodePlugins reads every plugin the operator named. A name no
+// registered plugin decodes under is refused, never ignored, and a program
+// path is refused when runsPrograms is false: such a path names a program on
+// the host the decode runs on, which only the operator's own process may run.
+func parseDecodePlugins(spellings []string, runsPrograms bool) (decodePlugins, error) {
+	plugins := make(decodePlugins, 0, len(spellings))
+	for _, spelling := range spellings {
+		plugin, err := parseDecodePlugin(spelling, runsPrograms)
+		if err != nil {
+			return nil, err
+		}
+		plugins = append(plugins, plugin)
+	}
+	return plugins, nil
+}
+
+// parseDecodePlugin reads one plugin the operator named; parseDecodePlugins
+// states the refusals.
+func parseDecodePlugin(spelling string, runsPrograms bool) (decodePlugin, error) {
+	name, mode, path, args := parsePluginName(spelling)
+	plugin := decodePlugin{spelling: spelling, name: name, mode: mode, path: path, args: args}
+	if path != "" {
+		if !runsPrograms {
+			return decodePlugin{}, fmt.Errorf("plugin %s names a program, which only the ze process "+
+				"the operator runs may start; run 'ze bgp decode --plugin %s ...' on the host, "+
+				"or name a registered plugin", spelling, spelling)
+		}
+		return plugin, nil
+	}
+	if _, ok := decoders()[name]; ok {
+		return plugin, nil
+	}
+	names := slices.Sorted(maps.Keys(decoders()))
+	var tb textbuf.Buffer
+	tb.Str("plugin ").Str(spelling).Str(": no plugin named ").Quoted(name).
+		Str(" decodes; name one of ").Str(textbuf.Join(names, ", ")).
+		Str(", or the path of a program that answers 'decode' requests")
+	return decodePlugin{}, errors.New(tb.String())
+}
+
+// spellings answers the plugins as the operator typed them, in order.
+func (plugins decodePlugins) spellings() []string {
+	if len(plugins) == 0 {
+		return nil
+	}
+	words := make([]string, len(plugins))
+	for i := range plugins {
+		words[i] = plugins[i].spelling
+	}
+	return words
+}
+
+// capability answers the first named plugin's decoding of a capability.
+// decoded is false when no named plugin decodes the code, and the caller then
+// asks the registered decoders.
+func (plugins decodePlugins) capability(code uint8, hexData string) (result map[string]any, decoded bool) {
+	if len(plugins) == 0 {
+		return nil, false
+	}
+	var tb textbuf.Buffer
+	request := tb.Str("decode capability ").Uint8(code).Byte(' ').Str(hexData).String()
+	for i := range plugins {
+		if result, ok := plugins[i].decode(request).(map[string]any); ok {
+			return result, true
+		}
+	}
+	return nil, false
+}
+
+// nlri answers the first named plugin's decoding of NLRI of a family.
+// decoded is false when no named plugin decodes it, and the caller then asks
+// the registered decoders.
+func (plugins decodePlugins) nlri(family, hexData string) (result any, decoded bool) {
+	if len(plugins) == 0 {
+		return nil, false
+	}
+	request := nlriDecodeRequest(family, hexData)
+	for i := range plugins {
+		if result := plugins[i].decode(request); result != nil {
+			return result, true
+		}
+	}
+	return nil, false
+}
+
+// nlriDecodeRequest is the decode request for NLRI of a family.
+func nlriDecodeRequest(family, hexData string) string {
+	var tb textbuf.Buffer
+	return tb.Str("decode nlri ").Str(family).Byte(' ').Str(hexData).String()
+}
+
+// decode sends one decode request to the plugin by the route its spelling
+// chose, and answers its decoding, or nil when it decoded nothing:
+//   - "name": fork `ze plugin <name> --decode`, in-process when that cannot run
+//   - "ze.name": goroutine and pipes
+//   - "ze-name": synchronous, in-process
+//   - "/path": fork the program at the path
+func (plugin *decodePlugin) decode(request string) any {
+	switch plugin.mode {
+	case ModeInternal:
+		return invokePluginInternal(plugin.name, request)
+	case ModeDirect:
+		return invokePluginInProcess(plugin.name, request)
+	case ModeFork:
+		if plugin.path != "" {
+			return invokePluginPath(plugin.path, plugin.args, request)
+		}
+		return invokePluginForkRequest(plugin.name, request)
+	}
+	panic("BUG: invalid plugin invocation mode")
 }
 
 // invokePluginDecodeRequest spawns a plugin in decode mode and sends a decode request.
@@ -160,34 +293,18 @@ func invokePluginDecode(pluginName string, code uint8, hexData string) map[strin
 	return nil
 }
 
-// invokePluginNLRIDecode invokes a plugin to decode NLRI.
-// Routes by mode based on plugin name syntax:
-//   - "name" → Fork subprocess (with in-process retry)
-//   - "ze.name" → Internal (goroutine + pipe)
-//   - "ze-name" → Direct (sync in-process)
-//   - "/path" → Fork external binary
+// invokePluginNLRIDecode invokes a plugin to decode NLRI, by the route its
+// spelling chooses (decodePlugin.decode lists them). The registry's names
+// carry no prefix, so a plugin the registry names for a family forks.
 func invokePluginNLRIDecode(pluginName, family, hexData string) any {
-	request := fmt.Sprintf("decode nlri %s %s", family, hexData)
 	name, mode, path, args := parsePluginName(pluginName)
-
-	switch mode {
-	case ModeInternal:
-		return invokePluginInternal(name, request)
-	case ModeDirect:
-		return invokePluginInProcess(name, request)
-	case ModeFork:
-		if path != "" {
-			return invokePluginPath(path, args, request)
-		}
-		return invokePluginNLRIDecodeRequest(name, request)
-	default:
-		panic("BUG: invalid plugin invocation mode")
-	}
+	plugin := decodePlugin{spelling: pluginName, name: name, mode: mode, path: path, args: args}
+	return plugin.decode(nlriDecodeRequest(family, hexData))
 }
 
-// invokePluginNLRIDecodeRequest spawns a built-in plugin subprocess.
+// invokePluginForkRequest spawns a built-in plugin subprocess.
 // For plain names (ModeFork without path), retries with in-process on failure.
-func invokePluginNLRIDecodeRequest(pluginName, request string) any {
+func invokePluginForkRequest(pluginName, request string) any {
 	// Try subprocess first.
 	result := invokePluginSubprocess(pluginName, request)
 	if result != nil {
@@ -273,13 +390,14 @@ func parseDecodedJSON(line string) any {
 	return nil
 }
 
-// invokePluginSubprocess spawns a plugin subprocess for NLRI decode.
+// invokePluginSubprocess spawns a plugin subprocess and sends it one decode
+// request, a capability or an NLRI.
 func invokePluginSubprocess(pluginName, request string) any {
 	// Skip subprocess spawning during tests - os.Args[0] is the test binary
 	// which would cause recursive test execution (fork bomb).
 	if strings.HasSuffix(os.Args[0], ".test") {
 		slog.Debug("plugin subprocess skipped in test environment", "plugin", pluginName)
-		return nil // Fall back to in-process via invokePluginNLRIDecodeRequest
+		return nil // Fall back to in-process via invokePluginForkRequest
 	}
 
 	args := []string{zeCmdPlugin, pluginName, "--decode"}

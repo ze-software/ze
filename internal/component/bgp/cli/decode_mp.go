@@ -18,7 +18,7 @@ import (
 )
 
 // buildMPReachZe builds Ze format NLRI operations from MP_REACH_NLRI.
-func buildMPReachZe(mpReach []byte) (string, []map[string]any) {
+func buildMPReachZe(plugins decodePlugins, mpReach []byte) (string, []map[string]any) {
 	if len(mpReach) < 5 {
 		return "", nil
 	}
@@ -42,7 +42,7 @@ func buildMPReachZe(mpReach []byte) (string, []map[string]any) {
 	nlriData := mpReach[nlriOffset:]
 	familyKey := formatFamily(afi, safi)
 
-	routes := parseNLRIByFamily(nlriData, afi, safi, false)
+	routes := parseNLRIByFamily(plugins, nlriData, afi, safi, false)
 	if len(routes) == 0 {
 		return "", nil
 	}
@@ -58,7 +58,7 @@ func buildMPReachZe(mpReach []byte) (string, []map[string]any) {
 }
 
 // buildMPUnreachZe builds Ze format NLRI operations from MP_UNREACH_NLRI.
-func buildMPUnreachZe(mpUnreach []byte) (string, []map[string]any) {
+func buildMPUnreachZe(plugins decodePlugins, mpUnreach []byte) (string, []map[string]any) {
 	if len(mpUnreach) < 3 {
 		return "", nil
 	}
@@ -73,7 +73,7 @@ func buildMPUnreachZe(mpUnreach []byte) (string, []map[string]any) {
 	nlriData := mpUnreach[3:]
 	familyKey := formatFamily(afi, safi)
 
-	routes := parseNLRIByFamily(nlriData, afi, safi, true)
+	routes := parseNLRIByFamily(plugins, nlriData, afi, safi, true)
 	if len(routes) == 0 {
 		return "", nil
 	}
@@ -142,8 +142,8 @@ func formatFamily(afi family.AFI, safi family.SAFI) string {
 	return family.Family{AFI: afi, SAFI: safi}.String()
 }
 
-// parseNLRIByFamily decodes NLRI through the plugin the registry names for the
-// family. No plugin name is spelled here: a plugin reaches this path the moment
+// parseNLRIByFamily decodes NLRI through the plugins the operator named, then
+// through the plugin the registry names for the family. No plugin name is spelled here: a plugin reaches this path the moment
 // it registers its families, so a family the tree gains needs no edit. A family
 // no plugin claims carries a plain prefix list, which parseGenericNLRI reads.
 //
@@ -151,14 +151,17 @@ func formatFamily(afi family.AFI, safi family.SAFI) string {
 // order matters: the registered in-process decoder and the plugin's decode
 // command run the same producer, so the fast path answers identically without
 // a subprocess.
-func parseNLRIByFamily(data []byte, afi family.AFI, safi family.SAFI, withdraw bool) []any {
+func parseNLRIByFamily(plugins decodePlugins, data []byte, afi family.AFI, safi family.SAFI, withdraw bool) []any {
 	famStr := family.Family{AFI: afi, SAFI: safi}.String()
+	hexData := textbuf.StringHexUpper(data)
+	if result, decoded := plugins.nlri(famStr, hexData); decoded {
+		return nlriRoutes(result)
+	}
 	pluginName := lookupFamilyPlugin(famStr)
 	if pluginName == "" {
 		return parseGenericNLRI(data, afi)
 	}
 
-	hexData := textbuf.StringHexUpper(data)
 	unparsed := []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
 
 	// `ze bgp decode` reads a hex blob with no session behind it, so no ADD-PATH
@@ -226,16 +229,21 @@ func parseGenericNLRI(data []byte, afi family.AFI) []any {
 }
 
 // decodeNLRIOnly decodes NLRI without envelope.
-// If a matching plugin is enabled, it will be invoked for decoding.
+// The plugins the operator named are asked first, then the registered decoder
+// for the family, then the plugin the registry names for it.
 // If outputJSON is false, returns human-readable format.
-func decodeNLRIOnly(data []byte, family string, outputJSON bool) (string, error) {
+func decodeNLRIOnly(plugins decodePlugins, data []byte, family string, outputJSON bool) (string, error) {
 	// Validate family against known AFI/SAFI combinations
 	if err := validateDecodeFamily(family); err != nil {
 		return "", err
 	}
 
-	// Fast path: in-process NLRI decoder registered in plugin registry.
 	hexData := textbuf.StringHexUpper(data)
+	if result, decoded := plugins.nlri(family, hexData); decoded {
+		return drawPluginNLRI(result, family, outputJSON)
+	}
+
+	// Fast path: in-process NLRI decoder registered in plugin registry.
 	// `ze bgp decode` reads a hex blob with no session behind it, so no ADD-PATH
 	// was negotiated and no Path Identifier precedes an NLRI (RFC 7911 Section 3).
 	if raw, err := registry.DecodeNLRIByFamily(family, hexData, false, false); err == nil {
@@ -253,21 +261,7 @@ func decodeNLRIOnly(data []byte, family string, outputJSON bool) (string, error)
 	if pluginName != "" {
 		result := invokePluginNLRIDecode(pluginName, family, hexData)
 		if result != nil {
-			if !outputJSON {
-				if mapResult, ok := result.(map[string]any); ok {
-					return formatNLRIHuman(mapResult, family), nil
-				}
-				if arrResult, ok := result.([]any); ok && len(arrResult) > 0 {
-					if firstMap, ok := arrResult[0].(map[string]any); ok {
-						return formatNLRIHuman(firstMap, family), nil
-					}
-				}
-			}
-			jsonData, err := json.Marshal(result)
-			if err != nil {
-				return "", fmt.Errorf("json marshal: %w", err)
-			}
-			return string(jsonData), nil
+			return drawPluginNLRI(result, family, outputJSON)
 		}
 	}
 
@@ -287,5 +281,25 @@ func decodeNLRIOnly(data []byte, family string, outputJSON bool) (string, error)
 		return "", fmt.Errorf("json marshal: %w", err)
 	}
 
+	return string(jsonData), nil
+}
+
+// drawPluginNLRI renders a plugin's decoding of NLRI: the human reading of its
+// first route, or its JSON.
+func drawPluginNLRI(result any, family string, outputJSON bool) (string, error) {
+	if !outputJSON {
+		if mapResult, ok := result.(map[string]any); ok {
+			return formatNLRIHuman(mapResult, family), nil
+		}
+		if arrResult, ok := result.([]any); ok && len(arrResult) > 0 {
+			if firstMap, ok := arrResult[0].(map[string]any); ok {
+				return formatNLRIHuman(firstMap, family), nil
+			}
+		}
+	}
+	jsonData, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("json marshal: %w", err)
+	}
 	return string(jsonData), nil
 }

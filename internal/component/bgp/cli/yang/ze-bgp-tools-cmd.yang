@@ -6,6 +6,7 @@ module ze-bgp-tools-cmd {
     // show bgp decode and show bgp encode.
     // See ai/rules/plugin-self-containment.md.
     description "Offline BGP protocol tools: show bgp decode and show bgp encode.";
+    revision 2026-11-02 { description "Declared the plugin leaf that names a plugin show bgp decode asks first."; }
     revision 2026-11-01 { description "Declared the leaves that select what show bgp decode and show bgp encode answer."; }
     revision 2026-06-02 { description "Relocated show bgp decode/encode out of the central show schema (plugin self-containment)."; }
 
@@ -61,6 +62,18 @@ body.";
                     description "A packet capture to read every BGP message from, in the order the
 messages completed on the wire.";
                     ze:help "Capture file to decode";
+                }
+                leaf plugin {
+                    type string {
+                        length "1..64";
+                        pattern '(ze[.-])?[a-z0-9][a-z0-9-]*';
+                    }
+                    description "A registered plugin that decodes capabilities and NLRI before the
+other registered decoders. The name alone forks the plugin, ze.<name> runs it in a
+goroutine and ze-<name> calls it in-process. A name no registered plugin decodes
+under is refused. A program path is taken only by the local ze bgp decode
+command's own option, since it names a program on the host the decode runs on.";
+                    ze:help "Plugin that decodes first";
                 }
                 leaf message {
                     type string { length "1..262144"; }
