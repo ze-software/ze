@@ -2,10 +2,12 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -147,7 +149,13 @@ func chmodShown(t *testing.T, dir string, mode os.FileMode) {
 // no-follow walk refuses it; the superuser is refused the same way.
 func TestOpenRefusalNamesTheFailingComponent(t *testing.T) {
 	const shown = "spelled/as/typed"
-	root := t.TempDir()
+	// The walk names folders by the path it opens from /, which on darwin
+	// crosses /var -> /private/var: resolve the root so the expected words
+	// are the ones the walk builds.
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	target := filepath.Join(root, "real")
 	if err := os.MkdirAll(filepath.Join(target, "store", treeName), 0o700); err != nil {
 		t.Fatal(err)
@@ -214,4 +222,45 @@ func TestOpenRefusalNamesTheFailingComponent(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestWalkRefusalNamesNoBuiltPath proves a walk failure that holds no
+// component reaches another route by the shown folder and its bare causes.
+//
+// VALIDATES: the close of a folder the walk holds, which fails with a path
+// error naming an absolute ancestor of the store folder, is refused to a
+// caller on another route with the shown folder and the errno only, and a
+// permission failure there still matches ErrPermissions.
+// PREVENTS: an absolute path the daemon built leaking into a remote caller's
+// refusal through the one branch with no component to name.
+// Method: the errors openFolder builds for a failed close are constructed
+// directly, because no test can make close(2) fail on demand.
+func TestWalkRefusalNamesNoBuiltPath(t *testing.T) {
+	const built = "/srv/ze/built"
+	folder := storeFolder{path: built + "/store", shown: "spelled/as/typed"}
+	closeErr := errors.Join(
+		&fs.PathError{Op: "close", Path: built, Err: syscall.EIO},
+		&fs.PathError{Op: "close", Path: built + "/store", Err: syscall.EBADF},
+	)
+
+	err := folder.walkRefusal(closeErr)
+	want := "store folder spelled/as/typed cannot be opened: " + syscall.EIO.Error() + "\n" + syscall.EBADF.Error() +
+		"; check that ze's working directory exists and the file system holding the store folder answers reads"
+	if err.Error() != want {
+		t.Errorf("refusal %q, want %q", err, want)
+	}
+	if !errors.Is(err, syscall.EIO) {
+		t.Errorf("refusal %q does not match its cause %v", err, syscall.EIO)
+	}
+
+	denied := fmt.Errorf("%w: %w", ErrPermissions, &fs.PathError{Op: "close", Path: built, Err: syscall.EACCES})
+	err = folder.walkRefusal(denied)
+	want = ErrPermissions.Error() + ": store folder spelled/as/typed cannot be opened: " + syscall.EACCES.Error() +
+		"; give the user ze runs search access to ze's working directory and to every folder on the path to the store folder"
+	if err.Error() != want {
+		t.Errorf("refusal %q, want %q", err, want)
+	}
+	if !errors.Is(err, ErrPermissions) {
+		t.Errorf("refusal %q is not %v", err, ErrPermissions)
+	}
 }

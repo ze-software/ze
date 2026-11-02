@@ -312,7 +312,10 @@ unsafe paths.
 `ComponentError` that carries the refused component, its parent and the whole
 folder asked for, each as the absolute path the walk built, so a caller can
 tell the folder itself from a folder on the path to it without reading text.
-<!-- source: pkg/zefs/check_tree_unix.go -- OpenDirectory, ComponentError, walkFrameTree, repairFrameTree -->
+The type is declared on every platform, so a caller names it in an untagged
+file even where `OpenDirectory` refuses secure traversal outright.
+<!-- source: pkg/zefs/check_tree_unix.go -- OpenDirectory, walkFrameTree, repairFrameTree -->
+<!-- source: pkg/zefs/component_error.go -- ComponentError -->
 <!-- source: pkg/zefs/check_tree_linux.go -- RenameNoReplace -->
 <!-- source: pkg/zefs/check_tree_darwin.go -- RenameNoReplace, trustedFramePath -->
 <!-- source: pkg/zefs/check_tree_freebsd.go -- RenameNoReplace -->

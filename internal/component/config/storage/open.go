@@ -90,9 +90,13 @@ func (f storeFolder) open() (*os.File, error) {
 	}
 	refusal, ok := errors.AsType[*zefs.ComponentError](err)
 	if !ok {
-		// Only the walk's start (the working directory, the root) fails
-		// without a component, and neither names the store's path.
-		return nil, err
+		// The walk's start (the working directory, the root) and the close
+		// of a folder it already holds fail without a component. A close
+		// error names that folder by the absolute path the walk built.
+		if f.shown == f.path {
+			return nil, err
+		}
+		return nil, f.walkRefusal(err)
 	}
 	if refusal.Component == filepath.Clean(refusal.Folder) {
 		return nil, fmt.Errorf("%w: store folder %s cannot be opened: %w; give the user ze runs as read and search access to it, with no symbolic link on its path", ErrPermissions, f.shown, refusal.Err)
@@ -101,6 +105,38 @@ func (f storeFolder) open() (*os.File, error) {
 		return nil, err
 	}
 	return nil, fmt.Errorf("%w: store folder %s cannot be opened: a folder on the path to it cannot be opened: %w; give the user ze runs search access to every folder on that path, with no symbolic link on it", ErrPermissions, f.shown, refusal.Err)
+}
+
+// walkRefusal names a walk failure that holds no component by the shown
+// folder and the bare causes, for a caller on another route: the path errors
+// in err name folders by the absolute path the walk built.
+func (f storeFolder) walkRefusal(err error) error {
+	cause := pathFree(err)
+	if errors.Is(err, ErrPermissions) {
+		return fmt.Errorf("%w: store folder %s cannot be opened: %w; give the user ze runs search access to ze's working directory and to every folder on the path to the store folder", ErrPermissions, f.shown, cause)
+	}
+	return fmt.Errorf("store folder %s cannot be opened: %w; check that ze's working directory exists and the file system holding the store folder answers reads", f.shown, cause)
+}
+
+// pathFree answers err with each fs.PathError it holds replaced by its bare
+// cause and ErrPermissions left out, which the refusal names itself. A node
+// that wraps one error keeps its own words. The recursion is bounded by the
+// depth of err's wrap tree, which openFolder builds two levels deep.
+func pathFree(err error) error {
+	switch node := err.(type) { //nolint:errorlint // rewrites each node of the tree, so it matches the node itself, not its chain
+	case *fs.PathError:
+		return node.Err
+	case interface{ Unwrap() []error }:
+		var causes []error
+		for _, cause := range node.Unwrap() {
+			if cause == ErrPermissions { //nolint:errorlint // drops the sentinel node itself, not an error that wraps it
+				continue
+			}
+			causes = append(causes, pathFree(cause))
+		}
+		return errors.Join(causes...)
+	}
+	return err
 }
 
 // OpenTree opens the exact offline tree path. The canonical database name uses

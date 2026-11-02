@@ -74,6 +74,9 @@ route. A folder on the path to it, such as a symbolic link or a parent with no
 search access, keeps zefs's own refusal, which names it by its absolute path,
 when `shown` and `dir` are the same spelling; otherwise the refusal says only
 that a folder on the path to `shown` cannot be opened, with its cause.
+A failure that holds no component (the working directory, the root, or the
+close of a folder the walk holds) is passed through on one spelling; with
+another, it names `shown` and the bare causes, never a path the walk built.
 <!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, storeFolder, detect, openLive, lockOwner, populateOwned -->
 <!-- source: internal/component/config/cli/config_data.go -- withRuntimeStore -->
 
