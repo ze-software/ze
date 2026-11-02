@@ -256,21 +256,17 @@ Time expires without a reconnect, the retained
 routes are deleted and the reflector's other peers are sent their withdrawal,
 under the Path Identifier each was sent. The verdict comes from GR's existing
 family state; no second route inventory is kept. The event crosses a process
-boundary, so `bgp-gr` and `bgp-rr` may each run in a child process
+boundary, so `bgp-gr`, `bgp-rs` and `bgp-rr` may each run in a child process
 (`run "ze plugin bgp-rr"`), in any mix. An edge another plugin declares on
-`bgp-rr` reaches it forked as well, under the implementation its `run` line
-names, so `bgp-gr`'s verdict still precedes its DOWN. `bgp-rs` still refuses to
-start as one until its forked run is proven: the refusal is logged as
-`refusing to start as an external plugin process` and the daemon does not
-start. Use internal `bgp-rib`, and internal `bgp-rs`, for the coordinated
-lifecycle described here.
+`bgp-rr` or `bgp-rs` reaches it forked as well, under the implementation its
+`run` line names, so `bgp-gr`'s verdict still precedes their DOWN. Use internal
+`bgp-rib` for the coordinated lifecycle described here.
 <!-- source: internal/component/bgp/retention/retention.go -- Event, Verdict, Ledger -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- emitRetention -->
 <!-- source: internal/component/plugin/process/delivery.go -- deliverMixedBatch -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- runRouteReflector, stopDepartures -->
 <!-- source: internal/component/bgp/server/events.go -- sortByReverseDependencyTier -->
-<!-- source: internal/component/bgp/plugins/rs/server.go -- RunRouteServer, IsInternal refusal -->
-<!-- source: test/plugin/rs-external-refuses.ci -- a forked bgp-rs refuses to start -->
+<!-- source: internal/component/bgp/plugins/rs/server.go -- RunRouteServer -->
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, enqueueDeparture, stopDepartures -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, enqueueDeparture -->
 <!-- source: internal/core/syncutil/coalescer.go -- Coalescer, Enqueue, Stop -->

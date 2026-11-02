@@ -215,8 +215,9 @@ func compileChain(attachment string, reg *policy.Registry, members []Member, fin
 				name: reference, filterType: m.Plugin, settable: externalSettable(attachment, reference),
 				external: &externalMember{
 					plugin: m.Plugin, filter: m.Name,
-					metaSettable:   metadataSettable(attachment, reference),
-					numberSettable: attributeNumbersSettable(attachment, reference, m.Plugin),
+					metaSettable:      metadataSettable(attachment, reference),
+					numberSettable:    attributeNumbersSettable(attachment, reference, m.Plugin),
+					treatmentSettable: treatmentsSettable(attachment, reference),
 				},
 			})
 			continue

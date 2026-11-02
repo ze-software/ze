@@ -13,6 +13,8 @@ package rs
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"log/slog"
 	"net"
 	"net/netip"
@@ -320,20 +322,12 @@ func commandDecls() []sdk.CommandDecl {
 // RunRouteServer runs the Route Server plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 func RunRouteServer(conn net.Conn) int {
-	p := sdk.NewWithConn("bgp-rs", conn)
+	p := sdk.NewWithConn(rsPluginName, conn)
 	defer func() { _ = p.Close() }()
 
-	// bgp-rs runs internal only until the stage-filters spec's phase 7 lifts
-	// this refusal with its forked tests. Retention no longer needs it: the
-	// verdict arrives as the bgp-gr/retention event, which crosses the
-	// process split (rs.retained).
-	if !p.IsInternal() {
-		logger().Error("bgp-rs: refusing to start as an external plugin process -- " +
-			"the graceful-restart retention decision is not yet proven on a forked route server, " +
-			"which could withdraw routes a restarting peer's neighbors must keep; " +
-			"configure it as plugin { internal <name> { use bgp-rs } }")
-		return 1
-	}
+	// The transparency step runs here, in this process, on both transports:
+	// the typed slot internal, the batched filter-update forked.
+	p.OnFilter(evaluateRSFilter)
 
 	downCtx, stopDown := context.WithCancel(context.Background())
 	rs := &routeServer{
@@ -533,14 +527,8 @@ func (rs *routeServer) releaseCache(msgID uint64) {
 	ctx, cancel := context.WithTimeout(context.Background(), forwardCachedTimeout)
 	defer cancel()
 	err := rs.plugin.ReleaseCached(ctx, []uint64{msgID})
-	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
-		if rs.stopping.Load() {
-			logger().Debug("release-cached failed (shutting down)", "msgID", msgID, "error", err)
-		} else if isConnectionError(err) {
-			logger().Warn("release-cached failed (peer disconnected)", "msgID", msgID, "error", err)
-		} else {
-			logger().Error("release-cached failed", "msgID", msgID, "error", err)
-		}
+	if err != nil {
+		rs.logEngineCallFailure("release-cached failed", err, "msgID", msgID)
 	}
 }
 
@@ -572,14 +560,8 @@ func (rs *routeServer) updateRouteWithMeta(peerSelector, command string, meta ma
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
 	_, _, err := rs.plugin.UpdateRouteWithMeta(ctx, peerSelector, command, meta)
-	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
-		if rs.stopping.Load() {
-			logger().Debug("update-route failed (shutting down)", "peer", peerSelector, "command", command, "error", err)
-		} else if isConnectionError(err) {
-			logger().Warn("update-route failed (peer disconnected)", "peer", peerSelector, "command", command, "error", err)
-		} else {
-			logger().Error("update-route failed", "peer", peerSelector, "command", command, "error", err)
-		}
+	if err != nil {
+		rs.logEngineCallFailure("update-route failed", err, "peer", peerSelector, "command", command)
 	}
 }
 
@@ -600,14 +582,8 @@ func (rs *routeServer) recoverRouteSel(sel *selector.Selector, command, source s
 	meta := map[string]any{"recovery-source": source,
 		"recovery-generation": strconv.FormatUint(generation, 10)}
 	_, _, err := rs.plugin.UpdateRouteWithMeta(ctx, sel.String(), command, meta)
-	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
-		if rs.stopping.Load() {
-			logger().Debug("update-route failed (shutting down)", "peer", sel, "command", command, "error", err)
-		} else if isConnectionError(err) {
-			logger().Warn("update-route failed (peer disconnected)", "peer", sel, "command", command, "error", err)
-		} else {
-			logger().Error("update-route failed", "peer", sel, "command", command, "error", err)
-		}
+	if err != nil {
+		rs.logEngineCallFailure("update-route failed", err, "peer", sel, "command", command)
 	}
 }
 
@@ -620,20 +596,52 @@ func (rs *routeServer) peerAction(peerSelector, action string) {
 	var tb textbuf.Buffer
 	cmd := tb.Str("request peer ").Str(peerSelector).Byte(' ').Str(action).String()
 	_, _, err := rs.plugin.DispatchCommand(ctx, cmd)
-	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
-		if rs.stopping.Load() {
-			logger().Debug("peer-action failed (shutting down)", "peer", peerSelector, "action", action, "error", err)
-		} else if isConnectionError(err) {
-			logger().Warn("peer-action failed (peer disconnected)", "peer", peerSelector, "action", action, "error", err)
-		} else {
-			logger().Error("peer-action failed", "peer", peerSelector, "action", action, "error", err)
-		}
+	if err != nil {
+		rs.logEngineCallFailure("peer-action failed", err, "peer", peerSelector, "action", action)
 	}
 }
 
+// sessionEnded reports whether a failed engine call failed because this
+// plugin's session with the engine is over, so the failure is shutdown and
+// not a fault. Two signals say so. Run has returned (stopping). Or the engine
+// closed the connection: on daemon stop it closes a forked plugin's connection
+// instead of sending `bye` (sdk OnBye), so a call in flight then fails with
+// the mux reader's EOF while Run has not returned yet and stopping is still
+// false. Only the forked transport meets the second signal: the in-process
+// DirectBridge has no connection to close. The mux wraps the reader's error
+// with %w, so errors.Is reaches it.
+func (rs *routeServer) sessionEnded(err error) bool {
+	if rs.stopping.Load() {
+		return true
+	}
+	if errors.Is(err, io.EOF) {
+		return true
+	}
+	return errors.Is(err, rpc.ErrMuxConnClosed)
+}
+
+// logEngineCallFailure records a failed engine call named by failure ("<rpc>
+// failed"). A call that failed because the session ended is shutdown: debug,
+// since the plugin is going down with it and nothing is left to retry. A
+// closed peer connection is a WARN, anything else an ERROR. attrs are the
+// call's own key-value pairs; the error is appended to them.
+func (rs *routeServer) logEngineCallFailure(failure string, err error, attrs ...any) {
+	attrs = append(attrs, "error", err)
+	if rs.sessionEnded(err) {
+		logger().Debug(failure+" (shutting down)", attrs...)
+		return
+	}
+	if isConnectionError(err) {
+		logger().Warn(failure+" (peer disconnected)", attrs...)
+		return
+	}
+	logger().Error(failure, attrs...)
+}
+
 // isConnectionError reports whether err indicates the target peer's
-// connection is already closed (broken pipe, reset, EOF). RPC errors
-// cross a string boundary, so errors.Is cannot unwrap them.
+// connection is already closed (broken pipe, reset, closed connection). RPC
+// errors cross a string boundary, so errors.Is cannot unwrap them. The
+// engine's own connection closing is sessionEnded, not this.
 func isConnectionError(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "broken pipe") ||
@@ -1044,5 +1052,9 @@ func routeServerRegistration() *sdk.Registration {
 		// and worker-queue-size takes effect from the env var alone.
 		WantsConfig: []string{configRootBGP},
 		Commands:    commandDecls(),
+		// The same declarations register.go makes (rsFilterDecls,
+		// rsInsertions), so Stage 1 and the compiled registry agree.
+		Filters:          rsFilterDecls(),
+		FilterInsertions: rsInsertions(),
 	}
 }

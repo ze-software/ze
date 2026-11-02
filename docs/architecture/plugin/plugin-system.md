@@ -118,16 +118,15 @@ must not infer either from the bytes or synthesize label bytes to mimic an
 announcement. Under RFC 8277 Section 2.4, a withdrawal Compatibility field is
 ignored rather than treated as a label stack.
 
-BGP forwarding policy uses the BGP-owned `filterapi.Filter` registration, not
-the generic plugin registry. Its optional `PreserveOpaqueAttributes` selector
-runs when a destination's forwarding facts are built. It receives
-`PeerFilterInfo`, including the configured `RSClient` fact, and requests
-preservation of unknown optional attributes for that destination. Any selector
-requesting preservation enables it; otherwise the core applies ordinary
-RFC 4271 Section 5 treatment. Selectors MUST be pure and safe for concurrent
-calls, and registration MUST finish before peers start. The route-server plugin
-owns the selection for its clients; the body builder and caches consume only
-the resulting treatment. Removing that plugin leaves ordinary treatment.
+Preservation of unknown optional attributes toward a destination is a
+forwarding treatment, `preserve-opaque-attributes`, which a filter in that
+destination's export chain sets (`policyview.MustRegisterTreatment`); without
+it the core applies ordinary RFC 4271 Section 5 treatment. The route-server
+plugin owns the selection for its clients through an inserted export step
+(`bgp-rs:transparency`, placed by `session rs-client`), served on both
+transports; the body builder and caches consume only the resulting treatment.
+Removing that plugin, or naming its step `inactive:`, leaves ordinary
+treatment.
 
 A `filterapi.Filter` can also declare `ConfigureMetrics func(metrics.Registry)`.
 `filterapi.SetMetricsRegistry`, called once from the reactor's metrics-enable

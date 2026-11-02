@@ -3,48 +3,59 @@ package reactor
 
 import (
 	"bytes"
-	"net/netip"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rs"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// libraryTypePreserveOpaque is a library member that sets the forwarding
+// treatment preserve-opaque-attributes, as bgp-rs's transparency step answers
+// toward a route-server client (rs/transparency.go).
+// It compiles at its own attachment, whose filters may set the treatment as
+// a filter at bgp export may (bgp/config exportSettable).
+const (
+	libraryTypePreserveOpaque   = "reactor-library-test-preserve-opaque"
+	libraryTestExportTreatments = "reactor-library-test export-treatments"
+)
+
+func init() {
+	routepolicy.MustRegisterAttachment("bgp", libraryTestExportTreatments, nil, []routepolicy.Field{policyview.FieldPreserveOpaqueAttributes})
+	routepolicy.MustRegisterFilterType(libraryTypePreserveOpaque, nil, []routepolicy.Field{policyview.FieldPreserveOpaqueAttributes})
+	policychain.MustRegisterEvaluator(libraryTypePreserveOpaque, rpc.OnErrorReject, func(string, map[string]any, routepolicy.InstanceResolver) (policychain.Evaluator, error) {
+		return func(_ *policyview.View, sets *policychain.Sets) (policychain.Decision, error) {
+			sets.SetTreatment(policyview.TreatmentPreserveOpaqueAttributes)
+			return policychain.DecisionPass, nil
+		}, nil
+	})
+}
+
 // Both destinations have the same encoding and no pre-body attribute edits.
-// Grouping must not let ordinary normalization change a route-server client's
-// attributes, or let the client's transparent body escape to an ordinary peer.
+// Grouping must not let ordinary normalization change the attributes of the
+// destination whose export chain set the treatment, or let its transparent
+// body escape to an ordinary peer.
 func TestForwardBodyCacheSeparatesClientRoles(t *testing.T) {
 	testForwardOpaqueTreatment(t, [2]bool{true, false}, false)
 }
 
-// Plugin absence leaves RFC 4271 Section 5 treatment even for a configured client.
+// A route-server client whose export chain sets no treatment (bgp-rs absent,
+// or its step `inactive:`) keeps RFC 4271 Section 5 treatment.
 func TestForwardOpaqueTreatmentWithoutPlugin(t *testing.T) {
-	snapshot := filterapi.Snapshot()
-	t.Cleanup(func() { filterapi.Restore(snapshot) })
-	filterapi.ResetForTest()
 	testForwardOpaqueTreatment(t, [2]bool{false, false}, false)
 	testForwardOpaqueTreatment(t, [2]bool{false, false}, true)
 }
 
-// A generic selector deliberately preserves the ordinary destination rather than
-// the client. Exact recipient bytes prove neither rail hardcodes the client role.
+// The treatment set on the ordinary destination's chain rather than the
+// client's preserves that destination. Exact recipient bytes prove neither
+// rail hardcodes the client role: the chain's set alone decides.
 func TestForwardOpaqueTreatmentUsesPluginSelection(t *testing.T) {
-	snapshot := filterapi.Snapshot()
-	t.Cleanup(func() { filterapi.Restore(snapshot) })
-	filterapi.ResetForTest()
-	destination := netip.MustParseAddr("198.18.232.3")
-	if err := filterapi.Register(filterapi.Filter{
-		Name: "opaque-test",
-		PreserveOpaqueAttributes: func(peer filterapi.PeerFilterInfo) bool {
-			return peer.Address == destination
-		},
-	}); err != nil {
-		t.Fatal(err)
-	}
 	testForwardOpaqueTreatment(t, [2]bool{false, true}, false)
 	testForwardOpaqueTreatment(t, [2]bool{false, true}, true)
 }
@@ -87,6 +98,9 @@ func testForwardOpaqueTreatment(t *testing.T, preserve [2]bool, modify bool) {
 					peer.settings.PeerAS = 65000
 					peer.settings.RSClient = i == 0
 					peer.settings.NextHopMode = NextHopUnchanged
+					if preserve[i] {
+						peer.settings.ExportPolicy = libraryPolicy(t, libraryTestExportTreatments, libraryTypePreserveOpaque, routepolicy.FinalAccept)
+					}
 					peer.settings.ProcessBindings = f.source.settings.ProcessBindings
 					peer.sendCtx.Store(f.source.sendCtx.Load())
 					peer.sendCtxID, peer.recvCtxID = f.ctxID, f.ctxID
@@ -103,6 +117,9 @@ func testForwardOpaqueTreatment(t *testing.T, preserve [2]bool, modify bool) {
 					f.r.orderedEgressSteps = orderedEgressStepsFromFuncs(edit)
 					f.r.egressFilters = []filterapi.EgressFilterFunc{edit}
 				}
+				// The export chain runs as the general rail's last step, as
+				// buildOrderedEgressSteps places it.
+				f.r.orderedEgressSteps = append(f.r.orderedEgressSteps, orderedEgressStep{name: policyChainStepName, policyChain: true})
 				attrs := []byte{
 					0x40, 1, 1, 2,
 					0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xe9,

@@ -92,6 +92,11 @@ type egressStepResult struct {
 	// MUST be withdrawn toward this destination, never only suppressed, so a
 	// version the destination already holds leaves it.
 	withdraw bool
+	// treatments is the mask of the forwarding treatments the accepting
+	// export chain's members set for this destination
+	// (policyview.Treatment.Bit): the forward path applies each one when it
+	// builds the destination's UPDATE.
+	treatments uint8
 }
 
 // buildOrderedIngressSteps merges the registered in-process ingress filters with
@@ -393,10 +398,17 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 			return egressStepResult{failed: true} // a guard miss: suppress for this peer
 		}
 		if res.modifiedPayload != nil {
-			return egressStepResult{accept: true, wireOverride: wireu.NewWireUpdate(res.modifiedPayload, wireUpdate.SourceCtxID())}
+			return egressStepResult{accept: true, wireOverride: wireu.NewWireUpdate(res.modifiedPayload, wireUpdate.SourceCtxID()),
+				treatments: res.treatments}
 		}
-		return egressStepResult{accept: true}
+		return egressStepResult{accept: true, treatments: res.treatments}
 	}
+	// The text-chain path below answers no treatments, and loses none: only a
+	// library member sets one (policychain applyExternalTreatment), and the
+	// config loader turns every active ref that is not an in-process stage
+	// filter into a library member (bgpconfig compileLibraryChain; a dynamic
+	// peer's template compiles per peer in resolveDynamicPolicy). A policy
+	// reaches here only with no such member, so with nothing that sets one.
 	// An ACTIVE export filter but the API server (the filter engine that
 	// enforces it) is absent: a guard MISS, not an accept. An export chain is a
 	// guard whose purpose is to reject; silently accepting sends the route

@@ -72,7 +72,18 @@ var (
 	// source, answered only for a route rebuilt from storage
 	// (answerSourceLLGRAdvertised).
 	FieldSourceLLGRAdvertised = policy.MustRegisterField("source-llgr-advertised", policy.RouteView{})
+
+	// FieldPreserveOpaqueAttributes is the forwarding treatment that passes a
+	// destination the optional attributes Ze does not recognize, unchanged,
+	// in place of RFC 4271 Section 5's ordinary handling of them. The BGP
+	// forward path applies it (TreatmentPreserveOpaqueAttributes); a filter
+	// at bgp export sets it per destination.
+	FieldPreserveOpaqueAttributes = policy.MustRegisterField("preserve-opaque-attributes", policy.RouteView{})
 )
+
+// TreatmentPreserveOpaqueAttributes is the treatment the BGP forward path
+// reads from an export run's mask (treatment.go).
+var TreatmentPreserveOpaqueAttributes = MustRegisterTreatment(FieldPreserveOpaqueAttributes)
 
 // sessionFacts is the one declaration of how each session fact field is
 // answered and written, and whether it is a fact of the peer itself; init

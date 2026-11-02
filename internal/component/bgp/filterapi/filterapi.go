@@ -602,22 +602,15 @@ func (a *ModAccumulator) GroupedOps() []AttrOp {
 }
 
 // Filter describes one plugin's contribution to the BGP route filter pipeline:
-// optional ingress/egress filters, a destination opaque-attribute selector, and
-// the (stage, priority) pair ordering the ingress/egress chains. Name is the
-// registering plugin's name and breaks ordering ties.
+// optional ingress/egress filters and the (stage, priority) pair ordering the
+// ingress/egress chains. Name is the registering plugin's name and breaks
+// ordering ties.
 type Filter struct {
 	Name     string
 	Stage    int               // Coarse ordering class (FilterStageProtocol/Policy/Annotation)
 	Priority int               // Fine ordering within a stage; equal priority sorted by name
 	Ingress  IngressFilterFunc // nil = no ingress filtering
 	Egress   EgressFilterFunc  // nil = no egress filtering
-	// PreserveOpaqueAttributes selects transparent forwarding of unknown optional
-	// attributes for a destination. Nil or false leaves ordinary RFC 4271
-	// Section 5 treatment in force unless another selector requests preservation.
-	// The reactor resolves this at forwarding-facts refresh, not per UPDATE.
-	// The callback MUST be pure and safe for concurrent calls; Register MUST
-	// finish before peers start. It MUST NOT retain a second peer inventory.
-	PreserveOpaqueAttributes func(PeerFilterInfo) bool
 	// ConfigureMetrics hands the filter the daemon's metrics registry, so a
 	// filter that counts what it does builds its metrics without the reactor
 	// naming its package. SetMetricsRegistry calls it once, from the reactor's
@@ -683,7 +676,7 @@ func Register(f Filter) error {
 	if f.Name == "" {
 		return ErrEmptyFilterName
 	}
-	if f.Ingress == nil && f.Egress == nil && f.PreserveOpaqueAttributes == nil {
+	if f.Ingress == nil && f.Egress == nil {
 		return fmt.Errorf("%w: %q", ErrNoFilterFunc, f.Name)
 	}
 
@@ -694,22 +687,6 @@ func Register(f Filter) error {
 	}
 	filters[f.Name] = f
 	return nil
-}
-
-// PreserveOpaqueAttributesFor resolves destination treatment from registered
-// selectors. With no requesting plugin, ordinary RFC 4271 Section 5 forwarding
-// applies. The caller MUST resolve this at peer-facts refresh and keep the result
-// in that snapshot, never call into the registry per UPDATE.
-// Safe for concurrent use; selector registration MUST finish before peers start.
-func PreserveOpaqueAttributesFor(peer PeerFilterInfo) bool {
-	mu.RLock()
-	defer mu.RUnlock()
-	for _, f := range filters {
-		if f.PreserveOpaqueAttributes != nil && f.PreserveOpaqueAttributes(peer) {
-			return true
-		}
-	}
-	return false
 }
 
 // sortedFilters returns the filters selected by hasFunc, sorted by stage,

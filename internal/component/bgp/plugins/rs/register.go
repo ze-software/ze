@@ -23,16 +23,8 @@ func init() {
 	// once at construction; it never imports this package.
 	filterapi.EnableRSForwarding()
 
-	// RFC 7947 Section 2.2: the plugin selects opaque attribute preservation.
-	if err := filterapi.Register(filterapi.Filter{
-		Name:                     "bgp-rs",
-		PreserveOpaqueAttributes: preserveOpaqueAttributes,
-	}); err != nil {
-		panic(fmt.Errorf("BUG: route-server forwarding policy registration: %w", err))
-	}
-
 	reg := registry.Registration{
-		Name:         "bgp-rs",
+		Name:         rsPluginName,
 		Description:  "Route Server",
 		RFCs:         []string{"7947"},
 		ConfigRoots:  []string{"bgp"},
@@ -72,11 +64,21 @@ func init() {
 		// answers to: the source's `receive [ update-received ]` to this
 		// plugin, without which this plugin never sees the UPDATE, and the
 		// destination's `send [ update ]`, which ForwardCached is checked
-		// against. In-process only, like the fast path itself
-		// (filterapi.EnableRSForwarding above).
+		// against. Compiled-in only, like the fast path itself
+		// (filterapi.EnableRSForwarding above): the engine reads this field
+		// from the registry linked into the daemon (registry.RelaysOnRSFastPath)
+		// and Stage 1 carries no such field, so it holds whether this plugin
+		// runs in-process or forked
+		// (test/plugin/bgp-rs-opaque-transparency-forked.ci sets rs-fast-path
+		// with bgp-rs forked), and a third-party route server cannot declare it.
 		RelaysOnRSFastPath: true,
 		RunEngine:          RunRouteServer,
-		Commands:           commandDecls(),
+		// RFC 7947 Section 2.2 transparency toward every route-server client,
+		// served by evaluateRSFilter and inserted by the client's session
+		// fact (transparency.go).
+		Filters:          rsFilterDecls(),
+		FilterInsertions: rsInsertions(),
+		Commands:         commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},
@@ -92,13 +94,4 @@ func init() {
 		fmt.Fprintf(os.Stderr, "rs: registration failed: %v\n", err)
 		os.Exit(1)
 	}
-}
-
-// preserveOpaqueAttributes owns the route-server exception to ordinary forwarding.
-// RFC 7947 Section 2.2: "Optional recognized and unrecognized BGP attributes,
-// whether transitive or non-transitive, SHOULD NOT be updated by the route server
-// (unless enforced by local IXP operator configuration) and SHOULD be passed on
-// to other route server clients.".
-func preserveOpaqueAttributes(peer filterapi.PeerFilterInfo) bool {
-	return peer.RSClient
 }

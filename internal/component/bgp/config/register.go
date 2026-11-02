@@ -302,7 +302,9 @@ func importSettable() []policy.Field {
 }
 
 // exportSettable answers what a filter at bgp export may set: the chain's
-// set kinds and the attribute numbers their owners registered.
+// set kinds, the attribute numbers their owners registered and the
+// forwarding treatments (policyview.TreatmentFields), which are per
+// destination where the route metadata is not.
 func exportSettable() []policy.Field {
-	return slices.Concat(policychain.SettableFields(), policyview.AttributeNumberFields())
+	return slices.Concat(policychain.SettableFields(), policyview.AttributeNumberFields(), policyview.TreatmentFields())
 }

@@ -62,6 +62,9 @@ type libraryResult struct {
 	failed bool
 	// modifiedPayload is the rewritten body, nil when the sets change nothing.
 	modifiedPayload []byte
+	// treatments is the mask of the forwarding treatments the accepting
+	// run's members set (policychain.Sets.Treatments), zero otherwise.
+	treatments uint8
 	// wireChanges names the attribute operations the rewrite applied
 	// (describeWireOps), filled by a display-only run alone.
 	wireChanges []string
@@ -115,6 +118,7 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 	if outcome.Action != policychain.OutcomeAccept {
 		return libraryResult{outcome: outcome}
 	}
+	treatments := run.sets.Folded().Treatments()
 	if raw := run.sets.Raw(); raw != nil {
 		// A member's whole-body rewrite is terminal (D-4): it replaces the
 		// body and carries no sets. The chain checked it under the member's
@@ -123,7 +127,7 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 		if malformed {
 			return libraryResult{outcome: outcome, failed: true}
 		}
-		return libraryResult{outcome: outcome, modifiedPayload: override}
+		return libraryResult{outcome: outcome, modifiedPayload: override, treatments: treatments}
 	}
 	var mods filterapi.ModAccumulator
 	if err := chain.Apply(&run.view, &run.sets, &mods); err != nil {
@@ -152,9 +156,9 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 		return libraryResult{outcome: outcome, failed: true}
 	}
 	if record != nil {
-		return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, wireChanges: describeWireOps(&mods)}
+		return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, wireChanges: describeWireOps(&mods), treatments: treatments}
 	}
-	return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload}
+	return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, treatments: treatments}
 }
 
 // libraryRewrite is the body a chain's folded sets rewrite a route to.

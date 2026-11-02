@@ -94,6 +94,9 @@ type externalMember struct {
 	// owner-registered attributes this filter may set
 	// (attributeNumbersSettable).
 	numberSettable uint8
+	// treatmentSettable holds, one bit per policyview.Treatment, the
+	// treatments the attachment lets this filter set (treatmentsSettable).
+	treatmentSettable uint8
 }
 
 // fieldsOctets is the starting capacity of the fields object RunSets keeps:
@@ -235,6 +238,12 @@ func applyExternalSets(sets *Sets, decl *ExternalDeclaration, settable setMask, 
 		set := &replies[i]
 		if m, ok := policyview.MetadataNamed(set.Field); ok {
 			if err := applyExternalMetadata(sets, decl, member.metaSettable, m, set); err != nil {
+				return err
+			}
+			continue
+		}
+		if t, ok := policyview.TreatmentNamed(set.Field); ok {
+			if err := applyExternalTreatment(sets, decl, member.treatmentSettable, t, set); err != nil {
 				return err
 			}
 			continue

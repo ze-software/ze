@@ -508,10 +508,14 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// received End-of-RIB or a withdrawal reaches the chain like any UPDATE,
 		// and a member that adds nothing to it leaves it byte-identical.
 		base := rsBaseOf(wire, srcNextHop, srcHasLocalPref, srcHasPrefixSID, srcMED)
+		// treatments is what the destination's export chain set
+		// (egressStepResult.treatments); a chain that did not run sets none.
+		var treatments uint8
 		if facts.exportChainActive && !mods.IsWithdraw() {
 			res := r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
 				policyview.ExportSession(facts.filterInfo, srcFilter, srcKnown).WithExportMetadata(update.Meta), wire)
 			if res.accept {
+				treatments = res.treatments
 				if res.wireOverride != nil {
 					// A policy replaces bytes, never the ingress path identity.
 					res.wireOverride.SetSourceID(wire.SourceID())
@@ -542,6 +546,11 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 				}
 			}
 		}
+
+		// RFC 7947 Section 2.2: a filter that sets preserve-opaque-attributes
+		// for this destination (bgp-rs toward a route-server client) passes it
+		// the optional attributes Ze does not recognize, unchanged.
+		preserveOpaque := treatments&policyview.TreatmentPreserveOpaqueAttributes.Bit() != 0
 
 		// RFC 4456: Route reflection attribute injection for IBGP destinations.
 		if reflected {
@@ -695,12 +704,12 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			// same community policy an identical edit set by construction.
 			var modified []byte
 			var bufIdx int
-			shared, cand := dedup.begin(fwdDedupIdentity{base: peerWire, preserveOpaque: facts.preserveOpaqueAttributes}, &mods)
+			shared, cand := dedup.begin(fwdDedupIdentity{base: peerWire, preserveOpaque: preserveOpaque}, &mods)
 			if shared != nil {
 				modified, bufIdx = copyMaterialization(shared, modPool)
 			} else {
 				var modFail modifyFailure
-				modified, bufIdx, modFail = buildForwardPayload(peerWire.Payload(), &mods, r.attrModHandlers, modPool, facts.preserveOpaqueAttributes)
+				modified, bufIdx, modFail = buildForwardPayload(peerWire.Payload(), &mods, r.attrModHandlers, modPool, preserveOpaque)
 				// Counts AND says it, once per reason per second; see
 				// recordModifyFailure. The route server fans one UPDATE out to every
 				// client, so this is the rail where an unbounded line hurt most.
@@ -750,7 +759,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 
 		destCtxID := facts.sendCtxID
 		if groupsEnabled {
-			cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: facts.preserveOpaqueAttributes}
+			cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: preserveOpaque}
 			for j := range bodySlotCount {
 				if bodySlots[j].key != cacheKey {
 					continue
@@ -767,7 +776,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			if !opaqueReady {
 				// RFC 4271 Section 5: unmodified input is shared and MUST stay immutable.
 				var attrErr error
-				effectiveWire, attrErr = parseCache.forwardWire(peerWire, facts.preserveOpaqueAttributes, update)
+				effectiveWire, attrErr = parseCache.forwardWire(peerWire, preserveOpaque, update)
 				if attrErr != nil {
 					fwdLogger().Warn("normalizing forwarding attributes", "peer", facts.addr, "error", attrErr)
 					dedup.abandon(candidate)
@@ -794,7 +803,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 
 			if groupsEnabled && bodySlotCount < len(bodySlots) {
 				bodySlots[bodySlotCount] = fwdBodyCacheSlot{
-					key:        fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: facts.preserveOpaqueAttributes},
+					key:        fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: preserveOpaque},
 					rawBodies:  body.rawBodies,
 					updates:    body.updates,
 					supersedeK: body.supersedeKey,

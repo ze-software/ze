@@ -220,6 +220,9 @@ type Sets struct {
 	// The owner-registered attribute number sets (sets_attribute_numbers.go).
 	numbers  [policyview.AttributeNumbersMax]attributeNumberSet
 	numbersN uint8
+	// The forwarding treatments, one policyview.Treatment.Bit each
+	// (sets_treatment.go).
+	treatments uint8
 	// matchRoute is the route a match judges, held here rather than on the
 	// evaluator's stack so a check's pointer to it allocates nothing
 	// (match.go). It is scratch: no reader of the sets sees it.
@@ -320,6 +323,7 @@ func (s *Sets) merge(later *Sets) error {
 		return err
 	}
 	s.mergeAttributeNumbers(later)
+	s.mergeTreatments(later)
 	s.written |= later.written
 	return nil
 }

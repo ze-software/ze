@@ -178,8 +178,8 @@ copies, and the destination's recovery worker elects the replacement from it.
 
 A settle is bounded by the request's deadline, and a settle that does not
 finish is the phase's error. The session's down drops its transaction with its
-inventory. `bgp-rs` runs only in process (`RunRouteServer` refuses an external
-process), so DirectBridge is its one transport.
+inventory. `bgp-rs` answers it on either transport: DirectBridge in process,
+the RPC when it runs forked.
 
 `bgp-rr` is an owner that settles its own pending work for the source in each
 phase and drops the denied entries it keeps for the source on finalize. Like

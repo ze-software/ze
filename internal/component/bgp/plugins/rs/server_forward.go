@@ -308,14 +308,8 @@ func (rs *routeServer) flushBatch(batch *forwardBatch) {
 	ctx, cancel := context.WithTimeout(context.Background(), forwardCachedTimeout)
 	defer cancel()
 	err := rs.plugin.ForwardCached(ctx, batch.ids, batch.targets)
-	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
-		if rs.stopping.Load() {
-			logger().Debug("forward-cached failed (shutting down)", "ids", len(batch.ids), "error", err)
-		} else if isConnectionError(err) {
-			logger().Warn("forward-cached failed (peer disconnected)", "ids", len(batch.ids), "error", err)
-		} else {
-			logger().Error("forward-cached failed", "ids", len(batch.ids), "error", err)
-		}
+	if err != nil {
+		rs.logEngineCallFailure("forward-cached failed", err, "ids", len(batch.ids))
 	}
 }
 

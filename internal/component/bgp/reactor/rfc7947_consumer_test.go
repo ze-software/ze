@@ -27,12 +27,17 @@ func lowRSAttributes() []byte {
 
 // TestRFC7947AllAttributesReachClient sends a complete UPDATE over the live
 // session and compares each whole attribute (flags included) at the recipient.
+// The client's export chain carries the member that sets the forwarding
+// treatment preserve-opaque-attributes, as bgp-rs's inserted transparency
+// step does on every rs-client (rs/transparency.go): the treatment comes
+// from that chain alone, never from the RSClient flag.
 // RFC 7947 Section 2.2: "Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients."
 // RFC requirement: RFC7947-2.2-1 positive -- real ingress and recipient wire preserve ORIGIN, AS_PATH, NEXT_HOP, MED, community, unknown optional transitive and unknown optional non-transitive attributes, including their flags.
 func TestRFC7947AllAttributesReachClient(t *testing.T) {
 	source := acceptingLiveSettings(t, "192.0.2.1", 65000, 65002)
 	dest := acceptingLiveSettings(t, "192.0.2.2", 65000, 65003)
 	source.RSClient, dest.RSClient = true, true
+	dest.ExportPolicy = libraryPolicy(t, libraryTestExportTreatments, libraryTypePreserveOpaque, routepolicy.FinalAccept)
 	peers := lowLiveRouter(t, source, dest)
 	attrs := lowRSAttributes()
 	prefix := []byte{24, 203, 0, 113}
@@ -46,6 +51,8 @@ func TestRFC7947AllAttributesReachClient(t *testing.T) {
 
 // TestRouteServerTransparencyStopsAtOrdinaryPeer keeps the RFC 7947 exception
 // confined to client redistribution when a reactor also serves ordinary BGP.
+// Only the client's export chain carries the member that sets the
+// treatment, as bgp-rs inserts its transparency step on rs-clients only.
 // RFC 7947 Section 2.2: "Optional recognized and unrecognized BGP attributes,
 // whether transitive or non-transitive, SHOULD NOT be updated by the route
 // server (unless enforced by local IXP operator configuration) and SHOULD be
@@ -56,6 +63,7 @@ func TestRouteServerTransparencyStopsAtOrdinaryPeer(t *testing.T) {
 	client := acceptingLiveSettings(t, "192.0.2.2", 65000, 65003)
 	ordinary := acceptingLiveSettings(t, "192.0.2.3", 65000, 65000)
 	source.RSClient, client.RSClient = true, true
+	client.ExportPolicy = libraryPolicy(t, libraryTestExportTreatments, libraryTypePreserveOpaque, routepolicy.FinalAccept)
 	peers := lowLiveRouter(t, source, client, ordinary)
 	attrs := lowRSAttributes()
 	prefix := []byte{24, 203, 0, 114}

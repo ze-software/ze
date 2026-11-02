@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-11-02 by an independent auditor who authored none of 06b26570b6, e145f7bf39 or 0a030d3e7a. RFC 7947 Section 2.1 read: \"The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy.\" 06b26570b6 moved the deciding rail of internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire from the plugin rail (ForwardUpdate after a fast-path skip) to the route-server fast path, which now runs each destination's export chain itself (runEgressPolicyChain). The unit now requires reactorForwardRS to skip no client and send both verdicts (sent 2, skipped 0), exactly one export-policy call per client through the policy seam, one UPDATE with the exact NLRI and ORIGIN 2 to the accepting client, and to the rejecting client no announcement and only the exact withdrawal of the prefix, with the accepting client swapped between rounds so a verdict shared or leaked between destinations goes red. Both tag claims were reworded to name the fast path and still state no more than the body checks. A fast path that ignored the client's policy announces to the rejecting client; one that reused the first verdict fails round 1. Polarity is a real pair: the rejected client is a violating outcome, not a different error. Ran the unit at HEAD in a clean worktree under ./le job run: PASS. Verdict unchanged: enforced.",
   "requirement_sha": "857304c8df464c87",
   "tests": {
-    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire": "c43d53c23c748494",
-    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire#2": "c43d53c23c748494"
+    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire": "3f78bc4d4eee6567",
+    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire#2": "3f78bc4d4eee6567"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire": "55f89701cfb866aa",

@@ -24,13 +24,17 @@ not retain forwarded attributes or query the selecting RIB on each UPDATE.
 Both forwarding rails key body reuse on effective opaque-attribute treatment,
 not on a plugin or peer role. Ordinary RFC 4271 Section 5 treatment
 drops unknown non-transitive attributes and marks unknown transitive attributes
-Partial. A plugin can select preservation for a destination through
-`filterapi.Filter.PreserveOpaqueAttributes`; without a selector, ordinary
-treatment applies. The route-server plugin selects preservation for its clients.
+Partial. A filter in a destination's export chain selects preservation for
+that destination by setting the forwarding treatment
+`preserve-opaque-attributes` (`policyview.TreatmentPreserveOpaqueAttributes`,
+registered with `policyview.MustRegisterTreatment`); without it, ordinary
+treatment applies. `bgp-rs` inserts its `bgp-rs:transparency` step on every
+route-server client's export list (`session rs-client`), and the step sets the
+treatment (RFC 7947 Section 2.2), on both transports.
 
-The selector receives the existing peer metadata at forwarding-facts refresh,
-not on each UPDATE, and the resulting boolean lives in the immutable facts
-snapshot. Both rails key body reuse and edit-set deduplication by that treatment.
+Each rail reads the treatment from the export chain's result
+(`egressStepResult.treatments`) for each destination, and keys body reuse and
+edit-set deduplication by it.
 On a materialization miss, ordinary treatment compacts the destination-owned
 payload in place before dedup publishes it; a dedup hit copies those effective
 bytes into the next destination's own buffer. An unmodified shared input stays

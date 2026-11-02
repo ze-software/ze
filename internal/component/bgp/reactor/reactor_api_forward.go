@@ -796,6 +796,9 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		// payload and produces a full wire override. Replaces the former two
 		// back-to-back blocks; the cross-system order is now a declared Stage.
 		var exportWireOverride *wireu.WireUpdate
+		// treatments collects the forwarding treatments the destination's
+		// export chain set (egressStepResult.treatments).
+		var treatments uint8
 		if len(a.r.orderedEgressSteps) > 0 && !mods.IsWithdraw() {
 			destFilter := facts.filterInfo
 			payload := sourceWire.Payload()
@@ -818,6 +821,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 					withdrawn = res.withdraw
 					break
 				}
+				treatments |= res.treatments
 				if res.wireOverride != nil {
 					exportWireOverride = res.wireOverride
 					// A policy replaces bytes, never the ingress path identity.
@@ -857,6 +861,11 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		if exportWireOverride != nil {
 			peerBaseWire = exportWireOverride
 		}
+		// RFC 7947 Section 2.2: a filter that sets preserve-opaque-attributes
+		// for this destination (bgp-rs toward a route-server client) passes it
+		// the optional attributes Ze does not recognize, unchanged; without it
+		// RFC 4271 Section 5's ordinary handling applies.
+		preserveOpaque := treatments&policyview.TreatmentPreserveOpaqueAttributes.Bit() != 0
 		baseNextHop := srcNextHop
 		if peerBaseWire != sourceWire {
 			baseNextHop = payloadNextHop(peerBaseWire.Payload())
@@ -1136,12 +1145,12 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				// 0.5% and is not worth its blast radius.
 				var modified []byte
 				var bufIdx int
-				shared, cand := dedup.begin(fwdDedupIdentity{base: peerWire, preserveOpaque: facts.preserveOpaqueAttributes}, &mods)
+				shared, cand := dedup.begin(fwdDedupIdentity{base: peerWire, preserveOpaque: preserveOpaque}, &mods)
 				if shared != nil {
 					modified, bufIdx = copyMaterialization(shared, modPool)
 				} else {
 					var modFail modifyFailure
-					modified, bufIdx, modFail = buildForwardPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool, facts.preserveOpaqueAttributes)
+					modified, bufIdx, modFail = buildForwardPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool, preserveOpaque)
 					// Counts AND says it, once per reason per second; see
 					// recordModifyFailure. This fires once per DESTINATION, so an
 					// unbounded line here scaled with fan-out.
@@ -1211,7 +1220,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 
 			destCtxID := facts.sendCtxID
 			if groupsEnabled {
-				cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: facts.preserveOpaqueAttributes}
+				cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: preserveOpaque}
 				if cached, ok := fwdBodyCache[cacheKey]; ok {
 					item.rawBodies = cached.rawBodies
 					item.updates = cached.updates
@@ -1225,7 +1234,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				if !opaqueReady {
 					// RFC 4271 Section 5: unmodified input is shared and MUST stay immutable.
 					var attrErr error
-					effectiveWire, attrErr = parseCache.forwardWire(peerWire, facts.preserveOpaqueAttributes, update)
+					effectiveWire, attrErr = parseCache.forwardWire(peerWire, preserveOpaque, update)
 					if attrErr != nil {
 						fwdLogger().Warn("normalizing forwarding attributes", "peer", facts.addr, "error", attrErr)
 						dedup.abandon(candidate)
@@ -1251,7 +1260,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				item.supersedeKey = body.supersedeKey
 
 				if groupsEnabled {
-					cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: facts.preserveOpaqueAttributes}
+					cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: preserveOpaque}
 					fwdBodyCache[cacheKey] = &fwdBodyCacheEntry{
 						rawBodies:    body.rawBodies,
 						updates:      body.updates,
