@@ -116,9 +116,7 @@ func Run(args []string) int {
 			return 0
 		}
 		n := connCounter.Add(1)
-		if logAll {
-			fmt.Fprintf(os.Stderr, "tacacs-mock: connection #%d from %s\n", n, conn.RemoteAddr())
-		}
+		remember(Record{Kind: KindConnection, Ordinal: n, Remote: conn.RemoteAddr().String()}, logAll)
 		go tacacsMockHandle(conn, keyBytes, users, authorDeny, authorAllow, logAll)
 	}
 }
@@ -151,9 +149,7 @@ func tacacsMockHandle(conn net.Conn, key []byte, users tacacsUserList, authorDen
 		if i == 0 && hdr.Flags&tacacs.FlagSingleConnect != 0 {
 			singleConnect = true
 			replyFlags |= tacacs.FlagSingleConnect
-			if logPackets {
-				fmt.Fprintf(os.Stderr, "tacacs-mock: single-connect accepted on %s\n", conn.RemoteAddr())
-			}
+			remember(Record{Kind: KindSingleConnect, Remote: conn.RemoteAddr().String()}, logPackets)
 		}
 
 		switch hdr.Type {
@@ -216,15 +212,12 @@ func tacacsMockReplyAuthen(conn net.Conn, hdr tacacs.PacketHeader, body, key []b
 	copy(reply[6:], msg)
 
 	tacacsMockSendReply(conn, hdr, reply, key, replyFlags)
-	if logPackets {
-		fmt.Fprintf(os.Stderr, "tacacs-mock: AUTHEN reply user=%q status=0x%02x\n", user, status)
-	}
+	remember(Record{Kind: KindAuthen, User: user, Status: status, Pass: status == 0x01}, logPackets)
 }
 
 func tacacsMockReplyAuthor(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, users tacacsUserList, authorDeny, authorAllow []string, replyFlags uint8, logPackets bool) {
 	user, cmd, valid := parseAuthorRequest(body)
 	status := uint8(tacacs.AuthorStatusFail)
-	statusName := "FAIL"
 	var privilege string
 	if valid {
 		for _, configured := range users {
@@ -232,7 +225,6 @@ func tacacsMockReplyAuthor(conn net.Conn, hdr tacacs.PacketHeader, body, key []b
 				continue
 			}
 			status = tacacs.AuthorStatusPassAdd
-			statusName = "PASS_ADD"
 			if cmd == "" {
 				privilege = "priv-lvl=" + strconv.Itoa(int(configured.privLvl))
 			}
@@ -244,14 +236,12 @@ func tacacsMockReplyAuthor(conn net.Conn, hdr tacacs.PacketHeader, body, key []b
 				continue
 			}
 			status = tacacs.AuthorStatusPassAdd
-			statusName = "PASS_ADD"
 			break
 		}
 	}
 	for _, deny := range authorDeny {
 		if deny != "" && strings.Contains(cmd, deny) {
 			status = tacacs.AuthorStatusFail
-			statusName = "FAIL"
 			privilege = ""
 			break
 		}
@@ -266,10 +256,10 @@ func tacacsMockReplyAuthor(conn net.Conn, hdr tacacs.PacketHeader, body, key []b
 		reply = append(reply, privilege...)
 	}
 	tacacsMockSendReply(conn, hdr, reply, key, replyFlags)
-	if logPackets {
-		fmt.Fprintf(os.Stderr, "tacacs-mock: AUTHOR cmd=%q reply=%s user=%q privilege=%q\n",
-			cmd, statusName, user, privilege)
-	}
+	remember(Record{
+		Kind: KindAuthor, Command: cmd, User: user, Privilege: privilege,
+		Pass: status == tacacs.AuthorStatusPassAdd,
+	}, logPackets)
 }
 
 func parseAuthorRequest(body []byte) (string, string, bool) {
@@ -327,18 +317,16 @@ func tacacsMockReplyAcct(conn net.Conn, hdr tacacs.PacketHeader, body, key []byt
 	if len(body) > 0 {
 		flags = body[0]
 	}
-	kind := "OTHER"
+	kind := KindAcctOther
 	switch {
 	case flags&0x02 != 0:
-		kind = "START"
+		kind = KindAcctStart
 	case flags&0x04 != 0:
-		kind = "STOP"
+		kind = KindAcctStop
 	case flags&0x08 != 0:
-		kind = "WATCHDOG"
+		kind = KindAcctWatchdog
 	}
-	if logPackets {
-		fmt.Fprintf(os.Stderr, "tacacs-mock: ACCT %s seq=%d total=%d\n", kind, hdr.SeqNo, n)
-	}
+	remember(Record{Kind: kind, Seq: hdr.SeqNo, Ordinal: n}, logPackets)
 
 	reply := []byte{0x00, 0x00, 0x00, 0x00, 0x01}
 	tacacsMockSendReply(conn, hdr, reply, key, replyFlags)

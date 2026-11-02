@@ -110,3 +110,85 @@ func mockReplyBody(t *testing.T, kind uint8, respond func(net.Conn, protocol.Pac
 	protocol.Encrypt(body, replyHeader.SessionID, key, replyHeader.Version, replyHeader.SeqNo)
 	return body
 }
+
+// VALIDATES: a Record renders exactly the stderr line the mock has always
+// printed for it, because .ci files assert those lines (tacacs-acct.ci,
+// tacacs-author.ci, tacacs-singleconnect.ci) and the fixture now waits on the
+// record instead of sleeping.
+// PREVENTS: the record a fixture waits on and the line a .ci asserts drifting
+// apart, so a wait succeeds on a record whose line the .ci no longer finds.
+func TestRecordLineIsTheStderrLine(t *testing.T) {
+	for _, tc := range []struct {
+		record Record
+		want   string
+	}{
+		{Record{Kind: KindConnection, Ordinal: 1, Remote: "127.0.0.1:4000"}, "tacacs-mock: connection #1 from 127.0.0.1:4000"},
+		{Record{Kind: KindSingleConnect, Remote: "127.0.0.1:4000"}, "tacacs-mock: single-connect accepted on 127.0.0.1:4000"},
+		{Record{Kind: KindAuthen, User: "admin", Status: 0x01, Pass: true}, `tacacs-mock: AUTHEN reply user="admin" status=0x01`},
+		{Record{Kind: KindAuthor, Command: "show bgp", Pass: true, User: "admin", Privilege: ""}, `tacacs-mock: AUTHOR cmd="show bgp" reply=PASS_ADD user="admin" privilege=""`},
+		{Record{Kind: KindAuthor, Command: "clear interface counters all", User: "admin"}, `tacacs-mock: AUTHOR cmd="clear interface counters all" reply=FAIL user="admin" privilege=""`},
+		{Record{Kind: KindAcctStart, Seq: 1, Ordinal: 3}, "tacacs-mock: ACCT START seq=1 total=3"},
+		{Record{Kind: KindAcctStop, Seq: 1, Ordinal: 4}, "tacacs-mock: ACCT STOP seq=1 total=4"},
+		{Record{Kind: KindAcctWatchdog, Seq: 1, Ordinal: 5}, "tacacs-mock: ACCT WATCHDOG seq=1 total=5"},
+		{Record{Kind: KindAcctOther, Seq: 1, Ordinal: 6}, "tacacs-mock: ACCT OTHER seq=1 total=6"},
+	} {
+		if got := tc.record.Line(); got != tc.want {
+			t.Errorf("Line() = %q, want %q", got, tc.want)
+		}
+	}
+}
+
+// VALIDATES: every reply the mock writes leaves a Record a caller in the same
+// process reads through Received, after its stderr line is written.
+// PREVENTS: a fixture having nothing to wait on but a clock.
+// The journal is per process and other tests in this package write to it too,
+// so the records are found by a user name no other test uses.
+func TestReceivedHoldsWhatTheMockTook(t *testing.T) {
+	const user = "journal-check"
+	before := len(Received())
+	users := tacacsUserList{{name: user, pass: "testpass", privLvl: 15}}
+
+	authen, err := protocol.NewPAPAuthenStart(user, "testpass", "ssh", "").MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mockReplyBody(t, 0x01, func(conn net.Conn, header protocol.PacketHeader, key []byte) {
+		tacacsMockReplyAuthen(conn, header, authen, key, users, 0, false)
+	})
+	receivedOne(t, before, func(r Record) bool { return r.Kind == KindAuthen && r.User == user && r.Pass })
+
+	author, err := (&protocol.AuthorRequest{User: user, Args: []string{"service=shell", "cmd=show", "cmd-arg=bgp"}}).MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mockReplyBody(t, 0x02, func(conn net.Conn, header protocol.PacketHeader, key []byte) {
+		tacacsMockReplyAuthor(conn, header, author, key, users, nil, nil, 0, false)
+	})
+	receivedOne(t, before, func(r Record) bool {
+		return r.Kind == KindAuthor && r.User == user && r.Command == "show bgp" && r.Pass
+	})
+
+	mockReplyBody(t, 0x03, func(conn net.Conn, header protocol.PacketHeader, key []byte) {
+		tacacsMockReplyAcct(conn, header, []byte{protocol.AcctFlagStop}, key, 0, false)
+	})
+	receivedOne(t, before, func(r Record) bool { return r.Kind == KindAcctStop })
+}
+
+// receivedOne waits until a record past index from matches want. The mock
+// keeps an AUTHEN or AUTHOR record after its reply is written, so the reply a
+// test reads can arrive a moment before the record does.
+func receivedOne(t *testing.T, from int, want func(Record) bool) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		for _, record := range Received()[from:] {
+			if want(record) {
+				return
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("no matching record past %d in %v", from, Received()[from:])
+		}
+		time.Sleep(time.Millisecond) // sleep(poll-interval): the loop returns once Received holds a matching record, within a 2s deadline
+	}
+}

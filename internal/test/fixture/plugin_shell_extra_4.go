@@ -315,7 +315,13 @@ func pluginShellExtra4TacacsDriver(ctx context.Context, name string, args []stri
 		return err
 	}
 	return Observe(ctx, "fixture-plugin-shell-extra-4-"+name, &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
-		return scenario(ctx, plugin, args[1])
+		if err := scenario(ctx, plugin, args[1]); err != nil {
+			return err
+		}
+		// Observe stops ze as soon as this returns, and some records reach the
+		// mock after the command's answer (accounting is queued), so the
+		// observer ends only once the mock took what the .ci asserts.
+		return pluginShellExtra4AwaitTacacs(ctx, name)
 	})
 }
 
@@ -325,7 +331,6 @@ func pluginShellExtra4TacacsAuth(ctx context.Context, args []string) error {
 			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: summary ran via TACACS+ auth")
-		time.Sleep(300 * time.Millisecond)
 		return nil
 	})
 }
@@ -344,7 +349,6 @@ func pluginShellExtra4TacacsAccounting(ctx context.Context, args []string) error
 			return fmt.Errorf("show aaa accounting missing dropped-records: %s", output)
 		}
 		fmt.Fprintln(os.Stderr, "OK: show aaa accounting exposes dropped-records")
-		time.Sleep(800 * time.Millisecond)
 		return nil
 	})
 }
@@ -364,7 +368,6 @@ func pluginShellExtra4TacacsAuthor(ctx context.Context, args []string) error {
 			return fmt.Errorf("expected command restricted by access control, got: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, "OK: TACACS+ refusal names access control")
-		time.Sleep(300 * time.Millisecond)
 		return nil
 	})
 }
@@ -375,7 +378,6 @@ func pluginShellExtra4TacacsFallback(ctx context.Context, args []string) error {
 			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: summary ran via local fallback")
-		time.Sleep(300 * time.Millisecond)
 		return nil
 	})
 }
@@ -436,7 +438,6 @@ func pluginShellExtra4TacacsLocalOnly(ctx context.Context, args []string) error 
 			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: summary ran via local auth")
-		time.Sleep(300 * time.Millisecond)
 		return nil
 	})
 }
@@ -455,7 +456,6 @@ func pluginShellExtra4TacacsReadonly(ctx context.Context, args []string) error {
 			return fmt.Errorf("expected an access-control refusal, got: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, "OK: noc refused write (edit default-action deny)")
-		time.Sleep(300 * time.Millisecond)
 		return nil
 	})
 }
@@ -467,7 +467,6 @@ func pluginShellExtra4TacacsSingleConnect(ctx context.Context, args []string) er
 				return err
 			}
 		}
-		time.Sleep(800 * time.Millisecond)
 		fmt.Fprintln(os.Stderr, "OK: repeated TACACS+ sessions completed over the negotiated connection")
 		return nil
 	})
