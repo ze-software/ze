@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): \"Therefore, contrary to what is specified in Section 5 of [RFC4271], route servers SHOULD NOT by default (unless explicitly configured) update well-known BGP attributes received from route server clients before redistributing them to their other route server clients. Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients.\" be95c10053 replaced lowLiveSettings with acceptingLiveSettings for source, client and ordinary peer in TestRFC7947AllAttributesReachClient and TestRouteServerTransparencyStopsAtOrdinaryPeer (FinalAccept import and export, no refs); faf7c5c380 only renamed filterapi to routepolicy elsewhere in the file. An accepting policy rewrites no attribute, so the client's byte-identical attributes, the unknown non-transitive attribute kept from the client, and the Partial bit set on the unknown transitive toward the ordinary peer still come from the route-server transparency producer. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
   "requirement_sha": "0f08a7920d99c327",
   "tests": {
-    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient": "b0ee941c02af4439",
-    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRouteServerTransparencyStopsAtOrdinaryPeer": "b0ee941c02af4439"
+    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient": "c43d53c23c748494",
+    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRouteServerTransparencyStopsAtOrdinaryPeer": "c43d53c23c748494"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient": "0eb9ef48f9f12458",
