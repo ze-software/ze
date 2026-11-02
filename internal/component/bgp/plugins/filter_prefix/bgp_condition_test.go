@@ -193,8 +193,8 @@ func TestBGPMatchLabeledAllocatesNothing(t *testing.T) {
 	family.RegisterTestFamilies()
 	chain := matchChain(t)
 	label := []byte{0x00, 0x06, 0x41}
-	reach := mpReach(1, 4, []byte{192, 0, 2, 1}, append(labeled(label, 10, 1, 0), labeled(label, 192, 0, 2)...))
-	attrs := append(reach, mpUnreach(1, 4, labeled([]byte{0x80, 0, 0}, 192, 0, 2))...)
+	attrs := mpReach(1, 4, []byte{192, 0, 2, 1}, append(labeled(label, 10, 1, 0), labeled(label, 192, 0, 2)...))
+	attrs = append(attrs, mpUnreach(1, 4, labeled([]byte{0x80, 0, 0}, 192, 0, 2))...)
 	update := bgpUpdate(t, nil, attrs, nil)
 	var view policyview.View
 	sets := new(policychain.RunSets)

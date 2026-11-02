@@ -79,7 +79,7 @@ func (m *matchCommunity) in(fields []byte) bool {
 		return false
 	}
 	list := fields[at+len(m.key):]
-	if len(list) == 0 || list[0] != '[' {
+	if !bytes.HasPrefix(list, []byte{'['}) {
 		return false
 	}
 	end := bytes.IndexByte(list, ']')

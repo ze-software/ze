@@ -233,12 +233,12 @@ type communitySetLeaf struct {
 // communitySetLeaves are the community leaves in the order their sets are
 // built.
 var communitySetLeaves = [...]communitySetLeaf{
-	{communityAddDirective, "community", rpc.FilterSetActionAdd, validateStdCommunity},
-	{communityRemoveDirective, "community", rpc.FilterSetActionRemove, validateStdCommunity},
-	{largeCommunityAddDirective, "large-community", rpc.FilterSetActionAdd, validateLargeCommunity},
-	{largeCommunityRemoveDirective, "large-community", rpc.FilterSetActionRemove, validateLargeCommunity},
-	{extendedCommunityAddDirective, "extended-community", rpc.FilterSetActionAdd, validateExtCommunity},
-	{extendedCommunityRemoveDirective, "extended-community", rpc.FilterSetActionRemove, validateExtCommunity},
+	{communityAddDirective, communityAttr, rpc.FilterSetActionAdd, validateStdCommunity},
+	{communityRemoveDirective, communityAttr, rpc.FilterSetActionRemove, validateStdCommunity},
+	{largeCommunityAddDirective, largeCommunityAttr, rpc.FilterSetActionAdd, validateLargeCommunity},
+	{largeCommunityRemoveDirective, largeCommunityAttr, rpc.FilterSetActionRemove, validateLargeCommunity},
+	{extendedCommunityAddDirective, extendedCommunityAttr, rpc.FilterSetActionAdd, validateExtCommunity},
+	{extendedCommunityRemoveDirective, extendedCommunityAttr, rpc.FilterSetActionRemove, validateExtCommunity},
 }
 
 // buildCommunitySets appends one set per configured community value.
@@ -267,7 +267,7 @@ func parseMatchBlock(block map[string]any) (matchCond, error) {
 
 	for key := range block {
 		switch key {
-		case "community", "large-community", "extended-community":
+		case communityAttr, largeCommunityAttr, extendedCommunityAttr:
 		default:
 			// A source condition (protocol, tag, level, route-type) is
 			// judged by the Loc-RIB route evaluator; BGP routes carry

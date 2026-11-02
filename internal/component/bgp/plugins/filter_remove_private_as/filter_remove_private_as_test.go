@@ -100,10 +100,10 @@ func TestRemovePrivateASUnknownFilterFails(t *testing.T) {
 	}
 }
 
-// VALIDATES: the evaluator honours the fast-path contract on both transports
+// VALIDATES: the evaluator honors the fast-path contract on both transports
 // (FR-9, AC-36): no blocking, the same answer twice, no view kept past the
 // call, equal answers on the slot and over the batch, concurrent use.
-// PREVENTS: an evaluator that is only correct when the bridge loop serialised it.
+// PREVENTS: an evaluator that is only correct when the bridge loop serialized it.
 func TestRemovePrivateASConformance(t *testing.T) {
 	defs := map[string]*removePrivateASDef{"STRIP": {name: "STRIP", mode: removeModeStrip}}
 	defsByName.Store(&defs)

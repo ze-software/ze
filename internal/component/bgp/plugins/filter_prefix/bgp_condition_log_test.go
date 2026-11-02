@@ -25,7 +25,7 @@ func captureLogger(t *testing.T, level slog.Level) *bytes.Buffer {
 
 // runFromPeer runs chain over update as a live import from 192.0.2.9, or as
 // a display-only trace when trace is set.
-func runFromPeer(t *testing.T, chain *policychain.Chain, nlri []byte, trace bool) policychain.Outcome {
+func runFromPeer(t *testing.T, chain *policychain.Chain, nlri []byte, trace bool) {
 	t.Helper()
 	var view policyview.View
 	view.Reset(bgpUpdate(t, nil, nil, nlri), policyview.Session{})
@@ -33,9 +33,10 @@ func runFromPeer(t *testing.T, chain *policychain.Chain, nlri []byte, trace bool
 	sets := new(policychain.RunSets)
 	sets.SetRoute(policychain.ExternalRoute{Direction: "import", Peer: "192.0.2.9"})
 	if trace {
-		return chain.Trace(&view, sets, func(policychain.MemberTrace) {})
+		chain.Trace(&view, sets, func(policychain.MemberTrace) {})
+		return
 	}
-	return chain.Run(&view, sets)
+	chain.Run(&view, sets)
 }
 
 // TestBGPMatchLogsPrefixListDecision proves a match naming a prefix-list

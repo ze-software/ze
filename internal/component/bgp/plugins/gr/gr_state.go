@@ -100,16 +100,6 @@ func newGRStateManager(onExpired func(peerAddr string)) *grStateManager {
 	}
 }
 
-// familyRetained answers whether one family of peerAddr is retained, from the
-// authoritative GR/LLGR family set retainedFamilies also reads. Safe for
-// concurrent use; callers MUST NOT hold m.mu.
-func (m *grStateManager) familyRetained(peerAddr string, fam family.Family) bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	state := m.peers[peerAddr]
-	return state != nil && state.staleFamilies[fam]
-}
-
 // retainedFamilies answers the families whose routes are retained for
 // peerAddr now, sorted so a verdict renders the same for the same state. No
 // peer state answers none: the peer is in neither GR nor LLGR.

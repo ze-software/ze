@@ -19,11 +19,11 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	return out
 }
 
-// VALIDATES: the evaluator honours the fast-path contract on both transports
+// VALIDATES: the evaluator honors the fast-path contract on both transports
 // (FR-9, AC-36): no blocking, the same answer twice, no view kept past the
 // call, equal answers on the slot and over the batch, concurrent use; the
 // routes cover strip, suppress, tear-down and no match.
-// PREVENTS: an evaluator that is only correct when the bridge loop serialised it.
+// PREVENTS: an evaluator that is only correct when the bridge loop serialized it.
 func TestFamilyFilterConformance(t *testing.T) {
 	setInstances(t, flowInstances())
 	routes := []sdk.ConformanceRoute{

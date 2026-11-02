@@ -24,17 +24,17 @@ func captureLogger(t *testing.T, level slog.Level) *bytes.Buffer {
 	return &buf
 }
 
-// runLogged runs chain over update as a live run from 192.0.2.9 in
-// direction, or as a display-only trace when trace is set, and answers the
+// runLogged runs chain over update as a live import from 192.0.2.9,
+// or as a display-only trace when trace is set, and answers the
 // lines the logger wrote.
-func runLogged(t *testing.T, chain *policychain.Chain, update *wireu.WireUpdate, session policyview.Session, direction string, trace bool) string {
+func runLogged(t *testing.T, chain *policychain.Chain, update *wireu.WireUpdate, session policyview.Session, trace bool) string {
 	t.Helper()
 	buf := captureLogger(t, slog.LevelDebug)
 	var view policyview.View
 	view.Reset(update, session)
 	defer view.Clear()
 	sets := new(policychain.RunSets)
-	sets.SetRoute(policychain.ExternalRoute{Direction: direction, Peer: "192.0.2.9"})
+	sets.SetRoute(policychain.ExternalRoute{Direction: "import", Peer: "192.0.2.9"})
 	if trace {
 		chain.Trace(&view, sets, func(policychain.MemberTrace) {})
 	} else {
@@ -67,13 +67,13 @@ func TestBGPMatchLogsRejectASNDecision(t *testing.T) {
 	chain := rejectASNChain(t)
 	from := policyview.Session{EBGP: true, Sender: 65001, SenderKnown: true}
 	clean := pathUpdate(t, 65001, 65002)
-	wantLine(t, runLogged(t, chain, clean, from, "import", false),
+	wantLine(t, runLogged(t, chain, clean, from, false),
 		"level=DEBUG", `msg="reject-asn accept"`, "filter=guard", "direction=import", "peer=192.0.2.9", `as-path="65001 65002"`)
-	wantLine(t, runLogged(t, chain, pathUpdate(t, 65001, 3356, 65002), from, "import", false),
+	wantLine(t, runLogged(t, chain, pathUpdate(t, 65001, 3356, 65002), from, false),
 		"level=INFO", `msg="reject-asn reject"`, "filter=guard", "direction=import", "asn=3356", "position=transit", `as-path="65001 3356 65002"`)
-	wantLine(t, runLogged(t, chain, pathUpdate(t, 65001, 64512), from, "import", false),
+	wantLine(t, runLogged(t, chain, pathUpdate(t, 65001, 64512), from, false),
 		"level=INFO", `msg="reject-asn reject"`, "filter=guard", `pattern="^65001 64512$"`, `as-path="65001 64512"`)
-	if lines := runLogged(t, chain, clean, from, "import", true); lines != "" {
+	if lines := runLogged(t, chain, clean, from, true); lines != "" {
 		t.Fatalf("a trace wrote %q, want nothing", lines)
 	}
 }

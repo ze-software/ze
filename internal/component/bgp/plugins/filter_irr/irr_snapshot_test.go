@@ -155,7 +155,7 @@ func TestIRRSnapshotSwap(t *testing.T) {
 					accepted.Store(worker, true)
 				case sdk.FilterReject:
 					rejected.Store(worker, true)
-				case sdk.FilterModify, sdk.FilterUnspecified:
+				case sdk.FilterModify, sdk.FilterUnspecified, sdk.FilterWithdraw:
 					t.Errorf("verdict %v %+v: one route was judged by two snapshots", out.Action, out.Sets)
 					return
 				}

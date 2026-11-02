@@ -60,6 +60,13 @@ const (
 	asPathPrependAttr   = "as-path-prepend"
 )
 
+// Community field names are shared by match keys and the add/remove sets.
+const (
+	communityAttr         = "community"
+	largeCommunityAttr    = "large-community"
+	extendedCommunityAttr = "extended-community"
+)
+
 // The community leaves under the `set` block. Each one names the field and
 // the action of the sets it builds (communitySetLeaves), and the delta text
 // of the log line writes the leaf name.

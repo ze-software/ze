@@ -43,9 +43,9 @@ var ribSetKeys = map[string]bool{ribSetDistance: true, ribSetTag: true, ribSetMe
 
 // matchKeyFields maps modify's own match keys onto the fields they read.
 var matchKeyFields = map[string]policy.Field{
-	"community":          policy.FieldCommunity,
-	"large-community":    policy.FieldLargeCommunity,
-	"extended-community": policy.FieldExtendedCommunity,
+	communityAttr:         policy.FieldCommunity,
+	largeCommunityAttr:    policy.FieldLargeCommunity,
+	extendedCommunityAttr: policy.FieldExtendedCommunity,
 }
 
 // setKeyFields maps every set key onto the field it sets. A key missing here
