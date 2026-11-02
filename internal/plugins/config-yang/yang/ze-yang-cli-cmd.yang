@@ -3,6 +3,7 @@ module ze-yang-cli-cmd {
     prefix yangclicmd;
     import ze-extensions { prefix ze; }
     description "show yang command tree. Owned by the config yang subsystem because these handlers render and document the YANG model tree. See ai/rules/plugin-self-containment.md.";
+    revision 2026-11-02 { description "Declared the leaves that select what show yang tree, completion and doc answer, so every surface can send them."; }
     revision 2026-06-06 { description "Relocated show yang out of the central show schema (plugin self-containment)."; }
 
     container show {
@@ -21,6 +22,19 @@ module ze-yang-cli-cmd {
                 description "Shows node types, data types, and config-vs-state annotations. Similar to
 'pyang -f tree'. Useful for understanding the config or command structure.";
                 ze:help "Print the YANG tree for a module in a readable hierarchy.";
+
+                leaf commands {
+                    type empty;
+                    description "Answers only the command nodes of the tree. Giving it with config is
+refused.";
+                    ze:help "Show only the command nodes";
+                }
+                leaf config {
+                    type empty;
+                    description "Answers only the config nodes of the tree. Giving it with commands is
+refused.";
+                    ze:help "Show only the config nodes";
+                }
             }
 
             container completion {
@@ -28,6 +42,12 @@ module ze-yang-cli-cmd {
                 ze:command "ze-config-yang:show-yang-completion";
                 description "Lists every valid completion point in the command tree.";
                 ze:help "Show YANG paths available for tab completion.";
+
+                leaf min-prefix {
+                    type uint8 { range "1..10"; }
+                    description "The shortest disambiguation depth a collision is reported at.";
+                    ze:help "Minimum disambiguation depth to report";
+                }
             }
 
             container doc {
@@ -36,6 +56,19 @@ module ze-yang-cli-cmd {
                 description "Produces structured documentation with descriptions, arguments, and usage
 patterns for every registered command.";
                 ze:help "Generate command reference docs from YANG schemas.";
+
+                leaf list {
+                    type empty;
+                    description "Answers the list of every documented command instead of one command's
+page.";
+                    ze:help "List every documented command";
+                }
+                leaf command {
+                    type string { length "1..1024"; }
+                    ze:rest-of-line;
+                    description "The command whose page is answered, as its words are typed.";
+                    ze:help "Command to document";
+                }
             }
         }
     }

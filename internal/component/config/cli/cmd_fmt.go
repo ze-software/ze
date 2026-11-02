@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -159,6 +160,34 @@ func fmtHelpPage() *helpfmt.Page {
 func writeFmtUsage(diag *textbuf.Buffer) {
 	fmtHelpPage().WriteTo(diag, slogutil.UseColor(os.Stderr))
 	diag.Str("\nFormats current config files only. For old configs, run \"ze config migrate\" first.\n")
+}
+
+// The leaves ze-config-cli-cmd.yang declares on show config fmt for the
+// choices the local --check and --diff options make. A flag never reaches the
+// daemon, so the leaves are how every other surface makes them.
+var fmtLeafOptions = []string{"check", "diff"}
+
+// fmtLeafArgs answers the words fmtAnswer parses: each typed leaf becomes its
+// option in front of the words no leaf took. A choice made both ways is
+// refused rather than read once.
+func fmtLeafArgs(validated command.ValidatedArgs) ([]string, *command.LocalAnswer) {
+	words := validated.PositionalTokens()
+	var options []string
+	for _, leaf := range fmtLeafOptions {
+		if !validated.Flag(leaf) {
+			continue
+		}
+		option := "--" + leaf
+		if slices.Contains(words, option) {
+			var reason textbuf.Buffer
+			reason.Str("error: ").Str(leaf).Str(" and ").Str(option).
+				Str(" make the same choice; give only one of them\n")
+			refusal := command.LocalRefusal(exitError, reason.String())
+			return nil, &refusal
+		}
+		options = append(options, option)
+	}
+	return append(options, words...), nil
 }
 
 // fmtAnswer answers `show config fmt`: the formatted config as a Blob, and

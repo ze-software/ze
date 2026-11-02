@@ -226,3 +226,66 @@ func TestPluginDeclarationsConfigPathConfined(t *testing.T) {
 		t.Errorf("daemon route on /etc/passwd: code %d, %q, want it to name %q", refusal.Code, refusal.Diagnostic, want)
 	}
 }
+
+// TestConfigIncludeReadsNothingOutsideTheConfinedDir proves a confined file
+// cannot pull a file from outside the configuration directories into a
+// daemon-route answer.
+//
+// Goal: AC-8. The file the caller names is confined (command.CallerPath), so
+// the only other way to reach a file is a statement inside it that names one.
+// Ze's configuration grammar has no include statement: a file that writes one
+// is answered from its own bytes alone, whether the statement names the file
+// outside directly or through a symlink placed inside the directory.
+// Method: every daemon-served command that parses a caller-named config runs
+// on the daemon route over a confined file whose include names a marked file
+// outside the directory, `/etc/passwd`, and a symlink to each; no answer may
+// carry a byte of either target.
+func TestConfigIncludeReadsNothingOutsideTheConfinedDir(t *testing.T) {
+	const marker = "zesecretmarker"
+	outside := filepath.Join(t.TempDir(), "secret.conf")
+	secret := "# " + marker + "\nbgp {\n    peer " + marker + " {\n        connection {\n            remote {\n                ip 10.9.9.9;\n            }\n        }\n    }\n}\n"
+	if err := os.WriteFile(outside, []byte(secret), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	forbidden := []string{marker, "10.9.9.9"}
+	if passwd, err := os.ReadFile("/etc/passwd"); err == nil {
+		if first, _, _ := strings.Cut(string(passwd), "\n"); first != "" {
+			forbidden = append(forbidden, first)
+		}
+	}
+
+	file := confinedConfigDir(t, testConfigPlain)
+	dir := filepath.Dir(file)
+	for name, target := range map[string]string{"secret-link": outside, "passwd-link": "/etc/passwd"} {
+		if err := os.Symlink(target, filepath.Join(dir, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, include := range []string{outside, "/etc/passwd", filepath.Join(dir, "secret-link"), "passwd-link"} {
+		content := "include \"" + include + "\";\n" + testConfigPlain
+		if err := os.WriteFile(file, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		for path, tokens := range map[string][]string{
+			"show config dump":                {file},
+			"show config validation":          {file},
+			"show config graph":               {file},
+			"show config fmt":                 {file},
+			"show config diff":                {file, file},
+			"show plugin declarations config": {file},
+		} {
+			answer := answerOn(t, path, tokens, true)
+			seen := encodedAnswer(t, answer)
+			if blob, ok := answer.Payload.(command.Blob); ok {
+				seen += "\n" + string(blob)
+			}
+			for _, bytesOutside := range forbidden {
+				if strings.Contains(seen, bytesOutside) {
+					t.Errorf("%s over a file including %q answered %q from outside the configuration directory:\n%s",
+						path, include, bytesOutside, seen)
+				}
+			}
+		}
+	}
+}

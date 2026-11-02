@@ -24,6 +24,9 @@ import (
 	"errors"
 	"flag"
 	"os"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -38,6 +41,37 @@ const (
 	flagCommands = "--commands"
 	flagConfig   = "--config"
 )
+
+// The leaves the model declares for the same choices (ze-yang-cli-cmd.yang),
+// which every surface can send where a flag never reaches the daemon.
+const (
+	leafTreeCommands    = "commands"
+	leafTreeConfig      = "config"
+	leafCompletionDepth = "min-prefix"
+	leafDocList         = "list"
+	leafDocCommand      = "command"
+)
+
+// leafAndFlagRefusal answers a call that made one choice twice, once by the
+// leaf and once by its local option spelling.
+func leafAndFlagRefusal(leaf, option string) command.LocalAnswer {
+	var reason textbuf.Buffer
+	reason.Str("error: ").Str(leaf).Str(" and ").Str(option).
+		Str(" make the same choice; give only one of them\n")
+	return command.LocalRefusal(1, reason.String())
+}
+
+// optionGiven reports whether args hold the local option name, in any
+// spelling the flag package reads (-name, --name, --name=value).
+func optionGiven(args []string, name string) bool {
+	return slices.ContainsFunc(args, func(word string) bool {
+		if !strings.HasPrefix(word, "-") {
+			return false
+		}
+		bare, _, _ := strings.Cut(strings.TrimLeft(word, "-"), "=")
+		return bare == name
+	})
+}
 
 // yangRefusal is the answer of a handler that could not build its payload: the
 // same "error: <reason>" line the printers write. The handler writes nothing
@@ -92,10 +126,28 @@ func decodeWritten(write func(w *bytes.Buffer) error) command.LocalAnswer {
 // that is what formatTreeJSON emits. `| first 1` therefore answers one subtree
 // whole, and `| match` keeps the roots holding the text.
 func dataTree(validated command.ValidatedArgs) command.LocalAnswer {
-	args := validated.Tokens()
-	options, err := parseTreeOptions(args)
+	options, err := parseTreeOptions(validated.PositionalTokens())
 	if err != nil {
 		return optionRefusal(err, treeHelpPage(), validated.Route())
+	}
+	// Each leaf is one of the two halves the options select. Both leaves, or a
+	// leaf beside an option, make the choice twice and are refused, naming the
+	// earlier word.
+	chosenBy := flagConfig
+	if options.filter == FilterCommands {
+		chosenBy = flagCommands
+	}
+	for _, leaf := range [...]struct{ name, filter string }{
+		{leafTreeCommands, FilterCommands},
+		{leafTreeConfig, SourceConfig},
+	} {
+		if !validated.Flag(leaf.name) {
+			continue
+		}
+		if options.filter != "" {
+			return leafAndFlagRefusal(leaf.name, chosenBy)
+		}
+		options.filter, chosenBy = leaf.filter, leaf.name
 	}
 
 	root, err := buildUnifiedTree()
@@ -109,10 +161,19 @@ func dataTree(validated command.ValidatedArgs) command.LocalAnswer {
 // dataCompletion answers `show yang completion`: the prefix collisions in the
 // config and command trees, as rows.
 func dataCompletion(validated command.ValidatedArgs) command.LocalAnswer {
-	args := validated.Tokens()
+	args := validated.PositionalTokens()
 	options, err := parseCompletionOptions(args)
 	if err != nil {
 		return optionRefusal(err, completionHelpPage(), validated.Route())
+	}
+	// The model has already judged the leaf's range (1..10).
+	if depth, found := validated.Keyed(leafCompletionDepth); found {
+		if optionGiven(args, leafCompletionDepth) {
+			return leafAndFlagRefusal(leafCompletionDepth, "--"+leafCompletionDepth)
+		}
+		if options.minPrefix, err = strconv.Atoi(depth); err != nil {
+			return yangRefusal(err)
+		}
 	}
 
 	root, err := buildUnifiedTree()
@@ -123,9 +184,21 @@ func dataCompletion(validated command.ValidatedArgs) command.LocalAnswer {
 	return decodeWritten(func(w *bytes.Buffer) error { return formatCollisionsJSON(w, groups) })
 }
 
-// dataDoc answers `show yang doc`.
+// dataDoc answers `show yang doc`. The local option words ride in front of the
+// command words, as the printing form reads them, and the `list` leaf is the
+// --list option under the name every surface can send.
 func dataDoc(validated command.ValidatedArgs) command.LocalAnswer {
-	return docAnswer(validated.Tokens(), validated.Route())
+	args := validated.PositionalTokens()
+	if words, found := validated.Keyed(leafDocCommand); found {
+		args = append(args, strings.Fields(words)...)
+	}
+	if validated.Flag(leafDocList) {
+		if optionGiven(args, leafDocList) {
+			return leafAndFlagRefusal(leafDocList, "--"+leafDocList)
+		}
+		args = append([]string{"--" + leafDocList}, args...)
+	}
+	return docAnswer(args, validated.Route())
 }
 
 // docAnswer answers `yang doc [--list] [<command>]`: the documentation text as

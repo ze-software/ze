@@ -345,8 +345,14 @@ flag is read only by the client. When the command also has a local-data
 handler, the refusal names the local `ze` command to run instead. A flag that
 selects what is answered is declared as a YANG leaf so every surface can send
 it: `show config dump strip-private` asks for what `--strip-private` asks for.
+The same holds for `show config fmt check` and `diff` (`--check`, `--diff`),
+`show yang tree commands` and `config`, `show yang completion min-prefix`,
+and `show yang doc list` and `command` (`--list`, and the command words). A
+keyword given beside the flag that makes the same choice is refused rather
+than resolved by a silent winner.
 <!-- source: internal/component/command/caller_path.go -- CallerPath, RegisterCallerPathDirs, confinedDirs -->
 <!-- source: internal/component/config/cli/register.go -- callerPathDirs -->
+<!-- source: internal/component/config/yang/cli/yang_data.go -- dataTree, dataCompletion, dataDoc, leafAndFlagRefusal -->
 <!-- source: internal/component/plugin/server/command.go -- flagRefusal -->
 <!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, localDataHandler, localAnswerResponse -->
 <!-- source: internal/component/plugin/types.go -- Response, WarningText -->

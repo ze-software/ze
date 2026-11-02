@@ -89,7 +89,11 @@ func init() {
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config fmt", func(validated command.ValidatedArgs) command.LocalAnswer {
-		return fmtAnswer(validated.Route(), validated.Tokens())
+		args, refusal := fmtLeafArgs(validated)
+		if refusal != nil {
+			return *refusal
+		}
+		return fmtAnswer(validated.Route(), args)
 	}, registry.Meta{ShortHelp: "Pretty-print the config with consistent formatting and ordering."},
 		command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config validation", dataValidate, registry.Meta{

@@ -5,7 +5,7 @@ module ze-config-cli-cmd {
     // These handlers inspect, compare, and format configuration files through
     // the config backend. See ai/rules/plugin-self-containment.md.
     description "The show config command tree, owned by the config CLI.";
-    revision 2026-11-02 { description "Declare strip-private on show config dump, so every surface can ask for the masked tree."; }
+    revision 2026-11-02 { description "Declare strip-private on show config dump, and check and diff on show config fmt, so every surface can make those choices."; }
     revision 2026-10-24 { description "Add show config running, the configuration the daemon applied, answered by the daemon."; }
     revision 2026-10-12 { description "Rename validate config to show config validation: the first word of a command is its verb."; }
     revision 2026-10-08 { description "Declare show config graph and validate config, which the config CLI already served."; }
@@ -94,6 +94,19 @@ the configuration store and writes its bytes unchanged.";
                 description "Normalizes indentation and ordering. Output goes to stdout (read-only). To
 rewrite the file in place, use 'ze config fmt -w' from the CLI.";
                 ze:help "Pretty-print the configuration with consistent formatting.";
+
+                leaf check {
+                    type empty;
+                    description "Answers whether the file needs formatting instead of the formatted text:
+exit 0 when it is formatted, 1 with the file named when it is not.";
+                    ze:help "Report whether formatting is needed";
+                }
+                leaf diff {
+                    type empty;
+                    description "Answers the unified diff formatting would apply instead of the formatted
+text.";
+                    ze:help "Show what formatting would change";
+                }
             }
 
             container graph {

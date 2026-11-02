@@ -46,6 +46,9 @@ type ValidatedArgs struct {
 	// answer; reading a nil map answers not-found. A rest-of-line leaf is
 	// always in it, however it started.
 	keyed map[string]string
+	// flags holds every flag leaf whose keyword was typed. It is nil when
+	// none was, so the zero value answers no flag.
+	flags map[string]bool
 	// positional holds, in the order typed, every token no keyword consumed
 	// and no rest-of-line leaf took.
 	positional []string
@@ -81,6 +84,13 @@ func (v ValidatedArgs) Positional(leaf string) (value string, found bool) {
 func (v ValidatedArgs) Keyed(leaf string) (value string, found bool) {
 	value, found = v.keyed[leaf]
 	return value, found
+}
+
+// Flag answers whether the keyword of flag leaf was typed. A flag carries no
+// value, so neither Keyed nor Value answers it, and a word of a rest-of-line
+// leaf that spells the keyword is not the flag.
+func (v ValidatedArgs) Flag(leaf string) bool {
+	return v.flags[leaf]
 }
 
 // PositionalTokens answers a copy of the tokens no keyword consumed and no
@@ -244,6 +254,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 		}
 	}
 	consumed := make([]bool, len(args))
+	var flags map[string]bool
 
 	// Phase 1: keyword-value extraction.
 	for i := 0; i < len(args); i++ {
@@ -258,6 +269,10 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 		if def.kind == ArgFlag {
 			// A flag is the keyword alone; the next token is its own argument.
 			matched[def.name] = true
+			if flags == nil {
+				flags = make(map[string]bool)
+			}
+			flags[def.name] = true
 			continue
 		}
 		if i+1 >= len(args) {
@@ -332,7 +347,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 		return ValidatedArgs{}, positionalError(unplaced[0], defs, matched)
 	}
 
-	return ValidatedArgs{tokens: slices.Clone(all), bound: bound, boundValue: boundValue, keyed: keyed, positional: positional}, nil
+	return ValidatedArgs{tokens: slices.Clone(all), bound: bound, boundValue: boundValue, keyed: keyed, flags: flags, positional: positional}, nil
 }
 
 // restStart answers where the rest-of-line leaf rest begins on args: start is

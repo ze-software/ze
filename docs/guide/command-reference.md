@@ -216,7 +216,9 @@ From another surface (`ze cli`, SSH, the web, MCP, REST, gRPC) the daemon runs
 file inside the configuration directories `show config list` searches, never
 on standard input (`-`), and never rewrites a file with `fmt -w`; the refusal
 names the local `ze` command to run where the file is. The secret mask is the
-keyword `strip-private` there: `show config dump strip-private <file>`.
+keyword `strip-private` there: `show config dump strip-private <file>`, and
+`fmt --check` and `--diff` are the keywords `check` and `diff`:
+`show config fmt diff <file>`. The diff arrives as the answer's warnings.
 
 `--backup <artifact>` points `edit`, `show`, `diff`, `set` and `list` at the
 configs inside a backup artifact instead of the live store, with no daemon. A
@@ -2119,8 +2121,12 @@ ze yang doc [command]            # Command documentation
 | `--min-prefix <N>` | Minimum prefix length (completion, default: 1) |
 | `--list` | List commands (doc) |
 
-The tree and the collision report are registered answers, so the pipe layer
-renders them: `ze cli -c "show yang tree --config | json"`.
+Each flag has a keyword, the form a remote surface takes, where the daemon
+refuses a flag: `show yang tree commands`, `show yang tree config`,
+`show yang completion min-prefix <N>` (1 to 10), `show yang doc list` and
+`show yang doc command <words>`. Giving a keyword and its flag together is
+refused. The tree and the collision report are registered answers, so the pipe
+layer renders them: `ze cli -c "show yang tree config | json"`.
 <!-- source: internal/component/config/yang/cli/main.go -- Run -->
 
 ### ze appliance kernel
