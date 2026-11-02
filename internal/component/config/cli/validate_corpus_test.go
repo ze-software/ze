@@ -5,7 +5,6 @@ package cli
 import (
 	"bytes"
 	"errors"
-	"io/fs"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -31,8 +30,9 @@ import (
 //
 // VALIDATES: every Ze config the repository carries validates with no error,
 // and no EBGP direction is left closed by RFC 8212 unless the test carrying it
-// is about RFC 8212. The population is each `.conf` outside vendored and
-// cached trees, each `.ci` tmpfs `.conf`, each `.ci` stdin block a command
+// is about RFC 8212. The population is Git's tracked and nonignored source
+// files outside the runner's draft tree: each `.conf`, each `.ci` tmpfs
+// `.conf`, each `.ci` stdin block a command
 // hands to ze as a daemon config or a `ze config` input, each fragment a test
 // or a demo tape loads into a running config (validated merged, in the order
 // it is loaded), each `ze config migrate` input (validated as the command's
@@ -105,14 +105,6 @@ const sweepRecordPort = 1790
 // sweepLabPrefix stands for the IPv6 prefix an interop lab selects; any valid
 // prefix renders the link-local placeholders the lab would.
 var sweepLabPrefix = netip.MustParsePrefix("fd00:1e:0::/64")
-
-// sweepSkippedDirs are the directories the sweep never enters: version
-// control, vendored and cached module trees (a Go toolchain under
-// gokrazy/modcache ships resolv.conf fixtures), session scratch, and test/draft,
-// which every repo-wide gate skips.
-var sweepSkippedDirs = map[string]bool{
-	".git": true, "vendor": true, "modcache": true, "node_modules": true, "tmp": true, "draft": true,
-}
 
 // refusedExit matches a .ci expectation of a non-zero exit, the marker of a
 // test that feeds Ze a config it must refuse.
@@ -251,30 +243,11 @@ func runSweep(t *testing.T, off sweepRule, keep sweepKeep) *sweepReport {
 	}
 
 	var confs, cis, tapes []string
-	err = filepath.WalkDir(s.root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			if sweepSkippedDirs[d.Name()] {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		switch filepath.Ext(path) {
-		case ".conf", ".ci", ".tape":
-		default:
-			return nil
-		}
-		if keep != nil {
-			text, readErr := os.ReadFile(path)
-			if readErr != nil {
-				return readErr
-			}
-			if !keep.keeps(path, text) {
-				return nil
-			}
-		}
+	files, err := sweepSourceFiles(t.Context(), s.root, keep)
+	if err != nil {
+		t.Fatalf("discover %s: %v", s.root, err)
+	}
+	for _, path := range files {
 		switch filepath.Ext(path) {
 		case ".conf":
 			confs = append(confs, path)
@@ -283,10 +256,6 @@ func runSweep(t *testing.T, off sweepRule, keep sweepKeep) *sweepReport {
 		case ".tape":
 			tapes = append(tapes, path)
 		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walk %s: %v", s.root, err)
 	}
 
 	loaded := map[string]bool{}

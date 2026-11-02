@@ -71,6 +71,10 @@ bgp {
 		role {
 			import provider
 		}
+		filter {
+			import { final reject; }
+			export { final reject; }
+		}
 	}
 }
 EOF_CONF
@@ -112,6 +116,10 @@ bgp {
 		}
 		role {
 			import provider
+		}
+		filter {
+			import { final reject; }
+			export { final reject; }
 		}
 	}
 }

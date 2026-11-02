@@ -389,6 +389,14 @@ for a declared file it asserts the opposite: the body must be refused with
 that code, and a declared body that validates, or is refused for another
 reason, is a finding.
 
+The sweep discovers tracked files and untracked files that Git's ignore rules
+permit, using `git ls-files --cached --others --exclude-standard`. This keeps
+launcher exports and other ignored artifacts out while retaining tracked
+exceptions and new source files. The runner's draft tree remains outside the
+regression corpus. Discovery warnings and source read errors fail the sweep,
+including when a narrowed exclusion test would not select that file.
+<!-- source: internal/component/config/cli/validate_corpus_discovery_test.go -- sweepSourceFiles -->
+
 ### Mode Defaults
 
 Files default to `0644`. Use an explicit `mode=` only when the test needs a
