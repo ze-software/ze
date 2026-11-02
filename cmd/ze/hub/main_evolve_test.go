@@ -12,8 +12,12 @@ import (
 	"github.com/ze-software/ze/internal/core/version"
 )
 
+// evolveTestSetup stamps the release the evolution tests run under, and
+// isolates the process's base log level: every fixture config sets
+// `environment log level`, which publishes ze.log process-wide.
 func evolveTestSetup(t *testing.T) func() {
 	t.Helper()
+	isolateBaseLogLevel(t)
 	version.Stamp("26.05.26", "2026-05-26")
 	return func() { version.Stamp("dev", "unknown") }
 }

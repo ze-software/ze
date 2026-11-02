@@ -37,9 +37,11 @@ type repairedStore struct {
 // and C removed by raw-key mutation; the production repair producers
 // (zefs.RepairPath then storage.RepairHistory, as `ze data repair` runs them)
 // into a fresh config directory. It asserts the repair report and the pointers
-// the output keeps.
+// the output keeps. Every version sets `environment log level`, which a run
+// publishes as ze.log process-wide, so it isolates the base log level first.
 func buildRepairedStore(t *testing.T) repairedStore {
 	t.Helper()
+	isolateBaseLogLevel(t)
 	source := t.TempDir()
 	store, err := storage.Create(source)
 	if err != nil {
