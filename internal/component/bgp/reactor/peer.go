@@ -1363,25 +1363,13 @@ func (p *Peer) SetReactor(r *Reactor) {
 // RFC 4724 Section 4.1: If within the restart window (RestartUntil), sets the
 // Restart State bit (R=1) on code-64 capabilities so peers know we restarted.
 func (p *Peer) getPluginCapabilities() []capability.Capability {
-	p.mu.RLock()
-	r := p.reactor
-	settings := p.settings
-	p.mu.RUnlock()
-
-	if r == nil {
-		return nil
-	}
-
-	var injected []plugin.InjectedCapability
-	switch {
-	case r.pluginCapabilitySeam != nil:
-		injected = r.pluginCapabilitySeam(capabilitySelectors(settings)...)
-	case r.api != nil:
-		injected = r.api.GetPluginCapabilitiesForSelectors(capabilitySelectors(settings)...)
-	}
+	injected := p.pluginCapabilityDeclarations()
 	if len(injected) == 0 {
 		return nil
 	}
+	p.mu.RLock()
+	r := p.reactor
+	p.mu.RUnlock()
 
 	inRestartWindow := !r.config.RestartUntil.IsZero() && p.clock.Now().Before(r.config.RestartUntil)
 	injected = restartFlagsFor(injected, inRestartWindow, r.config.ForwardingPreserved)
@@ -1391,6 +1379,28 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 		caps[i] = capability.NewPlugin(ic.Code, ic.Value)
 	}
 	return caps
+}
+
+// pluginCapabilityDeclarations returns what the injector store declares for
+// this peer, as the plugins wrote it: before the restart-window flags
+// getPluginCapabilities sets, so the reload probe comparing two reads sees a
+// declaration change and never the passing of the restart deadline.
+func (p *Peer) pluginCapabilityDeclarations() []plugin.InjectedCapability {
+	p.mu.RLock()
+	r := p.reactor
+	settings := p.settings
+	p.mu.RUnlock()
+
+	if r == nil {
+		return nil
+	}
+	switch {
+	case r.pluginCapabilitySeam != nil:
+		return r.pluginCapabilitySeam(capabilitySelectors(settings)...)
+	case r.api != nil:
+		return r.api.GetPluginCapabilitiesForSelectors(capabilitySelectors(settings)...)
+	}
+	return nil
 }
 
 // capabilitySelectors returns the names under which a plugin can have declared a

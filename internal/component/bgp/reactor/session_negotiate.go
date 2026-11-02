@@ -196,12 +196,17 @@ func (s *Session) sendOpen(conn net.Conn) error {
 // prepareOpen builds the proposal once, before negotiation or transmission.
 // The caller MUST serialize initial OPEN work with openMu.
 func (s *Session) prepareOpen() error {
+	// Read BEFORE the build, so a declaration a reload installs in between can
+	// only make the record older than the OPEN, which the reload probe reads as
+	// a change and answers with a restart (fail-closed).
+	sentDecls := s.pluginDeclarations()
 	open, err := s.buildOpen(s.settings, s.configCapabilities())
 	if err != nil {
 		return err
 	}
 	s.mu.Lock()
 	s.localOpen = open
+	s.sentPluginDecls = sentDecls
 	if transport := s.transport.Load(); transport != nil {
 		transport.localAS.Store(open.ASN4)
 	}

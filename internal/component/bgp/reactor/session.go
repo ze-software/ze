@@ -29,6 +29,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
@@ -526,6 +527,16 @@ type Session struct {
 	// Called in sendOpen() to inject plugin capabilities into OPEN.
 	pluginCapGetter func() []capability.Capability
 
+	// pluginDeclGetter reads what the injector store declares for this peer, as
+	// the plugins wrote it (Peer.pluginCapabilityDeclarations). prepareOpen
+	// records it beside localOpen as sentPluginDecls, so the reload probe can
+	// tell whether a plugin's declaration changed since the OPEN was sent.
+	pluginDeclGetter func() []plugin.InjectedCapability
+
+	// sentPluginDecls is the plugin declaration read just before localOpen was
+	// built, indexed by code (pluginDeclarationIndex). Guarded by mu.
+	sentPluginDecls map[uint8][]string
+
 	// configCapGetter reads the CONFIGURED capabilities under the Peer's lock, so
 	// buildOpen never reads s.settings.Capabilities off the shared pointer a
 	// reload swap writes. Set by Peer; see SetConfigCapabilityGetter
@@ -962,6 +973,13 @@ func (s *Session) SetSourceID(id source.SourceID) {
 // Called by Peer at creation time to link to plugin.Server.GetPluginCapabilitiesForSelectors().
 func (s *Session) setPluginCapabilityGetter(getter func() []capability.Capability) {
 	s.pluginCapGetter = getter
+}
+
+// setPluginDeclarationGetter sets the callback that reads the plugin
+// declarations for this peer as the store holds them. Called by Peer at session
+// creation, beside setPluginCapabilityGetter (peer_run.go).
+func (s *Session) setPluginDeclarationGetter(getter func() []plugin.InjectedCapability) {
+	s.pluginDeclGetter = getter
 }
 
 // setPluginFamiliesGetter sets the callback for retrieving plugin decode families.

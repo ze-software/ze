@@ -284,6 +284,7 @@ func (p *Peer) runOnce() error {
 	p.attachStatsCallbacks(session)
 	session.SetSourceID(p.sourceID)
 	session.setPluginCapabilityGetter(p.getPluginCapabilities)
+	session.setPluginDeclarationGetter(p.pluginCapabilityDeclarations)
 	session.setConfigCapabilityGetter(p.configuredCapabilities)
 	session.setPluginFamiliesGetter(p.getPluginFamilies)
 	session.setOpenValidator(p.validateOpen)

@@ -6,8 +6,10 @@ package reactor
 
 import (
 	"reflect"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
 
@@ -62,6 +64,7 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 	localOpen := s.localOpen
 	peerOpen := s.peerOpen
 	negotiated := s.negotiated
+	sentDecls := s.sentPluginDecls
 	s.mu.RUnlock()
 
 	// No OPEN pair means no negotiation to preserve. A peer that is idle,
@@ -76,6 +79,13 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 	}
 	peerCaps, err := capability.ParseFromOptionalParams(peerOpen.OptionalParams, peerOpen.ExtendedParams)
 	if err != nil {
+		return false
+	}
+
+	// Read BEFORE the candidate is built, as prepareOpen does, so the
+	// declaration compared is never newer than the OPEN the candidate carries.
+	nextDecls := s.pluginDeclarations()
+	if !pluginDeclarationsKept(sentDecls, nextDecls, peerCaps) {
 		return false
 	}
 
@@ -104,6 +114,65 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 	base := capability.Negotiate(baseCaps, peerCaps, identity)
 	candidate := capability.Negotiate(nextCaps, peerCaps, identity)
 	return negotiatedOutcomeEqual(base, candidate)
+}
+
+// pluginDeclarations reads the plugin declarations for this session's peer,
+// indexed by code. A session no Peer owns has no getter and declares nothing.
+func (s *Session) pluginDeclarations() map[uint8][]string {
+	if s.pluginDeclGetter == nil {
+		return nil
+	}
+	return pluginDeclarationIndex(s.pluginDeclGetter())
+}
+
+// pluginDeclarationIndex maps each code to the sorted values declared for it,
+// so two reads compare without regard to the order the store returned them in.
+func pluginDeclarationIndex(declared []plugin.InjectedCapability) map[uint8][]string {
+	index := make(map[uint8][]string, len(declared))
+	for i := range declared {
+		index[declared[i].Code] = append(index[declared[i].Code], string(declared[i].Value))
+	}
+	for code := range index {
+		slices.Sort(index[code])
+	}
+	return index
+}
+
+// pluginDeclarationsKept reports whether a running session can keep the plugin
+// capabilities its OPEN carried: every code whose declaration differs between
+// sent and next must be one the peer never advertised.
+//
+// A plugin capability is opaque to the engine, which cannot run its
+// negotiation, so it is judged by its bytes. RFC 5492 Section 1: "A BGP
+// speaker that supports a particular capability may use this capability with
+// its peer after the speaker determines (as described above) that the peer
+// supports this capability." A code the peer did not advertise is not in use
+// on the session, so changing, adding or removing it changes nothing the
+// session does, and the next OPEN carries the new value. A changed code the
+// peer advertised is in use, and a capability changes only through a new OPEN,
+// so the session restarts.
+func pluginDeclarationsKept(sent, next map[uint8][]string, peerCaps []capability.Capability) bool {
+	for code := range sent {
+		if !slices.Equal(sent[code], next[code]) && peerAdvertised(peerCaps, code) {
+			return false
+		}
+	}
+	for code := range next {
+		if !slices.Equal(sent[code], next[code]) && peerAdvertised(peerCaps, code) {
+			return false
+		}
+	}
+	return true
+}
+
+// peerAdvertised reports whether the peer's OPEN carried capability code.
+func peerAdvertised(peerCaps []capability.Capability, code uint8) bool {
+	for _, c := range peerCaps {
+		if uint8(c.Code()) == code {
+			return true
+		}
+	}
+	return false
 }
 
 // openHeaderEqual compares the fixed OPEN fields of two OPEN messages, ignoring
@@ -190,14 +259,15 @@ func negotiatedOutcomeEqual(a, b *capability.Negotiated) bool {
 // (parseCapabilitiesFromTree, config_capabilities.go), and a plugin's own
 // capabilities enter the OPEN through pluginCapGetter, which reads the injector
 // store the plugin has already written (Server.GetPluginCapabilitiesForSelectors).
-// The probe builds its candidate OPEN from that same store, so it sees what the
-// plugin holds NOW and cannot see what the plugin would inject once it received
-// the new config. That store never changes while the plugin runs: a reload that
-// would change a plugin's declaration is refused at config-verify
-// (sdk.Plugin.DeclareCapabilitiesFrom), so a reload that reaches here leaves
-// every plugin capability as the store holds it. A capability-block edit still
-// restarts, because the plugin side of it is decided by the plugin, not by a
-// path the probe runs (ai/rules/evidence.md).
+// The probe builds its candidate OPEN from that same store. A reload replaces a
+// plugin's declaration there on its first apply, before the BGP participant
+// applies (config_tx_capabilities.go in the plugin server), so the store the
+// probe reads already holds what the reload declares. The probe compares it
+// with the declaration recorded when the running OPEN was built
+// (pluginDeclarationsKept), and restarts when a code the peer advertised
+// changed. A capability-block edit still restarts, because the plugin side of
+// it is decided by the plugin, not by a path the probe runs
+// (ai/rules/evidence.md).
 func negotiatedCapabilitySettings(dst, src *PeerSettings) {
 	dst.Capabilities = src.Capabilities
 }
