@@ -1,0 +1,20 @@
+# AC-1: real harness entry points reject unsupported authored input.
+stdin=steps:terminator=EOF_STEPS
+[{"Kind":255}]
+EOF_STEPS
+
+cmd=foreground:seq=1:exec=le test bgp ac1-unknown-verb
+expect=exit:code=1
+expect=stderr:contains=unknown suite command "ac1-unknown-verb"
+
+# The parse runner replaces - with the block's file path: file-input proof.
+cmd=foreground:seq=2:exec=le mock engine-steps -:stdin=steps
+expect=exit:code=1
+expect=stderr:contains=ZE-OBSERVER-FAIL
+expect=stderr:contains=step 1: unknown kind 255
+
+# /dev/stdin retains the pipe rather than the parser's dash-to-file rewrite.
+cmd=foreground:seq=3:exec=le mock engine-steps /dev/stdin:stdin=steps
+expect=exit:code=1
+expect=stderr:contains=ZE-OBSERVER-FAIL
+expect=stderr:contains=step 1: unknown kind 255

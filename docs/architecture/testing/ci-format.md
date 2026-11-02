@@ -323,6 +323,13 @@ with no `cmd=` at all feeds its `expect=` lines to ze-peer by another route. **A
 acts on fails the file at parse time**, naming the block, the line number and the
 directive.
 
+When a file declares `cmd=` lines, every `stdin=peer` block must be named by
+a `cmd=...:exec=le test peer ...:stdin=peer` command. An orphan block fails
+parsing even without a rejection directive: its wire expectations would have
+no consumer. Files with no `cmd=` lines retain the legacy peer execution path.
+Peer command recognition uses the execution tokenizer: quoted command words
+such as `"le" test 'peer'` and quoted mode values retain their peer role.
+
 | Line | Read by |
 |------|---------|
 | `expect=bgp`, `reject=bgp`, `action=*`, and the peer's own `option=` (`asn`, `bind`, `tcp_connections`, `conn_map`, `open`, `update`, `linger`, `silent`, `await_eor`, `established-file`, `await-file`) | le test peer |

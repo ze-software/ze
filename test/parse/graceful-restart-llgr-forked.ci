@@ -56,3 +56,7 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=0
+cmd=foreground:seq=2:exec=ze cli -c "show config dump - | json":stdin=config
+expect=exit:code=0
+expect=stdout:pattern="long-lived-stale-time": "3600"
+expect=stdout:pattern="run": "ze plugin bgp-gr"

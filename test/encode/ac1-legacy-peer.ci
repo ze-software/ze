@@ -1,0 +1,23 @@
+# AC-1: no cmd= lines; the ordinary runner must execute its implicit peer.
+# The exact OPEN proves the configured router-id reached the wire.
+option=file:path=legacy.conf
+option=open:value=inspect-open-message
+option=timeout:value=15s
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002B01040001005A0A141E280E020C010400010001410400000001
+EOF_PEER
+tmpfs=legacy.conf:terminator=EOF_CONF
+bgp {
+ peer peer1 {
+  connection {
+   remote { ip 127.0.0.1; }
+   local { ip 127.0.0.1; accept false; }
+  }
+  session {
+   asn { local 1; remote 1; }
+   router-id 10.20.30.40;
+   family { ipv4/unicast { prefix { maximum 10000; } } }
+  }
+ }
+}
+EOF_CONF

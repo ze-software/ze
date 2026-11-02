@@ -491,6 +491,11 @@ resolving to `command-owner-firewall-root.ci` rather than to any `017-*.ci`.
 
 ## Which binaries a fixture reaches
 
+`le test bgp` refuses an unknown suite verb with a non-zero exit and names the
+verb. Help and an empty argument list still print usage successfully.
+An orchestrated `.ci` with an unconsumed `stdin=peer` block fails discovery;
+the runner reports that parse failure rather than executing a passing fixture.
+
 A fixture runs `ze` by bare name. The runner builds `ze`, and only `ze`, into
 a throwaway directory (`LE_TEST_NO_BUILD=1` skips that build and uses a
 pre-built `ze`). No harness binary exists: every harness command is

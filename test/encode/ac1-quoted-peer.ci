@@ -1,0 +1,22 @@
+# AC-1: quoted command words use the same peer role during parse and execution.
+stdin=peer:terminator=EOF_PEER
+option=open:value=inspect-open-message
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002B01040001005A0A141E280E020C010400010001410400000001
+EOF_PEER
+stdin=config:terminator=EOF_CONF
+bgp {
+ peer peer1 {
+  connection {
+   remote { ip 127.0.0.1; }
+   local { ip 127.0.0.1; accept false; }
+  }
+  session {
+   asn { local 1; remote 1; }
+   router-id 10.20.30.40;
+   family { ipv4/unicast { prefix { maximum 10000; } } }
+  }
+ }
+}
+EOF_CONF
+cmd=background:seq=1:exec="le" "test" 'peer' --mode="check" --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=15s

@@ -268,18 +268,8 @@ func peerBlockHasConsumedDirective(block string) bool {
 // writeExpectFile (runner_output.go). Validating it is not the
 // same as it being READ verbatim: see blockPeerMode.
 //
-// KNOWN HOLE, not closed here. A .ci that HAS cmd= lines and a "peer" block that
-// no ze-peer command names starts no peer at all, so its option= lines never
-// reach Record.Options and its expect= lines are checked by nobody. Seven
-// committed files are in that state, all test/plugin/redistribution-*.ci
-// (redistribute-import-reject.ci among them, whose only cmd= is seq=2, the
-// ze-peer at seq=1 having been deleted). None carries a reject=, and a reject=
-// there is refused by validatePeerBlockRejects, so this spec's own directive is
-// covered. Refusing the rest is correct and costs seven tests their authoring,
-// which is why it is journalled (plan/journal/silent-fall-through.md) rather than
-// folded into this closure. Their option=timeout does reach Record.Extra through
-// the adopt-when-empty branch below, and each file's cmd=foreground timeout
-// supersedes it (resolveOrchestratedTimeout, runner_exec_util.go).
+// An orchestrated file must name the peer block on a peer command; otherwise
+// the block's wire assertions have no consumer and validation refuses the file.
 // The list is sorted: a file with two bad blocks must name the same one on
 // every run, or its error text is not something a fixture or a reader can rely
 // on.
@@ -354,6 +344,9 @@ func (et *EncodingTests) validatePeerBlockDirectives(r *Record, ciFile string) e
 		mode, read := blockPeerMode(r, name)
 		if err := et.validateOnePeerBlock(r, ciFile, name, string(block), mode, read); err != nil {
 			return err
+		}
+		if !read && len(r.RunCommands) > 0 {
+			return fmt.Errorf("stdin=%s block has no peer consumer: this file has cmd= lines, so the legacy peer does not run; add cmd=background:seq=N:exec=le test peer --mode check:stdin=%s", name, name)
 		}
 	}
 	return nil
@@ -526,13 +519,18 @@ func connOfExpect(tail string) int {
 // isPeerExec reports whether a cmd= exec value launches the harness peer
 // (launchesPeer).
 func isPeerExec(exec string) bool {
-	return launchesPeer(strings.Fields(exec))
+	words, err := SplitCommand(exec)
+	return err == nil && launchesPeer(words)
 }
 
 // zePeerExecMode extracts the peer mode from a ze-peer exec value, defaulting to
 // ModeCheck exactly as ze-peer's --mode flag does.
 func zePeerExecMode(exec string) peer.Mode {
-	fields := strings.Fields(exec)
+	fields, err := SplitCommand(exec)
+	if err != nil {
+		// Execution reports the malformed command; it cannot select a mode.
+		return peer.ModeCheck
+	}
 	for i, f := range fields {
 		if name, ok := strings.CutPrefix(f, "--mode="); ok {
 			mode, _ := peer.ParseMode(name)

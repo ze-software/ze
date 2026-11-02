@@ -87,7 +87,10 @@ func CmdBgp(args []string) int {
 }
 
 func zeTestBgpMain(args []string) error {
-	cli := zeTestParseRunCLI(args)
+	cli, err := zeTestParseRunCLI(args)
+	if err != nil {
+		return err
+	}
 	if cli == nil {
 		return nil
 	}
@@ -559,22 +562,21 @@ type zeTestRunCLIFlags struct {
 	testArgs []string
 }
 
-func zeTestParseRunCLI(args []string) *zeTestRunCLIFlags {
+func zeTestParseRunCLI(args []string) (*zeTestRunCLIFlags, error) {
 	if len(args) < 1 {
 		zeTestPrintRunUsage()
-		return nil
+		return nil, nil
 	}
 
 	command := args[0]
 	if isHelpArg(command) {
 		zeTestPrintRunUsage()
-		return nil
+		return nil, nil
 	}
 
 	if !bgpCIRunnerDirs[command] {
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
 		zeTestPrintRunUsage()
-		return nil
+		return nil, fmt.Errorf("unknown suite command %q; run ./le test bgp help to list supported suites", command)
 	}
 
 	cli := &zeTestRunCLIFlags{command: command}
@@ -605,12 +607,12 @@ func zeTestParseRunCLI(args []string) *zeTestRunCLIFlags {
 	fs.BoolVar(&cli.draft, "draft", false, "discover from test/draft/<suite> instead of test/<suite> (tests under development)")
 
 	if err := fs.Parse(args[1:]); err != nil {
-		return nil
+		return nil, err
 	}
 
 	cli.testArgs = fs.Args()
 
-	return cli
+	return cli, nil
 }
 
 func zeTestPrintRunUsage() {

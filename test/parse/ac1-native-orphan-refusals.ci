@@ -1,0 +1,31 @@
+# AC-1: discovery must retain orphan blocks as parse_error, never discard them.
+# This synthetic discovery tree contains no source and builds nothing. /bin/false
+# is a tripwire for accidental daemon execution, not a daemon under test.
+option=env:var=LE_TEST_NO_BUILD:value=1
+option=env:var=ZE_BIN:value=/bin/false
+tmpfs=go.mod:terminator=EOF_MOD
+module orphan-refusal-fixture
+EOF_MOD
+tmpfs=test/plugin/orphan-positive.ci:terminator=EOF_POSITIVE
+cmd=foreground:seq=1:exec=true
+stdin=peer:terminator=END_PEER
+expect=bgp:conn=1:seq=1:hex=ffffffffffffffffffffffffffffffff001304
+END_PEER
+EOF_POSITIVE
+tmpfs=test/plugin/orphan-negative.ci:terminator=EOF_NEGATIVE
+cmd=foreground:seq=1:exec=true
+stdin=peer:terminator=END_PEER
+expect=bgp:conn=1:seq=1:hex=ffffffffffffffffffffffffffffffff001304
+reject=bgp:conn=1:pattern=deadbeef
+END_PEER
+EOF_NEGATIVE
+cmd=foreground:seq=1:exec=le test bgp plugin --pattern orphan-positive
+expect=exit:code=1
+expect=stdout:contains=TYPE:    parse_error
+expect=stdout:contains=stdin=peer block has no peer consumer
+expect=stdout:contains=orphan-positive
+cmd=foreground:seq=2:exec=le test bgp plugin --pattern orphan-negative
+expect=exit:code=1
+expect=stdout:contains=TYPE:    parse_error
+expect=stdout:contains=reject=bgp is read by ze-peer
+expect=stdout:contains=orphan-negative
