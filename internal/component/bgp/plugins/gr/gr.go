@@ -238,6 +238,12 @@ func runGRPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{configRootBGP},
+		// The plugin ordering edges register.go declares. The config root
+		// dependency is not one: the BGP subsystem delivers the state events
+		// this plugin is ordered among, and takes none of them.
+		Dependencies:         grRIBDependency,
+		OptionalDependencies: grOptionalDependencies,
+		StartAfter:           grStartAfter,
 	})
 	if err != nil {
 		logger().Error("gr plugin failed", "error", err)

@@ -321,13 +321,20 @@ type DeclareRegistrationInput struct {
 	// ProtocolVersion is the highest plugin protocol version the plugin
 	// speaks. The engine answers, in DeclareRegistrationOutput, the version
 	// both sides then speak. Zero, the field absent, is refused.
-	ProtocolVersion  int                   `json:"protocol-version,omitempty"`
-	Families         []FamilyDecl          `json:"families,omitempty"`
-	Commands         []CommandDecl         `json:"commands,omitempty"`
-	Dependencies     []string              `json:"dependencies,omitempty"`
-	WantsConfig      []string              `json:"wants-config,omitempty"`
-	ConfigOperations []ConfigOperationDecl `json:"config-operations,omitempty"`
-	ConfigCompletion bool                  `json:"config-completion,omitempty"`
+	ProtocolVersion int           `json:"protocol-version,omitempty"`
+	Families        []FamilyDecl  `json:"families,omitempty"`
+	Commands        []CommandDecl `json:"commands,omitempty"`
+	Dependencies    []string      `json:"dependencies,omitempty"`
+	// OptionalDependencies and StartAfter are order-only edges, as
+	// registry.Registration names them: each orders this plugin after the
+	// named one when both run, and loads nothing. The engine reads them, with
+	// Dependencies, to order a forked plugin's state delivery
+	// (process-protocol.md, "Stage 1").
+	OptionalDependencies []string              `json:"optional-dependencies,omitempty"`
+	StartAfter           []string              `json:"start-after,omitempty"`
+	WantsConfig          []string              `json:"wants-config,omitempty"`
+	ConfigOperations     []ConfigOperationDecl `json:"config-operations,omitempty"`
+	ConfigCompletion     bool                  `json:"config-completion,omitempty"`
 	// SourcePolicyOwner declares retained source state, independently of support.
 	SourcePolicyOwner bool `json:"source-policy-owner,omitempty"`
 	// SourcePolicy declares the acknowledged source-policy lifecycle handler.

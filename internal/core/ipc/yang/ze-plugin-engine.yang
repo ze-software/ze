@@ -215,6 +215,28 @@ module ze-plugin-engine {
                      skipped. The single entry * asks for the whole tree.";
                 ze:help "Config roots to receive (e.g., bgp, environment, *)";
             }
+            leaf-list dependencies {
+                type string;
+                description
+                    "Plugins this plugin needs. Each must be configured, or Stage 1 is refused
+                     naming it. The plugin is ordered after each one it names.";
+                ze:help "Plugins this plugin needs and is ordered after";
+            }
+            leaf-list optional-dependencies {
+                type string;
+                description
+                    "Plugins this plugin is ordered after when they run. Order only: an entry
+                     loads nothing.";
+                ze:help "Plugins this plugin is ordered after when present";
+            }
+            leaf-list start-after {
+                type string;
+                description
+                    "Plugins this plugin starts after when they run, and so takes state events
+                     before (state is delivered in reverse order). Order only: an entry loads
+                     nothing.";
+                ze:help "Plugins this plugin starts after when present";
+            }
             container schema {
                 description
                     "The engine registers the module in the schema registry at Stage 1. A module

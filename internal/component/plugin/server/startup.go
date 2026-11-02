@@ -1209,6 +1209,11 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		ResolverCaches:      slices.Clone(input.ResolverCaches),
 		FilterInsertions:    slices.Clone(input.FilterInsertions),
 		Done:                true,
+		// The declared ordering edges, read by the state delivery order for
+		// a process that runs an external program.
+		Dependencies:         slices.Clone(input.Dependencies),
+		OptionalDependencies: slices.Clone(input.OptionalDependencies),
+		StartAfter:           slices.Clone(input.StartAfter),
 	}
 
 	for _, fam := range input.Families {

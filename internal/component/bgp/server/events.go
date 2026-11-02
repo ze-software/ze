@@ -486,6 +486,11 @@ func deliverToProcs(s *pluginserver.Server, procs []*process.Process, output, ev
 	}
 }
 
+// externalIdentity prefixes the delivery-order identity of a process that runs
+// an external program. A space is in no registry name, so a program named
+// bgp-gr never shares a node with the registered bgp-gr implementation.
+const externalIdentity = "external "
+
 // sortByReverseDependencyTier sorts processes so that plugins with MORE dependencies
 // (higher topological tier) come first. This ensures that dependent plugins (e.g., bgp-gr)
 // process events before the plugins they depend on (e.g., bgp-rib).
@@ -502,25 +507,53 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 
 	// Dependencies name implementations, not the operator's process aliases.
 	// Resolve each internal process once, and deduplicate implementations so
-	// two aliases do not make TopologicalTiers count the same node twice.
-	// External programs borrow no edges from a same-named registration.
-	names := make([]string, 0, len(procs))
+	// two aliases do not count the same node twice. An internal process takes
+	// its implementation's registry edges. An external program borrows no
+	// edges from a same-named registration: it takes the edges its own Stage 1
+	// declaration carries (plugin.PluginRegistration), under an identity no
+	// registry name can take, so a forked bgp-gr is ordered before bgp-rr and
+	// bgp-rs exactly as an internal one (D-11, the retention verdict queued
+	// ahead of their DOWN). A program that declared nothing stays at tier 0.
 	identity := make(map[*process.Process]string, len(procs))
-	tierOf := make(map[string]int, len(procs))
+	declared := make(map[string][3][]string, len(procs))
 	for _, p := range procs {
 		cfg := p.Config()
 		if cfg.RunsExternalProgram() {
+			reg := p.Registration()
+			if reg == nil {
+				continue
+			}
+			name := externalIdentity + p.Name()
+			identity[p] = name
+			declared[name] = [3][]string{reg.Dependencies, reg.OptionalDependencies, reg.StartAfter}
 			continue
 		}
 		name := plugin.RegistryName(cfg)
 		identity[p] = name
-		if _, exists := tierOf[name]; !exists {
-			names = append(names, name)
-			tierOf[name] = 0
+		if _, exists := declared[name]; exists {
+			continue
+		}
+		var edges [3][]string
+		if reg := registry.Lookup(name); reg != nil {
+			edges = [3][]string{reg.Dependencies, reg.OptionalDependencies, reg.StartAfter}
+		}
+		declared[name] = edges
+	}
+
+	// An edge constrains the order only when its target is also selected.
+	deps := make(map[string][]string, len(declared))
+	for name, edges := range declared {
+		deps[name] = nil
+		for _, list := range edges {
+			for _, dep := range list {
+				if _, selected := declared[dep]; selected {
+					deps[name] = append(deps[name], dep)
+				}
+			}
 		}
 	}
 
-	tiers, err := registry.TopologicalTiers(names, nil)
+	tiers, err := registry.TopologicalGraphTiers(deps)
 	if err != nil {
 		// Fallback: sort by name for deterministic ordering.
 		sort.Slice(procs, func(i, j int) bool {
@@ -529,7 +562,8 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 		return
 	}
 
-	// Map implementation identity to tier; external programs stay at tier 0.
+	// Map implementation identity to tier; an undeclared program stays at tier 0.
+	tierOf := make(map[string]int, len(deps))
 	for tierIdx, tier := range tiers {
 		for _, name := range tier {
 			tierOf[name] = tierIdx

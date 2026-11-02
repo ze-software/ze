@@ -556,6 +556,30 @@ and merges the response into the base map. Proxy enrichers are cleaned up via
 <!-- source: pkg/plugin/rpc/types.go -- EnricherDecl -->
 <!-- source: internal/component/plugin/server/enricher.go -- registerProxyEnrichers, validateEnricherDecls -->
 
+**Ordering Declaration (Stage 1):**
+
+A plugin CAN list `dependencies`, `optional-dependencies` and `start-after` in
+its `declare-registration`. They are the ordering edges a compiled-in
+plugin's registration carries (`Dependencies`, `OptionalDependencies`,
+`StartAfter`): a `dependencies` entry must be configured or Stage 1 is
+refused, and the other two order only and load nothing. The engine keeps the
+three with the process's registration. State events are delivered in reverse
+dependency order, and a process that runs an external program takes its edges
+from this declaration alone, never from a registration that shares its name.
+`bgp-gr` declares `dependencies [bgp-rib]`, `optional-dependencies [bgp-rs]`
+and `start-after [bgp-rr]`, so a forked `bgp-gr` would take a DOWN, and emit
+its `bgp-gr/retention` verdict, before the route server, the route reflector
+and the RIB take theirs.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `dependencies` | list | Plugins this plugin needs and is ordered after |
+| `optional-dependencies` | list | Plugins this plugin is ordered after when they run |
+| `start-after` | list | Plugins this plugin starts after when they run |
+
+<!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC -->
+<!-- source: internal/component/bgp/server/events.go -- sortByReverseDependencyTier -->
+
 **Session-Ready Declaration (Stage 1):**
 
 A plugin CAN set `signals-session-ready` in its `declare-registration` to state

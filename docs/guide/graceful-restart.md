@@ -424,7 +424,12 @@ State and End-of-RIB events run in reverse implementation-dependency order:
 `bgp-gr` precedes `bgp-rib`, including when either is loaded under an operator
 alias such as `gr` or `rib`. This lets GR request retention before the RIB
 processes peer-down. An external program does not inherit a compiled-in
-plugin's dependency edges merely by sharing its name.
+plugin's dependency edges merely by sharing its name: it is ordered by the
+edges its own Stage 1 declaration carries. `bgp-gr` declares the same edges
+at Stage 1 as in its registration, so the order a forked `bgp-gr` would take
+a DOWN in is the internal one: before `bgp-rr`, `bgp-rs` and `bgp-rib`, with
+its retention verdict queued ahead of their DOWN.
+<!-- source: internal/component/bgp/plugins/gr/register.go -- grRIBDependency, grOptionalDependencies, grStartAfter -->
 <!-- source: internal/component/bgp/server/events.go -- sortByReverseDependencyTier -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- handleStructuredState -->
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- commandDecls declares the LLGR community mutation commands -->

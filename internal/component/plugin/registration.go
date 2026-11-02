@@ -94,6 +94,15 @@ type PluginRegistration struct {
 	DrainBudget       time.Duration
 	WantsValidateOpen bool // Plugin wants to validate OPEN message pairs (validate-open callback)
 	Done              bool // True when "registration done" received
+	// The ordering edges the plugin declared at Stage 1, as
+	// registry.Registration names them. They order a forked process the way
+	// the registry orders an internal one (the reverse dependency tier of
+	// state delivery, bgp/server sortByReverseDependencyTier): an external
+	// program borrows no edge from a same-named registration, so its own
+	// declaration is the only source of its edges.
+	Dependencies         []string
+	OptionalDependencies []string
+	StartAfter           []string
 
 	// Claims are exclusive runtime roles this plugin takes over from another
 	// plugin's default behavior, declared in Stage 1. The engine unions them

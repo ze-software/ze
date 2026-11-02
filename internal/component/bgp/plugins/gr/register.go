@@ -24,6 +24,23 @@ const grPluginName = "bgp-gr"
 // configRootBGP is the configuration root this plugin reads its peers from.
 const configRootBGP = "bgp"
 
+// The ordering edges among plugins, declared once for both readers: the
+// registry.Registration below and the Stage 1 declaration runGRPlugin sends,
+// which is the only source of a forked engine's edges (state delivery orders
+// an external program by its own declaration, bgp/server
+// sortByReverseDependencyTier).
+var (
+	// grRIBDependency: bgp-rib marks and purges the stale routes this plugin
+	// decides on, and takes the DOWN after this plugin.
+	grRIBDependency = []string{"bgp-rib"}
+	// grOptionalDependencies and grStartAfter put this plugin's retention
+	// verdict (bgp-gr/retention) ahead of the route server's and the route
+	// reflector's DOWN, which consume it. Order only: a graceful-restart
+	// configuration loads neither.
+	grOptionalDependencies = []string{"bgp-rs"}
+	grStartAfter           = []string{"bgp-rr"}
+)
+
 // fieldStale is the route metadata key this plugin's LLGR ingress step
 // writes (gr_ingress.go), the stale level a uint8 holds, as a field of the
 // BGP route view (spec-filter-wire-6-stage-filters D-8).
@@ -91,14 +108,12 @@ func init() {
 		ConfigRoots:     []string{configRootBGP},
 		YANG:            gryang.ZeGracefulRestartYANG,
 		CapabilityCodes: []uint8{64, 71},
-		Dependencies:    []string{configRootBGP, "bgp-rib"},
-		// Reverse dependency delivery puts GR's retention decision before the
-		// route server decides which source families to withdraw on DOWN.
-		OptionalDependencies: []string{"bgp-rs"},
-		// The same delivery order for the route reflector, which asks the
-		// same retention question on DOWN (rr.go, handleStateDown). Order
-		// only: a GR configuration does not load bgp-rr.
-		StartAfter: []string{"bgp-rr"},
+		Dependencies:    append([]string{configRootBGP}, grRIBDependency...),
+		// Reverse dependency delivery puts GR's retention verdict before the
+		// route server and the route reflector decide which source families
+		// to withdraw on DOWN (rs and rr handleStateDown).
+		OptionalDependencies: grOptionalDependencies,
+		StartAfter:           grStartAfter,
 		// A graceful-restart configuration this plugin REFUSES stops ze, and
 		// an operator who mistyped an address family is told so instead of
 		// getting a running router that silently carries no Graceful Restart.
