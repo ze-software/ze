@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 14 findings of the full lint in the plugin infrastructure, the public SDK and statestore; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
@@ -220,7 +220,60 @@ Focused tests include `TestFilterBatchOrderAndVerdicts`,
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 
-## Blocker
+## Final scoped verification (2026-11-02)
+
+AC-1 and AC-2 pass after `f930c73ca9`, `ebbd06aba3`, `c5c69bf6fa`
+and `7620e0dfc4`. This is scoped verification evidence, not the independent
+Review Gate or closure. The parent's in-progress status is retained.
+
+AC-1 command: `CGO_ENABLED=0 ./le job run label lint4-final-scoped-lint quiet command ./le go lint run scope "./internal/component/plugin/... ./pkg/plugin/... ./internal/core/statestore/..."`.
+Exit 0; default, Linux integration, Darwin and capability flavors each
+reported `0 issues.` No lint4 CPU job was running before launch.
+
+AC-2 uses the retained race runs below. Tests use `CGO_ENABLED=1` and
+`-tags "$tags"`, where tags are `ze_core` plus all unique first-column
+`ze_` entries in `feature-gates.txt`, except the focused community producer
+run, which used `ze_bgp`. Successful unchanged tests were not repeated.
+
+| Package population | Observed evidence |
+|--------------------|-------------------|
+| plugin/ipc, plugin/registry, plugin/server, core/statestore, pkg/plugin/sdk | Package PASS/ok in `job-lint4-infra-policy-units-8fdf5b92.log`; the additional policy package failed and is not counted as an AC-2 pass |
+| plugin root, plugin/cli, plugin/server after the query/lint fixes | Package PASS/ok in `job-lint4-fix-packages-f40cf343.log` |
+| plugin/doctor, plugin/manager, plugin/yang, pkg/plugin, pkg/plugin/rpc | Package PASS/ok in `job-lint4-remaining-race-2ae0b12f.log` |
+| plugin/all | 37 original top-level passes in the remaining-race log, plus `TestRegisteredWireMethods` in `job-lint4-wire-snapshot-bdf17cf0.log` and `TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig` in `job-lint4-ingress-final-green-5ff53129.log`; all 39 source test names covered |
+| plugin/process | 81 original top-level passes, seven in `job-lint4-process-unproven-28611362.log`, and `TestRecoveryQueuedDeliveryTransport` in `job-lint4-recovery-judge-fix-f2ee5a61.log`; all 89 source test names covered. Recovery has eight passing subtests, not eight top-level tests |
+
+These are all 14 package directories containing Go source in the three AC
+trees. Population checks compared source test declarations to named PASS
+lines, not just wrapper exit status. The recovered fix-packages wrapper exit
+was unavailable; its completed package PASS/ok lines are the evidence.
+No explicit SKIP or race warning appears in these logs. Recovery retains
+neighbor-watch EPERM and shutdown diagnostics; it is not log-silent.
+
+The new product fix also reaches the community package:
+`internal/component/bgp/plugins/filter_community/community_filter.go`
+`evaluateCommunityFilter` passes both callback decisions to `rewriteVerdict`,
+which rejects before deriving edits. The focused race run already passed
+`TestCommunityRewritePreservesRejection`,
+`TestCommunitySetsCarryWhatTheBodyChanged`, and
+`TestCommunityFiltersPassConformance` in
+`job-lint4-community-reject-green-d85f2666.log`.
+The missing package coverage ran once with
+`./le job run label lint4-community-unproven quiet command go test -race -tags "$tags" -count=1 -v -skip '^(TestCommunityRewritePreservesRejection|TestCommunitySetsCarryWhatTheBodyChanged|TestCommunityFiltersPassConformance)$' ./internal/component/bgp/plugins/filter_community`.
+Exit 0; 109 additional top-level tests passed, with no explicit SKIP or race
+warning. Together the two logs cover all 112 source test names. The selector
+excludes only the three previously successful tests.
+
+Retained navigation paths: all named logs except the initial infra-policy run
+are under `tmp/session/2026-11-02-220832/scratch/`. The new lint log is
+`job-lint4-final-scoped-lint-aae4a6b4.log`; the new community log is
+`job-lint4-community-unproven-8d89175c.log`. The initial log is under
+`tmp/session/2026-11-02-153314/scratch/`. Retain them through closure.
+The commands, canonical producers and observed results here are the durable
+record. No source or test was changed by this verifier; no whole-tree gate,
+compile check, functional suite or push was run.
+
+## Historical blockers (resolved by the evidence above)
 
 ### Observed verification after restart (2026-11-02)
 
