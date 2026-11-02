@@ -391,11 +391,14 @@ type RunCommand struct {
 	rejectsToRunEnd bool
 
 	// ExitCode is the exit code asserted for THIS command (cmd=...:exit=N), as
-	// opposed to the file-level expect=exit:code=, which only ever reaches the
-	// last quick-exit ze command (Record.ExpectExitCode is a single value and
-	// runOrchestrated compares it against lastQuickZeErr). A file that runs
-	// several `ze config validate` commands therefore leaves every earlier one
-	// unasserted; use exit= per command to assert each. nil = not asserted.
+	// opposed to the file-level expect=exit:code=. Record.ExpectExitCode is a
+	// single value, and runOrchestrated compares it with one exit only: the
+	// final foreground helper's (lastHelperErr) when the last cmd= line is a
+	// helper, else the foreground daemon's, else the last quick-exit ze
+	// command's (lastQuickZeErr). Every earlier command is reached only by its
+	// own exit=, which every foreground helper and quick-exit ze honours, the
+	// final helper included. Every other step refuses exit= at parse
+	// (checkExitAssertable). nil = not asserted.
 	ExitCode *int
 }
 

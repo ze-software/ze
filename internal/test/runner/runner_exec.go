@@ -76,9 +76,13 @@ func tmpfsForRecord(rec *Record) *tmpfs.Tmpfs {
 }
 
 // stepKindExpect is the trace.StepResult kind for an assertion step.
+// failTypeExitCodeMismatch is the Record.FailureType of a command whose exit
+// status differs from its exit=, and failTypeExitUnreadable of one whose wait
+// ended with an error that carries no exit status.
 const (
 	stepKindExpect           = "expect"
 	failTypeExitCodeMismatch = "exit_code_mismatch"
+	failTypeExitUnreadable   = "exit_code_unreadable"
 )
 
 // runTest executes a single test.
@@ -1158,7 +1162,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				if helperErr != nil {
 					exitErr, ok := errors.AsType[*exec.ExitError](helperErr)
 					if !ok {
-						rec.Error = fmt.Errorf("cmd seq=%d (%s): cannot read helper exit: %w", cmd.Seq, cmd.Exec, helperErr)
+						rec.Error = fmt.Errorf("cmd seq=%d (%s): cannot read the helper's exit status to compare with exit=%d, "+
+							"because waiting for it failed: %w; check that the helper starts and runs to completion "+
+							"on this host (its output is saved with this failure), then run the test again", cmd.Seq, cmd.Exec, *cmd.ExitCode, helperErr)
+						rec.FailureType = failTypeExitUnreadable
 						return false
 					}
 					actual = exitErr.ExitCode()
@@ -1184,10 +1191,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			lastQuickZeErr = awaitQuickZe(cmd, proc, &quickStdout, &quickStderr, &clientStdout, &clientStderr)
 			quickZeRan = true
 			// Assert this command's own exit code when the test declared one.
-			// The file-level expect=exit:code= below can only ever check the
-			// LAST quick ze command (it compares one value against
-			// lastQuickZeErr), so a file running several validations needs
-			// exit= per command to assert the earlier ones at all.
+			// The file-level expect=exit:code= below compares one exit only
+			// (see RunCommand.ExitCode), so a file running several validations
+			// needs exit= per command to assert the earlier ones at all.
 			if cmd.ExitCode != nil {
 				actual := 0
 				if exitErr, ok := errors.AsType[*exec.ExitError](lastQuickZeErr); ok {
