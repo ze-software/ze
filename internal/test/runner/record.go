@@ -396,7 +396,7 @@ type RunCommand struct {
 	// final foreground helper's (lastHelperErr) when the last cmd= line is a
 	// helper, else the foreground daemon's, else the last quick-exit ze
 	// command's (lastQuickZeErr). Every earlier command is reached only by its
-	// own exit=, which every foreground helper and quick-exit ze honours, the
+	// own exit=, which every foreground helper and quick-exit ze honors, the
 	// final helper included. Every other step refuses exit= at parse
 	// (checkExitAssertable). nil = not asserted.
 	ExitCode *int
