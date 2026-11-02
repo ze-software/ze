@@ -55,8 +55,13 @@ var stderrLogger = slogutil.LazyLogger("plugin.relay")
 // Callers MUST call Wait after Stop to avoid leaking goroutines.
 type Process struct {
 	config plugin.PluginConfig
-	index  int // Plugin index for coordinator (0-based)
-	cmd    *exec.Cmd
+	// registryName is plugin.RegistryName(config), computed once at
+	// construction: the name a `<plugin>:<filter>` chain reference and a
+	// declared filter insertion give this process, whatever its block is
+	// called. The hot filter path resolves a reference through it.
+	registryName string
+	index        int // Plugin index for coordinator (0-based)
+	cmd          *exec.Cmd
 
 	stderr io.ReadCloser
 
@@ -139,6 +144,7 @@ type Process struct {
 func NewProcess(config plugin.PluginConfig) *Process {
 	return &Process{
 		config:             config,
+		registryName:       plugin.RegistryName(config),
 		registration:       &plugin.PluginRegistration{},
 		capabilities:       &plugin.PluginCapabilities{},
 		stageCh:            make(chan struct{}),
@@ -392,6 +398,17 @@ func (p *Process) recomputeFormatCacheKey() {
 // Name returns the process name from config.
 func (p *Process) Name() string {
 	return p.config.Name
+}
+
+// RegistrationName returns the name of the registration this process runs:
+// "bgp-gr" for `plugin { internal gr { use bgp-gr; } }`, and the process name
+// for a program no registry row describes (plugin.RegistryName). A chain
+// reference and a filter insertion name the plugin by it, never by the block
+// name, because the plugin that declares an insertion cannot know what the
+// operator called its block (docs/architecture/api/process-protocol.md,
+// "Filter Insertion").
+func (p *Process) RegistrationName() string {
+	return p.registryName
 }
 
 // Index returns the plugin index for coordinator tracking.

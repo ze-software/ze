@@ -33,6 +33,8 @@ func (r *recordingSink) conn() *ipc.PluginConn {
 
 func (r *recordingSink) pluginName() string { return "widget" }
 
+func (r *recordingSink) registrationName() string { return "widget" }
+
 func (r *recordingSink) onRegistration(*rpc.DeclareRegistrationInput) error {
 	r.order = append(r.order, "OnRegistration")
 	return r.regErr

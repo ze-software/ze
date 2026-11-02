@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errProcessmanagerStartmoreCalledBeforeStartwithcontext = errors.New("ProcessManager: StartMore called before StartWithContext")
@@ -369,6 +370,73 @@ func (pm *ProcessManager) GetProcess(name string) *Process {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	return pm.processes[name]
+}
+
+// ProcessServing answers the process that runs the registration a
+// `<plugin>:<filter>` chain reference or a filter insertion names
+// (Process.RegistrationName). It answers nil when no process runs it.
+//
+// The process filed under the registration's own name answers in one map
+// lookup, which is the common `plugin { internal bgp-gr { ... } }` and every
+// auto-loaded plugin; only an aliased block (`internal gr { use bgp-gr; }`)
+// walks the processes. When two blocks run the registration the walk answers
+// an error naming both, because the reference cannot say which one judges the
+// route. Stage 1 refuses the second such block of a plugin that declares
+// filters or insertions (BlocksServing), so the error is a guard, not a path
+// a running daemon takes. Safe for concurrent use.
+func (pm *ProcessManager) ProcessServing(registration string) (*Process, error) {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+	if proc := pm.processes[registration]; proc != nil && proc.registryName == registration {
+		return proc, nil
+	}
+	var serving *Process
+	for _, proc := range pm.processes {
+		if proc.registryName != registration {
+			continue
+		}
+		if serving != nil {
+			return nil, AmbiguousRegistration(registration, []string{serving.Name(), proc.Name()})
+		}
+		serving = proc
+	}
+	return serving, nil
+}
+
+// BlocksServing answers the names of every process that runs registration,
+// sorted. Stage 1 asks it before a plugin's filters and insertions are
+// accepted: more than one name means a chain reference to the plugin would
+// be ambiguous. Safe for concurrent use.
+func (pm *ProcessManager) BlocksServing(registration string) []string {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+	var names []string
+	for _, proc := range pm.processes {
+		if proc.registryName == registration {
+			names = append(names, proc.Name())
+		}
+	}
+	slices.Sort(names)
+	return names
+}
+
+// AmbiguousRegistration is the refusal of a filter reference that more than
+// one plugin block serves: what is wrong, why, and the fix.
+func AmbiguousRegistration(registration string, blocks []string) error {
+	sorted := slices.Clone(blocks)
+	slices.Sort(sorted)
+	var tb textbuf.Buffer
+	tb.Str("plugin blocks ")
+	for i, name := range sorted {
+		if i > 0 {
+			tb.Str(", ")
+		}
+		tb.Quoted(name)
+	}
+	tb.Str(" all run ").Quoted(registration).Str(", and a filter reference ").Quoted(registration + ":<filter>").
+		Str(" names the plugin, not the block, so it cannot say which one judges the route; ").
+		Str("keep one block that runs ").Quoted(registration).Str(" under plugin { }")
+	return errors.New(tb.String())
 }
 
 // RemoveProcess unregisters a stopped process by name.

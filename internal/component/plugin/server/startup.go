@@ -686,6 +686,8 @@ func (e *engineStartupSink) conn() *plugipc.PluginConn { return e.proc.Conn() }
 
 func (e *engineStartupSink) pluginName() string { return e.proc.Config().Name }
 
+func (e *engineStartupSink) registrationName() string { return e.proc.RegistrationName() }
+
 // OnRegistration validates and applies the plugin's declare-registration:
 // doctor-check and enricher declarations, cache-consumer state, dependency
 // checks, the PluginRegistry row, declared runtime families (rolled back on
@@ -695,6 +697,11 @@ func (e *engineStartupSink) pluginName() string { return e.proc.Config().Name }
 func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) error {
 	s, proc := e.s, e.proc
 
+	// A chain reference names the plugin, so a second block running the same
+	// plugin's filters would leave every reference to it ambiguous.
+	if err := s.refuseAmbiguousRegistration(proc, input); err != nil {
+		return err
+	}
 	// Validate the drain declaration before conversion: a budget the daemon
 	// could not honor is refused, never clamped.
 	if err := validateDrainDecl(proc.Config().Name, input.DrainBudget, input.DrainHandler); err != nil {

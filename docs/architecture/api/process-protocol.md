@@ -376,6 +376,22 @@ hold, and `raw` declared as a set. An exact name wins over a pattern that also
 covers it. A build that links no subsystem running filters (no `ze_bgp`)
 refuses any plugin declaring one.
 
+The `<plugin>` of a reference names the plugin, never the operator's block.
+`plugin { internal gr { use bgp-gr; } }` runs `bgp-gr` in a block named `gr`,
+and its filters are `bgp-gr:<filter>`, the name the plugin itself declares its
+insertions under, because a plugin cannot know what an operator called its
+block. A program no registry row describes is named by its block (`external
+my-filter { run "/usr/local/bin/x"; }` serves `my-filter:<filter>`). Stage 1
+judges the filters, the insertions and the loaded config's references under
+that name, and at run time a member reaches the process running the plugin
+whatever its block is called. A second block running the same plugin, when the
+plugin declares filters or insertions, is refused at its Stage 1 naming both
+blocks: a reference could not say which one judges the route.
+<!-- source: internal/component/plugin/process/process.go -- Process.RegistrationName -->
+<!-- source: internal/component/plugin/process/manager.go -- ProcessManager.ProcessServing, ProcessManager.BlocksServing, AmbiguousRegistration -->
+<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
+<!-- source: internal/component/plugin/server/server.go -- refuseAmbiguousRegistration, CallFilterUpdate -->
+
 #### Filter Insertion
 
 A plugin that owns a feature whose config implies a procedure (an RFC 9234

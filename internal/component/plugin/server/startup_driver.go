@@ -76,6 +76,12 @@ type startupSink interface {
 	// pluginName names the plugin in a refusal the driver itself makes.
 	pluginName() string
 
+	// registrationName names the registration the process runs, the name a
+	// `<plugin>:<filter>` reference and a declared filter insertion carry as
+	// their prefix. It differs from pluginName for an aliased block:
+	// `plugin { internal gr { use bgp-gr; } }` runs "bgp-gr" as "gr".
+	registrationName() string
+
 	// onRegistration processes the decoded declare-registration input after the
 	// driver validated the method string and before it responds OK. A non-nil
 	// error aborts startup: the driver sends err.Error() to the plugin via
@@ -160,7 +166,11 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	// The filters are judged before the sink stores them: a name the
 	// vocabulary does not hold, or a chain the declared fields do not fit,
 	// fails the plugin here (D-10).
-	if err := registry.CheckFilterDeclarations(sink.pluginName(), regInput.Filters); err != nil {
+	// The filters, the insertions and the references a loaded config makes to
+	// them are judged under the registration the process runs, because the
+	// reference's prefix names the plugin and never the operator's block.
+	registration := sink.registrationName()
+	if err := registry.CheckFilterDeclarations(registration, regInput.Filters); err != nil {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err
 	}
@@ -168,14 +178,14 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	// applies to a compiled-in registration: a reference the plugin does not
 	// serve, two directions, no condition, or a required one with no reason
 	// fails the plugin here (spec-filter-wire-6-stage-filters AC-2).
-	if err := registry.CheckFilterInsertions(sink.pluginName(), regInput.Filters,
-		registry.OwnedFilterTypes(sink.pluginName()), regInput.FilterInsertions); err != nil {
+	if err := registry.CheckFilterInsertions(registration, regInput.Filters,
+		registry.OwnedFilterTypes(registration), regInput.FilterInsertions); err != nil {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err
 	}
 	// Each condition path is judged against the compiled schema, and a
 	// compiled-in plugin's against the config its own module adds (A-10).
-	if err := config.CheckFilterInsertionPaths(sink.pluginName(), registry.OwnedYANG(sink.pluginName()),
+	if err := config.CheckFilterInsertionPaths(registration, registry.OwnedYANG(registration),
 		regInput.FilterInsertions); err != nil {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err

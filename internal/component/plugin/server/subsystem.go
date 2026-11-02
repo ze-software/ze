@@ -192,6 +192,10 @@ func (hs *hubStartupSink) conn() *pluginipc.PluginConn { return hs.h.proc.Conn()
 
 func (hs *hubStartupSink) pluginName() string { return hs.h.config.Name }
 
+// registrationName is the subsystem's own name: a subsystem block carries no
+// `use` alias, so the name it runs under is the name it declares under.
+func (hs *hubStartupSink) registrationName() string { return hs.h.config.Name }
+
 // onRegistration harvests the declared commands and YANG schema into the
 // handler-local fields that FindHandler and RegisterSchemas read.
 func (hs *hubStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) error {

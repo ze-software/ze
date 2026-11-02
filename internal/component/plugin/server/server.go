@@ -34,6 +34,10 @@ import (
 
 var errFilterUpdateNoProcessManager = errors.New("filter-update: no process manager")
 
+// errStage1NoProcessManager refuses a Stage 1 declaration the server cannot
+// judge against the other running blocks.
+var errStage1NoProcessManager = errors.New("stage 1: no process manager to judge the filter declarations against")
+
 // logger is the plugin server subsystem logger (lazy initialization).
 // Controlled by ze.log.plugin.server environment variable.
 var logger = slogutil.LazyLogger("plugin.server")
@@ -481,8 +485,11 @@ func (s *Server) SetMetricsRegistry(reg metrics.Registry) {
 }
 
 // CallFilterUpdate judges route by a named plugin's filter, through the plugin's
-// typed filter slot when it runs internal and in its next filter-update batch
-// otherwise (ipc PluginConn.CallFilter, D-12). A plugin whose slot is closed
+// typed filter slot. pluginName is the reference's prefix, the registration
+// name, and the process serving it answers whatever its block is called
+// (ProcessManager.ProcessServing). The route goes through the slot when the
+// plugin runs internal, and in its next filter-update batch otherwise (ipc
+// PluginConn.CallFilter, D-12). A plugin whose slot is closed
 // (stopped, crashed or respawning) answers an error naming it unavailable
 // and wrapping rpc.ErrBridgeClosed, and the caller applies the filter's
 // on-error (FR-11). Returns an error if the plugin is not found or not
@@ -492,7 +499,10 @@ func (s *Server) CallFilterUpdate(ctx context.Context, pluginName string, route 
 	if pm == nil {
 		return nil, errFilterUpdateNoProcessManager
 	}
-	proc := pm.GetProcess(pluginName)
+	proc, err := pm.ProcessServing(pluginName)
+	if err != nil {
+		return nil, fmt.Errorf("filter-update: %w", err)
+	}
 	if proc == nil {
 		return nil, fmt.Errorf("filter-update: unknown plugin %q", pluginName)
 	}
@@ -551,7 +561,11 @@ func (s *Server) FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy 
 	if pm == nil {
 		return rpc.OnErrorReject
 	}
-	proc := pm.GetProcess(pluginName)
+	proc, err := pm.ProcessServing(pluginName)
+	// refuse-by-default: guards refuseAmbiguousRegistration -- Stage 1 refuses a second block, so no running chain meets two
+	if err != nil {
+		return rpc.OnErrorReject
+	}
 	if proc == nil {
 		return rpc.OnErrorReject
 	}
@@ -622,7 +636,11 @@ func (s *Server) filterRegistration(pluginName, filterName string) *plugin.Filte
 	if pm == nil {
 		return nil
 	}
-	proc := pm.GetProcess(pluginName)
+	proc, err := pm.ProcessServing(pluginName)
+	// refuse-by-default: guards refuseAmbiguousRegistration -- Stage 1 refuses a second block, so no running chain meets two
+	if err != nil {
+		return nil
+	}
 	if proc == nil {
 		return nil
 	}
@@ -658,7 +676,11 @@ func (s *Server) declaredFilters(process string) ([]registry.DeclaredFilter, boo
 	if pm == nil {
 		return nil, false
 	}
-	proc := pm.GetProcess(process)
+	proc, err := pm.ProcessServing(process)
+	// refuse-by-default: guards refuseAmbiguousRegistration -- Stage 1 refuses a second block, so no running chain meets two
+	if err != nil {
+		return nil, false
+	}
 	if proc == nil {
 		return nil, false
 	}
@@ -671,6 +693,27 @@ func (s *Server) declaredFilters(process string) ([]registry.DeclaredFilter, boo
 		declared[i] = reg.Filters[i].DeclaredFilter
 	}
 	return declared, true
+}
+
+// refuseAmbiguousRegistration refuses at Stage 1 a process declaring filters
+// or filter insertions while another block runs the same registration
+// (`internal gr { use bgp-gr; }` beside `internal bgp-gr { }`). A chain
+// reference and an inserted member name the plugin, never the block, so with
+// two blocks no reference could say which one judges the route. A plugin that
+// declares neither serves no reference, and its blocks are left alone.
+func (s *Server) refuseAmbiguousRegistration(proc *process.Process, input *rpc.DeclareRegistrationInput) error {
+	if len(input.Filters) == 0 && len(input.FilterInsertions) == 0 {
+		return nil
+	}
+	pm := s.procManager.Load()
+	if pm == nil {
+		return errStage1NoProcessManager
+	}
+	blocks := pm.BlocksServing(proc.RegistrationName())
+	if len(blocks) > 1 {
+		return process.AmbiguousRegistration(proc.RegistrationName(), blocks)
+	}
+	return nil
 }
 
 // thirdPartyFilterInsertions answers the Stage 1 filter insertions of every

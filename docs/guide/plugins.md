@@ -730,7 +730,10 @@ for the names and their value shapes. Filters respond accept, reject, or modify
 (delta-only). See [Route Filters and Redistribution](redistribution.md) for configuration.
 
 A single plugin can offer multiple named filters. Config references them as
-`<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`).
+`<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`). `<plugin>` is
+the plugin's own name, not the name of the `plugin { }` block that runs it: a
+block `internal gr { use bgp-gr; }` serves `bgp-gr:<filter>`, and two blocks
+running the same filter plugin are refused.
 
 | Category | Behavior | Example |
 |----------|----------|---------|
