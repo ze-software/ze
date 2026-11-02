@@ -2022,8 +2022,14 @@ plugin MUST split the value at each `nlri` and `mp` token. An example subject:
 Each CIDR prefix is the prefix alone. An ADD-PATH path identifier and an
 RFC 8277 label stack are not rendered, and the engine keeps them when it
 rewrites the section. A section that does not parse ends its block with the
-token `invalid`.
-<!-- source: internal/component/bgp/reactor/filter_format.go -- AppendUpdateForFilter, appendLegacyBlock, appendMPBlock -->
+token `invalid`, which no prefix filter accepts. That holds for a section the
+engine cannot read at all, so it never reads as absent: a legacy field that
+does not frame renders `nlri add invalid` or `nlri del invalid`, and an
+MP_REACH_NLRI or MP_UNREACH_NLRI attribute that does not parse renders
+`mp afi-0/safi-0 add invalid` or `mp afi-0/safi-0 del invalid`. The attribute
+did not parse far enough to name a family, and AFI 0 and SAFI 0 are reserved,
+so no real family reads as that one.
+<!-- source: internal/component/bgp/reactor/filter_format.go -- AppendUpdateForFilter, appendLegacyBlock, appendMPBlock, appendMalformedBlock -->
 <!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- appendCIDRPrefixes -->
 <!-- source: internal/component/bgp/wireu/nlri_cidr.go -- CIDREntry -->
 
@@ -2041,8 +2047,9 @@ each section from its own block:
 - An MP block keeps its AFI, SAFI and next hop, and each NLRI kept is copied
   whole, with its path identifier and label stack.
 - A changed block of a non-CIDR family, a changed block of a section that
-  does not parse (an MP attribute that does not parse is not rendered, so any
-  `mp` block of its section counts as changed), an `mp` block for a section the
+  does not parse (an MP attribute that does not parse renders as
+  `mp afi-0/safi-0 <op> invalid`, and any `mp` block of its section the answer
+  drops, rewrites or adds counts as changed), an `mp` block for a section the
   UPDATE does not carry, two blocks for one section, or a block that is neither
   `nlri add|del` nor `mp <family> add|del`, makes the engine drop the route and
   log the family and the reason under `ze.log.bgp.reactor.forward`. Such a

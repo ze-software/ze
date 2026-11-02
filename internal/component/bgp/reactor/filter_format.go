@@ -70,24 +70,39 @@ func AppendUpdateForFilter(buf []byte, attrs *attribute.AttributesWire, wireUpda
 	ctx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 
 	v4AddPath := ctx != nil && ctx.AddPath(family.IPv4Unicast)
+	// A section that does not parse renders as a malformed block, never as an
+	// absent one: a text filter that saw no block would accept an UPDATE whose
+	// reachability it cannot read.
 	// RFC 4271 Section 4.3: the legacy Network Layer Reachability Information.
-	if raw, err := wireUpdate.NLRI(); err == nil && len(raw) > 0 {
+	raw, err := wireUpdate.NLRI()
+	if err != nil {
+		buf = appendMalformedBlock(buf, policyAttrNLRI, nlriOpAdd, len(buf) == start)
+	} else if len(raw) > 0 {
 		buf = appendLegacyBlock(buf, nlriOpAdd, raw, v4AddPath, false, len(buf) == start)
 	}
 	// RFC 4271 Section 4.3: the legacy Withdrawn Routes.
-	if raw, err := wireUpdate.Withdrawn(); err == nil && len(raw) > 0 {
+	raw, err = wireUpdate.Withdrawn()
+	if err != nil {
+		buf = appendMalformedBlock(buf, policyAttrNLRI, nlriOpDel, len(buf) == start)
+	} else if len(raw) > 0 {
 		buf = appendLegacyBlock(buf, nlriOpDel, raw, v4AddPath, true, len(buf) == start)
 	}
 
 	// MP_REACH_NLRI and MP_UNREACH_NLRI (RFC 4760).
-	if mp, err := wireUpdate.MPReach(); err == nil && mp != nil {
+	mp, err := wireUpdate.MPReach()
+	if err != nil {
+		buf = appendMalformedBlock(buf, policyAttrMP, nlriOpAdd, len(buf) == start)
+	} else if mp != nil {
 		if nlrisplit.IsFlowSpec(mp.Family()) {
 			buf = appendFlowSpecFilterBlock(buf, mp.Family(), nlriOpAdd, mp.NLRIBytes(), ctx != nil && ctx.AddPath(mp.Family()), len(buf) == start)
 		} else {
 			buf = appendMPBlock(buf, mp.Family(), nlriOpAdd, mp.NLRIBytes(), ctx != nil && ctx.AddPath(mp.Family()), len(buf) == start)
 		}
 	}
-	if mpu, err := wireUpdate.MPUnreach(); err == nil && mpu != nil {
+	mpu, err := wireUpdate.MPUnreach()
+	if err != nil {
+		buf = appendMalformedBlock(buf, policyAttrMP, nlriOpDel, len(buf) == start)
+	} else if mpu != nil {
 		if nlrisplit.IsFlowSpec(mpu.Family()) {
 			buf = appendFlowSpecFilterBlock(buf, mpu.Family(), nlriOpDel, mpu.WithdrawnBytes(), ctx != nil && ctx.AddPath(mpu.Family()), len(buf) == start)
 		} else {
@@ -138,6 +153,31 @@ func appendMPBlock(buf []byte, fam family.Family, op string, section []byte, add
 		return buf // Non-CIDR: marker block, prefixes intentionally omitted.
 	}
 	return appendCIDRPrefixes(buf, fam, section, addPath, op == nlriOpDel)
+}
+
+// appendMalformedBlock appends the block of a section that does not parse:
+// "nlri <op> invalid" for a legacy section (keyword policyAttrNLRI), or
+// "mp afi-0/safi-0 <op> invalid" for an MP_REACH_NLRI (op add) or
+// MP_UNREACH_NLRI (op del) attribute (keyword policyAttrMP). An MP attribute
+// that does not parse names no family, so its block names the zero family
+// (AFI 0 and SAFI 0 are reserved, so no real family reads as it), as
+// nlriSectionOf names none. The "invalid" token is the one a section that does
+// not frame ends with (appendCIDRPrefixes): no prefix filter accepts it, and
+// an answer that drops or rewrites the block is refused (sectionNLRIDelta).
+// bufEmpty is true when buf has no content appended since the outer call
+// began; no leading space separator is emitted then.
+func appendMalformedBlock(buf []byte, keyword, op string, bufEmpty bool) []byte {
+	if !bufEmpty {
+		buf = append(buf, ' ')
+	}
+	buf = append(buf, keyword...)
+	buf = append(buf, ' ')
+	if keyword == policyAttrMP {
+		buf = family.Family{}.AppendTo(buf)
+		buf = append(buf, ' ')
+	}
+	buf = append(buf, op...)
+	return append(buf, " invalid"...)
 }
 
 // attrNameToCode maps filter text attribute names to wire codes.
