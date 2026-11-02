@@ -202,9 +202,6 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) error {
 		}
 		ps.RawCapabilityConfig["hostname"]["domain"] = v
 	}
-
-	// Capability config JSON for plugin delivery.
-	ps.CapabilityConfigJSON = mapToJSON(capMap)
 	return nil
 }
 

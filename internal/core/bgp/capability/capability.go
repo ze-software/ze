@@ -21,15 +21,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
-
-// configTrue is the text a plugin config value carries for a boolean that is
-// on. Every ConfigValues map spells an enabled capability this way.
-const configTrue = "true"
 
 // Errors.
 var (
@@ -133,20 +128,6 @@ type Capability interface {
 	Code() Code
 	Len() int
 	WriteTo(buf []byte, off int) int
-}
-
-// ConfigProvider is an optional interface for capabilities that provide
-// configuration values for plugin delivery (Stage 2 of plugin protocol).
-// Capabilities implement this to expose their config to plugins.
-//
-// Keys must be scoped to prevent collisions:
-//   - "rfc<num>:<field>" for RFC-based capabilities
-//   - "draft-<name>:<field>" for draft-based capabilities
-//
-// Example: FQDN capability returns {"draft-walton-bgp-hostname:hostname": "router1"}.
-type ConfigProvider interface {
-	// ConfigValues returns scoped key-value pairs for config delivery.
-	ConfigValues() map[string]string
 }
 
 // AFI is an alias for family.AFI for backward compatibility.
@@ -412,11 +393,6 @@ func (r *RouteRefresh) WriteTo(buf []byte, off int) int {
 	return 2
 }
 
-// ConfigValues implements ConfigProvider for plugin config delivery.
-func (r *RouteRefresh) ConfigValues() map[string]string {
-	return map[string]string{"rfc2918:enabled": configTrue}
-}
-
 // ExtendedMessage represents Extended Message capability (RFC 8654).
 //
 // RFC 8654 Section 3: Capability Code 6 with Capability Length 0.
@@ -432,11 +408,6 @@ func (e *ExtendedMessage) WriteTo(buf []byte, off int) int {
 	return 2
 }
 
-// ConfigValues implements ConfigProvider for plugin config delivery.
-func (e *ExtendedMessage) ConfigValues() map[string]string {
-	return map[string]string{"rfc8654:enabled": configTrue}
-}
-
 // EnhancedRouteRefresh represents Enhanced Route Refresh capability (RFC 7313).
 //
 // RFC 7313 Section 3.1: Capability Code 70 with Capability Length 0.
@@ -450,11 +421,6 @@ func (e *EnhancedRouteRefresh) Len() int { return 2 } // 2 header + 0 value
 func (e *EnhancedRouteRefresh) WriteTo(buf []byte, off int) int {
 	writeCapabilityTo(buf, off, CodeEnhancedRouteRefresh, 0)
 	return 2
-}
-
-// ConfigValues implements ConfigProvider for plugin config delivery.
-func (e *EnhancedRouteRefresh) ConfigValues() map[string]string {
-	return map[string]string{"rfc7313:enabled": configTrue}
 }
 
 // BFDStrictMode represents the BFD Strict-Mode capability
@@ -477,11 +443,6 @@ func (b *BFDStrictMode) Len() int { return 2 } // 2 header + 0 value
 func (b *BFDStrictMode) WriteTo(buf []byte, off int) int {
 	writeCapabilityTo(buf, off, CodeBFDStrictMode, 0)
 	return 2
-}
-
-// ConfigValues implements ConfigProvider for plugin config delivery.
-func (b *BFDStrictMode) ConfigValues() map[string]string {
-	return map[string]string{"draft-ietf-idr-bgp-bfd-strict-mode:enabled": configTrue}
 }
 
 // LinkLocalNextHop represents the Link-Local Next Hop capability
@@ -514,11 +475,6 @@ func (l *LinkLocalNextHop) Len() int { return 2 } // 2 header + 0 value
 func (l *LinkLocalNextHop) WriteTo(buf []byte, off int) int {
 	writeCapabilityTo(buf, off, CodeLinkLocalNextHop, 0)
 	return 2
-}
-
-// ConfigValues implements ConfigProvider for plugin config delivery.
-func (l *LinkLocalNextHop) ConfigValues() map[string]string {
-	return map[string]string{"draft-ietf-idr-linklocal-capability:enabled": configTrue}
 }
 
 // AddPathMode indicates send/receive capability for ADD-PATH.
@@ -588,20 +544,6 @@ func (a *AddPath) WriteTo(buf []byte, off int) int {
 		buf[o+3] = byte(f.Mode)
 	}
 	return 2 + dataLen
-}
-
-// ConfigValues implements ConfigProvider for plugin config delivery.
-func (a *AddPath) ConfigValues() map[string]string {
-	result := make(map[string]string)
-	for _, f := range a.Families {
-		if f.Mode == AddPathSend || f.Mode == AddPathBoth {
-			result["rfc7911:send"] = configTrue
-		}
-		if f.Mode == AddPathReceive || f.Mode == AddPathBoth {
-			result["rfc7911:receive"] = configTrue
-		}
-	}
-	return result
 }
 
 // parseAddPath parses an ADD-PATH capability.
@@ -684,14 +626,6 @@ func (g *GracefulRestart) WriteTo(buf []byte, off int) int {
 	return 2 + dataLen
 }
 
-// ConfigValues implements ConfigProvider for plugin config delivery.
-// Returns scoped keys per RFC 4724.
-func (g *GracefulRestart) ConfigValues() map[string]string {
-	return map[string]string{
-		"rfc4724:restart-time": strconv.Itoa(int(g.RestartTime)),
-	}
-}
-
 // parseGracefulRestart parses a Graceful Restart capability.
 //
 // RFC 4724 Section 3: Minimum length is 2 bytes (flags + restart time).
@@ -764,14 +698,6 @@ func (e *ExtendedNextHop) WriteTo(buf []byte, off int) int {
 	return 2 + dataLen
 }
 
-// ConfigValues implements ConfigProvider for plugin config delivery.
-func (e *ExtendedNextHop) ConfigValues() map[string]string {
-	if len(e.Families) == 0 {
-		return nil
-	}
-	return map[string]string{"rfc8950:enabled": configTrue}
-}
-
 // parseExtendedNextHop parses an Extended Next Hop capability.
 //
 // RFC 8950 Section 4: Capability value length must be a multiple of 6.
@@ -824,19 +750,6 @@ func (f *FQDN) WriteTo(buf []byte, off int) int {
 	buf[off+3+hostLen] = byte(domainLen)
 	copy(buf[off+4+hostLen:], f.DomainName[:domainLen])
 	return 2 + dataLen
-}
-
-// ConfigValues implements ConfigProvider for plugin config delivery.
-// Returns scoped keys per draft-walton-bgp-hostname.
-func (f *FQDN) ConfigValues() map[string]string {
-	result := make(map[string]string)
-	if f.Hostname != "" {
-		result["draft-walton-bgp-hostname:hostname"] = f.Hostname
-	}
-	if f.DomainName != "" {
-		result["draft-walton-bgp-hostname:domain"] = f.DomainName
-	}
-	return result
 }
 
 // parseFQDN parses an FQDN capability.
@@ -911,14 +824,6 @@ func (p *PathsLimit) WriteTo(buf []byte, off int) int {
 		binary.BigEndian.PutUint16(buf[o+3:], e.Limit)
 	}
 	return 2 + dataLen
-}
-
-// ConfigValues implements ConfigProvider for plugin config delivery.
-func (p *PathsLimit) ConfigValues() map[string]string {
-	if len(p.Entries) == 0 {
-		return nil
-	}
-	return map[string]string{"draft-abraitis-paths-limit:enabled": configTrue}
 }
 
 // parsePathsLimit parses a PATHS-LIMIT capability.

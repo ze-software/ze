@@ -1318,24 +1318,6 @@ func TestReceiveMapInit(t *testing.T) {
 	assert.Len(t, b.Receive, 2, "exactly two types should be granted")
 }
 
-// TestParsePeerCapabilityConfigJSON verifies CapabilityConfigJSON is populated.
-//
-// VALIDATES: The entire capability block is serialized to JSON for plugin delivery.
-// PREVENTS: Plugins not receiving capability config they need.
-func TestParsePeerCapabilityConfigJSON(t *testing.T) {
-	tree := map[string]any{
-		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
-		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}, "capability": map[string]any{"asn4": "enable", "route-refresh": "enable"}},
-	}
-
-	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
-	require.NoError(t, err)
-
-	assert.NotEmpty(t, ps.CapabilityConfigJSON)
-	assert.Contains(t, ps.CapabilityConfigJSON, `"asn4"`)
-	assert.Contains(t, ps.CapabilityConfigJSON, `"route-refresh"`)
-}
-
 // TestParsePeerMissingLocalIP verifies that a peer without local ip is rejected.
 //
 // VALIDATES: parsePeerFromTree requires local > ip to be present in config.

@@ -651,15 +651,10 @@ type PeerSettings struct {
 	// Maps capability name → field name → value (e.g., "graceful-restart" → "restart-time" → "120").
 	// Populated from config blocks like: capability { graceful-restart { restart-time 120; } }
 	// Used for plugin-declared capabilities that don't have Go capability types.
-	RawCapabilityConfig map[string]map[string]string
-
-	// CapabilityConfigJSON is the entire capability block as JSON. Nothing reads
-	// it: plugins take their config from the config tree, and their capabilities
-	// reach the OPEN through the injector store, never through this field.
-	// A reload swaps it and RawCapabilityConfig onto a running peer when the
-	// plugin capabilities its OPEN carried are kept (pluginCapabilityConfigSettings,
+	// A reload swaps it onto a running peer when the plugin capabilities its
+	// OPEN carried are kept (pluginCapabilityConfigSettings,
 	// peer_settings_negotiation.go).
-	CapabilityConfigJSON string
+	RawCapabilityConfig map[string]map[string]string
 }
 
 // ProcessBinding represents a binding between this peer and a plugin.

@@ -97,9 +97,6 @@ See `ai/rules/go-standards.md` for architecture details.
     - Code() Code
     - Len() int
     - WriteTo(buf []byte, off int) int
-
-[ ] Implement ConfigProvider interface if cap provides plugin config:
-    - ConfigValues() map[string]string
 ```
 
 ### 1.2 Wire Format

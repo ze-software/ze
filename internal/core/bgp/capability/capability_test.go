@@ -1072,25 +1072,6 @@ func TestPathsLimitMaximumValue(t *testing.T) {
 	assert.Equal(t, CodeRouteRefresh, caps[1].Code())
 }
 
-// TestPathsLimitConfigValues verifies ConfigValues returns scoped keys.
-//
-// VALIDATES: Plugin config delivery for PATHS-LIMIT capability.
-//
-// PREVENTS: Missing capability config in plugin Stage 2 delivery.
-func TestPathsLimitConfigValues(t *testing.T) {
-	t.Parallel()
-	pl := &PathsLimit{
-		Entries: []PathsLimitEntry{
-			{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10},
-		},
-	}
-	vals := pl.ConfigValues()
-	assert.Equal(t, "true", vals["draft-abraitis-paths-limit:enabled"])
-
-	empty := &PathsLimit{}
-	assert.Nil(t, empty.ConfigValues())
-}
-
 // TestPathsLimitBoundary verifies boundary values for limit field.
 //
 // VALIDATES: uint16 boundary handling (1 and 65535).

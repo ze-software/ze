@@ -290,20 +290,20 @@ func negotiatedOutcomeEqual(a, b *capability.Negotiated) bool {
 // session caches it, so the new set governs the next OPEN while the running
 // session keeps the negotiation the probe proved unchanged.
 //
-// CapabilityConfigJSON and RawCapabilityConfig are NOT here: they are judged by
-// the plugin comparison instead (pluginCapabilityConfigSettings).
+// RawCapabilityConfig is NOT here: it is judged by the plugin comparison
+// instead (pluginCapabilityConfigSettings).
 func negotiatedCapabilitySettings(dst, src *PeerSettings) {
 	dst.Capabilities = src.Capabilities
 }
 
-// pluginCapabilityConfigSettings copies the plugin-delivery copies of the peer's
-// capability block, the fields a running session can take a new value for
-// ONLY when Session.pluginCapabilitiesKept has proved the plugin capabilities
-// its OPEN carried still stand.
+// pluginCapabilityConfigSettings copies RawCapabilityConfig, the parsed values
+// of the peer's capability block, a field a running session can take a new
+// value for ONLY when Session.pluginCapabilitiesKept has proved the plugin
+// capabilities its OPEN carried still stand.
 //
-// They qualify for that reason and no other. CapabilityConfigJSON and
-// RawCapabilityConfig carry the block to PLUGINS (parseCapabilitiesFromTree,
-// config_capabilities.go). No OPEN is built from them: a plugin's capabilities
+// It qualifies for that reason and no other. RawCapabilityConfig holds the
+// block's values (parseCapabilitiesFromTree, config_capabilities.go). No OPEN
+// is built from it: a plugin's capabilities
 // enter the OPEN through pluginCapGetter, which reads the injector store the
 // plugin wrote (Server.GetPluginCapabilitiesForSelectors). A reload replaces a
 // plugin's declaration there on its first apply, before the BGP participant
@@ -313,21 +313,20 @@ func negotiatedCapabilitySettings(dst, src *PeerSettings) {
 // (pluginDeclarationsKept). A block edit therefore restarts exactly when that
 // comparison does: a plugin capability changed for a code the peer advertised.
 func pluginCapabilityConfigSettings(dst, src *PeerSettings) {
-	dst.CapabilityConfigJSON = src.CapabilityConfigJSON
 	dst.RawCapabilityConfig = src.RawCapabilityConfig
 }
 
 // hotSwappableWithPluginCapabilityConfig is the swap set when the plugin
 // capabilities are proved kept: the always-swappable fields plus the
-// plugin-delivery copies of the capability block.
+// capability block's parsed values (RawCapabilityConfig).
 func hotSwappableWithPluginCapabilityConfig(dst, src *PeerSettings) {
 	hotSwappableSettings(dst, src)
 	pluginCapabilityConfigSettings(dst, src)
 }
 
 // hotSwappableWithCapabilities is the swap set when the negotiation is proved
-// unchanged: the always-swappable fields, the plugin-delivery copies of the
-// capability block (negotiationOutcomeUnchanged proves the plugin capabilities
+// unchanged: the always-swappable fields, the capability block's parsed values
+// (negotiationOutcomeUnchanged proves the plugin capabilities
 // kept as part of the outcome), and the capability set.
 //
 // It exists so that ONE function is both neutralized in the restart decision and

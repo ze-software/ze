@@ -179,19 +179,19 @@ func TestReloadPluginCapabilityChange(t *testing.T) {
 }
 
 // TestReloadCapabilityBlockEdit reloads a peer whose capability block changed,
-// which reaches the reactor as a new CapabilityConfigJSON and
-// RawCapabilityConfig beside the plugin declaration the edit produced.
+// which reaches the reactor as a new RawCapabilityConfig beside the plugin
+// declaration the edit produced.
 //
 // VALIDATES: a capability-block edit restarts the session only when the
 // negotiation it reaches changes: a plugin capability changed for a code the
 // peer advertised. An edit whose code the peer never advertised, or whose
 // declaration did not change, keeps the session and delivers the new block
 // (RFC 5492 Section 1; the negotiation-outcome ruling of 2026-08-07).
-// PREVENTS: the plugin-delivery copies of the block restarting every session
+// PREVENTS: the block's parsed values restarting every session
 // on any edit, which hid the plugin comparison behind a blanket restart: a
 // software-version encoding edit flapped a peer that never advertised code 75.
 // METHOD: adapter.Reload with settings that differ from the running ones in
-// the two block fields (and, in one case, in a capability set that negotiates
+// the block field (and, in one case, in a capability set that negotiates
 // identically), after the test rewrote the store. Object identity tells a
 // restart (reactor_peers.go AddPeer replaces the *Peer), and the running
 // peer's settings show the block was delivered rather than dropped.
@@ -231,13 +231,11 @@ func TestReloadCapabilityBlockEdit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			settings := negotiationSettings(capIPv4())
-			settings.CapabilityConfigJSON = `{"role":{"name":"provider"}}`
 			settings.RawCapabilityConfig = map[string]map[string]string{"hostname": {"host": "old"}}
 			next := negotiationSettings(capIPv4())
 			if tc.nextCaps != nil {
 				next.Capabilities = tc.nextCaps
 			}
-			next.CapabilityConfigJSON = `{"role":{"name":"customer"}}`
 			next.RawCapabilityConfig = map[string]map[string]string{"hostname": {"host": "new"}}
 			r, peer := newSwapTestReactor(t, settings, next)
 			store := &pluginStore{}
@@ -260,8 +258,6 @@ func TestReloadCapabilityBlockEdit(t *testing.T) {
 			require.Equal(t, tc.keepsGoing, after == peer,
 				"keepsGoing=%v: a restart replaces the peer object", tc.keepsGoing)
 			running := after.Settings()
-			assert.Equal(t, next.CapabilityConfigJSON, running.CapabilityConfigJSON,
-				"the running peer holds the edited capability block")
 			assert.Equal(t, next.RawCapabilityConfig, running.RawCapabilityConfig,
 				"the running peer holds the edited capability values")
 			assert.True(t, capabilitiesEqual(next.Capabilities, after.configuredCapabilities()),

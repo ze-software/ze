@@ -155,7 +155,7 @@ func peerSettingsRestartReason(current, next *PeerSettings, s *Session) string {
 // A plugin capability is neither: no PeerSettings field holds it, so it is
 // judged on the running session alone (Session.pluginCapabilitiesKept), and a
 // changed code the peer advertised restarts with "PluginCapabilities" named.
-// The plugin-delivery copies of the capability block follow that verdict:
+// The capability block's parsed values (RawCapabilityConfig) follow that verdict:
 // delivered when it holds, compared with the rest when it does not
 // (pluginCapabilityConfigSettings).
 //
@@ -185,7 +185,7 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 	// PeerSettings field holds it (Session.pluginCapabilitiesKept).
 	pluginKept := s.pluginCapabilitiesKept()
 	if pluginKept {
-		// The plugin-delivery copies of the capability block reach the OPEN only
+		// The capability block's parsed values (RawCapabilityConfig) reach the OPEN only
 		// through the plugin declaration just proved kept, so a block edit is
 		// delivered rather than restarted (pluginCapabilityConfigSettings). When
 		// the declaration changed they stay compared, and the walk below names
