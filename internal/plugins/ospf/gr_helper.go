@@ -190,11 +190,15 @@ func (m *grManager) helperEnter(key helperKey, g graceReceived, wasDR bool, addr
 // holds m.mu across the metric calls, so it releases it by defer: a Grace-LSA
 // reaches this from the receive worker, and a panic it contains (task
 // ospf/receive) must not leave m.mu held for the next Grace-LSA and for
-// suppressOrigination.
+// suppressOrigination. A stopped manager records nothing: its grace timer would outlive
+// the engine with nothing left to stop it.
 func (m *grManager) addHelperSession(key helperKey, s *helperSession) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	if m.stopped {
+		return
+	}
 	if d := s.graceEnd.Sub(m.now()); d > 0 {
 		s.timer = time.AfterFunc(d, func() { m.helperGraceExpired(key) })
 	}
@@ -211,7 +215,7 @@ func (m *grManager) updateGrace(key helperKey, g graceReceived) {
 	defer m.mu.Unlock()
 
 	s, ok := m.helping[key]
-	if !ok {
+	if !ok || m.stopped {
 		return
 	}
 	s.graceEnd = graceEnd
@@ -242,11 +246,16 @@ func (m *grManager) helperExit(key helperKey, expected *helperSession, reason st
 // removeHelperSession drops the session at key, when it is still the expected
 // one, publishes the helper gauges, and answers whether it removed one. It
 // releases m.mu by defer for the reason addHelperSession gives: the LSDB
-// content-change observer reaches it from the receive worker.
+// content-change observer reaches it from the receive worker. A stopped manager
+// removes nothing: a grace timer whose callback began before stop would otherwise
+// write the shared gauges and re-originate for a torn-down engine.
 func (m *grManager) removeHelperSession(key helperKey, expected *helperSession, reason string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	if m.stopped {
+		return false
+	}
 	s, ok := m.helping[key]
 	if !ok {
 		return false

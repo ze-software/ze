@@ -34,6 +34,9 @@ func grEnableEngine(t *testing.T, v6 bool, now time.Time) *engine {
 	e.state = newFakeGRStore()
 	e.gr.now = func() time.Time { return now }
 	e.gr.configure(grTestConfig())
+	// The helper and restart grace timers run on the wall clock, whatever e.gr.now says, so a
+	// test that leaves a session behind would have its timer fire into a later test.
+	t.Cleanup(e.gr.stop)
 	return e
 }
 

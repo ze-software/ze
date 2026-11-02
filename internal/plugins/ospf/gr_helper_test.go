@@ -134,6 +134,49 @@ func TestHelperExitOnGraceExpiry(t *testing.T) {
 	}
 }
 
+// TestGRTimersRefusedAfterStop: once engine shutdown has run grManager.stop, no GR timer may
+// act for the dead engine. time.Timer.Stop cannot cancel a callback that has already begun, and
+// the receive worker can still deliver a Grace-LSA between gr.stop and the engine cancel, so
+// the manager itself must refuse: a grace expiry reaching it after stop exits nothing (no
+// helper-exit count lands in the shared registry, where it would misreport a live instance on
+// the same family and interface), a Grace-LSA after stop arms no helper timer, and a restart
+// entry after stop arms no restart timer.
+func TestGRTimersRefusedAfterStop(t *testing.T) {
+	now := time.Unix(1_000_000, 0)
+	m := grHelperManager(t, now)
+	reg := newCountingRegistry()
+	m.setGRMetrics(reg)
+	x := ospftypes.RouterID{10, 0, 0, 9}
+	key := helperKey{iface: "eth0", router: x}
+	m.helperEnter(key, graceReceived{iface: "eth0", advRouter: x, gracePeriod: 120}, false, netip.Addr{}, 0)
+
+	m.stop()
+
+	// A grace-expiry callback already running when stop returned.
+	m.helperGraceExpired(key)
+	if n := reg.get("ze_ospf_gr_helper_exits_total"); n != 0 {
+		t.Fatalf("a grace expiry after stop must exit nothing: helper exits counted %d", n)
+	}
+
+	late := helperKey{iface: "eth0", router: ospftypes.RouterID{10, 0, 0, 10}}
+	m.helperEnter(late, graceReceived{iface: "eth0", advRouter: late.router, gracePeriod: 120}, false, netip.Addr{}, 0)
+	m.mu.Lock()
+	_, armed := m.helping[late]
+	m.mu.Unlock()
+	if armed {
+		t.Fatal("a Grace-LSA after stop must not open a helper session with a grace timer")
+	}
+
+	m.enterRestart(now.Add(120*time.Second), grReasonReload, nil)
+	m.mu.Lock()
+	restartTimer := m.restartTimer
+	m.mu.Unlock()
+	if restartTimer != nil {
+		restartTimer.Stop()
+		t.Fatal("a restart entry after stop must not arm the restart grace timer")
+	}
+}
+
 // TestHelperStrictExitOnTopologyChange (AC-19): a strict-checking content change that would
 // flood to X exits the helper.
 func TestHelperStrictExitOnTopologyChange(t *testing.T) {

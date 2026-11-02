@@ -120,6 +120,11 @@ type grManager struct {
 	restartTimer *time.Timer
 	gracefulStop bool // a graceful-restart stop is in progress: skip RemoveAll
 
+	// stopped is set by stop at engine shutdown and never cleared: the manager then arms no
+	// timer and refuses every exit, so a timer callback that began before stop, or a
+	// Grace-LSA the receive worker delivers before the engine cancel, acts on nothing.
+	stopped bool
+
 	// helper runtime (guarded by mu)
 	helping map[helperKey]*helperSession
 
@@ -201,13 +206,16 @@ func (m *grManager) setGRMetrics(reg metrics.Registry) {
 	gm.restarterActive.With(m.e.grFamilyLabel()).Set(active)
 }
 
-// stop cancels any pending GR timers on engine shutdown so no callback fires after teardown.
+// stop cancels any pending GR timers on engine shutdown and marks the manager stopped. A
+// timer's Stop cannot cancel a callback that has already begun, so the stopped mark is what
+// makes such a callback, or a timer armed after this point, a no-op.
 func (m *grManager) stop() {
 	if m == nil {
 		return
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.stopped = true
 	if m.restartTimer != nil {
 		m.restartTimer.Stop()
 		m.restartTimer = nil

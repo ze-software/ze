@@ -186,8 +186,9 @@ func (m *grManager) enterRestart(graceEnd time.Time, reason uint8, expected []os
 	if m.restartTimer != nil {
 		m.restartTimer.Stop()
 	}
+	// A stopped manager arms no timer: nothing would stop it, and it would outlive the engine.
 	d := graceEnd.Sub(m.now())
-	if d > 0 {
+	if d > 0 && !m.stopped {
 		m.restartTimer = time.AfterFunc(d, m.graceExpired)
 	}
 	m.metrics.restarterActive.With(m.e.grFamilyLabel()).Set(1)
@@ -294,7 +295,9 @@ func (m *grManager) leaveRestart(reason string) (restartInterval uint16, exitRea
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if !m.restarting {
+	// A stopped manager belongs to a torn-down engine: a grace timer whose callback began
+	// before stop must not re-originate, flush or clear the restart fact for it.
+	if !m.restarting || m.stopped {
 		return 0, 0, false
 	}
 	m.restarting = false

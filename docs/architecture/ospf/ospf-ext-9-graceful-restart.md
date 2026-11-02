@@ -91,6 +91,12 @@ the adjacency at Full for the grace period.
   prevent.
 - The exit path runs on the grace-timer goroutine. Snapshot the mutex-guarded
   fields INSIDE the lock before the post-unlock work.
+- Engine shutdown marks the GR manager stopped. `time.Timer.Stop` cannot cancel
+  a callback that has already begun, and the receive worker can still deliver a
+  Grace-LSA before the engine is cancelled, so after `stop` the manager arms no
+  timer and every exit refuses. A late timer would otherwise write the shared
+  `ze_ospf_gr_*` series for an engine that is gone.
+  <!-- source: internal/plugins/ospf/gr.go -- stop -->
 - The carrier gained an additive LS-age field on a received opaque delivery, so
   the IPv4 helper can honour the grace clock. The v6 native path reads the LSA
   header age already. Other consumers ignore the field.
