@@ -30,6 +30,9 @@ const (
 	peerDnsmasq        = "dnsmasq"
 	peerDnsmasqB       = "dnsmasq-b"
 	peerKea            = "kea"
+	// peerZePeer is a second Ze daemon, started from the scenario's
+	// ze-peer.conf, for a scenario no third-party daemon can serve.
+	peerZePeer = "ze-peer"
 )
 
 // Programs a scenario runs inside a peer container. cmdGoBGP has the spelling
@@ -186,6 +189,8 @@ const (
 	// optional second one a reload scenario swaps in mid-run.
 	zeConfigFile       = "ze.conf"
 	zeReloadConfigFile = "ze-reload.conf"
+	// zePeerConfigFile is the optional config of a second Ze daemon (peerZePeer).
+	zePeerConfigFile = "ze-peer.conf"
 
 	// frrConfigFile is the primary FRR peer's config, and speakerArgsFile and
 	// speaker2ArgsFile the argument files of the two harness speakers. Each

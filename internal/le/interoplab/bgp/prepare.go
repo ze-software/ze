@@ -72,7 +72,7 @@ environment {
 var containerRoles = []string{
 	"ze", peerFRR, peerBIRD, peerGoBGP, peerBMP, peerRPKI, peerInject, peerSpeaker,
 	peerSpeaker2, peerKeepalived, peerStayRTR, peerStayRTRStandby, peerPMACCT, peerFRRTransit, peerFRRSink,
-	peerDnsmasq, peerDnsmasqB, peerKea,
+	peerDnsmasq, peerDnsmasqB, peerKea, peerZePeer,
 }
 
 func scenarioPlans(root, producer, suffix string, sources []interoplab.ScenarioSource) ([]interoplab.ScenarioPlan, error) {
@@ -192,7 +192,7 @@ func needsIPv6(root string) (bool, error) {
 				return nil
 			}
 		}
-		if relative == zeConfigFile && zeRunsOSPFv3(text) {
+		if (relative == zeConfigFile || relative == zePeerConfigFile) && zeRunsOSPFv3(text) {
 			returnValue = true
 		}
 		return nil
@@ -357,7 +357,7 @@ func renderScenario(source, target string, network interoplab.Network) (rendered
 			// running config, and a scenario that lost the `interop` user at
 			// SIGHUP would fail every assertion after it for a reason that has
 			// nothing to do with what it tests.
-			if relative == zeConfigFile || relative == zeReloadConfigFile || isZeStepReloadConfig(relative) {
+			if relative == zeConfigFile || relative == zeReloadConfigFile || relative == zePeerConfigFile || isZeStepReloadConfig(relative) {
 				text = rendered.Reset().Str(strings.TrimRight(text, "\n")).
 					Byte('\n').Str(zeCLIConfig).String()
 			}
@@ -498,10 +498,22 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			}
 		}
 	}
-	peers = append(peers, interoplab.PeerConfig{Name: "ze", Container: containerName("ze", suffix), Image: "ze", Host: zeHostNumber,
-		Mounts: zeMounts, Capabilities: []string{capabilityNetAdmin}, Arguments: zeArguments, AppArmorProfile: appArmorProfile,
-		Environment: []interoplab.EnvironmentVariable{{Name: "SESSION_TIMEOUT", Value: strconv.Itoa(int(timeout / time.Second))}},
-		Command:     zeCommand, Ready: ready("true")})
+	peers = append(peers, zeDaemonPeer("ze", suffix, zeHostNumber, zeMounts, zeArguments, zeCommand, timeout))
+	peers[len(peers)-1].AppArmorProfile = appArmorProfile
+	// A scenario carrying ze-peer.conf runs a second Ze daemon where no
+	// third-party daemon can serve (ospf-multiaf-v4-frr: FRR ospf6d has no
+	// IPv4-unicast address family). It starts the way the Ze under test does
+	// and takes FRR's host number, which the scenarios' peer router-id names,
+	// so a scenario cannot also carry frr.conf.
+	if path := filepath.Join(scenario, zePeerConfigFile); regularFile(path) {
+		if regularFile(filepath.Join(scenario, frrConfigFile)) {
+			return nil, errors.New(rendered.Reset().Str("scenario ").Str(filepath.Base(scenario)).
+				Str(" holds both ").Str(zePeerConfigFile).Str(" and ").Str(frrConfigFile).
+				Str(": both peers take host 3. Fix: remove one of the two files from the scenario directory").String())
+		}
+		peers = append(peers, zeDaemonPeer(peerZePeer, suffix, frrHostNumber,
+			[]interoplab.Mount{mount(path, zeMountedConfig)}, ipv6Sysctls(), []string{"start", zeMountedConfig}, timeout))
+	}
 
 	// FRR-facing OPEN-only relays wait for both native configurations.
 	// Relays to other daemons keep their existing startup positions.
@@ -744,6 +756,18 @@ func scenarioFRRReference(scenario string) (string, error) {
 func frrImageName(reference string) string {
 	var name textbuf.Buffer
 	return name.Str(peerFRR).Byte('@').Str(reference).String()
+}
+
+// zeDaemonPeer is a Ze daemon container: the ze image, NET_ADMIN for the
+// routes and sockets it programs, the session timeout the scenario allows,
+// and a readiness that waits on nothing, because each checker waits on the
+// state it reads. The Ze under test and a scenario's second Ze (peerZePeer)
+// both start through it.
+func zeDaemonPeer(name, suffix string, host uint8, mounts []interoplab.Mount, arguments, command []string, timeout time.Duration) interoplab.PeerConfig {
+	return interoplab.PeerConfig{Name: name, Container: containerName(name, suffix), Image: "ze", Host: host,
+		Mounts: mounts, Capabilities: []string{capabilityNetAdmin}, Arguments: arguments,
+		Environment: []interoplab.EnvironmentVariable{{Name: "SESSION_TIMEOUT", Value: strconv.Itoa(int(timeout / time.Second))}},
+		Command:     command, Ready: &interoplab.ReadyProbe{Command: []string{"true"}, Timeout: 30 * time.Second, Interval: time.Second}}
 }
 
 func containerName(role, suffix string) string {

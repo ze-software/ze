@@ -450,7 +450,7 @@ func waitAbsent(ctx context.Context, lab interoplab.CheckerLab, peer string, com
 	return err
 }
 func queryEnvironment(peer string, command []string) []interoplab.EnvironmentVariable {
-	if peer == "ze" && len(command) >= 2 && command[0] == "ze" && command[1] == zeCLICommand {
+	if (peer == "ze" || peer == peerZePeer) && len(command) >= 2 && command[0] == "ze" && command[1] == zeCLICommand {
 		return []interoplab.EnvironmentVariable{{Name: "ZE_SSH_PASSWORD", Value: "testpass"}}
 	}
 	return nil

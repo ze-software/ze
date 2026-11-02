@@ -1014,7 +1014,13 @@ Daemons start conditionally: FRR if `frr.conf` exists, BIRD if `bird.conf` exist
 GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it needs.
 BIRD starts with IPv6 enabled, as FRR always does, only when its `bird.conf` names a
 lab IPv6 address.
-<!-- source: internal/le/interoplab/bgp/prepare.go -- ipv6Sysctls -->
+A `ze-peer.conf` starts a second Ze daemon, the peer `ze-peer`, where no
+third-party daemon can serve the scenario (`ospf-multiaf-v4-frr`: FRR ospf6d has
+no IPv4-unicast address family). It starts the way the Ze under test does
+(`zeDaemonPeer`), with the CLI user the checkers log in as appended to its
+config, and takes FRR's host 3, so a scenario carrying both `frr.conf` and
+`ze-peer.conf` is refused.
+<!-- source: internal/le/interoplab/bgp/prepare.go -- ipv6Sysctls, zeDaemonPeer, scenarioPeers -->
 
 **A scenario directory is NAMED, never numbered** (owner directive, 2026-08-24).
 Run order is lexical by scenario directory name and no scenario depends on it.
