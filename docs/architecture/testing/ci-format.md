@@ -1052,6 +1052,25 @@ Prefer `exit=` whenever a file runs more than one quick-exit `ze` command. A
 (`hub`, `start`, `cli`, `monitor`) and which has no config-file argument or
 `--web` flag.
 
+**`exit=` is accepted only where it is checked.** Only the two foreground arms
+that await their process compare it: a foreground helper and a foreground
+quick-exit `ze`. Every other command refuses `exit=` when the file is read,
+naming the reason and the fix:
+
+| Command | Why `exit=` is refused | Write instead |
+|---------|------------------------|---------------|
+| `cmd=background` | The runner never waits for it to exit; it is killed at teardown | `cmd=foreground`, or an `expect=` on what it produced |
+| Foreground `ze` daemon | The runner synchronizes on it and tears it down; its status is the file-level one | `expect=exit:code=` |
+| Foreground `le test peer` | The same as a foreground daemon | `expect=exit:code=` |
+
+Until 2026-11-02 these lines parsed, and the assertion was dropped in silence.
+`classifyStepArm` names the arm once for the parser and for `runOrchestrated`,
+and `runOrchestrated` checks again before it dispatches, so a record built
+without the parser cannot slip past either.
+<!-- source: internal/test/runner/steparm.go -- classifyStepArm, stepArm.assertsExit, checkExitAssertable -->
+<!-- source: internal/test/runner/record_parse.go -- EncodingTests.parseCmd -->
+<!-- test: internal/test/runner/steparm_test.go TestParseRefusesExitTheArmDrops, TestStepArmAssertsExitOnlyOnAwaitedArms -->
+
 #### Every stream assertion sits under a command and is scoped to it
 
 Every `expect=stdout:`, `reject=stdout:`, `expect=stderr:` and `reject=stderr:`
@@ -1154,6 +1173,14 @@ them may surface real defects; tracked in `plan/known-failures/`.
 
 `test/parse` runs under `ParsingTests`, a second parser with its own execution
 model. Two differences are load-bearing for an author.
+
+**A command's own `exit=` is its exit assertion here**, the same one an
+`expect=exit:code=` under it states, because this suite awaits every command,
+daemon verbs included. A command whose `exit=` and `expect=exit:code=` disagree
+is refused at discovery. Until 2026-11-02 this suite parsed `exit=` and dropped
+it, so only the `expect=exit:code=` form was checked.
+<!-- source: internal/test/runner/parsing.go -- ciFileParser.parseCommand, ciFileParser.parseExitCode -->
+<!-- test: internal/test/runner/steparm_test.go TestParseSuiteHonoursCommandExit -->
 
 **Every assertion is scoped to one command**, as it is in the generic runner
 (above). This suite has always worked that way and the generic runner now does

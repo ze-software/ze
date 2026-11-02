@@ -412,6 +412,13 @@ func (p *ciFileParser) parseCommand(value string) error {
 		return err
 	}
 	p.cur = &ciCommand{Seq: rc.Seq, Exec: rc.Exec, StdinName: rc.Stdin, Timeout: rc.Timeout}
+	// The command's own exit= is the same assertion as an expect=exit:code=
+	// under it: this suite awaits every command, so both bind. It used to be
+	// parsed and dropped, so a wrong exit status passed unseen.
+	if rc.ExitCode != nil {
+		p.cur.ExpectExitCode = *rc.ExitCode
+		p.cur.HasExitCode = true
+	}
 	p.test.Commands = append(p.test.Commands, p.cur)
 	return nil
 }
@@ -420,6 +427,12 @@ func (p *ciFileParser) parseExitCode(value string) error {
 	code, err := strconv.Atoi(value)
 	if err != nil {
 		return fmt.Errorf("invalid exit code %q", value)
+	}
+	if p.cur.HasExitCode && p.cur.ExpectExitCode != code {
+		return fmt.Errorf("cmd seq=%d declares exit=%d but expect=exit:code=%d: one command has one exit status, "+
+			"so one of the two assertions is wrong and the test could never pass. "+
+			"Fix: run the command, then keep the assertion that matches what it should return and remove the other",
+			p.cur.Seq, p.cur.ExpectExitCode, code)
 	}
 	p.cur.ExpectExitCode = code
 	p.cur.HasExitCode = true

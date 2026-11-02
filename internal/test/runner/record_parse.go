@@ -722,6 +722,10 @@ func (et *EncodingTests) parseCmd(r *Record, cmdType string, parts []string, raw
 		if err != nil {
 			return err
 		}
+		// Not in parseCmdExec: the parse suite awaits every command it runs.
+		if err := checkExitAssertable(&rc); err != nil {
+			return err
+		}
 		r.RunCommands = append(r.RunCommands, rc)
 
 	case "stop":

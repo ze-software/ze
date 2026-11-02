@@ -713,17 +713,24 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			return false
 		}
 
+		// The arm of the switch below that runs this step. An exit= the arm
+		// would drop is refused, never ignored: the parser refuses it first,
+		// and this catches a record built without the parser.
+		if exitErr := checkExitAssertable(cmd); exitErr != nil {
+			rec.Error = exitErr
+			rec.FailureType = failParseError
+			return false
+		}
+		arm := classifyStepArm(cmd.Mode, cmdParts)
+
 		// Resolve binary path. An `le` head runs the runner's own le. A step
-		// that starts the peer takes the role name binNamePeer: the peer's
-		// stdin route and port read it.
-		binName := cmdParts[0]
+		// that starts the peer takes the role name binNamePeer (stepRole): the
+		// peer's stdin route and port read it.
+		binName := stepRole(cmdParts)
 		var binPath string
 		switch binName {
-		case binNameLE:
+		case binNameLE, binNamePeer:
 			binPath = r.lePath
-			if launchesPeer(cmdParts) {
-				binName = binNamePeer
-			}
 		case binNameZe:
 			binPath = r.zePath
 		default:
@@ -957,7 +964,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// in the switch below so sequential steps do not race. It writes to its
 		// own buffers, folded into the shared client buffers only after Wait()
 		// (see awaitQuickZe).
-		quickZe := cmd.Mode == modeForeground && binName == binNameZe && isQuickExitZeCommand(args)
+		quickZe := arm == stepArmQuickZe
 		var quickStdout, quickStderr strings.Builder
 
 		// readySW watches a cmd=background process for its ready= text. It sees
@@ -1022,8 +1029,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 		clock.mark(execStep, proc.Process.Pid, stderrSeen)
 
-		switch {
-		case cmd.Mode == modeBackground:
+		switch arm {
+		case stepArmBackground:
 			bgProcs = append(bgProcs, proc)
 			// Register the name a cmd=stop directive can target (Phase 2 naming
 			// grammar). Only background processes are nameable; the binding lives
@@ -1124,7 +1131,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// instead, because no sleep is long enough on a loaded host.
 				time.Sleep(100 * time.Millisecond)
 			}
-		case cmd.Mode == modeForeground && binName != binNameZe && binName != binNamePeer:
+		case stepArmHelper:
 			// Every helper finishes before the next step. Only the final helper
 			// supplies the file-level exit status and closes its expect span.
 			// Keep its rejects open through teardown, as before.
@@ -1171,7 +1178,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				return false
 			}
 			continue // Already finished, don't track for cleanup
-		case quickZe:
+		case stepArmQuickZe:
 			// Foreground quick-exit ze: await completion so the next command does
 			// not start (and race on the client buffers) before this one finishes.
 			lastQuickZeErr = awaitQuickZe(cmd, proc, &quickStdout, &quickStderr, &clientStdout, &clientStderr)
@@ -1193,8 +1200,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				}
 			}
 			continue // Already finished, don't track for cleanup
-		default:
-			// Foreground daemon (ze): start but don't wait - we wait for peer instead
+		case stepArmUnspecified:
+			// checkExitAssertable and the stop arm above leave no mode but
+			// background and foreground, so a step reaching here is a runner defect.
+			rec.Error = fmt.Errorf("cmd seq=%d (%s): runner defect: mode %q selects no arm; report it with this .ci file", cmd.Seq, cmd.Exec, cmd.Mode)
+			rec.FailureType = failParseError
+			return false
+		case stepArmDaemon:
+			// Foreground daemon (ze) or foreground le test peer: start but don't
+			// wait - the runner synchronizes on it and tears it down at the end.
 			bgProcs = append(bgProcs, proc) // Track for cleanup
 
 			// Write daemon PID to tmpfs dir so background helpers can send signals.

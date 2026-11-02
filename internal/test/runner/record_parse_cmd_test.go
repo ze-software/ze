@@ -253,7 +253,11 @@ func TestCmdUnknownKeyNotSwallowedIntoExec(t *testing.T) {
 // is parsed into a field, so a key that is listed but dead, or read but
 // unlisted, fails here rather than in a .ci nobody re-reads.
 func TestCmdKeysAreOneDeclaration(t *testing.T) {
-	line := "cmd=background:seq=7:exec=sh run.sh:stdin=block:timeout=15s:exit=3:name=holder:ready=up"
+	// Two lines, because ready= is background-only and exit= is checked only on
+	// an awaited foreground command (checkExitAssertable): no one line can be
+	// valid with both. Together they write every key.
+	line := "cmd=background:seq=7:exec=sh run.sh:stdin=block:timeout=15s:name=holder:ready=up"
+	exitLine := "cmd=foreground:seq=8:exec=sh run.sh:exit=3"
 
 	rc, err := parseCmdExec(modeBackground, line)
 	require.NoError(t, err)
@@ -263,12 +267,15 @@ func TestCmdKeysAreOneDeclaration(t *testing.T) {
 	assert.Equal(t, "15s", rc.Timeout)
 	assert.Equal(t, "holder", rc.Name)
 	assert.Equal(t, "up", rc.Ready)
+	rc, err = parseCmdExec(modeForeground, exitLine)
+	require.NoError(t, err)
+	require.NoError(t, checkExitAssertable(&rc))
 	require.NotNil(t, rc.ExitCode)
 	assert.Equal(t, 3, *rc.ExitCode)
 
-	// Every key the line above wrote is in the declared list, and the line above
-	// writes every key in it. A key added to cmdExecKeys with no field behind it
-	// is caught by the count.
+	// Every key the two lines above wrote is in the declared list, and together
+	// they write every key in it. A key added to cmdExecKeys with no field
+	// behind it is caught by the count.
 	assert.Len(t, cmdExecKeys, 7, "cmdExecKeys grew or shrank: give the new key a field and a case above")
 }
 
