@@ -102,7 +102,12 @@ func runCheck(args leaction.Arguments) (any, int) {
 		return Verdict{Part: index, Parts: count, Passed: true}, 0
 	}
 
-	cold, err := CacheCold(CacheDir(tree))
+	scope, err := ScopeOf(tree, rows)
+	if err != nil {
+		reportFailure(err)
+		return nil, 2
+	}
+	cold, err := CacheCold(CacheDir(tree), scope)
 	if err != nil {
 		reportFailure(err)
 		return nil, 2
@@ -113,7 +118,7 @@ func runCheck(args leaction.Arguments) (any, int) {
 		return nil, 2
 	}
 
-	verdict, judged, err := Judge(tree, rows, deadline)
+	verdict, judged, err := Judge(tree, rows, scope, deadline)
 	verdict.Part, verdict.Parts = index, count
 	if err != nil {
 		reportFailure(err)

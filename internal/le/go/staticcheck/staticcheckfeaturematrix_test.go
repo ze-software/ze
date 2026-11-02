@@ -592,7 +592,9 @@ func judgeFixture(t *testing.T, root string, tags []string) bool {
 	if err != nil {
 		t.Fatalf("derive the scoped matrix: %v", err)
 	}
-	verdict, judged, err := Judge(root, matrix, 90*time.Second)
+	// The fixture is no git checkout, so it has no ScopeOf; a literal scope
+	// stands in, and only the verdict is read here.
+	verdict, judged, err := Judge(root, matrix, Scope("fixture"), 90*time.Second)
 	if !judged {
 		// Not a skip. A run that reached no verdict is a run that proves
 		// nothing about the subtraction, and a green bar over it is the exact
@@ -658,8 +660,9 @@ func TestMatrixRowFilterCatchesAGatedBreak(t *testing.T) {
 // starting from the partial cache a killed run left bounded as if warm, which
 // did the same in every shard of verify runs 41289750811 and 41295105997.
 func TestCacheColdUntilARunReachesAVerdict(t *testing.T) {
+	const scope = Scope("the scope of this run")
 	dir := filepath.Join(t.TempDir(), "staticcheck-matrix")
-	if cold, err := CacheCold(dir); err != nil || !cold {
+	if cold, err := CacheCold(dir, scope); err != nil || !cold {
 		t.Fatalf("an absent cache answers (%v, %v), want cold", cold, err)
 	}
 	if err := os.MkdirAll(filepath.Join(dir, "00"), 0o750); err != nil {
@@ -668,19 +671,19 @@ func TestCacheColdUntilARunReachesAVerdict(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "README"), []byte("cache"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if cold, err := CacheCold(dir); err != nil || !cold {
+	if cold, err := CacheCold(dir, scope); err != nil || !cold {
 		t.Fatalf("a cache with only empty subdirectories answers (%v, %v), want cold", cold, err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "00", "abc-a"), []byte("entry"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if cold, err := CacheCold(dir); err != nil || !cold {
+	if cold, err := CacheCold(dir, scope); err != nil || !cold {
 		t.Fatalf("a cache holding entries no finished run vouches for answers (%v, %v), want cold", cold, err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, judgedMarker), nil, 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, judgedMarker), []byte(scope), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if cold, err := CacheCold(dir); err != nil || cold {
+	if cold, err := CacheCold(dir, scope); err != nil || cold {
 		t.Fatalf("a cache a run reached its verdict over answers (%v, %v), want warm", cold, err)
 	}
 }

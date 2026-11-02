@@ -15,6 +15,8 @@ package gostaticcheck
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
 	"os/exec"
@@ -27,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/job"
 )
 
 // DeadlineKey is the dot-notation spelling of ZE_STATICCHECK_DEADLINE. It
@@ -75,7 +78,7 @@ var deadlineEntry = env.MustRegister(env.EnvEntry{
 	// No default value: an unset key derives the bound from the number of rows
 	// the run judges, which a fixed string cannot state.
 	Default:     "",
-	Description: "an absolute bound on one Staticcheck run over the feature matrix; unset allows 90s per judged row, and at least 59m from a cache no earlier run reached its verdict over, before the matrix is declared unjudgeable",
+	Description: "an absolute bound on one Staticcheck run over the feature matrix; unset allows 90s per judged row, and at least 59m from a cache no earlier verdict over the same inputs and rows marked, before the matrix is declared unjudgeable",
 	// Private keeps the key out of `ze env list`. It bounds a build-host tool
 	// and an operator has nothing to do with it.
 	Private: true,
@@ -83,7 +86,7 @@ var deadlineEntry = env.MustRegister(env.EnvEntry{
 
 // Deadline answers the bound one Staticcheck run over rows may take, and the
 // reason a declared value could not be used. cold is whether the run starts
-// from a cache no earlier run reached its verdict over (CacheCold).
+// from a cache no earlier verdict over its own Scope marked (CacheCold).
 func Deadline(rows int, cold bool) (time.Duration, error) {
 	return DeadlineFrom(env.Get(deadlineEntry.Key), rows, cold)
 }
@@ -160,9 +163,9 @@ func CacheDir(tree string) string {
 }
 
 // judgedMarker is the file Judge keeps in the cache while the last Staticcheck
-// run over it reached a verdict. Judge removes it before Staticcheck starts and
-// writes it back only once a verdict exists, so a run killed at its deadline
-// leaves the cache unmarked.
+// run over it reached a verdict. It holds the Scope that verdict covered. Judge
+// removes it before Staticcheck starts and writes it back only once a verdict
+// exists, so a run killed at its deadline leaves the cache unmarked.
 //
 // Staticcheck writes each package's result to the cache as it finishes it, so
 // a killed run leaves entries behind, and an entry proves nothing about the
@@ -173,23 +176,72 @@ func CacheDir(tree string) string {
 // shard of verify runs 41289750811 and 41295105997 restored 62 to 91 MB and
 // exceeded its 9m0s or 10m30s bound. Staticcheck's trim walks only its
 // two-character subdirectories, so it never removes this file.
+//
+// A mark alone was not enough either. Verify run 41356999610 at 3819ae5430
+// reached its verdict in every piece and saved a marked cache; run 41379939815
+// at 8653bf598c restored it, read it as warm, and every piece exceeded its 9m0s
+// or 10m30s bound, because the commits between the two moved packages most of
+// the module imports and the cache answered few of them. Run 41418800289 at
+// e7b1fb3d0c then restored the unmarked cache the killed run saved, got the
+// cold floor, and finished: one verify in two failed. The mark therefore names
+// what its verdict covered, and a cache is warm only for that same scope.
 const judgedMarker = "ze-judged"
 
-// CacheCold answers whether the Staticcheck cache at dir is one no run reached
-// its verdict over, so a run over it may analyse most of the dependency
-// closure again. An absent directory is cold, and so is a cache full of
-// entries that a killed run left (judgedMarker).
-func CacheCold(dir string) (bool, error) {
-	_, err := os.Stat(filepath.Join(dir, judgedMarker))
-	if err == nil {
-		return false, nil
+// Scope names what one Staticcheck verdict over the matrix covered: the Go
+// inputs of the checkout and the rows the run judged, as one digest. A cache is
+// warm for a run only when the last verdict over it had that run's Scope. The
+// zero Scope names nothing and matches no mark.
+type Scope string
+
+// ScopeOf answers the Scope of a run over matrix in tree.
+//
+// The inputs are the ones `le go lint run` declares (job.InputHash under
+// job.LintLabel): Staticcheck loads the same Go packages lint does, so the
+// trees lint never reads hold nothing this verdict reads either, and a journal
+// row another session writes does not cool the cache. The rows are part of the
+// digest because a verdict over one piece says nothing of another: CI falls
+// back to a cache another piece saved (verify.yml, its last restore key).
+//
+// An error means the checkout's inputs could not be named, and the run is not
+// judged on a guess.
+func ScopeOf(tree string, matrix Matrix) (Scope, error) {
+	inputs, err := job.InputHash(tree, job.LintLabel)
+	if err != nil {
+		var tb textbuf.Buffer
+		return "", errors.New(tb.Str("could not name the inputs Staticcheck reads: ").Err(err).
+			Str("; matrix could not be judged; run it from a git checkout").String())
 	}
+	rendered, err := matrix.Render()
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.New()
+	sum.Write([]byte(inputs)) //nolint:errcheck // hash.Hash.Write never returns an error
+	sum.Write([]byte{0})      //nolint:errcheck // hash.Hash.Write never returns an error
+	sum.Write(rendered)       //nolint:errcheck // hash.Hash.Write never returns an error
+	return Scope(hex.EncodeToString(sum.Sum(nil))), nil
+}
+
+// CacheCold answers whether the Staticcheck cache at dir is cold for a run of
+// scope: no run reached its verdict over it, or the last verdict covered other
+// inputs or other rows, so the run may analyse most of the dependency closure
+// again. An absent directory is cold, so is a cache full of entries that a
+// killed run left, and so is one a verdict at another commit marked.
+func CacheCold(dir string, scope Scope) (bool, error) {
+	marked, err := os.ReadFile(filepath.Join(dir, judgedMarker))
 	if errors.Is(err, os.ErrNotExist) {
 		return true, nil
 	}
-	var tb textbuf.Buffer
-	return false, errors.New(tb.Str("could not read the Staticcheck cache: ").Err(err).
-		Str("; matrix could not be judged").String())
+	if err != nil {
+		var tb textbuf.Buffer
+		return false, errors.New(tb.Str("could not read the Staticcheck cache: ").Err(err).
+			Str("; matrix could not be judged").String())
+	}
+	if scope == "" {
+		// The zero Scope names no inputs, so no verdict can have covered it.
+		return true, nil
+	}
+	return string(marked) != string(scope), nil
 }
 
 // unmarkJudged removes judgedMarker from cache before a run, so the cache
@@ -209,9 +261,9 @@ func unmarkJudged(cache string) error {
 }
 
 // markJudged writes judgedMarker into cache once Staticcheck has reached a
-// verdict over it.
-func markJudged(cache string) error {
-	if err := os.WriteFile(filepath.Join(cache, judgedMarker), nil, 0o600); err != nil {
+// verdict over it, holding the scope that verdict covered.
+func markJudged(cache string, scope Scope) error {
+	if err := os.WriteFile(filepath.Join(cache, judgedMarker), []byte(scope), 0o600); err != nil {
 		var tb textbuf.Buffer
 		return errors.New(tb.Str("Staticcheck reached its verdict, but the verdict mark of its cache could not be written: ").
 			Err(err).Str("; matrix could not be judged; free space under ").Str(cache).Str(" and retry").String())
@@ -223,9 +275,12 @@ func markJudged(cache string) error {
 // said. It runs with CacheDir(tree) as its cache, whatever the caller's
 // environment names.
 //
+// scope is what the verdict covers (ScopeOf, taken before the run), and the
+// mark a verdict leaves holds it.
+//
 // The bool is whether the matrix was JUDGED at all. False means the answer is
 // exit code 2 and the error says why; it is not a type-check failure.
-func Judge(tree string, matrix Matrix, deadline time.Duration) (Verdict, bool, error) {
+func Judge(tree string, matrix Matrix, scope Scope, deadline time.Duration) (Verdict, bool, error) {
 	rendered, err := matrix.Render()
 	if err != nil {
 		return Verdict{}, false, err
@@ -286,7 +341,7 @@ func Judge(tree string, matrix Matrix, deadline time.Duration) (Verdict, bool, e
 	}
 
 	if runErr == nil {
-		if err := markJudged(cache); err != nil {
+		if err := markJudged(cache, scope); err != nil {
 			return verdict, false, err
 		}
 		verdict.Passed = true
@@ -295,7 +350,7 @@ func Judge(tree string, matrix Matrix, deadline time.Duration) (Verdict, bool, e
 
 	var exitErr *exec.ExitError
 	if errors.As(runErr, &exitErr) && exitErr.ExitCode() == 1 {
-		if err := markJudged(cache); err != nil {
+		if err := markJudged(cache, scope); err != nil {
 			return verdict, false, err
 		}
 		return verdict, true, nil

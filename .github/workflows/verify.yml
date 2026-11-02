@@ -202,7 +202,9 @@ jobs:
       # the piece this shard judges; the commit makes each run save afresh.
       # A run killed at its deadline still saves what it analysed, but leaves
       # the cache without its verdict mark (judgedMarker, judge.go), so the next
-      # run gets the cold bound rather than 90s a row over a partial cache.
+      # run gets the cold bound rather than 90s a row over a partial cache. The
+      # mark names the Go inputs and rows its verdict covered (Scope), so a
+      # cache an earlier commit's verdict marked is cold for this one too.
       - name: Read the vendored Staticcheck version
         id: staticcheck-version
         run: |

@@ -2,6 +2,7 @@ package gostaticcheck
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -95,7 +96,7 @@ func TestJudgeCompilesBeforeTheDeadlineStarts(t *testing.T) {
 		{Name: "without_ze_c", Tags: []string{"ze_a", "ze_b"}, Omits: "ze_c"},
 		{Name: "without_ze_b", Tags: []string{"ze_a", "ze_c"}, Omits: "ze_b"},
 	}
-	verdict, judged, err := Judge(t.TempDir(), matrix, time.Second)
+	verdict, judged, err := Judge(t.TempDir(), matrix, Scope("fake"), time.Second)
 	if !judged {
 		t.Fatalf("matrix unjudged (%v): the compile ran inside the Staticcheck deadline", err)
 	}
@@ -150,21 +151,22 @@ func TestJudgeMarksTheCacheOnlyAfterAVerdict(t *testing.T) {
 			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 			t.Setenv("GOFLAGS", "")
 
+			const scope = Scope("the scope of this run")
 			tree := t.TempDir()
 			if tc.markedFirst {
 				if err := os.MkdirAll(CacheDir(tree), 0o750); err != nil {
 					t.Fatal(err)
 				}
-				if err := os.WriteFile(filepath.Join(CacheDir(tree), judgedMarker), nil, 0o600); err != nil {
+				if err := os.WriteFile(filepath.Join(CacheDir(tree), judgedMarker), []byte(scope), 0o600); err != nil {
 					t.Fatal(err)
 				}
 			}
 			matrix := Matrix{{Name: "core_only", Tags: []string{"ze_a"}}}
-			_, judged, err := Judge(tree, matrix, 500*time.Millisecond)
+			_, judged, err := Judge(tree, matrix, scope, 500*time.Millisecond)
 			if judged != tc.judged {
 				t.Fatalf("judged = %v (err %v), want %v", judged, err, tc.judged)
 			}
-			cold, err := CacheCold(CacheDir(tree))
+			cold, err := CacheCold(CacheDir(tree), scope)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -172,6 +174,111 @@ func TestJudgeMarksTheCacheOnlyAfterAVerdict(t *testing.T) {
 				t.Errorf("after the run the cache answers cold = %v, want %v", cold, tc.cold)
 			}
 		})
+	}
+}
+
+// TestACacheIsWarmOnlyForTheScopeItsVerdictCovered proves a verdict mark
+// holds the cache warm only for a run over the inputs and rows that verdict
+// covered: a new commit, an uncommitted Go edit and another piece of the
+// matrix each find the cache cold, and a page under docs/, which no Go package
+// load reads, leaves it warm.
+//
+// Method: a git checkout holding one Go file; the scope of one piece marks the
+// cache as a verdict would (markJudged); CacheCold is then asked with the scope
+// ScopeOf answers after each change. Verify run 41356999610 at 3819ae5430
+// marked every piece's cache, run 41379939815 at 8653bf598c read those marks as
+// warm over a tree the push had moved, and every piece exceeded its 9m0s or
+// 10m30s bound.
+func TestACacheIsWarmOnlyForTheScopeItsVerdictCovered(t *testing.T) {
+	tree := t.TempDir()
+	scopeGit(t, tree, "init", "--quiet")
+	scopeGit(t, tree, "config", "user.email", "test@example.com")
+	scopeGit(t, tree, "config", "user.name", "test")
+	// The repository ignores /cache as this one does: the cache lives inside
+	// the tree (CacheDir), and the mark written into it is no input.
+	scopeWrite(t, tree, ".gitignore", "/cache\n")
+	scopeWrite(t, tree, "go.mod", "module example.com/scope\n\ngo 1.26\n")
+	scopeWrite(t, tree, "a.go", "package scope\n")
+	scopeGit(t, tree, "add", ".")
+	scopeGit(t, tree, "commit", "--quiet", "-m", "first")
+
+	piece := Matrix{{Name: "core_only", Tags: []string{"ze_a"}}}
+	other := Matrix{{Name: "without_ze_b", Tags: []string{"ze_a", "ze_c"}, Omits: "ze_b"}}
+	cache := CacheDir(tree)
+	if err := os.MkdirAll(cache, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	judged := scopeOf(t, tree, piece)
+	if err := markJudged(cache, judged); err != nil {
+		t.Fatal(err)
+	}
+
+	coldFor := func(scope Scope) bool {
+		t.Helper()
+		cold, err := CacheCold(cache, scope)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return cold
+	}
+	if coldFor(scopeOf(t, tree, piece)) {
+		t.Fatal("the cache a verdict over this very scope marked answers cold")
+	}
+
+	scopeWrite(t, tree, "docs/page.md", "a page no Go package load reads\n")
+	if coldFor(scopeOf(t, tree, piece)) {
+		t.Error("a page under docs/ cooled the cache, though no Go package load reads it")
+	}
+	if !coldFor(scopeOf(t, tree, other)) {
+		t.Error("a verdict over one piece held the cache warm for another piece")
+	}
+	if !coldFor("") {
+		t.Error("the zero Scope, which names no inputs, found the cache warm")
+	}
+
+	scopeWrite(t, tree, "a.go", "package scope\n\n// A is new.\nconst A = 1\n")
+	if !coldFor(scopeOf(t, tree, piece)) {
+		t.Error("an uncommitted Go edit left the cache warm for a verdict over the old source")
+	}
+	scopeGit(t, tree, "commit", "--quiet", "-am", "second")
+	if !coldFor(scopeOf(t, tree, piece)) {
+		t.Error("a verdict at the previous commit held the cache warm for the next one")
+	}
+
+	if _, err := ScopeOf(t.TempDir(), piece); err == nil {
+		t.Error("ScopeOf named the inputs of a directory git cannot describe")
+	}
+}
+
+// scopeOf answers ScopeOf over a fixture that must have one.
+func scopeOf(t *testing.T, tree string, matrix Matrix) Scope {
+	t.Helper()
+	scope, err := ScopeOf(tree, matrix)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return scope
+}
+
+// scopeGit runs one git command in a fixture checkout.
+func scopeGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.CommandContext(t.Context(), "git", args...)
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v in %s: %v: %s", args, dir, err, out)
+	}
+}
+
+// scopeWrite writes one fixture file, creating its directory.
+func scopeWrite(t *testing.T, dir, name, body string) {
+	t.Helper()
+	full := filepath.Join(dir, filepath.FromSlash(name))
+	if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
 	}
 }
 

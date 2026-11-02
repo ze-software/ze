@@ -68,7 +68,19 @@ back only when Staticcheck exits with a verdict, clean or failing, and
 `CacheCold` answers cold whenever the mark is absent. A run killed at the
 per-row bound leaves the next run the cold floor, which lets it finish and mark
 the cache.
-<!-- source: internal/le/go/staticcheck/judge.go -- CacheCold, judgedMarker -->
+
+The mark also names what its verdict covered: a `Scope`, the digest of the Go
+inputs of the checkout (the inputs `le go lint run` declares,
+`job.InputHash`) and of the rows the run judged. `CacheCold` answers warm only
+when the mark holds the scope of the run about to start. A mark without that
+was read as warm by the next push: verify run 41356999610 at 3819ae5430 marked
+every piece, run 41379939815 at 8653bf598c restored those caches over a tree
+whose commits had moved packages most of the module imports, and every piece
+exceeded its 9m0s or 10m30s bound, so the run after it got the cold floor again
+and one verify in two failed. In CI every push is a new scope and gets the cold
+floor; a rerun of the same commit, or a second local run over unchanged Go
+source, keeps the per-row bound.
+<!-- source: internal/le/go/staticcheck/judge.go -- CacheCold, judgedMarker, Scope, ScopeOf -->
 
 The deadline measures the type check, not the cache. Staticcheck trims its
 cache when it closes, after the verdict exists, at most once a day, and it
