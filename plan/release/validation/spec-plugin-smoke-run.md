@@ -140,7 +140,7 @@ the smoke run catches there could not be debugged from its report.
 | Chaos run | `./le chaos run` | Fault injection for the BGP route server | Does not apply: one plugin, one role |
 | Doctor checks | `ze doctor`, `DoctorCheckPlugins` | Readiness probes on a running daemon | Does not apply: they start nothing. A doctor check can read the extended running-set rows later; this spec adds none |
 | Running-set command | `ze-system-cmd.yang` `system subsystem list`; `server/system.go` `handleSystemSubsystemList`; `cmd/show/system.go` `handleShowSystemSubsystemList` | The daemon lists every plugin process it started with stage, running flag and command count, through the shared dispatcher, so SSH, web, MCP, REST and gRPC all reach it | Extends (D-4): the row gains the process mode and a forked plugin's pid, built once for both commands; the harness reads it to judge "started" and "really forked". No new command beside it |
-| Compiled-plugin list | `ze-plugin-show-cmd.yang` `show plugin list`; `plugin/register.go` `MustRegisterLocalData` | Answers what the binary carries, in the caller's process | Does not apply: it cannot answer what runs. Its daemon form under the new owner rule is owned by `plan/release/fixes/spec-command-surface-parity.md` (gap G1), not by this spec |
+| Compiled-plugin list | `ze-plugin-show-cmd.yang` `show plugin list`; `plugin/register.go` `MustRegisterLocalData` | Answers what the binary carries, in the caller's process | Does not apply: it cannot answer what runs. Its daemon form under the new owner rule is owned by `spec-command-surface-parity` (gap G1), not by this spec |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
