@@ -22,6 +22,12 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// localErrorPrefix opens every refusal a local-data handler writes, because
+// the local route prints the Diagnostic as it stands (helpfmt.WriteError
+// writes the same bytes). A surface adds its own prefix to an error, so the
+// daemon form carries the reason without it.
+const localErrorPrefix = "error: "
+
 // loadLocalData registers every local-data command whose path a YANG
 // ze:command node declares, under that path, so the dispatcher serves it like
 // a builtin: authorization and accounting first, then the validator over the
@@ -84,14 +90,20 @@ func localDataHandler(path string, handler command.LocalDataHandler) Handler {
 //     shape of the path (command.RegisterShape) governs the pipes on it, as
 //     it does locally.
 //   - A non-zero code is a failed status, and the Diagnostic the local route
-//     prints on stderr is the error text, without its final newline. The
-//     payload stays beside it: `show config validation` answers the
-//     diagnostics of a config it rejects and exits 1.
+//     prints on stderr is the error text, without its final newline and
+//     without the "error: " the local route opens it with. Every surface
+//     that prints an error adds its own prefix ("error: " on SSH and
+//     `ze cli`, "Error: " in an MCP result), so carrying the local one too
+//     printed it twice; with it removed, SSH prints the local route's exact
+//     bytes. The payload stays beside it: `show config validation` answers
+//     the diagnostics of a config it rejects and exits 1.
+//   - A Diagnostic beside a zero code is a warning about an answer the
+//     command still gave, such as the parse warnings of `show config dump`.
+//     It travels as the response Warnings, one line each, under
+//     StatusWarning, so every surface shows it as the local route shows it on
+//     stderr.
 //
-// Nothing is written to the daemon's stdout or stderr. A Diagnostic beside a
-// zero code (a warning about an answer, such as the parse warnings of
-// `show config dump`) has no field in plugin.Response to travel in, so it
-// does not reach the remote caller.
+// Nothing is written to the daemon's stdout or stderr.
 func localAnswerResponse(path string, answer command.LocalAnswer) (*plugin.Response, error) {
 	resp := &plugin.Response{Status: plugin.StatusDone}
 	if answer.Payload != nil {
@@ -104,9 +116,13 @@ func localAnswerResponse(path string, answer command.LocalAnswer) (*plugin.Respo
 		resp.Data = plugin.RawJSON(encoded)
 	}
 	if answer.Code == 0 {
+		if answer.Diagnostic != "" {
+			resp.Status = plugin.StatusWarning
+			resp.Warnings = strings.Split(strings.TrimSuffix(answer.Diagnostic, "\n"), "\n")
+		}
 		return resp, nil
 	}
-	reason := strings.TrimSuffix(answer.Diagnostic, "\n")
+	reason := strings.TrimPrefix(strings.TrimSuffix(answer.Diagnostic, "\n"), localErrorPrefix)
 	if reason == "" {
 		var tb textbuf.Buffer
 		reason = tb.Str(path).Str(" failed with exit code ").Int(int64(answer.Code)).Str(" and gave no reason").String()

@@ -35,12 +35,16 @@ import (
 // Verdict is one of the rpc.Verdict* values, derived from the terminator rather
 // than stated by it. Count and Faults are the records the daemon wrote and the
 // rows it rejected. Message is the operational text an aborted or failed
-// command carries.
+// command carries. Warnings is the text a command that completed with a
+// warning wrote for the operator before its frame (the parse warnings of
+// `show config dump`), which the caller prints on stderr as the local route
+// does.
 type Answer struct {
-	Verdict string
-	Count   uint64
-	Faults  uint64
-	Message string
+	Verdict  string
+	Count    uint64
+	Faults   uint64
+	Message  string
+	Warnings string
 }
 
 // ErrAnswerTruncated is returned when the answer ended without its terminator.
@@ -99,6 +103,12 @@ func ExecCommandStream(creds Credentials, command string, body io.Writer) (Answe
 	copyErr := <-copied
 	waitErr := session.Wait()
 
+	// A warning terminator says the command completed, so the plain text
+	// before it is what the command warned about, not why it failed.
+	if answer.Verdict == rpc.VerdictWarning {
+		answer.Warnings = text
+		text = ""
+	}
 	return answer, answerError(answer, text, copyErr, waitErr)
 }
 

@@ -487,11 +487,14 @@ func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter)
 	// This emitter has no command of its own: the daemon resolves the operator's
 	// text against the registry and answers an unknown one.
 	// le-ci-dispatch: dynamic -- command is the operator's own typed input
-	_, err := c.stream(c.creds, commandWithFormat(command, format), out)
+	answer, err := c.stream(c.creds, commandWithFormat(command, format), out)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
+	// A warning about the answer goes to stderr, where `ze <command>` prints
+	// the same lines, so the payload on stdout stays what a pipe reads.
+	writeLocalDiagnostic(answer.Warnings)
 	// The transcript is taken before Close, so it holds the rendering and not
 	// the newline that ends the terminal line, nor the OK that stands in for an
 	// answer of nothing. That is what a transcript has always recorded.

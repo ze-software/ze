@@ -290,6 +290,12 @@ func executeTerminalOperational(ctx context.Context, dispatch CommandDispatcher,
 		var tb textbuf.Buffer
 		return tb.Str("error: ").Err(err).String(), rendered
 	}
+	// A warning reads above the answer, where `ze <command>` prints it first
+	// on stderr.
+	if warning := rendered.Response.WarningText(); warning != "" {
+		var tb textbuf.Buffer
+		return tb.Str(warning).Byte('\n').Str(formatFn(rendered.Output)).String(), rendered
+	}
 	return formatFn(rendered.Output), rendered
 }
 

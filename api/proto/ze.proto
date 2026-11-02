@@ -61,6 +61,9 @@ message CommandResponse {
   string status = 1;  // "done" or "error"
   bytes data = 2;     // JSON-encoded payload
   string error = 3;
+  // Lines the command warned about an answer it still gave, one per entry,
+  // as `ze <command>` prints them on stderr. Empty when it warned of nothing.
+  repeated string warnings = 4;
 }
 
 // ListCommandsRequest optionally filters by prefix.

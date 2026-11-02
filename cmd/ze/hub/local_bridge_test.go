@@ -55,9 +55,11 @@ func TestLocalCommandRefusalReturned(t *testing.T) {
 	if resp == nil {
 		t.Fatalf("dispatch of %q answered no response beside %v", input, dispatchErr)
 	}
-	want := strings.TrimSuffix(local.Diagnostic, "\n")
-	if resp.Error != want {
-		t.Errorf("response error %q, want the local refusal %q", resp.Error, want)
+	// Every surface prints an error as "error: " and the text (SSH, ze cli,
+	// the web terminal), so the response carries the local refusal without
+	// its own "error: ": the surface then prints the local route's bytes once.
+	if rendered := "error: " + resp.Error + "\n"; rendered != local.Diagnostic {
+		t.Errorf("response error %q renders %q, want the local refusal %q", resp.Error, rendered, local.Diagnostic)
 	}
 	if written != "" {
 		t.Errorf("the daemon wrote %q on its own stdout or stderr", written)

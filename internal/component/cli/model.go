@@ -616,9 +616,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // CommandOutput carries rendered text and its transport completion action into
-// the Bubble Tea update loop.
+// the Bubble Tea update loop. Warning is what the command warned about an
+// answer it still gave (plugin.Response.WarningText); the session shows it
+// above the answer, where `ze <command>` prints it first on stderr.
 type CommandOutput struct {
 	Text              string
+	Warning           string
 	TransportComplete func()
 }
 

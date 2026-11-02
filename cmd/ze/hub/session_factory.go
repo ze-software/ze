@@ -221,6 +221,7 @@ func cliExecutor(executor zessh.CommandExecutor) cli.CommandExecutor {
 		}
 		return cli.CommandOutput{
 			Text:              rendered.Output,
+			Warning:           rendered.Response.WarningText(),
 			TransportComplete: rendered.TransportComplete,
 		}, err
 	}

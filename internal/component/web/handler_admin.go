@@ -214,13 +214,18 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher, tree *co
 		if execErr != nil && output == "" {
 			result.Output = execErr.Error()
 		}
+		warning := rendered.Response.WarningText()
 
-		// JSON response: return raw command output.
+		// JSON response: return raw command output, and what the command
+		// warned about it beside it, so the output stays the bare answer.
 		if parsed.Format == formatJSON {
 			data := map[string]any{
 				"command":    commandStr,
 				"output":     result.Output,
 				jsonKeyError: result.Error,
+			}
+			if warning != "" {
+				data[jsonKeyWarnings] = rendered.Response.Warnings
 			}
 
 			w.Header().Set("Content-Type", "application/json")
@@ -232,7 +237,12 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher, tree *co
 			return
 		}
 
-		// HTMX: render result in the detail panel.
+		// HTMX: render result in the detail panel. A warning reads above the
+		// answer, where `ze <command>` prints it first on stderr.
+		if warning != "" {
+			var tb textbuf.Buffer
+			result.Output = tb.Str(warning).Byte('\n').Str(result.Output).String()
+		}
 		fragData := &FragmentData{
 			CommandResult: &result,
 		}

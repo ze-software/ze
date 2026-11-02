@@ -76,8 +76,9 @@ func execResultToProto(r *api.ExecResult) *zepb.CommandResponse {
 		return &zepb.CommandResponse{Status: api.StatusError, Error: "nil result"}
 	}
 	resp := &zepb.CommandResponse{
-		Status: r.Status,
-		Error:  r.Error,
+		Status:   r.Status,
+		Error:    r.Error,
+		Warnings: r.Warnings,
 	}
 	if r.Data != nil {
 		data, err := json.Marshal(r.Data)

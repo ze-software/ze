@@ -1003,7 +1003,25 @@ func (s *server) run(command string) map[string]any {
 	if err != nil {
 		return ErrResult(err.Error())
 	}
-	return TextResult(rendered.Output)
+	return answerResult(rendered.Output, rendered.Response.WarningText())
+}
+
+// answerResult is the tool result of a command that answered: the answer as
+// the first text item and, when the command warned about it, the warning as a
+// second, so an AI reads the same warning `ze <command>` prints on stderr
+// while the first item stays the bare answer it parses. A command that warned
+// of nothing answers one item, as TextResult does.
+func answerResult(answer, warning string) map[string]any {
+	if warning == "" {
+		return TextResult(answer)
+	}
+	var tb textbuf.Buffer
+	return map[string]any{
+		"content": []map[string]any{
+			{schemaKeyType: contentTypeText, contentTypeText: answer},
+			{schemaKeyType: contentTypeText, contentTypeText: tb.Str("Warning: ").Str(warning).String()},
+		},
+	}
 }
 
 // TextResult returns an MCP text content result.

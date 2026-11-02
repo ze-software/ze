@@ -131,10 +131,28 @@ func writeExecAnswer(sess ssh.Session, frame *answerFrame, input string, formatO
 		return writeExecDocument(sess, frame, formatOutput, "", false)
 	}
 	warning := result.Response != nil && result.Response.Status == plugin.StatusWarning
+	if err := writeExecWarnings(sess, result.Response); err != nil {
+		return err
+	}
 	if records, generated := plugin.RecordRows(result.Response); generated {
 		return writeExecRecords(sess, frame, input, records, warning)
 	}
 	return writeExecDocument(sess, frame, formatOutput, result.Output, warning)
+}
+
+// writeExecWarnings writes the warnings a response states on the session's
+// stderr, before the frame opens, in the bytes the local route prints them:
+// one line each. `ssh <host> <command>` then reads as `ze <command>` does, and
+// the client keeps them as the daemon talking to a person
+// (sshclient.readAnswerFrame), which a warning terminator says is no failure.
+func writeExecWarnings(sess ssh.Session, resp *plugin.Response) error {
+	text := resp.WarningText()
+	if text == "" {
+		return nil
+	}
+	var tb textbuf.Buffer
+	_, err := io.WriteString(sess.Stderr(), tb.Str(text).Byte('\n').String())
+	return err
 }
 
 // writeExecRecords renders a row generator to the session and frames what it

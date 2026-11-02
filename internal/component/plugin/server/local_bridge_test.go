@@ -124,8 +124,11 @@ func TestDeclarationsConfigRefusedReadOnly(t *testing.T) {
 // error; a failure with no Diagnostic still names the path and the code.
 // PREVENTS: a refusal becoming an empty failure on the daemon route.
 func TestLocalAnswerResponseMapsEveryField(t *testing.T) {
+	// The local route's "error: " is left to the surface, which adds its own:
+	// SSH then prints "error: no such key", the local route's exact bytes,
+	// where carrying it printed "error: error: no such key".
 	resp, err := localAnswerResponse("show x", command.LocalRefusal(2, "error: no such key\n"))
-	if err == nil || resp.Status != plugin.StatusError || resp.Error != "error: no such key" {
+	if err == nil || resp.Status != plugin.StatusError || resp.Error != "no such key" {
 		t.Fatalf("refusal: status %q error %q err %v", resp.Status, resp.Error, err)
 	}
 	if resp.Data != nil {
@@ -151,5 +154,22 @@ func TestLocalAnswerResponseMapsEveryField(t *testing.T) {
 	}
 	if encoded, _ := json.Marshal(resp.Data); string(encoded) != `["a"]` {
 		t.Errorf("answer data %s, want [\"a\"]", encoded)
+	}
+	if len(resp.Warnings) != 0 {
+		t.Errorf("answer with no diagnostic warns %q, want nothing", resp.Warnings)
+	}
+
+	// A diagnostic beside a zero code is a warning about an answer still
+	// given (`show config dump` parse warnings): every line reaches the
+	// caller, and the payload stays the data.
+	resp, err = localAnswerResponse("show x", command.LocalAnswer{Payload: []string{"a"}, Diagnostic: "warning: first\nwarning: second\n"})
+	if err != nil || resp.Status != plugin.StatusWarning || resp.Error != "" {
+		t.Fatalf("warned answer: status %q error %q err %v", resp.Status, resp.Error, err)
+	}
+	if got := resp.WarningText(); got != "warning: first\nwarning: second" {
+		t.Errorf("warned answer warnings %q, want both lines as the local route prints them", got)
+	}
+	if encoded, _ := json.Marshal(resp.Data); string(encoded) != `["a"]` {
+		t.Errorf("warned answer data %s, want [\"a\"]", encoded)
 	}
 }

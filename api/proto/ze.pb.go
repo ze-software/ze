@@ -114,10 +114,13 @@ func (x *CommandRequest) GetParams() map[string]string {
 // CommandResponse carries the result of a command execution.
 // Data is JSON-encoded bytes to ensure identical content with REST.
 type CommandResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"` // "done" or "error"
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`     // JSON-encoded payload
-	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Status string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"` // "done" or "error"
+	Data   []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`     // JSON-encoded payload
+	Error  string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	// Lines the command warned about an answer it still gave, one per entry,
+	// as `ze <command>` prints them on stderr. Empty when it warned of nothing.
+	Warnings      []string `protobuf:"bytes,4,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -171,6 +174,13 @@ func (x *CommandResponse) GetError() string {
 		return x.Error
 	}
 	return ""
+}
+
+func (x *CommandResponse) GetWarnings() []string {
+	if x != nil {
+		return x.Warnings
+	}
+	return nil
 }
 
 // ListCommandsRequest optionally filters by prefix.
@@ -1163,11 +1173,12 @@ const file_api_proto_ze_proto_rawDesc = "" +
 	"\x06params\x18\x02 \x03(\v2%.ze.api.v1.CommandRequest.ParamsEntryR\x06params\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"S\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"o\n" +
 	"\x0fCommandResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error\"-\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1a\n" +
+	"\bwarnings\x18\x04 \x03(\tR\bwarnings\"-\n" +
 	"\x13ListCommandsRequest\x12\x16\n" +
 	"\x06prefix\x18\x01 \x01(\tR\x06prefix\"J\n" +
 	"\x14ListCommandsResponse\x122\n" +

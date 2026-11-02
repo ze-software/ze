@@ -195,7 +195,7 @@ func (m Model) executeOperationalCommand(input string) tea.Cmd {
 		}
 		output, err := executor(cmdStr)
 		result := commandResult{
-			output:            formatFn(output.Text),
+			output:            withWarning(output.Warning, formatFn(output.Text)),
 			transportComplete: output.TransportComplete,
 		}
 		if err != nil {
@@ -203,4 +203,15 @@ func (m Model) executeOperationalCommand(input string) tea.Cmd {
 		}
 		return commandResultMsg{result: result}
 	}
+}
+
+// withWarning puts the warning a command stated above its rendered answer, as
+// the local route prints it on stderr before the answer on stdout. A command
+// that warned of nothing keeps its rendering unchanged.
+func withWarning(warning, rendered string) string {
+	if warning == "" {
+		return rendered
+	}
+	var tb textbuf.Buffer
+	return tb.Str(warning).Byte('\n').Str(rendered).String()
 }

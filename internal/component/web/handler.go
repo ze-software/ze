@@ -97,6 +97,10 @@ const (
 // and L2TP handlers both write it, so a caller reads one name.
 const jsonKeyError = "error"
 
+// jsonKeyWarnings names the warnings a command stated about its answer in a
+// JSON command result (plugin.Response.Warnings).
+const jsonKeyWarnings = "warnings"
+
 // knownPrefixes maps top-level URL prefixes to their handler logic.
 var knownPrefixes = map[string]bool{
 	prefixShow:    true,

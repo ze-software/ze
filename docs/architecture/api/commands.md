@@ -271,9 +271,30 @@ does. A token that starts with `-` is refused before the handler, because a
 response the way the local route maps it onto the terminal: the payload is
 the response data, under the shape the path declares; a non-zero code is a
 failed status, with the diagnostic as the error text (its final newline
-dropped) and the payload, if any, still beside it. Nothing is written to the
-daemon's stdout or stderr. A diagnostic beside a zero code, which is a
-warning, has no field in the response and does not reach the remote caller.
+dropped, and the `error: ` it opens with left to the surface, which adds its
+own: SSH, `ze cli` and the web terminal print `error: <text>`, the local
+route's exact bytes, and an MCP result `Error: <text>`) and the payload, if
+any, still beside it. Nothing is written to the daemon's stdout or stderr.
+
+A diagnostic beside a zero code is a warning about an answer the command still
+gave, such as the parse warnings of `show config dump`. It travels in the
+response's `warnings` field, one line each, under the `warning` status, and
+every surface shows it where the local route prints it, on stderr before the
+answer:
+
+| Surface | Where the warning appears |
+|---------|---------------------------|
+| SSH exec, and `ze cli -c` reading it | On the session's stderr before the answer frame (`writeExecWarnings`); `sshclient.ExecCommandStream` returns it as `Answer.Warnings`, which `ze cli` prints on stderr |
+| SSH interactive session | Above the rendered answer (`cli.CommandOutput.Warning`) |
+| MCP `tools/call` | A second text item, `Warning: <lines>`, after the answer item |
+| REST | The `warnings` array of the JSON body |
+| gRPC | `CommandResponse.warnings` |
+| Web admin | The `warnings` key of a JSON result; above the output in the result card |
+| Web CLI terminal | Above the rendered answer |
+
+A plugin that sends a command through the engine (`dispatch-command`) receives
+the status and the data; the warning lines are a user-surface field and do not
+cross the plugin connection.
 
 Authorization reads the verb (`IsReadOnlyPath`), unless the registration
 declares its daemon form does more than read with `registry.Meta.NotReadOnly`.
@@ -292,6 +313,10 @@ caller-only forms the same way the remote route is. `show bgp decode` and
 path unless the route is local, and a help page is drawn with colors only on
 the local route.
 <!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, localDataHandler, localAnswerResponse -->
+<!-- source: internal/component/plugin/types.go -- Response, WarningText -->
+<!-- source: internal/component/ssh/answer.go -- writeExecWarnings -->
+<!-- source: internal/component/cli/sshclient/answer.go -- ExecCommandStream -->
+<!-- source: internal/component/mcp/tools.go -- answerResult -->
 <!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, loadBuiltinsWithAliases, IsReadOnlyPath -->
 <!-- source: internal/component/command/route.go -- Route, CallerLocal, AnswerRemote -->
 <!-- source: internal/component/command/registry/registry.go -- Meta -->

@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"iter"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -300,8 +301,25 @@ type Response struct {
 	Partial bool         `json:"partial,omitempty"` // True for streaming chunks, false for final
 	Data    ResponseData `json:"data,omitempty"`    // Typed success payload
 	Error   string       `json:"error,omitempty"`   // Error message (set when Status is "error")
+	// Warnings are the lines a command states about an answer it still gave,
+	// one line each, without the newline: the parse warnings `show config
+	// dump` reports for a config it resolved. The local route prints them on
+	// stderr before the answer, so every surface that renders a response
+	// shows them beside its data; a dropped warning is a silently wrong
+	// answer. Status is StatusWarning when they are set.
+	Warnings []string `json:"warnings,omitempty"`
 
 	transportComplete func()
+}
+
+// WarningText is the warnings of r as the text the local route prints: one
+// line each, joined by newlines, with no final newline. It is empty for a nil
+// response and for one that states no warning.
+func (r *Response) WarningText() string {
+	if r == nil {
+		return ""
+	}
+	return strings.Join(r.Warnings, "\n")
 }
 
 // OnTransportComplete carries an accepted action to the transport that owns
