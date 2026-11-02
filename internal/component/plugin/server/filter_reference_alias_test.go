@@ -81,7 +81,7 @@ func TestStageOneJudgesAliasedInsertionsUnderTheRegistration(t *testing.T) {
 		cancel()
 	}()
 	// The plugin side stops after Stage 1, so its answer is the verdict and the
-	// driver's own error (the cancelled Stage 2) says nothing.
+	// driver's own error (the canceled Stage 2) says nothing.
 	_ = runStartupHandshake(ctx, sink)
 
 	require.NoError(t, <-stage1, "Stage 1 refused the aliased block's own insertion")
@@ -109,9 +109,9 @@ func aliasedSlotProcess(t *testing.T, block, registration string, action rpc.Fil
 	proc := process.NewProcess(plugin.PluginConfig{Name: block, Internal: true, Run: registration})
 	proc.SetConn(conn)
 	proc.SetRegistration(&plugin.PluginRegistration{Filters: []plugin.FilterRegistration{{
-		DeclaredFilter: registry.DeclaredFilter{Name: "ingress"},
-		Direction:      rpc.FilterImport,
-		OnError:        rpc.OnErrorAccept,
+		Name:      "ingress",
+		Direction: rpc.FilterImport,
+		OnError:   rpc.OnErrorAccept,
 	}}})
 	return proc
 }

@@ -62,7 +62,11 @@ func Run(args []string) int {
 // carries. The Stage 1 fields with no compiled-in twin are not answered
 // (spec-plugin-declaration-fields-on-registration).
 func answerQuery(out io.Writer, reg *registry.Registration) int {
-	declaration := rpc.DeclareRegistrationInput{Commands: reg.Commands, Pipes: reg.Pipes}
+	declaration := rpc.DeclareRegistrationInput{
+		ProtocolVersion: rpc.ProtocolVersion,
+		Commands:        reg.Commands,
+		Pipes:           reg.Pipes,
+	}
 
 	if err := rpc.WriteDeclaration(out, &declaration); err != nil {
 		writeError(os.Stderr, "error: plugin '%s' declaration: %v", reg.Name, err)

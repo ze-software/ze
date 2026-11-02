@@ -134,7 +134,9 @@ func TestCoordinatorWithoutReactor(t *testing.T) {
 	// Startup coordinator: no-ops (no panic)
 	c.SignalAPIReady()
 	c.AddAPIProcessCount(1)
-	c.SignalPluginStartupComplete()
+	if err := c.SignalPluginStartupComplete(); err != nil {
+		t.Fatal(err)
+	}
 	if err := c.SignalPeerAPIReady("10.0.0.1", ProcessSender("p"), 1); err != nil {
 		t.Fatal(err)
 	}

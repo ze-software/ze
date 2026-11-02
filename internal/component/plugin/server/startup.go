@@ -1314,7 +1314,8 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 	if err != nil {
 		panic("BUG: filter declarations reached the registration unchecked: " + err.Error())
 	}
-	for i, f := range input.Filters {
+	for i := range input.Filters {
+		f := &input.Filters[i]
 		nlri := true
 		if f.NLRI != nil {
 			nlri = *f.NLRI
