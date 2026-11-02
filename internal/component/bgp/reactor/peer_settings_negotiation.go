@@ -291,32 +291,64 @@ func negotiatedOutcomeEqual(a, b *capability.Negotiated) bool {
 // session caches it, so the new set governs the next OPEN while the running
 // session keeps the negotiation the probe proved unchanged.
 //
-// CapabilityConfigJSON and RawCapabilityConfig are NOT here, and that is not an
-// oversight. They carry the peer's capability block to PLUGINS
-// (parseCapabilitiesFromTree, config_capabilities.go), and a plugin's own
-// capabilities enter the OPEN through pluginCapGetter, which reads the injector
-// store the plugin has already written (Server.GetPluginCapabilitiesForSelectors).
-// The probe builds its candidate OPEN from that same store. A reload replaces a
-// plugin's declaration there on its first apply, before the BGP participant
-// applies (config_tx_capabilities.go in the plugin server), so the store the
-// probe reads already holds what the reload declares. The probe compares it
-// with the declaration recorded when the running OPEN was built
-// (pluginDeclarationsKept), and restarts when a code the peer advertised
-// changed. A capability-block edit still restarts, because the plugin side of
-// it is decided by the plugin, not by a path the probe runs
-// (ai/rules/evidence.md).
+// CapabilityConfigJSON and RawCapabilityConfig are NOT here: they are judged by
+// the plugin comparison instead (pluginCapabilityConfigSettings).
 func negotiatedCapabilitySettings(dst, src *PeerSettings) {
 	dst.Capabilities = src.Capabilities
 }
 
+// pluginCapabilityConfigSettings copies the plugin-delivery copies of the peer's
+// capability block, the fields a running session can take a new value for
+// ONLY when Session.pluginCapabilitiesKept has proved the plugin capabilities
+// its OPEN carried still stand.
+//
+// They qualify for that reason and no other. CapabilityConfigJSON and
+// RawCapabilityConfig carry the block to PLUGINS (parseCapabilitiesFromTree,
+// config_capabilities.go). No OPEN is built from them: a plugin's capabilities
+// enter the OPEN through pluginCapGetter, which reads the injector store the
+// plugin wrote (Server.GetPluginCapabilitiesForSelectors). A reload replaces a
+// plugin's declaration there on its first apply, before the BGP participant
+// applies (config_tx_capabilities.go in the plugin server), so the store the
+// probe reads already holds what the block edit declares, and the probe
+// compares it with the declaration recorded when the running OPEN was built
+// (pluginDeclarationsKept). A block edit therefore restarts exactly when that
+// comparison does: a plugin capability changed for a code the peer advertised.
+// Their one reader on a running peer, GetPeerCapabilityConfigs (reactor_api.go),
+// goes through the p.mu-guarded Peer.pluginCapabilityConfig.
+func pluginCapabilityConfigSettings(dst, src *PeerSettings) {
+	dst.CapabilityConfigJSON = src.CapabilityConfigJSON
+	dst.RawCapabilityConfig = src.RawCapabilityConfig
+}
+
+// pluginCapabilityConfig returns the peer's capability block as plugins receive
+// it, under p.mu: a reload swap replaces both fields on the shared PeerSettings
+// (pluginCapabilityConfigSettings), so a reader on another goroutine MUST use
+// this accessor. The map is replaced whole and never written in place, so the
+// caller may range over it after the lock is released.
+func (p *Peer) pluginCapabilityConfig() (string, map[string]map[string]string) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.CapabilityConfigJSON, p.settings.RawCapabilityConfig
+}
+
+// hotSwappableWithPluginCapabilityConfig is the swap set when the plugin
+// capabilities are proved kept: the always-swappable fields plus the
+// plugin-delivery copies of the capability block.
+func hotSwappableWithPluginCapabilityConfig(dst, src *PeerSettings) {
+	hotSwappableSettings(dst, src)
+	pluginCapabilityConfigSettings(dst, src)
+}
+
 // hotSwappableWithCapabilities is the swap set when the negotiation is proved
-// unchanged: the always-swappable fields plus the capability set.
+// unchanged: the always-swappable fields, the plugin-delivery copies of the
+// capability block (negotiationOutcomeUnchanged proves the plugin capabilities
+// kept as part of the outcome), and the capability set.
 //
 // It exists so that ONE function is both neutralized in the restart decision and
 // applied to the running peer, which is the invariant that keeps a field from
 // being judged swappable without being delivered (hotSwappableSettings,
 // peer_settings_apply.go).
 func hotSwappableWithCapabilities(dst, src *PeerSettings) {
-	hotSwappableSettings(dst, src)
+	hotSwappableWithPluginCapabilityConfig(dst, src)
 	negotiatedCapabilitySettings(dst, src)
 }

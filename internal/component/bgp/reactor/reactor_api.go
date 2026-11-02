@@ -485,10 +485,13 @@ func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []plugin.PeerCapabilityCo
 	result := make([]plugin.PeerCapabilityConfig, 0, len(a.r.peers))
 	for _, p := range a.r.peers {
 		s := p.Settings()
+		// Through the accessor: a reload swap can replace both block fields on
+		// the shared PeerSettings (pluginCapabilityConfigSettings).
+		capabilityJSON, rawCapabilityConfig := p.pluginCapabilityConfig()
 		cfg := plugin.PeerCapabilityConfig{
 			Address:        s.Address.String(),
 			Values:         make(map[string]string),
-			CapabilityJSON: s.CapabilityConfigJSON,
+			CapabilityJSON: capabilityJSON,
 		}
 
 		// Extract capability values via ConfigProvider interface.
@@ -507,7 +510,7 @@ func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []plugin.PeerCapabilityCo
 		// Also include raw capability config values for plugin-declared capabilities.
 		// Format: "<name>:<field>" -> value (RFC-style scoping, matches ConfigProvider pattern).
 		// Server.go adds "capability " prefix when building path.
-		for capName, fields := range s.RawCapabilityConfig {
+		for capName, fields := range rawCapabilityConfig {
 			for fieldName, value := range fields {
 				key := capName + ":" + fieldName
 				cfg.Values[key] = value

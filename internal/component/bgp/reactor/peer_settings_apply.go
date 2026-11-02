@@ -155,6 +155,9 @@ func peerSettingsRestartReason(current, next *PeerSettings, s *Session) string {
 // A plugin capability is neither: no PeerSettings field holds it, so it is
 // judged on the running session alone (Session.pluginCapabilitiesKept), and a
 // changed code the peer advertised restarts with "PluginCapabilities" named.
+// The plugin-delivery copies of the capability block follow that verdict:
+// delivered when it holds, compared with the rest when it does not
+// (pluginCapabilityConfigSettings).
 //
 // Everything else restarts, including a field added to PeerSettings tomorrow: the
 // decision is !peerSettingsEqual over the whole struct, minus what a copier
@@ -181,8 +184,16 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 	// settings, because a plugin changes it in the injector store and no
 	// PeerSettings field holds it (Session.pluginCapabilitiesKept).
 	pluginKept := s.pluginCapabilitiesKept()
-	if peerSettingsEqual(&c, next) && pluginKept {
-		return hotSwappableSettings, ""
+	if pluginKept {
+		// The plugin-delivery copies of the capability block reach the OPEN only
+		// through the plugin declaration just proved kept, so a block edit is
+		// delivered rather than restarted (pluginCapabilityConfigSettings). When
+		// the declaration changed they stay compared, and the walk below names
+		// them beside "PluginCapabilities".
+		pluginCapabilityConfigSettings(&c, next)
+		if peerSettingsEqual(&c, next) {
+			return hotSwappableWithPluginCapabilityConfig, ""
+		}
 	}
 
 	// The ruling: a capability set that negotiates to the same encoding and the
