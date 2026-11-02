@@ -637,7 +637,13 @@ for _, line := range result.Warnings {
     slog.Warn("dispatched command warned", "line", line)
 }
 ```
+
+The SDK declares the protocol version that carries those lines, so a Go plugin
+receives them with no code of its own. A plugin in another language receives
+them only once it declares `protocol-version` 2; one that declares 1 reads
+status `warning` with no lines (`protocol.md`, "The protocol version").
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchCommandResult, DispatchResult -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->
 
 ### EmitEvent
 

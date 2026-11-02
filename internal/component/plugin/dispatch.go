@@ -211,12 +211,18 @@ func ResponseJSON(resp *Response, err error) (string, error) {
 // with no record and the reason as its message. Returning the error alone
 // would leave the caller waiting for an id nobody answers, because the
 // transport has no answer to put on the wire for it.
-func WriteAnswer(w io.Writer, id uint64, resp *Response) error {
+//
+// version is the plugin protocol version the reader negotiated at Stage 1
+// (rpc.NegotiateProtocolVersion). It decides whether a warning terminator
+// carries the warning lines: a reader below rpc.ProtocolVersionWarningLines
+// reads any text in that field as a failure, so it is sent the empty field it
+// always read, and still derives status warning.
+func WriteAnswer(w io.Writer, id uint64, resp *Response, version int) error {
 	records, generated, err := answerRecords(resp)
 	if err != nil {
 		return writeUnbuiltAnswer(w, id, err)
 	}
-	head := rpc.AnswerTail{Message: answerMessage(resp), Warning: answerWarning(resp), Warnings: answerWarnings(resp)}
+	head := rpc.AnswerTail{Message: answerMessage(resp), Warning: answerWarning(resp), Warnings: answerWarnings(resp, version)}
 	if generated {
 		head.Key = records.Key
 		head.Fields = records.Fields
@@ -308,7 +314,7 @@ func AnswerFor(resp *Response) (*rpc.Answer, error) {
 		Key:    records.Key,
 		Fields: records.Fields,
 	}
-	terminator := rpc.AnswerTail{Count: count, Faults: faults, Message: answerMessage(resp), Warning: answerWarning(resp), Warnings: answerWarnings(resp)}
+	terminator := rpc.AnswerTail{Count: count, Faults: faults, Message: answerMessage(resp), Warning: answerWarning(resp), Warnings: answerWarnings(resp, rpc.ProtocolVersion)}
 	return rpc.NewAnswer(head, terminator, slices.Values(held)), nil
 }
 
@@ -325,7 +331,7 @@ func AnswerFor(resp *Response) (*rpc.Answer, error) {
 // rpc.WriteDocumentAnswer states on the wire for the same answer.
 func documentAnswer(resp *Response, document json.RawMessage, count, faults uint64) *rpc.Answer {
 	head := rpc.AnswerTail{Type: rpc.AnswerTypeDocument}
-	terminator := rpc.AnswerTail{Count: count, Faults: faults, Message: answerMessage(resp), Warning: answerWarning(resp), Warnings: answerWarnings(resp)}
+	terminator := rpc.AnswerTail{Count: count, Faults: faults, Message: answerMessage(resp), Warning: answerWarning(resp), Warnings: answerWarnings(resp, rpc.ProtocolVersion)}
 	if len(document) == 0 {
 		return rpc.NewAnswer(head, terminator, nil)
 	}
@@ -436,8 +442,17 @@ func answerWarning(resp *Response) bool {
 // carries to the plugin that dispatched the command, so it reads the text the
 // operator's own surface prints (Response.Warnings). A response that did not
 // complete with a warning states none.
-func answerWarnings(resp *Response) []string {
+//
+// version is the reader's negotiated plugin protocol version. A reader below
+// rpc.ProtocolVersionWarningLines is handed none, so its terminator keeps the
+// empty message field a version 1 reader takes as no failure. AnswerFor builds
+// an answer for an in-process plugin, which runs this build's SDK, so it
+// passes rpc.ProtocolVersion.
+func answerWarnings(resp *Response, version int) []string {
 	if !answerWarning(resp) {
+		return nil
+	}
+	if version < rpc.ProtocolVersionWarningLines {
 		return nil
 	}
 	return resp.Warnings

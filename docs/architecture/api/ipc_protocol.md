@@ -537,17 +537,25 @@ warning, because the counts are what an operator acts on first.
 A `wrn` line's third field carries the warning text rather than a failure: the
 lines the command stated about the answer it still gave, as a compact JSON
 array of strings (`#9 wrn 1 0 22:["config line 3: x"]`), or `0:` when it states
-none. The parsed line holds them as `Warnings` and leaves `Message` empty, so a
-reader that takes any message as a failure still reads `warning`. A failure is
-never spelled `wrn`: a producer that holds both a failure and a warning writes
-`end` with the failure, which derives the same verdict, so the field is never
-ambiguous. A reader that cannot decode the array refuses the line rather than
-read a completed command as failed. `Answer.Warnings` returns the lines after
-the range over the records has ended.
+none. The parsed line holds them as `Warnings` and leaves `Message` empty. A
+failure is never spelled `wrn`: a producer that holds both a failure and a
+warning writes `end` with the failure, which derives the same verdict, so the
+field is never ambiguous. A reader that cannot decode the array refuses the
+line rather than read a completed command as failed. `Answer.Warnings` returns
+the lines after the range over the records has ended.
+
+The lines are negotiated, because a reader from before them parsed a `wrn` line
+with the `end` grammar and took any text in the third field as the command's
+failure. The engine writes them only to a plugin whose Stage 1 answer named
+protocol version 2 or later (`rpc.ProtocolVersionWarningLines`,
+process-protocol.md, "Protocol version"). Every other plugin is sent `0:`
+there, the bytes it always read, so it derives `warning` and never sees the
+text. An in-process answer (`AnswerFor`) carries the lines, because an
+in-process plugin runs the same build's SDK.
 <!-- source: pkg/plugin/rpc/answer_write.go -- appendAnswerTerminatorOf, warningLines -->
 <!-- source: pkg/plugin/rpc/message.go -- parseAnswerWarning -->
-<!-- source: pkg/plugin/rpc/types.go -- Answer.Warnings -->
-<!-- source: internal/component/plugin/dispatch.go -- answerWarnings -->
+<!-- source: pkg/plugin/rpc/types.go -- Answer.Warnings, ProtocolVersionWarningLines -->
+<!-- source: internal/component/plugin/dispatch.go -- WriteAnswer, answerWarnings -->
 
 | Terminator | Verdict |
 |------------|---------|

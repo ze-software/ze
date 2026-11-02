@@ -230,9 +230,10 @@ type recordAnswer struct {
 	resp *plugin.Response
 }
 
-// write puts the answer sequence for id on w, one framed line at a time.
-func (a *recordAnswer) write(w io.Writer, id uint64) error {
-	return plugin.WriteAnswer(w, id, a.resp)
+// write puts the answer sequence for id on w, one framed line at a time, in
+// the bytes of the protocol version the reading plugin negotiated.
+func (a *recordAnswer) write(w io.Writer, id uint64, version int) error {
+	return plugin.WriteAnswer(w, id, a.resp, version)
 }
 
 // TransportComplete runs the accepted lifecycle action the response carries,
@@ -258,7 +259,7 @@ func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginCo
 		defer completed.TransportComplete()
 	}
 	if answer, records := result.(*recordAnswer); records {
-		if writeErr := answer.write(conn.AnswerWriter(reply), req.ID); writeErr != nil {
+		if writeErr := answer.write(conn.AnswerWriter(reply), req.ID, proc.ProtocolVersion()); writeErr != nil {
 			logger().Debug("rpc runtime: write answer failed", "plugin", proc.Name(), "error", writeErr)
 		}
 		return

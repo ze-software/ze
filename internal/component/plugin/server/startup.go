@@ -694,7 +694,7 @@ func (e *engineStartupSink) registrationName() string { return e.proc.Registrati
 // conflict), and proxy enrichers. A returned error's text is the exact message
 // the driver relays to the plugin; the failed process is torn down by
 // rollbackStartupProcess after the tier handshake completes.
-func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) error {
+func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput, version int) error {
 	s, proc := e.s, e.proc
 
 	// A chain reference names the plugin, so a second block running the same
@@ -819,6 +819,9 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	if len(input.Enrichers) > 0 {
 		registerProxyEnrichers(proc.Config().Name, input.Enrichers, proc.Conn())
 	}
+	// The answers this process is sent from now on are written for the
+	// version its Stage 1 answer names (plugin.WriteAnswer).
+	proc.SetProtocolVersion(version)
 	return nil
 }
 

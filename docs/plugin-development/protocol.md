@@ -170,7 +170,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `protocol-version` | `int` | REQUIRED. The highest plugin protocol version the plugin speaks (this engine speaks `1`) |
+| `protocol-version` | `int` | REQUIRED. The highest plugin protocol version the plugin speaks (this engine speaks `2`) |
 | `families` | `[]FamilyDecl` | Address families the plugin handles (name, mode, AFI, and SAFI) |
 | `commands` | `[]CommandDecl` | Commands the plugin provides |
 | `dependencies` | `[]string` | Plugin names that must also be loaded |
@@ -293,8 +293,16 @@ version. A declaration with no `protocol-version` is from the text era, before
 filters declared the route fields they read, and the engine refuses it with
 one error that names the plugin and the version to declare; the startup tier
 then stops, as for any plugin failure. Version `1` is the first versioned
-contract. The Go SDK declares it and refuses an engine that answers any other.
+contract. Version `2` adds one thing: the `wrn` terminator of a command answer
+carries the command's warning lines in its message field
+(`rpc.ProtocolVersionWarningLines`, ipc_protocol.md, "Answer Protocol"). The
+engine writes those lines only to a plugin whose Stage 1 answer was `2` or
+more. A plugin that declared `1` is sent the empty field it always read, so it
+still reads a warning, never a failure, and never sees the text. The Go SDK
+declares `2` and accepts an engine that answers `1` or `2`, refusing any other.
 <!-- source: pkg/plugin/rpc/declaration.go -- NegotiateProtocolVersion -->
+<!-- source: pkg/plugin/rpc/types.go -- ProtocolVersion, ProtocolVersionWarningLines -->
+<!-- source: internal/component/plugin/dispatch.go -- WriteAnswer, answerWarnings -->
 <!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
 <!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
 

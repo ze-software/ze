@@ -83,11 +83,14 @@ type startupSink interface {
 	registrationName() string
 
 	// onRegistration processes the decoded declare-registration input after the
-	// driver validated the method string and before it responds OK. A non-nil
+	// driver validated the method string and before it responds OK. version
+	// is the protocol version the driver negotiated and is about to answer
+	// (rpc.NegotiateProtocolVersion), which the sink records on the process so
+	// every later answer is written for it. A non-nil
 	// error aborts startup: the driver sends err.Error() to the plugin via
 	// SendError, then returns the error. Sinks that mutate shared state roll
 	// their own changes back before returning the error.
-	onRegistration(input *rpc.DeclareRegistrationInput) error
+	onRegistration(input *rpc.DeclareRegistrationInput, version int) error
 
 	// deliverConfig sends the Stage-2 configure callback. Each sink builds its
 	// own payload (engine: real config sections; hub: nil) and owns its own
@@ -193,7 +196,7 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err
 	}
-	if err := sink.onRegistration(&regInput); err != nil {
+	if err := sink.onRegistration(&regInput, version); err != nil {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err
 	}

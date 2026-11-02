@@ -11,9 +11,13 @@ import (
 )
 
 // acceptProtocolVersion reads the engine's Stage 1 answer and refuses any
-// version other than the one this SDK speaks. An answer with no version is an
-// engine from before the versioned contract, refused the same way: speaking to
-// it would send declared fields it does not read.
+// version this SDK does not speak. It speaks every version from 1 to
+// rpc.ProtocolVersion: a later version only adds bytes an engine writes to a
+// plugin that negotiated it (rpc.ProtocolVersionWarningLines), and this SDK
+// reads a version 1 answer the same way it always did. An answer with no
+// version, or one above rpc.ProtocolVersion, is an engine whose contract this
+// SDK does not know, refused: speaking to it would send declared fields it does
+// not read, or read bytes this SDK cannot parse.
 func acceptProtocolVersion(answer json.RawMessage) error {
 	var out rpc.DeclareRegistrationOutput
 	if len(answer) > 0 {
@@ -21,9 +25,17 @@ func acceptProtocolVersion(answer json.RawMessage) error {
 			return fmt.Errorf("engine answer: %w", err)
 		}
 	}
-	if out.ProtocolVersion != rpc.ProtocolVersion {
-		return fmt.Errorf("the engine answered plugin protocol version %d, and this SDK speaks only version %d: "+
-			"build the plugin against the SDK of the same Ze release", out.ProtocolVersion, rpc.ProtocolVersion)
+	if out.ProtocolVersion < 1 {
+		return refuseProtocolVersion(out.ProtocolVersion)
+	}
+	if out.ProtocolVersion > rpc.ProtocolVersion {
+		return refuseProtocolVersion(out.ProtocolVersion)
 	}
 	return nil
+}
+
+// refuseProtocolVersion is the refusal of an engine answer naming version.
+func refuseProtocolVersion(version int) error {
+	return fmt.Errorf("the engine answered plugin protocol version %d, and this SDK speaks versions 1 to %d: "+
+		"build the plugin against the SDK of the same Ze release", version, rpc.ProtocolVersion)
 }

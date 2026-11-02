@@ -458,7 +458,7 @@ func TestOnRegistrationRollsBackPipesOnLaterFailure(t *testing.T) {
 		Families: []rpc.FamilyDecl{
 			{Name: "not-ipv4/pipes", Mode: "both", AFI: uint16(family.AFIIPv4), SAFI: 203},
 		},
-	})
+	}, rpc.ProtocolVersion)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "family")
 	assert.Empty(t, s.registry.LookupCommand(commandName))
@@ -942,7 +942,7 @@ func TestShapeWriteUnwindsWithStageOne(t *testing.T) {
 		Families: []rpc.FamilyDecl{
 			{Name: "not-ipv4/shapes", Mode: "both", AFI: uint16(family.AFIIPv4), SAFI: 204},
 		},
-	})
+	}, rpc.ProtocolVersion)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "family")
 
@@ -985,7 +985,7 @@ func TestOnRegistrationRefusesConflictingShapeDeclaration(t *testing.T) {
 		err = sink.onRegistration(&rpc.DeclareRegistrationInput{
 			ProtocolVersion: rpc.ProtocolVersion,
 			Commands:        []rpc.CommandDecl{{Name: commandName, Shape: "tab"}},
-		})
+		}, rpc.ProtocolVersion)
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), pluginName)

@@ -324,8 +324,18 @@ const MethodDeclareRegistration = "ze-plugin-engine:declare-registration"
 // route fields it reads and sets, and its filter-update message carries those
 // fields by name (docs/architecture/api/process-protocol.md, "Protocol
 // version"). A plugin that declares no version is from the text era and is
-// refused at Stage 1 (NegotiateProtocolVersion).
-const ProtocolVersion = 1
+// refused at Stage 1 (NegotiateProtocolVersion). Version 2 adds the warning
+// lines a warning terminator carries (ProtocolVersionWarningLines), and
+// changes nothing else.
+const ProtocolVersion = 2
+
+// ProtocolVersionWarningLines is the first protocol version whose warning
+// terminator (AnswerKindWarning) carries the command's warning lines in its
+// message field, read into AnswerTail.Warnings. A version 1 reader takes any
+// text in that field as the command's failure, so an engine writes the lines
+// only to a plugin that negotiated this version or a later one, and an empty
+// field to every other plugin: the bytes version 1 always carried.
+const ProtocolVersionWarningLines = 2
 
 // DeclareRegistrationInput is the input for MethodDeclareRegistration (Stage 1).
 type DeclareRegistrationInput struct {

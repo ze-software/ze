@@ -197,9 +197,11 @@ func (hs *hubStartupSink) pluginName() string { return hs.h.config.Name }
 func (hs *hubStartupSink) registrationName() string { return hs.h.config.Name }
 
 // onRegistration harvests the declared commands and YANG schema into the
-// handler-local fields that FindHandler and RegisterSchemas read.
-func (hs *hubStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) error {
+// handler-local fields that FindHandler and RegisterSchemas read, and records
+// the negotiated protocol version on the process.
+func (hs *hubStartupSink) onRegistration(input *rpc.DeclareRegistrationInput, version int) error {
 	h := hs.h
+	h.proc.SetProtocolVersion(version)
 	for i := range input.Commands {
 		cmd := &input.Commands[i]
 		h.commands = append(h.commands, cmd.Name)

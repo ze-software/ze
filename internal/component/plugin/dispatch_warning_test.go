@@ -1,8 +1,10 @@
 package plugin
 
 import (
+	"bytes"
 	"context"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,7 +43,7 @@ func TestWriteAnswerWarningRoundTrip(t *testing.T) {
 		if err != nil {
 			return
 		}
-		WriteAnswer(engineEnd, req.ID, warningResponse()) //nolint:errcheck // the reader below reports a lost answer as truncated
+		WriteAnswer(engineEnd, req.ID, warningResponse(), rpc.ProtocolVersion) //nolint:errcheck // the reader below reports a lost answer as truncated
 	}()
 
 	mux := rpc.NewMuxConn(rpc.NewConn(pluginEnd, pluginEnd))
@@ -108,7 +110,7 @@ func TestWriteAnswerWarningCarriesText(t *testing.T) {
 		if err != nil {
 			return
 		}
-		WriteAnswer(engineEnd, req.ID, resp) //nolint:errcheck // the reader below reports a lost answer as truncated
+		WriteAnswer(engineEnd, req.ID, resp, rpc.ProtocolVersion) //nolint:errcheck // the reader below reports a lost answer as truncated
 	}()
 
 	mux := rpc.NewMuxConn(rpc.NewConn(pluginEnd, pluginEnd))
@@ -133,4 +135,64 @@ func TestWriteAnswerWarningCarriesText(t *testing.T) {
 	}
 	assert.Equal(t, "warning", inProcess.Verdict())
 	assert.Equal(t, resp.Warnings, inProcess.Warnings(), "the in-process answer carries the same lines")
+}
+
+// TestWriteAnswerWarningVersionOneReader checks that a plugin which negotiated
+// protocol version 1, such as a binary built outside the tree on an SDK older
+// than the warning lines, is sent exactly the bytes it always read and reads
+// status warning, never a failure. The method: WriteAnswer answers one
+// Response carrying warning lines for a version 1 reader and the same Response
+// with no lines; the two byte streams must match. Each terminator is then read
+// with readTerminatorVersionOne, the reading of an SDK before
+// rpc.ProtocolVersionWarningLines. The last step reads the version 2 bytes with
+// the same old reader and expects the failure, which proves the fixture tells
+// the two apart.
+//
+// VALIDATES: the warning lines are additive on the wire: only a reader that
+// negotiated rpc.ProtocolVersionWarningLines receives them.
+// PREVENTS: an older plugin turning a command that completed with a warning
+// into an error because the wrn message field carried text.
+func TestWriteAnswerWarningVersionOneReader(t *testing.T) {
+	t.Parallel()
+
+	withLines := warningResponse()
+	withLines.Warnings = []string{`line 3: unknown leaf "x"`, "line 9: deprecated"}
+
+	var versionOne, unwarned bytes.Buffer
+	require.NoError(t, WriteAnswer(&versionOne, 7, withLines, 1))
+	require.NoError(t, WriteAnswer(&unwarned, 7, warningResponse(), 1))
+	assert.Equal(t, unwarned.String(), versionOne.String(), "a version 1 reader gets the bytes of an answer with no lines")
+	assert.NotContains(t, versionOne.String(), "unknown leaf", "no warning line reaches a version 1 reader")
+	assert.Equal(t, rpc.StatusWarning, readTerminatorVersionOne(t, versionOne.String()), "a version 1 reader reads warning")
+
+	var current bytes.Buffer
+	require.NoError(t, WriteAnswer(&current, 7, withLines, rpc.ProtocolVersionWarningLines))
+	assert.Contains(t, current.String(), "unknown leaf", "a reader that negotiated the lines receives them")
+	assert.Equal(t, rpc.StatusError, readTerminatorVersionOne(t, current.String()),
+		"the old reader takes text in the wrn field as a failure, which is why the lines are gated")
+}
+
+// readTerminatorVersionOne is the status an SDK before
+// rpc.ProtocolVersionWarningLines derives from an answer's terminator: it read
+// a wrn line with the plain terminator grammar (rpc.ParseAnswerTail of
+// AnswerKindTerminator, its parseAnswerTerminator), and its answerValue took
+// any message as the command's failure, else read wrn as warning and end as
+// done.
+func readTerminatorVersionOne(t *testing.T, wire string) string {
+	t.Helper()
+
+	lines := strings.Split(strings.TrimSuffix(wire, "\n"), "\n")
+	_, line, found := strings.Cut(lines[len(lines)-1], " ")
+	require.True(t, found, "terminator line %q names an id", lines[len(lines)-1])
+	kind, payload, found := strings.Cut(line, " ")
+	require.True(t, found, "terminator line %q names a kind", line)
+	tail, err := rpc.ParseAnswerTail(rpc.AnswerKindTerminator, []byte(payload))
+	require.NoError(t, err, "the version 1 grammar reads the terminator")
+	if tail.Message != "" {
+		return rpc.StatusError
+	}
+	if kind == rpc.AnswerKindWarning {
+		return rpc.StatusWarning
+	}
+	return rpc.StatusDone
 }
