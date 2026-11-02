@@ -452,11 +452,10 @@ func collectLocalHandlers(root string) ([]string, error) {
 // localCommandRegistryFiles answers the source files that register a local
 // command handler.
 //
-// Migrated owners register their offline `show X` shortcuts from
-// internal/.../cli/register.go (and internal/component/cli/client) through the
-// importable registry rather than from cmd/ze, so those owner command packages
-// are scanned too. Until the command-provider aggregator lands, this filesystem
-// walk is what keeps the YANG/handler contract honest across the migration.
+// Owners register their local commands from their own register.go through the
+// importable registry rather than from cmd/ze, so every register.go under
+// internal/ is scanned. Until the command-provider aggregator lands, this
+// filesystem walk is what keeps the YANG/handler contract honest.
 func localCommandRegistryFiles(root string) ([]string, error) {
 	files, err := filepath.Glob(filepath.Join(root, "cmd", "ze", "*", "register.go"))
 	if err != nil {
@@ -482,12 +481,13 @@ func localCommandRegistryFiles(root string) ([]string, error) {
 		if info.IsDir() || filepath.Base(path) != "register.go" {
 			return nil
 		}
-		switch filepath.Base(filepath.Dir(path)) {
-		case "cli", "client":
-			files = append(files, path)
-		case "crashes", "debug", "diag", "env", "explain", "host", "plugin", "skills", "support":
-			files = append(files, path)
-		}
+		// Every register.go is read, because registration is where a local
+		// handler is declared and collectLocalHandlersFromFile keeps only the
+		// calls under the `command` package name. A list of owner directories
+		// here was a second declaration of who registers: the help plugin
+		// registered `help command` and `help ai` and was reported as having
+		// no handler because its directory was not on the list.
+		files = append(files, path)
 		return nil
 	})
 	if walkErr != nil {

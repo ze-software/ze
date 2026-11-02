@@ -16,8 +16,8 @@ module ze-update-serve-cmd {
             description "The daemon serves its running binary and a version manifest for update checks,
 until it is told to stop. A daemon runs one such server at a time. Through the daemon,
 'update serve' alone answers that server's status: whether it runs, the address it
-listens on and whether it is paused. The foreground 'ze update serve --listen
-<host:port>' runs the same server in the operator's own process instead.";
+listens on and whether it is paused. The foreground 'ze update serve', given the
+address to listen on, runs the same server in the operator's own process instead.";
             ze:help "Show the update server's status, or start, stop and pause it.";
 
             container start {
