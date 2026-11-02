@@ -386,6 +386,10 @@ ze-update:system-firmware-check
 ze-update:system-firmware-download
 ze-update:system-firmware-restart
 ze-update:system-firmware-rollback
+ze-update:update-serve
+ze-update:update-serve-pause
+ze-update:update-serve-start
+ze-update:update-serve-stop
 ze-vrrp:clear-statistics
 ze-vrrp:show-interface
 ze-vrrp:show-statistics
