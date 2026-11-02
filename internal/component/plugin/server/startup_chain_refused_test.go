@@ -91,7 +91,7 @@ func TestStartupRefusesALoadedChainItsPluginRefuses(t *testing.T) {
 // plugin whose declaration alone is wrong.
 func TestStartupKeepsThePolicyForARefusedDeclaration(t *testing.T) {
 	s, err := runChainJudgedPlugin(t, func(string, []registry.DeclaredFilter) error {
-		return errors.New(`plugin "chain-refused" filter g reads colour, which is not a route field`)
+		return errors.New(`plugin "chain-refused" filter g reads color, which is not a route field`)
 	})
 
 	require.Error(t, err, "the plugin was refused at Stage 1, so the phase must fail")

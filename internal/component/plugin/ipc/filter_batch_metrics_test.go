@@ -29,7 +29,7 @@ func TestFilterBatchSizeObserved(t *testing.T) {
 		first <- filterResult{peer: "lone", out: out, err: err}
 	}()
 	id, batch := readBatch(t, plugin)
-	results := sendQueued(t, engine, 0, routePeers("r", 10))
+	results := sendQueued(t, engine, routePeers("r", 10))
 	if err := plugin.SendResult(context.Background(), id, verdictsFor(batch)); err != nil {
 		t.Fatal(err)
 	}

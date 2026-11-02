@@ -21,7 +21,7 @@ type filterResult struct {
 // sendQueued starts one caller per peer, in order, each only once the one
 // before it is queued, so the queue holds them in exactly that order: one
 // source producing routes in sequence. It answers their results in peer order.
-func sendQueued(t *testing.T, conn *PluginConn, alreadyQueued int, peers []string) []chan filterResult {
+func sendQueued(t *testing.T, conn *PluginConn, peers []string) []chan filterResult {
 	t.Helper()
 	results := make([]chan filterResult, len(peers))
 	for i, peer := range peers {
@@ -30,7 +30,7 @@ func sendQueued(t *testing.T, conn *PluginConn, alreadyQueued int, peers []strin
 			out, err := conn.SendFilterUpdate(context.Background(), &rpc.FilterUpdateInput{Filter: "f", Peer: peer})
 			result <- filterResult{peer: peer, out: out, err: err}
 		}(peer, results[i])
-		waitQueued(t, conn, alreadyQueued+i+1)
+		waitQueued(t, conn, i+1)
 	}
 	return results
 }
@@ -140,7 +140,7 @@ func TestFilterBatchOrderAndVerdicts(t *testing.T) {
 
 	// Ten routes queue behind the exchange in flight.
 	ten := routePeers("r", 10)
-	results := sendQueued(t, engine, 0, ten)
+	results := sendQueued(t, engine, ten)
 	if err := plugin.SendResult(context.Background(), id, verdictsFor(batch)); err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestFilterBatchOrderAndVerdicts(t *testing.T) {
 	}()
 	id, batch = readBatch(t, plugin)
 	many := routePeers("m", rpc.FilterUpdateBatchMax+6)
-	results = sendQueued(t, engine, 0, many)
+	results = sendQueued(t, engine, many)
 	if err := plugin.SendResult(context.Background(), id, verdictsFor(batch)); err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +236,7 @@ func TestFilterBatchFailureAppliesOnError(t *testing.T) {
 			blocker <- filterResult{out: out, err: err}
 		}()
 		id, batch := readBatch(t, plugin)
-		results := sendQueued(t, engine, 0, routePeers("x", 3))
+		results := sendQueued(t, engine, routePeers("x", 3))
 		if err := plugin.SendResult(context.Background(), id, verdictsFor(batch)); err != nil {
 			t.Fatal(err)
 		}
@@ -264,7 +264,7 @@ func TestFilterBatchFailureAppliesOnError(t *testing.T) {
 		blocker <- filterResult{out: out, err: err}
 	}()
 	id, batch := readBatch(t, plugin)
-	results := sendQueued(t, engine, 0, routePeers("y", 3))
+	results := sendQueued(t, engine, routePeers("y", 3))
 	if err := plugin.SendResult(context.Background(), id, verdictsFor(batch)); err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +295,7 @@ func TestFilterBatchFailureAppliesOnError(t *testing.T) {
 		_, _ = engine.SendFilterUpdate(context.Background(), &rpc.FilterUpdateInput{Filter: "f", Peer: "inflight"}) //nolint:errcheck // the exchange fails at Close
 	}()
 	readBatch(t, plugin)
-	queued := sendQueued(t, engine, 0, []string{"queued"})
+	queued := sendQueued(t, engine, []string{"queued"})
 	engine.Close() //nolint:errcheck // the test closes the engine side to stop the batcher
 	if got := <-queued[0]; got.err == nil {
 		t.Fatalf("a route queued at close got %+v, want an error", got.out)

@@ -6,6 +6,7 @@ package registry
 import (
 	"errors"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -44,12 +45,7 @@ func (d *DeclaredFilter) Label() string {
 
 // ReadsRaw reports whether the filter declared the raw UPDATE body read.
 func (d *DeclaredFilter) ReadsRaw() bool {
-	for _, read := range d.Reads {
-		if read == rpc.FilterFieldRaw {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(d.Reads, rpc.FilterFieldRaw)
 }
 
 // FindDeclaredFilter answers the declaration that serves filter name: the one
