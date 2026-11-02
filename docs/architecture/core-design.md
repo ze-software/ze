@@ -1267,23 +1267,25 @@ code position:
    (`reactor/loopdetect` `LoopIngress`, an RFC 4271 Section 9.1.2 and RFC 4456
    Section 8 protocol check the reactor names as its Protocol-stage step in
    `buildOrderedIngressSteps`, never a registered filter), and the filters
-   registered via `filterapi.Register`. Both sort by `filterapi` Stage:
-   Protocol (`loop`) → Policy `bgp-filter-community` →
-   Annotation `bgp-role`/OTC. Signature
+   registered via `filterapi.Register`. Both sort by `filterapi` Stage.
+   No plugin registers an ingress filter there today: `bgp-filter-community`
+   and `bgp-role` (RFC 9234 Section 5, `bgp-role:otc-ingress` and
+   `bgp-role:otc-egress`) run as members of the peer's filter list, the step
+   below. Signature
    `func(source PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)`.
    `accept=false` drops the route (no caching, no dispatch). A non-nil
    `modifiedPayload` REPLACES the original bytes; the reactor builds a fresh
    `WireUpdate` and updates `RawMessage.RawBytes / WireUpdate / AttrsWire`. The
    modified buffer is heap-allocated (not pool-backed).
-   A filter that keeps per-peer state also registers `PeerRemoved`: every
-   reactor path that removes a peer calls `filterapi.NotifyPeerRemoved`
-   synchronously, attached processes or not, so the state is gone before the
-   removal returns (`bgp-role` frees a learned role this way).
+   A filter that keeps per-peer state frees it on the state `down` with
+   reason `removed`: the implicit state grant delivers that peer's state to
+   the plugin whose member the peer's lists carry, on either transport
+   (`bgp-role` frees a learned role this way).
 
 2. **The external-plugin per-peer policy** (`peer.settings.ImportPolicy`,
    resolved via `filter { import { filters [ name ]; final accept; } }`), which
    the reactor binds as ONE ordered step at `filterapi.FilterStagePeerChain`
-   (300), after every in-process filter, including OTC. On the text chain,
+   (300), after every in-process filter. On the text chain,
    active external references need the API server and text serialization; an
    empty, inactive-only or in-process-only policy applies its final without
    either. A chain that also names a library member (`Policy.Library`, "The
@@ -1331,7 +1333,8 @@ code position:
 Because the external chain is a declared terminal stage (not a second back-to-back
 code block), the cross-system order is inspectable and a future filter registered
 at any stage below 300 interleaves correctly. The observable order is
-`Protocol < Policy (in-process) < Annotation/OTC < external per-peer chain`.
+`Protocol < Policy (in-process) < Annotation < per-peer filter list`, and the
+OTC procedures run at the head of that list.
 
 After the pass, the cached `WireUpdate` is the **canonical post-filter
 representation** that every downstream consumer sees: forwarders read it from
@@ -1450,7 +1453,7 @@ nothing gains no attribute".
 
 ### Policy Filter Chain
 
-After in-process filters (role OTC), a configurable policy filter chain runs for
+After in-process filters, a configurable policy filter chain runs for
 external plugin filters. Filters are referenced by `<plugin>:<filter>` in
 `filter { import { filters [ name ]; final accept; } export { final reject; } }`
 config at bgp/group/peer levels. Every present direction requires a final.

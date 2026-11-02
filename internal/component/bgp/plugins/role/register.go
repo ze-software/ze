@@ -58,23 +58,6 @@ func init() {
 	// The OTC filters read the session facts and src-role through these.
 	resolveOTCReaders()
 
-	// The learned roles the OTC filters read are per-peer state: the
-	// reactor's removal of a peer frees its entry (forgetRemovedPeer). The
-	// hook is called in-process only. The implicit state grant a filter
-	// plugin receives does not replace it: it reaches only peers whose lists
-	// carry a bgp-role member, while a learned role is stored for every peer
-	// whose OPEN carried a Role capability, and it is asynchronous, so a peer
-	// re-created under the same name could read the old role
-	// (docs/architecture/meta/role.md, "Learned role lifecycle").
-	if err := filterapi.Register(filterapi.Filter{
-		Name:        rolePluginName,
-		Stage:       filterapi.FilterStageAnnotation,
-		PeerRemoved: forgetRemovedPeer,
-	}); err != nil {
-		logger().Error("bgp-role: filter registration failed", "error", err)
-		os.Exit(1)
-	}
-
 	// role transit-asns completes and is checked at commit against the
 	// asn-sets the policy root defines (upstream.go).
 	yang.RegisterReferenceSource(asnSetReferenceSource, asnSetReference)

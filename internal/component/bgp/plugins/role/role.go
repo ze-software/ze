@@ -93,15 +93,13 @@ type remoteRoleState struct {
 // rollback could restore.
 //
 // It reads the configured-peer set (configuredPeerKeys), never the role
-// configs. A peer with no local role still declares one in its OPEN, and the
-// OTC export set reads it as the destination's role (OTCEgressFilter), yet
-// that peer has no entry in filterPeerConfigs. Pruning against the role
-// configs dropped its learned role on every commit, related or not, and every
-// route to it was then withdrawn as role "unknown" until its session bounced:
-// an established peer sends no second OPEN.
+// configs. A dynamic group's member is stored under its own name, which no
+// role config keys: only its group's selector says whether it is still
+// configured (learnedRolePeerConfiguredLocked).
 //
-// The other path is forgetRemovedPeer, the filterapi removal hook, which runs
-// only in-process; this commit-time prune also covers an external role plugin.
+// The other path is forgetRemovedPeer, which the state down with reason
+// removed reaches (removal.go); this commit-time prune covers a commit's
+// removal even when that down is still queued.
 func pruneLearnedRoles() {
 	filterMu.Lock()
 	defer filterMu.Unlock()
@@ -125,16 +123,10 @@ func pruneLearnedRoles() {
 //
 // Any other key was never a configured peer's. With a group, it is a dynamic
 // member's, so the answer is whether its group is still a configured dynamic
-// group. Without one, it is kept: a peer an operator made at runtime with
-// `create bgp peer <addr>` stores its role under its generated name
-// (peer-<addr>), carries no group, and survives every commit that does not
-// declare it, so no commit is evidence that it is gone. Dropping it stopped
-// every export to that peer as role "unknown" until its session bounced,
-// because an established peer sends no second OPEN.
-//
-// Keeping such a key does not make it outlive its peer: the reactor's removal
-// of that peer frees it (forgetRemovedPeer). What remains is an OPEN validated
-// for a peer after its removal already ran, which stores a role nothing frees
+// group. Without one, it is kept, since no commit is evidence that its peer
+// is gone; applyValidateOpen stores no role for a peer without role config
+// (a peer made at runtime with `create bgp peer <addr>` has none), so such a
+// key is one an OPEN validated after its peer's removal already ran
 // (docs/architecture/meta/role.md, "Learned role lifecycle").
 func learnedRolePeerConfiguredLocked(key string, state remoteRoleState) bool {
 	if _, configured := filterPeerKeys[key]; configured {
@@ -150,20 +142,14 @@ func learnedRolePeerConfiguredLocked(key string, state remoteRoleState) bool {
 	return groupConfigured
 }
 
-// forgetRemovedPeer drops the learned role of a peer the reactor removed. It is
-// bgp-role's Filter.PeerRemoved hook (register.go), which the reactor calls on
-// every path that takes a peer out of its peer table, attached to this plugin
-// or not, before that path returns. So `delete bgp peer` returns only once the
-// role is gone, and a peer created again under the same name, whose OPEN can
-// only come later, never reads the old one.
+// forgetRemovedPeer drops the learned role of a peer the reactor removed. The
+// state down with reason removed calls it (removal.go), on either transport,
+// for every peer whose filter lists carry a bgp-role member, which are the
+// only peers a role is stored for (applyValidateOpen).
 //
 // It clears the key the peer's name maps to (filterKeyLocked, the key every
 // OPEN of that peer wrote) and the peer's address, which keys a role an OPEN
-// stored under the address itself. The reactor may hold its own lock, so this
-// takes filterMu only. Safe for concurrent use.
-//
-// The hook runs only when the plugin is in-process; pruneLearnedRoles, at
-// commit, is the path that also covers an external role plugin.
+// stored under the address itself. Safe for concurrent use.
 func forgetRemovedPeer(peer filterapi.PeerFilterInfo) {
 	filterMu.Lock()
 	defer filterMu.Unlock()
@@ -411,6 +397,13 @@ func RunRolePlugin(conn net.Conn) int {
 		return applyValidateOpen(installed.peers, installed.nameToIP, input)
 	})
 
+	// The state down with reason removed frees a removed peer's learned role
+	// (removal.go). The implicit state grant delivers it for every peer whose
+	// filter lists carry a bgp-role member, on either transport.
+	p.SetStartupSubscriptions([]string{"state"}, nil, "full")
+	p.OnStructuredEvent(handleRoleStructuredEvents)
+	p.OnEvent(handleRoleEvent)
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	// RFC 9234 Section 5 (otc_filter.go) and RFC 7454 Section 9
@@ -485,6 +478,18 @@ func applyValidateOpen(
 		cfg = peerConfigs[configjson.CapabilityGroupKey(input.Group)]
 	}
 	result := validateOpenRolePair(cfg, input)
+
+	// A learned role is stored only for a peer whose config sets role import:
+	// that is the peer whose filter lists carry the bgp-role members, the only
+	// readers of a learned role, and the peer whose state the implicit state
+	// grant delivers, so its removal frees the role on either transport
+	// (removal.go). RFC 9234 Section 4.2 makes the configured role the input of
+	// the Section 5 procedures ("The locally configured BGP Role is used for
+	// the procedures described in Section 5."), so a peer with no role config
+	// has no procedure that reads what its OPEN declared.
+	if cfg == nil {
+		return result
+	}
 
 	// What role, if any, this OPEN declares. An unassigned value (RFC 9234
 	// Table 1 leaves 5-255 unassigned) is not a role we can act on, so it

@@ -77,13 +77,12 @@ names. A learned role is a property of the session, and an established peer
 sends no second OPEN. So wiping the map on reconfigure left every live peer
 looking unrecorded until its session bounced.
 
-A peer made at runtime with `create bgp peer <addr>` keeps its learned role
-across every reload too. No config names it: its OPEN stores the role under the
-generated name `peer-<addr>` with no group, and the peer survives a commit that
-does not declare it, so no commit is evidence that it is gone. The prune
-(`learnedRolePeerConfiguredLocked`) therefore keeps every group-less key no
-config has ever named. "Learned role lifecycle" below names what that leaves
-behind.
+A learned role is stored only for a peer whose config sets `role import`, the
+peer whose filter lists carry the `bgp-role` members. RFC 9234 Section 4.2
+makes the locally configured role the input of the Section 5 procedures, and
+those members are the only readers of a learned role, so an OPEN from a peer
+with no role config (a peer made at runtime with `create bgp peer <addr>`
+included) stores nothing.
 
 Export role filtering (separate from OTC) still applies based on the source
 peer's export policy.
@@ -241,62 +240,42 @@ refusal too.
 recorded for this peer". `remoteRoleRecorded` reads that distinction for the
 drop reason. Both resolve to the configured complement for RFC 9234 gates.
 
-The reactor's removal of a peer removes its learned role. The removal is not
-delivered as the state `down` with reason `removed`. That event reaches
-`bgp-role` only for a peer whose filter lists carry a `bgp-role` member (the
-implicit state grant of a filter plugin), while a learned role is stored for
-every peer whose OPEN carried a Role capability, configured for a role or not.
-The event is also asynchronous, which cannot give the order below. Instead the
-`bgp-role` filter registration carries a `PeerRemoved` hook
-(`filterapi.Filter.PeerRemoved`), and every reactor path that takes a peer out
-of its peer table calls `filterapi.NotifyPeerRemoved` for it, in the critical
-section that removes the peer and before the peer's Cease is sent: `delete bgp
-peer` (and the restart behind a peer edit), the removal of a dynamic group's
-member, a reload's removal of a peer the new configuration drops, restarts, or
-replaces (a dynamic member whose address the configuration now names as a peer
-of its own), and the undo of a reload's add when that commit rolls back.
-`AddPeer`'s rollback of a peer it never started is the one deletion that skips
-it, because that peer validated no OPEN.
-`forgetRemovedPeer` deletes the role under the key the peer's name maps to and
-under its address, and logs `learned role dropped: peer removed` with the role
-it held.
+The reactor's removal of a peer removes its learned role. `bgp-role`
+subscribes to `state`, and the implicit state grant of a filter plugin
+delivers it for every peer whose filter lists carry a `bgp-role` member, which
+are exactly the peers a learned role is stored for, on either transport. The
+state `down` with reason `removed`, which the reactor emits for every removal,
+established or not, reaches `forgetRemovedPeer` (`removal.go`), which deletes
+the role under the key the peer's name maps to and under its address, and logs
+`learned role dropped: peer removed` with the role it held.
 
-The hook runs synchronously inside the removal, so `delete bgp peer` returns
-only after the role is gone, and a peer created again under the same name, whose
-OPEN can only come later, meets nothing. A session-down clear could not give
-that order (see above). Running it before the Cease matters too: the Cease
-can block on a full send buffer, and a hook that ran after it would delete the
-role of a peer created again at the address whose OPEN arrived meanwhile. The
-hook runs with the reactor lock held, so it takes `filterMu` only.
+The down is asynchronous: it is delivered on the event loop while
+validate-open arrives on the callback loop, and it carries no session
+identity. A stale role never judges a route, because a removed peer sends
+none and a peer created again under the same name stores its own role at its
+OPEN before it can carry one. The reverse order is possible: a down still
+queued when a re-created peer validates its OPEN deletes that new peer's role.
+No RFC 9234 Section 5 verdict changes, because the peer is role-configured and
+its learned role, once its session passed the Table 2 check, is the configured
+complement `resolvePeerRole` falls back to. The export set reads the
+capability alone, so it sees that peer as `unknown` until its next OPEN.
 
-The hook runs in the engine process, beside the OTC filters that read the
-learned role. That is where the role lives when `bgp-role` runs in-engine
-(`RunEngine`), the normal case. `bgp-role` can also run as an external process
-(`CLIHandler` passes the same `RunRolePlugin`): its validate-open handler then
-records the role in that process, while the filters and this hook read and
-clear the engine's copy, which nothing writes. That split predates the hook and
-is outside it.
-
-A configured peer a commit removes is still handled by `pruneLearnedRoles` at
-config-committed. The prune runs in whichever process holds the plugin, so it is
-the path that clears the role an external `bgp-role` recorded; the hook covers
-the in-engine plugin, and every removal path besides a commit. One entry is
-left behind:
+A configured peer a commit removes is also handled by `pruneLearnedRoles` at
+config-committed, in whichever process holds the plugin. One entry is left
+behind:
 
 | Case | What is left |
 |------|--------------|
-| An OPEN validated for a peer after its removal ran (the removal stops the session without waiting for a validation already in flight, and a commit's prune can precede that OPEN the same way) | the role under that peer's key, until an OPEN for the same name replaces it |
+| An OPEN validated for a peer after its removal down was handled (the removal stops the session without waiting for a validation already in flight) | the role under that peer's key, until an OPEN for the same name replaces it |
 
 It costs one map entry. A peer created again under that name replaces it with
-its own OPEN, which `bgp-role` validates before the session can carry a route;
-only a session `bgp-role` does not answer (`broadcastValidateOpen` lets it
-establish) would read it.
+its own OPEN, which `bgp-role` validates before the session can carry a route.
 
 <!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, recordNoRemoteRole, remoteRoleRecorded, filterKeyLocked, learnedRolePeerConfiguredLocked, forgetRemovedPeer -->
-<!-- source: internal/component/bgp/filterapi/filterapi.go -- Filter.PeerRemoved, NotifyPeerRemoved -->
+<!-- source: internal/component/bgp/plugins/role/removal.go -- handleRoleStructuredEvents, handleRoleEvent -->
 <!-- source: internal/component/bgp/server/events.go -- getStructuredStateEvent, deliverPeerState -->
 <!-- source: internal/component/bgp/reactor/reactor_peers.go -- doRemovePeer, notifyFiltersPeerRemoved -->
-<!-- source: internal/component/bgp/reactor/reactor_api.go -- reconcilePeersJournaled -->
+<!-- source: internal/component/bgp/config/filter_state_binding.go -- grantFilterOwnersState -->
 
 The `plugin.PeerInfo` `doRemovePeer` passes on carries the peer's AS as an `rpc.RemoteAS`, read through the guarded accessor; for a dynamic peer removed before its AS was negotiated it is the not-yet-known state, never AS 0.
 <!-- source: internal/component/bgp/plugins/role/register.go -- RunEngine, CLIHandler -->
