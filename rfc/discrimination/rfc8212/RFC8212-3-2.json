@@ -38,12 +38,12 @@
     "rid": "RFC8212-3-2",
     "polarity": "positive",
     "unit": "test/reload/rfc8212-explicit-policy-reload.ci",
-    "unit-sha": "c4e1c6e028dd136c",
+    "unit-sha": "07b1949c56eb0ffd",
     "claim-sha": "a70f25b7903f9b24",
     "route": "mutant",
     "producer": "internal/component/bgp/filterapi/policy.go::AcceptsAtEnd",
-    "producer-sha": "2c2cda1ee27f4bf4",
-    "break": "line 139: \"!p.Configured()\" -\u003e \"true\"",
+    "producer-sha": "2b6d4f8e585f9ee1",
+    "break": "line 225: \"!p.Configured()\" -\u003e \"true\"",
     "citation": "reject=stderr:pattern=ZE-OBSERVER-FAIL"
   }
 ]
