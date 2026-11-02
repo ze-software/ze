@@ -212,13 +212,12 @@ process, and the engine refuses to start that way: the refusal is logged as
 `bgp-gr: refusing to start as an external plugin process` and the daemon does
 not start. An internal `bgp-gr` beside the forked one does not change this.
 
-The RFC 9494 egress filter runs in the daemon and reads the peer capability
-state the engine records. From a child process that state never reaches the
-daemon, so the filter would treat every neighbor as one from which the LLGR
-Capability was never received. The families the engine retains for a departed
-peer are not part of the reason: `bgp-rr` and `bgp-rs` receive them as the
-`bgp-gr/retention` event (described below), which reaches them from a child
-process too.
+The RFC 9494 procedures run in the plugin, beside the peer capability state
+the engine records, as members of the peers' filter lists (see "Long-Lived
+Stale Routes in the Filter Lists" below), and the families the engine retains
+for a departed peer reach `bgp-rr` and `bgp-rs` as the `bgp-gr/retention` event
+(described below). Both work from a child process, but a forked run is not yet
+proven by its functional tests, so the refusal stays until it is.
 
 `ze doctor` reports the arrangement from the config, before the daemon starts,
 as `doctor-bgp-gr-out-of-process`. Run
@@ -226,7 +225,7 @@ as `doctor-bgp-gr-out-of-process`. Run
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- runGRPlugin, IsInternal refusal -->
 <!-- source: test/plugin/gr-external-refuses.ci -- a forked bgp-gr refuses to start -->
 <!-- source: internal/component/bgp/plugins/gr/doctor.go -- checkGRInProcess, doctor-bgp-gr-out-of-process -->
-<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter reads egressState -->
+<!-- source: internal/component/bgp/plugins/gr/gr_filter.go -- evaluateGRFilter, grInsertions -->
 
 The route-server DOWN handler also uses an in-process query owned by `bgp-gr`.
 After draining that source's forwarding worker it asks which families are still
@@ -448,7 +447,7 @@ A route a neighbor sends carrying LLGR_STALE is least preferred too, when Ze
 sent that neighbor the LLGR Capability (RFC 9494 Section 4.3 binds "A BGP
 speaker that has advertised the Long-Lived Graceful Restart Capability to a
 neighbor"). From any other neighbor the route competes normally. The GR
-plugin decides this as the UPDATE arrives, before any import policy runs, and
+plugin decides this as the UPDATE arrives, before the operator's import chain runs, and
 best path treats the route as level 2. That mark is separate from the stale
 level above: `mark-stale` and `purge-stale` act on the stale level alone, so
 such a route is retained at a TCP loss and survives an EOR like a fresh route.
@@ -459,6 +458,23 @@ LOCAL_PREF 0 toward an IBGP one. That holds on every path that advertises it,
 listed under "Readvertising a Stale Route" below. The `show bgp rib` stale
 level still shows only the retention mark.
 <!-- source: internal/component/bgp/plugins/gr/gr_ingress.go -- LLGRIngressFilter, llgrStaleFromSource -->
+
+### Long-Lived Stale Routes in the Filter Lists
+
+Both LLGR decisions are members of the peers' filter lists, which `bgp-gr`
+inserts itself. On every peer whose `long-lived-stale-time` is set, the leaf
+that makes Ze advertise the LLGR Capability, `bgp-gr:llgr-ingress` runs on
+import, ahead of every member the operator names in the import chain, and
+marks a received LLGR_STALE route as described above. While any peer sets
+the leaf, `bgp-gr:llgr-egress` runs on every peer's export list, ahead of the
+operator's members: RFC 9494 Section 4.3 binds the routes of the neighbor
+Ze advertised the capability to, and they can leave toward any peer. It
+declares `readvertise`, so the stale readvertise rail runs it too. Both members are required:
+a chain that names, moves or deactivates one is refused at commit with the
+RFC 9494 Section 4.3 reason. The decisions read the route's stale level, the
+destination's address and AS facts, and for a route rebuilt from storage the
+source session's `source-llgr-advertised` fact.
+<!-- source: internal/component/bgp/plugins/gr/gr_filter.go -- grFilterDecls, grInsertions, evaluateLLGRIngress, evaluateLLGREgress -->
 <!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- receivedLLGRStaleFromMeta -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- extractCandidate -->
 

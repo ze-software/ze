@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	gryang "github.com/ze-software/ze/internal/component/bgp/plugins/gr/yang"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -42,12 +41,13 @@ var (
 )
 
 // fieldStale is the route metadata key this plugin's LLGR ingress step
-// writes (gr_ingress.go), the stale level a uint8 holds, as a field of the
+// writes (gr_filter.go, evaluateLLGRIngress), the stale level a uint8 holds, as a field of the
 // BGP route view (spec-filter-wire-6-stage-filters D-8).
 var fieldStale = policy.MustRegisterField("stale", policy.RouteView{})
 
 func init() {
 	policyview.MustRegisterMetadata(fieldStale, policyview.MetadataOctet)
+	resolveLLGRReaders()
 
 	// Register LLGR well-known community names (RFC 9494).
 	for _, c := range []struct {
@@ -73,32 +73,6 @@ func init() {
 		os.Exit(1)
 	}
 
-	// Route filter pipeline contribution (BGP-owned seam, not the generic registry).
-	if err := filterapi.Register(filterapi.Filter{
-		Name:  grPluginName,
-		Stage: filterapi.FilterStageAnnotation,
-		// RFC 9494: the LLGR egress decision (keep+mark / depreference / withdraw)
-		// must run per destination peer on the RIB stale-readvertise rail, not just
-		// on ForwardUpdate. Readvertise opts it into AnnounceNLRIBatch for stale batches.
-		Egress:      LLGREgressFilter,
-		Readvertise: true,
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "gr: filter registration failed: %v\n", err)
-		os.Exit(1)
-	}
-
-	// RFC 9494 Section 4.3: the received LLGR_STALE step. A second entry because
-	// it needs FilterStageProtocol, ahead of every operator import policy, while
-	// the egress decision above stays at its annotation stage. Register fails only
-	// on a duplicate or empty name, which a Ze defect alone produces.
-	if err := filterapi.Register(filterapi.Filter{
-		Name:    grPluginName + "-llgr-ingress",
-		Stage:   filterapi.FilterStageProtocol,
-		Ingress: LLGRIngressFilter,
-	}); err != nil {
-		panic("BUG: gr: ingress filter registration failed: " + err.Error())
-	}
-
 	reg := registry.Registration{
 		Name:            grPluginName,
 		Description:     "Graceful Restart capability and mechanism plugin",
@@ -108,7 +82,11 @@ func init() {
 		ConfigRoots:     []string{configRootBGP},
 		YANG:            gryang.ZeGracefulRestartYANG,
 		CapabilityCodes: []uint8{64, 71},
-		Dependencies:    append([]string{configRootBGP}, grRIBDependency...),
+		// The RFC 9494 Section 4.3 procedures, served by evaluateGRFilter and
+		// inserted where a peer's config makes Ze advertise LLGR.
+		Filters:          grFilterDecls(),
+		FilterInsertions: grInsertions(),
+		Dependencies:     append([]string{configRootBGP}, grRIBDependency...),
 		// Reverse dependency delivery puts GR's retention verdict before the
 		// route server and the route reflector decide which source families
 		// to withdraw on DOWN (rs and rr handleStateDown).

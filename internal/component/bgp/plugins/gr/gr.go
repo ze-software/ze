@@ -137,18 +137,14 @@ func runGRPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-gr", conn)
 	defer func() { _ = p.Close() }()
 
-	// setEgressState below stores into the daemon's memory: the daemon's
-	// LLGREgressFilter reads the egress state. A forked bgp-gr stores it into
-	// its own process, so the daemon reads every neighbor as LLGR-incapable
-	// and sends LLGR_STALE routes RFC 9494 Section 4.3 withholds from it, with
-	// no error. Refuse to start rather than leave the daemon answering wrong.
-	// The retention verdict is not a reason: it travels as the
-	// bgp-gr/retention event (emitRetention), which crosses the process split.
+	// The LLGR procedures now run in this process (evaluateGRFilter), beside
+	// the capability state they read, on both transports, and the retention
+	// verdict travels as the bgp-gr/retention event. The refusal stays until
+	// the forked runs are proven by their functional twins, as bgp-rr's and
+	// bgp-rs's do.
 	if !p.IsInternal() {
 		slogutil.Logger(grSubsystem).Error("bgp-gr: refusing to start as an external plugin process -- " +
-			"its graceful-restart state for long-lived graceful-restart egress (setEgressState) must live in the daemon's process, " +
-			"so a forked engine would let the daemon send stale routes to a neighbor that did not " +
-			"negotiate long-lived graceful restart; " +
+			"its graceful-restart state and long-lived graceful-restart procedures are not yet proven when the engine runs forked; " +
 			"replace the `external <name> { run ... }` block with `plugin { internal <name> { use bgp-gr } }`")
 		return 1
 	}
@@ -196,9 +192,10 @@ func runGRPlugin(conn net.Conn) int {
 		// Initialize LLGR egress filter state with peerLLGRCaps. The map is shared
 		// by reference so the filter sees peers as they are learned and released,
 		// which is why gp.mu travels with it: the filter reads the map under the
-		// same lock every writer below takes. The local AS for iBGP detection is
-		// NOT captured here: the reactor hands the effective per-peer local AS via
-		// dest.LocalAS on the forward and readvertise rails.
+		// same lock every writer below takes. The state lives in this process,
+		// where evaluateGRFilter runs on both transports. The local AS for iBGP
+		// detection is NOT captured here: the filter reads the effective per-peer
+		// local AS as the destination's local-as fact.
 		setEgressState(&egressFilterState{
 			mu:           &gp.mu,
 			peerLLGRCaps: gp.peerLLGRCaps,
@@ -236,8 +233,16 @@ func runGRPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
+	// The LLGR procedures run here, in this process, on both transports:
+	// the typed slot internal, the batched filter-update forked.
+	p.OnFilter(evaluateGRFilter)
+
 	err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{configRootBGP},
+		// The same declarations register.go makes (grFilterDecls,
+		// grInsertions), so Stage 1 and the compiled registry agree.
+		Filters:          grFilterDecls(),
+		FilterInsertions: grInsertions(),
 		// The plugin ordering edges register.go declares. The config root
 		// dependency is not one: the BGP subsystem delivers the state events
 		// this plugin is ordered among, and takes none of them.

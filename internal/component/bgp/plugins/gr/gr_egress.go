@@ -39,8 +39,8 @@ var localPrefZero [4]byte // zero-value is correct: 0x00000000
 // a peer flap concurrent with a forward is otherwise a fatal concurrent map
 // read and map write, which recover() does not catch. Read it through hasLLGR.
 //
-// The local AS for iBGP detection is NOT stored here: the reactor supplies the
-// effective per-peer local AS per destination via filterapi.PeerFilterInfo.LocalAS
+// The local AS for iBGP detection is NOT stored here: the filter reads the
+// effective per-peer local AS per destination as the local-as fact
 // (dest.LocalAS), which correctly honors a per-peer local-as override where a
 // single captured global value would not.
 type egressFilterState struct {
@@ -95,8 +95,10 @@ func setEgressState(s *egressFilterState) {
 	egressState.Store(s)
 }
 
-// LLGREgressFilter is the LLGR egress filter registered with the BGP filter pipeline (filterapi).
-// Called by the reactor for each destination peer during ForwardUpdate.
+// LLGREgressFilter is the LLGR egress decision for one route toward one
+// destination peer. evaluateLLGREgress (gr_filter.go) calls it for the
+// llgr-egress member of every peer's export list, on the forward rails and on
+// the stale readvertise rail, in this plugin's process on both transports.
 //
 // RFC 9494 Section 4.3: "The route SHOULD NOT be advertised to any neighbor
 // from which the Long-Lived Graceful Restart Capability has not been received.
@@ -147,8 +149,8 @@ func LLGREgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta m
 
 	// Destination peer does NOT have LLGR capability.
 	// RFC 9494 Section 4.6: iBGP is dest.PeerAS == our local AS for this session.
-	// The reactor supplies the effective per-peer local AS in dest.LocalAS
-	// (peer_forward_facts.go / reactor_api_batch.go readvertise rail).
+	// dest.LocalAS is the destination's effective per-peer local AS, the
+	// local-as fact evaluateLLGREgress reads.
 	isIBGP := dest.PeerAS == dest.LocalAS
 
 	if isIBGP {

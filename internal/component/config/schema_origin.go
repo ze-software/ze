@@ -20,9 +20,9 @@ import (
 // compiled, or no config could ever meet it.
 //
 // ownerYANG is the module text of a compiled-in registration, empty for a
-// third-party plugin. For a compiled-in one the node the path's first word
-// names MUST be defined by that module, so the insertion applies only where
-// config the plugin owns is set, and that config's presence is what loads the
+// third-party plugin. For a compiled-in one the node the path names MUST be
+// defined by that module, an augment included, so the insertion applies only
+// where config the plugin owns is set, and that config's presence is what loads the
 // plugin. A third-party plugin is loaded by the operator's `plugin external`
 // entry, and its own YANG is not compiled (docs/plugin-development/schema.md),
 // so it may name any compiled path.
@@ -53,20 +53,20 @@ func checkFilterInsertionPath(pluginName, owner string, ins *rpc.FilterInsertion
 		return nil
 	}
 	path := rpc.FilterInsertionSchemaPath(ins.Config)
-	if _, err := SchemaNodeModule(path); err != nil {
+	definer, err := SchemaNodeModule(path)
+	if err != nil {
 		return insertionPathError(pluginName, ins.Filter, "conditions on "+strings.Join(path, " ")+
 			", and "+err.Error()+"; name a path of the peer config the daemon compiles")
 	}
 	if owner == "" {
 		return nil
 	}
-	firstWord := path[:len(path)-len(ins.Config)+1]
-	definer, err := SchemaNodeModule(firstWord)
-	if err != nil {
-		return insertionPathError(pluginName, ins.Filter, err.Error())
-	}
+	// The node the condition names is judged, not the first word: a plugin's
+	// module may augment a node another module defines (bgp-gr's
+	// long-lived-stale-time sits under bgp's session capability), and it is
+	// the named node's presence that the plugin's config sets.
 	if definer != owner {
-		return insertionPathError(pluginName, ins.Filter, "conditions on "+strings.Join(firstWord, " ")+
+		return insertionPathError(pluginName, ins.Filter, "conditions on "+strings.Join(path, " ")+
 			", which module "+definer+" defines, not the plugin's own module "+owner+
 			"; condition on config the plugin's YANG adds, so setting it loads the plugin")
 	}

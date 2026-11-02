@@ -433,9 +433,11 @@ or named twice, `values` beside a session condition, a required insertion with
 no reason, and the same reference twice for one direction. It also refuses a condition path that is
 not a node of the compiled schema under `bgp peer` (an external plugin's own
 YANG is not compiled, `docs/plugin-development/schema.md`), and, for a plugin
-compiled into ze, a path whose first word names a node another module
-defines: a compiled-in plugin conditions only on config its own YANG module
-adds, so its member lands only where config it owns is set. A third-party
+compiled into ze, a path naming a node another module defines: a
+compiled-in plugin conditions only on config its own YANG module adds, an
+augment of another module's node included (`bgp-gr`'s
+`session capability graceful-restart long-lived-stale-time`), so its member
+lands only where config it owns is set. A third-party
 plugin, started by the operator's `plugin external` entry, may condition on any
 compiled path. Config load judges a compiled-in plugin's insertions by the same
 rules, and places them only in a daemon that runs that plugin, configured or

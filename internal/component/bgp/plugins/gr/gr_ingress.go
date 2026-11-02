@@ -28,8 +28,9 @@ const llgrStaleLevel uint8 = 2
 // Graceful Restart Capability to a neighbor MUST perform the following upon
 // receiving a route from that neighbor with the LLGR_STALE community".
 //
-// It runs at FilterStageProtocol, ahead of every operator policy, so an import
-// policy that removes LLGR_STALE cannot hide the route from this step.
+// evaluateLLGRIngress (gr_filter.go) answers it for the llgr-ingress member,
+// inserted ahead of every operator import policy, so an import policy that
+// removes LLGR_STALE cannot hide the route from this step.
 func LLGRIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
 	if llgrStaleFromSource(src, payload) {
 		meta["stale"] = llgrStaleLevel
@@ -41,9 +42,9 @@ func LLGRIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[st
 // Section 4.3 procedures govern: Ze sent the LLGR Capability to the neighbor it
 // came from AND its COMMUNITIES holds LLGR_STALE.
 //
-// Whether Ze advertised the capability is src.LLGRAdvertised, which the reactor
-// reads from the OPEN this session sent, on the same goroutine that read the
-// UPDATE. It is not read from this plugin's record of the sent-OPEN event: that
+// Whether Ze advertised the capability is src.LLGRAdvertised, the
+// llgr-advertised fact the reactor reads from the OPEN this session sent, on
+// the same goroutine that read the UPDATE. It is not read from this plugin's record of the sent-OPEN event: that
 // event is delivered asynchronously, so a session's first UPDATEs could be judged
 // before the record existed. The flag is tested first because it is a field read,
 // so a route from a non-LLGR session costs nothing.

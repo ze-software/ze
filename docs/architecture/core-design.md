@@ -1268,7 +1268,7 @@ code position:
    Section 8 protocol check the reactor names as its Protocol-stage step in
    `buildOrderedIngressSteps`, never a registered filter), and the filters
    registered via `filterapi.Register`. Both sort by `filterapi` Stage:
-   Protocol (`bgp-gr-llgr-ingress`, `loop`) → Policy `bgp-filter-community` →
+   Protocol (`loop`) → Policy `bgp-filter-community` →
    Annotation `bgp-role`/OTC. Signature
    `func(source PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)`.
    `accept=false` drops the route (no caching, no dispatch). A non-nil
