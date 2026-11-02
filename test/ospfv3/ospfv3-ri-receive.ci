@@ -1,0 +1,11 @@
+# Test: OSPFv3 Router Information LSA reception (RFC 7770 sec 2.2, spec-ospf-ext-3).
+#
+# VALIDATES: a peer's native function-code-12 RI LSA at area scope (0xA00C) received through
+# the OSPFv3 LSDB is stored and rendered by `show ospf database router-information` with its
+# capability bits decoded. No interop peer covers this: FRR ospf6d and BIRD originate no
+# OSPFv3 RI LSA.
+# PREVENTS: a received OSPFv3 RI LSA that is stored but never rendered or decoded.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFRI6ReceiveFunctional -count=1:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=PASS

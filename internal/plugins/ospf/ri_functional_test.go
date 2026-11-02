@@ -14,6 +14,8 @@ import (
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
+	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
+	ospfv3types "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
 // riFnRegister builds a v4 engine from cfg with the RI opaque consumer registered.
@@ -150,6 +152,52 @@ func TestOSPFRIReceiveFunctional(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("received RI LSA from 2.2.2.2 not stored/rendered with stub-router: %+v", view.RouterInformation)
+	}
+}
+
+// TestOSPFRI6ReceiveFunctional is the OSPFv3 twin of TestOSPFRIReceiveFunctional: a peer's
+// native function-code-12 RI LSA at area scope (0xA00C, RFC 7770 sec 2.2) arrives through the
+// v6 LSDB's ReceiveUpdate, is stored, and `show ospf database router-information` renders it
+// with its decoded capability bits. No interop peer proves this: FRR ospf6d and BIRD
+// originate no OSPFv3 RI LSA.
+func TestOSPFRI6ReceiveFunctional(t *testing.T) {
+	eng := newV6RIEngine(t)
+	eng.setConfig(v6RIConfig(t, "area"))
+	area := types.BackboneArea
+	self := mustRouterID(t, "1.1.1.1")
+	peer := mustRouterID(t, "2.2.2.2")
+	eng.lsdb.SetTopology(func() []ospflsdb.InterfaceInfo {
+		return []ospflsdb.InterfaceInfo{v6P2PInterface(area, self, peer)}
+	})
+	// A peer's RI LSA, Instance ID 0, carrying the stub-router informational bit.
+	riBody := packet.EncodeRITLVs([]packet.RITLV{{Type: packet.RITLVInformationalCapabilities, Value: packet.RICapabilitiesValue(packet.RIInfoBitMask(packet.RIInfoBitStubRouter))}})
+	wire := ospfv3packet.LSA{
+		Header: v6OriginHeader(ospfv3types.LSTypeRouterInformationArea, ospfv3types.LinkStateID(v6SummaryLSID(0)), peer, types.InitialSequenceNumber, false),
+		Body:   riBody,
+	}
+	raw := make([]byte, wire.EncodedLen())
+	wire.WriteTo(raw, 0)
+	decoded, err := ospfv3packet.DecodeLSA(raw)
+	if err != nil {
+		t.Fatalf("DecodeLSA(RI): %v", err)
+	}
+	lsa := packet.LSA{Header: v6LSAHeaderToNeutral(decoded.Header), Body: decoded.Body, RawBytes: raw}
+	reason := eng.lsdb.ReceiveUpdate(ospflsdb.ReceiveInput{Interface: "eth0", AreaID: area, RouterID: peer, Src: netip.MustParseAddr("fe80::1"), Update: packet.LSUpdate{LSAs: []packet.LSA{lsa}}})
+	if reason != "" {
+		t.Fatalf("ReceiveUpdate reason = %q", reason)
+	}
+	if _, ok := eng.lsdb.LookupLSA(area, v6RIKey(peer, ospfv3types.LSTypeRouterInformationArea, 0)); !ok {
+		t.Fatalf("received OSPFv3 RI LSA from 2.2.2.2 not stored in area 0")
+	}
+	view := riShowView(t, riDatabaseSnapshot(nil, eng))
+	var found bool
+	for _, e := range view.RouterInformation {
+		if e.AF == "v3" && e.Scope == OpaqueScopeArea.String() && e.AdvertisingRouter == "2.2.2.2" && containsStr(e.Capabilities, "stub-router") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("received OSPFv3 RI LSA from 2.2.2.2 not rendered with stub-router: %+v", view.RouterInformation)
 	}
 }
 
