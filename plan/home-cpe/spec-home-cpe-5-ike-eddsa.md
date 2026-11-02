@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Priority | P2 |
 | Release reason | The home CPE authenticates with an Ed25519 certificate. Ze's PKI store accepts Ed25519 keys and the IPsec guide implies they sign, but IKE refuses them (`errUnsupportedKey`). RFC 8420 is listed in no release profile, so by the release timing rule this may land after the first release; the false guide sentence is corrected now. |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | 0/4 |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-02 |
 
 Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
 

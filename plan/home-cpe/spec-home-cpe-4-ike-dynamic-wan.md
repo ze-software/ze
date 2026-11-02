@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped IKE initiator does the wrong thing on a dynamic WAN: a peer whose local address comes from `interface` never comes up when the address appears after boot and never follows a new address; a peer with neither `interface` nor `local-address` cannot build a Child SA; a DNS-named remote sends no NAT detection. Each configuration is accepted and silently fails. |
@@ -10,7 +10,7 @@
 | Depends | spec-home-cpe-1-logical-interface-name.md (only for `interface` naming a PPPoE logical unit) |
 | Phase | 0/4 |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-02 |
 
 Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
 
