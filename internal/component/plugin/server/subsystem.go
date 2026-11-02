@@ -242,11 +242,11 @@ func (hs *hubStartupSink) deliverRegistry(ctx context.Context) error {
 	return nil
 }
 
-// onReady, onRunning, and postReady are no-ops: the hub registers no
+// onReady, onRunning, and publishTransport are no-ops: the hub registers no
 // subscriptions, wires no bridge, and signals no reactor.
-func (hs *hubStartupSink) onReady(*rpc.ReadyInput) error                    { return nil }
-func (hs *hubStartupSink) onRunning()                                       {}
-func (hs *hubStartupSink) postReady(*pluginipc.PluginConn, *rpc.ReadyInput) {}
+func (hs *hubStartupSink) onReady(*rpc.ReadyInput) error                           { return nil }
+func (hs *hubStartupSink) onRunning()                                              {}
+func (hs *hubStartupSink) publishTransport(*pluginipc.PluginConn, *rpc.ReadyInput) {}
 
 // transition is an unconditional success: the hub runs one connection at a time
 // with no barrier.

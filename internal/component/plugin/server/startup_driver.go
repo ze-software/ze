@@ -112,11 +112,14 @@ type startupSink interface {
 	// the final OK response (engine signals the reactor API-ready).
 	onRunning()
 
-	// postReady publishes the negotiated callback transport on the connection
-	// captured by the driver, after the final barrier and before onRunning and
-	// the OK let either side enter runtime. Stop may have cleared the process's
-	// connection pointer; the captured transport still owns the final response.
-	postReady(conn *pluginipc.PluginConn, input *rpc.ReadyInput)
+	// publishTransport publishes the negotiated callback transport on the
+	// connection captured by the driver, before onReady registers the startup
+	// subscriptions. From onReady on, other plugins' events reach this one,
+	// and a bridge plugin closes its pipe once it activates the bridge: an
+	// event sent on the pipe before publication is never read and fails EOF.
+	// Stop may have cleared the process's connection pointer; the captured
+	// transport still owns the final response.
+	publishTransport(conn *pluginipc.PluginConn, input *rpc.ReadyInput)
 
 	// transition advances the barrier from one stage to the next and records
 	// the new process stage. It returns false to abort the handshake without an
@@ -265,6 +268,9 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 			logger().Warn("rpc startup: invalid ready params", "error", perr)
 		}
 	}
+	// Publish the callback transport before onReady makes this plugin a
+	// subscriber, so no event is sent on a pipe the SDK is about to close.
+	sink.publishTransport(conn, &readyInput)
 	if err := sink.onReady(&readyInput); err != nil {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err
@@ -276,7 +282,6 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	if !sink.transition(plugin.StageReady, plugin.StageRunning) {
 		return errStartupBarrierAborted
 	}
-	sink.postReady(conn, &readyInput)
 	sink.onRunning()
 	if err := conn.SendResult(ctx, req.ID, nil); err != nil {
 		return fmt.Errorf("stage 5 respond: %w", err)

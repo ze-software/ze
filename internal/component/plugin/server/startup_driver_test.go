@@ -61,8 +61,8 @@ func (r *recordingSink) onReady(*rpc.ReadyInput) error {
 }
 
 func (r *recordingSink) onRunning() { r.order = append(r.order, "OnRunning") }
-func (r *recordingSink) postReady(*ipc.PluginConn, *rpc.ReadyInput) {
-	r.order = append(r.order, "PostReady")
+func (r *recordingSink) publishTransport(*ipc.PluginConn, *rpc.ReadyInput) {
+	r.order = append(r.order, "PublishTransport")
 }
 
 func (r *recordingSink) transition(from, to plugin.PluginStage) bool {
@@ -157,9 +157,9 @@ func TestSharedStartupDriverSinkDispatch(t *testing.T) {
 		"Transition",
 		"DeliverRegistry",
 		"Transition",
+		"PublishTransport",
 		"OnReady",
 		"Transition",
-		"PostReady",
 		"OnRunning",
 	}, sink.order)
 

@@ -929,10 +929,13 @@ func (e *engineStartupSink) onRunning() {
 	}
 }
 
-// PostReady publishes bridge callbacks on the handshake's captured transport,
-// before the final OK allows the SDK to activate the bridge and close its pipe.
-// Stop can already have cleared proc.Conn; the final OK reports that closure.
-func (e *engineStartupSink) postReady(conn *plugipc.PluginConn, input *rpc.ReadyInput) {
+// publishTransport publishes bridge callbacks on the handshake's captured
+// transport, before onReady registers the startup subscriptions and before the
+// final OK allows the SDK to activate the bridge and close its pipe. An event
+// delivered from then on waits on the bridge callback channel for the SDK's
+// bridge loop, never on the pipe it closes. Stop can already have cleared
+// proc.Conn; the final OK reports that closure.
+func (e *engineStartupSink) publishTransport(conn *plugipc.PluginConn, input *rpc.ReadyInput) {
 	if input.Transport == "bridge" && e.proc.Bridge() != nil {
 		conn.SetBridge(e.proc.Bridge())
 		logger().Debug("rpc startup: switched to bridge transport", "plugin", e.proc.Name())
@@ -1029,7 +1032,7 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 // answers with a plain error response, which would stop being a refusal and
 // would let ze start on a configuration that plugin rejected. And at Stage 2
 // the transport is always the pipe, because the DirectBridge is switched in
-// only at Stage 5 (postReady, this file), so no second transport needs a
+// only at Stage 5 (publishTransport, this file), so no second transport needs a
 // code to carry the distinction the response type already carries.
 func isConfigRefusal(err error) bool {
 	var callErr *rpc.RPCCallError

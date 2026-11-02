@@ -345,7 +345,7 @@ publication must not look it up again. A stopped transport still fails the final
 response, so the engine rolls startup back rather than treating cancellation as
 successful readiness.
 <!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
-<!-- source: internal/component/plugin/server/startup.go -- engineStartupSink.postReady, handleProcessStartupRPC -->
+<!-- source: internal/component/plugin/server/startup.go -- engineStartupSink.publishTransport, handleProcessStartupRPC -->
 
 **Filter Declaration (Stage 1):**
 
@@ -2040,7 +2040,9 @@ each section from its own block:
   non-CIDR family, and the engine drops the route.
 - An MP block keeps its AFI, SAFI and next hop, and each NLRI kept is copied
   whole, with its path identifier and label stack.
-- A changed block of a non-CIDR family, an `mp` block for a section the
+- A changed block of a non-CIDR family, a changed block of a section that
+  does not parse (an MP attribute that does not parse is not rendered, so any
+  `mp` block of its section counts as changed), an `mp` block for a section the
   UPDATE does not carry, two blocks for one section, or a block that is neither
   `nlri add|del` nor `mp <family> add|del`, makes the engine drop the route and
   log the family and the reason under `ze.log.bgp.reactor.forward`. Such a
@@ -2236,8 +2238,8 @@ For Go plugins (`ze.pluginname`) -- runs in same process:
 
 | Step | Side | Action |
 |------|------|--------|
-| 1 | Engine | `wireBridgeDispatch()` registers `DispatchRPC` handler on bridge |
-| 2 | Engine | After the final startup barrier, atomically publishes the negotiated bridge with `conn.SetBridge(bridge)` before signaling runtime readiness |
+| 1 | Engine | On reading the Stage 5 ready request, atomically publishes the negotiated bridge with `conn.SetBridge(bridge)` (`publishTransport`), before registering the startup subscriptions |
+| 2 | Engine | `wireBridgeDispatch()` registers `DispatchRPC` handler on bridge, then the final startup barrier runs and runtime readiness is signaled |
 | 3 | Engine | Sends Stage 5 OK response over pipe (last pipe message) |
 | 4 | SDK | Receives OK, registers `DeliverEvents` handler on bridge |
 | 5 | SDK | Calls `bridge.SetReady()` -- bridge now active |
@@ -2253,7 +2255,11 @@ so an observer cannot confuse incomplete activation with shutdown.
 
 This also applies to `deliver-batch` events queued between bridge publication
 and SDK activation. They wait on the negotiated callback channel, not the
-startup pipe that the SDK is about to close. The batch keeps each event's JSON
+startup pipe that the SDK is about to close. Publication comes before the
+startup subscriptions register because an event can reach the plugin from
+that moment: another plugin that left the barrier first may emit while this
+one still waits for its final OK. Sent on the pipe, such an event is never
+read, and the engine's delivery fails with EOF once the SDK closes the pipe. The batch keeps each event's JSON
 unchanged and is applied once; transport cutover does not retry it. In particular,
 GR must receive both OPEN directions before DOWN can use their capability state.
 <!-- source: internal/component/plugin/ipc/rpc.go -- CallBatchRPC -->
