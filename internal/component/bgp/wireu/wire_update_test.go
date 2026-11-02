@@ -676,6 +676,57 @@ func TestWireUpdate_MPReach_Malformed(t *testing.T) {
 	}
 }
 
+// TestWireUpdate_MPReach_NextHopOverrun verifies an MP_REACH_NLRI whose Length
+// of Next Hop Network Address runs past the attribute is refused.
+//
+// VALIDATES: MPReach and NewMPReachWire answer ErrUpdateMalformed when the next
+// hop the length octet declares, plus the Reserved octet, does not fit, and
+// accept the attribute whose next hop and Reserved octet end it exactly.
+// PREVENTS: NLRIBytes answering nil for the overrun, which a caller read as a
+// present MP_REACH_NLRI that announces no prefix.
+func TestWireUpdate_MPReach_NextHopOverrun(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   []byte
+		wantErr bool
+	}{
+		// AFI 2, SAFI 1, a next hop declared 16 octets long, 4 present.
+		{"next hop past the attribute", []byte{0x00, 0x02, 0x01, 0x10, 0x20, 0x01, 0x0d, 0xb8}, true},
+		// A 4-octet next hop with no Reserved octet after it.
+		{"reserved octet missing", []byte{0x00, 0x01, 0x01, 0x04, 0x0a, 0x00, 0x00, 0x01}, true},
+		// A 4-octet next hop, the Reserved octet, and no NLRI.
+		{"next hop and reserved end it", []byte{0x00, 0x01, 0x01, 0x04, 0x0a, 0x00, 0x00, 0x01, 0x00}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attrs := make([]byte, 0, 3+len(tt.value))
+			attrs = append(attrs, 0x80, 0x0e, byte(len(tt.value)))
+			attrs = append(attrs, tt.value...)
+			payload := make([]byte, 4+len(attrs))
+			binary.BigEndian.PutUint16(payload[2:4], uint16(len(attrs))) //nolint:gosec // G115: test data
+			copy(payload[4:], attrs)
+
+			mpr, err := NewWireUpdate(payload, 0).MPReach()
+			_, direct := NewMPReachWire(tt.value)
+			if !tt.wantErr {
+				if err != nil || direct != nil {
+					t.Fatalf("MPReach() error = %v, NewMPReachWire error = %v, want nil", err, direct)
+				}
+				if nlri := mpr.NLRIBytes(); nlri == nil || len(nlri) != 0 {
+					t.Errorf("NLRIBytes() = %v, want an empty, non-nil section", nlri)
+				}
+				return
+			}
+			if !errors.Is(err, ErrUpdateMalformed) {
+				t.Errorf("MPReach() error = %v, want ErrUpdateMalformed", err)
+			}
+			if !errors.Is(direct, ErrUpdateMalformed) {
+				t.Errorf("NewMPReachWire() error = %v, want ErrUpdateMalformed", direct)
+			}
+		})
+	}
+}
+
 // TestWireUpdate_MPReach_AttrsError verifies MPReach propagates Attrs() error.
 //
 // VALIDATES: When Attrs() fails, MPReach wraps and returns that error

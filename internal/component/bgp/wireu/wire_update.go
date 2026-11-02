@@ -139,7 +139,8 @@ func (u *WireUpdate) NLRI() ([]byte, error) {
 
 // MPReach extracts MP_REACH_NLRI (attribute code 14) as MPReachWire.
 // RFC 4760 Section 3 - Multiprotocol reachability.
-// Returns (nil, nil) if attribute not present, (nil, error) if malformed.
+// Returns (nil, nil) if attribute not present, (nil, error) if malformed:
+// shorter than 5 octets, or a next hop that runs past the attribute.
 func (u *WireUpdate) MPReach() (MPReachWire, error) {
 	attrs, err := u.Attrs()
 	if err != nil {
@@ -155,10 +156,13 @@ func (u *WireUpdate) MPReach() (MPReachWire, error) {
 	if raw == nil {
 		return nil, nil // Attribute not present
 	}
-	if len(raw) < 5 {
-		return nil, fmt.Errorf("mp_reach: %w", ErrUpdateMalformed)
+	// RFC 4760 Section 3: the fixed fields and the declared next hop must
+	// fit, or the NLRI section cannot be located (NewMPReachWire).
+	mp, err := NewMPReachWire(raw)
+	if err != nil {
+		return nil, fmt.Errorf("mp_reach: %w", err)
 	}
-	return MPReachWire(raw), nil
+	return mp, nil
 }
 
 // MPUnreach extracts MP_UNREACH_NLRI (attribute code 15) as MPUnreachWire.

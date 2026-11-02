@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -162,6 +163,21 @@ func TestHandleDecodeMPReach_Malformed(t *testing.T) {
 	_, err = handleDecodeMPReach(params)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "too short")
+}
+
+// TestHandleDecodeMPReach_NextHopOverrun verifies an MP_REACH_NLRI whose next
+// hop runs past the attribute is refused.
+//
+// VALIDATES: a Length of Next Hop Network Address of 16 over 4 octets of next
+// hop answers an error wrapping wireu.ErrUpdateMalformed.
+// PREVENTS: the decoder answering an empty NLRI list for an attribute whose
+// NLRI section it could not locate.
+func TestHandleDecodeMPReach_NextHopOverrun(t *testing.T) {
+	params, err := json.Marshal(&rpc.DecodeMPReachInput{Hex: "0002011020010db8"})
+	require.NoError(t, err)
+
+	_, err = handleDecodeMPReach(params)
+	require.ErrorIs(t, err, wireu.ErrUpdateMalformed)
 }
 
 // TestHandleDecodeMPUnreach verifies decode-mp-unreach parses MP_UNREACH_NLRI.

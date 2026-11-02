@@ -66,7 +66,7 @@ type ReceivedUpdate struct {
 func (u *WireUpdate) Withdrawn() ([]byte, error)
 func (u *WireUpdate) Attrs() (*AttributesWire, error)
 func (u *WireUpdate) NLRI() ([]byte, error)
-func (u *WireUpdate) MPReach() (MPReachWire, error)   // nil,nil if attr not present
+func (u *WireUpdate) MPReach() (MPReachWire, error)   // nil,nil if attr not present; error if under 5 octets or the next hop overruns it
 func (u *WireUpdate) MPUnreach() (MPUnreachWire, error) // nil,nil if attr not present
 ```
 <!-- source: internal/component/bgp/reactor/received_update.go -- ReceivedUpdate struct -->

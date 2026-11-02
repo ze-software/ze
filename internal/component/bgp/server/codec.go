@@ -71,12 +71,12 @@ func handleDecodeMPReach(params json.RawMessage) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
-	// RFC 4760 Section 3: minimum is AFI(2)+SAFI(1)+NHLen(1)+Reserved(1) = 5 bytes
-	if len(data) < 5 {
-		return nil, fmt.Errorf("MP_REACH_NLRI too short: %d bytes", len(data))
+	// RFC 4760 Section 3: the fixed fields and the declared next hop must fit,
+	// or the NLRI section cannot be located and would decode as empty.
+	mpw, err := wireu.NewMPReachWire(data)
+	if err != nil {
+		return nil, err
 	}
-
-	mpw := wireu.MPReachWire(data)
 	familyStr := mpw.Family().String()
 
 	var nhStr string

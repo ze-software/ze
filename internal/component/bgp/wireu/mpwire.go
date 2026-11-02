@@ -19,7 +19,50 @@ import (
 // RFC 4760 Section 3: AFI(2) + SAFI(1) + NH_Len(1) + NextHop + Reserved(1) + NLRI
 //
 // This is a view into the original wire bytes - do not modify.
+//
+// Build one with NewMPReachWire (or WireUpdate.MPReach, which calls it): a
+// view it returned frames every field below, so NLRIBytes answers the NLRI
+// section, empty or not, and never nil. A bare conversion skips that check.
 type MPReachWire []byte
+
+// NewMPReachWire returns raw as an MPReachWire once every fixed field and the
+// next hop fit inside it, or an error wrapping ErrUpdateMalformed.
+//
+// RFC 4760 Section 3 wire layout:
+//
+//	+---------------------------------------------------------+
+//	| Address Family Identifier (2 octets)          offset 0   |
+//	+---------------------------------------------------------+
+//	| Subsequent Address Family Identifier (1 octet) offset 2  |
+//	+---------------------------------------------------------+
+//	| Length of Next Hop Network Address (1 octet)  offset 3   |
+//	+---------------------------------------------------------+
+//	| Network Address of Next Hop (variable)        offset 4   |
+//	+---------------------------------------------------------+
+//	| Reserved (1 octet)                     offset 4+NH_Len   |
+//	+---------------------------------------------------------+
+//	| Network Layer Reachability Information (variable)        |
+//	+---------------------------------------------------------+
+//
+// The refusal exists because the NLRI accessors cannot say "malformed": a nil
+// NLRIBytes for a next hop that ran past the attribute read, at every caller,
+// as a present MP_REACH_NLRI that announces no prefix. The receive path already
+// refuses such an attribute with NOTIFICATION 3/9 (wire/messages.md); this is
+// the paired check for every other producer of an UPDATE.
+func NewMPReachWire(raw []byte) (MPReachWire, error) {
+	// RFC 7606 Section 5.3 names an incorrect attribute: "the length of the
+	// MP_REACH_NLRI attribute is less than 5."
+	if len(raw) < 5 {
+		return nil, fmt.Errorf("MP_REACH_NLRI too short: %d octets, below the 5 RFC 4760 Section 3 frames: %w", len(raw), ErrUpdateMalformed)
+	}
+	// RFC 4760 Section 3: "A 1-octet field whose value expresses the length of the
+	// "Network Address of Next Hop" field, measured in octets."
+	nhLen := int(raw[3])
+	if 4+nhLen+1 > len(raw) {
+		return nil, fmt.Errorf("MP_REACH_NLRI of %d octets declares a %d-octet next hop that, with the Reserved octet, runs past it: %w", len(raw), nhLen, ErrUpdateMalformed)
+	}
+	return MPReachWire(raw), nil
+}
 
 // AFI returns the Address Family Identifier (2 octets at offset 0).
 // Returns 0 if data is too short.
@@ -209,6 +252,10 @@ func (m MPReachWire) NLRIIterator(addPath bool) *nlri.NLRIIterator {
 // NLRIBytes returns the raw NLRI bytes without parsing.
 // Returns the bytes after NextHop + Reserved, or nil if malformed.
 // Use for raw wire byte extraction (pool storage).
+//
+// The nil answer cannot be told from an empty section by a caller that only
+// takes len, so a view MUST come from NewMPReachWire or WireUpdate.MPReach,
+// which refuse the malformed attribute; on such a view the answer is never nil.
 func (m MPReachWire) NLRIBytes() []byte {
 	if len(m) < 5 {
 		return nil

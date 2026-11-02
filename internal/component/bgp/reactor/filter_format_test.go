@@ -66,6 +66,7 @@ func TestAppendUpdateForFilterMalformedMPRendersInvalid(t *testing.T) {
 	}{
 		{"mp_reach shorter than 5", malformedMPReachBody, "mp afi-0/safi-0 add invalid"},
 		{"mp_unreach shorter than 3", malformedMPUnreachBody, "mp afi-0/safi-0 del invalid"},
+		{"mp_reach next hop past the attribute", nextHopOverrunMPReachBody, "mp afi-0/safi-0 add invalid"},
 		// A Withdrawn Routes Length past the body: no section frames, so every
 		// section renders as malformed.
 		{"body that does not frame", "ffff", "nlri add invalid nlri del invalid mp afi-0/safi-0 add invalid mp afi-0/safi-0 del invalid"},

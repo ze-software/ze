@@ -415,6 +415,11 @@ const malformedMPReachBody = "0000 000b 40010100 800E04 00020100"
 // three RFC 7606 Section 5.3 requires.
 const malformedMPUnreachBody = "0000 0009 40010100 800F02 0002"
 
+// nextHopOverrunMPReachBody carries an ipv6/unicast MP_REACH_NLRI of eight
+// octets whose Length of Next Hop Network Address declares 16 octets: the next
+// hop and the Reserved octet run past the attribute (RFC 4760 Section 3).
+const nextHopOverrunMPReachBody = "0000 000f 40010100 800E08 00020110 20010db8"
+
 // TestNLRISectionOfMalformedMPIsError proves an MP attribute that does not
 // parse is reported as an error, never as an absent section.
 //
@@ -431,6 +436,7 @@ func TestNLRISectionOfMalformedMPIsError(t *testing.T) {
 	}{
 		{"mp_reach shorter than 5", malformedMPReachBody, sectionMPReach},
 		{"mp_unreach shorter than 3", malformedMPUnreachBody, sectionMPUnreach},
+		{"mp_reach next hop past the attribute", nextHopOverrunMPReachBody, sectionMPReach},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
