@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | done |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 14 findings of the full lint in the plugin infrastructure, the public SDK and statestore; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 2/3 |
+| Phase | 3/3 |
 | Handoff | - |
 | Updated | 2026-11-02 |
 
@@ -137,8 +137,9 @@ Line numbers are the CI run's.
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1-15, 17 | Feature, config, CLI, API, plugin, wire, SDK, RFC, test infrastructure, comparison, architecture, metadata, metrics, inventory, examples | No | Lint fixes change no documented behavior |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `./le spec citation anchors spec plan/release/validation/spec-lint-backlog-4-plugin-infra-and-core.md` |
+| 1-11, 13-15, 17 | Feature, guide, config, CLI, API, plugin, wire, SDK, RFC, test infrastructure, comparison, metadata, metrics, inventory, examples | No | `cli/main.go` `answerQuery` restores the already documented version in process-protocol.md Query Mode; declarations, SDK exports, config and protocol policy stay unchanged. Fixture repairs add no tool or user surface. Community ingress callbacks currently always accept; preserving their boolean contract adds no wire behavior or RFC claim. |
+| 12 | Architecture | Yes | `docs/architecture/core-design.md`, A Redistribution Rule Never Gates What BGP Learns, updated in `7620e0dfc4`: isolated real-handler proof and rejection-preserving adapter, with source anchors. |
+| 16 | Changed source anchors | Yes | Reviewed core-design.md, process-protocol.md Query Mode and Filter Declaration, route-policy.md, meta/filter-community.md and configuration.md against the producing functions. Scoped source-aware review, no whole-tree documentation check. |
 
 ## Implementation Steps
 
@@ -273,7 +274,7 @@ The commands, canonical producers and observed results here are the durable
 record. No source or test was changed by this verifier; no whole-tree gate,
 compile check, functional suite or push was run.
 
-## Blocker
+## Resolved closure handback
 
 Independent closure on 2026-11-02 reviewed the five implementation commits
 through `7620e0dfc4` and the completed evidence in `b0d8f62a88`. No product
@@ -305,6 +306,15 @@ logic/wiring, security/edge cases, and proof/docs/style. `core-design.md`'s
 callback claim and `process-protocol.md`'s query-version contract match the
 owned producers. Closure tables, the umbrella citation and the two closure
 commits remain owed after this conflict clears.
+
+The parent supplied independent native approvals for the concurrent deletion
+and both community recorder-call changes. Round 2 reviews only this foreign
+migration delta and its replacement proof: reactor
+`TestOrderedStepsAreTheEngineSteps`, the actual ingress/egress builders, the
+recorder initialization, and the composition-root regression's removal of
+the retired legacy scan. These foreign edits remain owned by the filter-wire
+umbrella and are not carried by either lint4 closure commit. The historical
+112-test evidence is not relabeled as a run of the current 111-test population.
 
 ## Historical blockers (resolved by the evidence above)
 
@@ -384,7 +394,174 @@ criteria intact.
 ## Checklist
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
-- [ ] `./le go lint run scope "<the three trees>"` zero; `./le job run label plugin command go test -race ./internal/component/plugin/... ./pkg/plugin/... ./internal/core/statestore/...`. Full-run evidence belongs to the umbrella's CI run.
+- [x] Existing lint and race tests retained; added `TestCommunityRewritePreservesRejection`.
+- [x] Negative test first failed all three verdict cases; separate ingress/relation mutations failed the corresponding real handler assertions.
+- [x] Scoped race passes recorded above; repaired behavior passed without dropping the old assertions.
+- [x] All four scoped lint flavors report zero. Full-run evidence belongs to the umbrella's CI run.
+
+## Implementation Summary
+
+### What Was Implemented
+
+`aaf2642dc1` clears the three remaining original lint forms. `f930c73ca9`
+restores query declaration version parity and clears four later scoped lint
+findings. `ebbd06aba3` repairs the wire-method fixture; `c5c69bf6fa` installs
+the real declaration judge in the recovery fixture. `7620e0dfc4` preserves
+both community ingress decisions and migrates the acceptance regression to
+real registered handlers in a child process.
+
+### Bugs Found/Fixed
+
+Product: `cli/main.go` `answerQuery` omitted `rpc.ProtocolVersion`;
+`TestQueryAnswerIsTheSameLineFromBothWriters` now passes unchanged.
+`community_filter.go` `evaluateCommunityFilter` discarded both callback
+booleans; `rewriteVerdict` now rejects before deriving edits, proven by the
+three-case negative test and both real-handler mutation reds.
+
+Test maintenance: exact registry snapshot additions, real BGP judge linkage,
+and isolated migrated ingress proof were independently judged. These do not
+claim to fix recovery or introduce new BGP policy.
+
+### Documentation Updates
+
+`7620e0dfc4` updates core-design.md with anchors to
+`TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig`,
+`evaluateCommunityFilter` and `rewriteVerdict`. The scoped anchor/producer
+review found the owned claims accurate. The later foreign stage-registry
+removal and its documentation belong to the active filter-wire umbrella;
+neither closure commit carries those files. No whole-tree doc check ran.
+
+### Deviations from Plan
+
+A-1 was broken: eleven saved lint sites were already repaired. Scoped proof
+then exposed query version drift and three stale fixtures; repairing the
+ingress fixture exposed the lost boolean contract. Those in-scope blockers
+were fixed and proven. Current-byte review includes independently judged
+foreign test migration deltas but does not land or claim that migration.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 assumed all 14 old sites needed edits | Eleven already had source fixes | Original source audit | Changed only the remaining forms, then proved the entire AC scope |
+| approach | First migrated ingress proposal could lose a rejecting boolean and leak private globals | Adapter ignored acceptance; registry snapshots did not restore plugin state | Independent test judgment | Preserve booleans and isolate startup in a child; red/green and two mutation proofs |
+| approach | First closure pin included an arriving foreign test deletion | Machine hashes do not establish semantic judgment | Current source inventory differed from retained run | Withdrew CLEAN, handed back, verified independent approvals and replacement producers, ran only changed proof, then recorded round 2 CLEAN |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Clear findings in plugin infrastructure, public SDK and statestore | Done | Three-tree scoped lint command above | Four flavors each report zero; declarations and SDK exports preserved |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `job-lint4-final-scoped-lint-aae4a6b4.log`: four `0 issues.` lines, exit 0 | Scoped only |
+| AC-2 | Done | Retained 14-package race evidence; process 89/89, composition root 39/39 | Historical community population 112/112; changed foreign proof separately passed below |
+| AC-3 | Done | Owned commit diffs add no `nolint` | Existing teardown reasons and checked acknowledging calls retained |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Existing package tests | Done | All 14 AC package directories listed in Final scoped verification | Named PASS evidence, no explicit skips or race reports |
+| Rejection regression and migrated entry point | Done | community_rejection_test.go; all/ingress_redistribution_test.go | Negative helper red; independent ingress and relation mutation reds; restored greens |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All ten files in Task's 14-finding inventory | Done | Three original forms changed; eleven findings already handled, as source audit records. No SDK export or statestore production edit needed |
+| Additional scoped fixes and their tests | Done | Five implementation commits in Implementation Summary; all historical code paths covered by review artifact |
+
+### Audit Summary
+
+Seven audited rows above cover one task, three ACs, one original test-plan
+population and two file groups. All seven are done; the additional regression
+row records proof added during repair. No partial or skipped requirement.
+
+## Goal Validation
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Clear the plugin infrastructure, SDK and statestore lint backlog without losing assertions | Scoped lint and race/negative proof | All four scoped flavors report `0 issues.`; 14 package directories covered. Query equality, eight recovery scenarios and exact wire snapshot pass; rejection fails before fix, each mutated community callback fails through real startup, restored entry point passes |
+
+## Security Review
+
+| Concern | Result | Producing evidence |
+|---------|--------|--------------------|
+| TLS/process failures | Pass | Existing TLS request write, process Wait/Kill checks and SDK executeCommand CallAnswer/terminator checks retain failures; recovery uses real declaration validation |
+| Shared state and store acknowledgment | Pass | Child isolates private plugin state; registry fixtures retain snapshots; statestore reader test joins Increment before checking incrementErr |
+| Reject before rewrite | Pass | evaluateCommunityFilter passes both booleans; rewriteVerdict returns payload-free FilterReject before inspecting modified bytes |
+| Injection, bounds, races, paths, crypto, authorization and disclosure | No new affected surface | No new production parser, shell input, credential, file path or runtime dependency. Existing declaration validation precedes registrationFromRPC; changed loop stays slice-bounded. Test child argv is fixed, waits bounded, and engines joined |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None in this spec's scope | All task and AC rows fulfilled | Not applicable |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/lint-backlog-4-plugin-infra-and-core-ses_e61b5c9aaffeYkxzvxEmikbg3A.md` |
+| `./le spec review check` | OK: 13 code files, clean, hashes match; artifact also records snapshot (14 files total) |
+| Rounds | 2: complete owned history, then only concurrent migration deltas and replacement proof |
+| Reviewer lenses used | Logic/wiring and removed behavior; security/edge cases; tests/docs/style. Independent fresh non-author context, inline |
+| Final result | 0 BLOCKER, 0 ISSUE |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | Concurrent deletion lacked supplied independent judgment when pinned | community_filter_test.go TestCommunityIsNoEngineStep | Parent's native independent approval; verified actual builder replacement proof and targeted PASS in round 2. No foreign source changed by closure |
+
+Round 2 also judged the foreign legacy-scan removal in the composition-root
+regression, conditional on AC-19's actual registry removal; native parent
+approval recorded. The two community recorder tests keep their exact inputs
+and assertions. These current working-tree bytes are pinned for review, not
+selected into the closure commits. No RFC-tagged unit or requirement record
+was added or changed by lint4; no new interop obligation is claimed.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| community_rejection_test.go and all 13 other historical review paths | Yes | Source reads and native review hashing read all 14 successfully; snapshot included |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Scoped lint cleared | Retained command/result directly read: four zero-issue flavors, exit 0 |
+| AC-2 | Scoped race population covered | Retained package PASS/ok and named test populations directly inspected; process 89 and root 39 source names all present in PASS lines. Historical community 112 includes the subsequently migrated test |
+| AC-3 | No blanket suppression | Complete owned historical diff read: no added nolint; original checked errors retained |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Native scoped lint | Tooling task, no .ci | Actual three-tree command ran all four flavors with zero findings |
+| Real plugin startup and CallFilterUpdate | Isolated Go integration regression | Named root PASS after independent callback mutation reds. No claim of peer-chain placement or Adj-RIB-In storage |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | Original audit found eleven sites already addressed; remaining three fixed and whole AC scope lint-clean |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Architecture callback regression and boolean preservation | core-design.md committed hunk in 7620e0dfc4; original child test and evaluateCommunityFilter/rewriteVerdict | Yes; source-aware scoped review |
+| Query declaration contract | process-protocol.md Query Mode; cli.answerQuery and sdk.runOrDeclare both use rpc.ProtocolVersion and WriteDeclaration | Yes; no new syntax/SDK contract |
+| Remaining checklist No categories | Owned diff adds no config/schema, command, event, metadata, counter, runtime dependency or RFC requirement; source-anchor grep covered changed producers | Yes; no whole-tree doc/RFC gate |
+
+### Final scoped delta proof
+
+`CGO_ENABLED=1 ./le job run label lint4-close-migration-proof quiet command go test -race -tags ze_bgp -count=1 -v -run '^(TestOrderedStepsAreTheEngineSteps|TestGenericCommunityHandlerCountsRefusals|TestGenericCommunityHandlerEmptyRemoveIsSilentNoOp|TestNoIngressFilterGatesAPeerRouteOnRedistributionConfig)$' ./internal/component/bgp/reactor ./internal/component/bgp/plugins/filter_community ./internal/component/plugin/all`
+exited 0. All four named tests passed; the empty-remove nil/empty subtests also
+passed. No skips or race warnings. Retained log:
+`job-lint4-close-migration-proof-129a1954.log` in the parent's scratch.
+The first launch's one-second tool timeout produced no test output; the
+corrected launch is the completed evidence. No unchanged successful run was
+repeated. R-1 remains an observation about teardown diagnostics, not a failing
+assertion: recovery's eight scenarios passed despite the recorded neighbor-watch
+EPERM and shutdown messages.
