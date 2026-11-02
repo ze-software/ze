@@ -45,8 +45,7 @@ func insertDeclaredFilters(bgpTree map[string]any, peers []*reactor.PeerSettings
 		}
 	}
 	// A dynamic group's members are built from its template, so the template
-	// is the resolved config its condition is judged against, as peerRoles
-	// judges a role.
+	// is the resolved config its condition is judged against.
 	conditional := make(map[*reactor.PeerSettings]sessionMembers, len(groups))
 	for _, dg := range groups {
 		members, err := insertForPeer(dg.Settings, dg.Template, insertions, anyPeer, reg)

@@ -4,20 +4,21 @@
 # VALIDATES: End-to-end user story 9 -- an operator running without roles is not
 #            blocked, and is not left to discover the gap on their own
 # PREVENTS:  goal 7 being met silently. warnPeersWithoutRole
-#            (internal/component/bgp/config/peers.go) is the loud half; a rule
-#            that said nothing would leave the operator with no signal at all.
+#            (internal/component/bgp/plugins/role/roleless.go) is the loud
+#            half; a rule that said nothing would leave the operator with no
+#            signal at all.
 #
 # Two eBGP peers declare no role, so the count in the line is the discriminating
 # assertion: a warning built per peer would print two lines, and one built from
 # the wrong set would print a different number. rolelessPeers is the ONE
-# declaration of that set, and the `ze doctor` check reads the same function
-# through the infra seam, so the two can never enumerate different peers.
+# declaration of that set, and the `ze doctor` check (role/doctor.go) reads the
+# same function, so the two can never enumerate different peers.
 
 # The subject is a CONFIG VERDICT, so the file drives `ze config validate`
-# rather than a session. That is the same peer pipeline the daemon runs at
-# startup (infra.ValidateBGPPeers -> PeersFromConfigTree), reached through the
-# command an operator runs before an upgrade, and it answers in one shot rather
-# than holding a session open for a decision that was already taken at load.
+# rather than a session. validate runs bgp-role's in-process config verifier
+# (verifyRoleConfig), the same parse the plugin installs from at startup, and
+# it answers in one shot rather than holding a session open for a decision that
+# was already taken at load.
 
 stdin=peer:terminator=EOF_PEER
 EOF_PEER

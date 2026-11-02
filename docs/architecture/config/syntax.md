@@ -1500,9 +1500,11 @@ our upstream. The ASNs it rejects are derived from config: the remote ASN of
 every `role import customer` peer, plus any `role transit-asns` set
 (`docs/guide/bgp-role.md`, "The Upstream Check a Role Inserts"). Naming the
 member as `inactive:bgp-role:upstream-asn` in a chain runs that session
-without it. A peer or a dynamic group that declares no role is accepted, and
-`ze doctor` enumerates them under `doctor-bgp-peer-no-role`.
+without it. A peer or a dynamic group that declares no role is accepted. The
+role plugin names them in one warning when it installs or verifies a config,
+and `ze doctor` enumerates them under `doctor-bgp-peer-no-role`.
 <!-- source: internal/component/bgp/plugins/role/upstream.go -- upstreamImportRoles, upstreamExportRoles, deriveUpstreamSet -->
+<!-- source: internal/component/bgp/plugins/role/roleless.go -- rolelessPeers, warnPeersWithoutRole -->
 
 Validation checks local policy filter names against the filter types of the
 top-level `policy` root (the lists marked `ze:filter`, `policy.BuildRegistry`),

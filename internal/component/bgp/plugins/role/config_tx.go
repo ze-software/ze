@@ -41,6 +41,10 @@ type roleConfig struct {
 	peerKeys map[string]struct{}
 	// upstream is the RFC 7454 Section 9 upstream set (deriveUpstreamSet).
 	upstream upstreamSet
+	// roleless names the peers and dynamic groups that declare no role
+	// (rolelessPeers), for the one warning installRoleConfig logs. No filter
+	// reads it.
+	roleless []string
 }
 
 // roleConfigTx is the role plugin's config transaction. It differs from a
@@ -110,9 +114,13 @@ func parseRoleConfig(sections []sdk.ConfigSection) (roleConfig, bool, error) {
 		if err != nil {
 			return roleConfig{}, false, err
 		}
+		roleless, err := rolelessPeers(bgpSubtree)
+		if err != nil {
+			return roleConfig{}, false, err
+		}
 		peers, nameToIP := extractPeerRoleConfigs(section.Data)
 		return roleConfig{peers: peers, nameToIP: nameToIP, peerKeys: configuredPeerKeys(bgpSubtree),
-			upstream: upstream}, true, nil
+			upstream: upstream, roleless: roleless}, true, nil
 	}
 	return roleConfig{}, false, nil
 }
@@ -142,8 +150,10 @@ func policySection(sections []sdk.ConfigSection) (body map[string]any, delivered
 }
 
 // installRoleConfig makes cfg the config the filters and OnValidateOpen
-// read. It prunes nothing (roleConfigTx).
+// read, and says in one line which peers declare no role, so none of this
+// plugin's checks runs on them. It prunes nothing (roleConfigTx).
 func installRoleConfig(cfg roleConfig) error {
+	warnPeersWithoutRole(logger(), cfg.roleless)
 	filterMu.Lock()
 	filterPeerConfigs = cfg.peers
 	filterNameToIP = cfg.nameToIP
@@ -167,4 +177,19 @@ func installedRoleConfig() roleConfig {
 		cfg.upstream = *set
 	}
 	return cfg
+}
+
+// verifyRoleConfig is the plugin's in-process config verifier, which `ze
+// config validate` and the editor run without starting the plugin. It parses
+// with the same parseRoleConfig the transaction installs from, so what it
+// refuses is what Stage 2 refuses, and it logs the roleless warning the
+// install logs: an operator validating a config learns which peers no role
+// check covers before the daemon runs it.
+func verifyRoleConfig(sections []sdk.ConfigSection) error {
+	cfg, _, err := parseRoleConfig(sections)
+	if err != nil {
+		return err
+	}
+	warnPeersWithoutRole(verifyLogger(), cfg.roleless)
+	return nil
 }

@@ -243,8 +243,10 @@ because RFC 7454 is a Best Current Practice: name it as
 
 When role is not configured for a peer, no OTC processing occurs. Routes are forwarded without role-based filtering, and the upstream check is not inserted on that peer: no relationship is declared, so none is implied.
 
-ze says so rather than passing in silence. Config load writes ONE warning naming how many peers and dynamic groups declare no role and the first few by name, and `ze doctor` reports every one of them under `doctor-bgp-peer-no-role`.
+ze says so rather than passing in silence. The role plugin writes ONE warning naming how many peers and dynamic groups declare no role and the first few by name, each time it installs a config (at start and at every reload) and when `ze config validate` checks one. `ze doctor` reports every one of them under `doctor-bgp-peer-no-role`. All three read the same set, so they always name the same peers.
 
 A dynamic group is named with the peers. Its members' AS arrives in the OPEN (RFC 4271 Section 4.2), so ze cannot know a listen range is eBGP, and an IXP route-server range that declares no role is exactly what the report is for. An iBGP peer is left out: a role describes an eBGP relationship, so a route reflector's sessions owe none.
 <!-- source: internal/component/bgp/plugins/role/ -- role plugin implementation -->
-<!-- source: internal/component/bgp/config/peers.go -- rolelessPeers, warnPeersWithoutRole -->
+<!-- source: internal/component/bgp/plugins/role/roleless.go -- rolelessPeers, warnPeersWithoutRole -->
+<!-- source: internal/component/bgp/plugins/role/config_tx.go -- installRoleConfig, verifyRoleConfig -->
+<!-- source: internal/component/bgp/plugins/role/doctor.go -- checkRolelessPeers -->

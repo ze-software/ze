@@ -4,7 +4,7 @@
 // Related: internal/component/doctor/doctor.go -- the runner that reads the registry
 //
 // A doctor check belongs to the package that owns the runtime dependency it
-// probes (ai/patterns/registration.md, "Doctor Check Registry"). These four
+// probes (ai/patterns/registration.md, "Doctor Check Registry"). These three
 // probe BGP configuration, so dropping the BGP engine from a build drops them
 // with it rather than leaving `ze doctor` calling into a component that is not
 // there.
@@ -50,10 +50,6 @@ const diagnosticBGPPeerConfig = "doctor-config-bgp-peer"
 // `ze doctor` output.
 const diagnosticBGPMD5 = "doctor-bgp-md5"
 
-// diagnosticBGPPeerNoRole names a peer or a dynamic group that declares no
-// RFC 9234 role.
-const diagnosticBGPPeerNoRole = "doctor-bgp-peer-no-role"
-
 // diagnosticBGPCaptureDirectory names a capture directory the daemon cannot use.
 const diagnosticBGPCaptureDirectory = "doctor-bgp-capture-directory"
 
@@ -83,15 +79,6 @@ var bgpDoctorChecks = []diagnostic.DoctorCheck{{
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnosticBGPMD5},
 	Check:        doctorCheckBGPMD5,
-}, {
-	Name:         "bgp-peer-no-role",
-	Phase:        diagnostic.DoctorPhasePostConfig,
-	Order:        2130,
-	Component:    doctorComponentBGP,
-	Dependencies: []string{doctorDependencyConfigTree},
-	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnosticBGPPeerNoRole},
-	Check:        doctorCheckBGPPeersWithoutRole,
 }, {
 	Name:         "bgp-capture-directory",
 	Phase:        diagnostic.DoctorPhasePostConfig,
@@ -161,37 +148,6 @@ func doctorCheckBGPPeerConfig(ctx diagnostic.DoctorCheckContext) []diagnostic.Di
 		Code:     diagnosticBGPPeerConfig,
 		Severity: diagnostic.SeverityError,
 		Message:  tb.Str("bgp peer configuration rejected (the daemon will not start on it): ").Err(err).String(),
-	}}
-}
-
-// doctorCheckBGPPeersWithoutRole enumerates the peers and the dynamic groups
-// that declare no RFC 9234 role. Such a peer is accepted, but the checks a role
-// inserts (bgp-role's RFC 7454 Section 9 upstream check) run only on a peer
-// that declares a relationship, so the operator is told which sessions no
-// relationship was stated for, and the gap is a decision they can see rather
-// than a silence.
-//
-// A WARNING, not an error: the config loads and the daemon starts on it. The
-// engine names the same peers in one aggregated line at config load; this check
-// is the door an operator opens on purpose.
-//
-// The tree is CLONED for the reason doctorCheckBGPPeerConfig records: the
-// reporter prunes inactive nodes in place.
-func doctorCheckBGPPeersWithoutRole(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	tree := doctorTree(ctx)
-	if tree == nil || tree.GetContainer("bgp") == nil {
-		return nil
-	}
-	names := rolelessPeersFromTree(tree.Clone())
-	if len(names) == 0 {
-		return nil
-	}
-	var tb textbuf.Buffer
-	return []diagnostic.Diagnostic{{
-		Code:     diagnosticBGPPeerNoRole,
-		Severity: diagnostic.SeverityWarning,
-		Message: tb.Str("peers and dynamic groups declare no RFC 9234 role, so no check a role inserts runs on them: ").
-			Str(textbuf.Join(names, ", ")).String(),
 	}}
 }
 

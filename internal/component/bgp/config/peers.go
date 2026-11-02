@@ -353,11 +353,6 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 		return nil, nil, err
 	}
 
-	// Step 6: A peer that declares no RFC 9234 role gets none of the checks a
-	// role inserts (bgp-role's upstream check, RFC 7454 Section 9), and Ze says
-	// so in one aggregated line rather than passing silently.
-	roles := peerRoles(bgpTree, peers, groups)
-	warnPeersWithoutRole(rolelessPeers(roles))
 	// Step 0a: Refuse a `bgp update-delay` container the reactor could not honor.
 	// The VALUE is read in CreateReactorFromTree; this call is here for the
 	// ERROR alone, because this walk is the door `ze config validate` and `ze
@@ -536,8 +531,8 @@ func warnStrictPeersWithoutEngine(peers []*reactor.PeerSettings, tree *config.Tr
 		return
 	}
 	shown := names
-	if len(shown) > rolelessPeersNamed {
-		shown = shown[:rolelessPeersNamed]
+	if len(shown) > strictPeersNamed {
+		shown = shown[:strictPeersNamed]
 	}
 	configLogger().Warn("peers ask for BFD strict mode and no BFD engine is configured, so they will never establish",
 		"peers", len(names),
@@ -807,48 +802,6 @@ func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 	return nil
 }
 
-// peerRole pairs a peer's settings with an RFC 9234 role its config declares.
-// The role is NOT on PeerSettings: the role plugin owns the leaf, and the peer
-// pipeline reads it off the resolved tree.
-type peerRole struct {
-	settings *reactor.PeerSettings
-	role     string // empty when the peer declares none
-}
-
-// peerRoles pairs every configured peer with the role it declares.
-//
-// A statically configured peer takes its role from its entry in the resolved
-// peer map, which ResolveBGPTree deep-merged over the bgp, group and peer
-// layers, so a role set on a group binds each of its peers. A dynamic group
-// takes its role from the template every member is built from, which binds the
-// members the same way. Pairing by the settings pointer rather than by name
-// keeps a group and a peer that share a name from taking each other's role.
-func peerRoles(bgpTree map[string]any, peers []*reactor.PeerSettings, groups []*reactor.DynamicGroupConfig) []peerRole {
-	pairs := make([]peerRole, 0, len(peers)+len(groups))
-
-	peerMap, _ := bgpTree["peer"].(map[string]any)
-	for _, ps := range peers {
-		resolved, _ := peerMap[ps.Name].(map[string]any)
-		pairs = append(pairs, peerRole{settings: ps, role: declaredRole(resolved)})
-	}
-	for _, dg := range groups {
-		pairs = append(pairs, peerRole{settings: dg.Settings, role: declaredRole(dg.Template)})
-	}
-	return pairs
-}
-
-// declaredRole returns an RFC 9234 role a resolved peer map declares, or the
-// empty string when it declares none. The leaf is role/import, and that
-// `import` is the role sent in the OPEN, never a filter direction.
-func declaredRole(resolved map[string]any) string {
-	roleMap, ok := resolved["role"].(map[string]any)
-	if !ok {
-		return ""
-	}
-	role, _ := roleMap["import"].(string)
-	return role
-}
-
 // filterInstanceName strips the prefix a chain ref can carry, leaving the
 // instance name that keys the policy registry. The plain form carries no
 // prefix; the filter-type form, the plugin form and the canonical form each
@@ -860,107 +813,10 @@ func filterInstanceName(ref string) string {
 	return ref
 }
 
-// rolelessPeers names the peers and the dynamic groups that declare no RFC 9234
-// role, in config order. They are accepted, and the checks a role inserts do
-// not run on them. This is the ONE declaration of that set, read
-// by the warning logged at config load and by the `ze doctor` check, so the two
-// never enumerate different peers.
-func rolelessPeers(pairs []peerRole) []string {
-	var names []string
-	for _, pair := range pairs {
-		if pair.role != "" {
-			continue
-		}
-		if !reportsRoleless(pair.settings) {
-			continue
-		}
-		names = append(names, pair.settings.Name)
-	}
-	return names
-}
-
-// reportsRoleless reports whether a peer that declares no role is named. ONE
-// config leaves it out, and the reason is what the report says: an RFC 9234
-// role describes an eBGP relationship, so a session Ze KNOWS is iBGP owes no
-// role, and naming one would be noise on every route-reflector deployment.
-func reportsRoleless(ps *reactor.PeerSettings) bool {
-	// A dynamic group states no remote AS. It arrives in the member's OPEN
-	// (RFC 4271 Section 4.2), so PeerAS stays 0 on the template
-	// (reactor.ParseDynamicGroupTemplate) and the comparison below has nothing
-	// to compare: 0 is UNKNOWN here, never iBGP. The session can be eBGP, and a
-	// listen range that declares no role is the IXP route-server shape this
-	// report exists for.
-	if ps.IsDynamic {
-		return true
-	}
-	// A static peer states its remote AS or it is refused: parsePeerFromTree
-	// returns ErrIncompleteConfig without it and PeersFromTree drops the peer
-	// (reactor/config.go), so 0 on a static peer is a Ze defect rather than an
-	// operator's config. Name it instead of dropping it. An unknown AS is not
-	// evidence of iBGP, and a peer in the warning is how such a defect reaches
-	// a reader at all.
-	if ps.PeerAS == 0 {
-		return true
-	}
-	// The one rule (reactor, session_as_migration.go), not the equality re-derived here. A
-	// session running under the RFC 7705 Section 4.2 migration ASN is iBGP, so it owes no
-	// RFC 9234 role and naming it would put every migrating route reflector in this warning.
-	return ps.IsEBGP()
-}
-
-// warnPeersWithoutRole logs ONE line for the whole config, naming how many
-// peers and dynamic groups declare no role and the first few by name. One line
-// per peer would bury the fact it exists to report on a router with a thousand
-// sessions.
-func warnPeersWithoutRole(names []string) {
-	if len(names) == 0 {
-		return
-	}
-	shown := names
-	if len(shown) > rolelessPeersNamed {
-		shown = shown[:rolelessPeersNamed]
-	}
-	configLogger().Warn("peers and dynamic groups declare no RFC 9234 role, so no check a role inserts runs on them",
-		"peers", len(names),
-		"first", textbuf.Join(shown, ", "))
-}
-
-// rolelessPeersNamed bounds how many peer names the aggregated warning prints.
-// The count is always exact; the names are a sample that keeps the line short.
-const rolelessPeersNamed = 5
-
-// rolelessPeersFromTree names the peers and the dynamic groups a config
-// declares with no RFC 9234 role. The bgp-peer-no-role doctor check reads it
-// (doctor_checks.go), so the doctor report and the config-load warning
-// enumerate one set.
-//
-// MUST be called on a CLONE: it prunes inactive nodes from the tree in place,
-// exactly as the peer pipeline does.
-//
-// An unreadable config yields no names rather than an error: a config the
-// engine refuses is already reported by doctor's own peer-validation check, and
-// naming the same failure twice tells the operator nothing new.
-func rolelessPeersFromTree(tree *config.Tree) []string {
-	schema, err := config.YANGSchema()
-	if err != nil {
-		return nil
-	}
-	config.PruneInactive(tree, schema)
-
-	bgpTree, err := ResolveBGPTree(tree)
-	if err != nil {
-		return nil
-	}
-	peers, err := reactor.PeersFromTree(bgpTree)
-	if err != nil {
-		return nil
-	}
-	groups, err := dynamicGroupsFromTree(bgpTree)
-	if err != nil {
-		return nil
-	}
-	return rolelessPeers(peerRoles(bgpTree, peers, groups))
-}
+// strictPeersNamed bounds how many peer names the aggregated BFD-strict
+// warning prints. The count is always exact; the names are a sample that keeps
+// the line short.
+const strictPeersNamed = 5
 
 // applyLoopDetectionConfig extracts loop-detection policy settings and applies them
 // to peers whose import filter chains reference the filter instance by name.

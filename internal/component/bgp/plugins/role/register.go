@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // The route metadata keys this plugin's ingress step writes (otc.go), as
@@ -81,6 +82,23 @@ func init() {
 		YANG:             roleyang.ZeRoleYANG,
 		CapabilityCodes:  []uint8{roleCapCode},
 		RunEngine:        RunRolePlugin,
+		// `ze config validate` and the editor run this without starting the
+		// plugin: the same parse Stage 2 installs from, and the roleless
+		// warning the install logs (config_tx.go).
+		InProcessConfigVerifier: verifyRoleConfig,
+		// The peers no role check covers, as `ze doctor` reports them
+		// (doctor.go). Order 2130 is the slot the check held in the BGP
+		// engine's table before it moved here, so the report prints in the
+		// order it always did.
+		DoctorChecks: []registry.DoctorCheckDef{{
+			Name:         "bgp-peer-no-role",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        2130,
+			Dependencies: []string{"config-tree"},
+			Platforms:    []string{"any"},
+			Codes:        []string{doctorPeerNoRoleCode},
+			Check:        checkRolelessPeers,
+		}},
 		ConfigureEngineLogger: func(loggerName string) {
 			ConfigureLogger(slogutil.Logger(loggerName))
 		},

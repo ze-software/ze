@@ -8,20 +8,23 @@ package role
 
 import (
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // rolelessPeers names the peers and the dynamic groups of a bgp config subtree
 // that declare no RFC 9234 role, sorted by name. They are accepted, and none of
 // the checks a role inserts (the OTC procedures, the RFC 7454 Section 9 upstream
-// check) runs on them. It is the plugin's own declaration of that set, so the
-// config-load warning and the `ze doctor` check can live in the plugin that
-// owns the role: bgpconfig.rolelessPeers still names it from the resolved
-// tree, and goes when those two readers move here.
+// check) runs on them. This is the ONE declaration of that set: the warning
+// logged when a config is installed or verified (warnPeersWithoutRole) and the
+// `ze doctor` check (doctor.go) both read it, so the two never enumerate
+// different peers.
 //
 // A role is declared when the peer or its group carries a role container this
 // plugin parses (parseRoleFromMap), the same reader extractPeerRoleConfigs uses,
@@ -131,3 +134,32 @@ func sessionASN(leaf string, layers []map[string]any) (asn uint32, configured bo
 	}
 	return 0, false, nil
 }
+
+// warnPeersWithoutRole logs ONE line for the whole config, naming how many
+// peers and dynamic groups declare no role and the first few by name. One line
+// per peer would bury the fact it exists to report on a router with a thousand
+// sessions.
+func warnPeersWithoutRole(log *slog.Logger, names []string) {
+	if len(names) == 0 {
+		return
+	}
+	shown := names
+	if len(shown) > rolelessPeersNamed {
+		shown = shown[:rolelessPeersNamed]
+	}
+	log.Warn("peers and dynamic groups declare no RFC 9234 role, so no check a role inserts runs on them",
+		"peers", len(names),
+		"first", textbuf.Join(shown, ", "),
+		"action", "add `role { import <role> }` to each peer or group that should carry one, or leave it out deliberately")
+}
+
+// rolelessPeersNamed bounds how many peer names the aggregated warning prints.
+// The count is always exact; the names are a sample that keeps the line short.
+const rolelessPeersNamed = 5
+
+// verifyLogger is the logger the in-process config verifier warns through.
+// `ze config validate` runs that verifier without starting this plugin, so
+// logger() is still the discard logger there (ConfigureEngineLogger never
+// ran); this one prints under the same subsystem name the engine gives the
+// plugin (plugin.CanonicalSubsystemName of rolePluginName).
+var verifyLogger = slogutil.LazyLogger("bgp.role")
