@@ -270,7 +270,10 @@ func readChangeWeek(sourcePath string, vocabulary map[string]string) (changeWeek
 	if err != nil {
 		return changeWeek{}, err
 	}
-	days := int(end.Sub(start)/(24*time.Hour)) + 1
+	// Both boundaries are UTC midnights. Unix seconds cover all four-digit
+	// years without time.Duration's roughly 292-year saturation limit.
+	const secondsPerDay = 24 * 60 * 60
+	days := int((end.Unix()-start.Unix())/secondsPerDay) + 1
 	intro, sections, found := splitWeekSections(string(body))
 	if !found {
 		return changeWeek{}, fmt.Errorf("no themed section header; a week is written as **Header** lines")

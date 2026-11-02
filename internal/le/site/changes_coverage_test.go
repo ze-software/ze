@@ -112,3 +112,33 @@ func TestUpdateCoverageRefusesInvalidBounds(t *testing.T) {
 		})
 	}
 }
+
+// TestUpdateCoverageBeyondDurationRange checks the real post reader against
+// Gregorian 400-year cycles, including every year a four-digit date can name.
+func TestUpdateCoverageBeyondDurationRange(t *testing.T) {
+	for _, test := range []struct {
+		covers   string
+		days     int
+		duration string
+	}{
+		{"2000-01-01 .. 2399-12-31", 146097, "146097 days"},
+		{"1600-01-01 .. 1999-12-31", 146097, "146097 days"},
+		{"0000-01-01 .. 9999-12-31", 3652425, "3652425 days"},
+	} {
+		t.Run(test.covers, func(t *testing.T) {
+			week, err := writeWeek(t, "coverage.md", "---\ncovers: "+test.covers+"\ntags: BGP\n---\n**Update**\nIntro.\n")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if week.DurationDays != test.days {
+				t.Errorf("duration_days = %d, want %d", week.DurationDays, test.days)
+			}
+			if week.Duration != test.duration {
+				t.Errorf("duration = %q, want %q", week.Duration, test.duration)
+			}
+			if !strings.Contains(changeWeekMirror(week), "("+test.duration+")") {
+				t.Errorf("published mirror omits %q", test.duration)
+			}
+		})
+	}
+}
