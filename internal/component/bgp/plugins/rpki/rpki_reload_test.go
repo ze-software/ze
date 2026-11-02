@@ -178,6 +178,12 @@ func startRPKIReloadReceiver(t *testing.T, ctx context.Context) *rpc.DirectBridg
 	}
 	previous := rpc.GetBatchValidator()
 	bridge := rpc.NewDirectBridge()
+	// Adj-RIB-In asks the gate owners to announce again once it starts
+	// (askGateOwners emits bgp-rib/gate-query), and the engine's bridge
+	// answers emit-event (wireBridgeDispatch). No subscriber exists in this
+	// harness, so the emit reaches nobody: zero deliveries, as an engine with
+	// no subscriber answers it.
+	bridge.SetEmitEvent(func(_, _, _, _, _ string) (int, error) { return 0, nil })
 	pluginEnd, engineEnd := net.Pipe()
 	mux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
 	done := make(chan int, 1)
