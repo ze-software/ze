@@ -393,6 +393,19 @@ func (t *Table) NeighborAddress(interfaceName string, id types.RouterID) (netip.
 	return n.Address, true
 }
 
+// NeighborInterfaceID returns the OSPFv3 Interface ID the neighbor identified by
+// (interfaceName, id) advertised in its Hello, which names its Link-LSA on the link
+// (RFC 5340 Section 4.4.3.8). The second return is false when the neighbor is absent.
+func (t *Table) NeighborInterfaceID(interfaceName string, id types.RouterID) (uint32, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	n, ok := t.neighbors[tableKey{iface: interfaceName, router: id}]
+	if !ok {
+		return 0, false
+	}
+	return n.InterfaceID, true
+}
+
 // FloodNeighbors returns Exchange, Loading, and Full neighbors on interfaceName.
 func (t *Table) FloodNeighbors(interfaceName string) []FloodNeighbor {
 	t.mu.RLock()

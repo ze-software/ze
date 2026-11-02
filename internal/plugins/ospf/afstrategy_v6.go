@@ -16,6 +16,7 @@ package ospf
 import (
 	"net/netip"
 
+	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
@@ -440,11 +441,16 @@ func (s v6Strategy) NextHopSource() ospfspf.NextHopSource {
 	if s.eng == nil {
 		return v6NextHop{}
 	}
-	return v6NextHop{neighbors: s.eng.neighbors}
+	return v6NextHop{neighbors: s.eng.neighbors, lsdb: s.eng.lsdb, af: s.eng.af}
 }
 
+// v6NextHop resolves next hops from the adjacency table. An IPv4 address family
+// reads the next hop from the neighbor's Link-LSA instead (RFC 5838 Section 2.5),
+// so it also holds the LSDB and the family.
 type v6NextHop struct {
 	neighbors *ospfneighbor.Table
+	lsdb      *ospflsdb.LSDB
+	af        addressFamily
 }
 
 func (n v6NextHop) P2PNextHop(g *ospfspf.Graph, neighbor, root types.RouterID, link packet.RouterLink) (ospfspf.NextHop, bool) {
@@ -461,12 +467,51 @@ func (n v6NextHop) onLink(g *ospfspf.Graph, router, root types.RouterID, link pa
 	}
 	localID := v6LSIDToUint32(types.LinkStateID(link.LinkData))
 	addr, iface, ok := n.neighbors.NextHopOnLink(g.Area, root, localID, router)
+	if ok && n.af.isIPv4() {
+		addr, ok = n.ipv4NextHop(iface, router)
+	}
 	if link.Type == packet.RouterLinkTypeVirtual {
 		// A synthetic virtual interface cannot be installed in the FIB. Its global
 		// endpoint is recursively resolved through the transit area's physical route.
 		iface = ""
 	}
 	return ospfspf.NextHop{Addr: addr, Interface: iface, Router: router}, ok
+}
+
+// ipv4NextHop returns the IPv4 next hop of an IPv4 address family: the address the
+// neighbor's Link-LSA on iface carries. RFC 5838 Section 2.5: "the link's IPv4
+// address will be advertised in the "link local address" field of the IPv4
+// instance's Link-LSA. This address is placed in the first 32 bits of the "link
+// local address" field and is used for IPv4 next-hop calculations." Without that
+// Link-LSA there is no IPv4 next hop: the neighbor's IPv6 link-local is not one.
+func (n v6NextHop) ipv4NextHop(iface string, router types.RouterID) (netip.Addr, bool) {
+	if n.lsdb == nil {
+		return netip.Addr{}, false
+	}
+	ifaceID, ok := n.neighbors.NeighborInterfaceID(iface, router)
+	if !ok {
+		return netip.Addr{}, false
+	}
+	lsa, ok := n.lsdb.LookupLinkLSA(iface, v6LinkKey(router, ifaceID))
+	if !ok {
+		return netip.Addr{}, false
+	}
+	if lsa.Header.Age.IsMaxAge() {
+		return netip.Addr{}, false
+	}
+	decoded, err := ospfv3packet.DecodeLSA(lsa.RawBytes)
+	if err != nil {
+		return netip.Addr{}, false
+	}
+	body, err := decoded.DecodeLink()
+	if err != nil {
+		return netip.Addr{}, false
+	}
+	addr := v6ForwardingAddr(body.LinkLocalAddr, n.af)
+	if addr.IsUnspecified() {
+		return netip.Addr{}, false
+	}
+	return addr, true
 }
 
 // SummaryReader supplies the OSPFv3 inter-area summary decode for the RFC 2328 sec 16.3

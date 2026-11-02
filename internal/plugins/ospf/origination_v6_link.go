@@ -3,6 +3,7 @@
 package ospf
 
 import (
+	"net"
 	"net/netip"
 	"sort"
 
@@ -39,29 +40,68 @@ func v6ShouldOriginateLinkLSA(iface ospflsdb.InterfaceInfo) bool {
 // RFC 5340 §4.4.3.8: a router originates one Link-LSA per attached link carrying
 // the link-local address, link options, router priority, and prefixes on that link.
 func (e *engine) v6OriginateLinkLSA(router types.RouterID, iface ospflsdb.InterfaceInfo) (types.LSAKey, bool) {
-	ll := iface.IPv6LinkLocal
-	if !ll.IsValid() {
-		ll = interfaceIPv6LinkLocal(iface.Name)
-	}
-	if !ll.IsValid() || !ll.Is6() || ll.Is4In6() || !ll.IsLinkLocalUnicast() {
+	linkAddr, prefixes, ok := e.linkLSAAddressing(iface)
+	if !ok {
 		return types.LSAKey{}, false
 	}
 	body := ospfv3packet.LinkLSA{
 		RtrPriority:   iface.Priority,
 		Options:       neutralToV6Options(iface.Options),
-		LinkLocalAddr: ll.As16(),
-		Prefixes:      v6LinkLSAPrefixes(iface),
+		LinkLocalAddr: linkAddr,
+		Prefixes:      prefixes,
 	}
 	bodyBytes := make([]byte, body.EncodedLen())
 	body.WriteTo(bodyBytes, 0)
 	key := v6LinkKey(router, iface.InterfaceID)
-	_, ok := e.lsdb.OriginateLinkSelf(iface.Name, iface.AreaID, key, bodyBytes, func(seq types.LSSequenceNumber, purge bool) packet.LSA {
+	_, ok = e.lsdb.OriginateLinkSelf(iface.Name, iface.AreaID, key, bodyBytes, func(seq types.LSSequenceNumber, purge bool) packet.LSA {
 		return v6SelfLSA(ospfv3packet.LSA{
 			Header: v6OriginHeader(ospfv3types.LSTypeLink, ospfv3types.LinkStateID(key.LinkStateID), router, seq, purge),
 			Link:   &body,
 		})
 	})
 	return key, ok
+}
+
+// linkLSAAddressing returns the Link-LSA's "link local address" field and on-link
+// prefixes for this engine's address family. An IPv6 family carries the interface's
+// IPv6 link-local and IPv6 prefixes. An IPv4 family carries the link's IPv4 address
+// and IPv4 prefix: RFC 5838 Section 2.5, "the link's IPv4 address will be advertised
+// in the "link local address" field of the IPv4 instance's Link-LSA. This address is
+// placed in the first 32 bits of the "link local address" field and is used for IPv4
+// next-hop calculations. The remaining bits MUST be set to zero." Without the address
+// the family needs, no Link-LSA is originated.
+func (e *engine) linkLSAAddressing(iface ospflsdb.InterfaceInfo) ([16]byte, []ospfv3packet.Prefix, bool) {
+	var field [16]byte
+	if e.af.isIPv4() {
+		if iface.Address == ([4]byte{}) {
+			return field, nil, false
+		}
+		copy(field[:4], iface.Address[:])
+		return field, v4LinkLSAPrefixes(iface), true
+	}
+	ll := iface.IPv6LinkLocal
+	if !ll.IsValid() {
+		ll = interfaceIPv6LinkLocal(iface.Name)
+	}
+	if !ll.IsValid() || !ll.Is6() || ll.Is4In6() || !ll.IsLinkLocalUnicast() {
+		return field, nil, false
+	}
+	return ll.As16(), v6LinkLSAPrefixes(iface), true
+}
+
+// v4LinkLSAPrefixes is the IPv4 family's on-link prefix: the interface address under
+// its mask, encoded as a 0-32-bit prefix (RFC 5838 Section 2.7). An interface with no
+// mask, or a mask that is not contiguous, carries none.
+func v4LinkLSAPrefixes(iface ospflsdb.InterfaceInfo) []ospfv3packet.Prefix {
+	bits, _ := net.IPMask(iface.NetworkMask[:]).Size()
+	if bits == 0 {
+		return nil
+	}
+	prefix, ok := netipToV6Prefix(netip.PrefixFrom(netip.AddrFrom4(iface.Address), bits), 0)
+	if !ok {
+		return nil
+	}
+	return []ospfv3packet.Prefix{prefix}
 }
 
 func v6LinkLSAPrefixes(iface ospflsdb.InterfaceInfo) []ospfv3packet.Prefix {
