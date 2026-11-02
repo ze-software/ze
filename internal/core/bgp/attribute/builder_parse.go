@@ -4,6 +4,7 @@ package attribute
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -188,7 +189,9 @@ func (b *Builder) ParseExtCommunity(s string) error {
 
 // ParseSingleExtCommunity reads one extended community in the NAMED vocabulary
 // AppendDecoded renders -- target:65000:1, rate-limit:1000:packets -- and returns
-// its eight wire octets.
+// its eight wire octets. It also reads the two hex forms: the raw 8-octet
+// "0x<16 hex digits>" an operator writes for a type Ze has no keyword for, and
+// the "0x<type><subtype>:<value>" fallback AppendDecoded writes for one.
 //
 // Exported because the decode and the encode directions must agree on one
 // vocabulary. AppendDecoded (extcomm_decoded.go) is the only renderer, and a
@@ -197,6 +200,12 @@ func (b *Builder) ParseExtCommunity(s string) error {
 func ParseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 	if ec, matched, err := ParseExtendedCommunityKeyword(s); matched {
 		return ec, err
+	}
+	if IsExtendedCommunityHex(s) {
+		return ParseExtendedCommunityHex(s)
+	}
+	if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
+		return parseExtCommunityTypedHex(s)
 	}
 
 	parts := strings.SplitN(s, ":", 3)
@@ -279,6 +288,35 @@ func ParseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 		}
 	}
 
+	return ec, nil
+}
+
+// parseExtCommunityTypedHex reads "0x<type><subtype>:<value>", the form
+// AppendDecoded writes for a type it does not name: four hex digits of type
+// and sub-type, a colon, then the twelve hex digits of the six value octets.
+// RFC 4360 Section 2: "Each Extended Community is encoded as an 8-octet
+// quantity". Without this reader, a community of an unnamed type that one
+// consumer rendered could not be handed back to the engine (a filter's set).
+func parseExtCommunityTypedHex(s string) (ExtendedCommunity, error) {
+	typeDigits, valueDigits, found := strings.Cut(s[2:], ":")
+	if !found {
+		return ExtendedCommunity{}, fmt.Errorf("invalid extended community %q: expected 0x<type><subtype>:<value>", s)
+	}
+	if len(typeDigits) != 4 {
+		return ExtendedCommunity{}, fmt.Errorf(
+			"invalid extended community %q: the type and sub-type are 4 hex digits, got %d", s, len(typeDigits))
+	}
+	if len(valueDigits) != 12 {
+		return ExtendedCommunity{}, fmt.Errorf(
+			"invalid extended community %q: the value is 12 hex digits (6 octets), got %d", s, len(valueDigits))
+	}
+	var ec ExtendedCommunity
+	if _, err := hex.Decode(ec[0:2], []byte(typeDigits)); err != nil {
+		return ExtendedCommunity{}, fmt.Errorf("invalid extended community %q: %w", s, err)
+	}
+	if _, err := hex.Decode(ec[2:8], []byte(valueDigits)); err != nil {
+		return ExtendedCommunity{}, fmt.Errorf("invalid extended community %q: %w", s, err)
+	}
 	return ec, nil
 }
 

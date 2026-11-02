@@ -273,3 +273,33 @@ func TestBuilderParseLocalPref(t *testing.T) {
 		})
 	}
 }
+
+// TestParseSingleExtCommunityReadsTheHexForms proves the parser reads back
+// what AppendDecoded writes for a type it does not name, and the raw 8-octet
+// form, so a consumer that renders a community can hand it back to the
+// engine. Method: render unnamed types, parse the text, compare octets; then
+// refuse every malformed width.
+//
+// PREVENTS: a filter that strips an extended community of an unnamed type
+// answering a set the engine refuses ("unknown extended-community type").
+func TestParseSingleExtCommunityReadsTheHexForms(t *testing.T) {
+	for _, comm := range []ExtendedCommunity{
+		{0x43, 0x0b, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+		{0x00, 0xff, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+		{0x08, 0x00, 0, 0, 0, 0, 0, 1},
+	} {
+		text := comm.String()
+		got, err := ParseSingleExtCommunity(text)
+		require.NoError(t, err, text)
+		assert.Equal(t, comm, got, text)
+	}
+
+	raw, err := ParseSingleExtCommunity("0x430b010203040506")
+	require.NoError(t, err)
+	assert.Equal(t, ExtendedCommunity{0x43, 0x0b, 1, 2, 3, 4, 5, 6}, raw)
+
+	for _, bad := range []string{"0x430b:0102030405", "0x43:010203040506", "0x430b:01020304050g", "0x430b"} {
+		_, err := ParseSingleExtCommunity(bad)
+		assert.Error(t, err, bad)
+	}
+}
