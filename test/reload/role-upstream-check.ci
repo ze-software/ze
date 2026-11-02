@@ -1,0 +1,218 @@
+# Test: the upstream check bgp-role inserts rejects a customer's route whose
+#       AS path carries an upstream ASN, and follows the config on reload.
+# Initial config: a dynamic group of customers (role import provider, so the
+#                 check runs on import) whose role transit-asns names asn-set
+#                 FAR-TRANSIT (64777, a provider this router does not peer
+#                 with), and a provider peer (role import customer, AS 64999)
+#                 that never connects (Ze only listens for it): its
+#                 configured remote ASN is enough.
+# Live change:    the staged fixture (reload/live-stages, run inside the
+#                 daemon) removes the provider peer and sends SIGHUP. Nothing
+#                 else changes.
+# Expected:       the customer's live import chain, through the inserted
+#                 bgp-role:upstream-asn member, rejects AS_PATH 65001 64999
+#                 and 65001 64777 and accepts 65001 65010 before the reload;
+#                 after it, 65001 64999 is accepted and 65001 64777 still
+#                 rejected. The customer's session survives: one connection,
+#                 closed only by the Cease after the last stage.
+#
+# VALIDATES: spec-filter-wire-6-stage-filters D-16 / D-19: RFC 7454 Section 9,
+#            a customer's routes "must not be accepted" when their paths hold
+#            "upstream transit providers". The set is derived from role import
+#            customer peers and role transit-asns, and a reload re-derives it
+#            with no session reset (docs/guide/bgp-role.md).
+# PREVENTS: the check missing the provider set, an asn-set ignored, or a
+#           reload keeping the stale set.
+#
+# DISCRIMINATION: with the insertion dropped (upstreamInsertions answering
+# nil) or evaluateUpstream's carries() verdict inverted, the first stage's
+# "action":"reject" answers "action":"accept" and the stage fails.
+
+option=timeout:value=60s
+option=env:var=ze.log.bgp.reactor:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65001
+option=tcp_connections:value=1
+option=timeout:value=50s
+# Role capability: drop ze-peer's default, then announce Customer (0x03), the
+# complement of Ze's local role provider.
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+# ze-peer creates this file on the daemon's first UPDATE; the staged fixture
+# holds its first read until it exists.
+option=established-file:path=established
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# The clean shutdown after the last stage, on the SAME connection: Cease (6) /
+# Administrative Shutdown (2, RFC 4486) with the RFC 8203 default text.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+policy {
+	asn-set FAR-TRANSIT {
+		asn [ 64777 ];
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	group customers {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.1/32
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					mode enable
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		role {
+			import provider
+			transit-asns FAR-TRANSIT
+		}
+	}
+
+	peer provider {
+		connection {
+			remote {
+				ip 127.0.0.2
+				connect false
+			}
+			local {
+				ip 127.0.0.2
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 64999
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		role {
+			import customer
+		}
+	}
+}
+EOF_CONF
+
+# The second config: the provider peer is gone, nothing else differs. The
+# group and the plugin block are byte-identical, so the customer's session
+# and the staged fixture survive.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+policy {
+	asn-set FAR-TRANSIT {
+		asn [ 64777 ];
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	group customers {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.1/32
+			}
+			local {
+				ip 127.0.0.1
+				accept true
+			}
+		}
+		session {
+			asn {
+				local 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					mode enable
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		role {
+			import provider
+			transit-asns FAR-TRANSIT
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+await-file established
+# Before the reload: 64999 is the provider peer's ASN, 64777 is in FAR-TRANSIT,
+# 65010 is neither.
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE90000FDE740030401010101180A0000 => "action":"reject"
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE90000FD0940030401010101180A0000 => "action":"reject"
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE90000FDF240030401010101180A0000 => "action":"accept"
+reload config2.conf
+# After it: no peer is a provider any more, and FAR-TRANSIT still names 64777.
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE90000FDE740030401010101180A0000 => "action":"accept"
+has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE90000FD0940030401010101180A0000 => "action":"reject"
+say ROLE-UPSTREAM: the reload re-derived the upstream set
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=le test peer --dial 127.0.0.1:$PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-role -:stdin=ze-bgp:timeout=60s
+
+expect=stderr:contains=ROLE-UPSTREAM: the reload re-derived the upstream set
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=LIVE-STAGES line
+reject=stderr:pattern=dynamic peer restart required
+# The customer's session is a DYNAMIC peer's, built once, before the reload.
+expect=stderr:contains=dynamic peer created
+reject=stderr:pattern=received SIGHUP[\s\S]*dynamic peer created
