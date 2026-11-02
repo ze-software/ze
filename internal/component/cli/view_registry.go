@@ -178,9 +178,9 @@ func (m *Model) SetViewFactory(key string, factory any) {
 	m.viewFactories[key] = factory
 }
 
-// viewFactoryRaw returns the raw factory stored under key and whether one is
+// ViewFactory returns the raw factory stored under key and whether one is
 // present. Callers assert it to the view's concrete factory type.
-func (m *Model) viewFactoryRaw(key string) (any, bool) {
+func (m *Model) ViewFactory(key string) (any, bool) {
 	if m.viewFactories == nil {
 		return nil, false
 	}

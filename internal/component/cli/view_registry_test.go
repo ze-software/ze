@@ -94,7 +94,7 @@ func TestViewRegistryDiscoversRegisteredView(t *testing.T) {
 		prefix: "unittestview",
 		start: func(m *Model, _ string) tea.Cmd {
 			started = true
-			gotFactory, _ = m.viewFactoryRaw(key)
+			gotFactory, _ = m.ViewFactory(key)
 			return nil
 		},
 	})

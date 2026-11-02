@@ -318,7 +318,7 @@ func (m *Model) SetPingFactory(f PingFactory) {
 // misconfiguration, surfaced by the caller as an unavailable status message,
 // never a nil-driven silent no-op (ai/rules/evidence.md).
 func (m *Model) pingFactory() PingFactory {
-	raw, present := m.viewFactoryRaw(ViewKeyPing)
+	raw, present := m.ViewFactory(ViewKeyPing)
 	if !present {
 		return nil
 	}

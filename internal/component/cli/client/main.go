@@ -5,7 +5,6 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -1169,19 +1168,11 @@ func injectViewFactories(m *unicli.Model, dashboard unicli.DashboardFactory) {
 		case unicli.ViewKeyDashboard:
 			m.SetViewFactory(v.Key, dashboard)
 		case unicli.ViewKeyTraceroute:
-			m.SetViewFactory(v.Key, unicli.TracerouteFactory(streamingTracerouteFactory))
+			m.SetViewFactory(v.Key, unicli.TracerouteFactory(traceroutecmd.NewTracerouteSession))
 		case unicli.ViewKeyPing:
-			m.SetViewFactory(v.Key, unicli.PingFactory(streamingPingFactory))
+			m.SetViewFactory(v.Key, unicli.PingFactory(pingcmd.NewPingSession))
 		}
 	}
-}
-
-func streamingTracerouteFactory(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {
-	return traceroutecmd.NewTracerouteSession(ctx, target, maxHops)
-}
-
-func streamingPingFactory(ctx context.Context, target string, interval, timeout time.Duration, count, size int) (<-chan map[string]any, context.CancelFunc, error) {
-	return pingcmd.NewPingSession(ctx, target, interval, timeout, count, size)
 }
 
 func parseRemote(s string) (string, string) {

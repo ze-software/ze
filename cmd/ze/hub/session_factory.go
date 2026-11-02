@@ -10,13 +10,11 @@
 package hub
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync/atomic"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
 
@@ -237,9 +235,9 @@ func injectViewFactories(m *cli.Model, executor zessh.CommandExecutor) {
 		case cli.ViewKeyDashboard:
 			m.SetViewFactory(v.Key, dashboardFactoryFromExecutor(executor))
 		case cli.ViewKeyTraceroute:
-			m.SetViewFactory(v.Key, cli.TracerouteFactory(streamingTracerouteFactory))
+			m.SetViewFactory(v.Key, cli.TracerouteFactory(traceroutecmd.NewTracerouteSession))
 		case cli.ViewKeyPing:
-			m.SetViewFactory(v.Key, cli.PingFactory(streamingPingFactory))
+			m.SetViewFactory(v.Key, cli.PingFactory(pingcmd.NewPingSession))
 		}
 	}
 }
@@ -256,12 +254,4 @@ func dashboardFactoryFromExecutor(cmdExec zessh.CommandExecutor) cli.DashboardFa
 			return "", err
 		}, nil
 	}
-}
-
-func streamingTracerouteFactory(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {
-	return traceroutecmd.NewTracerouteSession(ctx, target, maxHops)
-}
-
-func streamingPingFactory(ctx context.Context, target string, interval, timeout time.Duration, count, size int) (<-chan map[string]any, context.CancelFunc, error) {
-	return pingcmd.NewPingSession(ctx, target, interval, timeout, count, size)
 }

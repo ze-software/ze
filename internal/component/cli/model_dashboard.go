@@ -298,7 +298,7 @@ func (ds *dashboardState) moveSelection(delta int) {
 // dashboardFactory returns the injected DashboardFactory, or nil when none is
 // registered or the stored value is the wrong type (fail-closed).
 func (m *Model) dashboardFactory() DashboardFactory {
-	raw, present := m.viewFactoryRaw(ViewKeyDashboard)
+	raw, present := m.ViewFactory(ViewKeyDashboard)
 	if !present {
 		return nil
 	}

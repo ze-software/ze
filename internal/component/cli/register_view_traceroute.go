@@ -101,7 +101,7 @@ func (m *Model) setTracerouteFactory(f TracerouteFactory) {
 // tracerouteFactory returns the injected TracerouteFactory, or nil when none is
 // registered or the stored value is the wrong type (fail-closed).
 func (m *Model) tracerouteFactory() TracerouteFactory {
-	raw, present := m.viewFactoryRaw(ViewKeyTraceroute)
+	raw, present := m.ViewFactory(ViewKeyTraceroute)
 	if !present {
 		return nil
 	}
