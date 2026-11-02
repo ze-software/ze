@@ -14,7 +14,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"strconv"
 
 	"github.com/ze-software/ze/internal/component/command"
 
@@ -29,6 +28,9 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-ping:monitor-ping", Handler: handleMonitorPing},
 		pluginserver.RPCRegistration{WireMethod: "ze-ping:resolve-ping", Handler: handleResolvePing},
 	)
+	// The streaming route of `monitor ping` (`ze cli -c`, SSH exec). The TUI
+	// opens the ping view first, and `ze monitor ping` runs monitorPingLocal.
+	pluginserver.RegisterStreamingHandler("monitor ping", pluginserver.OneShotSample, streamMonitorPing)
 
 	command.MustRegisterLocalMeta("show ping", showPingLocal, registry.Meta{
 		ShortHelp: "Ping a target using the internal ICMP engine (works without the daemon)",
@@ -58,12 +60,10 @@ func monitorPingLocal(validated command.ValidatedArgs) int {
 		tb.StdErr() //nolint:errcheck // stderr
 		return 1
 	}
-	dest := mp.Dest
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	ch, cancel, sessionErr := NewPingSession(ctx, dest.String(), mp.Interval, mp.Timeout, mp.Count, mp.Size)
+	ch, cancel, sessionErr := NewPingSession(ctx, mp.Dest.String(), mp.Interval, mp.Timeout, mp.Count, mp.Size)
 	if sessionErr != nil {
 		var tb textbuf.Buffer
 		tb.Str("monitor ping: ").Err(sessionErr).Byte('\n')
@@ -72,22 +72,11 @@ func monitorPingLocal(validated command.ValidatedArgs) int {
 	}
 	defer cancel()
 
-	var tb textbuf.Buffer
-	tb.Str("PING ").Str(dest.String()).Str(" (Ctrl-C to stop)\n")
-	tb.StdOut() //nolint:errcheck // stdout
-
-	for result := range ch {
-		tb.Reset(0)
-		seq, _ := result["seq"].(int)
-		status, _ := result[fieldStatus].(string)
-		tb.Str("  seq=").Int(int64(seq))
-		if status == "ok" {
-			rtt, _ := result["rtt-ms"].(float64)
-			tb.Str("  rtt=").Str(strconv.FormatFloat(rtt, 'f', 3, 64)).Str("ms\n")
-		} else {
-			tb.Str("  ").Str(status).Byte('\n')
-		}
-		tb.StdOut() //nolint:errcheck // stdout
+	if err := writePingRows(os.Stdout, mp, ch); err != nil {
+		var tb textbuf.Buffer
+		tb.Str("monitor ping: ").Err(err).Byte('\n')
+		tb.StdErr() //nolint:errcheck // stderr
+		return 1
 	}
 	return 0
 }

@@ -504,7 +504,7 @@ func summarizePingReplies(dest netip.Addr, replies []map[string]any) map[string]
 		"sent":         sent,
 		"received":     received,
 		"loss-percent": lossPercent,
-		"replies":      replies,
+		fieldReplies:   replies,
 	}
 	if received > 0 {
 		result["min-rtt-ms"] = minMs
@@ -529,6 +529,6 @@ func emptyPingResult(dest netip.Addr) map[string]any {
 		"sent":         0,
 		"received":     0,
 		"loss-percent": 0.0,
-		"replies":      make([]map[string]any, 0),
+		fieldReplies:   make([]map[string]any, 0),
 	}
 }

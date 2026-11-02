@@ -23,7 +23,7 @@ func printPingResults(w io.Writer, results map[string]any) {
 	tb.Int(int64(received)).Str(" received, ")
 	tb.Str(strconv.FormatFloat(loss, 'f', 1, 64)).Str("% loss\n")
 
-	if replies, ok := results["replies"].([]map[string]any); ok {
+	if replies, ok := results[fieldReplies].([]map[string]any); ok {
 		for _, r := range replies {
 			seq, _ := r["seq"].(int)
 			status, _ := r[fieldStatus].(string)
