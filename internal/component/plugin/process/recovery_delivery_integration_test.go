@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	// The real BGP declaration judge must run before plugin startup.
+	_ "github.com/ze-software/ze/internal/component/bgp/config"
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -94,6 +96,9 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 		t.Fatal("registered RIB did not publish its recovery producer")
 	}
 	ribProcess := srv.ProcessManager().GetProcess("bgp-rib")
+	if ribProcess == nil {
+		t.Fatal("recovery fixture did not start bgp-rib")
+	}
 	if mode == "ipc" {
 		if ribProcess.HasStructuredHandler() || ribProcess.Bridge().Ready() {
 			t.Fatal("IPC fixture unexpectedly activated DirectBridge")
@@ -146,6 +151,9 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 	// Both transport variants keep RS's real structured handler; only the
 	// RIB transport differs.
 	rsProcess := srv.ProcessManager().GetProcess("bgp-rs")
+	if rsProcess == nil {
+		t.Fatal("recovery fixture did not start bgp-rs")
+	}
 	if !rsProcess.HasStructuredHandler() {
 		t.Fatal("departure fixture requires the real structured RS handler")
 	}
