@@ -2854,6 +2854,16 @@ report one.
 | `ze help command --json` | the compiled tree and `registry.All()` | Yes | Yes |
 | the wiki catalog (`clicatalog.Collect`) | the compiled tree and `registry.All()` | Yes | Yes |
 
+The wiki catalog's `mode` column names the routes that run a command, read from
+its registrations. A YANG path a daemon RPC serves is `daemon`, or `read-only`
+when `IsReadOnlyPath` says so. When a local handler is registered at the same
+path too (a local-data command, or a local command the daemon also serves, such
+as `show version`), the command also runs in the caller's own process with no
+daemon, and the mode carries both routes: `daemon, offline` or
+`read-only, offline`, never the daemon's alone. A command with only a local
+handler is `offline`, or the mode its `registry.Meta` declares.
+<!-- source: internal/le/cli/catalog/catalog.go -- Collect, withLocalRoute, labelLocalRoute -->
+
 An EXTERNAL plugin is the one case the last three rows still cannot answer for.
 It registers nothing in the composition root, so its declaration exists on the
 Stage 1 message alone and a running daemon is the only reader of it.

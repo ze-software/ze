@@ -141,6 +141,12 @@ func Collect() ([]Entry, error) {
 			if pluginserver.IsReadOnlyPath(cliPath) {
 				mode = "read-only"
 			}
+			// A local handler at the same path (local data, or a local
+			// command the daemon also serves) is a second route: the
+			// command runs in the caller's process with no daemon too.
+			if command.HasLocal(cliPath) {
+				mode = withLocalRoute(mode)
+			}
 			node := findNode(tree, cliPath)
 			entry := Entry{Path: cliPath, Mode: mode, WireMethod: wireMethod}
 			if node != nil {
@@ -164,35 +170,12 @@ func Collect() ([]Entry, error) {
 		}
 	}
 
-	// These four local handlers live in cmd/ze's main package, which an
-	// internal package cannot import. The doc-drift producer comparison checks
-	// every field against the live registry and rejects any drift here.
-	builtins := []Entry{
-		{
-			Path:      "help ai",
-			ShortHelp: "Print the agent reference this binary builds from its own registries.",
-			Description: "The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON " +
-				"for a program to read.",
-			Mode: modeOffline,
-		},
-		{
-			Path:      "help command",
-			ShortHelp: "List every command this binary carries with its summary.",
-			Description: "A filter word keeps the commands whose path holds it, and the answer renders as " +
-				"JSON for a program to read.",
-			Mode: modeOffline,
-		},
-		{Path: "show version", ShortHelp: "Show the running Ze version and build date", Mode: modeOffline},
-		{
-			Path:      "update serve",
-			ShortHelp: "Serve this binary and its version manifest for update checks.",
-			Description: "The server answers a version manifest, the running binary and its SHA-256 digest. " +
-				"It is meant for build infrastructure rather than for a router in production.",
-			Mode: modeOffline,
-		},
-	}
+	builtins := mainPackageLocals()
 	for index := range builtins {
 		if seen[builtins[index].Path] {
+			// The daemon serves this path under its YANG node too, so the
+			// entry above carries the daemon route alone: add the local one.
+			labelLocalRoute(entries, builtins[index].Path)
 			continue
 		}
 		entries = append(entries, builtins[index])
@@ -224,6 +207,58 @@ func Collect() ([]Entry, error) {
 		return strings.Compare(left.Path, right.Path)
 	})
 	return entries, nil
+}
+
+// mainPackageLocals answers the four local handlers that live in cmd/ze's main
+// package, which an internal package cannot import. The doc-drift producer comparison checks
+// every field against the live registry and rejects any drift here.
+func mainPackageLocals() []Entry {
+	return []Entry{
+		{
+			Path:      "help ai",
+			ShortHelp: "Print the agent reference this binary builds from its own registries.",
+			Description: "The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON " +
+				"for a program to read.",
+			Mode: modeOffline,
+		},
+		{
+			Path:      "help command",
+			ShortHelp: "List every command this binary carries with its summary.",
+			Description: "A filter word keeps the commands whose path holds it, and the answer renders as " +
+				"JSON for a program to read.",
+			Mode: modeOffline,
+		},
+		{Path: "show version", ShortHelp: "Show the running Ze version and build date", Mode: modeOffline},
+		{
+			Path:      "update serve",
+			ShortHelp: "Serve this binary and its version manifest for update checks.",
+			Description: "The server answers a version manifest, the running binary and its SHA-256 digest. " +
+				"It is meant for build infrastructure rather than for a router in production.",
+			Mode: modeOffline,
+		},
+	}
+}
+
+// withLocalRoute labels a command the daemon serves that also runs locally,
+// with no daemon: both routes, never the daemon's alone.
+func withLocalRoute(daemonMode string) string {
+	return daemonMode + ", " + modeOffline
+}
+
+// labelLocalRoute adds the local route to the entry at path, which a YANG
+// node already labelled with the daemon route. Collect calls it only for a
+// path it has seen, so a miss is a defect in Collect.
+func labelLocalRoute(entries []Entry, path string) {
+	for index := range entries {
+		if entries[index].Path != path {
+			continue
+		}
+		if !strings.HasSuffix(entries[index].Mode, ", "+modeOffline) {
+			entries[index].Mode = withLocalRoute(entries[index].Mode)
+		}
+		return
+	}
+	panic("BUG: labelLocalRoute: Collect saw " + path + " but holds no entry for it")
 }
 
 // appendPluginCommands adds every command a plugin declares on its

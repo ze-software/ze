@@ -228,3 +228,45 @@ func TestCatalogListsTheOneOfMembersNotTheWrapper(t *testing.T) {
 		}
 	}
 }
+
+// TestCollectLabelsLocalByKind proves the catalog labels a command by its
+// registrations (G3): a path a daemon RPC serves under its YANG node and that
+// also holds a local handler (local data, or a local command the daemon
+// serves) shows both routes, never the daemon's alone, and a path with no
+// local handler shows the daemon route only. The paths are read from the
+// local command registry, so the test names no command; it requires at least
+// one two-route command, so an empty registry cannot pass it.
+func TestCollectLabelsLocalByKind(t *testing.T) {
+	bothRoutes := 0
+	for _, entry := range collectForTest(t) {
+		if entry.WireMethod == "" {
+			continue // no daemon route: labelled by the local registry alone
+		}
+		hasLocalRoute := strings.HasSuffix(entry.Mode, ", "+modeOffline)
+		if command.HasLocal(entry.Path) || mainPackageLocal(entry.Path) {
+			bothRoutes++
+			if !hasLocalRoute {
+				t.Errorf("%q: daemon RPC %s and a local handler, labelled %q: the local route is missing",
+					entry.Path, entry.WireMethod, entry.Mode)
+			}
+			continue
+		}
+		if hasLocalRoute {
+			t.Errorf("%q: labelled %q, but no local handler serves it", entry.Path, entry.Mode)
+		}
+	}
+	if bothRoutes == 0 {
+		t.Fatal("no catalog command holds both a daemon RPC and a local handler: the check proved nothing")
+	}
+}
+
+// mainPackageLocal answers whether path is one of cmd/ze's main-package local
+// handlers, which this package declares because it cannot import them.
+func mainPackageLocal(path string) bool {
+	for _, local := range mainPackageLocals() {
+		if local.Path == path {
+			return true
+		}
+	}
+	return false
+}
