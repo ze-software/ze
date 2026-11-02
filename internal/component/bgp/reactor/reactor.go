@@ -914,7 +914,7 @@ func (r *Reactor) ConfiguredAutoLoad() (families, events, sendTypes []string) {
 // PluginCoordinator when BGP loads as a config-driven plugin.
 // Returns any to satisfy registry.BGPReactorHandle interface.
 func (r *Reactor) ReactorLifecycleAdapter() any {
-	return &reactorAPIAdapter{r}
+	return &reactorAPIAdapter{r: r}
 }
 
 // PeerDiffCount returns the number of peer changes (adds + removes) between
@@ -1610,7 +1610,7 @@ func (r *Reactor) startAPIServer() error {
 			maker = pluginserver.NewServer
 		}
 		var serverErr error
-		r.api, serverErr = maker(apiConfig, &reactorAPIAdapter{r})
+		r.api, serverErr = maker(apiConfig, &reactorAPIAdapter{r: r})
 		if serverErr != nil {
 			return fmt.Errorf("create plugin server: %w", serverErr)
 		}

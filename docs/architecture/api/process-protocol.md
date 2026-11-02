@@ -471,6 +471,25 @@ reload reads the same insertions, so it keeps the members in place.
 <!-- source: internal/component/bgp/config/filter_insertion.go -- declaredInsertions -->
 <!-- source: internal/component/bgp/reactor/reload_tree.go -- RebuildRunningPeers -->
 
+The members follow the declarations after startup too. A plugin that is
+started again (its failure policy, or a reload repairing a broken plugin)
+and declares other insertions at its new Stage 1, and a plugin a reload
+stops because its config went, each change what config load places, so the
+plugin server tells the BGP subsystem, which rebuilds its peers from the
+running config the same way: a member the plugin no longer declares leaves
+the peers, and a new one joins. The rebuild never runs inside a config
+transaction. A change met while one is in flight waits for it to end and
+then runs from the config it left running, and otherwise it holds the
+transaction lock itself, so a commit arriving meanwhile is refused as busy
+and a SIGHUP reload waits for it.
+A restart that declares the same insertions rebuilds nothing. The rebuild
+is no apply: an operator's live `subscribe` stays.
+<!-- source: internal/component/plugin/server/filter_insertion_change.go -- announceInsertionsChanged, announceInsertionChange -->
+<!-- source: internal/component/plugin/server/reload.go -- deferInsertionChange, release -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- stopCollectedProcesses -->
+<!-- source: internal/component/plugin/registry/filter_insertion_change.go -- SetFilterInsertionsChanged -->
+<!-- source: internal/component/bgp/plugin/register.go -- SetFilterInsertionsChanged -->
+
 The declared reads and sets are what config load judges. A chain at `bgp
 import` or `bgp export` naming `<plugin>:<filter>` fails when no declared name
 or pattern covers the filter (the refusal lists what the plugin declares), when

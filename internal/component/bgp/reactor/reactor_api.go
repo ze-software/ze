@@ -138,6 +138,12 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, closed sessionClose) {
 // reactorAPIAdapter implements plugin.ReactorLifecycle + bgptypes.BGPReactor for the Reactor.
 type reactorAPIAdapter struct {
 	r *Reactor
+	// rebuild marks a reconcile that re-derives the running configuration
+	// rather than applying a document (RebuildRunningPeers). It keeps the
+	// operator's live `subscribe` overrides, which only an apply discards
+	// (R-10): a plugin respawning with a new filter declaration changed no
+	// config.
+	rebuild bool
 }
 
 var _ plugin.FSMHistoryProvider = (*reactorAPIAdapter)(nil)
@@ -1409,8 +1415,8 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 	// document (R-10). It is unconditional, unlike the publish above, because an
 	// operator can subscribe before any peer exists. It used to hang off the
 	// publish instead, which meant a dynamic peer connecting deleted the
-	// subscription too.
-	if r.api != nil {
+	// subscription too. A rebuild of the running config is no apply.
+	if r.api != nil && !a.rebuild {
 		r.api.DiscardRuntimeSubscriptions()
 	}
 

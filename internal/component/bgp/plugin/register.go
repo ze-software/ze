@@ -258,6 +258,18 @@ func runBGPEngine(conn net.Conn) int {
 		}
 		log.Info("bgp reactor started (peers deferred)")
 
+		// A plugin that respawns with a different filter declaration, or that
+		// a reload stops, changes the members its insertions place, and only a
+		// rebuild of the running config moves them on the peers. The plugin
+		// server calls this holding its config transaction lock
+		// (registry.SetFilterInsertionsChanged).
+		registry.SetFilterInsertionsChanged(func() {
+			if rebuildErr := bgpReactor.RebuildRunningPeers(); rebuildErr != nil {
+				log.Warn("bgp: the filter insertions plugins declare changed and placing them on the peers failed, so the peers keep their previous filter lists until the next reload; fix the cause and run `ze signal reload`",
+					"error", rebuildErr)
+			}
+		})
+
 		// Register peer startup as post-startup callback. The coordinator
 		// calls this when SignalPluginStartupComplete fires (after all tiers
 		// and explicit plugins finish their 5-stage protocol).
@@ -444,6 +456,8 @@ func runBGPEngine(conn net.Conn) int {
 	}
 
 	// Clean up reactor on exit (AC-7: BGP removed at reload, or daemon shutdown).
+	// The insertion listener goes first: it rebuilds this reactor's peers.
+	registry.SetFilterInsertionsChanged(nil)
 	if bgpReactor != nil {
 		bgpReactor.Stop()
 		_ = bgpReactor.Wait(context.Background())

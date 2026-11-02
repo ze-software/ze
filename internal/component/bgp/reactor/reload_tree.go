@@ -77,11 +77,20 @@ var errNoTreeReload = errors.New("bgp: cannot apply the configuration: this reac
 // the first build, and only a rebuild after Stage 1 places them
 // (spec-filter-wire-6-stage-filters A-12). Peers are still held by the start
 // barrier then (Reactor.peersStarted), so a replaced peer opens no session
-// twice. The caller MUST NOT hold r.mu.
+// twice.
+//
+// It also runs after startup, from the listener the BGP plugin installs with
+// registry.SetFilterInsertionsChanged: a plugin respawned with a different
+// declaration, or a reload stopped one that declared insertions. A peer
+// whose member list changed is replaced then, as a reload replaces it. The
+// plugin server calls that listener holding its config transaction lock, so
+// no reload swaps r.configTree during the rebuild. A rebuild is no apply, so
+// it keeps the operator's live `subscribe` overrides (reactorAPIAdapter
+// rebuild). The caller MUST NOT hold r.mu.
 func (r *Reactor) RebuildRunningPeers() error {
 	r.mu.RLock()
 	running := r.configTree
 	r.mu.RUnlock()
 
-	return (&reactorAPIAdapter{r: r}).ApplyConfigDiff(running)
+	return (&reactorAPIAdapter{r: r, rebuild: true}).ApplyConfigDiff(running)
 }

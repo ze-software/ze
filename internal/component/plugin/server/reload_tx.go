@@ -984,6 +984,7 @@ func (s *Server) restartPlugin(pluginName string) error {
 	}
 
 	old := pm.GetProcess(pluginName)
+	insertionsBefore := declaredInsertions(old)
 	newProc, err := pm.Respawn(pluginName)
 	if respawnRefused(err) {
 		return fmt.Errorf("respawn %s: %w: %w", pluginName, transaction.ErrRestartRefused, err)
@@ -998,6 +999,7 @@ func (s *Server) restartPlugin(pluginName string) error {
 	if err := s.restartHandshake(newProc); err != nil {
 		return fmt.Errorf("restart handshake %s: %w", pluginName, err)
 	}
+	s.announceInsertionChange(insertionsBefore, declaredInsertions(newProc))
 	return nil
 }
 

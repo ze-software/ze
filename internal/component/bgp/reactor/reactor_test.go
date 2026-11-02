@@ -800,7 +800,7 @@ func TestGetPeerProcessBindingsEncodingInheritance(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get bindings through API adapter
-	adapter := &reactorAPIAdapter{reactor}
+	adapter := &reactorAPIAdapter{r: reactor}
 	bindings := adapter.GetPeerProcessBindings(mustParseAddr("192.0.2.1"))
 
 	require.Len(t, bindings, 4)
@@ -827,7 +827,7 @@ func TestGetPeerProcessBindingsNotFound(t *testing.T) {
 
 	reactor := New(cfg)
 
-	adapter := &reactorAPIAdapter{reactor}
+	adapter := &reactorAPIAdapter{r: reactor}
 	bindings := adapter.GetPeerProcessBindings(mustParseAddr("192.0.2.99"))
 
 	require.Nil(t, bindings, "unknown peer should return nil")
@@ -865,7 +865,7 @@ func TestGetPeerProcessBindingsGrants(t *testing.T) {
 	err := reactor.AddPeer(settings)
 	require.NoError(t, err)
 
-	adapter := &reactorAPIAdapter{reactor}
+	adapter := &reactorAPIAdapter{r: reactor}
 	bindings := adapter.GetPeerProcessBindings(mustParseAddr("192.0.2.1"))
 
 	require.Len(t, bindings, 2)

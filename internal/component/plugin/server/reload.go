@@ -67,6 +67,11 @@ type txLock struct {
 	configTransactions  map[string]string
 	configOwner         *reloadAcceptance
 	pendingCompensation *reloadAcceptance
+	// insertionChangePending records that the declared filter insertions
+	// changed while a holder had the lock (deferInsertionChange). release
+	// announces it before it frees the lock, so the rebuild runs from the
+	// running tree the holder left and no other transaction interleaves.
+	insertionChangePending bool
 }
 
 // tryAcquire attempts to acquire the transaction lock. Returns false if already held.
@@ -129,9 +134,38 @@ func (l *txLock) inFlight() (context.CancelCauseFunc, <-chan struct{}) {
 	return l.cancel, l.done
 }
 
-// release releases the transaction lock and wakes anyone waiting on done.
-func (l *txLock) release() {
+// deferInsertionChange hands an insertion change to the current holder: it
+// answers true when a transaction holds the lock, which then announces the
+// change at release, and false when none does, so the caller may take the
+// lock itself (announceInsertionsChanged).
+func (l *txLock) deferInsertionChange() bool {
 	l.mu.Lock()
+	defer l.mu.Unlock()
+	if !l.locked {
+		return false
+	}
+	l.insertionChangePending = true
+	return true
+}
+
+// release releases the transaction lock and wakes anyone waiting on done.
+//
+// A filter insertion change deferred to this holder is announced first, with
+// the lock still held and l.mu not held: the listener rebuilds the BGP peers,
+// which takes the reactor's lock and publishes the delivery graph back into
+// this server, so holding l.mu across it would order l.mu before the
+// reactor's lock. The check and the release share one critical section, so a
+// change deferred after the last announce is never dropped.
+func (l *txLock) release() {
+	for {
+		l.mu.Lock()
+		if !l.insertionChangePending {
+			break
+		}
+		l.insertionChangePending = false
+		l.mu.Unlock()
+		notifyInsertionsChanged()
+	}
 	defer l.mu.Unlock()
 	if l.done != nil {
 		close(l.done)

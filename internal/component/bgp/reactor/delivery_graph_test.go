@@ -276,6 +276,45 @@ func TestConfigApplyDiscardsRuntimeSubscriptions(t *testing.T) {
 		"a config apply discards the live capability addition")
 }
 
+// TestRebuildOfTheRunningConfigKeepsRuntimeSubscriptions is the survival
+// half of R-10 for RebuildRunningPeers. A plugin respawning with a different
+// filter declaration rebuilds the peers from the running tree after startup
+// (spec-filter-wire-6-stage-filters, re-insertion on a runtime declaration
+// change), and that changed no config, so the operator's live `subscribe`
+// stays. Method: the same reconcile as the discard test above, run as a
+// rebuild.
+//
+// PREVENTS: a third-party plugin's restart deleting the subscription an
+// operator typed to watch a live session, with no message.
+func TestRebuildOfTheRunningConfigKeepsRuntimeSubscriptions(t *testing.T) {
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+
+	r := newTestReactor(t)
+	r.api = srv
+	addPeersFromTree(t, r, deliveryTree(lookingGlass))
+	r.mu.Lock()
+	r.publishDeliveryGraphLocked()
+	r.mu.Unlock()
+
+	ns := events.LookupNamespaceID(bgpevents.Namespace)
+	state := events.LookupEventTypeID(bgpevents.EventState)
+	engine := process.NewProcess(plugin.PluginConfig{Name: "looking-glass"})
+	srv.Subscriptions().Add(engine, &pluginserver.Subscription{
+		Namespace: ns, EventType: state, Direction: events.DirBoth,
+		PeerFilter: &pluginserver.PeerFilter{Selector: "192.0.2.1"}, Runtime: true,
+	})
+	require.Len(t, srv.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.1", "first"), 1)
+
+	newPeers, err := PeersFromTree(deliveryTree(lookingGlass))
+	require.NoError(t, err)
+	rebuild := &reactorAPIAdapter{r: r, rebuild: true}
+	require.NoError(t, rebuild.reconcilePeers(newPeers, Globals{}, dynamicGroupsNotRead, "test rebuild"))
+
+	assert.Len(t, srv.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.1", "first"), 1,
+		"a rebuild of the running config is no apply, so the live subscription stays")
+}
+
 // overrideProbeJournal is a configJournal that reports, at the moment the apply
 // reaches its first peer change, how many processes the live override still
 // adds. Record is where every peer change of a config operation runs, so the
