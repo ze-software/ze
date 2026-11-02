@@ -46,10 +46,11 @@ import (
 // field bounds each RPC so a hung plugin cannot stall the transaction past
 // the orchestrator's own deadline.
 //
-// The bridge holds no mutable state beyond the subscription handles and is
-// safe for concurrent Close calls from Subscribe/defer paths. Every handler
-// only reads immutable fields (server, gateway, verifySections,
-// participantNames) and each RPC call is independent.
+// The bridge's mutable state is the subscription handles and the staged
+// capability declarations, each under its own lock, so it is safe for
+// concurrent Close calls from Subscribe/defer paths. Every other field a
+// handler reads (server, gateway, verifySections, participantNames) is
+// immutable, and each RPC call is independent.
 type configTxBridge struct {
 	server  *Server
 	gateway *ConfigEventGateway
@@ -69,6 +70,10 @@ type configTxBridge struct {
 	// (not the diff) during verify. reload.go computed this via
 	// ExtractConfigSubtree + WantsConfigRoots.
 	verifySections map[string][]rpc.ConfigSection
+
+	// capabilities holds the capability declarations verify answers carried
+	// until the first apply installs them (config_tx_capabilities.go).
+	capabilities capabilityStage
 
 	// mu guards unsubs so Close is idempotent even under concurrent calls.
 	mu     sync.Mutex
@@ -200,6 +205,8 @@ func (p phaseKind) eventType(name string) string {
 // the diff payload decoded from the stream event (which the orchestrator has
 // already filtered per participant). A non-empty statusErr means the plugin
 // rejected the change; a non-nil err means transport or encoding failure.
+// declared is the capability declaration an accepted verify answer carried,
+// nil when it carried none (and always nil for apply).
 //
 // The apply event reaches this method from two places, and SendConfigApply is
 // the answer to both: the orchestrator's own apply phase, and the executor
@@ -208,25 +215,28 @@ func (p phaseKind) eventType(name string) string {
 // is the same ApplyEvent either way, so the bridge needs no way to tell them
 // apart, and a participant that never registered an operation callback is
 // reached through the `config-apply` one it did.
-func (p phaseKind) runRPC(ctx context.Context, conn *ipc.PluginConn, verifySections []rpc.ConfigSection, applyDiffs []transaction.DiffSection) (statusErr string, err error) {
+func (p phaseKind) runRPC(ctx context.Context, conn *ipc.PluginConn, verifySections []rpc.ConfigSection, applyDiffs []transaction.DiffSection) (statusErr string, declared *rpc.DeclareCapabilitiesInput, err error) {
 	if p == phaseApply {
 		out, rpcErr := conn.SendConfigApply(ctx, diffSectionsToDiffRPCSections(applyDiffs))
 		if rpcErr != nil {
-			return "", rpcErr
+			return "", nil, rpcErr
 		}
 		if out != nil && out.Status == plugin.StatusError {
-			return out.Error, nil
+			return out.Error, nil, nil
 		}
-		return "", nil
+		return "", nil, nil
 	}
 	out, rpcErr := conn.SendConfigVerify(ctx, verifySections)
 	if rpcErr != nil {
-		return "", rpcErr
+		return "", nil, rpcErr
 	}
-	if out != nil && out.Status == plugin.StatusError {
-		return out.Error, nil
+	if out == nil {
+		return "", nil, nil
 	}
-	return "", nil
+	if out.Status == plugin.StatusError {
+		return out.Error, nil, nil
+	}
+	return "", out.Capabilities, nil
 }
 
 // emitFailed publishes the phase's failure ack. The orchestrator keys its
@@ -318,14 +328,24 @@ func (b *configTxBridge) subscribePhase(parentCtx context.Context, name string, 
 		rpcCtx, cancel := deadlineCtx(parentCtx, env.DeadlineMS)
 		defer cancel()
 
+		if ph == phaseApply {
+			if err := b.installStagedCapabilities(); err != nil {
+				ph.emitFailed(b, env.TransactionID, name, err.Error())
+				return
+			}
+		}
 		verifySections := b.verifySections[name]
-		statusErr, err := ph.runRPC(rpcCtx, conn, verifySections, env.Diffs)
+		statusErr, declared, err := ph.runRPC(rpcCtx, conn, verifySections, env.Diffs)
 		if err != nil {
 			ph.emitFailed(b, env.TransactionID, name, err.Error())
 			return
 		}
 		if statusErr != "" {
 			ph.emitFailed(b, env.TransactionID, name, statusErr)
+			return
+		}
+		if refusal := b.stageVerifiedCapabilities(name, declared); refusal != "" {
+			ph.emitFailed(b, env.TransactionID, name, refusal)
 			return
 		}
 		ph.emitOK(b, env.TransactionID, name, proc)
@@ -520,6 +540,10 @@ func (b *configTxBridge) subscribeOperationApply(parentCtx context.Context, name
 			return
 		}
 
+		if err := b.installStagedCapabilities(); err != nil {
+			b.emitOperationApplyFailed(ev.TransactionID, name, ev.Operation.ID, err.Error())
+			return
+		}
 		rpcCtx, cancel := deadlineCtx(parentCtx, ev.DeadlineMS)
 		defer cancel()
 

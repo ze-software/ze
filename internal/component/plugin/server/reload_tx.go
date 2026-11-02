@@ -435,6 +435,15 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 	coordinator.SetOperationPlanner(operationPlannerFromTrees(gateway, runningTree, candidateTree, participants))
 
 	result := coordinator.Execute(ctx, diffs)
+	if result.State != transaction.StateCommitted {
+		// A rolled-back or aborted transaction leaves no capability
+		// declaration its verify answers carried: an OPEN built from here on
+		// carries what the running configuration declares.
+		if err := bridge.restoreCapabilities(); err != nil {
+			logger().Error("config tx: restore plugin capabilities", "error", err)
+			return errors.Join(txResultToError(result), err)
+		}
+	}
 	if result.State == transaction.StateRolledBack {
 		batch := &reloadOperationBatch{txID: coordinator.TransactionID(), participants: bridge.participants}
 		return errors.Join(txResultToError(result), s.completeRolledBack(ctx, batch))

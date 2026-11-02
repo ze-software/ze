@@ -1444,9 +1444,18 @@ type ConfigVerifyInput struct {
 }
 
 // ConfigVerifyOutput is the output for ze-plugin-callback:config-verify.
+//
+// Capabilities is the plugin's whole capability declaration for the candidate
+// configuration, in the shape Stage 3 sends. An accepted transaction installs
+// it in place of the plugin's current declaration before any participant
+// applies, so a peer the reload adds sends its OPEN with it. Absent (nil) keeps
+// the current declaration: a plugin that declares no capabilities, or one that
+// predates the field, sends nothing and nothing changes. An empty list removes
+// every capability the plugin declared.
 type ConfigVerifyOutput struct {
-	Status string `json:"status"`          // "ok" or "error"
-	Error  string `json:"error,omitempty"` // Reason for rejection
+	Status       string                    `json:"status"`                 // "ok" or "error"
+	Error        string                    `json:"error,omitempty"`        // Reason for rejection
+	Capabilities *DeclareCapabilitiesInput `json:"capabilities,omitempty"` // Candidate declaration; nil keeps the current one
 }
 
 // ConfigDiffSection describes what changed in a single config root.

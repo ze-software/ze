@@ -271,8 +271,20 @@ one encoding on every connection, so a plugin READS the record answer form of
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
 <!-- source: internal/component/plugin/server/startup.go -- engineStartupSink -->
 
-**The Stage 3 declaration is fixed for the plugin process's life.** The engine
-holds it for every OPEN and has no message that replaces it. In the Go SDK the
+**A reload replaces the Stage 3 declaration through the config-verify answer.**
+The engine holds the declaration for every OPEN. A config-verify answer may
+carry `capabilities`, the plugin's whole declaration for the candidate, in the
+shape Stage 3 sends; absent keeps the current one, and an empty list removes
+them all. The engine checks it against every other plugin's declaration at
+verify, refusing a conflict that names both plugins, installs every staged one
+on the transaction's first apply, before that apply's RPC, so a peer the reload
+adds builds its OPEN from it, and puts the previous declarations back when the
+transaction does not commit.
+<!-- source: pkg/plugin/rpc/types.go -- ConfigVerifyOutput.Capabilities -->
+<!-- source: internal/component/plugin/server/config_tx_capabilities.go -- stageVerifiedCapabilities, installStagedCapabilities, restoreCapabilities -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- runTxCoordinator -->
+
+In the Go SDK the
 declaration is the output of the extractor a plugin registers with
 `DeclareCapabilitiesFrom`, run once on the Stage 2 configuration; a runtime
 `configure` redelivery never reruns it. At config-verify the SDK runs the same
