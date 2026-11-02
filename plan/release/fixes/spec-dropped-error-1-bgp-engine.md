@@ -39,7 +39,7 @@ Known overlaps, resolved where they are owned:
 | Instance | Owner of the defect | What this child does |
 |----------|---------------------|----------------------|
 | `peer_static_wire.go` `sendStaticRoutes`, `sendStaticRoutesGrouped` | `plan/release/fixes/spec-bgp-one-off-defects.md` (silent-fall-through row 2026-10-31, static-route send error at DEBUG) | If that spec has landed, the instance is gone; otherwise this child resolves the log level only and leaves the send-error classification to that spec |
-| `bgp/cli/decode_plugin.go` (14) | `plan/release/fixes/spec-command-surface-parity.md` (unwired-feature row 2026-11-02, `--plugin` parsed and ignored) | Wait for that spec's change to `decode_plugin.go`, then resolve what remains: an operator ran this command, so a failure is returned to them (answer 1) |
+| `bgp/cli/decode_plugin.go` (14) | spec-command-surface-parity, closed (unwired-feature row 2026-11-02, `--plugin` parsed and ignored) | That spec's change to `decode_plugin.go` landed in 442e4e810e; resolve what remains: an operator ran this command, so a failure is returned to them (answer 1) |
 
 ## Required Reading
 

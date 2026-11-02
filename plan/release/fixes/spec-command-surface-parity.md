@@ -548,8 +548,8 @@ No builtin command failed on any surface. Not enumerated by this binary: the loc
 | `inert-registration-offered-as-a-choice.md` | 2026-11-01 | G4: `ze cli` completion omits local-data commands it serves |
 | `check-mode-mutates-the-tree.md` | 2026-11-02 | `ParseTreeWithYANG` applies the environment block on a read (web start re-parse, `ze tacacs`); fixed c795f0545e |
 | `format-cannot-hold-a-state-the-tree-holds.md` | 2026-11-02 | plugin `dispatch-command` drops a response's warning lines (Thomas decided 2026-11-02: an optional field in the plugin RPC and SDK); fixed 5e33094392 and 90e124ec67 |
-| `process-global-read-across-the-plugin-boundary.md` | 2026-11-02 | `trafficstat` `Service.tick` reads the daemon's empty rate tracker |
-| `process-global-read-across-the-plugin-boundary.md` | 2026-11-02 | web interfaces page rate columns read the daemon's empty rate tracker |
+
+The two `process-global-read-across-the-plugin-boundary.md` 2026-11-02 rows (the `trafficstat` `Service.tick` and web interfaces page rate readers) moved at closure to `plan/release/fixes/spec-iface-resolution-across-the-plugin-boundary.md` (6ea210b584), which lists them in its own owned rows table.
 
 ## Key Design Decisions
 
@@ -660,3 +660,170 @@ After 592e54c7c5 the approved rows below were not consumed by the gate and remai
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-command-surface-parity.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- The daemon serves every local-data command under its YANG path through the handler that answers it locally (`plugin/server` `loadLocalData`); handlers return answer, refusal and code as values (`command.LocalAnswer`), and read `ValidatedArgs.Route()` and `command.CallerPath` on the daemon route.
+- The G5 plain local commands got daemon forms: `show doctor` (the daemon form of `ze doctor`, through `registry.Meta.DaemonPath`), `show command catalog` and `show command reference`, the support archive stored under a registered zefs key and read back with `show data cat`, the update server as `update serve start|pause|stop` bound to daemon shutdown, debug profiles, skills, diagnostics, wireguard keypair, `show bgp decode|encode`.
+- One predicate, `command.AnswerSurface` (`internal/component/command/surface.go`), answers which surfaces offer each registration kind; SSH, the web admin (per-request plugin overlay, `adminCommandTrees`), `buildCommandMeta` (MCP, REST, gRPC) and the `ze cli` tree read it, and `TestEveryCommandOnEverySurface` asks each surface's own producer.
+- Every streaming command declares its one-shot answer (`OneShotSample`, `OneShotStreamingOnly`); `monitor interface rate` answers its rates by asking the iface plugin (`ratesOf`).
+- The catalog labels each command by its registration kind (`Collect`).
+
+### Bugs Found/Fixed
+- `ze bgp decode --plugin` ignored since 13d09d18eb: 442e4e810e, `decode_plugin_named_test.go`.
+- Read-only profiles could read any store key through bridged `show data cat` / `show config cat`: 11412aa60f, `TestStoreReadsRefusedReadOnly`.
+- The daemon route read the store's own files and opened a store beside a file link: f79a7fd741, `TestDaemonRouteRefusesTheStoresOwnFiles`, `TestHistoryOpensTheStoreBesideTheResolvedFile`.
+- `show config history` refusal named the resolved store path on the daemon route only: 4a54d352b3, `TestLocalCommandDaemonMatchesLocal/show_config_history` red before, green after.
+- `ParseTreeWithYANG` applied the environment block on a read: c795f0545e.
+- Plugin `dispatch-command` dropped warning lines: 5e33094392, 90e124ec67.
+
+### Documentation Updates
+- `docs/architecture/api/commands.md` ("Served by the daemon too", "Which surfaces offer a command", path arguments), `ai/doors/system.md`, `ai/doors/commands-cli.md`, `docs/guide/mcp/overview.md` (bc20fedac7), the `HandleAdminView` comment; source anchors name `loadLocalData`, `buildCommandMeta`, `CallerPath`, `AnswerSurface`.
+
+### Deviations from Plan
+- `TestMCPServesLocalCommands` was not written: `test/plugin/mcp-local-commands.ci` drives the real daemon instead (Wiring Test row).
+- `doctor`, `help command`, `help ai` are offline roots, so their daemon forms live under `show` (A-6, `DaemonPath`).
+- No command is TUI-only today; AC-13 is proved with a fixture view.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-6: every G5 command could carry a `ze:command` node at its path | `doctor`, `help command`, `help ai` are roots, not verbs (grammar R1) | `./le cli grammar` | `registry.Meta.DaemonPath`, Key Design Decisions |
+| approach | f79a7fd741 opened the store beside the resolved path and named that path in a refusal | The refusal has to name the caller's spelling, as `CallerPath`'s refusals do | Closure round 3 rerun of `TestLocalCommandDaemonMatchesLocal` | 4a54d352b3 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| G1 daemon serves the 25 local-data commands | Done | `internal/component/plugin/server/local_bridge.go` `loadLocalData` | journal row fixed (6ea210b584) |
+| G5 daemon forms of plain local commands | Done | `registry.Meta.DaemonPath`, update-cmd, support, debug, skills, diag, explain, bgp cli | |
+| G2 admin overlays plugin commands without YANG | Done | `cmd/ze/hub/service_web.go` `adminCommandTrees` | |
+| G4 `ze cli` completion offers local-data commands | Done | `internal/component/cli/client/main.go` `BuildRuntimeTreeFromDispatch` | |
+| G3 catalog labels by registration kind | Done | `internal/le/cli/catalog/catalog.go` `Collect` | |
+| The check fails on any gap | Done | `cmd/ze/hub/surface_parity_test.go` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1, AC-2, AC-11 | Done | `TestEveryCommandOnEverySurface`, `TestSurfacePredicateByKind` | |
+| AC-3 | Done | Recorded red above | |
+| AC-4 | Done | `TestLocalCommandDaemonMatchesLocal` | |
+| AC-5 | Done | `mcp-local-commands.ci`, `TestEveryCommandOnEverySurface` MCP arm | |
+| AC-6 | Done | `admin-local-command-runs.wb`, `cli-local-command-daemon-ssh.ci` | |
+| AC-7 | Done | `TestLocalCommandRefusalReturned` | |
+| AC-8 | Done | `TestLocalCommandPathConfined`, `TestConfigCommandsPathConfinedOnDaemonRoute`, `TestDaemonWorkingDirectoryRefusedOnDaemonRoute` | |
+| AC-9 | Done | `TestStreamingOneShotAnswersCarryData`, `TestStreamingOnlyRefusesOnOneShotSurfaces` | |
+| AC-10 | Done | `TestCollectLabelsLocalByKind`; catalog shows `daemon, offline` and `read-only, offline` | |
+| AC-12 | Done | commands.md, both doors, `HandleAdminView` comment | |
+| AC-13 | Done | `TestUndeclaredTUIOnlyViewFailsTheCheck`; `resolver.go` reads `cli.RegisteredViews()` | |
+| AC-14 | Done | `TestDoctorOneProducer`, `TestSameQuestionPairsOneProducer`, `TestShowVersionOneProducer`, `TestShowInterfaceOneProducer` | |
+| AC-15 | Done | `TestMCPSupportArchiveRoundTrip` | |
+| AC-16 | Done | `update-serve-daemon.ci`, `TestUpdateServeLifecycle`, `TestUpdateServeEndsWithDaemonStop` | |
+| AC-17 | Done | `TestDeclarationsConfigRefusedReadOnly` | |
+| AC-18 | Done | `doctor-no-daemon.ci` | |
+| AC-19 | Done | `TestEveryMonitorCommandStreams`, `TestMonitorStreamGapsDiscriminate` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every row of the Unit Tests table | Done | files named there (grep of `func <name>` found each) | except below |
+| `TestMCPServesLocalCommands` | Changed | `test/plugin/mcp-local-commands.ci` | the `.ci` drives the real daemon |
+| Every Functional Tests row | Done | `test/plugin`, `test/web`, `test/ui` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Create (five) | Done | `ls` below |
+| Files to Modify | Done | `cmd/ze/update_serve.go` moved to `internal/plugins/update-cmd` |
+
+### Audit Summary
+- **Total items:** 30
+- **Done:** 29
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (`TestMCPServesLocalCommands`, in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A remote AI can debug the box through the daemon | functional | `test/plugin/mcp-local-commands.ci`: `tools/call` of `ze_show_doctor`, `show env list`, `show config validation` against a running daemon (passed, closure round 2) |
+| The daemon gives the same output as the local command | unit over every G1 and G5 command | `TestLocalCommandDaemonMatchesLocal`, ok 2026-11-02 after 4a54d352b3 |
+| The local route still works with no daemon | functional | `test/ui/doctor-no-daemon.ci` PASS (11 steps, 2026-11-02) |
+| Every command on every surface it must, none it cannot serve | registry-driven check | `TestEveryCommandOnEverySurface` ok, red recorded under AC-3 |
+| G2 fixed for the operator | browser functional | `test/web/admin-plugin-command-no-yang.wb` passed (closure round 2) |
+| A gap fails the check | negative test | AC-3 red, `TestUndeclaredTUIOnlyViewFailsTheCheck`, `TestMonitorStreamGapsDiscriminate` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `trafficstat` `Service.tick` and the web interfaces page still read the daemon's empty rate tracker | Same process-boundary defect class on iface state; found here, not in this spec's surfaces | `plan/release/fixes/spec-iface-resolution-across-the-plugin-boundary.md` |
+| A plugin's Stage 1 YANG is never compiled, so the plugin route judges plugin arguments only against compiled-in YANG | Separate feature: compiling external YANG at startup | `plan/post-release/features/spec-plugin-external-yang-at-startup.md` |
+| `../wiki/command-catalog.md` is stale against the live registry (`./le cli catalog check` answers stale) | Sibling checkout; cannot ride a commit here | `plan/post-release/engineering/spec-publish-the-regenerated-command-catalog.md` |
+| `.ci` runner ignores `exit=` on a non-final helper | Runner defect walked into | `plan/release/fixes/spec-config-validate-every-repo-config.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/command-surface-parity-52f37a05-b818-4d4e-a6c8-43342eab7b4a.md` (347 code files) |
+| `./le spec review check` | clean: "review_gate: OK (347 code files, clean, hashes match ...)" |
+| Rounds | 4 |
+| Reviewer lenses used | round 1 security; round 2 logic, wiring and the style pass; round 3 over bc20fedac7, 6ea210b584 and the iface spec edit against the system and forwarding doors; round 4 over 4a54d352b3 |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | A read-only profile read any store key, the HTTPS private key included, through bridged `show data cat` and `show config cat` | `config/storage/cli/register.go`, `config/cli/register.go` | 11412aa60f |
+| 2 | ISSUE | Daemon route read the store's own files; `show config history` opened the store beside a file link | `command.CallerPath`, `dataHistory` | f79a7fd741 |
+| 3 | ISSUE | `TestPipeCatalogJSONPublishesEveryContract` hard-coded three shapes | `cmd/ze/pipe_surfaces_test.go` | 36d94154c6 |
+| 4 | ISSUE | `rateResponse` guarded an `any` with a BUG panic; support re-parsed its own timestamp, dropping the error | `interface_rate.go`, `support.go` | bc20fedac7 |
+| 5 | ISSUE | `show config history` refusal named the resolved store path on the daemon route only (AC-4 red) | `config_data.go` `withRuntimeStore` | 4a54d352b3 |
+
+NOTEs, recorded and not blocking: `callerPathWithheld` answers "" for "not withheld"; resolve-then-open TOCTOU needs write access to a config directory; a successful `show config history` names revision paths as the route resolved them (absolute on the daemon route).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/command/surface.go`, `cmd/ze/hub/surface_parity_test.go`, `cmd/ze/hub/local_bridge_test.go`, `internal/component/mcp/local_commands_test.go` | yes | `ls`, 2026-11-02 |
+| `test/plugin/mcp-local-commands.ci`, `test/web/admin-local-command-runs.wb`, `test/web/admin-plugin-command-no-yang.wb`, `test/ui/cli-local-command-daemon-ssh.ci`, `test/ui/doctor-no-daemon.ci`, `test/ui/update-serve-daemon.ci` | yes | `ls`, 2026-11-02 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-9, AC-11, AC-19 | parity, streaming and monitor checks pass | `go test` of `cmd/ze/hub` with tags `ze_core ze_bgp ze_web ze_mcp ze_ssh ze_rest ze_grpc ze_vrrp` over `TestEveryCommandOnEverySurface`, `TestLocalCommand*`, `TestStreaming*`, `TestEveryMonitorCommandStreams`, `TestStoreReads*`, `TestAdminTree*`: all ok except `show_config_history`, ok after 4a54d352b3 |
+| AC-4 | daemon matches local | `TestLocalCommandDaemonMatchesLocal`: `ok github.com/ze-software/ze/cmd/ze/hub 14.844s` |
+| AC-10 | labels by kind | `TestCollectLabelsLocalByKind` ok; `./le cli catalog update` shows `request support archive` as `daemon, offline` |
+| AC-6, AC-16, AC-18 | real entry points | `cli-local-command-daemon-ssh` PASS 4.5s, `doctor-no-daemon` PASS 1.5s, `update-serve-daemon` PASS 3.8s, `admin-local-command-runs.wb` PASS 10.5s |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| SSH exec `show config validation <file>` | `test/ui/cli-local-command-daemon-ssh.ci` | PASS, 3 steps through `le test fixture ui/local-command-daemon-ssh` |
+| Web `POST /admin/show/env/list` | `test/web/admin-local-command-runs.wb` | PASS, 8 steps (open, click, three element checks) |
+| `update serve start/pause/stop` through the daemon | `test/ui/update-serve-daemon.ci` | PASS, `ze cli -c update serve ...` then `http-get /version.json` |
+| `ze doctor` with no daemon | `test/ui/doctor-no-daemon.ci` | PASS, `ze doctor config probe.conf`, `--json kernel-capabilities`, refusal of `bogus` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | three `RegisterView` callers, all in package `cli`; `monitor bgp` has a node and an RPC |
+| A-2, A-3 | confirmed | decided at the approval gate |
+| A-4 | confirmed | shell arm, 0 reds |
+| A-5 | confirmed | `TestShowEnvMasksASecretInTheProducer`, `TestShowConfigDumpMasksASecretInTheProducer`, `TestConfigDiffMasksASecret` |
+| A-6 | broken for three roots, resolved | `registry.Meta.DaemonPath` (0b403ea3d3); Mistake Log row |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| MCP guide: local commands are tools, files read only from config directories | `loadLocalData`, `buildCommandMeta`, `CallerPath` (anchors in `docs/guide/mcp/overview.md`) | yes |
+| commands.md "Served by the daemon too", the heading the MCP guide cites | `docs/architecture/api/commands.md`, heading present (grep) | yes |
+| Config syntax, wire format, RFC | No: no YANG config leaf, no wire change, no RFC row | yes |
+
+Scoped runs not repeated here and owed by the main thread (each over five minutes): the whole `cmd/ze/hub`, `internal/component/cli` and `internal/component/web` packages with full tags and `-timeout 25m`. Tagged `internal/component/config/cli` runs are red on another session's working tree (`internal/plugins/ddos/detect/yang` absent: no such module `ze-ddos-detect-conf`). `./le repo compiles check` after 4a54d352b3: OK in every flavor.

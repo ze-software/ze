@@ -1,6 +1,6 @@
 # Handoff: command-surface-parity, ready for `/ze-close`
 
-Spec: `plan/release/fixes/spec-command-surface-parity.md` (status in-progress).
+Spec: spec-command-surface-parity (closed after this handoff).
 Per-spec session state, with every phase handoff and the judge verdicts:
 `tmp/session/2026-11-01-124358/state/session-state-command-surface-parity-52f37a05-b818-4d4e-a6c8-43342eab7b4a.md`.
 The full commit list is `git log --grep 'Spec-work: command-surface-parity'`
