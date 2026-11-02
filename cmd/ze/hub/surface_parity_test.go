@@ -3,6 +3,7 @@
 package hub
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -14,11 +15,13 @@ import (
 	"github.com/ze-software/ze/internal/component/cli"
 	cliclient "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 	_ "github.com/ze-software/ze/internal/component/config/yang/cli" // show yang ...: local-data commands only cmd/ze links otherwise
 	"github.com/ze-software/ze/internal/component/plugin"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
+	pluginmgr "github.com/ze-software/ze/internal/component/plugin/manager"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -531,14 +534,19 @@ func viewRegistration(v cli.ViewInfo) command.CommandRegistration {
 // is not a sample. The test runs in a user and network namespace of its own
 // (userns.Enter), where it is root over its own loopback, so a probe command
 // can open its ICMP socket without privilege on the host.
+//
+// A stream whose data a plugin serves declares the plugin command it forwards
+// to (pluginserver.StreamingPluginCommand). The plugin registration that
+// declares that command is found in the plugin registry (pluginOwning) and
+// started in-process, with its dependencies and an empty section under each of
+// its config roots, the way the daemon starts a plugin whose root the config
+// holds. The sample then comes from that plugin's own producer, and with the
+// plugin absent the refusal fails the test: a refusal is not data.
 func TestStreamingOneShotAnswersCarryData(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
-	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
-	if err != nil {
-		t.Fatalf("server: %v", err)
-	}
+	server := startStreamingOwners(t)
 	schema, err := yangloader.DefaultLoader()
 	if err != nil {
 		t.Fatalf("yang loader: %v", err)
@@ -567,6 +575,86 @@ func TestStreamingOneShotAnswersCarryData(t *testing.T) {
 	if samples == 0 {
 		t.Fatal("no streaming command declares a one-shot sample: the check proved nothing")
 	}
+}
+
+// startStreamingOwners answers a started plugin server running, in-process,
+// every plugin that serves a command a sample stream declares it forwards to,
+// with those plugins' dependencies. A declared command no linked registration
+// serves fails the test: the stream could never answer.
+func startStreamingOwners(t *testing.T) *pluginserver.Server {
+	t.Helper()
+	var owners []string
+	for _, prefix := range pluginserver.StreamingPrefixes() {
+		oneShot, ok := pluginserver.StreamingOneShot(prefix)
+		if !ok || oneShot != pluginserver.OneShotSample {
+			continue
+		}
+		forwarded, _ := pluginserver.StreamingPluginCommand(prefix)
+		if forwarded == "" {
+			continue // the daemon produces this stream itself
+		}
+		owner := pluginOwning(forwarded)
+		if owner == nil {
+			t.Fatalf("%q forwards to %q, which no linked plugin registration declares", prefix, forwarded)
+		}
+		if !slices.Contains(owners, owner.Name) {
+			owners = append(owners, owner.Name)
+		}
+	}
+	tree := make(map[string]any)
+	for _, name := range owners {
+		for _, root := range pluginreg.Lookup(name).ConfigRoots {
+			tree[root] = map[string]any{}
+		}
+	}
+	needHolds := zeconfig.ConfigNeedHolds(tree)
+	names, err := pluginreg.ResolveDependencies(owners, nil, needHolds)
+	if err != nil {
+		t.Fatalf("dependencies of %v: %v", owners, err)
+	}
+	configs := make([]plugin.PluginConfig, 0, len(names))
+	for _, name := range names {
+		configs = append(configs, plugin.PluginConfig{Name: name, Internal: true})
+	}
+	provider := zeconfig.NewProvider()
+	applyLoadedTreeToProvider(provider, tree)
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{
+		Plugins: configs, ConfigNeedHolds: needHolds,
+	}, &reloadTestReactor{tree: tree})
+	if err != nil {
+		t.Fatalf("server: %v", err)
+	}
+	manager := pluginmgr.NewManager()
+	if err := manager.StartAll(t.Context(), server, provider); err != nil {
+		t.Fatalf("start %v: %v", names, err)
+	}
+	server.SetProcessSpawner(manager)
+	t.Cleanup(func() {
+		server.Stop()
+		if err := manager.StopAll(context.Background()); err != nil {
+			t.Errorf("stop %v: %v", names, err)
+		}
+	})
+	if err := server.StartWithContext(t.Context()); err != nil {
+		t.Fatalf("start server with %v: %v", names, err)
+	}
+	if err := server.WaitForStartupComplete(t.Context()); err != nil {
+		t.Fatalf("startup of %v: %v", names, err)
+	}
+	return server
+}
+
+// pluginOwning answers the linked plugin registration that declares command
+// among the commands it serves, or nil when none does.
+func pluginOwning(command string) *pluginreg.Registration {
+	for _, reg := range pluginreg.All() {
+		for i := range reg.Commands {
+			if strings.EqualFold(reg.Commands[i].Name, command) {
+				return reg
+			}
+		}
+	}
+	return nil
 }
 
 // TestStreamingOnlyRefusesOnOneShotSurfaces proves a streaming-only command
