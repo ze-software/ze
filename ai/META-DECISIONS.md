@@ -240,7 +240,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   is the scoped test runs of what its change reaches (the named tests, the
   packages, the functional tests), run directly. A rule, skill, hook or tool
   message that tells an agent to run `./le verify` is wrong and is corrected,
-  never followed.
+  never followed. `./le verify changed` stays Thomas's tool: when an agent
+  needs its report, it asks Thomas to run it and waits for the result, so
+  several agents never start verifications at once and overload the machine.
+  The tooling refuses `./le verify changed` started without an interactive
+  terminal.
 - No agent develops or tests code in a worktree, a `git archive` export or
   any other copy of the tree: features and code are tested in the main
   checkout. When another session's in-progress edit breaks the build there,
