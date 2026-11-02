@@ -105,7 +105,7 @@ func otcInsertions() []rpc.FilterInsertion {
 // inserts: the role import leaf under a peer's resolved entry, which this
 // plugin's own YANG module adds.
 func roleImportPath() []string {
-	return []string{"role", "import"}
+	return []string{roleKeyword, "import"}
 }
 
 // roleFilterDecls is every filter this plugin serves, and roleInsertions

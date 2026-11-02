@@ -35,8 +35,13 @@ var (
 	roleCapabilities = configjson.BGPCapabilityExtractor(func(data string) ([]sdk.CapabilityDecl, error) {
 		return extractRoleCapabilities(data), nil
 	})
-	roleCapabilityLeaves = map[uint8]string{roleCapCode: "role"}
+	roleCapabilityLeaves = map[uint8]string{roleCapCode: roleKeyword}
 )
+
+// roleKeyword is the word that names the RFC 9234 role everywhere it is spelled:
+// the YANG container a peer or group declares it in, the capability leaf, and
+// the capability's name in decode output.
+const roleKeyword = "role"
 
 const configRootBGP = "bgp"
 

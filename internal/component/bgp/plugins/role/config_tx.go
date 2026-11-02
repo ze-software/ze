@@ -89,9 +89,14 @@ func (t *roleConfigTx) committed(_ string) error {
 // It changes no state, so a refused verify and a CLI validate leave the
 // running filters as they were.
 func parseRoleConfig(sections []sdk.ConfigSection) (roleConfig, bool, error) {
-	policyRoot, err := policySection(sections)
+	policyRoot, delivered, err := policySection(sections)
 	if err != nil {
 		return roleConfig{}, false, err
+	}
+	if !delivered {
+		// No policy section: the policy root states no asn-set, so a
+		// transit-asns name finds nothing and transitSetASNs refuses it.
+		policyRoot = map[string]any{}
 	}
 	for _, section := range sections {
 		if section.Root != configRootBGP {
@@ -113,26 +118,27 @@ func parseRoleConfig(sections []sdk.ConfigSection) (roleConfig, bool, error) {
 }
 
 // policySection answers the policy root's body, the asn-sets transit-asns
-// names; nil when no policy section was delivered. The policy root is a
-// ConfigReads root, delivered whole beside bgp whenever either changes
-// (docs/architecture/config/transaction-protocol.md).
-func policySection(sections []sdk.ConfigSection) (map[string]any, error) {
+// names; delivered is false when no policy section was delivered, so the
+// caller decides what absence means rather than reading a nil map. The policy
+// root is a ConfigReads root, delivered whole beside bgp whenever either
+// changes (docs/architecture/config/transaction-protocol.md).
+func policySection(sections []sdk.ConfigSection) (body map[string]any, delivered bool, err error) {
 	for _, section := range sections {
 		if section.Root != policy.RootName {
 			continue
 		}
 		var root map[string]any
 		if err := json.Unmarshal([]byte(section.Data), &root); err != nil {
-			return nil, fmt.Errorf("bgp-role: the policy config section is not valid JSON: %w; "+
+			return nil, false, fmt.Errorf("bgp-role: the policy config section is not valid JSON: %w; "+
 				"fix: check the candidate with `ze config validate <file>`", err)
 		}
 		// The section carries the root keyed by its name, as the bgp one does.
 		if inner, wrapped := root[policy.RootName].(map[string]any); wrapped {
-			return inner, nil
+			return inner, true, nil
 		}
-		return root, nil
+		return root, true, nil
 	}
-	return nil, nil
+	return nil, false, nil
 }
 
 // installRoleConfig makes cfg the config the filters and OnValidateOpen

@@ -58,10 +58,10 @@ func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int
 	}
 
 	if textOutput {
-		writeStr(stdout, "%-20s %s\n", "role", roleName)
+		writeStr(stdout, "%-20s %s\n", roleKeyword, roleName)
 	} else {
 		result := map[string]any{
-			"name":  "role",
+			"name":  roleKeyword,
 			"value": roleName,
 		}
 		jsonBytes, err := json.Marshal(result)
