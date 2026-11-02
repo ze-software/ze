@@ -13,11 +13,19 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// batchForwardUpdateSkipped forwards a cached UPDATE to only the peers that
-// the reactor fast path skipped (a rejecting export final, an export chain
-// that could not run, a chain refusal withdrawn one NLRI-bearing field at a
-// time, a panicked egress filter). Called when
-// ReactorForwarded is true and FastPathSkipped is non-empty.
+// batchForwardUpdateSkipped forwards a cached UPDATE the reactor fast path
+// already served, to the peers it did not serve:
+//   - the peers it handed back (a rejecting export final, an export chain that
+//     could not run, a chain refusal withdrawn one NLRI-bearing field at a
+//     time, a panicked egress filter, a replay fence up), listed in skipped;
+//   - the peers whose session was established after the UPDATE was numbered
+//     (msgID below PeerState.InitialReplay). The fast path may have run before
+//     such a peer was a destination, so it neither served it nor handed it
+//     back, and it hands back every UPDATE numbered below the receipt rather
+//     than serve it (reactor Peer.replayOwns).
+//
+// Either way the peer-up cut decides between this rail and the replay.
+// Called when ReactorForwarded is true.
 func (rs *routeServer) batchForwardUpdateSkipped(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool, skipped []netip.AddrPort) {
 	val, _ := rs.batches.LoadOrStore(key, &forwardBatch{})
 	batch, ok := val.(*forwardBatch)
@@ -26,36 +34,25 @@ func (rs *routeServer) batchForwardUpdateSkipped(key workerKey, sourcePeer strin
 		return
 	}
 
-	// Build target list from skipped peers only (excluding source).
+	// Build target list from the peers the fast path did not serve (excluding source).
 	rs.mu.RLock()
 	batch.targetBuf = batch.targetBuf[:0]
 	for _, addrPort := range skipped {
 		addr := addrPort.Addr().String()
-		if addr == sourcePeer {
+		if rs.fastPathOwedTarget(addr, sourcePeer, msgID, families) {
+			batch.targetBuf = append(batch.targetBuf, addr)
+		}
+	}
+	for addr, peer := range rs.peers {
+		if msgID >= peer.InitialReplay {
 			continue
 		}
-		peer := rs.peers[addr]
-		if peer == nil || !peer.Up {
+		if slices.Contains(batch.targetBuf, addr) {
 			continue
 		}
-		// Same peer-up cut as selectForwardTargets: this rail carries the peers
-		// the reactor fast path skipped, not a different forwarding policy.
-		if msgID != 0 && msgID <= peer.ForwardFrom {
-			continue
+		if rs.fastPathOwedTarget(addr, sourcePeer, msgID, families) {
+			batch.targetBuf = append(batch.targetBuf, addr)
 		}
-		if peer.Families != nil {
-			hasAny := false
-			for fam := range families {
-				if peer.SupportsFamily(fam) {
-					hasAny = true
-					break
-				}
-			}
-			if !hasAny {
-				continue
-			}
-		}
-		batch.targetBuf = append(batch.targetBuf, addr)
 	}
 	rs.mu.RUnlock()
 	targets := batch.targetBuf
@@ -87,6 +84,35 @@ func (rs *routeServer) batchForwardUpdateSkipped(key workerKey, sourcePeer strin
 		batch.selector = ""
 		batch.targets = batch.targets[:0]
 	}
+}
+
+// fastPathOwedTarget reports whether peer addr takes the UPDATE msgID from
+// this rail once the fast path did not serve it. Caller MUST hold rs.mu.
+func (rs *routeServer) fastPathOwedTarget(addr, sourcePeer string, msgID uint64, families map[family.Family]bool) bool {
+	if addr == sourcePeer {
+		return false
+	}
+	peer := rs.peers[addr]
+	if peer == nil {
+		return false
+	}
+	if !peer.Up {
+		return false
+	}
+	// Same peer-up cut as selectForwardTargets: this rail carries the peers
+	// the reactor fast path did not serve, not a different forwarding policy.
+	if msgID != 0 && msgID <= peer.ForwardFrom {
+		return false
+	}
+	if peer.Families == nil {
+		return true
+	}
+	for fam := range families {
+		if peer.SupportsFamily(fam) {
+			return true
+		}
+	}
+	return false
 }
 
 // forwardBatch accumulates forward items for batch RPC.

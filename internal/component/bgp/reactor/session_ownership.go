@@ -132,7 +132,7 @@ func (s *Session) beginAdjOut(raw bool) (*adjOutWrite, error) {
 		s.adjOut = new(adjRIBOut)
 	}
 	s.adjOut.mu.Lock()
-	if prior := s.adjOut.session; prior != nil && prior != s && prior.initialReplay > s.initialReplay {
+	if prior := s.adjOut.session; prior != nil && prior != s && prior.initialReplay.Load() > s.initialReplay.Load() {
 		s.adjOut.mu.Unlock()
 		return nil, errAdjOutSession
 	}
@@ -1005,7 +1005,7 @@ func (s *Session) checkInitialWrite(item *fwdItem) error {
 	if item.session != s {
 		return errAdjOutSession
 	}
-	if item.initialReplay != s.initialReplay {
+	if item.initialReplay != s.initialReplay.Load() {
 		return errAdjOutSession
 	}
 	if item.peer == nil {

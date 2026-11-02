@@ -523,6 +523,12 @@ type Peer struct {
 	// replayed announce of the same prefix and leave it installed here.
 	// Atomic so the hold reads it without p.mu (forward_pool.go, takeOverflowReleased).
 	initialUpdateOwed atomic.Bool
+	// establishedReceipt is the initial-replay receipt enterEstablished took
+	// for the latest session (Session.initialReplay), kept here so the RS fast
+	// path reads it per UPDATE without p.mu (Peer.replayOwns). A value left by
+	// an earlier session only hands back UPDATEs older than that session's
+	// establishment, which the route server's cut already places.
+	establishedReceipt atomic.Uint64
 	// policyReplayHolds extends the same live-forward fence during a final
 	// restoration on an established session. Reconciliation MUST increment it
 	// under writeMu before reading retained pages and MUST decrement it only
@@ -970,6 +976,33 @@ func (p *Peer) raiseReplayFence() {
 	p.mu.Unlock()
 }
 
+// takeInitialReplayReceipt numbers the current session's initial replay again,
+// at the instant enterEstablished takes it. Caller MUST be enterEstablished.
+func (p *Peer) takeInitialReplayReceipt() {
+	session := p.currentSession()
+	if session == nil {
+		return
+	}
+	receipt := nextMsgID()
+	session.initialReplay.Store(receipt)
+	p.establishedReceipt.Store(receipt)
+}
+
+// replayOwns reports whether the route server, and not the RS fast path,
+// decides the UPDATE numbered updateID for this destination. It does while
+// the replay fence is up (Peer.initialUpdateOwed), and for an UPDATE numbered
+// below the session's initial-replay receipt even once the fence is down:
+// that UPDATE may have reached the fast path before this session was a
+// destination, so the route server forwards it when it is above its cut,
+// and a fast-path copy as well would reach the peer twice. Safe for
+// concurrent use.
+func (p *Peer) replayOwns(updateID uint64) bool {
+	if p.initialUpdateOwed.Load() {
+		return true
+	}
+	return updateID < p.establishedReceipt.Load()
+}
+
 // SignalAPIReady is called when "plugin session ready" is received for this
 // peer. It credits the report to the process that SENT it, and closes
 // apiSyncReady once every process this peer waits for has reported.
@@ -1046,7 +1079,7 @@ func (p *Peer) creditAPIReady(process string, initialReplay uint64) (bool, error
 	if p.session == nil {
 		return false, errors.New("plugin session ready has no current session; wait for the next peer UP event")
 	}
-	if p.session.initialReplay != initialReplay {
+	if p.session.initialReplay.Load() != initialReplay {
 		return false, errors.New("plugin session ready names an old session; use the token captured by this replay's peer UP event")
 	}
 	if p.session.tearingDown.Load() {
@@ -1294,7 +1327,7 @@ func (p *Peer) initialReplayToken() uint64 {
 	if session == nil {
 		return 0
 	}
-	return session.initialReplay
+	return session.initialReplay.Load()
 }
 
 // RemoteRouterID returns the peer's BGP Identifier from their OPEN message.

@@ -195,7 +195,7 @@ func TestPeerUpBarrierAndAPISyncAreIndependent(t *testing.T) {
 	peer.resetAPISync([]string{"pusher"})
 	peer.SetPeerUpBarrier(1)
 
-	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher"), peer.session.initialReplay))
+	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher"), peer.session.initialReplay.Load()))
 	barrierShut(t, peer)
 
 	peer.mu.RLock()

@@ -372,7 +372,7 @@ func TestFinalWriterInitialLocalReplay(t *testing.T) {
 			if len(conn.written()) != 0 {
 				t.Fatal("old same-session refresh populated the replacement")
 			}
-			batch.InitialReplay = peer.session.initialReplay
+			batch.InitialReplay = peer.session.initialReplay.Load()
 			batch.InitialLocal = true
 			switch mode {
 			case "replay-fence-after-eor":
@@ -388,7 +388,7 @@ func TestFinalWriterInitialLocalReplay(t *testing.T) {
 				peer.initialSyncEOROwed.Store(false)
 				peer.session.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return true, nil, nil }
 			case "old-session":
-				batch.InitialReplay = old.initialReplay
+				batch.InitialReplay = old.initialReplay.Load()
 			case "missing-origin":
 				batch.InitialLocal = false
 			}

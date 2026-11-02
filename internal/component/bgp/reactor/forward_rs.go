@@ -189,7 +189,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// means of an UPDATE message."). Handed back, the plugin rail applies
 		// the cut (batchForwardUpdateSkipped), and what it forwards waits behind
 		// the same fence.
-		if peer.initialUpdateOwed.Load() {
+		if peer.replayOwns(updateID) {
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
@@ -223,7 +223,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// and the route server's peer-up replay now owns the UPDATE for it,
 		// exactly as on the first pass above: hand it back rather than park a
 		// section the replay also carries.
-		if peer.initialUpdateOwed.Load() {
+		if peer.replayOwns(updateID) {
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
@@ -860,7 +860,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			// spare the build in the common case, a destination fenced
 			// before the UPDATE arrived. The community edits are counted
 			// after it, so a destination handed back counts nothing here.
-			if dst != nil && dst.initialUpdateOwed.Load() {
+			if dst != nil && dst.replayOwns(updateID) {
 				pending[i].item.done()
 				r.fwdPool.releaseItem(&pending[i].item)
 				skipped = append(skipped, pending[i].key.peerAddr)

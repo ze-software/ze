@@ -358,9 +358,15 @@ type Session struct {
 	// The callback borrows scalar IDs and this typed, reusable origin receipt.
 	sentReceipt wireu.WireUpdate
 	sentOrigin  wireu.SentOrigin
-	// Immutable receipt for this connection's deliberate initial replay. It is
-	// published on peer-UP and expires with Peer.initialSyncEOROwed.
-	initialReplay uint64
+	// Receipt for this connection's deliberate initial replay. It is
+	// published on peer-UP and expires with Peer.initialSyncEOROwed. NewSession
+	// takes one, and enterEstablished takes it again, from the same counter as
+	// every received UPDATE's MessageID, once the replay fence is up and before
+	// Established is published: an UPDATE numbered below it may have been
+	// decided by the fast path before this session was a destination, so the
+	// route server's own rails own it (Peer.replayOwns). Atomic, because that
+	// second take races every reader.
+	initialReplay atomic.Uint64
 	// A write failure seals this exact connection before any further writer.
 	writeFailed error
 	// A successful nonempty bufWriter.Write MUST set writePending under writeMu.
@@ -711,7 +717,6 @@ func NewSession(settings *PeerSettings) *Session {
 	}
 
 	s := &Session{
-		initialReplay:   nextMsgID(),
 		settings:        settings,
 		bfdOptIn:        func() *BFDSettings { return settings.BFD },
 		fsm:             fsm.New(),
@@ -725,6 +730,7 @@ func NewSession(settings *PeerSettings) *Session {
 		coalesceEnabled: coalesceEnabled(),
 		addrLabel:       settings.Address.String(),
 	}
+	s.initialReplay.Store(nextMsgID())
 
 	// The installed-mode prefix visitor is bound here, once for the session,
 	// rather than for each NLRI section it walks.

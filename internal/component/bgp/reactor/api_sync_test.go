@@ -358,7 +358,7 @@ func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) (<-c
 	peer.mu.RUnlock()
 	require.NotNil(t, synced, "resetAPISync must arm the readiness channel")
 
-	return synced, peer.session.initialReplay
+	return synced, peer.session.initialReplay.Load()
 }
 
 func chanClosed(ch <-chan struct{}) func() bool {

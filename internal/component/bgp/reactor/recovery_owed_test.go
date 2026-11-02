@@ -152,7 +152,7 @@ func owedRailInitialReplay(t *testing.T, rail *owedRail, message uint64) {
 	rail.r.config = &Config{LocalAS: 65000}
 	session := rail.destination.currentSession()
 	session.writeMu.Lock()
-	session.initialReplay = 5
+	session.initialReplay.Store(5)
 	session.writeMu.Unlock()
 	rail.destination.initialSyncEOROwed.Store(true)
 	batch := adjOutBatch(syncOrderPrefix, "10.0.0.1")

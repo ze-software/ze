@@ -174,6 +174,15 @@ func (p *Peer) enterEstablished() {
 	// The replay fence: live forwards wait for the reporters that declared it
 	// (Peer.initialUpdateOwed).
 	p.raiseReplayFence()
+	// The receipt is taken after the fence is up and before Established is
+	// published, from the counter that numbers every received UPDATE. An
+	// UPDATE numbered above it was received with the fence already up, so the
+	// fast path hands this destination back to the route server. One numbered
+	// below it may have met the fast path before this peer was a destination
+	// at all, and been handed to nobody: the route server reads the receipt off
+	// the peer-up event and forwards such an UPDATE itself when it is above
+	// its cut (Peer.replayOwns).
+	p.takeInitialReplayReceipt()
 	p.setState(PeerStateEstablished)
 	p.establishGate.Lock()
 	p.establishGate.Unlock() //nolint:gocritic,staticcheck // badLock, SA2001: the empty critical section is the barrier

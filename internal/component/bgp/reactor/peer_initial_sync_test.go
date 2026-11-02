@@ -864,17 +864,17 @@ func TestInitialSyncBarrierCreditsOnlyTheProcessesItNames(t *testing.T) {
 	}
 	peer.resetAPISync([]string{"pusher-one", "pusher-two"})
 
-	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("listener"), peer.session.initialReplay))
+	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("listener"), peer.session.initialReplay.Load()))
 	assert.False(t, apiSyncReleased(peer),
 		"a report from a process this peer does not name must not release the barrier: it pushes "+
 			"no route into this initial routing update, so it closes none of it")
 
-	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher-one"), peer.session.initialReplay))
-	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher-one"), peer.session.initialReplay))
+	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher-one"), peer.session.initialReplay.Load()))
+	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher-one"), peer.session.initialReplay.Load()))
 	assert.False(t, apiSyncReleased(peer),
 		"a second report from the same process must not stand in for the process that still owes routes")
 
-	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher-two"), peer.session.initialReplay))
+	require.NoError(t, peer.SignalAPIReady(plugin.ProcessSender("pusher-two"), peer.session.initialReplay.Load()))
 	assert.True(t, apiSyncReleased(peer),
 		"the last named process's report releases the barrier")
 }

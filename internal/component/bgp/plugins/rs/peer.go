@@ -75,6 +75,15 @@ type PeerState struct {
 	// replay unbounded -- correct, since nothing this plugin forwarded can
 	// predate the cut.
 	ForwardFrom uint64
+
+	// InitialReplay is the receipt the peer-up event carried: the engine
+	// takes it when the session is established, from the counter that numbers
+	// every UPDATE. An UPDATE numbered below it may have met the reactor fast
+	// path before this session was a destination there, so the fast path did
+	// not deliver it and hands nobody back for it; one above ForwardFrom is
+	// then this plugin's live forward to make (batchForwardUpdateSkipped).
+	// Zero, for an attached up, owes nothing.
+	InitialReplay uint64
 }
 
 // hasCapability returns true if peer supports the given capability.

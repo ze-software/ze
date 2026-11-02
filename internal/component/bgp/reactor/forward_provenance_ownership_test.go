@@ -387,7 +387,7 @@ func TestRSWithdrawalOwnershipInitialExpiryOrdering(t *testing.T) {
 	if len(parseWireUpdates(t, conn.written())) != 0 {
 		t.Fatal("expiry wrote before initial replay")
 	}
-	history.InitialReplay = next.session.initialReplay
+	history.InitialReplay = next.session.initialReplay.Load()
 	history.InitialSourcePeer = f.source.Settings().Address.String()
 	history.InitialSourceID = uint32(f.source.SourceID())
 	history.InitialSourceOwner = f.source.sourceOwner

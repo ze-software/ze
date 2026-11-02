@@ -302,7 +302,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		rail := newOwedRail(t)
 		session := rail.destination.currentSession()
 		session.writeMu.Lock()
-		session.initialReplay = 5
+		session.initialReplay.Store(5)
 		session.writeMu.Unlock()
 		rail.destination.initialSyncEOROwed.Store(true)
 		item := fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(), sourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
@@ -439,7 +439,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		f.r.config = &Config{LocalAS: 65000}
 		session := f.destination.currentSession()
 		session.writeMu.Lock()
-		session.initialReplay = 5
+		session.initialReplay.Store(5)
 		session.writeMu.Unlock()
 		f.destination.initialSyncEOROwed.Store(true)
 		api := &reactorAPIAdapter{r: f.r}

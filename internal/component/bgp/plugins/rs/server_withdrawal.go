@@ -92,18 +92,16 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 	}
 
 	// Reactor fast path: when ReactorForwarded is set, the reactor already
-	// forwarded this UPDATE to eligible peers. Skip ForwardCached but still
-	// update the withdrawal map for peer-down correctness.
-	// If FastPathSkipped is non-empty, forward to only those peers.
+	// forwarded this UPDATE to the destinations it served, and this rail
+	// forwards to the rest: the peers it handed back (FastPathSkipped) and the
+	// peers whose session it could not yet serve (PeerState.InitialReplay).
+	// The withdrawal map is still updated for peer-down correctness.
 	forwarded = true
 	reactorHandled := item.msg != nil && item.msg.ReactorForwarded
-	switch {
-	case !reactorHandled:
-		rs.batchForwardUpdate(key, item.sourcePeer, item.msgID, families)
-	case len(item.msg.FastPathSkipped) > 0:
+	if reactorHandled {
 		rs.batchForwardUpdateSkipped(key, item.sourcePeer, item.msgID, families, item.msg.FastPathSkipped)
-	default:
-		rs.releaseCache(item.msgID)
+	} else {
+		rs.batchForwardUpdate(key, item.sourcePeer, item.msgID, families)
 	}
 
 	// Update withdrawal map AFTER forwarding using pre-extracted data.

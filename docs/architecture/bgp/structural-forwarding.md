@@ -159,6 +159,23 @@ back once. The fence goes up before the session is published Established
 (`enterEstablished`), so no forward sees the destination Established with its
 fence down: one that did parked under the initial-sync hold instead, and the
 replay carried the same UPDATE again.
+
+The fast path decides at receipt, so an UPDATE that reached it before the
+destination's session was up served the destination nothing and handed it
+nobody back. When bgp-rs then saw the peer up before it took delivery of that
+UPDATE, the cut put the UPDATE on the live rail, which trusted the fast path:
+the destination received its End-of-RIB and never the route. `enterEstablished`
+therefore takes the session's `initial-replay` receipt again once the fence is
+up, from the counter that numbers received UPDATEs, and the peer-up event
+carries it (`PeerState.InitialReplay`). bgp-rs forwards an UPDATE the fast path
+claimed to every up peer whose receipt is above the UPDATE's MessageID, under
+the same cut, and the fast path hands back, rather than serves, a destination
+for an UPDATE numbered below its receipt even after the fence is down
+(`Peer.replayOwns`), so the two rails stay disjoint.
+<!-- source: internal/component/bgp/reactor/peer.go -- takeInitialReplayReceipt, replayOwns -->
+<!-- source: internal/component/bgp/plugins/rs/server_forward.go -- batchForwardUpdateSkipped, fastPathOwedTarget -->
+<!-- test: internal/component/bgp/reactor/forward_replay_fence_test.go TestRSFastPathHandsBackAnUpdateOlderThanTheSession -->
+<!-- test: internal/component/bgp/plugins/rs/fastpath_receipt_test.go TestFastPathServedUpdateReachesAPeerEstablishedAfterIt -->
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS, reactorForwardRSSection, withoutPeerKeys -->
 <!-- source: internal/component/bgp/reactor/source_policy_reload.go -- enterEstablished -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- batchForwardUpdateSkipped -->

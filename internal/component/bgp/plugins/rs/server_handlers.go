@@ -427,6 +427,7 @@ func (rs *routeServer) handleStateUp(peerAddr string, initialReplay uint64) {
 	// THE CUT. Every UPDATE at or below it is the replay's to deliver, every
 	// UPDATE above it the live rail's (PeerState.ForwardFrom).
 	peer.ForwardFrom = rs.seenMsgID
+	peer.InitialReplay = initialReplay
 	peer.ReplayGen++
 	gen := peer.ReplayGen
 	cut := peer.ForwardFrom
@@ -459,6 +460,7 @@ func (rs *routeServer) handleAttachedUp(peerAddr string) {
 	peer.Up = true
 	peer.StateSeen = true
 	peer.ForwardFrom = rs.seenMsgID
+	peer.InitialReplay = 0
 	peer.ReplayGen++
 	peer.replayDone = nil
 	cut := peer.ForwardFrom

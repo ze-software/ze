@@ -189,7 +189,7 @@ func TestPeerReadySDKProducers(t *testing.T) {
 		t.Run(owner, func(t *testing.T) {
 			r, source, destination, _, ctxID := newSyncOrderRail(t)
 			api, proc := readyProducerServer(t, r, owner)
-			oldToken := destination.session.initialReplay
+			oldToken := destination.session.initialReplay.Load()
 			replacement, conn := newSyncOrderDest(t, destination.sendCtx.Load(), ctxID)
 			destination.mu.Lock()
 			destination.session = replacement.session
@@ -240,7 +240,7 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 			f.destination.resetAPISync([]string{owner})
 			raiseTestReplayFence(f.destination, owner)
 			readyProducerState(t, proc, f.destination, rpc.SessionStateUp, f.destination.initialReplayToken())
-			readyProducerAwait(t, api, owner, f.destination.session.initialReplay, false)
+			readyProducerAwait(t, api, owner, f.destination.session.initialReplay.Load(), false)
 
 			// The real final writer and notifyMessageReceiver produce the sent
 			// ownership receipt consumed by the running RIB SDK handler.
@@ -364,7 +364,7 @@ func TestPeerReadyRIBReconnectBeforeRelease(t *testing.T) {
 	f.destination.resetAPISync([]string{owner})
 	raiseTestReplayFence(f.destination, owner)
 	readyProducerState(t, proc, f.destination, rpc.SessionStateUp, f.destination.initialReplayToken())
-	readyProducerAwait(t, api, owner, f.destination.session.initialReplay, false)
+	readyProducerAwait(t, api, owner, f.destination.session.initialReplay.Load(), false)
 
 	sent := make(chan error, 1)
 	f.r.messageReceiver = &testMessageReceiver{onSent: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
@@ -606,7 +606,7 @@ func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 				RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id,
 					SourcePolicyEpoch: update.SourcePolicyEpoch},
 			}}))
-			token := f.destination.session.initialReplay
+			token := f.destination.session.initialReplay.Load()
 			if stale {
 				replacement, conn := newSyncOrderDest(t, f.destination.sendCtx.Load(), f.ctxID)
 				f.destination.mu.Lock()

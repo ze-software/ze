@@ -183,7 +183,14 @@ including an empty replay. The engine validates that receipt against the live
 Session and the process's still-open readiness share atomically. A late event
 must not acknowledge a replacement Session. Native text events carry the same
 receipt as an `initial-replay <receipt>` suffix; the ExaBGP compatibility
-encoders do not expose it.
+encoders do not expose it. The engine takes the receipt when the session is
+established, after the replay fence is up, from the counter that numbers every
+received UPDATE (`msg-id`), so an UPDATE numbered below it was received before
+the session was a forwarding destination. bgp-rs reads it that way: the RS fast
+path hands such an UPDATE to bgp-rs instead of serving the destination, and
+bgp-rs forwards it there when it is above the peer-up cut
+(`docs/architecture/bgp/structural-forwarding.md`).
+<!-- source: internal/component/bgp/reactor/peer.go -- takeInitialReplayReceipt, replayOwns -->
 
 For `"down"` events, a `reason` field is included:
 

@@ -106,7 +106,7 @@ func TestLiveForwardWaitsForPeerUpReplay(t *testing.T) {
 				return len(parseWireUpdates(t, conn.written())) > 1
 			}, 200*time.Millisecond, 5*time.Millisecond, "no live change may pass the fence")
 
-			require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay))
+			require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay.Load()))
 
 			var seen []wireUpdate
 			require.Eventually(t, func() bool {
@@ -183,7 +183,7 @@ func TestAnnounceRailWithdrawJoinsTheFence(t *testing.T) {
 				return len(parseWireUpdates(t, conn.written())) > tt.passes
 			}, 200*time.Millisecond, 5*time.Millisecond, "no live change may pass the fence, the withdrawal included")
 
-			require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay))
+			require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay.Load()))
 
 			var seen []wireUpdate
 			require.Eventually(t, func() bool {
@@ -257,7 +257,7 @@ func TestReplayEndOfRIBFollowsTheReplay(t *testing.T) {
 		return len(parseWireUpdates(t, conn.written())) > 2
 	}, 200*time.Millisecond, 5*time.Millisecond, "no live change may pass the fence")
 
-	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay))
+	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay.Load()))
 
 	var seen []wireUpdate
 	require.Eventually(t, func() bool {
@@ -331,10 +331,10 @@ func TestReplayFenceHoldsOnlyItsOwnPeer(t *testing.T) {
 	require.False(t, fenced.forwardOrderHold(true), "the replay itself must pass its own fence")
 	require.False(t, other.forwardOrderHold(false), "another peer must not be held by this peer's replay")
 
-	require.NoError(t, fenced.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), fenced.session.initialReplay))
+	require.NoError(t, fenced.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), fenced.session.initialReplay.Load()))
 	require.True(t, fenced.forwardOrderHold(false), "the fence stays up while another process still owes the update")
 
-	require.NoError(t, fenced.SignalAPIReady(plugin.ProcessSender("receive-store"), fenced.session.initialReplay))
+	require.NoError(t, fenced.SignalAPIReady(plugin.ProcessSender("receive-store"), fenced.session.initialReplay.Load()))
 	require.False(t, fenced.forwardOrderHold(false),
 		"the last fence owner's report must lower the fence, whatever a reporter outside it does")
 }
@@ -394,7 +394,7 @@ func TestRSFastPathHandsAFencedDestinationBack(t *testing.T) {
 	require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the fenced destination must be handed back")
 	require.False(t, dst.forwardOverflowPending(), "nothing may be parked for the route server's replay to duplicate")
 
-	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay))
+	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay.Load()))
 	require.Empty(t, parseWireUpdates(t, conn.written()), "lowering the fence must release nothing the fast path held")
 
 	update = syncOrderPublish(t, r, ctxID, 7701, syncOrderAnnounceBody)
@@ -564,6 +564,70 @@ func TestEstablishedIsPublishedBehindTheReplayFence(t *testing.T) {
 	require.False(t, dst.forwardOverflowPending(), "nothing may be parked for the route server's replay to duplicate")
 	require.True(t, dst.initialUpdateOwed.Load(), "the fence must be up once Established is published")
 
-	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(rsFenceFixture), dst.session.initialReplay))
+	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(rsFenceFixture), dst.session.initialReplay.Load()))
 	require.Empty(t, parseWireUpdates(t, conn.written()), "lowering the fence must release nothing the fast path held")
+}
+
+// TestRSFastPathHandsBackAnUpdateOlderThanTheSession proves that an UPDATE
+// numbered below a destination's initial-replay receipt is the route server's
+// to forward, even once the replay fence is down.
+//
+// VALIDATES: enterEstablished takes the session's initial-replay receipt again,
+// above every MessageID handed out before it, and the RS fast path hands the
+// destination back for an UPDATE numbered below it (Peer.replayOwns) rather
+// than dispatching it. An UPDATE numbered above it is dispatched as before.
+//
+// PREVENTS: the lost route. An UPDATE that met the fast path before the
+// destination was a destination was handed to nobody, and when the route
+// server saw the peer up before it took delivery of that UPDATE, its cut put
+// the UPDATE on the live rail, which trusted the fast path: the destination
+// received its End-of-RIB and never the route (RFC 4724 Section 2). The route
+// server now forwards such an UPDATE by the receipt, so a fast-path copy as
+// well would reach the peer twice.
+//
+// Method: the receipt is read back after enterEstablished, the fence is
+// lowered through the route server's own report, and the fast path is run
+// directly with one MessageID on each side of the receipt; no timing.
+func TestRSFastPathHandsBackAnUpdateOlderThanTheSession(t *testing.T) {
+	snapshot := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snapshot) })
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:                rsFenceFixture,
+		Description:         "route-server fixture that holds the replay fence",
+		RunEngine:           func(net.Conn) int { return 0 },
+		CLIHandler:          func([]string) int { return 0 },
+		RelaysOnRSFastPath:  true,
+		FencesLiveForwards:  true,
+		SignalsSessionReady: true,
+	}))
+
+	r, src, dst, _, ctxID := newSyncOrderRail(t)
+	dst.mu.Lock()
+	dst.settings.ProcessBindings = []ProcessBinding{{
+		PluginName: rsFenceFixture,
+		Send:       map[string]bool{bgpevents.SendUpdate: true},
+		Receive:    map[string]events.Direction{bgpevents.EventState: events.DirReceived},
+	}}
+	dst.mu.Unlock()
+	dst.refreshForwardFacts()
+	dst.state.Store(int32(PeerStateConnecting))
+	dst.sendingInitialRoutes.Store(0)
+
+	before := nextMsgID()
+	dst.enterEstablished()
+	receipt := dst.session.initialReplay.Load()
+	require.Greater(t, receipt, before, "the receipt must be taken at establishment, above every earlier MessageID")
+	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(rsFenceFixture), receipt))
+	require.False(t, dst.initialUpdateOwed.Load(), "the fence must be down for this test to judge the receipt alone")
+
+	older := syncOrderPublish(t, r, ctxID, before, syncOrderAnnounceBody)
+	skipped, dispatched := reactorForwardRS(r, older, before, netip.MustParseAddr(forwardSourceAddr), src)
+	require.Equal(t, 0, dispatched, "an UPDATE older than the session is the route server's to forward")
+	require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the destination must be handed back to the route server")
+
+	newer := nextMsgID()
+	update := syncOrderPublish(t, r, ctxID, newer, syncOrderAnnounceBody)
+	skipped, dispatched = reactorForwardRS(r, update, newer, netip.MustParseAddr(forwardSourceAddr), src)
+	require.Equal(t, 1, dispatched, "an UPDATE newer than the session is the fast path's")
+	require.Empty(t, skipped, "nothing is handed back for an UPDATE newer than the session")
 }
