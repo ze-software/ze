@@ -66,6 +66,18 @@ Spot-checked on 2026-10-23: `zeTestParseRunCLI` still lives in
 - [ ] `cmd/ze/le_build_name.go` - `refuseWrongBuildName`
 - [ ] `internal/appliance/cmd_build.go` - `runGokInProcess`
 
+## Existing Mechanisms (MANDATORY)
+
+Each owned row is a defect in a tool that already exists, so every fix extends
+that tool in place. The rows below name the mechanisms the commit and approval
+rows touch; the rest are named by their journal row's Surface cell.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Owed-obligation answering | `internal/le/commit/owed_trailers.go` `(*answering).answered` | Clears an owed review, RFC approval or Linux limit on a commit: by attestation, or for an RFC approval by an in-range `RFC-approved:` unit or by the unit not being changed | extends: an approval recorded after the owing commit landed needs a route into it |
+| Commit admission of RFC-tagged changes | `internal/le/commit/prepare.go`, the `rfc-change-ok` branch | Writes one `RFC-approval-owed:` trailer per changed unit with no recorded approval, and `RFC-approved:` for a unit the commit changes and that holds a recorded approval | extends |
+| Trailer authorship guard | `internal/le/commit/input.go` `Message` | Refuses a subject or body line that starts with a declared trailer key, so only the tooling writes a trailer | does not apply: the guard stays, the fix is a tooling route |
+| Owner attestation | `./le commit create attest <sha> "<words>"` (`docs/contributing/committing.md`) | The owner's words answer an owed obligation on one commit | does not apply: owner-only, never an agent route |
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -252,6 +264,7 @@ before execution. The responsible component remains unestablished.
 | `fixture-encodes-an-impossible-state` | 2026-09-17 | `le-qemu-run-answers.ci` |
 | `gate-ignores-the-level-it-counts` | 2026-09-30 | `checkGapCountAgreement` |
 | `gate-ignores-the-level-it-counts` | 2026-10-06 | `./le rfc check` |
+| `gate-owed-a-clearance-no-command-writes` | 2026-11-02 | `RFC-approval-owed:` cleared only by attestation |
 | `gate-owed-a-clearance-no-command-writes` | 2026-09-08 | `debt-discharge` |
 | `gate-owed-a-clearance-no-command-writes` | 2026-09-07 | `./le commit debt-clear` |
 | `guard-added-to-one-half-of-a-pair` | 2026-10-10 | `(*Bench).Run` |
