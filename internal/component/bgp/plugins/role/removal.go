@@ -23,16 +23,12 @@ import (
 // has a removal that reaches it, on either transport.
 //
 // The down is delivered on the event loop and validate-open on the callback
-// loop, and the down carries no session identity, so a down that is still
-// queued when a peer re-created under the same name validates its OPEN
-// deletes that new peer's role. A stale role never judges a route: a removed
-// peer sends none, and a re-created one stores its own role at its OPEN
-// before it can carry one. The early delete changes no RFC 9234 Section 5
-// verdict either: the peer is role-configured, and its learned role, once
-// its session passed validateOpenRolePair, is the configured complement
-// resolvePeerRole falls back to. It changes the export set, which reads the
-// capability alone and sees the peer as unknown until its next OPEN
-// (docs/architecture/meta/role.md, "Learned role lifecycle").
+// loop, so a down can still be queued when a peer re-created under the same
+// name validates its OPEN. The down's session generation orders the two: the
+// reactor issues it as it deletes the peer (doRemovePeer), and the new peer's
+// OPEN is stamped with a generation at or above it
+// (rpc.ValidateOpenInput.Generation), so forgetRemovedPeer keeps the role that
+// OPEN stored (docs/architecture/meta/role.md, "Learned role lifecycle").
 func handleRoleStructuredEvents(events []any) error {
 	for _, event := range events {
 		se, ok := event.(*rpc.StructuredEvent)
@@ -42,7 +38,7 @@ func handleRoleStructuredEvents(events []any) error {
 		if se.State != rpc.SessionStateDown || se.Reason != rpc.ReasonPeerRemoved {
 			continue
 		}
-		forgetRemovedPeer(removedPeerInfo(se.PeerAddress, se.PeerName))
+		forgetRemovedPeer(removedPeerInfo(se.PeerAddress, se.PeerName), se.SessionGeneration)
 	}
 	return nil
 }
@@ -59,8 +55,9 @@ type roleStateEvent struct {
 				Address string `json:"address"`
 			} `json:"remote"`
 		} `json:"peer"`
-		State  string `json:"state"`
-		Reason string `json:"reason"`
+		State             string `json:"state"`
+		Reason            string `json:"reason"`
+		SessionGeneration uint64 `json:"session-generation,string"`
 	} `json:"bgp"`
 }
 
@@ -79,7 +76,7 @@ func handleRoleEvent(event string) error {
 	if bgp.State != rpc.SessionStateDown.String() || bgp.Reason != rpc.ReasonPeerRemoved {
 		return nil
 	}
-	forgetRemovedPeer(removedPeerInfo(bgp.Peer.Remote.Address, bgp.Peer.Name))
+	forgetRemovedPeer(removedPeerInfo(bgp.Peer.Remote.Address, bgp.Peer.Name), bgp.SessionGeneration)
 	return nil
 }
 

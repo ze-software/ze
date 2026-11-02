@@ -591,9 +591,9 @@ var peerRoleComplement = map[string]string{
 // destination peer on egress.
 //
 // capRole is the role the peer announced in its OPEN Role capability.
-// applyValidateOpen (role.go) calls setFilterRemoteRole only when the OPEN
-// carried a usable Role capability and calls recordNoRemoteRole otherwise, and
-// that pair is the only writer of filterRemoteRoles, so
+// applyValidateOpen (role.go) records it through recordLearnedRole, which
+// writes the empty string when the OPEN carried no usable Role capability and
+// is the only writer of filterRemoteRoles, so
 // capRole is empty for any peer that did not send the capability -- a case
 // validateOpenRolePair deliberately ACCEPTS when strict is unset, quoting RFC
 // 9234 Section 4.2's SHOULD-ignore (validate.go:88-94).

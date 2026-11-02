@@ -88,3 +88,53 @@ func TestPeerRemovedClearsRoleKeyedByAddress(t *testing.T) {
 	assert.False(t, remoteRoleRecorded("10.0.0.1", ""), "the removed peer's role must be gone")
 	assert.True(t, remoteRoleRecorded("10.0.0.2", ""), "another peer's role must stay")
 }
+
+// TestRemovalQueuedBehindReCreatedPeerKeepsItsRole reproduces the interleaving
+// of the two loops a plugin is delivered on: the removal down of a peer is
+// still queued on the event loop when a peer created again under the same
+// name validates its OPEN on the callback loop.
+//
+// METHOD: the generations are the ones the reactor stamps. The old session's
+// OPEN is stamped 4, the removal issues 5 as it deletes the peer, and the new
+// peer's OPEN is stamped with the clock reading after it, 5. The down is then
+// handled, after the new OPEN, on both transports.
+//
+// VALIDATES: the queued removal leaves the re-created peer's role in place,
+// and a removal naming a generation above the stored OPEN frees it.
+// PREVENTS: a stale removal deleting the new session's learned role, so the
+// export set read the peer as `unknown` until its next OPEN.
+func TestRemovalQueuedBehindReCreatedPeerKeepsItsRole(t *testing.T) {
+	clearFilterState(t)
+	configs := map[string]*peerRoleConfig{"10.0.0.1": {role: roleProvider}}
+	nameToIP := map[string]string{"edge1": "10.0.0.1"}
+	setFilterState(configs, nameToIP)
+
+	old := openWithRole("edge1", 3) // Customer
+	old.Generation = 4
+	applyValidateOpen(configs, nameToIP, old)
+	require.True(t, remoteRoleRecorded("10.0.0.1", ""))
+
+	const removedGeneration = 5
+	recreated := openWithRole("edge1", 3) // Customer
+	recreated.Generation = removedGeneration
+	applyValidateOpen(configs, nameToIP, recreated)
+
+	require.NoError(t, handleRoleStructuredEvents([]any{&rpc.StructuredEvent{
+		PeerAddress: "10.0.0.1", PeerName: "edge1", EventType: rpc.EventKindState,
+		State: rpc.SessionStateDown, Reason: rpc.ReasonPeerRemoved, SessionGeneration: removedGeneration,
+	}}))
+	assert.True(t, remoteRoleRecorded("10.0.0.1", ""),
+		"a removal issued before the re-created peer's OPEN must keep that OPEN's role")
+
+	require.NoError(t, handleRoleEvent(`{"type":"bgp","bgp":{"message":{"type":"state"},`+
+		`"peer":{"name":"edge1","remote":{"address":"10.0.0.1","as":65001}},"state":"down","reason":"removed",`+
+		`"session-generation":"5"}}`))
+	assert.True(t, remoteRoleRecorded("10.0.0.1", ""),
+		"the forked transport must order the removal the same way")
+
+	require.NoError(t, handleRoleEvent(`{"type":"bgp","bgp":{"message":{"type":"state"},`+
+		`"peer":{"name":"edge1","remote":{"address":"10.0.0.1","as":65001}},"state":"down","reason":"removed",`+
+		`"session-generation":"6"}}`))
+	assert.False(t, remoteRoleRecorded("10.0.0.1", ""),
+		"the removal of the peer that stored the role must free it")
+}

@@ -493,6 +493,18 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 	// drops the peer, so the teardown's own down finds no receiver: without
 	// the generation here the route server's withdrawals were refused and the
 	// peer's routes stayed on every other peer.
+	//
+	// The generation is issued here, under r.mu, rather than read: it is then
+	// above the generation every OPEN this peer validated was stamped with
+	// (Peer.validateOpen reads the clock), and no peer created again at this
+	// address or name can validate an OPEN until r.mu is released, so every
+	// OPEN of such a peer is stamped at or above it. A plugin that receives the
+	// down on its event loop and the new peer's OPEN on its callback loop orders
+	// the two by it (rpc.ValidateOpenInput.Generation). A read would leave a
+	// peer that never reached Established on its previous session's
+	// generation, which an OPEN of its own already passed. The departure still
+	// covers every route the peer wrote: each carries an older generation.
+	peer.advanceForwardGeneration()
 	removed := &plugin.PeerInfo{
 		Address:           settings.Address,
 		LocalAddress:      settings.LocalAddress,

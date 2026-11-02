@@ -82,9 +82,14 @@ var (
 // dynamic group's template. pruneLearnedRoles reads it only for an entry whose
 // own key no config names, which is how a dynamic member is stored: its learned
 // role then lives as long as its group stays dynamic.
+//
+// opened is the generation the engine stamped on the OPEN that stored the
+// entry (rpc.ValidateOpenInput.Generation). A removal frees the entry only
+// when the generation its down names is above it (forgetRemovedPeer).
 type remoteRoleState struct {
-	role  string
-	group string
+	role   string
+	group  string
+	opened uint64
 }
 
 // pruneLearnedRoles drops every learned role whose peer the installed config
@@ -149,23 +154,44 @@ func learnedRolePeerConfiguredLocked(key string, state remoteRoleState) bool {
 //
 // It clears the key the peer's name maps to (filterKeyLocked, the key every
 // OPEN of that peer wrote) and the peer's address, which keys a role an OPEN
-// stored under the address itself. Safe for concurrent use.
-func forgetRemovedPeer(peer filterapi.PeerFilterInfo) {
+// stored under the address itself.
+//
+// removed is the session generation the down names. The reactor issues it
+// when it deletes the peer (doRemovePeer), so it is above the generation of
+// every OPEN the removed peer validated, and at or below the generation of
+// every OPEN a peer created again under the same name validates
+// (rpc.ValidateOpenInput.Generation). The down reaches the plugin on the event
+// loop and validate-open on the callback loop, so a down still queued when
+// the new peer's OPEN is stored would otherwise delete the new peer's role. A
+// down that names no generation (zero) predates that contract: it frees the
+// entry as the removal it reports, with a warning. Safe for concurrent use.
+func forgetRemovedPeer(peer filterapi.PeerFilterInfo, removed uint64) {
+	if removed == 0 {
+		logger().Warn("bgp-role: a peer removal names no session generation, its learned role is freed even if a newer session stored it",
+			"peer", peer.Name, "address", peer.Address)
+	}
 	filterMu.Lock()
 	defer filterMu.Unlock()
 	if peer.Name != "" {
-		forgetLearnedRoleLocked(filterKeyLocked(peer.Name), peer.Name)
+		forgetLearnedRoleLocked(filterKeyLocked(peer.Name), peer.Name, removed)
 	}
 	if peer.Address.IsValid() {
-		forgetLearnedRoleLocked(peer.Address.String(), peer.Name)
+		forgetLearnedRoleLocked(peer.Address.String(), peer.Name, removed)
 	}
 }
 
-// forgetLearnedRoleLocked deletes the learned role under key and logs what the
+// forgetLearnedRoleLocked deletes the learned role under key, unless an OPEN
+// validated after the removal stored it (forgetRemovedPeer), and logs what the
 // removal dropped. Caller MUST hold filterMu.
-func forgetLearnedRoleLocked(key, peerName string) {
+func forgetLearnedRoleLocked(key, peerName string, removed uint64) {
 	state, recorded := filterRemoteRoles[key]
 	if !recorded {
+		return
+	}
+	if removed != 0 && state.opened >= removed {
+		logger().Info("learned role kept: a session newer than the removal stored it",
+			"peer", peerName, "key", key, "role", state.role,
+			"opened-generation", state.opened, "removed-generation", removed)
 		return
 	}
 	delete(filterRemoteRoles, key)
@@ -189,35 +215,27 @@ func filterKeyLocked(peerID string) string {
 	return peerID
 }
 
-// setFilterRemoteRole stores a peer's negotiated remote role for filter closures.
-// peerID is the peer name from OnValidateOpen; it is resolved to IP via filterNameToIP.
-// group is the peer's enclosing group, empty for a peer that stands alone. It
-// lets pruneLearnedRoles tell a live dynamic member from a peer the config
-// dropped (remoteRoleState).
-func setFilterRemoteRole(peerID, group, remoteRole string) {
-	filterMu.Lock()
-	if filterRemoteRoles == nil {
-		filterRemoteRoles = make(map[string]remoteRoleState)
-	}
-	filterRemoteRoles[filterKeyLocked(peerID)] = remoteRoleState{role: remoteRole, group: group}
-	filterMu.Unlock()
-}
-
-// recordNoRemoteRole records that a peer's OPEN declared no usable role, so the
-// RFC 9234 Section 5 gates fall back to the configured complement
-// (resolvePeerRole) instead of a value the peer is no longer advertising.
-// Returns the role that was replaced, or "" if there was none, so the caller can
-// report a real transition without a second lookup.
+// recordLearnedRole stores what a peer's OPEN declared about its role for the
+// filter closures, and returns the role it replaced, or "" if there was none,
+// so the caller can report a real transition without a second lookup.
 //
-// It WRITES the empty string rather than deleting the key, and that is the whole
-// point. Deleting made "this peer's OPEN declared no role" share a
-// representation with "no OPEN was ever recorded for this peer". The two states
-// behave alike at the export set -- Thomas ruled on 2026-08-03 that the
-// operator's `unknown` token covers both (otc.go) -- but they have different
-// causes, so an operator needs them told apart in the drop reason
-// (remoteRoleRecorded). Both resolve to the configured complement for the RFC
-// gates, so the Section 5 procedures are unchanged either way.
-func recordNoRemoteRole(peerID, group string) string {
+// peerID is the peer name from OnValidateOpen; it is resolved to IP via
+// filterNameToIP. group is the peer's enclosing group, empty for a peer that
+// stands alone. It lets pruneLearnedRoles tell a live dynamic member from a
+// peer the config dropped (remoteRoleState). opened is the OPEN's
+// rpc.ValidateOpenInput.Generation: forgetRemovedPeer frees the entry only
+// for a removal issued after it.
+//
+// An OPEN with no usable role WRITES the empty string rather than deleting the
+// key, and that is the whole point. Deleting made "this peer's OPEN declared
+// no role" share a representation with "no OPEN was ever recorded for this
+// peer". The two states behave alike at the export set -- Thomas ruled on
+// 2026-08-03 that the operator's `unknown` token covers both (otc.go) -- but
+// they have different causes, so an operator needs them told apart in the drop
+// reason (remoteRoleRecorded). Both resolve to the configured complement for
+// the RFC gates (resolvePeerRole), so the Section 5 procedures are unchanged
+// either way. Safe for concurrent use.
+func recordLearnedRole(peerID, group, remoteRole string, opened uint64) string {
 	filterMu.Lock()
 	defer filterMu.Unlock()
 	if filterRemoteRoles == nil {
@@ -225,7 +243,7 @@ func recordNoRemoteRole(peerID, group string) string {
 	}
 	key := filterKeyLocked(peerID)
 	previous := filterRemoteRoles[key].role
-	filterRemoteRoles[key] = remoteRoleState{group: group}
+	filterRemoteRoles[key] = remoteRoleState{role: remoteRole, group: group, opened: opened}
 	return previous
 }
 
@@ -436,15 +454,14 @@ func RunRolePlugin(conn net.Conn) int {
 // wholesale wipe of every learned role on reconfigure.
 //
 // The OPEN is the ordering-safe place to do this, and a session-down handler is
-// not. A down clear would have to race this write from a different goroutine:
-// for an in-process plugin the structured state event is delivered on the
-// process deliveryLoop while validate-open arrives on the bridge callback loop,
-// and the state event carries no session identity or sequence number to order
-// the two by (internal/component/bgp/server/events.go:101-114 sets PeerAddress,
-// PeerName, State and Reason, and never a MessageID). A late down could
-// therefore delete a role that a newer session had already written. Clearing
-// here is driven by the very event that sets it, for the same session, so the
-// last OPEN always decides.
+// not. A down clear races this write from a different goroutine: for an
+// in-process plugin the structured state event is delivered on the process
+// deliveryLoop while validate-open arrives on the bridge callback loop. Only
+// the peer's removal clears from a down, and it orders itself against this
+// write by generation: the entry carries input.Generation, and the removal
+// frees it only when the down names a newer generation (forgetRemovedPeer).
+// Every other change is driven by the very event that sets it, for the same
+// session, so the last OPEN always decides.
 //
 // The clear is deliberately symmetric with the set on the reject path too: the
 // role is recorded even when validateOpenRolePair refuses the session, so it
@@ -499,14 +516,14 @@ func applyValidateOpen(
 		learned, _ = roleValueToName(roles[0])
 	}
 
+	previous := recordLearnedRole(input.Peer, input.Group, learned, input.Generation)
 	if learned != "" {
-		setFilterRemoteRole(input.Peer, input.Group, learned)
 		return result
 	}
 
 	// Report only a real transition: a peer that has never advertised a role
 	// must not log on every reconnect.
-	if previous := recordNoRemoteRole(input.Peer, input.Group); previous != "" {
+	if previous != "" {
 		logger().Info("role capability withdrawn: peer reconnected without the role it previously advertised",
 			"peer", input.Peer, "previous-role", previous,
 			"effect", "RFC 9234 Section 5 gates now use the configured role complement for this peer")

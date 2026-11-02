@@ -44,7 +44,7 @@ func (e *OpenValidationError) NotifyCodes() (uint8, uint8) {
 	return e.NotifyCode, e.NotifySubcode
 }
 
-// OpenValidationUnavailableError is returned by broadcastValidateOpen when a plugin that
+// OpenValidationUnavailableError is returned by broadcastStampedValidateOpen when a plugin that
 // holds per-peer OPEN policy for this peer could not be asked about it. It is a third
 // state, and the two the engine had before it both read as consent: a nil return says
 // every plugin holding policy accepted, and OpenValidationError says one of them looked
@@ -170,7 +170,7 @@ func extractCapabilitiesFromOptParams(optParams []byte, extended bool) ([]rpc.Va
 // validateOpenTimeout is the timeout for a single validate-open RPC call.
 const validateOpenTimeout = 5 * time.Second
 
-// broadcastValidateOpen validates OPEN messages via all plugins that declared WantsValidateOpen.
+// broadcastStampedValidateOpen validates OPEN messages via all plugins that declared WantsValidateOpen.
 // local and remote are *message.Open passed as any from the generic hook.
 // Iterates processes, sends validate-open RPC, fails fast on first rejection.
 //
@@ -180,20 +180,24 @@ const validateOpenTimeout = 5 * time.Second
 // document resolves such a peer through the group or not at all
 // (rpc.ValidateOpenInput).
 //
+// generation is the newest forward generation the reactor had issued when it
+// read this OPEN (rpc.ValidateOpenInput.Generation): it orders the OPEN
+// against the peer's state events, which a plugin receives on another loop.
+//
 // policyPlugins names the plugins that declared a capability for THIS peer alone, which
 // the reactor resolved from the same declarations it injected into the local OPEN
 // (openPolicyPlugins, internal/component/bgp/reactor/peer.go). Each of them owes an
 // answer, and one that does not give it refuses the OPEN rather than passing for
 // consent: see OpenValidationUnavailableError.
-func broadcastValidateOpen(s *pluginserver.Server, peerAddr, group string, policyPlugins []string, local, remote any) error {
+func broadcastStampedValidateOpen(s *pluginserver.Server, peerAddr, group string, generation uint64, policyPlugins []string, local, remote any) error {
 	localOpen, ok := local.(*message.Open)
 	if !ok {
-		return fmt.Errorf("broadcastValidateOpen: local not *message.Open: %T", local)
+		return fmt.Errorf("broadcastStampedValidateOpen: local not *message.Open: %T", local)
 	}
 
 	remoteOpen, ok := remote.(*message.Open)
 	if !ok {
-		return fmt.Errorf("broadcastValidateOpen: remote not *message.Open: %T", remote)
+		return fmt.Errorf("broadcastStampedValidateOpen: remote not *message.Open: %T", remote)
 	}
 
 	// A plugin is struck off as it answers, so what is left at the end is per-peer
@@ -210,17 +214,18 @@ func broadcastValidateOpen(s *pluginserver.Server, peerAddr, group string, polic
 	if pm := s.ProcessManager(); pm != nil {
 		localMsg, err := openMessageToRPC(localOpen)
 		if err != nil {
-			return fmt.Errorf("broadcastValidateOpen: local %w", err)
+			return fmt.Errorf("broadcastStampedValidateOpen: local %w", err)
 		}
 		remoteMsg, err := openMessageToRPC(remoteOpen)
 		if err != nil {
-			return fmt.Errorf("broadcastValidateOpen: remote %w", err)
+			return fmt.Errorf("broadcastStampedValidateOpen: remote %w", err)
 		}
 		input := &rpc.ValidateOpenInput{
-			Peer:   peerAddr,
-			Group:  group,
-			Local:  localMsg,
-			Remote: remoteMsg,
+			Peer:       peerAddr,
+			Group:      group,
+			Generation: generation,
+			Local:      localMsg,
+			Remote:     remoteMsg,
 		}
 
 		if err := askOpenValidators(s.Context(), pm.AllProcesses(), input, pending); err != nil {

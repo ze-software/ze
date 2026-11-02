@@ -2765,6 +2765,17 @@ names it `dyn-<addr>`. Neither that name nor its address is in the config the
 plugin read. A plugin that keys per-peer policy on the config resolves that peer
 through `group` or resolves nothing for it.
 
+`generation` orders the OPEN against the peer's state events, which a plugin
+receives on another loop. It is the newest forward generation the engine had
+issued when it asked, from the same clock as a down event's
+`session-generation`. A down above it was issued after the OPEN was validated.
+The engine issues a removal down's generation as it deletes the peer, so the
+removal of an earlier peer of the same name is at or below the OPEN's
+`generation`, and the removal of this peer is above it. `bgp-role` keys its
+learned role on it (`docs/architecture/meta/role.md`, "Learned role
+lifecycle").
+<!-- source: internal/component/bgp/reactor/peer.go -- validateOpen -->
+
 To reject:
 ```
 #7 ok {"accept":false,"notify-code":2,"notify-subcode":6,"reason":"unacceptable hold time"}

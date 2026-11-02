@@ -1743,11 +1743,23 @@ type ValidateOpenMessage struct {
 //
 // Group is omitted for a peer that stands alone, so a plugin built against an
 // older SDK reads the same message it always read.
+//
+// Generation orders this OPEN against the state events of the same peer name.
+// It is the newest forward generation the engine had issued when it asked,
+// and every session generation is issued from that one clock. A down whose
+// session-generation is above it was issued after this OPEN was validated; a
+// down at or below it was issued before. A removal down is issued as the
+// engine deletes the peer, so one still queued when a peer created again
+// under the same name validates its OPEN names a generation at or below that
+// OPEN's, and a plugin that keyed state on the OPEN keeps it. The removal of
+// the peer this OPEN belongs to names a generation above it. Zero only from an
+// engine that does not stamp it.
 type ValidateOpenInput struct {
-	Peer   string              `json:"peer"`
-	Group  string              `json:"group,omitempty"`
-	Local  ValidateOpenMessage `json:"local"`
-	Remote ValidateOpenMessage `json:"remote"`
+	Peer       string              `json:"peer"`
+	Group      string              `json:"group,omitempty"`
+	Generation uint64              `json:"generation,omitempty"`
+	Local      ValidateOpenMessage `json:"local"`
+	Remote     ValidateOpenMessage `json:"remote"`
 }
 
 // ValidateOpenOutput is the output for ze-plugin-callback:validate-open.

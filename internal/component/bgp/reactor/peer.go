@@ -1522,7 +1522,13 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 	// identity it shares with that document, and buildDynamicPeerSettings put it
 	// here. A plugin without the group resolves no config for such a peer. For
 	// bgp-role that skipped every RFC 9234 Section 4.2 OPEN check.
-	return r.eventDispatcher.BroadcastValidateOpen(peerAddr, settings.GroupName, p.openPolicyPlugins(), local, remote)
+	//
+	// The clock reading orders this OPEN against the peer's state events, which
+	// a plugin receives on another loop (rpc.ValidateOpenInput.Generation): a
+	// removal issues a generation as it deletes its peer (doRemovePeer), so the
+	// removal of an earlier peer of this name is at or below this reading, and
+	// this peer's own removal is above it.
+	return r.eventDispatcher.BroadcastValidateOpen(peerAddr, settings.GroupName, forwardGenerationClock.Load(), p.openPolicyPlugins(), local, remote)
 }
 
 // claimPeerAS returns the AS that scopes this peer's BGP Identifier claim.

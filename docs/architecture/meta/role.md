@@ -223,19 +223,18 @@ indefinitely. `resolvePeerRole` prefers the learned capability over the config
 complement -- so the peer stayed gated against a relationship it had stopped
 claiming.
 
-The OPEN is the ordering-safe place to do this. A session-down clear is not:
-the structured state event carries no session identity or sequence number. For
-an in-process plugin it is delivered on the process delivery loop while
-validate-open arrives on the bridge callback loop. So a late down could delete
-a role a newer session had already written. Clearing on the OPEN is driven by
-the same event that sets it, for the same session, so the last OPEN always
-decides.
+The OPEN is the ordering-safe place to do this. A session-down clear races it:
+for an in-process plugin the state event is delivered on the process delivery
+loop while validate-open arrives on the bridge callback loop. Clearing on the
+OPEN is driven by the same event that sets it, for the same session, so the
+last OPEN always decides. The one down that clears, the removal below, orders
+itself against the OPEN by generation.
 
 The clear is symmetric with the set on the reject path: the role is recorded
 even when `validateOpenRolePair` refuses the session, so it is dropped on
 refusal too.
 
-`recordNoRemoteRole` writes an empty role rather than deleting the entry. So
+`recordLearnedRole` writes an empty role rather than deleting the entry. So
 "this peer's OPEN declared no role" stays distinct from "no OPEN was ever
 recorded for this peer". `remoteRoleRecorded` reads that distinction for the
 drop reason. Both resolve to the configured complement for RFC 9234 gates.
@@ -250,15 +249,17 @@ the role under the key the peer's name maps to and under its address, and logs
 `learned role dropped: peer removed` with the role it held.
 
 The down is asynchronous: it is delivered on the event loop while
-validate-open arrives on the callback loop, and it carries no session
-identity. A stale role never judges a route, because a removed peer sends
-none and a peer created again under the same name stores its own role at its
-OPEN before it can carry one. The reverse order is possible: a down still
-queued when a re-created peer validates its OPEN deletes that new peer's role.
-No RFC 9234 Section 5 verdict changes, because the peer is role-configured and
-its learned role, once its session passed the Table 2 check, is the configured
-complement `resolvePeerRole` falls back to. The export set reads the
-capability alone, so it sees that peer as `unknown` until its next OPEN.
+validate-open arrives on the callback loop, so a down can still be queued when
+a peer created again under the same name validates its OPEN. The generation
+orders the two. Every OPEN carries the newest forward generation the engine had
+issued when it asked (`rpc.ValidateOpenInput.Generation`), and the stored role
+keeps it. The reactor issues the removal down's `session-generation` as it
+deletes the peer, under the reactor lock (`doRemovePeer`), so it is above the
+stamp of every OPEN the removed peer validated before, and no peer of that name
+can validate an OPEN below it. `forgetRemovedPeer` frees a role only when the
+down names a generation above the role's stamp, and otherwise logs
+`learned role kept: a session newer than the removal stored it`. A down with no
+generation frees the role with a warning.
 
 A configured peer a commit removes is also handled by `pruneLearnedRoles` at
 config-committed, in whichever process holds the plugin. One entry is left
@@ -266,13 +267,14 @@ behind:
 
 | Case | What is left |
 |------|--------------|
-| An OPEN validated for a peer after its removal down was handled (the removal stops the session without waiting for a validation already in flight) | the role under that peer's key, until an OPEN for the same name replaces it |
+| An OPEN validated for a peer after its removal down was handled, or after the reactor deleted it (the removal stops the session without waiting for a validation already in flight, and that OPEN's stamp is at or above the removal's) | the role under that peer's key, until an OPEN for the same name replaces it |
 
 It costs one map entry. A peer created again under that name replaces it with
 its own OPEN, which `bgp-role` validates before the session can carry a route.
 
-<!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, recordNoRemoteRole, remoteRoleRecorded, filterKeyLocked, learnedRolePeerConfiguredLocked, forgetRemovedPeer -->
+<!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, recordLearnedRole, remoteRoleRecorded, filterKeyLocked, learnedRolePeerConfiguredLocked, forgetRemovedPeer -->
 <!-- source: internal/component/bgp/plugins/role/removal.go -- handleRoleStructuredEvents, handleRoleEvent -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- doRemovePeer -->
 <!-- source: internal/component/bgp/server/events.go -- getStructuredStateEvent, deliverPeerState -->
 <!-- source: internal/component/bgp/reactor/reactor_peers.go -- doRemovePeer, notifyFiltersPeerRemoved -->
 <!-- source: internal/component/bgp/config/filter_state_binding.go -- grantFilterOwnersState -->
