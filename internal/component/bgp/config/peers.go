@@ -930,9 +930,9 @@ func warnPeersWithoutRole(names []string) {
 const rolelessPeersNamed = 5
 
 // rolelessPeersFromTree names the peers and the dynamic groups a config
-// declares with no RFC 9234 role. It fills the infra seam `ze doctor` reads
-// (register.go), so the doctor report and the config-load warning enumerate one
-// set.
+// declares with no RFC 9234 role. The bgp-peer-no-role doctor check reads it
+// (doctor_checks.go), so the doctor report and the config-load warning
+// enumerate one set.
 //
 // MUST be called on a CLONE: it prunes inactive nodes from the tree in place,
 // exactly as the peer pipeline does.

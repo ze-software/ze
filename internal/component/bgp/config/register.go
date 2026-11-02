@@ -82,7 +82,6 @@ func init() {
 	// nil and every caller takes its no-BGP branch.
 	infra.SetBGPTreeResolver(ResolveBGPTree)
 	infra.SetBGPPeerValidator(validatePeersFromTree)
-	infra.SetBGPRolelessPeerReporter(rolelessPeersFromTree)
 	infra.SetBGPPolicyValidator(policyAbsencesFromTree)
 	infra.SetGRMarkerWriter(writeGRMarker)
 

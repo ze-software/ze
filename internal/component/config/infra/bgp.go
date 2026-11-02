@@ -30,14 +30,6 @@ type BGPTreeResolver func(tree *config.Tree) (map[string]any, error)
 // must not name.
 type BGPPeerValidator func(tree *config.Tree) error
 
-// BGPRolelessPeerReporter names the eBGP peers a config declares with no
-// RFC 9234 role. Those peers are accepted -- the transit-leak filter obligation
-// binds only a peer that declares a relationship -- so `ze doctor` enumerates
-// them rather than leaving the gap silent. It takes the tree because the role
-// is read off the deep-merged config, and it MODIFIES that tree in place, so a
-// caller with a tree to preserve passes a clone.
-type BGPRolelessPeerReporter func(tree *config.Tree) []string
-
 // BGPPolicyAbsence is one EBGP peer, or one dynamic group, whose import or
 // export direction has no explicit policy, so RFC 8212 closes it: Ze uses none
 // of the routes it receives, or sends it none. The config is valid and the
@@ -61,11 +53,10 @@ type BGPPolicyValidator func(tree *config.Tree) ([]BGPPolicyAbsence, error)
 type GRMarkerWriter func(caps []plugin.InjectedCapability, store storage.Storage)
 
 var (
-	bgpTreeResolver         BGPTreeResolver
-	bgpPeerValidator        BGPPeerValidator
-	bgpRolelessPeerReporter BGPRolelessPeerReporter
-	bgpPolicyValidator      BGPPolicyValidator
-	grMarkerWriter          GRMarkerWriter
+	bgpTreeResolver    BGPTreeResolver
+	bgpPeerValidator   BGPPeerValidator
+	bgpPolicyValidator BGPPolicyValidator
+	grMarkerWriter     GRMarkerWriter
 )
 
 // SetBGPTreeResolver registers the engine's bgp{} resolver. Called from the
@@ -75,10 +66,6 @@ func SetBGPTreeResolver(fn BGPTreeResolver) { bgpTreeResolver = fn }
 // SetBGPPeerValidator registers the engine's peer validator. Called from the
 // gated BGP config package's init().
 func SetBGPPeerValidator(fn BGPPeerValidator) { bgpPeerValidator = fn }
-
-// SetBGPRolelessPeerReporter registers the engine's roleless-peer reporter.
-// Called from the gated BGP config package's init().
-func SetBGPRolelessPeerReporter(fn BGPRolelessPeerReporter) { bgpRolelessPeerReporter = fn }
 
 // SetBGPPolicyValidator registers the engine's peer validator that also
 // reports RFC 8212 policy absences. Called from the gated BGP config package's
@@ -142,16 +129,6 @@ func ValidateBGPPeersWithPolicy(tree *config.Tree) ([]BGPPolicyAbsence, error) {
 		return nil, ValidateBGPPeers(tree)
 	}
 	return bgpPolicyValidator(tree)
-}
-
-// BGPPeersWithoutRole names the eBGP peers that declare no RFC 9234 role.
-// It returns nothing when no engine is compiled in: without a BGP speaker there
-// is no peer to declare a role.
-func BGPPeersWithoutRole(tree *config.Tree) []string {
-	if bgpRolelessPeerReporter == nil {
-		return nil
-	}
-	return bgpRolelessPeerReporter(tree)
 }
 
 // WriteGRMarker persists the graceful-restart marker through the registered
