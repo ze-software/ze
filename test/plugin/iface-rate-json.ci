@@ -1,4 +1,5 @@
-# Test: `show interface rate` returns structured error via Error field when rate tracker is unavailable,
+# Test: `show interface rate` returns structured error via Error field when the iface plugin, which
+#       owns the rate tracker and serves the command, is not running (the config has no interface section),
 #        and `show system version` returns structured JSON via typed Map.
 # VALIDATES: spec-response-typed-data AC-4 -- Error field surfaces correctly.
 #            spec-response-typed-data AC-2 -- plugin.Map marshals to valid JSON.

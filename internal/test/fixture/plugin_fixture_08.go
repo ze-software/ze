@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -491,8 +492,11 @@ func ifaceRateJSON08(ctx context.Context, p *sdk.Plugin) error {
 	if status != statusError {
 		return fmt.Errorf("interface rate: expected error, got status=%s", status)
 	}
-	if !strings.Contains(message, "rate tracker not running") && !strings.Contains(message, "no backend loaded") {
-		return fmt.Errorf("interface rate: expected rate tracker error, got %s", message)
+	// The config holds no interface section, so the iface plugin, which owns
+	// the rate tracker and serves the command, is not running: the daemon's
+	// forward to it finds no plugin serving the command and refuses.
+	if !strings.Contains(message, `interface rates unavailable: plugin command "show interface rate" not registered`) {
+		return fmt.Errorf("interface rate: expected the refusal that no plugin serves the rates, got %s", message)
 	}
 	raw, err = requireDone08(ctx, p, "system help")
 	if err != nil {
@@ -511,18 +515,46 @@ func ifaceRateJSON08(ctx context.Context, p *sdk.Plugin) error {
 	return nil
 }
 
+// rate08 is the one field of an iface InterfaceRate the rate scenario reads.
+type rate08 struct {
+	Name string `json:"name"`
+}
+
 func interfaceRateShow08(ctx context.Context, p *sdk.Plugin) error {
 	if err := waitPeerEOR08(ctx, p); err != nil {
 		return err
 	}
-	status, raw, err := command08(ctx, p, "show interface rate")
-	message := string(raw) + fmt.Sprint(err)
-	if status == "" || strings.Contains(message, "unknown command") || !strings.Contains(message, "rate tracker not running") {
-		return fmt.Errorf("interface-rate: unexpected response status=%s data=%s", status, message)
+	// The iface plugin's tracker samples once a second, so lo has a rate
+	// only after its first sample: poll the named form until it answers.
+	var lo rate08
+	var last string
+	if !Poll(ctx, WaitAttempts(40, 250*time.Millisecond, 40), 250*time.Millisecond, func() bool {
+		status, raw, err := command08(ctx, p, "show interface rate lo")
+		last = "status=" + status + " data=" + string(raw) + " err=" + fmt.Sprint(err)
+		return status == statusDone && decode08(raw, &lo) == nil
+	}) {
+		return fmt.Errorf("interface-rate lo: the interface plugin never answered a rate: %s", last)
 	}
-	fmt.Fprintf(os.Stderr, "OK: show interface rate resolves: %s\n", message)
-	status, raw, err = command08(ctx, p, "show interface rate zz-not-an-interface0")
-	message = string(raw) + fmt.Sprint(err)
+	if lo.Name != "lo" {
+		return fmt.Errorf("interface-rate lo: answered the rate of %q", lo.Name)
+	}
+	fmt.Fprintln(os.Stderr, "OK: show interface rate lo answered for", lo.Name)
+	raw, err := requireDone08(ctx, p, "show interface rate")
+	if err != nil {
+		return fmt.Errorf("interface-rate: %w", err)
+	}
+	var rates []rate08
+	if err := decode08(raw, &rates); err != nil {
+		return fmt.Errorf("interface-rate: the answer is not a list of rates: %w: %s", err, raw)
+	}
+	if !slices.ContainsFunc(rates, func(r rate08) bool { return r.Name == "lo" }) {
+		return fmt.Errorf("interface-rate: lo is missing from the list: %s", raw)
+	}
+	fmt.Fprintln(os.Stderr, "OK: show interface rate lists", len(rates), "interfaces, lo among them")
+	// lo answered above, so the tracker has sampled: a refusal of an unknown
+	// name now comes from the lookup of that name, not from an empty tracker.
+	status, raw, err := command08(ctx, p, "show interface rate zz-not-an-interface0")
+	message := string(raw) + fmt.Sprint(err)
 	if status != statusError || !strings.Contains(message, "interface not found: zz-not-an-interface0") {
 		return fmt.Errorf("interface-rate zz-not-an-interface0: expected named refusal, status=%s data=%s", status, message)
 	}

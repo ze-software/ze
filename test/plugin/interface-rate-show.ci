@@ -1,8 +1,12 @@
-# Test: show interface rate command dispatch and error paths
-# Exercises: dispatch-command -> ze-iface:show-interface-rate -> handleShowInterfaceRateCmd -> handleShowInterfaceRate
-# Verifies: the bare form is wired and reports the rate tracker is down, and
-#           the named form `show interface rate <name>` carries the name through
-#           to the lookup and refuses an unknown one with a message naming it
+# Test: show interface rate is answered by the iface plugin's own rate tracker
+# Exercises: dispatch-command -> ze-iface:show-interface-rate -> the daemon's
+#            forward (ratesOf) -> the iface plugin's `show interface rate`
+#            (executeCommand -> rateAnswer over the tracker the plugin runs)
+# Verifies: the `interface` section starts the iface plugin; the named form
+#           `show interface rate lo` answers lo's rate once the tracker has
+#           sampled, the bare form lists every interface with lo among them,
+#           and the named form carries the name through to the lookup and
+#           refuses an unknown one with a message naming it
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -18,6 +22,10 @@ plugin {
 		run "le test fixture plugin/interface-rate-show"
 		encoder json
 	}
+}
+
+interface {
+	backend netlink;
 }
 
 bgp {

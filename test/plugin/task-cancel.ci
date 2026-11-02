@@ -8,9 +8,18 @@
 # which sent `task:{}` to opt the call into task execution. That opt-in is gone
 # (D-1): the SERVER decides from the `ze:task-support required` annotation
 # the tool carries, so the directive now sends no task member and the handle
-# comes back unasked. The tool is now ze_monitor_interface_rate: monitor bgp is
-# a streaming-only command, so MCP, which answers once, no longer offers it,
-# while monitor interface rate answers one sample and keeps the annotation. The file also asserted only
+# comes back unasked. The tool is now ze_monitor_interface, called with action
+# rate: monitor bgp is a streaming-only command, so MCP, which answers once, no
+# longer offers it, while monitor interface rate keeps the annotation and
+# answers once. This config holds no interface section, so the iface plugin
+# that owns the rates is not running and the call answers with a refusal, not
+# a sample: the task still ends `completed`, because the dispatch returned a
+# response: the refusal is the tool's answer, stored as the task's result, and
+# a task ends `failed` only when its worker returns an error instead of an
+# answer (runTaskWorker, internal/component/mcp/tasks.go). MCP groups commands into tools by their leading words
+# (groupCommands, internal/component/mcp/tools.go), so `monitor interface rate`
+# is the `rate` action of the ze_monitor_interface tool: no tool is named
+# ze_monitor_interface_rate, and a wait on that name never ends. The file also asserted only
 # `contains=completed`, which the `task-wait` line already guarantees before
 # cancel is ever sent -- so the cancel half was unasserted. It is asserted now:
 # the state AFTER the cancel is read back and must still be `completed`.
@@ -35,15 +44,15 @@
 # the empty acknowledgement, and terminal-state idempotence.
 
 stdin=mcp:terminator=EOF_MCP
-# ze_monitor_interface_rate is GENERATED from the command registry and carries
+# ze_monitor_interface is GENERATED from the command registry and carries
 # `ze:task-support required`. Waiting for it proves the registry is populated;
 # waiting on a handcrafted tool would not, since those are served from a static
 # list and appear immediately.
-wait-tool ze_monitor_interface_rate
+wait-tool ze_monitor_interface
 # No `task` member: the server creates the task from the annotation. task-call
 # fails the run unless the reply is resultType "task" with a taskId, so the
 # server-directed creation is enforced here rather than merely assumed.
-task-call ze_monitor_interface_rate {}
+task-call ze_monitor_interface {"action":"rate"}
 task-wait $LAST completed
 # Cancel a task that is ALREADY terminal: acknowledged, and a no-op.
 task-cancel $LAST
