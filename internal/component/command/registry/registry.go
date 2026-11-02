@@ -137,6 +137,28 @@ type Meta struct {
 	Subs        string
 	SubsFunc    func() string
 	NotReadOnly bool
+	// Artifact is set on a command whose answer names a file it produced;
+	// nil on every other command.
+	Artifact *Artifact
+}
+
+// Artifact declares how a command that produces a file names it on each
+// route. The local route writes the file under a directory the caller names;
+// the daemon route cannot reach the caller's host, so it keeps the file in
+// its own store (statestore) under a key. Both answer the same document
+// otherwise, and a check comparing the two routes reads this declaration to
+// know which fields differ by design.
+type Artifact struct {
+	// LocalArgs are the words that make the local route write under a
+	// directory and answer that document; the directory is the next word.
+	LocalArgs string
+	// LocalField is the answer field naming the file's path on the local route.
+	LocalField string
+	// DaemonField is the answer field naming the store key on the daemon route.
+	DaemonField string
+	// Volatile names the answer fields, at any depth, whose value differs
+	// between two runs or is reported by one route only.
+	Volatile []string
 }
 
 // ResolveSubs returns the Subs string, calling SubsFunc if set.

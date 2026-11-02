@@ -18,5 +18,15 @@ func init() {
 		Description: "Send the archive to support when you report an issue. Modules can be selected or " +
 			"excluded, and a time window narrows what the archive holds.",
 		Mode: "offline",
+		// Locally the archive is a file under --output and the manifest names
+		// its path; on the daemon it is a store key `show data cat` reads.
+		// The timestamp, each module's duration and the stored size (which
+		// only the daemon reports) differ on every run.
+		Artifact: &registry.Artifact{
+			LocalArgs:   "--json --output",
+			LocalField:  "archive-path",
+			DaemonField: "archive-key",
+			Volatile:    []string{"timestamp", "duration-ms", "archive-octets"},
+		},
 	}, command.RenderLocalAnswer)
 }

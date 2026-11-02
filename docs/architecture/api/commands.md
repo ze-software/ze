@@ -348,6 +348,17 @@ the size and the local command that reads the bytes on the host holding them:
 `show data cat` does so for a large store value, and `request support archive`
 refuses to store an archive it could not hand back.
 
+A command that produces a file names it differently on each route, by design:
+the local route writes it under a directory its caller names, and the daemon
+keeps it in its store under a key `show data cat` reads. Its registration says
+so with `registry.Meta.Artifact`: the words that give the local route a
+directory (`LocalArgs`), the answer field naming the path locally
+(`LocalField`) and the key on the daemon (`DaemonField`), and the fields that
+differ between any two runs (`Volatile`). `request support archive` declares
+it, and `TestLocalCommandDaemonMatchesLocal` (`cmd/ze/hub`) reads it to
+compare the two routes' documents field by field, with no command named in
+the test.
+
 A path argument on the daemon route names a file on the daemon's host, read
 with the daemon's identity, and the authorizer judges command text with no
 notion of a filesystem location. So every handler that reads a file its
