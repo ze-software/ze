@@ -6,6 +6,7 @@ package fixture
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -77,7 +78,15 @@ func localCommandDaemonSSH(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("ssh exec of show config validation on %s inside the config directory: %w", inside, err)
 	}
-	if !strings.Contains(answer, `"valid":true`) {
+	// `| json` indents a multi-line document, so the verdict is read from the
+	// decoded answer rather than matched as text.
+	var verdict struct {
+		Valid *bool `json:"valid"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(answer)), &verdict); err != nil {
+		return fmt.Errorf("show config validation over ssh answered no JSON document for %s: %w\n%s", inside, err, answer)
+	}
+	if verdict.Valid == nil || !*verdict.Valid {
 		return fmt.Errorf("show config validation over ssh did not judge %s valid:\n%s", inside, answer)
 	}
 
