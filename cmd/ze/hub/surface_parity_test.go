@@ -4,19 +4,23 @@ package hub
 
 import (
 	"bufio"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/cli"
+	cliclient "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/infra"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
+	_ "github.com/ze-software/ze/internal/component/config/yang/cli" // show yang ...: local-data commands only cmd/ze links otherwise
 	"github.com/ze-software/ze/internal/component/plugin"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/plugins/completion"
 )
 
@@ -40,7 +44,8 @@ const (
 // for a surface that executes through the daemon, the dispatcher can serve it:
 // a listed command the dispatcher refuses is an offer the surface cannot keep.
 //
-// VALIDATES: AC-1, AC-2 and AC-3 of spec-command-surface-parity.
+// VALIDATES: AC-1, AC-2, AC-3 and AC-11 of spec-command-surface-parity: every
+// registration is classified from its registry, with no exception list.
 // PREVENTS: a surface that omits a command it can serve, or lists one it cannot.
 func TestEveryCommandOnEverySurface(t *testing.T) {
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
@@ -55,35 +60,83 @@ func TestEveryCommandOnEverySurface(t *testing.T) {
 		t.Fatalf("YANG schema: %v", err)
 	}
 	registerStage1Commands(t, d)
-	regs := collectCommandRegistrations(t, schema)
+	regs := collectCommandRegistrations(t, schema, cli.RegisteredViews())
 	arms := surfaceArms(t, server)
+	for _, failure := range surfaceFailures(regs, arms) {
+		t.Error(failure)
+	}
+}
 
+// TestUndeclaredTUIOnlyViewFailsTheCheck proves AC-13's guard with a fixture
+// view: a view whose prefix no other registry holds, and whose registration
+// does not declare it TUI-only, fails the check on every surface, and the
+// same view declared TUI-only passes on surfaces that answer as the predicate
+// says.
+//
+// VALIDATES: AC-13 of spec-command-surface-parity: an undeclared TUI-only
+// command fails the check.
+// PREVENTS: a view-only command silently missing from the one-shot surfaces
+// with nothing declaring why.
+func TestUndeclaredTUIOnlyViewFailsTheCheck(t *testing.T) {
+	const prefix = "monitor zz-surface-fixture view"
+	never := func(string) bool { return false }
+	always := func(string) bool { return true }
+	arms := make(map[command.Surface]surfaceArm)
+	for _, s := range command.Surfaces() {
+		listed := never
+		if s == command.SurfaceSSH || s == command.SurfaceCLI {
+			listed = always
+		}
+		arms[s] = surfaceArm{listed: listed, served: always}
+	}
+
+	undeclared := []command.CommandRegistration{viewRegistration(cli.ViewInfo{Key: "zz", Prefix: prefix})}
+	if got := surfaceFailures(undeclared, arms); len(got) != len(command.Surfaces()) {
+		t.Errorf("an undeclared TUI-only view gave %d failures, want one per surface (%d): %q", len(got), len(command.Surfaces()), got)
+	}
+	declared := []command.CommandRegistration{viewRegistration(cli.ViewInfo{Key: "zz", Prefix: prefix, TUIOnly: true})}
+	if got := surfaceFailures(declared, arms); len(got) != 0 {
+		t.Errorf("a declared TUI-only view offered on SSH and ze cli only failed: %q", got)
+	}
+}
+
+// surfaceFailures compares every surface's answer for every registration with
+// command.AnswerSurface and returns one failure line per disagreement, naming
+// the path, the surface, the registration kind and the expected answer.
+func surfaceFailures(regs []command.CommandRegistration, arms map[command.Surface]surfaceArm) []string {
+	var failures []string
 	for _, reg := range regs {
 		for _, s := range command.Surfaces() {
-			want, err := command.OffersCommand(reg, s)
+			answer, err := command.AnswerSurface(reg, s)
 			if err != nil {
-				t.Errorf("%v", err)
+				failures = append(failures, err.Error())
 				continue
 			}
 			arm, ok := arms[s]
 			if !ok {
 				continue // reported once by surfaceArms
 			}
+			want := answer.Offer.Listed()
 			listed := arm.listed(reg.Path)
 			served := arm.served(reg.Path)
 			if want == (listed && served) {
 				continue
 			}
+			var tb textbuf.Buffer
+			tb.Byte('"').Str(reg.Path).Str(`" on `).Str(s.String()).Str(" (").Str(reg.Kind.String()).Str("): ")
 			switch {
 			case want && !listed:
-				t.Errorf("%q on %s (%s): must be offered, the surface does not list it", reg.Path, s, reg.Kind)
+				tb.Str("the surface does not list it")
 			case want:
-				t.Errorf("%q on %s (%s): listed, but the daemon dispatcher cannot serve it", reg.Path, s, reg.Kind)
+				tb.Str("listed, but the daemon dispatcher cannot serve it")
 			default:
-				t.Errorf("%q on %s (%s, hidden=%v): must not be offered, the surface offers it", reg.Path, s, reg.Kind, reg.Hidden)
+				tb.Str("the surface offers it")
 			}
+			tb.Str("; want ").Str(answer.Offer.String()).Str(": ").Str(answer.Reason)
+			failures = append(failures, tb.String())
 		}
 	}
+	return failures
 }
 
 // surfaceArm is what one surface's producer answers for a command path.
@@ -106,13 +159,14 @@ func surfaceArms(t *testing.T, server *pluginserver.Server) map[command.Surface]
 	}
 	mergePluginCommands(sshTree, infra.HookParams{APIServer: func() *pluginserver.Server { return server }})
 
-	// Web admin: the tree service_web.go hands HandleAdminView and
-	// HandleAdminExecute, built once from the loaded modules.
+	// Web admin: the per-request tree service_web.go's adminCommandTrees hands
+	// HandleAdminView and HandleAdminExecute, with the live plugin overlay.
 	adminSchema, err := yangloader.DefaultLoader()
 	if err != nil {
 		t.Fatalf("web admin command tree: %v", err)
 	}
-	adminTree := yangloader.BuildCommandTree(adminSchema)
+	adminTree := adminCommandTrees(yangloader.BuildCommandTree(adminSchema),
+		func() []command.CommandEntry { return d.Registry().VisibleCommandEntries() })()
 
 	// Web terminal: the completer service_web.go builds over the same tree,
 	// with the live plugin overlay main.go wires as WebCommands.
@@ -131,9 +185,22 @@ func surfaceArms(t *testing.T, server *pluginserver.Server) map[command.Surface]
 	}
 	metaListed := func(path string) bool { return inMeta[strings.ToLower(path)] }
 
-	// `ze cli`: buildRuntimeTreeFromDispatch (internal/component/cli/client)
-	// is unexported, so this package cannot ask it.
-	t.Errorf("surface %s: its producer buildRuntimeTreeFromDispatch is unexported, so the check cannot ask it", command.SurfaceCLI)
+	// `ze cli`: its interactive completion tree, built from the daemon's
+	// `system command list` answer as the attached console reads it.
+	cliTree, err := cliclient.BuildRuntimeTreeFromDispatch(func(input string) (cli.CommandOutput, error) {
+		resp, err := serverDispatcher(server, "")(t.Context(), plugin.CallerIdentity{Username: "surface-check"}, input)
+		if err != nil {
+			return cli.CommandOutput{}, err
+		}
+		text, err := json.Marshal(resp.Data)
+		if err != nil {
+			return cli.CommandOutput{}, err
+		}
+		return cli.CommandOutput{Text: string(text)}, nil
+	})
+	if err != nil {
+		t.Fatalf("ze cli command tree: %v", err)
+	}
 
 	shell := newShellWords(t)
 	return map[command.Surface]surfaceArm{
@@ -145,6 +212,11 @@ func surfaceArms(t *testing.T, server *pluginserver.Server) map[command.Surface]
 		command.SurfaceMCP:  {listed: metaListed, served: served},
 		command.SurfaceREST: {listed: metaListed, served: served},
 		command.SurfaceGRPC: {listed: metaListed, served: served},
+		// `ze cli` answers a local-data command in its own process
+		// (command.ServeLocal) and every other command through the daemon.
+		command.SurfaceCLI: {listed: func(p string) bool { return treeHasPath(cliTree, p) }, served: func(p string) bool {
+			return command.HasLocalData(p) || served(p)
+		}},
 		// Shell completion runs with no daemon; `ze <verb>` answers locally, so
 		// its listing is the whole answer.
 		command.SurfaceShell: {listed: shell.offers, served: func(string) bool { return true }},
@@ -297,16 +369,21 @@ func registerStage1Commands(t *testing.T, d *pluginserver.Dispatcher) {
 // builtin RPCs under their YANG paths, local and local-data handlers, plugin
 // Stage 1 declarations with no YANG node, streaming prefixes and CLI live
 // views. A path declared by two sources keeps the first kind in that order.
-func collectCommandRegistrations(t *testing.T, schema *yangloader.Resolved) []command.CommandRegistration {
+func collectCommandRegistrations(t *testing.T, schema *yangloader.Resolved, views []cli.ViewInfo) []command.CommandRegistration {
 	t.Helper()
 	var regs []command.CommandRegistration
 	seen := make(map[string]bool)
+	streaming := make(map[string]bool)
+	for _, prefix := range pluginserver.StreamingPrefixes() {
+		streaming[strings.ToLower(prefix)] = true
+	}
 	add := func(reg command.CommandRegistration) {
 		key := strings.ToLower(reg.Path)
 		if seen[key] {
 			return
 		}
 		seen[key] = true
+		reg.Streaming = streaming[key]
 		regs = append(regs, reg)
 	}
 
@@ -348,11 +425,17 @@ func collectCommandRegistrations(t *testing.T, schema *yangloader.Resolved) []co
 			t.Errorf("streaming command %q has no one-shot registration, so no kind answers its surfaces", prefix)
 		}
 	}
-	for _, v := range cli.RegisteredViews() {
-		add(command.CommandRegistration{Path: v.Prefix, Kind: command.KindView})
+	for _, v := range views {
+		add(viewRegistration(v))
 	}
 	if len(regs) == 0 {
 		t.Fatal("no command was enumerated: the registries are empty")
 	}
 	return regs
+}
+
+// viewRegistration is a CLI live view as the check classifies it when no other
+// registry holds its prefix: a view, TUI-only when its registration says so.
+func viewRegistration(v cli.ViewInfo) command.CommandRegistration {
+	return command.CommandRegistration{Path: v.Prefix, Kind: command.KindView, TUIOnly: v.TUIOnly}
 }
