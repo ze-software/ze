@@ -66,7 +66,8 @@ func runLifecycleHook(kind string, ctx context, out, errOut io.Writer) (int, boo
 	case "validate-spec":
 		return hookValidateSpec(ctx, errOut), true
 	case "bash-timestamp":
-		return hookBashTimestamp(ctx, out), true
+		hookBashTimestamp(ctx, out)
+		return 0, true
 	default:
 		return 0, false
 	}

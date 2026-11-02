@@ -64,7 +64,7 @@ const coldMatrixMeasured = 23*time.Minute + 36*time.Second
 //
 // deadlinePerRow holds only for a cache that already answers the packages
 // every row shares. Each row loads the same dependency closure under other
-// tags, so a cold run pays for analysing that closure once, whatever its row
+// tags, so a cold run pays for analyzing that closure once, whatever its row
 // count: the 38-row measurement amortized it, and a 6-row CI piece pays it
 // alone. Verify run 41071626530 started every piece on a runner with an empty
 // cache, and each one exceeded its 9m0s or 10m30s bound. A piece judges a
@@ -224,11 +224,11 @@ func ScopeOf(tree string, matrix Matrix) (Scope, error) {
 
 // CacheCold answers whether the Staticcheck cache at dir is cold for a run of
 // scope: no run reached its verdict over it, or the last verdict covered other
-// inputs or other rows, so the run may analyse most of the dependency closure
+// inputs or other rows, so the run may analyze most of the dependency closure
 // again. An absent directory is cold, so is a cache full of entries that a
 // killed run left, and so is one a verdict at another commit marked.
 func CacheCold(dir string, scope Scope) (bool, error) {
-	marked, err := os.ReadFile(filepath.Join(dir, judgedMarker))
+	marked, err := os.ReadFile(filepath.Join(dir, judgedMarker)) //nolint:gosec // the gate's own cache directory (CacheDir) and a constant file name
 	if errors.Is(err, os.ErrNotExist) {
 		return true, nil
 	}

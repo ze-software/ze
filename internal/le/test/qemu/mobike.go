@@ -112,7 +112,7 @@ func buildMOBIKEGuests(ctx context.Context, root, directory string) error {
 			return err
 		}
 		output := filepath.Join(directory, binary.name)
-		argv := []string{"go", "build", tagsFlag, tags, "-ldflags", toolchain.LDFlags(), "-o", output, zeMainPackage}
+		argv := []string{"go", goCommandBuild, tagsFlag, tags, "-ldflags", toolchain.LDFlags(), "-o", output, zeMainPackage}
 		_, code := admission.Run("mobike-build-"+binary.name, argv, root, environment)
 		if code != 0 {
 			return fmt.Errorf("build MOBIKE guest %s for linux/%s exited %d", binary.name, architecture, code)

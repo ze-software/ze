@@ -12,7 +12,7 @@ import (
 )
 
 // VALIDATES: the bash-timestamp hook prints one "▶ HH:MM:SS" system message,
-// stays quiet inside the gap, prints again once the gap has passed, honours
+// stays quiet inside the gap, prints again once the gap has passed, honors
 // CLAUDE_BASH_STAMP_QUIET, and never blocks.
 // PREVENTS: a timestamp on every Bash call flooding the transcript, and a
 // display hook that refuses a command.

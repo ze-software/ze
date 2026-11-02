@@ -747,7 +747,7 @@ func BuildLinuxZe(ctx context.Context, root, goarch string) (string, error) {
 	output := filepath.Join(root, GuestZeRel(goarch))
 	environment := append(toolchain.EnvironmentContext(ctx, gotoolchain.EnvOptions{GOOS: guestOS, GOARCH: goarch}),
 		linuxle.Overrides(goarch)...)
-	argv := []string{"go", "build", tagsFlag, tags, "-o", output, zeMainPackage}
+	argv := []string{"go", goCommandBuild, tagsFlag, tags, "-o", output, zeMainPackage}
 	if _, code := admission.RunContext(ctx, "qemu-build-ze", argv, root, environment); code != 0 {
 		if err := ctx.Err(); err != nil {
 			// The root ended the build or the wait for its slot: say so, and
