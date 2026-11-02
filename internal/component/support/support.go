@@ -104,15 +104,16 @@ type archiveRequest struct {
 // Run is the `ze request support archive` spelling: the handler on the local
 // route, its answer printed as that route prints it.
 func Run(validated command.ValidatedArgs) int {
-	return command.PrintLocalAnswer(archivePath, command.AnswerLocal(Answer, validated))
+	return command.PrintLocalAnswerWith(archivePath, command.AnswerLocal(Answer, validated), Render)
 }
 
 // Answer is the handler of `request support archive`. It writes nothing
 // itself (command.LocalDataHandler).
 //
 // On the local route it collects into a file under --output (default the
-// working directory) and answers the archive's path, or its manifest under
-// --json, exactly as the command always printed. On the daemon route the
+// working directory) and answers its manifest (ArchiveAnswer), which Render
+// prints as the archive's path, or under --json as the manifest, exactly as
+// the command always printed. On the daemon route the
 // caller's host is not the daemon's, so no directory of the caller's can be
 // named: the daemon keeps the archive in its store under a registered key
 // (zefs.KeySupportArchive), answers the manifest naming that key, and the
@@ -187,14 +188,40 @@ func Answer(validated command.ValidatedArgs) command.LocalAnswer {
 	if err != nil {
 		return command.LocalRefusal(1, "error: "+err.Error()+"\n")
 	}
-	if !req.jsonOutput {
-		return command.LocalAnswer{Payload: command.Blob(manifest.ArchivePath + "\n")}
+	return command.LocalAnswer{Payload: ArchiveAnswer{SupportManifest: *manifest, pathOnly: !req.jsonOutput}}
+}
+
+// ArchiveAnswer is the local route's answer: the manifest of the archive it
+// wrote, the same document the daemon route answers. A pipe (`| json`, `ze
+// cli -c`) reads the manifest's fields, because the embedded struct marshals
+// flat and pathOnly is not exported. pathOnly records that --json was absent,
+// so Render prints the archive's path, the line the command always printed.
+type ArchiveAnswer struct {
+	SupportManifest
+	pathOnly bool
+}
+
+// Render is the `ze request support archive` drawing of an answer: the
+// archive's path on one line, or under --json the manifest indented by two
+// spaces, each ended by a newline, as the command always printed. Any other
+// payload (the module list, the daemon's manifest) renders through
+// command.RenderLocalAnswer. It answers the exit code.
+func Render(path string, payload any) int {
+	answer, isArchive := payload.(ArchiveAnswer)
+	if !isArchive {
+		return command.RenderLocalAnswer(path, payload)
 	}
-	encoded, err := json.MarshalIndent(manifest, "", "  ")
+	if answer.pathOnly {
+		os.Stdout.WriteString(answer.ArchivePath + "\n") //nolint:errcheck // CLI output, as command.WriteAnswer
+		return 0
+	}
+	encoded, err := json.MarshalIndent(answer.SupportManifest, "", "  ")
 	if err != nil {
-		return command.LocalRefusal(1, "error: "+err.Error()+"\n")
+		os.Stderr.WriteString("error: " + err.Error() + "\n") //nolint:errcheck // CLI output
+		return 1
 	}
-	return command.LocalAnswer{Payload: command.Blob(append(encoded, '\n'))}
+	os.Stdout.Write(append(encoded, '\n')) //nolint:errcheck // CLI output, as command.WriteAnswer
+	return 0
 }
 
 // storeAnswer collects for a caller in another process and keeps the archive

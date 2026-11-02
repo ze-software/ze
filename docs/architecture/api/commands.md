@@ -357,7 +357,10 @@ directory (`LocalArgs`), the answer field naming the path locally
 differ between any two runs (`Volatile`). `request support archive` declares
 it, and `TestLocalCommandDaemonMatchesLocal` (`cmd/ze/hub`) reads it to
 compare the two routes' documents field by field, with no command named in
-the test.
+the test. Both routes answer the same typed manifest (`support.SupportManifest`),
+so a pipe reads its fields on either one; the `ze request support archive`
+spelling draws it through its registered renderer (`support.Render`) as the
+archive's path on one line, or under `--json` as the indented manifest.
 
 A path argument on the daemon route names a file on the daemon's host, read
 with the daemon's identity, and the authorizer judges command text with no

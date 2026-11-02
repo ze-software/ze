@@ -28,5 +28,5 @@ func init() {
 			DaemonField: "archive-key",
 			Volatile:    []string{"timestamp", "duration-ms", "archive-octets"},
 		},
-	}, command.RenderLocalAnswer)
+	}, impl.Render)
 }

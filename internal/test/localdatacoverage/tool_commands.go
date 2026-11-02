@@ -168,21 +168,28 @@ func runToolCommands(output io.Writer, work string) error {
 }
 
 // runSupportArchive covers `request support archive`. The one module asked
-// for keeps the walk fast; the check proves the answer names a file under the
-// directory given and that the file is a gzip stream, so an answer naming a
+// for keeps the walk fast; the check proves the manifest it answers names a
+// file under the directory given and that the file is a gzip stream, so an answer naming a
 // path nobody wrote is refused.
 func runSupportArchive(output io.Writer, work string) error {
 	dir := filepath.Join(work, "support")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("create the support archive directory: %w", err)
 	}
-	content, err := blobContent("request support archive module version --output "+dir+" | json compact",
+	payload, err := localJSON("request support archive module version --output "+dir+" | json compact",
 		"request support archive", output)
 	if err != nil {
 		return err
 	}
-	path := strings.TrimSuffix(content, "\n")
-	if err := require(filepath.Dir(path) == dir, "request support archive answered %q, want a file under %q", content, dir); err != nil {
+	manifest, isObject := object(payload)
+	if !isObject {
+		return fmt.Errorf("request support archive answered no manifest: %#v", payload)
+	}
+	path, isText := manifest["archive-path"].(string)
+	if !isText {
+		return fmt.Errorf("request support archive answered a manifest with no archive-path: %#v", manifest)
+	}
+	if err := require(filepath.Dir(path) == dir, "request support archive answered %q, want a file under %q", path, dir); err != nil {
 		return err
 	}
 	archive, err := os.ReadFile(path) //nolint:gosec // the path the command answered, checked to lie under dir
