@@ -25,7 +25,6 @@
 package cli
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -61,10 +60,23 @@ const (
 // It opens the store the `ze config` subcommands open when no store is handed
 // to RunWithStorage, so a data handler reaches the same storage the printing
 // handler does.
-func withRuntimeStore(configPath string, fn func(storage.Storage) command.LocalAnswer) command.LocalAnswer {
+//
+// configPath is the file the store is opened beside, and named is that file
+// as the caller spelled it. A refusal names the store beside named, as
+// CallerPath's own refusals name the typed path: on the daemon route
+// configPath is the resolved path, which the caller never typed, so naming it
+// would make the two routes answer the same request with different words.
+func withRuntimeStore(configPath, named string, fn func(storage.Storage) command.LocalAnswer) command.LocalAnswer {
 	store, err := storage.OpenReadOnly(resolve.StoreDir(configPath))
 	if err != nil {
-		return command.LocalRefusal(exitError, command.LocalErrorLine(fmt.Errorf("config storage: %w", err)))
+		// The storage error names a file of the store as filepath.Join wrote
+		// it, so the store's directory is swapped for the prefix the same Join
+		// writes for the caller's directory ("." joins to nothing).
+		openedPrefix := resolve.StoreDir(configPath) + string(filepath.Separator)
+		namedPrefix := strings.TrimSuffix(filepath.Join(resolve.StoreDir(named), "x"), "x")
+		reason := strings.Replace(err.Error(), openedPrefix, namedPrefix, 1)
+		var tb textbuf.Buffer
+		return command.LocalRefusal(exitError, tb.Str("error: config storage: ").Str(reason).Byte('\n').String())
 	}
 	defer func() {
 		if err := store.Close(); err != nil {
@@ -146,7 +158,7 @@ func dataList(validated command.ValidatedArgs) command.LocalAnswer {
 	if len(args) != 0 {
 		return command.LocalRefusal(exitError, "usage: show config list\n")
 	}
-	return withRuntimeStore("", func(store storage.Storage) command.LocalAnswer {
+	return withRuntimeStore("", "", func(store storage.Storage) command.LocalAnswer {
 		rows := make([]map[string]any, 0)
 
 		for _, prefix := range []string{zefs.KeyFileActive.Dir(), zefs.KeyFileDraft.Dir()} {
@@ -206,7 +218,7 @@ func dataHistory(validated command.ValidatedArgs) command.LocalAnswer {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
 
-	return withRuntimeStore(storeBeside, func(store storage.Storage) command.LocalAnswer {
+	return withRuntimeStore(storeBeside, args[0], func(store storage.Storage) command.LocalAnswer {
 		backups, err := store.ListVersions(storeBeside)
 		if err != nil {
 			return command.LocalRefusal(exitError, command.LocalErrorLine(err))
