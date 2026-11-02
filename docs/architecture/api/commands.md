@@ -919,8 +919,11 @@ it for a builtin. `StreamingPluginCommand(prefix)` answers it, so a reader of
 the registry knows which plugin must run for the stream and its sample to
 answer. `monitor interface rate` declares `show interface rate`, which the
 iface plugin serves from its own rate tracker. With that plugin absent the
-sample is refused, naming the command that is not registered, and the surface
-parity check starts the plugin that declares the command before it asks.
+sample is refused (`ratesOf`, `iface.ErrRatePluginAbsent`): the refusal says
+the interface plugin is not running, that Ze starts it only for a
+configuration holding an `interface` section, and the command that adds one.
+The surface parity check starts the plugin that declares the command before it
+asks.
 
 The surface predicate (`command.AnswerSurface`) reads the declaration, so the
 MCP, REST and gRPC command list, the web admin tree and the web terminal
@@ -935,6 +938,8 @@ route ever skipped the refusal, never a reply.
 <!-- source: internal/component/plugin/server/handler.go -- OneShot, RegisterStreamingHandler, RegisterPluginStreamingHandler, StreamingPluginCommand, StreamingOneShot -->
 <!-- source: internal/component/plugin/server/streaming_only.go -- StreamingOnlyError, streamingOnlyRefusal, StreamingOnlyRPC -->
 <!-- source: cmd/ze/hub/streaming_surface.go -- streamingPathsOff -->
+<!-- source: internal/component/iface/cmd/interface_rate.go -- ratesOf -->
+<!-- source: internal/component/iface/rate_command.go -- ErrRatePluginAbsent -->
 <!-- source: cmd/ze/hub/surface_parity_test.go -- TestStreamingOneShotAnswersCarryData -->
 
 #### Where a monitor command streams

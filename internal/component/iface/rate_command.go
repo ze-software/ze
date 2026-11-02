@@ -34,6 +34,16 @@ const RateCommand = "show interface rate"
 // it serves any command, so only a call outside the plugin can meet it.
 var errRateTrackerNotRunning = errors.New("rate tracker not running: the interface plugin has not started its rate sampling")
 
+// ErrRatePluginAbsent is the refusal of a rate call that finds no process
+// serving RateCommand: the iface plugin, which owns the tracker, is not
+// running. The engine starts the plugin only for a configuration that holds
+// its root section, so the refusal names that section and the commands that
+// add it. It is built here, beside the root it names, so the hint cannot
+// drift from the section that actually starts the plugin.
+var ErrRatePluginAbsent = errors.New("the interface plugin, which measures interface rates, is not running. " +
+	"Ze starts it only when the configuration holds an " + configRootInterface + " section. " +
+	"To start it, add the section and commit: set " + configRootInterface + " backend netlink")
+
 // commandDecls names the commands the iface plugin serves.
 //
 // It has two readers and MUST stay one function: init() puts it on the

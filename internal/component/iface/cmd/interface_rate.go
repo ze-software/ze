@@ -53,6 +53,14 @@ var forwardRates = func(ctx *pluginserver.CommandContext, args []string) (*plugi
 // A refusal carries the text the operator reads.
 func ratesOf(ctx *pluginserver.CommandContext, args []string) (any, error) {
 	resp, err := forwardRates(ctx, args)
+	// No process serves the command: the iface plugin is not running. The
+	// dispatcher's own text names only the command it could not find, so the
+	// refusal says instead which plugin is missing, why, and how to start it,
+	// and ends on the command that fixes it.
+	if errors.Is(err, pluginserver.ErrUnknownCommand) {
+		var tb textbuf.Buffer
+		return nil, errors.New(tb.Str("interface rates unavailable: ").Err(iface.ErrRatePluginAbsent).String())
+	}
 	if err != nil {
 		var tb textbuf.Buffer
 		return nil, errors.New(tb.Str("interface rates unavailable: ").Err(err).String())

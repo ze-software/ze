@@ -120,3 +120,26 @@ func TestRatesWithoutDispatcherRefuse(t *testing.T) {
 		t.Fatalf("got %q %q, want the no-dispatcher refusal", resp.Status, resp.Error)
 	}
 }
+
+// TestRatesWithoutPluginNameTheFix checks that a rate call finding no process
+// serving the plugin command, which is what the dispatcher answers when the
+// iface plugin is not running, refuses with the cause and the fix: the
+// plugin is missing because no interface section is configured, and the
+// command that adds one. The dispatcher's own text names only the command.
+func TestRatesWithoutPluginNameTheFix(t *testing.T) {
+	saved := forwardRates
+	t.Cleanup(func() { forwardRates = saved })
+	forwardRates = func(*pluginserver.CommandContext, []string) (*plugin.Response, error) {
+		return nil, errors.Join(errors.New(`plugin command "show interface rate" not registered`), pluginserver.ErrUnknownCommand)
+	}
+	resp, err := handleMonitorInterfaceRate(&pluginserver.CommandContext{}, commandtest.Args())
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+	want := "interface rates unavailable: the interface plugin, which measures interface rates, is not running. " +
+		"Ze starts it only when the configuration holds an interface section. " +
+		"To start it, add the section and commit: set interface backend netlink"
+	if resp.Status != plugin.StatusError || resp.Error != want {
+		t.Fatalf("got %q %q, want %q", resp.Status, resp.Error, want)
+	}
+}

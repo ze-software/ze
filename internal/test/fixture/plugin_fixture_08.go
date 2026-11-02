@@ -494,9 +494,14 @@ func ifaceRateJSON08(ctx context.Context, p *sdk.Plugin) error {
 	}
 	// The config holds no interface section, so the iface plugin, which owns
 	// the rate tracker and serves the command, is not running: the daemon's
-	// forward to it finds no plugin serving the command and refuses.
-	if !strings.Contains(message, `interface rates unavailable: plugin command "show interface rate" not registered`) {
-		return fmt.Errorf("interface rate: expected the refusal that no plugin serves the rates, got %s", message)
+	// forward to it finds no plugin serving the command, and the refusal
+	// names the missing plugin, why it is missing, and the command that
+	// starts it (ratesOf, internal/component/iface/cmd/interface_rate.go).
+	const absent = "interface rates unavailable: the interface plugin, which measures interface rates, is not running. " +
+		"Ze starts it only when the configuration holds an interface section. " +
+		"To start it, add the section and commit: set interface backend netlink"
+	if !strings.Contains(message, absent) {
+		return fmt.Errorf("interface rate: expected the refusal that names the missing interface plugin and its fix, got %s", message)
 	}
 	raw, err = requireDone08(ctx, p, "system help")
 	if err != nil {
