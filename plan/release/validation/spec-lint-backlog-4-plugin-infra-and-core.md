@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | blocked |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 14 findings of the full lint in the plugin infrastructure, the public SDK and statestore; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 2/3 |
 | Handoff | - |
 | Updated | 2026-11-02 |
 
@@ -98,7 +98,7 @@ Line numbers are the CI run's.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | The scoped run before the first edit | unvalidated |
+| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | Source audit against the saved Task list; parent reserves CPU jobs | broken: eleven listed sites already addressed; three remained |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -146,6 +146,54 @@ Line numbers are the CI run's.
 2. Fix the test findings, then the registry modernize.
 3. Scoped lint zero; tests pass.
 
+### Step 2 source audit and handoff (2026-11-02)
+
+The parent reserves all tests, lint and compilation until the parallel edits
+settle. The saved CI list above is the baseline; no baseline was repeated.
+Step 2 has written edits, with AC-1 and AC-2 still unverified.
+
+| Finding | Current source evidence | Step 2 action |
+|---------|-------------------------|---------------|
+| unparam | `ipc/filter_batch_test.go` `sendQueued`: all six callers pass zero for the queue offset | Removed the constant parameter and updated all six callers, including `filter_batch_metrics_test.go` |
+| modernize | `registry/filter_declaration.go` `DeclaredFilter.ReadsRaw`: a string membership loop | Replaced the loop with `slices.Contains`; nil, empty and matching lists keep their result |
+| misspell | `server/startup_chain_refused_test.go` `TestStartupKeepsThePolicyForARefusedDeclaration`: fixture says colour | Changed the fixture to color; refusal assertions stay identical |
+| gocritic | `server/local_bridge_test.go` `TestDeclarationsConfigRefusedReadOnly` already uses `strings.Fields` | No edit |
+| TLS errcheck | `ipc/tls_test.go` `TestAuthenticateWrongMethod` already checks the request write | No edit |
+| Process-stop errcheck | `process/process_stop_test.go` `TestStopReachesThePluginTheShellStarted` already checks `proc.Wait` | No edit |
+| Recovery errcheck | `process/recovery_delivery_integration_test.go` `recoveryDeliveryScenario` already annotates unused pipe cleanup and joins the command result | No edit |
+| Child-process errcheck | `sysproc_linux_test.go` `TestStartChildSurvivesForkingThreadExit` already checks `KillProcessGroup` | No edit |
+| Store errcheck | `statestore_reader_test.go` `TestReadDoesNotWaitForAMutation` already captures and checks the joined increment error | No edit |
+| Five SDK errcheck sites | `sdk_callbacks_test.go` `executeCommand` checks `CallAnswer`, collapse and terminator errors for the five listed callback tests | No edit |
+
+Diagnosis: the remaining findings come from a constant helper argument, a
+manual membership loop and a fixture spelling. The owning layers are the test
+helper, registry predicate and test fixture. A [workaround] suppression would
+leave each reported form intact; the [source] edits remove those forms without
+changing assertions, declarations or protocol bytes. No product defect or new
+behavior was found that needs a new red-first test. No suppression was added
+(AC-3).
+
+Read documentation: `docs/architecture/api/process-protocol.md` (filter
+declarations and shutdown), `docs/guide/bgp-policy.md` (plugin filter chains),
+`docs/architecture/plugin/rib-storage-design.md` (source-DOWN ordering),
+`docs/architecture/zefs-format.md` (statestore), and
+`docs/plugin-development/metrics.md` (filter batch histogram). These edits
+change no documented contract or source-anchor claim.
+
+Parent evidence owed: the scoped lint and race-test commands in the Checklist.
+Changed packages are `internal/component/plugin/ipc`,
+`internal/component/plugin/registry`, and `internal/component/plugin/server`.
+Focused tests include `TestFilterBatchOrderAndVerdicts`,
+`TestFilterBatchFailureAppliesOnError`, `TestFilterBatchSizeObserved`,
+`TestCompileFilterDeclarations`, and
+`TestStartupKeepsThePolicyForARefusedDeclaration`.
+
+### Mistake Log: Wrong Assumptions
+
+| Assumption | Evidence | Correction |
+|------------|----------|------------|
+| A-1: all saved CI findings still need edits | The source audit above found eleven sites already addressed | Fix only the three remaining forms; the parent must still establish scoped lint and race results |
+
 ### Critical Review Checklist
 
 | Check | What to verify for this spec |
@@ -171,6 +219,31 @@ Line numbers are the CI run's.
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+
+## Blocker
+
+Closure needs AC-1 and the remainder of AC-2. The implementation is committed
+in `aaf2642dc1`: `ipc/filter_batch_test.go` `sendQueued`, its metrics-test
+caller, `registry/filter_declaration.go` `DeclaredFilter.ReadsRaw`, and
+`server/startup_chain_refused_test.go`
+`TestStartupKeepsThePolicyForARefusedDeclaration`. No source defect is asserted
+by this verification handback.
+
+The retained tagged race run reports package passes for plugin IPC, registry,
+server, statestore, SDK and `pkg/ze`. It does not establish the complete
+`internal/component/plugin/...` and `pkg/plugin/...` population required by
+AC-2. Its additional policy package failed
+`TestPolicyFilterReferenceSource`; that result is not a plugin-package pass.
+The previous coordinator records that scoped lint refused planning after
+concurrent source edits, so AC-1 has no zero-findings result.
+
+A fresh verification-only context must run the scoped lint command in Data
+Flow and establish race evidence for the remaining packages, with the feature
+tags from `feature-gates.txt`. The current editing context cannot start the
+potentially long lint job under `ai/rules/commands.md`. Then resume this spec
+as in-progress, complete the independent Review Gate and closure tables,
+clear citations, and land both closure commits. Keep the existing acceptance
+criteria intact.
 
 ## Checklist
 
