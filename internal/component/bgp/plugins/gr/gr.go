@@ -916,7 +916,7 @@ func decodeGR(data []byte) (*grResult, error) {
 	restartTime := (uint16(data[0]&0x0F) << 8) | uint16(data[1])
 
 	result := &grResult{
-		Name:         "graceful-restart",
+		Name:         grConfigName,
 		RestartFlags: flags,
 		RestartTime:  restartTime,
 		Restarting:   (flags & 0x08) != 0, // R-bit (RFC 4724)
@@ -944,7 +944,7 @@ func decodeGR(data []byte) (*grResult, error) {
 // formatGRText formats GR capability as human-readable text.
 func formatGRText(r *grResult) string {
 	var sb textbuf.Buffer
-	fmt.Fprintf(&sb, "%-20s restart-time=%d", "graceful-restart", r.RestartTime) //nolint:errcheck // buffer output
+	fmt.Fprintf(&sb, "%-20s restart-time=%d", grConfigName, r.RestartTime) //nolint:errcheck // buffer output
 	if r.Restarting {
 		sb.Str(" restarting")
 	}

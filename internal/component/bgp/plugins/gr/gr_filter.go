@@ -49,7 +49,7 @@ const (
 
 // llgrConfig is the config condition both insertions share: the leaf whose
 // presence makes Ze advertise the LLGR Capability (code 71) to the peer.
-var llgrConfig = []string{"session", "capability", "graceful-restart", "long-lived-stale-time"}
+var llgrConfig = []string{"session", "capability", grConfigName, "long-lived-stale-time"}
 
 // grFilterDecls declares the two procedures. It has two readers and MUST
 // stay one function: register.go puts it on registry.Registration.Filters

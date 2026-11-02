@@ -123,7 +123,7 @@ func parseLLGRCapValue(capMap map[string]any, peerAddr string, families []string
 	if capMap == nil {
 		return ""
 	}
-	grData, ok := capMap["graceful-restart"].(map[string]any)
+	grData, ok := capMap[grConfigName].(map[string]any)
 	if !ok {
 		return ""
 	}

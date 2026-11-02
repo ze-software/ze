@@ -47,7 +47,7 @@ type llgrCase struct {
 
 // judgeBoth runs tc through the evaluator on the fast path and forked, and
 // asserts both answer the verdict the case names.
-func judgeBoth(t *testing.T, tc llgrCase) {
+func judgeBoth(t *testing.T, tc *llgrCase) {
 	t.Helper()
 	var view policyview.View
 	view.Reset(wireu.NewWireUpdate(tc.payload, 0), tc.session)
@@ -117,7 +117,7 @@ func TestLLGRIngressVerdicts(t *testing.T) {
 		{"LLGR session, other community", llgrIngressFilterName, ingressTestUpdate(ingressNoExport),
 			policyview.ImportSession(llgrPeer), `{"llgr-advertised":true}`, rpc.FilterAccept, nil},
 	} {
-		judgeBoth(t, tc)
+		judgeBoth(t, &tc)
 	}
 }
 
@@ -171,7 +171,7 @@ func TestLLGREgressVerdicts(t *testing.T) {
 		{"rebuilt without LLGR_STALE", llgrEgressFilterName, plain, rebuilt(ebgp, source),
 			fields(ebgp, `,"source-llgr-advertised":true`), rpc.FilterAccept, nil},
 	} {
-		judgeBoth(t, tc)
+		judgeBoth(t, &tc)
 	}
 }
 

@@ -59,7 +59,7 @@ func (r *Reactor) readvertises(chain staleChain) bool {
 // readable by them. A destination whose chain holds no such member answers
 // ran false and the body untouched.
 //
-// RFC 9494 Section 4.3
+// RFC 9494 Section 4.3.
 func (r *Reactor) runStaleChain(chain staleChain, dest filterapi.PeerFilterInfo, body []byte, stale uint8) (res libraryResult, ran bool) {
 	if !r.readvertises(chain) {
 		return libraryResult{}, false

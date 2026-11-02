@@ -28,6 +28,11 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// grConfigName is the name the Graceful Restart capability carries in Ze:
+// the YANG container under a peer's `session capability`, and the Name of
+// the decoded capability.
+const grConfigName = "graceful-restart"
+
 // grCapCode is the BGP capability code for Graceful Restart.
 // RFC 4724 Section 3: "Capability code: 64".
 const grCapCode = 64
@@ -41,8 +46,8 @@ var (
 		return append(extractGRCapabilities(data), extractLLGRCapabilities(data)...), nil
 	})
 	grCapabilityLeaves = map[uint8]string{
-		grCapCode:   "graceful-restart",
-		llgrCapCode: "graceful-restart long-lived-stale-time",
+		grCapCode:   grConfigName,
+		llgrCapCode: grConfigName + " long-lived-stale-time",
 	}
 )
 
@@ -118,7 +123,7 @@ func parseGRCapValue(capMap map[string]any, peerAddr string, sessionFamilies []s
 	if capMap == nil {
 		return ""
 	}
-	grData, ok := capMap["graceful-restart"].(map[string]any)
+	grData, ok := capMap[grConfigName].(map[string]any)
 	if !ok {
 		return ""
 	}
@@ -295,7 +300,7 @@ func refuseUncarriedGRFamilies(jsonStr string) error {
 // list a peer overrode was refused on that peer's behalf although no OPEN
 // would ever carry it, and FatalOnConfigError made the refusal stop ze.
 func grCapabilityFor(peerMap, groupMap map[string]any) map[string]any {
-	if capMap := configjson.GetCapability(peerMap); capMap["graceful-restart"] != nil {
+	if capMap := configjson.GetCapability(peerMap); capMap[grConfigName] != nil {
 		return capMap
 	}
 	if groupMap == nil {
@@ -307,7 +312,7 @@ func grCapabilityFor(peerMap, groupMap map[string]any) map[string]any {
 // refusePeerGRFamilies checks the "graceful-restart family" container of one
 // capability map against the families the session carries.
 func refusePeerGRFamilies(capMap map[string]any, peerAddr string, sessionFamilies []string) error {
-	grData, ok := capMap["graceful-restart"].(map[string]any)
+	grData, ok := capMap[grConfigName].(map[string]any)
 	if !ok {
 		return nil
 	}
