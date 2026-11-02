@@ -251,9 +251,7 @@ func (m Model) handleConfirmCountdown() (tea.Model, tea.Cmd) {
 
 	// Update countdown display
 	m.statusMessage = contract.ConfirmWithin(int64(m.confirmSecondsLeft))
-	return m, tea.Tick(time.Second, func(_ time.Time) tea.Msg {
-		return confirmCountdownMsg{}
-	})
+	return m, m.tick(time.Second, confirmCountdownMsg{})
 }
 
 // resolveConfigPath resolves a path relative to the config file directory.

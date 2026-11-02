@@ -433,9 +433,16 @@ func (tc *testCase) parseWait(rest string) error {
 		return errWaitRequiresType
 	}
 
+	if len(segments) > 2 {
+		return fmt.Errorf("invalid wait action %q", rest)
+	}
+
 	// First segment might be key=value or just key
 	kv := strings.SplitN(segments[0], "=", 2)
 	if len(kv) == 2 {
+		if len(segments) != 1 {
+			return fmt.Errorf("invalid wait action %q", rest)
+		}
 		w.Values[kv[0]] = kv[1]
 	} else {
 		// Check if there's a value in next segment
@@ -447,6 +454,9 @@ func (tc *testCase) parseWait(rest string) error {
 		}
 	}
 
+	if _, _, err := w.parameters(); err != nil {
+		return err
+	}
 	tc.Waits = append(tc.Waits, w)
 	tc.Steps = append(tc.Steps, Step{Type: StepWait, WaitIndex: len(tc.Waits) - 1})
 	return nil

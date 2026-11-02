@@ -8,6 +8,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -63,12 +65,15 @@ var (
 // behind it would block on its turn forever, holding the Model and the Editor.
 // end releases them: the session's owner calls it through Model.Close once the
 // program has returned.
+// The same owner carries the context and clock for timers and pollers across
+// model copies. The clock is fixed before any command starts.
 type dispatchQueue struct {
 	mu      sync.Mutex
 	prev    chan struct{} // closed when the turn before the next one ends
 	pending int           // turns reserved and not yet ended
-	ended   chan struct{} // closed by end: the session is over
-	endOnce sync.Once
+	ctx     context.Context
+	cancel  context.CancelFunc
+	clock   clock.Clock
 }
 
 // newDispatchQueue returns an empty queue whose first reserved turn starts
@@ -76,13 +81,14 @@ type dispatchQueue struct {
 func newDispatchQueue() *dispatchQueue {
 	first := make(chan struct{})
 	close(first)
-	return &dispatchQueue{prev: first, ended: make(chan struct{})}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &dispatchQueue{prev: first, ctx: ctx, cancel: cancel, clock: clock.RealClock{}}
 }
 
 // end releases every turn still waiting, because the session that would end
 // them is over. Safe for concurrent use, and safe to call more than once.
 func (q *dispatchQueue) end() {
-	q.endOnce.Do(func() { close(q.ended) })
+	q.cancel()
 }
 
 // await blocks until the turn before this one ends or the session ends. It
@@ -92,10 +98,10 @@ func (q *dispatchQueue) end() {
 func (q *dispatchQueue) await(wait <-chan struct{}) bool {
 	select {
 	case <-wait:
-	case <-q.ended:
+	case <-q.ctx.Done():
 	}
 	select {
-	case <-q.ended:
+	case <-q.ctx.Done():
 		return false
 	default:
 		return true

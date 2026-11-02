@@ -328,7 +328,7 @@ func (m *Model) startTracerouteRound() tea.Cmd {
 		return nil
 	}
 
-	ch, cancel, err := ts.poller(context.Background(), ts.target, ts.maxHops)
+	ch, cancel, err := ts.poller(m.dispatch.ctx, ts.target, ts.maxHops)
 	if err != nil {
 		ts.pollError = err.Error()
 		return nil
@@ -337,7 +337,7 @@ func (m *Model) startTracerouteRound() tea.Cmd {
 	ts.hopChan = ch
 	ts.cancelRound = cancel
 
-	return tea.Tick(tracerouteDrainInterval, func(time.Time) tea.Msg { return traceroutePollMsg{} })
+	return m.tick(tracerouteDrainInterval, traceroutePollMsg{})
 }
 
 func (m *Model) startTraceroutePipedRound() tea.Cmd {
@@ -346,7 +346,7 @@ func (m *Model) startTraceroutePipedRound() tea.Cmd {
 		return nil
 	}
 
-	ch, cancel, err := ps.poller(context.Background(), ps.target, ps.maxHops)
+	ch, cancel, err := ps.poller(m.dispatch.ctx, ps.target, ps.maxHops)
 	if err != nil {
 		if ps.saves != nil {
 			_ = ps.saves.Abort()
@@ -360,7 +360,7 @@ func (m *Model) startTraceroutePipedRound() tea.Cmd {
 	ps.hopChan = ch
 	ps.cancelRound = cancel
 
-	return tea.Tick(tracerouteDrainInterval, func(time.Time) tea.Msg { return traceroutePipedPollMsg{} })
+	return m.tick(tracerouteDrainInterval, traceroutePipedPollMsg{})
 }
 
 func (m *Model) stopTraceroute() {
@@ -521,7 +521,7 @@ func (m Model) handleTraceroutePoll() (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	return m, tea.Tick(tracerouteDrainInterval, func(time.Time) tea.Msg { return traceroutePollMsg{} })
+	return m, m.tick(tracerouteDrainInterval, traceroutePollMsg{})
 }
 
 func (m Model) handleTraceroutePipedPoll() (tea.Model, tea.Cmd) {
@@ -589,7 +589,7 @@ func (m Model) handleTraceroutePipedPoll() (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	return m, tea.Tick(tracerouteDrainInterval, func(time.Time) tea.Msg { return traceroutePipedPollMsg{} })
+	return m, m.tick(tracerouteDrainInterval, traceroutePipedPollMsg{})
 }
 
 const (

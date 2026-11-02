@@ -9,6 +9,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -521,7 +522,7 @@ const draftPollInterval = 2 * time.Second
 // Init implements tea.Model.
 func (m Model) Init() tea.Cmd {
 	if m.hasEditor() && m.editor.HasSession() {
-		return tea.Tick(draftPollInterval, func(time.Time) tea.Msg { return draftPollMsg{} })
+		return m.tick(draftPollInterval, draftPollMsg{})
 	}
 	return nil
 }
@@ -529,8 +530,20 @@ func (m Model) Init() tea.Cmd {
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+	if tick, ok := msg.(modelTickMsg); ok {
+		if tick.owner != m.dispatch || tick.owner.ctx.Err() != nil {
+			return m, nil
+		}
+		msg = tick.msg
+	}
 
 	switch msg := msg.(type) {
+	case TimerMsg:
+		if msg.owner != m.dispatch || msg.owner.ctx.Err() != nil {
+			return m, nil
+		}
+		return m, msg.Wait
+
 	case tea.KeyPressMsg:
 		return m.handleKeyMsg(msg)
 
@@ -707,9 +720,7 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 	if r.startConfirmCountdown > 0 {
 		m.confirmSecondsLeft = r.startConfirmCountdown
 		if !countdownRunning {
-			return m, tea.Tick(time.Second, func(_ time.Time) tea.Msg {
-				return confirmCountdownMsg{}
-			})
+			return m, m.tick(time.Second, confirmCountdownMsg{})
 		}
 	}
 
@@ -961,7 +972,7 @@ func (m Model) handleDraftPoll() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	next := tea.Tick(draftPollInterval, func(time.Time) tea.Msg { return draftPollMsg{} })
+	next := m.tick(draftPollInterval, draftPollMsg{})
 	// A command in flight owns the editor on its own goroutine, so the poll
 	// MUST NOT re-read the draft into it now. It may also be this session's
 	// own accept or abort: its result, not the poll, says how the window
@@ -995,8 +1006,12 @@ func (m Model) StatusMessage() string {
 	return m.statusMessage
 }
 
-// Error returns the current command error.
+// Error returns the current command error and any observed daemon rollback
+// failure. The window watch preserves the cause independently of display text.
 func (m Model) Error() error {
+	if m.windowWatch.revertFailed != nil {
+		return errors.Join(m.err, m.windowWatch.revertFailed)
+	}
 	return m.err
 }
 
@@ -1017,7 +1032,7 @@ func (m Model) SelectedIndex() int {
 
 // ConfirmTimerActive returns true if a commit confirm timer is active.
 func (m Model) ConfirmTimerActive() bool {
-	return m.confirmTimerActive
+	return m.confirmTimerActive || m.windowWatch.open
 }
 
 // ViewportContent returns the content currently displayed in the viewport.
@@ -1084,8 +1099,9 @@ func (m *Model) SetTranscript(tw *TranscriptWriter) {
 	m.commandExecutor = WrapExecutorWithTranscript(m.commandExecutor, tw)
 }
 
-// Close releases what the session held: every command still queued for its
-// turn (see dispatchQueue.end), and the transcript file. The SSH server calls
+// Close releases what the session held: pending timers, poller contexts, every
+// command still queued for its turn, and the transcript file. The owner MUST
+// call Close when the session ends. The SSH server calls
 // it once the session's program returns (internal/component/ssh/ssh.go,
 // sessionCloseMiddleware). A model without a transcript closes no file.
 func (m Model) Close() error {

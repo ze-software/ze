@@ -297,6 +297,19 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 		return result
 	}
 	defer configStore.Close() //nolint:errcheck // test cleanup
+	var models []*headlessModel
+	defer func() {
+		for _, model := range models {
+			if err := model.close(); err != nil {
+				result.Passed = false
+				if result.Error == "" {
+					result.Error = err.Error()
+				} else {
+					result.Error = errors.Join(errors.New(result.Error), err).Error()
+				}
+			}
+		}
+	}()
 
 	// Every constructor uses the same resize event as an interactive terminal.
 	// Apply it before any authored step, including after a restart or session creation.
@@ -304,6 +317,7 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 		if err != nil {
 			return nil, err
 		}
+		models = append(models, hm)
 		if err := hm.sendMsg(tea.WindowSizeMsg{Width: width, Height: height}); err != nil {
 			return nil, err
 		}
@@ -346,9 +360,16 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 	hm.setTmpDir(tmpDir)
 	wireHistory(hm)
 
-	// Multi-session map: session name -> headless model.
+	// Each selection retains its construction recipe. Restarting a named
+	// session must not fall back to the file's initial mode or identity.
+	type editorInstance struct {
+		model  *headlessModel
+		create func() (*headlessModel, error)
+	}
+	createCurrent := createModel
+	// Multi-session map: session name -> model and its construction recipe.
 	// SEQUENTIAL: test steps run serially; no concurrent map access.
-	sessions := map[string]*headlessModel{}
+	sessions := map[string]editorInstance{}
 
 	// Configure mock reload notifier if requested
 	switch reloadMode {
@@ -391,9 +412,12 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 				result.Steps = append(result.Steps, trace.StepResult{
 					Step: stepNum, Kind: etSession, Assert: sa.Name, Passed: true,
 				})
-				hm = existing
+				hm, createCurrent = existing.model, existing.create
 			} else {
-				newHM, sessionErr := sizeModel(newHeadlessModelWithSession(configStore, configPath, sa.User, sa.Origin))
+				createSession := func() (*headlessModel, error) {
+					return sizeModel(newHeadlessModelWithSession(configStore, configPath, sa.User, sa.Origin))
+				}
+				newHM, sessionErr := createSession()
 				result.Steps = append(result.Steps, trace.StepResult{
 					Step: stepNum, Kind: etSession, Assert: sa.Name,
 					Passed: sessionErr == nil, Detail: trace.ErrString(sessionErr),
@@ -404,15 +428,18 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 					return result
 				}
 				newHM.setTmpDir(tmpDir)
-				sessions[sa.Name] = newHM
-				hm = newHM
+				sessions[sa.Name] = editorInstance{model: newHM, create: createSession}
+				hm, createCurrent = newHM, createSession
 			}
 
 		case StepRestart:
-			// Drain pending commands on the old model before replacing it,
-			// so timer goroutines don't outlive the model.
-			hm.settleWait()
-			newHM, restartErr := createModel()
+			// State commands are already applied. Cancel and join timers before
+			// replacing the model; waiting for their expiry is not shutdown.
+			if err := hm.close(); err != nil {
+				result.Error = fmt.Sprintf("step %d (restart): closing editor: %v", stepNum, err)
+				return result
+			}
+			newHM, restartErr := createCurrent()
 			result.Steps = append(result.Steps, trace.StepResult{
 				Step: stepNum, Kind: etRestart,
 				Passed: restartErr == nil, Detail: trace.ErrString(restartErr),
@@ -424,6 +451,12 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 			}
 			newHM.setTmpDir(tmpDir)
 			wireHistory(newHM)
+			for name, session := range sessions {
+				if session.model == hm {
+					session.model = newHM
+					sessions[name] = session
+				}
+			}
 			hm = newHM
 
 		case StepInput:
@@ -456,28 +489,13 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 			}
 
 		case StepExpect:
-			// SettleWait is the barrier: it blocks until every command in
-			// flight (file I/O that exceeded the 900ms processCmdWithDepth
-			// deadline and was handed to the pending set) has completed and
-			// been applied, so the assertion below cannot race the edit it is
-			// checking.
-			//
-			// Draining one generation can schedule the next (a command
-			// result that triggers a status update), so re-drain while the
-			// assertion fails and work remains in flight. The bound is on
-			// generations of cascaded commands, never on wall-clock time,
-			// so a slow machine changes how long each drain takes but not
-			// whether the assertion sees settled state. Once nothing is
-			// pending, no further drain can change the answer -- stop and
-			// report the failure instead of spinning.
+			// State commands and their cascades complete synchronously.
+			// Settle the current validation generation; recurring timers are
+			// advanced by authored waits, not by retrying a failed assertion.
 			exp := tc.Expects[step.ExpectIndex]
-			var lastErr error
-			for range 5 {
-				hm.settleWait()
+			lastErr := hm.settleWait()
+			if lastErr == nil {
 				lastErr = checkExpectation(exp, hm)
-				if lastErr == nil || !hm.hasPending() {
-					break
-				}
 			}
 			result.Steps = append(result.Steps, trace.StepResult{
 				Step: stepNum, Kind: etExpect, Assert: exp.Type,
@@ -490,11 +508,14 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 			}
 
 		case StepWait:
-			// Handle wait actions (currently just skip - timer handling needs real time)
-			_ = tc.Waits[step.WaitIndex]
+			err := hm.wait(tc.Waits[step.WaitIndex])
 			result.Steps = append(result.Steps, trace.StepResult{
-				Step: stepNum, Kind: etWait, Passed: true,
+				Step: stepNum, Kind: etWait, Passed: err == nil, Detail: trace.ErrString(err),
 			})
+			if err != nil {
+				result.Error = fmt.Sprintf("step %d (wait): %v", stepNum, err)
+				return result
+			}
 		default:
 			panic("BUG: invalid editor test step type")
 		}

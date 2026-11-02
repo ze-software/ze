@@ -18,8 +18,9 @@ import (
 // keeps one per session; the web keeps one per user (WindowNotices). The zero
 // value has seen no window open. Not safe for concurrent use.
 type WindowWatch struct {
-	open     bool
-	timeouts uint64
+	open         bool
+	timeouts     uint64
+	revertFailed error // latest observed daemon failure; cleared with the watch
 }
 
 // WindowNews is what one poll of the daemon window has to say to its viewer:
@@ -43,13 +44,17 @@ func (w *WindowWatch) Poll(window *confirm.Window, viewer string) (WindowNews, b
 				*w = *watched
 			}
 		}
+		w.revertFailed = status.RevertFailed
 		return WindowNews{Line: status.Line(viewer)}, true
 	}
-	if !w.open {
+	watched := *w
+	// Clear even an uninitialized watch: Stop may have raced the previous
+	// open Status read and prevented WatchWindow from setting open, while
+	// that poll still retained Status.RevertFailed.
+	*w = WindowWatch{}
+	if !watched.open {
 		return WindowNews{}, false
 	}
-	watched := *w
-	*w = WindowWatch{}
 	timeouts, err := window.Timeouts()
 	if err != nil {
 		return WindowNews{}, false

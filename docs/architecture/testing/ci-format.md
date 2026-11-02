@@ -2545,13 +2545,54 @@ refuses nonpositive durations or overflow after concurrency headroom is applied.
 <!-- source: internal/component/cli/testing/parser.go -- parseOption -->
 <!-- source: internal/component/cli/testing/runner.go -- testBudget, runTestCaseIn -->
 
+`restart=editor` recreates the selected editor using its own construction mode
+and session identity. A named `session=` keeps its user and origin across
+restart and switch-back; it does not inherit the initial file session's identity.
+<!-- source: internal/component/cli/testing/runner.go -- runTestCaseIn -->
+
 ### Wait Actions
+
+Model copies share one session context and clock. Validation, draft polling,
+confirmation countdown and live-view poll ticks use stoppable timers; closing
+the model cancels pending ticks. Delivery checks the originating model lifetime
+before applying the message, so an expired tick cannot affect a restarted
+editor. Validation also retains its generation check. Authored editor runs use
+real timers; controlled clocks are confined to focused runtime tests.
+<!-- source: internal/component/cli/model_timer.go -- tick, modelTickMsg -->
+<!-- source: internal/component/cli/model.go -- Update, Close -->
+
+The model declares timer work with `TimerMsg`. Headless execution runs ordinary
+commands and every state-command result to completion, including nested batches
+and sequences. Only declared timers run asynchronously; command duration never
+classifies work as a timer. Expectations settle validation without waiting for
+recurring display ticks. Restart and case cleanup cancel and join pending model
+timers before releasing the editor.
+<!-- source: internal/component/cli/model_timer.go -- TimerMsg, Wait -->
+<!-- source: internal/component/cli/testing/headless.go -- processCmd, processMsg, settleWait, close -->
 
 | Action | Purpose | Example |
 |--------|---------|---------|
 | `wait=ms:<N>` | Wait N milliseconds | `wait=ms:200` |
 | `wait=validation` | Wait for validation | `wait=validation` |
 | `wait=timer:expire` | Wait for timer expiry | `wait=timer:expire` |
+
+`wait=ms:<N>` pumps timer deliveries for at least N real milliseconds (zero is
+allowed). Negative, noninteger and overflowing durations are parse errors.
+`wait=validation` applies the current generation before the next state command;
+older debounce ticks cannot satisfy it. A settled editor returns immediately.
+`wait=timer:expire` requires an active confirmation timer on entry and waits for
+observed timeout rollback. An inactive timer, accept/abort, cancellation, missing
+countdown/poll or rollback error fails the wait. Session editors observe the
+real daemon window through draft polling; they do not synthesize its expiry.
+If the daemon's rollback fails and its window remains open for retry, the wait
+reports the structured rollback cause at the next poll instead of waiting for
+the case timeout. The window stays open; reporting failure does not accept it.
+<!-- source: internal/component/cli/model_commit_window.go -- Poll -->
+<!-- source: internal/component/cli/model.go -- Error -->
+Unknown wait actions and malformed arguments are parse errors. Wait failures
+are recorded on the wait step, including its cause.
+<!-- source: internal/component/cli/testing/headless_wait.go -- parameters, wait, waitEvent -->
+<!-- source: internal/component/cli/testing/runner.go -- runTestCaseIn -->
 
 ### Example
 

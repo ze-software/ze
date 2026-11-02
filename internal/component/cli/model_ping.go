@@ -347,7 +347,7 @@ func (m *Model) startPingMonitor(input string) tea.Cmd {
 		return nil
 	}
 
-	ch, cancel, err := factory(context.Background(), mp.Target, mp.Interval, mp.Timeout, mp.Count, mp.Size)
+	ch, cancel, err := factory(m.dispatch.ctx, mp.Target, mp.Interval, mp.Timeout, mp.Count, mp.Size)
 	if err != nil {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor ping: ").Err(err).String()
@@ -364,7 +364,7 @@ func (m *Model) startPingMonitor(input string) tea.Cmd {
 		cancel:   cancel,
 	}}
 
-	return tea.Tick(pingDrainInterval, func(time.Time) tea.Msg { return pingPollMsg{} })
+	return m.tick(pingDrainInterval, pingPollMsg{})
 }
 
 func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
@@ -400,7 +400,7 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 		return nil
 	}
 
-	ch, cancel, err := factory(context.Background(), mp.Target, mp.Interval, mp.Timeout, mp.Count, mp.Size)
+	ch, cancel, err := factory(m.dispatch.ctx, mp.Target, mp.Interval, mp.Timeout, mp.Count, mp.Size)
 	if err != nil {
 		if saves != nil {
 			_ = saves.Abort()
@@ -434,7 +434,7 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 	}
 	m.statusMessage = "monitoring ping (Esc to stop)"
 
-	return tea.Tick(pingDrainInterval, func(time.Time) tea.Msg { return pingPipedPollMsg{} })
+	return m.tick(pingDrainInterval, pingPipedPollMsg{})
 }
 
 func (m *Model) stopPingMonitor() {
@@ -555,7 +555,7 @@ func (m Model) handlePingPoll() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	return m, tea.Tick(pingDrainInterval, func(time.Time) tea.Msg { return pingPollMsg{} })
+	return m, m.tick(pingDrainInterval, pingPollMsg{})
 }
 
 func (m Model) handlePingPipedPoll() (tea.Model, tea.Cmd) {
@@ -622,7 +622,7 @@ func (m Model) handlePingPipedPoll() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	return m, tea.Tick(pingDrainInterval, func(time.Time) tea.Msg { return pingPipedPollMsg{} })
+	return m, m.tick(pingDrainInterval, pingPipedPollMsg{})
 }
 
 func pingReplyToJSON(target string, reply map[string]any) string {

@@ -118,9 +118,7 @@ func (m *Model) scheduleValidation() tea.Cmd {
 	}
 	m.validationID++
 	id := m.validationID
-	return tea.Tick(validationDebounce, func(_ time.Time) tea.Msg {
-		return validationTickMsg{id: id}
-	})
+	return m.tick(validationDebounce, validationTickMsg{id: id})
 }
 
 // cmdSave persists work-in-progress. In session mode, applies changes from the

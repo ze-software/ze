@@ -67,7 +67,7 @@ func (m *Model) startMonitorSessionFromInput(args []string, fullInput string) te
 		return nil
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(m.dispatch.ctx)
 	session, err := m.monitorFactory(ctx, args)
 	if err != nil {
 		cancel()
@@ -87,11 +87,11 @@ func (m *Model) startMonitorSessionFromInput(args []string, fullInput string) te
 	m.viewport.GotoBottom()
 	m.statusMessage = "monitoring (Esc to stop)"
 
-	return tea.Tick(monitorPollInterval, func(time.Time) tea.Msg { return monitorPollMsg{} })
+	return m.tick(monitorPollInterval, monitorPollMsg{})
 }
 
 func (m *Model) startProviderMonitor(provider *pluginserver.MonitorProvider, args []string) tea.Cmd {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(m.dispatch.ctx)
 	eventCh, renderFn, provCancel, err := provider.CreateFn(ctx, args)
 	if err != nil {
 		cancel()
@@ -109,7 +109,7 @@ func (m *Model) startProviderMonitor(provider *pluginserver.MonitorProvider, arg
 	}
 	m.statusMessage = "monitoring (Esc to stop)"
 
-	return tea.Tick(monitorPollInterval, func(time.Time) tea.Msg { return monitorPollMsg{} })
+	return m.tick(monitorPollInterval, monitorPollMsg{})
 }
 
 // stopMonitorSession cancels the active monitor and cleans up.
@@ -177,7 +177,7 @@ func (m Model) handleMonitorPoll() (tea.Model, tea.Cmd) {
 		m.viewport.GotoBottom()
 	}
 
-	return m, tea.Tick(monitorPollInterval, func(time.Time) tea.Msg { return monitorPollMsg{} })
+	return m, m.tick(monitorPollInterval, monitorPollMsg{})
 }
 
 // SetMonitorFactory sets the factory used to create monitor sessions.

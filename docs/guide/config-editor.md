@@ -553,6 +553,18 @@ from configuration mode behind `run `, and the keys are in the
 
 The seconds parameter accepts values from 1 to 3600 (one hour).
 
+Closing an editor cancels its display countdown, validation debounce and
+live-view polling timers. A delayed tick from that editor cannot update a
+restarted editor. This session lifetime does not cancel the daemon's
+commit-confirm window: the daemon still owns its deadline and rollback.
+The model retains a polled daemon rollback failure as a structured error as
+well as displaying its status. The error clears when the watch observes
+recovery, closure or a stopped window, even if shutdown interrupted watch
+initialization; reporting it does not close the daemon window.
+<!-- source: internal/component/cli/model_timer.go -- tick -->
+<!-- source: internal/component/cli/model.go -- Update, Close -->
+<!-- source: internal/component/cli/model_commit_window.go -- Poll -->
+
 Every write to the daemon's configuration (a commit from any editor, an
 accept, an abort, a gNMI Set, an API config session, a managed push) runs on
 the daemon's one commit-confirm worker. A Ze defect met during one write ends

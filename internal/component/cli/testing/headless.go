@@ -5,9 +5,8 @@ package testing
 import (
 	"errors"
 	"fmt"
-	"runtime"
+	"reflect"
 	"sync"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -53,14 +52,20 @@ var headlessCommandTree = sync.OnceValues(func() (*command.Node, error) {
 // headlessModel wraps the editor Model for headless testing.
 // It provides direct access to model state without TTY rendering.
 type headlessModel struct {
-	model   cli.Model
-	editor  *cli.Editor
-	store   storage.Storage
-	pending []<-chan tea.Msg // timer commands that exceeded the processing deadline
-	// typing is true while the commands of one typed character are processed:
-	// they go straight to pending instead of the slow-path wait (sendMsg).
-	typing bool
-	tmpDir string // temp directory for file expectations
+	model        cli.Model
+	editor       *cli.Editor
+	store        storage.Storage
+	pending      []pendingTick
+	stopped      chan struct{}
+	stopOnce     sync.Once
+	ready        chan struct{}
+	timerWorkers sync.WaitGroup
+	tmpDir       string // temp directory for file expectations
+}
+
+type pendingTick struct {
+	request cli.TimerMsg
+	result  <-chan tea.Msg
 }
 
 // newHeadlessModel creates a headless model from a config file path, reading
@@ -76,21 +81,22 @@ func newHeadlessModel(store storage.Storage, configPath string) (*headlessModel,
 		return nil, fmt.Errorf("creating model: %w", err)
 	}
 
-	// Initialize with a reasonable window size - don't process the Init command
-	// as it contains cursor blink which blocks forever
+	// Initialize sizing before starting the model's declared timer work.
 	newModel, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	if m, ok := newModel.(cli.Model); ok {
 		model = m
 	}
 
 	hm := &headlessModel{
-		model:  model,
-		editor: ed,
-		store:  store,
+		stopped: make(chan struct{}),
+		model:   model,
+		editor:  ed,
+		store:   store,
 	}
 
 	// Trigger initial completion population
 	hm.model.UpdateCompletions()
+	hm.processCmd(hm.model.Init())
 
 	return hm, nil
 }
@@ -116,12 +122,14 @@ func newHeadlessModelWithSession(store storage.Storage, configPath, user, origin
 	}
 
 	hm := &headlessModel{
-		model:  model,
-		editor: ed,
-		store:  store,
+		stopped: make(chan struct{}),
+		model:   model,
+		editor:  ed,
+		store:   store,
 	}
 
 	hm.model.UpdateCompletions()
+	hm.processCmd(hm.model.Init())
 
 	return hm, nil
 }
@@ -146,11 +154,13 @@ func newHeadlessBackupModel(store storage.Storage, configPath, user string) (*he
 		model = m
 	}
 	hm := &headlessModel{
-		model:  model,
-		editor: ed,
-		store:  store,
+		stopped: make(chan struct{}),
+		model:   model,
+		editor:  ed,
+		store:   store,
 	}
 	hm.model.UpdateCompletions()
+	hm.processCmd(hm.model.Init())
 	return hm, nil
 }
 
@@ -175,7 +185,8 @@ func newHeadlessCommandModel() (*headlessModel, error) {
 	}
 
 	hm := &headlessModel{
-		model: model,
+		stopped: make(chan struct{}),
+		model:   model,
 	}
 
 	return hm, nil
@@ -214,9 +225,7 @@ func (hm *headlessModel) Model() *cli.Model {
 
 // sendMsg sends a tea.Msg to the model and processes it.
 func (hm *headlessModel) sendMsg(msg tea.Msg) error {
-	// Drain completed pending timer commands before model.Update().
-	// Timer goroutines don't access editor/model state (they only sit in
-	// time.After), so draining them here is race-free.
+	// Only declared timers run concurrently; their results are applied here.
 	hm.settle()
 
 	newModel, cmd := hm.model.Update(msg)
@@ -226,88 +235,17 @@ func (hm *headlessModel) sendMsg(msg tea.Msg) error {
 	}
 	hm.model = model
 
-	// A typed character answers with the model's validation debounce, a
-	// 100ms tea.Tick that the model ignores unless it is the last keystroke's.
-	// Waiting for that tick on each character made typing cost 100ms a
-	// character, so a session test with three long commands took 24s. The
-	// character's commands go to pending instead, as the real program runs
-	// them beside the next keystroke, and every expectation still drains them
-	// first through settleWait. One difference stays: the last keystroke's
-	// tick now runs after the Enter that follows it, so it validates the tree
-	// the command left, which the real program does not do when the operator
-	// pauses over 100ms before Enter. A .et that asserts validation after a
-	// command therefore passes even when the command itself never asks to
-	// revalidate; such a test has to prove the command's own revalidate.
-	key, isKey := msg.(tea.KeyPressMsg)
-	hm.typing = isKey && key.Text != ""
 	hm.processCmd(cmd)
-	hm.typing = false
 
 	return nil
 }
 
-// processCmd processes commands that return messages, with depth limiting.
+// processCmd applies a command and all state work its result produces before
+// returning. TimerMsg is the sole asynchronous path; duration never classifies
+// a command as a timer.
 func (hm *headlessModel) processCmd(cmd tea.Cmd) {
-	hm.processCmdWithDepth(cmd, 0)
-}
-
-// processCmdWithDepth processes commands with depth tracking to prevent infinite loops.
-//
-// Each command runs in a goroutine so blocking timer commands (validation tick,
-// confirm countdown, draft poll) don't stall the test. The goroutine either:
-//   - completes and we process the result synchronously (no concurrent access), or
-//   - exceeds the deadline and is added to pending for SettleWait to drain.
-//
-// Timer goroutines only block in time.After, never accessing model/editor state,
-// so draining them later via SettleWait is race-free. State-mutating commands
-// (file I/O) complete within the slow-path deadline under normal conditions.
-// Virtual cursor is off by default (hardware cursor, no blink timers).
-func (hm *headlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
-	if cmd == nil || depth > 5 {
-		return // Depth limit to prevent infinite recursion
-	}
-
-	// Execute the command in a goroutine with timeout.
-	done := make(chan tea.Msg, 1)
-	go func() {
-		done <- cmd()
-	}()
-
-	// Fast path: yield multiple times for microsecond-level commands
-	// (tree ops, config lookups, batch wrappers). Most commands complete
-	// during these yields and we pick up the result without hitting the
-	// timer.
-	for range 10 {
-		runtime.Gosched()
-		select {
-		case msg := <-done:
-			if msg != nil {
-				hm.processMsg(msg, depth)
-			}
-			return
-		default: // non-blocking check: continue yielding if not ready yet
-		}
-	}
-
-	// A typed character's commands never block the next keystroke (sendMsg).
-	if hm.typing {
-		hm.pending = append(hm.pending, done)
-		return
-	}
-
-	// Slow path: wait for state-mutating commands (set, save, commit, load).
-	// Under race detector with 141 parallel tests, file I/O can be slow.
-	// 900ms is the baseline; only pure timer commands (confirm countdown
-	// ~1s, draft poll ~2s) should exceed this. Commands that do exceed it
-	// go to pending and are drained by settle/SettleWait before expectations.
-	select {
-	case msg := <-done:
-		if msg != nil {
-			hm.processMsg(msg, depth)
-		}
-	case <-time.After(900 * time.Millisecond):
-		hm.pending = append(hm.pending, done)
-		return
+	if cmd != nil {
+		hm.processMsg(cmd())
 	}
 }
 
@@ -317,81 +255,93 @@ func (hm *headlessModel) settle() {
 	if len(hm.pending) == 0 {
 		return
 	}
-	// Snapshot current pending slice. processMsg may call
-	// processCmdWithDepth which appends new items to hm.pending.
+	// A recurring timer may rearm itself. Only ready entry timers are drained;
+	// every state command they produce is applied synchronously by processMsg.
 	snapshot := hm.pending
 	hm.pending = nil
 
-	for _, ch := range snapshot {
+	for _, tick := range snapshot {
 		select {
-		case msg := <-ch:
-			if msg != nil {
-				hm.processMsg(msg, 0)
+		case msg := <-tick.result:
+			hm.processMsg(msg)
+		default:
+			hm.pending = append(hm.pending, tick)
+		}
+	}
+}
+
+// settleWait preserves implicit validation before expectations, without
+// waiting for recurring display/poll timers. State commands are already fully
+// applied, including work spawned by their results. The latest validation
+// timer targets the current generation, not whichever older timer fires first.
+func (hm *headlessModel) settleWait() error {
+	hm.settle()
+	return hm.waitValidation()
+}
+
+func (hm *headlessModel) waitValidation() error {
+	for i := len(hm.pending) - 1; i >= 0; i-- {
+		if hm.pending[i].request.IsValidation() {
+			tick := hm.pending[i]
+			hm.pending = append(hm.pending[:i], hm.pending[i+1:]...)
+			select {
+			case msg := <-tick.result:
+				if msg == nil {
+					return errors.New("validation wait canceled")
+				}
+				hm.processMsg(msg)
+			case <-hm.stopped:
+				// Keep the join obligation if shutdown won the receive.
+				hm.pending = append(hm.pending, tick)
+				return errors.New("validation wait canceled")
 			}
-		default: // non-blocking: channel not ready, timer goroutine still in time.After
-			hm.pending = append(hm.pending, ch)
+			hm.settle()
+			return nil
 		}
 	}
-}
-
-// settleWait is the barrier that separates "commands issued" from "state
-// asserted". It blocks until every command that was in flight on entry has
-// completed and its message has been applied to the model, so an expectation
-// can never observe a half-applied edit.
-//
-// The wait is unconditional, not time-boxed. Every tea.Cmd reachable from the
-// .et harness terminates: tea.Tick commands return when their interval elapses
-// (100ms validation debounce, 1s confirm countdown, 2s draft poll, 50ms
-// monitor/ping/traceroute drains), command dispatch returns when the work
-// finishes, and the only channel readers in the cli package
-// (drainMonitorEvents and the ping/traceroute drains) are non-blocking selects.
-// Each done channel is buffered with capacity 1 and receives exactly one value,
-// so a blocking receive always completes, and a channel leaves pending as soon
-// as it is received, so no channel is received twice.
-//
-// A wall-clock deadline here was a bug, not a safeguard. A state-mutating
-// command (the session set write-through takes ~550ms unloaded, several times
-// that under the race detector) could still be running when the deadline
-// expired; the caller then asserted against the pre-command editor and reported
-// "expected dirty:true, got false" for an edit that landed moments later.
-// Blocking cannot be defeated by a slow machine; `go test -timeout` remains the
-// backstop if a future command ever does block forever.
-//
-// Only the snapshot taken on entry is drained. Messages processed here may
-// schedule the next tick of a self-rescheduling chain (draft poll, monitor
-// poll); those land in hm.pending for a later call, so the barrier terminates
-// instead of chasing an endless chain.
-func (hm *headlessModel) settleWait() {
-	if len(hm.pending) == 0 {
-		return
-	}
-
-	// Snapshot the items that need to be drained. New items spawned
-	// during processing (by processMsg -> processCmdWithDepth) go
-	// directly into hm.pending and are NOT part of this snapshot.
-	snapshot := hm.pending
-	hm.pending = nil
-
-	for _, ch := range snapshot {
-		if msg := <-ch; msg != nil {
-			hm.processMsg(msg, 0)
-		}
-	}
-}
-
-// hasPending reports whether any command is still in flight. The .et runner
-// uses it to tell "the expectation failed and more work could still change the
-// answer" apart from "the expectation failed and nothing is left to wait for".
-func (hm *headlessModel) hasPending() bool {
-	return len(hm.pending) > 0
+	return nil
 }
 
 // processMsg processes a message from a command.
-func (hm *headlessModel) processMsg(msg tea.Msg, depth int) {
+func (hm *headlessModel) processMsg(msg tea.Msg) {
+	if msg == nil {
+		return
+	}
+	if tick, ok := msg.(cli.TimerMsg); ok {
+		_, wait := hm.model.Update(tick)
+		if wait == nil {
+			return
+		}
+		if hm.ready == nil {
+			hm.ready = make(chan struct{}, 1)
+		}
+		ready := hm.ready
+		done := make(chan tea.Msg, 1)
+		hm.pending = append(hm.pending, pendingTick{request: tick, result: done})
+		hm.timerWorkers.Add(1)
+		go func() {
+			defer hm.timerWorkers.Done()
+			done <- wait()
+			select {
+			case ready <- struct{}{}:
+			default:
+			}
+		}()
+		return
+	}
 	// Handle batch commands
 	if batch, ok := msg.(tea.BatchMsg); ok {
 		for _, c := range batch {
-			hm.processCmdWithDepth(c, depth+1)
+			hm.processCmd(c)
+		}
+		return
+	}
+	// Bubble Tea keeps sequenceMsg private. Match only its exact runtime type,
+	// obtained through the public constructor, then convert its []tea.Cmd shape.
+	if reflect.TypeOf(msg) == sequenceMessageType {
+		commands := reflect.ValueOf(msg).Convert(reflect.TypeFor[[]tea.Cmd]()).Interface().([]tea.Cmd)
+		for _, command := range commands {
+			hm.processCmd(command)
 		}
 		return
 	}
@@ -407,10 +357,29 @@ func (hm *headlessModel) processMsg(msg tea.Msg, depth int) {
 		hm.model = model
 	}
 
-	// Recursively process resulting commands with depth limit
-	if nextCmd != nil && depth < 3 {
-		hm.processCmdWithDepth(nextCmd, depth+1)
+	hm.processCmd(nextCmd)
+}
+
+var sequenceMessageType = reflect.TypeOf(tea.Sequence(func() tea.Msg { return nil }, func() tea.Msg { return nil })())
+
+// close cancels and joins every declared timer before releasing the editor.
+// The runner MUST close every model it creates, including replaced sessions.
+func (hm *headlessModel) close() error {
+	hm.stopOnce.Do(func() {
+		if hm.stopped != nil {
+			close(hm.stopped)
+		}
+	})
+	err := hm.model.Close()
+	for _, tick := range hm.pending {
+		<-tick.result
 	}
+	hm.pending = nil
+	hm.timerWorkers.Wait()
+	if hm.editor != nil {
+		err = errors.Join(err, hm.editor.Close())
+	}
+	return err
 }
 
 // typeText sends each character as a KeyPressMsg.

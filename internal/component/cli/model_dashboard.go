@@ -369,8 +369,8 @@ func (m *Model) dashboardPollCmd() tea.Cmd {
 }
 
 // dashboardScheduleTick returns a tea.Cmd that schedules the next poll.
-func dashboardScheduleTick() tea.Cmd {
-	return tea.Tick(dashboardPollInterval, func(time.Time) tea.Msg { return dashboardTickMsg{} })
+func (m Model) dashboardScheduleTick() tea.Cmd {
+	return m.tick(dashboardPollInterval, dashboardTickMsg{})
 }
 
 // handleDashboardData processes a poll result.
@@ -384,7 +384,7 @@ func (m Model) handleDashboardData(msg dashboardDataMsg) (tea.Model, tea.Cmd) {
 
 	if msg.err != nil {
 		m.activeDashboard().pollError = msg.err.Error()
-		return m, dashboardScheduleTick()
+		return m, m.dashboardScheduleTick()
 	}
 
 	m.activeDashboard().pollError = ""
@@ -392,7 +392,7 @@ func (m Model) handleDashboardData(msg dashboardDataMsg) (tea.Model, tea.Cmd) {
 	if err != nil {
 		var tb textbuf.Buffer
 		m.activeDashboard().pollError = tb.Str("parse error: ").Err(err).String()
-		return m, dashboardScheduleTick()
+		return m, m.dashboardScheduleTick()
 	}
 
 	m.activeDashboard().updateRates(snap, now)
@@ -422,7 +422,7 @@ func (m Model) handleDashboardData(msg dashboardDataMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	return m, dashboardScheduleTick()
+	return m, m.dashboardScheduleTick()
 }
 
 // handleDashboardKey handles keyboard input in dashboard mode.
