@@ -151,15 +151,42 @@ func SelfTest() SelfTestReport {
 	check(absent.ExitCode() == 1 && containsProblem(absent.Problems, "no ze-test-judge approval names it"),
 		"an absent approval file must refuse a commit that weakens a test")
 
-	// A malformed file would fail closed if it were read, so a clean verdict
-	// beside one proves a change that weakens nothing never reads it.
+	// A changed unit can carry a semantic approval without a structural
+	// finding. Its approval file must still be read through the strict loader.
 	check(writeSelfTestFile(root, selfTestApprovals, "# Tests\n\nno table\n") == nil,
-		"write a malformed approval file beside a change that weakens nothing")
-	cleanWithoutLedger := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: []string{negative[0].path}})
-	check(cleanWithoutLedger.ExitCode() == 0,
-		"a change that weakens nothing must not read the approval file, even a malformed one")
+		"write a malformed approval file beside a changed unit with no structural finding")
+	changedWithoutFinding := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: []string{negative[0].path}})
+	check(len(changedWithoutFinding.Findings) == 0,
+		"the changed negative fixture must still produce no structural finding")
+	check(changedWithoutFinding.ExitCode() == 1 &&
+		containsProblem(changedWithoutFinding.Problems, "has no `| Test | Reason |`"),
+		"a changed unit must refuse a malformed approval file even without a structural finding")
+	check(len(changedWithoutFinding.Approvals.Trailers) == 0 && len(changedWithoutFinding.Approvals.Dropped) == 0,
+		"a malformed approval file must supply no verdict or row to prune")
+
+	// The detector fixtures above have already been judged. Restore this
+	// fixture's baseline to prove the separate unchanged-unit contract.
+	check(writeSelfTestFile(root, negative[0].path, negative[0].old) == nil,
+		"restore the negative fixture to its committed baseline")
+	unchanged := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: []string{negative[0].path}})
+	check(unchanged.ExitCode() == 0 && unchanged.Comparison && unchanged.PathsJudged == 1,
+		"an unchanged selected unit must compare cleanly without reading a malformed approval file")
+	check(unchanged.Rows == 0 && len(unchanged.Findings) == 0 &&
+		len(unchanged.Approvals.Trailers) == 0 && len(unchanged.Approvals.Dropped) == 0,
+		"an unchanged selected unit must read no approval rows and consume nothing")
+
+	unusedApproval := approvalHeader + "| fixtures.string_fixture_test | live verdict for a later change |\n"
+	check(writeSelfTestFile(root, selfTestApprovals, unusedApproval) == nil,
+		"write a live approval naming the unchanged selected unit")
+	unchangedApproved := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: []string{negative[0].path}})
+	check(unchangedApproved.ExitCode() == 0 && unchangedApproved.Rows == 0 &&
+		len(unchangedApproved.Approvals.Trailers) == 0 && len(unchangedApproved.Approvals.Dropped) == 0,
+		"a live approval of an unchanged selected unit must remain unused")
+	retainedApproval, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(selfTestApprovals)))
+	check(readErr == nil && string(retainedApproval) == unusedApproval,
+		"checking an unchanged selected unit must preserve its live approval file")
 	check(os.Remove(filepath.Join(root, filepath.FromSlash(selfTestApprovals))) == nil,
-		"remove the malformed fixture approval file")
+		"remove the unused fixture approval file")
 
 	invalidAnchor := Check(Request{
 		Root: root, ApprovalSession: selfTestSession, Paths: []string{positive[0].path}, Anchor: "NO-SUCH-ANCHOR",

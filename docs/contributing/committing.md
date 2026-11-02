@@ -78,6 +78,20 @@ weakened"). A weakening no approval names refuses the commit, and no keyword
 admits it.
 <!-- source: internal/le/commit/prepare.go -- checkSourceGates, mergeRFCApprovals -->
 
+A live weakening approval also enters the message when its existing selected test unit
+changed without a structural finding, such as a corrected expected value.
+An unchanged unit, an excluded hunk or another session's approval contributes
+nothing. Preparation keeps the row. The successful script removes it, and a
+verdict already carried by a commit cannot be used again. A new test function
+or an entirely new test file does not spend a semantic approval.
+
+Go units end at their matching body brace, including one-line functions. Adding
+a separator or another declaration cannot spend an unchanged unit's approval.
+Valid bodyless declarations end at their signature and do not hide later tests.
+If an existing unit's boundary is incomplete, preparation refuses to guess it.
+<!-- source: internal/le/test/weakened/testweakened.go -- Check, comparePath, claimFinding -->
+<!-- source: internal/le/commit/script.go -- renderApprovalPrune -->
+
 Each admission the gates grant is recorded the same way, as one trailer line
 after the approvals (`Prepared.Trailers`):
 

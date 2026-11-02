@@ -3,25 +3,74 @@
 package testweakened
 
 import (
+	"fmt"
 	"path/filepath"
-	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-var goFunctionDeclarationPattern = regexp.MustCompile(
-	`(?m)^func\s+(?:\([^)]*\)\s*)?([A-Za-z_][A-Za-z0-9_]*)`,
-)
-
 type namedUnit struct {
-	name string
-	text string
+	name       string
+	text       string
+	incomplete bool
+	start      int
+	end        int
 }
 
-type textSpan struct {
-	start int
-	end   int
+// changedUnitNames compares existing units in the inventory the detector judges.
+// This is a text comparison, not a second weakening detector: only a live
+// judge approval can make a changed unit without a finding spend a row.
+// A new function has no prior test contract to migrate and spends no row.
+func changedUnitNames(path, oldText, newText string) ([]string, error) {
+	if oldText == newText {
+		return nil, nil
+	}
+	if !strings.HasSuffix(path, ".go") {
+		return []string{strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))}, nil
+	}
+	oldUnits := unitsByName(oldText)
+	newUnits := unitsByName(newText)
+	// A lexical failure with no recoverable declaration is not an empty
+	// baseline inventory. It cannot establish which units already existed.
+	if len(oldUnits) == 1 {
+		if oldUnits[0].name == "" && oldUnits[0].incomplete {
+			return nil, fmt.Errorf("cannot judge Go function boundaries in %s; repair the incomplete baseline before preparing the commit", path)
+		}
+	}
+	var changed []string
+	for _, unit := range oldUnits {
+		if unit.name == "" {
+			continue
+		}
+		known := !unit.incomplete
+		if known {
+			known = unitBoundaryKnown(newUnits, unit.name)
+		}
+		if !known {
+			return nil, fmt.Errorf("cannot judge Go function boundaries in %s for %s; repair the incomplete declaration before preparing the commit", path, unit.name)
+		}
+		if unit.text != unitText(newUnits, unit.name) {
+			changed = append(changed, unit.name)
+		}
+	}
+	return changed, nil
+}
+
+// unitBoundaryKnown distinguishes a removed declaration from one whose boundary
+// could not be read. An unrelated scanner error cannot invalidate a closed unit.
+func unitBoundaryKnown(units []namedUnit, name string) bool {
+	uncertain := false
+	for _, unit := range units {
+		if unit.name == name {
+			return !unit.incomplete
+		}
+		if unit.incomplete {
+			uncertain = true
+		}
+	}
+	return !uncertain
 }
 
 func weakenedUnits(path, oldText, newText string) []namedVerdict {
@@ -42,6 +91,12 @@ func weakenedUnits(path, oldText, newText string) []namedVerdict {
 	found := make([]namedVerdict, 0, len(oldUnits)+1)
 	namedKinds := make(map[string]bool)
 	for _, oldUnit := range oldUnits {
+		if oldUnit.incomplete {
+			continue
+		}
+		if !unitBoundaryKnown(newUnits, oldUnit.name) {
+			continue
+		}
 		if strings.TrimSpace(oldUnit.text) == "" {
 			continue
 		}
@@ -59,11 +114,24 @@ func weakenedUnits(path, oldText, newText string) []namedVerdict {
 			namedKinds[verdictKind(detail)] = true
 		}
 	}
-	residual := make([]string, 0, len(fileDetails))
+	// A complete unit cannot account for evidence outside exact declarations.
+	// Compare that residual text rather than treating every scanner diagnostic
+	// as a finding: malformed unrelated bytes must not duplicate a named verdict.
+	unresolved := detect(goUnresolvedText(oldText, newUnits), goUnresolvedText(newText, oldUnits), path)
+	// Residual evidence stands on its own: additions in a complete unit can
+	// cancel the whole-file count without restoring an unresolved unit's proof.
+	residual := appendVerdict(nil, unresolved)
+	for _, detail := range residual {
+		delete(namedKinds, verdictKind(detail))
+	}
 	for _, detail := range fileDetails {
-		if !namedKinds[verdictKind(detail)] {
-			residual = append(residual, detail)
+		if namedKinds[verdictKind(detail)] {
+			continue
 		}
+		if slices.Contains(residual, detail) {
+			continue
+		}
+		residual = append(residual, detail)
 	}
 	if len(residual) != 0 {
 		found = append(found, namedVerdict{name: stem, details: residual})
@@ -105,6 +173,7 @@ func unitsByName(content string) []namedUnit {
 			continue
 		}
 		grouped[index].text = text.Reset().Str(grouped[index].text).Byte('\n').Str(unit.text).String()
+		grouped[index].incomplete = grouped[index].incomplete || unit.incomplete
 	}
 	return grouped
 }
@@ -116,89 +185,4 @@ func unitText(units []namedUnit, name string) string {
 		}
 	}
 	return ""
-}
-
-func goFunctionUnits(content string) []namedUnit {
-	spans := goFunctionSpans(content)
-	units := make([]namedUnit, 0, len(spans))
-	for _, span := range spans {
-		text := content[span.start:span.end]
-		match := goFunctionDeclarationPattern.FindStringSubmatch(text)
-		name := ""
-		if len(match) == 2 {
-			name = match[1]
-		}
-		units = append(units, namedUnit{name: name, text: text})
-	}
-	return units
-}
-
-func goFunctionSpans(content string) []textSpan {
-	starts := lineStartsWith(content, "func")
-	ends := lineStartsWith(content, "}")
-	spans := make([]textSpan, 0, len(starts))
-	for index, start := range starts {
-		begin := docCommentStart(content, start)
-		capAt := len(content)
-		if index+1 < len(starts) {
-			capAt = docCommentStart(content, starts[index+1])
-		}
-		brace := -1
-		for _, end := range ends {
-			if end > start {
-				brace = end
-				break
-			}
-		}
-		end := capAt
-		if brace >= 0 && brace+2 < end {
-			end = brace + 2
-		}
-		if end > len(content) {
-			end = len(content)
-		}
-		minimum := start + 1
-		if end < minimum {
-			end = minimum
-		}
-		spans = append(spans, textSpan{start: begin, end: end})
-	}
-	return spans
-}
-
-func lineStartsWith(content, token string) []int {
-	starts := make([]int, 0)
-	for offset := 0; offset < len(content); {
-		end := strings.IndexByte(content[offset:], '\n')
-		if end < 0 {
-			end = len(content) - offset
-		}
-		line := content[offset : offset+end]
-		if strings.HasPrefix(line, token) &&
-			(len(line) == len(token) || !isIdentifierByte(line[len(token)])) {
-			starts = append(starts, offset)
-		}
-		offset += end
-		if offset < len(content) {
-			offset++
-		}
-	}
-	return starts
-}
-
-func isIdentifierByte(character byte) bool {
-	return character == '_' || character >= '0' && character <= '9' ||
-		character >= 'A' && character <= 'Z' || character >= 'a' && character <= 'z'
-}
-
-func docCommentStart(content string, at int) int {
-	lineStart := at
-	for lineStart > 0 {
-		previous := strings.LastIndex(content[:lineStart-1], "\n") + 1
-		if !strings.HasPrefix(strings.TrimLeft(content[previous:lineStart], " \t"), "//") {
-			break
-		}
-		lineStart = previous
-	}
-	return lineStart
 }

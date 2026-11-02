@@ -33,6 +33,38 @@ func TestSelfTestCoversEveryDetectorVerdictThroughCheck(t *testing.T) {
 	if report.ExitCode() != 0 || report.Text() != "SELFTEST PASS\n" {
 		t.Fatalf("SelfTest() verdict = (%d, %q)", report.ExitCode(), report.Text())
 	}
+
+	// The structural fixtures cannot prove that a semantic verdict survives.
+	// Exercise that independent obligation through Check with no findings.
+	t.Run("semantic approval without a structural finding", func(t *testing.T) {
+		root := newParityRepository(t)
+		const path = "pkg/a_test.go"
+		writeParityFile(t, root, path,
+			"package a\nfunc TestA(t *testing.T) { require.Equal(t, 2, got) }\n")
+		const reason = "independent judge approved the corrected expectation"
+		if _, err := Approve(root, fixtureSession, "pkg.TestA", reason); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Approve(root, fixtureSession, "pkg.TestLater", "reserved verdict"); err != nil {
+			t.Fatal(err)
+		}
+		result := Check(Request{Root: root, ApprovalSession: fixtureSession, Paths: []string{path}})
+		if result.ExitCode() != 0 || len(result.Findings) != 0 {
+			t.Fatalf("semantic comparison = code %d, findings %v, problems %v", result.ExitCode(), result.Findings, result.Problems)
+		}
+		wantTrailers := []string{ApprovalTrailerLine("pkg.TestA", reason)}
+		if !slices.Equal(result.Approvals.Trailers, wantTrailers) {
+			t.Fatalf("semantic trailers = %q, want %q", result.Approvals.Trailers, wantTrailers)
+		}
+		wantDropped := []string{"| pkg.TestA | " + reason + " |"}
+		if !slices.Equal(result.Approvals.Dropped, wantDropped) {
+			t.Fatalf("semantic rows selected for pruning = %q, want %q", result.Approvals.Dropped, wantDropped)
+		}
+		rows, problems := LoadApprovals(root, WeakeningApprovals(fixtureSession))
+		if len(problems) != 0 || len(rows) != 2 {
+			t.Fatalf("Check consumed approvals before publication: rows %v, problems %v", rows, problems)
+		}
+	})
 }
 
 func TestCheckMatchesProducerDiagnosticsAndExitCodes(t *testing.T) {

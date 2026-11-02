@@ -367,6 +367,7 @@ func checkSourceGates(root string, options *Options, result *Prepared, paths, re
 	for index := range rfcChanges {
 		sites = append(sites, testweakened.UnitSite{Unit: rfcChanges[index].unit(), Path: rfcChanges[index].Path})
 	}
+	sites = append(sites, weakening.ApprovalSites...)
 	if problems := testweakened.SharedUnitProblems(sites); len(problems) != 0 {
 		return errors.New(strings.Join(problems, "\n\n"))
 	}

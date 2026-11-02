@@ -170,7 +170,7 @@ func TestWeakenedTestsRefusesAMalformedHunksEntry(t *testing.T) {
 	auditCommit(t, root, "baseline")
 	selection := hunks.Selection{path: {Entry: "not an index line", Patch: "tmp/mine.patch"}}
 
-	_, problems := weakenedTests(root, []string{path}, nil, nil, "HEAD", selection)
+	_, _, problems := weakenedTests(root, []string{path}, nil, nil, "HEAD", selection)
 	joined := strings.Join(problems, "\n")
 	if !strings.Contains(joined, cannotRunPrefix+"read "+path+": ") {
 		t.Fatalf("the gate judged a malformed hunks entry instead of refusing it: %q", problems)

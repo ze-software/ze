@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 58 findings of the full lint in the test harness, `le` and the chaos tooling; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
@@ -126,6 +126,7 @@ scoped run (umbrella A-2). Line numbers are the CI run's.
 | Lint runner | `./le go lint run scope <packages>` | Lints a package scope | Applies: the evidence for this child |
 | The precedent fix | 752d8f19ef | Cleared this session's lint in staticcheck, hookruntime and qemu with reasoned gosec nolints and goconst constants | Extends: the same treatment for the remaining `internal/le` findings |
 | Weakening judge | `./le test weakened approve`, `ze-test-judge` | Approves a test change that could prove less | Applies only to an assertion change, not to a mechanical lint fix |
+| Selected test comparison and approval consumption | `internal/le/test/weakened/testweakened.go`, `Check`, `comparePath`, `claimFinding`; `scope.go`, `unitsByName` | Compares selected blobs with HEAD and records live approvals only for structural findings | Extends for the blocking semantic approval omission: compare existing unit text and carry a live weakening approval for a changed selected unit even without a structural finding. Reuse rename pairing, selection, approval loading and script pruning. |
 | Lint contract journal rows | `plan/journal/lint-contract-not-applied.md`, rows owned by `plan/post-release/engineering/spec-tooling-one-off-defects.md` | Record tooling lint findings | Applies: a finding here that a row names is marked `fixed:` in the same commit |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -201,6 +202,141 @@ scoped run (umbrella A-2). Line numbers are the CI run's.
 3. `internal/test`: goconst, gocritic, exhaustive, errcheck.
 4. `internal/chaos`: exhaustive, classified C/O/P.
 5. Scoped lint zero; package tests pass.
+
+### Native approval blocker (2026-11-02)
+
+The parent authorized this related blocker repair before the policy migration
+commit. A judge approved a semantic test migration, but `Check` returns before
+loading approvals when there are no structural findings. The native message
+therefore omits the mandatory verdict. The owning layer is the selected test
+comparison and its approval consumer. Manual trailers would bypass that consumer
+and its single-use checks, so the repair belongs in the producer.
+
+Constraints: carry only a live approval in the selected commit's approval
+namespace for a unit whose selected text differs from HEAD. Preserve structural
+refusals, RFC approval requirements, rename handling and ambiguous-unit refusals.
+Do not consume unrelated, unchanged, excluded-hunk or foreign-session approvals.
+A landed row cannot approve another change. Preparation preserves approval files;
+only a successful generated commit script prunes used rows.
+
+Focused evidence must exercise native `Create`, its generated message and script,
+plus unchanged-unit, excluded-hunk, foreign-session, landed-row and ambiguous-unit
+cases. Update `docs/contributing/committing.md` and
+`docs/architecture/testing/test-health.md` with this behavior. No policy source
+edit, approval edit or real checkout commit belongs to this blocker phase.
+
+Observed proof: `TestCreateCarriesSemanticApproval` failed for both an
+expected-value edit and an assertion-adding edit before the fix. Both now pass,
+including native script publication and pruning. The ambiguous-unit regression
+also failed before the fix and passes after it. The complete `internal/le/commit`
+package passes, including unchanged-unit, excluded-hunk, selected-hunk,
+foreign-session, landed-row and paired-rename cases.
+
+The independent judge approved correcting the old malformed-file expectation
+and preserving separate unchanged-unit no-read and no-consumption proof. The
+exact revised proposal was applied. The existing wrapper now also proves that
+a semantic verdict becomes one trailer and one pruning selection without a
+structural finding. All 16 positive and 3 negative detector cases remain.
+`TestSelfTestCoversEveryDetectorVerdictThroughCheck` and
+`TestCheckSemanticApprovalExcludesNewUnits` passed, including all four subcases.
+New functions and entirely new files spend no semantic approval. The new-function
+fixture proves its existing function's text span stays unchanged.
+
+The subsequent serial race run over the two packages hit the command harness's
+240-second timeout before producing test output. It supplies no race verdict.
+A fresh verification context must run the same package scope with a sufficient
+execution window. No owned race process remained after the timeout. The two-page
+`doc ste check file` passed. Native links, consistency and retired-command checks
+offer no path scope, so those full-tree checks were not run. Independent review
+of the whole tooling diff remains owed. No real checkout commit was prepared or run.
+
+## Review Gate
+
+### Round six: owner authorization and scope
+
+Result: parent `ses_e631d0341ffeMUf9M25Y7Cdxi2` relayed independent reviewer
+`ses_e627fe661fferfDfHQg4T78za8`'s CLEAN verdict within this corrective scope.
+Earlier findings are closed. This supersedes the pending-review notes below.
+The semantic tooling lands separately; broader child 3 lint remains owed and
+this spec stays open.
+
+Owner authorization, 2026-11-02: asked "Do you authorize fixing this defect and
+running review round six?", the owner answered "yes". This authorizes this
+correction and independent review round six only. It does not authorize round
+seven or a standing exception.
+
+Round five reviewer `ses_e627fe661fferfDfHQg4T78za8` found that
+`scope.go`, `weakenedUnits`, computes unresolved evidence but emits details only
+from the whole-file verdict. An assertion added to complete approved TestA can
+offset an assertion removed from incomplete TestB. The whole-file verdict then
+has no assertion-loss detail, and Proposed permits the edit under TestA's row.
+
+Round six reviews the source fix that emits residual findings themselves, exact
+evidence deduplication, its native Proposed regression, and the Check, Proposed
+and audit consumers. Preserve the prior same-kind, bodyless, UTF8, incomplete
+signature and inline-approval proofs. Record focused red/green and serial race
+results for `internal/le/commit` and `internal/le/test/weakened` before review.
+
+Diagnosis: the owning attribution producer discards a residual kind absent from
+the global verdict. The source fix includes residual details in the file-stem
+finding and deduplicates identical detail strings only. A workaround that
+removes the compensating assertion from the fixture would conceal the defect.
+
+Round-six correction evidence: native
+`TestProposedIncompleteLossSurvivesCompensatingAssertion` failed before the fix
+for both balanced and increased whole-file assertion counts. Both proposals
+were permitted with only TestA's approval. After the fix, both are refused and
+report TestB's residual assertion loss under the file stem. `weakenedUnits`
+now seeds the file-stem details from the residual verdict, then adds unmatched
+whole-file details unless their full text is already present.
+
+The focused count-mode run passed. The serial race command,
+`CGO_ENABLED=1 ./le --name lint-backlog job run label semantic-round6-race quiet command go test -race -p 1 -tags "$tags" ./internal/le/commit ./internal/le/test/weakened -v`,
+passed both complete packages using manifest tags. No test skipped and no race
+was reported. Earlier same-kind, bodyless, UTF8, incomplete-signature and
+inline-approval cases have named PASS results. A count-mode attribution run
+also exercised both exact-detail deduplication and distinct-detail retention.
+The scoped test-health documentation check passed. The independent round-six
+review has not run in this authoring context.
+
+### Next independent re-review scope: unresolved evidence and bodyless declarations
+
+Before the correction runs, scope is the two findings from reviewer
+`ses_e627fe661fferfDfHQg4T78za8`: `weakenedUnits` must retain unresolved
+whole-file evidence even when an approved complete unit has the same finding
+kind; `goFunctionUnits` must continue after a valid bodyless declaration without
+accepting a truncated signature. Review the fixes and their Proposed/Create
+regressions, plus the shared Check, Proposed and audit consumers. Preserve the
+partial-source and UTF8 contracts and the original inline-approval regression.
+
+No numbered rounds were recorded in this spec or its per-spec handoff at the
+start of this correction. The parent must reconcile the session's count before
+the next independent review; this entry does not authorize a sixth round.
+
+Diagnosis: `weakenedUnits` skips incomplete units, then suppresses whole-file
+details by kinds found in complete units. That loses unresolved evidence.
+The source fix retains that evidence when the inventory is incomplete. A
+workaround that changes the fixture or approves the whole file hides the loss.
+`goBodyEnd` treats every signature semicolon as incomplete, so the extractor
+stops before later tests. The source fix distinguishes a valid bodyless
+declaration from a truncated signature. Reordering the fixture only hides it.
+
+Correction evidence: `TestProposedIncompleteUnitCannotBorrowApproval` first
+permitted the truncated sibling under only TestA's approval.
+`TestCreateSemanticApprovalAfterBodylessDeclaration` first refused `external`
+as incomplete. Both pass after the producer fixes. The residual comparison
+uses scanner offsets and retains both sides when a counterpart is incomplete.
+It preserves assertion-loss evidence without duplicating the existing UTF8
+finding. Bodyless signatures are parsed individually; unnamed receiver fragments
+remain incomplete.
+
+Final evidence: with manifest tags and CGO_ENABLED=1,
+`./le --name lint-backlog job run label semantic-two-findings-race-complete quiet command go test -race -p 1 -tags "$tags" ./internal/le/commit ./internal/le/test/weakened -v`
+passed both complete packages, with no skips or race reports. Named passes
+include the new regressions and unchanged UTF8, inline-approval and incomplete
+boundary tests. Count-mode evidence covers all ten statements of the residual
+helper. The two-page STE check passed. Independent re-review remains owed,
+with the round-count reconciliation above.
 
 ### Critical Review Checklist
 

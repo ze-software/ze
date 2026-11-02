@@ -92,6 +92,9 @@ type Result struct {
 	// owner who approved a change to a tagged unit approved its weakening too,
 	// so the commit carries that row's `RFC-approved:` trailer.
 	RFCApprovals Approvals `json:"rfc-approvals"`
+	// ApprovalSites includes changed units whose live weakening approval is
+	// carried even when the structural detector reports no finding.
+	ApprovalSites []UnitSite `json:"approval-sites,omitempty"`
 }
 
 // Check judges one exact HEAD/worktree comparison: every unit the change
@@ -99,6 +102,8 @@ type Result struct {
 // weakening approval file or its RFC approval file. A request that names no
 // path compares nothing. The selftest, the fixtures and the commit gate use
 // this function; the edit hook reads the same files through Proposed.
+// A live weakening approval of a changed selected unit is carried even when
+// the structural detector finds nothing, so a semantic verdict is not lost.
 func Check(request Request) Result {
 	var result Result
 	if request.Root == "" {
@@ -134,7 +139,7 @@ func Check(request Request) Result {
 			result.PathsJudged++
 		}
 	}
-	findings, errors := weakenedTests(
+	findings, changed, errors := weakenedTests(
 		request.Root, request.Paths, request.Removed, request.RenamePairs, result.Anchor, request.Selected,
 	)
 	result.Findings = findings
@@ -142,7 +147,7 @@ func Check(request Request) Result {
 		result.Problems = errors
 		return result
 	}
-	if len(findings) == 0 {
+	if len(findings) == 0 && len(changed) == 0 {
 		return result
 	}
 
@@ -177,6 +182,14 @@ func Check(request Request) Result {
 		}
 		if !claimed {
 			result.Problems = append(result.Problems, unapprovedProblem(finding, carrier))
+		}
+	}
+	// A semantic migration can keep or add assertions. Its judge's verdict
+	// still belongs in the commit, but an unchanged or unselected unit cannot
+	// spend it. The same row matcher preserves single-use and session scope.
+	for _, unit := range changed {
+		if claimed, _ := claimFinding(&result.Approvals, &weakening, unit); claimed {
+			result.ApprovalSites = append(result.ApprovalSites, UnitSite{Unit: unit.Unit(), Path: unit.Path})
 		}
 	}
 	return result
@@ -350,8 +363,9 @@ func weakenedTests(
 	renamePairs []RenamePair,
 	anchor string,
 	selection hunks.Selection,
-) ([]Finding, []string) {
+) ([]Finding, []Finding, []string) {
 	findings := make([]Finding, 0)
+	changed := make([]Finding, 0)
 	problems := make([]string, 0)
 	seen := make(map[string]bool, len(paths)+len(removed))
 	removedSet := make(map[string]bool, len(removed))
@@ -367,12 +381,13 @@ func weakenedTests(
 		}
 		seen[pair.OldPath] = true
 		seen[pair.NewPath] = true
-		pairFindings, problem := comparePath(root, pair.OldPath, pair.NewPath, anchor, selection)
+		pairFindings, pairChanges, problem := comparePath(root, pair.OldPath, pair.NewPath, anchor, selection)
+		findings = append(findings, pairFindings...)
 		if problem != "" {
 			problems = append(problems, text.Reset().Str(cannotRunPrefix).Str(problem).String())
 			continue
 		}
-		findings = append(findings, pairFindings...)
+		changed = append(changed, pairChanges...)
 	}
 	for _, path := range slices.Concat(paths, removed) {
 		if seen[path] || !isTestPath(path) {
@@ -383,23 +398,24 @@ func weakenedTests(
 		if removedSet[path] {
 			newPath = ""
 		}
-		pathFindings, problem := comparePath(root, path, newPath, anchor, selection)
+		pathFindings, pathChanges, problem := comparePath(root, path, newPath, anchor, selection)
+		findings = append(findings, pathFindings...)
 		if problem != "" {
 			problems = append(problems, text.Reset().Str(cannotRunPrefix).Str(problem).String())
 			continue
 		}
-		findings = append(findings, pathFindings...)
+		changed = append(changed, pathChanges...)
 	}
-	return findings, problems
+	return findings, changed, problems
 }
 
-func comparePath(root, oldPath, newPath, anchor string, selection hunks.Selection) ([]Finding, string) {
+func comparePath(root, oldPath, newPath, anchor string, selection hunks.Selection) ([]Finding, []Finding, string) {
 	oldText, problem := baselineText(root, oldPath, anchor)
 	if problem != "" {
-		return nil, problem
+		return nil, nil, problem
 	}
 	if strings.TrimSpace(oldText) == "" {
-		return nil, ""
+		return nil, nil, ""
 	}
 	newText := ""
 	path := oldPath
@@ -407,7 +423,7 @@ func comparePath(root, oldPath, newPath, anchor string, selection hunks.Selectio
 		path = newPath
 		text, problem := worktreeText(root, newPath, selection)
 		if problem != "" {
-			return nil, problem
+			return nil, nil, problem
 		}
 		newText = text
 	}
@@ -423,7 +439,15 @@ func comparePath(root, oldPath, newPath, anchor string, selection hunks.Selectio
 			Path: path, Package: packageName, Name: verdict.name, Details: verdict.details,
 		})
 	}
-	return findings, ""
+	changed := make([]Finding, 0)
+	names, err := changedUnitNames(path, oldText, newText)
+	if err != nil {
+		return findings, nil, err.Error()
+	}
+	for _, name := range names {
+		changed = append(changed, Finding{Path: path, Package: packageName, Name: name})
+	}
+	return findings, changed, ""
 }
 
 func baselineText(root, path, anchor string) (string, string) {

@@ -193,6 +193,36 @@ there.
 
 ### A row is used once
 
+A semantic test change can keep or add assertions, so the structural detector
+can report no finding. `Check` also compares the selected unit text with HEAD
+and carries any live weakening approval for that changed existing unit. It uses the
+detector's unit inventory and the same selected blobs and rename pairs.
+Unchanged units, excluded hunks and foreign-session approvals contribute no
+verdict. New functions and entirely new test files spend no semantic approval.
+The commit gate checks these approved units for ambiguous directory
+names together with structural findings and RFC changes.
+
+The Go scanner supplies exact declaration boundaries, including receiver methods
+and package-less edit fragments. Attached comments belong to the declaration.
+Separators after its closing brace do not. Result-type braces and nested bodies
+are balanced, while comments and literals cannot introduce declarations or braces.
+Bodyless declarations end at the last signature token. The parser validates only
+that signature, so a truncated result type cannot become a complete declaration.
+
+Incomplete boundaries cannot spend semantic approvals: preparation reports that
+it cannot judge them. Structural checks still judge the whole text and attribute
+unresolved findings to the file stem. Residual evidence is reported even when
+additions in a complete unit cancel the whole-file count. A complete unit's
+approval cannot cover that evidence. File-stem details are deduplicated only
+when their full text is identical.
+<!-- source: internal/le/test/weakened/scope.go -- weakenedUnits -->
+
+A scanner diagnostic outside a closed unit does not invalidate that unit's boundary.
+<!-- source: internal/le/test/weakened/scope.go -- changedUnitNames, unitsByName, weakenedUnits -->
+<!-- source: internal/le/test/weakened/scope_go.go -- goFunctionUnits, goDeclarationEnd, goBodyEnd -->
+<!-- source: internal/le/test/weakened/testweakened.go -- Check, comparePath -->
+<!-- source: internal/le/commit/prepare.go -- checkSourceGates -->
+
 `./le commit create` admits each weakened unit against a live row, writes that
 row's trailer into the message, and stages nothing for it. The generated script
 removes every used row from the approval file only after `git commit` succeeds,
