@@ -167,6 +167,13 @@ func PrintLocalAnswer(path string, answer LocalAnswer) int {
 	return printLocalAnswer(path, answer, RenderLocalAnswer)
 }
 
+// PrintLocalAnswerWith is PrintLocalAnswer for a command registered with its
+// own render func: the owner's own entry point (`doctor.Run`) prints through
+// the drawing its registration declares, so the two cannot drift apart.
+func PrintLocalAnswerWith(path string, answer LocalAnswer, render func(string, any) int) int {
+	return printLocalAnswer(path, answer, render)
+}
+
 func printLocalAnswer(path string, answer LocalAnswer, render func(string, any) int) int {
 	// A nonzero code with a payload is an ANSWER the command exits nonzero
 	// on, not an error with nothing to say: `show config validation` renders

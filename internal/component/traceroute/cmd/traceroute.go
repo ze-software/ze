@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/probe"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // argTimeout is the keyword for the per-probe timeout argument. The traceroute
@@ -52,19 +53,64 @@ const (
 	maxTracerouteProbes      = 10
 )
 
+// handleTraceroute is the RPC handler for `show traceroute`
+// (ze-traceroute:show-traceroute). It is the daemon route of
+// tracerouteResults, the producer `ze show traceroute` runs with no daemon.
 func handleTraceroute(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	req, err := parseTracerouteArgs(args)
+	result, err := tracerouteResults(validated)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	hops, trErr := doTraceroute(req.target, req.maxHops, req.timeout, req.probes, req.opts)
-	if trErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: trErr.Error()}, nil //nolint:nilerr // operational error in Response
-	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{
-		fieldHops: hops,
+		fieldHops: result.Hops,
 	}}, nil
+}
+
+// showTraceroutePath is the command both routes of tracerouteResults answer.
+const showTraceroutePath = "show traceroute"
+
+// tracerouteResult is the show traceroute answer: the hops, and the target the
+// local drawing names in its header.
+type tracerouteResult struct {
+	Hops   []map[string]any
+	target string
+}
+
+// tracerouteResults is the one producer of `show traceroute`: the daemon RPC
+// and the local no-daemon route (showTracerouteLocal) both call it, and each
+// says the error its own way, as each always has.
+func tracerouteResults(validated command.ValidatedArgs) (tracerouteResult, error) {
+	req, err := parseTracerouteArgs(validated.Tokens())
+	if err != nil {
+		return tracerouteResult{}, err
+	}
+	hops, err := doTraceroute(req.target, req.maxHops, req.timeout, req.probes, req.opts)
+	if err != nil {
+		return tracerouteResult{}, err
+	}
+	return tracerouteResult{Hops: hops, target: req.target.String()}, nil
+}
+
+// tracerouteAnswer is tracerouteResults as the local route's answer: the
+// payload, or the refusal line the local route has always printed.
+func tracerouteAnswer(validated command.ValidatedArgs) command.LocalAnswer {
+	result, err := tracerouteResults(validated)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("show traceroute: ").Err(err).Byte('\n')
+		return command.LocalRefusal(1, tb.String())
+	}
+	return command.LocalAnswer{Payload: result}
+}
+
+// renderTraceroute draws the answer as the local route always printed it.
+func renderTraceroute(path string, payload any) int {
+	result, isResult := payload.(tracerouteResult)
+	if !isResult {
+		return command.RenderLocalAnswer(path, payload)
+	}
+	printTracerouteResults(os.Stdout, result.target, result.Hops)
+	return 0
 }
 
 // tracerouteArgs is the parsed form of a `show traceroute` invocation, shared

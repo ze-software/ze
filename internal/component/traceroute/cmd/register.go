@@ -45,24 +45,12 @@ func init() {
 	})
 }
 
+// showTracerouteLocal is the no-daemon route of `show traceroute`: the
+// producer the daemon RPC runs (tracerouteAnswer), printed by the local route.
+// It stays a plain local command, not a local-data one, so `ze cli` asks the
+// daemon, which traces from the router rather than from the operator's host.
 func showTracerouteLocal(validated command.ValidatedArgs) int {
-	args := validated.Tokens()
-	req, err := parseTracerouteArgs(args)
-	if err != nil {
-		var tb textbuf.Buffer
-		tb.Str("show traceroute: ").Err(err).Byte('\n')
-		tb.StdErr() //nolint:errcheck // stderr
-		return 1
-	}
-	hops, trErr := doTraceroute(req.target, req.maxHops, req.timeout, req.probes, req.opts)
-	if trErr != nil {
-		var tb textbuf.Buffer
-		tb.Str("show traceroute: ").Err(trErr).Byte('\n')
-		tb.StdErr() //nolint:errcheck // stderr
-		return 1
-	}
-	printTracerouteResults(os.Stdout, req.target.String(), hops)
-	return 0
+	return command.PrintLocalAnswerWith(showTraceroutePath, tracerouteAnswer(validated), renderTraceroute)
 }
 
 func monitorTracerouteLocal(validated command.ValidatedArgs) int {

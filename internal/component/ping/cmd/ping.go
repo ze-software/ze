@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"os"
 	"sort"
 	"strconv"
 	"time"
@@ -17,6 +18,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/probe"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // fieldStatus is the per-probe result key every ping handler writes and reads:
@@ -163,18 +165,54 @@ func parseMonitorPingArgs(args []string) (monitorPingArgs, error) {
 
 // handleShowPing is the RPC handler for `show ping` (ze-ping:show-ping): a bounded
 // batch of ICMP echo requests sent from the router, returning per-reply RTT
-// and an aggregate summary.
+// and an aggregate summary. It is the daemon route of pingResults, the
+// producer `ze show ping` runs with no daemon, so the two answer alike.
 func handleShowPing(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	dest, count, timeout, opts, err := parsePingArgs(args)
+	results, err := pingResults(validated)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	results, pingErr := doPing(dest, count, timeout, opts)
-	if pingErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: pingErr.Error()}, nil //nolint:nilerr // operational error in Response
+	return &plugin.Response{Status: plugin.StatusDone, Data: results}, nil
+}
+
+// showPingPath is the command both routes of pingResults answer.
+const showPingPath = "show ping"
+
+// pingResults is the one producer of `show ping`: the daemon RPC and the
+// local no-daemon route (showPingLocal) both call it, and each says the
+// error its own way, as each always has.
+func pingResults(validated command.ValidatedArgs) (plugin.Map, error) {
+	dest, count, timeout, opts, err := parsePingArgs(validated.Tokens())
+	if err != nil {
+		return nil, err
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(results)}, nil
+	results, err := doPing(dest, count, timeout, opts)
+	if err != nil {
+		return nil, err
+	}
+	return plugin.Map(results), nil
+}
+
+// pingAnswer is pingResults as the local route's answer: the payload, or the
+// refusal line the local route has always printed.
+func pingAnswer(validated command.ValidatedArgs) command.LocalAnswer {
+	results, err := pingResults(validated)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("show ping: ").Err(err).Byte('\n')
+		return command.LocalRefusal(1, tb.String())
+	}
+	return command.LocalAnswer{Payload: results}
+}
+
+// renderPing draws the show ping answer as the local route always printed it.
+func renderPing(path string, payload any) int {
+	results, isMap := payload.(plugin.Map)
+	if !isMap {
+		return command.RenderLocalAnswer(path, payload)
+	}
+	printPingResults(os.Stdout, results)
+	return 0
 }
 
 // parsePingArgs parses `show ping <dest> [count <n>] [size <bytes>]

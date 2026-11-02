@@ -41,24 +41,12 @@ func init() {
 	})
 }
 
+// showPingLocal is the no-daemon route of `show ping`: the producer the daemon
+// RPC runs (pingAnswer), printed by the local route. It stays a plain local
+// command, not a local-data one, so `ze cli` asks the daemon, which pings from
+// the router rather than from the operator's host.
 func showPingLocal(validated command.ValidatedArgs) int {
-	args := validated.Tokens()
-	dest, count, timeout, opts, err := parsePingArgs(args)
-	if err != nil {
-		var tb textbuf.Buffer
-		tb.Str("show ping: ").Err(err).Byte('\n')
-		tb.StdErr() //nolint:errcheck // stderr
-		return 1
-	}
-	results, pingErr := doPing(dest, count, timeout, opts)
-	if pingErr != nil {
-		var tb textbuf.Buffer
-		tb.Str("show ping: ").Err(pingErr).Byte('\n')
-		tb.StdErr() //nolint:errcheck // stderr
-		return 1
-	}
-	printPingResults(os.Stdout, results)
-	return 0
+	return command.PrintLocalAnswerWith(showPingPath, pingAnswer(validated), renderPing)
 }
 
 func monitorPingLocal(validated command.ValidatedArgs) int {
