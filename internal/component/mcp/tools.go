@@ -1011,6 +1011,9 @@ func (s *server) run(command string) map[string]any {
 	return answerResult(rendered.Output, rendered.Response.WarningText())
 }
 
+// toolResultKeyContent names the content items in a tool result envelope.
+const toolResultKeyContent = "content"
+
 // answerResult is the tool result of a command that answered: the answer as
 // the first text item and, when the command warned about it, the warning as a
 // second, so an AI reads the same warning `ze <command>` prints on stderr
@@ -1022,7 +1025,7 @@ func answerResult(answer, warning string) map[string]any {
 	}
 	var tb textbuf.Buffer
 	return map[string]any{
-		"content": []map[string]any{
+		toolResultKeyContent: []map[string]any{
 			{schemaKeyType: contentTypeText, contentTypeText: answer},
 			{schemaKeyType: contentTypeText, contentTypeText: tb.Str("Warning: ").Str(warning).String()},
 		},
@@ -1032,7 +1035,7 @@ func answerResult(answer, warning string) map[string]any {
 // TextResult returns an MCP text content result.
 func TextResult(s string) map[string]any {
 	return map[string]any{
-		"content": []map[string]any{{schemaKeyType: contentTypeText, contentTypeText: s}},
+		toolResultKeyContent: []map[string]any{{schemaKeyType: contentTypeText, contentTypeText: s}},
 	}
 }
 
@@ -1040,8 +1043,8 @@ func TextResult(s string) map[string]any {
 // text as `ze <command>` prints it on stderr.
 func refusalResult(line string) map[string]any {
 	return map[string]any{
-		"content": []map[string]any{{schemaKeyType: contentTypeText, contentTypeText: line}},
-		"isError": true,
+		toolResultKeyContent: []map[string]any{{schemaKeyType: contentTypeText, contentTypeText: line}},
+		"isError":            true,
 	}
 }
 
@@ -1049,8 +1052,8 @@ func refusalResult(line string) map[string]any {
 func ErrResult(msg string) map[string]any {
 	var tb textbuf.Buffer
 	return map[string]any{
-		"content": []map[string]any{{schemaKeyType: contentTypeText, contentTypeText: tb.Str("Error: ").Str(msg).String()}},
-		"isError": true,
+		toolResultKeyContent: []map[string]any{{schemaKeyType: contentTypeText, contentTypeText: tb.Str("Error: ").Str(msg).String()}},
+		"isError":            true,
 	}
 }
 

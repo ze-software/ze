@@ -41,11 +41,14 @@ func Surfaces() []Surface {
 	}
 }
 
+// surfaceDiagnosticUnspecified names an unset value in surface diagnostics.
+const surfaceDiagnosticUnspecified = "unspecified"
+
 // String names the surface for a check's failure line.
 func (s Surface) String() string {
 	switch s {
 	case SurfaceUnspecified:
-		return "unspecified"
+		return surfaceDiagnosticUnspecified
 	case SurfaceSSH:
 		return "ssh"
 	case SurfaceWebAdmin:
@@ -84,7 +87,7 @@ const (
 func (k RegistrationKind) String() string {
 	switch k {
 	case KindUnspecified:
-		return "unspecified"
+		return surfaceDiagnosticUnspecified
 	case KindBuiltin:
 		return "builtin"
 	case KindLocal:
@@ -147,7 +150,7 @@ const (
 func (o Offer) String() string {
 	switch o {
 	case OfferUnspecified:
-		return "unspecified"
+		return surfaceDiagnosticUnspecified
 	case OfferMust:
 		return "must offer"
 	case OfferMustNot:

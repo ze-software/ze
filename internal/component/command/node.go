@@ -8,6 +8,8 @@
 // completion, and pipe operators.
 package command
 
+import "maps"
+
 // ArgKind identifies the type of a command argument from YANG leaf metadata.
 type ArgKind uint8
 
@@ -342,9 +344,7 @@ func WithoutCommandPaths(base *Node, paths []string) *Node {
 func copyNodeForOverlay(n *Node) *Node {
 	c := *n
 	c.Children = make(map[string]*Node, len(n.Children)+1)
-	for name, child := range n.Children {
-		c.Children[name] = child
-	}
+	maps.Copy(c.Children, n.Children)
 	return &c
 }
 
