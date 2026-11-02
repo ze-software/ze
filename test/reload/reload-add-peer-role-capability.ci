@@ -60,6 +60,12 @@ plugin {
 }
 
 bgp {
+	# RFC 8212: an EBGP direction with no explicit policy passes no routes.
+	# This test exchanges only End-of-RIB, so the policy is stated, not relied on.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	peer peer-a {
 		connection {
 			remote { ip 127.0.0.1; }
@@ -86,6 +92,12 @@ plugin {
 }
 
 bgp {
+	# RFC 8212: an EBGP direction with no explicit policy passes no routes.
+	# This test exchanges only End-of-RIB, so the policy is stated, not relied on.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	peer peer-a {
 		connection {
 			remote { ip 127.0.0.1; }
