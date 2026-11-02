@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -81,9 +82,11 @@ func TestLiveForwardWaitsForPeerUpReplay(t *testing.T) {
 				id := uint64(7600 + i)
 				update := syncOrderPublish(t, r, ctxID, id, s.body)
 				if s.rsRail {
-					_, dispatched := reactorForwardRS(r, update, id, netip.MustParseAddr(forwardSourceAddr), src)
-					require.Equal(t, 1, dispatched, "the live change must be dispatched, not dropped")
-					continue
+					// The fast path hands a fenced destination back, and the
+					// route server's rail forwards it as a live change.
+					skipped, dispatched := reactorForwardRS(r, update, id, netip.MustParseAddr(forwardSourceAddr), src)
+					require.Equal(t, 0, dispatched, "the fast path must not decide for a fenced destination")
+					require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the fenced destination must be handed back")
 				}
 				require.NoError(t, adapter.forwardUpdateCore(update, id, []*Peer{dst}, replayFenceSource(src, s.replay)))
 			}
@@ -354,4 +357,138 @@ func replayFenceSource(src *Peer, initialUpdate bool) forwardSourceInfo {
 		sender:         plugin.OperatorSender(),
 		initialUpdate:  initialUpdate,
 	}
+}
+
+// TestRSFastPathHandsAFencedDestinationBack proves that the route-server fast
+// path leaves a destination whose replay fence is up to the route server.
+//
+// VALIDATES: reactorForwardRSSection puts a destination whose initial update is
+// still owed (Peer.initialUpdateOwed) on the skipped list, dispatches nothing to
+// it and writes nothing for it, so bgp-rs decides it against its own peer-up
+// cut (rs batchForwardUpdateSkipped). Once the fence is down the fast path
+// writes to it again.
+//
+// PREVENTS: an UPDATE at or below the route server's cut reaching the peer
+// twice, once in the peer-up replay and once from the fast path's fence
+// parking, the second copy landing after a later withdrawal was due
+// (test/plugin/role-otc-rs-withdraw-eor.ci under load: the peer read the
+// announce where the withdrawal belonged).
+//
+// Method: one destination, fence raised, one fast-path forward; then the fence
+// lowered by its owner's report and the same forward again. The destination's
+// connection shows the fence released nothing the fast path held.
+func TestRSFastPathHandsAFencedDestinationBack(t *testing.T) {
+	r, src, dst, conn, ctxID := newSyncOrderRail(t)
+	dst.sendingInitialRoutes.Store(0)
+	dst.resetAPISync([]string{replayFenceOwner})
+	raiseTestReplayFence(dst, replayFenceOwner)
+
+	update := syncOrderPublish(t, r, ctxID, 7700, syncOrderAnnounceBody)
+	skipped, dispatched := reactorForwardRS(r, update, 7700, netip.MustParseAddr(forwardSourceAddr), src)
+	require.Equal(t, 0, dispatched, "nothing may be dispatched to a fenced destination")
+	require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the fenced destination must be handed back")
+	require.False(t, dst.forwardOverflowPending(), "nothing may be parked for the route server's replay to duplicate")
+
+	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner), dst.session.initialReplay))
+	require.Empty(t, parseWireUpdates(t, conn.written()), "lowering the fence must release nothing the fast path held")
+
+	update = syncOrderPublish(t, r, ctxID, 7701, syncOrderAnnounceBody)
+	skipped, dispatched = reactorForwardRS(r, update, 7701, netip.MustParseAddr(forwardSourceAddr), src)
+	require.Empty(t, skipped, "an unfenced destination is the fast path's")
+	// Dispatched is the claim: the direct write leaves the bytes in the
+	// session's buffer for the source's read loop to flush.
+	require.Equal(t, 1, dispatched, "the fast path must forward once the fence is down")
+}
+
+// TestRSFastPathRedoHandsAFencedDestinationBack proves that the fast path's
+// one-field-at-a-time redo leaves a destination to the route server when its
+// replay fence went up after the first pass chose it.
+//
+// VALIDATES: a client a withhold gate sent to the redo (withdrawalBySection)
+// whose fence is up by the time the redo runs is handed back on the skipped
+// list, once, with nothing dispatched to it and nothing parked for it.
+//
+// PREVENTS: the redo parking a section in the destination's overflow while
+// the route server's peer-up replay also carries the UPDATE, so the released
+// copy reaches the peer a second time, behind the replay (the defect
+// TestRSFastPathHandsAFencedDestinationBack covers for the first pass).
+//
+// Method: an egress step refuses the destination's announcement of an UPDATE
+// that names two families, which sends the destination to the redo, and
+// raises the destination's fence while it runs: the session coming up between
+// the two passes, with no timing involved. The redo's withdrawals run no
+// egress step, so the fence stays up for both sections.
+func TestRSFastPathRedoHandsAFencedDestinationBack(t *testing.T) {
+	forwardRSFencedMidPass(t, false)
+}
+
+// TestRSFastPathDispatchHandsAFencedDestinationBack proves the same hand-back
+// for a fence that went up after selection, while the pass built the item.
+//
+// VALIDATES: a destination selected with its fence down whose fence is up by
+// dispatch is handed back, once, with nothing dispatched and nothing parked.
+//
+// PREVENTS: the dispatch gate parking the item behind the fence, where the
+// route server's replay duplicates it.
+//
+// Method: an egress step that passes the destination raises its fence while
+// it runs, between selection and dispatch.
+func TestRSFastPathDispatchHandsAFencedDestinationBack(t *testing.T) {
+	forwardRSFencedMidPass(t, true)
+}
+
+// forwardRSFencedMidPass forwards one UPDATE naming two families on the fast
+// path to one destination whose replay fence an egress step raises on its
+// first call, answering pass, and asserts the destination is handed back once.
+func forwardRSFencedMidPass(t *testing.T, pass bool) {
+	t.Helper()
+	destAddr := netip.MustParseAddr("2001:db8:1::5")
+	payload := buildUpdatePayload(mixedAttrs(
+		mixedAttr(15, mixedUnreachValue(1, 1, mixedV4MPPfx)),
+		mixedReach(1, mixedGlobalNH, mixedV6Prefix),
+	), nil)
+	dst := mixedDest(t, destAddr.String())
+	source := llnhExternalPeer(t, llnhAdvertiserAddr, llnhSegment, NextHopUnchanged)
+
+	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	require.NoError(t, err)
+	cache := newRecentUpdateCache(100)
+	update, id := newLeakTestUpdate(t, cache, payload, ctxID)
+	update.SourcePeerIP = source.Settings().Address
+
+	pool := newFwdPool(func(fwdKey, []fwdItem) {}, fwdPoolConfig{chanSize: 64, idleTimeout: time.Second})
+	t.Cleanup(pool.Stop)
+	key := fwdKey{peerAddr: dst.Settings().PeerKey()}
+	pool.registerOutgoingPool(key, 4096)
+
+	raised := false
+	step := func(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
+		if dest.Address != destAddr {
+			return true
+		}
+		if !raised {
+			raised = true
+			dst.resetAPISync([]string{replayFenceOwner})
+			raiseTestReplayFence(dst, replayFenceOwner)
+		}
+		return pass
+	}
+	r := &Reactor{
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
+		peers: map[netip.AddrPort]*Peer{
+			key.peerAddr:                dst,
+			source.Settings().PeerKey(): source,
+		},
+		fwdPool:             pool,
+		rsForwardingEnabled: true,
+	}
+	r.orderedEgressSteps = orderedEgressStepsFromFuncs(step)
+	r.egressFilters = []filterapi.EgressFilterFunc{step}
+
+	skipped, dispatched := reactorForwardRS(r, update, id, source.Settings().Address, source)
+	require.True(t, raised, "the first pass must have met the egress step")
+	require.Equal(t, []netip.AddrPort{key.peerAddr}, skipped, "the fenced destination must be handed back, once")
+	require.Equal(t, 0, dispatched, "nothing may be dispatched to a fenced destination")
+	require.False(t, dst.forwardOverflowPending(), "nothing may be parked for the route server's replay to duplicate")
 }

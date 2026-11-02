@@ -10,6 +10,7 @@ package reactor
 
 import (
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
@@ -203,12 +204,35 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	defer r.recentUpdates.Release(updateID)
 	// dispatched counts peers. Every section is offered to the same clients, so
 	// the most clients any one section reached is the count this redo adds.
+	//
+	// A client a section hands back (a reload revoked it, or its replay fence
+	// went up, between the passes) joins the skipped list once and leaves the
+	// redo, so the route server decides the whole UPDATE for it and no later
+	// section reaches it from this rail as well.
 	reached := 0
 	for _, section := range sections {
-		_, sectionDispatched, _ := reactorForwardRSSection(r, update, section, bySection, updateID, sourcePeerAddr, sourcePeer)
+		handedBack, sectionDispatched, _ := reactorForwardRSSection(r, update, section, bySection, updateID, sourcePeerAddr, sourcePeer)
 		reached = max(reached, sectionDispatched)
+		if len(handedBack) > 0 {
+			skipped = append(skipped, handedBack...)
+			bySection = withoutPeerKeys(bySection, handedBack)
+		}
 	}
 	return skipped, dispatched + reached
+}
+
+// withoutPeerKeys answers peers less those whose key is in keys, in order. It
+// filters peers in place: the caller MUST NOT read the slice it passed in
+// afterwards. Both lists are a redo's destinations, a handful at most, so the
+// nested scan costs less than a set would.
+func withoutPeerKeys(peers []*Peer, keys []netip.AddrPort) []*Peer {
+	kept := peers[:0]
+	for _, peer := range peers {
+		if !slices.Contains(keys, peer.Settings().PeerKey()) {
+			kept = append(kept, peer)
+		}
+	}
+	return kept
 }
 
 // reactorForwardRSSection forwards wire, the received UPDATE or one section of
@@ -247,6 +271,13 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			srcRemoteRouterID = peer.RemoteRouterID()
 			continue
 		}
+		// The redo reads only the source's facts here: the first pass already
+		// handed back what its policy skipped, and the loop over only below
+		// decides each redone destination again, so a redo's skipped list
+		// names redone destinations alone.
+		if only != nil {
+			continue
+		}
 		pf := peer.forwardFacts()
 		if pf == nil {
 			continue
@@ -269,7 +300,21 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
-		if only != nil {
+		// A destination whose replay fence is up is the route server's to
+		// decide. Its peer-up replay carries every UPDATE at or below the cut it
+		// took when it saw the peer up (rs PeerState.ForwardFrom), and only the
+		// plugin rail knows that cut: this rail decides at receipt, possibly
+		// before the route server has seen the peer at all. Parked here, an
+		// UPDATE the replay also carries reached the peer twice, and the copy
+		// released from the fence after the replay overtook nothing but still
+		// landed behind it, out of the source's order (RFC 4271 Section 9.2:
+		// "All newly installed routes and all newly unfeasible routes for which
+		// there is no replacement route SHALL be advertised to its peers by
+		// means of an UPDATE message."). Handed back, the plugin rail applies
+		// the cut (batchForwardUpdateSkipped), and what it forwards waits behind
+		// the same fence.
+		if peer.initialUpdateOwed.Load() {
+			skipped = append(skipped, pf.peerKey)
 			continue
 		}
 		matchingPeers = append(matchingPeers, peer)
@@ -287,12 +332,23 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			continue
 		}
 		// The retry rechecks the send permission with the other live facts:
-		// a reload between passes can revoke the grant.
+		// a reload between passes can revoke the grant. A refused client is
+		// handed back as the first pass hands it back.
 		if !pf.rsRelaySend {
+			skipped = append(skipped, pf.peerKey)
 			continue
 		}
 		// RFC 8212 Section 3: retry uses the current coherent destination facts.
 		if !pf.exportPolicy.AcceptsAtEnd(pf.isEBGP) {
+			skipped = append(skipped, pf.peerKey)
+			continue
+		}
+		// A session that came up between the passes raised its replay fence,
+		// and the route server's peer-up replay now owns the UPDATE for it,
+		// exactly as on the first pass above: hand it back rather than park a
+		// section the replay also carries.
+		if peer.initialUpdateOwed.Load() {
+			skipped = append(skipped, pf.peerKey)
 			continue
 		}
 		matchingPeers = append(matchingPeers, peer)
@@ -337,6 +393,10 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 	type pendingFwd struct {
 		item fwdItem
 		key  fwdKey
+		// edits are counted at dispatch, past the fence check that can still
+		// hand the destination back (recordRSCommunityEdits).
+		edits    rsCommunityEdits
+		withdraw bool
 	}
 	var pendingBuf [16]pendingFwd
 	pending := pendingBuf[:0]
@@ -881,12 +941,11 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			dedup.commit(candidate, materialization)
 		}
 
-		if !mods.IsWithdraw() {
-			r.recordRSCommunityEdits(rsEdits)
-		}
 		pending = append(pending, pendingFwd{
-			item: item,
-			key:  fwdKey{peerAddr: facts.peerKey},
+			item:     item,
+			key:      fwdKey{peerAddr: facts.peerKey},
+			edits:    rsEdits,
+			withdraw: mods.IsWithdraw(),
 		})
 	}
 
@@ -917,9 +976,26 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			// took fp.mu.RLock and hashed a fwdKey per destination per UPDATE.
 			dst := pending[i].item.peer
 			//
+			// A session that came up since selection raised its replay fence
+			// while this pass built the item, so the route server's replay now
+			// owns the UPDATE for it, as at selection: hand it back rather than
+			// park a copy the replay also carries (Peer.initialUpdateOwed).
+			// This check is the one that decides. The checks at selection
+			// spare the build in the common case, a destination fenced
+			// before the UPDATE arrived. The community edits are counted
+			// after it, so a destination handed back counts nothing here.
+			if dst != nil && dst.initialUpdateOwed.Load() {
+				pending[i].item.done()
+				r.fwdPool.releaseItem(&pending[i].item)
+				skipped = append(skipped, pending[i].key.peerAddr)
+				continue
+			}
+			if !pending[i].withdraw {
+				r.recordRSCommunityEdits(pending[i].edits)
+			}
+			//
 			// This rail carries live UPDATEs only, never part of a
-			// destination's initial update, so the replay fence holds it
-			// (Peer.initialUpdateOwed).
+			// destination's initial update, so the hold reads it as live.
 			if dst != nil && (dst.forwardOrderHold(false) || dst.forwardOverflowPending()) {
 				if r.fwdPool.dispatchOverflow(pending[i].key, &pending[i].item) {
 					delivered++

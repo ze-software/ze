@@ -143,6 +143,23 @@ time for that destination.
 <!-- test: internal/component/bgp/reactor/forward_rs_export_chain_test.go TestRSFastPathRunsTheExportChain -->
 <!-- test: test/plugin/role-otc-rs-withdraw-eor.ci -->
 
+A destination whose replay fence is up (`Peer.initialUpdateOwed`, raised when
+its session comes up) is handed back to the plugin rail on both passes of
+`reactorForwardRSSection`, so the fast path neither writes to it nor parks
+anything for it. bgp-rs owns that destination's initial update: its peer-up
+replay carries every UPDATE at or below the cut it took when it saw the peer up
+(`PeerState.ForwardFrom`), and `batchForwardUpdateSkipped` forwards the handed
+back UPDATE only when it is above that cut, behind the same fence. The fast path
+decides at receipt and cannot know the cut, possibly taken after the UPDATE
+arrived, so an UPDATE it parked behind the fence was also in the replay: the
+destination received the announcement twice, the second copy after a later
+withdrawal was due. A destination whose fence went up between the passes
+leaves the by-section redo at the first section that sees it, and is handed
+back once.
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS, reactorForwardRSSection, withoutPeerKeys -->
+<!-- source: internal/component/bgp/plugins/rs/server_forward.go -- batchForwardUpdateSkipped -->
+<!-- test: internal/component/bgp/reactor/forward_replay_fence_test.go TestRSFastPathHandsAFencedDestinationBack, TestRSFastPathRedoHandsAFencedDestinationBack, TestLiveForwardWaitsForPeerUpReplay -->
+
 Live cache entries and reconstructed stored-route replays retain their dispatch
 peer and session generation. Source removal or re-establishment invalidates
 queued dispatch, and destination workers check that generation before writing.
