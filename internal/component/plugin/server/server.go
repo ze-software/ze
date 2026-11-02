@@ -83,6 +83,7 @@ type Server struct {
 	engineSubscribers *engineEventSubscribers       // Engine-side stream subscribers (orchestrator etc.)
 	monitors          *MonitorManager               // CLI monitor subscriptions
 	quiescers         QuiescerRegistry              // Subsystem drains invoked by `request quiesce`
+	stopHooks         stopHooks                     // Work a command started that Stop ends (stop_hooks.go)
 
 	// Plugin registration protocol
 	coordinator       *plugin.StartupCoordinator             // Stage synchronization
@@ -831,6 +832,8 @@ func (s *Server) Stop() {
 	if s.cancel != nil {
 		s.cancel()
 	}
+	// Work a command started under the server ends with it, and Stop waits.
+	s.stopHooks.run()
 	s.cleanup()
 }
 

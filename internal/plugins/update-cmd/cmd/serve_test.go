@@ -18,6 +18,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 func testGet(t *testing.T, url string) *http.Response {
@@ -244,9 +248,10 @@ func updateServeGoroutines() int {
 // moment stop returns, and count its frame in a full stack dump.
 func TestUpdateServeLifecycle(t *testing.T) {
 	var owner updateServeOwner
+	daemon := testDaemon(t)
 	before := updateServeGoroutines()
 
-	started, err := owner.start(t.Context(), "127.0.0.1:0")
+	started, err := owner.start(t.Context(), "127.0.0.1:0", daemon.OnStop)
 	require.NoError(t, err)
 	require.NotEqual(t, "127.0.0.1:0", started.Listen, "start must answer the bound address")
 	assert.False(t, started.Paused)
@@ -264,7 +269,7 @@ func TestUpdateServeLifecycle(t *testing.T) {
 	assert.Len(t, m.SHA256, 64)
 	assert.False(t, m.Paused)
 
-	_, err = owner.start(t.Context(), "127.0.0.1:0")
+	_, err = owner.start(t.Context(), "127.0.0.1:0", daemon.OnStop)
 	require.Error(t, err, "a second start must be refused")
 	assert.Contains(t, err.Error(), started.Listen)
 	assert.Contains(t, err.Error(), "'update serve stop'")
@@ -308,9 +313,103 @@ func TestUpdateServeLifecycle(t *testing.T) {
 	require.ErrorIs(t, err, errNoUpdateServer)
 	assert.Contains(t, errNoUpdateServer.Error(), "'update serve start'")
 
-	restarted, err := owner.start(t.Context(), "127.0.0.1:0")
+	restarted, err := owner.start(t.Context(), "127.0.0.1:0", daemon.OnStop)
 	require.NoError(t, err, "a stopped server must leave room for a new start")
 	_, err = owner.stop()
 	require.NoError(t, err)
 	assert.NotEmpty(t, restarted.Listen)
+}
+
+// testDaemon answers a plugin server standing in for the daemon's, whose Stop
+// is the call the daemon's ordered shutdown makes (cmd/ze/hub, apiServer.Stop).
+func testDaemon(t *testing.T) *pluginserver.Server {
+	t.Helper()
+	daemon, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+	t.Cleanup(daemon.Stop)
+	return daemon
+}
+
+// assertUpdateServeGone fails unless nothing answers on addr and no server
+// goroutine is left beyond before.
+func assertUpdateServeGone(t *testing.T, addr string, before int) {
+	t.Helper()
+	assert.Equal(t, before, updateServeGoroutines(), "no server goroutine may outlive the daemon")
+	var dialer net.Dialer
+	conn, err := dialer.DialContext(t.Context(), "tcp", addr)
+	if err == nil {
+		conn.Close() //nolint:errcheck // test cleanup
+		t.Fatal("the listener must be closed once the daemon stopped")
+	}
+}
+
+// TestUpdateServeEndsWithDaemonStop proves the update server's lifetime is
+// bounded by the daemon's: the daemon's Stop ends a running server, closes its
+// listener and returns only after the server's goroutine ended; an operator's
+// stop first leaves the daemon's Stop nothing to do; and a daemon already
+// stopping refuses a new start, so no server outlives it. Method: drive the
+// owner with a real plugin server's OnStop, call that server's Stop (the
+// daemon's shutdown call), then read the done channel at the moment Stop
+// returns, count the goroutine's frame, and dial the address.
+func TestUpdateServeEndsWithDaemonStop(t *testing.T) {
+	before := updateServeGoroutines()
+
+	t.Run("daemon stop ends a running server", func(t *testing.T) {
+		var owner updateServeOwner
+		daemon := testDaemon(t)
+		started, err := owner.start(t.Context(), "127.0.0.1:0", daemon.OnStop)
+		require.NoError(t, err)
+		resp := testGet(t, "http://"+started.Listen+"/version.json")
+		resp.Body.Close() //nolint:errcheck // test cleanup
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		running := owner.running
+		daemon.Stop()
+		select {
+		case <-running.done:
+		default:
+			t.Fatal("the daemon's Stop returned while the server's goroutine was still running")
+		}
+		assertUpdateServeGone(t, started.Listen, before)
+		_, err = owner.stop()
+		require.ErrorIs(t, err, errNoUpdateServer, "the daemon's stop must clear the running server")
+	})
+
+	t.Run("operator stop first leaves the daemon nothing to end", func(t *testing.T) {
+		var owner updateServeOwner
+		daemon := testDaemon(t)
+		started, err := owner.start(t.Context(), "127.0.0.1:0", daemon.OnStop)
+		require.NoError(t, err)
+		_, err = owner.stop()
+		require.NoError(t, err)
+		restarted, err := owner.start(t.Context(), "127.0.0.1:0", daemon.OnStop)
+		require.NoError(t, err)
+
+		daemon.Stop()
+		assertUpdateServeGone(t, started.Listen, before)
+		assertUpdateServeGone(t, restarted.Listen, before)
+	})
+
+	t.Run("a stopping daemon refuses a start", func(t *testing.T) {
+		var owner updateServeOwner
+		daemon := testDaemon(t)
+		daemon.Stop()
+		_, err := owner.start(t.Context(), "127.0.0.1:0", daemon.OnStop)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "the daemon is stopping")
+		assert.Nil(t, owner.running, "a refused start must leave no server")
+		assert.Equal(t, before, updateServeGoroutines())
+	})
+}
+
+// TestUpdateServeStartNeedsADaemon proves the daemon handler refuses a start
+// no daemon server dispatched, naming both routes that work, rather than
+// starting a server nothing would stop.
+func TestUpdateServeStartNeedsADaemon(t *testing.T) {
+	resp, err := handleUpdateServeStart(&pluginserver.CommandContext{}, command.ValidatedArgs{})
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Error, "update serve start")
+	assert.Contains(t, resp.Error, "ze update serve --listen")
+	assert.Nil(t, updateServer.running)
 }

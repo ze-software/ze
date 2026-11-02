@@ -133,6 +133,21 @@ read different registries. Neither is derived from the other.
 <!-- source: internal/component/plugin/server/command.go -- matchBuiltinTokens, longerCommandPath, isCommandPath -->
 <!-- source: internal/component/command/local.go -- LookupLocal -->
 
+### A command that starts work outliving its request
+
+A builtin handler can start work that keeps running after it answers: `update
+serve start` opens a listener and serves it from a goroutine. No config
+transaction and no plugin process owns that work, so the handler binds it to
+the daemon's plugin server with `CommandContext.Server.OnStop(fn)` before it
+starts the goroutine. The server's `Stop`, which the daemon's ordered shutdown
+calls, cancels the server context and then runs every registered `fn`, and
+returns only once each has ended its work, goroutines included. `OnStop`
+answers a withdrawal the owner calls when the work ends first (an operator's
+`update serve stop`), and it refuses once `Stop` has started, so a command that
+arrives while the daemon stops starts nothing.
+<!-- source: internal/component/plugin/server/stop_hooks.go -- Server.OnStop, stopHooks.run -->
+<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.start, updateServeOwner.endWithDaemon -->
+
 ### Offline fallback (read-only commands without a daemon)
 
 Some read-only `show` commands must work with **no daemon reachable** — `show crashes`

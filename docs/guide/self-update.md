@@ -57,7 +57,11 @@ Without `listen`, the server listens on `:8080`. Port 0 picks a free port, and
 the answer names it. A daemon runs one update server at a time: a second
 `update serve start` is refused until `update serve stop`. A signal sent to the
 daemon reaches the daemon, not its server, so `update serve pause` takes the
-place of `SIGUSR1` there.
+place of `SIGUSR1` there. The server lives no longer than the daemon: stopping
+the daemon stops its update server, and the daemon finishes stopping only once
+the server has ended.
+<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.endWithDaemon -->
+<!-- source: internal/component/plugin/server/stop_hooks.go -- Server.OnStop -->
 
 ### Pause Mechanism
 
