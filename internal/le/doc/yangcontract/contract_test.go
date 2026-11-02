@@ -152,10 +152,11 @@ func TestLocalHandlersCoverEveryRegistrationSpelling(t *testing.T) {
 	}
 }
 
-// VALIDATES: the owner command packages under internal/ are scanned as well as
-// cmd/ze.
-// PREVENTS: a migrated owner's `show X` shortcut reading as unregistered,
-// which is the half of the contract the filesystem walk exists for.
+// VALIDATES: every register.go under internal/ is scanned as well as cmd/ze,
+// whatever directory holds it, and a file of another name is not.
+// PREVENTS: an owner's local command reading as unregistered because its
+// directory was missing from a list (the help plugin's `help command` and
+// `help ai`), which is the half of the contract the filesystem walk exists for.
 func TestLocalHandlersReachTheOwnerPackages(t *testing.T) {
 	root := t.TempDir()
 	writeDoc(t, root, filepath.Join("cmd", "ze", "main.go"), "package main\n\nfunc main() {}\n")
@@ -165,13 +166,15 @@ func TestLocalHandlersReachTheOwnerPackages(t *testing.T) {
 		"package cli\n\nfunc init() { command.MustRegisterLocal(\"show editor\", nil) }\n")
 	writeDoc(t, root, filepath.Join("internal", "component", "elsewhere", "register.go"),
 		"package elsewhere\n\nfunc init() { command.MustRegisterLocal(\"show elsewhere\", nil) }\n")
+	writeDoc(t, root, filepath.Join("internal", "component", "elsewhere", "other.go"),
+		"package elsewhere\n\nfunc init() { command.MustRegisterLocal(\"show other\", nil) }\n")
 
 	got, err := collectLocalHandlers(root)
 	if err != nil {
 		t.Fatalf("collect the local handlers: %v", err)
 	}
-	if strings.Join(got, "|") != "explain thing|show editor" {
-		t.Fatalf("the local handlers are %v, want the explain and cli registrations only", got)
+	if strings.Join(got, "|") != "explain thing|show editor|show elsewhere" {
+		t.Fatalf("the local handlers are %v, want every register.go registration and nothing from other.go", got)
 	}
 }
 
