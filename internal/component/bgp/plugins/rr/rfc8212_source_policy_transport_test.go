@@ -23,8 +23,7 @@ import (
 const rrTransportSource = "10.0.0.1"
 
 // runRouteReflectorCallbacks runs bgp-rr's real callback registration on conn
-// without runRouteReflector's in-process check, which refuses the wire
-// transport until bgp-rr's forked tests land.
+// over the wire transport, as a forked bgp-rr runs it.
 func runRouteReflectorCallbacks(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-rr", conn)
 	defer func() { _ = p.Close() }()

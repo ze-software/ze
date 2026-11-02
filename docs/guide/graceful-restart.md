@@ -256,23 +256,28 @@ Time expires without a reconnect, the retained
 routes are deleted and the reflector's other peers are sent their withdrawal,
 under the Path Identifier each was sent. The verdict comes from GR's existing
 family state; no second route inventory is kept. The event crosses a process
-boundary, so `bgp-gr` may run in a child process. `bgp-rr` and `bgp-rs` still
-refuse to start as one (`run "ze plugin bgp-rr"`) until their forked runs are
-proven: the refusal is logged as `refusing to start as an external plugin
-process` and the daemon does not start. Use internal `bgp-rib`, and `bgp-rs` or
-`bgp-rr`, for the coordinated lifecycle described here.
+boundary, so `bgp-gr` and `bgp-rr` may each run in a child process
+(`run "ze plugin bgp-rr"`), in any mix. An edge another plugin declares on
+`bgp-rr` reaches it forked as well, under the implementation its `run` line
+names, so `bgp-gr`'s verdict still precedes its DOWN. `bgp-rs` still refuses to
+start as one until its forked run is proven: the refusal is logged as
+`refusing to start as an external plugin process` and the daemon does not
+start. Use internal `bgp-rib`, and internal `bgp-rs`, for the coordinated
+lifecycle described here.
 <!-- source: internal/component/bgp/retention/retention.go -- Event, Verdict, Ledger -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- emitRetention -->
 <!-- source: internal/component/plugin/process/delivery.go -- deliverMixedBatch -->
-<!-- source: internal/component/bgp/plugins/rr/rr.go -- runRouteReflector, IsInternal refusal, stopDepartures -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- runRouteReflector, stopDepartures -->
+<!-- source: internal/component/bgp/server/events.go -- sortByReverseDependencyTier -->
 <!-- source: internal/component/bgp/plugins/rs/server.go -- RunRouteServer, IsInternal refusal -->
-<!-- source: test/plugin/rr-external-refuses.ci -- a forked bgp-rr refuses to start -->
 <!-- source: test/plugin/rs-external-refuses.ci -- a forked bgp-rs refuses to start -->
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, enqueueDeparture, stopDepartures -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, enqueueDeparture -->
 <!-- source: internal/core/syncutil/coalescer.go -- Coalescer, Enqueue, Stop -->
 <!-- source: internal/component/bgp/plugins/gr/register.go -- init (OptionalDependencies bgp-rs, StartAfter bgp-rr) -->
 <!-- source: test/plugin/addpath-departure-rr-gr-retained.ci -- a retained family is not withdrawn by the reflector -->
+<!-- source: test/plugin/addpath-departure-rr-gr-retained-forked.ci -- the same with bgp-rr and bgp-gr forked -->
+<!-- source: test/plugin/addpath-departure-rr-gr-notification-forked.ci -- a DOWN after a NOTIFICATION retains nothing, forked -->
 <!-- source: test/plugin/addpath-departure-rr-gr-expiry.ci -- at Restart Time expiry the reflected paths are withdrawn under ze's identifiers -->
 
 

@@ -232,8 +232,8 @@ func TestLateReflectorClaimsExistingReplayOwner(t *testing.T) {
 		_ = engineEnd.Close()
 		_ = mux.Close()
 	})
-	// bgp-rr refuses to run forked, so the pipe carries a DirectBridge as an
-	// in-process engine would hand it one. Once the bridge is ready the SDK
+	// The pipe carries a DirectBridge as an in-process engine would hand
+	// bgp-rr one. Once the bridge is ready the SDK
 	// sends dispatch-command-args through it rather than the pipe, so the
 	// bridge hands each dispatch to this test, which answers it below.
 	bridge := rpc.NewDirectBridge()

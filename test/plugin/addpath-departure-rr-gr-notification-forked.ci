@@ -1,0 +1,145 @@
+# addpath-departure-rr-gr-notification-forked: a Graceful Restart source
+# announces two paths of one prefix through bgp-rr to a receiver that
+# negotiated ADD-PATH, then ends its session with a NOTIFICATION. bgp-rr and
+# bgp-gr both run forked (spec-filter-wire-6-stage-filters AC-14: "a DOWN
+# after a NOTIFICATION retains nothing").
+# RFC 4724 Section 4.2: "If the session does not get re-established within
+# the "Restart Time" that the peer advertised previously, the Receiving
+# Speaker MUST delete all the stale routes from the peer that it is
+# retaining." Retention is the reaction to a TCP failure; the source states
+# no N bit (RFC 8538 Section 2), so a NOTIFICATION ends the session with no
+# Graceful Restart at all.
+# VALIDATES: the source advertises a Restart Time of 120 seconds and sends
+# 10.0.0.0/8 under Path Identifiers 11 and 12; ze re-advertises both to the
+# receiver under its own identifiers 0 and 1. The source then sends a Cease
+# NOTIFICATION. bgp-gr's retention verdict for that DOWN names no family, it
+# crosses to the forked reflector as the bgp-gr/retention event, and bgp-rr
+# hands the departure to the engine at once: the receiver is sent the
+# withdrawal of ze's identifiers 0 and 1 long before the Restart Time could
+# expire (the peers time out at 60 seconds).
+# PREVENTS: a forked reflector keeping a NOTIFICATION source's routes for the
+# whole Restart Time, by reading an earlier verdict or by defaulting to
+# retention when the verdict it needs never reached its process.
+
+# The await needle below is bgp-gr's debug line for the source's OPEN, which
+# the forked child logs at the --log-level its run line names.
+option=env:var=ze.log.bgp.gr:value=debug
+# The daemon relays a forked child's stderr at WARN by default, through the
+# plugin.relay logger.
+option=env:var=ze.log.relay:value=debug
+option=env:var=ze.log.plugin.relay:value=debug
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.1
+option=open:value=graceful-restart:restart-time=120
+option=await-file:path=receiver-up
+# ORIGIN IGP, empty AS_PATH, NEXT_HOP 192.0.2.1, LOCAL_PREF 100,
+# NLRI [0000000B][8][10] [0000000C][8][10].
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001540010100400200400304C0000201400504000000640000000B080A0000000C080A
+# The receiver's own route reflected here proves the receiver already holds
+# both paths: it sends 198.51.100.0/24 only after it was sent them.
+expect=bgp:conn=1:seq=2:contains=18C63364
+# A Cease NOTIFICATION: no Graceful Restart, so nothing is retained.
+action=notification:conn=1:seq=3:text=peer-initiated shutdown
+EOF_SOURCE
+
+stdin=receiver:terminator=EOF_RECEIVER
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65000
+option=linger:value=true
+option=established-file:path=receiver-up
+# ze's own identifiers come from one counter in a fresh daemon: 0 and 1 for
+# the two paths of 10.0.0.0/8.
+expect=bgp:conn=1:seq=1:announced=00000000080A00000001080A
+# ORIGIN IGP, empty AS_PATH, NEXT_HOP 192.0.2.2, LOCAL_PREF 100,
+# NLRI 198.51.100.0/24: the signal bgp-rr reflects to the source.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304C00002024005040000006418C63364
+# The departure withdraws ze's identifiers [00000000][8][10] and
+# [00000001][8][10], never the source's 11 and 12.
+expect=bgp:conn=1:seq=3:withdrawn=00000000080A
+expect=bgp:conn=1:seq=3:withdrawn=00000001080A
+EOF_RECEIVER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    hub { server local { ip 127.0.0.1; port 0; secret rr-gr-notification-forked-secret-01; } }
+    external relay { run "ze plugin bgp-rr"; }
+    external gr { run "ze plugin bgp-gr --log-level debug"; }
+}
+bgp {
+    peer source {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.3; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart { restart-time 60; }
+                add-path { direction receive; family { ipv4/unicast; } }
+            }
+        }
+        behavior { group-updates disable; }
+        timer { connect-retry 5; }
+        attach process gr {
+            receive [ open-received state eor ]
+            send [ update ]
+        }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+    peer receiver {
+        connection {
+            remote { ip 127.0.0.2; }
+            local { ip 127.0.0.4; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 1.2.3.4
+            route-reflector-client true; cluster-id 10.0.0.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+                add-path { direction send; family { ipv4/unicast; } }
+            }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=receiver
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=60s
+# The receiver lingers, so ze is stopped once each peer has met every
+# expectation.
+await=stderr:contains=gr: stored peer GR capability:then=stop
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

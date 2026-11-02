@@ -426,7 +426,7 @@ Read at HEAD 357b33c57c plus the parent session's `loop` row; the owner-decision
 | `graceful-restart-llgr-forked` | `test/parse/` | AC-13 | |
 | `llgr-readvertise-forked`, `llgr-transition-forked`, `llgr-import-no-llgr-forked` | `test/plugin/` | AC-13: `bgp-gr` runs forked (their outcomes do not depend on gr's filters) | |
 | `llgr-stale-received-depreferenced-forked`, `llgr-readvertise-multipeer-forked` | `test/plugin/` | AC-13: forked `bgp-gr:llgr-ingress` depreferences a received LLGR_STALE route, and `llgr-egress` on the readvertise rail depreferences a stale route toward a non-LLGR iBGP destination (NO_EXPORT and LOCAL_PREF 0) | |
-| `addpath-departure-rr-gr-retained-forked`, `addpath-departure-rr-gr-expiry-forked`, `bgp-rs-withdrawal-replacement-gr-forked` | `test/plugin/` | AC-14 | |
+| `addpath-departure-rr-gr-retained-forked`, `addpath-departure-rr-gr-expiry-forked`, `addpath-departure-rr-gr-notification-forked`, `bgp-rs-withdrawal-replacement-gr-forked` | `test/plugin/` | AC-14 (the notification twin: a DOWN after a Cease NOTIFICATION retains nothing with `bgp-gr` and `bgp-rr` forked) | |
 | `bgp-rs-fastpath-forked`, `bgp-rs-relay-aspath-transparency-forked`, `bgp-rs-rpki-revalidate-relay-forked` | `test/plugin/` | AC-16, AC-17 | |
 | the existing internal tests in Behavior to preserve | `test/plugin/` | unchanged | |
 

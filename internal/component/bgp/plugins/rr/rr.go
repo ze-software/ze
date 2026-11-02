@@ -147,23 +147,15 @@ func runRouteReflector(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-rr", conn)
 	defer func() { _ = p.Close() }()
 
-	// bgp-rr runs internal only until the stage-filters spec's phase 7 lifts
-	// this refusal with its forked tests. Retention no longer needs it: the
-	// verdict arrives as the bgp-gr/retention event, which crosses the
-	// process split (rr.retained).
-	if !p.IsInternal() {
-		logger().Error("bgp-rr: refusing to start as an external plugin process -- " +
-			"the graceful-restart retention decision is not yet proven on a forked route reflector, " +
-			"which could withdraw routes a restarting peer's neighbors must keep; " +
-			"configure it as plugin { internal <name> { use bgp-rr } }")
-		return 1
-	}
+	// bgp-rr runs internal or forked alike: the retention verdict arrives as
+	// the bgp-gr/retention event (rr.retained), the receive store's
+	// eligibility change and the RIB's FlowSpec lookup through the SDK
+	// (dispatchText), so nothing it reads is filled only in the daemon process.
 	return serveRouteReflector(p)
 }
 
 // serveRouteReflector registers the reflector's callbacks on p and runs it
-// until the connection ends. runRouteReflector's process check comes first:
-// only a test of the SDK callbacks over the wire transport calls it alone.
+// until the connection ends.
 func serveRouteReflector(p *sdk.Plugin) int {
 	downCtx, stopDown := context.WithCancel(context.Background())
 	rr := &routeReflector{
