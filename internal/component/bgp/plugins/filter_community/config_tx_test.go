@@ -10,9 +10,10 @@ import (
 )
 
 // tagSection is a bgp delivery defining community "t" as value and tagging
-// peer p's egress with it.
+// peer p's egress with it. The bgp-level chain names the members the
+// settings need (spec-filter-wire-6-stage-filters AC-11).
 func tagSection(value string) []sdk.ConfigSection {
-	return []sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{
+	return []sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{"filter":{"import":{"filters":["bgp-filter-community:ingress"]},"export":{"filters":["bgp-filter-community:egress"]}},
 		"community":{"standard":{"t":{"value":["` + value + `"]}}},
 		"peer":{"p":{"connection":{"remote":{"ip":"192.0.2.1"}},
 			"filter":{"egress":{"community":{"tag":["t"]}}}}}}}`}}
@@ -63,9 +64,11 @@ func TestConfigTxAppliesReloadedCommunities(t *testing.T) {
 	wire, _ = installedTagWire(t)
 	assert.Equal(t, boot, wire, "rollback did not restore the boot definition")
 
-	undefined := []sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{"peer":{"p":{
+	undefined := []sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{"filter":{"import":{"filters":["bgp-filter-community:ingress"]},"export":{"filters":["bgp-filter-community:egress"]}},"peer":{"p":{
 		"connection":{"remote":{"ip":"192.0.2.1"}},"filter":{"egress":{"community":{"tag":["missing"]}}}}}}}`}}
-	require.Error(t, tx.Verify(undefined), "a tag naming an undefined community is refused at verify")
+	err = tx.Verify(undefined)
+	require.Error(t, err, "a tag naming an undefined community is refused at verify")
+	require.NotErrorIs(t, err, errCommunityMemberMissing, "refused for the undefined name, not for the chain")
 	wire, _ = installedTagWire(t)
 	assert.Equal(t, boot, wire, "a refused verify changed the running config")
 }

@@ -145,7 +145,11 @@ func TestPolicyFinalOnlyPeer(t *testing.T) {
 			if direction == "export" {
 				policy, absent = absent, policy
 			}
-			if !policy.Configured() || len(policy.Filters()) != 0 || policy.AcceptsAtEnd(peers[0].IsEBGP()) != (final == "accept") {
+			inserted := refs()
+			if direction == "export" {
+				inserted = insertedExport(peers[0])
+			}
+			if !policy.Configured() || !slices.Equal(policy.Filters(), inserted) || policy.AcceptsAtEnd(peers[0].IsEBGP()) != (final == "accept") {
 				t.Fatalf("%s final %s lost: %+v", direction, final, policy)
 			}
 			if absent.Configured() || absent.AcceptsAtEnd(peers[0].IsEBGP()) {

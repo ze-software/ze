@@ -301,6 +301,18 @@ direction, beside the named `tag` and `strip` sets. Each one is a leaf under
 `filter { ingress { community { } } }`, and the container is available at the
 `bgp`, group, group-peer, and standalone-peer levels.
 
+The settings run only where the peer's filter chain names the member that
+runs them: `bgp-filter-community:ingress` in the import chain for the
+`ingress` settings, `bgp-filter-community:relation` for `relation-tag`, and
+`bgp-filter-community:egress` in the export chain for the `egress` settings.
+A member named at the `bgp` or group level runs for every peer below it. Ze
+refuses a peer whose settings no member runs, and the refusal names the line
+to add. The protocol procedures other plugins insert (LLGR, the RFC 9234
+roles) always run before these members, so a strip or tag cannot hide a
+route from them. Toward every eBGP destination that is not a route-server
+client, the plugin itself inserts the RFC 7999 Section 3.1 BLACKHOLE
+agreement check; it runs whether or not the operator names any member.
+
 | Leaf | Type | Default | Meaning |
 |------|------|---------|---------|
 | `relation-tag` | boolean | `false` | Write the RFC 8195 Section 3.2 relation-to-origin large community on each route this peer sends. |
@@ -319,6 +331,10 @@ bgp {
     }
     group customers {
         filter {
+            import {
+                filters [ bgp-filter-community:ingress bgp-filter-community:relation ];
+                final accept;
+            }
             ingress {
                 community {
                     scrub-own-ga        true;

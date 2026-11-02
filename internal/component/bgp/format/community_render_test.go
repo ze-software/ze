@@ -1,4 +1,8 @@
-package format
+// This file is the external test package format_test: it links
+// bgp-filter-community, which imports policyview, which imports format, so a
+// test inside package format would close an import cycle.
+
+package format_test
 
 import (
 	"encoding/binary"
@@ -9,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/format"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -87,12 +92,12 @@ func communityUpdateMessage(t *testing.T) (*plugin.PeerInfo, bgptypes.RawMessage
 	t.Helper()
 
 	body := buildCommunityUpdateBody()
-	wireUpdate := wireu.NewWireUpdate(body, testEncodingContext())
+	wireUpdate := wireu.NewWireUpdate(body, format.EncodingContextForTest())
 	attrs, err := wireUpdate.Attrs()
 	require.NoError(t, err, "Attrs() must parse the fixture attribute block")
 	require.NotNil(t, attrs, "fixture carries attributes, so AttrsWire must not be nil")
 
-	return testPeer(), bgptypes.RawMessage{
+	return format.PeerForTest(), bgptypes.RawMessage{
 		Type:       msgtype.TypeUPDATE,
 		RawBytes:   body,
 		Timestamp:  time.Now(),
@@ -209,7 +214,7 @@ func TestReceivedCommunitiesRenderDecoded(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			peer, msg := communityUpdateMessage(t)
-			got := string(AppendMessage(nil, peer, msg, tt.content))
+			got := string(format.AppendMessage(nil, peer, msg, tt.content))
 
 			for _, want := range tt.wants {
 				require.Contains(t, got, want, "output must carry the decoded attribute\n%s", got)

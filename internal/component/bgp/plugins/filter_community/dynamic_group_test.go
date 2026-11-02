@@ -30,8 +30,20 @@ func withCleanConfig(t *testing.T) {
 }
 
 // configureCommunityFilter parses bgpCfg and installs it as the running
-// config, as Stage 2 does.
+// config, as Stage 2 does. A config naming no chain gets a bgp-level one
+// naming the three operator members, which the settings need
+// (spec-filter-wire-6-stage-filters AC-11, proven by
+// TestCommunitySettingsNeedChainMember): these tests judge what the settings
+// do, so their config is one the plugin accepts.
 func configureCommunityFilter(bgpCfg map[string]any) error {
+	if _, named := bgpCfg["filter"]; !named {
+		bgpCfg["filter"] = map[string]any{
+			"import": map[string]any{"filters": []any{
+				communityFilterRef(ingressFilterName), communityFilterRef(relationFilterName),
+			}},
+			"export": map[string]any{"filters": []any{communityFilterRef(egressFilterName)}},
+		}
+	}
 	cfg, err := parseCommunityConfig(bgpCfg)
 	if err != nil {
 		return err

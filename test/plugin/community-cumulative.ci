@@ -51,7 +51,7 @@ bgp {
 				tag global-mark
 			}
 		}
-		import { final accept; }
+		import { filters [ bgp-filter-community:ingress ]; final accept; }
 		export { final accept; }
 	}
 

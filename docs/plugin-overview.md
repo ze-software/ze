@@ -146,7 +146,7 @@ recorded nothing is listed as `unknown`.
 
 | Plugin | Purpose |
 |--------|---------|
-| `bgp-filter-community` | Community tag/strip filter (standard, large, extended) |
+| `bgp-filter-community` | Community tag, strip and relation-tag chain members (standard, large, extended) |
 | `bgp-filter-aspath` | AS-path filter (regex + exact match) |
 | `bgp-filter-aspath-length` | AS-path length filter |
 | `bgp-filter-prefix` | Prefix-list filter |

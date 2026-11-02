@@ -5,6 +5,7 @@ package reactor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/netip"
 	"slices"
@@ -16,9 +17,11 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_community"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -30,7 +33,9 @@ import (
 
 // Configure the actual plugin through its registered SDK runner, rather than
 // substituting a callback that merely returns the operations this test expects.
-func teConfigureCommunityFilter(t *testing.T) {
+// The returned transport hands each chain member call to that same plugin
+// over its filter-update batch, as the plugin server does for a forked one.
+func teConfigureCommunityFilter(t *testing.T) *teCommunityTransport {
 	t.Helper()
 	engine, pluginConn := net.Pipe()
 	conn := rpc.NewConn(engine, engine)
@@ -51,11 +56,22 @@ func teConfigureCommunityFilter(t *testing.T) {
 	request, err := conn.ReadRequest(ctx)
 	require.NoError(t, err)
 	require.Equal(t, rpc.MethodDeclareRegistration, request.Method)
+	var declared rpc.DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(request.Params, &declared))
 	require.NoError(t, conn.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
+	// The strip settings run only where the peer's chain names the member
+	// (spec-filter-wire-6-stage-filters D-3, AC-11).
 	peer := func(address, direction, strip string) map[string]any {
+		chain, member := "import", "bgp-filter-community:ingress"
+		if direction == "egress" {
+			chain, member = "export", "bgp-filter-community:egress"
+		}
 		return map[string]any{
 			"connection": map[string]any{"remote": map[string]any{"ip": address}},
-			"filter":     map[string]any{direction: map[string]any{"community": map[string]any{"strip": []any{strip}}}},
+			"filter": map[string]any{
+				direction: map[string]any{"community": map[string]any{"strip": []any{strip}}},
+				chain:     map[string]any{"filters": []any{member}},
+			},
 		}
 	}
 	cfg := map[string]any{
@@ -88,15 +104,83 @@ func teConfigureCommunityFilter(t *testing.T) {
 		_, err := conn.CallRPC(ctx, "ze-plugin-callback:configure", rpc.ConfigureInput{Sections: []rpc.ConfigSection{{Root: "bgp", Data: "{}"}}})
 		require.NoError(t, err)
 	})
+	return &teCommunityTransport{ctx: ctx, conn: conn, filters: declared.Filters}
+}
+
+// teCommunityTransport is the plugin server's side of one internal plugin
+// run over its RPC connection: the declarations are what the plugin declared
+// at Stage 1, and each chain member call is one filter-update batch the
+// plugin's own evaluator answers. Safe for concurrent use: Conn.CallRPC
+// serializes calls.
+type teCommunityTransport struct {
+	ctx     context.Context
+	conn    *rpc.Conn
+	filters []rpc.FilterDecl
+}
+
+func (c *teCommunityTransport) decl(pluginName, filterName string) (rpc.FilterDecl, bool) {
+	if pluginName != "bgp-filter-community" {
+		return rpc.FilterDecl{}, false
+	}
+	for _, decl := range c.filters {
+		if decl.Name == filterName {
+			return decl, true
+		}
+	}
+	return rpc.FilterDecl{}, false
+}
+
+func (c *teCommunityTransport) FilterInfo(pluginName, filterName string) ([]string, bool) {
+	decl, _ := c.decl(pluginName, filterName)
+	return decl.Attributes, slices.Contains(decl.Reads, rpc.FilterFieldRaw)
+}
+
+func (c *teCommunityTransport) FilterReads(pluginName, filterName string) []string {
+	decl, _ := c.decl(pluginName, filterName)
+	return decl.Reads
+}
+
+func (c *teCommunityTransport) FilterDeclaration(pluginName, filterName string) ([]string, []string, rpc.OnErrorPolicy, bool) {
+	decl, ok := c.decl(pluginName, filterName)
+	return decl.Reads, decl.Sets, decl.OnError, ok
+}
+
+func (c *teCommunityTransport) FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy {
+	decl, _ := c.decl(pluginName, filterName)
+	return decl.OnError
+}
+
+func (c *teCommunityTransport) FilterReadvertise(pluginName, filterName string) (bool, bool) {
+	decl, ok := c.decl(pluginName, filterName)
+	return decl.Readvertise, ok
+}
+
+func (c *teCommunityTransport) CallFilterUpdate(_ context.Context, _ string, route *rpc.FilterRoute) (*rpc.FilterUpdateOutput, error) {
+	input, err := route.Input()
+	if err != nil {
+		return nil, err
+	}
+	answer, err := c.conn.CallRPC(c.ctx, "ze-plugin-callback:filter-update", rpc.FilterUpdateBatchInput{Routes: []rpc.FilterUpdateInput{input}})
+	if err != nil {
+		return nil, err
+	}
+	var batch rpc.FilterUpdateBatchOutput
+	if err := json.Unmarshal(answer, &batch); err != nil {
+		return nil, err
+	}
+	if len(batch.Verdicts) != 1 {
+		return nil, fmt.Errorf("filter-update answered %d verdicts for one route", len(batch.Verdicts))
+	}
+	return &batch.Verdicts[0], nil
 }
 
 // RFC requirement: RFC9012-11-9 positive -- configured exact-value ingress stripping removes both received Encapsulation ECs before dispatch and subsequent export.
 // RFC requirement: RFC9012-11-9 negative -- a populated no-match ingress policy preserves the identical Encapsulation EC input; unrelated RT, route attributes and NLRI survive both policies.
 func TestRFC9012ConfiguredEncapsulationECIngress(t *testing.T) {
-	teConfigureCommunityFilter(t)
+	transport := teConfigureCommunityFilter(t)
 	for _, remove := range []bool{false, true} {
 		t.Run(map[bool]string{false: "preserve", true: "remove"}[remove], func(t *testing.T) {
-			teEncapsulationFilterRoundTrip(t, true, remove)
+			teEncapsulationFilterRoundTrip(t, transport, true, remove)
 		})
 	}
 }
@@ -104,15 +188,31 @@ func TestRFC9012ConfiguredEncapsulationECIngress(t *testing.T) {
 // RFC requirement: RFC9012-11-10 positive -- configured destination stripping reaches the registered Extended Communities handler and removes both Encapsulation ECs from actual outgoing UPDATE bytes.
 // RFC requirement: RFC9012-11-10 negative -- a destination with populated no-match policy receives both original Encapsulation ECs; unrelated RT, route attributes and NLRI survive both policies.
 func TestRFC9012ConfiguredEncapsulationECEgress(t *testing.T) {
-	teConfigureCommunityFilter(t)
+	transport := teConfigureCommunityFilter(t)
 	for _, remove := range []bool{false, true} {
 		t.Run(map[bool]string{false: "preserve", true: "remove"}[remove], func(t *testing.T) {
-			teEncapsulationFilterRoundTrip(t, false, remove)
+			teEncapsulationFilterRoundTrip(t, transport, false, remove)
 		})
 	}
 }
 
-func teEncapsulationFilterRoundTrip(t *testing.T, ingress, remove bool) {
+// teCommunityChain answers the policy of a peer chain naming the one member
+// bgp-filter-community:<filter>, compiled as config compiles every BGP chain
+// (bgp/config compileLibraryChain): a library chain at attachment whose
+// external member is sent the fields the filter declared and whose sets the
+// chain applies. A text-chain policy (mustPolicy alone) would drop the
+// member's sets, and no configured peer runs one.
+func teCommunityChain(t *testing.T, attachment, filter string) filterapi.Policy {
+	t.Helper()
+	reg, err := routepolicy.NewRegistry()
+	require.NoError(t, err)
+	members := []policychain.Member{{Name: filter, Plugin: "bgp-filter-community"}}
+	chain, err := policychain.Compile(attachment, reg, members, routepolicy.FinalAccept, policychain.Bases{})
+	require.NoError(t, err)
+	return mustPolicy(t, []routepolicy.Ref{{Name: "bgp-filter-community:" + filter}}, routepolicy.FinalAccept).WithLibrary(chain)
+}
+
+func teEncapsulationFilterRoundTrip(t *testing.T, transport *teCommunityTransport, ingress, remove bool) {
 	t.Helper()
 	encap := []byte{3, 12, 0, 0, 0, 0, 0, 2, 3, 12, 0, 0, 0, 0, 0, 8}
 	rt := []byte{0, 2, 0xfd, 0xe9, 0, 0, 0, 7}
@@ -129,10 +229,20 @@ func teEncapsulationFilterRoundTrip(t *testing.T, ingress, remove bool) {
 	if remove {
 		suffix = "remove"
 	}
+	// The member runs as a chain member of the configured side only: the
+	// reactor's chain step, the peer's chain naming the member, and the
+	// plugin's evaluator behind its filter-update batch.
+	chainStep := []orderedIngressStep{{name: policyChainStepName, stage: filterapi.FilterStagePeerChain, policyChain: true}}
+	var ingressSteps []orderedIngressStep
+	var egressSteps []orderedEgressStep
 	if ingress {
 		source.Settings().Name = "ingress-" + suffix
+		source.settings.ImportPolicy = teCommunityChain(t, "bgp import", "ingress")
+		ingressSteps = chainStep
 	} else {
 		destination.Settings().Name = "egress-" + suffix
+		destination.settings.ExportPolicy = teCommunityChain(t, "bgp export", "egress")
+		egressSteps = []orderedEgressStep{{name: policyChainStepName, stage: filterapi.FilterStagePeerChain, policyChain: true}}
 	}
 	source.refreshForwardFacts()
 	destination.refreshForwardFacts()
@@ -143,19 +253,8 @@ func teEncapsulationFilterRoundTrip(t *testing.T, ingress, remove bool) {
 		clock: source.clock, config: &Config{LocalAS: 65001},
 		peers:         map[netip.AddrPort]*Peer{source.Settings().PeerKey(): source, destination.Settings().PeerKey(): destination},
 		recentUpdates: cache, attrModHandlers: attrModHandlersWithDefaults(),
+		filterTransportSeam: transport, orderedIngressSteps: ingressSteps, orderedEgressSteps: egressSteps,
 	}
-	for _, f := range filterapi.IngressOrdered() {
-		if f.Name == "bgp-filter-community" {
-			r.orderedIngressSteps = append(r.orderedIngressSteps, orderedIngressStep{name: f.Name, stage: f.Stage, priority: f.Priority, inproc: f.Ingress})
-		}
-	}
-	for _, f := range filterapi.EgressOrdered() {
-		if f.Name == "bgp-filter-community" {
-			r.orderedEgressSteps = append(r.orderedEgressSteps, orderedEgressStep{name: f.Name, stage: f.Stage, priority: f.Priority, inproc: f.Egress})
-		}
-	}
-	require.Len(t, r.orderedIngressSteps, 1)
-	require.Len(t, r.orderedEgressSteps, 1)
 	r.fwdPool = newFwdPool(fwdBatchHandler, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: destination.Settings().PeerKey()}, 4096)
 	t.Cleanup(r.fwdPool.Stop)

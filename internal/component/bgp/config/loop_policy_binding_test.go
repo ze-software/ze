@@ -3,6 +3,7 @@
 package bgpconfig
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -70,7 +71,7 @@ func TestLoopPolicyBinding(t *testing.T) {
 					if final == "" && policy.Final() != 0 {
 						t.Fatalf("automatic reference invented final %v", policy.Final())
 					}
-					if settings.ExportPolicy.Configured() || len(settings.ExportPolicy.Filters()) != 0 {
+					if settings.ExportPolicy.Configured() || !slices.Equal(settings.ExportPolicy.Filters(), insertedExport(settings)) {
 						t.Fatalf("automatic import changed export: %+v", settings.ExportPolicy)
 					}
 					if settings.LoopDisabled != inactive {
@@ -204,7 +205,8 @@ func TestLoopPolicyUnsupportedDirection(t *testing.T) {
 				t.Fatalf("peers = %d, want one", len(peers))
 			}
 			exportPolicy := peers[0].ExportPolicy
-			if exportPolicy.Final() != policy.FinalReject || len(exportPolicy.Filters()) != 1 || !exportPolicy.Filters()[0].Inactive {
+			filters := exportPolicy.Filters()
+			if exportPolicy.Final() != policy.FinalReject || len(filters) != 2 || !slices.Equal(filters[:1], insertedExport(peers[0])) || !filters[1].Inactive {
 				t.Fatalf("inactive export decision lost: %+v", exportPolicy)
 			}
 			if peers[0].ImportPolicy.Configured() || len(peers[0].ImportPolicy.Filters()) != 1 {

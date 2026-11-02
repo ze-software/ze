@@ -2,7 +2,7 @@
 // Related: scrub.go -- scrubOwnGACommunities, the caller of recordScrub
 // Related: filter.go -- applyRelationTag, the caller of recordRelationTag
 // Related: blackhole.go -- blackholePropagationGuard, the caller of recordBlackholeGuard
-// Related: register.go -- Filter.ConfigureMetrics, which binds the registry
+// Related: register.go -- Registration.ConfigureMetrics, which binds the registry
 //
 // The counters of the received-route rewrites this plugin performs.
 //
@@ -75,10 +75,9 @@ func buildMetrics(reg metrics.Registry) *communityMetrics {
 }
 
 // setMetricsRegistry publishes metrics backed by the host registry. Called
-// through Filter.ConfigureMetrics from filterapi.SetMetricsRegistry, the
-// reactor's metrics-enable block: the ingress filters run in the daemon whether
-// or not the plugin's engine runs, so a plugin ConfigureMetrics hook would miss
-// a config that enables a mechanism with the plugin external.
+// through registry.Registration.ConfigureMetrics before the plugin's engine
+// runs: the members run in the plugin's process (evaluateCommunityFilter),
+// so the counters live where the rewrites happen.
 func setMetricsRegistry(reg metrics.Registry) {
 	communityMetricsPtr.Store(buildMetrics(reg))
 }

@@ -9,12 +9,12 @@
 # Flow:
 # 1. ze declares peer1 `role { import customer }`, so peer1 IS a provider to us
 #    (RFC 9234 Section 4.2 Table 2 complement, applied by resolvePeerRole).
-# 2. bgp-role publishes meta["src-peer-role"] = "provider" at
-#    filterapi.FilterStageAnnotation priority 0.
-# 3. bgp-filter-community-relation reads it at the same stage, priority 1, and
-#    writes large community 65000:3:4.
+# 2. bgp-role publishes meta["src-peer-role"] = "provider" from its in-process
+#    annotation filter, which runs before the peer's import chain.
+# 3. The import chain names the member bgp-filter-community:relation, which
+#    reads the key and writes large community 65000:3:4.
 #
-# The ORDER is the point. Registered one priority earlier, the relation filter
+# The ORDER is the point. Run before the role annotation, the relation member
 # would read a key nothing had written and write no tag at all.
 
 option=env:var=ze.log.bgp.filter.community:value=info
@@ -49,7 +49,7 @@ plugin {
 }
 bgp {
 	filter {
-		import { final accept; }
+		import { filters [ bgp-filter-community:relation ]; final accept; }
 		export { final accept; }
 	}
 	peer peer1 {

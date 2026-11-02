@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/metrics"
 )
@@ -139,16 +139,22 @@ func TestBlackholeGuardCountedByCommunity(t *testing.T) {
 }
 
 // TestCommunityMetricsWiredThroughTheFilter proves the registry reaches this
-// package the way the daemon delivers it: the reactor calls
-// filterapi.SetMetricsRegistry, which runs every registered filter's
-// ConfigureMetrics.
+// package the way the daemon delivers it: the in-process runner hands the
+// plugin registration's ConfigureMetrics to registry.InjectPluginMetrics,
+// which runs it once the metrics registry exists. The plugin holds no
+// filterapi row any more (D-6), so that route is the only one.
 //
 // VALIDATES: the bgp-filter-community registration declares ConfigureMetrics.
 // PREVENTS: counters that tests bind by hand and the daemon never binds.
 func TestCommunityMetricsWiredThroughTheFilter(t *testing.T) {
 	t.Cleanup(func() { communityMetricsPtr.Store(nil) })
+	entry := registry.Lookup(communityPluginName)
+	require.NotNil(t, entry)
+	require.NotNil(t, entry.ConfigureMetrics, "the registration declares no metrics hook")
 	reg := metrics.NewPrometheusRegistry()
-	filterapi.SetMetricsRegistry(reg)
+	registry.SetMetricsRegistry(reg)
+	t.Cleanup(func() { registry.SetMetricsRegistry(nil) })
+	registry.InjectPluginMetrics(t.Name(), entry.ConfigureMetrics)
 
 	assert.Zero(t, seriesValue(t, reg, seriesScrubStandard), "every series is present at zero from startup")
 	assert.Zero(t, seriesValue(t, reg, seriesRelationTag))

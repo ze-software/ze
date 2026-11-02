@@ -32,20 +32,32 @@ in the customer/peer/provider lattice RFC 8195 Section 3.2 describes.
 
 ## Ordering
 
-Ordering is declared, not implied by code position. The plugin registers TWO
-ingress filters:
+Ordering is declared, not implied by code position. The plugin serves four
+filters through one evaluator (`evaluateCommunityFilter`), on the typed slot
+internal and `filter-update` forked:
 
-| Filter | Stage | Priority | Work |
-|--------|-------|----------|------|
-| `bgp-filter-community` | `FilterStagePolicy` (100) | 0 | named `strip` sets, RFC 7454 Section 11 scrub, RFC 7999 Section 3.2 blackhole guard, named `tag` sets |
-| `bgp-filter-community-relation` | `FilterStageAnnotation` (200) | 1 | RFC 8195 Section 3.2 relation tag |
+| Member | List | Placed by | Work |
+|--------|------|-----------|------|
+| `bgp-filter-community:ingress` | import | the operator | named `strip` sets, RFC 7454 Section 11 scrub, RFC 7999 Section 3.2 blackhole guard, named `tag` sets |
+| `bgp-filter-community:relation` | import | the operator | RFC 8195 Section 3.2 relation tag |
+| `bgp-filter-community:egress` | export | the operator | named egress `strip` and `tag` sets, after the RFC 7999 Section 3.1 agreement check |
+| `bgp-filter-community:blackhole-agreement` | export | inserted, required, on every eBGP session that is not a route-server client | RFC 7999 Section 3.1 agreement check |
 
-Two properties follow from the table and neither is a convention:
+The three operator members run where the operator names them in the peer's
+chain. A peer whose community settings no member runs is refused at verify,
+naming the member to add (`checkCommunityMembers`). Three properties follow,
+and none is a convention:
 
-- **Scrub before tag.** The policy stage sorts before the annotation stage, so
-  Section 11 scrub always runs over a payload the relation tag has not
-  touched. Reversing them would delete the value Ze just derived, because the
-  scrub's keep-list never keeps the relation function.
+- **Procedures before policy.** The config loader places every inserted
+  member ahead of the operator's, so `bgp-gr`'s `llgr-ingress` marks a route
+  carrying LLGR_STALE before an operator strip can remove it, and an operator
+  tag of LLGR_STALE marks nothing (RFC 9494 Section 4.3).
+- **Scrub before tag.** `ingress` runs before `relation`: the scrub then runs
+  over a body the relation tag has not touched. Reversed, it would delete the
+  value Ze just derived, because the scrub's keep-list never keeps the
+  relation function, so a peer that both scrubs and tags with `relation`
+  named first is refused at verify, naming the order to write
+  (`checkCommunityMembers`).
 - **Scrub before the route server reads.** The whole ingress pass runs before
   the UPDATE is cached, and both route-server forward rails parse the cached
   payload (`wireu.ParseCommunityPolicy`). So on a route-server client's
@@ -61,12 +73,12 @@ Two properties follow from the table and neither is a convention:
   server neither acts on nor strips it), and a true control under the global
   AS is outside the scrub's reach. The set kept is the set the route server
   acts on and strips.
-- **Role before relation.** `bgp-role` registers at the annotation stage with
-  priority 0, so it writes `src-peer-role` before priority 1 reads it. A single
-  filter at the policy stage would read a key nothing had written yet.
+- **Role before relation.** `bgp-role` writes `src-peer-role` from its
+  annotation-stage filter, which runs before the peer's import chain, so the
+  key is written before the operator's `relation` member reads it.
 
-<!-- source: internal/component/bgp/plugins/filter_community/register.go -- both filterapi.Register calls -->
-<!-- source: internal/component/bgp/filterapi/filterapi.go -- LessOrder, the stage constants -->
+<!-- source: internal/component/bgp/plugins/filter_community/community_filter.go -- communityFilterDecls, communityInsertions, evaluateCommunityFilter -->
+<!-- source: internal/component/bgp/plugins/filter_community/chain_member.go -- checkCommunityMembers -->
 
 ## Coupling
 

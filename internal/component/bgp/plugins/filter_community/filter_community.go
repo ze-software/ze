@@ -102,11 +102,16 @@ func runFilterCommunity(conn net.Conn) int {
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
 	newCommunityConfigTx().Register(p)
+	p.OnFilter(evaluateCommunityFilter)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{configRootBGP},
+		// The same declarations register.go makes (communityFilterDecls,
+		// communityInsertions), so Stage 1 and the compiled registry agree.
+		Filters:          communityFilterDecls(),
+		FilterInsertions: communityInsertions(),
 	}); err != nil {
 		logger().Error("filter-community plugin failed", "error", err)
 		return 1
@@ -130,6 +135,7 @@ func parseCommunityConfig(bgpCfg map[string]any) (communityConfig, error) {
 
 	// Parse per-peer filter configs, accumulating bgp + group + peer levels.
 	configs := make(map[string]filterConfig)
+	var memberErr error
 	configjson.ForEachPeer(bgpCfg, func(peerName string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
 		// Layer 1: BGP-level defaults.
 		fc := bgpFilter
@@ -149,6 +155,10 @@ func parseCommunityConfig(bgpCfg map[string]any) (communityConfig, error) {
 		if !fc.hasAnyRule() {
 			return
 		}
+		subject := configjson.CapabilitySelector(peerName, origin)
+		if memberErr == nil {
+			memberErr = checkCommunityMembers(subject, fc, collectCommunityChains(bgpCfg, groupMap, peerMap))
+		}
 
 		// A dynamic group's template is keyed by configjson.CapabilitySelector
 		// rather than by its bare name. This map is keyed by peer NAME and read
@@ -163,8 +173,11 @@ func parseCommunityConfig(bgpCfg map[string]any) (communityConfig, error) {
 		// lookupPeerConfigLocked reads the entry back for a peer the reactor built
 		// from that template, which carries the group's name and nothing else the
 		// config document holds.
-		configs[configjson.CapabilitySelector(peerName, origin)] = fc
+		configs[subject] = fc
 	})
+	if memberErr != nil {
+		return communityConfig{}, memberErr
+	}
 
 	// Validate all referenced community names exist.
 	for subject, fc := range configs {
@@ -226,8 +239,8 @@ func lookupPeerConfigLocked(name, group string) (filterConfig, bool) {
 	return filterConfig{}, false
 }
 
-// ingressFilter is the registered IngressFilterFunc at
-// filterapi.FilterStagePolicy. Looks up the source peer's filter config and
+// ingressFilter is the decision the ingress member answers
+// (evaluateCommunityFilter). Looks up the source peer's filter config and
 // applies strip, RFC 7454 Section 11 scrub, RFC 7999 propagation guard,
 // then tag.
 func ingressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
@@ -253,24 +266,17 @@ func ingressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]an
 	return true, modified
 }
 
-// relationIngressFilter is the registered IngressFilterFunc at
-// filterapi.FilterStageAnnotation, one priority behind the role plugin.
+// relationIngressFilter is the decision the relation member answers
+// (evaluateCommunityFilter).
 //
-// It is a SECOND registered filter rather than a step inside ingressFilter
-// above, and the reason is ordering rather than tidiness. The relation
-// parameter derives from what the source peer IS to us, which only the role
-// plugin can answer. That plugin publishes the answer from its own ingress
-// filter at FilterStageAnnotation, and this plugin's policy-stage filter
-// runs before it. A step inside ingressFilter would read a key nothing had
-// written yet.
-//
-// Stage and priority are the declaration that orders the two (register.go).
-// filterapi.LessOrder sorts by stage, then priority, then name, so priority
-// 1 here sorts after bgp-role's priority 0 in the same stage.
-//
-// It is also the correct stage on its own terms: FilterStageAnnotation is
-// documented as "protocol modifications that stamp routes", which is
-// exactly what an RFC 8195 relation tag is.
+// It is a SECOND member rather than a step inside ingressFilter above, and
+// the reason is ordering rather than tidiness. The relation parameter derives
+// from what the source peer IS to us, which only the role plugin can answer.
+// That plugin publishes the answer (src-peer-role) from its OTC procedure, a
+// member it inserts; the config loader places every inserted member ahead of
+// the operator's, so the relation member always reads the answer written.
+// The operator orders ingress and relation against each other by their
+// position in the chain.
 func relationIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
 	mu.RLock()
 	fc, hasCfg := lookupPeerConfigLocked(src.Name, src.GroupName)
@@ -302,7 +308,8 @@ func relationIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta ma
 	return true, modified
 }
 
-// egressFilter is the registered EgressFilterFunc. It withholds a
+// egressFilter is the decision the egress member answers
+// (evaluateCommunityFilter). It withholds a
 // BLACKHOLE-tagged route from a bilateral eBGP destination that did not agree
 // to the community, then looks up the destination peer's filter config and
 // accumulates ops.

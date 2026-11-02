@@ -223,7 +223,10 @@ func (r *Reactor) runIngressPolicyChainMeta(peer *Peer, peerAddr netip.Addr, src
 	// speak, matching policyFilterFunc (filter_chain.go:368-371: Warn +
 	// PolicyReject) and the export side (egress_inject_filter.go). See
 	// plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md (AC-4).
-	if r.api == nil {
+	// The guard asks filterAPI, the one transport the chain's calls go
+	// through, as the export side does: a test's transport stands in for the
+	// plugin server on both directions or on neither.
+	if r.filterAPI() == nil {
 		slog.Warn("import filter: no API server -- fail-closed", "peer", peerAddr.String())
 		return ingressStepResult{} // accept == false: drop the route
 	}

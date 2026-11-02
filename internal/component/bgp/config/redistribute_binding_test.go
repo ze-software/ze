@@ -44,6 +44,33 @@ func bindingNamed(t *testing.T, bindings []reactor.ProcessBinding, process strin
 	return found[0]
 }
 
+// agreementOwner is the plugin of the member bgp-filter-community inserts,
+// required, at the head of every bilateral eBGP export list (RFC 7999 Section
+// 3.1). Every peer in this file is eBGP, so each carries the implicit `state`
+// grant that member brings its plugin (grantFilterOwnersState). It is no
+// redistribution binding, so a case counts it apart.
+const agreementOwner = "bgp-filter-community"
+
+// redistributionBindings asserts the peer holds exactly the agreement member's
+// implicit `state` grant, and nothing wider, and returns every other binding:
+// the ones redistribution derives, or the operator configured.
+func redistributionBindings(t *testing.T, bindings []reactor.ProcessBinding) []reactor.ProcessBinding {
+	t.Helper()
+	grant := bindingNamed(t, bindings, agreementOwner)
+	require.Equal(t, map[string]events.Direction{bgpevents.EventState: events.DirBoth}, grant.Receive)
+	require.Equal(t, map[string]bool{bgpevents.EventState: true}, grant.Implicit)
+	require.False(t, grant.ReceiveAll)
+	require.False(t, grant.SendAll)
+	require.Empty(t, grant.Send)
+	rest := make([]reactor.ProcessBinding, 0, len(bindings))
+	for i := range bindings {
+		if bindings[i].PluginName != agreementOwner {
+			rest = append(rest, bindings[i])
+		}
+	}
+	return rest
+}
+
 const redistOSPFImportsBGP = `
 bgp {
     router-id 10.0.0.1;
@@ -224,7 +251,7 @@ ospf {
     router-id 10.0.0.1
 }
 `
-	require.Empty(t, bindingsFor(t, input))
+	require.Empty(t, redistributionBindings(t, bindingsFor(t, input)))
 }
 
 // TestNonBGPRedistributeSourceAddsNoBinding is the negative that separates the
@@ -332,18 +359,24 @@ redistribute {
 // would trade a silent drop for a permanent startup warning.
 func TestDerivedBindingRaisesNoDeliveryDisagreement(t *testing.T) {
 	g := graphFromConfig(t, redistOSPFImportsBGP)
+	processes := map[string]bool{}
 	for _, peer := range g.Inspect() {
 		for _, edges := range peer.Processes {
-			require.Equal(t, "bgp-rib", edges.Process)
+			processes[edges.Process] = true
 			require.Empty(t, edges.Unresolved, "every derived receive token resolves to a registered event type")
 		}
 	}
+	// The Loc-RIB's derived binding, and the agreement member's implicit
+	// `state` grant (redistributionBindings): no other process is granted.
+	require.Equal(t, map[string]bool{"bgp-rib": true, agreementOwner: true}, processes)
 	require.Equal(t, 1, g.Len())
 
 	// Each type is asked in the direction its own delivery site asks it in
 	// (internal/component/bgp/server/events.go). A state event carries none,
 	// and a ROUTE-REFRESH ze received carries the received one.
-	require.Equal(t, []string{"bgp-rib"}, fedBy(g, bgpevents.EventState, events.DirUnspecified, "10.0.0.2"))
+	// The agreement member's plugin is fed the peer's `state` by its implicit
+	// grant (redistributionBindings), and nothing else.
+	require.Equal(t, []string{agreementOwner, "bgp-rib"}, fedBy(g, bgpevents.EventState, events.DirUnspecified, "10.0.0.2"))
 	require.Equal(t, []string{"bgp-rib"}, fedBy(g, bgpevents.EventRefresh, events.DirReceived, "10.0.0.2"))
 }
 
@@ -480,7 +513,7 @@ redistribute {
 }
 `
 	bindings := bindingsFor(t, input)
-	require.Len(t, bindings, 2)
+	require.Len(t, redistributionBindings(t, bindings), 2)
 	require.True(t, bindingNamed(t, bindings, "redistribute-orchestrator").MaySend("update"))
 	require.Equal(t, events.DirBoth, bindingNamed(t, bindings, "bgp-rib").Receive[bgpevents.EventUpdate])
 }

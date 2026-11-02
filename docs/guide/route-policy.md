@@ -212,7 +212,21 @@ module adds, so the member appears exactly where you configured that plugin.
 Naming an inserted member yourself places it where you wrote it, or switches it
 off with `inactive:`, unless the plugin marked it required: a required member
 named in a chain is refused at load with the reason the plugin declared.
+`bgp-filter-community:blackhole-agreement`, which `bgp-filter-community`
+inserts on export to every eBGP session that is not a route-server client, is
+required: RFC 7999 Section 3.1 says the BLACKHOLE community "MUST be agreed
+upon by the two networks before advertising it" (`docs/guide/bgp-policy.md`).
+The community settings themselves (`filter ingress community`, `filter egress
+community`, `relation-tag`) run only where you name their member, as any
+other member: `bgp-filter-community:ingress` and `bgp-filter-community:relation`
+in `import`, `bgp-filter-community:egress` in `export`. A peer whose settings
+no member of its chain (bgp, group or peer level) runs is refused at load with
+the line to add; a deactivated member counts as absent. Because inserted
+members come first, a procedure such as `bgp-gr:llgr-ingress` judges the
+route as the peer sent it, before your community strip or tag changes it.
 <!-- source: internal/component/bgp/config/filter_insertion.go -- insertDeclaredFilters, insertForPeer, requiredInsertionRefusal -->
+<!-- source: internal/component/bgp/plugins/filter_community/community_filter.go -- communityFilterDecls, communityInsertions -->
+<!-- source: internal/component/bgp/plugins/filter_community/chain_member.go -- checkCommunityMembers -->
 <!-- source: internal/component/config/schema_origin.go -- CheckFilterInsertionPaths -->
 <!-- source: internal/component/bgp/filterapi/policy.go -- UnconfiguredAccepts -->
 

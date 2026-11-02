@@ -1,4 +1,7 @@
-package format
+// This file is in the external test package format_test, beside
+// community_render_test.go, whose attrHexKey it shares.
+
+package format_test
 
 import (
 	"encoding/binary"
@@ -7,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/format"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -39,7 +43,7 @@ func TestReceivedAggregatorRendersDecoded(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := aggregatorUpdateMessage(t, value)
-			got := string(AppendMessage(nil, testPeer(), msg, tt.content))
+			got := string(format.AppendMessage(nil, format.PeerForTest(), msg, tt.content))
 			for _, want := range wants {
 				require.Contains(t, got, want, "the attribute must be decoded\n%s", got)
 			}
@@ -73,7 +77,7 @@ func aggregatorUpdateMessage(t *testing.T, aggregator []byte) bgptypes.RawMessag
 	body = append(body, attrs...)
 	body = append(body, nlri...)
 
-	wireUpdate := wireu.NewWireUpdate(body, testEncodingContext())
+	wireUpdate := wireu.NewWireUpdate(body, format.EncodingContextForTest())
 	wireAttrs, err := wireUpdate.Attrs()
 	require.NoError(t, err, "Attrs() must parse the fixture attribute block")
 	return bgptypes.RawMessage{

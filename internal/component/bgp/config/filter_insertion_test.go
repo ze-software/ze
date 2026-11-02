@@ -292,3 +292,20 @@ func TestReloadVerifyAppliesRuntimeInsertions(t *testing.T) {
 		"the reload route must insert the third party's member where its condition holds")
 	require.NotContains(t, byName["B"], "third-party:judge")
 }
+
+// TestInsertedProcedureRunsBeforeOperatorMembers checks the ordering D-6 of
+// spec-filter-wire-6-stage-filters rests on: an inserted required procedure
+// (bgp-role's otc-ingress, priority 100) runs before every member the
+// operator names, so an operator member that reads what the procedure wrote
+// (bgp-filter-community:relation reads src-peer-role) sees it written.
+// Method: a required import insertion and an operator chain naming another
+// member of the same plugin; the resolved list puts the insertion first.
+func TestInsertedProcedureRunsBeforeOperatorMembers(t *testing.T) {
+	registerInserter(t, rpc.FilterInsertion{Filter: "fake-inserter:early", Direction: rpc.FilterImport,
+		Priority: 100, Config: rrClient, Required: true, Reason: "the procedure the role's RFC requires"})
+
+	peers, err := insertionPeers(t, "filter { import { filters [ fake-inserter:late ]; final accept; } }")
+	require.NoError(t, err)
+	require.Equal(t, []string{"fake-inserter:early", "fake-inserter:late"}, refNames(peers["A"].ImportPolicy.Filters()),
+		"the inserted procedure runs first, the operator's member after it")
+}

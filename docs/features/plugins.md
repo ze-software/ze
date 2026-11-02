@@ -67,7 +67,7 @@ Three filter categories:
 | bgp-llnh | Link-local next-hop for IPv6 (RFC 2545) |
 | bgp-hostname | FQDN capability for peer identification |
 | bgp-softver | Software version capability advertisement |
-| bgp-filter-community | Community tag/strip filter (standard, large, extended) |
+| bgp-filter-community | Community tag, strip and relation-tag chain members (standard, large, extended) |
 | bgp-filter-irr | IRR-based prefix-list filter from whois queries (replaces bgpq4 workflow) |
 | bgp-filter-path-asn | Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position (RFC 7454 Section 9) |
 | loop | Route loop detection (RFC 4271 S9, RFC 4456 S8) |
