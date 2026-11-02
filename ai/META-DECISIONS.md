@@ -237,6 +237,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   packages, the functional tests), run directly. A rule, skill, hook or tool
   message that tells an agent to run `./le verify` is wrong and is corrected,
   never followed.
+- No agent develops or tests code in a worktree, a `git archive` export or
+  any other copy of the tree: features and code are tested in the main
+  checkout. When another session's in-progress edit breaks the build there,
+  the agent reports it and waits rather than moving to a copy.
 - Only Thomas knows when the machine will stay quiet long enough for a full
   verification: several agent sessions run at once nearly all the time, and
   he starts new sessions, agents start agents, and he tests features by hand.
