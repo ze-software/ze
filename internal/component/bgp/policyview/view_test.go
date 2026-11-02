@@ -392,12 +392,16 @@ func TestZeroReaderRefused(t *testing.T) {
 // TestWireViewEveryReaderAllocationFree proves A-1: every registered field
 // reader decodes from the wire bytes without allocating, once the UPDATE's
 // attribute index exists. Method: each registered field read alone in a
-// reused view, under testing.AllocsPerRun.
+// reused view, under testing.AllocsPerRun, in the session where it answers
+// present: a received route for every fact of the receiving session, else an
+// exported route rebuilt from storage, the one rail source-llgr-advertised
+// answers on (answerSourceLLGRAdvertised). No single session holds both
+// llgr-advertised (received only) and source-llgr-advertised (export only).
 func TestWireViewEveryReaderAllocationFree(t *testing.T) {
 	update := wireu.NewWireUpdate(fullUpdate(), fourOctet(t))
 	var view View
-	// A session holding every fact, so each session fact reader answers
-	// present too and its allocation count is measured.
+	// A received-route session holding every fact, so each session fact
+	// reader answers present too and its allocation count is measured.
 	session := ImportSession(sessionPeer())
 	session.Source, session.SourceKnown = sessionPeer(), true
 	// A metadata map holding every registered key in its kind, so each
@@ -417,14 +421,27 @@ func TestWireViewEveryReaderAllocationFree(t *testing.T) {
 		}
 	}
 	session = session.WithImportMetadata(meta)
+	// The same facts on an exported route rebuilt from storage (meta holds
+	// rebuilt=true), for the readers a received route answers absent.
+	exported := ExportSession(sessionPeer(), sessionPeer(), true).WithExportMetadata(meta)
 	for field := range readerTable.slots {
 		r := mustReader(t, field)
-		view.Reset(update, session)
-		if x, err := view.Read(r); err != nil || !x.Present() {
-			t.Fatalf("read %s: present=%v err=%v", field, x.Present(), err)
+		answering := session
+		view.Reset(update, answering)
+		x, err := view.Read(r)
+		if err != nil {
+			t.Fatalf("read %s: %v", field, err)
+		}
+		if !x.Present() {
+			answering = exported
+			view.Reset(update, answering)
+			x, err = view.Read(r)
+		}
+		if err != nil || !x.Present() {
+			t.Fatalf("read %s: present=%v err=%v on a received and an exported rebuilt route", field, x.Present(), err)
 		}
 		allocs := testing.AllocsPerRun(50, func() {
-			view.Reset(update, session)
+			view.Reset(update, answering)
 			if _, err := view.Read(r); err != nil {
 				t.Fatal(err)
 			}
