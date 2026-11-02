@@ -13,10 +13,14 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// stateBinding answers the binding the peer holds for process, and whether
-// it grants the peer's state events, marked implicit, and no send type.
-func stateBinding(ps *reactor.PeerSettings, process string) (found, stateOnly bool) {
-	b := processBinding(ps, process)
+// inserterProcess is the plugin registerInserter registers, whose derived
+// binding every case below inspects.
+const inserterProcess = "fake-inserter"
+
+// stateBinding answers the binding the peer holds for inserterProcess, and
+// whether it grants the peer's state events, marked implicit, and no send type.
+func stateBinding(ps *reactor.PeerSettings) (found, stateOnly bool) {
+	b := processBinding(ps)
 	if b == nil {
 		return false, false
 	}
@@ -25,10 +29,10 @@ func stateBinding(ps *reactor.PeerSettings, process string) (found, stateOnly bo
 	return true, state && implicit && len(b.Receive) == 1 && !b.ReceiveAll && !b.SendAll && len(b.Send) == 0
 }
 
-// processBinding answers the peer's binding for process, or nil.
-func processBinding(ps *reactor.PeerSettings, process string) *reactor.ProcessBinding {
+// processBinding answers the peer's binding for inserterProcess, or nil.
+func processBinding(ps *reactor.PeerSettings) *reactor.ProcessBinding {
 	for i := range ps.ProcessBindings {
-		if ps.ProcessBindings[i].PluginName == process {
+		if ps.ProcessBindings[i].PluginName == inserterProcess {
 			return &ps.ProcessBindings[i]
 		}
 	}
@@ -50,20 +54,20 @@ func TestFilterOwnerReceivesPeerState(t *testing.T) {
 			Priority: 5, Config: rrClient, Values: []string{"on"}})
 		peers, err := insertionPeers(t, "")
 		require.NoError(t, err)
-		found, stateOnly := stateBinding(peers["A"], "fake-inserter")
+		found, stateOnly := stateBinding(peers["A"])
 		require.True(t, found, "peer A carries fake-inserter's member, so fake-inserter is fed A's state")
 		require.True(t, stateOnly, "the derived binding grants state and nothing else")
-		found, _ = stateBinding(peers["B"], "fake-inserter")
+		found, _ = stateBinding(peers["B"])
 		require.False(t, found, "peer B carries no member of fake-inserter, so it feeds it nothing")
 	})
 	t.Run("an operator-named member", func(t *testing.T) {
 		registerInserter(t)
 		peers, err := insertionPeers(t, "filter { export { filters [ fake-inserter:early ]; final accept; } }")
 		require.NoError(t, err)
-		found, stateOnly := stateBinding(peers["A"], "fake-inserter")
+		found, stateOnly := stateBinding(peers["A"])
 		require.True(t, found, "peer A's export list names fake-inserter:early")
 		require.True(t, stateOnly, "the derived binding grants state and nothing else")
-		found, _ = stateBinding(peers["B"], "fake-inserter")
+		found, _ = stateBinding(peers["B"])
 		require.False(t, found, "peer B names no member of fake-inserter")
 	})
 	t.Run("an operator attach block without state", func(t *testing.T) {
@@ -71,7 +75,7 @@ func TestFilterOwnerReceivesPeerState(t *testing.T) {
 		peers, err := insertionPeers(t, "filter { export { filters [ fake-inserter:early ]; final accept; } } "+
 			"attach process fake-inserter { receive [ update-received ]; send [ update ]; }")
 		require.NoError(t, err)
-		b := processBinding(peers["A"], "fake-inserter")
+		b := processBinding(peers["A"])
 		require.NotNil(t, b, "the operator's block is kept")
 		require.Contains(t, b.Receive, bgpevents.EventState, "the plugin a chain names receives the peer's state regardless")
 		require.True(t, b.Implicit[bgpevents.EventState], "the added state grant is marked implicit")

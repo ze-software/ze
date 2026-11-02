@@ -33,8 +33,11 @@ func insertDeclaredFilters(bgpTree map[string]any, peers []*reactor.PeerSettings
 	if err != nil {
 		return nil, err
 	}
+	// No plugin declared an insertion, so no template carries a member under
+	// a session condition: the answer is an empty map, never a nil one a
+	// caller could not tell from a failure.
 	if len(insertions) == 0 {
-		return nil, nil
+		return map[*reactor.PeerSettings]sessionMembers{}, nil
 	}
 	peerMap, _ := bgpTree["peer"].(map[string]any)
 	anyPeer := anyPeerHolds(insertions, peers, peerMap, groups)
