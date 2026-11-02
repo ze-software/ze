@@ -30,6 +30,7 @@ import (
 
 	xhtml "golang.org/x/net/html"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	clicatalog "github.com/ze-software/ze/internal/le/cli/catalog"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
@@ -521,11 +522,14 @@ func validatePublishedCommand(source string, entry *publishedCommand, seen map[s
 	if entry.Mode == "" {
 		return fmt.Errorf("parse %s: command %q has no mode", source, entry.Path)
 	}
-	switch entry.AnswerShape {
-	case "", "doc", "map", "tab":
-	default:
-		return fmt.Errorf("parse %s: command %q has unknown answer shape %q",
-			source, entry.Path, entry.AnswerShape)
+	// The shapes are the command package's own set, so a shape it gains is
+	// accepted here with no second list to edit. An empty shape is a command
+	// that declares none.
+	if entry.AnswerShape != "" {
+		if _, known := command.ParseAnswerShape(entry.AnswerShape); !known {
+			return fmt.Errorf("parse %s: command %q has unknown answer shape %q (want %s)",
+				source, entry.Path, entry.AnswerShape, command.AnswerShapeSpellings())
+		}
 	}
 	seenArgs := make(map[string]bool, len(entry.Args))
 	for _, arg := range entry.Args {

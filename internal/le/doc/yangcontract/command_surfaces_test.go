@@ -3442,3 +3442,21 @@ func TestWikiValidatorRoundTripsNormalizedDescriptionBreaks(t *testing.T) {
 		}
 	}
 }
+
+// TestPublishedCommandShapeIsTheCommandPackagesSet checks the catalog parser
+// accepts every shape the command package declares, blob included, and refuses
+// a spelling it does not.
+// Method: validate one published command per shape spelling, then one bogus.
+func TestPublishedCommandShapeIsTheCommandPackagesSet(t *testing.T) {
+	for _, shape := range []string{"", "doc", "map", "tab", "blob"} {
+		entry := publishedCommand{Path: "show example", Mode: "offline", AnswerShape: shape}
+		if err := validatePublishedCommand("catalog", &entry, map[string]bool{}); err != nil {
+			t.Errorf("shape %q refused: %v", shape, err)
+		}
+	}
+	entry := publishedCommand{Path: "show example", Mode: "offline", AnswerShape: "bogus"}
+	err := validatePublishedCommand("catalog", &entry, map[string]bool{})
+	if err == nil || !strings.Contains(err.Error(), `unknown answer shape "bogus"`) {
+		t.Fatalf("bogus shape answered %v, want the unknown-shape refusal", err)
+	}
+}
