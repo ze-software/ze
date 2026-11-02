@@ -80,8 +80,9 @@ func monitorStreamGaps(commands []string) []string {
 	for _, cmd := range commands {
 		streaming := pluginserver.IsStreamingCommand(cmd)
 		if !streaming {
-			gaps = append(gaps, `"`+cmd+`" on SSH exec: no streaming handler, the exec channel answers one RPC`)
-			gaps = append(gaps, `"`+cmd+`" on ze cli -c: no streaming handler, the client answers one RPC`)
+			gaps = append(gaps,
+				`"`+cmd+`" on SSH exec: no streaming handler, the exec channel answers one RPC`,
+				`"`+cmd+`" on ze cli -c: no streaming handler, the client answers one RPC`)
 		}
 		if streaming {
 			handler, _, err := pluginserver.GetStreamingHandlerForCommand(cmd)

@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -266,7 +267,7 @@ func matchArtifact(t *testing.T, d *pluginserver.Dispatcher, input string, artif
 	if err != nil {
 		t.Fatalf("%q: daemon document: %v", input, err)
 	}
-	if string(localJSON) != string(remoteJSON) {
+	if !bytes.Equal(localJSON, remoteJSON) {
 		t.Errorf("%q: documents differ outside the declared fields\nlocal:  %s\ndaemon: %s", input, localJSON, remoteJSON)
 	}
 }

@@ -381,11 +381,11 @@ func completionRecords(text string) []string {
 func bashRootNames(t *testing.T, script string) map[string]bool {
 	t.Helper()
 	const marker = `local commands="`
-	start := strings.Index(script, marker)
-	if start < 0 {
+	_, rest, marked := strings.Cut(script, marker)
+	if !marked {
 		t.Fatalf("the generated bash completion script names no root commands (%s)", marker)
 	}
-	list, _, found := strings.Cut(script[start+len(marker):], `"`)
+	list, _, found := strings.Cut(rest, `"`)
 	if !found {
 		t.Fatalf("the generated bash completion script's root list is not closed")
 	}
@@ -407,7 +407,8 @@ func registerStage1Commands(t *testing.T, d *pluginserver.Dispatcher) {
 			continue
 		}
 		defs := make([]pluginserver.CommandDef, 0, len(r.Commands))
-		for _, decl := range r.Commands {
+		for i := range r.Commands {
+			decl := &r.Commands[i]
 			defs = append(defs, pluginserver.CommandDef{
 				Name: decl.Name, ShortHelp: decl.ShortHelp, Description: decl.Description, Hidden: decl.Hidden,
 			})
@@ -487,7 +488,8 @@ func collectCommandRegistrations(t *testing.T, schema *yangloader.Resolved, view
 	// completion walks.
 	commandTree := yangloader.BuildCommandTree(schema)
 	for _, r := range pluginreg.All() {
-		for _, decl := range r.Commands {
+		for i := range r.Commands {
+			decl := &r.Commands[i]
 			if yangPaths[strings.ToLower(decl.Name)] {
 				continue // a YANG node: classified by its builtin registration
 			}

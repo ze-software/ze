@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -118,7 +119,7 @@ func TestDeclarationsConfigRefusedReadOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(remote) != string(local) {
+	if !bytes.Equal(remote, local) {
 		t.Errorf("daemon answer differs from the local answer\ndaemon: %s\nlocal:  %s", remote, local)
 	}
 }
