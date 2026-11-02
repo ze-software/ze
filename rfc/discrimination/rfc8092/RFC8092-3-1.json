@@ -36,7 +36,7 @@
     "rid": "RFC8092-3-1",
     "polarity": "positive",
     "unit": "test/plugin/rfc8092-large-community-no-repeat-egress.ci",
-    "unit-sha": "9cd3942b9964af44",
+    "unit-sha": "62fbe6b3ebb71230",
     "claim-sha": "d7f01fa5e5e29658",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_egress_normalize.go::compactLargeCommunities",
