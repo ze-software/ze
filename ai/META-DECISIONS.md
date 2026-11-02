@@ -361,6 +361,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   testing too: a staticcheck matrix piece, a full lint, a repo-wide compile,
   `./le test unit all`. The machine has neither the disk nor the capacity for
   it.
+- A session runs one CPU-intensive job at a time: a build, a test run, a lint,
+  a QEMU guest or a lab. Its agents may read, edit and judge in parallel, but a
+  second CPU-intensive run waits until the first has finished.
 - Show the observed failure, trace its cause to the producing code, fix that
   code, and rerun the existing failing test without weakening its assertions.
   If the test itself is wrong, explain its exact defect and why its expectation
