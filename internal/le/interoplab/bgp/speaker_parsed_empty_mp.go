@@ -25,6 +25,8 @@ const parsedEmptyMPSourceReady = "/tmp/parsed-empty-mp-ready"
 // runParsedEmptyMPSource owns one connection and one bounded phase controller.
 // USR1 is registered before dialing; the checker MUST wait for both peers before
 // releasing the seed, then for each recipient fence before releasing the next phase.
+// An explicit --result places the capture there and its readiness marker at
+// <result>.ready; otherwise the isolated lab uses its fixed capture and marker.
 func runParsedEmptyMPSource(options speakerOptions, _ io.Writer) (resultErr error) {
 	if options.asn != 65004 {
 		return errors.New("parsed-empty-MP source requires ASN 65004")
@@ -59,7 +61,11 @@ func runParsedEmptyMPSource(options speakerOptions, _ io.Writer) (resultErr erro
 	if !local.Addr().Is4() {
 		return errors.New("source requires IPv4 transport")
 	}
-	capture, err := os.OpenFile(parsedEmptyMPSourceCapture, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	capturePath, readyPath := parsedEmptyMPSourceCapture, parsedEmptyMPSourceReady
+	if options.result != "" {
+		capturePath, readyPath = options.result, options.result+".ready"
+	}
+	capture, err := os.OpenFile(capturePath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // The operator's result path or the lab's fixed capture is created exclusively, never overwriting an existing file.
 	if err != nil {
 		return err
 	}
@@ -145,7 +151,7 @@ func runParsedEmptyMPSource(options speakerOptions, _ io.Writer) (resultErr erro
 				// Ze can publish its own Established state before this source
 				// consumes Ze's KEEPALIVE. The checker MUST wait for both.
 				established = true
-				if err := writeParsedEmptyMPReady(parsedEmptyMPSourceReady); err != nil {
+				if err := writeParsedEmptyMPReady(readyPath); err != nil {
 					return err
 				}
 			}

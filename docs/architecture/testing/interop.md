@@ -223,6 +223,22 @@ UPDATE carrying an empty IPv6 MP_UNREACH, then sends a genuine standalone IPv6
 EOR in a separate epoch. Distinct-MED announcements fence each epoch.
 <!-- source: internal/le/interoplab/bgp/speaker_parsed_empty_mp.go -- runParsedEmptyMPSource, parsedEmptyMPPhase -->
 
+For the `parsed-empty-mp-source` speaker, explicit `--result <path>` selects the
+JSONL capture path and places its readiness marker at `<path>.ready`. Both files
+are created exclusively with mode 0600. Each run needs fresh paths: an existing
+file or symlink causes an error rather than an overwrite.
+<!-- source: internal/le/interoplab/bgp/speaker_parsed_empty_mp.go -- runParsedEmptyMPSource, writeParsedEmptyMPReady -->
+
+Without `--result`, the defaults remain `/tmp/parsed-empty-mp-source.jsonl` for
+the capture and `/tmp/parsed-empty-mp-ready` for readiness. The scenario checker
+still reads these fixed defaults inside the isolated lab.
+<!-- source: internal/le/interoplab/bgp/speaker_parsed_empty_mp.go -- parsedEmptyMPSourceCapture, parsedEmptyMPSourceReady -->
+<!-- source: internal/le/interoplab/bgp/check_parsed_empty_mp.go -- checkParsedEmptyMPFRR, parsedEmptyMPWaitHistory -->
+
+This capture-path meaning belongs to the parsed-empty-MP source. The generic
+`runOracleSpeaker` uses `--result` for its textual verdict instead.
+<!-- source: internal/le/interoplab/bgp/speaker.go -- runOracleSpeaker -->
+
 The checker requires FRR installation and removal, complete source and recipient
 wire histories, the negotiated AS_PATH widths, and unchanged FRR daemon/session
 identity. A mixed withdrawal must not manufacture an EOR; the later genuine
