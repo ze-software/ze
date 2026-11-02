@@ -67,6 +67,16 @@ func newGRWithRealRIB(t *testing.T) (*grPlugin, *realGRRIB) {
 	require.NoError(t, mux.SendOK(ctx, request.ID))
 	go func() {
 		for request := range mux.Requests() {
+			// bgp-rib emits its best-change and replay events through the
+			// SDK. No subscriber exists in this harness, so the emit reaches
+			// nobody: it is answered with zero deliveries, as an engine with
+			// no subscriber answers it.
+			if request.Method == rpc.MethodEmitEvent {
+				if err := mux.SendResult(ctx, request.ID, &rpc.EmitEventOutput{}); err != nil && ctx.Err() == nil {
+					t.Errorf("answer RIB emit-event: %v", err)
+				}
+				continue
+			}
 			// Peer-UP reports initial replay completion through dispatch-command.
 			// Command answers need a record terminator, not an RPC "ok" line.
 			if request.Method != "ze-plugin-engine:dispatch-command" {
