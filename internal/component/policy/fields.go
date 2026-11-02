@@ -11,6 +11,7 @@
 package policy
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -45,6 +46,12 @@ type fieldUse struct {
 	owner  string  // an attachment: the plugin whose config holds the chain; a filter type: ""
 	first  []Field // a filter type: fields read; an attachment: fields carried
 	second []Field // a filter type: fields set; an attachment: fields settable
+	// carriesOf and settableOf derive a MustRegisterDerivedAttachment's
+	// fields each time a chain is checked, in place of first and second, so a
+	// field whose owner registers it from an init() that runs after the
+	// attachment's is still carried (spec-filter-wire-6-stage-filters D-9).
+	carriesOf  func() []Field
+	settableOf func() []Field
 	// routeView marks an attachment whose chain judges a ribpolicy.Route
 	// (MustRegisterRouteAttachment): only such a chain compiles as a RouteChain.
 	routeView bool
@@ -119,13 +126,27 @@ func MustRegisterInstanceFields(typeName string, fields InstanceFields) {
 // of the plugin whose config holds the chain: it MUST list PluginName in its
 // Dependencies, which a test derives from AttachmentOwners. name is how the
 // operator reads the attachment in an error ("isis import", "rib import").
+// The fields are fixed at registration; an attachment whose fields come from
+// a registry other packages fill is MustRegisterDerivedAttachment.
 func MustRegisterAttachment(owner, name string, carries, settable []Field) {
 	vocab.mustRegisterAttachment(owner, name, carries, settable, false)
 }
 
+// MustRegisterDerivedAttachment is MustRegisterAttachment for an attachment
+// whose fields are derived from registries their owners fill from init(), as
+// BGP's are from the route view's readers and the chain's sets. carries and
+// settable are called each time a chain at name is checked, never once at
+// registration, so the attachment carries a field whatever order the
+// packages initialize in: a field the role or gr plugin registers from its
+// own init() is carried although bgpconfig imports neither. Both MUST be
+// non-nil, MUST answer only registered fields, and MUST NOT call into this
+// package's vocabulary.
+func MustRegisterDerivedAttachment(owner, name string, carries, settable func() []Field) {
+	vocab.mustRegisterDerivedAttachment(owner, name, carries, settable)
+}
+
 // MustRegisterRouteAttachment is MustRegisterAttachment for an attachment
-// whose chain judges a ribpolicy.Route through CompileRouteChain: a Loc-RIB
-// import, a redistribute import, an IGP export. Every carried field MUST have
+// whose chain judges a ribpolicy.Route through CompileRouteChain: a Loc-RIB import, a redistribute import, an IGP export. Every carried field MUST have
 // a RouteView.Read and every settable one a RouteView.Written, or the
 // registration panics at init: a field the view cannot hold would make a
 // filter match a zero and reject every route.
@@ -253,6 +274,44 @@ func (v *vocabulary) mustRegisterInstanceFields(typeName string, fields Instance
 	v.perInstance[typeName] = fields
 }
 
+func (v *vocabulary) mustRegisterDerivedAttachment(owner, name string, carries, settable func() []Field) {
+	if owner == "" {
+		panic("BUG: policy: attachment " + name + " registered with no owner plugin")
+	}
+	if carries == nil {
+		panic("BUG: policy: attachment " + name + " registered with no carried fields function")
+	}
+	if settable == nil {
+		panic("BUG: policy: attachment " + name + " registered with no settable fields function")
+	}
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if _, dup := v.attachments[name]; dup {
+		panic("BUG: policy: attachment " + name + " registered twice")
+	}
+	v.attachments[name] = fieldUse{owner: owner, carriesOf: carries, settableOf: settable}
+}
+
+// attachmentUse answers what attachment carries and lets a filter set, a
+// derived attachment's fields resolved now. A derived field the vocabulary
+// does not hold is a Ze defect, answered as an error. Callers MUST hold v.mu.
+func (v *vocabulary) attachmentUse(attachment string) (fieldUse, error) {
+	at, ok := v.attachments[attachment]
+	if !ok {
+		return fieldUse{}, errors.New("policy: no attachment " + attachment + " is registered, so its chain cannot be checked")
+	}
+	if at.carriesOf == nil {
+		return at, nil
+	}
+	at.first, at.second = at.carriesOf(), at.settableOf()
+	for _, f := range slices.Concat(at.first, at.second) {
+		if _, known := v.fields[f.name]; !known {
+			return fieldUse{}, errors.New("BUG: policy: attachment " + attachment + " derives unregistered field " + f.name)
+		}
+	}
+	return at, nil
+}
+
 func (v *vocabulary) mustRegisterAttachment(owner, name string, carries, settable []Field, routeView bool) {
 	if owner == "" {
 		panic("BUG: policy: attachment " + name + " registered with no owner plugin")
@@ -283,9 +342,9 @@ func (v *vocabulary) mustRegisterAttachment(owner, name string, carries, settabl
 func (v *vocabulary) mustRegisterFieldSynonym(attachment string, field, named Field) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	at, ok := v.attachments[attachment]
-	if !ok {
-		panic("BUG: policy: field synonym for unregistered attachment " + attachment)
+	at, err := v.attachmentUse(attachment)
+	if err != nil {
+		panic("BUG: policy: field synonym: " + err.Error())
 	}
 	if slices.Contains(at.first, field) {
 		panic("BUG: policy: " + attachment + " carries " + field.name + ", so it needs no synonym")
@@ -361,9 +420,9 @@ func (v *vocabulary) mustRegisterUse(into map[string]fieldUse, kind, owner, name
 func (v *vocabulary) checkChain(attachment string, reg *Registry, names []string) error {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
-	at, ok := v.attachments[attachment]
-	if !ok {
-		return fmt.Errorf("policy: no attachment %q is registered, so its chain cannot be checked", attachment)
+	at, err := v.attachmentUse(attachment)
+	if err != nil {
+		return err
 	}
 	for _, name := range names {
 		inst, ok := reg.Lookup(name)

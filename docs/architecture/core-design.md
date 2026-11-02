@@ -1589,12 +1589,16 @@ subject above.
   declared in the policy library (`internal/component/policy/register.go`);
   `policyview` registers how BGP reads each one, so the library learns no BGP
   type. The BGP import and export attachments carry exactly the fields the view
-  reads: `bgpconfig`'s `init` takes the carried set from the view's reader
-  registry (`policyview.Fields`), so no second list exists to disagree. A
-  filter there may set exactly the fields the chain's sets write: the
-  settable set is `policychain.SettableFields`, every field a set kind
+  reads: `bgpconfig`'s `init` registers them with
+  `policy.MustRegisterDerivedAttachment`, which takes the carried set from the
+  view's reader registry (`policyview.Fields`), so no second list exists to
+  disagree. A filter there may set exactly the fields the chain's sets write:
+  the settable set is `policychain.SettableFields`, every field a set kind
   writes except `prefix` and `family`, which a member narrows by reading
-  them and never sets.
+  them and never sets. Both sets are derived each time a chain is checked,
+  never copied at registration, so a field an owner registers from its own
+  `init` (the role or gr plugin, which `bgpconfig` does not import) is
+  carried whatever order the packages initialize in.
 - **Session facts are fields of the same view.** `policyview` registers
   `peer-name`, `peer-group`, `peer-address`, `local-as`, `peer-as`,
   `route-server-as`, `ibgp`, `rs-client` and `llgr-advertised` for the
@@ -1630,7 +1634,7 @@ subject above.
 <!-- source: internal/component/bgp/policyview/readers.go -- readPrefix, readOriginAS, requireFourOctet, reconstructedPath -->
 <!-- source: internal/component/bgp/policyview/register.go -- init -->
 <!-- source: internal/component/bgp/config/register.go -- init, the attachment carries and the reader check -->
-<!-- source: internal/component/policy/fields.go -- MustRegisterFieldSynonym, synonymHint -->
+<!-- source: internal/component/policy/fields.go -- MustRegisterFieldSynonym, synonymHint, MustRegisterDerivedAttachment, attachmentUse -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
 
 #### The in-process BGP chain

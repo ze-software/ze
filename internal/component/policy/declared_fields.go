@@ -38,9 +38,9 @@ func CheckFieldNames(declarer string, names []string) error {
 func CheckDeclaredFilter(attachment, reference string, reads, sets []string) error {
 	vocab.mu.RLock()
 	defer vocab.mu.RUnlock()
-	at, ok := vocab.attachments[attachment]
-	if !ok {
-		return errors.New("policy: no attachment " + attachment + " is registered, so its chain cannot be checked")
+	at, err := vocab.attachmentUse(attachment)
+	if err != nil {
+		return err
 	}
 	readFields, err := vocab.fieldsNamed(reference, reads)
 	if err != nil {

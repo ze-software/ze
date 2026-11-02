@@ -37,18 +37,18 @@ func init() {
 	// every binary that links the check links the declaration too. A BGP route
 	// carries every field the BGP view reads, the session facts included, so
 	// the carried set is the view's reader registry (policyview.Fields) and
-	// never a second list (spec-filter-wire-6-stage-filters D-9). metric is
-	// not carried: BGP names that fact med, one name per fact, and the synonym
-	// makes a chain reading metric here name med in its refusal. The settable
-	// set is the fields the chain's sets write (policychain.SettableFields),
-	// for the same reason.
-	carries := policyview.Fields()
-	settable := policychain.SettableFields()
+	// never a second list (spec-filter-wire-6-stage-filters D-9). Both sets
+	// are derived when a chain is checked, not here: a field an owner this
+	// package does not import registers from its own init(), which may run
+	// after this one. metric is not carried: BGP names that fact med, one
+	// name per fact, and the synonym makes a chain reading metric here name
+	// med in its refusal. The settable set is the fields the chain's sets
+	// write (policychain.SettableFields), for the same reason.
 	// Each attachment's chains sit at `bgp ... filter <direction> filters`,
 	// global, group and peer alike. The editor completes a chain, and commit
 	// judges it, with the check a peer's chain passes at load.
 	for _, attachment := range []string{"bgp import", "bgp export"} {
-		policy.MustRegisterAttachment(attachmentOwnerBGP, attachment, carries, settable)
+		policy.MustRegisterDerivedAttachment(attachmentOwnerBGP, attachment, policyview.Fields, policychain.SettableFields)
 		policy.MustRegisterFieldSynonym(attachment, policy.FieldMetric, policy.FieldMED)
 		direction := strings.TrimPrefix(attachment, attachmentOwnerBGP+" ")
 		policy.MustRegisterChainLeaf(attachmentOwnerBGP, direction, attachment, func(reg *policy.Registry, member, context string) error {
