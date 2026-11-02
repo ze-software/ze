@@ -14,6 +14,8 @@
 - **A `.ci` MUST be written and iterated in `test/draft/<suite>/`, and a live one MUST NOT be edited in place.** `test/<suite>/` runs on every verify in this checkout, including runs by other sessions, who then have to work out whether your half-written test is their regression.
 - **The draft workflow MUST end in a promotion or a deletion.** The incubator is gitignored and skipped by every repo-wide gate, so nothing in it proves anything, and a session that finds one cannot tell abandoned scaffolding from work in progress. The commands are `docs/functional-tests.md`, "Writing a Test: Draft First".
 
+- **A test, a sweep, an `le` tool or a lab MUST call the one function, or read the one file, that declares a runner, harness or lab rule, and MUST NOT carry a second copy of it.** A copy of the runner's placeholder expansion, a per-scenario copy of a lab-wide daemon setting, or a fixture classification kept inside one test file drifts from its source while every gate stays green. When a second reader needs a rule that lives in a test file, move the rule to a package both import. When every scenario needs a setting, put it in the lab-wide file and give it a test that refuses a scenario copy.
+
 ## Fix Code, Not Tests
 
 - **When a test fails, MUST show the observed failure, trace its cause to the producing code, fix that code, and rerun the existing failing test.** The test's expectations MUST NOT be weakened, simplified, or retargeted to match the code. When the mechanism underneath changes, the expectation stays and the replacement mechanism satisfies it.
@@ -30,6 +32,9 @@
 
 - **The tests you write for a change are written against its new contract, so they are green by construction and say nothing about whether the change is safe. The population that can go red is the one written against the old contract, which is exactly the population you did not edit, and it MUST be run before the change is claimed done.** Every gate here scopes itself to `git diff --name-status`, so that population is outside all of them and is yours to derive.
 - **When a payload shape changes, you MUST search for the new key name as well as the old one.** Searching what you remove finds code that stops working; it cannot find a branch that already reads the key you added, for a different producer, and now handles your payload wrongly and quietly.
+
+- **A change to what Ze does (a default, an enforcement, a refusal, an output format) MUST convert or re-validate, in the same work, every user of that behavior the repository carries: configs, `.ci` bodies, fixtures, benchmarks, interop scenarios, pinned digests and docs.** A user left on the old contract fails in one of two ways: it goes red where nobody looks, or it stays green because the new behavior removed what it checked, such as a test that passes only because its routes are now dropped, or a benchmark that times a selection of zero.
+- **For configs, `TestRepositoryConfigsValidate` (`internal/component/config/cli/validate_corpus_test.go`) is the mechanism: it validates every Ze config the repository carries, and it MUST be run when validation tightens.** It does not read what a test expects, so the `.ci` expectations, benchmarks, `needs-linux` suites, interop checkers and pinned digests that use the behavior MUST be found by search and run.
 
 ## Proving a Test Discriminates
 
@@ -72,7 +77,7 @@
 
 ## CI Sleep Justification
 
-- **A sleep MUST be converted to a deterministic wait whenever a condition exists to wait on** -- `fixture.Poll` around `fixture.Dispatch`, an SDK readiness callback, a context, or a `wait_until` / `dispatch_until` engine step. A duration is what a test writes when it cannot name the condition, so naming that condition is the work.
+- **A sleep MUST be converted to a deterministic wait whenever a condition exists to wait on** -- `fixture.Poll` around `fixture.Dispatch`, an SDK readiness callback, a context, or a `wait_until` / `dispatch_until` engine step. A duration is what a test writes when it cannot name the condition, so naming that condition is the work. For a compiled observer, the observer peer-wait guards in `internal/test/fixture` (`TestPluginObservers08WaitForTheScriptedPeer`, `TestPluginObservers12WaitForTheScriptedPeer`, `TestTacacsObserversWaitForWhatTheirCIExpects`) refuse an observer that does not wait for what its `.ci` expects.
 - **A sleep that stays MUST carry its justification marker, in the form `// sleep(<kind>): <reason>`, and the reason MUST name a mechanism a later reader can check and overturn.** Two producers enforce it: `./le doc wiring` at gate time and the Write/Edit hook at edit time. The closed set of kinds, what each reason owes, where the comment goes, and the ratchet that caps how many sleeps exist are `docs/architecture/testing/ci-format.md`.
 
 ## Temporary Files

@@ -61,7 +61,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   their source and do what lets Ze interoperate with both. freeRtr's source
   may always be read as a further reference. Before a protocol
   design is approved, read FRR's and BIRD's source and quote the deciding
-  function.
+  function. Before an interop test expects a peer to accept, print or send
+  something, read that peer's source for it.
 - A logic bug or misbehaviour is fixed, never put to Thomas as a question.
 - Every MUST of an implemented RFC is a requirement unless Thomas has named its
   role or feature as unwanted. An annotation that proves less (declined, not
@@ -204,6 +205,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   migrate hint is written for a form no release shipped, because the
   repository is the only place that uses it. The ExaBGP migration is separate
   and stays.
+- A change to what Ze does (a default, an enforcement, a refusal, an output
+  format) converts or re-validates, in the same work, every user of it the
+  repository carries: configs, `.ci` bodies, fixtures, benchmarks, interop
+  scenarios and docs. A test that stays green only because the new behavior
+  removed what it checked is one of those users.
 - A red prevents a release, never a commit. No gate refuses a commit for a red,
   whether a test, lint, a structural check or a generated-file check, and
   whether or not the commit caused it. The commit names the reds it knows of in

@@ -88,7 +88,7 @@ that skips it is invisible rather than red.
 
 ## What Actually Runs These Suites
 
-**QEMU evidence is scheduled and advisory. You MUST NOT treat it as a blocking push gate, and you MUST NOT skip the focused QEMU proof for your change.** Which workflow runs which suite, and which of them block, is `docs/architecture/testing/ci-workflows.md`.
+**QEMU evidence is scheduled and advisory. You MUST NOT treat it as a blocking push gate, and you MUST NOT skip the focused QEMU proof for your change.** Which workflow runs which suite, and which of them block, is `docs/architecture/testing/ci-workflows.md`. Advisory means only that the job does not block a push: a nightly job that dies before its first test is broken and MUST be fixed (`ai/rules/repo-maintenance.md`).
 
 **Every registered `./le test qemu` and `./le test integration` action MUST be given a real caller in the same change**: a workflow job, another native action, or an explicit manual classification. No gate checks this direction today. `TestEveryWorkflowNativeActionExists` (`internal/le/workflowcheck/workflowcheck_test.go`) checks only the other one, that every action a workflow names is registered, so an action nobody calls stays green and runs nowhere. Which workflow job runs each action is `docs/architecture/testing/ci-workflows.md`.
 

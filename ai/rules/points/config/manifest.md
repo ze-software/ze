@@ -6,6 +6,7 @@ related: go-standards, cli, architecture, evidence, plugins
 ---
 directives ## Directives
   manipulate-config-only-by-the-two-approved-methods
+  answer-a-question-about-a-config-from-its-structure
   default-to-yang-config-env-only-is-the-exception
   accept-the-string-form-in-every-config-coercion
   write-both-help-texts-on-every-config-node

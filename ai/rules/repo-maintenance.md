@@ -9,6 +9,9 @@
 
 **A new verification gate MUST be registered in `StagesForMode` (`internal/le/verify/engine/stages.go`), and a gate that runs in some modes only MUST be added to each one it belongs in: `fullStages`, `staticcheckStages` and `fastStages` are separate lists.** A gate absent from every list is code that compiles, passes its own unit test, and judges nothing, which is the fail-open shape `ai/rules/evidence.md` bans. Read the three functions and say which lists the gate joins, rather than adding it to the first one you find.
 
+**A CI job or a suite that ran zero tests MUST report red, whether or not it blocks a push.** "Advisory" says the job does not block a push. It never says that a job can die before its first test unseen: that job hides every defect in what it would have run, for as long as nobody reads it.
+**The setup a CI job depends on (the binaries it builds, the restriction it lifts, the tool it installs) MUST be pinned by a test in `internal/le/workflowcheck`, and MUST be built through the native action that owns the list, never a hand-written step.** `TestQEMUNightlyBuildsEveryGuestDaemon` and `TestDockerPeersLiftsTheUsernsRestrictionBeforeItsTests` are the shape: each goes red when the step is missing from the workflow.
+
 **A hook reminder that MUST land in the model's context writes to stdout; a banner that MUST cost no context tokens writes to stderr.** A `UserPromptSubmit` reminder fires on every turn, so each one MUST stay a single line.
 
 ## Canonical Sources and Sync Direction

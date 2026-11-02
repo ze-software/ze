@@ -9,6 +9,9 @@ directives ## Directives
   preserve-validity-from-construction-through-use
   guard-with-early-returns-one-fact-per-guard
   never-write-these-forbidden-go-patterns
+  log-a-dropped-error-at-warn-or-above
+  a-probe-that-cannot-look-answers-unknown
+  reuse-only-on-a-completion-mark-or-content-identity
   log-through-slog-never-printf
   access-env-vars-only-through-internal-core-env
   use-typed-numeric-identity-on-hot-paths

@@ -6,4 +6,5 @@ related: rfc-compliance, completion, planning, go-standards, architecture, plugi
 ---
 directives ## Directives
   carry-the-upstream-reference-inline
+  a-deny-by-default-change-adapts-ze-s-own-traffic
   bfd-is-the-reference-layout
