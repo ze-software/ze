@@ -6,8 +6,8 @@
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | A new LAC mode, the way wholesale broadband LACs work: LCP and authentication with the subscriber at the LAC, the LNS chosen by the realm of the username, proxy LCP and proxy authentication AVPs in the ICCN. It also corrects a false test claim in the L2TP guide. |
-| RFC gaps | RFC2661-4.4.5-1, RFC2661-4.4.5-2, RFC2661-4.4.5-3, RFC2661-4.4.5-4, RFC2661-4.4.5-5, RFC2661-4.4.5-6 |
-| Depends | `plan/post-release/features/spec-l2tp-proxy-authentication.md` (AVP 29-33 writers and their rows; see Key Design Decisions for the split), `spec-home-cpe-16-lns-mru-and-auth-allow-list.md` (allow-list the LAC's own authentication obeys), `spec-home-cpe-18-interoplab-multi-link-topology.md` and `spec-home-cpe-19-access-chain-scenario.md` (lab proof) |
+| RFC gaps | RFC2661-4.4.5-1, RFC2661-4.4.5-2, RFC2661-4.4.5-3, RFC2661-4.4.5-4, RFC2661-4.4.5-5, RFC2661-4.4.5-6, RFC2661-4.3-1, RFC2661-4.3-3 |
+| Depends | Implementation: `spec-home-cpe-16-lns-mru-and-auth-allow-list.md` (the PPPoE AC allow-list decides which method the LAC's own authentication starts with and refuses a fallback outside it). Closure: the two interop scenarios this spec owns need `spec-home-cpe-18-interoplab-multi-link-topology.md`. No dependency on `plan/post-release/features/spec-l2tp-proxy-authentication.md`: this spec writes every LAC-side proxy AVP itself, including hidden AVP 33 (Key Design Decisions, "AVP writer ownership") |
 | Phase | 0/5 |
 | Handoff | - |
 | Updated | 2026-10-31 |
@@ -15,6 +15,9 @@
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
 RFC gaps, in words: rows RFC2661-4.4.5-1 to -6 are the LAC half, emitted here.
+RFC2661-4.3-1 (a Random Vector AVP precedes the first hidden AVP) and
+RFC2661-4.3-3 (the H bit only with a shared secret) become owed here, because
+AVP 33 for PAP is the first AVP Ze sends hidden.
 The M-bit 0 rows for AVPs 26 to 28 are still to be added to
 `rfc/short/rfc2661.md` (a forward-walk gap), so they have no id yet.
 
@@ -44,8 +47,9 @@ Add this as a second relay key kind beside Service-Name: a realm binding.
 Define what happens when no realm matches, and when a matched realm cannot
 be reached.
 
-Also owed, in the same change:
-- `docs/guide/l2tp.md` l.105-110 says the LAC bridge "is Linux-only and
+Already owned elsewhere, and verified here:
+- The relay section of `docs/guide/l2tp.md` ("Initiator: dial targets and
+  outgoing calls") says the LAC bridge "is Linux-only and
   exercised through `./le test deployment l2tp-ppp`". That run
   (`internal/le/test/deployment/l2tpppp.go`) has xl2tpd dial Ze as LNS with
   pppd over it. No PPPoE and no Ze LAC are involved, so it never reaches
@@ -54,19 +58,20 @@ Also owed, in the same change:
   that the ioctl wrappers reach the kernel. Its comment says the end-to-end
   path "is driven by `./le test deployment gokrazy-l2tp-ppp`", and
   `gokrazyl2tp.go` holds no PPPoE or relay either. Both claims are corrected
-  to say what is proven. The first end-to-end proof of the relay data path
-  is the umbrella's child 19 scenario `access-up`, plus this spec's
-  scenarios.
+  to say what is proven. Child 19 owns that correction (its AC-10) and the
+  bridge test comment, because its `access-up` is the first end-to-end proof
+  of the relay data path and it lands first. This spec's AC-13 adds its own
+  scenarios as the proof of the realm path.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/guide/l2tp.md` - initiator, remote and relay (l.52-113)
+- [ ] `docs/guide/l2tp.md` "Initiator: dial targets and outgoing calls" - initiator, remote and relay
   → Constraint: every dial uses the first `environment l2tp server`; the
   relay's remote must be declared under `l2tp remote`.
   → Decision: a Service-Name relay fires at PADS; that path is unchanged and
   keeps precedence.
-- [ ] `docs/guide/pppoe.md` - subscriber authentication (l.80-132)
+- [ ] `docs/guide/pppoe.md` - subscriber authentication section
   → Constraint: the PPPoE AC's auth handler slot (local users or RADIUS) is
   shared with L2TP; a subscriber terminated locally is authenticated there.
 - [ ] `docs/architecture/l2tp/followup-l2tp-call.md` - AC-3 PPPoE → L2TP relay
@@ -104,6 +109,12 @@ Also owed, in the same change:
   → Decision: PAP proxy data is sent only hidden (needs the remote's
   `shared-secret`); without a secret the LAC sends no proxy authentication
   for PAP and the LNS restarts authentication.
+- [ ] RFC 2661 Section 4.3: "If the H bit is set in any AVP(s) in a given
+  control message, a Random Vector AVP must also be present in the message
+  and MUST precede the first AVP having an H bit of 1." and "The H bit MUST
+  only be set if a shared secret exists between the LAC and LNS."
+  → Constraint: the ICCN of a PAP realm call carries Random Vector (AVP 36)
+  before AVP 33; no other AVP is hidden.
 - [ ] RFC 2661 Section 9.5: "This implies a direct trust relationship of the
   LAC on behalf of the LNS."
   → Constraint: the LAC never answers authentication itself on a relayed
@@ -127,10 +138,11 @@ Also owed, in the same change:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/l2tp/pppoe/server.go` - after PADS (l.318-331)
-  `relayToL2TP` calls the callsink; on acceptance it closes the PPP unit fd
-  and starts no local PPP; on a match whose dial fails it logs "L2TP relay
-  failed; terminating locally" and starts local PPP (l.455-482). Local PPP is
+- [ ] `internal/component/l2tp/pppoe/server.go` - after PADS, `handlePADR`
+  calls `relayToL2TP`, which calls the callsink with the pppox fd as
+  `ChannelFD`; on acceptance the server closes the PPP unit fd and starts no
+  local PPP; on a match whose dial fails `relayToL2TP` logs "L2TP relay
+  failed; terminating locally" and returns false, and local PPP starts. Local PPP is
   `ppp.StartSession` with `MaxMRU` 1492, `AuthMethod`, `AuthRequired`.
 - [ ] `internal/core/callsink` - `Request` carries Service, Interface,
   SubscriberMAC, SessionID, ChannelFD; `Sink.Relay` returns
@@ -145,9 +157,17 @@ Also owed, in the same change:
   Framing Type only.
 - [ ] `internal/component/l2tp/avp_compound.go` - `writeAVPProxyAuthenID`
   exists with no non-test caller.
+- [ ] `internal/component/l2tp/hidden.go` - `HiddenEncrypt` and
+  `HiddenDecrypt` implement the Section 4.3 cipher; their only callers are
+  tests (`hidden_test.go`, `hidden_fuzz_test.go`,
+  `accelppp_ng_regression_test.go`). No writer sets the H bit and nothing emits
+  `AVPRandomVector` (`avp.go`; the CLI decoder only prints it), which
+  `rfc/short/rfc2661.md` records as gap RFC2661-4.3-1.
 - [ ] `internal/component/l2tp/bridge_linux.go` - `maybeBridgePPPoE`
-  bridges when the session is not LNS and carries a PPPoE channel fd;
-  `bridgeChannels` issues PPPIOCBRIDGECHAN.
+  bridges when the session is not LNS and carries a PPPoE channel fd, from
+  the kernel-setup event of the L2TP session; `bridgeChannels` issues
+  PPPIOCBRIDGECHAN. On an ioctl error it still returns `bridged` true with
+  the error (a userspace relay fall-back), so PPP is not run.
 - [ ] `internal/component/l2tp/pppoe/drain.go` - reads `EventAuthRequest`
   from the driver and calls the registered auth handler, then
   `Driver.AuthResponse`.
@@ -156,7 +176,10 @@ Also owed, in the same change:
 - [ ] `internal/component/l2tp/ppp/session_run.go` - normal LCP path; no
   capture of the Configure-Requests exchanged.
 - [ ] `internal/component/l2tp/yang/ze-l2tp-conf.yang` - `list relay` keyed
-  by `service` (l.293-318).
+  by `service`, leaf `remote`.
+- [ ] `internal/component/l2tp/cmd/l2tp.go` - `handleSession` answers
+  `show l2tp session id <id>` with `sessionJSON` over `SessionSnapshot`,
+  which carries no relay or proxy field today.
 - [ ] `internal/le/test/deployment/l2tpppp.go` - header comment: xl2tpd dials
   Ze, pppd negotiates; no PPPoE.
 - [ ] `internal/component/l2tp/bridge_integration_linux_test.go` -
@@ -185,7 +208,8 @@ Also owed, in the same change:
 | Service-Name relay at PADS | `internal/component/l2tp/pppoe/server.go` `relayToL2TP`; `internal/component/l2tp/relay_sink.go` `relayTargetLocked` | exact Service-Name match, dial, incoming call, local fall-back on dial failure | extends: realm matching sits beside it; Service-Name keeps precedence and its fall-back |
 | Incoming call placement | `internal/component/l2tp/session_initiator.go` `callParams`, `placeIncomingCall`, `writeICCNBody` | places ICRQ, ICRP, ICCN; ICCN carries Message Type, Tx Connect Speed, Framing Type | extends: `callParams` carries proxy fields and `writeICCNBody` writes AVPs 26 to 33 when set |
 | Proxy Authen ID writer | `internal/component/l2tp/avp_compound.go` `writeAVPProxyAuthenID` | writes AVP 32 with the high octet 0, no non-test caller | extends: gains its first caller |
-| Hidden AVP encryption | `internal/component/l2tp/hidden.go` `HiddenEncrypt` | RFC 2661 hidden-AVP encryption | extends: used for AVP 33 on PAP (A-3) |
+| Hidden AVP encryption | `internal/component/l2tp/hidden.go` `HiddenEncrypt` | RFC 2661 hidden-AVP encryption, test callers only; no writer sets the H bit and no Random Vector is emitted | extends: gets its first production caller through a hidden-AVP writer and a Random Vector AVP writer added beside the `WriteAVP*` helpers, used for AVP 33 on PAP only |
+| Session show | `internal/component/l2tp/cmd/l2tp.go` `handleSession`, `sessionJSON`; `internal/component/l2tp/snapshot.go` `SessionSnapshot` | `show l2tp session id <id>` | extends: the snapshot and the JSON gain the relay fields of AC-12 |
 | LAC channel bridge | `internal/component/l2tp/bridge_linux.go` `maybeBridgePPPoE`, `bridgeChannels` | PPPIOCBRIDGECHAN between the PPPoE and pppol2tp channels on a non-LNS session | extends: reports the outcome; bridges after local LCP instead of at PADS |
 | PPPoE auth drain and auth handler slot | `internal/component/l2tp/pppoe/drain.go` `startPPPoEAuthDrain`; `internal/component/l2tp/subscriber/handler_registry.go` `RegisterAuthHandler` | reads `EventAuthRequest` and calls the one registered auth handler | extends: the realm decision runs before the handler; no match falls through to it unchanged |
 | PPP driver auth event | `internal/component/l2tp/ppp/auth_events.go` `EventAuthRequest` | carries Method, Identifier, Username, Challenge, Response | extends: carries the LCP capture; the driver gains release and refusal calls |
@@ -212,16 +236,50 @@ Also owed, in the same change:
    with a realm request before any auth handler runs.
 5. l2tp relay sink: matches the realm; on a match dials and places the
    incoming call with proxy fields in `callParams`; returns accepted.
-6. Reactor: ICCN written with AVPs 26 to 28 (and 29 to 33); on the session's
-   kernel creation the PPPoE channel is bridged (`maybeBridgePPPoE`), and the
-   relay outcome (bridged, or failed with a cause) is reported back.
-7. pppoe drain: on bridged, tells the driver to release the session without
-   any authentication reply and without Terminate-Request; the unit fd is
-   closed (the unit was never connected, NCP never ran). On failure, the
-   driver answers the authentication with a refusal and closes LCP; PADT
-   follows.
-8. No match: the drain hands the request to the auth handler as today
-   (local termination).
+6. Reactor: ICCN written with AVPs 26 to 28 (and 29 to 33, AVP 33 hidden
+   after a Random Vector for PAP); when the L2TP session's kernel setup is
+   ready, the sink reports "ready to bridge" through the outcome callback and
+   waits, holding the session, for the drain's answer. It does not bridge yet.
+7. pppoe drain, on "ready to bridge": tells the driver to quiesce. The driver
+   stops its reader on the subscriber's `/dev/ppp` channel descriptor and
+   waits until that reader has returned, stops answering LCP Echo, and keeps
+   its LCP state and the descriptor for writing. The drain answers the sink
+   "quiesced".
+8. l2tp sink, on "quiesced": `maybeBridgePPPoE` issues PPPIOCBRIDGECHAN and
+   reports the result.
+9. Bridge succeeded: the drain tells the driver to release: it forgets the
+   session with no authentication reply and no Terminate-Request, closes its
+   channel and unit descriptors (the unit was never connected, NCP never ran).
+   From here the L2TP session owns the subscriber's PPP; a later L2TP
+   teardown (CDN, StopCCN) ends it and the PPPoE server sends PADT as for a
+   Service-Name relay.
+10. Failure at any step before the bridge succeeded (no remote, dial or
+    tunnel refused, CDN, a bridge ioctl error): the driver, still holding its
+    LCP state and the descriptor for writing, sends CHAP Failure (or PAP
+    Authenticate-Nak) naming the realm and a Terminate-Request; the PPPoE
+    server sends PADT; the sink sends CDN for any call it placed. A bridge
+    ioctl error after quiesce takes this path too: the userspace relay
+    fall-back `maybeBridgePPPoE` offers a Service-Name relay is not used for
+    a realm call, because the driver has already answered nothing and must
+    refuse.
+11. No match: the drain hands the request to the auth handler as today
+    (local termination).
+
+#### Handoff ownership and cancellation
+
+| Phase | Reads the subscriber's channel | Writes to it | Cancelled by subscriber PADT or LCP Terminate-Request | Cancelled by LNS CDN or tunnel loss | Cancelled by daemon stop or config removal |
+|-------|-------------------------------|--------------|--------------------------------------------------------|-------------------------------------|---------------------------------------------|
+| Auth Response received, call being placed | PPP driver (answers Echo; a retransmitted Response or Configure-Request is answered from its state, a retransmitted CHAP Response is not re-reported) | PPP driver | drain cancels the request; sink sends CDN if ICRQ was sent; no bridge | step 10 refusal | sink sends CDN; driver closes LCP with Terminate-Request; PADT |
+| "Ready to bridge", driver quiescing | PPP driver until its reader returns | PPP driver | as above | step 10 refusal | as above |
+| Quiesced, bridge not yet issued | nobody; the kernel queues frames on the channel | PPP driver (refusal only) | sink drops the bridge, sends CDN; PADT | step 10 refusal | as above |
+| Bridged | the kernel forwards to the pppol2tp channel | the LNS, through the bridge | L2TP session torn down with CDN, as for a Service-Name relay | PADT to the subscriber | L2TP teardown, PADT |
+
+Frames the subscriber sends while the channel is quiesced are not delivered
+to the LNS: Linux queues them on the channel descriptor the driver no longer
+reads, and they are discarded when it closes (A-1). PPP recovers them by
+retransmission: the subscriber's Restart timer resends an unanswered
+Configure-Request, and a CHAP peer answers the LNS's next Challenge
+(RFC 1994 Section 4.1). The window is two ioctl calls, not a round trip.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -229,7 +287,7 @@ Also owed, in the same change:
 | pppoe → l2tp | `internal/core/callsink` Request (extended) and an outcome callback | No |
 | pppoe → PPP driver | `ppp.StartSession` capture flag; a new driver release call | No |
 | Ze LAC ↔ LNS | ICCN AVPs 26 to 33 | No |
-| Kernel | PPPIOCBRIDGECHAN after the PPP driver stops reading the channel | No |
+| Kernel | PPPIOCBRIDGECHAN only after the PPP driver's channel reader has returned (step 7 before step 8) | No |
 
 ### Integration Points
 - `callsink.Request` gains: realm, username, the three captured LCP option
@@ -257,7 +315,7 @@ Also owed, in the same change:
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Once PPPIOCBRIDGECHAN is set, frames on the PPPoE channel go to the bridged channel and no longer reach the `/dev/ppp` channel fd the driver read | Linux `ppp_generic.c` `ppp_input` checks the bridge first | the LAC's driver keeps consuming the subscriber's frames | `TestLACRealmBridgeAfterLocalLCP` (Linux integration) | unvalidated |
 | A-2 | A subscriber waiting for CHAP Success answers a fresh Challenge from the LNS | RFC 1994 Section 4.1 ("Additional Challenge packets MUST be sent until a valid Response packet is received"), pppd behaviour, scenario `pppoe-chap-rechallenge-ze-client` for the Ze client | the session stalls at the LNS's challenge | interop `l2tp-lac-realm-relay-accel-ppp` | unvalidated |
-| A-3 | Hidden AVP writing works for AVP 33 | `hidden.go` exists; `rfc/short/rfc2661.md` says "Hidden-AVP integration remains a gap" | PAP proxy data cannot be sent hidden | Phase 1 reads `hidden.go`; if writing is missing, PAP sessions send no proxy auth (decision below) and the gap stays with its owner | unvalidated |
+| A-3 | The Section 4.3 cipher in `hidden.go` is correct for an encrypting writer | `HiddenEncrypt` and `HiddenDecrypt` round-trip in `hidden_test.go` and `hidden_fuzz_test.go`; read 2026-11-02: no writer sets the H bit and no Random Vector is emitted, so the writer is built here (AC-3 holds, no fall-back) | AVP 33 is unreadable at the LNS | `TestWriteICCNBodyHiddenAVP33` decrypts with `HiddenDecrypt` and the tunnel secret; the xl2tpd scenario's LNS reads it (xl2tpd decrypts hidden AVPs) | unvalidated |
 | A-4 | The dial and the ICRQ, ICRP, ICCN exchange fit inside the subscriber's authentication patience | pppd CHAP waits several seconds per retry | subscriber retries or gives up | scenario measures nothing by time; it asserts the session comes up | unvalidated |
 | A-5 | Realm is the text after the last `@`, compared case-insensitively | common usage; DNS names are case-insensitive | a deployment uses `realm/user` or `user%realm` | Known Limitations | unvalidated |
 
@@ -291,7 +349,7 @@ Also owed, in the same change:
 |-------|-------------------|-------------------|
 | AC-1 | `relay-realm example.net { remote lns-a }`, subscriber authenticates as `cpe@example.net` with CHAP | LAC runs LCP, sends a Challenge, receives the Response, sends neither Success nor Failure, dials `lns-a`, places an incoming call, bridges; the subscriber's next PPP frames reach the LNS |
 | AC-2 | AC-1's ICCN | Carries AVP 26 (first Configure-Request options from the subscriber), 27 (Ze's Acked Configure-Request options), 28 (the subscriber's Acked Configure-Request options), each with M=0; and AVPs 29 (type 2), 30, 31, 32 (most significant octet 0), 33 |
-| AC-3 | PAP subscriber, remote with `shared-secret` | AVP 29 type 3, 30, 32 (the Authenticate-Request Identifier), 33 hidden; the LAC sends no Authenticate-Ack |
+| AC-3 | PAP subscriber, remote with `shared-secret` | AVP 29 type 3, 30, 32 (the Authenticate-Request Identifier), 33 with the H bit set, a Random Vector AVP before it and after every unhidden AVP that precedes it in the message order Ze writes; AVP 33 decrypts with the tunnel secret to the password; no other AVP carries the H bit; the LAC sends no Authenticate-Ack |
 | AC-4 | PAP subscriber, remote without `shared-secret` | AVPs 26 to 28 only; no proxy authentication; the log says why |
 | AC-5 | Username with no `@`, or a realm no binding names | Local termination: the request goes to the auth handler as for any AC session |
 | AC-6 | Realm matched, remote unreachable, tunnel refused, or the LNS answers CDN before the bridge | CHAP Failure (or PAP Authenticate-Nak) with a message naming the realm, LCP Terminate-Request, PADT; no local authentication |
@@ -300,8 +358,11 @@ Also owed, in the same change:
 | AC-9 | `relay-realm` naming an undeclared remote, an empty realm, a realm with `@` | `ze config validate` refuses it with the fix; daemon start refuses it too |
 | AC-10 | Two subscribers of different realms | Each reaches its own remote; one tunnel per remote, shared by sessions |
 | AC-11 | Reload adds or removes a `relay-realm` | Applies to the next authentication; relayed sessions stay up |
-| AC-12 | `ze show l2tp session` on the LAC | Shows the realm, the remote and that proxy LCP and proxy authentication were sent |
-| AC-13 | `docs/guide/l2tp.md` and the bridge test comment | State which tests prove the LAC bridge; no reference to `l2tp-ppp` or `gokrazy-l2tp-ppp` as its proof |
+| AC-12 | `ze show l2tp session id <id>` on the LAC for a realm call | the JSON object carries `relay-realm` (`example.net`), `relay-remote` (`lns-a`), `proxy-lcp-sent` (`true`) and `proxy-auth-sent` (`true`, or `false` with `proxy-auth-reason` `no-shared-secret` for AC-4); a Service-Name relay or a local session carries none of these keys |
+| AC-13 | `docs/guide/l2tp.md` and the bridge test comment | State which tests prove the LAC bridge (child 19 corrects the existing claim); the new relay-realm section names `l2tp-lac-realm-relay-accel-ppp` and `l2tp-lac-realm-relay-xl2tpd` as the realm-path proof; no reference to `l2tp-ppp` or `gokrazy-l2tp-ppp` as a bridge proof |
+| AC-14 | A frame from the subscriber arrives while the driver is quiesced (between steps 7 and 8) | it is not delivered to the LNS; the subscriber's retransmission after the bridge reaches the LNS, and the session comes up |
+| AC-15 | Subscriber PADT, LNS CDN, or daemon stop arrives in each handoff phase of the table | the outcome in that row: no bridge after a cancellation, a CDN for any placed call, PADT to the subscriber, no leaked descriptor or goroutine |
+| AC-16 | PPPIOCBRIDGECHAN fails after the driver quiesced | refusal per step 10 (CHAP Failure or PAP Authenticate-Nak, Terminate-Request, PADT), CDN to the LNS, no userspace relay |
 
 ## End-to-End User Stories
 
@@ -325,6 +386,12 @@ Also owed, in the same change:
 | `TestDriverRelayRefusalClosesLCP` | `internal/component/l2tp/ppp/auth_dispatch_test.go` | AC-6 | |
 | `TestWriteICCNBodyProxyAVPs` | `internal/component/l2tp/session_initiator_test.go` | AC-2 byte layout, M=0, ID high octet 0 | |
 | `TestWriteICCNBodyPAPProxyHiddenOrAbsent` | `internal/component/l2tp/session_initiator_test.go` | AC-3, AC-4 | |
+| `TestWriteICCNBodyHiddenAVP33` | `internal/component/l2tp/session_initiator_test.go` | AC-3: Random Vector precedes AVP 33, H bit on AVP 33 only, `HiddenDecrypt` with the secret yields the password (RFC2661-4.3-1, RFC2661-4.3-3) | |
+| `TestDriverQuiesceStopsReaderBeforeReturning` | `internal/component/l2tp/ppp/auth_dispatch_test.go` | step 7: quiesce returns only after the reader exited; no Echo answered after it | |
+| `TestRelayRealmHandoffCancelledInEachPhase` | `internal/component/l2tp/pppoe/drain_test.go` | AC-15, one subtest per row of the handoff table with fake sink and driver | |
+| `TestLACRealmHandoffRetransmission` | `internal/component/l2tp/bridge_integration_linux_test.go` | AC-14 with real pppox sockets: a frame written during quiesce is lost, its retransmission after the bridge arrives on the pppol2tp side | |
+| `TestLACRealmBridgeFailureRefuses` | `internal/component/l2tp/pppoe/drain_test.go` | AC-16 with a fake bridge returning an error | |
+| `TestSessionJSONRelayRealmFields` | `internal/component/l2tp/cmd/l2tp_test.go` | AC-12: keys present for a realm call, absent for a Service-Name relay and a local session | |
 | `TestRelayRealmConfigValidation` | `internal/component/l2tp/config_test.go` | AC-9 | |
 | `TestServiceNameRelayPrecedesRealm` | `internal/component/l2tp/pppoe/server_test.go` | AC-7 | |
 | `TestLACRealmBridgeAfterLocalLCP` | `internal/component/l2tp/bridge_integration_linux_test.go` | A-1 with real pppox sockets | |
@@ -341,6 +408,7 @@ Also owed, in the same change:
 | `relay-realm-config` | `test/l2tp/relay-realm-config.ci` | validate accepts a realm binding; refuses AC-9 cases | |
 | `iccn-proxy-avps` | `test/l2tp-wire/iccn-proxy-avps.ci` | decoded ICCN shows AVPs 26 to 33 with explicit hex | |
 | `pppoe-realm-relay-nomatch` | `test/pppoe/pppoe-realm-relay-nomatch.ci` | unmatched realm terminates locally and is refused with no local users | |
+| (AC-12 on a live call) | - | a `.ci` cannot host the PPPoE subscriber and the LNS; the `l2tp-lac-realm-relay-accel-ppp` checker runs `ze show l2tp session id <id>` on the LAC and asserts the AC-12 keys | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -360,15 +428,16 @@ child 18.
 - `internal/component/l2tp/relay_sink.go` - realm matching, outcome reporting
 - `internal/component/l2tp/session_initiator.go` - `callParams` proxy fields, `writeICCNBody`
 - `internal/component/l2tp/avp_compound.go` - callers for the proxy writers
+- `internal/component/l2tp/avp.go`, `hidden.go` - a hidden-AVP writer (H bit, `HiddenEncrypt` into the message buffer) and a Random Vector AVP writer
+- `internal/component/l2tp/snapshot.go` `SessionSnapshot`, `internal/component/l2tp/cmd/l2tp.go` `sessionJSON` - the AC-12 keys
 - `internal/component/l2tp/bridge_linux.go` - report bridge outcome
 - `internal/component/l2tp/pppoe/server.go` - start local PPP with capture when realm bindings exist
 - `internal/component/l2tp/pppoe/drain.go` - realm decision before the auth handler
 - `internal/component/l2tp/ppp/start_session.go`, `ppp/session_run.go`, `ppp/manager.go`, `ppp/auth_events.go` - capture, release, refusal
-- `internal/component/l2tp/bridge_integration_linux_test.go` - correct the comment
-- `docs/guide/l2tp.md` - relay-realm section; l.105-110 corrected
+- `docs/guide/l2tp.md` - relay-realm section naming this spec's scenarios as its proof (the existing bridge-proof sentence is child 19's correction)
 - `docs/guide/pppoe.md` - relay note
 - `docs/architecture/l2tp/followup-l2tp-call.md` - realm relay flow
-- `rfc/short/rfc2661.md` - rows 4.4.5-1 to -6 annotations; new M-bit rows for AVPs 26 to 28; row 4.4-2 annotation corrected
+- `rfc/short/rfc2661.md` - rows 4.4.5-1 to -6 annotations; RFC2661-4.3-1 and -4.3-3 annotations (hidden AVP 33); new M-bit rows for AVPs 26 to 28; row 4.4-2 annotation corrected
 - `features/l2tpv2-bng.md`, `features/pppoe-access.md` - LAC realm relay
 - `docs/architecture/l2tp/bng-5-pppoe.md` (declared by `pppoe/server.go`) - gains the realm-relay start: with realm bindings, an AC session no Service-Name relay took starts local PPP with capture. Nothing it states becomes wrong: its Service-Name text describes discovery, not relay
 - `docs/architecture/l2tp/subscriber-session-model.md` (declared by `pppoe/drain.go`) - the drain section (`startPPPoEAuthDrain`) gains the realm decision before the auth handler; a relayed session never reaches the handler, so "PPP records the request username only when the authentication handler accepts the request" needs the relayed case named (no username is recorded, the LAC hands the session off)
@@ -404,7 +473,7 @@ child 18.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/l2tpv2-bng.md`, `features/pppoe-access.md` |
 | 2 | Config syntax changed? | Yes | `docs/guide/l2tp.md` |
-| 3 | CLI command added/changed? | No | session show fields only, documented in the guide |
+| 3 | CLI command added/changed? | Yes | `show l2tp session id <id>` gains the AC-12 keys: `docs/guide/l2tp.md` "Read commands" and `docs/guide/command-reference.md` |
 | 4 | API/RPC added/changed? | No | - |
 | 5 | Plugin added/changed? | No | - |
 | 6 | Has a user guide page? | Yes | `docs/guide/l2tp.md`, `docs/guide/pppoe.md` |
@@ -418,30 +487,29 @@ child 18.
 | 14 | Prometheus counters added/changed? | Yes | metrics section of `docs/guide/l2tp.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived with `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-14-lac-realm-relay.md` |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `remote`/`relay` example at `docs/guide/l2tp.md` l.60-73 |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `remote`/`relay` example in `docs/guide/l2tp.md` "Initiator: dial targets and outgoing calls" |
 
 ## Implementation Steps
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- YANG list, `Parameters`,
    callsink fields, sink realm match stub, drain hook; failing wiring tests.
-   The guide l.105-110 and the bridge test comment are corrected in this
-   phase (a page that is wrong is repaired before the next code edit).
    - Tests: `TestRelaySinkRealmMatchPlacesCallWithProxyLCP`,
      `relay-realm-config`
    - Files: YANG, `config.go`, `callsink`, `relay_sink.go`, `pppoe/drain.go`
 2. **Phase: Capture** -- driver records the Configure-Requests; capture flag
    from `server.go`.
-3. **Phase: ICCN** -- `callParams` proxy fields, `writeICCNBody`, hidden
-   AVP 33 for PAP; wire `.ci`.
-4. **Phase: Hand-off** -- outcome callback, release without reply, refusal
-   path, bridge after local LCP (Linux integration test).
+3. **Phase: ICCN** -- `callParams` proxy fields, `writeICCNBody`, the
+   hidden-AVP and Random Vector writers, hidden AVP 33 for PAP; wire `.ci`.
+4. **Phase: Hand-off** -- outcome callback, quiesce, bridge, release, refusal
+   and cancellation per the handoff table (AC-14 to AC-16), Linux
+   integration tests; the AC-12 show keys.
 5. **Phase: Docs, RFC rows, interop** -- guide, architecture doc, summary
    rows, two scenarios with a recorded red.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N has an implementation at file:line |
+| Completeness | Every AC-N has an implementation at a named function |
 | Correctness | AVP 27 and 28 hold the Acked pair, not the last frames seen |
 | Correctness | No CHAP Success, Failure or PAP Ack leaves the LAC on a relayed session |
 | Correctness | A matched-but-failed realm never authenticates locally |
@@ -495,9 +563,11 @@ found no open row for these surfaces.
 | Service-Name relay keeps precedence and still fires at PADS | Realm first | Realm needs LCP and authentication; Service-Name is known at PADS. Precedence keeps today's configs unchanged |
 | Separate `list relay-realm` keyed by realm | One `relay` list with a match-kind leaf | The existing list is keyed by `service`; re-keying it breaks configs and mixes two key spaces in one list |
 | Realm = text after the last `@`, compared case-insensitively, exact | Suffix matching; regex | Exact match is predictable and cannot be spoofed by a longer name |
-| LAC half of proxy authentication (emitting AVPs 29 to 33 from the LAC's own exchange) is delivered here; `spec-l2tp-proxy-authentication.md` keeps the LNS half (consuming them, the `proxy-authentication` leaf, row RFC2661-9.5-2) | Wait for that spec to emit them | That spec's LAC half needs an authentication exchange at the LAC, which only this spec creates. **Owed coordination**: when this spec moves to `ready`, that spec's Task is narrowed to the LNS half in the same commit |
+| AVP writer ownership: this spec delivers every LAC-side writer, AVPs 26 to 28, AVPs 29 to 33, the hidden-AVP writer and the Random Vector writer, with rows RFC2661-4.4.5-1 to -6, RFC2661-4.3-1 and RFC2661-4.3-3 on the sending side. `spec-l2tp-proxy-authentication.md` keeps the LNS half only: consuming AVPs 29 to 33, decrypting a received hidden AVP, the `proxy-authentication` leaf and row RFC2661-9.5-2 | Wait for that spec to emit them | That spec's LAC half needs an authentication exchange at the LAC, which only this spec creates, so nothing of it waits on that spec. The narrowing of that spec's Task to the LNS half is listed in the umbrella's edits owed outside the home-CPE specs |
 | PAP proxy data sent only hidden; without a tunnel secret no proxy authentication for PAP | Send cleartext | RFC 2661 Section 4.4.5: "In the case of cleartext passwords, AVP hiding is recommended"; the LNS restarts authentication instead, which the RFC states as the result of an absent Proxy Authen Type |
 | The driver keeps answering LCP Echo until the outcome arrives | Release at the auth Response | Keeps the subscriber's keepalive alive across the dial; bounded by the authentication timeout |
+| Handoff order: the driver's channel reader stops and returns before PPPIOCBRIDGECHAN; the driver releases only after the bridge succeeded | Bridge first, then stop the driver (the earlier step 6 wording) | Bridging first leaves two readers racing for the same frames until the driver stops, and a bridge that succeeds while the driver still answers can put two replies on the wire. Quiescing first gives one owner at every instant, and keeping the driver's LCP state until the bridge succeeds lets a failed bridge still refuse the subscriber properly (RFC 1661 Section 3.5) |
+| A realm call never uses the userspace relay fall-back of `maybeBridgePPPoE` | Use it as a Service-Name relay does | The fall-back exists for a kernel without PPPIOCBRIDGECHAN; Ze's kernel has it, and a realm call that reaches a half-working relay after the driver went quiet cannot refuse the subscriber any more |
 | Proxy LCP AVPs always sent on a realm call | Make them optional | Section 4.4.5 describes this exact case; an LNS that does not use them (accel-ppp) ignores them |
 
 ## Known Limitations
@@ -532,7 +602,7 @@ of the added AVPs with offsets.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-13 all demonstrated
+- [ ] AC-1..AC-16 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/l2tp/...` and `internal/core/callsink`, `./le test functional l2tp`, `./le test pppoe`, the `l2tp-wire` `.ci` above, and `./le verify changed` over the closing commits. The full verification is Thomas's release check

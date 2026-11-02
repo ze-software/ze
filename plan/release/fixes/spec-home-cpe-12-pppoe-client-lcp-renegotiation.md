@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Shipped PPPoE client misbehaves on an accepted configuration: an access network that renegotiates LCP after the LAC opened it (the wholesale L2TP shape) never gets its Configure-Request answered, so the session times out and the CPE never comes up. Blocks the home-CPE migration. |
 | RFC gaps | RFC1661-4.3-1, RFC1661-3.6-2 |
-| Depends | - for the code. The third-party proof needs `spec-home-cpe-14-lac-realm-relay.md`, `spec-home-cpe-18-interoplab-multi-link-topology.md` and `spec-home-cpe-19-access-chain-scenario.md`; the Ze-LNS proof needs `spec-home-cpe-15-lns-lcp-renegotiation.md` |
+| Depends | Implementation: none. Closure: the scenario this spec owns, `access-wholesale-accel-lns`, needs `spec-home-cpe-14-lac-realm-relay.md` and `spec-home-cpe-18-interoplab-multi-link-topology.md` implemented. `access-wholesale` is owned by `spec-home-cpe-15-lns-lcp-renegotiation.md` and does not hold this spec's closure (umbrella "Scenario ownership") |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-31 |
@@ -67,12 +67,12 @@ is Opened again.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/l2tp/pppoeclient/session.go` (1054L) - `negotiateSession` runs `negotiateLCP`, then `runClientAuth` when an auth protocol was negotiated, then `negotiateIPCP`, then `ppp.Connect` (PPPIOCCONNECT) and `ppp.SetMRU`, then starts the unit reader. `runClientAuth` (l.455) handles only LCP Echo-Request and Terminate-Request among LCP codes; every other LCP packet, Configure-Request included, hits `continue`. `negotiateIPCP` (l.623) does the same on its LCP branch (Echo-Request, Terminate-Request, else `continue`)
-- [ ] `internal/component/l2tp/pppoeclient/network_phase.go` (231L) - `keepaliveLoop` (l.94) reads the channel (LCP, CHAP) and the unit (IPCP). Its LCP switch handles Echo-Reply, Echo-Request and Terminate-Request; a Configure-Request falls out of the switch silently. `answerOpenedIPCP` ends the session on any IPCP packet that takes IPCP out of Opened
-- [ ] `internal/component/l2tp/pppoeclient/dialer.go` (465L) - `Dial` creates the channel and unit with `ppp.DevPPPSetup` before LCP, starts one channel reader, runs `negotiateSession`, then `superviseNetworkPhase` runs `keepaliveLoop` in a goroutine. `PPPoESession.Done` closes on loss; the iface caller then reconnects
-- [ ] `internal/component/iface/pppoe_client.go` (377L) - `runSession` applies MTU, admin-up, P2P address and default route once, after `Dial` returns; it never hears of a later change
+- [ ] `internal/component/l2tp/pppoeclient/session.go` - `negotiateSession` runs `negotiateLCP`, then `runClientAuth` when an auth protocol was negotiated, then `negotiateIPCP`, then `ppp.Connect` (PPPIOCCONNECT) and `ppp.SetMRU`, then starts the unit reader. `runClientAuth` handles only LCP Echo-Request and Terminate-Request among LCP codes; every other LCP packet, Configure-Request included, hits `continue`. `negotiateIPCP` does the same on its LCP branch (Echo-Request, Terminate-Request, else `continue`)
+- [ ] `internal/component/l2tp/pppoeclient/network_phase.go` - `keepaliveLoop` reads the channel (LCP, CHAP) and the unit (IPCP). Its LCP switch handles Echo-Reply, Echo-Request and Terminate-Request; a Configure-Request falls out of the switch silently. `answerOpenedIPCP` ends the session on any IPCP packet that takes IPCP out of Opened
+- [ ] `internal/component/l2tp/pppoeclient/dialer.go` - `Dial` creates the channel and unit with `ppp.DevPPPSetup` before LCP, starts one channel reader, runs `negotiateSession`, then `superviseNetworkPhase` runs `keepaliveLoop` in a goroutine. `PPPoESession.Done` closes on loss; the iface caller then reconnects
+- [ ] `internal/component/iface/pppoe_client.go` - `runSession` applies MTU, admin-up, P2P address and default route once, after `Dial` returns; it never hears of a later change. A `SetMTU`, `SetAdminUp` or `AddAddressP2P` error returns from `runSession`, so the deferred `Cleanup` releases the unit and `run` reconnects with its backoff; an `AddRoute` error is logged as a warning and the session stays up
 - [ ] `internal/component/l2tp/ppp/devppp_linux.go` - `DevPPPSetup` (PPPIOCGCHAN, PPPIOCATTCHAN, PPPIOCNEWUNIT); no PPPIOCSNPMODE support exists anywhere under `internal/component/l2tp/` (grep for npmode is empty)
-- [ ] accel-ppp source (`github.com/accel-ppp/accel-ppp`, local checkout): `accel-pppd/ppp/ppp_lcp.c` starts LCP once (`ppp_fsm_lower_up` at l.124) and no configuration key forces a renegotiation after Opened (grep for renegot in `accel-pppd` finds only SSTP TLS). `accel-pppd/ctrl/l2tp/l2tp.c` ICCN handling (l.3580-3595) skips `Init_Recv_LCP`, `Last_Sent_LCP`, `Last_Recv_LCP` and the `Proxy_Authen_*` AVPs, so accel-ppp as an LNS always runs its own LCP and authentication: the wholesale renegotiation shape
+- [ ] accel-ppp source (`github.com/accel-ppp/accel-ppp`, local checkout): `accel-pppd/ppp/ppp_lcp.c` starts LCP once (`ppp_fsm_lower_up` in `lcp_layer_start`) and no configuration key forces a renegotiation after Opened (grep for renegot in `accel-pppd` finds only SSTP TLS). `accel-pppd/ctrl/l2tp/l2tp.c` ICCN handling (the ICCN attribute loop of `l2tp_recv_ICCN`) skips `Init_Recv_LCP`, `Last_Sent_LCP`, `Last_Recv_LCP` and the `Proxy_Authen_*` AVPs, so accel-ppp as an LNS always runs its own LCP and authentication: the wholesale renegotiation shape
 
 **Behavior to preserve:**
 - Initial negotiation order, timers and every existing RFC-tagged test in the package (`rfc1661_*`, `rfc1994_*`, `rfc1332_*`, `rfc2516_*`)
@@ -106,8 +106,21 @@ is Opened again.
 3. scr plus sca or scn: the LCP negotiator runs with the received request as its first event (it sends its own Configure-Request, then answers the pending one through `ppp.NegotiatePeerOptions`), reaching Opened with a fresh local Magic-Number and possibly a new peer MRU and auth protocol
 4. Authentication runs again with the newly negotiated protocol, reading the channel
 5. IPCP runs again. Before PPPIOCCONNECT, IPCP arrives on the channel; after it, on the unit. The IPCP negotiator takes a control source (channel) and an NCP source (channel before connect, unit after) so one routine serves both cases
-6. On IPCP Opened: NP mode back to pass; the session result (magic, peer MRU, CHAP state, local and peer address, negotiated MTU) is replaced; if address, peer address or MTU changed, a change record goes to the iface caller
-7. `PPPoEClient.runSession` receives the change and replaces the P2P address, default route and MTU on the same `pppN` device
+6. On IPCP Opened: NP mode back to pass; the session result (magic, peer MRU, CHAP state, local and peer address, negotiated MTU, and every value `negotiateIPCP` learns, which child 13 extends with the two resolver addresses) is replaced. Every completed renegotiation sends a change record carrying the whole new result, whether or not a value differs: the dialer never filters, so a value added to the IPCP result later (child 13's DNS) needs no change to the notification rule
+7. `PPPoEClient.runSession` receives the record, compares each field with what it last applied, and changes only the fields that differ, on the same `pppN` device: MTU alone (`SetMTU`); the P2P address when the local or the peer address differs (new address added before the old one is removed); the default route when the peer address differs (new route added before the old one is removed); and, once child 13 lands, the resolver lease when the servers differ
+8. Lifecycle of the change record (see the table below): the channel holds at most one pending record and the dialer replaces a pending record with a newer one, so a renegotiation that overtakes an unapplied one is applied once, from its own complete result. An apply error on MTU or address ends the session exactly as the same error does at the first apply (return from `runSession`, `Cleanup`, reconnect with backoff); a route error is logged and the session stays up, as at the first apply
+
+#### Change record lifecycle
+
+| Event | Dialer | `runSession` | Network traffic |
+|-------|--------|--------------|-----------------|
+| Configure-Request in the network phase | NP mode drop, renegotiation starts | nothing pending | IP discarded (RFC 1661 Section 3.6) |
+| IPCP Opened again | NP mode pass, record sent (replacing any pending one) | applies the differing fields | IP flows; until `runSession` applies a changed address, packets leave with the old source and the peer may drop them |
+| Second Configure-Request before IPCP Opened | renegotiation restarts from LCP; no record sent for the interrupted one | nothing pending | IP still discarded |
+| Second Configure-Request after the record was sent, before `runSession` read it | the next record replaces the pending one | applies only the newest | as above |
+| MTU or address apply fails | - | returns the error; `Cleanup` releases the unit; reconnect with backoff | session ends |
+| Route apply fails | - | warning logged, session stays up | as today at the first apply |
+| Renegotiation fails (timeout, auth Failure) | session ends, `Done` closes | returns on `Done` | session ends (AC-8) |
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -146,6 +159,8 @@ is Opened again.
 | R-1 | A peer renegotiating in a loop keeps the link down without ending the session | repeated "LCP renegotiation" log lines, no IPCP Opened | each phase keeps its timeout; a failed renegotiation ends the session and the dialer reconnects as today |
 | R-2 | An IPCP frame queued on the unit from before the renegotiation is read as a reply to the new request | IPCP Opened with stale values | Identifier check already in `negotiateIPCP`; unit frames received before IPCP restarts are discarded (RFC 1661 Section 3.4: non-LCP packets during Link Establishment are discarded) |
 | R-3 | Address change applied non-atomically leaves the device without a route briefly | traffic loss after renegotiation | add new address and route before removing old ones |
+| R-4 | Forwarding resumes (NP mode pass) before `runSession` applies a changed address | a few packets leave with the old source address and are dropped by the peer | bounded by one channel read; the alternative (hold NP mode drop until iface acknowledges) adds a reply path from iface to the dialer for no correctness gain, since the peer drops those packets either way |
+| R-5 | An apply error during a renegotiation leaves the device half-updated | old and new address both present | the error ends the session and `Cleanup` releases the unit, which removes the device with every address on it; the reconnect applies afresh |
 
 ## Blast Radius
 
@@ -178,6 +193,12 @@ is Opened again.
 | AC-7 | Echo-Requests after renegotiation | carry the new local Magic-Number |
 | AC-8 | Renegotiation fails (auth Failure, timeout) | session ends, `Done` closes, dialer reconnects with its backoff, unit released by `Cleanup` |
 | AC-9 | IP packet received on the unit while renegotiating | not delivered (RFC 1661 Section 3.6) |
+| AC-10 | Renegotiation changes only the peer address | iface replaces the P2P address's peer and the default route's gateway; the local address and the MTU are not touched (no `SetMTU` call) |
+| AC-11 | Renegotiation changes only the negotiated MTU | iface calls `SetMTU` once with the new value, capped by the configured `mtu`; no address or route is removed or added |
+| AC-12 | Renegotiation changes nothing | a record arrives and `runSession` makes no backend call |
+| AC-13 | A second Configure-Request arrives after the first renegotiation's record was sent and before `runSession` read it | `runSession` applies only the second result, once |
+| AC-14 | `SetMTU` or `AddAddressP2P` fails while applying a record | the session ends, `Cleanup` releases the unit, and `run` reconnects with its backoff (same as a first-apply failure) |
+| AC-15 | `AddRoute` fails while applying a record | a warning names the route and the device; the session stays up |
 
 ## End-to-End User Stories
 
@@ -198,6 +219,13 @@ is Opened again.
 | `TestRFC1661ClientRenegotiationChangesAuthProto` | same | AC-6 | |
 | `TestRFC1661ClientRenegotiationFailureEndsSession` | same | AC-8 | |
 | `TestPPPoEClientAppliesSessionChange` | `internal/component/iface/pppoe_client_test.go` | AC-5 with a fake backend: new address and route added before old removed | |
+| `TestPPPoEClientAppliesPeerOnlyChange` | `internal/component/iface/pppoe_client_test.go` | AC-10: fake backend records P2P peer and route gateway replaced, no `SetMTU` | |
+| `TestPPPoEClientAppliesMTUOnlyChange` | `internal/component/iface/pppoe_client_test.go` | AC-11: exactly one `SetMTU`, no address or route call | |
+| `TestPPPoEClientUnchangedRecordMakesNoCall` | `internal/component/iface/pppoe_client_test.go` | AC-12 | |
+| `TestPPPoEClientAppliesNewestOfOvertakingChanges` | `internal/component/iface/pppoe_client_test.go` | AC-13: two records sent before the first is read; the fake backend sees only the second's values | |
+| `TestPPPoEClientChangeApplyFailureEndsSession` | `internal/component/iface/pppoe_client_test.go` | AC-14: fake backend fails `SetMTU`; `Cleanup` called, reconnect attempt counted | |
+| `TestPPPoEClientChangeRouteFailureKeepsSession` | `internal/component/iface/pppoe_client_test.go` | AC-15 | |
+| `TestRFC1661ClientRenegotiationRestartsOnSecondRequest` | `internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go` | a second Configure-Request during the renegotiation's IPCP restarts LCP and sends one record only | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -213,13 +241,12 @@ is Opened again.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `access-wholesale-accel-lns` | the multi-link lab of child 18 | Ze LAC (child 14) relaying to accel-ppp as LNS, which ignores proxy LCP and renegotiates | third-party renegotiation and re-challenge reach Ze and the CPE comes up | |
-| `access-wholesale` | child 19's access-chain scenario set | Ze LAC and Ze LNS with child 15's renegotiate option | the umbrella's wholesale scenario | |
+| `access-wholesale-accel-lns` | `test/interop-topology/scenarios/access-wholesale-accel-lns/` (child 18's topology suite; this spec owns the directory, its checker and its red walk) | Ze LAC (child 14) relaying to accel-ppp as LNS, which ignores proxy LCP and renegotiates | third-party renegotiation and re-challenge reach Ze and the CPE comes up | |
+| `access-wholesale` | `test/interop-topology/scenarios/access-wholesale/`, owned by child 15 | Ze LAC and Ze LNS with child 15's renegotiate option | the umbrella's wholesale scenario; not this spec's closure evidence | |
 
-The umbrella's `accel-ppp-renegotiation` row cannot be built as written: no
-accel-ppp setting renegotiates LCP on a PPPoE session (A-4). The accel-ppp proof
-is therefore `access-wholesale-accel-lns`; the umbrella table is corrected by the
-main thread.
+No accel-ppp setting renegotiates LCP on a direct PPPoE session (A-4), so the
+accel-ppp proof is `access-wholesale-accel-lns`, the name the umbrella's Lab
+table uses.
 
 ## Files to Modify
 - `internal/component/l2tp/pppoeclient/session.go` - LCP negotiator accepts a pending peer request; auth and IPCP loops hand off a Configure-Request; IPCP negotiator takes control and NCP frame sources
@@ -233,7 +260,9 @@ main thread.
 
 ## Files to Create
 - `internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go`
-- the interop scenario directory named above, under child 18's layout
+- `internal/test/pppoeac/` - the scripted access concentrator `TestDialRenegotiatesLCPInNetworkPhase` drives (PADI to PADS, LCP, CHAP, IPCP, a Configure-Request on demand, Echo control), a test helper package beside `internal/test/userns` so child 17's `TestPPPoEClientKeepaliveConfigEndToEnd` reuses the same copy
+- `test/interop-topology/scenarios/access-wholesale-accel-lns/` - `ze-cpe.conf`, `ze-lac.conf`, the accel-ppp LNS configuration
+- `internal/le/interoplab/topology/register_wholesale_accel.go`, `check_wholesale_accel.go` - the scenario's nodes, links and checker in child 18's topology suite
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -254,12 +283,12 @@ main thread.
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | Yes | `features/` entry for the PPPoE client, renegotiation now supported |
+| 1 | New user-facing feature? | Yes | `features/interfaces.md`, the interface feature entry: the PPPoE client renegotiates LCP |
 | 2 | Config syntax changed? | No | |
 | 3 | CLI command added/changed? | No | |
 | 4 | API/RPC added/changed? | No | |
 | 5 | Plugin added/changed? | No | |
-| 6 | Has a user guide page? | Yes | the PPPoE client section of the interfaces guide gains one sentence |
+| 6 | Has a user guide page? | Yes | `docs/guide/configuration.md` gains a `pppoe-client` subsection, which no guide page has today (the client is named only under "Route Priority"; `docs/guide/pppoe.md` documents the access concentrator): it states that the client answers an LCP renegotiation from the access network. Children 13 and 17 extend the same subsection |
 | 7 | Wire format changed? | No | |
 | 8 | Plugin SDK/protocol changed? | No | |
 | 9 | RFC behavior implemented? | Yes | `rfc/short/rfc1661.md`, `docs/features/rfc-status.md` |
@@ -267,7 +296,7 @@ main thread.
 | 11 | Affects daemon comparison? | No | |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/l2tp/cpe-1-pppoe-client.md` |
 | 13 | Route metadata keys? | No | |
-| 14 | Prometheus counters? | Yes | subsystem telemetry doc |
+| 14 | Prometheus counters? | Yes | `docs/guide/configuration.md`, the `pppoe-client` subsection this spec adds (row 6), names the renegotiation counter and its `name` label |
 | 15 | Registered plugin/event/command changed? | No | |
 | 16 | Source anchors | Yes | derived by `./le spec citation anchors` at implementation |
 | 17 | Existing examples for this area? | No | |
@@ -280,14 +309,14 @@ main thread.
    - Verify: tests reach the stub and fail on the missing Configure-Ack
 2. **Phase: LCP and auth restart** -- LCP negotiator with pending request; auth rerun; AC-1, AC-2, AC-3, AC-6
 3. **Phase: network-phase renegotiation** -- NP mode wrapper, IPCP over two sources, result replacement, magic; AC-4, AC-7, AC-8, AC-9
-4. **Phase: iface applies changes** -- change channel, address and route replacement; AC-5
+4. **Phase: iface applies changes** -- change channel (one pending record, newest wins), per-field diff, address and route replacement, apply-failure lifecycle; AC-5, AC-10 to AC-15
 5. **Phase: kernel integration test** -- scripted AC on veth in a user namespace
 6. **Phase: interop** -- `access-wholesale-accel-lns` once children 14 and 18 land; red proof by reverting the hand-off
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N has an implementation at file:line |
+| Completeness | Every AC-N has an implementation at a named function |
 | Correctness | the reply to the pending request is sent after the client's own Configure-Request (scr before sca/scn) |
 | Data flow | renegotiation never closes the PPPoE session or the unit |
 | Rule: rfc-compliance | each new transition carries its RFC 1661 quote |
@@ -355,7 +384,7 @@ returns "renegotiate" instead of dropping the request.
 - [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-9 all demonstrated
+- [ ] AC-1..AC-15 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete
 - [ ] Targeted tests pass; `./le verify changed` over the closing commits

@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Validation of shipped behaviour: the PPPoE-to-L2TP relay (LAC, `l2tp relay`) ships, and its data path has no end-to-end proof. The only LAC scenario (`03-ze-lac-xl2tpd-lns`) proves the control connection alone, and `./le test deployment l2tp-ppp` runs a Ze LNS against xl2tpd and pppd with no PPPoE and no relay. |
 | RFC gaps | - |
-| Depends | `spec-home-cpe-18-interoplab-multi-link-topology.md`; `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (in-progress); `spec-home-cpe-13-pppoe-client-ipcp-dns.md` for the DNS clause of `access-up` only |
+| Depends | Implementation: `spec-home-cpe-18-interoplab-multi-link-topology.md` (topology suite); `spec-home-cpe-16-lns-mru-and-auth-allow-list.md` (the LNS's `mru 1492` and CHAP-only `authentication allow [ chap-md5 ]` leaves, and the `show l2tp session id` keys AC-11 reads); `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (in-progress). Closure: none beyond those. The DNS clause of `access-up` (AC-6) is owned by `spec-home-cpe-13-pppoe-client-ipcp-dns.md` and holds that spec's closure, not this one's |
 | Phase | 0/3 |
 | Handoff | - |
 | Updated | 2026-10-31 |
@@ -49,7 +49,7 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 - [ ] `docs/architecture/testing/interop.md` "Prove a scenario discriminates", "L2TP and PPPoE lifecycle fault scenarios", "The FreeRADIUS subscriber suite"
   → Constraint: build the red binary through the harness, never by hand-tagging `ze-interop`; quote the image ID beside each red and green result.
   → Constraint: a checker reads accounting from FreeRADIUS's `ze_detail` file, as the subscriber suite does.
-- [ ] `docs/guide/l2tp.md` relay section (l.58 to l.112)
+- [ ] `docs/guide/l2tp.md` "Initiator: dial targets and outgoing calls" (the `remote` and `relay` lists and the LAC bridge paragraph)
   → Constraint: a relay entry keyed by the empty Service-Name matches a subscriber that requests no specific service; the guide's claim that `l2tp-ppp` exercises the LAC bridge is wrong and is corrected here (umbrella doc defects).
 - [ ] `docs/architecture/l2tp/followup-l2tp-call.md` (Design header of `bridge_linux.go`)
   → Decision: the LAC forwards PPP and terminates nothing locally (RFC 2661 Section 2); LCP and CHAP run between the CPE and the LNS.
@@ -60,7 +60,7 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 - [ ] `rfc/short/rfc2661.md` - L2TP, LAC forwarding
 - [ ] `rfc/short/rfc2516.md` - PPPoE discovery (empty Service-Name)
 - [ ] `rfc/short/rfc2866.md`, `rfc/short/rfc2869.md` - accounting, interim interval
-  → Constraint: RFC 2869 Section 5.16, "The value MUST NOT be smaller than 60." Ze clamps a received Acct-Interim-Interval to at least 60 seconds (`clampAcctInterval`, `internal/component/l2tp/plugins/authradius/acct.go` l.713) and the `acct-interval` leaf has range 60..3600. The umbrella's "shortened so the test runs in seconds" is not reachable: the interim clause waits for the first interim at 60 seconds.
+  → Constraint: RFC 2869 Section 5.16, "The value MUST NOT be smaller than 60." Ze clamps a received Acct-Interim-Interval to at least 60 seconds (`clampAcctInterval`, `internal/component/l2tp/plugins/authradius/acct.go`) and the `acct-interval` leaf (`ze-l2tp-auth-radius-conf.yang`) has range 60..3600. The umbrella's "shortened so the test runs in seconds" is not reachable: the interim clause waits for the first interim at 60 seconds.
 
 **Key insights:**
 - The relay data path is the kernel bridge of the PPPoE channel to the PPPoL2TP channel (`bridgeChannels`, `maybeBridgePPPoE` in `internal/component/l2tp/bridge_linux.go`), chosen by `relaySink.Relay` and `relayTargetLocked` (`relay_sink.go`). No test today drives a frame across it.
@@ -69,7 +69,7 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/l2tp/yang/ze-l2tp-conf.yang` l.293 - `list relay` keyed by `service`, `leaf remote`; the empty string matches a subscriber requesting no service.
+- [ ] `internal/component/l2tp/yang/ze-l2tp-conf.yang` - `list relay` (beside `list remote` in `container l2tp`) keyed by `service`, `leaf remote`; the empty string matches a subscriber requesting no service.
 - [ ] `internal/component/l2tp/relay_sink.go` - `relaySink.Relay`, `relayTargetLocked`: the PPPoE server hands a matching session to the L2TP subsystem, which places an incoming call toward the bound remote.
 - [ ] `internal/component/l2tp/bridge_linux.go` - `bridgeChannels` (PPPIOCBRIDGECHAN), `unbridgeChannel`, `maybeBridgePPPoE`: the data plane between the two kernel channels.
 - [ ] `internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` - `pppoe` server, `service-name` list ("An empty list accepts any Service-Name").
@@ -177,7 +177,9 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 | AC-7 | `access-pool`: second user, Accept without Framed-IP-Address | the CPE's `pppN` holds an address in 100.64.0.0/24 and the LNS pool shows it allocated |
 | AC-8 | `access-accounting`: LNS `acct-interval 60`, the CPE sends a known volume across the session, then the checker tears the session down from the CPE | FreeRADIUS's `ze_detail` holds Start, at least one Interim-Update and Stop with the same Acct-Session-Id; Framed-IP-Address 203.0.113.1 in each; Acct-Input-Octets and Acct-Output-Octets in Stop at least the volume sent |
 | AC-9 | Each scenario's red walk (table below) | the scenario goes red with the named failure; restored, it goes green; both image IDs recorded |
-| AC-10 | `docs/guide/l2tp.md` | no longer says `l2tp-ppp` exercises the LAC bridge; names `access-up` as the relay data-path proof |
+| AC-10 | `docs/guide/l2tp.md` and the comment of `TestLACChannelBridge` (`internal/component/l2tp/bridge_integration_linux_test.go`) | neither says `l2tp-ppp` or `gokrazy-l2tp-ppp` exercises the LAC bridge; both name `access-up` as the relay data-path proof. This spec owns the correction because it lands before child 14 (umbrella order); child 14 only adds its realm scenarios |
+| AC-11 | `access-up` running, LNS configured `l2tp { mru 1492; authentication { allow [ chap-md5 ] } }` | `ze show l2tp session id <id>` on the LNS carries `mru` 1492 and `auth-method` `chap-md5` (child 16 AC-15 keys); the CPE's `pppN` MTU is 1492; a capture on the core link holds the LNS's LCP Configure-Request with MRU option 1492 |
+| AC-12 | `access-up` running | FreeRADIUS's Access-Request for `cpe@lab.example.net` carries CHAP-Password and no User-Password, so the method the LNS negotiated is the one RADIUS checked. The refusal of a PAP-only client is not asserted here: Ze's `pppoe-client` has no leaf that refuses CHAP (its `authentication` container holds `username` and `password` only), so child 16 proves the refusal with pppd in `pppoe-chap-only-pap-client` and xl2tpd in `l2tp-lns-chap-only-xl2tpd` |
 
 ### Red walks
 

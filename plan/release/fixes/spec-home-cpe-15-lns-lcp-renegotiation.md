@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Adds an LNS policy RFC 2661 permits but does not require (renegotiating LCP instead of accepting the LAC's proxy LCP). It corrects a guide sentence that claims the option already exists. |
 | RFC gaps | - |
-| Depends | `spec-home-cpe-14-lac-realm-relay.md` (a LAC that sends proxy LCP, for the scenario), `spec-home-cpe-18-interoplab-multi-link-topology.md` and `spec-home-cpe-19-access-chain-scenario.md` (lab), `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` (a Ze CPE that survives the LNS's renegotiation, for `access-wholesale` only) |
+| Depends | Implementation: none. Closure: this spec owns two scenarios. `l2tp-lns-lcp-renegotiate-pppd` needs `spec-home-cpe-14-lac-realm-relay.md` (a LAC that sends proxy LCP) and `spec-home-cpe-18-interoplab-multi-link-topology.md`; `access-wholesale` needs those two, `spec-home-cpe-19-access-chain-scenario.md` (the access-chain nodes it reuses), `spec-home-cpe-16-lns-mru-and-auth-allow-list.md` (the LNS's CHAP-only allow-list and MRU 1492) and `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` (a Ze CPE that survives the renegotiation) |
 | Phase | 0/3 |
 | Handoff | - |
 | Updated | 2026-10-31 |
@@ -43,24 +43,24 @@ leaves its leaf and its RFC2661-9.5-2 row to it, and says how the two leaves
 combine.
 
 Also owed:
-- `docs/guide/l2tp.md` l.340-341 says Ze "validates them and can
+- `docs/guide/l2tp.md`, "PPP negotiation", says Ze "validates them and can
   renegotiate instead of accepting them". Nothing selects renegotiation, so
   the sentence is false until this lands, and it is corrected in the same
   change.
 - RFC 2661 has no Section 18. Its sections run 1.0 to 13.0, and proxy LCP is
-  Section 4.4.5, with proxy authentication in Section 9.5. Code comments and
-  the guide cite "RFC 2661 Section 18" in `ppp/session_run.go` l.199,
-  `ppp/proxy.go` l.1, 55, 88, `ppp/start_session.go` l.116,
-  `kernel_event.go` l.37, 78 and `session.go` l.92, 98, and an annotation in
-  `rfc/short/rfc1661.md` (RFC1661-3.1-1) does the same. The umbrella's
-  child 15 row repeats it ("RFC 2661 Section 18 MAY"). Every citation in
-  files this spec edits is corrected (`ai/rules/stale-comments.md`). The
-  umbrella row is the main thread's to correct.
+  Section 4.4.5, with proxy authentication in Section 9.5. Code comments
+  cite "RFC 2661 Section 18" or "RFC 2661 §18": the proxy branch of the LCP
+  start in `ppp/session_run.go`, the file header and the comments of
+  `EvaluateProxyLCP` in `ppp/proxy.go`, the proxy LCP fields of
+  `ppp.StartSession`, the two proxy LCP field comments in `kernel_event.go`
+  and the two in `session.go`; the annotation of RFC1661-3.1-1 in
+  `rfc/short/rfc1661.md` does the same. Every citation in files this spec
+  edits is corrected (`ai/rules/stale-comments.md`).
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/guide/l2tp.md` - PPP negotiation (l.210-260) and l.338-341
+- [ ] `docs/guide/l2tp.md` - "PPP negotiation", including its proxy LCP sentence
   → Constraint: LCP, authentication and the first NCP run on the channel;
   the unit is connected only once NCP is up. A renegotiation from Opened
   must follow the same channel path the normal path uses.
@@ -109,18 +109,18 @@ Also owed:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/l2tp/session_fsm.go` - `parseICCN` (l.740-765)
+- [ ] `internal/component/l2tp/session_fsm.go` - `parseICCN`
   stores AVPs 26-28 and 29-33; the proxy Authen Name becomes
-  `sess.username` (l.237-238); nothing else uses the auth AVPs.
+  `sess.username`; nothing else uses the auth AVPs.
 - [ ] `internal/component/l2tp/reactor_kernel.go` - copies the three LCP
-  slices into `ppp.StartSession` (l.140-142).
-- [ ] `internal/component/l2tp/ppp/start_session.go` - `ProxyLCP*` fields
-  (l.116-122); `AuthMethod` comment: with proxy LCP the LAC's Last-Sent
+  slices into `ppp.StartSession`.
+- [ ] `internal/component/l2tp/ppp/start_session.go` - `ProxyLCP*` fields;
+  `AuthMethod` comment: with proxy LCP the LAC's Last-Sent
   Auth-Protocol overrides the configured method.
 - [ ] `internal/component/l2tp/ppp/proxy.go` - `EvaluateProxyLCP`: all three
   slices must be present and parse; returns MRU (Last-Received), Auth-Protocol
   (Last-Sent), peer and local magic.
-- [ ] `internal/component/l2tp/ppp/session_run.go` - l.199-271: on a valid
+- [ ] `internal/component/l2tp/ppp/session_run.go` - the proxy branch at the start of the LCP run: on a valid
   proxy, sets `negotiatedMRU`, `negotiatedAuthMethod`, state Opened, inherits
   both magic numbers, emits `EventLCPUp`, calls `afterLCPOpen`, which runs
   the auth phase with the proxied method (a fresh CHAP Challenge for CHAP,
@@ -129,7 +129,10 @@ Also owed:
 - [ ] `internal/component/l2tp/ppp/manager_test.go` -
   `TestDriverProxyLCPSkipsNegotiation` proves the short-circuit.
 - [ ] `internal/component/l2tp/yang/ze-l2tp-conf.yang` - no proxy leaf.
-- [ ] `docs/guide/l2tp.md` l.338-341 - the overstated sentence.
+- [ ] `docs/guide/l2tp.md` "PPP negotiation" - the overstated sentence.
+- [ ] `internal/component/l2tp/cmd/l2tp.go` - `handleSession` answers
+  `show l2tp session id <id>` from `sessionJSON`; no key says whether proxy
+  LCP was used.
 
 **Behavior to preserve:**
 - Default: proxy LCP accepted exactly as today, including the re-challenge.
@@ -237,7 +240,7 @@ Also owed:
 | AC-3 | `proxy-lcp renegotiate`, LCP Opened | Ze runs authentication with its configured method (not the LAC's), then NCP; the session comes up |
 | AC-4 | `proxy-lcp renegotiate`, no proxy AVPs | Identical to today's normal path |
 | AC-5 | Reload changes the leaf | New sessions follow the new value; established sessions untouched |
-| AC-6 | Session snapshot / `ze show l2tp session` | Shows whether the proxy LCP was accepted or renegotiated |
+| AC-6 | `ze show l2tp session id <id>` on the LNS | the JSON object carries `proxy-lcp` with `accepted` (AC-1), `renegotiated` (AC-2) or `none` (no proxy AVPs, AC-4) |
 | AC-7 | The guide | No sentence claims a capability that config cannot select; every RFC 2661 proxy citation names Section 4.4.5 or 9.5 |
 
 ## End-to-End User Stories
@@ -261,6 +264,7 @@ Also owed:
 | `TestProxyLCPLeafParse` | `internal/component/l2tp/config_test.go` | enumeration, default | |
 | `TestReloadAppliesProxyLCPToNewSessions` | `internal/component/l2tp/subsystem_reload_test.go` | AC-5 | |
 | `TestL2TPProxyLCPRenegotiateReachesDriver` | `internal/component/l2tp/reactor_ppp_linux_test.go` | wiring | |
+| `TestSessionJSONProxyLCPOutcome` | `internal/component/l2tp/cmd/l2tp_test.go` | AC-6: the three values from three snapshots | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -271,12 +275,13 @@ Also owed:
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `lns-proxy-lcp-config` | `test/l2tp/lns-proxy-lcp-config.ci` | Operator validates and loads a config with `proxy-lcp renegotiate`; an unknown value is refused with the allowed values | |
+| (AC-6 on a live session) | - | a `.ci` cannot host the LAC and the subscriber; the `l2tp-lns-lcp-renegotiate-pppd` checker runs `ze show l2tp session id <id>` on the LNS and asserts `proxy-lcp` `renegotiated` | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `l2tp-lns-lcp-renegotiate-pppd` | `test/interop-l2tp/scenarios/` | pppd PPPoE client behind a Ze LAC (child 14) | pppd logs a second LCP negotiation, initiated by Ze's LNS, then CHAP and IPCP; ping across | |
-| `access-wholesale` | child 19's scenario set | Ze CPE, Ze LAC, Ze LNS, FreeRADIUS | the umbrella's wholesale variant | |
+| `access-wholesale` | `test/interop-topology/scenarios/access-wholesale/`, owned by this spec (directory, checker, red walk) in child 18's topology suite, reusing child 19's access-chain nodes | Ze CPE, Ze LAC (realm, child 14), Ze LNS with `proxy-lcp renegotiate`, FreeRADIUS | the LNS renegotiates and re-challenges, the Ze CPE (child 12) comes up, and `show l2tp session id` on the LNS says `renegotiated` | |
 
 The renegotiate scenario is broken once (the leaf ignored) to show pppd then
 logs no second negotiation and the assertion goes red.
@@ -289,7 +294,8 @@ logs no second negotiation and the assertion goes red.
 - `internal/component/l2tp/ppp/session_run.go` - gate the proxy branch; correct citation
 - `internal/component/l2tp/ppp/proxy.go`, `kernel_event.go`, `session.go` - correct citations
 - `internal/component/l2tp/snapshot.go` - record accepted/renegotiated (AC-6)
-- `docs/guide/l2tp.md` - l.338-341 rewritten; reload table row; configuration example
+- `docs/guide/l2tp.md` - the proxy LCP sentence in "PPP negotiation" rewritten; a row in "Reload semantics"; the configuration example in "Configuration"; the `proxy-lcp` key in "Read commands"
+- `internal/component/l2tp/cmd/l2tp.go` `sessionJSON` - the `proxy-lcp` key
 - `rfc/short/rfc1661.md` - RFC1661-3.1-1 annotation citation
 - `features/l2tpv2-bng.md` - scope
 - `docs/research/l2tpv2-implementation-guide.md` (declared by `session_fsm.go` and `ppp/proxy.go`) - nothing becomes wrong: Section 18.4 already lists "Reject proxy and renegotiate LCP from scratch" as an LNS choice
@@ -298,6 +304,8 @@ logs no second negotiation and the assertion goes red.
 ## Files to Create
 - `test/l2tp/lns-proxy-lcp-config.ci`
 - `test/interop-l2tp/scenarios/l2tp-lns-lcp-renegotiate-pppd/`
+- `test/interop-topology/scenarios/access-wholesale/` - `ze-cpe.conf`, `ze-lac.conf` (realm binding), `ze-lns.conf` (`proxy-lcp renegotiate`), FreeRADIUS `users`
+- `internal/le/interoplab/topology/register_wholesale.go`, `check_wholesale.go`, `check_wholesale_test.go` - the scenario's nodes, links and checker
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -320,7 +328,7 @@ logs no second negotiation and the assertion goes red.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/l2tpv2-bng.md` |
 | 2 | Config syntax changed? | Yes | `docs/guide/l2tp.md` |
-| 3 | CLI command added/changed? | No | - |
+| 3 | CLI command added/changed? | Yes | `show l2tp session id <id>` gains the `proxy-lcp` key (AC-6): `docs/guide/l2tp.md` "Read commands" and `docs/guide/command-reference.md` "L2TPv2 (Operational)" (whose row spells the command `show l2tp session <sid>`, while `ze-l2tp-cmd.yang` puts the identifier under the `id` container; the row is corrected to the YANG path) |
 | 4 | API/RPC added/changed? | No | - |
 | 5 | Plugin added/changed? | No | - |
 | 6 | Has a user guide page? | Yes | `docs/guide/l2tp.md` |
@@ -334,7 +342,7 @@ logs no second negotiation and the assertion goes red.
 | 14 | Prometheus counters added/changed? | Yes | metrics section of `docs/guide/l2tp.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived with `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-15-lns-lcp-renegotiation.md` |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/l2tp.md` l.22-34 |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `l2tp {}` example in `docs/guide/l2tp.md` "Configuration" |
 
 ## Implementation Steps
 

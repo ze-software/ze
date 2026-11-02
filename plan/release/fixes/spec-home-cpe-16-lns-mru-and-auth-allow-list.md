@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | An accepted configuration does the wrong thing: `auth-method chap-md5`, whose YANG description says "The default requires CHAP-MD5", authenticates a peer with PAP after that peer Naks CHAP, on the L2TP LNS and on the PPPoE access concentrator. A CHAP-only operator has no way to refuse the fallback. The LNS also has no MRU control, so every L2TP session requests 1500. |
 | RFC gaps | - |
-| Depends | - (interplay with `spec-home-cpe-15-lns-lcp-renegotiation.md` described under Key Design Decisions; neither blocks the other) |
+| Depends | Implementation: none (interplay with `spec-home-cpe-15-lns-lcp-renegotiation.md` described under Key Design Decisions; neither blocks the other). Closure: the two scenarios this spec owns run in the existing single-link `interop-l2tp` and `interop-pppoe` suites and wait on no other child. Children 14 and 19 depend on this spec for implementation |
 | Phase | 0/4 |
 | Handoff | - |
 | Updated | 2026-10-31 |
@@ -55,8 +55,8 @@ without the option.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/guide/l2tp.md` - PPP negotiation (l.210-235), authentication
-  (l.358-385), reload table (l.1180-1200)
+- [ ] `docs/guide/l2tp.md` - "PPP negotiation", "Authentication", and the
+  table in "Reload semantics"
   → Constraint: the guide states "If a peer rejects every acceptable
   Auth-Protocol, the PPP session is disconnected after LCP instead of falling
   through to the no-auth accounting path". The new refusal must keep the
@@ -65,7 +65,7 @@ without the option.
   receive MRU stays at 1500 even when a smaller MRU was requested". A
   configured MRU below 1500 changes only what Ze requests, never what it can
   receive.
-- [ ] `docs/guide/pppoe.md` - Subscriber authentication (l.80-100)
+- [ ] `docs/guide/pppoe.md` - "Subscriber authentication"
   → Constraint: `auth-method pap` still offers CHAP-MD5 first and offers PAP
   only after a Nak toward PAP (RFC 1334 Section 2). The derived default for
   `pap` must keep that.
@@ -120,12 +120,12 @@ without the option.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/l2tp/reactor_kernel.go` - builds `ppp.StartSession`
-  for an L2TP session (l.125-144): sets `AuthMethod`, `AuthRequired`,
+- [ ] `internal/component/l2tp/reactor_kernel.go` - `handleKernelSuccess`
+  builds `ppp.StartSession` for an L2TP session: sets `AuthMethod`, `AuthRequired`,
   `AuthTimeout`, `ReauthInterval`, NCP flags, the three proxy LCP slices and
   `EchoInterval`. It sets neither `MaxMRU` nor `AuthFallbackOrder`.
-- [ ] `internal/component/l2tp/ppp/manager.go` - session construction
-  (l.470-497): `MaxMRU` zero becomes `MaxFrameLen` (1500); an empty
+- [ ] `internal/component/l2tp/ppp/manager.go` - session construction in
+  `Driver.spawnSession`: `MaxMRU` zero becomes `MaxFrameLen` (1500); an empty
   `AuthFallbackOrder` becomes `defaultAuthFallbackOrder()`;
   `configuredAuthMethod` is `initialAuthMethod(start.AuthMethod, fallback)`.
 - [ ] `internal/component/l2tp/ppp/auth.go` - `defaultAuthFallbackOrder`
@@ -136,12 +136,14 @@ without the option.
   acceptable", which `manager.go` contradicts by replacing an empty list with
   the default. `initialAuthMethod` replaces a configured PAP with the first
   CHAP variant in the order.
-- [ ] `internal/component/l2tp/ppp/session_run.go` - `runAuthPhase`
-  (l.740-758): with `AuthMethodNone` and `authRequired`, fails the session
+- [ ] `internal/component/l2tp/ppp/session_run.go` - `runAuthPhase`: with
+  `AuthMethodNone` and `authRequired`, fails the session
   ("no negotiated authentication method") AFTER LCP reached Opened.
-  `sendConfigureRequest` (l.1845-1870) requests MRU `localMRU` or `maxMRU`.
-  The Nak handler (l.1340-1365) adopts a Nak'd MRU only when it is within
-  `MinFrameLen..maxMRU`. The proxy short-circuit (l.199-260) takes
+  `sendConfigureRequest` requests MRU `localMRU` or `maxMRU`.
+  The Configure-Nak and Configure-Reject branch of `handleLCPPacket` adopts a
+  Nak'd MRU only when it is within `MinFrameLen..maxMRU`. The proxy
+  short-circuit at the start of `run` (the branch taken when the LAC sent
+  proxy LCP AVPs) takes
   `proxy.AuthProto` from the LAC's Last-Sent Configure-Request through
   `authMethodFromAuthProto` with no check against any policy, and takes the
   MRU from Last-Received only.
@@ -151,17 +153,17 @@ without the option.
 - [ ] `internal/component/l2tp/ppp/proxy.go` - `EvaluateProxyLCP` reads MRU
   and Magic from Last-Received, Auth-Protocol and Magic from Last-Sent; it
   does not read Last-Sent's MRU (what the LAC asked the client to send).
-- [ ] `internal/component/l2tp/pppoe/server.go` - PADS path (l.335-355):
+- [ ] `internal/component/l2tp/pppoe/server.go` - PADS path in `handlePADR`:
   `MaxMRU: PPPoEMaxMTU` (1492), `AuthMethod`, `AuthRequired`; no
   `AuthFallbackOrder`.
 - [ ] `internal/component/l2tp/config.go` - parses `auth-method` and
-  `allow-no-auth` (l.240-250); `DefaultAuthMethod` is CHAP-MD5.
+  `allow-no-auth` in `ExtractParameters`; `DefaultAuthMethod` is CHAP-MD5.
 - [ ] `internal/component/l2tp/pppoe/config.go` - same leaves for PPPoE.
-- [ ] `internal/component/l2tp/yang/ze-l2tp-conf.yang` - `auth-method`
-  (l.50-61) "The default requires CHAP-MD5."; `authentication` container
+- [ ] `internal/component/l2tp/yang/ze-l2tp-conf.yang` - leaf `auth-method`
+  "The default requires CHAP-MD5."; `authentication` container
   holds `timeout` and `reauth-interval` only.
-- [ ] `internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` - `auth-method`
-  (l.56), `allow-no-auth` (l.75).
+- [ ] `internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` - leaves
+  `auth-method` and `allow-no-auth`.
 - [ ] `internal/component/l2tp/subsystem_reload.go` - hot-applies
   `auth-method` and `allow-no-auth` to new sessions through reactor setters.
 
@@ -212,7 +214,42 @@ without the option.
 1. YANG parse → `ExtractParameters` (`l2tp/config.go`) and the PPPoE config
    parser fill `Parameters.MRU` and `Parameters.AuthAllow`.
 2. Validation refuses an allow-list that omits `auth-method`, that contains
-   `none`, or an `mru` outside the range.
+   `none`, any allow-list while `auth-method` is `none`, or an `mru` outside
+   the range.
+
+#### Authentication list semantics
+
+The list is a set of acceptable methods plus one ordering rule. Written order
+matters only between the two CHAP variants.
+
+| Question | Rule | Source |
+|----------|------|--------|
+| Which method is offered first | `auth-method` when it is a CHAP variant; when it is `pap`, the first CHAP variant in the list's written order, else PAP | RFC 1334 Section 2 (CHAP before PAP); `initialAuthMethod` already replaces a configured PAP with the first CHAP variant of its order |
+| Order between `chap-md5` and `ms-chap-v2` | the list's written order, after `auth-method` | RFCs 1994, 2433 and 2759 state no preference between them; accel-ppp offers its auth modules in registration order (`ppp_auth_register_handler` appends to the handler list that `auth_init` walks), which the operator sets by module order, so the operator's written order is the established practice |
+| Peer Naks with a suggestion in the list, not yet tried | adopt the suggestion | RFC 1661 Section 5.3: Nak'd options "MAY be modified as specified in the Configure-Nak"; today's `selectAuthFallback` |
+| Peer Naks with PAP while an untried CHAP variant is in the list | offer that CHAP variant next; PAP only once no CHAP variant is left | RFC 1334 Section 2 "MUST offer to negotiate that method prior to PAP" |
+| Peer Naks with a method outside the list or already tried, or Rejects the option | offer the next untried method in the order above | RFC 1661 Section 6.2, "SHOULD attempt the next most desirable protocol"; accel-ppp `auth_recv_conf_nak` walks its list the same way |
+| No untried method left, authentication required | LCP closed with Terminate-Request before Opened (AC-5) | RFC 1661 Section 3.5; accel-ppp fails LCP ("cann't negotiate authentication type") |
+| No untried method left, `allow-no-auth true` | the option is dropped and the no-auth phase runs (AC-10) | today's path |
+| An empty list | cannot be written: a leaf-list with no entry is absent, and an absent list is the derived default. The derived default for `auth-method none` is the empty list, which the driver reads as "request no Auth-Protocol"; `manager.go`'s substitution of the full default order is deleted | YANG leaf-list semantics; `selectAuthFallback`'s own comment |
+| `none` in the list | refused at verify: `none` is the absence of a method, not a fallback | AC-9 |
+| `auth-method none` with a list | refused at verify, naming both leaves and the fix (delete the list, or set `auth-method` to a method in it) | the list must contain `auth-method` and may not contain `none`, so no list satisfies both |
+
+Test matrix, `TestAuthAllowSelectionMatrix` (`internal/component/l2tp/ppp/auth_test.go`), one subtest per row:
+
+| `auth-method` | list | Peer's answers | Ze offers, in order | Outcome |
+|---------------|------|----------------|---------------------|---------|
+| `chap-md5` | absent | Ack | CHAP-MD5 | CHAP-MD5 |
+| `chap-md5` | absent | Nak PAP | CHAP-MD5 | Terminate-Request |
+| `chap-md5` | `[chap-md5 pap]` | Nak PAP, Ack | CHAP-MD5, PAP | PAP |
+| `chap-md5` | `[chap-md5 ms-chap-v2 pap]` | Nak PAP, Nak PAP, Ack | CHAP-MD5, MS-CHAPv2, PAP | PAP |
+| `ms-chap-v2` | `[chap-md5 ms-chap-v2]` | Nak CHAP-MD5, Ack | MS-CHAPv2, CHAP-MD5 | CHAP-MD5 |
+| `pap` | absent | Nak PAP, Ack | CHAP-MD5, PAP | PAP |
+| `pap` | `[pap ms-chap-v2 chap-md5]` | Reject, Reject, Ack | MS-CHAPv2, CHAP-MD5, PAP | PAP |
+| `chap-md5` | absent, `allow-no-auth true` | Reject | CHAP-MD5, then no option | no-auth phase |
+| `none` | absent | - | no Auth-Protocol option | no authentication |
+| `none` | `[chap-md5]` | - | - | refused at verify |
+| `chap-md5` | `[pap]` | - | - | refused at verify (omits `auth-method`) |
 3. Reactor (`reactor_kernel.go`) and PPPoE server (`server.go`) copy both
    into `ppp.StartSession.MaxMRU` and `ppp.StartSession.AuthFallbackOrder`.
 4. `ppp.Driver` builds the session; `initialAuthMethod` and
@@ -252,7 +289,7 @@ without the option.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | No existing test or interop scenario relies on `chap-md5` falling back to PAP | grep of `test/interop-pppoe/scenarios/pppoe-pap-ze-ac` and `test/interop-l2tp/scenarios/*/ze.conf` for `auth-method` | A scenario configured `chap-md5` with a PAP-only client goes red; it is reconfigured to `auth-method pap`, which the test judge reviews | grep in Phase 1, then the scenario runs | unvalidated |
 | A-2 | Closing LCP before Opened on exhaustion interoperates: pppd and accel-ppp clients treat a Terminate-Request in Req-Sent/Ack-Sent as a normal failure | RFC 1661 Section 4.1 state table (RTR in those states: sta) | A client loops redialling fast | interop scenario `pppoe-chap-only-pap-client` asserts one PADT and the logged cause | unvalidated |
-| A-3 | Ze's receive side stays at 1500 when `mru` is lower | `docs/guide/l2tp.md` l.232-235; `frame.go` `MaxFrameBufLen` | RFC 1661 Section 6.1 MUST breaks | unit test sends a 1500-octet frame to a session with `mru 1492` | unvalidated |
+| A-3 | Ze's receive side stays at 1500 when `mru` is lower | `docs/guide/l2tp.md` "PPP negotiation" (the kernel receive MRU sentence); `frame.go` `MaxFrameBufLen` | RFC 1661 Section 6.1 MUST breaks | unit test sends a 1500-octet frame to a session with `mru 1492` | unvalidated |
 | A-4 | The cap on the peer's MRU (Nak above `MaxMRU`) is wanted together with the requested MRU | `LCPNegPolicy.MaxMRU` couples them today for PPPoE; accel-ppp `mru_init` caps both with `max_mtu` | An operator wants asymmetric MRUs | Key Design Decisions records it; no second leaf added | unvalidated |
 
 ### Risks
@@ -297,7 +334,7 @@ without the option.
 | AC-12 | LNS with `mru 1492` receives proxy LCP whose Last-Sent carries no MRU (1500) | The proxy LCP is not used; Ze renegotiates with MRU 1492 |
 | AC-13 | PPPoE AC with `chap-md5`, a pppd client that refuses CHAP | Session ends in LCP with PADT; no PAP authentication happens |
 | AC-14 | Reload changes `mru` or the allow-list | New sessions use the new value; established sessions keep theirs |
-| AC-15 | `ze show l2tp` / session snapshot | The session shows the requested MRU and the negotiated method (existing fields) with the configured value |
+| AC-15 | `ze show l2tp config`, and `ze show l2tp session id <id>` on an LNS session | `show l2tp config` carries `mru` (the configured value, 1500 when absent) and `authentication-allow` (the effective list, the derived default when absent). `show l2tp session id <id>` carries `mru` (the negotiated MRU) and `auth-method` (the negotiated method). None of these keys exists today: `handleConfig` (`internal/component/l2tp/cmd/l2tp.go`) carries `auth-method` and `allow-no-auth` only, and `sessionJSON` reads `SessionSnapshot` (`snapshot.go`), which holds no MRU and no method; both files join Files to Modify. Proof: `TestConfigJSONMRUAndAllowList` and `TestSessionJSONMRUAndAuthMethod` (`internal/component/l2tp/cmd/l2tp_test.go`); `test/l2tp/lns-mru-auth-allow-config.ci` asserts the two config keys from a started daemon; the session keys on a live session are asserted by child 19's `access-up` checker (LNS `mru` 1492, `auth-method` `chap-md5`) |
 
 ## End-to-End User Stories
 
@@ -327,6 +364,9 @@ without the option.
 | `TestL2TPStartSessionCarriesAuthAllowList` | `internal/component/l2tp/reactor_ppp_linux_test.go` | wiring | |
 | `TestPPPoEStartSessionCarriesAuthAllowList` | `internal/component/l2tp/pppoe/server_test.go` | wiring | |
 | `TestReloadAppliesMRUAndAllowToNewSessions` | `internal/component/l2tp/subsystem_reload_test.go` | AC-14 | |
+| `TestAuthAllowSelectionMatrix` | `internal/component/l2tp/ppp/auth_test.go` | the authentication list semantics, one subtest per matrix row | |
+| `TestConfigJSONMRUAndAllowList` | `internal/component/l2tp/cmd/l2tp_test.go` | AC-15, config keys, derived default included | |
+| `TestSessionJSONMRUAndAuthMethod` | `internal/component/l2tp/cmd/l2tp_test.go` | AC-15, session keys | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -411,7 +451,7 @@ the old order, the MRU leaf ignored) to show it goes red.
 | 14 | Prometheus counters added/changed? | Yes | the PPP metrics section of `docs/guide/l2tp.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived with `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-16-lns-mru-and-auth-allow-list.md` at implementation |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `l2tp {}` example at `docs/guide/l2tp.md` l.22-34 |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `l2tp {}` example in `docs/guide/l2tp.md` "Configuration" |
 
 ## Implementation Steps
 

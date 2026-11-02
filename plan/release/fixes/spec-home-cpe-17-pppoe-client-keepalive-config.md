@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Feature: an operator migrating a CPE carries its LCP echo and redial settings; Ze fixes them at 10 s by 3 failures and a 1 to 60 s backoff. Nothing misbehaves with the defaults. |
 | RFC gaps | - |
-| Depends | - (touches `keepaliveLoop`, which `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` also changes; land after 12 to avoid a merge on the same loop) |
+| Depends | Implementation: `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` (it changes `keepaliveLoop` too, and its scripted access concentrator is the harness of this spec's entry-point test). Closure: no scenario; the tests in this spec are its evidence |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-31 |
@@ -40,11 +40,11 @@ the same.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/l2tp/pppoeclient/session.go` l.18-26 - constants `echoInterval` 10 s, `echoMaxFailures` 3, also `lcpNegotiationTimeout`, `authTimeout`, `ncpTimeout` 30 s, `papRetryInterval` 3 s, `papRequestsMax` 5. `sessionConfig` carries MTU, username, password, channel fd only
-- [ ] `internal/component/l2tp/pppoeclient/network_phase.go` `keepaliveLoop` (l.94) - ticker at `echoInterval`; each tick sends an Echo-Request and increments the failure count, ends the session when the count reaches `echoMaxFailures`; any Echo-Reply resets it to zero
+- [ ] `internal/component/l2tp/pppoeclient/session.go` - the package `const` block at the top of the file: `echoInterval` 10 s, `echoMaxFailures` 3, also `lcpNegotiationTimeout`, `authTimeout`, `ncpTimeout` 30 s, `papRetryInterval` 3 s, `papRequestsMax` 5. `sessionConfig` carries MTU, username, password, channel fd only
+- [ ] `internal/component/l2tp/pppoeclient/network_phase.go` `keepaliveLoop` - ticker at `echoInterval`; each tick sends an Echo-Request and increments the failure count, ends the session when the count reaches `echoMaxFailures`; any Echo-Reply resets it to zero
 - [ ] `internal/component/iface/pppoe_client.go` - `reconnectBaseDelay` 1 s, `reconnectMaxDelay` 60 s; `run` waits `ReconnectDelay(attempts)` after each failed session; `ReconnectDelay` doubles from the base, shift capped at 6, clamped at the max (1, 2, 4, 8, 16, 32, 60 s). `attempts` resets to zero only when a session reaches Up. `PPPoEClientConfig` has no timing fields. `pppoeClientConfigChanged` restarts the client when any listed field changes. No caller outside the file uses `ReconnectDelay`
-- [ ] `internal/component/iface/config.go` - `pppoeClientEntry`, `parsePPPoEClientEntry` (l.977) read leaves from the config map; `route-priority` and `mtu` show the parse pattern with defaults applied at parse
-- [ ] `internal/component/iface/yang/ze-iface-conf.yang` l.1708 - `list pppoe-client` with `source-interface`, `authentication`, `service-name`, `ac-name`, `no-default-route`, `route-priority`, plus `interface-common`
+- [ ] `internal/component/iface/config.go` - `pppoeClientEntry`, `parsePPPoEClientEntry` read leaves from the config map; `route-priority` and `mtu` show the parse pattern with defaults applied at parse
+- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `list pppoe-client` under `container interface` with `source-interface`, `authentication`, `service-name`, `ac-name`, `no-default-route`, `route-priority`, plus `interface-common`
 - [ ] LNS side for comparison: `internal/component/l2tp/ppp/start_session.go` `EchoFailures`, `session_run.go` `defaultEchoInterval` 10 s; accel-ppp exposes `lcp-echo-interval` and `lcp-echo-failure` in `[ppp]` (seen in `test/interop-pppoe/scenarios/pppoe-chap-rechallenge-ze-client/accel-ppp.conf`)
 
 **Behavior to preserve:**
@@ -122,9 +122,24 @@ the same.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `keepalive interval 2; failures 2` in config | → | parse, reconcile, `Dial`, `keepaliveLoop` | `TestPPPoEClientKeepaliveFromConfig` (fake dialer asserts the received values) |
-| `reconnect delay-min 5; delay-max 20` | → | `run` backoff | `TestPPPoEClientReconnectDelayFromConfig` |
+| `keepalive interval 2; failures 2` in config | → | parse, reconcile, `Dial`, `keepaliveLoop` | `TestPPPoEClientKeepaliveFromConfig` (fake dialer asserts the received values; proves the hand-over only) |
+| `reconnect delay-min 5; delay-max 20` | → | `run` backoff | `TestPPPoEClientReconnectDelayFromConfig` (proves the hand-over only) |
 | config file through `ze config validate` | → | YANG and parse | `test/parse/pppoe-client-keepalive.ci` |
+| a config tree applied through the iface plugin's config apply (the entry the daemon's transaction calls), the production dialer, a real kernel PPP unit | → | parse, `reconcilePPPoEClients`, `PPPoEClient.run`, `Dial`, `keepaliveLoop`, backoff, reload | `TestPPPoEClientKeepaliveConfigEndToEnd` (`internal/component/l2tp/pppoeclient/keepalive_config_integration_linux_test.go`, user namespace, scripted access concentrator on a veth pair) |
+
+`TestPPPoEClientKeepaliveConfigEndToEnd` is the entry-point proof; the two
+fake-dialer rows prove only that values are handed over. It reuses the
+scripted access concentrator `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md`
+builds for `TestDialRenegotiatesLCPInNetworkPhase`, moved into a shared test
+helper package `internal/test/pppoeac` (beside `internal/test/userns`) so both
+tests use one copy: this is why child 12 is an implementation prerequisite.
+Its three subtests assert what the access concentrator observes, not timing:
+
+| Subtest | Steps | Assertion |
+|---------|-------|-----------|
+| detection | apply `keepalive interval 1; failures 2`; session up; the AC stops answering Echo-Requests | the AC receives exactly 2 unanswered Echo-Requests on the session, then a PADT from the client; the client's state leaves `up` |
+| backoff | apply `reconnect delay-min 1; delay-max 2`; the AC answers PADI with no PADO | the gaps between successive PADIs are at least 1 s, then at least 2 s, then at least 2 s (lower bounds only: the bound proves the configured delay was waited, an upper bound would measure the machine) |
+| reload uptake | session up with `failures 2`; apply a reload changing only `failures 3` | the session id is unchanged (no restart, AC-6); after the AC drops the session and the client reconnects, the AC receives exactly 3 unanswered Echo-Requests before the PADT |
 
 ## Acceptance Criteria
 
@@ -156,6 +171,7 @@ the same.
 | `TestPPPoEClientReloadKeepsSessionOnTimerChange` | same | AC-6, AC-7 | |
 | `TestKeepaliveEndsAtConfiguredFailures` | `internal/component/l2tp/pppoeclient/session_test.go` | AC-2 with an injected short interval | |
 | `TestPPPoEClientDelayMaxBelowMin` | `internal/component/iface/config_test.go` | AC-4 | |
+| `TestPPPoEClientKeepaliveConfigEndToEnd` | `internal/component/l2tp/pppoeclient/keepalive_config_integration_linux_test.go` | AC-2, AC-3, AC-6 from the config apply entry point through the real dialer (Wiring Test table) | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |

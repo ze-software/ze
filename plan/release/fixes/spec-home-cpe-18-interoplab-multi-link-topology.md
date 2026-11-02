@@ -19,10 +19,15 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 The interop harness runs one suite at a time, one Docker network per scenario,
-one Ze container per scenario, and only the images its own runner builds. A
-scenario that keeps two daemons apart declares VLAN links, but that mechanism
-lives inside the BGP package (`labLink`, `scenarioLinks`) and accepts only the
-three containers the BGP start wrapper knows (`ze`, `frr`, `frr-sink`).
+and only the images its own runner builds. Several Ze nodes per scenario exist
+already, each inside one suite: the BGP suite starts a second Ze, `ze-peer`,
+from `ze-peer.conf` (`zeDaemonPeer`), and the RSVP-TE suite fills up to four
+roles with Ze nodes from `<role>.conf`, each with VLANs from a typed
+`<role>-net.txt` (`zeNodeScript`). A BGP scenario that keeps two daemons apart
+declares VLAN links, but that mechanism lives inside the BGP package
+(`labLink`, `scenarioLinks`) and accepts only the three containers the BGP
+start wrapper knows (`ze`, `frr`, `frr-sink`). Existing Mechanisms says what
+of each is reused and what is replaced.
 
 The home-CPE lab needs, in ONE scenario: a LAN segment, an access segment that
 carries PPPoE and nothing else, a core segment and an internet segment; three
@@ -72,15 +77,15 @@ declaration and stays green.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/le/interoplab/lab.go` - `ScenarioPlan` (l.40) holds one `NetworkSpec`, `Peers`, `Containers` and a `Preparer`; `Suite` (l.73) holds `Images []ImageBuild` built by the suite's own runner; `Suite.Run` probes the Docker kernel with the staged ze before any image build (`DockerKernel(s.StagedZe)`, l.257); `runScenario` (l.370) pre-cleans, creates the one network (`CreateNetwork`), runs `Prepare`, starts each peer on that network and hands the checker a `CheckContext` with that `Network`. `CheckerLab` (l.172) addresses every peer by name.
-- [ ] `internal/le/interoplab/docker.go` - `NetworkSpec` (l.156: name, subnet candidates), `Network` (selected IPv4 and IPv6), `PeerConfig` (l.195: name, container, image, host number, mounts, capabilities, environment, arguments, command, ready probe, AppArmor profile), `ImageBuild` (l.109).
+- [ ] `internal/le/interoplab/lab.go` - `ScenarioPlan` holds one `NetworkSpec`, `Peers`, `Containers` and a `Preparer`; `Suite` holds `Images []ImageBuild` built by the suite's own runner; `Suite.Run` probes the Docker kernel with the staged ze before any image build (`DockerKernel(s.StagedZe)`); `Suite.runScenario` pre-cleans, creates the one network (`CreateNetwork`), runs `Prepare`, starts each peer on that network and hands the checker a `CheckContext` with that `Network`. The `CheckerLab` interface addresses every peer by name.
+- [ ] `internal/le/interoplab/docker.go` - `NetworkSpec` (name, subnet candidates), `Network` (selected IPv4 and IPv6), `PeerConfig` (name, container, image, host number, mounts, capabilities, environment, arguments, command, ready probe, AppArmor profile), `ImageBuild`.
 - [ ] `internal/le/interoplab/bgp/prepare_links.go` - `labLink` (VLAN, IPv4 /24 at most, members as indexes into `linkLocalOwners`), `scenarioLinks` map filled by register files, `renderLinks` and `validateLink` (refusals), `writeLinkScript` (adds a VLAN subinterface of `eth0` named `eth<N>` in declaration order, its address, link up).
-- [ ] `internal/le/interoplab/bgp/prepare.go` - `linkLocalOwners` (l.755) lists three owners with their entrypoint and image command; `wrapStart` (l.827) replaces a member's entrypoint with a shell script that adds the eth0 link-local, the links and the prestart, then execs the original entrypoint.
+- [ ] `internal/le/interoplab/bgp/prepare.go` - `linkLocalOwners` lists three owners (`ze`, FRR, the FRR sink, one per `labconfig.LinkLocals` entry) with their entrypoint and image command; `wrapStart` replaces a member's entrypoint with a shell script that adds the eth0 link-local, the links and the prestart, then execs the original entrypoint.
 - [ ] `internal/le/interoplab/bgp/register_import_policy.go` - the one `scenarioLinks` entry (`isis-import-policy-frr`, VLANs 101 and 102).
 - [ ] `internal/le/interoplab/catalog.go`, `discover.go` - `RegisterCatalog` and `Discover`, shared by every suite.
 - [ ] `internal/le/interoplab/l2tp/l2tp.go`, `radiussubscriber/radiussubscriber.go`, `pppoe/pppoe.go`, `ipsec/ipsec.go`, `internal/le/test/deployment/wireguardproof.go` - each builds its own `interoplab.Suite` with its own `imageBuilds`; `l2tp` and `radiussubscriber` name their single Ze peer `peerZe = "ze"`. 113 non-test call sites in `internal/le/interoplab` address the Ze peer by that literal.
 - [ ] `internal/le/interoplab/pppdevice.go` - `PPPDeviceArguments`, the `/dev/ppp` grant every PPP container needs.
-- [ ] `internal/le/test/integration/gates.go` - the `interop*` verbs (l.141, l.167).
+- [ ] `internal/le/test/integration/gates.go` - the `interop*` verbs in the action list `Table` returns (`interop`, `interop-ipsec`, `interop-radius`, `interop-radius-subscriber` and the rest).
 
 **Behavior to preserve:**
 - Every existing suite, scenario name, catalog entry, selector variable and native action.
@@ -104,6 +109,8 @@ declaration and stays green.
 | Per-suite image lists | `Suite.Images` in each suite builder (`l2tp/l2tp.go`, `radiussubscriber/radiussubscriber.go`, `pppoe/pppoe.go`, `ipsec/ipsec.go`, `internal/le/test/deployment/wireguardproof.go`) | each suite builds its own `[]ImageBuild` | replaces: images register by name in the core and suites derive their lists from that registry |
 | Scenario catalog and discovery | `internal/le/interoplab/catalog.go` `RegisterCatalog`, `discover.go` `Discover` | shared by every suite | extends: the new `topology` suite registers through it unchanged |
 | `/dev/ppp` grant | `internal/le/interoplab/pppdevice.go` `PPPDeviceArguments` | the device grant every PPP container needs | extends: reused by the `two-ze-pppoe-link` scenario |
+| Second Ze daemon in the BGP suite | `internal/le/interoplab/bgp/prepare.go` `zeDaemonPeer`, `scenarioPeers`; `bgp/names.go` `peerZePeer`, `zePeerConfigFile`; `docs/architecture/testing/interop.md` "Scenario Structure" (`ze-peer.conf`) | a `ze-peer.conf` starts a second Ze, `ze-peer`, on FRR's host 3 (`ospf-multiaf-v4-frr`); a scenario carrying both `frr.conf` and `ze-peer.conf` is refused | reuses: `zeDaemonPeer` is how a Ze node starts, and the core's several-Ze-nodes plan calls it for each node; replaces: the fixed `ze-peer` name and fixed host become one planned Ze node of the core declaration, so the BGP suite keeps `ze-peer.conf` as its file name and its refusal, and builds the node through the core like every other Ze node. So "no scenario runs two Ze nodes" in the Task is wrong: the BGP suite runs two, and the RSVP-TE suite up to four |
+| Role topology of the RSVP-TE suite | `internal/le/interoplab/rsvpte/zenode.go` `zeNodeScript`, `netLineVLAN`; `docs/architecture/testing/interop.md` "The freeRouter RSVP-TE suite" | up to four nodes in fixed roles on one segment; `<role>.conf` makes a role a Ze node; each Ze node's `<role>-net.txt` declares `vlan <name> id <n> address <a/len>` and `route` lines that `zeNodeScript` turns into its start command | reuses: the role idea (a named node, a configuration file per node, typed declarations built into commands in Go, no shell script in a scenario) is the shape of the core declaration; replaces: the `vlan` lines are links by another name, so they move to the core link declaration in this change (`ai/rules/no-layering.md`), and `zeNodeScript` keeps only the `route` lines and the MPLS sysctls as the node's prestart. The RSVP-TE scenarios stay green with the same devices and addresses (added to Behavior to preserve). Its freeRouter nodes join the segment through `rawInt.bin`, not VLANs, and are not link members |
 | Integration verbs | `internal/le/test/integration/gates.go` | the `interop*` native actions | extends: one `interop-topology` verb |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -185,12 +192,14 @@ declaration and stays green.
 | AC-3 | A link declares an IPv6 prefix | each member gets the /64 address with its host number as the low octet, `nodad` |
 | AC-4 | A link has a VLAN outside 1 to 4094 or reused, an IPv4 prefix longer than /24, an IPv6 prefix not /64, fewer than two members, a member twice, or a member the scenario does not plan | the scenario fails before any container starts, and the message names the link, the fault and the fix |
 | AC-5 | A link member's image has no `sh` or no `ip` | the suite refuses before the scenario starts, naming the image and its Dockerfile |
-| AC-6 | A scenario plans three Ze peers with distinct names and configuration files | each starts with its own file; the checker queries each by name |
+| AC-6 | A scenario plans three Ze peers with distinct names and configuration files | each starts with its own file; the checker queries each by name. Evidence: the smoke scenario `two-ze-static-link` is replaced by `ze-static-link-chain`, three Ze nodes A, B and C on two IPv4 links (A-B and B-C, B forwarding), whose checker runs `show interface brief` on each node by name and pings C from A through B; `two-ze-pppoe-link` stays the two-node layer-2 smoke |
 | AC-7 | `isis-import-policy-frr` after the move | green, same devices and addresses; `labLink`, `scenarioLinks` and `renderLinks` exist nowhere |
+| AC-7b | `ospf-multiaf-v4-frr` (BGP suite `ze-peer`) and every RSVP-TE scenario after the move | green, same devices and addresses; no `vlan` line parser remains in `rsvpte/zenode.go` |
 | AC-8 | A topology scenario names an image another suite registered (FreeRADIUS, strongSwan, accel-ppp) | the image is built once by the registry's declaration and the container runs |
 | AC-9 | A scenario names an unregistered image | refused at plan time, naming the registered images |
 | AC-10 | Two suites register the same image name | the registration panics at init with both owners named |
-| AC-11 | Each existing suite runs its full scenario list | same verdicts as before; its image list comes from the registry |
+| AC-11 | Each existing suite's image list comes from the registry | development evidence, owed by this spec's closure: `TestSuiteImageListsUnchanged` compares each suite's registry-derived image list with the list it built before the change, and each suite runs one named scenario green (`./le test integration <verb> <scenario>`), plus in full the suites whose start path this spec moves (`isis-import-policy-frr`, `ospf-multiaf-v4-frr`, the RSVP-TE scenarios) |
+| AC-11b | Each existing suite runs its full scenario list | same verdicts as before. This is the release check, not development evidence: it is cited from the CI `verify` workflow run on the pushed commit (`ai/META-DECISIONS.md`, "Ze is pre-release"), and the spec's closure does not wait on a local run of every suite |
 | AC-12 | A topology scenario on a host whose kernel lacks an enrolled feature | `Suite.Run` refuses, as every suite does |
 
 ## 🧪 TDD Test Plan
@@ -218,7 +227,7 @@ declaration and stays green.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `two-ze-static-link` | `test/interop-topology/scenarios/` | two Ze nodes on an IPv4 link ping each other; a third container on eth0 cannot reach the link address | |
+| `ze-static-link-chain` | `test/interop-topology/scenarios/` | three Ze nodes A, B, C on two IPv4 links (A-B, B-C); each answers `show interface brief` by name; A pings C through B; a container on eth0 alone cannot reach a link address (AC-1, AC-6) | |
 | `two-ze-pppoe-link` | `test/interop-topology/scenarios/` | Ze PPPoE client and Ze PPPoE server on a prefix-less link reach IPCP Opened | |
 
 ### Interop Tests (Scope: protocol)
@@ -296,7 +305,7 @@ Deleted: `internal/le/interoplab/bgp/prepare_links.go`.
    - Tests: `TestBGPImportPolicyLinksUnchanged`, scenario `isis-import-policy-frr`
    - Verify: grep finds no `labLink`; scenario green
 4. **Phase: Image registry** -- every suite registers; runners derive their lists
-   - Tests: `TestImageRegistryDuplicatePanics`, `TestPlanRefusesUnknownImage`; one scenario per suite on the host that runs full suites
+   - Tests: `TestImageRegistryDuplicatePanics`, `TestPlanRefusesUnknownImage`, `TestSuiteImageListsUnchanged`; one named scenario per suite, and in full the moved start paths (AC-11). The full list of every suite is AC-11b, the CI release run
    - Verify: AC-8, AC-11
 
 ### Critical Review Checklist

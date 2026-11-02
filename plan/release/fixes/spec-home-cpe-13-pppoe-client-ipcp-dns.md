@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | A home CPE learns its resolvers from the access network; the PPPoE client never asks for them, so a router with no static `name-server` cannot resolve names once the WAN is up. The `access-up` scenario of the umbrella asserts DNS learned from IPCP. No accepted configuration misbehaves today (the options are never sent), so this is a feature (P3) even though the umbrella lists it as a release fix; the umbrella orders it last. |
 | RFC gaps | rfc1877, RFC1661-5.4-5 |
-| Depends | `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` (shares `negotiateIPCP`; a renegotiated IPCP re-learns DNS) |
+| Depends | Implementation: `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` (the re-enterable `negotiateIPCP` and the change record this spec adds DNS to). Closure: the DNS clause of `access-up` (child 19 AC-6), which this spec owns inside child 19's scenario, needs `spec-home-cpe-19-access-chain-scenario.md` implemented |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-31 |
@@ -53,14 +53,14 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/l2tp/pppoeclient/auth.go` (78L) - `buildIPCPRequest` allocates a 10-octet IPCP packet with option 3 only; `parseIPCPNakAddress` reads option 3 only
-- [ ] `internal/component/l2tp/pppoeclient/session.go` - `negotiateIPCP` (l.623) keeps the outstanding request in a 12-octet array (frame header plus 10). On Configure-Nak it takes only `options.IPAddress` from `ppp.ParseIPCPOptions` and resends. On any Configure-Reject with data it fails the session with "server rejected IPCP IP-Address option", whatever option was rejected. On a peer Configure-Request it Rejects every option except IP-Address. `ipcpResult` holds local and peer address only; `sessionResult` and `iface.PPPoESession` carry no DNS
+- [ ] `internal/component/l2tp/pppoeclient/auth.go` - `buildIPCPRequest` allocates a 10-octet IPCP packet with option 3 only; `parseIPCPNakAddress` reads option 3 only
+- [ ] `internal/component/l2tp/pppoeclient/session.go` - `negotiateIPCP` keeps the outstanding request in a 12-octet array (frame header plus 10). On Configure-Nak it takes only `options.IPAddress` from `ppp.ParseIPCPOptions` and resends. On any Configure-Reject with data it fails the session with "server rejected IPCP IP-Address option", whatever option was rejected. On a peer Configure-Request it Rejects every option except IP-Address. `ipcpResult` holds local and peer address only; `sessionResult` and `iface.PPPoESession` carry no DNS
 - [ ] `internal/component/l2tp/ppp/ipcp.go` - `IPCPOptPrimaryDNS` (129), `IPCPOptSecondaryDNS` (131), `ParseIPCPOptions` fills `PrimaryDNS` and `SecondaryDNS`, `WriteIPCPOptions` encodes them. The LNS side already offers DNS
-- [ ] `internal/component/iface/pppoe_client.go` - `runSession` applies address, MTU and default route; nothing touches resolvers. The iface package does not import `internal/component/config/system`, and `system` does not depend on iface (checked with `go list -deps`), so the import is cycle-free
-- [ ] `internal/component/config/system/resolv.go` - `Resolvers` is the only writer of resolv.conf; `servers()` returns the static name-servers alone when any are configured (RFC 3646 Section 6 quote above `Resolvers`), else every lease's servers ordered by `resolverOrigin` (DHCPv4 then DHCPv6), then interface, then unit. `ResolverSource` is built only by `DHCPv4ResolverSource` and `DHCPv6ResolverSource`; the zero source is refused
+- [ ] `internal/component/iface/pppoe_client.go` - `runSession` applies address, MTU and default route; nothing touches resolvers. `PPPoEClient.status` builds a `pppoeClientStatus` snapshot and has no caller outside tests (only `pppoe_client_test.go` and `rfc2516_pppoe_client_test.go` call it), so no command shows a `pppoe-client` today: `show interface` (`ze-iface-interface-cmd.yang`) has `brief`, `scan`, `type`, `errors`, `rate` and `name`, and `show pppoe` (`ze-pppoe-cmd.yang`) covers the access concentrator's sessions only. The iface package does not import `internal/component/config/system`, and `system` does not depend on iface (checked with `go list -deps`), so the import is cycle-free
+- [ ] `internal/component/config/system/resolv.go` - `Resolvers` is the only writer of resolv.conf; `servers()` returns the static name-servers alone when any are configured (RFC 3646 Section 6 quote above `Resolvers`), else every lease's servers ordered by `compareResolverSources`: `resolverOrigin`, then interface, then unit. `resolverOrigin` is a closed `uint8` enumeration in `resolv.go` (`resolverOriginUnspecified`, `resolverOriginDHCPv4`, `resolverOriginDHCPv6`) whose numeric order is the resolv.conf order. `ResolverSource` is built only by `DHCPv4ResolverSource` and `DHCPv6ResolverSource`, each naming its constant; the zero source is refused (`errUnnamedResolverSource`, whose text names both constructors). Their only non-test caller is the DHCP client's `resolv_linux.go` (`SetLease` in the DHCPv4 and DHCPv6 paths); its `register.go` hands the client `system.ProcessResolvers()` as the `Resolvers` field
 - [ ] `internal/plugins/iface/dhcp/resolv_linux.go` - the DHCP client sets and withdraws its lease with `SetLease`; empty list withdraws
-- [ ] `cmd/ze/hub/main_system.go` l.185 - `Configure(ResolvConfPath, NameServers)` on every reload
-- [ ] accel-ppp `accel-pppd/ppp/ipcp_opt_dns.c` `dns_recv_conf_req` (l.97-111): Reject when the option length is not 6 or no `[dns]` server is configured, Ack when the value equals the configured server, else Nak. So a server with no DNS configured Rejects, and today's client would fail on that Reject once the options are sent
+- [ ] `cmd/ze/hub/main_system.go` `applyResolvConf` - `ProcessResolvers().Configure(ResolvConfPath, NameServers)` on every reload
+- [ ] accel-ppp `accel-pppd/ppp/ipcp_opt_dns.c` `dns_recv_conf_req`: Reject when the option length is not 6 or no `[dns]` server is configured, Ack when the value equals the configured server, else Nak. So a server with no DNS configured Rejects, and today's client would fail on that Reject once the options are sent
 
 **Behavior to preserve:**
 - A Reject of IP-Address still fails the session
@@ -78,7 +78,10 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 | Client IPCP request and Nak parse | `internal/component/l2tp/pppoeclient/auth.go` `buildIPCPRequest`, `parseIPCPNakAddress` | a fixed 10-octet request with option 3 only; reads option 3 only from a Nak | replaces: deleted, the shared codec takes their place (no layering) |
 | Client IPCP negotiation | `internal/component/l2tp/pppoeclient/session.go` `negotiateIPCP`, `ipcpResult`, `sessionResult` | negotiates the address only; any Reject fails the session | extends: requests DNS, adopts Nak values, drops Rejected options; results carry DNS |
 | PPPoE client session apply | `internal/component/iface/pppoe_client.go` `PPPoEClient.runSession`, `PPPoESession` | applies address, MTU and default route; touches no resolver | extends: sets and withdraws a resolver lease |
-| resolv.conf writer | `internal/component/config/system/resolv.go` `Resolvers`, `Resolvers.SetLease`, `Resolvers.servers`, `resolverOrigin`, `DHCPv4ResolverSource`, `DHCPv6ResolverSource` | the only writer of resolv.conf; static servers win, else leases ordered by origin | extends: a PPP origin after DHCPv6 and a `PPPResolverSource` constructor |
+| resolv.conf writer | `internal/component/config/system/resolv.go` `Resolvers`, `Resolvers.SetLease`, `Resolvers.servers`, `compareResolverSources` | the only writer of resolv.conf; static servers win, else leases ordered by origin | extends: unchanged as the one writer; leases order by a registered rank instead of a closed constant |
+| Lease origin enumeration | `internal/component/config/system/resolv.go` `resolverOrigin` constants, `DHCPv4ResolverSource`, `DHCPv6ResolverSource`, `errUnnamedResolverSource` | a closed list of lease protocols; adding PPP means editing it | replaces: deleted (no layering). Each lease producer registers its origin from its own `init()` with a name and a rank, and gets back an origin value it builds its sources from; `Resolvers` orders by rank, then interface, then unit. The DHCP client registers DHCPv4 and DHCPv6 with ranks that keep today's order; the PPPoE client registers PPP with a rank after both |
+| Ranked registration precedent | `internal/component/aaa/aaa.go` `Backend.Priority`; `internal/component/aaa/types.go` `Default` and `backendRegistry.Build` | each AAA backend registers and declares a priority; the bundle orders by it and no list names a backend | the shape this spec copies: a producer declares its rank where it registers, and the consumer sorts, never enumerates |
+| Interface show command | `internal/component/iface/yang/ze-iface-interface-cmd.yang` `show interface`; `internal/component/iface/pppoe_client.go` `PPPoEClient.status` | `show interface` answers links; `status` has no caller | extends: a `pppoe-client` node under `show interface`, registered by iface beside `brief` and `type`, answers from `status`, which gains the learned servers |
 | DHCP resolver lease | `internal/plugins/iface/dhcp/resolv_linux.go` (`SetLease` with `DHCPv4ResolverSource` / `DHCPv6ResolverSource`) | sets and withdraws the DHCP lease's servers; an empty list withdraws | does not apply: unchanged, it is the pattern the PPP lease follows |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -93,7 +96,9 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 4. Ack (validated against the last request): DNS values in the request become the learned servers; a 0.0.0.0 value means none
 5. `sessionResult` and `iface.PPPoESession` carry the two addresses
 6. `runSession` calls `SetLease` with a PPP source named by the `pppoe-client` name, primary first; on session end it withdraws with an empty list
-7. `Resolvers` writes resolv.conf: static wins, else DHCPv4, DHCPv6, then PPP sources
+7. On a child 12 change record (sent after every completed renegotiation, whether or not a value differs), `runSession` compares the record's servers with the ones it leased: when they differ it calls `SetLease` with the new list (an empty list withdraws), even when no address, peer address or MTU changed; when they are equal it makes no call
+8. `Resolvers` writes resolv.conf: static wins, else leases by registered rank (DHCPv4, DHCPv6, then PPP), then interface, then unit
+9. `show interface pppoe-client` reads `PPPoEClient.status`, which carries the leased servers
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -103,8 +108,8 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 
 ### Integration Points
 - `system.Resolvers.SetLease` and a new PPP source constructor
-- Child 12: a renegotiated IPCP produces new values through its change record; the lease is replaced
-- `show` status of the pppoe-client gains the learned servers
+- Child 12: every completed renegotiation sends a change record with the whole IPCP result; this spec adds the two resolver addresses to that result, so a DNS-only change reaches `runSession` with no change to child 12's notification rule
+- `show interface pppoe-client` (new): JSON object per client, keys `name`, `state`, `source-interface`, `ppp-interface`, `session-id`, `local-ip`, `peer-ip`, `uptime`, `dns-servers` (list, primary first, empty when none were learned)
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -113,8 +118,8 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 | No unintended coupling | Yes | iface receives the `Resolvers` value, as the DHCP plugin does |
 | No duplicated functionality | Yes | uses `ppp.ParseIPCPOptions`, `ppp.WriteIPCPOptions` instead of the hand-built request |
 | Zero-copy preserved where applicable | Yes | request written into the existing frame buffer |
-| Registration over hardcoding, outbound | N-A | no command or handler |
-| Registration over hardcoding, inbound | No, justified | `resolverOrigin` in `resolv.go` is a closed ranking of lease protocols and gains a PPP value; the ranking is one decision that must live in one place. Searched: `resolverOrigin`, `compareResolverSources`, `DHCPv4ResolverSource` callers |
+| Registration over hardcoding, outbound | Yes | the `show interface pppoe-client` node is declared in iface's own command YANG and handler, the way `show interface type` is |
+| Registration over hardcoding, inbound | Yes | the closed `resolverOrigin` enumeration is deleted; each lease producer registers its origin and rank from `init()` (the `aaa` `Priority` shape), so a new lease protocol edits only its own package. The relative order is still one decision: it is the ranks, each declared beside its producer, and a duplicate rank or name panics at registration. Searched: `resolverOrigin`, `compareResolverSources`, `DHCPv4ResolverSource` and `DHCPv6ResolverSource` callers (DHCP `resolv_linux.go` only, outside tests) |
 
 ## Risks & Assumptions
 
@@ -161,7 +166,10 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 | AC-8 | Session ends (Done) | learned servers withdrawn; DHCP leases' servers untouched |
 | AC-9 | A DHCPv4 lease and a PPP lease both present | DHCPv4 servers first, then PPP servers, no duplicates |
 | AC-10 | Nak carrying 0.0.0.0 for a DNS option | value not recorded |
-| AC-11 | `show` for the pppoe-client | lists the learned servers |
+| AC-11 | `show interface pppoe-client` with a session up and servers learned | the client's object carries `dns-servers` `["192.0.2.53", "192.0.2.54"]` in that order; with none learned the key is an empty list, never absent |
+| AC-12 | A child 12 renegotiation in the network phase that leaves local address, peer address and MTU unchanged and Naks new DNS values 192.0.2.63 and 192.0.2.64 | resolv.conf lists 192.0.2.63 then 192.0.2.64; no address, route or MTU backend call |
+| AC-13 | A renegotiation whose server Rejects 129 and 131 | the PPP lease is withdrawn; resolv.conf falls back to the other sources |
+| AC-14 | DHCPv4, DHCPv6 and PPP origins registered | resolv.conf order is DHCPv4, DHCPv6, PPP, exactly today's order for the first two; a second registration of a name or a rank panics at init |
 
 ## End-to-End User Stories
 
@@ -180,6 +188,10 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 | `TestRFC1661ClientDropsRejectedDNSOptions` | same | AC-3, AC-4 (RFC 1661 Section 5.4) | |
 | `TestRFC1661ClientFailsOnRejectedIPAddress` | same | AC-5 | |
 | `TestResolversPPPSourceAfterDHCP` | `internal/component/config/system/resolv_test.go` | AC-9 | |
+| `TestResolverOriginRegistryOrdersByRank` | `internal/component/config/system/resolv_test.go` | AC-14: order follows rank; duplicate name or rank panics | |
+| `TestPPPoEClientReplacesResolverLeaseOnDNSOnlyChange` | `internal/component/iface/pppoe_client_test.go` | AC-12: a change record with equal addresses and new servers calls `SetLease` once and no address, route or MTU backend method | |
+| `TestPPPoEClientWithdrawsLeaseWhenRenegotiationDropsDNS` | `internal/component/iface/pppoe_client_test.go` | AC-13 | |
+| `TestShowInterfacePPPoEClientDNSServers` | `internal/component/iface/pppoe_client_test.go` | AC-11: the handler's JSON for a fake client, both with servers and with none | |
 | `TestResolversStaticBeatsPPP` | same | AC-7 | |
 | `TestPPPoEClientSetsResolverLease` | `internal/component/iface/pppoe_client_test.go` | AC-6, AC-8 with a fake dialer | |
 
@@ -191,21 +203,26 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N-A | - | a `.ci` cannot host an access concentrator; interop carries the end-to-end proof | |
+| `show-interface-pppoe-client` | `test/plugin/show-interface-pppoe-client.ci` (`option=needs-linux`: the dialer is linked only on Linux) | an operator with a `pppoe-client` on a link with no access concentrator runs `show interface pppoe-client` and gets the client's object with `state` `discovery` and `dns-servers` `[]` | |
+| (session up) | - | a `.ci` cannot host an access concentrator, so the populated `dns-servers` is asserted by the `01-pppoe-chap-ipv4` checker, which runs `ze show interface pppoe-client` in the Ze container | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `01-pppoe-chap-ipv4` (extended: `[dns]` dns1, dns2) | `test/interop-pppoe/scenarios/` | accel-ppp | Nak values reach resolv.conf in order | |
+| `01-pppoe-chap-ipv4` (extended: `[dns]` dns1, dns2) | `test/interop-pppoe/scenarios/` | accel-ppp | Nak values reach resolv.conf in order, and `show interface pppoe-client` lists them (AC-11) | |
+| `access-up`, DNS clause (child 19 AC-6) | `test/interop-topology/scenarios/access-up/`, scenario owned by child 19, clause owned by this spec | Ze LNS through Ze LAC | the LNS's IPCP DNS reaches the CPE's resolv.conf | |
 | `pppoe-ipcp-dns-rejected-ze-client` | `test/interop-pppoe/scenarios/` | accel-ppp without `[dns]` | Reject handled, session up | |
 
 ## Files to Modify
 - `internal/component/l2tp/pppoeclient/auth.go` - request built with `ppp.WriteIPCPOptions` for the outstanding option set; `parseIPCPNakAddress` replaced by `ppp.ParseIPCPOptions` (no layering)
 - `internal/component/l2tp/pppoeclient/session.go` - `negotiateIPCP` option set, Nak, Reject, Ack handling; `ipcpResult` and `sessionResult` DNS fields
 - `internal/component/l2tp/pppoeclient/dialer.go` - copy DNS to `iface.PPPoESession`
-- `internal/component/iface/pppoe_client.go` - `PPPoESession` DNS fields, lease set and withdraw, status fields
-- `internal/component/config/system/resolv.go` - PPP origin after DHCPv6, `PPPResolverSource(name)`; the doc comment on `Resolvers` names the PPP source
-- the iface registration that hands `Resolvers` to the PPPoE client
+- `internal/component/iface/pppoe_client.go` - `PPPoESession` DNS fields, lease set, replace on a change record, withdraw; `pppoeClientStatus` gains the servers; `init` registers the PPP origin
+- `internal/component/iface/yang/ze-iface-interface-cmd.yang` - `show interface pppoe-client`
+- the iface command handler file that serves `show interface type` (located with `gopls` from the YANG path at implementation) - the `pppoe-client` handler reading `PPPoEClient.status`
+- `internal/component/iface/pppoe_client.go` `reconcilePPPoEClients` (called from `register.go`) - the PPPoE clients it starts receive `system.ProcessResolvers()`, as the DHCP plugin's `register.go` hands it to the DHCP client
+- `internal/component/config/system/resolv.go` - delete the `resolverOrigin` constants and the two DHCP constructors; add origin registration by name and rank, and a source constructor taking a registered origin; `errUnnamedResolverSource` text names the registration; the doc comments on `Resolvers` and `ResolverSource` follow
+- `internal/plugins/iface/dhcp/register.go`, `internal/plugins/iface/dhcp/resolv_linux.go` - register the DHCPv4 and DHCPv6 origins from `init()` and build sources from them
 - `test/interop-pppoe/scenarios/01-pppoe-chap-ipv4/accel-ppp.conf` and its checker
 - `docs/architecture/l2tp/cpe-1-pppoe-client.md`, `docs/features/interfaces.md` (DNS row names PPPoE)
 - `rfc/short/rfc1877.md` - client-side implementation note and test links
@@ -234,12 +251,12 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | Yes | `features/` PPPoE client entry |
+| 1 | New user-facing feature? | Yes | `features/interfaces.md` (the interface feature entry names DNS learned from IPCP) |
 | 2 | Config syntax changed? | No | |
-| 3 | CLI command added/changed? | Yes | show output of the pppoe-client gains DNS; `docs/guide/command-reference.md` if it lists the fields |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`: `show interface pppoe-client` and its keys |
 | 4 | API/RPC added/changed? | No | |
 | 5 | Plugin added/changed? | No | |
-| 6 | Has a user guide page? | Yes | interfaces guide, PPPoE client section |
+| 6 | Has a user guide page? | Yes | `docs/guide/configuration.md`, the `pppoe-client` subsection child 12 adds: resolvers learned from IPCP, ranked after DHCP and below static `name-server` |
 | 7 | Wire format changed? | No | options already defined |
 | 8 | Plugin SDK/protocol changed? | No | |
 | 9 | RFC behavior implemented? | Yes | `rfc/short/rfc1877.md`, `docs/features/rfc-status.md` |
@@ -259,7 +276,7 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
    - Files: `pppoe_client.go`, `resolv.go`, iface registration
    - Verify: test fails because no DNS arrives from the dialer
 2. **Phase: IPCP options** -- request, Nak, Reject, Ack; AC-1 to AC-5, AC-10
-3. **Phase: ranking and show** -- AC-6, AC-7, AC-9, AC-11
+3. **Phase: ranking, renegotiation and show** -- origin registration (DHCP converted in the same commit), AC-6, AC-7, AC-9, AC-11 to AC-14
 4. **Phase: interop** -- extend `01-pppoe-chap-ipv4`, add the Reject scenario; red proof by removing the options from the request
 
 ### Critical Review Checklist
@@ -267,13 +284,14 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 |-------|------------------------------|
 | Correctness | Ack and Reject still validated byte-for-byte against the last request with the new option set |
 | Data flow | resolv.conf written only through `Resolvers` |
-| Rule: no-layering | the hand-built request and `parseIPCPNakAddress` are deleted, not kept beside the new path |
+| Rule: no-layering | the hand-built request and `parseIPCPNakAddress` are deleted, not kept beside the new path; the `resolverOrigin` constants and the two DHCP constructors are deleted in the commit that adds registration |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
 | DNS options in the request | unit hex test |
-| PPP source | `grep -n PPPResolverSource internal/component/config/system/resolv.go` |
+| Origin registration | `grep -n resolverOriginDHCPv4 internal/component/config/system/resolv.go` finds nothing; `TestResolverOriginRegistryOrdersByRank` passes |
+| Show command | `test/plugin/show-interface-pppoe-client.ci` passes |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -329,7 +347,7 @@ every server that has no DNS to offer.
 - [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-11 all demonstrated
+- [ ] AC-1..AC-14 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] Targeted tests pass; `./le verify changed` over the closing commits
 - [ ] Every A-N confirmed or broken
