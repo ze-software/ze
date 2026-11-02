@@ -762,11 +762,18 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 		s.reactor.RegisterCacheConsumer(proc.Name(), input.CacheConsumerUnordered)
 	}
 
-	// Validate declared dependencies against the configured plugin set.
-	// Internal deps were auto-added by expandDependencies() in the config loader.
-	// External deps must be explicitly configured by the operator.
+	// Validate declared dependencies against the plugins this daemon runs. A
+	// dependency is met by a plugin the operator configured, or by one a
+	// startup phase loaded: auto-load resolves a registry plugin's
+	// dependencies (registry.ResolveDependencies) and starts them in the same
+	// phase, which marks every member loaded before any Stage 1 begins
+	// (runPluginPhaseWithin). An external program's dependency is resolved by
+	// nobody, so the operator configures it or this refuses.
 	for _, dep := range input.Dependencies {
-		if !s.hasConfiguredPlugin(dep) {
+		if s.hasConfiguredPlugin(dep) {
+			continue
+		}
+		if !s.isPluginLoaded(dep) {
 			logger().Error("rpc startup: dependency not configured", "plugin", proc.Name(), "dependency", dep)
 			return fmt.Errorf("missing dependency: plugin %q requires %q", proc.Config().Name, dep)
 		}

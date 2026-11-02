@@ -641,8 +641,14 @@ and merges the response into the base map. Proxy enrichers are cleaned up via
 A plugin CAN list `dependencies`, `optional-dependencies` and `start-after` in
 its `declare-registration`. They are the ordering edges a compiled-in
 plugin's registration carries (`Dependencies`, `OptionalDependencies`,
-`StartAfter`): a `dependencies` entry must be configured or Stage 1 is
-refused, and the other two order only and load nothing. The engine keeps the
+`StartAfter`): a `dependencies` entry must name a plugin this daemon runs or
+Stage 1 is refused, and the other two order only and load nothing. A
+dependency is met by a plugin the `plugin { }` block configures, or by one a
+startup phase loaded: auto-load resolves a compiled-in plugin's registry
+dependencies and starts them in the same phase, so `bgp-gr` auto-loaded for
+`bgp { }` finds the `bgp-rib` started beside it. An external program's
+dependencies are resolved by nobody, so the operator configures them. The
+engine keeps the
 three with the process's registration. State events are delivered in reverse
 dependency order, and a process that runs an external program takes its edges
 from this declaration alone, never from a registration that shares its name.
@@ -657,7 +663,7 @@ and the RIB take theirs.
 | `optional-dependencies` | list | Plugins this plugin is ordered after when they run |
 | `start-after` | list | Plugins this plugin starts after when they run |
 
-<!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC -->
+<!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC, onRegistration, runPluginPhaseWithin -->
 <!-- source: internal/component/bgp/server/events.go -- sortByReverseDependencyTier -->
 
 **Session-Ready Declaration (Stage 1):**
