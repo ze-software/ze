@@ -34,6 +34,7 @@ func init() {
 	Register("plugin/role-otc-egress-stamp", plugin14Observer("test-stamp", plugin14OTCEgressStamp))
 	Register("plugin/role-otc-export-unknown", plugin14Observer("test-unknown", plugin14OTCExportUnknown))
 	Register("plugin/role-otc-fwd-withdraw", plugin14Observer("test-withdraw", plugin14OTCForwardWithdrawal))
+	Register("plugin/role-otc-malformed-treat-as-withdraw", plugin14Observer("test-malformed-otc", plugin14OTCMalformedWithdraw))
 	Register("plugin/role-otc-ingress-reject", plugin14Observer("test-otc", plugin14OTCIngressReject))
 	Register("plugin/role-otc-rs-client-dest-stamp", plugin14Observer("test-rs-client-stamp", plugin14OTCRSClientStamp))
 	Register("plugin/role-otc-rs-withdraw-eor", plugin14Observer("test-rs-eor", plugin14OTCRSWithdrawEOR))
@@ -463,6 +464,19 @@ func plugin14OTCForwardWithdrawal(ctx context.Context, plugin *sdk.Plugin) error
 		return err
 	}
 	return plugin14WaitDestUpdates(ctx, plugin, 2, "the forwarded withdrawal")
+}
+
+// plugin14OTCMalformedWithdraw holds the daemon up until the dest peer was
+// sent both UPDATEs it asserts: first the announcement carrying the length-4
+// OTC, then the treat-as-withdraw withdrawal the length-3 OTC causes (RFC 9234
+// Section 5). The bytes are judged by the dest peer's expect lines; this
+// observer only decides when shutdown is safe, and a dest that never gets the
+// second UPDATE is an error rather than a timeout.
+func plugin14OTCMalformedWithdraw(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := plugin14WaitDestUpdates(ctx, plugin, 1, "the length-4 OTC announcement"); err != nil {
+		return err
+	}
+	return plugin14WaitDestUpdates(ctx, plugin, 2, "the treat-as-withdraw withdrawal")
 }
 
 func plugin14OTCIngressReject(ctx context.Context, plugin *sdk.Plugin) error {
