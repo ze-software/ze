@@ -301,7 +301,8 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 	// needs them (filter_insertion.go), then prepend the operator's default
 	// filters (loop-detection) unless already referenced, so loop detection
 	// stays at the head of every import chain.
-	if err := insertDeclaredFilters(bgpTree, peers, groups, filterReg); err != nil {
+	conditional, err := insertDeclaredFilters(bgpTree, peers, groups, filterReg)
+	if err != nil {
 		return nil, nil, err
 	}
 	prependDefaultFilters(policyTree, settings, filterReg)
@@ -312,7 +313,7 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := compileLibraryChains(settings, filterReg, bases); err != nil {
+	if err := compileLibraryChains(settings, conditional, filterReg, bases); err != nil {
 		return nil, nil, err
 	}
 

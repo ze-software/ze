@@ -694,6 +694,22 @@ func (s *Server) thirdPartyFilterInsertions() []registry.ProcessFilterInsertions
 	return answer
 }
 
+// loadedPluginNames answers the registry names of every process this server
+// runs, configured or auto-loaded, under each name its config files it by
+// (plugin.RegistryNames), sorted and unique (registry.LoadedPlugins).
+func (s *Server) loadedPluginNames() []string {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return nil
+	}
+	var names []string
+	for _, proc := range pm.AllProcesses() {
+		names = append(names, plugin.RegistryNames(proc.Config())...)
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
+}
+
 // hasCompiledRegistration reports whether a compiled registration describes
 // the process cfg configures, under any name it may be filed by.
 func hasCompiledRegistration(cfg plugin.PluginConfig) bool {
@@ -736,6 +752,9 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	// Stage 1, which no compiled registration carries
 	// (spec-filter-wire-6-stage-filters A-12).
 	registry.SetRuntimeFilterInsertions(s.thirdPartyFilterInsertions)
+	// Config load places a compiled-in plugin's insertions only where this
+	// daemon runs that plugin.
+	registry.SetRuntimeLoadedPlugins(s.loadedPluginNames)
 
 	// Start plugin phases asynchronously (non-blocking)
 	// Phase 1: Explicit plugins

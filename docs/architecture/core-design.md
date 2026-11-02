@@ -1496,13 +1496,17 @@ inactive references do not establish operator policy presence.
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, UnconfiguredAccepts, Policy.InProcess, Policy.WithBoundFilters -->
 
 **Auto-inserted members.** A plugin can ask the config loader to insert a
-member into the list of each peer whose config needs it: its Stage 1
+member into the list of each peer whose config needs it, in a daemon that
+runs the plugin (`registry.LoadedPlugins`): its Stage 1
 registration carries `filter-insertions` (`rpc.FilterInsertion`: the
-reference it serves, `import` or `export`, a priority 0-9999, a config path
-of the peer, optionally with values, and `required` with its reason;
+reference it serves, `import` or `export`, a priority 0-9999, one condition,
+a config path of the peer, optionally with values, or session facts of the
+peer that some owner registered, and `required` with its reason;
 `docs/architecture/api/process-protocol.md`, "Filter Insertion"). After the
 chains are canonical, the loader judges each insertion against the peer's
-resolved config (bgp, group and peer, a dynamic group's template) and
+resolved config (bgp, group and peer, a dynamic group's template) or its
+session facts (`policyview.SessionConditionHolds`; for a dynamic group, per
+peer once its OPEN gives its AS, `templatedChain.CompileResolved`) and
 prepends the members whose condition holds, in ascending priority then
 reference, ahead of the operator's members and behind loop detection. The
 loader names no plugin, feature or path: it reads only the declarations. A

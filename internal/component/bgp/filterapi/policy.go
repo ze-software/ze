@@ -22,9 +22,11 @@ import (
 // when the chain names none.
 //
 // templated is set on a dynamic group's template whose chain names a member
-// through a config variable ($remote_as, $local_as, $remote_ip): such a
-// template has no library, because the instance a member names is known only
-// once a peer's OPEN resolves the variable. CompileResolved compiles it then.
+// through a config variable ($remote_as, $local_as, $remote_ip), or holds a
+// member a plugin inserted under a session condition: such a template has no
+// library, because the instance a member names, or whether the condition
+// holds, is known only once a peer's OPEN arrives. CompileResolved compiles
+// it then.
 // Safe for concurrent use: callers MUST NOT mutate borrowed refs or bindings.
 type Policy struct {
 	chain           policy.Chain
@@ -42,11 +44,13 @@ type Policy struct {
 // it MUST hold no func, and two built from the same config MUST be equal.
 type TemplatedChain interface {
 	// CompileResolved answers resolved, the template with its variables
-	// replaced, judged as a static peer's chain is at load and compiled. A
-	// resolved name that no instance matches, or that the attachment refuses,
-	// answers an error AND a policy whose chain rejects every route (fail
-	// closed); the caller MUST install that policy, never the unresolved one.
-	CompileResolved(resolved Policy) (Policy, error)
+	// replaced, for the peer whose facts are peer, judged as a static peer's
+	// chain is at load and compiled: an inserted member whose session
+	// condition does not hold for peer is dropped. A resolved name that no
+	// instance matches, or that the attachment refuses, answers an error AND
+	// a policy whose chain rejects every route (fail closed); the caller MUST
+	// install that policy, never the unresolved one.
+	CompileResolved(resolved Policy, peer PeerFilterInfo) (Policy, error)
 }
 
 // LibraryChain is a policy's compiled in-process chain over the BGP route
@@ -127,17 +131,18 @@ func (p Policy) Templated() bool { return p.templated != nil }
 
 // CompileResolved answers p, whose variables the caller already resolved
 // (WithBoundFilters over the resolved refs), compiled by the template's
-// TemplatedChain; p unchanged when the template named no member through a
-// variable, since its library already names the same instances. On error the
-// returned policy fails closed and the caller MUST install it
-// (TemplatedChain.CompileResolved). The answer is never templated again.
-func (p Policy) CompileResolved() (Policy, error) {
+// TemplatedChain for the peer whose facts are peer; p unchanged when the
+// template is not templated, since its library already names the same
+// instances. On error the returned policy fails closed and the caller MUST
+// install it (TemplatedChain.CompileResolved). The answer is never templated
+// again.
+func (p Policy) CompileResolved(peer PeerFilterInfo) (Policy, error) {
 	if p.templated == nil {
 		return p, nil
 	}
 	templated := p.templated
 	p.templated = nil
-	return templated.CompileResolved(p)
+	return templated.CompileResolved(p, peer)
 }
 
 // Library answers the compiled library chain, nil when the policy has none.

@@ -452,7 +452,10 @@ exactly those peers, group inheritance included. The path must be a node the
 daemon compiled. Your plugin's own YANG is not compiled yet
 (`schema.md`, "What works today"), so a third-party plugin conditions on a
 path one of ze's modules defines; a plugin compiled into ze conditions only on
-config its own module adds. Declare the insertions in the `Registration` you
+config its own module adds. In place of the path, an insertion can carry a
+`session` condition: session facts of the peer that must all hold, such as
+`ibgp` `false` and `rs-client` `false` for every bilateral eBGP session; a
+dynamic peer is judged when its OPEN arrives. Declare the insertions in the `Registration` you
 pass to `p.Run`: that Stage 1 declaration is all ze knows of a third-party
 plugin, and ze places the members before any peer starts. Name your filter by
 the process name ze runs you under (`<name>:<filter>`, the name your

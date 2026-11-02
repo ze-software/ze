@@ -52,13 +52,19 @@ const insertionTestYANG = `module ze-test-inserter-conf {
 }`
 
 // registerInserter registers a compiled-in plugin, with insertionTestYANG as
-// its module, that declares the given insertions, restoring the registry and
+// its module, that declares the given insertions and that the daemon under
+// test runs, restoring the registry, the loaded-plugins seam and
 // the module set when the test ends.
 func registerInserter(t *testing.T, insertions ...rpc.FilterInsertion) {
 	t.Helper()
 	snap := registry.Snapshot()
 	t.Cleanup(func() { registry.Restore(snap) })
 	t.Cleanup(configyang.RegisterModuleForTest("ze-test-inserter-conf.yang", insertionTestYANG))
+	// The daemon under test runs fake-inserter: a compiled-in plugin's
+	// insertions apply only where it runs (registry.LoadedPlugins), and a
+	// plugin server another test started leaves its own answer installed.
+	registry.SetRuntimeLoadedPlugins(func() []string { return []string{"fake-inserter"} })
+	t.Cleanup(func() { registry.SetRuntimeLoadedPlugins(nil) })
 	require.NoError(t, registry.Register(registry.Registration{
 		YANG:        insertionTestYANG,
 		Name:        "fake-inserter",
@@ -218,6 +224,10 @@ func TestThirdPartyInsertionAppliesFromStageOne(t *testing.T) {
 		}}
 	})
 	t.Cleanup(func() { registry.SetRuntimeFilterInsertions(nil) })
+	// The daemon runs the third party and no compiled-in inserter, so no
+	// compiled plugin's member joins the list (registry.LoadedPlugins).
+	registry.SetRuntimeLoadedPlugins(func() []string { return []string{"third-party"} })
+	t.Cleanup(func() { registry.SetRuntimeLoadedPlugins(nil) })
 
 	peers, err := insertionPeers(t, "")
 	require.NoError(t, err)
@@ -253,6 +263,10 @@ func TestReloadVerifyAppliesRuntimeInsertions(t *testing.T) {
 		}}
 	})
 	t.Cleanup(func() { registry.SetRuntimeFilterInsertions(nil) })
+	// The daemon runs the third party and no compiled-in inserter, so no
+	// compiled plugin's member joins the list (registry.LoadedPlugins).
+	registry.SetRuntimeLoadedPlugins(func() []string { return []string{"third-party"} })
+	t.Cleanup(func() { registry.SetRuntimeLoadedPlugins(nil) })
 
 	reload := createTreeReloadFunc()
 	candidate := func(peerA string) map[string]any {

@@ -402,6 +402,26 @@ module ze-plugin-engine {
                     description "When given, the leaf must equal one of them.";
                     ze:help "Leaf values that meet the condition";
                 }
+                list session {
+                    description
+                        "A session condition, in place of config: every fact listed holds for
+                         the peer. A fact is a session fact some owner registered (the BGP view
+                         registers ibgp, rs-client, peer-as and the other peer facts). A
+                         dynamic peer is judged when its OPEN arrives.";
+                    ze:help "Session facts the condition reads";
+                    leaf fact {
+                        type string { length "1..128"; }
+                        description "The registered session fact.";
+                        ze:help "Session fact name";
+                    }
+                    leaf-list values {
+                        type string;
+                        description
+                            "When given, the fact's text form must equal one of them: a flag
+                             reads true or false, an AS number in decimal.";
+                        ze:help "Fact values that meet the condition";
+                    }
+                }
                 leaf required {
                     type boolean;
                     default false;

@@ -382,6 +382,7 @@ resolved config (bgp, group and peer merged) meets the condition, ahead of the
 operator's members. No engine or config code names the feature, the plugin or
 the path (`ai/META-DECISIONS.md`, "Goal and scope").
 <!-- source: internal/component/plugin/registry/filter_insertion.go -- CheckFilterInsertions -->
+<!-- source: internal/component/plugin/registry/session_fact.go -- RegisterSessionFact -->
 <!-- source: internal/component/config/schema_origin.go -- CheckFilterInsertionPaths, SchemaNodeModule -->
 
 | Field | Type | Meaning |
@@ -391,13 +392,30 @@ the path (`ai/META-DECISIONS.md`, "Goal and scope").
 | `filter-insertions[].priority` | number | 0 to 9999; inserted members run in ascending priority, then reference |
 | `filter-insertions[].config` | list | The words of the path the condition reads under the peer's resolved entry (`["role"]`) |
 | `filter-insertions[].values` | list | When given, the leaf must equal one of them; absent means the path is present |
+| `filter-insertions[].session` | list | A session condition, in place of `config`: every listed fact holds for the peer |
+| `filter-insertions[].session[].fact` | string | A session fact some owner registered: the BGP view registers `peer-name`, `peer-group`, `peer-address`, `local-as`, `peer-as`, `route-server-as`, `ibgp` and `rs-client` |
+| `filter-insertions[].session[].values` | list | When given, the fact's text form must equal one of them (a flag `true` or `false`, an AS number in decimal, an address in its canonical form); absent means the peer has the fact |
 | `filter-insertions[].required` | bool | The operator cannot name, move or deactivate the member |
 | `filter-insertions[].reason` | string | The text the refusal prints; owed when `required` is true |
 
+An insertion carries exactly one condition, `config` or `session`. A session
+condition binds a member by the kind of session rather than by a feature's
+config: `[{"fact": "ibgp", "values": ["false"]}, {"fact": "rs-client",
+"values": ["false"]}]` reaches every bilateral eBGP session, the peers RFC 7999
+Section 3.1 obliges an agreement with. The facts are those of the peer itself,
+known from its config: a fact known only per route (the `source-*` facts of an
+exported route) or per negotiation (`llgr-advertised`) is not registered as one.
+A static peer is judged at config load. A dynamic group's template states no
+remote AS, so the member is placed in the template and each peer of the group
+keeps or drops it when its OPEN gives its AS, before its chain compiles.
+<!-- source: internal/component/bgp/policyview/session.go -- SessionConditionHolds -->
+<!-- source: internal/component/bgp/config/templated_chain.go -- keepHolding -->
+
 Stage 1 refuses an insertion naming a reference the plugin does not serve, a
-direction other than `import` or `export`, a priority outside 0 to 9999, an
-empty or holed path, a required insertion with no reason, and the same
-reference twice for one direction. It also refuses a condition path that is
+direction other than `import` or `export`, a priority outside 0 to 9999, no
+condition or both, an empty or holed path, a session fact no owner registered
+or named twice, `values` beside a session condition, a required insertion with
+no reason, and the same reference twice for one direction. It also refuses a condition path that is
 not a node of the compiled schema under `bgp peer` (an external plugin's own
 YANG is not compiled, `docs/plugin-development/schema.md`), and, for a plugin
 compiled into ze, a path whose first word names a node another module
@@ -405,7 +423,15 @@ defines: a compiled-in plugin conditions only on config its own YANG module
 adds, so its member lands only where config it owns is set. A third-party
 plugin, started by the operator's `plugin external` entry, may condition on any
 compiled path. Config load judges a compiled-in plugin's insertions by the same
-rules. An operator who names a non-required member in
+rules, and places them only in a daemon that runs that plugin, configured or
+auto-loaded because its config is set: the plugin that owns the procedure is
+its scope, and the condition then picks the peers, so a session-condition
+member needs no config of its plugin on the peer. Where no plugin server runs
+(an offline `ze config validate`), nothing says which plugins load, and every
+compiled-in plugin's insertions are placed, so a refusal a daemon could meet
+is reported there too.
+<!-- source: internal/component/bgp/config/filter_insertion.go -- declaredInsertions -->
+<!-- source: internal/component/plugin/registry/filter_declaration.go -- LoadedPlugins --> An operator who names a non-required member in
 the list places it there, and `inactive:` on it runs the session without it,
 as for a loop-detection default; naming a required member in any form is
 refused at verify with the plugin's reason, naming the peer, the list and the
@@ -416,13 +442,15 @@ Stage 1 declaration is the only record of them: the engine stores them with
 the process's registration, and config load reads them, for every running
 process no compiled registration describes, beside the compiled
 registrations' own. The daemon builds its peers from the config before any
-plugin reaches Stage 1, so when a third-party plugin declared an insertion,
-the BGP subsystem rebuilds its peers from the running config once every
+plugin reaches Stage 1, and a compiled-in plugin's insertions apply only
+once it runs, so when a running plugin declared an insertion, the BGP
+subsystem rebuilds its peers from the running config once every
 plugin finished startup and before the first peer starts; a peer whose
 filter lists did not change is left as it is. A refusal there (an operator
 naming a required member, say) starts no peer and logs the reason. A later
 reload reads the same insertions, so it keeps the members in place.
-<!-- source: internal/component/plugin/server/server.go -- thirdPartyFilterInsertions -->
+<!-- source: internal/component/plugin/server/server.go -- thirdPartyFilterInsertions, loadedPluginNames -->
+<!-- source: internal/component/bgp/plugin/register.go -- runningPluginsInsert -->
 <!-- source: internal/component/bgp/config/filter_insertion.go -- declaredInsertions -->
 <!-- source: internal/component/bgp/reactor/reload_tree.go -- RebuildRunningPeers -->
 

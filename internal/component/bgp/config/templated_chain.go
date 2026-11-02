@@ -12,7 +12,9 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // chainVariables are the config variables a dynamic peer resolves in a chain
@@ -129,6 +131,17 @@ type templatedChain struct {
 	context    string
 	// members indexes the refs that named their filter through a variable.
 	members []int
+	// conditional names the members plugins inserted under a session
+	// condition, judged per peer once its OPEN gives its AS (insertForPeer).
+	conditional []sessionMember
+}
+
+// sessionMember is a member a plugin inserted into a dynamic group's
+// template under a session condition (rpc.FilterInsertion.Session): it stays
+// in a member's chain only where the condition holds for that member's facts.
+type sessionMember struct {
+	filter    string
+	condition []rpc.FilterSessionFact
 }
 
 var _ filterapi.TemplatedChain = (*templatedChain)(nil)
@@ -139,8 +152,8 @@ var _ filterapi.TemplatedChain = (*templatedChain)(nil)
 // (canonicalizeFilterRefs), checked (validateChainNames), and the chain is
 // compiled (compileLibraryChain). A refusal answers the error and a policy
 // whose library rejects every route, for the caller to install.
-func (c *templatedChain) CompileResolved(resolved filterapi.Policy) (filterapi.Policy, error) {
-	compiled, err := c.compile(resolved)
+func (c *templatedChain) CompileResolved(resolved filterapi.Policy, peer filterapi.PeerFilterInfo) (filterapi.Policy, error) {
+	compiled, err := c.compile(resolved, peer)
 	if err == nil {
 		return compiled, nil
 	}
@@ -151,13 +164,16 @@ func (c *templatedChain) CompileResolved(resolved filterapi.Policy) (filterapi.P
 	return resolved.WithLibrary(closed), err
 }
 
-func (c *templatedChain) compile(resolved filterapi.Policy) (filterapi.Policy, error) {
-	refs := append([]policy.Ref(nil), resolved.Filters()...)
-	var bound []bool
-	if bindings := resolved.Bindings(); bindings != nil {
-		bound = append([]bool(nil), bindings...)
+func (c *templatedChain) compile(resolved filterapi.Policy, peer filterapi.PeerFilterInfo) (filterapi.Policy, error) {
+	refs, bound, err := c.keepHolding(resolved, peer)
+	if err != nil {
+		return resolved, err
 	}
-	for _, i := range c.members {
+	members := c.members
+	if len(c.conditional) > 0 {
+		members = templatedMembers(resolved.WithBoundFilters(refs, bound))
+	}
+	for _, i := range members {
 		if err := validateChainNames(c.reg, refs[i:i+1], false, c.attachment, c.context); err != nil {
 			return resolved, err
 		}
@@ -171,4 +187,42 @@ func (c *templatedChain) compile(resolved filterapi.Policy) (filterapi.Policy, e
 		}
 	}
 	return compileLibraryChain(resolved.WithBoundFilters(refs, bound), c.reg, c.bases, c.attachment, c.context)
+}
+
+// keepHolding answers the refs and bindings of resolved, less each member a
+// plugin inserted under a session condition that does not hold for peer
+// (policyview.SessionConditionHolds), in chain order. The answer owns new
+// slices; resolved's borrowed ones are never written.
+func (c *templatedChain) keepHolding(resolved filterapi.Policy, peer filterapi.PeerFilterInfo) ([]policy.Ref, []bool, error) {
+	bindings := resolved.Bindings()
+	refs := make([]policy.Ref, 0, len(resolved.Filters()))
+	var bound []bool
+	if bindings != nil {
+		bound = make([]bool, 0, len(bindings))
+	}
+	for i, ref := range resolved.Filters() {
+		holds, err := c.conditionHolds(ref.Name, peer)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !holds {
+			continue
+		}
+		refs = append(refs, ref)
+		if bindings != nil {
+			bound = append(bound, bindings[i])
+		}
+	}
+	return refs, bound, nil
+}
+
+// conditionHolds reports whether the member named name stays in the peer's
+// chain: true for a member no session condition placed.
+func (c *templatedChain) conditionHolds(name string, peer filterapi.PeerFilterInfo) (bool, error) {
+	for i := range c.conditional {
+		if c.conditional[i].filter == name {
+			return policyview.SessionConditionHolds(c.conditional[i].condition, peer)
+		}
+	}
+	return true, nil
 }

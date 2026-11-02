@@ -13,8 +13,8 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// CheckFilterInsertionPaths judges the condition path of each of a plugin's
-// auto-insertions against the compiled schema
+// CheckFilterInsertionPaths judges the config condition path of each of a
+// plugin's auto-insertions against the compiled schema
 // (spec-filter-wire-6-stage-filters A-10, AC-2): the path, continuing a
 // peer's entry (rpc.FilterInsertionSchemaPath), MUST be a node the daemon
 // compiled, or no config could ever meet it.
@@ -47,6 +47,11 @@ func CheckFilterInsertionPaths(pluginName, ownerYANG string, insertions []rpc.Fi
 }
 
 func checkFilterInsertionPath(pluginName, owner string, ins *rpc.FilterInsertion) error {
+	// A session condition names no config path: registry.CheckFilterInsertions
+	// judges its facts against the facts their owners registered.
+	if len(ins.Config) == 0 {
+		return nil
+	}
 	path := rpc.FilterInsertionSchemaPath(ins.Config)
 	if _, err := SchemaNodeModule(path); err != nil {
 		return insertionPathError(pluginName, ins.Filter, "conditions on "+strings.Join(path, " ")+

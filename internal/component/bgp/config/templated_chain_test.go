@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/policy"
@@ -71,7 +72,7 @@ func resolvedImport(t *testing.T, group *reactor.DynamicGroupConfig, remoteAS st
 		refs[i] = ref
 		refs[i].Name = strings.ReplaceAll(ref.Name, "$remote_as", remoteAS)
 	}
-	compiled, err := template.WithBoundFilters(refs, template.Bindings()).CompileResolved()
+	compiled, err := template.WithBoundFilters(refs, template.Bindings()).CompileResolved(filterapi.PeerFilterInfo{})
 	require.NotNil(t, compiled.Library(), "a resolved chain always runs as a library chain, failed or not")
 	names := make([]string, 0, len(compiled.Filters()))
 	for _, ref := range compiled.Filters() {

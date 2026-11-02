@@ -5,6 +5,7 @@ package policyview
 
 import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 )
 
@@ -34,6 +35,9 @@ func init() {
 	for _, fact := range sessionFacts {
 		MustRegisterReader(fact.field, readSessionFact(fact.answer))
 		mustRegisterWriter(fact.field, fact.write, 0, "")
+		if fact.peer {
+			registry.RegisterSessionFact(fact.field.String())
+		}
 	}
 	// rebuilt is the engine's metadata: the reactor marks a route it rebuilt
 	// from stored state rather than received (filterapi.MetaKeyRebuilt).
@@ -67,21 +71,23 @@ var (
 )
 
 // sessionFacts is the one declaration of how each session fact field is
-// answered and written; init registers a reader and a writer per row.
+// answered and written, and whether it is a fact of the peer itself; init
+// registers a reader and a writer per row, and each peer fact as a fact a
+// filter insertion's session condition may name (registry.RegisterSessionFact).
 var sessionFacts = []sessionFact{
-	{FieldPeerName, textFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) string { return p.Name }), writeText},
-	{FieldPeerGroup, textFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) string { return p.GroupName }), writeText},
-	{FieldPeerAddress, addressFact((*Session).peerFacts), writeAddress},
-	{FieldLocalAS, asFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) uint32 { return p.LocalAS }), writeNumber},
-	{FieldPeerAS, asFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) uint32 { return p.PeerAS }), writeNumber},
-	{FieldRouteServerAS, answerRouteServerAS, writeNumber},
-	{FieldIBGP, flagFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) bool { return p.IsIBGP }), writeFlag},
-	{FieldRSClient, flagFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) bool { return p.RSClient }), writeFlag},
-	{FieldLLGRAdvertised, answerLLGRAdvertised, writeFlag},
-	{FieldSourcePeerName, textFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) string { return p.Name }), writeText},
-	{FieldSourcePeerGroup, textFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) string { return p.GroupName }), writeText},
-	{FieldSourcePeerAddress, addressFact((*Session).sourceFacts), writeAddress},
-	{FieldSourcePeerAS, asFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) uint32 { return p.PeerAS }), writeNumber},
-	{FieldSourceIBGP, flagFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) bool { return p.IsIBGP }), writeFlag},
-	{FieldSourceRSClient, flagFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) bool { return p.RSClient }), writeFlag},
+	{FieldPeerName, textFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) string { return p.Name }), writeText, true},
+	{FieldPeerGroup, textFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) string { return p.GroupName }), writeText, true},
+	{FieldPeerAddress, addressFact((*Session).peerFacts), writeAddress, true},
+	{FieldLocalAS, asFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) uint32 { return p.LocalAS }), writeNumber, true},
+	{FieldPeerAS, asFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) uint32 { return p.PeerAS }), writeNumber, true},
+	{FieldRouteServerAS, answerRouteServerAS, writeNumber, true},
+	{FieldIBGP, flagFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) bool { return p.IsIBGP }), writeFlag, true},
+	{FieldRSClient, flagFact((*Session).peerFacts, func(p *filterapi.PeerFilterInfo) bool { return p.RSClient }), writeFlag, true},
+	{FieldLLGRAdvertised, answerLLGRAdvertised, writeFlag, false},
+	{FieldSourcePeerName, textFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) string { return p.Name }), writeText, false},
+	{FieldSourcePeerGroup, textFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) string { return p.GroupName }), writeText, false},
+	{FieldSourcePeerAddress, addressFact((*Session).sourceFacts), writeAddress, false},
+	{FieldSourcePeerAS, asFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) uint32 { return p.PeerAS }), writeNumber, false},
+	{FieldSourceIBGP, flagFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) bool { return p.IsIBGP }), writeFlag, false},
+	{FieldSourceRSClient, flagFact((*Session).sourceFacts, func(p *filterapi.PeerFilterInfo) bool { return p.RSClient }), writeFlag, false},
 }

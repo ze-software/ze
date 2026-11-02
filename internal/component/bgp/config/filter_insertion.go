@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -22,33 +23,45 @@ import (
 // plugin that declares an insertion is inserted with nobody editing this file.
 //
 // It MUST run after the chains are canonical, so an operator's reference and
-// the inserted one compare in one form, and before the chains compile.
+// the inserted one compare in one form, and before the chains compile. It
+// answers, per dynamic group template, the members it inserted under a
+// session condition, for compileLibraryChains to judge per member peer.
 func insertDeclaredFilters(bgpTree map[string]any, peers []*reactor.PeerSettings,
 	groups []*reactor.DynamicGroupConfig, reg *policy.Registry,
-) error {
+) (map[*reactor.PeerSettings]sessionMembers, error) {
 	insertions, err := declaredInsertions()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(insertions) == 0 {
-		return nil
+		return nil, nil
 	}
 	peerMap, _ := bgpTree["peer"].(map[string]any)
 	for _, ps := range peers {
 		resolved, _ := peerMap[ps.Name].(map[string]any)
-		if err := insertForPeer(ps, resolved, insertions, reg); err != nil {
-			return err
+		if _, err := insertForPeer(ps, resolved, insertions, reg); err != nil {
+			return nil, err
 		}
 	}
 	// A dynamic group's members are built from its template, so the template
 	// is the resolved config its condition is judged against, as peerRoles
 	// judges a role.
+	conditional := make(map[*reactor.PeerSettings]sessionMembers, len(groups))
 	for _, dg := range groups {
-		if err := insertForPeer(dg.Settings, dg.Template, insertions, reg); err != nil {
-			return err
+		members, err := insertForPeer(dg.Settings, dg.Template, insertions, reg)
+		if err != nil {
+			return nil, err
 		}
+		conditional[dg.Settings] = members
 	}
-	return nil
+	return conditional, nil
+}
+
+// sessionMembers are the members a dynamic template carries under a session
+// condition, per list.
+type sessionMembers struct {
+	imports []sessionMember
+	exports []sessionMember
 }
 
 // declaredInsertions collects every compiled-in registration's insertions,
@@ -59,10 +72,23 @@ func insertDeclaredFilters(bgpTree map[string]any, peers []*reactor.PeerSettings
 // plugin reaches Stage 1, so a third party's insertions are absent from that
 // first load and land through the tree reload the BGP plugin runs before its
 // peers start (spec-filter-wire-6-stage-filters A-12).
+//
+// A compiled-in plugin's insertions apply only where that plugin runs in this
+// daemon, configured or auto-loaded (registry.LoadedPlugins): the plugin that
+// owns the procedure is its scope, and the condition then picks the peers, so
+// a session-condition member needs no config of its plugin on the peer. With
+// no plugin server (an offline `ze config validate`, a unit test) nothing
+// says which plugins load, and every compiled-in plugin's insertions are
+// placed: the widest set a daemon could run, so a required-member refusal it
+// could meet is reported there too.
 func declaredInsertions() ([]rpc.FilterInsertion, error) {
 	var insertions []rpc.FilterInsertion
+	loaded, known := registry.LoadedPlugins()
 	for _, r := range registry.All() {
 		if len(r.FilterInsertions) == 0 {
+			continue
+		}
+		if known && !slices.Contains(loaded, r.Name) {
 			continue
 		}
 		if err := registry.CheckFilterInsertions(r.Name, r.Filters, r.FilterTypes, r.FilterInsertions); err != nil {
@@ -91,36 +117,71 @@ func declaredInsertions() ([]rpc.FilterInsertion, error) {
 // `inactive:`) to a non-required member places or switches it off, the rule
 // filterChainContains applies to loop-detection; to a required one it is
 // refused with the declared reason.
+//
+// A session condition is judged on the peer's facts (PeerSettings.SessionFacts).
+// A dynamic group's template states no remote AS, so there the member is
+// inserted in its place and answered as a session member, for each peer of
+// the group to keep or drop once its OPEN gives its AS
+// (templatedChain.CompileResolved).
 func insertForPeer(ps *reactor.PeerSettings, resolved map[string]any,
 	insertions []rpc.FilterInsertion, reg *policy.Registry,
-) error {
+) (sessionMembers, error) {
+	var members sessionMembers
 	for i := len(insertions) - 1; i >= 0; i-- {
 		ins := &insertions[i]
-		if !insertionConditionHolds(resolved, ins.Config, ins.Values) {
+		holds, deferred, err := insertionHolds(ps, resolved, ins)
+		if err != nil {
+			return members, err
+		}
+		if !holds {
 			continue
 		}
 		refs, bound := canonicalizeFilterRefs([]policy.Ref{{Name: ins.Filter}}, reg)
 		ref := refs[0]
 		inProcess := len(bound) > 0 && bound[0]
+		member := sessionMember{filter: ref.Name, condition: ins.Session}
 		if ins.Direction == rpc.FilterImport {
 			if filterChainContains(ps.ImportPolicy.Filters(), ref.Name) {
 				if ins.Required {
-					return requiredInsertionRefusal(ps, "import", ins)
+					return members, requiredInsertionRefusal(ps, "import", ins)
 				}
 				continue
 			}
 			ps.ImportPolicy = ps.ImportPolicy.Prepend(ref, inProcess)
+			if deferred {
+				members.imports = append(members.imports, member)
+			}
 			continue
 		}
 		if filterChainContains(ps.ExportPolicy.Filters(), ref.Name) {
 			if ins.Required {
-				return requiredInsertionRefusal(ps, "export", ins)
+				return members, requiredInsertionRefusal(ps, "export", ins)
 			}
 			continue
 		}
 		ps.ExportPolicy = ps.ExportPolicy.Prepend(ref, inProcess)
+		if deferred {
+			members.exports = append(members.exports, member)
+		}
 	}
-	return nil
+	return members, nil
+}
+
+// insertionHolds reports whether the peer meets the insertion's condition,
+// and, for a session condition on a dynamic template, that the answer is
+// deferred to each member peer (holds and deferred both true).
+func insertionHolds(ps *reactor.PeerSettings, resolved map[string]any, ins *rpc.FilterInsertion) (holds, deferred bool, err error) {
+	if len(ins.Session) == 0 {
+		return insertionConditionHolds(resolved, ins.Config, ins.Values), false, nil
+	}
+	if ps.IsDynamic {
+		return true, true, nil
+	}
+	holds, err = policyview.SessionConditionHolds(ins.Session, ps.SessionFacts(ps.PeerAS))
+	if err != nil {
+		return false, false, fmt.Errorf("peer %s: filter insertion %s: %w", ps.Name, ins.Filter, err)
+	}
+	return holds, false, nil
 }
 
 // insertionConditionHolds reports whether the resolved config holds the path,

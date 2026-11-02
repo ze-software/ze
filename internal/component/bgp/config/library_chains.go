@@ -23,19 +23,40 @@ const attributeBasesPath = "bgp/defaults/attribute"
 // compileLibraryChains compiles, for every peer and dynamic template, the
 // import and export chains of the members that evaluate in process over the
 // BGP route view (policychain.HasEvaluator) and records each on its policy.
-func compileLibraryChains(settings []*reactor.PeerSettings, reg *policy.Registry, bases policychain.Bases) error {
+//
+// conditional holds, per dynamic template, the members plugins inserted
+// under a session condition (insertDeclaredFilters): such a template compiles
+// per peer once its OPEN arrives (compileConditionalChain).
+func compileLibraryChains(settings []*reactor.PeerSettings, conditional map[*reactor.PeerSettings]sessionMembers,
+	reg *policy.Registry, bases policychain.Bases,
+) error {
 	for _, ps := range settings {
-		imported, err := compileLibraryChain(ps.ImportPolicy, reg, bases, "bgp import", "peer "+ps.Name+" import filters")
+		members := conditional[ps]
+		imported, err := compileConditionalChain(ps.ImportPolicy, members.imports, reg, bases, "bgp import", "peer "+ps.Name+" import filters")
 		if err != nil {
 			return err
 		}
-		exported, err := compileLibraryChain(ps.ExportPolicy, reg, bases, "bgp export", "peer "+ps.Name+" export filters")
+		exported, err := compileConditionalChain(ps.ExportPolicy, members.exports, reg, bases, "bgp export", "peer "+ps.Name+" export filters")
 		if err != nil {
 			return err
 		}
 		ps.ImportPolicy, ps.ExportPolicy = imported, exported
 	}
 	return nil
+}
+
+// compileConditionalChain answers p compiled now (compileLibraryChain), or,
+// when a plugin inserted a member of p under a session condition, p marked
+// templated: whether that member stays is known per peer only, so each peer
+// compiles its own (templatedChain.CompileResolved).
+func compileConditionalChain(p filterapi.Policy, conditional []sessionMember, reg *policy.Registry,
+	bases policychain.Bases, attachment, context string,
+) (filterapi.Policy, error) {
+	if len(conditional) == 0 {
+		return compileLibraryChain(p, reg, bases, attachment, context)
+	}
+	return p.WithTemplated(&templatedChain{reg: reg, bases: bases, attachment: attachment, context: context,
+		members: templatedMembers(p), conditional: conditional}), nil
 }
 
 // compileLibraryChain answers p with its library chain, p itself when the

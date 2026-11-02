@@ -263,10 +263,11 @@ func runBGPEngine(conn net.Conn) int {
 		// and explicit plugins finish their 5-stage protocol).
 		coord.OnPostStartup(func() {
 			// A third-party plugin's filter insertions arrive at its Stage 1,
+			// and a compiled-in plugin's apply only once it runs, which may be
 			// after the peers were built from the config, so the peers are
 			// rebuilt once before they start (spec-filter-wire-6-stage-filters
-			// A-12). A compiled-in plugin's insertions were in the first build.
-			if len(registry.RuntimeFilterInsertions()) > 0 {
+			// A-12).
+			if runningPluginsInsert() {
 				if rebuildErr := bgpReactor.RebuildRunningPeers(); rebuildErr != nil {
 					log.Error("bgp: peers not started: placing the filter insertions third-party plugins declared failed",
 						"error", rebuildErr)
@@ -459,4 +460,22 @@ func runBGPEngine(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// runningPluginsInsert reports whether a plugin this daemon runs declares a
+// filter insertion: a third-party one at its Stage 1, or a compiled-in one
+// whose registration carries insertions (registry.LoadedPlugins).
+func runningPluginsInsert() bool {
+	if len(registry.RuntimeFilterInsertions()) > 0 {
+		return true
+	}
+	// The plugin server installs the seam before any plugin starts, so here
+	// it always answers; unknown leaves loaded empty.
+	loaded, _ := registry.LoadedPlugins()
+	for _, name := range loaded {
+		if r := registry.Lookup(name); r != nil && len(r.FilterInsertions) > 0 {
+			return true
+		}
+	}
+	return false
 }

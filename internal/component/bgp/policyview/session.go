@@ -12,12 +12,15 @@
 package policyview
 
 import (
+	"errors"
 	"net/netip"
+	"slices"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/format"
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // ImportSession answers the session of a route received from peer: the
@@ -49,11 +52,73 @@ func ExportSession(dest, source filterapi.PeerFilterInfo, sourceKnown bool) Sess
 }
 
 // sessionFact is one session fact field: how the view answers it from the
-// Session, and how the filter-update message writes it.
+// Session, how the filter-update message writes it, and whether it is a fact
+// of the peer itself, answered from the peer's config (or its OPEN for a
+// dynamic peer) with no route. A peer fact is what a filter insertion's
+// session condition may name; llgr-advertised (negotiated per session) and
+// the source facts (per exported route) are not.
 type sessionFact struct {
 	field  policy.Field
 	answer func(s *Session) Value
 	write  writeFunc
+	peer   bool
+}
+
+// SessionConditionHolds reports whether every fact of condition holds for
+// peer, the facts of a peer as its config states them (and its OPEN, for a
+// dynamic peer): the session condition of a filter insertion
+// (rpc.FilterInsertion.Session). A fact holds when the peer has it and, when
+// values are given, its text form (a flag "true" or "false", an AS number in
+// decimal, an address in its canonical form) equals one of them. A fact that
+// is not a registered peer fact answers an error, never false: the
+// declaration judge (registry.CheckFilterInsertions) refuses it first, so an
+// error here is a declaration that bypassed the judge.
+func SessionConditionHolds(condition []rpc.FilterSessionFact, peer filterapi.PeerFilterInfo) (bool, error) {
+	session := Session{EBGP: !peer.IsIBGP, Peer: peer, PeerKnown: true}
+	for i := range condition {
+		answer, found := peerFactAnswer(condition[i].Fact)
+		if !found {
+			return false, errors.New("session condition names " + strconv.Quote(condition[i].Fact) +
+				", which is not a registered peer fact")
+		}
+		value := answer(&session)
+		if !value.present {
+			return false, nil
+		}
+		if len(condition[i].Values) == 0 {
+			continue
+		}
+		if !slices.Contains(condition[i].Values, value.conditionText()) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// peerFactAnswer answers how the view answers the peer fact named name.
+func peerFactAnswer(name string) (func(s *Session) Value, bool) {
+	for i := range sessionFacts {
+		if sessionFacts[i].peer && sessionFacts[i].field.String() == name {
+			return sessionFacts[i].answer, true
+		}
+	}
+	return nil, false
+}
+
+// conditionText answers a present session fact's text form for a session
+// condition. A present fact is numbered (an AS), an address, a non-empty
+// name, or else a flag: the fact answers of this file build no other shape.
+func (x Value) conditionText() string {
+	if x.numbered {
+		return strconv.FormatUint(x.number, 10)
+	}
+	if x.addr.IsValid() {
+		return x.addr.String()
+	}
+	if x.text != "" {
+		return x.text
+	}
+	return strconv.FormatBool(x.flag)
 }
 
 // readSessionFact adapts a fact's answer to the reader signature. A fact

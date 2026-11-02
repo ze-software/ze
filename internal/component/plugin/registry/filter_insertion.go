@@ -59,16 +59,54 @@ func checkFilterInsertion(pluginName string, declared []DeclaredFilter, filterTy
 	if ins.Priority > rpc.FilterInsertionPriorityMax {
 		return insertionError(pluginName, ins, priorityRange)
 	}
-	if len(ins.Config) == 0 {
-		return insertionError(pluginName, ins, "with no condition; name the config path (config) that makes "+
-			"a peer need it")
-	}
-	if slices.Contains(ins.Config, "") {
-		return insertionError(pluginName, ins, "whose condition path holds an empty word")
+	if err := checkInsertionCondition(pluginName, ins); err != nil {
+		return err
 	}
 	if ins.Required && ins.Reason == "" {
 		return insertionError(pluginName, ins, "required with no reason; give the reason the operator reads "+
 			"when an edit is refused")
+	}
+	return nil
+}
+
+// checkInsertionCondition judges the insertion's one condition: a config
+// path with no empty word, or a session condition whose every fact some owner
+// registered (RegisterSessionFact), each named once.
+func checkInsertionCondition(pluginName string, ins *rpc.FilterInsertion) error {
+	if len(ins.Config) == 0 {
+		if len(ins.Session) == 0 {
+			return insertionError(pluginName, ins, "with no condition; name the config path (config) or the "+
+				"session facts (session) that make a peer need it")
+		}
+		return checkSessionCondition(pluginName, ins)
+	}
+	if len(ins.Session) > 0 {
+		return insertionError(pluginName, ins, "with two conditions, config and session; declare exactly one")
+	}
+	if slices.Contains(ins.Config, "") {
+		return insertionError(pluginName, ins, "whose condition path holds an empty word")
+	}
+	return nil
+}
+
+func checkSessionCondition(pluginName string, ins *rpc.FilterInsertion) error {
+	if len(ins.Values) > 0 {
+		return insertionError(pluginName, ins, "with values beside a session condition; give each fact its "+
+			"own values")
+	}
+	for i := range ins.Session {
+		fact := ins.Session[i].Fact
+		if !SessionFactRegistered(fact) {
+			return insertionError(pluginName, ins, "whose session condition names "+strconv.Quote(fact)+
+				", which no owner registered as a session fact; name a fact of the peer the daemon "+
+				"knows (ibgp, rs-client, peer-as, ...)")
+		}
+		for j := range i {
+			if ins.Session[j].Fact == fact {
+				return insertionError(pluginName, ins, "whose session condition names "+strconv.Quote(fact)+
+					" twice; list each fact once with all its values")
+			}
+		}
 	}
 	return nil
 }

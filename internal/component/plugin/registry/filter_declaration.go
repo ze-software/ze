@@ -135,6 +135,9 @@ var filterDeclarations struct {
 	// insertions answers the Stage 1 insertions of the running processes
 	// no compiled registration describes (SetRuntimeFilterInsertions).
 	insertions func() []ProcessFilterInsertions
+	// loaded answers the registry names of the plugins this daemon runs
+	// (SetRuntimeLoadedPlugins).
+	loaded func() []string
 }
 
 // SetFilterDeclarationCheck installs the judge of Stage 1 filter
@@ -245,4 +248,29 @@ func RuntimeFilterInsertions() []ProcessFilterInsertions {
 		return nil
 	}
 	return insertions()
+}
+
+// SetRuntimeLoadedPlugins installs the seam that answers the registry names
+// of every plugin process this daemon runs, configured or auto-loaded, under
+// each name its config files it by (an alias's `use` included). Config load
+// places a compiled-in plugin's filter insertions only where that plugin
+// runs (LoadedPlugins). Called once at plugin server startup; nil removes it.
+func SetRuntimeLoadedPlugins(fn func() []string) {
+	filterDeclarations.mu.Lock()
+	defer filterDeclarations.mu.Unlock()
+	filterDeclarations.loaded = fn
+}
+
+// LoadedPlugins answers the registry names of the plugins this daemon runs.
+// known is false when no seam is installed: no plugin server runs (an
+// offline `ze config validate`, a unit test), so nothing can say which
+// plugins load, and the caller MUST name what it does in that case.
+func LoadedPlugins() (names []string, known bool) {
+	filterDeclarations.mu.RLock()
+	loaded := filterDeclarations.loaded
+	filterDeclarations.mu.RUnlock()
+	if loaded == nil {
+		return nil, false
+	}
+	return loaded(), true
 }

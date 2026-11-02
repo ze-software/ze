@@ -578,17 +578,28 @@ type SchemaDecl struct {
 // operator's members in ascending Priority, unless the operator names the
 // reference there (plainly, or `inactive:` to run without it). A Required
 // insertion refuses any operator reference to it, with Reason as the text the
-// operator reads. The condition is Config: the words of a path under the
-// peer's resolved entry, present, or equal to one of Values when they are
-// given.
+// operator reads. The condition is exactly one of two: Config, the words of
+// a path under the peer's resolved entry, present, or equal to one of Values
+// when they are given; or Session, session facts of the peer that every hold
+// (the BGP view registers them: ibgp, rs-client, peer-as, ...), judged once
+// the facts are known, for a dynamic peer when its OPEN arrives.
 type FilterInsertion struct {
-	Filter    string          `json:"filter"`             // Chain reference the plugin serves: <plugin>:<filter> or <type>:<instance>
-	Direction FilterDirection `json:"direction"`          // import or export, exactly one
-	Priority  int             `json:"priority"`           // 0-9999: lower runs first among inserted members
-	Config    []string        `json:"config"`             // Path words under the peer's resolved entry (e.g. role import)
-	Values    []string        `json:"values,omitempty"`   // The leaf equals one of these; empty means present
-	Required  bool            `json:"required,omitempty"` // The operator cannot name, move or deactivate it
-	Reason    string          `json:"reason,omitempty"`   // Why it is required; owed when Required
+	Filter    string              `json:"filter"`             // Chain reference the plugin serves: <plugin>:<filter> or <type>:<instance>
+	Direction FilterDirection     `json:"direction"`          // import or export, exactly one
+	Priority  int                 `json:"priority"`           // 0-9999: lower runs first among inserted members
+	Config    []string            `json:"config,omitempty"`   // Path words under the peer's resolved entry (e.g. role import)
+	Values    []string            `json:"values,omitempty"`   // The leaf equals one of these; empty means present
+	Session   []FilterSessionFact `json:"session,omitempty"`  // Session facts that all hold, in place of Config
+	Required  bool                `json:"required,omitempty"` // The operator cannot name, move or deactivate it
+	Reason    string              `json:"reason,omitempty"`   // Why it is required; owed when Required
+}
+
+// FilterSessionFact is one fact of a session condition: the fact holds when
+// the session has it and, when Values are given, its text form (a flag reads
+// "true" or "false", an AS number in decimal) equals one of them.
+type FilterSessionFact struct {
+	Fact   string   `json:"fact"`             // A session fact some owner registered (ibgp, rs-client, ...)
+	Values []string `json:"values,omitempty"` // The fact equals one of these; empty means present
 }
 
 // FilterInsertionPriorityMax bounds FilterInsertion.Priority.

@@ -1035,6 +1035,30 @@ func (n *PeerSettings) IsIBGP() bool {
 	return n.isIBGPWith(n.PeerAS)
 }
 
+// SessionFacts answers the facts of the peer as its config states them,
+// with peerAS as its remote AS: the configured one for a static peer, the
+// one its OPEN carried for a dynamic peer, whose template states none. A
+// filter insertion's session condition is judged on them
+// (policyview.SessionConditionHolds). The caller MUST read peerAS where its
+// writer allows: a dynamic peer's PeerAS changes under Peer.mu.
+func (n *PeerSettings) SessionFacts(peerAS uint32) filterapi.PeerFilterInfo {
+	facts := filterapi.PeerFilterInfo{
+		Address:   n.Address,
+		PeerAS:    peerAS,
+		LocalAS:   n.LocalAS,
+		Name:      n.Name,
+		GroupName: n.GroupName,
+		RSClient:  n.RSClient,
+		IsIBGP:    n.isIBGPWith(peerAS),
+	}
+	// The ASN the route server acts on for a client, as the received path
+	// fills it (reactor_notify.go): the global local AS, never an override.
+	if n.RSClient {
+		facts.RouteServerAS = n.GlobalLocalAS
+	}
+	return facts
+}
+
 // IsEBGP returns true if this is an external BGP session. It is the negation of IsIBGP and
 // holds no rule of its own, so the two can never disagree about one session.
 func (n *PeerSettings) IsEBGP() bool {

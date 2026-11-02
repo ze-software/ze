@@ -67,8 +67,9 @@ talks to the engine is in `ai/digests/plugin-transport.md`.
 
 - **A procedure a feature's config implies is a filter-list member its plugin
   inserts.** The plugin declares `FilterInsertions` (`rpc.FilterInsertion`)
-  and the config loader places the member on the peers whose config meets the
-  condition; no engine or config code names the feature. A compiled-in
+  and, in a daemon that runs the plugin, the config loader places the member
+  on the peers whose config or session facts meet the condition; no engine or
+  config code names the feature. A compiled-in
   plugin's condition names config its own YANG module adds
   (`config.CheckFilterInsertionPaths`, `process-protocol.md`, "Filter
   Insertion").

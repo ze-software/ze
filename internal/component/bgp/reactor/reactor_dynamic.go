@@ -598,10 +598,11 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 	// serialized, and each retry needs a whole reload's dynamic step to write the
 	// pair inside one resolveFilterVars call, so it is bounded by the reloads an
 	// operator issues during one establishment.
+	facts := p.dynamicSessionFacts(remoteAS)
 	for {
 		read := p.readDynamicTemplate()
-		newImport := resolveDynamicPolicy(read.importTemplate, localAS, remoteAS, remoteIP, "import")
-		newExport := resolveDynamicPolicy(read.exportTemplate, localAS, remoteAS, remoteIP, "export")
+		newImport := resolveDynamicPolicy(read.importTemplate, facts, localAS, remoteIP, "import")
+		newExport := resolveDynamicPolicy(read.exportTemplate, facts, localAS, remoteIP, "export")
 		if p.publishDynamicResolution(read, remoteAS, newImport, newExport) {
 			break
 		}
@@ -631,6 +632,15 @@ func (p *Peer) readDynamicTemplate() dynamicTemplateRead {
 		importTemplate: p.dynImportPolicy,
 		exportTemplate: p.dynExportPolicy,
 	}
+}
+
+// dynamicSessionFacts answers the peer's session facts with remoteAS, the AS
+// its OPEN carried, under p.mu: the facts a session condition of an inserted
+// member is judged on (resolveDynamicPolicy).
+func (p *Peer) dynamicSessionFacts(remoteAS uint32) filterapi.PeerFilterInfo {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.settings.SessionFacts(remoteAS)
 }
 
 // publishDynamicResolution publishes the AS learned from the OPEN and the
@@ -682,21 +692,23 @@ func (p *Peer) writeDynamicTemplateLocked(next *PeerSettings) {
 	}
 	localAS := p.settings.LocalAS
 	remoteIP := p.settings.Address.String()
-	p.settings.ImportPolicy = resolveDynamicPolicy(next.ImportPolicy, localAS, remoteAS, remoteIP, "import")
-	p.settings.ExportPolicy = resolveDynamicPolicy(next.ExportPolicy, localAS, remoteAS, remoteIP, "export")
+	facts := p.settings.SessionFacts(remoteAS)
+	p.settings.ImportPolicy = resolveDynamicPolicy(next.ImportPolicy, facts, localAS, remoteIP, "import")
+	p.settings.ExportPolicy = resolveDynamicPolicy(next.ExportPolicy, facts, localAS, remoteIP, "export")
 }
 
 // resolveDynamicPolicy answers a dynamic peer's chain from its group's
 // template: the variables in its refs resolved (resolveFilterVars), then,
-// when a member named its instance through a variable, judged and compiled
-// over the resolved refs (Policy.CompileResolved), since only now is the
-// instance known. A resolved name the config does not define answers the
+// when a member named its instance through a variable or a plugin inserted a
+// member under a session condition, judged and compiled over the resolved
+// refs for the peer's facts (Policy.CompileResolved), since only now are the
+// instance and the peer's AS known. A resolved name the config does not define answers the
 // fail-closed policy CompileResolved returns, logged with the peer: the peer
 // rejects every route in that direction until a reload defines the name, as
 // a plugin filter answering an unknown name rejected it.
-func resolveDynamicPolicy(template filterapi.Policy, localAS, remoteAS uint32, remoteIP, direction string) filterapi.Policy {
-	resolved := template.WithBoundFilters(resolveFilterVars(template.Filters(), localAS, remoteAS, remoteIP), template.Bindings())
-	compiled, err := resolved.CompileResolved()
+func resolveDynamicPolicy(template filterapi.Policy, facts filterapi.PeerFilterInfo, localAS uint32, remoteIP, direction string) filterapi.Policy {
+	resolved := template.WithBoundFilters(resolveFilterVars(template.Filters(), localAS, facts.PeerAS, remoteIP), template.Bindings())
+	compiled, err := resolved.CompileResolved(facts)
 	if err != nil {
 		reactorLogger().Error("dynamic peer filter chain names no usable filter; rejecting every route",
 			"peer", remoteIP, "direction", direction, "error", err)

@@ -28,7 +28,7 @@ func (compiledMarker) Refused() uint64 { return 0 }
 // with an error, as bgp/config does for a resolved name naming no instance.
 type recordingTemplated struct{ refuse bool }
 
-func (r recordingTemplated) CompileResolved(resolved filterapi.Policy) (filterapi.Policy, error) {
+func (r recordingTemplated) CompileResolved(resolved filterapi.Policy, _ filterapi.PeerFilterInfo) (filterapi.Policy, error) {
 	if r.refuse {
 		return resolved.WithLibrary(compiledMarker{first: "fail-closed"}), errors.New("no instance")
 	}
@@ -98,7 +98,7 @@ func TestDynamicPeerFailsClosedOnAnUnresolvableChain(t *testing.T) {
 // only when a reload edited a definition, never a ref.
 type definitionTemplated struct{ definition string }
 
-func (d definitionTemplated) CompileResolved(resolved filterapi.Policy) (filterapi.Policy, error) {
+func (d definitionTemplated) CompileResolved(resolved filterapi.Policy, _ filterapi.PeerFilterInfo) (filterapi.Policy, error) {
 	return resolved.WithLibrary(compiledMarker{first: resolved.Filters()[0].Name + "@" + d.definition}), nil
 }
 
