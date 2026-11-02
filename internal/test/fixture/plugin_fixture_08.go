@@ -118,8 +118,18 @@ func waitPeerCounter08(ctx context.Context, p *sdk.Plugin, peer, counter string,
 }
 
 func waitPeerEOR08(ctx context.Context, p *sdk.Plugin) error {
-	if !waitPeerCounter08(ctx, p, "peer1", "eor-sent", 1, 40) {
-		return fmt.Errorf("peer1 initial-sync EOR never reached the wire")
+	return waitPeersEOR08(ctx, p, "peer1")
+}
+
+// waitPeersEOR08 waits until ze has sent its initial-sync End-of-RIB to every
+// named peer, which is the point at which each session is Established and its
+// initial sync is on the wire. TestPluginObservers08WaitForTheScriptedPeer reads
+// the string-literal peer names of each call, so pass them as literals.
+func waitPeersEOR08(ctx context.Context, p *sdk.Plugin, peers ...string) error {
+	for _, peer := range peers {
+		if !waitPeerCounter08(ctx, p, peer, "eor-sent", 1, 40) {
+			return fmt.Errorf("%s initial-sync EOR never reached the wire", peer)
+		}
 	}
 	return nil
 }
@@ -228,21 +238,38 @@ func forwardCongestionTeardown08(ctx context.Context, p *sdk.Plugin) error {
 	return nil
 }
 
+// forwardMPReach08 redistributes one ipv4/multicast route and returns once it
+// is on both scripted peers' wires.
+//
+// Both .ci peers expect that UPDATE, and Observe quiesces and stops ze as soon
+// as this returns. So the scenario waits for each session's initial-sync
+// End-of-RIB before the emit, reads each peer's updates-sent at that point, and
+// after the emit waits for each count to step past it. Fixed sleeps stood here
+// before: two seconds for both sessions to establish and three for the UPDATE to
+// leave, which a loaded host overruns.
 func forwardMPReach08(ctx context.Context, p *sdk.Plugin) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(2 * time.Second):
+	if err := waitPeersEOR08(ctx, p, "peer1", "peer2"); err != nil {
+		return err
+	}
+	peers := []string{"peer1", "peer2"}
+	before := make(map[string]float64, len(peers))
+	for _, peer := range peers {
+		sent, ok := peerCounter08(ctx, p, peer, "updates-sent")
+		if !ok {
+			return fmt.Errorf("%s updates-sent could not be read after its End-of-RIB", peer)
+		}
+		before[peer] = sent
 	}
 	if _, err := requireDone08(ctx, p, "request fakel2tp emit add ipv4/multicast 224.1.1.0/24"); err != nil {
 		return err
 	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(3 * time.Second):
-		return nil
+	for _, peer := range peers {
+		if !waitPeerCounter08(ctx, p, peer, "updates-sent", before[peer]+1, 40) {
+			return fmt.Errorf("the redistributed 224.1.1.0/24 never reached %s's wire (updates-sent stayed at %.0f)", peer, before[peer])
+		}
 	}
+	fmt.Fprintln(os.Stderr, "OK: 224.1.1.0/24 sent to peer1 and peer2")
+	return nil
 }
 
 func forwardLoad08(expected int, required []string, label string) plugin08Scenario {
