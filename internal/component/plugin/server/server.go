@@ -211,6 +211,12 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 		if argErr != nil {
 			return nil, rpc.NewCodedError("invalid-params", argErr.Error())
 		}
+		// A wire call answers once, as Dispatch does, so a streaming-only
+		// command is refused here the same way.
+		input := strings.Join(append([]string{cliCommand}, rpcParams.Args...), " ")
+		if refusal := streamingOnlyRefusal(cliCommand, input); refusal != nil {
+			return nil, rpc.NewCodedError("streaming-only", refusal.Error())
+		}
 
 		resp, err := handler(ctx, validated)
 		if err != nil {

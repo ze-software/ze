@@ -844,13 +844,20 @@ be shown: MCP, REST, gRPC and the web admin console run a command once.
 | Declaration | One-shot surfaces | Commands |
 |-------------|-------------------|----------|
 | `OneShotSample` | Offered. The one-shot RPC answers one sample from the producer the stream reads | `monitor interface rate` (the rate tracker, as `show interface rate`), `monitor traffic stat` (the trafficstat snapshot, as `show traffic stat`), `monitor ping` (a bounded run of probes), `monitor traceroute` (one probe round) |
-| `OneShotStreamingOnly` | Not offered: the stream is a sequence of events, so no single answer holds its data | `monitor bgp`, `monitor event`, `monitor system netlink`, `monitor vpn ipsec` |
+| `OneShotStreamingOnly` | Not offered: the stream is a sequence of events, so no single answer holds its data. Typed in full, the command is refused with `StreamingOnlyError`, which names `ze <command>` and SSH, the places it streams | `monitor bgp`, `monitor event`, `monitor system netlink`, `monitor vpn ipsec` |
 
 The surface predicate (`command.AnswerSurface`) reads the declaration, so the
 MCP, REST and gRPC command list, the web admin tree and the web terminal
 completer leave a streaming-only command out, and the surface parity check
 fails a sample command whose one-shot answer carries no data.
+
+The refusal is decided once, from the declaration, on both one-shot routes: the
+dispatcher (`Dispatcher.Dispatch`, which MCP, REST, gRPC, the web console and a
+plugin's `dispatch-command` use) and the wire-method route (`wrapHandler`).
+The command's RPC handler is `StreamingOnlyRPC`, which answers an error if a
+route ever skipped the refusal, never a reply.
 <!-- source: internal/component/plugin/server/handler.go -- OneShot, RegisterStreamingHandler, StreamingOneShot -->
+<!-- source: internal/component/plugin/server/streaming_only.go -- StreamingOnlyError, streamingOnlyRefusal, StreamingOnlyRPC -->
 <!-- source: cmd/ze/hub/streaming_surface.go -- streamingPathsOff -->
 <!-- source: cmd/ze/hub/surface_parity_test.go -- TestStreamingOneShotAnswersCarryData -->
 

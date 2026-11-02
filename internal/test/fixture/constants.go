@@ -171,7 +171,6 @@ const (
 	statusCommitted         = "committed"
 	statusDone              = "done"
 	statusError             = "error" // The status a dispatch returns.
-	statusMonitorConfigured = "monitor-configured"
 	statusStale             = "stale"
 	statusUpdated           = "updated" // The status a config write returns.
 	verdictInvalid          = "invalid"
@@ -378,7 +377,6 @@ const (
 	caseNameShapeTypo          = "shape-typo"
 	filterNameFirst            = "first" // The name of a declared filter.
 	groupDyn                   = "dyn"
-	groupRoute                 = "route" // The group a watched object belongs to.
 	modeAuthPool               = "auth-pool"
 	modeBoth                   = "both"
 	modeDecode                 = "decode"

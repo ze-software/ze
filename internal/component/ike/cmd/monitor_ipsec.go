@@ -12,7 +12,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/ike/engine"
-	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
@@ -21,16 +20,9 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-ike:monitor-vpn-ipsec",
-			Handler:    handleMonitorIPsec,
+			Handler:    pluginserver.StreamingOnlyRPC,
 		},
 	)
-}
-
-func handleMonitorIPsec(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data:   plugin.Map{"status": "monitor-configured"},
-	}, nil
 }
 
 type ipsecMonitorEvent struct {

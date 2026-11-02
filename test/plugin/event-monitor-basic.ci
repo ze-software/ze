@@ -1,6 +1,8 @@
-# Test: monitor event with no args via dispatch-command returns status=done
-# VALIDATES: AC-1 -- monitor event RPC handler is registered and returns monitor-configured
-# PREVENTS: monitor event handler not wired or returning wrong status
+# Test: `monitor event` (with no args) dispatched from a plugin is refused
+# VALIDATES: a streaming-only command, typed in full on a route that answers once,
+# is refused with an error naming `ze monitor event`, the terminal command that streams it
+# PREVENTS: the old reply {"status":"monitor-configured"}, shaped like success and
+# carrying no events (the streaming path itself is proved where it streams)
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER

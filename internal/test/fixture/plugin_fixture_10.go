@@ -290,54 +290,21 @@ func fixture10MonitorBasic(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
 		return err
 	}
-	data, err := fixture10Object(fixture10Call(ctx, plugin, "monitor bgp"), "monitor bgp")
-	if err != nil {
-		return err
-	}
-	if data["status"] != statusMonitorConfigured {
-		return fmt.Errorf("monitor bgp: expected monitor-configured, got %v", data["status"])
-	}
-	fmt.Fprintln(os.Stderr, "OK: monitor returned status=monitor-configured")
-	return nil
+	return streamingOnlyRefused(ctx, plugin, "monitor bgp")
 }
 
 func fixture10MonitorEvents(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
 		return err
 	}
-	data, err := fixture10Object(fixture10Call(ctx, plugin, "monitor bgp event update,state"), "monitor bgp event")
-	if err != nil {
-		return err
-	}
-	events, ok := data["event-types"].([]any)
-	if !ok {
-		return fmt.Errorf("monitor bgp event: event-types is %T", data["event-types"])
-	}
-	foundUpdate, foundState := false, false
-	for _, event := range events {
-		foundUpdate = foundUpdate || event == eventUpdate
-		foundState = foundState || event == eventState
-	}
-	if !foundUpdate || !foundState {
-		return fmt.Errorf("monitor bgp event: expected update and state, got %v", events)
-	}
-	fmt.Fprintf(os.Stderr, "OK: monitor event-types=%v\n", events)
-	return nil
+	return streamingOnlyRefused(ctx, plugin, "monitor bgp event update,state")
 }
 
 func fixture10MonitorPeer(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
 		return err
 	}
-	data, err := fixture10Object(fixture10Call(ctx, plugin, "monitor bgp peer 10.0.0.1"), "monitor bgp peer")
-	if err != nil {
-		return err
-	}
-	if data["peer"] != addrPeerOne {
-		return fmt.Errorf("monitor bgp peer: expected 10.0.0.1, got %v", data["peer"])
-	}
-	fmt.Fprintln(os.Stderr, "OK: monitor peer=10.0.0.1")
-	return nil
+	return streamingOnlyRefused(ctx, plugin, "monitor bgp peer 10.0.0.1")
 }
 
 func fixture10MonitorSystemNetlink(ctx context.Context, plugin *sdk.Plugin) error {
@@ -348,30 +315,16 @@ func fixture10MonitorSystemNetlink(ctx context.Context, plugin *sdk.Plugin) erro
 	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
 		return err
 	}
-	first := fixture10Call(ctx, plugin, "monitor system netlink")
-	if first.err != nil && strings.Contains(first.err.Error(), "not available on this platform") {
-		fmt.Fprintln(os.Stderr, "OK: netlink monitor not available on this platform")
-		return nil
-	}
-	data, err := fixture10Object(first, "netlink monitor")
-	if err != nil {
-		return err
-	}
-	if data["status"] != statusMonitorConfigured || data["group"] != "all" {
-		return fmt.Errorf("netlink monitor: expected status=monitor-configured group=all, got %v", data)
-	}
-	route, err := fixture10Object(fixture10Call(ctx, plugin, "monitor system netlink route"), "netlink route monitor")
-	if err != nil {
-		return err
-	}
-	if route["group"] != groupRoute {
-		return fmt.Errorf("netlink route monitor: expected group=route, got %v", route["group"])
+	for _, command := range []string{"monitor system netlink", "monitor system netlink route"} {
+		if err := streamingOnlyRefused(ctx, plugin, command); err != nil {
+			return err
+		}
 	}
 	bogus := fixture10Call(ctx, plugin, "monitor system netlink bogus")
 	if bogus.status != statusError && bogus.err == nil {
 		return fmt.Errorf("netlink bogus group: expected error, got status=%q data=%s", bogus.status, bogus.raw)
 	}
-	fmt.Fprintln(os.Stderr, "OK: monitor system netlink all/route/bogus contracts held")
+	fmt.Fprintln(os.Stderr, "OK: monitor system netlink all/route refused, bogus group refused")
 	return nil
 }
 

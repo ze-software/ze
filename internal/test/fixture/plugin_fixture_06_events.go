@@ -2,10 +2,10 @@ package fixture
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -124,66 +124,46 @@ func fixture06EventMonitorBasic(ctx context.Context, p *sdk.Plugin) error {
 	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
 		return err
 	}
-	data, err := fixture06DispatchObject(ctx, p, "monitor event")
-	if err != nil {
-		return err
-	}
-	if data["status"] != statusMonitorConfigured {
-		return fmt.Errorf("monitor event status=%v, want monitor-configured", data["status"])
-	}
-	fmt.Fprintln(os.Stderr, "OK: monitor event returned status=monitor-configured")
-	return nil
+	return streamingOnlyRefused(ctx, p, "monitor event")
 }
 
 func fixture06EventMonitorExclude(ctx context.Context, p *sdk.Plugin) error {
 	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
 		return err
 	}
-	data, err := fixture06DispatchObject(ctx, p, "monitor event exclude keepalive")
-	if err != nil {
-		return err
-	}
-	exclude, ok := fixture06StringSlice(data["exclude"])
-	if !ok || !containsString(exclude, "keepalive") {
-		return fmt.Errorf("monitor event exclude=%v, want keepalive", data["exclude"])
-	}
-	fmt.Fprintf(os.Stderr, "OK: monitor event exclude filter parsed: %v\n", exclude)
-	return nil
+	return streamingOnlyRefused(ctx, p, "monitor event exclude keepalive")
 }
 
 func fixture06EventMonitorInclude(ctx context.Context, p *sdk.Plugin) error {
 	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
 		return err
 	}
-	data, err := fixture06DispatchObject(ctx, p, "monitor event include update,state")
-	if err != nil {
-		return err
-	}
-	include, ok := fixture06StringSlice(data["include"])
-	if !ok || !containsString(include, "update") || !containsString(include, "state") {
-		return fmt.Errorf("monitor event include=%v, want update,state", data["include"])
-	}
-	fmt.Fprintf(os.Stderr, "OK: monitor event include filter parsed: %v\n", include)
-	return nil
+	return streamingOnlyRefused(ctx, p, "monitor event include update,state")
 }
 
 func fixture06EventMonitorPeer(ctx context.Context, p *sdk.Plugin) error {
 	if err := fixture06WaitEOR(ctx, p, 1); err != nil {
 		return err
 	}
-	data, err := fixture06DispatchObject(ctx, p, "monitor event peer 10.0.0.1")
-	if err != nil {
-		return err
-	}
-	if data["peer"] != addrPeerOne {
-		return fmt.Errorf("monitor event peer=%v, want 10.0.0.1", data["peer"])
-	}
-	fmt.Fprintln(os.Stderr, "OK: monitor event peer filter parsed: 10.0.0.1")
-	return nil
+	return streamingOnlyRefused(ctx, p, "monitor event peer 10.0.0.1")
 }
 
-func containsString(values []string, target string) bool {
-	return slices.Contains(values, target)
+// streamingOnlyRefused dispatches command, a streaming-only command, from a
+// plugin, which is a route that answers once, and answers nil when the daemon
+// refused it naming the terminal command that streams it. Before the refusal
+// the daemon answered {"status":"monitor-configured"}: a reply shaped like
+// success that carried no events.
+func streamingOnlyRefused(ctx context.Context, p *sdk.Plugin, command string) error {
+	var raw json.RawMessage
+	status, err := Dispatch(ctx, p, command, &raw)
+	if err == nil {
+		return fmt.Errorf("%s: answered status=%q data=%s, want the streaming-only refusal", command, status, raw)
+	}
+	if !strings.Contains(err.Error(), "'ze "+command+"'") {
+		return fmt.Errorf("%s: refusal %q does not name 'ze %s'", command, err, command)
+	}
+	fmt.Fprintf(os.Stderr, "OK: %s refused on a one-shot route: %v\n", command, err)
+	return nil
 }
 
 func fixture06EventPredicateWait(ctx context.Context, p *sdk.Plugin) error {

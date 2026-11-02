@@ -8,8 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -51,22 +49,7 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-iface:monitor-system-netlink",
-			Handler:    handleMonitorSystemNetlink,
+			Handler:    pluginserver.StreamingOnlyRPC,
 		},
 	)
-}
-
-func handleMonitorSystemNetlink(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	group, err := netlinkGroupFromArgs(args)
-	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
-	}
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"status": "monitor-configured",
-			"group":  group,
-		},
-	}, nil
 }

@@ -89,3 +89,34 @@ func streamingLookup(t *testing.T, input string) (pluginserver.StreamingHandler,
 	}
 	return handler, validated.Tokens()
 }
+
+// TestNetlinkMonitorStreamGroup proves the group word of `monitor system
+// netlink` reaches the group the streaming handler subscribes to. The plugin
+// fixture monitor-system-netlink proved this through the one-shot echo
+// (`{"status":"monitor-configured","group":"route"}`); a streaming-only
+// command is refused on a one-shot route, so the proof lives here. Method:
+// take the arguments the streaming executor extracts from the full command
+// line (streamingLookup), and parse them with netlinkGroupFromArgs, the parser
+// streamNetlinkMonitor runs on them.
+func TestNetlinkMonitorStreamGroup(t *testing.T) {
+	tests := []struct {
+		line  string
+		group string
+	}{
+		{"monitor system netlink", netlinkGroupAll},
+		{"monitor system netlink route", netlinkGroupRoute},
+		{"monitor system netlink LINK", netlinkGroupLink},
+		{"monitor system netlink address", netlinkGroupAddress},
+	}
+	for _, tt := range tests {
+		_, args := streamingLookup(t, tt.line)
+		group, err := netlinkGroupFromArgs(args)
+		if err != nil {
+			t.Errorf("%q: %v", tt.line, err)
+			continue
+		}
+		if group != tt.group {
+			t.Errorf("%q: group %q, want %q", tt.line, group, tt.group)
+		}
+	}
+}

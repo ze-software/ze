@@ -7,8 +7,10 @@
 # WHAT CHANGED AND WHY: the pre-cutover file called `task-call ze_monitor_bgp`,
 # which sent `task:{}` to opt the call into task execution. That opt-in is gone
 # (D-1): the SERVER decides from the `ze:task-support required` annotation
-# ze_monitor_bgp carries, so the identical directive now sends no task member
-# and the handle comes back unasked. The file also asserted only
+# the tool carries, so the directive now sends no task member and the handle
+# comes back unasked. The tool is now ze_monitor_interface_rate: monitor bgp is
+# a streaming-only command, so MCP, which answers once, no longer offers it,
+# while monitor interface rate answers one sample and keeps the annotation. The file also asserted only
 # `contains=completed`, which the `task-wait` line already guarantees before
 # cancel is ever sent -- so the cancel half was unasserted. It is asserted now:
 # the state AFTER the cancel is read back and must still be `completed`.
@@ -18,8 +20,8 @@
 # assertion could not see it.
 #
 # WHY THE TASK IS ALREADY TERMINAL, AND WHERE THE RUNNING CASE IS PROVED: no
-# `ze:task-support required` command blocks. Every one of them (monitor bgp,
-# monitor ping, monitor interface rate, subscribe, show rib) answers its RPC
+# `ze:task-support required` command blocks. Every one of them (monitor ping,
+# monitor interface rate, subscribe, show rib) answers its RPC
 # from a snapshot and returns, so a `task-cancel` issued straight after
 # `task-call` would race the worker and land on `cancelled` or `completed`
 # depending on host load -- a timing assumption, which is the defect
@@ -33,15 +35,15 @@
 # the empty acknowledgement, and terminal-state idempotence.
 
 stdin=mcp:terminator=EOF_MCP
-# ze_monitor_bgp is GENERATED from the command registry and carries
+# ze_monitor_interface_rate is GENERATED from the command registry and carries
 # `ze:task-support required`. Waiting for it proves the registry is populated;
 # waiting on a handcrafted tool would not, since those are served from a static
 # list and appear immediately.
-wait-tool ze_monitor_bgp
+wait-tool ze_monitor_interface_rate
 # No `task` member: the server creates the task from the annotation. task-call
 # fails the run unless the reply is resultType "task" with a taskId, so the
 # server-directed creation is enforced here rather than merely assumed.
-task-call ze_monitor_bgp {}
+task-call ze_monitor_interface_rate {}
 task-wait $LAST completed
 # Cancel a task that is ALREADY terminal: acknowledged, and a no-op.
 task-cancel $LAST

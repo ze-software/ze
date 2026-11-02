@@ -1,7 +1,8 @@
-# Test: monitor system netlink via dispatch-command returns monitor-configured
-# VALIDATES: AC-1 -- monitor system netlink RPC handler is registered
-# VALIDATES: AC-7 -- non-Linux returns platform error gracefully
-# PREVENTS: monitor system netlink handler not wired or returning wrong status
+# Test: `monitor system netlink` (and monitor system netlink route) dispatched from a plugin is refused
+# VALIDATES: a streaming-only command, typed in full on a route that answers once,
+# is refused with an error naming `ze monitor system netlink`, the terminal command that streams it
+# PREVENTS: the old reply {"status":"monitor-configured"}, shaped like success and
+# carrying no events (the streaming path itself is proved where it streams)
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER

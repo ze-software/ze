@@ -1,6 +1,8 @@
-# Test: monitor event with include filter via dispatch-command
-# VALIDATES: AC-2 -- include filter parsed and returned in response
-# PREVENTS: include keyword not recognized by monitor event handler
+# Test: `monitor event include update,state` (with an include filter) dispatched from a plugin is refused
+# VALIDATES: a streaming-only command, typed in full on a route that answers once,
+# is refused with an error naming `ze monitor event include update,state`, the terminal command that streams it
+# PREVENTS: the old reply {"status":"monitor-configured"}, shaped like success and
+# carrying no events (the streaming path itself is proved where it streams)
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER

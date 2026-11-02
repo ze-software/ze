@@ -1,6 +1,8 @@
-# Test: bgp monitor peer 10.0.0.1 returns correct peer in response
-# VALIDATES: monitor RPC handler parses peer filter and returns peer address
-# PREVENTS: peer filtering silently ignored or returning wrong peer
+# Test: `monitor bgp peer 10.0.0.1` (with a peer filter) dispatched from a plugin is refused
+# VALIDATES: a streaming-only command, typed in full on a route that answers once,
+# is refused with an error naming `ze monitor bgp peer 10.0.0.1`, the terminal command that streams it
+# PREVENTS: the old reply {"status":"monitor-configured"}, shaped like success and
+# carrying no events (the streaming path itself is proved where it streams)
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER

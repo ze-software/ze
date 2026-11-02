@@ -5,6 +5,7 @@ package hub
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -480,6 +481,34 @@ func TestStreamingOneShotAnswersCarryData(t *testing.T) {
 	}
 	if samples == 0 {
 		t.Fatal("no streaming command declares a one-shot sample: the check proved nothing")
+	}
+}
+
+// TestStreamingOnlyRefusesOnOneShotSurfaces proves a streaming-only command
+// typed in full on a one-shot surface (MCP, REST, gRPC, the web admin
+// console) is refused, naming the terminal command that streams it, instead
+// of answering a reply that looks like success and carries nothing (the old
+// `{"status":"monitor-configured"}`). Method: every prefix the registry holds
+// as OneShotStreamingOnly is dispatched through the dispatcher every one-shot
+// surface uses.
+func TestStreamingOnlyRefusesOnOneShotSurfaces(t *testing.T) {
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	if err != nil {
+		t.Fatalf("server: %v", err)
+	}
+	prefixes := pluginserver.StreamingOnlyPrefixes()
+	if len(prefixes) == 0 {
+		t.Fatal("no streaming command is declared streaming-only: the check proved nothing")
+	}
+	for _, prefix := range prefixes {
+		resp, err := serverDispatcher(server, "")(t.Context(), plugin.CallerIdentity{Username: "surface-check"}, prefix)
+		if _, ok := errors.AsType[*pluginserver.StreamingOnlyError](err); !ok {
+			t.Errorf("%q one-shot: got error %v and response %+v, want the streaming-only refusal", prefix, err, resp)
+			continue
+		}
+		if !strings.Contains(err.Error(), "'ze "+prefix+"'") {
+			t.Errorf("%q refusal %q does not name the command that streams it", prefix, err)
+		}
 	}
 }
 

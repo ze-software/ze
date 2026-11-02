@@ -41,7 +41,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-meta:bgp-command-help", Handler: handleBgpCommandHelp},
 		pluginserver.RPCRegistration{WireMethod: "ze-meta:bgp-command-complete", Handler: handleBgpCommandComplete},
 		pluginserver.RPCRegistration{WireMethod: "ze-meta:bgp-event-list", Handler: handleBgpEventList},
-		pluginserver.RPCRegistration{WireMethod: "ze-meta:event-monitor", Handler: handleEventMonitor},
+		pluginserver.RPCRegistration{WireMethod: "ze-meta:event-monitor", Handler: pluginserver.StreamingOnlyRPC},
 	)
 }
 
@@ -266,25 +266,6 @@ func handleBgpEventList(_ *pluginserver.CommandContext, _ command.ValidatedArgs)
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"events": bgpEventTypes(),
-		},
-	}, nil
-}
-
-func handleEventMonitor(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	opts, err := pluginserver.ParseEventMonitorArgs(args)
-	if err != nil {
-		return nil, err
-	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"status":    "monitor-configured",
-			"include":   opts.IncludeTypes,
-			"exclude":   opts.ExcludeTypes,
-			"peer":      opts.Peer,
-			"direction": opts.Direction,
 		},
 	}, nil
 }

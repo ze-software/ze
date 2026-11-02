@@ -11,8 +11,6 @@ import (
 	"io"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
@@ -38,7 +36,9 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
 			WireMethod: WireMethod,
-			Handler:    handleMonitor,
+			// Streaming-only: a one-shot route refuses `monitor bgp` before
+			// any handler runs, so this RPC never answers a reply.
+			Handler: pluginserver.StreamingOnlyRPC,
 		},
 	)
 	// Register the compact one-liner formatter for monitor event display.
@@ -50,31 +50,6 @@ func init() {
 	// "monitor bgp" in the interactive CLI opens the dashboard view instead.
 	// (monitor traceroute is owned by the dedicated traceroute feature module,
 	// internal/component/traceroute/cmd.)
-}
-
-// handleMonitor is the RPC handler for non-streaming callers (interactive CLI dispatch).
-// Returns the parsed monitor configuration as JSON. Actual streaming is handled
-// by StreamMonitor which is called from the SSH exec streaming path.
-func handleMonitor(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	opts, err := parseMonitorArgs(args)
-	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  err.Error(),
-		}, err
-	}
-
-	// Return the parsed configuration. The SSH streaming path uses StreamMonitor instead.
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"status":      "monitor-configured",
-			"peer":        opts.peer,
-			"event-types": opts.eventTypes,
-			"direction":   opts.direction,
-		},
-	}, nil
 }
 
 // StreamMonitor is the entry point for SSH streaming monitor sessions.

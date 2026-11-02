@@ -1172,6 +1172,16 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 			}, argErr
 		}
 
+		// A streaming-only command has no one-shot answer: refuse it here,
+		// where every one-shot surface dispatches, rather than run a handler
+		// whose reply would carry no data.
+		if refusal := streamingOnlyRefusal(matchedCmd.Name, input); refusal != nil {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Error:  refusal.Error(),
+			}, refusal
+		}
+
 		// Execute handler.
 		if matchedCmd.Handler == nil {
 			return &plugin.Response{Status: plugin.StatusDone}, nil

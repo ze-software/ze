@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command/commandtest"
-	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
@@ -246,88 +245,35 @@ func TestParseMonitorArgsKeywordOrder(t *testing.T) {
 }
 
 // =============================================================================
-// handleMonitor Tests (Fix #9)
+// ze-bgp:monitor RPC
 // =============================================================================
 
-// TestHandleMonitor verifies the RPC handler returns parsed config or error.
+// TestMonitorRPCIsStreamingOnly proves the ze-bgp:monitor RPC answers no
+// one-shot reply: `monitor bgp` is declared streaming-only, and its RPC is the
+// shared StreamingOnlyRPC, which answers an error if a route ever skipped the
+// refusal. It replaces the old handleMonitor tests, which asserted the
+// `{"status":"monitor-configured"}` echo. The argument parsing they also
+// covered is proven by the parseMonitorArgs tests above and, on the streaming
+// path, by TestStreamMonitorWithFilters and TestStreamMonitorInvalidArgs.
 //
-// VALIDATES: Valid args return StatusDone with config data; invalid args return StatusError.
-// PREVENTS: handleMonitor silently accepting bad input or returning wrong status.
-func TestHandleMonitor(t *testing.T) {
-	tests := []struct {
-		name       string
-		args       []string
-		wantStatus string
-		wantErr    bool
-	}{
-		{
-			name:       "no_args_returns_done",
-			args:       nil,
-			wantStatus: plugin.StatusDone,
-		},
-		{
-			name:       "valid_peer_returns_done",
-			args:       []string{"peer", "10.0.0.1"},
-			wantStatus: plugin.StatusDone,
-		},
-		{
-			name:       "valid_event_returns_done",
-			args:       []string{"event", "update"},
-			wantStatus: plugin.StatusDone,
-		},
-		{
-			name:       "all_filters_returns_done",
-			args:       []string{"peer", "10.0.0.1", "event", "update,state", "direction", "received"},
-			wantStatus: plugin.StatusDone,
-		},
-		{
-			name:       "invalid_args_returns_error",
-			args:       []string{"bogus"},
-			wantStatus: plugin.StatusError,
-			wantErr:    true,
-		},
-		{
-			name:       "peer_name_returns_done",
-			args:       []string{"peer", "upstream-1"},
-			wantStatus: plugin.StatusDone,
-		},
+// VALIDATES: the registered handler for WireMethod returns an error and no reply.
+// PREVENTS: a one-shot surface answering a reply that looks like success and carries nothing.
+func TestMonitorRPCIsStreamingOnly(t *testing.T) {
+	oneShot, ok := pluginserver.StreamingOneShot("monitor bgp")
+	require.True(t, ok, "monitor bgp has no streaming registration")
+	require.Equal(t, pluginserver.OneShotStreamingOnly, oneShot)
+
+	found := false
+	for _, reg := range pluginserver.AllBuiltinRPCs() {
+		if reg.WireMethod != WireMethod {
+			continue
+		}
+		found = true
+		resp, err := reg.Handler(&pluginserver.CommandContext{}, commandtest.Args("peer", "10.0.0.1"))
+		require.Error(t, err, "the streaming-only RPC answered a reply: %+v", resp)
+		require.Nil(t, resp)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleMonitor(nil, commandtest.Args(tt.args...))
-			if tt.wantErr {
-				require.Error(t, err)
-				require.NotNil(t, resp)
-				assert.Equal(t, tt.wantStatus, resp.Status)
-				return
-			}
-			require.NoError(t, err)
-			require.NotNil(t, resp)
-			assert.Equal(t, tt.wantStatus, resp.Status)
-
-			// Verify response data contains expected fields.
-			data, ok := resp.Data.(plugin.Map)
-			require.True(t, ok, "response data should be a map")
-			assert.Equal(t, "monitor-configured", data["status"])
-		})
-	}
-}
-
-// TestHandleMonitorResponseContent verifies the response data fields match parsed args.
-//
-// VALIDATES: Response data reflects the parsed peer, event-types, and direction.
-// PREVENTS: Response data out of sync with parsed options.
-func TestHandleMonitorResponseContent(t *testing.T) {
-	resp, err := handleMonitor(nil, commandtest.Args("peer", "10.0.0.1", "event", "update,state", "direction", "received"))
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-
-	data, ok := resp.Data.(plugin.Map)
-	require.True(t, ok)
-	assert.Equal(t, "10.0.0.1", data["peer"])
-	assert.Equal(t, "received", data["direction"])
-	assert.Equal(t, []string{"update", "state"}, data["event-types"])
+	require.True(t, found, "no RPC registered for %s", WireMethod)
 }
 
 // =============================================================================
