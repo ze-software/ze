@@ -70,7 +70,7 @@ func TestAddressLossTakesInterfaceOut(t *testing.T) {
 	bus := &handlerBus{handlers: make(map[string]func(any))}
 	cleanup := tr.subscribeIfaceEventsWithRescan(bus, 0)
 	defer cleanup()
-	tr.EnableInterface("eth0")
+	tr.EnableInterface("eth0", 0)
 	if err := tr.HandleLinkUp("eth0"); err != nil {
 		t.Fatalf("HandleLinkUp: %v", err)
 	}

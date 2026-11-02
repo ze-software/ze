@@ -140,7 +140,7 @@ func TestPacketTypeLabel(t *testing.T) {
 func TestOSPFTransportOpenOnLinkUp(t *testing.T) {
 	fb := newFakeBackend()
 	tr := New(fb)
-	tr.EnableInterface("eth0")
+	tr.EnableInterface("eth0", 0)
 	if err := tr.HandleLinkUp("eth0"); err != nil {
 		t.Fatalf("HandleLinkUp: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestOSPFTransportOpenOnLinkUp(t *testing.T) {
 func TestOSPFTransportDoesNotPublishDisabledInterfaceAfterSlowOpen(t *testing.T) {
 	backend := &blockingBackend{opened: make(chan struct{}), release: make(chan struct{})}
 	tr := New(backend)
-	tr.EnableInterface("eth0")
+	tr.EnableInterface("eth0", 0)
 	errCh := make(chan error, 1)
 	go func() { errCh <- tr.HandleLinkUp("eth0") }()
 	<-backend.opened
@@ -175,7 +175,7 @@ func TestOSPFTransportDoesNotPublishDisabledInterfaceAfterSlowOpen(t *testing.T)
 func TestOSPFTransportSendMulticastDoesNotAlterPayload(t *testing.T) {
 	fb := newFakeBackend()
 	tr := New(fb)
-	tr.EnableInterface("eth0")
+	tr.EnableInterface("eth0", 0)
 	if err := tr.HandleLinkUp("eth0"); err != nil {
 		t.Fatalf("HandleLinkUp: %v", err)
 	}
@@ -196,7 +196,7 @@ func TestOSPFTransportSendMulticastDoesNotAlterPayload(t *testing.T) {
 func TestOSPFTransportSendUnicastDoesNotAlterPayload(t *testing.T) {
 	fb := newFakeBackend()
 	tr := New(fb)
-	tr.EnableInterface("eth0")
+	tr.EnableInterface("eth0", 0)
 	if err := tr.HandleLinkUp("eth0"); err != nil {
 		t.Fatalf("HandleLinkUp: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestOSPFTransportSendUnicastDoesNotAlterPayload(t *testing.T) {
 func TestVirtualLinkSendUsesRoutedTTL(t *testing.T) {
 	fb := newFakeBackend()
 	tr := New(fb)
-	tr.EnableInterface("eth0")
+	tr.EnableInterface("eth0", 0)
 	if err := tr.HandleLinkUp("eth0"); err != nil {
 		t.Fatalf("HandleLinkUp: %v", err)
 	}
@@ -250,7 +250,7 @@ func TestOSPFTransportSignerRefusal(t *testing.T) {
 			fb := newFakeBackend()
 			tr := New(fb)
 			defer tr.Close()
-			tr.EnableInterface("eth0")
+			tr.EnableInterface("eth0", 0)
 			if err := tr.HandleLinkUp("eth0"); err != nil {
 				t.Fatal(err)
 			}
@@ -297,7 +297,7 @@ func TestOSPFTransportSignerRefusal(t *testing.T) {
 func TestOSPFTransportJoinLeaveAllDRouters(t *testing.T) {
 	fb := newFakeBackend()
 	tr := New(fb)
-	tr.EnableInterface("eth0")
+	tr.EnableInterface("eth0", 0)
 	if err := tr.HandleLinkUp("eth0"); err != nil {
 		t.Fatalf("HandleLinkUp: %v", err)
 	}
@@ -316,7 +316,7 @@ func TestOSPFTransportJoinLeaveAllDRouters(t *testing.T) {
 func TestOSPFTransportReceiveDispatchByIfindex(t *testing.T) {
 	fb := newFakeBackend()
 	tr := New(fb)
-	tr.EnableInterface("eth0")
+	tr.EnableInterface("eth0", 0)
 	if err := tr.HandleLinkUp("eth0"); err != nil {
 		t.Fatalf("HandleLinkUp: %v", err)
 	}
@@ -336,7 +336,7 @@ func TestOSPFTransportReceiveDispatchByIfindex(t *testing.T) {
 func TestOSPFTransportCloseOnLinkDown(t *testing.T) {
 	fb := newFakeBackend()
 	tr := New(fb)
-	tr.EnableInterface("eth0")
+	tr.EnableInterface("eth0", 0)
 	var downIf int
 	tr.OnInterfaceDown(func(ifindex int, name string) { downIf = ifindex })
 	if err := tr.HandleLinkUp("eth0"); err != nil {

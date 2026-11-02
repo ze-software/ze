@@ -15,7 +15,7 @@ func TestOSPFTransportPassesLinkIndicationsToOSPF(t *testing.T) {
 	var upName, downName string
 	tr.OnInterfaceUp(func(ifindex int, name string) { upIf, upName = ifindex, name })
 	tr.OnInterfaceDown(func(ifindex int, name string) { downIf, downName = ifindex, name })
-	tr.EnableInterface("eth0")
+	tr.EnableInterface("eth0", 0)
 
 	if err := tr.HandleLinkUp("eth0"); err != nil {
 		t.Fatalf("HandleLinkUp: %v", err)

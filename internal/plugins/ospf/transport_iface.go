@@ -29,7 +29,9 @@ type Transport interface {
 	// ignored by the IPv4 transport, which lets the kernel pick the source).
 	SendPacketRouted(name string, dst, src netip.Addr, payload []byte) error
 	Receive() <-chan transport.RawPacket
-	EnableInterface(name string)
+	// EnableInterface enables name with the engine's configured Instance ID, which
+	// the OSPFv3 transport's RFC 5340 Section 4.2.1 receive filter keeps.
+	EnableInterface(name string, instanceID uint8)
 	DisableInterface(name string)
 	HandleLinkUp(name string) error
 	HandleLinkDown(name string) error
@@ -49,6 +51,6 @@ type Transport interface {
 
 // Both raw transports satisfy the engine Transport interface, proving the transport seam
 // is pluggable per address family: OSPFv2 (IPv4) unchanged, and OSPFv3 (IPv6) via its
-// shared wire.RawPacket and its EnableInterface(name) default-Instance-ID wrapper.
+// shared wire.RawPacket and its Instance-ID-filtering EnableInterface.
 var _ Transport = (*transport.Transport)(nil)
 var _ Transport = (*ospfv3transport.Transport)(nil)

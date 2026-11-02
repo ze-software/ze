@@ -136,11 +136,11 @@ func TestOSPFv3FanInPanicContained(t *testing.T) {
 	tr := New(backend)
 	downs := make(chan string, 2)
 	tr.OnInterfaceDown(func(_ int, name string) { downs <- name })
-	tr.EnableInterface("eth1")
+	tr.EnableInterface("eth1", 0)
 	if err := tr.HandleLinkUp("eth1"); err != nil {
 		t.Fatalf("HandleLinkUp(eth1): %v", err)
 	}
-	tr.EnableInterface("eth0")
+	tr.EnableInterface("eth0", 0)
 	if err := tr.HandleLinkUp("eth0"); err != nil {
 		t.Fatalf("HandleLinkUp(eth0): %v", err)
 	}

@@ -120,7 +120,7 @@ func TestOSPFReadPanicContained(t *testing.T) {
 	downs := make(chan string, 4)
 	tr.OnInterfaceDown(func(_ int, name string) { downs <- name })
 	for _, name := range []string{"eth0", "eth1"} {
-		tr.EnableInterface(name)
+		tr.EnableInterface(name, 0)
 		if err := tr.HandleLinkUp(name); err != nil {
 			t.Fatalf("HandleLinkUp(%s): %v", name, err)
 		}
@@ -185,7 +185,7 @@ func TestOSPFFanInPanicContained(t *testing.T) {
 	tr := New(backend)
 	downs := make(chan string, 1)
 	tr.OnInterfaceDown(func(_ int, name string) { downs <- name })
-	tr.EnableInterface("eth0")
+	tr.EnableInterface("eth0", 0)
 	if err := tr.HandleLinkUp("eth0"); err != nil {
 		t.Fatalf("HandleLinkUp: %v", err)
 	}

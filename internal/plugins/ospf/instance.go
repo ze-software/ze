@@ -758,7 +758,12 @@ func (e *engine) openInterface(ic interfaceConfig) error {
 		return nil
 	}
 	e.startReceiveLoop()
-	e.transport.EnableInterface(ic.Name)
+	// RFC 5340 Section 4.2.1: the transport discards a packet whose Instance ID is
+	// not the one configured for the interface, so it is told this engine's.
+	e.mu.Lock()
+	instanceID := e.cfg.InstanceID
+	e.mu.Unlock()
+	e.transport.EnableInterface(ic.Name, instanceID)
 	return e.transport.HandleLinkUp(ic.Name)
 }
 

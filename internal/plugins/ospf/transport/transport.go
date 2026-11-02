@@ -146,8 +146,10 @@ func (t *Transport) SetMetrics(reg metrics.Registry) {
 }
 
 // EnableInterface marks an interface as OSPF-enabled. It is opened only when a
-// link-up event or rescan says the interface is up.
-func (t *Transport) EnableInterface(name string) {
+// link-up event or rescan says the interface is up. The OSPFv2 transport keeps
+// no Instance ID: RFC 6549's per-instance discard runs in the engine's
+// dispatcher, so instanceID is accepted for the shared Transport interface only.
+func (t *Transport) EnableInterface(name string, _ uint8) {
 	t.mu.Lock()
 	t.enabled[name] = struct{}{}
 	wired := t.eventsWired

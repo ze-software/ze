@@ -161,10 +161,11 @@ func (t *Transport) SetMetrics(reg metrics.Registry) {
 	t.metrics = newTransportMetrics(reg)
 }
 
-// EnableInterface enables name with the default Instance ID 0 (RFC 5340 §4.2.1). It
-// satisfies the shared engine Transport interface; use enableInterfaceInstance to set a
-// non-zero Instance ID from config.
-func (t *Transport) EnableInterface(name string) { t.enableInterfaceInstance(name, 0) }
+// EnableInterface enables name with the engine's configured Instance ID, the one the
+// receive filter keeps (RFC 5340 §4.2.1).
+func (t *Transport) EnableInterface(name string, instanceID uint8) {
+	t.enableInterfaceInstance(name, types.InstanceID(instanceID))
+}
 
 // enableInterfaceInstance marks an interface as OSPFv3-enabled with a specific Instance
 // ID (RFC 5340 §4.2.1). It is opened only when a link-up event or rescan says the

@@ -44,7 +44,7 @@ func TestRFC2328DigestCountedInIPLengthNotPacketLength(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			fb := newFakeBackend()
 			tr := New(fb)
-			tr.EnableInterface("eth0")
+			tr.EnableInterface("eth0", 0)
 			if err := tr.HandleLinkUp("eth0"); err != nil {
 				t.Fatalf("HandleLinkUp: %v", err)
 			}
