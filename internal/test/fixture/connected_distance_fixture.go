@@ -42,6 +42,19 @@ func connectedDistanceWinner02(wantProtocol string, wantZeRoute bool) ObserverSc
 		if err := apiRIBReady02(ctx, plugin); err != nil {
 			return err
 		}
+
+		// Give the injected gateway on-link reachability without making it local.
+		if _, err := netfilterCommandOutput(ctx, "ip", "link", "add", "zeconnnh0", "type", "dummy"); err != nil {
+			return err
+		}
+		defer commandIgnore(context.WithoutCancel(ctx), "ip", "link", "del", "zeconnnh0")
+
+		if _, err := netfilterCommandOutput(ctx, "ip", "link", "set", "zeconnnh0", "up"); err != nil {
+			return err
+		}
+		if _, err := netfilterCommandOutput(ctx, "ip", "addr", "add", "198.51.100.2/24", "dev", "zeconnnh0"); err != nil {
+			return err
+		}
 		var inject textbuf.Buffer
 		inject.Str("request bgp rib inject 10.0.0.99 ipv4/unicast ").Str(connectedPrefix)
 		inject.Str(" origin igp aspath 64500 nexthop 198.51.100.1")
