@@ -287,6 +287,10 @@ func executeTerminalOperational(ctx context.Context, dispatch CommandDispatcher,
 	}
 	rendered, err := dispatch.JSON(ctx, plugin.CallerIdentity{Username: username, RemoteAddr: remoteAddr}, cmdStr)
 	if err != nil {
+		// A refusal a command wrote whole reads as `ze <command>` prints it.
+		if line, refused := plugin.RefusalLine(err); refused {
+			return line, rendered
+		}
 		var tb textbuf.Buffer
 		return tb.Str("error: ").Err(err).String(), rendered
 	}

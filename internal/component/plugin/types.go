@@ -12,6 +12,7 @@ package plugin
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"iter"
 	"net/netip"
@@ -320,6 +321,53 @@ func (r *Response) WarningText() string {
 		return ""
 	}
 	return strings.Join(r.Warnings, "\n")
+}
+
+// refusalErrorPrefix opens the refusal text a command writes for an
+// operator, and every surface's own rendering of an error.
+const refusalErrorPrefix = "error: "
+
+// RefusalError is a refusal whose operator text the command wrote whole, as
+// the local route prints it on stderr. A local-data handler served by the
+// daemon refuses with one (pluginserver localAnswerResponse).
+//
+// Error answers the reason a program reads, without the "error: " the text
+// opens with, which is what Response.Error carries. A surface that prints an
+// error for a person prints Line instead of adding its own prefix, so a
+// refusal that is a usage page ("usage: show config list") reads as it reads
+// on the local route rather than as "error: usage: ...". RefusalLine is that
+// test.
+type RefusalError struct {
+	line string
+}
+
+// NewRefusalError builds the refusal whose operator text is diagnostic. The
+// final newline the local route prints is dropped, because each surface ends
+// its line its own way. diagnostic MUST NOT be empty: a refusal with no text
+// has nothing to print verbatim, and its caller reports it as a plain error.
+func NewRefusalError(diagnostic string) *RefusalError {
+	return &RefusalError{line: strings.TrimSuffix(diagnostic, "\n")}
+}
+
+// Error answers the reason without the leading "error: ".
+func (e *RefusalError) Error() string {
+	return strings.TrimPrefix(e.line, refusalErrorPrefix)
+}
+
+// Line answers the operator text exactly as the local route prints it,
+// without the final newline.
+func (e *RefusalError) Line() string {
+	return e.line
+}
+
+// RefusalLine answers the operator text of err when err is, or wraps, a
+// RefusalError, and false for every other error, which the surface renders
+// its own way ("error: " and the text).
+func RefusalLine(err error) (string, bool) {
+	if refusal, ok := errors.AsType[*RefusalError](err); ok {
+		return refusal.Line(), true
+	}
+	return "", false
 }
 
 // OnTransportComplete carries an accepted action to the transport that owns

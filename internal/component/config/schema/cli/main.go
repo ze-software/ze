@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"slices"
@@ -435,7 +436,10 @@ func buildSchemaRegistry(extPlugins []string) (*pluginserver.SchemaRegistry, err
 	}
 
 	// Register internal plugin schemas
-	for name, yangContent := range plugin.GetAllInternalPluginYANG() {
+	internalYANG := plugin.GetAllInternalPluginYANG()
+	// Sorted, so the registry is built the same way on every call.
+	for _, name := range slices.Sorted(maps.Keys(internalYANG)) {
+		yangContent := internalYANG[name]
 		pluginName := strings.TrimSuffix(strings.TrimPrefix(name, moduleNamePrefix), ".yang")
 		wantsConfig := plugin.GetInternalPluginWantsConfig(pluginName)
 		if err := registerYANG(registry, yangContent, internalPluginPrefix+pluginName, nil, wantsConfig, loaded); err != nil {
@@ -474,8 +478,19 @@ func registerYANG(registry *pluginserver.SchemaRegistry, yangContent, pluginName
 		return fmt.Errorf("parse YANG: %w", err)
 	}
 
-	// Skip if already loaded (deduplication by module name)
+	// Skip if already loaded (deduplication by module name). A module another
+	// module imports can be loaded first by tryAutoLoadInternal, which does not
+	// know the owning plugin and so records no config roots; the owner's own
+	// registration then carries them, and they are kept. Without this the
+	// answer of `show schema list` depended on which plugin the map iteration
+	// in buildSchemaRegistry met first.
 	if loaded[meta.Module] {
+		if len(wantsConfig) == 0 {
+			return nil
+		}
+		if s, lookupErr := registry.GetByModule(meta.Module); lookupErr == nil && len(s.WantsConfig) == 0 {
+			s.WantsConfig = wantsConfig
+		}
 		return nil
 	}
 

@@ -22,12 +22,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// localErrorPrefix opens every refusal a local-data handler writes, because
-// the local route prints the Diagnostic as it stands (helpfmt.WriteError
-// writes the same bytes). A surface adds its own prefix to an error, so the
-// daemon form carries the reason without it.
-const localErrorPrefix = "error: "
-
 // loadLocalData registers every local-data command whose path a YANG
 // ze:command node declares, under that path, so the dispatcher serves it like
 // a builtin: authorization and accounting first, then the validator over the
@@ -89,14 +83,17 @@ func localDataHandler(path string, handler command.LocalDataHandler) Handler {
 //   - The payload is the response Data. It is encoded once here; the declared
 //     shape of the path (command.RegisterShape) governs the pipes on it, as
 //     it does locally.
-//   - A non-zero code is a failed status, and the Diagnostic the local route
-//     prints on stderr is the error text, without its final newline and
-//     without the "error: " the local route opens it with. Every surface
-//     that prints an error adds its own prefix ("error: " on SSH and
-//     `ze cli`, "Error: " in an MCP result), so carrying the local one too
-//     printed it twice; with it removed, SSH prints the local route's exact
-//     bytes. The payload stays beside it: `show config validation` answers
-//     the diagnostics of a config it rejects and exits 1.
+//   - A non-zero code is a failed status, and the error is a
+//     plugin.RefusalError holding the Diagnostic the local route prints on
+//     stderr. Response.Error and the error's text are the reason without the
+//     "error: " the Diagnostic may open with, for a program to read; a
+//     surface that prints for a person asks plugin.RefusalLine and prints the
+//     Diagnostic as it stands instead of adding its own prefix, so a usage
+//     refusal reads "usage: ..." on SSH as it does locally, and an "error: "
+//     refusal is not printed twice. A refusal with no Diagnostic is a plain
+//     error naming the exit code: there is no text to print verbatim. The
+//     payload stays beside it: `show config validation` answers the
+//     diagnostics of a config it rejects and exits 1.
 //   - A Diagnostic beside a zero code is a warning about an answer the
 //     command still gave, such as the parse warnings of `show config dump`.
 //     It travels as the response Warnings, one line each, under
@@ -122,12 +119,14 @@ func localAnswerResponse(path string, answer command.LocalAnswer) (*plugin.Respo
 		}
 		return resp, nil
 	}
-	reason := strings.TrimPrefix(strings.TrimSuffix(answer.Diagnostic, "\n"), localErrorPrefix)
-	if reason == "" {
-		var tb textbuf.Buffer
-		reason = tb.Str(path).Str(" failed with exit code ").Int(int64(answer.Code)).Str(" and gave no reason").String()
-	}
 	resp.Status = plugin.StatusError
-	resp.Error = reason
-	return resp, errors.New(reason)
+	if strings.TrimSuffix(answer.Diagnostic, "\n") == "" {
+		var tb textbuf.Buffer
+		reason := tb.Str(path).Str(" failed with exit code ").Int(int64(answer.Code)).Str(" and gave no reason").String()
+		resp.Error = reason
+		return resp, errors.New(reason)
+	}
+	refusal := plugin.NewRefusalError(answer.Diagnostic)
+	resp.Error = refusal.Error()
+	return resp, refusal
 }

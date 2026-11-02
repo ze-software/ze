@@ -245,10 +245,17 @@ func writeExecFailure(sess ssh.Session, frame *answerFrame, err error) {
 
 // writeExecError writes the plain-text failure an operator reads, in the shape
 // `ssh <host> <command>` has always answered with. sshclient.trimErrorPrefix is
-// its reader.
+// its reader. A refusal a command wrote whole (plugin.RefusalLine) is written
+// as it stands, the bytes `ze <command>` prints on stderr; every other error
+// is "error: " and its text.
 func writeExecError(sess ssh.Session, err error) {
 	var tb textbuf.Buffer
-	io.WriteString(sess.Stderr(), tb.Str("error: ").Err(err).Byte('\n').String()) //nolint:errcheck // best-effort
+	if line, refused := plugin.RefusalLine(err); refused {
+		tb.Str(line)
+	} else {
+		tb.Str("error: ").Err(err)
+	}
+	io.WriteString(sess.Stderr(), tb.Byte('\n').String()) //nolint:errcheck // best-effort
 }
 
 // marshalAnswerFields encodes the column names a streamed answer's head

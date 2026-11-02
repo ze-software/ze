@@ -213,6 +213,10 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher, tree *co
 
 		if execErr != nil && output == "" {
 			result.Output = execErr.Error()
+			// A refusal a command wrote whole reads as `ze <command>` prints it.
+			if line, refused := plugin.RefusalLine(execErr); refused {
+				result.Output = line
+			}
 		}
 		warning := rendered.Response.WarningText()
 

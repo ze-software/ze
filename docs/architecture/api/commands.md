@@ -270,11 +270,17 @@ does. A token that starts with `-` is refused before the handler, because a
 `--flag` is offline tooling the daemon never reads. The answer maps onto the
 response the way the local route maps it onto the terminal: the payload is
 the response data, under the shape the path declares; a non-zero code is a
-failed status, with the diagnostic as the error text (its final newline
-dropped, and the `error: ` it opens with left to the surface, which adds its
-own: SSH, `ze cli` and the web terminal print `error: <text>`, the local
-route's exact bytes, and an MCP result `Error: <text>`) and the payload, if
-any, still beside it. Nothing is written to the daemon's stdout or stderr.
+failed status, and the payload, if any, still beside it. The error is a
+`plugin.RefusalError` holding the diagnostic: the response's `error` field
+and the error's text are the reason without its final newline and without
+the `error: ` it may open with, for a program to read, and a surface that
+prints for a person asks `plugin.RefusalLine` and prints the diagnostic as it
+stands (SSH exec, the SSH session, the web terminal, the web admin card and an
+MCP result), so a usage refusal reads `usage: ...` there as it does locally,
+never `error: usage: ...`, and an `error: ` refusal carries its prefix once.
+Every other error keeps the surface's own rendering (`error: <text>`, MCP
+`Error: <text>`). A refusal with no diagnostic is a plain error naming the
+exit code. Nothing is written to the daemon's stdout or stderr.
 
 A diagnostic beside a zero code is a warning about an answer the command still
 gave, such as the parse warnings of `show config dump`. It travels in the

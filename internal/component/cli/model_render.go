@@ -14,6 +14,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/muesli/reflow/ansi"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -511,6 +512,10 @@ func (m Model) messageLines() (string, string) {
 // feedbackLine returns the top message line: command results and status.
 func (m Model) feedbackLine() string {
 	if m.err != nil {
+		// A refusal a command wrote whole reads as `ze <command>` prints it.
+		if line, refused := plugin.RefusalLine(m.err); refused {
+			return errorStyle.Render(line)
+		}
 		var tb textbuf.Buffer
 		return errorStyle.Render(tb.Str("Error: ").Err(m.err).String())
 	}

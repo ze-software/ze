@@ -1001,6 +1001,11 @@ func (s *server) run(command string) map[string]any {
 	rendered, err := s.dispatch.JSON(s.context(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
 	s.completion = rendered
 	if err != nil {
+		// A refusal a command wrote whole reads as `ze <command>` prints it,
+		// with no "Error: " of MCP's own in front.
+		if line, refused := plugin.RefusalLine(err); refused {
+			return refusalResult(line)
+		}
 		return ErrResult(err.Error())
 	}
 	return answerResult(rendered.Output, rendered.Response.WarningText())
@@ -1028,6 +1033,15 @@ func answerResult(answer, warning string) map[string]any {
 func TextResult(s string) map[string]any {
 	return map[string]any{
 		"content": []map[string]any{{schemaKeyType: contentTypeText, contentTypeText: s}},
+	}
+}
+
+// refusalResult is the error result of a refusal a command wrote whole: the
+// text as `ze <command>` prints it on stderr.
+func refusalResult(line string) map[string]any {
+	return map[string]any{
+		"content": []map[string]any{{schemaKeyType: contentTypeText, contentTypeText: line}},
+		"isError": true,
 	}
 }
 
