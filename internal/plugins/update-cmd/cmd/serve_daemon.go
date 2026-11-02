@@ -200,10 +200,7 @@ func (o *updateServeOwner) status() updateServeStatus {
 	if l == nil {
 		return updateServeStatus{}
 	}
-	if l.ended() {
-		return updateServeStatus{Listen: l.addr, Paused: l.paused.Load()}
-	}
-	return updateServeStatus{Running: true, Listen: l.addr, Paused: l.paused.Load()}
+	return updateServeStatus{Running: !l.ended(), Listen: l.addr, Paused: l.paused.Load()}
 }
 
 var errNoUpdateServer = errors.New("no update server is running: start one with 'update serve start'")
