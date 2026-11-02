@@ -1,0 +1,106 @@
+# Test: llgr-readvertise.ci with bgp-gr forked (spec-filter-wire-6-stage-filters AC-13).
+# The same expectations as the internal twin: bgp-gr runs as a real external
+# process over TLS connect-back (`ze plugin bgp-gr`), so its LLGR
+# filters, capability state and retention verdict live in the child.
+# The RFC requirement tags stay on the internal twin.
+# Test: retained IPv4 routes are readvertised with LLGR_STALE on a live socket.
+# Both OPEN directions reach GR. IPv6 is negotiated but is not retained.
+# Received-RIB observations and destination acknowledgments release TCP close.
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=linger:value=true
+option=open:value=router-id:id=192.0.2.1
+option=open:value=graceful-restart:restart-time=3:family=ipv4/unicast
+option=open:value=llgr:stale-time=60:family=ipv4/unicast
+# Wait for the observer's destination-ready marker, not merely source readiness.
+expect=bgp:conn=1:seq=1:contains=18C63363
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0000
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C400101004002004003040A00000240050400000064C00804FFFF0007180A0001
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0002
+# IPv6 is negotiated but absent from both remote retention capabilities.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0046020000002F40010100400200400504000000C8800E1E00020110200100000000000000000000000000110040FC00000100000000
+expect=bgp:conn=1:seq=2:contains=18C63364
+action=close:conn=1:seq=3
+EOF_SOURCE
+
+stdin=control:terminator=EOF_CONTROL
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=linger:value=true
+option=open:value=router-id:id=192.0.2.2
+option=open:value=graceful-restart:restart-time=3
+option=open:value=llgr:stale-time=60
+expect=bgp:conn=1:seq=1:announced=180A0000
+expect=bgp:conn=1:seq=1:announced=180A0001:attribute=8,FFFF0007
+expect=bgp:conn=1:seq=1:announced=180A0002
+expect=bgp:conn=1:seq=1:announced=40FC00000100000000
+# A real received ACK fences initial wire delivery before the source can close.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000024005040000006418CB0070
+# The nonretained family withdraws at DOWN, while IPv4 survives into LLGR.
+expect=bgp:conn=1:seq=2:withdrawn=40FC00000100000000
+expect=bgp:conn=1:seq=2:withdrawn=180A0001
+expect=bgp:conn=1:seq=2:announced=180A0000:attribute=8,FFFF0006
+expect=bgp:conn=1:seq=2:announced=180A0002:attribute=8,FFFF0006
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000024005040000006418CB0071
+reject=bgp:conn=1:scope=withdrawn:pattern=180A0000
+reject=bgp:conn=1:scope=withdrawn:pattern=180A0002
+EOF_CONTROL
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+ hub { server local { ip 127.0.0.1; port 0; secret llgr-readvertise-forked-secret-0001; } }
+ external bgp-gr { run "ze plugin bgp-gr"; }
+ internal bgp-rib { use bgp-rib; }
+ internal rs { use bgp-rs; }
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ external observer { run "le test fixture plugin/llgr-readvertise"; encoder json; }
+}
+bgp {
+ peer source {
+  connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+  session {
+   asn { local 1; remote 1; }
+   router-id 1.2.3.4
+   family { ipv4/unicast { prefix { maximum 10000; } } ipv6/unicast { prefix { maximum 10000; } } }
+   capability { graceful-restart { restart-time 120; long-lived-stale-time 3600; } }
+   route-reflector-client true
+   cluster-id 10.10.10.10
+  }
+  behavior { group-updates disable; }
+  timer { connect-retry 60; }
+  attach process bgp-gr { receive [ open state eor ]; send [ update ]; }
+  attach process bgp-rib { receive [ update state refresh ]; }
+  attach process observer { receive [ state ]; send [ update ]; }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  # Only control grants rs/RIB output; source accepts observer markers alone.
+  attach process rs { receive [ update-received state open-received refresh ]; }
+ }
+ peer control {
+  connection { remote { ip ::1; } local { ip ::1; accept false; } }
+  session {
+   asn { local 1; remote 1; }
+   router-id 1.2.3.4
+   family { ipv4/unicast { prefix { maximum 10000; } } ipv6/unicast { prefix { maximum 10000; } } }
+   capability { graceful-restart { restart-time 120; long-lived-stale-time 3600; } }
+   route-reflector-client true
+   cluster-id 10.10.10.10
+  }
+  behavior { group-updates disable; }
+  timer { connect-retry 60; }
+  attach process bgp-gr { receive [ open state eor ]; send [ update ]; }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+  attach process observer { receive [ state ]; send [ update ]; }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
+ }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind ::1 --port $PORT:stdin=control
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=45s
+await=stderr:contains=OK: received LLGR lifecycle wire:then=stop
+expect=exit:code=0
+expect=stderr:contains=OK: received LLGR lifecycle wire
+reject=stderr:pattern=panic

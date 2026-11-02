@@ -239,7 +239,8 @@ func TestBatchSelfDoesNotCrossReplacementSession(t *testing.T) {
 			}
 			if tc.stale {
 				batch.Stale = 1
-				api.r.readvertiseEgressFilters = append(api.r.readvertiseEgressFilters, keepStaleReadvertise)
+				peer.settings.ExportPolicy = keepStaleReadvertise(t)
+				api.r.filterTransportSeam = keepStaleTransport()
 			}
 			err := api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender())
 			require.True(t, replaced, "the build must reach the replacement boundary")

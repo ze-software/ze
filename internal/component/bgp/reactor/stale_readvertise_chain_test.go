@@ -12,16 +12,39 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// staleRailTransport answers probe:f as a filter that opts into the stale
+// readvertise rail, reads and may set community and local-preference, and
+// replies reply.
+func staleRailTransport(reply rpc.FilterUpdateOutput) *externalTransport {
+	fields := []string{"community", "local-preference"}
+	return &externalTransport{reads: fields, sets: fields, reply: reply, readvertise: true}
+}
+
+// staleTestExport is the export attachment of the stale rail tests that set
+// what bgp-gr's llgr-egress sets: community and local-preference.
+const staleTestExport = "reactor-stale-test export"
+
+func init() {
+	fields := []routepolicy.Field{routepolicy.FieldCommunity, routepolicy.FieldLocalPreference}
+	routepolicy.MustRegisterAttachment("bgp", staleTestExport, fields, fields)
+}
+
 // staleExportChain answers the stale readvertise chain of a destination whose
 // export policy holds the one plugin member probe:f, under final reject.
 func staleExportChain(t *testing.T) staleChain {
+	t.Helper()
+	return staleChainAt(t, libraryTestExport)
+}
+
+// staleChainAt is staleExportChain compiled at attachment.
+func staleChainAt(t *testing.T, attachment string) staleChain {
 	t.Helper()
 	reg, err := routepolicy.NewRegistry()
 	if err != nil {
 		t.Fatalf("registry: %v", err)
 	}
 	members := []policychain.Member{{Name: "f", Plugin: "probe"}}
-	chain, err := policychain.Compile(libraryTestExport, reg, members, routepolicy.FinalReject, policychain.Bases{LocalPreference: 100})
+	chain, err := policychain.Compile(attachment, reg, members, routepolicy.FinalReject, policychain.Bases{LocalPreference: 100})
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}
@@ -36,8 +59,7 @@ func staleExportChain(t *testing.T) staleChain {
 // set builds, a withdraw staleWithdraw), and runs no filter that does not opt
 // in (staleKeep, the route sent unchanged, the filter never called). The
 // chain's final is reject, so a keep proves the rail ignores it. Method: the
-// externalTransport stand-in answers probe:f; no registered readvertise
-// egress filter exists, so only the chain decides.
+// externalTransport stand-in answers probe:f.
 func TestDecideStaleReadvertiseRunsOptedPluginFilter(t *testing.T) {
 	dest := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000, IsIBGP: true}
 	setLP0 := rpc.FilterUpdateOutput{Action: rpc.FilterModify, Sets: []rpc.FilterSet{

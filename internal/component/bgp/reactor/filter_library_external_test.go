@@ -32,6 +32,9 @@ type externalTransport struct {
 	sent        []rpc.FilterUpdateInput
 	// readvertise is what probe:f declares for the stale readvertise rail.
 	readvertise bool
+	// err, when set, is what the call answers in place of reply: the plugin
+	// could not be asked, as when its process has gone.
+	err error
 }
 
 func (e *externalTransport) FilterInfo(_, _ string) ([]string, bool) { return nil, false }
@@ -63,6 +66,9 @@ func (e *externalTransport) CallFilterUpdate(_ context.Context, _ string, route 
 	sent := *input
 	sent.Fields = append(json.RawMessage(nil), input.Fields...)
 	e.sent = append(e.sent, sent)
+	if e.err != nil {
+		return nil, e.err
+	}
 	reply := e.reply
 	return &reply, nil
 }

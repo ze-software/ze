@@ -1,0 +1,96 @@
+# Test: llgr-import-no-llgr.ci with bgp-gr forked (spec-filter-wire-6-stage-filters AC-13).
+# The same expectations as the internal twin: bgp-gr runs as a real external
+# process over TLS connect-back (`ze plugin bgp-gr`), so its LLGR
+# filters, capability state and retention verdict live in the child.
+# The RFC requirement tags stay on the internal twin.
+# Test: import policy adds NO_LLGR before the real peer-down/LLGR lifecycle.
+# Both source UPDATEs arrive without communities. Only marked has an import
+# modifier. The observer first proves the policy result in received RIB, then
+# sends a wire marker that releases each peer's TCP close. The stderr fence
+# keeps the daemon alive until the observer verifies both LLGR outcomes.
+
+stdin=marked:terminator=EOF_MARKED
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=open:value=graceful-restart:restart-time=1
+option=open:value=llgr:stale-time=60
+option=open:value=router-id:id=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0000
+expect=bgp:conn=1:seq=2:contains=18C63364
+action=close:conn=1:seq=3
+EOF_MARKED
+
+stdin=plain:terminator=EOF_PLAIN
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=open:value=graceful-restart:restart-time=1
+option=open:value=llgr:stale-time=60
+option=open:value=router-id:id=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000340050400000064180A0001
+expect=bgp:conn=1:seq=2:contains=18C63364
+action=close:conn=1:seq=3
+EOF_PLAIN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub { server local { ip 127.0.0.1; port 0; secret llgr-import-no-llgr-forked-secret-00001; } }
+	external bgp-gr { run "ze plugin bgp-gr"; }
+	internal bgp-rib { use bgp-rib; }
+	internal bgp-filter-modify { use bgp-filter-modify; }
+	external observer {
+		run "le test fixture plugin/llgr-import-no-llgr"
+		encoder json
+	}
+}
+policy {
+	modify NO-LLGR { set { community-add [ 65535:7 ]; } }
+}
+
+bgp {
+	peer marked {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart { restart-time 120; long-lived-stale-time 60; } }
+		}
+		behavior { group-updates disable; }
+		timer { connect-retry 30; }
+		filter { import { filters [ modify:NO-LLGR ]; final accept; } }
+		attach process bgp-gr { receive [ open state eor ]; send [ update ]; }
+		attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+		attach process observer { receive [ state ]; send [ update ]; }
+	}
+	peer plain {
+		connection {
+			remote { ip ::1; }
+			local { ip ::1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart { restart-time 120; long-lived-stale-time 60; } }
+		}
+		behavior { group-updates disable; }
+		timer { connect-retry 30; }
+		attach process bgp-gr { receive [ open state eor ]; send [ update ]; }
+		attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+		attach process observer { receive [ state ]; send [ update ]; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=marked
+cmd=background:seq=2:exec=le test peer --bind ::1 --port $PORT:stdin=plain
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=35s
+await=stderr:contains=import-added NO_LLGR removed on LLGR entry; unmarked control retained with LLGR_STALE:then=stop
+expect=exit:code=0
+expect=stderr:contains=OK: import-added NO_LLGR removed on LLGR entry; unmarked control retained with LLGR_STALE
+reject=stderr:pattern=panic

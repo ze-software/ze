@@ -1,0 +1,54 @@
+# Test: llgr-transition.ci with bgp-gr forked (spec-filter-wire-6-stage-filters AC-13).
+# The same expectations as the internal twin: bgp-gr runs as a real external
+# process over TLS connect-back (`ze plugin bgp-gr`), so the LLGR
+# ingress procedure and the stale marking run in the child.
+# Received routes survive GR expiry and enter LLGR after a real TCP loss.
+# Both OPEN directions reach GR. The observer checks fresh received routes,
+# GR stale level 1, then LLGR level 2 with LLGR_STALE and NO_LLGR removal.
+# Its received-state observation releases TCP close; no static replay is proof.
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=linger:value=true
+option=open:value=router-id:id=192.0.2.1
+option=open:value=graceful-restart:restart-time=3
+option=open:value=llgr:stale-time=60
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0000
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C400101004002004003040A00000240050400000064C00804FFFF0007180A0001
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0002
+expect=bgp:conn=1:seq=2:announced=18C63364
+action=close:conn=1:seq=3
+EOF_SOURCE
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+ hub { server local { ip 127.0.0.1; port 0; secret llgr-transition-forked-secret-0001; } }
+ external bgp-gr { run "ze plugin bgp-gr"; }
+ internal bgp-rib { use bgp-rib; }
+ external observer { run "le test fixture plugin/llgr-transition"; encoder json; }
+}
+bgp {
+ peer source {
+  connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+  session {
+   asn { local 1; remote 1; }
+   router-id 1.2.3.4
+   family { ipv4/unicast { prefix { maximum 10000; } } }
+   capability { graceful-restart { restart-time 120; long-lived-stale-time 3600; } }
+  }
+  behavior { group-updates disable; }
+  timer { connect-retry 60; }
+  attach process bgp-gr { receive [ open state eor ]; send [ update ]; }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+  attach process observer { receive [ state ]; send [ update ]; }
+ }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=45s
+await=stderr:contains=OK: received LLGR lifecycle transition:then=stop
+expect=exit:code=0
+expect=stderr:contains=OK: received LLGR lifecycle transition
+reject=stderr:pattern=panic

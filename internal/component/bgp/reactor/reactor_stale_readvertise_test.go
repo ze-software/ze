@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/netip"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	// filter_community registers the code-8 (COMMUNITIES) AttrModHandler in its
 	// init(); linked here so the staleModify case's community add actually
@@ -32,11 +34,23 @@ var minimalAnnounceBody = []byte{
 	0x18, 0x0a, 0x00, 0x00, // NLRI 10.0.0.0/24
 }
 
+// staleNoExportSet and staleLocalPrefZeroSet are the sets bgp-gr's llgr-egress
+// answers for a non-LLGR iBGP destination (RFC 9494 Section 4.6).
+var (
+	staleNoExportSet = rpc.FilterSet{Field: "community", Action: rpc.FilterSetActionAdd,
+		Value: json.RawMessage(`"65535:65281"`)}
+	staleLocalPrefZeroSet = rpc.FilterSet{Field: "local-preference", Action: rpc.FilterSetActionSet,
+		Value: json.RawMessage("0")}
+)
+
 // TestDecideStaleReadvertise verifies the readvertise filter -> outcome mapping
-// that AnnounceNLRIBatch uses for LLGR stale batches (RFC 9494): SetWithdraw ->
-// staleWithdraw, an attribute mod -> staleModify, no mods -> staleKeep, and a
-// rejecting filter -> staleSuppress. Uses a test egress filter so the wiring is
-// exercised deterministically without the gr plugin's internal state.
+// that AnnounceNLRIBatch uses for LLGR stale batches (RFC 9494): a withdraw ->
+// staleWithdraw, a community add -> staleModify with the NO_EXPORT community
+// in the body, an accept with no sets -> staleKeep, and a rejecting filter ->
+// staleSuppress. Method: the destination's export chain holds the one plugin
+// member probe:f, which opts into the rail; the externalTransport stand-in
+// answers it, so the mapping is exercised deterministically without the gr
+// plugin's state.
 func TestDecideStaleReadvertise(t *testing.T) {
 	dest := filterapi.PeerFilterInfo{
 		Address: mustParseAddr("10.0.0.2"),
@@ -46,60 +60,53 @@ func TestDecideStaleReadvertise(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		filter  filterapi.EgressFilterFunc
+		reply   rpc.FilterUpdateOutput
 		want    staleOutcome
-		wantMod bool // expect a non-nil modified body
+		wantMod bool // expect a modified body carrying NO_EXPORT
 	}{
 		{
-			name: "withdraw for non-LLGR eBGP",
-			filter: func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-				mods.SetWithdraw()
-				return true
-			},
-			want: staleWithdraw,
+			name:  "withdraw for non-LLGR eBGP",
+			reply: rpc.FilterUpdateOutput{Action: rpc.FilterWithdraw},
+			want:  staleWithdraw,
 		},
 		{
-			name: "modify (depreference) for non-LLGR iBGP",
-			filter: func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-				// NO_EXPORT community add, as the LLGR filter does for iBGP.
-				mods.Op(8, filterapi.AttrModAdd, []byte{0xFF, 0xFF, 0xFF, 0x01})
-				return true
-			},
+			// NO_EXPORT community add, as the LLGR filter does for iBGP.
+			name:    "modify (depreference) for non-LLGR iBGP",
+			reply:   rpc.FilterUpdateOutput{Action: rpc.FilterModify, Sets: []rpc.FilterSet{staleNoExportSet}},
 			want:    staleModify,
 			wantMod: true,
 		},
 		{
-			name: "keep unchanged for LLGR-capable peer",
-			filter: func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-				return true // no mods
-			},
-			want: staleKeep,
+			name:  "keep unchanged for LLGR-capable peer",
+			reply: rpc.FilterUpdateOutput{Action: rpc.FilterAccept},
+			want:  staleKeep,
 		},
 		{
-			name: "suppress when a filter rejects",
-			filter: func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-				return false
-			},
-			want: staleSuppress,
+			name:  "suppress when a filter rejects",
+			reply: rpc.FilterUpdateOutput{Action: rpc.FilterReject},
+			want:  staleSuppress,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			r := &Reactor{
-				readvertiseEgressFilters: []filterapi.EgressFilterFunc{tc.filter},
-				attrModHandlers:          attrModHandlersWithDefaults(),
+				attrModHandlers:     attrModHandlersWithDefaults(),
+				filterTransportSeam: staleRailTransport(tc.reply),
 			}
 			a := &reactorAPIAdapter{r: r}
 
 			body := append([]byte(nil), minimalAnnounceBody...)
-			outcome, modified := a.decideStaleReadvertise(dest, staleChain{}, body, 1)
+			outcome, modified := a.decideStaleReadvertise(dest, staleChainAt(t, staleTestExport), body, 1)
 
 			assert.Equal(t, tc.want, outcome, "outcome")
 			if tc.wantMod {
 				require.NotNil(t, modified, "expected a modified body")
-				assert.NotEqual(t, minimalAnnounceBody, modified, "modified body must differ from original")
+				assert.True(t, bytes.Contains(modified, noExportCommunityWire),
+					"modified body %x must carry the NO_EXPORT community", modified)
+				return
 			}
+			assert.Nil(t, modified, "outcome %v carries no body", outcome)
 		})
 	}
 }
@@ -118,6 +125,10 @@ func TestDecideStaleReadvertise(t *testing.T) {
 // and only realizing its decision failed, so calling it a suppression reported a
 // defect in Ze to the operator as the filter's own policy. No assertion was
 // weakened -- the classification became more exact and one was added.
+//
+// Method: the opted member asks for the LOCAL_PREF=0 depreference, and the
+// reactor holds no attribute handler, so the body cannot be rebuilt
+// (modifyFailureNoHandler): a modification the build must refuse.
 func TestDecideStaleReadvertiseWithholdsOnModifyFailure(t *testing.T) {
 	dest := filterapi.PeerFilterInfo{
 		Address: mustParseAddr("10.0.0.2"),
@@ -125,22 +136,15 @@ func TestDecideStaleReadvertiseWithholdsOnModifyFailure(t *testing.T) {
 		LocalAS: 65000,
 	}
 
-	// A withdrawn rewrite past the 2-octet Withdrawn Routes Length field. It is
-	// a modification (so HasModifications is true and the empty-accumulator
-	// early return cannot fire) that buildModifiedPayload must refuse.
-	oversize := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-		mods.SetWithdrawnRewrite(make([]byte, 65536))
-		return true
-	}
-
 	r := &Reactor{
-		readvertiseEgressFilters: []filterapi.EgressFilterFunc{oversize},
-		attrModHandlers:          attrModHandlersWithDefaults(),
+		attrModHandlers: map[uint8]filterapi.AttrModHandler{},
+		filterTransportSeam: staleRailTransport(rpc.FilterUpdateOutput{Action: rpc.FilterModify,
+			Sets: []rpc.FilterSet{staleLocalPrefZeroSet}}),
 	}
 	a := &reactorAPIAdapter{r: r}
 
 	body := append([]byte(nil), minimalAnnounceBody...)
-	outcome, modified := a.decideStaleReadvertise(dest, staleChain{}, body, 1)
+	outcome, modified := a.decideStaleReadvertise(dest, staleChainAt(t, staleTestExport), body, 1)
 
 	assert.Equal(t, staleBuildFailed, outcome,
 		"an unapplicable modification must withhold the route, never re-advertise it unmodified")
@@ -149,8 +153,8 @@ func TestDecideStaleReadvertiseWithholdsOnModifyFailure(t *testing.T) {
 	assert.Nil(t, modified, "a withheld route carries no body")
 }
 
-// TestDecideStaleReadvertise_NoFilters verifies that with no readvertise filters
-// registered the outcome is always keep (the common no-LLGR deployment): the
+// TestDecideStaleReadvertise_NoFilters verifies that with no readvertise-opted
+// member in the destination's export chain the outcome is always keep (the common no-LLGR deployment): the
 // stale branch is inert.
 func TestDecideStaleReadvertise_NoFilters(t *testing.T) {
 	r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
@@ -176,15 +180,12 @@ var localPrefZeroWire = []byte{0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x00}
 // tenSlash24NLRI is the wire NLRI for 10.0.0.0/24 (prefix-len 0x18, then 0a0000).
 var tenSlash24NLRI = []byte{0x18, 0x0a, 0x00, 0x00}
 
-// llgrDepreferenceFilter mimics LLGREgressFilter's mods for a non-LLGR iBGP peer
-// (RFC 9494 Section 4.5.3): add NO_EXPORT + set LOCAL_PREF=0. A test double keeps
-// this reactor-package test independent of the gr plugin's internal state;
-// gr_egress_test.go separately proves LLGREgressFilter emits exactly these mods.
-func llgrDepreferenceFilter(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
-	mods.Op(8, filterapi.AttrModAdd, []byte{0xFF, 0xFF, 0xFF, 0x01})
-	mods.Op(5, filterapi.AttrModSet, []byte{0x00, 0x00, 0x00, 0x00})
-	return true
-}
+// llgrDepreferenceReply mimics llgr-egress's answer for a non-LLGR iBGP peer
+// (RFC 9494 Section 4.5.3): add NO_EXPORT + set LOCAL_PREF=0. A stand-in
+// keeps this reactor-package test independent of the gr plugin's state;
+// gr_filter_test.go separately proves llgr-egress answers exactly these sets.
+var llgrDepreferenceReply = rpc.FilterUpdateOutput{Action: rpc.FilterModify,
+	Sets: []rpc.FilterSet{staleNoExportSet, staleLocalPrefZeroSet}}
 
 // staleReadvertiseBatch builds an IPv4 announce batch for 10.0.0.0/24 with a
 // minimal attribute set (ORIGIN + AS_PATH), stale level 1.
@@ -217,9 +218,9 @@ func staleReadvertiseBatch(t *testing.T) bgptypes.NLRIBatch {
 func TestStaleReadvertiseWireOutput(t *testing.T) {
 	batch := staleReadvertiseBatch(t)
 	r := &Reactor{
-		config:                   &Config{LocalAS: 65000},
-		attrModHandlers:          attrModHandlersWithDefaults(),
-		readvertiseEgressFilters: []filterapi.EgressFilterFunc{llgrDepreferenceFilter},
+		config:              &Config{LocalAS: 65000},
+		attrModHandlers:     attrModHandlersWithDefaults(),
+		filterTransportSeam: staleRailTransport(llgrDepreferenceReply),
 	}
 	a := &reactorAPIAdapter{r: r}
 
@@ -241,7 +242,7 @@ func TestStaleReadvertiseWireOutput(t *testing.T) {
 
 	t.Run("modify: non-LLGR iBGP peer gets NO_EXPORT + LOCAL_PREF=0", func(t *testing.T) {
 		dest := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.3"), PeerAS: 65000, LocalAS: 65000}
-		outcome, modified := a.decideStaleReadvertise(dest, staleChain{}, announceBody, batch.Stale)
+		outcome, modified := a.decideStaleReadvertise(dest, staleChainAt(t, staleTestExport), announceBody, batch.Stale)
 		require.Equal(t, staleModify, outcome)
 		require.NotNil(t, modified)
 		assert.True(t, bytes.Contains(modified, noExportCommunityWire), "modified body carries the NO_EXPORT community")

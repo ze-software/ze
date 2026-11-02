@@ -1,17 +1,15 @@
 # Test: LLGR egress filter toward a neighbor with no LLGR Capability recorded.
 #
-# bgp-gr runs in the daemon (`internal gr { use bgp-gr }`), so runGRPlugin's
-# OnConfigure stores the egress state LLGREgressFilter reads. bgp-gr is attached
-# to the source peer only (obsn carries no `attach process gr`), ze sends obsn
-# no Graceful Restart Capability, and obsn's OPEN carries no LLGR Capability, so
-# the egress state is loaded and records no LLGR Capability for this
-# destination.
+# bgp-gr runs internal (`internal gr { use bgp-gr }`), and its llgr-egress
+# member answers from the capability state runGRPlugin records. bgp-gr is
+# attached to the source peer only (obsn carries no `attach process gr`), ze
+# sends obsn no Graceful Restart Capability, and obsn's OPEN carries no LLGR
+# Capability, so the state records no LLGR Capability for this destination.
 #
-# This used to run bgp-gr forked (`run "ze plugin bgp-gr"`) to reach a daemon
-# with no egress state at all. bgp-gr now refuses to start forked (gr.go,
-# runGRPlugin; test/plugin/gr-external-refuses.ci), so that arrangement no
-# longer starts. A destination with no recorded capability is the state a
-# running daemon reaches, and the filter must answer it the same way.
+# This once ran bgp-gr forked to reach a daemon with no egress state at all.
+# The state now lives beside the evaluator in the plugin's own process, so a
+# forked run reaches the same state (llgr-readvertise-forked.ci), and a
+# destination with no recorded capability is what the filter must answer.
 #
 # RFC 9494 Section 4.3 keys the decision on whether the LLGR Capability "has been
 # received" from the neighbor. With nothing recorded for obsn it has not, so the

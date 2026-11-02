@@ -137,17 +137,10 @@ func runGRPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-gr", conn)
 	defer func() { _ = p.Close() }()
 
-	// The LLGR procedures now run in this process (evaluateGRFilter), beside
+	// The LLGR procedures run in this process (evaluateGRFilter), beside
 	// the capability state they read, on both transports, and the retention
-	// verdict travels as the bgp-gr/retention event. The refusal stays until
-	// the forked runs are proven by their functional twins, as bgp-rr's and
-	// bgp-rs's do.
-	if !p.IsInternal() {
-		slogutil.Logger(grSubsystem).Error("bgp-gr: refusing to start as an external plugin process -- " +
-			"its graceful-restart state and long-lived graceful-restart procedures are not yet proven when the engine runs forked; " +
-			"replace the `external <name> { run ... }` block with `plugin { internal <name> { use bgp-gr } }`")
-		return 1
-	}
+	// verdict travels as the bgp-gr/retention event, so bgp-gr runs internal
+	// or forked alike.
 
 	gp := &grPlugin{
 		sdk:          p,

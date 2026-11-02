@@ -11,7 +11,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -60,17 +59,6 @@ func init() {
 		if err := attribute.RegisterCommunityName(c.value, c.name); err != nil {
 			logger().Error("community registration failed", "error", err)
 		}
-	}
-
-	// The LLGR egress filter answers from state only runGRPlugin stores, so
-	// runGRPlugin refuses to start forked. doctor.go reports a forked bgp-gr
-	// from the config, before the daemon meets the refusal.
-	for _, m := range grDiagnosticCodes {
-		_ = diagnostic.Register(m)
-	}
-	if err := diagnostic.RegisterDoctorCheck(grDoctorCheck); err != nil {
-		fmt.Fprintf(os.Stderr, "gr: doctor check registration failed: %v\n", err)
-		os.Exit(1)
 	}
 
 	reg := registry.Registration{

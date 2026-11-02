@@ -30,6 +30,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -111,14 +112,21 @@ func readvertiseAttrs(t *testing.T, frames <-chan []byte) []byte {
 	return sections.Attrs(body)
 }
 
-// keepStaleReadvertise accepts every destination and asks for no modification,
-// which is the LLGR-capable outcome (staleKeep, reactor_api_batch.go): the stale
+// keepStaleReadvertise is the export policy of a destination whose
+// readvertise-opted member probe:f accepts and asks for no modification, which
+// is the LLGR-capable outcome (staleKeep, reactor_api_batch.go): the stale
 // route is sent unchanged. That is the only readvertise outcome that puts the
-// stored attribute block on the wire, so it is the one this boundary has to hold
-// on. A non-LLGR eBGP peer is sent a WITHDRAWAL instead, which carries no
-// attributes at all.
-func keepStaleReadvertise(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
-	return true
+// stored attribute block on the wire, so it is the one this boundary has to
+// hold on. A non-LLGR eBGP peer is sent a WITHDRAWAL instead, which carries no
+// attributes at all. keepStaleTransport answers probe:f.
+func keepStaleReadvertise(t *testing.T) filterapi.Policy {
+	t.Helper()
+	return staleChainAt(t, staleTestExport).policy
+}
+
+// keepStaleTransport stands in for probe:f's plugin, accepting every route.
+func keepStaleTransport() *externalTransport {
+	return staleRailTransport(rpc.FilterUpdateOutput{Action: rpc.FilterAccept})
 }
 
 // VALIDATES: RFC 8669 Section 8 on the RFC 9494 STALE READVERTISE entry into the
@@ -156,11 +164,12 @@ func TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain(t *testing.T) {
 	// returns the attribute block the destination was flushed.
 	readvertise := func(propagatePrefixSID bool) []byte {
 		peer, frames := readvertisePeerWithPipe(t, "10.0.0.2", propagatePrefixSID)
+		peer.settings.ExportPolicy = keepStaleReadvertise(t)
 		adapter := &reactorAPIAdapter{r: &Reactor{
-			attrModHandlers:          attrModHandlersWithDefaults(),
-			config:                   &Config{LocalAS: 65000},
-			peers:                    map[netip.AddrPort]*Peer{peer.Settings().PeerKey(): peer},
-			readvertiseEgressFilters: []filterapi.EgressFilterFunc{keepStaleReadvertise},
+			attrModHandlers:     attrModHandlersWithDefaults(),
+			config:              &Config{LocalAS: 65000},
+			peers:               map[netip.AddrPort]*Peer{peer.Settings().PeerKey(): peer},
+			filterTransportSeam: keepStaleTransport(),
 		}}
 
 		require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), bgptypes.NLRIBatch{

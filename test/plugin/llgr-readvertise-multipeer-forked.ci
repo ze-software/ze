@@ -1,0 +1,195 @@
+# Test: llgr-readvertise-multipeer.ci with bgp-gr forked (spec-filter-wire-6-stage-filters AC-13).
+# The same expectations as the internal twin: bgp-gr runs as a real external
+# process over TLS connect-back (`ze plugin bgp-gr`), so the llgr-egress
+# member answers on the stale readvertise rail through the batched
+# filter-update message in the child, reading the stale level and the
+# destination facts from the fields object it carries.
+# Test: LLGR multi-peer readvertise divergence via route-reflector.
+#
+# rib-arch-7 divergence, end-to-end on the wire. A route from an LLGR-capable
+# route-reflector client (source, 127.0.0.1) is reflected to a NON-LLGR RR
+# client (obsn, 127.0.0.2). An observer plugin marks the source's routes stale
+# (RFC 9494) and re-advertises them via `clear bgp rib out`; the LLGREgressFilter
+# runs on the AnnounceNLRIBatch (readvertise) rail and, because obsn is a
+# non-LLGR iBGP peer, DEPREFERENCES the route -- NO_EXPORT community +
+# LOCAL_PREF=0 -- instead of re-sending it unchanged.
+#
+# The stale transition is driven by the observer (mark-stale + clear-rib-out),
+# not by a peer disconnect, so the sequence is deterministic: it does not rely
+# on GR restart timers or cross-peer TCP-close races. The wired divergence logic
+# also has deterministic reactor coverage in reactor_stale_readvertise_test.go
+# (TestStaleReadvertiseWireOutput); this test exercises it live over the wire.
+#
+# VALIDATES: rib-arch-7 -- LLGR egress filter runs on the readvertise rail and
+#            depreferences a stale route toward a non-LLGR iBGP peer.
+# PREVENTS: the readvertise rail re-sending stale routes unchanged to peers that
+#           did not negotiate LLGR.
+
+# --- source: LLGR RR-client, announces 10.0.0.0/24 then waits on ze's EOR ---
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=20s
+# Hold the session open past this peer's own expect. A check-mode ze-peer closes
+# the instant its expectations are met, and the close reaches ze as a peer-down
+# that withdraws 10.0.0.0/24 from obsn -- obsn then reads that withdrawal as its
+# seq=2 and the depreference never arrives. The test was only ever beating that
+# withdrawal by a second of blind sleep. The header above states the intent this
+# restores: the stale transition is driven by mark-stale + clear-rib-out, never
+# by a disconnect.
+option=linger:value=true
+# iBGP UPDATE: ORIGIN igp, AS_PATH [65001], NEXT_HOP 10.0.0.1, LOCAL_PREF 200,
+# NLRI 10.0.0.0/24.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040A000001400504000000C8180A0000
+# Wait for ze's End-of-RIB so the peer stays established long enough for the
+# reflection to land (see rr-basic.ci). GR retains the route after it closes.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SOURCE
+
+# --- obsn: non-LLGR RR-client, observes the reflected route then depreference ---
+# Both peers are RR clients in AS 65000, and ze-peer's default OPEN mirrors ze's router-id
+# with the last octet incremented, so without an explicit identifier BOTH would present
+# 1.2.3.5 -- two RR clients sharing a BGP Identifier, which ze rejects by default
+# (RFC 6286 Section 2.1) and which would also defeat RFC 4456 ORIGINATOR_ID loop detection.
+stdin=obsn:terminator=EOF_OBSN
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=open:value=router-id:id=1.2.3.6
+# 1. Reflected route lands (NLRI 10.0.0.0/24). EORs and keepalives auto-skip.
+expect=bgp:conn=1:seq=1:contains=180A0000
+# 2. The LLGR readvertise depreferences it toward this non-LLGR peer: the
+#    NO_EXPORT community (well-known 0xFFFFFF01) is stamped on.
+expect=bgp:conn=1:seq=2:contains=FFFFFF01
+EOF_OBSN
+
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	external observer {
+		run "le test fixture plugin/llgr-readvertise-multipeer"
+		encoder json
+	}
+	hub {
+		server local {
+			ip 127.0.0.1
+			port 0
+			secret llgr-readvertise-multipeer-forked-secret
+		}
+	}
+	external bgp-gr {
+		run "ze plugin bgp-gr"
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+bgp {
+	peer source {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			route-reflector-client true
+			cluster-id 10.10.10.10
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					restart-time 60
+					long-lived-stale-time 300
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-gr {
+			receive [ open-received state eor ]
+			send [ update ]
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+
+	peer obsn {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			route-reflector-client true
+			cluster-id 10.10.10.10
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-gr {
+			receive [ open-received state eor ]
+			send [ update ]
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=obsn
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

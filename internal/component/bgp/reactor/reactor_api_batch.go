@@ -493,8 +493,8 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		}
 
 		// LLGR stale readvertise (RFC 9494): run the per-peer readvertise
-		// filters (the export chain's readvertise-opted plugin filters and the
-		// registered readvertise egress filters, staleRailToward) so the
+		// filters (the export chain's readvertise-opted plugin filters,
+		// staleRailToward) so the
 		// route is kept+marked for LLGR-capable peers,
 		// depreferenced for non-LLGR iBGP, or withdrawn for non-LLGR eBGP.
 		// Rare (GR-expiry) path; the common Stale==0 path is untouched.
@@ -1604,9 +1604,10 @@ var errAnnounceNextHopUnencodable = errors.New("announce next-hop is absent or u
 // catches the pair.
 var errStaleReadvertiseWithheld = errors.New("stale re-advertise withheld the route")
 
-// errStaleReadvertiseFilterPanic: a readvertise egress filter panicked, so
-// nothing was decided for this peer. A plugin bug.
-var errStaleReadvertiseFilterPanic = fmt.Errorf("%w: an egress filter panicked", errStaleReadvertiseWithheld)
+// errStaleReadvertiseFilterFailed: a readvertise filter of the peer's export
+// chain could not answer (its plugin's call failed, or the plugin is gone),
+// so nothing was decided for this peer. A plugin fault.
+var errStaleReadvertiseFilterFailed = fmt.Errorf("%w: a readvertise filter could not answer", errStaleReadvertiseWithheld)
 
 // errStaleReadvertiseBuildFailed: a filter decided, and buildModifiedPayload
 // could not encode the modifications it asked for. Not a filter failure -- the
@@ -2197,14 +2198,14 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 
 	switch outcome {
 	case staleFilterFailed:
-		// A filter crashed, so no decision exists for this peer. Withheld
-		// fail-closed like a suppression, reported apart from one.
-		return false, errStaleReadvertiseFilterPanic
+		// A filter could not answer, so no decision exists for this peer.
+		// Withheld fail-closed like a suppression, reported apart from one.
+		return false, errStaleReadvertiseFilterFailed
 	case staleBuildFailed:
 		// The filter DID decide; realizing its decision failed. Withheld for the
 		// same reason and reported under its own cause, because the operator
-		// action differs: a crashed filter is a plugin bug, an unbuildable body
-		// is a payload this speaker could not encode.
+		// action differs: a filter that cannot answer is a plugin fault, an
+		// unbuildable body is a payload this speaker could not encode.
 		return false, errStaleReadvertiseBuildFailed
 	case staleSuppress:
 		return false, nil // filter suppressed the route for this peer
@@ -2276,91 +2277,37 @@ const (
 
 // decideStaleReadvertise runs the readvertise filters for one destination peer
 // over the packed announce body and returns the outcome plus, for staleModify,
-// the modified UPDATE body. Two kinds run, the plugin filters first: the
-// members of the destination's export chain whose filter declares readvertise
-// (runStaleChain), then the registered readvertise egress filters, over the
-// body the chain answered. It is the pure decision half of
-// sendStaleReadvertise, split out so the filter->outcome mapping is
-// unit-testable without a live session. LLGREgressFilter (RFC 9494) is the
-// sole registered filter today; it reads dest + meta["stale"] and writes into
-// mods.
+// the modified UPDATE body. The filters are the members of the destination's
+// export chain whose filter declares readvertise (runStaleChain): bgp-gr's
+// llgr-egress (RFC 9494) today, which reads the destination's facts and
+// meta["stale"]. It is the pure decision half of sendStaleReadvertise, split
+// out so the filter->outcome mapping is unit-testable without a live session.
 func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo, chain staleChain, body []byte, stale uint8) (staleOutcome, []byte) {
 	// RFC 9494 Section 4.3
 	res, ran := a.r.runStaleChain(chain, dest, body, stale)
-	var chainModified []byte
-	if ran {
-		switch {
-		case res.outcome.Action == policychain.OutcomeWithdraw:
-			return staleWithdraw, nil
-		case res.outcome.Action != policychain.OutcomeAccept && res.outcome.Failed:
-			return staleFilterFailed, nil
-		case res.outcome.Action != policychain.OutcomeAccept:
-			return staleSuppress, nil
-		case res.failed:
-			// The chain decided and its sets could not be applied: withheld,
-			// as a build failure of the registered filters' mods is below.
-			return staleBuildFailed, nil
-		case res.modifiedPayload != nil:
-			chainModified = res.modifiedPayload
-			body = chainModified
-		}
-	}
-	meta := map[string]any{"stale": stale}
-	var src filterapi.PeerFilterInfo
-	var mods filterapi.ModAccumulator
-	for _, f := range a.r.readvertiseEgressFilters {
-		accept, panicked := safeEgressFilter(f, src, dest, body, meta, &mods)
-		if accept {
-			continue
-		}
-		// Both outcomes withhold the route, and they must: the fact the crashed
-		// filter was reading is the destination's LLGR capability, so RFC 9494
-		// Section 4.3 ("SHOULD NOT be advertised to peers that have not
-		// advertised the LLGR capability") and Section 4.6's NO_EXPORT +
-		// LOCAL_PREF=0 obligations cannot be applied on a guess. What differs is
-		// what the caller may SAY about it: staleSuppress is the filter's
-		// decision for this peer, staleFilterFailed is no decision at all.
-		if panicked {
-			return staleFilterFailed, nil
-		}
-		return staleSuppress, nil
+	if !ran {
+		return staleKeep, nil
 	}
 	switch {
-	case mods.IsWithdraw():
+	case res.outcome.Action == policychain.OutcomeWithdraw:
 		return staleWithdraw, nil
-	case mods.HasModifications():
-		modified, _, modFail := buildModifiedPayload(body, &mods, a.r.attrModHandlers, nil, nil)
-		a.r.recordModifyFailureAddr(modFail, modifySiteStaleReadvertise, dest.Address)
-		if modFail.failed() || modified == nil {
-			// Fail closed. mods.HasModifications() is true, so a nil payload
-			// here can only mean the build refused; re-advertising the stale
-			// route unmodified would undo the RFC 9494 egress filter's decision.
-			// modified == nil with no named failure has TWO producers since
-			// 2026-08-04: an empty accumulator, and a rebuild whose every
-			// operation the advertise gate refused (advertiseGate,
-			// forward_build.go). Neither reaches here -- a stale
-			// re-advertisement carries the stored route's NLRI, so the gate
-			// answers "advertises" and refuses nothing -- and it is folded in
-			// anyway so a future path cannot make it a silent leak.
-			//
-			// The nil-with-no-failure half reaches recordModifyFailure as
-			// modifyFailureNone, which does not log, so it keeps its own line.
-			if !modFail.failed() {
-				fwdLogger().Warn("stale re-advertise produced no payload, withholding route",
-					"peer", dest.Address)
-			}
-			// NOT staleSuppress. The filter above DECIDED -- it asked for the
-			// RFC 9494 Section 4.6 depreference -- and what failed is realizing
-			// that decision. Reporting it as the filter choosing to drop the
-			// route is the same conflation staleFilterFailed exists to end, and
-			// it reached the operator as "no peers have family negotiated".
-			// recordModifyFailureAddr above still counts and names the build's
-			// own reason; this is the caller-facing half, not a second copy.
-			return staleBuildFailed, nil
-		}
-		return staleModify, modified
-	case chainModified != nil:
-		return staleModify, chainModified
+	case res.outcome.Action != policychain.OutcomeAccept && res.outcome.Failed:
+		// Withheld, and it must be: the fact the member could not read is
+		// the destination's LLGR capability, so RFC 9494 Section 4.3 ("SHOULD
+		// NOT be advertised to peers that have not advertised the LLGR
+		// capability") and Section 4.6's NO_EXPORT + LOCAL_PREF=0
+		// obligations cannot be applied on a guess. staleFilterFailed is no
+		// decision at all, never the filter's staleSuppress.
+		return staleFilterFailed, nil
+	case res.outcome.Action != policychain.OutcomeAccept:
+		return staleSuppress, nil
+	case res.failed:
+		// The member decided and its sets could not be applied: NOT
+		// staleSuppress, the filter asked for the Section 4.6 depreference
+		// and what failed is realizing it.
+		return staleBuildFailed, nil
+	case res.modifiedPayload != nil:
+		return staleModify, res.modifiedPayload
 	default:
 		return staleKeep, nil
 	}

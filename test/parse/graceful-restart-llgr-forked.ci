@@ -1,0 +1,58 @@
+# Valid config: graceful-restart-llgr.ci with bgp-gr forked
+# (spec-filter-wire-6-stage-filters AC-13): long-lived-stale-time (RFC 9494)
+# validates with bgp-gr configured as an external process, its LLGR
+# insertions placed and no out-of-process refusal reported.
+stdin=config:terminator=EOF_CONF
+plugin {
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret gr-llgr-forked-parse-secret-00001;
+		}
+	}
+	external bgp-gr {
+		run "ze plugin bgp-gr"
+	}
+}
+
+bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+			local {
+				ip 192.0.2.1
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 1.2.3.4
+			capability {
+				graceful-restart {
+					restart-time 120
+					long-lived-stale-time 3600
+				}
+			}
+		}
+		attach process bgp-gr {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

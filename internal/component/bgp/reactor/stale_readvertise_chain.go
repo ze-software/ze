@@ -77,11 +77,7 @@ func (r *Reactor) runStaleChain(chain staleChain, dest filterapi.PeerFilterInfo,
 }
 
 // staleRailToward reports whether a stale batch toward peer takes the
-// readvertise rail: a registered readvertise egress filter exists, or peer's
-// export chain holds a plugin filter that opts in.
+// readvertise rail: peer's export chain holds a plugin filter that opts in.
 func (a *reactorAPIAdapter) staleRailToward(peer *Peer) bool {
-	if len(a.r.readvertiseEgressFilters) > 0 {
-		return true
-	}
 	return a.r.readvertises(staleChainFor(peer))
 }

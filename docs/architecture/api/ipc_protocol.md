@@ -1169,7 +1169,7 @@ Errors are returned as strings in `data` field:
 | `invalid peer address` | Malformed IP in selector |
 | `no peers match selector` | No peers found for selector |
 | `no peers have family negotiated` | No peers support requested AFI/SAFI |
-| `stale re-advertise withheld the route: an egress filter panicked` | An LLGR (RFC 9494) stale re-advertise ran an egress filter that crashed, so nothing was decided for that peer |
+| `stale re-advertise withheld the route: a readvertise filter could not answer` | An LLGR (RFC 9494) stale re-advertise ran a readvertise filter of the peer's export chain (bgp-gr's `llgr-egress`) that could not answer, because its plugin's call failed or the plugin is gone, so nothing was decided for that peer |
 | `stale re-advertise withheld the route: the modified UPDATE body could not be built` | The filter decided (Section 4.6 depreference), and the modified body could not be encoded |
 | `invalid attribute` | Unrecognized attribute name |
 | `missing required attribute` | Required field not provided |
