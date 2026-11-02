@@ -56,6 +56,9 @@ func TestRepositoryConfigsValidate(t *testing.T) {
 	if report.migrated == 0 {
 		t.Fatal("the sweep migrated no ExaBGP config")
 	}
+	if empty := report.emptyKinds(); len(empty) > 0 {
+		t.Fatal(strings.Join(empty, "\n"))
+	}
 	if len(report.absentRoots) > 0 {
 		t.Errorf("%d configs use a root this test binary was built without; run the test under the feature tag set (./le test unit config):\n  %s",
 			len(report.absentRoots), strings.Join(report.absentRoots, "\n  "))
@@ -172,6 +175,28 @@ type sweepReport struct {
 	steps        int
 	legacyNative []string
 	hostVerdicts map[string]int
+	// kinds counts, per sweepCarrierKinds extension, the carriers and load
+	// sequences its files produced.
+	kinds map[string]int
+}
+
+// emptyKinds names each carrier kind the sweep reads that produced nothing.
+// A discovery or parsing change that loses every .ci body or every .tape
+// still leaves Ze configs and migrated configs to count, so the totals alone
+// cannot see it.
+func (r *sweepReport) emptyKinds() []string {
+	var empty []string
+	for _, kind := range sweepCarrierKinds {
+		if r.kinds[kind] > 0 {
+			continue
+		}
+		empty = append(empty, "the sweep found no config carried by a *"+kind+
+			" file, although sweepCarrierKinds says it reads them; a discovery or parsing"+
+			" change dropped that population, so its configs went unvalidated."+
+			" Fix sweepSourceFiles or the "+kind+" reader in runSweep until"+
+			" ./le test unit config reports a non-zero count for it")
+	}
+	return empty
 }
 
 func (r *sweepReport) find(text string) {
@@ -239,7 +264,7 @@ func runSweep(t *testing.T, off sweepRule, keep sweepKeep) *sweepReport {
 	}
 	s := &sweepContext{
 		t: t, root: filepath.Join("..", "..", "..", ".."), schema: schema, off: off,
-		report: &sweepReport{hostVerdicts: map[string]int{}},
+		report: &sweepReport{hostVerdicts: map[string]int{}, kinds: map[string]int{}},
 	}
 
 	var confs, cis, tapes []string
@@ -261,7 +286,9 @@ func runSweep(t *testing.T, off sweepRule, keep sweepKeep) *sweepReport {
 	loaded := map[string]bool{}
 	var sequences []loadSequence
 	for _, tape := range tapes {
-		sequences = append(sequences, s.tapeSequences(tape, loaded)...)
+		tapeSequences := s.tapeSequences(tape, loaded)
+		s.report.kinds[".tape"] += len(tapeSequences)
+		sequences = append(sequences, tapeSequences...)
 	}
 	var carriers []sweepCarrier
 	for _, path := range confs {
@@ -269,11 +296,13 @@ func runSweep(t *testing.T, off sweepRule, keep sweepKeep) *sweepReport {
 			continue
 		}
 		if c, ok := s.confCarrier(path); ok {
+			s.report.kinds[".conf"]++
 			carriers = append(carriers, c)
 		}
 	}
 	for _, path := range cis {
 		ciCarriers, ciSequences := s.ciCarriers(path)
+		s.report.kinds[".ci"] += len(ciCarriers) + len(ciSequences)
 		carriers = append(carriers, ciCarriers...)
 		sequences = append(sequences, ciSequences...)
 	}
@@ -972,5 +1001,38 @@ func TestTapeSequencesStartFreshPerLab(t *testing.T) {
 	}
 	if !named {
 		t.Errorf("no finding names the unreadable lab: %v", s.report.findings)
+	}
+}
+
+// TestSweepRefusesAnEmptyCarrierKind proves the population guard sees a kind
+// that produced nothing while the totals stay non-zero.
+// VALIDATES: a sweep whose .ci files yielded no carrier is refused, naming
+// the kind, and a sweep where every kind produced something is not.
+// PREVENTS: discovery silently losing every .ci body or every .tape while
+// TestRepositoryConfigsValidate stays green on the .conf files alone.
+func TestSweepRefusesAnEmptyCarrierKind(t *testing.T) {
+	full := &sweepReport{zeConfigs: 3, migrated: 1, kinds: map[string]int{}}
+	for _, kind := range sweepCarrierKinds {
+		full.kinds[kind] = 1
+	}
+	if empty := full.emptyKinds(); len(empty) != 0 {
+		t.Errorf("a sweep where every kind produced carriers was refused: %q", empty)
+	}
+	for _, lost := range sweepCarrierKinds {
+		t.Run(lost, func(t *testing.T) {
+			r := &sweepReport{zeConfigs: 3, migrated: 1, kinds: map[string]int{}}
+			for _, kind := range sweepCarrierKinds {
+				if kind != lost {
+					r.kinds[kind] = 1
+				}
+			}
+			empty := r.emptyKinds()
+			if len(empty) != 1 {
+				t.Fatalf("a sweep with no %s carrier gave %d refusals, want 1: %q", lost, len(empty), empty)
+			}
+			if !strings.Contains(empty[0], "*"+lost) {
+				t.Errorf("refusal does not name the lost kind %s: %s", lost, empty[0])
+			}
+		})
 	}
 }

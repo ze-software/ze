@@ -17,6 +17,12 @@ import (
 	"github.com/ze-software/ze/internal/test/runner"
 )
 
+// sweepCarrierKinds is every file extension the sweep reads a carrier from.
+// It is the one declaration of the population: sweepSourceFiles builds its Git
+// pathspec from it, runSweep files each discovered path under it, and
+// emptyKinds refuses a sweep in which any of them produced nothing.
+var sweepCarrierKinds = []string{".conf", ".ci", ".tape"}
+
 // sweepSourceFiles uses the trackableFiles population from le/feature:
 // tracked files plus untracked files Git's ignore rules permit. Git owns the
 // artifact boundary, including tracked exceptions and nested negations.
@@ -24,8 +30,11 @@ import (
 func sweepSourceFiles(ctx context.Context, root string, keep sweepKeep) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "ls-files", "-z", "--cached", "--others",
-		"--exclude-standard", "--", "*.conf", "*.ci", "*.tape")
+	args := []string{"ls-files", "-z", "--cached", "--others", "--exclude-standard", "--"}
+	for _, kind := range sweepCarrierKinds {
+		args = append(args, "*"+kind)
+	}
+	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = root
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -61,9 +70,28 @@ func sweepSourceFiles(ctx context.Context, root string, keep sweepKeep) ([]strin
 	return files, nil
 }
 
+// isolateGitEnv clears every inherited GIT_ variable for the test. A test run
+// from a Git hook inherits GIT_DIR, GIT_INDEX_FILE and GIT_WORK_TREE, which
+// override cmd.Dir, so the fixture's git commands and sweepSourceFiles would
+// otherwise read the checkout that ran the hook instead of the fixture.
+func isolateGitEnv(t *testing.T) {
+	t.Helper()
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		if !strings.HasPrefix(name, "GIT_") {
+			continue
+		}
+		t.Setenv(name, "")
+		if err := os.Unsetenv(name); err != nil {
+			t.Fatalf("isolate git environment %s: %v", name, err)
+		}
+	}
+}
+
 // TestSweepSourceDiscovery exercises Git's tracked and untracked populations
 // against ignored artifacts, re-included source directories and read failures.
 func TestSweepSourceDiscovery(t *testing.T) {
+	isolateGitEnv(t)
 	root := t.TempDir()
 	git := func(args ...string) string {
 		t.Helper()
@@ -154,6 +182,7 @@ func TestSweepSourceDiscovery(t *testing.T) {
 
 // TestSweepSourceDiscoveryRequiresRepository refuses a missing discovery root.
 func TestSweepSourceDiscoveryRequiresRepository(t *testing.T) {
+	isolateGitEnv(t)
 	if _, err := sweepSourceFiles(t.Context(), t.TempDir(), nil); err == nil {
 		t.Fatal("discovery without repository metadata succeeded")
 	}
