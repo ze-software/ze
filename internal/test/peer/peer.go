@@ -231,9 +231,11 @@ type Config struct {
 	// "session established" before it sends its initial routes
 	// (peer_run.go), so the file also implies that line was written.
 	//
-	// The file is written once, for the first session that reaches that point.
-	// A session that never receives an UPDATE never writes it, and the fixture
-	// waiting on it then fails with its own message.
+	// Each session writes one marker, on its first UPDATE: the first session
+	// writes <name>, the Nth writes <name>-N, so a fixture can wait for the
+	// session a reload restarted (await-file established-2) as it waits for
+	// the first. A session that never receives an UPDATE writes none, and the
+	// fixture waiting on it then fails with its own message.
 	EstablishedFile string
 	// AwaitFile names a file ze-peer waits for before it sends anything after
 	// the OPEN handshake (option=await-file:path=<name>). It resolves like
@@ -366,9 +368,9 @@ type Peer struct {
 	// decide whether the batch must wait for those teardowns before it accepts
 	// the next batch (see waitBatchClosed in peer_connmap.go).
 	signalFired atomic.Bool
-	// established records that Config.EstablishedFile was written, so later
-	// UPDATEs and later sessions do not write it again.
-	established atomic.Bool
+	// sessions counts the sessions that wrote an established-file marker, so
+	// each session's first UPDATE names its own file (markEstablished).
+	sessions atomic.Int32
 }
 
 // New creates a new test peer.
@@ -631,21 +633,23 @@ func (p *Peer) replyKeepalive(conn net.Conn) {
 	}
 }
 
-// markEstablished creates Config.EstablishedFile once, on the daemon's first
-// UPDATE. It does nothing when no file was declared. A failed write is returned
-// rather than logged: the fixture waiting on the file would otherwise time out
-// with no word of the cause.
+// markEstablished creates this session's Config.EstablishedFile marker, on the
+// session's first UPDATE: <name> for the first session, <name>-N for the Nth.
+// The caller calls it once per session. It does nothing when no file was
+// declared. A failed write is returned rather than logged: the fixture waiting
+// on the file would otherwise time out with no word of the cause.
 func (p *Peer) markEstablished() error {
 	if p.config.EstablishedFile == "" {
 		return nil
 	}
-	if !p.established.CompareAndSwap(false, true) {
-		return nil
+	marker := p.config.EstablishedFile
+	if session := p.sessions.Add(1); session > 1 {
+		marker += "-" + strconv.Itoa(int(session))
 	}
-	if err := os.WriteFile(p.config.EstablishedFile, nil, 0o600); err != nil {
-		return fmt.Errorf("write established-file %q: %w", p.config.EstablishedFile, err)
+	if err := os.WriteFile(marker, nil, 0o600); err != nil {
+		return fmt.Errorf("write established-file %q: %w", marker, err)
 	}
-	p.printf("\nsession established, wrote %s\n", p.config.EstablishedFile)
+	p.printf("\nsession established, wrote %s\n", marker)
 	return nil
 }
 
@@ -741,6 +745,9 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 // senderAS is ze-peer's own AS on an eBGP session and 0 on iBGP
 // (ebgpSenderAS); send-default-route and every send-route prepend it.
 func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint32) Result {
+	// marked records that this session wrote its established-file marker.
+	marked := false
+
 	// Hold every send until the awaited file exists (option=await-file).
 	if err := p.awaitFile(ctx); err != nil {
 		return Result{Success: false, Error: err}
@@ -878,7 +885,8 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 			return res
 		}
 
-		if header[18] == MsgUPDATE {
+		if header[18] == MsgUPDATE && !marked {
+			marked = true
 			if err := p.markEstablished(); err != nil {
 				return Result{Success: false, Error: err}
 			}

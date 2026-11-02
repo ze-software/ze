@@ -121,3 +121,80 @@ func TestEstablishedFileOptionNeedsPath(t *testing.T) {
 		t.Fatal("option=established-file with no path was accepted")
 	}
 }
+
+// TestEstablishedFileWrittenPerSession proves each session writes its own
+// marker on its first UPDATE: the first session <name>, the second <name>-2,
+// and a second UPDATE on one session writes no other.
+//
+// VALIDATES: a reload fixture can wait for the session a reload restarted
+//
+//	(await-file established-2) as it waits for the first.
+//
+// PREVENTS: a second session that is never observable, which left a reload
+//
+//	test unable to wait for the restarted session before it shut ze down.
+func TestEstablishedFileWrittenPerSession(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "established")
+	peer, err := New(&Config{
+		Mode: ModeCheck,
+		Expect: []string{
+			"expect=bgp:conn=1:seq=1:hex=" + unmetEOR,
+			"expect=bgp:conn=1:seq=2:hex=" + unmetEOR,
+			"expect=bgp:conn=2:seq=1:hex=" + unmetEOR,
+		},
+		EstablishedFile: marker,
+		Output:          new(bytes.Buffer),
+	})
+	if err != nil {
+		t.Fatalf("new peer: %v", err)
+	}
+
+	runSession := func(play func(net.Conn) error) {
+		t.Helper()
+		local, remote := net.Pipe()
+		defer local.Close() //nolint:errcheck // test socket
+
+		checked := make(chan error, 1)
+		go func() { checked <- play(remote) }()
+		peer.handleConnection(t.Context(), local)
+		if err := <-checked; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	runSession(func(conn net.Conn) error {
+		defer conn.Close() //nolint:errcheck // test socket, the peer reads the close
+		if err := conn.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
+			return err
+		}
+		if _, err := conn.Write(minimalOpenMsg(65001)); err != nil {
+			return err
+		}
+		reader := newMessageReader(conn)
+		for range 2 { // the peer's OPEN and KEEPALIVE
+			if _, _, err := reader.readMessage(); err != nil {
+				return err
+			}
+		}
+		eor, err := hex.DecodeString(unmetEOR)
+		if err != nil {
+			return err
+		}
+		for range 2 { // two UPDATEs on one session
+			if err := sendAndReadReply(conn, eor); err != nil {
+				return err
+			}
+		}
+		if _, err := os.Stat(marker); err != nil {
+			return errors.New("the first session wrote no marker: " + err.Error())
+		}
+		return nil
+	})
+	if _, err := os.Stat(marker + "-2"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("the first session wrote the second session's marker")
+	}
+	runSession(func(conn net.Conn) error { return playDaemon(conn, marker+"-2") })
+	if _, err := os.Stat(marker + "-3"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("two sessions wrote a third marker")
+	}
+}
