@@ -1325,6 +1325,18 @@ ready), and each owner announces again on it: `bgp-adj-rib-in` its
 validation gate, `bgp-rib` its FlowSpec gate. An owner announces only after
 its own gate-query subscription is live, so one of the two always reaches
 the other.
+
+What `bgp-rib` publishes leaves it the same way in either process. In the
+daemon it emits `bgp-rib/best-change`, `bgp-rib/flowspec-change`,
+`bgp-rib/validation-change` and the redistribution batches on the daemon's
+bus; forked, where `ConfigureEventBus` never runs, `runRIBPlugin` installs an
+`sdkEventBus` whose `Emit` hands the JSON to the engine as `emit-event`, and
+the engine decodes it into the event's registered type for its own
+subscribers. A replay request on either hop (`bgp-rib/replay-request`,
+`redistribute/replay-request`) reaches `bgp-rib` through its startup
+subscriptions on both transports (`dispatchReplayRequest`), never through a
+bus subscription.
+<!-- source: internal/component/bgp/plugins/rib/rib_event_sdk.go -- sdkEventBus, dispatchReplayRequest -->
 <!-- source: internal/core/bgp/ribevents/validation.go -- NoteValidationGate, DecodeValidationGate, ValidationGate, RouteEligibleBatch -->
 <!-- source: internal/core/bgp/ribevents/gate_remote.go -- EligibilityRequest, AnswerEligibility, RegisterGateDispatch, askGateOwner -->
 <!-- source: internal/component/bgp/reactor/forward_validation.go -- eligibilityBatch -->

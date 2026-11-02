@@ -117,9 +117,11 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// eventBusPtr stores the EventBus instance for best-path change emission and
-// replay-request subscription. Set by ConfigureEventBus callback before
-// RunEngine.
+// eventBusPtr stores the EventBus this RIB emits on: best-change, FlowSpec
+// change and validation-change. Set by the ConfigureEventBus callback before
+// RunEngine in the daemon, and by runRIBPlugin to an sdkEventBus when the RIB
+// runs forked. Replay requests arrive through the startup subscriptions on
+// either transport (dispatchText), never through a bus subscription.
 var eventBusPtr atomic.Pointer[ze.EventBus]
 
 // SetEventBus sets the package-level EventBus instance.
@@ -767,8 +769,18 @@ func runRIBPlugin(conn net.Conn) int {
 	// select every path.
 	// gate-query asks this RIB to announce its flowspec-gate again, for a
 	// reader whose subscription went live after the announcement.
-	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange, ribevents.EventValidationGate, ribevents.EventGateQuery})
+	// replay-request, on both hops, asks this RIB for its whole best-path
+	// table (replayBestPaths, replayRedistribute); through the SDK too, so a
+	// forked RIB answers it.
+	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange, ribevents.EventValidationGate, ribevents.EventGateQuery, ribevents.EventReplayRequest})
+	p.AddStartupSubscriptionsIn(redistevents.ReplayNamespace, []string{redistevents.ReplayRequestEventType})
 	p.SetEnvelope(true)
+	// A forked RIB has no daemon bus: its best-change, FlowSpec change and
+	// validation-change emissions reach the engine through the SDK instead,
+	// and so the same subscribers.
+	if !p.IsInternal() {
+		SetEventBus(&sdkEventBus{plugin: p})
+	}
 
 	// Start compaction scheduler after 5-stage startup completes.
 	// The scheduler runs as a goroutine tied to the plugin context,
@@ -796,18 +808,6 @@ func runRIBPlugin(conn net.Conn) int {
 		go r.runAIGPSelection(ctx)
 		if metricsPtr.Load() != nil {
 			go r.runMetricsLoop(ctx)
-		}
-		// Subscribe to replay requests from downstream consumers (e.g., sysrib).
-		// When a subscriber emits (bgp-rib, replay-request), replay the full
-		// best-path table. This hop is broadcast, so the handler ignores the
-		// request token except to stamp it onto the emitted batches.
-		if eb := getEventBus(); eb != nil {
-			ribevents.ReplayRequest.Subscribe(eb, r.replayBestPaths)
-			// The redistribution hop asks with its own vocabulary, and it asks
-			// for one target rather than for everybody: the orchestrator fires
-			// this when a consumer registers, and a consumer that registered
-			// after this table filled would otherwise hold nothing.
-			redistevents.ReplayRequestEvent.Subscribe(eb, r.replayRedistribute)
 		}
 		return nil
 	})
