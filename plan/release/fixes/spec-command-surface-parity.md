@@ -8,7 +8,7 @@
 | Release reason | Shipped operator surfaces offer commands they cannot serve (web admin, SSH completion), omit commands they do serve, and leave a remote operator or AI without the local diagnostics (`ze doctor`, support archive, config inspection); this fixes those product defects by serving every command from the daemon and adds the per-surface check that keeps them fixed. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 3/8 |
+| Phase | 8/8 |
 | Handoff | - |
 | Updated | 2026-11-02 |
 
@@ -249,7 +249,7 @@ No handler was found that cannot run in the daemon at all.
 | A-1 | Every TUI-only command has a YANG node or a view registration, and no plugin without YANG declares a TUI-only command | Views are rendered by the in-process CLI model (`view_registry.go`); a plugin process cannot supply one; `monitor bgp` is the only view with no RPC | A `CommandDecl` field is needed, a `pkg/` contract change | grep of `RegisterView` callers and Stage 1 declarations during implementation. 2026-11-01: `RegisterView` has three callers (`register_view_ping.go`, `register_view_traceroute.go`, `register_view_dashboard.go`), all in package `cli`, because `viewSpec` is unexported, so no plugin can register a view; every view prefix is a YANG `ze:command` node. The basis is wrong on one point: `monitor bgp` has a YANG node (`ze-monitor-cmd.yang`, `ze:command "ze-bgp:monitor"`) and a builtin RPC (`internal/component/bgp/plugins/cmd/monitor/monitor.go` `init`, `handleMonitor`, which answers the parsed monitor options and no data), so no view lacks an RPC today and AC-13 has no TUI-only command to declare until the main thread decides how `monitor bgp`'s one-shot answer is judged (AC-9) | confirmed |
 | A-2 | The daemon serves the G1 and G5 commands through their registered handlers, with the same output as the local route | Thomas: "there is no reason why the deamon could not run them and provide the same output"; "yes design so they can run" | - | Decided at the approval gate | confirmed |
 | A-3 | gNMI is not a checked surface | Thomas: listed by mistake; `ai/doors/api-surfaces.md`: gNMI serves the config tree, not commands | - | Decided at the approval gate | confirmed |
-| A-4 | `ze completion words` (shell completion) is YANG-only by design and offers local commands, since `ze <verb>` serves them | `docs/architecture/api/commands.md` shell completion section | The predicate needs a shell-surface row that differs | The check's shell-completion arm | unvalidated |
+| A-4 | `ze completion words` (shell completion) is YANG-only by design and offers local commands, since `ze <verb>` serves them | `docs/architecture/api/commands.md` shell completion section | The predicate needs a shell-surface row that differs | The check's shell-completion arm. 2026-11-02: the shell arm (`ze completion words run <prefix>`) offers every non-plugin registration the check enumerates, 0 shell reds. Nuance: `words run` builds from `cli.BuildCommandTree(false)`, so each local-data command passes because a builtin-classified or YANG path reaches it there | confirmed |
 | A-5 | A local answer that carries a secret (an env value, a config secret) is masked the same way on both routes, because the handler is shared | `dataDiff` masks secrets in the handler; env rows come from `envRows` | A daemon caller sees a secret a local caller would not | Reading `envRows` and each handler's secret handling during implementation; a test per secret-bearing command. 2026-11-02: every secret-bearing handler masks inside its producer, never at render: `envRows` through `currentValue` (`env.IsSecret` keys as `****`), `resolveDiff` through `maskDiffSecrets`, `resolveDump` through `MaskBcrypt` and `maskMapValues`. Tests: `TestShowEnvMasksASecretInTheProducer`, `TestShowConfigDumpMasksASecretInTheProducer`, `TestConfigDiffMasksASecret`. Nuance: the default-mode dump shows a secret in its reversible `$9$` encoding, with the cleartext absent, on both routes alike | confirmed |
 | A-6 | Every G5 command can carry a `ze:command` node without changing its local grammar | The G1 commands already carry one beside their local registration | Grammar changes ripple to `ze <verb>` | `./le doc yang-contract command-contract` and `./le cli grammar`. 2026-11-02: confirmed for the owners converted in phase 2 (both checks green after each conversion; `TestBGPToolsLocalGrammarSurvivesTheDeclaredLeaves` proves `show bgp decode` and `show bgp encode` keep their local option grammar beside the declared leaves). G5 commands phase 3 has not yet given a node stay to be checked as they land | confirmed |
 
@@ -276,8 +276,10 @@ No handler was found that cannot run in the daemon at all.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| MCP `tools/list` then `tools/call` of `show env list` and `doctor` | → | `LoadBuiltins` local bridge, `buildCommandMeta` | `TestMCPServesLocalCommands` (`internal/component/mcp`) and `test/plugin/mcp-local-commands.ci` |
-| Web `POST /admin/show/env/list` | → | dispatcher local bridge | `test/web/admin-local-command-runs.wb` |
+| MCP `tools/list` then `tools/call` of `show env list`, `doctor` and `show config validation` | → | `LoadBuiltins` local bridge, `buildCommandMeta` | `test/plugin/mcp-local-commands.ci` (landed c68890c491; no `TestMCPServesLocalCommands` unit was written, the `.ci` drives the real daemon) |
+| MCP `request support archive` then `show data cat <key>` | → | statestore key, bridged `show data cat` | `TestMCPSupportArchiveRoundTrip` (`internal/component/mcp/local_commands_test.go`) |
+| `update serve start`, `pause`, `stop`, `update serve` through the daemon | → | update-cmd daemon handlers, `Server.OnStop` | `test/ui/update-serve-daemon.ci` (060e65ee6a), `TestUpdateServeLifecycle`, `TestUpdateServeEndsWithDaemonStop` (`internal/plugins/update-cmd/cmd/serve_test.go`) |
+| Web `POST /admin/show/env/list` | → | dispatcher local bridge | `test/web/admin-local-command-runs.wb`; `test/web/admin-plugin-command-no-yang.wb` is still a draft, blocked by the daemon-start failure of web `.wb` daemons (bgp-gr requires bgp-rib) |
 | SSH exec `show config validation <file>` | → | dispatcher local bridge, path confinement | `test/ui/cli-local-command-daemon-ssh.ci` |
 | Web `GET /admin/` with a fixture plugin command lacking YANG | → | per-request `MergeCommandPaths` overlay on the admin tree | `TestAdminTreeMergesVisiblePluginCommands` (`cmd/ze/hub`) |
 | `ze cli` interactive completion of `show env` | → | `buildRuntimeTreeFromDispatch` | `TestRuntimeTreeOffersLocalDataCommands` (`internal/component/cli/client`) |
@@ -325,16 +327,20 @@ No handler was found that cannot run in the daemon at all.
 |------|------|-----------|--------|
 | `TestSurfacePredicateByKind` | `internal/component/command/surface_test.go` | Each registration kind maps to the expected surface set, hidden and TUI-only included | |
 | `TestLoadBuiltinsServesLocalCommands` | `internal/component/plugin/server/command_test.go` | AC-4, AC-11: every local registration with a YANG node is in the dispatcher | |
-| `TestLocalCommandDaemonMatchesLocal` | `cmd/ze/hub/local_bridge_test.go` (tags `ze_core`, `ze_bgp`) | AC-4: each G1 and G5 command answers the same payload on both routes | |
+| `TestLocalCommandDaemonMatchesLocal` | `cmd/ze/hub/local_bridge_match_test.go` (tags `ze_core`, `ze_bgp`) | AC-4: each G1 and G5 command answers the same payload on both routes; `registry.Meta.Artifact` commands compared field by field | |
 | `TestLocalCommandRefusalReturned` | `cmd/ze/hub/local_bridge_test.go` | AC-7 | |
-| `TestLocalCommandPathConfined` | `cmd/ze/hub/local_bridge_test.go` | AC-8 | |
-| `TestDeclarationsConfigRefusedReadOnly` | `cmd/ze/hub/local_bridge_test.go` | AC-17 | |
+| `TestLocalCommandPathConfined` | `internal/component/command/caller_path_test.go`, with `TestConfigCommandsPathConfinedOnDaemonRoute` (`internal/component/config/cli/caller_path_test.go`) and `TestDecodePcapPathConfinedOnDaemonRoute` (`internal/component/bgp/cli`) | AC-8 | |
+| `TestDeclarationsConfigRefusedReadOnly` | `internal/component/plugin/server/local_bridge_test.go` | AC-17 | |
+| `TestEveryMonitorCommandStreams` | `cmd/ze/hub/monitor_streams_test.go` (tags `ze_ssh`, `ze_web`, `ze_bgp`) | AC-19: every monitor command streams on `ze monitor`, `ze cli -c`, SSH interactive and SSH exec | |
+| `TestMonitorStreamGapsDiscriminate` | `cmd/ze/hub/monitor_streams_test.go` | AC-19: the check fails a monitor command that does not stream on one surface | |
+| `TestStreamingOneShotAnswersCarryData`, `TestStreamingOnlyRefusesOnOneShotSurfaces` | `cmd/ze/hub/surface_parity_test.go` | AC-9 | |
+| `TestShowVersionOneProducer`, `TestShowInterfaceOneProducer`, `TestMonitorViewsUseTheOneProducer` | `internal/component/cmd/show/version_test.go`, `internal/component/iface/cli/one_producer_test.go`, `internal/component/cli/client/view_producer_test.go` and `cmd/ze/hub/view_producer_test.go` | AC-14 for version, interface, monitor ping and traceroute | |
 | `TestEveryCommandOnEverySurface` | `cmd/ze/hub/surface_parity_test.go` (tags `ze_core`, `ze_bgp` plus each surface tag) | AC-1, AC-2, AC-3, AC-9, AC-11, AC-13 | |
 | `TestMCPServesLocalCommands` | `internal/component/mcp/local_commands_test.go` | AC-5 | |
 | `TestMCPSupportArchiveRoundTrip` | `internal/component/mcp/local_commands_test.go` | AC-15 | |
 | `TestDoctorOneProducer` | `internal/component/doctor/cmd/show_test.go` | AC-14 for doctor | |
-| `TestSameQuestionPairsOneProducer` | `cmd/ze/hub/local_bridge_test.go` | AC-14 for ping, traceroute, interface, version | |
-| `TestUpdateServeLifecycle` | `cmd/ze/update_serve_test.go` | AC-16 | |
+| `TestSameQuestionPairsOneProducer` | `internal/component/ping/cmd/one_producer_test.go`, `internal/component/traceroute/cmd/one_producer_test.go` | AC-14 for ping and traceroute | |
+| `TestUpdateServeLifecycle` | `internal/plugins/update-cmd/cmd/serve_test.go` | AC-16 | |
 | `TestAdminTreeMergesVisiblePluginCommands` | `cmd/ze/hub/service_web_test.go` | G2 | |
 | `TestRuntimeTreeOffersLocalDataCommands` | `internal/component/cli/client/main_test.go` | G4 | |
 | `TestCollectLabelsLocalByKind` | `internal/le/cli/catalog/catalog_test.go` | AC-10 | |
@@ -544,6 +550,30 @@ No builtin command failed on any surface. Not enumerated by this binary: the loc
 | `\| table` stays allowed on a blob answer | Refusing the table pipe on a `command.ShapeBlob` answer | The pipe operators are global operator rules, not per-shape: a blob rendered as a one-cell table is what the operator asked for. The main thread's reading, reported to Thomas 2026-11-01 |
 | gNMI is not a checked surface | Record it as offering the empty set | Thomas: it was listed by mistake; gNMI serves the config tree and no command |
 | The check is a Go test in `cmd/ze/hub` under each surface tag | A `./le` tool reading source | Only the hub links every surface producer; asking the real producers is the point. A `./le cli surfaces check` may wrap the same function |
+| The daemon bridge (`plugin/server` `loadLocalData`) serves a local-data command under its exact YANG path, and a route marker (`command.Route`, set only in package `command`) tells the handler which route called it | A second daemon handler per command; a route flag the caller sets | One handler behind both routes; the zero route is refused the caller-only forms, so no panic guards it. A path whose YANG node's own RPC is a builtin is left to the builtin (doctor) |
+| `command.CallerPath` confines a daemon-route path to the `show config list` directories, excludes `/`, refuses `-` | Authz regexes; any path | Authz has no filesystem notion. Open question to Thomas: the daemon's working directory counts today (it is in `configSearchDirs`) though it is an accident of launch; main-thread reading: exclude the working directory on the daemon route |
+| `plugin.Response.Warnings` carries a diagnostic beside a zero code; every user surface shows it | Drop it on the daemon route; fold it into the payload | The local route prints it before the answer, so each surface prints it there too. The plugin IPC (`dispatch-command`) does not carry it: a `pkg/` change awaiting Thomas |
+| `plugin.RefusalError` holds the local diagnostic; a surface that prints for a person prints it as written | Prefix every refusal with `error: ` | The refusal reads as the local route does, never `error: usage: ...` |
+| `config.ReadConfig` reads a caller's config and publishes nothing | `LoadConfig` everywhere | `LoadConfig` applies the `environment { }` block, so a daemon-route read would change the daemon's log and env settings |
+| `show ping`, `show traceroute`, `show interface`, `show version` stay plain local plus a builtin on the same path calling one producer | Make them local-data | `ze cli` answers a local-data command in its own process before asking the daemon, so `ze cli -c "show version"` would describe the client |
+| `update serve` exact path answers the daemon server's status; start, stop and pause are builtins; the foreground `ze update serve --listen` stays local | A local-data `update serve` | `ze cli` would serve a local-data form in its own process and never reach the daemon |
+| `(*pluginserver.Server).OnStop` binds work outliving its request to daemon shutdown | A per-command signal handler | `Stop` runs each hook and waits, so no goroutine outlives the daemon |
+| A streaming command declares its one-shot answer: `OneShotSample` or `OneShotStreamingOnly`; a streaming-only command typed in full on a one-shot surface is refused naming where it streams | An echo of the parsed options | The echo was a success-shaped reply with no data (AC-9) |
+| `registry.Meta.Artifact` declares a command that produces a file named differently per route | A name-based branch in the match test | The match test reads the declaration and names no command |
+
+## Closure record: test-change verdicts
+
+Independent `ze-test-judge` verdicts on committed changes (no approval command exists for a landed change):
+
+| Commit | Unit | Verdict |
+|--------|------|---------|
+| c49b8dbdbe | `TestLocalAnswerResponseMapsEveryField` | Approved (b): the old `error` value carried a prefix every surface adds again; the exact value is still checked |
+| c49b8dbdbe | `TestLocalCommandRefusalReturned` | Approved (b): still an exact byte check of what the operator reads |
+| afdb50bd52 | `TestValidateConfigAnswersDiagnosticsAndFails`, `TestValidateConfigAnswersAValidConfiguration` | Approved (a): only gained checks |
+| afdb50bd52 | `TestLocalCommandDaemonMatchesLocal` | Approved (b): refusal bytes are left uncompared only when both routes refuse and the daemon names the local command |
+| 90dfb4432d | `AnswerLocal`/`RouteLocal` call sites, `TestDeclarationsConfigRefusedReadOnly` setup | Approved (a): no assertion changed |
+
+After 592e54c7c5 the approved rows below were not consumed by the gate and remain in the session's `tmp/commit-weakening-approved-*.md`; their verdicts, recorded here: `ui.cli-argument-refused-plugin-route` (same assertions, vehicle moved to the `show record-plugin argument` fixture, mutation red), `hub.TestLocalCommandDaemonMatchesLocal` (Artifact branch keeps answer and refusal parity and compares every non-volatile field), `plugin.event-monitor-basic`, `-exclude`, `-include`, `-peer`, `plugin.monitor-basic`, `-events`, `-peer`, `plugin.monitor-system-netlink` (the one-shot echo was wrong against AC-9; refusal asserted, parsing proof moved to streaming-path tests that went red under mutation), `plugin.task-cancel` (same two properties through `ze_monitor_interface_rate`).
 
 ## Known Limitations
 
