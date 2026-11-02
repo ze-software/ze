@@ -1,0 +1,78 @@
+# Test: update serve through the daemon -- start answers the listen address, the
+# server answers /version.json there, pause toggles the manifest's pause, a second
+# start is refused naming the fix, and stop ends the listener.
+# VALIDATES: AC-16 of spec-command-surface-parity, through the real entry point:
+#   `ze cli -c "update serve start|pause|stop"` reaches the daemon's builtins
+#   (internal/plugins/update-cmd/cmd/serve_daemon.go), not the CLI's own process.
+# PREVENTS: the daemon form answering without a server, a pause that never reaches
+#   the manifest, a second server per daemon, and a stop that leaves it listening.
+#
+# Method: the daemon runs one SSH server on 127.0.0.1 $PORT, which the CLI dials;
+# the update server is asked for 127.0.0.1 $PORT2. The server is fetched with
+# `le test http-get` as a sequenced command, because an http= check runs only
+# after every cmd= line, by when stop has already closed the listener.
+#
+# DISCRIMINATION: with stop() not calling shutdown (listener left serving),
+# seq 9 fetches the manifest and the test goes red.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=serve.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start serve.conf:name=daemon:ready=Ze running.
+
+cmd=foreground:seq=3:exec=ze cli -c "update serve start listen 127.0.0.1:$PORT2":exit=0
+# An expect= value is not expanded, so the port is proven by the seq 4 fetch.
+expect=stdout:contains=127.0.0.1:
+
+cmd=foreground:seq=4:exec=le test http-get http://127.0.0.1:$PORT2/version.json:exit=0
+expect=stdout:contains=sha256
+
+cmd=foreground:seq=5:exec=ze cli -c "update serve start listen 127.0.0.1:$PORT2"
+expect=stderr:contains=update serve stop
+
+cmd=foreground:seq=6:exec=ze cli -c "update serve pause":exit=0
+expect=stdout:contains=true
+cmd=foreground:seq=7:exec=le test http-get http://127.0.0.1:$PORT2/version.json:exit=0
+expect=stdout:contains="paused":true
+
+cmd=foreground:seq=8:exec=ze cli -c "update serve stop":exit=0
+expect=stdout:contains=stopped
+# A helper before the last step must exit 0 (the runner fails it otherwise and
+# reads no exit= for it), so sh inverts the refused fetch; stderr pins the cause.
+cmd=foreground:seq=9:exec=sh -c "! le test http-get http://127.0.0.1:$PORT2/version.json":exit=0
+expect=stderr:contains=connection refused
+
+cmd=foreground:seq=10:exec=ze cli -c "update serve pause"
+expect=stderr:contains=update serve start
+
+cmd=stop:seq=11:name=daemon:signal=term
