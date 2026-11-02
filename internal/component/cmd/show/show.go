@@ -7,6 +7,7 @@ package show
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	zeversion "github.com/ze-software/ze/internal/core/version"
 )
 
 // The CLI argument keywords this package reads. argCount takes a positive
@@ -437,12 +439,14 @@ func handleShowHealth(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (
 	}, nil
 }
 
-// handleShowVersion returns the ze version and build date.
-func handleShowVersion(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
-	v, d := pluginserver.GetVersion()
+// handleShowVersion answers the daemon's version through zeversion.Answer, the
+// producer `ze show version` prints with no daemon. The model declares no leaf
+// for show version, so `--extended` reaches both routes as a token.
+func handleShowVersion(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	extended := slices.Contains(validated.Tokens(), "--extended")
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"version": "ze " + v + " (built " + d + ")"},
+		Data:   plugin.Map{"version": zeversion.Answer(extended)},
 	}, nil
 }
 

@@ -80,6 +80,16 @@ func BuildDate() string {
 	return buildDate
 }
 
+// Answer is the one producer of `show version`: Extended when extended, else
+// Short. The no-daemon route (`ze show version`, `ze --version`) prints it and
+// the daemon RPC (ze-cmd:show-version) answers it, so both report alike.
+func Answer(extended bool) string {
+	if extended {
+		return Extended()
+	}
+	return Short()
+}
+
 // Short returns the single-line version string: "ze 26.04.05 (built 2026-04-05T...)".
 func Short() string {
 	mu.RLock()

@@ -106,15 +106,12 @@ func init() {
 	binaryUsage = zeUsage
 }
 
-// printVersion writes the version line through a RenderWriter and returns the
-// exit code (non-zero on a broken pipe).
+// printVersion writes zeversion.Answer, the producer the daemon's show version
+// RPC answers, through a RenderWriter and returns the exit code (non-zero on a
+// broken pipe).
 func printVersion(extended bool) int {
 	rw := helpfmt.NewRenderWriter(os.Stdout)
-	if extended {
-		rw.Line(zeversion.Extended())
-	} else {
-		rw.Line(zeversion.Short())
-	}
+	rw.Line(zeversion.Answer(extended))
 	return rw.ExitCode()
 }
 
