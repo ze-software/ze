@@ -1,0 +1,23 @@
+# Test: a local-data command reaches an SSH operator through the daemon
+# VALIDATES: spec-command-surface-parity, SSH arm. Over SSH, the session model
+# the daemon hosts offers `list` after `show env `, and an SSH exec of
+# `show config validation <file>` runs in the daemon: a file inside the
+# daemon's configuration directory is judged valid, and a file outside it is
+# refused with the local `ze show config validation <file>` that reads any
+# file (command.CallerPath).
+# PREVENTS: a local-data command answered only in the operator's own process,
+# so SSH neither offers nor runs it; and a daemon route that reads any path
+# the caller names on the daemon's host.
+#
+# Method: the compiled fixture (internal/test/fixture/ui_fixture_local_command_ssh.go)
+# starts a daemon, drives a plain ssh client under a pseudo-terminal for the
+# Tab offer, and execs both validations through sshclient.ExecCommand. `ze cli`
+# cannot prove this: it answers a local-data command in the client process.
+#
+# The timeout is DECLARED because this file starts a daemon and drives an
+# interactive terminal session.
+option=timeout:value=90s
+
+cmd=foreground:seq=1:exec=le test fixture ui/local-command-daemon-ssh
+expect=exit:code=0
+expect=stdout:contains=OK: ssh offered show env list
