@@ -46,10 +46,10 @@ func init() {
 	// Register "monitor event" streaming handler at engine level (verb-first: <action> <module>).
 	pluginserver.RegisterStreamingHandler("monitor event", pluginserver.OneShotStreamingOnly, pluginserver.StreamEventMonitor)
 
-	// "monitor bgp" is the dashboard command, handled by the TUI model.
-	// No streaming handler needed -- the CLI intercepts it before it
-	// reaches the streaming path. (monitor traceroute is owned by the
-	// dedicated traceroute feature module, internal/component/traceroute/cmd.)
+	// "monitor bgp" streams through the handler register.go registers; a bare
+	// "monitor bgp" in the interactive CLI opens the dashboard view instead.
+	// (monitor traceroute is owned by the dedicated traceroute feature module,
+	// internal/component/traceroute/cmd.)
 }
 
 // handleMonitor is the RPC handler for non-streaming callers (interactive CLI dispatch).

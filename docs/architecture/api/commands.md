@@ -843,8 +843,8 @@ be shown: MCP, REST, gRPC and the web admin console run a command once.
 
 | Declaration | One-shot surfaces | Commands |
 |-------------|-------------------|----------|
-| `OneShotSample` | Offered. The one-shot RPC answers one sample from the producer the stream reads | `monitor interface rate` (the rate tracker, as `show interface rate`), `monitor traffic stat` (the trafficstat snapshot, as `show traffic stat`) |
-| `OneShotStreamingOnly` | Not offered: the stream is a sequence of events, so no single answer holds its data | `monitor event`, `monitor system netlink`, `monitor vpn ipsec` |
+| `OneShotSample` | Offered. The one-shot RPC answers one sample from the producer the stream reads | `monitor interface rate` (the rate tracker, as `show interface rate`), `monitor traffic stat` (the trafficstat snapshot, as `show traffic stat`), `monitor ping` (a bounded run of probes), `monitor traceroute` (one probe round) |
+| `OneShotStreamingOnly` | Not offered: the stream is a sequence of events, so no single answer holds its data | `monitor bgp`, `monitor event`, `monitor system netlink`, `monitor vpn ipsec` |
 
 The surface predicate (`command.AnswerSurface`) reads the declaration, so the
 MCP, REST and gRPC command list, the web admin tree and the web terminal
@@ -854,7 +854,33 @@ fails a sample command whose one-shot answer carries no data.
 <!-- source: cmd/ze/hub/streaming_surface.go -- streamingPathsOff -->
 <!-- source: cmd/ze/hub/surface_parity_test.go -- TestStreamingOneShotAnswersCarryData -->
 
-**Note:** `monitor bgp` is the live peer dashboard (TUI only). `monitor event` streams live events (SSH exec or TUI). `monitor system netlink` streams kernel netlink events (SSH exec or TUI, Linux only).
+#### Where a monitor command streams
+
+Every monitor command streams live on the four terminal surfaces. Each surface
+branches on a registry, never on a command name:
+
+| Surface | Route |
+|---------|-------|
+| SSH exec (`ssh router monitor ...`) | `pluginserver.IsStreamingCommand` sends the command to the streaming executor (`cmd/ze/hub/service_ssh.go`), which runs the registered streaming handler on the judged arguments |
+| `ze cli -c "monitor ..."` | The client streams when `pluginserver.IsStreamingCommand` holds (`internal/component/cli/client/main.go`) |
+| SSH interactive and the `ze cli` TUI | The model opens a registered live view first (the `monitor bgp` dashboard, the `monitor ping` and `monitor traceroute` views), then a streaming session for any other streaming command (`internal/component/cli/model_keys.go`) |
+| `ze monitor ...` | A registered local handler runs its live loop in-process (`monitor ping`, `monitor traceroute`), and any other command goes through `ze cli -c` |
+
+The streaming handlers of the three commands that also own a live view:
+
+| Command | Streaming handler | Producer | One-shot answer |
+|---------|-------------------|----------|-----------------|
+| `monitor bgp` | `streamBGPMonitor` (`internal/component/bgp/plugins/cmd/monitor/register.go`) | `StreamMonitor` over the daemon's monitor set: a header, then one line per BGP event | `OneShotStreamingOnly` |
+| `monitor ping` | `streamMonitorPing` (`internal/component/ping/cmd/monitor.go`) | `NewPingSession`: one line per probe, the text `ze monitor ping` prints | `OneShotSample`: the rows of a bounded run (the requested count, else 5) |
+| `monitor traceroute` | `streamMonitorTraceroute` (`internal/component/traceroute/cmd/monitor.go`) | `NewTracerouteSession`: one block per probe round, a round each second | `OneShotSample`: one probe round, as `show probe-round` |
+
+`TestEveryMonitorCommandStreams` reads every monitor command from the streaming
+prefixes, the live views and the YANG paths under `monitor`, and fails any one
+a surface would answer once instead of streaming.
+<!-- source: internal/component/bgp/plugins/cmd/monitor/register.go -- streamBGPMonitor -->
+<!-- source: internal/component/ping/cmd/monitor.go -- streamMonitorPing, handleMonitorPing, writePingRows -->
+<!-- source: internal/component/traceroute/cmd/monitor.go -- streamMonitorTraceroute, writeTracerouteRounds -->
+<!-- source: cmd/ze/hub/monitor_streams_test.go -- TestEveryMonitorCommandStreams -->
 
 #### Netlink Monitor
 
