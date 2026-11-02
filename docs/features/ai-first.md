@@ -91,6 +91,11 @@ The installed binary serves agent workflow guides matched to its exact version.
 Skills cover diagnostics, config, commands, and agent edit loops. Agents load
 only the skill relevant to the current task.
 
+Over the daemon (MCP, REST, gRPC, SSH, web) the expanded form is the model's
+flag leaf `full`, as in `show skill ze full`; the local `--full` means the same.
+<!-- source: internal/plugins/skills/yang/ze-skills-cmd.yang -- leaf full -->
+<!-- source: internal/plugins/skills/main.go -- showSkill -->
+
 ## Development-Time Discovery
 
 Feature, tooling, self-check, verification, and test-infrastructure changes

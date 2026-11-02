@@ -3,6 +3,7 @@ module ze-skills-cmd {
     prefix skillscmd;
     import ze-extensions { prefix ze; }
     description "The show skills and show skill commands, owned by the skills plugin, which registers their handlers. See the plugin self-containment rule.";
+    revision 2026-11-02 { description "Declare the full flag show skill already read, so every route judges it against the model."; }
     revision 2026-10-12 { description "Rename skills list and skills get to show skills and show skill: the first word of a command is its verb."; }
     revision 2026-10-08 { description "Initial: declare the skills command the skills plugin already served."; }
 
@@ -28,6 +29,12 @@ matches the running version. Prints each bundled skill with its one-line descrip
                 mandatory true;
                 description "A skill name as show skills prints it. An unknown name is refused.";
                 ze:help "Skill name.";
+            }
+            leaf full {
+                type empty;
+                description "Print the expanded document, with examples and patterns, where the skill
+carries one.";
+                ze:help "Return expanded content (with examples and patterns).";
             }
         }
     }

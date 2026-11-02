@@ -25,6 +25,15 @@ import (
 // flagJSON is the CLI flag that selects structured output on the local route.
 const flagJSON = "--json"
 
+// The spellings show skill reads. flagFull is the local grammar's flag;
+// leafFull and leafName are the leaves ze-skills-cmd.yang declares, which a
+// remote caller types.
+const (
+	flagFull = "--full"
+	leafFull = "full"
+	leafName = "name"
+)
+
 // The envelope keys of the two answers, each with a registered drawing.
 const (
 	keySkills = "skills"
@@ -83,6 +92,10 @@ func showSkills(validated command.ValidatedArgs) command.LocalAnswer {
 }
 
 // showSkill answers `show skill <name> [--full]`: one bundled skill.
+//
+// The model declares `name` and the flag leaf `full`, so a remote caller
+// spells the flag `full` and may key the name (`name ze full`); the local
+// grammar spells it `--full`. Both spellings mean the same, so both are read.
 func showSkill(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	if wantsHelp(args) {
@@ -90,14 +103,21 @@ func showSkill(validated command.ValidatedArgs) command.LocalAnswer {
 	}
 	full := false
 	var name string
-	for _, a := range args {
-		switch a {
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
 		case flagJSON:
 			// A rendering flag, read by hasFlag below: never a skill name.
-		case "--full":
+		case flagFull, leafFull:
 			full = true
+		case leafName:
+			// The keyed spelling: the next token is the value, whatever it
+			// reads as. The validator refused a keyword with no value.
+			if i+1 < len(args) {
+				i++
+				name = args[i]
+			}
 		default:
-			name = a
+			name = args[i]
 		}
 	}
 
