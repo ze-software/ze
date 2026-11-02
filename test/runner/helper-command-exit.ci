@@ -1,0 +1,9 @@
+# Each helper owns its exit status, including an expected refusal before another step.
+option=timeout:value=10s
+cmd=foreground:seq=1:exec=sh -c 'echo first-helper; exit 3':exit=3
+expect=stdout:contains=first-helper
+cmd=foreground:seq=2:exec=sh -c 'echo zero-helper':exit=0
+expect=stdout:contains=zero-helper
+cmd=foreground:seq=3:exec=sh -c 'echo final-helper; exit 7':exit=7
+expect=stdout:contains=final-helper
+expect=exit:code=7

@@ -142,11 +142,15 @@ Each test owns three consecutive ports, exposed as variables in commands,
 | `$PORT2` | Secondary port, `$PORT`+1 (web UI, looking glass, plugin acceptor) |
 | `$PORT3` | Third port, `$PORT`+2 (an RTR cache, a second listener, a session editor) |
 
-One function expands all three wherever a `.ci` text is read
-(`runner.ExpandPorts`), and the config sweep in
-`internal/component/config/cli` calls the same one. Any other `$PORT<n>`
+`runner.ExpandPorts` expands these placeholders in `tmpfs=` content, `exec=`,
+stdin blocks, `option=env` values, and HTTP check and wait URLs. Assertion
+values in `expect=` and `reject=` are not expanded. The config sweep in
+`internal/component/config/cli` calls the same function. Any other `$PORT<n>`
 fails the file at discovery, naming the placeholder: it would name a port the
 lease does not hold.
+<!-- source: internal/test/runner/runner_exec.go -- tmpfsForRecord, runOrchestrated -->
+<!-- source: internal/test/runner/runner_validate.go -- executeHTTPChecks, executeHTTPWaits -->
+<!-- source: internal/test/runner/runner_output_assert.go -- checkCommandAssertions -->
 
 Never hardcode port numbers. Use `$PORT` in `cmd=` exec values and `$PORT2` in `http=` URLs.
 
@@ -864,10 +868,11 @@ without blocking later steps. Its peers or observer determine when teardown star
 **Stop:** Terminates a named background process mid-test (see below).
 
 Every foreground helper (any program other than `ze` and the test peer) is
-waited for, the last `cmd=` line included. A helper earlier in the file that
-exits non-zero fails the test as a setup script. The last helper's exit is the
-one `expect=exit:code=` asserts; with no such line a non-zero exit fails the
-test. A helper still running at the test deadline fails it as a timeout that
+waited for, the last `cmd=` line included. Its `exit=` assertion checks its own
+status before the next command starts. Without `exit=`, an intermediate helper
+must exit zero. The final helper can instead declare `expect=exit:code=`.
+If it declares both, both must match. With neither, it must exit zero.
+A helper still running at the test deadline fails it as a timeout that
 names the command: a process the test does not wait for is `cmd=background`.
 
 Until 2026-10-14 the last helper was classed with the daemons: started, torn
@@ -903,7 +908,7 @@ process. Three limits apply:
   never a literal quote inside an argument.
 - An unbalanced quote fails the test with `unclosed quote in ...`.
 - No shell runs, so `|`, `>` and `$HOME` are ordinary characters inside an
-  argument. The runner expands `$PORT` and `$PORT2` and nothing else, and
+  argument. The runner expands `$PORT`, `$PORT2` and `$PORT3`, and
   `le test fixture` expands the environment in its own arguments.
 
 One splitter serves every suite, so a `cmd=` line produces the same argv
@@ -1013,8 +1018,10 @@ peer-death observation (the deleted `test/ipsec/ipsec-dpd-timeout.ci` needed it)
 
 `expect=exit:code=` is **file-level**: `Record.ExpectExitCode` is a single value
 (a later `expect=exit:code=` silently overwrites an earlier one) and the runner
-compares it against `lastQuickZeErr` -- the exit status of the **last** quick-exit
-`ze` command in the file. A file that runs several `ze config validate` commands
+uses the final foreground helper's exit when the final command is a helper.
+Otherwise, it uses the foreground daemon's exit, or the last quick-exit `ze`
+command's exit when there is no daemon. Await fences retain their daemon/peer
+exit selection. A file that runs several `ze config validate` commands
 therefore asserts only the final one; every earlier command can exit with any code
 and the test still passes.
 
@@ -1024,6 +1031,13 @@ checked the moment that command finishes, and names the offending `seq` on failu
 ```
 cmd seq=2 (ze config validate -): expected exit code 1, got 0
 ```
+
+Foreground helpers honor `exit=` in both intermediate and final positions.
+A helper mismatch retains its output and stops execution before the next command.
+Inspect that output, then correct the helper or its `exit=` assertion.
+Timeout and cancellation remain failures regardless of the declared exit code.
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+<!-- test: internal/test/runner/helper_exit_test.go TestForegroundHelperCommandExit, TestForegroundHelperFileExit -->
 
 Prefer `exit=` whenever a file runs more than one quick-exit `ze` command. A
 "quick-exit `ze` command" is any foreground `ze` whose verb is not a daemon verb

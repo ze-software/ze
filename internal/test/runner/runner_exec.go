@@ -654,8 +654,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	var lastQuickZeErr error
 	quickZeRan := false
 	// lastHelperErr is the exit of a foreground helper that is the last cmd=
-	// line: expect=exit:code= asserts it, and a non-zero exit with no such
-	// assertion fails the test like any other helper's.
+	// line: expect=exit:code= asserts it independently of that command's exit=.
 	var lastHelperErr error
 	lastHelperRan := false
 
@@ -1124,67 +1123,50 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// instead, because no sleep is long enough on a loaded host.
 				time.Sleep(100 * time.Millisecond)
 			}
-		case cmd.Mode == modeForeground && binName != binNameZe && binName != binNamePeer && cmdIdx < len(cmds)-1:
-			// Foreground setup script (non-daemon, e.g., create-marker.sh) that
-			// precedes other commands: wait for completion before starting the
-			// next command. Without this, the setup script may not finish before
-			// ze reads its output, causing races under concurrent test load.
-			// The last command is the arm below, whose exit is the test's own.
-			if err := proc.Wait(); err != nil {
-				// Collect the output first. This early return skips the
-				// collection at the bottom of the function. A barrier script
-				// that exits non-zero was therefore reported as a bare
-				// "setup script sh: exit status 1". The message it printed to
-				// say WHY was nowhere in the report.
-				//
-				// That message is the whole reason a barrier is a script
-				// rather than a sleep. The await=stderr arm below carries the
-				// same repair.
-				// ai/rules/evidence.md: the guard must speak.
-				setClientOutput(rec, clientStdout.String(), clientStderr.String())
-				rec.PeerOutput = collectPeerOutput(peerOutputs)
-				rec.Duration = time.Since(rec.StartTime)
-				// The deadline killing the helper's process group is a
-				// timeout, and says so, rather than a bare "signal: killed".
-				if testCtx.Err() != nil {
-					rec.Error = foregroundHelperStopError(ctx, cmd.Seq, cmd.Exec, timeout)
-					rec.SetState(StateTimeout)
-					rec.FailureType = stateTimeout
-					return false
-				}
-				rec.Error = fmt.Errorf("setup script %s: %w", binName, err)
-				return false
-			}
-			continue // Already finished, don't track for cleanup
 		case cmd.Mode == modeForeground && binName != binNameZe && binName != binNamePeer:
-			// The last command is a foreground helper. It is waited for like
-			// every other helper, so its output reaches its assertions and its
-			// exit is what expect=exit:code= asserts. It used to fall to the
-			// daemon arm below: started, never waited, and torn down, so its
-			// output counted only if it won that race, and a helper that never
-			// exited passed as a daemon. A process the test does not wait for is
-			// cmd=background. Its span closes here for its expects; its
-			// rejects still read to the end of the run (rejectsToRunEnd).
-			lastHelperErr = proc.Wait()
-			cmd.stdoutTo, cmd.stderrTo = clientStdout.mark(), clientStderr.mark()
-			cmd.rejectsToRunEnd = true
-			lastHelperRan = true
+			// Every helper finishes before the next step. Only the final helper
+			// supplies the file-level exit status and closes its expect span.
+			// Keep its rejects open through teardown, as before.
+			helperErr := proc.Wait()
+			finalHelper := cmdIdx == len(cmds)-1
+			if finalHelper {
+				lastHelperErr = helperErr
+				lastHelperRan = true
+				cmd.stdoutTo, cmd.stderrTo = clientStdout.mark(), clientStderr.mark()
+				cmd.rejectsToRunEnd = true
+			}
+			// Save output before any early return, including exit mismatches.
+			setClientOutput(rec, clientStdout.String(), clientStderr.String())
+			rec.PeerOutput = collectPeerOutput(peerOutputs)
+			rec.Duration = time.Since(rec.StartTime)
 			if testCtx.Err() != nil {
-				setClientOutput(rec, clientStdout.String(), clientStderr.String())
-				rec.PeerOutput = collectPeerOutput(peerOutputs)
-				rec.Duration = time.Since(rec.StartTime)
 				rec.Error = foregroundHelperStopError(ctx, cmd.Seq, cmd.Exec, timeout)
 				rec.SetState(StateTimeout)
 				rec.FailureType = stateTimeout
 				return false
 			}
-			if lastHelperErr != nil && rec.ExpectExitCode == nil {
-				// A non-zero exit no assertion claims fails the test the way
-				// a helper earlier in the file does.
-				setClientOutput(rec, clientStdout.String(), clientStderr.String())
-				rec.PeerOutput = collectPeerOutput(peerOutputs)
-				rec.Duration = time.Since(rec.StartTime)
-				rec.Error = fmt.Errorf("cmd seq=%d (%s): helper: %w", cmd.Seq, cmd.Exec, lastHelperErr)
+			if cmd.ExitCode != nil {
+				actual := 0
+				if helperErr != nil {
+					exitErr, ok := errors.AsType[*exec.ExitError](helperErr)
+					if !ok {
+						rec.Error = fmt.Errorf("cmd seq=%d (%s): cannot read helper exit: %w", cmd.Seq, cmd.Exec, helperErr)
+						return false
+					}
+					actual = exitErr.ExitCode()
+				}
+				if actual != *cmd.ExitCode {
+					rec.Error = fmt.Errorf("cmd seq=%d (%s): expected exit code %d, got %d; inspect the helper output and correct the command or its exit= assertion", cmd.Seq, cmd.Exec, *cmd.ExitCode, actual)
+					rec.FailureType = "exit_code_mismatch"
+					return false
+				}
+				continue
+			}
+			if finalHelper && rec.ExpectExitCode != nil {
+				continue // The file-level assertion below checks this exit.
+			}
+			if helperErr != nil {
+				rec.Error = fmt.Errorf("cmd seq=%d (%s): helper: %w", cmd.Seq, cmd.Exec, helperErr)
 				return false
 			}
 			continue // Already finished, don't track for cleanup
