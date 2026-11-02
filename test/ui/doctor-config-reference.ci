@@ -2,13 +2,14 @@
 # VALIDATES: AC-1/AC-2 dangling policy reference produces doctor-config-reference diagnostic
 #
 # The peer carries `connection local ip` and `prefix { maximum }` so the only
-# fault left is the one under test. That does NOT make the config engine-valid:
-# PeersFromConfigTree resolves filter references too, so the dangling policy IS
-# an engine peer-resolution failure and checkBGPPeerConfig
-# (internal/component/doctor/checks_config.go) necessarily reports it alongside
-# doctor-config-reference. The two are inherently coupled here -- a `reject=` on
-# doctor-config-bgp-peer is unsatisfiable, and asserting only `nonexistent-policy`
-# is degenerate because BOTH messages contain it. See the assertion note below.
+# fault left is the one under test. That does NOT make the config loadable:
+# load validation refuses the dangling policy too. runChecks
+# (internal/component/doctor/doctor.go) runs the parsed-config phase first, so
+# checkFilterReferences (internal/component/bgp/config/filter_reference_doctor.go)
+# reports doctor-config-reference before ReadConfig refuses the load, which is
+# reported as doctor-config-parse and stops the run before post-config.
+# doctor-config-bgp-peer, a post-config check, therefore never runs for this
+# input. See the assertion note below.
 
 tmpfs=dangling.conf:terminator=EOF_CONF
 bgp {
@@ -51,9 +52,9 @@ expect=exit:code=1
 expect=stdout:contains=doctor-config-reference
 expect=stdout:contains=nonexistent-policy
 # The needle that makes exit=1 non-degenerate. `nonexistent-policy` alone does
-# NOT: checkBGPPeerConfig reports the same dangling reference as `unknown filter
-# "nonexistent-policy"`, so both diagnostics carry that string and either could
-# be supplying the exit code. "references undefined filter" is emitted only by
-# checkFilterRefs (internal/component/doctor/checks_config.go), so this pins the
+# NOT: the load refusal, reported as doctor-config-parse, also fails the run and
+# can name the same filter, so either diagnostic could be supplying the exit
+# code. "references undefined filter" is emitted only by checkFilterReferences
+# (internal/component/bgp/config/filter_reference_doctor.go), so this pins the
 # check the test is named for.
 expect=stdout:contains=references undefined filter
