@@ -179,6 +179,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   untracked file the edit hook and the commit gate read), and the commit
   carries one `Weakening-approved:` or `RFC-approved:` line per test. No
   tracked ledger of approvals is kept in the repository.
+- Owner-only authorization actions require an interactive terminal and refuse
+  noninteractive invocation before recording authorization. Independent
+  test-judge approvals retain their existing agent route.
 
 ## Code and dependencies
 
