@@ -32,6 +32,15 @@
 # consumer), so a forked twin of it would place nothing forked. This file
 # carries AC-16's opaque-attribute claim instead.
 #
+# RFC requirement: RFC7947-2.2-1 positive -- with bgp-rs forked, receiver A
+# (conn=2, rs-client true) receives exactly the UPDATE the source sent, asserted
+# as exact wire hex: unknown optional transitive 0xF1 with Partial clear and
+# unknown optional non-transitive 0xF2 both passed on unchanged (Section 2.2).
+# RFC requirement: RFC7947-2.2-1 negative -- receiver B (conn=3, rs-client not
+# set) receives from the same source UPDATE, asserted as exact wire hex, 0xF2
+# dropped and 0xF1 with Partial set, so the unchanged pass-through is confined
+# to route-server clients (Section 2.2).
+#
 # NO LOCAL_PREF in the source frame: the source is an eBGP peer and RFC 4271
 # Section 5.1.5 forbids LOCAL_PREF towards external peers.
 

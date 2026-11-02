@@ -20,5 +20,53 @@
     "producer": "internal/component/bgp/reactor/forward_body.go::forwardWire",
     "producer-sha": "0c74feade9f7ea34",
     "break": "body of forwardWire replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7947-2.2-1",
+    "polarity": "positive",
+    "unit": "test/plugin/bgp-rs-opaque-transparency-forked.ci",
+    "unit-sha": "886d9be09c60f14d",
+    "claim-sha": "2485627a2f8ab65f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rs/transparency.go::evaluateRSFilter",
+    "producer-sha": "a25519be2281841a",
+    "break": "line 90: \"Sets: transparencySets\" -\u003e \"Sets: nil\"",
+    "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040020602010000FDE940030401010101C0F10311223380F203445566180A0000"
+  },
+  {
+    "rid": "RFC7947-2.2-1",
+    "polarity": "negative",
+    "unit": "test/plugin/bgp-rs-opaque-transparency-forked.ci",
+    "unit-sha": "886d9be09c60f14d",
+    "claim-sha": "a9ff71d6d01e217e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rs/transparency.go::rsInsertions",
+    "producer-sha": "f15b1b515bceff5e",
+    "break": "line 67: \"Values: []string{sessionFactTrue}\" -\u003e \"Values: []string{sessionFactTrue, \\\"false\\\"}\"",
+    "citation": "expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0039020000001E4001010040020A02020000FDE80000FDE940030401010101E0F103112233180A0000"
+  },
+  {
+    "rid": "RFC7947-2.2-1",
+    "polarity": "positive",
+    "unit": "test/plugin/bgp-rs-opaque-transparency.ci",
+    "unit-sha": "39063c98727c2337",
+    "claim-sha": "7e6d0e325ffe9acb",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rs/transparency.go::evaluateRSFilter",
+    "producer-sha": "a25519be2281841a",
+    "break": "line 90: \"Sets: transparencySets\" -\u003e \"Sets: nil\"",
+    "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040020602010000FDE940030401010101C0F10311223380F203445566180A0000"
+  },
+  {
+    "rid": "RFC7947-2.2-1",
+    "polarity": "negative",
+    "unit": "test/plugin/bgp-rs-opaque-transparency.ci",
+    "unit-sha": "39063c98727c2337",
+    "claim-sha": "a9ff71d6d01e217e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rs/transparency.go::rsInsertions",
+    "producer-sha": "f15b1b515bceff5e",
+    "break": "line 67: \"Values: []string{sessionFactTrue}\" -\u003e \"Values: []string{sessionFactTrue, \\\"false\\\"}\"",
+    "citation": "expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0039020000001E4001010040020A02020000FDE80000FDE940030401010101E0F103112233180A0000"
   }
 ]
