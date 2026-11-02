@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // matchUndeclaredWord is a word no command declares as a keyword, so a call
@@ -76,8 +77,25 @@ func TestLocalCommandDaemonMatchesLocal(t *testing.T) {
 	// daemon route confines file arguments to, and XDG_CONFIG_HOME points at
 	// another empty one, so the operator's own configuration directory is
 	// neither read nor named in a refusal.
+	//
+	// ze.config.dir is pinned to that working directory as well: debug.zefs
+	// and every other store a command opens resolve through it
+	// (paths.DefaultConfigDir), and an earlier test whose run() published a
+	// file source's directory there would otherwise send both routes into a
+	// directory that test already removed, where each refusal names its own
+	// random temp file and the comparison fails on a name, not on behavior.
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Chdir(t.TempDir())
+	work := t.TempDir()
+	t.Chdir(work)
+	previousConfigDir := env.Get("ze.config.dir")
+	if err := env.Set("ze.config.dir", work); err != nil {
+		t.Fatalf("pin ze.config.dir: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := env.Set("ze.config.dir", previousConfigDir); err != nil {
+			t.Errorf("restore ze.config.dir: %v", err)
+		}
+	})
 	for _, name := range []string{matchStringValue, matchUndeclaredWord} {
 		if err := os.WriteFile(name, []byte(matchConfig), 0o600); err != nil {
 			t.Fatalf("write %s: %v", name, err)

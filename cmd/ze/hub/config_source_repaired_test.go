@@ -153,11 +153,27 @@ func requirePointers(t *testing.T, store storage.Storage, active, candidate, rol
 // refusal and the slog lines run writes are readable after it returns.
 func runCapturingStderr(t *testing.T, store storage.Storage, configPath string) (int, string) {
 	t.Helper()
+	restoreConfigDirAfter(t)
 	var code int
 	logged := captureStderrFile(t, func() {
 		code = run(store, configPath, nil, 0, 0, false, "", false, "", "", false, nil)
 	})
 	return code, logged
+}
+
+// restoreConfigDirAfter puts ze.config.dir back when the test ends. run
+// publishes a file source's directory there for its plugins, process-wide,
+// and that directory is this test's own temp dir: left set, every later test
+// in the package that opens a store (debug.zefs) would resolve it into a
+// directory the testing package already removed.
+func restoreConfigDirAfter(t *testing.T) {
+	t.Helper()
+	previous := env.Get("ze.config.dir")
+	t.Cleanup(func() {
+		if err := env.Set("ze.config.dir", previous); err != nil {
+			t.Errorf("restore ze.config.dir: %v", err)
+		}
+	})
 }
 
 // captureStderrFile runs step with os.Stderr on a file and returns what it
@@ -244,6 +260,7 @@ func TestRunRepairedStoreExplicitSource(t *testing.T) {
 	// pointer stays where repair left it, which is the state a crash between
 	// serving and the record leaves; the record then run is what the next
 	// start runs. One capture holds both, because run binds the log writer.
+	restoreConfigDirAfter(t)
 	var code int
 	var unrecorded []byte
 	var pointerErr, recordErr error
