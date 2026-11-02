@@ -413,6 +413,8 @@ Finding counts are from `sweep-findings-556.txt`; they sum to 556.
 |------------|------|-----------------|
 | `silent-fall-through.md` | 2026-10-31 | runner expands only `$PORT2`/`$PORT`, `$PORT3` becomes `<port>3` |
 | `earlier-guard-hides-the-better-error.md` | 2026-10-31 | `TestUnknownRedistributeFamilyRefusesLoad` stopped at unknown filter before "no final" |
+| `earlier-guard-hides-the-better-error.md` | 2026-11-02 | `doctor-config-reference.ci` refused by validation before doctor's filter-reference check |
+| `unwired-feature.md` | 2026-11-02 | `.ci` runner ignores `exit=` on a non-final helper; `expect=` expansion scope undocumented (same `runner_exec.go` expansion sites) |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

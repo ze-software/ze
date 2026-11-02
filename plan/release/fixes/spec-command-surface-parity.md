@@ -535,6 +535,8 @@ No builtin command failed on any surface. Not enumerated by this binary: the loc
 | `inert-registration-offered-as-a-choice.md` | 2026-11-01 | G1: web admin and SSH offer 26 local commands the daemon cannot serve |
 | `unwired-feature.md` | 2026-11-01 | G2: web admin never merges plugin commands without YANG |
 | `inert-registration-offered-as-a-choice.md` | 2026-11-01 | G4: `ze cli` completion omits local-data commands it serves |
+| `check-mode-mutates-the-tree.md` | 2026-11-02 | `ParseTreeWithYANG` applies the environment block on a read (web start re-parse, `ze tacacs`) |
+| `format-cannot-hold-a-state-the-tree-holds.md` | 2026-11-02 | plugin `dispatch-command` drops a response's warning lines (awaits the plugin-contract decision) |
 
 ## Key Design Decisions
 
