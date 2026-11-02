@@ -1,0 +1,26 @@
+# Test: a plugin command with no YANG node is offered and runs from the admin console
+# VALIDATES: spec-command-surface-parity, web admin arm for plugin commands.
+# The fakeenrich test plugin declares `show test enrich` in its Stage 1
+# registration (internal/test/plugins/fakeenrich, commandDecls) and no YANG
+# module holds that path. The admin tree is the YANG tree overlaid per request
+# with the daemon's plugin commands (cmd/ze/hub/service_web.go
+# adminCommandTrees), so `/admin/show/test` lists `enrich`, and executing it
+# returns the plugin's answer, whose `source` is `fakeenrich-handler`.
+# PREVENTS: the admin console offering only YANG nodes, so a third-party
+# plugin's command is reachable from SSH and the API but not from the web.
+
+option=timeout:value=60s
+option=server:kind=daemon
+option=plugin:name=fakeenrich
+
+# The child link, not the bare word: element:text matches the whole
+# accessibility snapshot, so an exact href is the anchor.
+action=open:path=/admin/show/test
+expect=html:contains=href="/admin/show/test/enrich/"
+action=open:path=/admin/show/test/enrich
+# The heading names the URL path and renders even for a path no node holds:
+# it proves the navigation landed, not that the command exists.
+expect=element:text=show test enrich
+action=click:text=Execute
+expect=element:text=fakeenrich-handler
+expect=element:not-text=panic
