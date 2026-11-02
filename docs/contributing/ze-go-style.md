@@ -121,6 +121,14 @@ instance in the tree, refused and annotated.
 <!-- source: internal/le/arch/refusebydefault/annotation.go -- parseGuard -->
 <!-- source: internal/le/arch/refusebydefault/report.go -- Check, Report -->
 
+A probe that cannot look answers Unknown, with the reason it could not look,
+and never "absent". Its caller does not read Unknown, or its own failure to
+look, as the absence of what it asked about. A capability probe that the
+sandbox refuses says nothing about the kernel feature, and a directory the
+current user cannot read says nothing about the file in it: read as absent,
+each one selects the wrong test bounds or rebuilds what was already there. The
+caller decides what Unknown means for its own action, and names the choice.
+
 
 ### Types that cannot lie
 
@@ -133,6 +141,10 @@ A type that can hold an invalid value will hold one.
 - A string exists only at a boundary: a YANG leaf, a CLI token, a JSON key, a log
   line, an error message. Convert once at that boundary, then pass the typed
   value inward.
+- A question about a config file, Ze's or a peer daemon's, is answered from its
+  parsed structure, never by matching its text. This holds in `le` tooling and
+  test harnesses too: a text match misses the nested form and fires on a
+  comment.
 - `String()` is for a human. Never compare with it.
 
 The common failure is an address stored as a string and parsed back for each
@@ -408,6 +420,13 @@ never `0.0.0.0/0`. Do not discard an error into `_`, as in `f, _ := open()`:
 no linter refuses that form, so the reader is the check. When a discard is
 correct, write `//nolint:errcheck // <the reason>`.
 
+An error that is caught and not returned is logged at WARN or above, never at
+debug or info. The code goes on as if the operation had happened, so the log
+line is the only record that it did not, and debug is off on a running system.
+Dropping an error is correct only where going on is correct.
+`./le arch refuse-by-default check` refuses the debug or info form, the "Error
+dropped below WARN" shape above.
+
 ### Goroutines
 
 Every goroutine is a long-lived worker with an owner and a stop path.
@@ -465,6 +484,12 @@ Most defects come from a gap in time or in space between where a value is
 checked and where it is used.
 
 - **Do not copy a variable or alias one.** Two names for one fact will disagree.
+  The same holds across files: a test or a tool that needs a rule the runner
+  applies calls the runner's function, and does not write its own copy.
+- **Reuse a cache or an artifact only on proof that it is complete.** The proof
+  is a mark written after the run reached its verdict, or an identity of the
+  content. Size, modification time and "holds an entry" are not proof: a killed
+  run leaves a partial cache, and `cp -p` keeps the old time on new bytes.
 - **Build a large struct in place.** The constructor takes an out pointer, so
   the value is written where it lives and no intermediate copy exists.
 - **Shrink the scope, and compute a value next to its use.** Do not declare it

@@ -30,6 +30,14 @@ developer host.
 | CodeQL | `codeql.yml` | push, pull_request, schedule `21 16 * * 3` | as configured by the action |
 | Re-applying the vendor patches (`internal/le/vendorpatch/patches`) that a Dependabot Go update drops, then dispatching `verify.yml` on the patched commit | `dependabot-vendor-patches.yml`, job `apply` | push to `dependabot/go_modules/**` by Dependabot | yes: a patch that no longer applies fails it |
 
+"Advisory" means only that the job does not block a push. A job that fails
+before its first test is broken, not advisory: nothing it would have run is
+judged until it is fixed. A step a job cannot run without (a binary it builds,
+a restriction it lifts) is pinned by a test in `internal/le/workflowcheck`,
+which goes red when the step leaves the workflow.
+<!-- source: internal/le/workflowcheck/qemu_guest_binaries_test.go -- TestQEMUNightlyBuildsEveryGuestDaemon -->
+<!-- source: internal/le/workflowcheck/docker_peers_userns_test.go -- TestDockerPeersLiftsTheUsernsRestrictionBeforeItsTests -->
+
 ## What every verify shard prepares
 
 Any stage can land on any shard, so each of the six `verify` jobs prepares the
