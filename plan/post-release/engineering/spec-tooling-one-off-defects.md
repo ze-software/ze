@@ -371,3 +371,73 @@ the agent that closes fixed rows.
 - [ ] Tests FAIL (red recorded per AC)
 - [ ] Tests PASS
 - [ ] Scoped runs: `./le job run go test ./internal/le/... ./internal/test/...`, `./le test functional ui`
+
+## Research reconciliation — 2026-11-02
+
+The owner selected full-spec reconciliation before implementation. Status remains
+`design`. The original sweep description and criteria above are historical inputs
+to this reconciliation, not an approved implementation plan for today's tree.
+
+The owned table now contains 138 entries. Its original count of 70 no longer
+describes that population. Some entries summarize multiple journal occurrences.
+Each occurrence remains owed until its current producer and proof are reconciled.
+An existing `fixed:` marker is a recorded claim, not a newly observed test pass.
+
+### Research packages
+
+These packages divide research within this spec. They neither transfer ownership
+nor remove an obligation. AC-1 has its own initial runner audit.
+
+| Package | Existing criteria | Additional ownership |
+|---------|-------------------|----------------------|
+| A: commit obligations | AC-5, AC-6, quoted paths in AC-17 | Late RFC approvals, committed-content review pins, approval identity validation, tracked RFC7084 text. Coordinate commit-script identity with C |
+| B: editor and process harness | AC-2, AC-3, AC-11, pipe/race cases in AC-13, tmpfs in AC-17 | Browser startup bounds and the restart/store-reader fixture population |
+| C: launcher and toolchain | AC-4, AC-14, AC-20, AC-21 | Site inventory built from committed source, rollback argument preservation, backup files and lint inputs |
+| D: cancellation and guests | AC-7, AC-10, AC-18 | Functional gating cancellation, guest hashing, silent jobs and appliance working-directory restoration |
+| E: hooks and process safeguards | AC-8, AC-15, AC-16, AC-22, AC-24 | Hook digest and fixture text, whole-tree ledger, deferred-artifact fixture and superseded verification-host rule |
+| F: RFC accounting | AC-9, AC-23, AC-25 | Guest placement for namespace-dependent RFC proofs |
+| G: interop and generated peers | AC-12, AC-28, GoBGP in AC-17 | RPKI mock synchronization and the recorded-fixed RSVP-TE/LDP occurrences |
+| H: fixtures and gates | AC-19, AC-26, remaining AC-13/AC-17 cases | Remaining lint, grammar, rename, population, publication and fixture occurrences |
+| I: executable integrity | AC-27 | Recovery of damaged bytes and attribution to the responsible writer or storage boundary |
+
+### Direct observations
+
+These observations were checked in the supervising session. Source inspection
+does not establish runtime proof unless the row names an executed command.
+
+| Requirement | Evidence | Remaining obligation |
+|-------------|----------|----------------------|
+| Unknown BGP test verb fails | `./le test bgp ac1-unknown-verb` printed `Unknown command: ac1-unknown-verb` and exited 0. `internal/test/cli/cmd_bgp.go` `zeTestParseRunCLI` returns nil, and `zeTestBgpMain` treats it as success | Separate invalid input from help and prove a nonzero result through the real entry point |
+| Unknown engine-step kind fails | `./le mock engine-steps -`, with a JSON array containing kind 255 on stdin, exited 1 with `ZE-OBSERVER-FAIL`, `parse steps file`, and `step 1: unknown kind 255` | Retain the existing refusal in `internal/test/runner/engine_steps.go` `UnmarshalEngineSteps`. Verify the file-input and execution branches before closing the occurrence |
+| Peer assertions have a consumer | `internal/test/runner/peer_contract.go` `blockPeerMode` returns unread when no peer command names the block. `validatePeerBlockRejects` refuses this only when rejection directives exist | Reproduce an orphan positive expectation and prove block ownership without breaking the legacy non-orchestrated path |
+| Late RFC approval can reach a commit | `internal/le/commit/rfcchange.go` `rfcChangeProblems` emits a recorded approval only for a matching current change. `owed_trailers.go` `answering.answered` consumes approval trailers | Design the missing publication route and bind approval to the intended reviewed change |
+| Review pins describe committed content | `internal/le/commit/review.go` `checkReviewSelected` hashes the working-tree path when the current hunks selection does not name it | Reconcile recording, preparation, appended blocks and execution against the same selected content |
+| Owner authority is distinct from judge prose | `internal/le/rfc/approve.go` `ApproveInto` checks reason syntax. `coverage_ruling.go` `ownerRuledMove` accepts matching ruling identifiers extracted from approval and annotation text | Establish how owner authorization is evidenced at the consumer. Matching text alone does not establish authorship |
+| Panic exemptions apply per call | `internal/le/hookruntime/writeedit.go` `writeGoPatterns` searches the entire edit for an allowed panic prefix before skipping the panic finding | Prove that an allowed call cannot exempt another call |
+| Failed guest mounts stop bootstrap | `internal/le/test/qemu/run.go` `setupCommand` joins fragments with `&&` while fragments contain ungrouped `||` alternatives | Execute a failed-mount fixture and require that later download/build steps never start |
+
+### Constraints for the revised design
+
+| Constraint | Effect on the existing criteria |
+|------------|---------------------------------|
+| Current owner rules govern historical journal instructions | Do not restore a superseded Linux-host restriction, debt shard, prose-sensitive gate or destructive cleanup heuristic |
+| Every owned occurrence needs explicit proof | Extend the test plan beyond AC-16. Disambiguate repeated class/date/surface rows by their symptom |
+| A recorded rule is not proof of repair | AC-16 must preserve concrete backfill populations and unsafe-mutation obligations |
+| Test removal and weaker assertions need their governing review | AC-17 and AC-19 cannot close a defect merely by explaining missing behavior or deleting its test |
+| RFC enrollment follows current profile scope | Reconcile all eight AC-25 documents without enrolling unlisted RFCs. Keep ISO10589 outside conformance figures |
+| Scoped evidence and release evidence are distinct | Replace the broad test command above with reached packages, tags and named fixtures. A baseline does not discharge release reds |
+| Existing mechanisms take precedence over historical representations | Judge tmpfs content/mode preservation and child executable identity, rather than requiring a pointer type or indiscriminate build-name propagation |
+
+### AC-27 evidence blocker
+
+The earlier statement that session `644a4e78-0122-4eeb-8642-eb50638a1641`
+retains both damaged executables is not verified today. Its recorded directory,
+`tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/scratch/`,
+currently lists only `appliance-amd64-proof/`. Neither named archive is present
+there. A bounded recovery search reported no replacement location. This does not
+prove that no backup exists.
+
+The owner has been asked for another copy or a host snapshot. AC-27 remains open.
+Recovery or a recurrence observed across the build/install boundaries is needed
+to identify the cause. A successful rebuild or a new integrity check cannot,
+by itself, demonstrate repair of the recorded incident.
