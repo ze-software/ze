@@ -1,21 +1,21 @@
 {
-  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8092): \"Duplicate BGP Large Community values MUST NOT be transmitted.\" The only edit to test/plugin/rfc8092-large-community-no-repeat-egress.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of the change. RFC 8092 Section 3: \"Duplicate BGP Large Community values MUST NOT be transmitted.\" The only edit to test/plugin/rfc8092-large-community-no-repeat-egress.ci since the last judgement is a965ee38fb, which names bgp-filter-community:egress in the bgp-level export chain: the receiver's egress community tag now runs only as that chain member, and checkCommunityMembers refuses the setting without it. The sent UPDATE and the expected receiver UPDATE hex are byte-identical: LARGE_COMMUNITY [65000:1:1 65000:3:3 65000:2:2], attribute length 36, with path attribute and message lengths shortened to match, so the test still fails if the writer transmits the duplicated values the tag appends. The egress member (evaluateCommunityFilter -> egressFilter) still appends without a membership check, and normalizeTransmittedUpdate/compactLargeCommunities removes the repeats at write; the .ci's revert record was re-observed red against compactLargeCommunities in 5a77ebfd7e at the new unit sha. The Go units in rfc8092_large_community_egress_test.go and community_test.go are unchanged. Verdict unchanged: enforced.",
   "requirement_sha": "42daae0ee97b186e",
   "tests": {
-    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce": "c0b0f42cc7ded9e7",
-    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteKeepsDistinctLargeCommunities": "c0b0f42cc7ded9e7",
-    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteRemovesRepeatedLargeCommunity": "c0b0f42cc7ded9e7",
+    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce": "c7079987ce519928",
+    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteKeepsDistinctLargeCommunities": "c7079987ce519928",
+    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteRemovesRepeatedLargeCommunity": "c7079987ce519928",
     "internal/core/bgp/attribute/community_test.go::TestLargeCommunities": "34fcdbe05b3de369",
     "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesWriteToNoDuplicates": "34fcdbe05b3de369",
-    "test/plugin/rfc8092-large-community-no-repeat-egress.ci": "d98349ebb7afda21"
+    "test/plugin/rfc8092-large-community-no-repeat-egress.ci": "5cbb264701a516b3"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce": "b533b5ebd7b1cd3f",
+    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce": "5afbdf786bbf69bb",
     "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteKeepsDistinctLargeCommunities": "abcd2d6df0401ad3",
     "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteRemovesRepeatedLargeCommunity": "816532f5e821f37a",
     "internal/core/bgp/attribute/community_test.go::TestLargeCommunities": "d0693f4c5a17e247",
     "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesWriteToNoDuplicates": "2b11448b2135ae5b",
-    "test/plugin/rfc8092-large-community-no-repeat-egress.ci": "d98349ebb7afda21"
+    "test/plugin/rfc8092-large-community-no-repeat-egress.ci": "5cbb264701a516b3"
   },
   "verdict": "enforced"
 }
