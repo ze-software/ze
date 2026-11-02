@@ -1,5 +1,6 @@
 // Design: docs/architecture/bgp/filter-path-asn.md -- the reject-asn filter plugin
-// Related: forward_rs.go -- reactorForwardRS and hasActiveFilter, the code under test
+// Related: forward_rs.go -- reactorForwardRS, the code under test
+// Related: forward_rs_source.go -- hasActiveFilter, the code under test
 //
 // The deactivated-filter half of the route-server fast path lives in its own
 // file. rfc7947_forward_rs_test.go carries RFC 7947 tags, and adding a function to a

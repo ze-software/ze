@@ -1,7 +1,7 @@
 //go:build !race
 
 // Design: docs/architecture/update-building.md -- one final ownership and duplicate boundary
-// Related: forward_rs.go -- tryDirectWriteNoFlush, the rs fast path these tests drive
+// Related: forward_rs_direct.go -- tryDirectWriteNoFlush, the rs fast path these tests drive
 // Related: session_ownership.go -- adjOutWrite.filter and record, the cost under test
 // Related: session_ownership_bench_race_test.go -- the same test name under -race, skipped
 

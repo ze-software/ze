@@ -525,7 +525,7 @@ carries the edit.
 
 <!-- source: internal/component/bgp/plugins/filter_community/metrics.go -- recordScrub, recordRelationTag, recordBlackholeGuard -->
 <!-- source: internal/component/bgp/filterapi/metrics.go -- SetMetricsRegistry -->
-<!-- source: internal/component/bgp/reactor/forward_rs.go -- recordRSCommunityEdits -->
+<!-- source: internal/component/bgp/reactor/forward_rs_community.go -- recordRSCommunityEdits -->
 
 ## Reference Implementation
 

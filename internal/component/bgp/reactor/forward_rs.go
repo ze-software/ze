@@ -6,6 +6,9 @@
 // Related: reactor_api_forward.go -- ForwardUpdate egress pipeline (shared helpers)
 // Related: forward_pool.go -- per-peer forward worker pool
 // Related: forward_build.go -- buildModifiedPayload, buildWithdrawalPayload
+// Related: forward_rs_direct.go -- tryDirectWriteNoFlush, the direct write
+// Related: forward_rs_source.go -- sourceUsesCachedForward, the source classification
+// Related: forward_rs_community.go -- recordRSCommunityEdits, the control-community counters
 package reactor
 
 import (
@@ -13,139 +16,12 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
-	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 )
-
-// tryDirectWriteNoFlush writes UPDATE bodies directly to the destination peer's
-// TCP bufWriter from the caller's goroutine (source peer's read goroutine),
-// bypassing the forward pool channel send and goroutine context switch.
-//
-// Does NOT flush or set write deadlines. The caller batches flushes via
-// Session.flushFwdDirty when the source bufReader has no more data.
-//
-// Returns (handled, delivered, dstSession):
-//   - (true, true, session): bytes reached the peer's bufWriter; needs deferred flush
-//   - (true, false, session): a write FAILED partway; the item is consumed, nothing
-//     reliable reached the peer
-//   - (true, false, nil): peer not Established; skip (caller must call done)
-//   - (false, false, nil): TryLock failed or no session; fall back to pool
-//
-// handled and delivered are separate on purpose. handled answers "is this item
-// finished with, do not re-dispatch it"; delivered answers "did the UPDATE reach
-// the peer". Collapsing them is what let reactor_notify.go claim delivery -- and
-// so let bgp-rs drop the UPDATE on its `default` arm -- for a peer that was not
-// Established or whose write errored.
-func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session) {
-	if !forwardSourceCurrent(item.receivedPeer, item.receivedGeneration) {
-		return true, false, nil
-	}
-	peer := item.peer
-	if peer == nil {
-		return false, false, nil
-	}
-
-	peer.mu.RLock()
-	session := peer.session
-	peer.mu.RUnlock()
-	if session == nil {
-		return false, false, nil
-	}
-
-	session.mu.RLock()
-	state := session.fsm.State()
-	session.mu.RUnlock()
-	if state != fsm.StateEstablished {
-		return true, false, nil
-	}
-
-	if !session.writeMu.TryLock() {
-		return false, false, nil
-	}
-	// A live policy restoration can raise its replay fence after dispatch
-	// admission. It raises the fence under this same write lock.
-	if peer.forwardOrderHold(item.initialUpdate) {
-		session.writeMu.Unlock()
-		return false, false, nil
-	}
-
-	if !forwardSourceCurrent(item.receivedPeer, item.receivedGeneration) {
-		session.writeMu.Unlock()
-		return true, false, nil
-	}
-	if item.session != session {
-		session.writeMu.Unlock()
-		return true, false, nil
-	}
-	session.sentMeta = item.meta
-	session.sentSourcePeerStr = item.sourcePeerStr
-	session.sentSourceMessageID = item.sourceMessageID
-	session.sentForward = item
-	item.writeBody = 0
-	defer func() {
-		session.sentMeta = nil
-		session.sentSourcePeerStr = ""
-		session.sentSourceMessageID = 0
-		session.sentForward = nil
-		session.writeMu.Unlock()
-	}()
-	for _, body := range item.rawBodies {
-		if err := session.writeRawUpdateBody(body); err != nil {
-			return true, false, session
-		}
-		item.writeBody++
-	}
-	for _, update := range item.updates {
-		// Pre-filtered: forwardUpdateCore already ran this peer's export chain
-		// (and only then the EBGP prepend). See writeUpdatePreFiltered.
-		if err := session.writeUpdatePreFiltered(update); err != nil {
-			return true, false, session
-		}
-		item.writeBody++
-	}
-	return true, true, session
-}
-
-// hasActiveFilter reports whether the per-peer chain must execute or refuse a
-// reference. In-process ownership is proved only for import; a manually built
-// export policy containing an active internal ref must not take a bypass.
-func hasActiveFilter(policy filterapi.Policy, direction string) bool {
-	if policy.Library() != nil {
-		return true // the in-process chain is an active filter in both directions
-	}
-	for i, ref := range policy.Filters() {
-		if policy.ActiveExternal(i) {
-			return true
-		}
-		if ref.Inactive {
-			continue
-		}
-		if direction != directionImport {
-			return true
-		}
-	}
-	return false
-}
-
-// sourceUsesCachedForward latches at receipt, even with the native fast path
-// disabled. Enabling it later MUST NOT let a withdrawal overtake cached work.
-func sourceUsesCachedForward(peer *Peer, update *wireu.WireUpdate) bool {
-	if peer != nil && peer.forwardCached.Load() {
-		return true
-	}
-	if ribevents.ValidationEnabled() || flowSpecUpdate(update) || len(payloadAIGP(update.Payload())) != 0 {
-		if peer != nil {
-			peer.forwardCached.Store(true)
-		}
-		return true
-	}
-	return false
-}
 
 // reactorForwardRS forwards a received UPDATE to all RS-eligible peers directly
 // from notifyMessageReceiver, bypassing the plugin dispatch chain.
@@ -1050,43 +926,4 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 	}
 
 	return skipped, delivered, bySection
-}
-
-// rsCommunityEdits is what the route-server control communities of one received
-// UPDATE changed in what one client is written. Both forward rails fill it while
-// they record the edits, and recordRSCommunityEdits counts it each time an
-// UPDATE carrying them is queued for the client, never where the edit is only
-// computed: a destination the egress filters, a failed rebuild or a withdrawal
-// then suppress counts nothing.
-type rsCommunityEdits struct {
-	prepended           bool // the route asked for an AS_PATH prepend toward this client
-	largeStrippedValues int  // LARGE_COMMUNITY values in the route server's namespace removed
-}
-
-// recordRSCommunityEdits counts one UPDATE queued for a client with its
-// control-community edits applied.
-//
-// It counts every UPDATE written, so a received UPDATE split into several
-// sections counts once per section: each section carries the prepend and the
-// strip. Counting per received UPDATE instead would need state shared across
-// the split loops of both rails (forwardUpdateSelected, reactorForwardRS), and
-// each UPDATE written is where the edit takes effect. The caller MUST call it
-// only for a delivery that is not a withdrawal: a withdrawal carries no path
-// attribute, so no edit reaches the client.
-//
-// Telemetry can be off, so a reactor with no registry (rmetrics nil) counts
-// nothing: counting never changes what the client is written.
-func (r *Reactor) recordRSCommunityEdits(edits rsCommunityEdits) {
-	if r == nil {
-		return
-	}
-	if r.rmetrics == nil {
-		return
-	}
-	if edits.prepended {
-		r.rmetrics.rsPrependApplied.Inc()
-	}
-	if edits.largeStrippedValues > 0 {
-		r.rmetrics.rsLargeControlStripped.Add(float64(edits.largeStrippedValues))
-	}
 }
