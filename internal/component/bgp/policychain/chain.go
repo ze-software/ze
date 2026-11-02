@@ -366,6 +366,9 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 	sets.raw = nil
 	for i := range c.members {
 		m := &c.members[i]
+		if sets.route.Readvertise && !c.readvertiseRuns(m, &sets.route) {
+			continue
+		}
 		sets.member.Reset()
 		sets.member.display = record != nil
 		sets.member.route = &sets.route
@@ -446,6 +449,9 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		writeMetadata(view, &sets.member)
 		traceStep(record, m, TracePass, nil, &sets.member)
 	}
+	if sets.route.Readvertise {
+		return Outcome{Action: OutcomeAccept}
+	}
 	switch c.endFinal(view) {
 	case policy.FinalAccept:
 		return Outcome{Action: OutcomeAccept}
@@ -456,6 +462,40 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 	// Compile accepts only a verified final; anything else is a Ze defect,
 	// and the run fails closed on it.
 	return Outcome{Action: OutcomeReject, Failed: true}
+}
+
+// readvertiseRuns reports whether m runs on the stale readvertise rail: an
+// external member whose plugin's declaration opts in. An in-process member and
+// a filter that does not opt in are passed over. A member whose declaration
+// cannot be read (no caller, or its plugin has gone) runs, and fails under
+// judgeExternal: whether it would have opted in is unknown, and the filter it
+// stands for may be the one that withholds the stale route (RFC 9494 Section
+// 4.3), so the rail fails closed rather than skip it.
+func (c *Chain) readvertiseRuns(m *member, route *ExternalRoute) bool {
+	if m.external == nil {
+		return false
+	}
+	if route.Caller == nil {
+		return true
+	}
+	decl, ok := route.Caller.FilterDeclaration(m.external.plugin, m.external.filter)
+	if !ok {
+		return true
+	}
+	return decl.Readvertise
+}
+
+// Readvertises reports whether a run of the stale readvertise rail would run
+// any member of the chain through caller: the reactor takes the rail only for
+// a destination whose export chain holds such a member.
+func (c *Chain) Readvertises(caller ExternalCaller) bool {
+	route := ExternalRoute{Caller: caller}
+	for i := range c.members {
+		if c.readvertiseRuns(&c.members[i], &route) {
+			return true
+		}
+	}
+	return false
 }
 
 // endFinal answers the final that decides a run reaching the end of the

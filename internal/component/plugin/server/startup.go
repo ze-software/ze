@@ -1301,6 +1301,7 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 			Raw:            declared[i].ReadsRaw(),
 			OnError:        onError,
 			Overrides:      f.Overrides,
+			Readvertise:    f.Readvertise,
 		})
 	}
 

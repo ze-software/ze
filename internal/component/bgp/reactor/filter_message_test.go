@@ -31,6 +31,10 @@ func (f *fieldsTransport) FilterInfo(_, filterName string) ([]string, bool) {
 	return nil, false
 }
 
+// FilterReadvertise answers that the filter does not opt into the stale
+// readvertise rail.
+func (f *fieldsTransport) FilterReadvertise(_, _ string) (readvertise, ok bool) { return false, true }
+
 func (f *fieldsTransport) FilterDeclaration(_, _ string) ([]string, []string, rpc.OnErrorPolicy, bool) {
 	return nil, nil, rpc.OnErrorReject, false
 }

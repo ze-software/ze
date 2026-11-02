@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/route"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -492,10 +493,12 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		}
 
 		// LLGR stale readvertise (RFC 9494): run the per-peer readvertise
-		// egress filter so the route is kept+marked for LLGR-capable peers,
+		// filters (the export chain's readvertise-opted plugin filters and the
+		// registered readvertise egress filters, staleRailToward) so the
+		// route is kept+marked for LLGR-capable peers,
 		// depreferenced for non-LLGR iBGP, or withdrawn for non-LLGR eBGP.
 		// Rare (GR-expiry) path; the common Stale==0 path is untouched.
-		if peerBatch.Stale > 0 && len(a.r.readvertiseEgressFilters) > 0 {
+		if peerBatch.Stale > 0 && a.staleRailToward(peer) {
 			sent, failErr := a.sendStaleReadvertise(ctx, target, peerBatch, nextHop, isIBGP, nc)
 			acceptedCount += sent
 			switch {
@@ -2190,7 +2193,7 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 		RSClient: peer.Settings().RSClient,
 		IsIBGP:   peer.IsIBGP(),
 	}
-	outcome, modified := a.decideStaleReadvertise(dest, body, batch.Stale)
+	outcome, modified := a.decideStaleReadvertise(dest, staleChainFor(peer), body, batch.Stale)
 
 	switch outcome {
 	case staleFilterFailed:
@@ -2271,13 +2274,37 @@ const (
 	staleBuildFailed                      // a filter decided, but its modifications could not be built
 )
 
-// decideStaleReadvertise runs the registered readvertise egress filters for one
-// destination peer over the packed announce body and returns the outcome plus,
-// for staleModify, the modified UPDATE body. It is the pure decision half of
-// sendStaleReadvertise, split out so the filter->outcome mapping is unit-testable
-// without a live session. LLGREgressFilter (RFC 9494) is the sole registered
-// filter today; it reads dest + meta["stale"] and writes into mods.
-func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo, body []byte, stale uint8) (staleOutcome, []byte) {
+// decideStaleReadvertise runs the readvertise filters for one destination peer
+// over the packed announce body and returns the outcome plus, for staleModify,
+// the modified UPDATE body. Two kinds run, the plugin filters first: the
+// members of the destination's export chain whose filter declares readvertise
+// (runStaleChain), then the registered readvertise egress filters, over the
+// body the chain answered. It is the pure decision half of
+// sendStaleReadvertise, split out so the filter->outcome mapping is
+// unit-testable without a live session. LLGREgressFilter (RFC 9494) is the
+// sole registered filter today; it reads dest + meta["stale"] and writes into
+// mods.
+func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo, chain staleChain, body []byte, stale uint8) (staleOutcome, []byte) {
+	// RFC 9494 Section 4.3
+	res, ran := a.r.runStaleChain(chain, dest, body, stale)
+	var chainModified []byte
+	if ran {
+		switch {
+		case res.outcome.Action == policychain.OutcomeWithdraw:
+			return staleWithdraw, nil
+		case res.outcome.Action != policychain.OutcomeAccept && res.outcome.Failed:
+			return staleFilterFailed, nil
+		case res.outcome.Action != policychain.OutcomeAccept:
+			return staleSuppress, nil
+		case res.failed:
+			// The chain decided and its sets could not be applied: withheld,
+			// as a build failure of the registered filters' mods is below.
+			return staleBuildFailed, nil
+		case res.modifiedPayload != nil:
+			chainModified = res.modifiedPayload
+			body = chainModified
+		}
+	}
 	meta := map[string]any{"stale": stale}
 	var src filterapi.PeerFilterInfo
 	var mods filterapi.ModAccumulator
@@ -2332,6 +2359,8 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 			return staleBuildFailed, nil
 		}
 		return staleModify, modified
+	case chainModified != nil:
+		return staleModify, chainModified
 	default:
 		return staleKeep, nil
 	}

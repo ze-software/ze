@@ -175,6 +175,9 @@ type FilterRegistration struct {
 	Raw        bool                // The filter reads the raw UPDATE body; REQUIRED for non-CIDR families
 	OnError    rpc.OnErrorPolicy   // reject (fail-closed) or accept (fail-open)
 	Overrides  []string            // Default filters this filter replaces
+	// Readvertise is set when the filter runs on the stale readvertise rail
+	// (rpc.FilterDecl.Readvertise).
+	Readvertise bool
 }
 
 // DoctorCheckRegistration holds a doctor check declaration from Stage 1.

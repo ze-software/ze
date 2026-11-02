@@ -49,6 +49,9 @@ type libraryIntentContext struct {
 	// peer, the advertising speaker SHALL NOT modify the AS_PATH attribute
 	// associated with the route."
 	asPathEditable bool
+	// readvertise marks the stale readvertise rail's run: only the members
+	// whose filter opts in run (policychain.ExternalRoute.Readvertise).
+	readvertise bool
 }
 
 // libraryResult is one library chain run, as the policy steps map it.
@@ -92,7 +95,8 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 	run.view.Reset(wireUpdate, session)
 	defer run.view.Clear()
 
-	route := policychain.ExternalRoute{Direction: direction, Peer: peer, PeerAS: intent.peerAS, Raw: payload}
+	route := policychain.ExternalRoute{Direction: direction, Peer: peer, PeerAS: intent.peerAS, Raw: payload,
+		Readvertise: intent.readvertise}
 	if api := r.filterAPI(); api != nil {
 		route.Caller = libraryCaller{api: api}
 	}
@@ -219,7 +223,11 @@ type libraryCaller struct{ api filterTransport }
 
 func (c libraryCaller) FilterDeclaration(plugin, filter string) (policychain.ExternalDeclaration, bool) {
 	reads, sets, onError, ok := c.api.FilterDeclaration(plugin, filter)
-	return policychain.ExternalDeclaration{Reads: reads, Sets: sets, OnError: onError}, ok
+	if !ok {
+		return policychain.ExternalDeclaration{}, false
+	}
+	readvertise, ok := c.api.FilterReadvertise(plugin, filter)
+	return policychain.ExternalDeclaration{Reads: reads, Sets: sets, OnError: onError, Readvertise: readvertise}, ok
 }
 
 // CallFilter judges the route through the plugin's typed filter slot when the

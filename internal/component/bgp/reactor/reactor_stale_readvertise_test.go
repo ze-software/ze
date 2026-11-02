@@ -93,7 +93,7 @@ func TestDecideStaleReadvertise(t *testing.T) {
 			a := &reactorAPIAdapter{r: r}
 
 			body := append([]byte(nil), minimalAnnounceBody...)
-			outcome, modified := a.decideStaleReadvertise(dest, body, 1)
+			outcome, modified := a.decideStaleReadvertise(dest, staleChain{}, body, 1)
 
 			assert.Equal(t, tc.want, outcome, "outcome")
 			if tc.wantMod {
@@ -140,7 +140,7 @@ func TestDecideStaleReadvertiseWithholdsOnModifyFailure(t *testing.T) {
 	a := &reactorAPIAdapter{r: r}
 
 	body := append([]byte(nil), minimalAnnounceBody...)
-	outcome, modified := a.decideStaleReadvertise(dest, body, 1)
+	outcome, modified := a.decideStaleReadvertise(dest, staleChain{}, body, 1)
 
 	assert.Equal(t, staleBuildFailed, outcome,
 		"an unapplicable modification must withhold the route, never re-advertise it unmodified")
@@ -156,7 +156,7 @@ func TestDecideStaleReadvertise_NoFilters(t *testing.T) {
 	r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
 	a := &reactorAPIAdapter{r: r}
 
-	outcome, modified := a.decideStaleReadvertise(filterapi.PeerFilterInfo{PeerAS: 65001}, minimalAnnounceBody, 1)
+	outcome, modified := a.decideStaleReadvertise(filterapi.PeerFilterInfo{PeerAS: 65001}, staleChain{}, minimalAnnounceBody, 1)
 	assert.Equal(t, staleKeep, outcome)
 	assert.Nil(t, modified)
 }
@@ -241,7 +241,7 @@ func TestStaleReadvertiseWireOutput(t *testing.T) {
 
 	t.Run("modify: non-LLGR iBGP peer gets NO_EXPORT + LOCAL_PREF=0", func(t *testing.T) {
 		dest := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.3"), PeerAS: 65000, LocalAS: 65000}
-		outcome, modified := a.decideStaleReadvertise(dest, announceBody, batch.Stale)
+		outcome, modified := a.decideStaleReadvertise(dest, staleChain{}, announceBody, batch.Stale)
 		require.Equal(t, staleModify, outcome)
 		require.NotNil(t, modified)
 		assert.True(t, bytes.Contains(modified, noExportCommunityWire), "modified body carries the NO_EXPORT community")

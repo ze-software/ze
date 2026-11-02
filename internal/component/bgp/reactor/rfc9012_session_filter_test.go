@@ -186,6 +186,12 @@ func (teSessionFilterTransport) FilterInfo(_, _ string) ([]string, bool) {
 }
 
 // FilterReads answers the raw read FilterInfo reports.
+// FilterReadvertise answers that the filter does not opt into the stale
+// readvertise rail.
+func (teSessionFilterTransport) FilterReadvertise(_, _ string) (readvertise, ok bool) {
+	return false, true
+}
+
 func (teSessionFilterTransport) FilterDeclaration(_, _ string) ([]string, []string, rpc.OnErrorPolicy, bool) {
 	return nil, nil, rpc.OnErrorReject, false
 }

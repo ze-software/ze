@@ -109,6 +109,11 @@ func compileFilterDeclaration(pluginName string, f *rpc.FilterDecl) (DeclaredFil
 		return DeclaredFilter{}, errors.New(tb.Str(`named "*", the wildcard of the text era; declare ` +
 			`"name-pattern": ".+" to answer for every name (docs/plugin-development/protocol.md)`).String())
 	}
+	if f.Readvertise && f.Direction == rpc.FilterImport {
+		return DeclaredFilter{}, errors.New(tb.Str("with readvertise on an import-only filter; the stale " +
+			"readvertise rail runs export chains, so declare direction export or both, or drop readvertise " +
+			"(docs/architecture/api/process-protocol.md)").String())
+	}
 	d := DeclaredFilter{Name: f.Name, Reads: append([]string(nil), f.Reads...), Sets: append([]string(nil), f.Sets...)}
 	if f.NamePattern == "" {
 		return d, nil

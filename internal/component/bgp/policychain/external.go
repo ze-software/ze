@@ -42,6 +42,9 @@ type ExternalDeclaration struct {
 	// Sets holds the vocabulary fields the filter may set.
 	Sets    []string
 	OnError rpc.OnErrorPolicy
+	// Readvertise is set when the filter opts into the stale readvertise
+	// rail (rpc.FilterDecl.Readvertise).
+	Readvertise bool
 }
 
 // ExternalCaller reaches the filters plugins run. It MUST be safe for
@@ -73,6 +76,12 @@ type ExternalRoute struct {
 	// Text serves a member that declared no reads (external_text.go); nil
 	// fails such a member.
 	Text TextCaller
+	// Readvertise marks a run of the stale readvertise rail (RFC 9494
+	// Section 4.3): only the external members whose declaration opts in run,
+	// every other member is passed over, and a route reaching the end of the
+	// chain is accepted, since the operator's export policy already judged
+	// the route when it was first advertised (Chain.readvertiseRuns).
+	Readvertise bool
 }
 
 // externalMember is the plugin side of a member.

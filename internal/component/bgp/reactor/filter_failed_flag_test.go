@@ -49,6 +49,12 @@ func (f *fakeFilterTransport) FilterInfo(_, _ string) ([]string, bool) { return 
 
 // FilterReads answers no route field: these tests drive the text and raw
 // branches, and the fields object is TestFilterMessageFieldShapes's.
+// FilterReadvertise answers that the filter does not opt into the stale
+// readvertise rail.
+func (f *fakeFilterTransport) FilterReadvertise(_, _ string) (readvertise, ok bool) {
+	return false, true
+}
+
 func (f *fakeFilterTransport) FilterDeclaration(_, _ string) ([]string, []string, rpc.OnErrorPolicy, bool) {
 	return nil, nil, rpc.OnErrorReject, false
 }

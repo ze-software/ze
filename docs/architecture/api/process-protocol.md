@@ -365,6 +365,9 @@ optional overrides of default filters.
 | `filters[].nlri` | bool | Include parsed NLRI text; defaults to true |
 | `filters[].on-error` | enum | `reject` (fail-closed) or `accept` (fail-open) |
 | `filters[].overrides` | list | Default filters this filter replaces (e.g., `rfc:no-self-as`) |
+| `filters[].readvertise` | bool | The export filter runs on the stale readvertise rail (default false): when a graceful-restart retention re-advertises its stale routes, the destination's export chain runs only the members whose filter declares it, with the route's `stale` metadata set, and a route reaching the end of those members is sent. A member whose plugin no longer declares its filter runs there and fails the route closed. Stage 1 refuses it on an import-only filter |
+<!-- source: internal/component/bgp/policychain/chain.go -- readvertiseRuns, Readvertises -->
+<!-- source: internal/component/bgp/reactor/stale_readvertise_chain.go -- runStaleChain -->
 
 Stage 1 refuses an entry carrying both `name` and `name-pattern`, or neither,
 the text era's wildcard name `*` (declare `"name-pattern": ".+"` instead), a

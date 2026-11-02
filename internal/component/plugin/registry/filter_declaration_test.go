@@ -9,7 +9,8 @@ import (
 
 // TestCompileFilterDeclarations proves the Stage 1 shape check of a filter
 // declaration: exactly one of name and name-pattern, no text-era "*", a
-// pattern that compiles and matches the whole name, and raw read from Reads.
+// pattern that compiles and matches the whole name, raw read from Reads, and
+// readvertise only on a filter that runs on export.
 func TestCompileFilterDeclarations(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -20,6 +21,7 @@ func TestCompileFilterDeclarations(t *testing.T) {
 		{"neither", rpc.FilterDecl{}, "neither name nor name-pattern"},
 		{"wildcard", rpc.FilterDecl{Name: "*"}, `"name-pattern": ".+"`},
 		{"bad pattern", rpc.FilterDecl{NamePattern: "("}, "not an RE2 expression"},
+		{"readvertise import", rpc.FilterDecl{Name: "a", Direction: rpc.FilterImport, Readvertise: true}, "readvertise on an import-only filter"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := CompileFilterDeclarations("p", []rpc.FilterDecl{tc.filter})
@@ -32,6 +34,8 @@ func TestCompileFilterDeclarations(t *testing.T) {
 	declared, err := CompileFilterDeclarations("p", []rpc.FilterDecl{
 		{NamePattern: "[0-9]+", Reads: []string{rpc.FilterFieldRaw}},
 		{Name: "65001", Reads: []string{"prefix"}},
+		{Name: "stale", Direction: rpc.FilterExport, Readvertise: true},
+		{Name: "stale-both", Direction: rpc.FilterBoth, Readvertise: true},
 	})
 	if err != nil {
 		t.Fatal(err)

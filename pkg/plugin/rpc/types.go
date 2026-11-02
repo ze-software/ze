@@ -645,6 +645,13 @@ type FilterDecl struct {
 	NLRI        *bool           `json:"nlri,omitempty"`         // Include NLRI list (default true)
 	OnError     OnErrorPolicy   `json:"on-error,omitempty"`     // reject (fail-closed) or accept (fail-open)
 	Overrides   []string        `json:"overrides,omitempty"`    // Default filters this filter replaces
+	// Readvertise opts an export filter into the stale readvertise rail: when
+	// a graceful-restart retention re-advertises its stale routes, the
+	// destination's export chain runs only the members whose filter declares
+	// it, with the route's "stale" metadata set (RFC 9494 Section 4.3). A
+	// filter that does not declare it is not run there. An import-only
+	// filter cannot declare it.
+	Readvertise bool `json:"readvertise,omitempty"`
 }
 
 // FilterFieldRaw is the declarable read that asks for the raw UPDATE body

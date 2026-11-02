@@ -648,6 +648,10 @@ type filterTransport interface {
 	// ok false when no running plugin declares the filter.
 	FilterDeclaration(pluginName, filterName string) (reads, sets []string, onError rpc.OnErrorPolicy, ok bool)
 	FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy
+	// FilterReadvertise answers whether the declaration opts into the stale
+	// readvertise rail (rpc.FilterDecl.Readvertise), ok false when no running
+	// plugin declares the filter.
+	FilterReadvertise(pluginName, filterName string) (readvertise, ok bool)
 	// CallFilterUpdate judges route by the plugin's filter, on the transport the
 	// plugin runs on: its typed filter slot internal, its filter-update
 	// batch forked (D-12).

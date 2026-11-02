@@ -603,6 +603,17 @@ func (s *Server) FilterDeclaration(pluginName, filterName string) (reads, sets [
 	return f.Reads, f.Sets, onError, true
 }
 
+// FilterReadvertise answers whether the declaration serving filterName opts
+// into the stale readvertise rail (rpc.FilterDecl.Readvertise). ok is false
+// when no running plugin declares the filter.
+func (s *Server) FilterReadvertise(pluginName, filterName string) (readvertise, ok bool) {
+	f := s.filterRegistration(pluginName, filterName)
+	if f == nil {
+		return false, false
+	}
+	return f.Readvertise, true
+}
+
 // filterRegistration answers the declaration of a running plugin that serves
 // filterName, nil when the plugin is not running or declares no such filter.
 func (s *Server) filterRegistration(pluginName, filterName string) *plugin.FilterRegistration {

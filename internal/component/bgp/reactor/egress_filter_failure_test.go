@@ -201,7 +201,7 @@ func TestDecideStaleReadvertiseFailureIsNotPolicy(t *testing.T) {
 			a := &reactorAPIAdapter{r: r}
 
 			body := append([]byte(nil), minimalAnnounceBody...)
-			outcome, modified := a.decideStaleReadvertise(dest, body, 1)
+			outcome, modified := a.decideStaleReadvertise(dest, staleChain{}, body, 1)
 
 			assert.Equal(t, tc.want, outcome)
 			assert.Nil(t, modified, "neither outcome carries a body")

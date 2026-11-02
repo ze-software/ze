@@ -33,6 +33,10 @@ func (e *textMixTransport) FilterReads(_, filter string) []string {
 	return nil
 }
 
+// FilterReadvertise answers that the filter does not opt into the stale
+// readvertise rail.
+func (e *textMixTransport) FilterReadvertise(_, _ string) (readvertise, ok bool) { return false, true }
+
 func (e *textMixTransport) FilterDeclaration(plugin, filter string) ([]string, []string, rpc.OnErrorPolicy, bool) {
 	switch plugin + ":" + filter {
 	case "probe:f":

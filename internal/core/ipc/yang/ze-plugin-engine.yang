@@ -326,6 +326,17 @@ module ze-plugin-engine {
                          config decides which chain calls the filter.";
                     ze:help "Which direction(s) this filter handles";
                 }
+                leaf readvertise {
+                    type boolean;
+                    default false;
+                    description
+                        "The export filter runs on the stale readvertise rail: when a
+                         graceful-restart retention re-advertises its stale routes, the
+                         destination's export chain runs only the members whose filter
+                         declares readvertise, with the route's stale metadata set. Stage 1
+                         refuses it on an import-only filter.";
+                    ze:help "Run this export filter when stale routes are re-advertised";
+                }
                 leaf-list attributes {
                     type string;
                     description

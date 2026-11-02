@@ -30,6 +30,8 @@ type externalTransport struct {
 	reads, sets []string
 	reply       rpc.FilterUpdateOutput
 	sent        []rpc.FilterUpdateInput
+	// readvertise is what probe:f declares for the stale readvertise rail.
+	readvertise bool
 }
 
 func (e *externalTransport) FilterInfo(_, _ string) ([]string, bool) { return nil, false }
@@ -41,6 +43,13 @@ func (e *externalTransport) FilterDeclaration(plugin, filter string) ([]string, 
 		return nil, nil, rpc.OnErrorReject, false
 	}
 	return e.reads, e.sets, rpc.OnErrorReject, true
+}
+
+func (e *externalTransport) FilterReadvertise(plugin, filter string) (readvertise, ok bool) {
+	if plugin != "probe" || filter != "f" {
+		return false, false
+	}
+	return e.readvertise, true
 }
 
 func (e *externalTransport) FilterOnError(_, _ string) rpc.OnErrorPolicy { return rpc.OnErrorReject }
