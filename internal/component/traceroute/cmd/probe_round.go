@@ -19,24 +19,31 @@ import (
 
 const defaultProbeMaxHops = 16
 
-// HandleProbeRound runs a single parallel traceroute probe round.
+// HandleProbeRound runs a single parallel traceroute probe round: the RPC
+// handler of `show probe-round` (ze-traceroute:show-probe-round).
 func HandleProbeRound(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	req, err := parseTracerouteArgs(args)
+	req, err := parseTracerouteArgs(validated.Tokens())
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
+	return probeRoundAnswer(req), nil
+}
+
+// probeRoundAnswer runs one parallel probe round for req and answers its
+// hops, or the probe error. A max-hops left at the traceroute default probes
+// defaultProbeMaxHops, the shorter round this command has always run.
+func probeRoundAnswer(req tracerouteArgs) *plugin.Response {
 	maxHops := req.maxHops
 	if maxHops == defaultTracerouteMaxHops {
 		maxHops = defaultProbeMaxHops
 	}
-	hops, probeErr := doProbeRound(req.target, maxHops, time.Second)
-	if probeErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: probeErr.Error()}, nil //nolint:nilerr // operational error in Response
+	hops, err := doProbeRound(req.target, maxHops, time.Second)
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{
 		fieldHops: hops,
-	}}, nil
+	}}
 }
 
 type probeResult struct {

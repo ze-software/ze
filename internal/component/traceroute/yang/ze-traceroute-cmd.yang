@@ -3,6 +3,9 @@ module ze-traceroute-cmd {
     prefix traceroutecmd;
     import ze-extensions { prefix ze; }
     description "traceroute command tree (show traceroute, show probe-round, monitor traceroute, resolve traceroute). Owned by the dedicated traceroute feature module so that the whole traceroute surface lives in one place and container-merges onto the show, monitor, and resolve verb roots. See ai/rules/plugin-self-containment.md.";
+    // The handlers read them as keyword pairs and a bare destination; the model
+    // declared none, so no surface could validate or offer them.
+    revision 2026-11-02 { description "Declare the destination and the four optional values of monitor traceroute."; }
     revision 2026-09-15 { description "Add the do-not-fragment keyword to show traceroute and resolve traceroute. The probe layer gained a Don't Fragment mode, and the keyword is the same word on ping."; }
     revision 2026-09-05 { description "Say that the source of resolve traceroute selects the address family the target is resolved in. The handler now reads the source before it resolves the target."; }
     revision 2026-08-29 { description "Declare the target and the four optional values of resolve traceroute. The handler already reads them as keyword pairs; the description spelled them in prose and the model stated nothing."; }
@@ -106,6 +109,42 @@ a probe round waits one second for every answer.";
             description "Shows each hop with running RTT statistics. Keeps probing so you can watch
 path changes and latency shifts over time.";
             ze:help "Live mtr-style traceroute that updates continuously.";
+            leaf destination {
+                type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; }
+                mandatory true;
+                description "The value is the first bare word of the command, or follows the destination
+keyword. A host name is resolved in either address family, and the family of the
+answer selects ICMPv4 or ICMPv6.";
+                ze:help "Host or IP address to trace.";
+            }
+            leaf max-hops {
+                type uint32 { range "1..64"; }
+                description "The value is the largest time-to-live the stream probes. Absent, the
+stream probes 30 hops, and the one-shot round of the API surfaces probes 16.";
+                ze:help "Maximum number of hops.";
+            }
+            leaf timeout {
+                type string { pattern '([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+'; }
+                description "The value is accepted in Go duration syntax, 1s to 30s, and then not read:
+each probe round waits one second for every answer.";
+                ze:help "Timeout duration, accepted and not read.";
+            }
+            leaf probes {
+                type uint32 { range "1..10"; }
+                description "The value is accepted in the range 1 to 10 and then not read: a probe
+round sends one probe at each time-to-live.";
+                ze:help "Number of probes per hop, accepted and not read.";
+            }
+            leaf do-not-fragment {
+                type enumeration {
+                    enum honor-cache { ze:help "Accepted and not read: the probe round sends with DF off."; }
+                    enum bypass-cache { ze:help "Accepted and not read: the probe round sends with DF off."; }
+                }
+                description "The keyword takes one of two values, honor-cache or bypass-cache, as on show
+traceroute, and then neither is read: a probe round sends every probe with the Don't
+Fragment bit off.";
+                ze:help "Don't Fragment mode, accepted and not read.";
+            }
         }
     }
 

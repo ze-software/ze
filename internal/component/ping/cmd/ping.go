@@ -38,7 +38,6 @@ var (
 	errPingSizeRequiresAValue        = errors.New("ping: size requires a value (bytes)")
 	errPingTimeoutRequiresAValueE    = errors.New("ping: timeout requires a value (e.g. 5s)")
 	errPingDFRequiresAValue          = errors.New("ping: do-not-fragment requires a value (honor-cache or bypass-cache)")
-	errPingIntervalRequiresAValue    = errors.New("monitor ping: interval requires a value (e.g. 500ms)")
 	errPingMissingDestinationAddress = errors.New("ping: missing destination address")
 	// errPingNoProbesSent is returned when a count>0 batch put no probe on the
 	// wire at all (e.g. the first WriteTo failed with ENETUNREACH/EPERM). The
@@ -85,80 +84,70 @@ type monitorPingArgs struct {
 	Size     int
 }
 
-// parseMonitorPingArgs parses
-// `monitor ping <dest> [interval <dur>] [timeout <dur>] [count <n>] [size <bytes>]`.
+// Leaf names of `monitor ping`, as ze-ping-cmd.yang declares them.
+const (
+	leafMonitorDestination = "destination"
+	leafMonitorInterval    = "interval"
+	leafMonitorTimeout     = "timeout"
+	leafMonitorCount       = "count"
+	leafMonitorSize        = "size"
+)
+
+// monitorPingArgsOf reads `monitor ping <dest> [interval <dur>] [timeout <dur>]
+// [count <n>] [size <bytes>]` from the leaves the model validated
+// (ze-ping-cmd.yang). The model judges each value's spelling and the count and
+// size ranges; this function adds what YANG cannot state: the duration bounds
+// and the resolution of the destination.
 //
-// Deliberately NOT parsePingArgs. That parser has no interval case, so `monitor
-// ping <dest> interval 500ms` -- which the docs advertise -- fell through to the
-// destination branch and streamed at a hardcoded 1s. Bounds here match the
-// interactive CLI's own monitor parser (internal/component/cli/model_ping.go
-// parsePingMonitorArgs) so the command behaves the same with and without a
-// daemon.
-func parseMonitorPingArgs(args []string) (monitorPingArgs, error) {
+// The bounds match the interactive CLI's own monitor parser
+// (internal/component/cli/model_ping.go parsePingMonitorArgs) so the command
+// behaves the same with and without a daemon. The interval is read here, not
+// by parsePingArgs, which has no interval: `monitor ping <dest> interval
+// 500ms` once fell through to a hardcoded 1s.
+func monitorPingArgsOf(validated command.ValidatedArgs) (monitorPingArgs, error) {
 	out := monitorPingArgs{
 		Interval: defaultPingMonitorInterval,
 		Timeout:  defaultPingTimeout,
 	}
-
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case argInterval:
-			if i+1 >= len(args) {
-				return out, errPingIntervalRequiresAValue
-			}
-			d, err := time.ParseDuration(args[i+1])
-			if err != nil || d < minPingMonitorInterval || d > maxPingMonitorInterval {
-				return out, fmt.Errorf("monitor ping: interval must be %s-%s", minPingMonitorInterval, maxPingMonitorInterval)
-			}
-			out.Interval = d
-			i++
-		case argTimeout:
-			if i+1 >= len(args) {
-				return out, errPingTimeoutRequiresAValueE
-			}
-			d, err := time.ParseDuration(args[i+1])
-			if err != nil || d < time.Second || d > maxPingTimeout {
-				return out, fmt.Errorf("monitor ping: timeout must be 1s-%s", maxPingTimeout)
-			}
-			out.Timeout = d
-			i++
-		case argCount:
-			if i+1 >= len(args) {
-				return out, errPingCountRequiresAValue
-			}
-			n, err := strconv.Atoi(args[i+1])
-			if err != nil || n < 1 || n > maxPingCount {
-				return out, fmt.Errorf("monitor ping: count must be 1-%d", maxPingCount)
-			}
-			out.Count = n
-			i++
-		case argSize:
-			if i+1 >= len(args) {
-				return out, errPingSizeRequiresAValue
-			}
-			n, err := strconv.Atoi(args[i+1])
-			if err != nil || n < 1 || n > maxPingSize {
-				return out, fmt.Errorf("monitor ping: size must be 1-%d", maxPingSize)
-			}
-			out.Size = n
-			i++
-		default:
-			if !out.Dest.IsValid() {
-				if err := validateResolveTarget(args[i]); err != nil {
-					return out, fmt.Errorf("monitor ping: invalid destination %q: %w", args[i], err)
-				}
-				addr, err := probe.ResolveTarget(args[i], probe.FamilyAny)
-				if err != nil {
-					return out, fmt.Errorf("monitor ping: invalid destination %q: %w", args[i], err)
-				}
-				out.Dest = addr
-				continue
-			}
-			return out, fmt.Errorf("monitor ping: unexpected argument %q", args[i])
-		}
-	}
-	if !out.Dest.IsValid() {
+	target, found := validated.Value(leafMonitorDestination)
+	if !found {
 		return out, errPingMissingDestinationAddress
+	}
+	if err := validateResolveTarget(target); err != nil {
+		return out, fmt.Errorf("monitor ping: invalid destination %q: %w", target, err)
+	}
+	addr, err := probe.ResolveTarget(target, probe.FamilyAny)
+	if err != nil {
+		return out, fmt.Errorf("monitor ping: invalid destination %q: %w", target, err)
+	}
+	out.Dest = addr
+	if value, found := validated.Keyed(leafMonitorInterval); found {
+		d, err := time.ParseDuration(value)
+		if err != nil || d < minPingMonitorInterval || d > maxPingMonitorInterval {
+			return out, fmt.Errorf("monitor ping: interval must be %s-%s", minPingMonitorInterval, maxPingMonitorInterval)
+		}
+		out.Interval = d
+	}
+	if value, found := validated.Keyed(leafMonitorTimeout); found {
+		d, err := time.ParseDuration(value)
+		if err != nil || d < time.Second || d > maxPingTimeout {
+			return out, fmt.Errorf("monitor ping: timeout must be 1s-%s", maxPingTimeout)
+		}
+		out.Timeout = d
+	}
+	if value, found := validated.Keyed(leafMonitorCount); found {
+		n, err := strconv.Atoi(value)
+		if err != nil || n < 1 || n > maxPingCount {
+			return out, fmt.Errorf("monitor ping: count must be 1-%d", maxPingCount)
+		}
+		out.Count = n
+	}
+	if value, found := validated.Keyed(leafMonitorSize); found {
+		n, err := strconv.Atoi(value)
+		if err != nil || n < 1 || n > maxPingSize {
+			return out, fmt.Errorf("monitor ping: size must be 1-%d", maxPingSize)
+		}
+		out.Size = n
 	}
 	return out, nil
 }

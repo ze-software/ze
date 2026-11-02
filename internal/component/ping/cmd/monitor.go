@@ -30,7 +30,7 @@ var errPingSessionShort = errors.New("the ping session ended before every probe 
 // NewPingSession produces for a bounded count (the requested count, else
 // defaultPingCount), the same rows the streaming route writes one per line.
 func handleMonitorPing(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	mp, err := parseMonitorPingArgs(validated.Tokens())
+	mp, err := monitorPingArgsOf(validated)
 	if err != nil {
 		return monitorPingRefusal(err), nil //nolint:nilerr // operational error in Response
 	}
@@ -73,7 +73,7 @@ func monitorPingRefusal(err error) *plugin.Response {
 // SSH exec): it runs NewPingSession on the daemon and writes one line per
 // probe until the caller disconnects or the requested count is reached.
 func streamMonitorPing(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, validated command.ValidatedArgs) error {
-	mp, err := parseMonitorPingArgs(validated.Tokens())
+	mp, err := monitorPingArgsOf(validated)
 	if err != nil {
 		return err
 	}

@@ -136,64 +136,144 @@ func parseTracerouteArgs(args []string) (tracerouteArgs, error) {
 	}
 
 	for i := 0; i < len(args); i++ {
+		var err error
 		switch args[i] {
 		case "max-hops":
 			if i+1 >= len(args) {
 				return req, errTracerouteMaxHopsRequiresVal
 			}
-			n, err := strconv.Atoi(args[i+1])
-			if err != nil || n < 1 || n > maxTracerouteMaxHops {
-				return req, fmt.Errorf("traceroute: max-hops must be 1-%d", maxTracerouteMaxHops)
-			}
-			req.maxHops = n
+			req.maxHops, err = tracerouteMaxHopsOf(args[i+1])
 			i++
 		case argTimeout:
 			if i+1 >= len(args) {
 				return req, errTracerouteTimeoutRequiresVal
 			}
-			d, err := time.ParseDuration(args[i+1])
-			if err != nil || d < time.Second || d > maxTracerouteTimeout {
-				return req, fmt.Errorf("traceroute: timeout must be 1s-%s", maxTracerouteTimeout)
-			}
-			req.timeout = d
+			req.timeout, err = tracerouteTimeoutOf(args[i+1])
 			i++
 		case "probes":
 			if i+1 >= len(args) {
 				return req, errTracerouteProbesRequiresVal
 			}
-			n, err := strconv.Atoi(args[i+1])
-			if err != nil || n < 1 || n > maxTracerouteProbes {
-				return req, fmt.Errorf("traceroute: probes must be 1-%d", maxTracerouteProbes)
-			}
-			req.probes = n
+			req.probes, err = tracerouteProbesOf(args[i+1])
 			i++
 		case probe.DFKeyword:
 			if i+1 >= len(args) {
 				return req, errTracerouteDFRequiresVal
 			}
-			mode, err := probe.DFModeOfValue(args[i+1])
-			if err != nil {
-				return req, fmt.Errorf("traceroute: %w", err)
-			}
-			req.opts.df = mode
+			req.opts.df, err = tracerouteDFOf(args[i+1])
 			i++
 		default:
 			if !req.target.IsValid() {
-				if err := validateResolveTarget(args[i]); err != nil {
-					return req, fmt.Errorf("traceroute: invalid target %q: %w", args[i], err)
-				}
-				addr, err := probe.ResolveTarget(args[i], probe.FamilyAny)
-				if err != nil {
-					return req, fmt.Errorf("traceroute: invalid target %q: %w", args[i], err)
-				}
-				req.target = addr
+				req.target, err = tracerouteTargetOf(args[i])
 			}
+		}
+		if err != nil {
+			return req, err
 		}
 	}
 	if !req.target.IsValid() {
 		return req, errTracerouteMissingTarget
 	}
 	return req, nil
+}
+
+// Leaf names of `monitor traceroute`, as ze-traceroute-cmd.yang declares them.
+const (
+	leafMonitorDestination = "destination"
+	leafMonitorMaxHops     = "max-hops"
+	leafMonitorTimeout     = "timeout"
+	leafMonitorProbes      = "probes"
+)
+
+// monitorTracerouteArgsOf reads `monitor traceroute <dest> [max-hops <n>]
+// [timeout <dur>] [probes <n>] [do-not-fragment honor-cache|bypass-cache]`
+// from the leaves the model validated (ze-traceroute-cmd.yang). Each value
+// goes through the reader parseTracerouteArgs uses for the same keyword, so
+// the bounds and the refusals are the ones `show traceroute` gives.
+func monitorTracerouteArgsOf(validated command.ValidatedArgs) (tracerouteArgs, error) {
+	req := tracerouteArgs{
+		maxHops: defaultTracerouteMaxHops,
+		timeout: defaultTracerouteTimeout,
+		probes:  defaultTracerouteProbes,
+		opts:    tracerouteOpts{df: probe.DFOff},
+	}
+	target, found := validated.Value(leafMonitorDestination)
+	if !found {
+		return req, errTracerouteMissingTarget
+	}
+	var err error
+	if req.target, err = tracerouteTargetOf(target); err != nil {
+		return req, err
+	}
+	if value, found := validated.Keyed(leafMonitorMaxHops); found {
+		if req.maxHops, err = tracerouteMaxHopsOf(value); err != nil {
+			return req, err
+		}
+	}
+	if value, found := validated.Keyed(leafMonitorTimeout); found {
+		if req.timeout, err = tracerouteTimeoutOf(value); err != nil {
+			return req, err
+		}
+	}
+	if value, found := validated.Keyed(leafMonitorProbes); found {
+		if req.probes, err = tracerouteProbesOf(value); err != nil {
+			return req, err
+		}
+	}
+	if value, found := validated.Keyed(probe.DFKeyword); found {
+		if req.opts.df, err = tracerouteDFOf(value); err != nil {
+			return req, err
+		}
+	}
+	return req, nil
+}
+
+// tracerouteTargetOf resolves a traceroute target in either address family.
+func tracerouteTargetOf(value string) (netip.Addr, error) {
+	if err := validateResolveTarget(value); err != nil {
+		return netip.Addr{}, fmt.Errorf("traceroute: invalid target %q: %w", value, err)
+	}
+	addr, err := probe.ResolveTarget(value, probe.FamilyAny)
+	if err != nil {
+		return netip.Addr{}, fmt.Errorf("traceroute: invalid target %q: %w", value, err)
+	}
+	return addr, nil
+}
+
+// tracerouteMaxHopsOf reads a max-hops value, 1 to maxTracerouteMaxHops.
+func tracerouteMaxHopsOf(value string) (int, error) {
+	n, err := strconv.Atoi(value)
+	if err != nil || n < 1 || n > maxTracerouteMaxHops {
+		return 0, fmt.Errorf("traceroute: max-hops must be 1-%d", maxTracerouteMaxHops)
+	}
+	return n, nil
+}
+
+// tracerouteTimeoutOf reads a per-probe timeout, 1s to maxTracerouteTimeout.
+func tracerouteTimeoutOf(value string) (time.Duration, error) {
+	d, err := time.ParseDuration(value)
+	if err != nil || d < time.Second || d > maxTracerouteTimeout {
+		return 0, fmt.Errorf("traceroute: timeout must be 1s-%s", maxTracerouteTimeout)
+	}
+	return d, nil
+}
+
+// tracerouteProbesOf reads a probes-per-hop value, 1 to maxTracerouteProbes.
+func tracerouteProbesOf(value string) (int, error) {
+	n, err := strconv.Atoi(value)
+	if err != nil || n < 1 || n > maxTracerouteProbes {
+		return 0, fmt.Errorf("traceroute: probes must be 1-%d", maxTracerouteProbes)
+	}
+	return n, nil
+}
+
+// tracerouteDFOf reads a do-not-fragment value.
+func tracerouteDFOf(value string) (probe.DFMode, error) {
+	mode, err := probe.DFModeOfValue(value)
+	if err != nil {
+		return probe.DFUnspecified, fmt.Errorf("traceroute: %w", err)
+	}
+	return mode, nil
 }
 
 // probeSocket is what the trace loops need from the *probe.Socket OpenICMP

@@ -23,17 +23,22 @@ const monitorTracerouteRoundGap = time.Second
 // handleMonitorTraceroute is the RPC handler for `monitor traceroute`
 // (ze-traceroute:monitor-traceroute), the one-shot answer for the surfaces
 // that cannot show a stream: a single parallel probe round, identical to
-// `show probe-round`. The terminal routes stream rounds through
-// streamMonitorTraceroute, and the TUI views drive NewTracerouteSession.
-func handleMonitorTraceroute(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	return HandleProbeRound(ctx, validated)
+// `show probe-round`, run on the leaves the model validated. The terminal
+// routes stream rounds through streamMonitorTraceroute, and the TUI views
+// drive NewTracerouteSession.
+func handleMonitorTraceroute(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	req, err := monitorTracerouteArgsOf(validated)
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
+	}
+	return probeRoundAnswer(req), nil
 }
 
 // streamMonitorTraceroute is the streaming route of `monitor traceroute`
 // (`ze cli -c`, SSH exec): it runs probe rounds on the daemon and writes each
 // round until the caller disconnects.
 func streamMonitorTraceroute(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, validated command.ValidatedArgs) error {
-	req, err := parseTracerouteArgs(validated.Tokens())
+	req, err := monitorTracerouteArgsOf(validated)
 	if err != nil {
 		return err
 	}

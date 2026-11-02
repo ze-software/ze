@@ -52,8 +52,7 @@ func showPingLocal(validated command.ValidatedArgs) int {
 }
 
 func monitorPingLocal(validated command.ValidatedArgs) int {
-	args := validated.Tokens()
-	mp, err := parseMonitorPingArgs(args)
+	mp, err := monitorPingArgsOf(validated)
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Err(err).Byte('\n')

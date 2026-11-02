@@ -10,6 +10,9 @@ module ze-ping-cmd {
     // them in prose and the model stated nothing.
     // The probe layer gained a Don't Fragment mode; the keyword is the same
     // word on ping and on traceroute, and the same word on show and resolve.
+    // The handlers read them as keyword pairs and a bare destination; the model
+    // declared none, so no surface could validate or offer them.
+    revision 2026-11-02 { description "Declare the destination and the four optional values of monitor ping."; }
     revision 2026-09-15 { description "Add the do-not-fragment keyword to show ping and resolve ping."; }
     revision 2026-08-29 { description "Declare the target and the three optional values of resolve ping."; }
     // The ICMP engine and resolve ping already supported a payload size, and the
@@ -85,6 +88,38 @@ the keyword existed.";
             description "Pings <target> until you stop it. Adjust interval and timeout as needed. Shows
 running min/avg/max RTT and packet loss.";
             ze:help "Continuous ping with live loss and RTT statistics.";
+            leaf destination {
+                type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; }
+                mandatory true;
+                description "The value is the first bare word of the command, or follows the destination
+keyword. A host name is resolved in either address family, and the family of the
+answer selects ICMPv4 or ICMPv6.";
+                ze:help "Host or IP address to ping.";
+            }
+            leaf interval {
+                type string { pattern '([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+'; }
+                description "The value is the time between two echo requests, in Go duration syntax,
+100ms to 30s. Absent, the value is 1s.";
+                ze:help "Time between two echo requests.";
+            }
+            leaf timeout {
+                type string { pattern '([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+'; }
+                description "The value is the time Ze waits for each reply, in Go duration syntax, 1s
+to 30s. Absent, the value is 5s.";
+                ze:help "Time to wait for each reply.";
+            }
+            leaf count {
+                type uint32 { range "1..100"; }
+                description "Ze sends this many echo requests and stops. Absent, the stream runs until
+you stop it, and the one-shot answer of the API surfaces sends 5.";
+                ze:help "Number of echo requests before the stream stops.";
+            }
+            leaf size {
+                type uint32 { range "1..65507"; }
+                description "Ze fills the payload to exactly this many bytes, with its marker copied
+into the front. Absent, Ze sends the small default payload.";
+                ze:help "ICMP echo payload size in bytes.";
+            }
         }
     }
 

@@ -56,8 +56,7 @@ func showTracerouteLocal(validated command.ValidatedArgs) int {
 }
 
 func monitorTracerouteLocal(validated command.ValidatedArgs) int {
-	args := validated.Tokens()
-	req, err := parseTracerouteArgs(args)
+	req, err := monitorTracerouteArgsOf(validated)
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("monitor traceroute: ").Err(err).Byte('\n')
