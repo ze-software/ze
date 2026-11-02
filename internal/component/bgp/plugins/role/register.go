@@ -49,18 +49,26 @@ func init() {
 	// this plugin takes both away together.
 	attribute.RegisterName(attribute.AttributeCode(otcAttrCode), "OTC", attribute.OptionalTransitiveFlags())
 
-	// Register attr mod handler for OTC egress stamping (progressive build path).
-	// Called by buildModifiedPayload in the reactor forward path after egress filters accept.
+	// The writer of the OTC attribute: a set of the otc field becomes an
+	// AttrModSet the reactor's rebuild hands to this handler, which keeps an
+	// OTC the route already carries (RFC 9234 Section 5: "Once the OTC
+	// Attribute has been set, it MUST be preserved unchanged").
 	filterapi.RegisterAttrModHandler(otcAttrCode, otcAttrModHandler)
 
-	// Route filter pipeline contribution (BGP-owned seam, not the generic registry).
+	// The OTC filters read the session facts and src-role through these.
+	resolveOTCReaders()
+
+	// The learned roles the OTC filters read are per-peer state: the
+	// reactor's removal of a peer frees its entry (forgetRemovedPeer). The
+	// hook is called in-process only. The implicit state grant a filter
+	// plugin receives does not replace it: it reaches only peers whose lists
+	// carry a bgp-role member, while a learned role is stored for every peer
+	// whose OPEN carried a Role capability, and it is asynchronous, so a peer
+	// re-created under the same name could read the old role
+	// (docs/architecture/meta/role.md, "Learned role lifecycle").
 	if err := filterapi.Register(filterapi.Filter{
-		Name:    rolePluginName,
-		Stage:   filterapi.FilterStageAnnotation,
-		Ingress: OTCIngressFilter,
-		Egress:  OTCEgressFilter,
-		// The learned roles these filters read are per-peer state: the
-		// reactor's removal of a peer frees its entry (forgetRemovedPeer).
+		Name:        rolePluginName,
+		Stage:       filterapi.FilterStageAnnotation,
 		PeerRemoved: forgetRemovedPeer,
 	}); err != nil {
 		logger().Error("bgp-role: filter registration failed", "error", err)
@@ -82,10 +90,11 @@ func init() {
 		// read root never auto-loads the plugin.
 		ConfigReads:  []string{policy.RootName},
 		Dependencies: []string{configRootBGP, policy.PluginName},
-		// The RFC 7454 Section 9 upstream check (upstream.go): its filter,
-		// and the role peers it is inserted on.
-		Filters:          upstreamFilterDecls(),
-		FilterInsertions: upstreamInsertions(),
+		// The RFC 9234 Section 5 OTC procedures (otc_filter.go) and the
+		// RFC 7454 Section 9 upstream check (upstream.go): the filters, and
+		// the role peers each is inserted on.
+		Filters:          roleFilterDecls(),
+		FilterInsertions: roleInsertions(),
 		YANG:             roleyang.ZeRoleYANG,
 		CapabilityCodes:  []uint8{roleCapCode},
 		RunEngine:        RunRolePlugin,

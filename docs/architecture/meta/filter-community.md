@@ -73,9 +73,9 @@ and none is a convention:
   server neither acts on nor strips it), and a true control under the global
   AS is outside the scrub's reach. The set kept is the set the route server
   acts on and strips.
-- **Role before relation.** `bgp-role` writes `src-peer-role` from its
-  annotation-stage filter, which runs before the peer's import chain, so the
-  key is written before the operator's `relation` member reads it.
+- **Role before relation.** `bgp-role` writes `src-peer-role` from its OTC
+  procedure, an inserted member, so it runs before the operator's `relation`
+  member reads the key.
 
 <!-- source: internal/component/bgp/plugins/filter_community/community_filter.go -- communityFilterDecls, communityInsertions, evaluateCommunityFilter -->
 <!-- source: internal/component/bgp/plugins/filter_community/chain_member.go -- checkCommunityMembers -->

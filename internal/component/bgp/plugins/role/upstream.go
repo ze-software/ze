@@ -86,11 +86,11 @@ func upstreamInsertions() []rpc.FilterInsertion {
 	return []rpc.FilterInsertion{
 		{
 			Filter: upstreamReference, Direction: rpc.FilterImport, Priority: upstreamPriority,
-			Config: []string{"role", "import"}, Values: upstreamImportRoles,
+			Config: roleImportPath(), Values: upstreamImportRoles,
 		},
 		{
 			Filter: upstreamReference, Direction: rpc.FilterExport, Priority: upstreamPriority,
-			Config: []string{"role", "import"}, Values: upstreamExportRoles,
+			Config: roleImportPath(), Values: upstreamExportRoles,
 		},
 	}
 }

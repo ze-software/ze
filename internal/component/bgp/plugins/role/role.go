@@ -413,14 +413,15 @@ func RunRolePlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	// RFC 7454 Section 9: the upstream check the loader inserts on role
-	// peers (upstream.go), one evaluator on both transports.
-	p.OnFilter(evaluateUpstream)
+	// RFC 9234 Section 5 (otc_filter.go) and RFC 7454 Section 9
+	// (upstream.go): the filters the loader inserts on role peers, one
+	// evaluator on both transports.
+	p.OnFilter(evaluateRoleFilter)
 
 	err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:      []string{configRootBGP, policy.RootName},
-		Filters:          upstreamFilterDecls(),
-		FilterInsertions: upstreamInsertions(),
+		Filters:          roleFilterDecls(),
+		FilterInsertions: roleInsertions(),
 	})
 	if err != nil {
 		logger().Error("role plugin failed", "error", err)

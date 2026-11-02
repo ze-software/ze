@@ -396,9 +396,11 @@ func payloadToWithdrawal(payload []byte) []byte {
 	return result
 }
 
-// OTCIngressFilter is the ingress filter function registered with the BGP filter pipeline (filterapi).
-// Called by the reactor for each received UPDATE before caching and dispatching.
-// Checks OTC ingress rules per RFC 9234 Section 5.
+// OTCIngressFilter answers decideOTCIngress for one received UPDATE as the
+// payload it leaves: nil and false for a leak, the withdrawal for a malformed
+// OTC, the payload with OTC added for a stamp. The filter the loader inserts
+// (bgp-role:otc-ingress, otc_filter.go) answers the same decision as a
+// verdict and route-field sets instead.
 //
 // Sets meta["src-role"] to the source peer's role from our config (e.g., "provider", "customer").
 // The egress filter uses this for suppression decisions -- our configured knowledge of the
@@ -413,11 +415,54 @@ func payloadToWithdrawal(payload []byte) []byte {
 // Table 2 complement of the config. A reader that wants "is this a provider"
 // wants the second (docs/architecture/meta/role.md).
 func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
+	decision := decideOTCIngress(src, payload)
+	if decision.srcRole != "" {
+		meta["src-role"] = decision.srcRole
+	}
+	if decision.peerRole != "" {
+		meta["src-peer-role"] = decision.peerRole
+	}
+	switch decision.result {
+	case otcRejectLeak:
+		return false, nil
+	case otcTreatWithdraw:
+		if wd := payloadToWithdrawal(payload); wd != nil {
+			return true, wd
+		}
+		return false, nil
+	}
+	if decision.stampASN > 0 {
+		modified := insertOTCInPayload(payload, decision.stampASN)
+		if modified != nil {
+			return true, modified
+		}
+		logger().Warn("OTC ingress stamp failed: attribute overflow", "peer", src.Address)
+	}
+	return true, nil
+}
+
+// otcIngressDecision is what RFC 9234 Section 5 decides for one received
+// UPDATE: the verdict, the OTC value to add (0 adds none), and the two role
+// metadata values (empty writes no key).
+type otcIngressDecision struct {
+	result   int
+	stampASN uint32
+	srcRole  string
+	peerRole string
+}
+
+// decideOTCIngress applies the RFC 9234 Section 5 ingress procedures to one
+// UPDATE received from src. It is the one decision both readers act on: the
+// bgp-role:otc-ingress filter (otc_filter.go) answers it as a verdict and
+// sets, and OTCIngressFilter answers it as a rewritten payload. It changes
+// nothing but the drop counters. Safe for concurrent use.
+func decideOTCIngress(src filterapi.PeerFilterInfo, payload []byte) otcIngressDecision {
 	cfg, capRole := getFilterConfig(src.Address.String(), src.Name, src.GroupName)
 
-	// Always record source peer's role in metadata from our configuration.
-	if cfg != nil && cfg.role != "" {
-		meta["src-role"] = cfg.role
+	var decision otcIngressDecision
+	// The source peer's role from our configuration, recorded for every route.
+	if cfg != nil {
+		decision.srcRole = cfg.role
 	}
 
 	// What the source peer IS to us. Falls back to the config complement when
@@ -430,75 +475,63 @@ func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[str
 	// away -- because remoteRole was "" and the guard below returned early.
 	remoteRole := resolvePeerRole(capRole, cfg)
 
-	// Publish the resolved peer role BEFORE the OTC early return below. The
-	// return means "this plugin has no OTC work for this peer", which is a
-	// different question from "what is this peer to us": a peer that announced a
-	// Role capability but has no local role config resolves here and is skipped
-	// there, and its role is still the answer another filter needs. Published
-	// unconditionally on the resolved value, so an unresolvable peer leaves the
-	// key ABSENT rather than present and empty -- a reader must not be able to
-	// mistake "we could not tell" for a role (ai/rules/evidence.md).
-	if remoteRole != "" {
-		meta["src-peer-role"] = remoteRole
-	}
+	// The resolved peer role is published BEFORE the OTC early return below.
+	// The return means "this plugin has no OTC work for this peer", which is a
+	// different question from "what is this peer to us": a peer that announced
+	// a Role capability but has no local role config resolves here and is
+	// skipped there, and its role is still the answer another filter needs. An
+	// unresolvable peer leaves the key ABSENT rather than present and empty, so
+	// a reader cannot mistake "we could not tell" for a role.
+	decision.peerRole = remoteRole
 
 	// No role config or no resolvable peer role: no OTC filtering.
 	if cfg == nil || remoteRole == "" {
-		return true, nil
+		return decision
 	}
 
 	// RFC 9234 Section 5: OTC MUST NOT be applied to other address families by default.
 	if !isPayloadUnicast(payload) {
-		return true, nil
+		return decision
 	}
 
 	attrs := extractAttrsFromPayload(payload)
 	if attrs == nil {
-		return true, nil
+		return decision
 	}
 
 	result, stampASN := checkOTCIngress(remoteRole, src.PeerAS, attrs)
+	decision.result = result
 
 	switch result {
 	case otcRejectLeak:
 		recordDrop(dropLeak, src.Address, remoteRole)
 		logger().Debug("OTC ingress reject: route leak",
 			"peer", src.Address, "remote-role", remoteRole)
-		return false, nil
+		return decision
 	case otcTreatWithdraw:
 		recordDrop(dropMalformedOTC, src.Address, remoteRole)
 		logger().Info("OTC treat-as-withdraw: malformed OTC",
 			"peer", src.Address)
-		if wd := payloadToWithdrawal(payload); wd != nil {
-			return true, wd
-		}
-		return false, nil
+		return decision
 	}
 
-	// Stamp OTC if needed. insertOTCInPayload returns nil on overflow.
-	//
 	// RFC 9234 Section 5 ingress rule 3 acts on "a route ... received". A
-	// payload that advertises nothing carries none, and insertOTCInPayload
-	// would rewrite a withdraw-only UPDATE (or an End-of-RIB marker) into one
-	// with a path attribute and no NLRI -- the shape RFC 4271 Section 4.3 says
-	// such a message must not have (see payloadAdvertisesNLRI).
+	// payload that advertises nothing carries none, and adding OTC would turn
+	// a withdraw-only UPDATE (or an End-of-RIB marker) into one with a path
+	// attribute and no NLRI -- the shape RFC 4271 Section 4.3 says such a
+	// message must not have (see payloadAdvertisesNLRI).
 	if stampASN > 0 && payloadAdvertisesNLRI(payload) {
-		modified := insertOTCInPayload(payload, stampASN)
-		if modified != nil {
-			logger().Debug("OTC ingress stamp",
-				"peer", src.Address, "remote-role", remoteRole, "otc-asn", stampASN)
-			return true, modified
-		}
-		logger().Warn("OTC ingress stamp failed: attribute overflow", "peer", src.Address)
+		logger().Debug("OTC ingress stamp",
+			"peer", src.Address, "remote-role", remoteRole, "otc-asn", stampASN)
+		decision.stampASN = stampASN
 	}
-
-	return true, nil
+	return decision
 }
 
 // resolveSrcRole returns OUR configured role toward the source peer, which is
 // what the Gao-Rexford egress check keys on.
 //
-// meta["src-role"] is written by OTCIngressFilter (above) from
+// meta["src-role"] is written by the ingress member (decideOTCIngress) from
 // getFilterConfig(src).role. It is therefore a CACHE of config, not an
 // independent input, which is why config is a sound fallback and not a guess:
 // both sides read the same field of the same peer's config.
@@ -598,8 +631,10 @@ func resolvePeerRole(capRole string, cfg *peerRoleConfig) string {
 	return role
 }
 
-// OTCEgressFilter is the egress filter function registered with the BGP filter pipeline (filterapi).
-// Called by the reactor per destination peer during ForwardUpdate.
+// OTCEgressFilter decides one UPDATE toward one destination peer. The filter
+// the loader inserts on export (bgp-role:otc-egress, otc_filter.go) calls it
+// with the session facts it reads, and answers false as a reject and a queued
+// OTC set as a set of the otc route field.
 // Checks both export role filtering and OTC egress suppression per RFC 9234 Section 5.
 //
 // Two independent egress checks:

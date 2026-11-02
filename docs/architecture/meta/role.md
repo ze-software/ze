@@ -1,6 +1,7 @@
 # Role Plugin -- Meta Keys
 
-<!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
+<!-- source: internal/component/bgp/plugins/role/otc.go -- decideOTCIngress, OTCEgressFilter -->
+<!-- source: internal/component/bgp/plugins/role/otc_filter.go -- evaluateOTCIngress, evaluateOTCEgress, otcInsertions -->
 
 ## Keys Set
 
@@ -92,10 +93,14 @@ peer's export policy.
 
 ## Ordering
 
-Ordering is enforced by pipeline structure, not convention. On the receive
-path the reactor processes ingress filters to completion before starting
-egress forwarding, so `OTCIngressFilter` runs before `OTCEgressFilter` for
-that UPDATE.
+Ordering is enforced by pipeline structure, not convention. The two
+procedures are filter-list members `bgp-role` inserts on every peer whose
+config carries `role import`: `bgp-role:otc-ingress` at the head of the
+import list and `bgp-role:otc-egress` at the head of the export list
+(`otcInsertions`, priority 100, required). On the receive path the reactor
+runs the import list to completion before starting egress forwarding, so the
+ingress member runs before the egress member for that UPDATE. A peer with no
+role config carries neither member.
 
 Do **not** read that as "egress always sees ingress metadata". Egress is
 reachable on paths that never ran ingress for the advertisement being built:
@@ -117,14 +122,13 @@ and nothing else. Neither plugin imports the other, so deleting either folder
 leaves the other building: without the role plugin the key is never written
 and no relation tag is written either, which is the closed state.
 
-The two plugins are ordered by their filter registrations, not by code
-position. `bgp-role` registers at `filterapi.FilterStageAnnotation` priority 0
-and `bgp-filter-community-relation` at the same stage with priority 1. So the
-writer runs before the reader (`filterapi.LessOrder` sorts by stage, then
-priority, then name).
+The two plugins are ordered by the peer's import list, not by code
+position. `bgp-role:otc-ingress` is an inserted member, and the loader places
+every inserted member ahead of the operator's members, so the operator's
+`bgp-filter-community:relation` member, the reader, runs after the writer.
 
-<!-- source: internal/component/bgp/plugins/role/register.go -- the bgp-role filter registration -->
-<!-- source: internal/component/bgp/plugins/filter_community/register.go -- the bgp-filter-community-relation registration -->
+<!-- source: internal/component/bgp/plugins/role/otc_filter.go -- otcInsertions -->
+<!-- source: internal/component/bgp/plugins/filter_community/community_filter.go -- relationFilterName -->
 <!-- source: internal/component/bgp/plugins/filter_community/relation.go -- relationPeerRoleFromMeta -->
 
 **Why the role plugin publishes rather than exporting an accessor.**
@@ -159,9 +163,10 @@ subject to those procedures rather than skipping them.
 
 Two asymmetries are worth stating plainly, because they are policy choices
 rather than oversights. A peer with **no role config at all** is not filtered
-as a *source* (`OTCIngressFilter` returns early. The egress source role
-resolves to empty), but a config-less *destination* is still gated from
-whatever capability it announced. And an ingress rejection now follows from
+as a *source* (it carries no ingress member, and the egress source role
+resolves to empty), and a config-less *destination* carries no egress member,
+so it is not gated either, whatever capability it announced. And an ingress
+rejection now follows from
 **local config alone** rather than from a bilaterally negotiated capability.
 So a one-sided role typo can blackhole prefixes rather than merely misroute
 policy. The egress stamping rule is the exception to the first asymmetry: it
@@ -237,9 +242,11 @@ recorded for this peer". `remoteRoleRecorded` reads that distinction for the
 drop reason. Both resolve to the configured complement for RFC 9234 gates.
 
 The reactor's removal of a peer removes its learned role. The removal is not
-delivered as the state `down` with reason `removed`: that event is peer-scoped,
-so it reaches only a process the peer's `attach process` block names, and
-nothing attaches `bgp-role` (a created peer has no block at all). Instead the
+delivered as the state `down` with reason `removed`. That event reaches
+`bgp-role` only for a peer whose filter lists carry a `bgp-role` member (the
+implicit state grant of a filter plugin), while a learned role is stored for
+every peer whose OPEN carried a Role capability, configured for a role or not.
+The event is also asynchronous, which cannot give the order below. Instead the
 `bgp-role` filter registration carries a `PeerRemoved` hook
 (`filterapi.Filter.PeerRemoved`), and every reactor path that takes a peer out
 of its peer table calls `filterapi.NotifyPeerRemoved` for it, in the critical

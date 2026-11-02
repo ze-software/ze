@@ -60,7 +60,8 @@ Mismatched roles cause a Role Mismatch NOTIFICATION (error 2, subcode 11).
 ## OTC Filtering
 
 The OTC (Only To Customer) attribute (type 35) prevents route leaks:
-<!-- source: internal/component/bgp/plugins/role/register.go -- OTCIngressFilter, OTCEgressFilter, otcAttrCode -->
+<!-- source: internal/component/bgp/plugins/role/otc_filter.go -- evaluateOTCIngress, evaluateOTCEgress, otcInsertions -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- otcAttrCode -->
 
 ### What role the procedures use
 
@@ -168,6 +169,25 @@ The label set is bounded at six series per metric. Peer identity is in the log l
 When `strict true` is set, ze requires the peer to advertise the Role capability in its OPEN message. If the peer does not, ze sends a Role Mismatch NOTIFICATION and rejects the session.
 
 When strict mode is off (default), ze proceeds even if the peer does not advertise Role. OTC filtering is applied based on the locally configured role.
+
+## The OTC Procedures a Role Inserts
+
+A peer whose config sets `role import` carries two more members in its filter
+lists, with nothing for you to write: `bgp-role:otc-ingress` at the head of
+its import list and `bgp-role:otc-egress` at the head of its export list. They
+run the RFC 9234 Section 5 procedures described above, the same way whether
+`bgp-role` runs inside Ze or as its own process. On import a leaked route is
+withdrawn, as is an UPDATE whose OTC is malformed, and a route that must carry
+OTC gets it; on export a route that must not reach the peer is not sent, and
+one that must carry OTC gets the local AS.
+
+Both members are required. RFC 9234 Section 5 says "The operator MUST NOT have
+the ability to modify the procedures defined in this section." So a chain that
+names either member, plain or `inactive:`, is refused at load with that
+sentence, naming the peer, the list and the member. A peer with no `role
+import` carries neither member.
+<!-- source: internal/component/bgp/plugins/role/otc_filter.go -- otcFilterDecls, otcInsertions, evaluateOTCIngress, evaluateOTCEgress -->
+<!-- source: internal/component/bgp/config/filter_insertion.go -- requiredInsertionRefusal -->
 
 ## The Upstream Check a Role Inserts
 

@@ -228,7 +228,7 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 
 		// Key by IP address, because that is the only key the runtime readers
 		// use: all three getFilterConfig callers pass PeerFilterInfo.Address
-		// (otc.go, OTCIngressFilter and both OTCEgressFilter lookups).
+		// (otc.go, decideOTCIngress and both OTCEgressFilter lookups).
 		// configjson.PeerRemoteIP reads connection>remote>ip (the delivered shape); role's old
 		// local reader used the stale flat remote/ip path and silently returned "" on real config.
 		ip := configjson.PeerRemoteIP(peerMap, groupMap)

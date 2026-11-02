@@ -212,9 +212,12 @@ module adds, so the member appears exactly where you configured that plugin.
 Naming an inserted member yourself places it where you wrote it, or switches it
 off with `inactive:`, unless the plugin marked it required: a required member
 named in a chain is refused at load with the reason the plugin declared.
+`bgp-role:otc-ingress` and `bgp-role:otc-egress`, which `bgp-role` inserts
+where `role import` is set, are required, because RFC 9234 Section 5 forbids
+the operator to modify those procedures (`docs/guide/bgp-role.md`).
 `bgp-filter-community:blackhole-agreement`, which `bgp-filter-community`
 inserts on export to every eBGP session that is not a route-server client, is
-required: RFC 7999 Section 3.1 says the BLACKHOLE community "MUST be agreed
+required too: RFC 7999 Section 3.1 says the BLACKHOLE community "MUST be agreed
 upon by the two networks before advertising it" (`docs/guide/bgp-policy.md`).
 The community settings themselves (`filter ingress community`, `filter egress
 community`, `relation-tag`) run only where you name their member, as any
