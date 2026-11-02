@@ -519,16 +519,17 @@ func runBlobCommands(output io.Writer, configPath, blobPath string) error {
 
 // checkHelpCatalog covers `help command`, which answers its catalog as rows:
 // every row the filter kept holds the filter word in its path or summary.
+//
+// The handler answers `{"command-catalog":[...]}`, and the `| json` pipe
+// unwraps a map of one key holding an array (command.applyJSON,
+// unwrapSingleKeyArray), so what an operator reads is the row list itself.
+// The check requires that list: the envelope key never reaches this route.
 func checkHelpCatalog(output io.Writer) error {
 	payload, err := localJSON("help command peer | json compact", "help command", output)
 	if err != nil {
 		return err
 	}
-	document, err := exactObject(payload, "help command", "command-catalog")
-	if err != nil {
-		return err
-	}
-	rows, isList := document["command-catalog"].([]any)
+	rows, isList := payload.([]any)
 	if err := require(isList && len(rows) > 0, "help command peer answered no catalog rows: %#v", payload); err != nil {
 		return err
 	}
