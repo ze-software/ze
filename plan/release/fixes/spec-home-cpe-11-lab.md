@@ -8,9 +8,9 @@
 | Release reason | Validation: the lab is the evidence that a Ze router converted from a VyOS home CPE does the job end to end (umbrella goal 3), and it carries the first runtime proof of shipped features that have none (WireGuard road warrior, masquerade and MSS with Ze in the path, the LAC relay). |
 | RFC gaps | - |
 | Depends | `spec-home-cpe-18-interoplab-multi-link-topology.md`, `spec-home-cpe-19-access-chain-scenario.md`, `spec-home-cpe-10-vyos-mapping-guide.md`; per scenario (table below): children 2, 3, 4, 5, 6, 12, 14, 15, 20, 21; `plan/release/validation/spec-wireguard-runtime-proof.md`; `plan/release/validation/spec-ipsec-0-umbrella.md`; `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` |
-| Phase | 0/8 |
+| Phase | 0/7 |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-02 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 11).
 
@@ -19,28 +19,39 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 Complete the home-CPE lab of the umbrella: every scenario of its table, run in
-the `topology` suite of child 18 (except `accel-ppp-renegotiation`, which
-belongs to the existing PPPoE suite), with the CPE running the configuration
-the model converted from a VyOS configuration (child 10).
+the `topology` suite of child 18, with the CPE running the configuration the
+model converted from a VyOS configuration (child 10).
 
 This spec composes; it does not duplicate. The access chain (`access-up`,
-`access-pool`, `access-accounting`) is child 19. `road-warrior` is the
-acceptance evidence of `spec-wireguard-runtime-proof.md` (its AC-1 and AC-2).
-`mgmt-tunnel` is a scenario under `spec-ipsec-0-umbrella.md`, whose children
-5, 6, 20 and 4 own the behaviour. Each scenario lands when its dependency
-child does, and its red walk is recorded then.
+`access-pool`, `access-accounting`) is child 19. `access-wholesale-accel-lns`
+(the Ze CPE behind the Ze realm LAC of child 14, with accel-ppp as LNS
+renegotiating LCP) is child 12's scenario, on child 18's multi-link lab; it
+replaces the direct `accel-ppp-renegotiation` scenario this spec planned,
+because no accel-ppp setting renegotiates LCP on a direct PPPoE session
+(child 12, A-4). `road-warrior` is the acceptance evidence of
+`spec-wireguard-runtime-proof.md` (its AC-1 and AC-2). `mgmt-tunnel` is a
+scenario under `spec-ipsec-0-umbrella.md`, whose children 5, 6, 20 and 4 own
+the behaviour. Each scenario lands when its dependency child does, and its red
+walk is recorded then. Clamp-to-PMTU is child 9's own scenario,
+`pppoe-mss-pmtu`, which does not run the converted configuration.
 
 ### Scenarios this spec owns
 
 | Scenario | Suite | Asserts | Depends on |
 |----------|-------|---------|------------|
-| `conversion` | topology | the converted CPE configuration passes `ze config validate`; Ze starts with it (commit-time verifiers run); every line of the VyOS source appears in the conversion record as mapped or dropped with a reason; every topology scenario's CPE file is that configuration with lab values substituted | 10 |
-| `lan-services` | topology | range lease; both reservations honoured, one per subnet on the one bridge; masquerade to the web server; MSS 1400 written on a SYN carrying more and a smaller MSS left alone; WAN input dropped while the same port answers from the LAN; FTP through NAT via the helper | 2, 21, 3 (helper clause after the owner's decision) |
+| `conversion` | topology | the converted CPE configuration passes `ze config validate`; Ze starts with it (commit-time verifiers run); every line of the VyOS source appears in the conversion record as mapped or dropped with a reason; the CPE file of every home-CPE lab scenario is that configuration with lab values substituted | 10 |
+| `lan-services` | topology | range lease; both reservations honoured, one per subnet on the one bridge; masquerade to the web server; MSS 1400 written on a SYN carrying more and a smaller MSS left alone; WAN input dropped while the same port answers from the LAN; FTP through NAT via the helper | 2, 21, 3 |
 | `road-warrior` | topology | the committed WireGuard configuration is in the kernel (interface, keys, peers, allowed-ips); wg-client with PSK handshakes with the CPE's WAN address; it reaches a LAN host and the web server, masqueraded | 18, `spec-wireguard-runtime-proof` |
 | `mgmt-tunnel` | topology | Ed25519 authentication (and the P-256 variant); selectors narrowed by strongSwan to `::/0`; IPv6 ping across vti0 with ESP counters read per direction; IKE moved to UDP 4500 by MOBIKE; a CPE booted while DNS is down establishes once DNS answers | 4, 5, 6, 20 |
 | `access-wholesale` | topology | LAC runs LCP and CHAP and picks the LNS by realm; LNS renegotiates LCP and re-challenges; the CPE comes up | 12, 14, 15 |
 | `access-reconnect` | topology | the LNS drops the session; the CPE reconnects with a new address; the IKE SA follows the new address and masquerade uses it | 4, 18 |
-| `accel-ppp-renegotiation` | pppoe (`test/interop-pppoe/scenarios/`) | accel-ppp renegotiates LCP after a first negotiation; the Ze client renegotiates, re-authenticates, runs IPCP, and traffic flows | 12 |
+
+### Scenarios this spec composes
+
+| Scenario | Owner | What this spec adds |
+|----------|-------|---------------------|
+| `access-up`, `access-pool`, `access-accounting` | child 19 | the CPE file is the converted configuration (AC-1) |
+| `access-wholesale-accel-lns` | child 12 (topology suite, child 18; Ze LAC from child 14; accel-ppp image registered by the PPPoE suite) | the CPE file is the converted configuration (AC-1), and the scenario is green in the Goal Validation run (AC-12) |
 
 ### Lab nodes beyond child 19
 
@@ -60,14 +71,18 @@ reaches it only through the PPP session.
 ### Architecture Docs
 - [ ] `plan/release/fixes/spec-home-cpe-0-umbrella.md` "Lab", "Conversion by the model"
   → Decision: every value invented; the CPE configuration is the model's conversion with lab values.
+- [ ] `plan/release/fixes/spec-home-cpe-12-pppoe-client-lcp-renegotiation.md`, Interop Tests and A-4
+  → Decision: `access-wholesale-accel-lns` is child 12's scenario and its red walk is child 12's; this spec only requires that it runs the converted CPE file and is green in the Goal Validation run.
+- [ ] `plan/release/fixes/spec-home-cpe-21-mss-clamp-not-raise.md`, Finding and the TDD red walks
+  → Constraint: the kernel never raises an MSS through the two-byte write Ze installs, so the no-raise clause's red walk must break Ze's lowering to a four-byte write; a configured-value change is not a break.
 - [ ] `docs/architecture/testing/interop.md` "Prove a scenario discriminates", "IPsec address movement", "The IPsec NAT box", "The fifth trap" text under the vacuity table
   → Constraint: ESP proof reads each simplex SA by its own source and destination, never an SPI-keyed aggregate (`verifyESPDirections`, `internal/le/interoplab/ipsec/helpers.go`).
-- [ ] `docs/guide/configuration.md` l.2546
+- [ ] `docs/guide/configuration.md`, the `ze config validate` paragraph on plugin verifiers
   → Constraint: "It does not run under `ze config validate`, which reads the schema and does not run a plugin's config verifier." The `conversion` scenario therefore also starts Ze with the configuration.
 - [ ] `plan/release/validation/spec-wireguard-runtime-proof.md` AC-1, AC-2
   → Decision: `road-warrior` is that spec's evidence; this spec does not restate its criteria beyond the lab topology.
 - [ ] `ai/META-DECISIONS.md` "Test systems and labs", "Test changes"
-  → Constraint: guests and lab hosts run Ze's kernel; Alpine-only problems are out of scope; full suites run on another host than the busy Linux one.
+  → Constraint: guests and lab hosts run Ze's kernel; Alpine-only problems are out of scope; performance figures need a known host, every functional test runs on whatever host the agent is on.
 
 **Key insights:**
 - Several clauses assert an absence (WAN input dropped, a smaller MSS left alone); each is paired with a positive control that the same mechanism produces (vacuity trap 2).
@@ -78,8 +93,7 @@ reaches it only through the PPP session.
 **Source files read:**
 - [ ] `internal/le/interoplab/ipsec/helpers.go` - `verifyESPDirections`, directed ESP counters and the lossless-ping clause.
 - [ ] `internal/le/test/deployment/wireguardproof.go` - the kernel-only WireGuard proof (two nodes, `Dockerfile.wireguard`); it says it does not prove the configuration-commit path.
-- [ ] `test/interop-pppoe/scenarios/` - Ze client against accel-ppp (`01-pppoe-chap-ipv4`, `pppoe-chap-rechallenge-ze-client`, ...); none renegotiates LCP.
-- [ ] `internal/component/firewall/yang/ze-firewall-conf.yang` - `tcp-mss-set` (l.466), `masquerade` (l.355), `global-options` (l.564).
+- [ ] `internal/component/firewall/yang/ze-firewall-conf.yang` - leaf `tcp-mss-set`, action `masquerade`, container `global-options`.
 - [ ] `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` - `shared-network`, `subnet`, `range`, `static-mapping`.
 - [ ] `test/interop/Dockerfile.knot` - Knot plus dhcpcd 10.5.2.
 
@@ -92,10 +106,10 @@ reaches it only through the PPP session.
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Interop scenario discovery | `internal/le/interoplab/discover.go` `Discover`; `docs/architecture/testing/interop.md` | lists scenario directories in lexical order, matches a selector by exact name, and refuses a selected directory with no registered checker | extends: each new scenario is a named directory with a registered checker, no list edited |
+| Topology suite and image registry | child 18 (`./le test integration interop-topology`, images registered by name) | runs multi-node scenarios; a scenario may name an image another suite registered | extends: this spec's scenarios register there; the web and FTP image registers by name |
 | Directed ESP counters | `internal/le/interoplab/ipsec/helpers.go` `verifyESPDirections` | proves ESP bytes moved on every simplex SA the caller names, read per direction, beside a lossless ping | extends: `mgmt-tunnel` and `access-reconnect` read ESP through it rather than a second counter reader |
 | Kernel-only WireGuard proof | `internal/le/test/deployment/wireguardproof.go` `runWireGuardProof`, `checkWireGuardProof` | two nodes ping over kernel WireGuard; its header says it does not prove the configuration-commit path | does not apply as the proof: `road-warrior` proves the commit path that this proof disclaims, and reuses its `Dockerfile.wireguard` image |
-| PPPoE interop suite | `test/interop-pppoe/scenarios/` (`01-pppoe-chap-ipv4`, `pppoe-chap-rechallenge-ze-client`) | runs the Ze PPPoE client against accel-ppp, IPv4 only; no scenario renegotiates LCP | extends: `accel-ppp-renegotiation` is one more scenario in that suite |
-| PPP frame injector | `internal/le/interoplab/l2tp/avprelay/pppinject.go` `injectFrames` | injects crafted PPP frames into an L2TP data path (used by `ppp-code-reject-xl2tpd`) | fallback only: used if accel-ppp cannot be made to renegotiate (A-1) |
+| Child 12's wholesale renegotiation scenario | `plan/release/fixes/spec-home-cpe-12-pppoe-client-lcp-renegotiation.md`, `access-wholesale-accel-lns` | planned: accel-ppp as LNS behind the Ze LAC renegotiates LCP with the Ze CPE | composes: the scenario stays child 12's; this spec requires the converted CPE file and a green run |
 | Knot and dhcpcd lab image | `test/interop/Dockerfile.knot` | one image serves `knot` (authoritative server) and `dnsclient` (kdig and dhcpcd driven over `docker exec`) | extends: the DNS node and the LAN clients run this image |
 | RFC discrimination record | `./le rfc record`; `docs/contributing/rfc-conformance-gates.md` | breaks the producer, observes the tagged test red, and stores the record | extends: each scenario's red walk carrying an `RFC requirement:` tag is recorded through it |
 
@@ -105,12 +119,12 @@ RFC rows of the child it depends on, so the RFC gaps cell is `-`.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le test integration interop-topology <scenario>`; `./le test deployment docker-pppoe-accel` with the `accel-ppp-renegotiation` selector.
+- `./le test integration interop-topology <scenario>`.
 - The conversion inputs: an invented VyOS configuration (`test/interop-topology/cpe/vyos.conf`), the model's output (`ze-cpe.conf` with placeholders) and its conversion record, and a lab values file.
 
 ### Transformation Path
 1. The conversion (done once by the model, committed) yields `ze-cpe.conf` and the record.
-2. The topology plan builder substitutes lab values for placeholders and mounts the result as the CPE's configuration in every scenario.
+2. The topology plan builder substitutes lab values for placeholders and mounts the result as the CPE's configuration in every home-CPE lab scenario.
 3. Each scenario starts the nodes it needs, its checker drives traffic and reads state on both ends.
 
 ### Boundaries Crossed
@@ -122,14 +136,14 @@ RFC rows of the child it depends on, so the RFC gaps cell is `-`.
 | wg-client ↔ CPE | WireGuard to the CPE's PPP address | No |
 
 ### Integration Points
-- Topology suite and image registry (child 18); access-chain nodes and files (child 19).
+- Topology suite and image registry (child 18); access-chain nodes and files (child 19); `access-wholesale-accel-lns` (child 12).
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers | Yes | only the CPE's PPP address is reachable from the internet segment |
 | No unintended coupling | Yes | scenarios and checkers only |
-| No duplicated functionality | Yes | access chain, WireGuard proof and IPsec helpers reused |
+| No duplicated functionality | Yes | access chain, wholesale scenario, WireGuard proof and IPsec helpers reused |
 | Zero-copy preserved where applicable | N-A | tooling |
 | Registration over hardcoding, outbound | Yes | scenarios and the web/FTP image register |
 | Registration over hardcoding, inbound | Yes | `Discover` joins names; no list edited |
@@ -139,17 +153,20 @@ RFC rows of the child it depends on, so the RFC gaps cell is `-`.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | accel-ppp can be made to renegotiate LCP after a first negotiation | wholesale shape in the umbrella | the scenario needs a PPP injector, as `ppp-code-reject-xl2tpd` uses (`avprelay/pppinject.go`) | read accel-ppp's source for an LCP restart path before writing the scenario | unvalidated |
 | A-2 | A synthetic VyOS configuration covering every umbrella construct exercises the guide as the owner's would | umbrella: nothing drawn from the owner's configuration | a construct of a real CPE is missed | the guide's construct inventory (child 10) is the checklist the synthetic source covers | unvalidated |
-| A-3 | The FTP helper clause stays only if the owner builds helpers in (child 3) | umbrella open decision | the clause asserts the documented breakage instead | owner decision recorded in child 3 | unvalidated |
 | A-4 | MOBIKE moves the IKE SA to 4500 with no NAT in the path | strongSwan behaviour with MOBIKE on | the float clause needs the IPsec NAT box | read RFC 4555 and the existing `mobike` scenario before writing the clause | unvalidated |
+
+A-1 (accel-ppp renegotiates LCP on a direct session) is gone with the direct
+scenario: child 12's A-4 records that it does not. A-3 (the FTP clause
+conditional on child 3) is gone: the owner decided child 3's Option A, so the
+clause is unconditional.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A scenario is red because its child has not landed | red on a known clause | scenarios land with their child; the order is the umbrella's |
-| R-2 | The model's conversion is edited by hand later, hiding a guide gap | CPE file differs from the conversion output | `conversion` asserts every scenario uses the converted file with substitutions only |
-| R-3 | Lab load on the Linux host | slow starts | full lab runs on the hosts that run full suites |
+| R-2 | The model's conversion is edited by hand later, hiding a guide gap | CPE file differs from the conversion output | `conversion` asserts every home-CPE lab scenario uses the converted file with substitutions only |
+| R-3 | Lab load on the shared Linux host | slow starts | one lab run at a time, per the one-CPU-intensive-job rule |
 
 ## Blast Radius
 
@@ -164,29 +181,29 @@ RFC rows of the child it depends on, so the RFC gaps cell is `-`.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `./le test integration interop-topology conversion` | → | CPE configuration load and commit verifiers | scenario `conversion` |
-| `./le test integration interop-topology lan-services` | → | DHCP server, firewall NAT and MSS | scenario `lan-services` |
+| `./le test integration interop-topology lan-services` | → | DHCP server, firewall NAT and MSS, conntrack helper | scenario `lan-services` |
 | `./le test integration interop-topology road-warrior` | → | WireGuard config commit to kernel | scenario `road-warrior` |
 | `./le test integration interop-topology mgmt-tunnel` | → | IKEv2 and VTI | scenario `mgmt-tunnel` |
 | `./le test integration interop-topology access-wholesale` | → | LAC realm relay and LNS LCP renegotiation | scenario `access-wholesale` |
 | `./le test integration interop-topology access-reconnect` | → | PPPoE client reconnect, IKE address follow | scenario `access-reconnect` |
-| `./le test deployment docker-pppoe-accel` selector `accel-ppp-renegotiation` | → | PPPoE client LCP renegotiation | scenario `accel-ppp-renegotiation` |
+| `./le test integration interop-topology access-wholesale-accel-lns` | → | PPPoE client LCP renegotiation against accel-ppp as LNS (child 12) | scenario `access-wholesale-accel-lns` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `conversion` | `ze config validate` clean on the converted file with lab values; Ze starts with it and its commit-time verifiers pass; the record names every VyOS source line; every topology scenario's CPE file equals the converted file after substitution |
+| AC-1 | `conversion` | `ze config validate` clean on the converted file with lab values; Ze starts with it and its commit-time verifiers pass; the record names every VyOS source line; the CPE file of every home-CPE lab scenario (the six above, child 19's three, `access-wholesale-accel-lns`) equals the converted file after substitution |
 | AC-2 | `lan-services`, lan-client | dhcpcd binds an address inside the configured range of 192.168.50.0/24 |
 | AC-3 | `lan-services`, lan-res-a and lan-res-b | each binds its reserved address, one in 192.168.50.0/24 and one in 10.99.0.0/24 |
 | AC-4 | `lan-services`, LAN host fetches from the web server | the server's log shows source 203.0.113.1 |
-| AC-5 | `lan-services`, LAN host opens TCP to the web server with MSS 1460, then with MSS 1300 | a capture on the server shows MSS 1400 on the first SYN and 1300 unchanged on the second |
+| AC-5 | `lan-services`, LAN host opens TCP to the web server with MSS 1460, then with MSS 1300 | a capture on the server shows MSS 1400 on the first SYN (the lowering clause) and 1300 unchanged on the second (the no-raise clause) |
 | AC-6 | `lan-services`, the internet host connects to the CPE's SSH port on 203.0.113.1, and a LAN host to the same port on the CPE's LAN address | the internet attempt gets no answer and the CPE's drop counter for that term advances; the LAN attempt completes the TCP handshake |
-| AC-7 | `lan-services`, FTP from a LAN host through NAT (active mode) | the data connection completes (only if the owner builds helpers in, child 3) |
+| AC-7 | `lan-services`, FTP from a LAN host through NAT (active mode), with `system conntrack module ftp` in the converted configuration | the data connection completes |
 | AC-8 | `road-warrior` | spec-wireguard-runtime-proof AC-1 (kernel readback of the committed configuration) and AC-2 (handshake with PSK, traffic); wg-client reaches lan-res-a, and the web server sees source 203.0.113.1 for wg-client's fetch |
 | AC-9 | `mgmt-tunnel` | Ze authenticates with an Ed25519 certificate and, in the variant, P-256; the CHILD_SA's selectors are `::/0` both sides; an IPv6 ping across vti0 loses nothing and each direction's SA counters advance on both peers; the IKE SA sits on UDP 4500; with DNS stopped at CPE boot and started later, the SA establishes after DNS answers |
 | AC-10 | `access-wholesale` | the LAC completes LCP and CHAP with the CPE, selects the LNS by the realm `lab.example.net`, sends proxy AVPs; the LNS renegotiates LCP and challenges again; the CPE reaches IPCP Opened and pings the LNS |
 | AC-11 | `access-reconnect`, the LNS disconnects the session and RADIUS returns a new address | the CPE comes back with the new address; the IKE SA's local address is the new one and ESP traffic resumes; the web server sees the new address as source |
-| AC-12 | `accel-ppp-renegotiation` | after the first negotiation accel-ppp sends an LCP Configure-Request; the Ze client renegotiates, re-authenticates and reaches IPCP Opened again; a ping crosses the session afterwards |
+| AC-12 | `access-wholesale-accel-lns` (child 12's scenario) | runs with the converted CPE file and is green in the Goal Validation run; its assertions and red walk are child 12's |
 | AC-13 | Each scenario's red walk (below) | red with the named failure, green when restored, both image IDs recorded |
 
 ### Red walks
@@ -195,14 +212,15 @@ RFC rows of the child it depends on, so the RFC gaps cell is `-`.
 |----------|------------------|--------------|----------------|
 | `conversion` | change one source line in the VyOS file without updating the record | record coverage clause red | - |
 | `lan-services` | static-mapping lookup restricted to the first subnet (today's defect, child 2) | lan-res-b gets a range lease from the first subnet | trap 3: the reservation is in a later subnet, not the first |
-| `lan-services` | the MSS action writes the value without comparing (today's defect, child 21) | the 1300 SYN arrives as 1400 | trap 2: the 1460 SYN gives a present rewrite to read beside it |
+| `lan-services` (lowering clause) | the `SetTCPMSS` action not lowered by the nft backend | the 1460 SYN arrives as 1460 | trap 2: the 1300 SYN is read beside it |
+| `lan-services` (no-raise clause) | `lowerSetTCPMSS` writes four bytes from option offset 0 (kind, length, value) instead of two bytes at offset 2, which escapes the kernel's MSS guard (child 21) | the 1300 SYN arrives as 1400 | trap 2: the 1460 SYN gives a present rewrite to read beside it |
 | `lan-services` | the WAN input term removed | the internet attempt completes | trap 2: the LAN attempt is the positive control |
+| `lan-services` | `ftp` removed from `system conntrack module` | the active-mode data connection fails | trap 2: the control connection still completes |
 | `road-warrior` | the CPE peer's preshared-key not installed | no handshake | - |
 | `road-warrior` | masquerade term removed | the web server sees 10.88.0.x or nothing | trap 4: the server has no route to 10.88.0.0/24 except through the CPE |
 | `mgmt-tunnel` | the cross-family tunnel state as today (child 20) | IPv6 ping lost while the SA is up | trap 5: counters read per direction |
 | `access-wholesale` | the LNS accepts proxy LCP instead of renegotiating | no second Configure-Request from the LNS | - |
 | `access-reconnect` | IKE keeps the address fixed at apply (today's defect, child 4) | ESP traffic does not resume | - |
-| `accel-ppp-renegotiation` | the client drops a Configure-Request in Opened (today's defect, child 12) | session ends instead of renegotiating | - |
 
 ## 🧪 TDD Test Plan
 
@@ -211,7 +229,7 @@ RFC rows of the child it depends on, so the RFC gaps cell is `-`.
 |------|------|-----------|--------|
 | `TestConversionRecordCoversSource` | `internal/le/interoplab/topology/check_conversion_test.go` | every source line in the record; a missing one refused | |
 | `TestLabValueSubstitution` | `internal/le/interoplab/topology/check_conversion_test.go` | placeholders replaced, nothing else changed; an unknown placeholder refused | |
-| `TestMSSVerdict` | `internal/le/interoplab/topology/check_lan_test.go` | AC-5 from capture fixtures | |
+| `TestMSSVerdict` | `internal/le/interoplab/topology/check_lan_test.go` | AC-5 from capture fixtures: the lowering clause and the no-raise clause judged separately | |
 | `TestReservationVerdict` | `internal/le/interoplab/topology/check_lan_test.go` | AC-3 from lease fixtures | |
 
 ### Boundary Tests (numeric inputs)
@@ -222,41 +240,38 @@ RFC rows of the child it depends on, so the RFC gaps cell is `-`.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `conversion` | `test/interop-topology/scenarios/` | an operator's VyOS configuration, converted, runs | |
-| `lan-services` | `test/interop-topology/scenarios/` | home LAN hosts get addresses and reach the internet | |
-| `road-warrior` | `test/interop-topology/scenarios/` | a laptop dials home over WireGuard | |
-| `mgmt-tunnel` | `test/interop-topology/scenarios/` | the ISP's management reaches the CPE over IPsec | |
-| `access-wholesale` | `test/interop-topology/scenarios/` | the line works on a wholesale network | |
-| `access-reconnect` | `test/interop-topology/scenarios/` | the line comes back after the ISP drops it | |
-| `accel-ppp-renegotiation` | `test/interop-pppoe/scenarios/` | wholesale renegotiation against third-party software | |
+| `conversion` | `test/interop-topology/scenarios/conversion/` | an operator's VyOS configuration, converted, runs | |
+| `lan-services` | `test/interop-topology/scenarios/lan-services/` | home LAN hosts get addresses and reach the internet | |
+| `road-warrior` | `test/interop-topology/scenarios/road-warrior/` | a laptop dials home over WireGuard | |
+| `mgmt-tunnel` | `test/interop-topology/scenarios/mgmt-tunnel/` | the ISP's management reaches the CPE over IPsec | |
+| `access-wholesale` | `test/interop-topology/scenarios/access-wholesale/` | the line works on a wholesale network | |
+| `access-reconnect` | `test/interop-topology/scenarios/access-reconnect/` | the line comes back after the ISP drops it | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `mgmt-tunnel` | `test/interop-topology/scenarios/` | strongSwan | IKEv2 EdDSA, narrowed selectors, IPv6 in IPv4 VTI, MOBIKE | |
-| `road-warrior` | `test/interop-topology/scenarios/` | wireguard-tools | WireGuard with PSK from config commit | |
-| `lan-services` | `test/interop-topology/scenarios/` | dhcpcd | DHCPv4 reservations across subnets | |
-| `accel-ppp-renegotiation` | `test/interop-pppoe/scenarios/` | accel-ppp | LCP renegotiation in Opened | |
+| `mgmt-tunnel` | `test/interop-topology/scenarios/mgmt-tunnel/` | strongSwan | IKEv2 EdDSA, narrowed selectors, IPv6 in IPv4 VTI, MOBIKE | |
+| `road-warrior` | `test/interop-topology/scenarios/road-warrior/` | wireguard-tools | WireGuard with PSK from config commit | |
+| `lan-services` | `test/interop-topology/scenarios/lan-services/` | dhcpcd; the FTP daemon of the web and FTP image | DHCPv4 reservations across subnets; active FTP through masquerade with the helper | |
+| `access-wholesale-accel-lns` | owned by child 12, topology suite | accel-ppp as LNS | LCP renegotiation in Opened against third-party software | |
 
 ## Goal Validation (umbrella goals)
 
 | Umbrella goal | Evidence this lab provides |
 |---------------|----------------------------|
-| 1. Ze implements every capability a home CPE of this kind uses, correctly | each capability row of the umbrella maps to a scenario clause: WAN (`access-up`, `access-reconnect`, `access-wholesale`, `accel-ppp-renegotiation`), LAN and firewall (`lan-services`), VPN (`road-warrior`, `mgmt-tunnel`), system (`conversion` starts Ze with SSH, users, NTP, name servers and the archive configured). IPv6 (child 8) and clamp-to-PMTU (child 9) are proven in their own specs |
-| 2. The mapping guide makes the conversion reproducible and reviewable | `conversion`: the record covers every source line, and the configuration produced by following the guide is the one every scenario runs |
-| 3. The lab proves the converted router works | every topology scenario runs the converted configuration, each with a recorded red walk |
+| 1. Ze implements every capability a home CPE of this kind uses, correctly | each capability row of the umbrella maps to a scenario clause: WAN (`access-up`, `access-reconnect`, `access-wholesale`, `access-wholesale-accel-lns`), LAN and firewall (`lan-services`), VPN (`road-warrior`, `mgmt-tunnel`), system (`conversion` starts Ze with SSH, users, NTP, name servers and the archive configured). IPv6 is proven by child 8's own tests, and clamp-to-PMTU by child 9's `TestTCPMSSClampToPMTU` and its scenario `pppoe-mss-pmtu` |
+| 2. The mapping guide makes the conversion reproducible and reviewable | `conversion`: the record covers every source line, and the configuration produced by following the guide is the one every home-CPE lab scenario runs |
+| 3. The lab proves the converted router works | every home-CPE lab scenario runs the converted configuration, each with a recorded red walk |
 
 ## Files to Modify
 - `docs/architecture/testing/interop.md` - the home-CPE lab section and inventory rows
-- `docs/guide/l2tp.md`, `docs/guide/pppoe.md`, `docs/guide/firewall.md`, `docs/guide/ipsec.md` - name the scenario that proves each claim where a page states one
-- `features/*.md` - Interop entries for the features each scenario proves, once green
+- `docs/guide/l2tp.md` (the LAC relay claim: `access-wholesale`), `docs/guide/pppoe.md` (the client claims: `access-reconnect`), `docs/guide/firewall.md` (masquerade and `tcp-mss-set`: `lan-services`), `docs/guide/ipsec.md` (VTI and MOBIKE: `mgmt-tunnel`), `docs/guide/configuration.md` (the conntrack section: `lan-services`) - each names the scenario that proves its claim
+- `features/*.md` - Interop entries for the features each scenario proves, once green (`./le feature check`)
 
 ## Files to Create
 - `test/interop-topology/cpe/` - `vyos.conf` (invented), `ze-cpe.conf` (the model's conversion), `conversion-record.md`, `lab-values`
 - `test/interop-topology/scenarios/{conversion,lan-services,road-warrior,mgmt-tunnel,access-wholesale,access-reconnect}/` - peer files
-- `test/interop-pppoe/scenarios/accel-ppp-renegotiation/` - accel-ppp configuration
-- `internal/le/interoplab/topology/register_lab.go`, `check_conversion.go`, `check_lan.go`, `check_vpn.go`, `check_wholesale.go` and tests
-- `internal/le/interoplab/pppoe/check_renegotiation.go` and its registry entry
+- `internal/le/interoplab/topology/register_lab.go`, `check_conversion.go`, `check_lan.go`, `check_vpn.go`, `check_wholesale.go` and their tests
 - `test/interop-topology/Dockerfile.webftp` - the web and FTP server image, registered
 
 ### Integration Checklist
@@ -265,7 +280,7 @@ RFC rows of the child it depends on, so the RFC gaps cell is `-`.
 | YANG schema | N-A | no Ze config added |
 | YANG validation constraints | N-A | none |
 | YANG custom validators | N-A | none |
-| CLI commands/flags | N-A | verbs exist (child 18, PPPoE suite) |
+| CLI commands/flags | N-A | verbs exist (child 18) |
 | CLI grammar | N-A | none |
 | Editor autocomplete | N-A | none |
 | Functional test for new RPC/API | N-A | none |
@@ -299,25 +314,25 @@ RFC rows of the child it depends on, so the RFC gaps cell is `-`.
 ## Implementation Steps
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- `conversion` scenario with the CPE file, record and substitution; checker fails until the record covers the source
-2. **Phase: lan-services** -- after children 2 and 21 (helper clause after child 3)
+2. **Phase: lan-services** -- after children 2, 21 and 3
 3. **Phase: road-warrior** -- with `spec-wireguard-runtime-proof`
 4. **Phase: access-reconnect** -- after child 4
 5. **Phase: mgmt-tunnel** -- after children 5, 20, 6 and 4
-6. **Phase: accel-ppp-renegotiation** -- after child 12
-7. **Phase: access-wholesale** -- after children 14 and 15
-8. **Phase: Goal Validation** -- every scenario green in one run on the full-suite host, red walks recorded
+6. **Phase: access-wholesale** -- after children 14 and 15
+7. **Phase: Goal Validation** -- every home-CPE lab scenario green in one run, `access-wholesale-accel-lns` included once child 12 lands it, red walks recorded
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | every scenario of the umbrella's table has a home: here, child 19, or a named spec |
+| Completeness | every scenario of the umbrella's table has a home: here, child 19, child 12, or a named spec |
 | Correctness | every absence clause has its positive control |
 | Rule: interop-and-goal-validation | red walks forced at producers with harness-built images |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Seven scenarios | each green through its verb |
+| Six scenarios owned here | each green through `./le test integration interop-topology <scenario>` |
+| Composed scenarios | child 19's three and `access-wholesale-accel-lns` green with the converted CPE file |
 | Red walks | recorded with image IDs |
 
 ### Security Review Checklist
@@ -336,13 +351,13 @@ None: `grep -rn 'home-cpe\|road-warrior\|masquerade.*proof\|MSS.*Ze in the path'
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| One converted CPE file for every scenario | a hand-written CPE per scenario | the lab must prove the converted router, and a per-scenario file hides conversion gaps |
-| `accel-ppp-renegotiation` in the PPPoE suite | move it to topology | it needs no second link or Ze node; the PPPoE suite already pairs Ze client and accel-ppp |
+| One converted CPE file for every home-CPE lab scenario | a hand-written CPE per scenario | the lab must prove the converted router, and a per-scenario file hides conversion gaps |
+| accel-ppp renegotiation proven by child 12's `access-wholesale-accel-lns` | a direct accel-ppp scenario in the PPPoE suite | no accel-ppp setting renegotiates LCP on a direct PPPoE session (child 12, A-4); behind a LAC accel-ppp ignores proxy LCP and renegotiates |
 | Synthetic VyOS source | the owner's configuration | the umbrella keeps the owner's configuration out of the repository |
 
 ## Known Limitations
 
-- IPv6 on the WAN and LAN (child 8) and clamp-to-PMTU (child 9) are proven in those specs; the converted configuration carries no IPv6 WAN until child 8 lands.
+- IPv6 on the WAN and LAN (child 8) and clamp-to-PMTU (child 9, `pppoe-mss-pmtu`) are proven in those specs; the converted configuration carries no IPv6 WAN until child 8 lands, and it uses a fixed `tcp-mss-set 1400`, so `lan-services` does not exercise the route-MTU action.
 
 ## Checklist
 
@@ -359,7 +374,7 @@ None: `grep -rn 'home-cpe\|road-warrior\|masquerade.*proof\|MSS.*Ze in the path'
 - [ ] Every user story has a working path (N-A: tooling)
 - [ ] Wiring Test table complete
 - [ ] Every A-N confirmed or broken
-- [ ] The targeted tests for what changed pass: `./le job run label unit-pkg command go test ./internal/le/interoplab/topology/` for the checkers, each scenario through `./le test integration interop-topology <scenario>` (and `./le test deployment docker-pppoe-accel` for `accel-ppp-renegotiation`) on the full-suite host, and `./le verify changed` over the closing commits
+- [ ] The targeted tests for what changed pass: `./le job run label unit-pkg command go test -count=1 ./internal/le/interoplab/topology/` for the checkers, each scenario through `./le test integration interop-topology <scenario>`, and `./le verify changed` over the closing commits
 
 ### TDD
 - [ ] Tests written

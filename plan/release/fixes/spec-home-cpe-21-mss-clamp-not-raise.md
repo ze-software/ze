@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-02 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 21).
 
@@ -24,19 +24,29 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 The umbrella records "`tcp-mss` and `tcp-mss-set` write the value without
 comparing; a clamp writes min(current, value)", and asked for P1. Read at the
 producer, Ze does emit an unconditional write (`lowerSetTCPMSS`,
-`internal/plugins/firewall/nft/lower_linux.go` l.1416: an immediate into a
+`internal/plugins/firewall/nft/lower_linux.go`: an immediate into a
 register, then an `exthdr` TCP-option write of kind 2, offset 2, length 2). But
 the kernel that executes that write compares first. Linux
 `net/netfilter/nft_exthdr.c`, `nft_exthdr_tcp_set_eval`, read from the
-upstream tree on 2026-10-31:
+upstream tree on 2026-10-31 and re-read at the stable tag `v7.3` (the runtime
+kernel Ze builds, `kernel.version` in the runtime-kernel cache) on 2026-11-02:
 
 > `case TCPOPT_MSS:` / `/* increase can cause connection to stall */` /
 > `if (ntohs(old.v16) <= ntohs(new.v16)) return;`
 
+The guard sits inside the `case 2:` arm of `switch (priv->len)`, so it applies
+only to a two-byte write. The `case 4:` arm compares old and new for equality
+and nothing else. The no-raise outcome therefore depends on the expression Ze
+installs: the kernel guards a two-byte write of the MSS value, and Ze's
+lowering is what makes the write two bytes. This is why the no-raise proof has
+a discriminating break in Ze's code (TDD Test Plan) and is not a
+`kernel-producer` case: that escape is for an outcome no state Ze installs
+decides, and here the installed write length decides it.
+
 So on the nftables backend the stack already writes min(current, value): a SYN
 carrying MSS 1300 through `tcp-mss-set 1400` leaves at 1300. The VPP backend
-refuses the action (`internal/plugins/firewall/vpp/verify.go` l.353). No path
-raises an MSS. Per `ai/META-DECISIONS.md`, a requirement the operating system
+refuses the action (`internal/plugins/firewall/vpp/verify.go`, the
+`firewall.SetTCPMSS` case of `verifyAction`). No path raises an MSS. Per `ai/META-DECISIONS.md`, a requirement the operating system
 meets on Ze's behalf still owes a test that checks the OS behaviour on the
 state Ze installs; until it exists this is a gap in testing, not in
 correctness. Priority is therefore P2, not P1, and the umbrella's capability
@@ -46,7 +56,10 @@ row ("rewrites rather than clamps") should be corrected by its owner.
 
 1. Prove, on Ze's kernel, that the rule Ze installs for `tcp-mss` (policy
    routing) and `tcp-mss-set` (firewall) lowers a larger MSS to the configured
-   value and leaves a smaller one alone, for IPv4 and IPv6.
+   value and leaves a smaller one alone, for IPv4 and IPv6. The two halves are
+   separate proofs with separate breaks: the lowering proof (AC-1) goes red when
+   the rule is absent, and the no-raise proof (AC-2) goes red when Ze's lowering
+   writes four bytes instead of two, which escapes the kernel's guard.
 2. Make every description say what the stack does: a clamp that never raises.
    The policy-routing leaf says today "Ze writes this value into the TCP MSS
    option ... and it does not read the value already there", which a reader
@@ -57,9 +70,9 @@ row ("rewrites rather than clamps") should be corrected by its owner.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/guide/firewall.md` l.303 - "`tcp-mss-set` | Clamp TCP MSS | `tcp-mss-set 1400;`"
+- [ ] `docs/guide/firewall.md`, the term actions table, row `tcp-mss-set` - "`tcp-mss-set` | Clamp TCP MSS | `tcp-mss-set 1400;`"
   → Constraint: correct as written; gains one sentence that a smaller MSS is left alone and only SYN segments carry the option
-- [ ] `docs/guide/policy-routing.md` l.72, l.185-188 - "`tcp-mss N` | Clamp TCP MSS to N bytes"
+- [ ] `docs/guide/policy-routing.md`, the actions table and the MSS example - "`tcp-mss N` | Clamp TCP MSS to N bytes"
   → Constraint: correct as written; same sentence added
 - [ ] `ai/doors/system.md` and the firewall door - before the first code edit
 
@@ -69,17 +82,17 @@ row ("rewrites rather than clamps") should be corrected by its owner.
   → Constraint: RFC 6691 Section 2: "When calculating the value to put in the TCP MSS option, the MTU value SHOULD be decreased by only the size of the fixed IP and TCP headers and SHOULD NOT be decreased to account for any possible IP or TCP options" - the operator's value for a 1492-byte PPPoE MTU is 1452 (IPv4) and 1432 (IPv6), which the guide's example states
 
 **Key insights:**
-- The kernel guard is unconditional for kind 2; no nft expression can raise an MSS through `exthdr` set.
+- The kernel guard covers a two-byte write of option kind 2 only (the `case 2:` arm of `switch (priv->len)`). A four-byte write over the same option (kind, length and value from offset 0) meets no guard and can raise the MSS. Ze's lowering writes two bytes at offset 2, so the installed rule never raises.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/firewall/nft/lower_linux.go` - `lowerSetTCPMSS` (l.1416) emits the write with no comparison; its comment says "clamps"
-- [ ] `internal/plugins/policyroute/translate.go` - `buildActions` (l.251) appends `firewall.SetTCPMSS` when `TCPMSS > 0`, before any terminal action
-- [ ] `internal/plugins/policyroute/yang/ze-policyroute-conf.yang` l.246-258 - leaf `tcp-mss` description and help "Rewrite the TCP MSS option to this value in bytes."
-- [ ] `internal/component/firewall/yang/ze-firewall-conf.yang` l.466-474 - leaf `tcp-mss-set`, help "Clamp TCP Maximum Segment Size option to the given value"
-- [ ] `internal/component/firewall/validate.go` l.387 - family check (ip, ip6, inet)
-- [ ] `internal/plugins/firewall/vpp/verify.go` l.353 - VPP refusal
+- [ ] `internal/plugins/firewall/nft/lower_linux.go` - `lowerSetTCPMSS` emits the write with no comparison; its comment says "clamps"
+- [ ] `internal/plugins/policyroute/translate.go` - `allocator.buildActions` appends `firewall.SetTCPMSS` when `TCPMSS > 0`, before any terminal action
+- [ ] `internal/plugins/policyroute/yang/ze-policyroute-conf.yang` - leaf `tcp-mss` description and help "Rewrite the TCP MSS option to this value in bytes."
+- [ ] `internal/component/firewall/yang/ze-firewall-conf.yang` - leaf `tcp-mss-set`, help "Clamp TCP Maximum Segment Size option to the given value"
+- [ ] `internal/component/firewall/validate.go` - `validateAction`, the `SetTCPMSS` case: family check (ip, ip6, inet)
+- [ ] `internal/plugins/firewall/vpp/verify.go` - `verifyAction`, the `firewall.SetTCPMSS` case: VPP refusal
 - [ ] `test/policy/policy-tcp-mss.ci` - asserts the rule is installed, not the packet effect
 - [ ] Linux `net/netfilter/nft_exthdr.c` `nft_exthdr_tcp_set_eval` - the guard quoted above
 
@@ -108,7 +121,7 @@ row ("rewrites rather than clamps") should be corrected by its owner.
 - Config: `policy-route ... tcp-mss N`, `firewall table ... term ... tcp-mss-set N`.
 
 ### Transformation Path
-1. Parse into `firewall.SetTCPMSS{Size}` (policy routing through `buildActions`, firewall through `config.go` l.419).
+1. Parse into `firewall.SetTCPMSS{Size}` (policy routing through `buildActions`, firewall through the `tcp-mss-set` branch of `parseThenBlock` in `config.go`).
 2. Lower to nft `immediate` plus `exthdr` TCP-option write.
 3. Kernel: the write is skipped when the packet's MSS is already less than or equal to the value.
 
@@ -136,7 +149,7 @@ row ("rewrites rather than clamps") should be corrected by its owner.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | Ze's kernel (7.2.9, 7.3 runtime builds) carries the MSS guard in `nft_exthdr_tcp_set_eval` | upstream source read 2026-10-31; the guard predates every kernel Ze builds | Ze raises MSS: the spec becomes the P1 fix (lower a `tcp option maxseg size gt N` comparison before the write) | the netns test of AC-2 on Ze's kernel | unvalidated |
+| A-1 | Ze's kernel (7.2.9, 7.3 runtime builds) carries the MSS guard in `nft_exthdr_tcp_set_eval`, for two-byte writes only | upstream source read 2026-10-31; `v7.3` stable tag read 2026-11-02 (same guard, inside `case 2:`) | Ze raises MSS: the spec becomes the P1 fix (lower a `tcp option maxseg size gt N` comparison before the write) | the netns test of AC-2 on Ze's kernel | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -190,7 +203,21 @@ row ("rewrites rather than clamps") should be corrected by its owner.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `TestTCPMSSSetClampsNeverRaises` | `internal/plugins/firewall/nft/integration_linux_test.go` | AC-1..AC-3, IPv4 and IPv6, two netns joined through a forwarding netns, SYN crafted with a raw socket, MSS read on the far side. Red phase: lower a set without the kernel's guard is not possible, so the discriminating break is the configured value (1500 must not raise 1300); a second break removes the rule and AC-1 goes red | |
+| `TestTCPMSSSetClampsNeverRaises` | `internal/plugins/firewall/nft/integration_linux_test.go` | AC-1..AC-3, IPv4 and IPv6, two netns joined through a forwarding netns, SYN crafted with a raw socket, MSS read on the far side. Two proofs, two breaks (below) | |
+
+**Red walks, one per proof.** Each break is made in Ze's producing code, the
+test is run red on Ze's kernel, then the code is restored and the run is green.
+No `RFC requirement:` tag is involved (no requirement row), so the result is
+recorded in this spec's closure, not through `./le rfc record`.
+
+| Proof | Break (producer) | Expected red | Why it discriminates |
+|-------|------------------|--------------|----------------------|
+| Lowering (AC-1) | the term's `SetTCPMSS` action is not lowered (`lowerAction` returns no expressions for it) | the 1460 SYN arrives as 1460 | a correct stack writes 1400; only an absent write leaves 1460 |
+| No raise (AC-2) | `lowerSetTCPMSS` writes four bytes from option offset 0 (kind 2, length 4, the value) instead of two bytes at offset 2 | the 1300 SYN arrives as 1400 | the four-byte write takes the `case 4:` arm of `nft_exthdr_tcp_set_eval`, which has no MSS guard, so only the two-byte shape Ze installs keeps 1300 |
+
+The earlier proposal, changing the configured value from 1400 to 1500, is not
+a break: 1300 stays 1300 under both values on a correct stack and on a broken
+one, so it cannot turn AC-2 red.
 | `policy-tcp-mss-clamp` | `test/policy/policy-tcp-mss-clamp.ci` | AC-4 through config | |
 
 ### Interop Tests (Scope: protocol)
@@ -246,7 +273,7 @@ row ("rewrites rather than clamps") should be corrected by its owner.
 | 14 | Prometheus counters? | No | none |
 | 15 | Registered inventory changed? | No | none |
 | 16 | Doc source anchors on changed files? | Yes | `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-21-mss-clamp-not-raise.md` |
-| 17 | Existing examples? | Yes | `policy-routing.md` l.72 example value checked against RFC 6691 arithmetic |
+| 17 | Existing examples? | Yes | the `policy-routing.md` MSS example value checked against RFC 6691 arithmetic |
 
 ## Implementation Steps
 
@@ -313,7 +340,8 @@ No journal row records this (grep of `plan/journal/` for `tcp-mss`, `TCPMSS`, `M
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] Targeted tests pass: `./le test unit plugins`, `./le test integration firewall` and `./le test qemu all` scoped to `TestTCPMSSSetClampsNeverRaises` on Ze's kernel, and `./le test policy` for `policy-tcp-mss-clamp`; then `./le verify changed` over the closing commits
+- [ ] Targeted tests pass: `./le test unit plugins`; `./le test integration firewall`; on Ze's kernel, `./le test qemu run kernel tmp/kernel/build/vmlinuz packages "nftables iproute2 libcap" timeout 1200s command 'go test -tags integration -count=1 -run TestTCPMSSSetClampsNeverRaises ./internal/plugins/firewall/nft/'`; and `./le test policy` for `policy-tcp-mss-clamp`; then `./le verify changed` over the closing commits
+- [ ] Both red walks of the TDD Test Plan run red and green, outputs pasted
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

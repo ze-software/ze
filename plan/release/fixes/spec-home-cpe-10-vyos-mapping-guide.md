@@ -10,7 +10,7 @@
 | Depends | - (rows that name a child carry that child's state; they change when the child lands) |
 | Phase | 0/2 |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-02 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 10).
 
@@ -48,11 +48,11 @@ The page holds:
 ### Architecture Docs
 - [ ] `plan/release/fixes/spec-home-cpe-0-umbrella.md` "Conversion by the model", "Capabilities a home FTTP CPE needs"
   → Decision: the model reads the redacted VyOS configuration and writes Ze configuration with placeholders; the owner fills secrets on the router; passwords are re-entered as bcrypt.
-- [ ] `docs/guide/configuration.md` l.2546
+- [ ] `docs/guide/configuration.md`, the `ze config validate` paragraph on plugin verifiers
   → Constraint: "It does not run under `ze config validate`, which reads the schema and does not run a plugin's config verifier." The guide's check therefore has a second step that starts Ze with the file.
 - [ ] `ai/rules/writing.md`, `ai/rules/documentation.md`
   → Constraint: every factual statement carries a `<!-- source: -->` anchor to the YANG or the producer.
-- [ ] `docs/guide/static-routes.md` l.69, l.83
+- [ ] `docs/guide/static-routes.md`, the two examples that name `interface pppoe0`
   → Constraint: its `interface pppoe0` example does not resolve today (umbrella doc defect, owned by child 1); the guide must not repeat it.
 
 **Key insights:**
@@ -62,15 +62,15 @@ The page holds:
 ## Current Behavior (MANDATORY)
 
 **Source files read (each row of the mapping cites one):**
-- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `list pppoe-client` (l.1708: `source-interface`, `authentication` `username` `password` `service-name` `ac-name`, `no-default-route`, `route-priority`; `uses interface-common`, which gives `mtu` l.27, `mac` l.74); the description says the OS name is `pppN`; `list ethernet` (l.875) with `offload` `gro` `gso` `tso` (l.107-145) and `mac` `address`/`match`; `list bridge` (l.946, `member` l.972, `uses interface-unit`); unit `ipv4 address` (l.295), `ipv6 address` (l.439); `list wireguard` (l.1530: `listen-port`, `private-key`, `peer` with `public-key`, `preshared-key`, `allowed-ips`, `persistent-keepalive`).
-- [ ] `internal/component/firewall/yang/ze-firewall-conf.yang` - `table` with `family` (`inet`, `ip`, `ip6`, ...), `chain` `type` (`filter`, `nat`, `route`), `hook` (`input`, `postrouting`, ...), `policy` (`accept`, `drop` only, l.53-54); `term` `from` (`protocol` enum with `icmpv6` l.76, `source-address`/`destination-address` accepting `@set`, ports accepting `@set` l.128, `input-interface`/`output-interface` with a trailing `*` prefix match l.196-205, `connection-state` new/established/related/invalid); `then` (`accept`, `drop`, `reject`, `masquerade` l.355, `tcp-mss-set` l.466, `log` l.488, `counter`); `set` (l.834, types `ipv4`, `ipv6`, `inet-service`, ...); `global-options` (l.564: `all-ping`, `broadcast-ping`, `syn-cookies`, `receive-redirects`, `send-redirects`, `source-validation`, `log-martians`, `ipv6-receive-redirects`, `ipv6-src-route`; no IPv4 source-route leaf).
+- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `list pppoe-client` (`source-interface`, `authentication` `username` `password` `service-name` `ac-name`, `no-default-route`, `route-priority`; `uses interface-common`, which gives `mtu` and `mac`); the description says the OS name is `pppN`; `list ethernet` with `offload` `gro` `gso` `tso` and `mac` `address`/`match`; `list bridge` (`member`, `uses interface-unit`); unit `ipv4 address`, `ipv6 address`; `list wireguard` (`listen-port`, `private-key`, `peer` with `public-key`, `preshared-key`, `allowed-ips`, `persistent-keepalive`).
+- [ ] `internal/component/firewall/yang/ze-firewall-conf.yang` - `table` with `family` (`inet`, `ip`, `ip6`, ...), `chain` `type` (`filter`, `nat`, `route`), `hook` (`input`, `postrouting`, ...), `policy` (`accept`, `drop` only); `term` `from` (`protocol` enum with `icmpv6`, `source-address`/`destination-address` accepting `@set`, ports accepting `@set`, `input-interface`/`output-interface` with a trailing `*` prefix match, `tcp-flags`, `connection-state` new/established/related/invalid); `then` (`accept`, `drop`, `reject`, `masquerade`, `tcp-mss-set`, `log`, `counter`); `set` (types `ipv4`, `ipv6`, `inet-service`, ...); `global-options` (`all-ping`, `broadcast-ping`, `syn-cookies`, `receive-redirects`, `send-redirects`, `source-validation`, `log-martians`, `ipv6-receive-redirects`, `ipv6-src-route`; no IPv4 source-route leaf).
 - [ ] `internal/component/sysctl/yang/ze-sysctl-conf.yang` - `sysctl setting <name> value`.
 - [ ] `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` - `service dhcp-server` `listen-interface`, `shared-network` `subnet` `prefix`, `range` `start` `stop`, `lease-time`, `default-router`, `dns-server`, `domain-name`, `static-mapping` `mac-address` `ip-address`; no server-identifier, no subnet-id.
 - [ ] `internal/component/pki/yang/ze-pki-conf.yang` - `pki ca <n> certificate`, `crl`; `pki certificate <n> certificate`, `intermediate`, `private key`.
-- [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - `vpn ipsec interface` (l.72: fills `local-address` of every peer that names none), `esp-group` `pfs` `enable`/`disable` (l.353, default enable), `proposal` `encryption` (enum `aes128gcm` l.18), `ike-group`, `site-to-site peer` (`ike-group`, `esp-group`, `local-address`, `remote-address`, `authentication` `mode`, `x509`, `vti` `bind` l.1612).
+- [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - `vpn ipsec interface` (fills `local-address` of every peer that names none), `esp-group` `pfs` `enable`/`disable` (default enable), `proposal` `encryption` (enum `aes128gcm`), `ike-group`, `site-to-site peer` (`ike-group`, `esp-group`, `local-address`, `remote-address`, `authentication` `mode`, `x509`, `vti` `bind`).
 - [ ] `internal/component/ssh/yang/ze-ssh-conf.yang` - `environment ssh server <n>` with `zt:listener` (`ip`, `port`); `public-keys` augmenting `system authentication user` (`type`, `key`).
 - [ ] `internal/component/authz/yang/ze-authz-conf.yang` - `system authentication user <n> password` (`ze:bcrypt`), `plaintext-password`, `profile`.
-- [ ] `internal/component/config/system/yang/ze-system-conf.yang` - `system host`, `domain`, `name-server`, `conntrack module`, `update-check` ("On gokrazy, gokrazy manages the image updates.", l.810), `commit-revisions` (l.903), `archive` (l.917).
+- [ ] `internal/component/config/system/yang/ze-system-conf.yang` - `system host`, `domain`, `name-server`, `conntrack module`, `update-check` ("On gokrazy, gokrazy manages the image updates."), `commit-revisions`, `archive`.
 - [ ] `internal/plugins/ntp/yang/ze-ntp-conf.yang` - `environment ntp server <n> address`.
 - [ ] `internal/component/api/grpc/yang/ze-grpc-conf.yang` - `environment api-server grpc server <n>` (`zt:listener`, `tls-cert`, `tls-key`).
 - [ ] `internal/component/telemetry/exporter/yang/ze-telemetry-conf.yang` - `telemetry prometheus server <n>`, `netdata` `enabled`, collectors.
@@ -101,7 +101,7 @@ today's tree; the child column names the spec that changes the row.
 | `interfaces pppoe pppoeN source-interface`, `authentication username/password`, `mtu`, `no-default-route` | `interface pppoe-client <name>` with `source-interface`, `authentication username`, `password` (placeholder), `mtu`, `no-default-route` | the name is a config key; the kernel device is `pppN` | 1 |
 | references to `pppoe0` in firewall and NAT | `input-interface ppp*` / `output-interface ppp*` | trailing `*` prefix match until child 1 resolves the configured name | 1 |
 | static default route `interface pppoe0` | not expressible until child 1; interim: drop `no-default-route` and set `route-priority` to the VyOS distance | meaning preserved (default via the session), flagged in the record | 1 |
-| `ip adjust-mss` on the PPPoE interface | firewall term `then tcp-mss-set` on SYN in forward | Ze rewrites rather than clamps until child 21; `clamp-mss-to-pmtu` has no form until child 9 | 21, 9 |
+| `ip adjust-mss <N>` on the PPPoE interface | a filter chain at hook postrouting, term `from output-interface ppp*` and `tcp-flags` SYN set and RST clear, `then tcp-mss-set <N>` | VyOS writes the rule in `raw` chain `VYOS_TCP_MSS` at postrouting priority -300 with an explicit `size N+1-65535` match (`vyos.ifconfig.Interface.set_tcp_ipv4_mss`); Ze writes no comparison and relies on the kernel guard, which skips a two-byte MSS write that would raise the value, so both clamp and neither raises (child 21 proves it on the installed rule). Postrouting, not forward, keeps locally originated SYNs and SYN-ACKs clamped as VyOS does. `clamp-mss-to-pmtu` has no form until child 9 | 1, 9 |
 | `interfaces bridge brN member interface`, `address` | `interface bridge <n>` `member`, unit `ipv4 address` / `ipv6 address` | | - |
 | `interfaces ethernet ethN hw-id`, `offload gro/gso/tso` | `interface ethernet <n>` `mac match`, `offload gro/gso/tso` | | - |
 | `firewall ipv4/ipv6 input filter` rules | `firewall table <n> family ip/ip6/inet` `chain <n> type filter hook input` with ordered `term`s | VyOS rule numbers become term names in order | - |
@@ -114,7 +114,7 @@ today's tree; the child column names the spec that changes the row.
 | `firewall group address-group/network-group/port-group` | `set <n> type ipv4/ipv6/inet-service` in the same table (interval flag for networks), referenced as `@<n>` | a set is per table: declare it in every table that uses it | - |
 | `firewall global-options` leaves | same names under `firewall global-options` | `ip-src-route` has no leaf: `sysctl setting net.ipv4.conf.all.accept_source_route value 0` | - |
 | `nat source rule outbound-interface name pppoe0 translation address masquerade` | table `family ip`, chain `type nat hook postrouting`, term `from output-interface ppp*` `then masquerade` | | 1 |
-| `system conntrack modules` | `system conntrack module` | helpers not built into Ze's kernel | 3 |
+| `system conntrack modules` | `system conntrack module` | helpers are not built into Ze's kernel until child 3 lands (owner decision Option A: built in, assigned only when listed); `nfs` and `sqlnet` are dropped | 3 |
 | `service dhcp-server shared-network-name subnet range start/stop`, `static-mapping mac ip-address`, `option default-router/name-server/domain-name`, `lease` | `service dhcp-server shared-network <n> subnet <p>` `range` `start` `stop`, `static-mapping` `mac-address` `ip-address`, `default-router`, `dns-server`, `domain-name`, `lease-time`, `listen-interface` | dropped: `subnet-id`, `server-identifier`; reservations in a later subnet misbehave until child 2 | 2 |
 | `interfaces wireguard wgN address, private-key, port, peer public-key/preshared-key/allowed-ips/persistent-keepalive` | `interface wireguard <n>` `listen-port`, `private-key`, `peer` `public-key`, `preshared-key`, `allowed-ips`, `persistent-keepalive`; unit address | keys are placeholders | - |
 | `pki ca <n> certificate`, `pki certificate <n> certificate/private key` | `pki ca <n> certificate`, `pki certificate <n> certificate`, `private key` | VyOS stores base64 bodies; the Ze leaf takes PEM inline, so the model adds the BEGIN/END lines; the private key is a placeholder | 5 for Ed25519 |
@@ -133,6 +133,44 @@ today's tree; the child column names the spec that changes the row.
 | `container` (monitoring) | `telemetry prometheus server <n>` with `netdata enabled` | Netdata-named metrics replace the container | - |
 | `system update-check` | dropped | on gokrazy, gokrazy manages image updates | - |
 | `policy prefix-list/route-map` not referenced | dropped | unused BGP policy | - |
+
+### VyOS source inspected
+
+YANG validation proves a Ze form is accepted; it cannot prove the form does
+what the VyOS construct did. The VyOS side of each row is therefore read in
+VyOS's own source, not inferred from its CLI. Read for this spec: vyos-1x,
+branch `rolling`, `git describe` `vyos/1.5dev0-5851-gdb29bdc89` (commit of
+2026-10-17), local checkout `github.com/vyos/vyos-1x`. Files read so far:
+`python/vyos/ifconfig/interface.py` (`set_tcp_ipv4_mss`, `set_tcp_ipv6_mss`),
+`data/vyos-firewall-init.conf` (chain `VYOS_TCP_MSS`),
+`src/conf_mode/system_conntrack.py` (`module_map`),
+`data/templates/conntrack/nftables-helpers.j2`. Implementation reads the
+producer of every other row the same way and names it in the guide, with the
+same version line; a row whose VyOS producer was not read carries no class.
+
+### Rewrite classification
+
+| Class | Meaning | What the guide does |
+|-------|---------|---------------------|
+| equivalent | the Ze form produces the behavior the VyOS producer does, read at both producers | states the mapping |
+| conditional | equivalent only while a stated condition holds (a child not yet landed, a value in a range) | states the condition and the child that removes it |
+| behavior change | the Ze form differs in an operator-visible way | states what changes and what the operator loses or must do |
+
+Classes of the rows whose VyOS producer is read above, and of the rows whose
+difference the table already states; implementation classifies the rest:
+
+| Row | Class | Reason |
+|-----|-------|--------|
+| `ip adjust-mss <N>` | equivalent | both clamp to N on SYN and SYN-ACK leaving the interface, in postrouting, and neither raises (VyOS by its range match, Ze by the kernel's two-byte guard) |
+| `adjust-mss clamp-mss-to-pmtu` | conditional | no Ze form until child 9 |
+| `system conntrack modules` | conditional | equivalent for ftp, h323, pptp, sip, tftp once child 3 lands (same ports as VyOS `module_map`); `nfs`, `sqlnet` dropped, a behavior change (no user-space helper in Ze) |
+| references to `pppoe0` (`ppp*` prefix match) | conditional | matches every PPP device, not only the named one, until child 1 |
+| static default route `interface pppoe0` | behavior change until child 1 | the default route comes from the session (`route-priority`) instead of a static route |
+| `system login ... encrypted-password` | behavior change | the hash is not carried; the owner re-enters the password as bcrypt |
+| `service ssh listen-address 0.0.0.0` and `::` | behavior change | one listener on `::` instead of two |
+| `service https api keys` | behavior change | REST automation moves to gRPC over TLS |
+| `container` (monitoring) | behavior change | Netdata-named metrics replace the container |
+| site-to-site peer `local-address` | conditional | follows a dynamic WAN address only after child 4 |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -199,7 +237,8 @@ today's tree; the child column names the spec that changes the row.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | `docs/guide/migrating-from-vyos.md` | holds the feeding procedure, the secret path list, the placeholder form, the mapping table, the dropped list, the record format, the check and the interim rewrites |
-| AC-2 | each mapping row | carries a `<!-- source: -->` anchor to the YANG file that holds its Ze form; `./le docs check` (or the anchor check) passes |
+| AC-2 | each mapping row | carries a `<!-- source: -->` anchor to the YANG file that holds its Ze form; `./le doc check all` passes |
+| AC-7 | each mapping row | carries its rewrite class (equivalent, conditional, behavior change) from the classification table, and every behavior change names what the operator loses; the page names the VyOS version and the vyos-1x files the rows were read from |
 | AC-3 | the worked example | its Ze side passes `ze config validate` in `vyos-guide-example.ci` |
 | AC-4 | a row with an interim rewrite | names the child that removes it |
 | AC-5 | `docs/guide/README.md` | lists the page |
@@ -319,7 +358,7 @@ None: `grep -rn -i 'vyos' plan/journal/` finds no open row.
 - [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-6 all demonstrated
+- [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path (N-A: docs)
 - [ ] Wiring Test table complete
 - [ ] The targeted tests for what changed pass: `./le test functional parse` for `vyos-guide-example.ci`, `./le doc check all` for the page's anchors, and `./le verify changed` over the closing commits
