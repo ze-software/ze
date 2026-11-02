@@ -441,3 +441,681 @@ The owner has been asked for another copy or a host snapshot. AC-27 remains open
 Recovery or a recurrence observed across the build/install boundaries is needed
 to identify the cause. A successful rebuild or a new integrity check cannot,
 by itself, demonstrate repair of the recorded incident.
+
+## Reconciled design candidate — 2026-11-02
+
+This section is a design candidate, not design approval or implementation evidence.
+It supersedes the earlier AC wording and test plan for future work, while keeping
+the original rows and evidence intact. The owner requested full-spec reconciliation;
+no owned obligation is removed, transferred, or declared done here. The 138-entry
+table is an ownership index, not a count of distinct defects or completed proofs.
+
+### Execution constraint
+
+Development and testing take place in the main checkout only, never in a worktree,
+export, or copy. No agent runs any `./le verify` command, including `changed`.
+GitHub CI/CD verifies a pushed commit. Agent evidence consists of directly run,
+scoped tests of the reached packages, tags, and named functional cases. A build
+broken by another session is reported and waits for that cause to clear; it does
+not move to another tree. These current owner rules supersede contrary instructions
+in the historical criteria, journal fixes, skills, and pages cited above.
+
+This reconciliation ran no builds or tests and made no code, test, or journal
+change. The parent's upstream check reported zero commits behind. Source inspection
+is not an executed proof. Retirement of worktree-based testing does not erase the
+owned reclamation incidents: research their current resource owner and provide an
+owner-authorized reclamation route without starting verification or touching foreign
+work. Silence, a timeout, or an old marker never grants ownership of a process.
+
+### Evidence boundary and current-source audit
+
+`S` means the producing function was read in this editing phase after locating its
+symbol with `gopls`. `R` means an earlier audit report or parent observation is a
+lead awaiting producer verification in the implementation audit. `P` means an
+executed, retained proof; this phase adds none. A reported source repair remains
+implemented-but-unverified, not done. The earlier Direct observations table retains
+its own attribution and does not become a new observation by repetition here.
+
+| Requirement | Audit status | Producer and observation | What would settle it |
+|-------------|--------------|--------------------------|----------------------|
+| Guarded removal | Partial, S | `internal/le/commit/script.go` `renderBlock` calls `renderWorkingTreeRemoval` after publication; the latter compares the staged working copy with the removed entry and preserves differing content or mode | P-5 through the generated script, including publication failure and concurrent edits |
+| Late approval | Missing publication route, S | `internal/le/commit/rfcchange.go` `rfcChangeProblems` emits a trailer only when a recorded row matches a current change; `internal/le/commit/owed_trailers.go` `answering.answered` accepts `acts.approved[subject]` | P-30 must prove change binding and ordering, not only matching unit names |
+| Closure review content | Partial, S | `internal/le/commit/review.go` `checkReviewSelected` reads selected hunks but otherwise calls `reviewHash` on the working-tree file, including historical spec-work paths | P-29 compares the review with the actual prospective committed content |
+| Generated review identity | Partial, S/R | `reviewCheckCommand` in that file emits spec and file words, not an explicit review artifact identity; ambient-session selection is the earlier audit report | Trace the action and artifact resolver, then P-29 across two harness sessions |
+| Owner attribution | Partial, S | `internal/le/rfc/coverage_ruling.go` `ownerRuledMove` compares identifiers extracted from annotation and approval prose, and requires at least one matching unit | P-9 must distinguish an authenticated owner act from matching authored text |
+| Editor timeout | Partial, S | `internal/component/cli/testing/runner.go` `testBudget` reads timeout/headroom; `runTestCase` returns on the timer without stopping or joining `runTestCaseWorker` | P-2 proves cancellation and worker completion before resources are released |
+| Editor dimensions | Partial, S/R | `runTestCaseIn` consumes width/height options when present; earlier audit reports that parsing discards those dimensions and waits | Trace parser-to-consumer delivery before deciding where to repair P-2 |
+| Stress capture name | Missing bound, S | `internal/le/test/stressrepro/run.go` `runSlug` joins every sanitized selector with no length limit | P-21 uses the recorded 91-selector burst and collision cases |
+| Other owned surfaces | Unverified, R | The package leads below and original journal producers identify the investigation targets | Each occurrence needs its producer, current disposition, and its P-number proof before closure |
+
+The recent history includes `4abc6d4740`, `95eb632699`, and `f2624c51e8` for the
+execution constraints. Their presence is historical context, not proof of tooling
+enforcement. This audit deliberately makes no aggregate Done/Partial/Missing count
+for uninspected producers. The occurrence map is complete for the 138 index entries;
+the semantic populations and historical evidence gaps listed below are not complete.
+
+### Existing mechanisms and minimum extensions
+
+These rows extend the earlier Existing Mechanisms section. A conditional proposal
+depends on the named research result; it is not an instruction to patch an
+unverified producer. The doors read for this pass cover tooling, commands, appliance,
+hub, core, config, plugin infrastructure, API surfaces, BGP, access/security,
+system plugins, routing, and forwarding. Their shared constraints remain: one
+registry, explicit process ownership, external-plugin boundaries, one daemon store,
+and no product dependency on `internal/le`.
+
+| Owner | Existing mechanism and source | Minimum candidate extension |
+|-------|-------------------------------|-----------------------------|
+| A | Private-index snapshots, selected hunks, generated commit blocks, review population and Git-derived obligations; `docs/contributing/committing.md`, `internal/le/commit/review.go` `checkReviewSelected`, `rfcchange.go` `rfcChangeProblems`, `owed_trailers.go` `answering.answered` | Use the same selected content for recording, preparation, append, execution, and discharge. Extend the existing approval writer/consumer pair for a late approval, bound to the reviewed change. Keep guarded post-publication removal and exclusive message allocation. Do not recreate debt shards |
+| B | Shared scheduler plus `.ci`, `.et`, and `.wb` adapters; `docs/architecture/testing/runner-architecture.md`; editor `testBudget` and `runTestCase` | Keep one scheduling policy and carry its context, capability requirements, and exclusive groups through adapters. Join canceled workers or isolate an uninterruptible case in an owned process after the blocking-call audit. Use explicit persistent stores only where the assertion needs disk state |
+| C | Launcher executable selection, functional suite registration, stress capture names; `runSlug` and `harnessArgs` in `internal/le/test/stressrepro/run.go`; `docs/contributing/running-commands.md` | Preserve argv and the intended executable identity, not every obsolete build-name field. Bound the capture component with a readable prefix plus digest of the full selector identity; retain full selectors in the report. Other toolchain/report changes await their producer audit |
+| D | Signal roots, owned process groups, Docker owner labels, job admission, guest bootstrap; runner architecture page, QEMU `Run` | Extend these existing lifetimes to missed callers. Stop and reap only owned work; report install progress from completed steps. Add no silence-based foreign-work killer. A reclamation action must not launch a suite |
+| E | Native hook probes, spec status validation, session-state renderer, source-read evidence and test seeder; `docs/contributing/spec-workflow.md`, hook `writeGoPatterns`/`writeDesignEvidence` | Repair the verdict at its consumer, with positive and negative probe cases. Match panic exemptions per call. Prove subject/freshness rather than accepting an arbitrary read marker. Apply state invariants on direct edits as well as claim transitions |
+| F | RFC profiles, extraction, correction records, native approval and discrimination routes; `coverage_ruling.go` `ownerRuledMove`, `docs/contributing/rfc-conformance-gates.md` | Keep mandatory and optional accounting distinct; use current profile membership, not citation reachability. Preserve unenrolled obligations in their correction records. Place proof by runtime requirements, not host compilation alone. Reuse owner authorization rather than treating judge prose as authority |
+| G | Registered special checkers, scenario runner, peer OPEN/session state and generated UPDATE builders; `docs/architecture/testing/interop.md`, `internal/test/peer` | Restore behavior and discriminating oracles through each registered checker, not another checker list. Carry negotiated session kind into generated bulk builders; leave deliberate raw-hex injection unchanged |
+| H | Registered actions, generated manifests, source-aware fixtures, existing gate populations and browser/chaos capture paths; functional-test and runner pages | Derive membership from producers, preserve assertions, and repair stale consumers with their producer. Replace the job-admission fixture's timed overlap with a bounded state rendezvous if the reported source is confirmed. Gate greens alone do not resolve historical lint or load populations |
+| I | Go content-ID comparison and the recorded native-build/install observations in Executable integrity incident | Retain bytes and boundary traces, identify the writer or storage boundary, then prove the attributable repair. No replacement integrity framework or successful rebuild substitutes for attribution |
+
+The testing history in `plan/learned/DESIGN-HISTORY.md`, Testing infrastructure,
+rules out count-only assertions, invented fixture shapes, and treating a green
+parser as wire proof. Existing mechanisms are extended in place. No parallel
+ledger, scheduler, approval authority, or test framework is proposed.
+
+### Corrected acceptance criteria and proof matrix
+
+Each P-number is a proof obligation, not the name of an existing passing test.
+The concrete carrier plans below distinguish existing carriers from proposed tests
+and unresolved populations. They are not a completed proof census. Implementation
+must retain attributed red and green evidence. Every row remains open. An already-repaired producer needs
+its existing regression proof checked, not a second implementation. A tagged test
+change still needs independent judgment and native discrimination evidence.
+
+| AC / proof | Owner | Corrected observable and required proof |
+|------------|-------|-----------------------------------------|
+| AC-1 / P-1 | B | Unknown suite verbs, JSON engine kinds from file/stdin, and unconsumed positive or negative peer blocks fail at the real entry point with the input named. Exercise direct execution as well as decoding; retain the legacy non-orchestrated peer route. Distinguish help from invalid input |
+| AC-2 / P-2 | B | `.et` width, height, waits and timeout reach their consumers or are refused. Test nondefault dimensions and explicit wait state; trace real tick costs rather than simulating away editor behavior. A timeout stops owned work and joins it before cleanup, with invalid and nonpositive budgets refused. Prove a hung case cannot continue changing state after its result |
+| AC-3 / P-3 | B | Every return, including foreground timeout, stops and waits for owned background helpers before releasing leases. File- and pipe-routed peer scripts retain linger semantics. A passed interop assertion followed by cleanup failure remains a pass plus an explicit cleanup error in text, structured output and final status; it must not report an unqualified successful run |
+| AC-4 / P-4 | C, A | Launcher, wrong-build refusal, conf-watchdog, stress reproduction and generated commit re-checks preserve argv and the correct executable/session identity. Invoke from a differently named build/session and use arguments containing spaces. Stress runs route to the registered suite and each invocation actually starts rather than attaching to a stale verdict. A quoted rollback diagnostic is not argv execution |
+| AC-5 / P-5 | A | Generated `remove` deletes only unchanged working copies after successful publication, including two-block spec closure; it preserves changed bytes/modes, directories and failed-publication copies. Same-tag prepare/append calls allocate independent messages and do not duplicate obligations. Prove both ordinary and replace/append occurrences against the current Git-derived mechanism |
+| AC-6 / P-6 | A | Every still-applicable review/approval obligation has a legitimate writer and an observable discharge. Failed validation creates no debt or spent approval. Historical incorrect/duplicate shard records cannot influence current answers. Test retry, failed publication and another session's correction through the successor, without restoring retired shard commands. Late RFC approval additionally owes P-30 |
+| AC-7 / P-7 | D | Reclamation handles interrupted removal, directoryless owner markers and the standalone entry point without verification. Prove ownership/refusal for foreign resources. Cancellation reaches an in-flight stage and stops and reaps its owned process group within seconds, including a TERM-ignoring child; it does not wait for the next stage or the stage's normal timeout. Reuse the group-kill and bounded pipe-wait contract detailed under P-7 below. No agent invokes verify to prove it; use the scoped dispatcher/process fixture |
+| AC-8 / P-8 | E | Stop classification, per-call panic exemption, subject/freshness design evidence, daemon-path proof demand and the four lost hook categories each get a current rule-to-consumer disposition and nonvacuous probes. Do not reinstate prose-sensitive deferral gates. Session start emits required context inside its 5-second harness budget; source digest, deferred-artifact fixture and fixture needle match the actual producer |
+| AC-9 / P-9 | F, E | Mandatory/optional gaps retain their levels; rule metadata agrees with the body's obligation. Owner authority cannot be established by matching `owner ruling` prose in approval and annotation. Prove the authorized and forged-attribution paths at the consumer, with judge approval kept distinct from an owner scope decision |
+| AC-10 / P-10 | D | Guest cache sharing works with the supported symlink layout; attribute the xattr failure before changing mount policy. Native arm64 Linux selects available KVM rather than `hvf:tcg`. A failed required 9p mount prevents all later download/build steps. Relative appliance paths survive in-process gok directory changes. A kernel probe's `unknown` result names a probe failure, never a missing kernel feature |
+| AC-11 / P-11 | B, D, E | Hook probe repositories hold readable committed originals. Both QEMU fixture incidents preserve a declared Go version and the intended fixture root. Wait-file callers and driver agree on a per-run marker. BFD restart uses the store whose persistence it asserts. Demonstrate each through its real fixture, without removing fail-closed producer checks |
+| AC-12 / P-12 | G | Each of the fifteen historical special checkers named below has a live scenario and an assertion that fails when its feature is broken. IPsec logging uses the key its logger reads and the checker observes the intended event. A build-only Ze DUT stages the same valid inputs before image construction as a measured run; stale/missing staged inputs fail the proof. All five `test/plugin/` fixtures `bgp-rr-rpki-pending-withdraw-relay.ci`, `bgp-rr-rpki-revalidate-relay.ci`, `bgp-rs-rpki-pending-withdraw-relay.ci`, `bgp-rs-rpki-revalidate-relay.ci`, and `rpki-revalidate-late-sync.ci` must complete actual RTR synchronization from the observer's per-test release file and reach their route-state/relay assertions; listening alone is not synchronization |
+| AC-13 / P-13 | B, H | Output capture drains concurrently beyond pipe capacity. Union timeout setup precedes worker start. Chaos captures use controlled clocks and total ordering at every relevant producer. Poster output is stable for fixed inputs. Prove each at the producer and capture boundary; repeated green snapshots alone are insufficient |
+| AC-14 / P-14 | C | Resolve the original l2tp unused population, preserve owned patches through the supported vendoring route or refuse unsafe replacement, and link every schema module a test binary resolves. Derive tags/registration from the current producer. One l2tp lint pass is not proof that vendor or schema obligations were met |
+| AC-15 / P-15 | E | Current verify-mode readers agree on one meaning. WIP state is checked on direct spec edits as well as claims. Functional selection accepts the documented form or its page is corrected to the real form with equivalent selection proof. Agent guidance obeys the current no-verify rule on every platform, rather than restoring the retired Linux-only restriction |
+| AC-16 / P-16 | E | Replace absence-only criteria with positive behavior and explicit permitted survivors. Preserve the six historical spec repairs and the separate June technique/fuzz backfill populations. Prove git-safety enforcement for delegated renames. Mutation proofs never run destructive actions on operator state or edit a live shared guard; prove the actual seeder entry leaves the operator store unchanged even when its outer guard is bypassed |
+| AC-17 / P-17 | A, B, G, H | Preserve tmpfs content and executable modes through parse and ordinary `.ci` routes, without mandating a particular pointer type. Activity styling follows light/dark theme. Git-quoted paths round-trip through snapshot, selection and script. GoBGP export reload reconciles OUT advertisements with source-backed expectations. CodeQL Go extraction excludes the intended cache population by an effective Go mechanism. Each subcase has independent proof |
+| AC-18 / P-18 | D | Kernel containers and six unrooted compile/lab routes stop with their own verb. Installer cancellation reports which completed steps changed state, including pre-first-step and reboot-sensitive stops. Bound the wait for a TERM-ignoring step and prove second-interrupt behavior. Reap before cleanup; retain foreign containers/processes |
+| AC-19 / P-19 | H | Browser validation and recording drive the same login/config/save path. Generator tests invoke actual generators, probes have deliberate retained or retired coverage, workflow assertions match intended job policy, and discovery compares the same committed/working population as its producer. Retiring a test requires its judgment and replacement-coverage accounting, not merely an explanation |
+| AC-20 / P-20 | C | Empty feature-tag derivation and successful-but-empty stdlib listing fail with cause. Independently, comparison rows retain pass-aware DUT identity; two legitimate Ze passes are not rejected merely for sharing `dut-name`. Preserve the documented latest-result selection within one pass; ambiguous input identity must not silently erase a distinct result. Any input with nonzero `routes-lost` refuses convergence publication and ranking, names the input and loss explicitly, and never appears as zero-time or fastest. Test partial loss, total loss and zero-loss controls through Markdown, HTML/table/SVG, document, JSON and every reached site publisher. Validate loss before deduplication, including an older lossy input a newer zero-loss row would hide. Raw loss evidence may remain readable, but cannot be presented as valid convergence |
+| AC-21 / P-21 | C | A 91-selector invocation fits the filesystem component bound, preserves exact argv in evidence, and actually starts each requested run. Test different long lists with the same prefix, sanitization collisions and fresh invocations; use full-selector identity, not truncation alone |
+| AC-22 / P-22 | E | Session-state output distinguishes session-attributed edits from whole-tree status. If attribution is unavailable, label the section as shared-checkout changes. A fixture with another session's paths cannot silently attribute them to this session |
+| AC-23 / P-23 | F | Every emitted not-enrolled kind is accepted or explicitly migrated by the current reader. ISO/IEC 10589 remains outside conformance counts. Prove writer-reader agreement and publication, not only acceptance of one hand-written line |
+| AC-24 / P-24 | E | The spec template and design check require an evidence-derived census of every reader and writer of a changed wire, including non-Go/outside-language carriers. Files to Modify is the edit set, not the population. A fixture that omits a known speaker must fail the coverage judgment |
+| AC-25 / P-25 | F | Account separately for ASPA-profile and RFC 9117, 4506, 5080, 7383, 8247, 7519 and 1008. Enroll no unlisted document. Preserve each retired obligation and correction provenance. Verify RFC9117's reported repair, RFC7383's optional debt, and RFC8247 method14's reported missing SHOULD row against authoritative text and current profiles, with extraction/tag/discrimination proof where applicable |
+| AC-26 / P-26 | H | Reconstruct each owned historical lint/gate population and resolve its members against current producers. Include post-OSPF host/Linux findings, capability and uncovered-file findings, wiring/audit/doc failures, all three September 17 fixtures, and plugin ownership. A baseline or a green gate at HEAD does not erase an unidentified member. Scoped repairs precede retained CI release evidence |
+| AC-27 / P-27 | I | Recover the two damaged executables and traces, or observe recurrence across build/install/storage boundaries. Attribute the zeroed bytes to the responsible writer or boundary and demonstrate that repair. This remains evidence-blocked; neither an integrity check nor a successful rebuild closes it |
+| AC-28 / P-28 | G | Real OPEN handshakes prove IPv4/iBGP, IPv4/eBGP, IPv6/iBGP and IPv6/eBGP generated bulk UPDATEs. Cover active/passive and ordinary/connmap paths: LOCAL_PREF present on ordinary iBGP and absent on eBGP. Deliberate raw-hex injection remains byte-exact. An encoder-only test cannot certify handshake-derived classification |
+| AC-29 / P-29 | A | Review pins cover actual prospective committed content for historical spec-work paths, selected hunks, whole snapshots, earlier appended blocks and removals. Preparation and execution select the same artifact under different ambient sessions. Concurrent unselected edits neither stale a committed-content review nor become reviewed implicitly; missing/unreadable content refuses |
+| AC-30 / P-30 | A | A late independent RFC approval reaches the applicable owed change without changing the test again or impersonating the owner. Bind target change, unit, reviewed content and publication order; reject stale/replayed approvals, wrong targets and approvals outside the pushed range. Do not let one unit-name approval clear a different change |
+| AC-31 / P-31 | A | Approval entry validates canonical carrier/unit identity before writing. Package-clause names such as `airules.TestX` or `bgpconfig.<unit>` cannot record an unusable success when the consumer uses a directory-based key. Ambiguity and unknown units refuse; a valid row reaches both edit and commit consumers |
+| AC-32 / P-32 | C, H | Site inventory and coupling judgments use a declared, complete source/platform population, not whatever plugins the host happened to link or another session left half-written. Resolve the committed-source mechanism under the main-checkout rule before implementation. Prove Linux-only registrations remain represented on darwin and unrelated dirty edits cannot become published inventory |
+| AC-33 / P-33 | B, E | Derive the complete persistence/store-reader fixture population semantically. Disk-dependent cases use an isolated persistent store; memory-only cases retain memory isolation. Seed and start resolve the same effective root across dotted/uppercase env spellings. Seeder entry proves session ownership, symlink confinement and operator-store nonmutation; lexical path shape alone is insufficient |
+| AC-34 / P-34 | H, E | Action contracts, homepage demos, renamed callers, lab grouping, partial-health fixtures, feature Doc review and rules fixture roots agree with their current producers. Assert membership/behavior rather than a frozen count. Renew evidence only after checking the claim; preserve the historical cause gap where a fixture repair has not attributed its old red |
+| AC-35 / P-35 | H, B, D | Recover each owned load-red member and identify the exact wait, readiness event, race or resource bound that produced its failure. Prove the repair under the reached contention path. No adaptive host-load policy is approved; neither a larger blanket timeout nor 'green alone' is closure |
+| AC-36 / P-36 | D | Job admission never signals foreign silent work. Preserve cancelable admission for owned work, and prove the QEMU guest inherits the host admission identity without a whole-tree 9p fingerprint. A blocked or unreadable identity is an explicit error, not permission to start or kill |
+| AC-37 / P-37 | C | Determine which backup/scratch Go files are actual lint inputs and which are preserved evidence. The guard and producer use the same population, without deleting another session's backup or broadening lint to every scratch tree. Prove an excluded real input is caught and a non-input backup is not compiled |
+| AC-38 / P-38 | H | Retired carrier/QEMU tests retain an explicit old-assertion-to-current-proof map and the governing retirement approval. Approval to retire is not certification that replacements cover the behavior. Investigate the carrier escaping-symlink lead at its producer before treating it as a defect or designing a repair |
+| AC-39 / P-39 | F | A linux-buildable RFC unit needing CAP_NET_ADMIN can be recorded when the Linux host lacks that capability: automatic capability-aware guest placement OR explicit `kernel` forcing is sufficient. The actual recorder runs it on Ze's runtime kernel, with zero skips and an attributed failing break followed by a passing restored unit. Host buildability alone cannot refuse that route; a skipped unit cannot produce a record |
+| AC-40 / P-40 | B | Both `.et` and `.wb` adapters carry declared capabilities and exclusive groups from file to scheduler. An unavailable capability causes placement on a suitable Ze guest or an explicit refusal/skip naming the capability, never execution as an ordinary successful test. Same-group cases serialize through cleanup across participating invocations; different groups remain independent. A parse refusal must not silently discard a declaration. Prove each adapter separately |
+| AC-41 / P-41 | A, F | `rfc/full/rfc7084.txt` is readable from the committed tree used for the RFC7084 summary, not only from an untracked local copy. The quote consumer can read that committed text and no RFC7084 row reports `no-rfc-text`. A local-only file must fail the committed-source check; no export build or test is needed |
+
+### Concrete proof carriers and unresolved census
+
+**Existing** means a carrier is present or explicitly identified in the historical
+record; it does not mean its assertions or discrimination are verified here.
+**Proposed** names a test to add or extend, not a passing test. A proposed package
+test must drive the stated real entry, using owned fixtures, rather than replace
+that entry with a mock verdict. Producer facts not in the S audit remain R leads;
+the plans below specify what must be demonstrated, not which unverified repair to
+apply. Breaks are future scoped discrimination plans, never permission to mutate
+a shared guard, run destructive Git commands, or build/test another source tree.
+An RFC-tagged carrier uses the native recorder and independent judgment.
+
+#### Publication, placement, adapters and cancellation
+
+Fresh source reads for these corrections: `markdown.go` `latestComparisonResults`
+already keys by DUT/family/force-MP/pass, but `sortByConvergence` sorts raw times and
+`Markdown` prints them without a loss column. `html.go` `writeHTMLTable` and
+`writeSVGChart` assign best styling from those times. `internal/perf/cli/cmd_report.go`
+`cmdReport` reads all JSON files and calls Markdown, HTML or PerformanceDoc without
+a loss check. These are source observations, not new runtime reds. Preserve the
+existing pass repair while adding the independent pre-selection loss refusal.
+
+`unitNeedsGuest` in `internal/le/rfc/discriminate_guest.go` returns host placement
+as soon as `MatchFile` succeeds; `requireGuestKernel` then refuses a kernel for
+that host placement. `cmd_editor.go` `runEditorTests` ignores the callback context;
+`cmd_web.go` schedules a `BaseTest` and calls `RunWBFileWithSession` without that
+context. These observations justify checking the complete adapter chain, not
+assuming the shared scheduler already receives the declarations.
+
+| Proof | Carrier / status | Real entry and stimulus | Required assertion | Discriminating break |
+|-------|------------------|-------------------------|--------------------|----------------------|
+| P-20 loss | Proposed `TestComparisonRefusesLossBeforeSelection`, `internal/perf/report/comparison_loss_test.go`; proposed `TestCompareCommandRefusesLoss`, `internal/perf/cli/cmd_report_loss_test.go` | Direct Markdown/HTML/PerformanceDoc calls AND `le perf compare` default/`--md`/`--html`/`--doc`, with 100000 sent and 99999, 0, or 100000 received. Include an older lossy result followed by a newer zero-loss result with the same comparison key, in both input orders | Nonzero loss produces an explicit refusal identifying loss and source, no valid convergence table, SVG bar, best style or rank. Zero loss publishes the measured value. A failed write cannot leave a publishable partial report | Remove the pre-selection loss check; also move it after dedup. Each mutant must fail the older-loss case, not only the newest-loss case |
+| P-20 identity | Existing `TestComparisonRendersBothPassesOfOneDUT`, `TestComparisonUnrecordedPassIsNamed`, `TestComparisonOutputsKeepLatestResultPerDUT` in `internal/perf/report/report_test.go`; extend assertions if needed | Feed distinct live-forwarding and RIB-propagation passes of Ze plus an unrecorded pass and older/newer samples of one pass to each renderer | All distinct passes are named; latest selection applies only within one pass. This is separate from loss validity | Drop Pass from `comparisonKey`; falsely reject every repeated DUT name |
+| P-20 JSON/site boundary | Proposed `TestLossCannotBecomePublishedConvergence`, `internal/le/site/perf_loss_test.go`; JSON publication carrier and full site consumer census **unresolved** | Feed the same three loss controls through the actual result JSON reader and every site convergence publisher found by the census, including retained historical input files | Raw JSON retains loss evidence; any normalized/published convergence is refused or explicitly invalid, never a valid numeric zero. Site never ranks a lossy row or silently hides it through dedup | Treat absent/invalid convergence as numeric zero; filter lossy rows before validation. Site entry and JSON schema decisions must be named before this proposed carrier is runnable |
+| P-39 placement | Proposed `TestRecordLinuxCapabilityUnitInGuest`, `internal/le/rfc/discriminate_guest_runtime_test.go`; existing units `TestGTSMTransmittedICMPErrorCarriesTTL255` and `TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255`, `internal/component/gtsm/rfc5082_gtsm_linux_test.go` | Actual `le rfc record` on Linux with no effective CAP_NET_ADMIN, using the selected automatic-placement OR explicit-kernel route, and Ze's native-architecture runtime kernel | Both units execute with zero skips; recorder retains the attributed red and restored green, kernel identity, unit identity and record. Host-buildability does not block the chosen guest route. Missing kernel/capability must not manufacture proof | Restore host-first buildability-only placement; separately remove the hop-limit route metric through the recorder's scoped break so each positive unit itself fails. A compile failure or a skipped test is not the red |
+| P-40 editor capabilities | Proposed `TestEditorAdapterCapabilityPlacement`, `internal/test/cli/cmd_editor_contract_test.go`, with proposed `test/editor/adapter-capability.et` | `le test editor` parses the capability-bearing file on a capable and an incapable execution target | Declaration reaches placement; capable case executes its positive editor assertion; incapable case moves to a suitable guest or explicitly refuses/skips without successful execution | Discard the parsed capability before scheduling |
+| P-40 web capabilities | Proposed `TestWebAdapterCapabilityPlacement`, `internal/test/cli/cmd_web_contract_test.go`, with proposed `test/web/adapter-capability.wb` | `le test web` parses the capability-bearing file before daemon/browser startup on both targets | Same placement/refusal contract as editor, and no daemon/browser side effect before an incapable-target refusal | Start web execution before capability evaluation |
+| P-40 editor exclusion | Proposed `TestEditorAdapterExclusiveLifetime`, `internal/test/cli/cmd_editor_contract_test.go`, with proposed `test/editor/adapter-exclusive.et` | Two separate editor invocations declare the same group; first holds a state rendezvous through cleanup, second waits; repeat with distinct groups and cancellation | No overlap through cleanup; distinct groups proceed; cancel releases only the owned lease. Use shared runner lease mechanism, not a new adapter lock | Drop group metadata or release before editor cleanup |
+| P-40 web exclusion | Proposed `TestWebAdapterExclusiveLifetime`, `internal/test/cli/cmd_web_contract_test.go`, with proposed `test/web/adapter-exclusive.wb` | Two web invocations as above, holding daemon/browser cleanup at the rendezvous | Same-group execution and cleanup serialize; independent groups proceed; no browser/session leak on cancellation | Release group before `srv.stop` or browser cleanup |
+| P-41 committed text | Existing `TestQuoteBackfillRealCorpusHasNothingLeft`, `internal/le/rfc`; proposed `TestRFC7084TextIsCommitted`, `internal/le/rfc/quote_committed_source_test.go` | Read `rfc/full/rfc7084.txt` as a committed Git blob, pass that content to the quote consumer for the RFC7084 summary. Negative fixture supplies a local-only text but no committed blob | Committed text is readable and every RFC7084 quote has its source; local-only input fails rather than masking `no-rfc-text`. No source export, compile or broad corpus run required | Replace committed-object read with working-tree read; omit the committed source blob |
+| P-7 in-flight cancellation | Proposed `TestDispatchCancellationReapsInflightStage`, `internal/le/verifydispatch/cancel_test.go`; existing `TestCanceledCommandKillsItsGrandchildren` and `TestCanceledCommandDoesNotWaitOnAnEscapedPipeHolder`, `internal/le/interoplab/process_cancel_test.go` | Scoped dispatcher fixture calls the real dispatch boundary with a root context; stage announces entry and launches an owned TERM-ignoring process group, then root is canceled. Repeat before stage start and during slot wait | In-flight context is canceled; no next stage starts; owned group is killed, direct child waited and descendants observed gone before lease cleanup. Foreign sentinel survives. No `le verify` invocation | Replace inherited root with Background; restore child-only kill; omit Wait before release |
+
+P-7's finite bound comes from existing machinery, not a new timeout policy:
+`plugin.KillGroupOnCancel`/`KillProcessGroup` sends SIGKILL to the owned group, so
+TERM resistance cannot delay it. `systemProcessRunner.Run` in
+`internal/le/interoplab/process.go` sets `WaitDelay` to `processWaitDelay` (two
+seconds), bounding inherited-pipe waits. Its existing escaped-pipe test permits
+that bound plus three seconds of scheduling margin; use the same five-second
+fixture ceiling after the cancellation rendezvous, and its existing two-second
+`pidGone` observation for orphan reaping. This is the proposed dispatch contract,
+not a claim that dispatch already uses it. Assert Wait completion and group death
+as well as elapsed time. WaitDelay alone neither kills nor reaps an escaped
+descendant: the fixture owns and cleans up its escaped-pipe sentinel separately.
+Installer terminal/sudo lifetime remains a separate P-18 contract, because a
+terminal-sharing child cannot blindly be put in a background process group.
+
+#### Other independently known cases
+
+Names in the next table are **proposed** unless explicitly marked existing. A
+multi-case row requires one independently discriminating subtest per named case;
+one passing branch cannot discharge its siblings. `one_off_proof_test.go` paths
+are proposed carrier locations in the named owning package, not existing files.
+
+| Proof / independent case | Carrier / real entry | Stimulus → assertion | Discriminating break |
+|--------------------------|----------------------|----------------------|----------------------|
+| P-1 suite verb | `internal/test/cli/one_off_proof_test.go` `TestUnknownSuiteVerbRefused`; real suite CLI | Unknown verb and help control → named failure versus successful help | Default unknown verb to success |
+| P-1 engine steps | `internal/test/runner/one_off_proof_test.go` `TestEngineStepUnknownKindRefused`; file, stdin and direct execution entries | Unknown JSON kind in each route → failure naming kind/input; valid step executes | Remove decoder default, then execution default separately |
+| P-1 peer blocks | Same file `TestUnusedPeerBlockRefused`; actual ordinary and orchestrated `.ci` runner | Positive orphan and negative orphan blocks → refusal; consumed legacy peer block → genuine wire assertion | Skip unconsumed-block validation; bypass legacy peer execution |
+| P-1 directive predecessor | Existing `TestCIMustFailFixturesAllFail`, `internal/test/runner/must_fail_test.go`; actual parser/run | Unknown directive → exact expected parse refusal, valid fixture reaches child | Ignore unknown directive or pass wrong failure reason |
+| P-2 dimensions/waits/ticks | `internal/component/cli/testing/one_off_proof_test.go` `TestETOptionsReachExecution`; `RunETFile` over authored `.et` | Nondefault width and height change observed model/screen; explicit wait observes the awaited state; a command's real tick work completes before assertion | Drop width, height or wait independently; replace tick execution with no-op |
+| P-2 lifetime/budget | Same file `TestETTimeoutJoinsWorker`; suite adapter plus `RunETFile` | Hung operation and malformed/zero/negative budget → named failure; worker cannot write after result/cleanup; ordinary completion remains green | Return on timer without cancel/join; accept a nonpositive budget |
+| P-2 browser startup | `internal/component/web/testing/one_off_proof_test.go` `TestFirstOpenHasOneBoundedContract`; actual first-open path | Delayed readiness and never-ready browser under ordinary and former verify-mode environments → same bounded contract, useful cause | Keep widened bound only behind mode flag; equate process start with ready. Readiness/budget choice remains unresolved |
+| P-3 helper lifetime | `internal/test/runner/one_off_proof_test.go` `TestBackgroundReapedBeforeLeaseRelease`; `runTest` and `runOrchestrated` | Foreground timeout, early error and normal exit while helper holds port → Wait/group death precedes lease handoff | Kill without Wait or release first, independently in each route |
+| P-3 linger | Same file `TestPeerLingerSurvivesStdinRouting`; actual file/pipe peer routes | Peer finishes assertions while foreground still uses session → connection persists until runner cleanup | Infer original script identity from rewritten stdin alone |
+| P-3 cleanup reporting | `internal/le/interoplab/one_off_proof_test.go` `TestPassedAssertionReportsCleanupFailure`; `Suite.Run` | Passing checker then owned teardown failure → pass assertion plus cleanup error in text, structured output and overall unsuccessful run | Overwrite pass with assertion failure, or suppress cleanup error |
+| P-4 launcher/build identity | Proposed `test/ui/launcher-argv-identity.ci`, invoking launcher and wrong-build refusal | Differently named valid executable, stale ambient build name and spaced argv → exact argument boundaries and actual intended binary | Reconstruct argv from joined text; inherit stale build-name guard |
+| P-4 watchdog | Proposed `test/ui/conf-watchdog-executable-identity.ci`; watchdog helper entry | PATH contains wrong helper and intended binary has another name → intended helper runs with exact argv | Use ambient PATH instead of selected executable |
+| P-4,21 stress entry | `internal/le/test/stressrepro/one_off_proof_test.go` `TestStressInvokesRegisteredSuiteFresh`; real stress action/child launch | Reload suite, selectors with spaces, two invocations → registered argv, distinct child starts, no stale verdict attachment | Hardcode old namespace; reuse previous invocation result |
+| P-5 removal | `internal/le/commit/one_off_proof_test.go` `TestGeneratedRemovalPreservesChangedCopies`; generated ordinary and two-block closure scripts over owned fixture repositories | Unchanged file, changed bytes, mode-only edit, directory, publication failure → only unchanged successful-publication copy removed | Delete before publication; omit byte/mode comparison; remove directory recursively |
+| P-5 message allocation | Same file `TestPrepareAppendMessageIsolation`; real create/append/replace entry | Same-tag prepares and appends → unique message files, earlier bytes retained, no duplicate obligation | Share same-tag filename; truncate earlier message; allocate without exclusivity |
+| P-6 successor obligations | Same file `TestObligationsFollowSuccessfulPublication`; preparation and current Git-derived discharge | Invalid subject, invalid cover, failed publication, retry, foreign erroneous predecessor record → no premature debt/spent approval, legitimate discharge reachable | Record before validation; consume approval on failed publication; consult retired shard |
+| P-7 reclaim | Proposed `test/ui/reclaim-owned-artifacts.ci`; standalone reclaim entry, not verify | Interrupted removal, directoryless owned marker, foreign marker and live owner → reclaim only authorized dead resources, no suite launched | Require directory before marker cleanup; treat dirty interrupted-removal state as foreign; ignore ownership |
+| P-8 Stop/panic | `internal/le/hookruntime/one_off_proof_test.go` `TestHookVerdictBoundaries`; actual hook dispatcher | Each historically lost Stop category and mixed allowed/disallowed panic calls → current rule-specific verdict, exemption applies to one call | Whole-edit panic exemption; category default erases a required verdict |
+| P-8 design/daemon evidence | Same file `TestDesignEvidenceNamesSubjectAndFreshness`, `TestDaemonPathDemandsFunctionalProof`; write hook entry | Wrong-subject/stale read marker and daemon-path edit with helper-only proof → refusal; matching fresh evidence/control accepted | Accept any source-read marker; omit daemon-path demand |
+| P-8 four lost hooks | Same file `TestHistoricalHookIntentHasCurrentConsumer`; hook dispatcher | Commit deferral, test-first, delegation reminder, subagent context, each with violating/control fixture → current-rule disposition and nonvacuous verdict | Remove its current consumer. For retired prose-sensitive policy, assert explicit permitted behavior rather than reintroduce it; consumer decisions still need current-rule census |
+| P-8 startup/fixtures | Same file `TestSessionStartWithinHarnessBudget`; existing `TestSessionStartRendersNoDeferredArtifact` and rendered-rule fixture | Actual session-start with absent derived artifact and current source digest/needle → required context within existing five-second harness budget, no derived-artifact work | Add blocking derivation; stale digest; require retired update-index text |
+| P-9 levels/metadata | `internal/le/rfc/one_off_proof_test.go` `TestGapLevelAccounting`; real check/report stage; separate rule metadata fixture in `internal/le/hookruntime/one_off_proof_test.go` | MUST/SHOULD gaps including RFC9256/RFC9552; mismatched metadata/body → separate counts and named metadata mismatch | Count SHOULD as MUST; read metadata alone |
+| P-9 authority | `internal/le/rfc/one_off_proof_test.go` `TestOwnerRulingRequiresOwnerAct`; approval plus coverage-ruling consumer | Matching forged prose versus genuine owner authorization and separate judge approval → only authenticated scope act permits owner ruling | Restore matching-prose-only authorization |
+| P-10 cache/KVM/mount | `internal/le/test/qemu/one_off_proof_test.go` `TestGuestBootstrapContracts`; actual QEMU command/bootstrap entries | Supported cache symlink layout, native arm64 Linux with KVM, required mount failure → usable cache or attributed xattr cause, KVM selected, no download/build after failed mount | Use hvf on Linux; leave ungrouped shell OR; change mount layout without testing symlink |
+| P-10 cwd/probe | `internal/le/test/deployment/one_off_proof_test.go` `TestRelativeGokInputsSurviveCwd`; kernel probe action fixture | Relative appliance injection across `runGokInProcess` → correct file; failing probe → unknown with cause, not unsupported feature | Resolve relative path after cwd change; map probe error to absent capability |
+| P-11 hook/QEMU fixtures | Existing hook allow probes and `test/ui/le-qemu-run-answers.ci`; proposed `TestFixtureRootsModelReadableSources` in `internal/test/fixture/one_off_proof_test.go` | Committed-original probes; QEMU fixture with declared Go version and poisoned outside root → correct acceptance/version from fixture root | Omit committed HEAD; omit go directive; read host module instead |
+| P-11 wait-file | Existing `test/plugin/path-asn-filter-export-reject.ci` and `test/plugin/redistribute-export-modify.ci`; real peer/driver entries | Per-run release marker → expected route rejection/modification only after release | Producer/consumer disagree on filename; accept stale prior-run marker |
+| P-11,33 BFD persistence | Existing `storage-bfd-restart` carrier; location from semantic census, not assumed from name | Actual seed/start/restart workflow → state read from isolated disk survives restart | Substitute memory-only store; restart with another root |
+| P-12 IPsec log | `internal/le/interoplab/ipsec/one_off_proof_test.go` `TestLogKeyReachesPeerCheck`; actual scenario runner | Enable the logger using its registered key, trigger intended event → checker observes it | Set unused ZE_LOG_LEVEL spelling; accept unrelated log |
+| P-12 build staging | Proposed `TestBuildOnlyStagesInputs` in the package owning `Bench.Run` (exact carrier path unresolved) | Build-only and measured entries with changed/missing inputs → same validated stage before image build; stale inputs refused | Place staging only in measured branch |
+| P-13 pipe/union | `internal/test/runner/one_off_proof_test.go` `TestCaptureBeyondPipeCapacity`; existing `TestUnionTimeout` (owning package census unresolved) | Actual capture writes beyond pipe capacity → all bytes and completion; union configured before worker start → timeout without concurrent setup write | Wait before drain; mutate interval after `NewUnion` |
+| P-13 chaos/poster | Proposed `test/ui/chaos-capture-order.ci` and `test/ui/web-config-poster-stability.ci`; actual capture/render entries | Fixed clock plus tied peers, input insertion-order permutations; same poster input twice → byte-stable capture with total ordering | Read wall clock; omit final peer tie-break; introduce nondeterministic poster input |
+| P-14 toolchain inputs | Proposed `test/ui/vendor-preserves-owned-patches.ci`, `test/ui/schema-test-registration.ci`; existing l2tp unused population remains census work | Supported vendor entry with owned patch → patch survives or operation refuses before replacement; test binary resolves each needed schema → all modules linked | Run raw vendor replacement first; drop generated schema registration import |
+| P-15 state/selection/guidance | `internal/le/hookruntime/one_off_proof_test.go` `TestDirectSpecEditChecksWIP`; proposed `test/ui/functional-selection-contract.ci` | Direct edit/unclaimed status transition crossing WIP limit → same refusal as claim; documented selector → exact selected case; mode readers agree and guidance contains no agent verify route | Enforce WIP only at claim; ignore selector; interpret mode differently in a reader |
+| P-16 positive criteria | Proposed `TestCriteriaNamePositiveBehavior` in `internal/le/spec/one_off_proof_test.go`; six historical spec repairs require exact-file census | Spec check on absence-only versus positive observable with permitted survivors → reject vacuous criterion, accept meaningful one | Treat deletion/absence alone as completion |
+| P-16,33 seed isolation | `internal/test/fixture/one_off_proof_test.go` `TestSeederEntryCannotReachOperatorStore`; actual seeder entry with outer guard bypassed in owned fixture process | Session-owned binary, foreign binary, symlink escape, dotted/uppercase root aliases and operator sentinel → only owned isolated store changes; seed/start use identical effective root | Validate lexical shape only; resolve alias after ownership check; follow escaping symlink |
+| P-16 delegated rename | `internal/le/hookruntime/one_off_proof_test.go` `TestDelegatedRenameUsesCommitRoute`; hook probe only | Delegated direct git rename versus generated commit route → direct staging refused, supported route allowed | Exempt delegated session from Git safety. Never execute destructive command for the proof |
+| P-17 tmpfs | `internal/test/runner/one_off_proof_test.go` `TestTmpfsContentAndModeReachBothRoutes`; parse and ordinary `.ci` execution | Executable tmpfs script plus non-executable control → exact contents/modes retained, executable runs | Open-code content-only copy in ordinary runner |
+| P-17 theme | `internal/component/cli/one_off_proof_test.go` `TestActivityStyleUsesTheme`; actual activity rendering | Light/dark themes and active/inactive states → theme-derived visible styling | Reintroduce light-only literal |
+| P-17 Git paths | `internal/le/commit/one_off_proof_test.go` `TestQuotedPathsReachGeneratedScript`; snapshot/selection/script entry | Spaces, tabs, quotes and escaped non-ASCII Git paths → exact intended path selected/published, neighbors unchanged | Split quoted Git output as whitespace |
+| P-17 GoBGP | Proposed `test/interop/scenarios/bgp-export-reload-gobgp/` extension or successor carrier; existing scenario identity must be reconciled before writing | Actual SIGHUP/UpdateConfig, ordinary and secondary recipients, every transition in supplemental table → current OUT state with stable generation, no source UPDATE/refresh/reconnect | IN-only reload; omit disappearing-secondary withdrawal; emit withdrawal only in discarded `filtered`. Peer producer verification remains pending |
+| P-17 CodeQL | Proposed `TestGoExtractionExcludesCache` in `internal/le/check/one_off_proof_test.go`; actual Go extraction workflow | Tracked Go input plus intended cache-only sentinel → extraction includes first, excludes second | Rely only on unsupported `paths-ignore`; exclude actual source with cache |
+| P-18 kernel containers | Proposed `test/ui/kernel-container-cancel.ci`; owned kernel-build entry | Cancel during build → owned container gone before cleanup, foreign sentinel untouched | Kill Docker client only |
+| P-18 installer | `internal/le/setup/docker/kernel/one_off_proof_test.go` `TestInstallCancellationReportsCompletedSteps`; installer entry | Stop before first step, after changed step, before reboot, TERM-ignoring step and second interrupt → accurate state/reboot guidance, bounded stop/reap, no later step | Report all steps completed; wait forever for TERM; second signal kills cleanup. Exact terminal-safe escalation mechanism remains design work |
+| P-18 six routes | Proposed `TestVerbRootReachesEveryOwnedPhase` in each reached deployment/QEMU/yangcontract package; exact package census still owed | Each of l2tp-ppp, gokrazy-l2tp, l2tp-scale, hugepages, docker-lab, yangcontract: cancel in build, admission wait, startup, running → bounded owned teardown, no success verdict | Fresh Background context at each reached phase; cancellation only between phases |
+| P-19 browser | Proposed `test/web/recorded-config-save.wb`; validator and recorder both drive login/config/save | Same authored interaction → saved config read back after authenticated navigation, both carriers observe it | Validator bypasses login or asserts unsaved DOM only |
+| P-19 generators/workflows/discovery | `internal/test/fixture/one_off_proof_test.go` `TestToolFixturesReachTheirProducer`; existing `le-discovery-answers` | Actual plugin-import/YANG-glue generators produce expected file; advisory job policy keeps intentional evidence-nightly behavior; discovery uses producer's committed range despite dirty/unpushed differences | Execute non-main generator file; require every job advisory; compare working tree with committed-range producer |
+| P-20 empty derivation | Proposed `TestEmptySuccessfulDerivationRefused` in each owning toolchain/stdlib package; exact carrier paths unresolved | Tag derivation returns empty and stdlib subprocess exits zero with empty listing → error with cause, not default empty set; nonempty control works | Accept empty success |
+| P-21 filename bound | `internal/le/test/stressrepro/one_off_proof_test.go` `TestRunSlugBoundAndIdentity`; real capture file creation | 91 selectors, same-prefix long lists and sanitization collisions → component fits target filesystem, distinct identities and exact original argv in evidence | Truncate without digest; use entire list as component |
+| P-22 session heading | Proposed `test/ui/session-state-attribution.ci`; real session renderer | Own and foreign edits, then unavailable attribution → accurately attributed paths or explicit shared-checkout heading | Label whole-tree diff as this session |
+| P-23 not-enrolled | `internal/le/rfc/one_off_proof_test.go` `TestNotEnrolledWriterReaderAgreement`; writer → reader → publication | Every emitted kind including source-restricted ISO10589 → accepted/migrated without false conformance count | Reader omits writer's kind; include ISO10589 in counted set |
+| P-24 speaker census | `internal/le/spec/one_off_proof_test.go` `TestWireCensusIncludesNonGoSpeakers`; actual spec/design judgment | Fixture with Go writer and shell/Python reader, omit each in turn → missing population refused; edit list alone insufficient | Derive population only from edited Go paths |
+| P-25 eight documents | Proposed `TestOwnedDocumentDisposition` in `internal/le/rfc/one_off_proof_test.go`; current profiles, corrections, quote/extraction consumers | Separate ASPA-profile, 9117, 4506, 5080, 7383, 8247, 7519, 1008 cases → no unlisted enrollment, retired obligations accounted, optional debt retained, method14 SHOULD judged from source | Use citation reachability as enrollment; drop correction/optional row. Exact requirement-to-carrier census remains unresolved |
+| P-26 named fixtures | Existing `test/ui/le-docvalid-answers.ci`, `test/ui/le-evidence-answers.ci`, `test/ui/le-job-admits.ci`, `test/ui/le-placement-answers.ci`; their real tool actions | Valid and violating doc/evidence/ownership fixtures → discriminating verdict; job case uses entry/attach/release rendezvous rather than three-second overlap | Accept planted invalid fixture; remove admission wait or replace rendezvous with blind sleep |
+| P-26 lint populations | Existing originating logs named below; per-member carrier **unresolved** | Recover each diagnostic and run only its reached lint/test consumer → exact member resolved without baseline waiver | Reintroduce that diagnostic at its producer, not an unrelated lint failure |
+| P-27 corruption | Existing named damaged archives/traces, currently unrecovered; future boundary capture is not itself repair proof | Compare retained build output, installed inode and failing executable → identify first boundary where content identity diverges and accountable writer | Reproduce the identified fault after attribution. No fabricated mutant or generic integrity check can replace missing cause |
+| P-28 bulk peers | `internal/test/peer/one_off_proof_test.go` `TestGeneratedBulkAttributesFollowOPEN`; real active/passive ordinary/connmap handshake paths | IPv4/IPv6 × iBGP/eBGP × both connection modes/routes → capture LOCAL_PREF present only on ordinary iBGP; raw hex unchanged | Derive ASN/session kind from config default rather than actual OPEN; strip/add LOCAL_PREF universally |
+| P-29 review selection | `internal/le/commit/one_off_proof_test.go` `TestReviewPinsProspectiveContent`; real record/prepare/append/generated re-check | Historical spec-work path, selected hunks, whole snapshot, earlier block, removal/mode, unreadable blob, other ambient session and concurrent unselected edit → same committed bytes/artifact judged, unrelated edit neither reviewed nor spuriously stale | Hash live file for historical blob; choose review by ambient session |
+| P-30 late approval | Same file `TestLateApprovalDischargesOnlyBoundChange`; approved writer route → owed-range consumer | Approval after original change without re-edit; wrong unit/content/target, replay, future unrelated edit, out-of-range approval and reordered publication → only applicable bound change discharged | Unit-name-only matching; ignore ordering/range. Final publication form still unresolved |
+| P-31 canonical unit | Same file `TestApprovalWriterUsesConsumerIdentity`; actual approval command → edit and commit readers | Package-clause alias, directory-based key, ambiguous/unknown unit → refuse unusable alias/ambiguity before write; valid canonical row consumed by both | Write success using package-clause identity consumer cannot resolve |
+| P-32 inventory | `internal/le/site/one_off_proof_test.go` `TestInventoryUsesCompleteCommittedPopulation`; site and coupling entry | Linux-only registration plus darwin host and unrelated dirty edit → complete committed population, dirty edit not published | Use host-linked registry or dirty cross-compile. Complete committed-input mechanism and carrier fixture still unresolved |
+| P-33 persistence census | Existing named leads below; proposed `TestPersistenceFixturesUseOneEffectiveStore`, `internal/test/fixture/one_off_proof_test.go` | Each disk-reader/restart case and memory-only control → isolated persistent store where required, memory isolation otherwise, seed/start roots agree | Force all fixtures to memory or all to shared disk; strip only uppercase env alias |
+| P-34 contracts/manifest | Existing `TestActionsCarryTheirContracts`, `TestHomeHeroDerivesFromTheManifest`; proposed `TestRenamedCallersReachRegisteredActions`, `internal/le/one_off_proof_test.go` | Add a registered member, exercise deployment/QEMU/readme-carrier and renamed doc-index/status callers → membership/contract checks adapt, every caller resolves | Freeze total count; retain stale action spelling |
+| P-34 lab/health/rules/docs | Existing `TestPartialHealthExplainsScopedEvidence`, `le-rules-answers`, `le-vendor-web-answers`, `le-checks-answers`; proposed `TestLabPinReportDoesNotWrite`, `internal/le/lab/pin/one_off_proof_test.go` | Report group must not bump; partial-health fixture has real meta rows; dotted root poison isolated; feature Doc evidence matches content | Put writing bump in report group; invalid metadata fixture; leave dotted alias; reuse stale Doc hash. Historical render-update cause stays unproven |
+| P-35 load | Existing named cases and missing log members listed below; per-member contention carrier **unresolved** | Reach each actual wait/race/resource bound under owned contention and explicit readiness → assertion passes because cause repaired | Reintroduce the identified wait/race; blanket timeout inflation cannot substitute for a break |
+| P-36 admission | `internal/le/job/one_off_proof_test.go` `TestSilentForeignJobSurvives`; QEMU admission entry companion | Foreign silent process, canceled own waiter, guest carrying parent identity and unreadable identity → foreign survives, own wait ends, guest inherits identity without whole-tree 9p hash, unreadable refuses | Kill by silence; recompute InputHash over guest mount; treat identity error as permission |
+| P-37 lint input | Proposed `TestLintInputGuardMatchesProducer` in owning lint package (path unresolved) | Real selected scratch Go input versus preserved non-input backup → real input checked, backup not compiled/deleted | Glob all scratch; blanket-exclude actual input |
+| P-38 retirements | Existing retired carrier/QEMU assertion history; exact replacement map **unresolved** | Reconstruct each old assertion, owner judgment and replacement → every behavior has current discriminating proof, not merely permission to retire | Remove each claimed replacement assertion. Escaping-symlink producer remains an unverified lead, not an approved repair |
+
+P-12 retains the four historical fixed-row claims separately: RSVP-TE `buildResv`
+needs a real RESV capture whose FILTER_SPEC class is 10 (break: restore
+SENDER_TEMPLATE); LDP `handleInit` needs a session proof that stays non-operational
+until acceptance (break: advance before acceptance); LDP `DecodeInit` needs unknown
+mandatory-TLV refusal and optional-TLV acceptance (break: ignore the U-bit rule).
+Their exact current test carriers remain unresolved, rather than inferred from
+the repair commit. The fourth claim, unknown `.ci` directives, has P-1 above.
+
+#### Five RTR fixtures
+
+All five carriers below are **existing** under `test/plugin/` and enter through
+the functional plugin suite, its `.ci` runner, `le mock rtr --sync-release`, and
+the named observer. Their contents were read for this correction. The shared
+discriminating harness break is to anchor the mock at the repository root again:
+each case must then fail synchronization, not pass because no route was observed.
+After restoring per-test cwd, each owes its independent route assertion too.
+
+| Carrier | Stimulus and expected route assertion | Separate behavior break |
+|---------|---------------------------------------|-------------------------|
+| `bgp-rr-rpki-pending-withdraw-relay.ci` | Withdraw held 10.0.0.0/24 before sync, then release VRP; RR sends no UPDATE for it and exactly the revalidated 10.0.1.0/24 fence | Remove adj-out ownership guard or retain canceled pending work |
+| `bgp-rs-rpki-pending-withdraw-relay.ci` | Same pending-withdraw sequence through RS; assert its own expected wire path and single fence | Break RS cancellation/adj-out guard independently of RR |
+| `bgp-rr-rpki-revalidate-relay.ci` | Hold destination down, receive NotFound path, re-enable destination with EOR only, release cache; RR revalidation delivers conn=2 seq=2 with reflection attributes | Disable RR replayValidation delivery |
+| `bgp-rs-rpki-revalidate-relay.ci` | Same controlled sync through RS; expected conn=2 seq=2 has its RS path, no extra source announcement | Disable RS replayValidation delivery |
+| `rpki-revalidate-late-sync.ci` | Observe accepted NotFound 10.0.1.0/24, release mismatching VRP; retained received bytes become Invalid and ineligible | Drop revalidation update into Adj-RIB-In |
+
+#### Fifteen historical special checkers
+
+Each existing scenario directory below is under `test/interop/scenarios/` and
+enters via the integration interop selector, `Suite.Run`, then its registered
+checker in `internal/le/interoplab/bgp/check_rfc.go`. This is the incident set,
+not a registry count assertion. Every row needs a live attributed red/green;
+pinned-peer rendering/schema verification is still pending for each row. The
+stimuli and breaks are proof plans, not reports that those breaks were run.
+
+| Existing checker | Existing scenario directory | Stimulus → required assertion | Discriminating break |
+|------------------|-----------------------------|-------------------------------|----------------------|
+| `checkAddPathReadvertiseCollision` | `bgp-addpath-readvertise-collision-frr` | BIRD replay and GoBGP live injection of the same prefix → FRR negotiates ADD-PATH receive (`addPathReceiveNegotiated`) and holds origins 65003 and 65004 under distinct IDs (`parseAddPathState`). Clear the FRR session, observe a higher established-session generation (`waitFRRNewSession`), then require replay to retain each origin's same ID (`samePathIdentifiers`); FRR and GoBGP sessions survive | Reuse one outbound ID for both origins; separately allocate new IDs on replay. Reject missing receive negotiation or an unobserved reconnect; a withdrawal assertion cannot substitute for replay identity |
+| `checkLocalPrefStrip` | `bgp-local-pref-strip-gobgp` | Inject 10.54.0.0/24, 10.54.1.0/24 and 10.54.2.0/24 carrying LOCAL_PREF 200, including the post-EOR live rail → every prefix arrives at FRR and GoBGP; GoBGP's received source block retains AS 65004 and injector next hop, with LocalPref absent, not zero (`requireGoBGPSourceBlock`, `requireGoBGPAttributeAbsent`); both sessions survive | Stop stripping LOCAL_PREF on eBGP; separately suppress a relayed prefix or replace its source block, which must fail the arrival/source controls |
+| `checkMEDAcrossAS` | `bgp-med-across-as-gobgp` | Relay 10.60.0.0/24, 10.60.1.0/24 and 10.60.2.0/24 from AS 65004 carrying MED 100, and originate 10.60.9.0/24 at Ze with MED 42 → all four arrive at FRR and GoBGP. GoBGP retains each relayed source block but no received MED (`requireGoBGPAttributeAbsent`); Ze's own source block retains MED exactly 42 (`requireGoBGPAttributeValue`). Both sessions survive; this is propagation, not best-path comparison | Separately disable received-MED stripping across neighboring ASes, and strip Ze-originated MED as well. Each break must fail its own attribute assertion; suppressing routes must fail arrival controls |
+| `checkMEDRemovalConfiguration` | `bgp-med-remove-configured-gobgp` | FRR AS 65005 originates 10.61.0.0/24 and control 10.61.1.0/24 with MED 100; only the first matches DROP-MED import policy → both reach internal GoBGP with FRR's source block intact. First has no MED, control retains exactly 100 (`requireGoBGPAttributeAbsent`/`requireGoBGPAttributeValue`); FRR and GoBGP sessions survive. Internal destination prevents automatic cross-AS stripping from satisfying the configured-removal assertion | Ignore the configured removal; separately strip MED from the unmatched control. Dropping either route or changing its source must also fail |
+| `checkRelayWithdrawalShape` | `bgp-relay-withdraw-shape-frr` | FRR first receives the route with AS_PATH `65001 65004` (`requireFRRASPath`), then loses it after withdrawal. Require FRR's actual withdrawal decode (`frrDecodedWithdrawal`) and no attribute error in that same log (`requireNoAttributeError`), followed by a surviving session; RIB absence alone cannot distinguish a valid withdrawal from treat-as-withdraw | Omit the advertisement's Ze prepend; separately add AS_PATH to the withdraw-only UPDATE or otherwise corrupt withdrawal attributes. Route disappearance alone must not pass the latter break |
+| `checkRFC2545NextHops` | `bgp-rfc2545-linklocal-nexthop-frr` | Both routes reach FRR over the same IPv6 session: on-link 2001:db8:5601::/48 has Ze's topology-owned global and link-local next hops and is installed via that link-local (`requireNextHopShape`, `requireRouteInstalledVia`); off-link 2001:db8:5602::/48 has only global 2001:db8:ffff::1 despite the configured link-local leaf. Session survives | Omit the on-link link-local or use the wrong topology address; separately include link-local on the off-link route. Parsing two addresses without installation cannot satisfy the on-link proof |
+| `checkRFC7606MixedUpdate` | `bgp-rfc7606-relay-shape-frr` | Preannounce 198.51.100.0/24 and observe FRR installation; explicit release barrier then mixed withdrawal plus 203.0.113.0/24 announcement → first removed, second installed, split-shape proof and stable session | Duplicate NEXT_HOP in split announcement; independently drop withdrawal. Absent-before/absent-after cannot satisfy it |
+| `checkRFC7606TypedNLRIDiscard` | `bgp-rfc7606-typed-nlri-discard` | Assigned type-2 plus unassigned EVPN type → strict speaker decode retains exact type-2 only, with full OPEN/Established and complete-capture controls | Forward unassigned type; remove retained type-2; truncate capture. Malformed decoder input must error, not resemble discard |
+| `checkRFC7999Blackhole` | `bgp-rfc7999-blackhole-frr` | FRR covered/agreed, FRR uncovered, BIRD covered/unagreed announcements → kernel discard only first, positive forwarding for other two | Bypass prefix authorization or session agreement separately |
+| `checkRouteServerASPath` | `bgp-route-server-frr` | FRR originates the route in AS 65002; Ze relays between RS clients → BIRD, the receiving observer, holds that prefix with AS_PATH exactly `65002`, without Ze ASN 65001 (`requireBIRDASPath`). Both FRR and BIRD sessions survive the relay | Prepend Ze ASN on the RS rail; separately suppress far-side delivery or lose either session. FRR's own originating RIB cannot substitute for BIRD's received path |
+| `checkSelfNextHopWithheld` | `bgp-self-nexthop-withheld-frr` | Inject 10.11.0.0/24 with FRR's own NEXT_HOP first, then control 10.12.0.0/24 with injector NEXT_HOP 172.30.0.9 → FRR's incoming UPDATE decode contains control from Ze and no withheld prefix in the same captured log (`frrDecodedPrefix`). Control is also installed with the sole expected injector next hop (`parseFRRNextHops`, `requireSoleNextHop`); session survives. RIB absence alone is insufficient: FRR could reject a route Ze transmitted | Forward the self-next-hop path: its incoming decode must fail proof even if FRR rejects it from the RIB. Separately suppress control, change its next hop, or drop the session; each positive control must fail |
+| `checkNoExportBoundary` | `bgp-wellknown-noexport-frr` | Inject NO_EXPORT 10.10.0.0/24, then control 10.11.0.0/24 carrying ordinary community 64985:100 → internal BIRD receives the NO_EXPORT route, while both BIRD and external FRR receive control. One FRR table answer contains control and excludes the NO_EXPORT prefix (`requireRouteWithheld`); both sessions survive | Disable external NO_EXPORT enforcement; separately suppress NO_EXPORT everywhere, which must fail BIRD's internal receipt. Blanket relay suppression must fail control delivery to both observers |
+| `checkISISDynamicHostname` | `isis-p2p-frr` | Up adjacency and Ze LSP → FRR database names Ze from TLV137 and adjacency remains Up | Omit hostname TLV; accept any database name |
+| `checkNoFamilyEndOfRIB` | `no-family-peer-eor-frr` | Keep asymmetric OPENs: Ze no MP, FRR IPv4 MP; route arrives → exact sender/family/VRF/current-session EOR decoded | Remove implicit family; accept stale/other-sender/other-family EOR log. Correct misleading header, not the OPENs |
+| `checkNSSADefault` | `ospf-stub-nssa-frr` | Full NSSA adjacency without default-originate config → FRR installs Type-7 default via border router, no Type-5 leak | Gate default on absent config; flood Type-5 into NSSA |
+
+Shared oracle extensions are proposed in
+`internal/le/interoplab/bgp/check_oracle_contract_test.go`:
+`TestInstalledRouteFieldsBelongToOneObject` drives the actual installed-route
+predicate with wrong-prefix/protocol/state/next-hop and cross-object matches;
+`TestRouteJSONRequiresPinnedSchema` drives `jsonHasRoute`/`nestedRoute` with empty
+paths, wrong prefix, error JSON and unrelated valid JSON;
+`TestSpeakerDiscardRequiresCompleteCapture` drives the speaker verdict path with
+missing ze-open, incomplete capture and malformed/truncated wire. Break each
+field/control independently. These helper tests supplement, never replace, the
+fifteen live scenarios. Supplemental findings keep their audit-reported status.
+
+The proof plan remains incomplete specifically for the June technique/fuzz
+populations; exact October backfill candidates; six historical spec repair files;
+aggregate lint and unnamed load members; retired-carrier replacements; the full
+persistence reader census; all JSON/site publication consumers; build-only and
+stdlib/tag derivation carrier paths; union ownership; six cancellation package
+carriers; and the three fixed protocol carriers above. Each remains owned by its
+P-number and research row. No generic proposed test name certifies these sets.
+
+### Occurrence ownership map
+
+The key is **class / date / surface and symptom**, not table position. Class names
+resolve under `plan/journal/` (the historical `.md` suffix on the tool-help entry
+names the same class). Every row inherits the P-number of each listed AC. Multiple
+ACs require all those proofs. Package letters are research/implementation owners
+within this spec, not transfers to another spec. Every entry remains open for proof;
+the S/R distinctions above govern its evidence. Repeated dates are intentionally
+retained. The extra symptom text distinguishes journal occurrences and hidden
+sub-obligations where the short original surface collapsed them.
+
+| Class | Date | Surface / occurrence discriminator | Owner | AC / proof number |
+|-------|------|------------------------------------|-------|-------------------|
+| concurrent-session-corruption | 2026-10-30 | site Linux inventory builds live checkout | C | 32 |
+| review-pin-hashes-uncommitted-content | 2026-10-30 | historical closure path hashes working tree | A | 29 |
+| gate-verdict-depends-on-the-machine | 2026-10-29 | DNS system-name-server seed uses Linux-only writer | H | 34, 35 |
+| gate-verdict-depends-on-the-machine | 2026-10-29 | coupling uses host plugin population | H | 32 |
+| gate-verdict-depends-on-the-machine | 2026-10-27 | 043c682d24 load reds; each named case retained below | H | 35 |
+| lint-contract-not-applied | 2026-10-27 | 043c682d24 aggregate lint population | H | 26 |
+| command-name-breaks-the-cli-grammar | 2026-10-27 | readme-carrier plus deployment and QEMU vpn-kernel-test | H | 34, 38 |
+| delegation-hands-the-callee-a-different-argv | 2026-10-27 | rollback diagnostic `$*` versus executed argv | C | 4 |
+| lint-contract-not-applied | 2026-10-27 | radiussubscriber check_policer parse width/allowlist | H | 26 |
+| lint-contract-not-applied | 2026-10-27 | 2f36373081 lint; all named sites | H | 26 |
+| command-name-breaks-the-cli-grammar | 2026-10-27 | appliance kernel --jobs declaration | H | 34 |
+| hardcoded-count-in-test | 2026-10-27 | TestActionsCarryTheirContracts membership | H | 34, 38 |
+| plugin-list-hardcoded | 2026-10-27 | TestHomeHeroDerivesFromTheManifest | H | 34 |
+| lint-contract-not-applied | 2026-10-27 | e6474aa200 aggregate lint population | H | 26 |
+| lint-contract-not-applied | 2026-10-27 | terminaldemo test Docker ownership/placement | H | 26 |
+| gate-verdict-depends-on-the-machine | 2026-10-27 | InputHash gitTimeout in 9p guest | D | 36 |
+| gate-excludes-part-of-its-population | 2026-10-27 | unitNeedsGuest: linux-buildable CAP_NET_ADMIN proof | F | 39 |
+| bulk-rename-corruption | 2026-10-27 | doc index and verify status write callers | H | 34 |
+| bulk-rename-corruption | 2026-10-27 | QEMU names lose -test; action census assertion | H | 34, 38 |
+| bulk-rename-corruption | 2026-10-27 | le-vendor-web-answers and le-checks-answers | H | 34 |
+| package-red-not-reproduced | 2026-10-27 | harnesstool setup docker namespace panic | H | 34 |
+| package-red-not-reproduced | 2026-10-27 | le-rules-answers render-update; env alias and old cause | H | 34 |
+| published-value-drifts-from-the-behavior-it-describes | 2026-10-27 | hookSourcesDigest stale | E | 8 |
+| published-value-drifts-from-the-behavior-it-describes | 2026-10-27 | wholetree-mentions ledger and current no-verify rule | E | 15 |
+| read-fails-on-a-fact-the-caller-does-not-need | 2026-10-27 | TestSessionStartRendersNoDeferredArtifact | E | 8 |
+| fixture-encodes-an-impossible-state | 2026-10-27 | TestPartialHealthExplainsScopedEvidence meta rows | H | 34 |
+| commit-needs-an-uncommitted-symbol | 2026-10-27 | RFC7084 text must be committed/readable, not local-only | A, F | 41 |
+| claim-outlives-the-evidence-it-cites | 2026-10-27 | features/ai-first-design.md Doc review | H | 34 |
+| lint-contract-not-applied | 2026-10-27 | 0723d7d26a misspell, stringXbytes, typeDefFirst | H | 26 |
+| session-never-establishes-with-the-peer | 2026-10-27 | RPKI relay RR/RS pending-withdraw/revalidate; mock RTR sync | G | 12 |
+| artifact-bytes-disagree-with-identity | 2026-10-26 | native corruption: startup and embedded-schema executables | I | 27 |
+| test-artifacts-land-in-the-repository-root | 2026-10-26 | lint-input guard and foreign Go backup | C | 37 |
+| tool-help-contradicts-owner-rule | 2026-10-25 | verify changed guidance; superseded host-specific restriction | E | 15 |
+| acceptance-criterion-written-as-an-absence | 2026-08-21 | show bgp summary survivors; six stale spec criteria | E | 16 |
+| blanket-mechanism-hid-missing-cases | 2026-08-10 | Stop hook classifier categories | E | 8 |
+| bulk-rename-corruption | 2026-08-10 | l2tp exported-to-unused population | C | 14 |
+| closed-spec-survives-on-disk | 2026-09-12 | closure remove leaves spec copy | A | 5 |
+| container-cannot-see-migrated-scratch | 2026-10-21 | Run.virtfsArgs cache symlink/xattr | D | 10 |
+| delegation-hands-the-callee-a-different-argv | 2026-10-20 | conf-watchdog PATH helper identity | C | 4 |
+| delegation-hands-the-callee-a-different-argv | 2026-10-13 | stress-repro reload namespace AND reused verdict | C | 4, 21 |
+| delegation-hands-the-callee-a-different-argv | 2026-09-07 | launcher existing binary and POSIX argv fixtures | C | 4 |
+| delegation-hands-the-callee-a-different-argv | 2026-09-04 | refuseWrongBuildName shared helper | C | 4 |
+| delegation-hands-the-callee-a-different-argv | 2026-09-05 | generated commit review-check ambient session | A | 4, 29 |
+| error-answered-with-another-errors-code | 2026-10-10 | DockerKernelRoute unknown versus absent | D | 10 |
+| escape-hatch-scoped-wider-than-its-justification | 2026-09-27 | one allowed panic exempts whole edit | E | 8 |
+| field-carries-two-meanings | 2026-10-03 | runOrchestrated original script versus routed stdin | B | 3 |
+| field-carries-two-meanings | 2026-08-19 | ZE_VERIFY_MODE boolean versus former mode argument | E | 15 |
+| fixture-encodes-an-impossible-state | 2026-10-05 | hook probeTree: three allow probes need committed HEAD | E | 11 |
+| fixture-encodes-an-impossible-state | 2026-09-05 | le-qemu-run-answers missing go directive | D | 11 |
+| fixture-encodes-an-impossible-state | 2026-09-17 | le-qemu-run-answers reads wrong root/version | D | 11 |
+| gate-ignores-the-level-it-counts | 2026-09-30 | checkGapCountAgreement SHOULD counted as MUST | F | 9 |
+| gate-ignores-the-level-it-counts | 2026-10-06 | RFC9256 and RFC9552 optional gaps | F | 9 |
+| gate-owed-a-clearance-no-command-writes | 2026-11-02 | late RFC-approved publication | A | 30 |
+| gate-owed-a-clearance-no-command-writes | 2026-09-08 | debt-discharge cannot supersede foreign bad record | A | 6 |
+| gate-owed-a-clearance-no-command-writes | 2026-09-07 | debt-clear review/RFC writer plus unknown-gate clearance | A | 6 |
+| guard-added-to-one-half-of-a-pair | 2026-10-10 | Bench.Run build-only staging | G | 12 |
+| guard-added-to-one-half-of-a-pair | 2026-10-26 | generated bulk UPDATE session attributes | G | 28 |
+| guard-added-to-one-half-of-a-pair | 2026-09-07 | runGating signal cleanup, binary set/raw coverage, child groups | D | 7, 18 |
+| guard-added-to-one-half-of-a-pair | 2026-09-05 | verify dispatch loses cancellation before stage | D | 7 |
+| invariant-enforced-by-an-absent-call-site | 2026-08-18 | WIP cap direct edit and unclaimed transition | E | 15 |
+| invariant-enforced-by-an-absent-call-site | 2026-08-19 | editor wall clock plus et/wb caps and exclusive groups | B | 2, 40 |
+| lifetime-ends-before-its-last-reader | 2026-10-22 | runTest/runOrchestrated timeout Kill without Wait before lease release | B | 3 |
+| lifetime-ends-before-its-last-reader | 2026-10-23 | interop assertion pass followed by image-cleanup error | B | 3 |
+| mutating-a-guard-runs-the-unguarded-path | 2026-08-31 | handlePacket forced-red live guard mutation | E | 16 |
+| mutating-a-guard-runs-the-unguarded-path | 2026-08-10 | build recipe seed reaches operator etc/ze | E | 16, 33 |
+| net-pipe-deadlock | 2026-09-03 | captureStdout beyond pipe capacity | B | 13 |
+| non-idempotent-append-duplicates-the-record | 2026-08-19 | debt shard: d0ddef174 repeated create; 2f2eb832b create --replace, two journal occurrences | A | 5, 6 |
+| non-idempotent-append-duplicates-the-record | 2026-08-29 | append overwrites earlier message | A | 5 |
+| option-set-for-one-caller-changes-another | 2026-10-10 | runGokInProcess changes cwd; relative image injection | D | 10 |
+| option-set-for-one-caller-changes-another | 2026-09-28 | wait-file and path-asn-filter-export-reject / redistribute-export-modify | B | 11 |
+| option-set-for-one-caller-changes-another | 2026-10-19 | storage-bfd-restart persistent sequence | B | 11, 33 |
+| output-not-byte-stable | 2026-08-15 | chaos golden relative clock; include total peer ordering audit | H | 13 |
+| output-not-byte-stable | 2026-08-24 | web-config poster render stability | H | 13, 19 |
+| owner-decision-attributed-without-the-owner | 2026-10-18 | rfc approve reason AND summary annotation authority | F | 9 |
+| pointer-shared-across-the-names-it-indexes | 2026-09-04 | append: random script but shared message | A | 5 |
+| pointer-shared-across-the-names-it-indexes | 2026-09-05 | same-tag ordinary create: second and third same-day journal occurrences | A | 5 |
+| prohibition-broken-by-the-agent-that-carried-it | 2026-08-31 | delegated .ci rename stages through git mv | E | 16 |
+| record-written-before-the-operation-succeeds | 2026-09-08 | recordDebt cover count before valid operation | A | 5, 6 |
+| record-written-before-the-operation-succeeds | 2026-08-19 | debt append before subject validation | A | 5, 6 |
+| refactor-removes-feature | 2026-09-03 | four gates: commit deferral, test-first, delegation reminder, subagent context | E | 8 |
+| refactor-removes-feature | 2026-09-03 | design subject/freshness gate AND daemon-scoped .ci demand | E | 8, 24 |
+| refactor-removes-feature | 2026-08-31 | checkNoFamilyEndOfRIB and fourteen sibling checker bodies/oracles | G | 12 |
+| removal-leaves-the-file-on-disk | 2026-10-21 | sweeper interrupted-removal dirty-state classification | D | 7 |
+| removal-leaves-the-file-on-disk | 2026-09-19 | sweeper directoryless marker AND standalone entry point | D | 7 |
+| removal-leaves-the-file-on-disk | 2026-09-12 | renderSharedIndexRepair closure fourth instance | A | 5 |
+| removal-leaves-the-file-on-disk | 2026-09-07 | renderSharedIndexRepair closure recurrence | A | 5 |
+| removal-leaves-the-file-on-disk | 2026-09-06 | remove only drops index entry | A | 5 |
+| replacement-written-before-it-is-validated | 2026-09-08 | go mod vendor reverts owned patches | C | 14 |
+| rule-metadata-values-disagree-with-linter | 2026-09-12 | rule corpus MUST metadata versus SHOULD body | E | 9 |
+| silent-fall-through | 2026-10-05 | engine-step file/stdin decoding and direct execution | B | 1 |
+| silent-fall-through | 2026-09-08 | zeTestParseRunCLI unknown verb succeeds | B | 1 |
+| silent-fall-through | 2026-09-07 | QEMU required 9p mount falls through | D | 10 |
+| silent-fall-through | 2026-09-04 | YANG domain registration in test binaries | C | 14 |
+| silent-fall-through | 2026-08-15 | orphan positive stdin=peer block; retain line-parser refusal | B | 1 |
+| silent-fall-through | 2026-10-08 | arm64 Linux acceleration omits KVM | D | 10 |
+| silent-fall-through | 2026-10-10 | editor options: timeout, width, height, wait | B | 2 |
+| silent-fall-through | 2026-10-10 | processCmdWithDepth actual tick cost | B | 2 |
+| silent-fall-through | 2026-10-10 | IPsec zeEnvironment log key consumer | G | 12 |
+| test-gate-repeats-expensive-work | 2026-10-07 | functional --pattern documented but refused | E | 15 |
+| test-gate-repeats-expensive-work | 2026-09-12 | hookSessionStart derived-artifact work | E | 8 |
+| test-gate-repeats-expensive-work | 2026-09-11 | session-start harness 5-second timeout | E | 8 |
+| test-mutates-a-running-subject | 2026-10-15 | TestUnionTimeout writes sweepInterval after NewUnion | B | 13 |
+| test-type-not-backfilled | 2026-10-06 | RFC naming/tag debts; eight candidates plus separate RS probe lead | E | 16 |
+| test-type-not-backfilled | 2026-06-14 | new technique existing-code population | E | 16 |
+| test-type-not-backfilled | 2026-06-14 | fuzz target equivalent-code population | E | 16 |
+| helper-bypassed-by-an-open-coded-copy | 2026-08-14 | main .ci TmpfsFiles mode loss; retain parse-path predecessor proof | B | 17 |
+| helper-bypassed-by-an-open-coded-copy | 2026-08-31 | activityStyle light literals in dark theme | H | 17 |
+| parser-refuses-a-form-its-producer-emits | 2026-10-14 | checkSnapshot quoted Git paths | A | 17 |
+| policy-change-never-re-evaluates-what-it-admitted | 2026-10-22 | GoBGP export UpdateConfig/OUT reconciliation | G | 17 |
+| stop-leaves-the-work-running | 2026-10-11 | runDocker kernel container survives CLI kill | D | 18 |
+| stop-leaves-the-work-running | 2026-10-20 | installStopped inaccurate progress/reboot guidance | D | 18 |
+| stop-leaves-the-work-running | 2026-10-20 | installCommand TERM-ignore wait AND second interrupt | D | 18 |
+| stop-leaves-the-work-running | 2026-10-20 | six unrooted routes: l2tp-ppp, gokrazy-l2tp, l2tp-scale, hugepages, docker-lab, yangcontract | D | 18 |
+| test-against-broken-path | 2026-08-18 | browser web-config validator versus recording | H | 19 |
+| test-against-broken-path | 2026-08-29 | plugin-import and YANG-glue generator tests run non-main file | H | 19 |
+| test-against-broken-path | 2026-09-01 | TestProbeUnclaimedRoutes and TestScratchProducerCensus committed probes | H | 19, 38 |
+| test-against-broken-path | 2026-09-05 | requireEveryJobAdvisory versus evidence-nightly | H | 19 |
+| test-against-broken-path | 2026-09-28 | le-discovery-answers compares working tree, producer unpushed range | H | 19 |
+| unwired-feature | 2026-09-02 | CodeQL Go extraction ignores paths-ignore | H | 17 |
+| zero-value-as-valid-answer | 2026-08-26 | le toolchain empty derived feature tags | C | 20 |
+| zero-value-as-valid-answer | 2026-09-21 | comparison drops second ze pass AND convergence publishing | C | 20 |
+| zero-value-as-valid-answer | 2026-10-15 | listStdlib empty successful listing | C | 20 |
+| bound-too-small-for-its-own-burst | 2026-10-22 | runSlug full selector list filename | C | 21 |
+| bound-too-small-for-its-own-burst | 2026-10-25 | job stall window kills silent foreign gomu | D | 36 |
+| bound-too-small-for-its-own-burst | 2026-11-02 | browser first-open startup bound only widened in verify mode | B | 2, 35 |
+| declared-format-contradicts-payload | 2026-08-31 | session Uncommitted heading over shared tree | E | 22 |
+| declared-format-contradicts-payload | 2026-09-01 | not-enrolled source-restricted kind for ISO10589 | F | 23 |
+| gate-excludes-part-of-its-population | 2026-08-22 | wire speaker census, including non-Go readers/writers | E | 24 |
+| gate-excludes-part-of-its-population | 2026-09-27 | eight documents; each disposition retained below | F | 25 |
+| gate-red-where-nothing-blocks-on-it | 2026-08-30 | eighteen site goconst findings | H | 26 |
+| gate-red-where-nothing-blocks-on-it | 2026-08-31 | CLI grammar release gating | H | 26 |
+| gate-red-where-nothing-blocks-on-it | 2026-09-10 | post-OSPF 93 host, 104 Linux, two capability, one uncovered file | H | 26 |
+| gate-red-where-nothing-blocks-on-it | 2026-09-10 | repo wiring, changed-test audit, doc drift/summary/anchors | H | 26 |
+| gate-red-where-nothing-blocks-on-it | 2026-09-17 | le-docvalid-answers, le-evidence-answers AND le-job-admits | H | 26 |
+| gate-red-where-nothing-blocks-on-it | 2026-10-05 | pluginOwnershipGate and le-placement-answers | H | 26 |
+| published-value-drifts-from-the-behavior-it-describes | 2026-10-24 | lab pin report group contains writing bump | H | 34 |
+| validate-accepts-what-start-refuses | 2026-10-26 | weakening approval accepts unusable package-clause unit key | A | 31 |
+| reference-checked-claim-unchecked | 2026-10-26 | rendered-rule fixture names retired update index | E | 8 |
+
+The four entries under Rows found already fixed also remain owned evidence claims:
+
+| Class / date / surface | Owner | Proof still required |
+|------------------------|-------|----------------------|
+| silent-fall-through / 2026-09-06 / parseCIFile unknown directive | B | P-1: current parser refusal through a real file |
+| guard-added-to-one-half-of-a-pair / 2026-09-21 / RSVP-TE buildResv filter | G | P-12: current producer, emitted filter and discriminating carrier |
+| protocol-state-advanced-before-the-peer-confirmed / 2026-09-28 / LDP handleInit | G | P-12: acceptance barrier before operational and real session proof |
+| silent-fall-through / 2026-09-21 / LDP DecodeInit U-bit | G | P-12: unknown mandatory TLV refusal and optional control |
+
+### Research populations and evidence gaps
+
+These are explicit open research deliverables. They cannot be closed by marking
+their parent AC covered, by moving a journal row to fixed, or by a current green.
+All source-repair statements in this table are **audit reports awaiting producer
+verification** unless the S table above names the same fact.
+
+| Owner | Population or blocker | Retained lead and required next evidence |
+|-------|-----------------------|------------------------------------------|
+| A | Removal/message/debt predecessors | Removal has S evidence above. Reports say random exclusive messages and Git-derived debt repair the other predecessors. Verify allocation, failure ordering, duplicate/replace routes and current discharge consumer; keep every historical occurrence |
+| A | Approval and review design | Late approval, historical review content, quoted paths, unusable unit keys and cross-session generated review remain live research targets. Canonical identity must include enough carrier/change information to avoid directory-name collisions; inspect all writers and consumers before choosing the record shape |
+| B | Editor/web scheduler adapters | Reported discarded dimensions/waits, real ticks, timeout worker lifetime, capability markers and exclusive groups need a parser-to-scheduler census. Existing scheduler caps/groups are reported not wired through et/wb adapters. Do not design an adaptive host-load policy from these reports |
+| B | Browser startup | First open has a reported verify-only widened budget. Measure the startup/readiness operation and shared caller contract; apply a uniform bounded startup contract, not a mode-specific assertion waiver. A timeout policy change needs evidence that it bounds startup rather than hides a missing readiness signal |
+| B | Process completion | Confirm every early return in runTest/runOrchestrated, Kill-without-Wait and lease ordering. Check interop cleanup text and structured/final status after an assertion pass; the original incident does not prove a Docker race |
+| B | Persistent-store census | Audit `storage-ntp-restart`, `storage-tc-restart`, `ospf-state-through-daemon`, `traffic-vpp-reject-prio`, `traffic-vpp-reject-hfsc`, `traffic-vpp-reject-mark`, and draft `audit-config-commit`, beside BFD. These are disk-audit leads, not certified failures. Search consumers that reopen files, launch another process or restart; a name-based census is incomplete semantic proof |
+| B, E | Root and seed identity | `lg-tls-default-on` reportedly seeds root/admin but starts with a configs root. Trace both effective directories and the dotted config env alias as well as uppercase. Parent reports `validateSessionBinary` checks lexical shape, not ownership/symlink confinement. Prove the actual seeder entry does not mutate operator storage, even with its outer guard bypassed; helper-only validation is insufficient |
+| C | Toolchain/report producers | Audit empty `listStdlib`, pass-aware comparison selection and all convergence publishing consumers. Bound runSlug as above. Verify source-repair reports for feature tags, vendoring, schema links and launcher delegation rather than rebuilding predecessors |
+| C | Backup lint inputs | Determine whether the original Go backup is selected by lint before changing its guard. Preserve foreign evidence. No deletion, blanket ignore, or lint-all-scratch solution is approved |
+| C, H | Site and coupling inventory | Live-checkout Linux site inventory and host-linked coupling need a complete population without development/builds in an export. The old export-based suggestion is superseded. Resolve whether existing committed metadata can answer the inventory; otherwise carry the limitation explicitly until a compliant design is approved |
+| D | Reclaim and guest details | Standalone reclaim, directoryless marker and interrupted removal remain separate obligations. Attribute cache-symlink xattr failure. Check arm64 KVM selection, bootstrap `&&`/ungrouped `\|\|`, cwd restoration and unknown-probe attribution at their producers |
+| D | Cancellation census | Trace all six named routes, kernel container teardown, install progress and second interrupt. Include build, slot wait, startup and running phases. Verify the reported 98592039b3 guest-parent admission repair. Silence never authorizes stopping foreign work |
+| E | Hook behavior, not fixture labels | Four categories retain their original intent: commit deferral, test-first, delegation reminder, subagent context. Reconcile each with current rules before implementation; no prose-sensitive gate returns. Subject/freshness evidence and daemon-path demand are separate from door-read enforcement. Keep panic mixed-call, Stop-category and 5-second startup proofs |
+| E | Backfill inventory | Six stale absence-based specs reportedly repaired at 9059161574; verify historical diff and current replacements. The June 14 technique and fuzz rows contain no recoverable member list yet. Recover their selector/corpus and enumerate equivalent existing sites. October naming research has eight candidates plus one RS probe lead, not nine certified missing tests; reconcile later renames such as 5296340831 without inferring the rest |
+| E | State/template/guidance | Direct-edit WIP bypass, shared-tree heading, missing wire reader/writer census, retired fixture needle and source digest remain separate checks. Current guidance must remove all agent verify instructions, not merely those on Linux. Parent owns the rule synchronization; this edit changes only this spec |
+| F | Eight-document accounting | ASPA-profile, RFC4506, RFC5080, RFC7519 and RFC1008 are reported absent and unlisted: keep them unenrolled while preserving their retired obligations and correction provenance. RFC9117 has a reported source repair. RFC7383 remains optional debt. RFC8247 method14 SHOULD reportedly lacks a row. Recheck profiles, authoritative sentences, corrections and carriers; no reported state is conformance evidence |
+| F | Guest proof and authority | Host buildability reportedly rejects explicit kernel selection even where a linux-tagged unit needs unavailable capabilities. Prove the actual runtime placement and zero-skip record. `ownerRuledMove` has S evidence of matching prose; inspect the owner-act producer before selecting its authorization reference |
+| G | Fifteen checkers | The historical fifteen are named in the carrier table below, matched to `specialCheckers` in `internal/le/interoplab/bgp/check_special.go`. OTC is a different registered checker and is not a member of this incident. Do not freeze the current registry's total count. Bodies reportedly restored; each historical member still owes its pinned-peer renderer and live discrimination proof. A restored function or synthetic log fixture is not a live oracle |
+| G | IPsec, staging, RTR and generated peers | Parent reports ZE_LOG_LEVEL mismatch. Verify logger consumer, Bench.Run build-only guard and RTR sync handshake. Generated LOCAL_PREF lacks reported session classification: P-28 needs all four family/session combinations across active/passive and ordinary/connmap routes, plus unchanged raw-hex control |
+| G | GoBGP reload | Read GoBGP v4.11.0 `UpdateConfig` and destination `Update.GetChanges`, including OUT bookkeeping. Establish the peer version actually used and expected wire transitions. Do not alter Ze or waive the scenario on an unverified peer explanation |
+| H | Source-repair reports | Generator invocation, discovery, homepage, partial-health metadata, lab grouping, renamed callers and several lint sites are reported repaired. Verify each relevant producer and existing regression before closing its occurrence |
+| H | Job-admission and rules fixtures | `le-job-admits` reportedly depends on a 3-second overlap; prove a bounded entry/attach/release rendezvous. Parent verified that exact-key env removal leaves dotted root able to override uppercase in the rules fixture. That supports a current isolation defect, not attribution of the historical render-update red |
+| H | Publication/portability proofs | Chaos clocks and ordering, browser recording/validation parity, poster, theme, effective CodeQL Go extraction, coupling inventory and DNS portability still need producer-backed proofs. The claims count refusal is source-supported in the parent report, not a reason to loosen it |
+| H | Retirement and carrier containment | Preserve the owner-approved carrier/QEMU retirement decisions while auditing replacement coverage. Carrier escaping symlink is an unverified parent lead: inspect the path consumer and confinement boundary first; no repair is selected here |
+| H | Aggregate lint evidence | Recover full e6474aa200 and 043c682d24 member lists and the older post-OSPF lint/wiring/audit/doc logs. Named site repairs cannot account for an aggregate count. Preserve missing logs as blockers; current scoped findings supplement, never replace, original membership |
+| H, B, D | Load-red evidence | Original logs are missing for portions of the load populations. Recover exact selectors, waits and resource limits, or retain those members as unidentified. P-35 remains open even when each presently named case is green alone |
+| I | Incident evidence | The named archives and original traces have not been recovered. Need another copy/host snapshot or an observed recurrence with source and destination retained across the native boundary. Cause and repair remain blocked |
+
+The aggregate lint obligations include every named subpopulation from the journal:
+
+| Historical set | Members retained, with full enumeration still owed |
+|----------------|----------------------------------------------------|
+| 0723d7d26a lint | appliance cache-download misspell; gNMI stringXbytes; l2tp typeDefFirst |
+| e6474aa200 lint | CLI editor_create_entry and config meta; reactor DelayOpen tests; IKE engine/IPsec tests; terminaldemo; deployment/QEMU/RFC tooling; interop l2tp/pppoe; fixtures; log command; iface VPP and DHCP; approximately 140 findings is a historical estimate, not the complete member list |
+| 2f36373081 lint | Suite.Run negated condition; waitRecord/waitStop unparam; exclusive-group ifElseChain; site home goimports; terminaldemo manifest/retire `.webp` goconst |
+| 043c682d24 lint | FSM delay_open, reactor session misspell, BFD DelayOpen fixture registration; check_delayopen siblings and shared constants in prepare/check_parsed_empty_mp/check_srv6_identity; IPsec errcheck; teardownAutomatic unparam; RIB bestfact badLock; iface netlink; trafficusage GPL |
+| Post-OSPF gates | 93 host and 104 Linux/integration findings; two capability findings; one tracked file outside lint; check_paths_limit staticcheck/wastedassign; 24 wiring and 16 changed-test findings; 3759 doc drifts, eight summary-rule failures and source-anchor failures. Counts are historical claims awaiting the original logs, never current measurements |
+
+The load evidence leads retain the other runs named by the package audit so they
+cannot disappear inside the 043c682d24 short label. They remain research leads
+where the original owned index did not enumerate them separately.
+
+| Historical set | Cases / evidence still owed |
+|----------------|-----------------------------|
+| 043c682d24 | TestOwedKeyGRPurgeRecoversSurvivor/end-of-rib/no-survivor; peer-admin-shutdown; plugin-command-document-too-wide; update-text-sr-policy-addpath; debug-toggle; rbac-web-config-deny, including its additional isolated failure |
+| 2f36373081 | TestInProcessSpeed; modify-oversize-suppress; rfc9234-rs-client-learned-not-upward; pipe-local-command; client-backup-start |
+| e6474aa200 | staticcheck part 6 deadline as historical evidence, not an agent rerun instruction; TestNativeRecorderDrivesARealPTYAndWritesAsciicastV2; TestSRv6SubscriptionWaitsForPublication; session-editor-commit-confirmed-accept; storage-bfd-restart; deprecated-bare-config; bfd-pinned-profile-edit-up-live; seven unnamed reload cases and 22 web cases needing original logs |
+| 0723d7d26a | login-on-tree; web-only-interrupt-graceful; web-tool-decode; tacacs-key-required; le-completion-shells; audit-config-commit and concurrent-config-commit; seven web cases needing names; appliance-mpls-qemu and crash-capture-panic-harvest-qemu; TestLeafListSequencesAgree/package budget |
+
+### Package G supplemental audit report
+
+The following is **audit-reported research; parent producer verification is
+pending**. These are not observed runtime reds, approved fixes, or grounds to close
+source-repaired rows. They refine P-12 and P-17 without replacing their obligations.
+
+| Surface | Reported finding / conditional candidate | Proof still owed |
+|---------|-------------------------------------------|------------------|
+| GoBGP v4.11.0 export reload | Changing `UpdateConfig` from IN to BOTH reportedly refreshes unchanged-best and current-candidate exports. It does not settle a disappearing destination for a secondary recipient: `sendSecondaryRoutes` computes old paths under the current export policy, which can reject all old paths; the current list is empty, `Table.update` deletes the destination, and OUT cannot enumerate it | Read the pinned producer and callers, then drive actual SIGHUP/UpdateConfig rather than invoking the route helper alone |
+| GoBGP companion candidate | Conditional on producer verification: extend the no-selected-path branch using `hasPathAlreadyBeenSent`, emit the withdrawal in `paths` because the caller discards `filtered`, and reuse `updateRoutes` and its outgoing queue | Ordinary and secondary recipients: reject-to-accept and accept-to-reject, attribute changes, unchanged best, last-candidate removal, replacement, simultaneous import-removal/export-rejection, never-sent destinations, repeated reload and counters. Require stable session generation and no source UPDATE, refresh or reconnect |
+| GoBGP proof boundary | The report supports only a candidate for stable-session, non-ADD-PATH unicast. ADD-PATH IDs/send-max, VRF, deferred families and repair of prior orphan advertisements are not established | Inventory which original scenario obligations reach those paths. Preserve each as unverified; no universal reload-correctness claim or silent scope reduction |
+| Mixed UPDATE checker | Preannounce 198.51.100.0/24, observe it in FRR, then cross an explicit release barrier before withdrawing it while installing 203.0.113.0/24 | Retain split-shape proof and prove the preexisting route was installed before the mixed update; an absent-before/absent-after observation cannot prove withdrawal |
+| No-family EOR checker | Preserve asymmetric OPENs: Ze advertises no MP capability while FRR advertises IPv4 MP. Correct the header and identify the exact sender, family, VRF and current epoch | Read the pinned renderer and assert the intended EOR event in the current session, excluding stale or other-family output |
+| Installed-route predicate | Substring matches do not prove a route was installed | Structured exact prefix, protocol, installed state and nexthop must occur in the same route object; reject wrong-prefix and partially matching objects |
+| Native speaker / EVPN discard | Decoder reportedly clamps, stops or skips malformed input; `requireSpeakerEVPNDiscard` lacks capture-complete and ze-open controls | Strict decoding, exact retained type-2 route, full handshake and completed-capture controls. Truncated or malformed capture must refuse proof, not look like discard |
+| Shared JSON route oracle | `jsonHasRoute`/`nestedRoute` reportedly infer presence from any paths/prefix key and absence from other valid JSON | Pin the peer output schema; test exact prefix, empty paths, wrong prefix, error JSON and unrelated valid JSON. Unknown schema is an error, not route absence |
+| Fifteen-checker population | Bodies are restored according to the audit, but individual pinned-renderer and live discrimination proofs are incomplete. The current FRR pin is reported as 10.7.1; old 10.3.1 comments are not authority | Verify the actual lab pin and producer for each checker. Record a live red/green discrimination result per feature; no shared helper pass certifies all fifteen |
+
+### Decisions still requiring a design answer
+
+Only alternatives that change the contract remain here. Producer research comes
+first; a defect already settled by a rule is not put back to the owner as a choice.
+
+| Decision | Candidate and real alternative | Evidence needed before approval |
+|----------|--------------------------------|---------------------------------|
+| Late approval publication | Extend ordinary commit preparation to carry a bound late approval, or add an approval-publication-only commit form. Both use the existing trailer writer and keep owner attestation distinct | Trace empty-commit admission, failure/prune behavior and how target changes survive rebases; P-30 negative cases |
+| Approval change binding/order | Bind a unit and reviewed content to the exact owing change, with an ordering rule that cannot clear a later unrelated edit. Decide whether the stable identity is commit-plus-content or a validated change identity across rebase | Current consumers accept a unit-name map. Inventory every writer/reader and rebase/range case before choosing the schema; no retroactive fabricated authorization |
+| Review recording selection | Record committed historical blobs plus explicit prospective snapshots/hunks, or record one complete prospective content manifest derived from those sources | Preparation, appended-block ordering and execution must resolve the same bytes and artifact identity; deletions/modes/unreadable blobs and cross-session tests |
+| Editor hard timeout | Propagate cancellation to all interruptible operations; if a genuine uninterruptible command remains, run that case in an owned process rather than abandon a worker in the suite | Blocking-call census and a worker-completion proof. Do not add a new framework before the existing context path is understood |
+| Committed inventory under main-only development | Reuse an existing complete committed inventory if one exists, or derive metadata from committed objects without building/testing an export | Establish completeness for platform-specific registrations and the current site/coupling consumers. This constraint is not permission to cross-compile the dirty live tree or make a source copy |
+
+Other proposals are evidence-dependent repairs, not owner choices: per-call panic
+matching, reaping before lease release, valid unit keys, state-based fixture waits,
+and refusal of empty failed derivations follow existing contracts. Adaptive load
+scaling, renewed RFC enrollment, baseline waivers, restored retired shards, and
+blanket suite runs are not part of this candidate.
+
+### Implementation sequence and retained proof
+
+1. Finish the targeted producer audits and recover missing populations above.
+   Give each stable occurrence its current producer, disposition and exact proof
+   carrier. Resolve the design choices in the main thread; keep Status `design`
+   until approval is recorded there.
+2. After approval, wire the invalid-input and unread-peer refusals first (P-1),
+   because a false green invalidates later harness evidence. Add the approval and
+   review routes through their real entry points, not helper-only tests.
+3. Repair one reached package at a time, extending its existing mechanism. Prove
+   process/store isolation before reproducing timing, persistence or mutation
+   incidents. Run only the named package/tag cases and named functional selectors
+   in main, one CPU-intensive job at a time. If another session breaks main,
+   report the cause and wait. No command in this paragraph authorizes verify.
+4. For every occurrence, retain the command, source/content identity, red cause,
+   repair, green result, skips and goal-level assertion. Test maintenance is
+   reported separately from product repair. RFC carriers retain native records
+   and independent judgment; no destructive shared-guard mutation is authorized.
+5. Independent review checks the complete occurrence map, including repeated dates,
+   hidden sub-obligations and already-fixed claims. Parent handles commits and
+   eventual CI references. No journal cell closes on this research artifact alone.
+
+### Integration Checklist
+
+These are design applicability answers, not completed implementation checks.
+They restore all twelve questions from `plan/templates/TEMPLATE.md`.
+
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | No | No new product RPC or config leaf is proposed. Changes enter existing le actions, fixture formats and report readers; the system door preserves the existing YANG authority |
+| YANG validation constraints | N-A | No new YANG leaf. `.et`/`.wb` option validation is a parser contract under P-2/P-40, not a new YANG constraint |
+| YANG custom validators | N-A | No new `ze:validate` function or dynamic product value is proposed |
+| CLI commands/flags | Yes | `internal/le/commit/actions.go`, RFC actions, reclamation and test selectors: bind approved publication/placement forms to their existing registered entries and update help. P-4/P-15/P-30/P-39 prove reachability |
+| CLI grammar (keyword before value) | Yes | New/changed le action forms must follow `ai/rules/cli.md`; preserve legacy forwarded perf flags supported by `internal/perf/cli/cmd_report.go`, rather than silently renaming them |
+| Editor autocomplete | No | No product editor config/command leaf changes. `.et` dimensions/waits are harness options, not operator autocomplete values |
+| Functional test for new RPC/API | N-A | No new public RPC/API; real tool-entry proofs remain required in the carrier table, including seeder and commit consumers |
+| Pipe completeness | Yes | Approval/review/refusal, cleanup and loss answers must agree in text and structured output. P-3/P-20/P-29/P-30 reach these contracts; use shared command rendering where the action already uses it |
+| Env var registration | Yes | Audit existing logger key and dotted/uppercase root aliases in P-12/P-33 and current mode readers in P-15. Reuse registered keys; no unregistered timeout or isolation knob is proposed |
+| Doctor check for runtime dependencies | No | Placement uses existing Ze kernel/QEMU and capability machinery; web uses existing browser dependency and refusal. No new service, binary or socket dependency is proposed. A new dependency discovered during the blocking-call/placement audit must return here with its owning diagnostic |
+| Prometheus counters/metrics | No | Loss and cleanup are existing report data, not new daemon metrics; GoBGP counter observations do not add Ze telemetry |
+| BGP family surface (new SAFI / capability / attribute) | N-A | P-28 fixes generated test-peer attributes for already-supported families and session kinds; no new family/capability/attribute registration is proposed |
+
+### Documentation Update Checklist
+
+All seventeen template questions follow. Yes means an implementation obligation,
+not that a page was edited here. Source-anchor search for the known reached files
+found `docs/functional-tests.md`, runner architecture, RFC gates, committing,
+spec workflow, RFC implementation guide and `docs/features/ai-first.md` references.
+The full source-anchor/Design-header census must be refreshed against the final
+approved edit population; the incomplete producer census cannot yield a final
+claim of no other affected page. Existing stale export/verify instructions in
+those pages do not authorize that execution route.
+
+| # | Question | Applies? | File to update / source-aware reason |
+|---|----------|----------|-------------------------------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/ai-first-design.md` Doc evidence (P-34); each reached feature declaration whose checker proof changes must be rejudged. `docs/features/ai-first.md` anchors commit actions. No source repair alone raises maturity |
+| 2 | Config syntax changed? | No | Candidate changes test options and tool inputs, not product YANG. Runner architecture separates `.ci`/`.et`/`.wb` from product config; `docs/guide/configuration.md` and `docs/architecture/config/syntax.md` need no new syntax from the currently proposed changes |
+| 3 | CLI command added/changed? | Yes | `docs/contributing/committing.md`: late approval and review content/identity; `docs/contributing/rfc-conformance-gates.md`: approved kernel-placement form; `docs/contributing/running-commands.md`: reclaim and execution constraints. Check `docs/guide/command-reference.md` and registered help for every reached public spelling |
+| 4 | API/RPC added/changed? | No | No new product handler, event or RPC payload. P-3/P-20 structured tool reports are documented with their tool producers; `docs/architecture/api/commands.md` remains the product registry contract |
+| 5 | Plugin added/changed? | No | No plugin registration or lifecycle change selected. RPKI/GoBGP scenarios exercise existing plugins and peer behavior; `docs/guide/plugins.md` needs change only if producer verification exposes a product contract change, which returns to design |
+| 6 | Has a user guide page? | Yes | `docs/guide/benchmarking.md` and `docs/performance.md`: explicit loss refusal, pass-aware identity and invalid convergence; `docs/contributing/running-commands.md`: owned cancellation/admission. Generated performance text comes from `PerformanceDoc`, not hand-edited output alone |
+| 7 | Wire format changed? | No | P-28 restores existing generated UPDATE attribute rules; raw-hex input remains exact. Checker repairs change evidence, not a new product encoding format. Confirm existing `docs/architecture/wire/` claims against any producer actually changed before marking this final |
+| 8 | Plugin SDK/protocol changed? | No | No new SDK message or field is proposed. `sysproc.go` declares `docs/architecture/api/process-protocol.md` as its Design page: any lifetime edit there updates that existing lifecycle description under row 12, without claiming a new SDK wire protocol |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | Reached `rfc/short/` claims, extraction/audit/discrimination records and derived `docs/features/rfc-status.md` must reflect actual new proof, including recorder placement. Preserve the eight-document profile limits and committed `rfc/full/rfc7084.txt`; do not enroll unlisted documents |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, `docs/architecture/testing/runner-architecture.md`, `docs/architecture/testing/ci-format.md`, `docs/architecture/testing/interop.md`: adapter options/caps/groups, worker lifetimes, store roots, cleanup status, exact selectors and source-backed oracles |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` needs an accuracy check for any claims reached by checker repairs; `docs/performance.md` and `docs/guide/benchmarking.md` must explain loss refusal and pass identity. No new performance numbers are authorized on an unknown host |
+| 12 | Internal architecture changed? | Yes | Runner architecture for context/group lifetime; `docs/architecture/api/process-protocol.md` if its declared `sysproc.go` mechanism changes; `docs/architecture/system-architecture.md` is the Design page of `cmd_report.go`. Also `docs/architecture/testing/verify-freshness-scope.md` and spec workflow for current main-only/scoped-evidence constraints |
+| 13 | Route metadata keys added/changed? | No | No key declaration changes in this candidate; RPKI tests assert existing state and received attributes. The system/BGP doors require metadata ownership to stay in the plugin, so `docs/architecture/meta/README.md` needs no new key entry |
+| 14 | Prometheus counters added/changed? | No | No new metric registration. Existing route-loss fields and peer counter observations are not Prometheus additions; no new `docs/plugin-development/metrics.md` entry is proposed |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | P-32 changes source/platform inventory judgment; P-34 restores manifest-driven consumers. Recheck generated `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` against the approved committed-population producer; update command discovery/help for changed tool forms, not a second manual registry |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Observed anchors include `cmd_editor.go`/`cmd_web.go` in functional tests and runner architecture; `discriminate_guest.go` in RFC gates; commit review/actions/owed consumers in committing, spec workflow, RFC implementation guide and ai-first. Preserve all those pages in the implementation edit census. Final complete derivation remains open until producer/file census is complete; `cmd_report.go`'s Design page is explicitly retained in row 12 |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Check committing create/append/remove/approval examples, RFC record kernel examples, functional selector and stress-repro examples, runner `.et`/`.wb` options, and benchmarking compare flags against actual parsers/actions. Correct no-verify/main-only guidance in `docs/contributing/running-commands.md`, `docs/contributing/spec-workflow.md`, hook instructions and reached agent discovery sources; parent owns rule synchronization |
+
+### Accounting result
+
+All 138 original ownership-index entries have a stable class/date/surface mapping
+to 41 corrected ACs, P-number proof obligations and owners A–I. The two same-day debt
+occurrences, two September 5 same-tag occurrences, two sweeper halves, four lost
+hook categories, six cancellation routes, eight RFC documents, fifteen checkers,
+three September 17 fixtures and four recorded-fixed entries remain visible. This
+is complete index accounting, not a completed semantic census or a clean audit.
+June backfills, aggregate logs, replacement coverage, several producer verifications,
+design choices and AC-27 attribution remain open. No implementation approval or
+completion is inferred from the owner's request to finish reconciliation.
