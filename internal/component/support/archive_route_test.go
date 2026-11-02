@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"strconv"
 	"strings"
@@ -62,7 +63,7 @@ func tarEntries(t *testing.T, archive []byte) map[string][]byte {
 	tr := tar.NewReader(gz)
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return entries
 		}
 		if err != nil {
@@ -179,7 +180,7 @@ func TestSupportArchiveLeafAndFlagRefused(t *testing.T) {
 // TestSupportArchiveStopsWithTheRequest collects for a request that already
 // ended.
 //
-// VALIDATES: R-4. Collection honours the request context: no module runs,
+// VALIDATES: R-4. Collection honors the request context: no module runs,
 // the answer refuses saying the request ended, and nothing is stored.
 // PREVENTS: a collection that outlives its caller and holds a dispatcher slot.
 func TestSupportArchiveStopsWithTheRequest(t *testing.T) {
