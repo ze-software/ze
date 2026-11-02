@@ -185,11 +185,18 @@ func (m *grManager) enterRestart(graceEnd time.Time, reason uint8, expected []os
 	}
 	if m.restartTimer != nil {
 		m.restartTimer.Stop()
+		m.restartTimer = nil
 	}
-	// A stopped manager arms no timer: nothing would stop it, and it would outlive the engine.
+	// The replaced timer's callback may already have begun; clearing restartArmed makes it
+	// exit nothing. A stopped manager arms no timer: nothing would stop it, and it would
+	// outlive the engine.
+	m.restartArmed = 0
 	d := graceEnd.Sub(m.now())
 	if d > 0 && !m.stopped {
-		m.restartTimer = time.AfterFunc(d, m.graceExpired)
+		m.timerGen++
+		armed := m.timerGen
+		m.restartArmed = armed
+		m.restartTimer = m.afterFunc(d, func() { m.graceExpired(armed) })
 	}
 	m.metrics.restarterActive.With(m.e.grFamilyLabel()).Set(1)
 	m.mu.Unlock()
@@ -255,19 +262,19 @@ func (m *grManager) noteInconsistentLSA() {
 }
 
 // graceExpired is the RFC 3623 sec 2.2 exit trigger 3: the grace period elapsed before all
-// adjacencies were re-established. Fired by the grace timer.
-func (m *grManager) graceExpired() {
-	if m.inRestart() {
-		m.exitRestart(grExitGraceExpiry)
-	}
-}
+// adjacencies were re-established. Fired by the grace timer armed as generation armed, and
+// acts only while that timer is still the one in force.
+func (m *grManager) graceExpired(armed uint64) { m.endRestart(grExitGraceExpiry, armed) }
 
 // exitRestart runs the RFC 3623 sec 2.3 exit actions: clear the in-restart flag, re-originate
 // self-LSAs (all areas; the OSPFv3 path reuses the preserved Interface-IDs / LSA-IDs), resume
 // route install so SPF re-programs the FIB (the fib-kernel sweep refreshes the RTPROT_ZE
 // routes instead of deleting them), flush the router's own Grace-LSAs, and clear the NVS fact.
-func (m *grManager) exitRestart(reason string) {
-	restartInterval, exitReason, exited := m.leaveRestart(reason)
+func (m *grManager) exitRestart(reason string) { m.endRestart(reason, 0) }
+
+// endRestart is exitRestart with the timer generation a grace expiry carries; 0 matches any.
+func (m *grManager) endRestart(reason string, armed uint64) {
+	restartInterval, exitReason, exited := m.leaveRestart(reason, armed)
 	if !exited {
 		return
 	}
@@ -291,7 +298,7 @@ func (m *grManager) exitRestart(reason string) {
 // unlock would be a data race. It releases m.mu by defer because it calls the
 // metrics under it, and a neighbor reaching Full on the receive worker reaches
 // it: a panic the ospf/receive boundary contains must not leave m.mu held.
-func (m *grManager) leaveRestart(reason string) (restartInterval uint16, exitReason uint8, exited bool) {
+func (m *grManager) leaveRestart(reason string, armed uint64) (restartInterval uint16, exitReason uint8, exited bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -300,12 +307,16 @@ func (m *grManager) leaveRestart(reason string) (restartInterval uint16, exitRea
 	if !m.restarting || m.stopped {
 		return 0, 0, false
 	}
+	if armed != 0 && armed != m.restartArmed {
+		return 0, 0, false
+	}
 	m.restarting = false
 	m.gracefulStop = false
 	if m.restartTimer != nil {
 		m.restartTimer.Stop()
 		m.restartTimer = nil
 	}
+	m.restartArmed = 0
 	m.metrics.restarterActive.With(m.e.grFamilyLabel()).Set(0)
 	m.metrics.restarterExits.With(m.e.grFamilyLabel(), reason).Inc()
 	m.metrics.graceLSAs.With(m.e.grFamilyLabel(), "originated").Set(0)

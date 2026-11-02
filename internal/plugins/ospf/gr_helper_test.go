@@ -127,10 +127,78 @@ func TestHelperExitOnGraceExpiry(t *testing.T) {
 	m := grHelperManager(t, now)
 	x := ospftypes.RouterID{10, 0, 0, 9}
 	key := helperKey{iface: "eth0", router: x}
+	timers := grCaptureTimers(m)
 	m.helperEnter(key, graceReceived{iface: "eth0", advRouter: x, gracePeriod: 120}, false, netip.Addr{}, 0)
-	m.helperGraceExpired(key)
+	timers.fire(t, 0)
 	if m.isHelping("eth0", x) {
 		t.Fatalf("grace expiry must exit the helper")
+	}
+}
+
+// grTimers holds the callbacks the GR manager armed, in arming order, so a test runs one at
+// the moment it chooses: before or after a later arming, or after stop.
+type grTimers struct{ armed []func() }
+
+// grCaptureTimers replaces m.afterFunc so no grace timer runs on the wall clock; each arming
+// is recorded instead and answered with a stopped timer the manager may Stop again.
+func grCaptureTimers(m *grManager) *grTimers {
+	g := &grTimers{}
+	m.afterFunc = func(_ time.Duration, f func()) *time.Timer {
+		g.armed = append(g.armed, f)
+		tm := time.NewTimer(time.Hour)
+		tm.Stop()
+		return tm
+	}
+	return g
+}
+
+// fire runs the i-th armed callback, as its timer would.
+func (g *grTimers) fire(t *testing.T, i int) {
+	t.Helper()
+	if i >= len(g.armed) {
+		t.Fatalf("timer %d was never armed (%d armed)", i, len(g.armed))
+	}
+	g.armed[i]()
+}
+
+// TestHelperStaleGraceTimerKeepsExtendedSession: RFC 3623 Section 3.1 says a new Grace-LSA
+// from a neighbor that Y already helps "should be accepted and the grace period should be updated
+// accordingly", so the Section 3.2 grace-expiry exit belongs to the updated period. A callback
+// of the replaced timer, already running when updateGrace stopped it, must not end the session.
+func TestHelperStaleGraceTimerKeepsExtendedSession(t *testing.T) {
+	now := time.Unix(1_000_000, 0)
+	m := grHelperManager(t, now)
+	timers := grCaptureTimers(m)
+	x := ospftypes.RouterID{10, 0, 0, 9}
+	key := helperKey{iface: "eth0", router: x}
+	m.helperEnter(key, graceReceived{iface: "eth0", advRouter: x, gracePeriod: 60}, false, netip.Addr{}, 0)
+	m.onGraceReceived(graceReceived{iface: "eth0", advRouter: x, gracePeriod: 600})
+
+	timers.fire(t, 0) // the 60 s timer's callback, begun before the extension stopped it
+	if !m.isHelping("eth0", x) {
+		t.Fatal("the replaced grace timer ended a session whose grace period was just extended")
+	}
+	timers.fire(t, 1) // the extended period's own expiry
+	if m.isHelping("eth0", x) {
+		t.Fatal("the extended grace period's expiry must exit the helper")
+	}
+}
+
+// TestHelperUpdateToExpiredGraceExits: a re-received Grace-LSA whose LS age has reached its
+// Grace Period updates the grace to one already over (RFC 3623 Section 3.1), so the Section 3.2
+// grace-expiry exit must still run, and the session must not be left with no timer to end it.
+func TestHelperUpdateToExpiredGraceExits(t *testing.T) {
+	now := time.Unix(1_000_000, 0)
+	m := grHelperManager(t, now)
+	timers := grCaptureTimers(m)
+	x := ospftypes.RouterID{10, 0, 0, 9}
+	key := helperKey{iface: "eth0", router: x}
+	m.helperEnter(key, graceReceived{iface: "eth0", advRouter: x, gracePeriod: 60}, false, netip.Addr{}, 0)
+	m.onGraceReceived(graceReceived{iface: "eth0", advRouter: x, gracePeriod: 30, lsAge: 30})
+
+	timers.fire(t, 1)
+	if m.isHelping("eth0", x) {
+		t.Fatal("an update to an already expired grace period must exit the helper")
 	}
 }
 
@@ -146,6 +214,7 @@ func TestGRTimersRefusedAfterStop(t *testing.T) {
 	m := grHelperManager(t, now)
 	reg := newCountingRegistry()
 	m.setGRMetrics(reg)
+	timers := grCaptureTimers(m)
 	x := ospftypes.RouterID{10, 0, 0, 9}
 	key := helperKey{iface: "eth0", router: x}
 	m.helperEnter(key, graceReceived{iface: "eth0", advRouter: x, gracePeriod: 120}, false, netip.Addr{}, 0)
@@ -153,7 +222,7 @@ func TestGRTimersRefusedAfterStop(t *testing.T) {
 	m.stop()
 
 	// A grace-expiry callback already running when stop returned.
-	m.helperGraceExpired(key)
+	timers.fire(t, 0)
 	if n := reg.get("ze_ospf_gr_helper_exits_total"); n != 0 {
 		t.Fatalf("a grace expiry after stop must exit nothing: helper exits counted %d", n)
 	}

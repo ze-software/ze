@@ -84,6 +84,9 @@ type helperSession struct {
 	graceEnd time.Time
 	wasDR    bool
 	timer    *time.Timer
+	// armed is the generation of the grace timer now in force (grManager.timerGen). A callback
+	// whose generation differs belongs to a timer updateGrace replaced, and exits nothing.
+	armed uint64
 }
 
 // graceReceived is the family-neutral decoded Grace-LSA the helper reacts to. IPv4 fills it
@@ -105,6 +108,9 @@ type graceReceived struct {
 type grManager struct {
 	e   *engine
 	now func() time.Time
+	// afterFunc arms every GR grace timer; time.AfterFunc outside tests, which replace it to
+	// run a callback at a chosen moment.
+	afterFunc func(time.Duration, func()) *time.Timer
 
 	resumeOnce sync.Once // resumeFromNVS runs at most once per engine lifecycle
 	resumeErr  error
@@ -118,12 +124,18 @@ type grManager struct {
 	reason       uint8
 	expected     map[ospftypes.RouterID]bool // pre-restart adjacencies -> reached Full again
 	restartTimer *time.Timer
+	restartArmed uint64 // generation of restartTimer (timerGen); 0 when none is armed
 	gracefulStop bool // a graceful-restart stop is in progress: skip RemoveAll
 
 	// stopped is set by stop at engine shutdown and never cleared: the manager then arms no
 	// timer and refuses every exit, so a timer callback that began before stop, or a
 	// Grace-LSA the receive worker delivers before the engine cancel, acts on nothing.
 	stopped bool
+
+	// timerGen numbers every grace-timer arming, helper and restart alike (guarded by mu).
+	// time.Timer.Stop cannot cancel a callback that has already begun, so each callback
+	// carries the generation it was armed with and acts only while that is still in force.
+	timerGen uint64
 
 	// helper runtime (guarded by mu)
 	helping map[helperKey]*helperSession
@@ -139,11 +151,12 @@ type grManager struct {
 // operator configures graceful-restart (configure) and the engine starts (start/resume).
 func newGRManager(e *engine) *grManager {
 	return &grManager{
-		e:        e,
-		now:      time.Now,
-		expected: map[ospftypes.RouterID]bool{},
-		helping:  map[helperKey]*helperSession{},
-		metrics:  nopGRMetrics(),
+		e:         e,
+		now:       time.Now,
+		afterFunc: time.AfterFunc,
+		expected:  map[ospftypes.RouterID]bool{},
+		helping:   map[helperKey]*helperSession{},
+		metrics:   nopGRMetrics(),
 	}
 }
 

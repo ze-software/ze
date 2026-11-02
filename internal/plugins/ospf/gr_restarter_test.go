@@ -68,10 +68,32 @@ func TestRestarterExitInconsistentLSA(t *testing.T) {
 func TestRestarterExitGraceExpiry(t *testing.T) {
 	now := time.Unix(1_000_000, 0)
 	e := grEnableEngine(t, false, now)
+	timers := grCaptureTimers(e.gr)
 	e.gr.enterRestart(now.Add(120*time.Second), grReasonReload, []ospftypes.RouterID{{10, 0, 0, 2}})
-	e.gr.graceExpired()
+	timers.fire(t, 0)
 	if e.gr.inRestart() {
 		t.Fatalf("grace expiry must exit restart")
+	}
+}
+
+// TestRestarterStaleGraceTimerKeepsReenteredRestart: enterRestart stops the previous restart
+// timer and arms one for the new grace end. A callback of the replaced timer, already running
+// when it was stopped, must not end the restart: RFC 3623 Section 2.2 exit 3 is the expiry of
+// the grace period in force.
+func TestRestarterStaleGraceTimerKeepsReenteredRestart(t *testing.T) {
+	now := time.Unix(1_000_000, 0)
+	e := grEnableEngine(t, false, now)
+	timers := grCaptureTimers(e.gr)
+	e.gr.enterRestart(now.Add(60*time.Second), grReasonReload, []ospftypes.RouterID{{10, 0, 0, 2}})
+	e.gr.enterRestart(now.Add(600*time.Second), grReasonReload, []ospftypes.RouterID{{10, 0, 0, 2}})
+
+	timers.fire(t, 0) // the 60 s timer's callback, begun before the re-entry stopped it
+	if !e.gr.inRestart() {
+		t.Fatal("the replaced restart timer ended a restart whose grace end was just moved")
+	}
+	timers.fire(t, 1)
+	if e.gr.inRestart() {
+		t.Fatal("the grace expiry in force must exit restart")
 	}
 }
 

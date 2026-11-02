@@ -200,7 +200,7 @@ func (m *grManager) addHelperSession(key helperKey, s *helperSession) {
 		return
 	}
 	if d := s.graceEnd.Sub(m.now()); d > 0 {
-		s.timer = time.AfterFunc(d, func() { m.helperGraceExpired(key) })
+		m.armHelperGraceLocked(key, s, d)
 	}
 	m.helping[key] = s
 	m.metrics.helperSessions.With(m.e.grFamilyLabel(), key.iface).Set(float64(m.sessionsOnIfaceLocked(key.iface)))
@@ -208,7 +208,10 @@ func (m *grManager) addHelperSession(key helperKey, s *helperSession) {
 }
 
 // updateGrace extends an existing helper session's grace window on a re-received Grace-LSA
-// (RFC 3623 sec 3.1: accept and update; no re-entry churn).
+// (RFC 3623 sec 3.1: accept and update; no re-entry churn). The re-arm invalidates the replaced
+// timer's callback even when it has already begun. A Grace-LSA whose LS age has reached its
+// Grace Period updates the grace to one already over, so the expiry fires at once (sec 3.2,
+// exit event 2) rather than leaving the session with no timer to end it.
 func (m *grManager) updateGrace(key helperKey, g graceReceived) {
 	graceEnd := m.now().Add(time.Duration(int64(g.gracePeriod)-int64(g.lsAge)) * time.Second)
 	m.mu.Lock()
@@ -222,21 +225,35 @@ func (m *grManager) updateGrace(key helperKey, g graceReceived) {
 	if s.timer != nil {
 		s.timer.Stop()
 	}
-	if d := graceEnd.Sub(m.now()); d > 0 {
-		s.timer = time.AfterFunc(d, func() { m.helperGraceExpired(key) })
-	}
+	m.armHelperGraceLocked(key, s, max(graceEnd.Sub(m.now()), 0))
+}
+
+// armHelperGraceLocked arms s's grace timer under a new generation (caller holds mu).
+func (m *grManager) armHelperGraceLocked(key helperKey, s *helperSession, d time.Duration) {
+	m.timerGen++
+	armed := m.timerGen
+	s.armed = armed
+	s.timer = m.afterFunc(d, func() { m.helperGraceExpired(key, armed) })
 }
 
 // helperGraceExpired is the RFC 3623 sec 3.2 grace-expiry exit trigger (the grace clock, LS age
-// vs Grace Period, elapsed).
-func (m *grManager) helperGraceExpired(key helperKey) { m.helperExit(key, nil, grExitGraceExpiry) }
+// vs Grace Period, elapsed), run by the timer armed as generation armed. It exits only while
+// that timer is the session's current one.
+func (m *grManager) helperGraceExpired(key helperKey, armed uint64) {
+	m.endHelper(key, nil, armed, grExitGraceExpiry)
+}
 
 // helperExit ends a helper session (RFC 3623 sec 3.2): stop the timer, drop the session, then
 // re-originate self-LSAs and recompute SPF so the frozen adjacency view is corrected (DR
 // recalc + Router/Network-LSA re-origination). A non-nil expected session prevents
 // an exit derived from an old snapshot from removing a replacement at the same key.
 func (m *grManager) helperExit(key helperKey, expected *helperSession, reason string) {
-	if !m.removeHelperSession(key, expected, reason) {
+	m.endHelper(key, expected, 0, reason)
+}
+
+// endHelper is helperExit with the timer generation a grace expiry carries; 0 matches any.
+func (m *grManager) endHelper(key helperKey, expected *helperSession, armed uint64, reason string) {
+	if !m.removeHelperSession(key, expected, armed, reason) {
 		return
 	}
 	m.e.originateSelfLSAs()
@@ -249,7 +266,7 @@ func (m *grManager) helperExit(key helperKey, expected *helperSession, reason st
 // content-change observer reaches it from the receive worker. A stopped manager
 // removes nothing: a grace timer whose callback began before stop would otherwise
 // write the shared gauges and re-originate for a torn-down engine.
-func (m *grManager) removeHelperSession(key helperKey, expected *helperSession, reason string) bool {
+func (m *grManager) removeHelperSession(key helperKey, expected *helperSession, armed uint64, reason string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -261,6 +278,9 @@ func (m *grManager) removeHelperSession(key helperKey, expected *helperSession, 
 		return false
 	}
 	if expected != nil && s != expected {
+		return false
+	}
+	if armed != 0 && s.armed != armed {
 		return false
 	}
 	if s.timer != nil {
