@@ -81,6 +81,10 @@ type externalMember struct {
 	// metaSettable holds, one bit per policyview.Metadata slot, the metadata
 	// fields the attachment lets this filter set (metadataSettable).
 	metaSettable uint8
+	// numberSettable holds, one bit per policyview.AttributeNumber slot, the
+	// owner-registered attributes this filter may set
+	// (attributeNumbersSettable).
+	numberSettable uint8
 }
 
 // fieldsOctets is the starting capacity of the fields object RunSets keeps:
@@ -152,14 +156,14 @@ func (c *Chain) judgeExternal(m *member, view *policyview.View, run *RunSets) (e
 	if err != nil {
 		return externalVerdict{}, decl.OnError, err
 	}
-	verdict, err := externalAnswer(out, &decl, m.settable, m.external.metaSettable, &run.member, intentTarget{
+	verdict, err := externalAnswer(out, &decl, m.settable, m.external, &run.member, intentTarget{
 		view: view, prefix: c.prefix, importSide: route.Direction == directionImport,
 	})
 	return verdict, decl.OnError, err
 }
 
 // externalAnswer maps one reply onto a decision and the member's sets.
-func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, settable setMask, metaSettable uint8, sets *Sets, target intentTarget) (externalVerdict, error) {
+func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, settable setMask, member *externalMember, sets *Sets, target intentTarget) (externalVerdict, error) {
 	verdict := externalVerdict{teardown: out.Teardown, notifyCode: out.NotifyCode, notifySub: out.NotifySubcode}
 	if out.Update != "" {
 		return verdict, errExternalAnsweredText
@@ -178,7 +182,7 @@ func externalAnswer(out *rpc.FilterUpdateOutput, decl *ExternalDeclaration, sett
 		if len(out.Raw) > 0 {
 			return rawAnswer(verdict, out, decl)
 		}
-		if err := applyExternalSets(sets, decl, settable, metaSettable, out.Sets, target); err != nil {
+		if err := applyExternalSets(sets, decl, settable, member, out.Sets, target); err != nil {
 			return verdict, refusedSet{err: err}
 		}
 		verdict.decision = DecisionPass
@@ -213,12 +217,18 @@ func rawAnswer(verdict externalVerdict, out *rpc.FilterUpdateOutput, decl *Exter
 // in-process member calls (D-5). The first refused set fails the route, and
 // the caller discards the member's Sets, so none of the route's sets apply.
 // target is what the named intents resolve against.
-func applyExternalSets(sets *Sets, decl *ExternalDeclaration, settable setMask, metaSettable uint8, replies []rpc.FilterSet, target intentTarget) error {
+func applyExternalSets(sets *Sets, decl *ExternalDeclaration, settable setMask, member *externalMember, replies []rpc.FilterSet, target intentTarget) error {
 	readIntents := externalIntentsOfReads(decl.Reads)
 	for i := range replies {
 		set := &replies[i]
 		if m, ok := policyview.MetadataNamed(set.Field); ok {
-			if err := applyExternalMetadata(sets, decl, metaSettable, m, set); err != nil {
+			if err := applyExternalMetadata(sets, decl, member.metaSettable, m, set); err != nil {
+				return err
+			}
+			continue
+		}
+		if attr, ok := policyview.AttributeNumberNamed(set.Field); ok {
+			if err := applyExternalAttributeNumber(sets, decl, member.numberSettable, attr, set); err != nil {
 				return err
 			}
 			continue

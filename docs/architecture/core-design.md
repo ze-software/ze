@@ -1608,6 +1608,17 @@ subject above.
   session's map is writable (`Session.WithImportMetadata`): `bgp import`
   lets a filter set the metadata fields and `bgp export`, whose map every
   destination shares, does not.
+- **An attribute a plugin owns is a field its owner registers.** A path
+  attribute whose value is one four-octet number registers with
+  `policyview.MustRegisterAttributeNumber`, naming its code and its owner
+  plugin: `bgp-role` registers `otc` (code 35, RFC 9234 Section 5). The
+  reader judges the length (a value that is not four octets is malformed),
+  the writer writes a JSON number, and both BGP attachments let a filter
+  set it, but the chain accepts the set only from a filter of the owner
+  (`attributeNumbersSettable`). The set becomes one `AttrModSet` on the
+  code, applied by the handler the owner registered with
+  `filterapi.RegisterAttrModHandler`, and a later member reads the set
+  value.
 - **Session facts are fields of the same view.** `policyview` registers
   `peer-name`, `peer-group`, `peer-address`, `local-as`, `peer-as`,
   `route-server-as`, `ibgp`, `rs-client` and `llgr-advertised` for the

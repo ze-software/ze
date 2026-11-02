@@ -23,11 +23,24 @@ var (
 	fieldSrcRole = policy.MustRegisterField("src-role", policy.RouteView{})
 	// fieldSrcPeerRole is what that peer is to Ze.
 	fieldSrcPeerRole = policy.MustRegisterField("src-peer-role", policy.RouteView{})
+	// fieldOTC is the route's OTC attribute, a field of the BGP route view
+	// only this plugin's filters may set.
+	fieldOTC = policy.MustRegisterField("otc", policy.RouteView{})
 )
+
+// rolePluginName is this plugin's registration name: the owner of the otc
+// field, and so the one plugin whose filters may set it.
+const rolePluginName = "bgp-role"
 
 func init() {
 	policyview.MustRegisterMetadata(fieldSrcRole, policyview.MetadataText)
 	policyview.MustRegisterMetadata(fieldSrcPeerRole, policyview.MetadataText)
+	// RFC 9234 Section 5: "The OTC Attribute is an optional transitive Path Attribute of the
+	// UPDATE message with Attribute Type Code 35 and a length of 4 octets."
+	// The field reads the four octets as a number, and a value of another
+	// length fails the member that reads it: "The OTC Attribute is
+	// considered malformed if the length value is not 4."
+	policyview.MustRegisterAttributeNumber(fieldOTC, attribute.AttributeCode(otcAttrCode), rolePluginName)
 
 	// RFC 9234 Section 5: "The OTC Attribute is an optional transitive Path Attribute of
 	// the UPDATE message with Attribute Type Code 35 and a length of 4 octets." That
@@ -42,7 +55,7 @@ func init() {
 
 	// Route filter pipeline contribution (BGP-owned seam, not the generic registry).
 	if err := filterapi.Register(filterapi.Filter{
-		Name:    "bgp-role",
+		Name:    rolePluginName,
 		Stage:   filterapi.FilterStageAnnotation,
 		Ingress: OTCIngressFilter,
 		Egress:  OTCEgressFilter,
@@ -59,7 +72,7 @@ func init() {
 	yang.RegisterReferenceSource(asnSetReferenceSource, asnSetReference)
 
 	reg := registry.Registration{
-		Name:         "bgp-role",
+		Name:         rolePluginName,
 		Description:  "RFC 9234 BGP Role capability",
 		RFCs:         []string{"9234"},
 		SupportsCapa: true,

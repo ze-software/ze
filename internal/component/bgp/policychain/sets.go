@@ -16,6 +16,7 @@ import (
 	"math"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
@@ -215,6 +216,9 @@ type Sets struct {
 	// The route metadata sets (sets_metadata.go).
 	meta  [metadataSetsMax]metadataSet
 	metaN uint8
+	// The owner-registered attribute number sets (sets_attribute_numbers.go).
+	numbers  [policyview.AttributeNumbersMax]attributeNumberSet
+	numbersN uint8
 	// matchRoute is the route a match judges, held here rather than on the
 	// evaluator's stack so a check's pointer to it allocates nothing
 	// (match.go). It is scratch: no reader of the sets sees it.
@@ -241,7 +245,7 @@ func (s *Sets) Reset() {
 }
 
 // Empty reports that the Sets asks no change.
-func (s *Sets) Empty() bool { return s.written == 0 }
+func (s *Sets) Empty() bool { return s.written == 0 && s.numbersN == 0 }
 
 // LocalPreference records a LOCAL_PREF change (RFC 4271 Section 5.1.5).
 func (s *Sets) LocalPreference(action NumericAction, value uint32) error {
@@ -314,6 +318,7 @@ func (s *Sets) merge(later *Sets) error {
 	if err := s.mergeAttributes(later); err != nil {
 		return err
 	}
+	s.mergeAttributeNumbers(later)
 	s.written |= later.written
 	return nil
 }
@@ -382,6 +387,7 @@ func (s *Sets) ApplyTo(acc *filterapi.ModAccumulator, current Current) error {
 		acc.OpCopy(uint8(attribute.AttrCommunity), filterapi.AttrModRemove, value[:])
 	}
 	s.applyAttributesTo(acc, current)
+	s.applyAttributeNumbersTo(acc)
 	return nil
 }
 

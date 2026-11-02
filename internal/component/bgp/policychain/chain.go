@@ -210,7 +210,11 @@ func compileChain(attachment string, reg *policy.Registry, members []Member, fin
 			reference := m.Plugin + ":" + m.Name
 			chain.members = append(chain.members, member{
 				name: reference, filterType: m.Plugin, settable: externalSettable(attachment, reference),
-				external: &externalMember{plugin: m.Plugin, filter: m.Name, metaSettable: metadataSettable(attachment, reference)},
+				external: &externalMember{
+					plugin: m.Plugin, filter: m.Name,
+					metaSettable:   metadataSettable(attachment, reference),
+					numberSettable: attributeNumbersSettable(attachment, reference, m.Plugin),
+				},
 			})
 			continue
 		}
@@ -407,6 +411,9 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		}
 		if err == nil {
 			err = c.overlayPrefix(view, sets)
+		}
+		if err == nil {
+			err = overlayAttributeNumbers(view, &sets.member)
 		}
 		if err == nil {
 			err = metadataWritable(view, &sets.member)

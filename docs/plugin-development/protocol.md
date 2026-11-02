@@ -708,6 +708,7 @@ empty string.
 | `src-role`, `src-peer-role` | string: route metadata `bgp-role` registers, Ze's role toward the route's source peer and that peer's role toward Ze (`docs/architecture/meta/README.md`) | no ingress step set it | `"customer"` |
 | `stale` | the route's stale level, route metadata `bgp-gr` registers (0 to 255; 2 marks an LLGR-stale route) | no ingress step set it | `2` |
 | `rebuilt` | boolean: route metadata the engine registers, set on a route rebuilt from storage | a live route | `true` |
+| `otc` | the route's Only to Customer attribute (RFC 9234 Section 5), an AS number, registered by `bgp-role`; a value that is not 4 octets fails the filter that reads it | the UPDATE carries no OTC | `65001` |
 
 A route metadata field is also a set: a filter at `bgp import` that declared
 it answers `{"field":"stale","action":"set","value":2}`, with the value in the
@@ -716,6 +717,10 @@ The engine writes it into the route's metadata map, so a later member of the
 chain reads it and the received event carries it in `route-meta`. A filter at
 `bgp export` reads the received route's map and may not set it: every
 destination shares that map.
+
+`otc` is a set only for a filter of `bgp-role`, the plugin that owns it: it
+answers `{"field":"otc","action":"set","value":65001}` at either attachment.
+A set of `otc` from any other plugin's filter fails the route.
 
 For example, a filter that declared `community`, `as-path` and
 `local-preference` reads

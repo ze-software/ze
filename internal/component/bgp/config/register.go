@@ -52,10 +52,12 @@ func init() {
 	// (policyview.MetadataFields): the ingress pass's map is one per received
 	// UPDATE, so a set reaches later steps and the received event. An export
 	// rail reads the received route's map, which every destination shares,
-	// so no export filter sets one.
+	// so no export filter sets one. Both attachments let a filter set the
+	// attribute numbers their owners registered (policyview.AttributeNumber,
+	// otc by bgp-role); the chain lets only the owner's filters do so.
 	settableAt := map[string]func() []policy.Field{
 		"bgp import": importSettable,
-		"bgp export": policychain.SettableFields,
+		"bgp export": exportSettable,
 	}
 	for _, attachment := range []string{"bgp import", "bgp export"} {
 		policy.MustRegisterDerivedAttachment(attachmentOwnerBGP, attachment, policyview.Fields, settableAt[attachment])
@@ -279,7 +281,14 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 }
 
 // importSettable answers what a filter at bgp import may set: the chain's
-// set kinds and the route metadata fields their owners registered.
+// set kinds, the route metadata fields and the attribute numbers their
+// owners registered.
 func importSettable() []policy.Field {
-	return slices.Concat(policychain.SettableFields(), policyview.MetadataFields())
+	return slices.Concat(policychain.SettableFields(), policyview.MetadataFields(), policyview.AttributeNumberFields())
+}
+
+// exportSettable answers what a filter at bgp export may set: the chain's
+// set kinds and the attribute numbers their owners registered.
+func exportSettable() []policy.Field {
+	return slices.Concat(policychain.SettableFields(), policyview.AttributeNumberFields())
 }
