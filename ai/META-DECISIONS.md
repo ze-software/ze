@@ -104,6 +104,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   local route stays for when the daemon is unreachable. A command whose result
   lives on the caller's side gets a daemon form designed for it, never an
   exclusion.
+- An operator adds a peer, with any of its settings, to the running
+  configuration without restarting Ze, as every other routing implementation
+  allows. A reload that refuses a new peer because of what it configures is a
+  defect to fix, never a documented limit and never a question.
 
 ## ExaBGP compatibility
 
