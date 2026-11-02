@@ -423,6 +423,18 @@ code changes.
 
 Run `tools/list` against a live daemon to see the current tool inventory. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 
+The commands the local `ze` command answers on the router are tools too:
+`show env list`, `show config validation <file>`, `request support archive`,
+and `show doctor`, the daemon form of `ze doctor`, among them. The daemon runs
+each through the same handler as `ze <verb>`, so the tool answers what the
+command prints on the router. A file argument is read only from the
+configuration directories, and stdin cannot be named
+([commands](../../architecture/api/commands.md), "Served by the daemon too").
+
+<!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData -->
+<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta -->
+<!-- source: internal/component/command/caller_path.go -- CallerPath -->
+
 Two handcrafted tools (`ze_execute`, `ze_reference`) provide escape-hatch and
 discovery capabilities alongside the generated tools.
 

@@ -48,10 +48,10 @@ var forwardRates = func(ctx *pluginserver.CommandContext, args []string) (*plugi
 // in the plugin's process, never in the daemon's (iface/rate_command.go), so
 // reading it here would answer the daemon's empty copy.
 //
-// With a name in args the answer is that interface's iface.InterfaceRate;
-// otherwise it is every interface as a []iface.InterfaceRate sorted by name.
-// A refusal carries the text the operator reads.
-func ratesOf(ctx *pluginserver.CommandContext, args []string) (any, error) {
+// The answer is the plugin's document: with a name in args, that interface's
+// rate (read by oneRate); otherwise every interface's, sorted by name (read
+// by everyRate). A refusal carries the text the operator reads.
+func ratesOf(ctx *pluginserver.CommandContext, args []string) (plugin.RawJSON, error) {
 	resp, err := forwardRates(ctx, args)
 	// No process serves the command: the iface plugin is not running. The
 	// dispatcher's own text names only the command it could not find, so the
@@ -59,26 +59,33 @@ func ratesOf(ctx *pluginserver.CommandContext, args []string) (any, error) {
 	// and ends on the command that fixes it.
 	if errors.Is(err, pluginserver.ErrUnknownCommand) {
 		var tb textbuf.Buffer
-		return nil, errors.New(tb.Str("interface rates unavailable: ").Err(iface.ErrRatePluginAbsent).String())
+		return "", errors.New(tb.Str("interface rates unavailable: ").Err(iface.ErrRatePluginAbsent).String())
 	}
 	if err != nil {
 		var tb textbuf.Buffer
-		return nil, errors.New(tb.Str("interface rates unavailable: ").Err(err).String())
+		return "", errors.New(tb.Str("interface rates unavailable: ").Err(err).String())
 	}
 	if resp.Status == plugin.StatusError {
-		return nil, errors.New(resp.Error)
+		return "", errors.New(resp.Error)
 	}
 	raw, ok := resp.Data.(plugin.RawJSON)
 	if !ok {
-		return nil, errors.New("interface rates unavailable: the interface plugin answered no document")
+		return "", errors.New("interface rates unavailable: the interface plugin answered no document")
 	}
-	if len(args) > 0 {
-		var rate iface.InterfaceRate
-		if err := json.Unmarshal([]byte(raw), &rate); err != nil {
-			return nil, fmt.Errorf("interface rates unavailable: the interface plugin's answer does not decode: %w", err)
-		}
-		return rate, nil
+	return raw, nil
+}
+
+// oneRate reads the plugin's answer to a call that named an interface.
+func oneRate(raw plugin.RawJSON) (iface.InterfaceRate, error) {
+	var rate iface.InterfaceRate
+	if err := json.Unmarshal([]byte(raw), &rate); err != nil {
+		return iface.InterfaceRate{}, fmt.Errorf("interface rates unavailable: the interface plugin's answer does not decode: %w", err)
 	}
+	return rate, nil
+}
+
+// everyRate reads the plugin's answer to a call that named no interface.
+func everyRate(raw plugin.RawJSON) ([]iface.InterfaceRate, error) {
 	var rates []iface.InterfaceRate
 	if err := json.Unmarshal([]byte(raw), &rates); err != nil {
 		return nil, fmt.Errorf("interface rates unavailable: the interface plugin's answer does not decode: %w", err)
@@ -89,18 +96,28 @@ func ratesOf(ctx *pluginserver.CommandContext, args []string) (any, error) {
 // rateResponse is the one-shot answer of `show interface rate` and `monitor
 // interface rate`: one interface's rate, or every interface's as a list.
 func rateResponse(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	rates, err := ratesOf(ctx, args)
+	raw, err := ratesOf(ctx, args)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return rateRefusal(err), nil
 	}
-	if list, ok := rates.([]iface.InterfaceRate); ok {
-		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Slice[iface.InterfaceRate](list)}, nil
+	if len(args) > 0 {
+		rate, err := oneRate(raw)
+		if err != nil {
+			return rateRefusal(err), nil
+		}
+		return &plugin.Response{Status: plugin.StatusDone, Data: rate}, nil
 	}
-	rate, ok := rates.(iface.InterfaceRate)
-	if !ok {
-		panic("BUG: ratesOf answered neither a rate nor a list of rates")
+	rates, err := everyRate(raw)
+	if err != nil {
+		return rateRefusal(err), nil
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: rate}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Slice[iface.InterfaceRate](rates)}, nil
+}
+
+// rateRefusal carries a rate refusal in the Response: the dispatch itself
+// succeeded, so the operator reads the refusal text, not a transport error.
+func rateRefusal(err error) *plugin.Response {
+	return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}
 }
 
 // handleMonitorInterfaceRate is the one-shot answer of the streaming command
@@ -114,8 +131,12 @@ func handleMonitorInterfaceRate(ctx *pluginserver.CommandContext, validated comm
 // streamInterfaceRate prints one sample a second, each asked of the iface
 // plugin like the one-shot answer. A second the plugin cannot answer (not
 // running yet, the filtered interface absent) prints nothing, as before.
+//
+// The loop has no count: it ends only when ctx is cancelled, which the
+// streaming caller does when the operator's session ends.
 func streamInterfaceRate(ctx context.Context, server *pluginserver.Server, w io.Writer, _ string, args command.ValidatedArgs) error {
 	tokens := args.Tokens()
+	named := len(tokens) > 0
 	cmdCtx := &pluginserver.CommandContext{Server: server, RequestContext: ctx, Sender: plugin.OperatorSender()}
 
 	enc := json.NewEncoder(w)
@@ -129,7 +150,24 @@ func streamInterfaceRate(ctx context.Context, server *pluginserver.Server, w io.
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			rates, err := ratesOf(cmdCtx, tokens)
+			// A second the plugin cannot answer, or answers with a document
+			// that does not decode, prints nothing; only a failed write ends
+			// the stream.
+			raw, err := ratesOf(cmdCtx, tokens)
+			if err != nil {
+				continue
+			}
+			if named {
+				rate, err := oneRate(raw)
+				if err != nil {
+					continue
+				}
+				if err := enc.Encode(rate); err != nil {
+					return err
+				}
+				continue
+			}
+			rates, err := everyRate(raw)
 			if err != nil {
 				continue
 			}

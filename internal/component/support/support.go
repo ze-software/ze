@@ -346,11 +346,11 @@ func collect(modules map[string]moduleCollector, opts *collectOptions, reason, o
 		var tb textbuf.Buffer
 		return nil, errors.New(tb.Str("output directory does not exist: ").Str(outputDir).String())
 	}
-	manifest, collected, err := gather(context.Background(), modules, opts, reason)
+	now := time.Now().UTC().Truncate(time.Second)
+	manifest, collected, err := gather(context.Background(), modules, opts, reason, now)
 	if err != nil {
 		return nil, err
 	}
-	now, _ := time.Parse(time.RFC3339, manifest.Timestamp)
 	manifest.ArchivePath = filepath.Join(outputDir, archiveName(manifest.Hostname, now))
 	if err := writeArchiveFile(manifest, collected); err != nil {
 		return nil, err
@@ -362,11 +362,11 @@ func collect(modules map[string]moduleCollector, opts *collectOptions, reason, o
 // manifest, naming the key it is to be kept under, and its bytes. It stops
 // when ctx ends: the caller that asked for it has gone.
 func collectToMemory(ctx context.Context, modules map[string]moduleCollector, opts *collectOptions, reason string) (*SupportManifest, []byte, error) {
-	manifest, collected, err := gather(ctx, modules, opts, reason)
+	now := time.Now().UTC().Truncate(time.Second)
+	manifest, collected, err := gather(ctx, modules, opts, reason, now)
 	if err != nil {
 		return nil, nil, err
 	}
-	now, _ := time.Parse(time.RFC3339, manifest.Timestamp)
 	manifest.ArchiveKey = zefs.KeySupportArchive.Key(archiveName(manifest.Hostname, now))
 	manifestData, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
@@ -383,9 +383,10 @@ func collectToMemory(ctx context.Context, modules map[string]moduleCollector, op
 // gather runs each selected module, in name order, and answers the manifest
 // and each module's data. It checks ctx before each module, so a request that
 // ended stops the collection between modules rather than after all of them.
-func gather(ctx context.Context, modules map[string]moduleCollector, opts *collectOptions, reason string) (*SupportManifest, []moduleData, error) {
+// now is the archive's time, taken once by the caller, which also names the
+// archive with it, so the manifest's timestamp and the name never disagree.
+func gather(ctx context.Context, modules map[string]moduleCollector, opts *collectOptions, reason string, now time.Time) (*SupportManifest, []moduleData, error) {
 	hostname, _ := os.Hostname()
-	now := time.Now().UTC().Truncate(time.Second)
 	var tb textbuf.Buffer
 
 	manifest := &SupportManifest{
