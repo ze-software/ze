@@ -395,6 +395,7 @@ the path (`ai/META-DECISIONS.md`, "Goal and scope").
 | `filter-insertions[].session` | list | A session condition, in place of `config`: every listed fact holds for the peer |
 | `filter-insertions[].session[].fact` | string | A session fact some owner registered: the BGP view registers `peer-name`, `peer-group`, `peer-address`, `local-as`, `peer-as`, `route-server-as`, `ibgp` and `rs-client` |
 | `filter-insertions[].session[].values` | list | When given, the fact's text form must equal one of them (a flag `true` or `false`, an AS number in decimal, an address in its canonical form); absent means the peer has the fact |
+| `filter-insertions[].scope` | enum | Absent: the condition is judged on each peer, and the member lands on that peer's list. `any-peer`: while any peer meets the config condition, the member lands on every peer's export list |
 | `filter-insertions[].required` | bool | The operator cannot name, move or deactivate the member |
 | `filter-insertions[].reason` | string | The text the refusal prints; owed when `required` is true |
 
@@ -408,12 +409,23 @@ exported route) or per negotiation (`llgr-advertised`) is not registered as one.
 A static peer is judged at config load. A dynamic group's template states no
 remote AS, so the member is placed in the template and each peer of the group
 keeps or drops it when its OPEN gives its AS, before its chain compiles.
+
+A source-keyed procedure declares `scope any-peer`: it acts, on every
+peer's export, on the routes a peer meeting the condition sent, so the
+condition is judged on any peer (static, or a dynamic group's template) and
+the member goes on every peer's export list while one peer meets it. LLGR's
+egress is the case: RFC 9494 Section 4.3 obliges a speaker that advertised
+the capability to a neighbor for the routes from that neighbor, wherever it
+sends them. The member itself tells those routes apart by their source.
+<!-- source: internal/component/bgp/config/filter_insertion.go -- anyPeerHolds -->
 <!-- source: internal/component/bgp/policyview/session.go -- SessionConditionHolds -->
 <!-- source: internal/component/bgp/config/templated_chain.go -- keepHolding -->
 
 Stage 1 refuses an insertion naming a reference the plugin does not serve, a
 direction other than `import` or `export`, a priority outside 0 to 9999, no
-condition or both, an empty or holed path, a session fact no owner registered
+condition or both, a scope other than `any-peer`, `any-peer` on an import
+insertion or beside a session condition (a dynamic peer's facts arrive with
+its OPEN, so no load can judge them on any peer), an empty or holed path, a session fact no owner registered
 or named twice, `values` beside a session condition, a required insertion with
 no reason, and the same reference twice for one direction. It also refuses a condition path that is
 not a node of the compiled schema under `bgp peer` (an external plugin's own

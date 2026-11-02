@@ -1501,7 +1501,8 @@ runs the plugin (`registry.LoadedPlugins`): its Stage 1
 registration carries `filter-insertions` (`rpc.FilterInsertion`: the
 reference it serves, `import` or `export`, a priority 0-9999, one condition,
 a config path of the peer, optionally with values, or session facts of the
-peer that some owner registered, and `required` with its reason;
+peer that some owner registered, a scope (`any-peer` judges the condition
+on any peer and inserts on every export list), and `required` with its reason;
 `docs/architecture/api/process-protocol.md`, "Filter Insertion"). After the
 chains are canonical, the loader judges each insertion against the peer's
 resolved config (bgp, group and peer, a dynamic group's template) or its

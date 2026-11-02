@@ -124,3 +124,35 @@ func TestInsertionOnlyWhereItsPluginRuns(t *testing.T) {
 		})
 	}
 }
+
+// TestAnyPeerScopeInsertion checks D-5's `scope any-peer` at the loader: a
+// source-keyed procedure's condition is judged on any peer, and while one
+// peer meets it the member goes on every peer's export list. Method: an
+// export insertion on peer A's group leaf (A inherits mode on, B does not);
+// with any-peer both export lists carry it, and with values no peer meets,
+// neither does.
+func TestAnyPeerScopeInsertion(t *testing.T) {
+	t.Run("one peer meets it", func(t *testing.T) {
+		registerInserter(t, rpc.FilterInsertion{Filter: "fake-inserter:late", Direction: rpc.FilterExport,
+			Priority: 5, Config: rrClient, Values: []string{"on"}, Scope: rpc.FilterScopeAnyPeer})
+		peers, err := insertionPeers(t, "")
+		require.NoError(t, err)
+		require.Contains(t, refNames(peers["A"].ExportPolicy.Filters()), "fake-inserter:late",
+			"peer A meets the condition, so its export list carries the member")
+		require.Contains(t, refNames(peers["B"].ExportPolicy.Filters()), "fake-inserter:late",
+			"peer B does not meet the condition, yet any-peer puts the member on every export list")
+		require.NotNil(t, peers["B"].ExportPolicy.Library(), "the member runs in B's library chain")
+		require.NotContains(t, refNames(peers["B"].ImportPolicy.Filters()), "fake-inserter:late",
+			"an export insertion never reaches the import list")
+	})
+	t.Run("no peer meets it", func(t *testing.T) {
+		registerInserter(t, rpc.FilterInsertion{Filter: "fake-inserter:late", Direction: rpc.FilterExport,
+			Priority: 5, Config: rrClient, Values: []string{"never"}, Scope: rpc.FilterScopeAnyPeer})
+		peers, err := insertionPeers(t, "")
+		require.NoError(t, err)
+		require.NotContains(t, refNames(peers["A"].ExportPolicy.Filters()), "fake-inserter:late",
+			"no peer meets the condition, so nothing is inserted")
+		require.NotContains(t, refNames(peers["B"].ExportPolicy.Filters()), "fake-inserter:late",
+			"no peer meets the condition, so nothing is inserted")
+	})
+}

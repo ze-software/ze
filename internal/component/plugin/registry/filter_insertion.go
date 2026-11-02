@@ -59,6 +59,9 @@ func checkFilterInsertion(pluginName string, declared []DeclaredFilter, filterTy
 	if ins.Priority > rpc.FilterInsertionPriorityMax {
 		return insertionError(pluginName, ins, priorityRange)
 	}
+	if err := checkInsertionScope(pluginName, ins); err != nil {
+		return err
+	}
 	if err := checkInsertionCondition(pluginName, ins); err != nil {
 		return err
 	}
@@ -87,6 +90,31 @@ func checkInsertionCondition(pluginName string, ins *rpc.FilterInsertion) error 
 		return insertionError(pluginName, ins, "whose condition path holds an empty word")
 	}
 	return nil
+}
+
+// checkInsertionScope refuses a scope no one defined, and any-peer where it
+// cannot mean anything: on the import list (a source-keyed procedure acts on
+// the routes it exports to others), and beside a session condition, whose
+// facts a dynamic peer has only once its OPEN arrives, so no load can judge
+// it on any peer.
+func checkInsertionScope(pluginName string, ins *rpc.FilterInsertion) error {
+	switch ins.Scope {
+	case rpc.FilterScopePeer:
+		return nil
+	case rpc.FilterScopeAnyPeer:
+		if ins.Direction == rpc.FilterImport {
+			return insertionError(pluginName, ins, "with scope any-peer on the import list; any-peer places the "+
+				"member on every export list, so declare it for export")
+		}
+		if len(ins.Session) > 0 {
+			return insertionError(pluginName, ins, "with scope any-peer beside a session condition; any-peer "+
+				"judges a config condition, so name the config path that marks the source peer")
+		}
+		return nil
+	}
+	// The scope arrives over the wire from any plugin, so the set is open.
+	return insertionError(pluginName, ins, "with scope "+strconv.Quote(string(ins.Scope))+
+		", which is not a scope; omit it for the peer itself, or give any-peer")
 }
 
 func checkSessionCondition(pluginName string, ins *rpc.FilterInsertion) error {

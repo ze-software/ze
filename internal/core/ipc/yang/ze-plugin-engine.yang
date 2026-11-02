@@ -422,6 +422,19 @@ module ze-plugin-engine {
                         ze:help "Fact values that meet the condition";
                     }
                 }
+                leaf scope {
+                    type enumeration {
+                        enum any-peer {
+                            ze:help "Judge the condition on any peer; insert on every export list";
+                        }
+                    }
+                    description
+                        "Absent, the condition is judged on each peer and the member lands on
+                         that peer's list. any-peer, for a source-keyed procedure: while any
+                         peer meets the config condition, the member lands on every peer's
+                         export list. Refused on import and beside a session condition.";
+                    ze:help "Whose condition places the member";
+                }
                 leaf required {
                     type boolean;
                     default false;

@@ -590,9 +590,23 @@ type FilterInsertion struct {
 	Config    []string            `json:"config,omitempty"`   // Path words under the peer's resolved entry (e.g. role import)
 	Values    []string            `json:"values,omitempty"`   // The leaf equals one of these; empty means present
 	Session   []FilterSessionFact `json:"session,omitempty"`  // Session facts that all hold, in place of Config
+	Scope     FilterScope         `json:"scope,omitempty"`    // Whose condition places the member; empty is the peer itself
 	Required  bool                `json:"required,omitempty"` // The operator cannot name, move or deactivate it
 	Reason    string              `json:"reason,omitempty"`   // Why it is required; owed when Required
 }
+
+// FilterScope names whose condition places an inserted member.
+type FilterScope string
+
+const (
+	// FilterScopePeer judges the condition on each peer and places the
+	// member on that peer's list. It is the wire's absent `scope`.
+	FilterScopePeer FilterScope = ""
+	// FilterScopeAnyPeer judges the condition on any peer and, while one
+	// peer meets it, places the member on every peer's export list: a
+	// source-keyed procedure (LLGR egress) acts on routes another peer sent.
+	FilterScopeAnyPeer FilterScope = "any-peer"
+)
 
 // FilterSessionFact is one fact of a session condition: the fact holds when
 // the session has it and, when Values are given, its text form (a flag reads

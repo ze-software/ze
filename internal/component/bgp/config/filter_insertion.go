@@ -37,9 +37,10 @@ func insertDeclaredFilters(bgpTree map[string]any, peers []*reactor.PeerSettings
 		return nil, nil
 	}
 	peerMap, _ := bgpTree["peer"].(map[string]any)
+	anyPeer := anyPeerHolds(insertions, peers, peerMap, groups)
 	for _, ps := range peers {
 		resolved, _ := peerMap[ps.Name].(map[string]any)
-		if _, err := insertForPeer(ps, resolved, insertions, reg); err != nil {
+		if _, err := insertForPeer(ps, resolved, insertions, anyPeer, reg); err != nil {
 			return nil, err
 		}
 	}
@@ -48,13 +49,45 @@ func insertDeclaredFilters(bgpTree map[string]any, peers []*reactor.PeerSettings
 	// judges a role.
 	conditional := make(map[*reactor.PeerSettings]sessionMembers, len(groups))
 	for _, dg := range groups {
-		members, err := insertForPeer(dg.Settings, dg.Template, insertions, reg)
+		members, err := insertForPeer(dg.Settings, dg.Template, insertions, anyPeer, reg)
 		if err != nil {
 			return nil, err
 		}
 		conditional[dg.Settings] = members
 	}
 	return conditional, nil
+}
+
+// anyPeerHolds answers, per insertion, whether a `scope any-peer` insertion's
+// config condition holds on any static peer or dynamic group template
+// (rpc.FilterScopeAnyPeer, spec-filter-wire-6-stage-filters D-5): a
+// source-keyed procedure acts on the routes a peer meeting it sent, which
+// every other peer's export list carries. The Stage 1 judge refuses any-peer
+// beside a session condition, so the config condition is the only one read.
+func anyPeerHolds(insertions []rpc.FilterInsertion, peers []*reactor.PeerSettings, peerMap map[string]any,
+	groups []*reactor.DynamicGroupConfig,
+) []bool {
+	holds := make([]bool, len(insertions))
+	for i := range insertions {
+		ins := &insertions[i]
+		if ins.Scope != rpc.FilterScopeAnyPeer {
+			continue
+		}
+		for _, ps := range peers {
+			resolved, _ := peerMap[ps.Name].(map[string]any)
+			if insertionConditionHolds(resolved, ins.Config, ins.Values) {
+				holds[i] = true
+				break
+			}
+		}
+		for _, dg := range groups {
+			if insertionConditionHolds(dg.Template, ins.Config, ins.Values) {
+				holds[i] = true
+				break
+			}
+		}
+	}
+	return holds
 }
 
 // sessionMembers are the members a dynamic template carries under a session
@@ -124,12 +157,12 @@ func declaredInsertions() ([]rpc.FilterInsertion, error) {
 // the group to keep or drop once its OPEN gives its AS
 // (templatedChain.CompileResolved).
 func insertForPeer(ps *reactor.PeerSettings, resolved map[string]any,
-	insertions []rpc.FilterInsertion, reg *policy.Registry,
+	insertions []rpc.FilterInsertion, anyPeer []bool, reg *policy.Registry,
 ) (sessionMembers, error) {
 	var members sessionMembers
 	for i := len(insertions) - 1; i >= 0; i-- {
 		ins := &insertions[i]
-		holds, deferred, err := insertionHolds(ps, resolved, ins)
+		holds, deferred, err := insertionHolds(ps, resolved, ins, anyPeer[i])
 		if err != nil {
 			return members, err
 		}
@@ -169,8 +202,15 @@ func insertForPeer(ps *reactor.PeerSettings, resolved map[string]any,
 
 // insertionHolds reports whether the peer meets the insertion's condition,
 // and, for a session condition on a dynamic template, that the answer is
-// deferred to each member peer (holds and deferred both true).
-func insertionHolds(ps *reactor.PeerSettings, resolved map[string]any, ins *rpc.FilterInsertion) (holds, deferred bool, err error) {
+// deferred to each member peer (holds and deferred both true). A `scope
+// any-peer` insertion holds on every peer while anyPeer says some peer meets
+// it (anyPeerHolds).
+func insertionHolds(ps *reactor.PeerSettings, resolved map[string]any, ins *rpc.FilterInsertion,
+	anyPeer bool,
+) (holds, deferred bool, err error) {
+	if ins.Scope == rpc.FilterScopeAnyPeer {
+		return anyPeer, false, nil
+	}
 	if len(ins.Session) == 0 {
 		return insertionConditionHolds(resolved, ins.Config, ins.Values), false, nil
 	}
