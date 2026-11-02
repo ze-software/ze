@@ -154,11 +154,12 @@ the answer cannot vary with the health of the box being diagnosed.
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
 
-### Local-data commands (answered in the caller's own process)
+### Local-data commands (answered in the caller's own process, and by the daemon)
 
-A local-data command never asks a daemon. Its handler reads a registry that
-`init()` filled in this process, so the answer exists before `main()` does. It
-registers with `command.MustRegisterLocalData(path, handler, meta,
+A local-data command needs no daemon. Its handler reads a registry that
+`init()` filled in the process running it, so the answer exists before
+`main()` does, and the daemon runs the same handler for a remote caller
+(below). It registers with `command.MustRegisterLocalData(path, handler, meta,
 command.RenderLocalAnswer)` and returns DATA, which is what lets `| json`,
 `| yaml` and `| table` be three renderings of one payload. The handler
 (`command.LocalDataHandler`) takes the `command.ValidatedArgs` the validator
@@ -193,8 +194,9 @@ operator's own chain rather than an answer to their question.
 
 Before the handler runs, `ServeLocal` judges the arguments against the leaves
 the command's YANG declares, with `command.ValidateArgs`, the same validator the
-daemon dispatcher calls. A refused argument is written to stderr and exits 1, and
-the handler is never called. The definitions come from the YANG package, which
+daemon dispatcher calls. A refused argument becomes a refusal value printed on
+stderr like a handler's own, the route exits 1, and the handler is never
+called. The definitions come from the YANG package, which
 registers itself as the source (`command.RegisterArgDefSource`); a process with
 no source registered refuses every local command rather than skipping the check.
 The handler runs on the value `ValidateArgs` returned, never on the raw words.
@@ -250,10 +252,55 @@ or as JSON with | json`.
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape, defaultFormatFor -->
 <!-- source: internal/component/command/local_data.go -- RenderLocalAnswer, PrintLocalAnswer -->
 
+#### Served by the daemon too
+
+The daemon dispatcher serves every local-data command whose exact path a YANG
+`ze:command` node declares, under that path, through the same handler, so MCP,
+REST, gRPC, SSH and the web reach it like any builtin. `LoadBuiltins` and the
+alias loader the server calls end with `loadLocalData`, which reads the local
+registry and the YANG maps and lists no command: a new local-data command with
+a node is served with no further edit, and one with no node is not. A plain
+local command (one that prints rather than answering a value) is not served
+this way. A path a builtin RPC already holds is refused (`ErrCommandHeld`), as
+two builtins on one path are.
+
+A call passes authorization and accounting first, then the dispatcher's
+validator over the node's leaves, then the handler, exactly as a builtin
+does. A token that starts with `-` is refused before the handler, because a
+`--flag` is offline tooling the daemon never reads. The answer maps onto the
+response the way the local route maps it onto the terminal: the payload is
+the response data, under the shape the path declares; a non-zero code is a
+failed status, with the diagnostic as the error text (its final newline
+dropped) and the payload, if any, still beside it. Nothing is written to the
+daemon's stdout or stderr. A diagnostic beside a zero code, which is a
+warning, has no field in the response and does not reach the remote caller.
+
+Authorization reads the verb (`IsReadOnlyPath`), unless the registration
+declares its daemon form does more than read with `registry.Meta.NotReadOnly`.
+`show plugin declarations config` declares it, because answering starts each
+external plugin's `run` line from the file, so it is judged in the edit
+section and the read-only profile, whose edit section denies by default,
+refuses it before any process starts.
+
+The handler learns which route called it from `ValidatedArgs.Route()`:
+`command.RouteLocal` on `ServeLocal` and the plain `ze <verb>` handler,
+`command.RouteRemote` when the daemon runs it (`command.AnswerRemote`).
+Only the command package marks a route. `Route.CallerLocal()` is true for
+`RouteLocal` alone, so the zero value, `RouteUnspecified`, is refused the
+caller-only forms the same way the remote route is. `show bgp decode` and
+`show bgp encode` refuse a standard-input form and a decoder program named by
+path unless the route is local, and a help page is drawn with colors only on
+the local route.
+<!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, localDataHandler, localAnswerResponse -->
+<!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, loadBuiltinsWithAliases, IsReadOnlyPath -->
+<!-- source: internal/component/command/route.go -- Route, CallerLocal, AnswerRemote -->
+<!-- source: internal/component/command/registry/registry.go -- Meta -->
+<!-- source: internal/component/plugin/register.go -- show plugin declarations config registration -->
+
 This differs from the offline fallback above: a fallback is a second answer for
 a command the daemon normally serves, tried only after the connection fails. A
-local-data command has no daemon side at all, registers no RPC, and therefore
-owes no `wire-methods.snapshot` row.
+local-data command is one handler behind both routes. It registers no RPC on
+the wire-method dispatcher, and therefore owes no `wire-methods.snapshot` row.
 
 `internal/component/plugin/register.go` serves one of them, and it is the
 template: `show plugin list` answers which plugins this binary carries and what

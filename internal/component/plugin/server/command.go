@@ -76,8 +76,9 @@ func AllBuiltinRPCs() []RPCRegistration {
 // the YANG command tree (WireMethod -> CLI path). pathToDesc provides the
 // one-line summary each command's ze:help extension declares, and pathToHelp
 // the long explanation its YANG description declares. Handlers without a YANG
-// entry are skipped. The first name another registration already holds stops
-// the load and is returned (ErrCommandHeld).
+// entry are skipped. The local-data commands a YANG node declares are loaded
+// beside them (loadLocalData). The first name another registration already
+// holds stops the load and is returned (ErrCommandHeld).
 func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef) error {
 	for _, reg := range AllBuiltinRPCs() {
 		name := wireToPath[reg.WireMethod]
@@ -95,7 +96,11 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]s
 			return err
 		}
 	}
-	return nil
+	wireToPaths := make(map[string][]string, len(wireToPath))
+	for wire, path := range wireToPath {
+		wireToPaths[wire] = []string{path}
+	}
+	return loadLocalData(d, wireToPaths, pathToDesc, pathToHelp, pathToArgDefs)
 }
 
 // ErrWireMethodHeld is the refusal for a builtin RPC whose wire method another
@@ -103,7 +108,8 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]s
 var ErrWireMethodHeld = errors.New("wire method registered by two builtins")
 
 // loadBuiltinsWithAliases registers the builtin handlers regs with the
-// dispatcher, including all YANG command aliases for each wire method. When
+// dispatcher, including all YANG command aliases for each wire method, and
+// the local-data commands a YANG node declares (loadLocalData). When
 // cmdTree is non-nil, commands whose YANG path passes through a
 // ze:ensure-exists node are wrapped to auto-ensure the parent resource and
 // rollback on failure.
@@ -147,7 +153,7 @@ func loadBuiltinsWithAliases(d *Dispatcher, regs []RPCRegistration, wireToPaths 
 			}
 		}
 	}
-	return nil
+	return loadLocalData(d, wireToPaths, pathToDesc, pathToHelp, pathToArgDefs)
 }
 
 // legacyReadRoots are the noun-first tree roots that answer a read and are not

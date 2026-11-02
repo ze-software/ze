@@ -84,7 +84,7 @@ func TestShowYANGDocAnswersTheDocumentationText(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var answer command.LocalAnswer
 			_, stdout, stderr := captureDocStdio(t, func() int {
-				answer = docAnswer(tc.args)
+				answer = docAnswer(tc.args, command.RouteLocal)
 				return 0
 			})
 			if stdout != "" || stderr != "" {
@@ -102,15 +102,15 @@ func TestShowYANGDocAnswersTheDocumentationText(t *testing.T) {
 		})
 	}
 
-	usage := docAnswer(nil)
+	usage := docAnswer(nil, command.RouteLocal)
 	if usage.Payload != nil || usage.Code != 1 || usage.Diagnostic != "Usage: ze yang doc <command> or ze yang doc --list\n" {
 		t.Errorf("doc with no command = %+v; want the usage line and code 1", usage)
 	}
-	unknown := docAnswer([]string{"no-such-command-xyz"})
+	unknown := docAnswer([]string{"no-such-command-xyz"}, command.RouteLocal)
 	if unknown.Payload != nil || unknown.Code != 1 || unknown.Diagnostic != "error: unknown command: no-such-command-xyz\n" {
 		t.Errorf("doc of an unknown command = %+v; want the error line and code 1", unknown)
 	}
-	help := docAnswer([]string{"-h"})
+	help := docAnswer([]string{"-h"}, command.RouteLocal)
 	if help.Payload != nil || help.Code != 0 || !strings.Contains(help.Diagnostic, "ze yang doc [--list] [<command>]") {
 		t.Errorf("doc -h = %+v; want the help page and code 0", help)
 	}

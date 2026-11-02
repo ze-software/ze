@@ -227,7 +227,7 @@ func writeOptionError(err error, page *helpfmt.Page) int {
 
 // cmdDoc is `ze yang doc`: the answer of `show yang doc`, printed.
 func cmdDoc(args []string) int {
-	return command.PrintLocalAnswer("show yang doc", docAnswer(args))
+	return command.PrintLocalAnswer("show yang doc", docAnswer(args, command.RouteLocal))
 }
 
 // docHelpPage is the help page of `ze yang doc`.

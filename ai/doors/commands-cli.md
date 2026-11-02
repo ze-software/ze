@@ -24,11 +24,15 @@ The daemon dispatcher they feed is
   - by an offline fallback (`command.MustRegisterOfflineFallback`), only after
     the daemon is unreachable
   - by a local-data handler (`command.MustRegisterLocalData`), in the caller's
-    own process, with no daemon side
+    own process, and by the daemon through the same handler when a YANG node
+    declares its path
 
-  Pick one on purpose. A local-data command is answered by
-  `command.ServeLocal`, which only the `ze cli` client calls
-  (`internal/component/cli/client`), so REST, gRPC, MCP and the web do not reach it.
+  Pick one on purpose. A local-data command is answered locally by
+  `command.ServeLocal` (the `ze cli` client, `internal/component/cli/client`)
+  and the plain `ze <verb>` handler, and for REST, gRPC, MCP, SSH and the web
+  by the dispatcher (`plugin/server` `loadLocalData`). The handler reads
+  `ValidatedArgs.Route()` to refuse what only the caller's own process holds
+  (`commands.md`, "Served by the daemon too").
 - **SSH can be compiled out** (`ze_ssh` in `feature-gates.txt`). The command
   model and the editor cannot.
 - **SSH sessions dispatch through the shared dispatcher.** The hub hands the SSH

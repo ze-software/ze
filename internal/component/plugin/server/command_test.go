@@ -7,6 +7,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
+	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -149,4 +150,66 @@ func TestNewServerRefusesABuiltinCollision(t *testing.T) {
 	if !errors.Is(err, ErrWireMethodHeld) {
 		t.Fatalf("NewServer with a duplicated wire method: got (%v, %v), want ErrWireMethodHeld", s, err)
 	}
+}
+
+// TestLoadBuiltinsServesLocalCommands proves the dispatcher serves every
+// local-data command a YANG ze:command node declares, derived from the
+// registries rather than from a list.
+//
+// VALIDATES: AC-4, AC-11 (bridge half). For each local-data registration
+// linked into this binary whose exact path a YANG node declares, the
+// dispatcher holds a command under that path, owned by the node's wire
+// method, ReadOnly as the verb says unless the registration declares
+// NotReadOnly, with the node's argument definitions. At least one is checked,
+// so the test cannot pass on an empty population.
+// PREVENTS: a local-data command answering only on `ze` while every daemon
+// surface (MCP, REST, gRPC, SSH, web) reports it unknown.
+func TestLoadBuiltinsServesLocalCommands(t *testing.T) {
+	d, wireToPaths := localBridgeDispatcher(t)
+	declared := make(map[string]string)
+	for wire, paths := range wireToPaths {
+		for _, path := range paths {
+			declared[path] = wire
+		}
+	}
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	argDefs := yang.PathToArgDefs(loader)
+
+	checked := 0
+	for _, entry := range command.ListLocal() {
+		wire, hasNode := declared[entry.Path]
+		if !hasNode {
+			continue
+		}
+		handler, rest := command.LookupLocalData(strings.Fields(entry.Path))
+		if handler == nil || len(rest) != 0 {
+			continue
+		}
+		checked++
+		cmd := d.Lookup(entry.Path)
+		if cmd == nil {
+			t.Errorf("%q: local-data command with YANG node %s is not served by the dispatcher", entry.Path, wire)
+			continue
+		}
+		if cmd.Name != entry.Path {
+			t.Errorf("%q: served under %q, want its own path", entry.Path, cmd.Name)
+		}
+		if cmd.Owner != wire {
+			t.Errorf("%q: owner %q, want the node's wire method %q", entry.Path, cmd.Owner, wire)
+		}
+		wantReadOnly := IsReadOnlyPath(entry.Path) && !entry.Meta.NotReadOnly
+		if cmd.ReadOnly != wantReadOnly {
+			t.Errorf("%q: ReadOnly %v, want %v", entry.Path, cmd.ReadOnly, wantReadOnly)
+		}
+		if len(cmd.ArgDefs) != len(argDefs[entry.Path]) {
+			t.Errorf("%q: %d argument definitions, want the node's %d", entry.Path, len(cmd.ArgDefs), len(argDefs[entry.Path]))
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no local-data command with a YANG node is linked into this binary: the check proved nothing")
+	}
+	t.Logf("%d local-data commands served by the dispatcher", checked)
 }

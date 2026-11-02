@@ -49,6 +49,10 @@ type ValidatedArgs struct {
 	// positional holds, in the order typed, every token no keyword consumed
 	// and no rest-of-line leaf took.
 	positional []string
+	// route is the local-data route that called the handler holding this
+	// value (route.go). ValidateArgs leaves it RouteUnspecified; only the
+	// local-data routes in this package mark it.
+	route Route
 }
 
 // Tokens answers a copy of the judged tokens, in the order they were typed. A

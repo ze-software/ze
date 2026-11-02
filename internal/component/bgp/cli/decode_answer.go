@@ -48,49 +48,6 @@ const (
 	inputFormPcap    = "pcap"
 )
 
-// inputRoute says what the route that runs a decode or an encode can give it
-// beyond the words typed. Zero is unspecified, so a route that forgot to say
-// is a defect the handler names instead of a guess.
-type inputRoute uint8
-
-const (
-	inputRouteUnspecified inputRoute = iota
-	// inputRouteLocal is the operator's own process: its standard input is the
-	// operator's, so the `-` forms and encode's implicit read are answered.
-	inputRouteLocal
-	// inputRouteRemote serves a caller in another process: no surface carries
-	// a standard-input stream to the handler, so those forms are refused.
-	inputRouteRemote
-)
-
-// readsStdin answers whether the route can hand the handler the caller's
-// standard input.
-func (r inputRoute) readsStdin() bool {
-	switch r {
-	case inputRouteLocal:
-		return true
-	case inputRouteRemote:
-		return false
-	case inputRouteUnspecified:
-	}
-	panic("BUG: bgp tools handler called with no input route")
-}
-
-// runsPrograms answers whether the route may start a program the operator
-// names by its path, as `--plugin /path/to/program` does. Only the operator's
-// own process may: on a remote route the path would name a program on the
-// daemon's host, started on a caller's word.
-func (r inputRoute) runsPrograms() bool {
-	switch r {
-	case inputRouteLocal:
-		return true
-	case inputRouteRemote:
-		return false
-	case inputRouteUnspecified:
-	}
-	panic("BUG: bgp tools handler called with no input route")
-}
-
 // stdinRefusal is the answer of a form that reads standard input on a route
 // that has none. It names the local command, which is the fix.
 func stdinRefusal(invocation string) command.LocalAnswer {
@@ -166,7 +123,7 @@ func (r *decodeRequest) answer(input string, messages []decodedMessage, code int
 // dataDecode is the show bgp decode handler. It writes nothing: every word it
 // has for the operator is in the answer.
 func dataDecode(validated command.ValidatedArgs) command.LocalAnswer {
-	return answerDecode(validated, restWords(validated, leafDecodeMessage), inputRouteLocal)
+	return answerDecode(validated, restWords(validated, leafDecodeMessage), validated.Route())
 }
 
 // restWords answers the words a rest-of-line leaf took, split again: on the
@@ -183,7 +140,7 @@ func restWords(validated command.ValidatedArgs, leaf string) []string {
 // answerDecode answers a decode. validated carries the leaves the model bound
 // by keyword; words carries the rest of the line, offline flags included. The
 // root `ze bgp decode` route passes the zero ValidatedArgs, which binds none.
-func answerDecode(validated command.ValidatedArgs, words []string, route inputRoute) command.LocalAnswer {
+func answerDecode(validated command.ValidatedArgs, words []string, route command.Route) command.LocalAnswer {
 	request, refusal := parseDecode(validated, words, route)
 	if refusal != nil {
 		return *refusal
@@ -205,7 +162,7 @@ func answerDecode(validated command.ValidatedArgs, words []string, route inputRo
 				Str(countWord(len(request.inputs) - 1)).Str(" given\n")
 			return command.LocalRefusal(1, tb.String())
 		}
-		if !route.readsStdin() {
+		if !route.CallerLocal() {
 			return stdinRefusal(pathDecode + " " + cliio.StdinToken)
 		}
 		return decodeHexStdin(&request)
@@ -231,7 +188,7 @@ func decodeHexInput(payload string, request *decodeRequest) command.LocalAnswer 
 // the flag parser refuses, a help request, a plugin that cannot decode on this
 // route and a missing payload come back as the refusal, with the text the
 // parser wrote; nothing reaches stderr.
-func parseDecode(validated command.ValidatedArgs, words []string, route inputRoute) (decodeRequest, *command.LocalAnswer) {
+func parseDecode(validated command.ValidatedArgs, words []string, route command.Route) (decodeRequest, *command.LocalAnswer) {
 	var diag textbuf.Buffer
 	fs := flag.NewFlagSet("decode", flag.ContinueOnError)
 	fs.SetOutput(&diag)
@@ -274,7 +231,7 @@ func parseDecode(validated command.ValidatedArgs, words []string, route inputRou
 		return decodeRequest{}, &refusal
 	}
 
-	named, err := parseDecodePlugins(plugins, route.runsPrograms())
+	named, err := parseDecodePlugins(plugins, route.CallerLocal())
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("error: ").Err(err).Byte('\n')
@@ -497,7 +454,7 @@ func renderDecode(path string, payload any) int {
 // handler body and prints the tool's own drawing, human or `--json`, which is
 // what scripts of that spelling have always read.
 func cmdDecode(args []string) int {
-	return printDecode(answerDecode(command.ValidatedArgs{}, args, inputRouteLocal))
+	return printDecode(answerDecode(command.ValidatedArgs{}, args, command.RouteLocal))
 }
 
 // printDecode prints a decode answer as the root route does: its Diagnostic on

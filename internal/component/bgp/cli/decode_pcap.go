@@ -44,7 +44,7 @@ type framedMessage struct {
 // examined, because an operator reads empty output as "there is no BGP here"
 // and that is the one answer this must never give silently
 // (`ai/rules/evidence.md`).
-func decodePcapInput(args []string, request *decodeRequest, route inputRoute) command.LocalAnswer {
+func decodePcapInput(args []string, request *decodeRequest, route command.Route) command.LocalAnswer {
 	if len(args) == 0 {
 		var tb textbuf.Buffer
 		tb.Str("error: ").Str(inputKeywordPcap).Str(" needs a capture path, or ").
@@ -57,7 +57,7 @@ func decodePcapInput(args []string, request *decodeRequest, route inputRoute) co
 			Str(" given: ").Str(strings.Join(quoteAll(args), " and ")).Byte('\n')
 		return command.LocalRefusal(1, tb.String())
 	}
-	if cliio.IsStdin(args[0]) && !route.readsStdin() {
+	if cliio.IsStdin(args[0]) && !route.CallerLocal() {
 		return stdinRefusal(pathDecode + " " + inputKeywordPcap + " " + cliio.StdinToken)
 	}
 

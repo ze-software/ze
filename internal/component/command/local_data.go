@@ -155,7 +155,7 @@ func RegisterLocalData(path string, handler LocalDataHandler, meta registry.Meta
 // with a 129-character key reached it although the leaf declares 1..128.
 func plainLocalData(path string, handler LocalDataHandler, render func(string, any) int) LocalHandler {
 	return func(validated ValidatedArgs) int {
-		return printLocalAnswer(path, handler(validated), render)
+		return printLocalAnswer(path, handler(validated.onRoute(RouteLocal)), render)
 	}
 }
 
@@ -249,10 +249,15 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	// This route once called no validator at all, so a declared length,
 	// pattern or range constrained nothing here: `show env get` with a
 	// 129-character name reached the handler although the leaf says 1..128.
+	//
+	// The refusal is a value like a handler's own, printed by the same
+	// writeLocalDiagnostic, so this route and the handler's refusals reach the
+	// operator on one channel and no refusal text is written below the route.
 	validated, argErr := validateLocalArgs(words, args)
 	if argErr != nil {
-		writeLocalRefusal(strings.Join(words[:len(words)-len(args)], " "), argErr)
-		return "", 1, true
+		refusal := LocalRefusal(1, localRefusal(strings.Join(words[:len(words)-len(args)], " "), argErr))
+		writeLocalDiagnostic(refusal.Diagnostic)
+		return "", refusal.Code, true
 	}
 
 	// The PAYLOAD decides whether there is an answer to render, and the CODE
@@ -261,7 +266,7 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	// handler that returns both MUST have both honored. A handler with nothing
 	// to say returns a nil payload and its reason as the diagnostic, which
 	// this local route prints on stderr where the operator always read it.
-	result := handler(validated)
+	result := handler(validated.onRoute(RouteLocal))
 	writeLocalDiagnostic(result.Diagnostic)
 	if result.Payload == nil {
 		return "", result.Code, true

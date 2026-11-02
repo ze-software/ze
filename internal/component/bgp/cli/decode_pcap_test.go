@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/pcap"
 )
@@ -134,7 +135,7 @@ func TestReadPcapFramesMessages(t *testing.T) {
 	path := writeCapture(t, file)
 
 	stdout, stderr, code := run(t, func() int {
-		return printDecode(decodePcapInput([]string{path}, &decodeRequest{}, inputRouteLocal))
+		return printDecode(decodePcapInput([]string{path}, &decodeRequest{}, command.RouteLocal))
 	})
 	if code != 0 {
 		t.Fatalf("exit code %d, want 0. stderr: %s", code, stderr)
@@ -263,7 +264,7 @@ func TestNonBGPFlowsIgnored(t *testing.T) {
 	path := writeCapture(t, file)
 
 	stdout, stderr, code := run(t, func() int {
-		return printDecode(decodePcapInput([]string{path}, &decodeRequest{}, inputRouteLocal))
+		return printDecode(decodePcapInput([]string{path}, &decodeRequest{}, command.RouteLocal))
 	})
 	if code != 0 {
 		t.Fatalf("exit code %d, want 0. stderr: %s", code, stderr)
@@ -284,7 +285,7 @@ func TestNoBGPFoundIsAnError(t *testing.T) {
 	path := writeCapture(t, file)
 
 	stdout, stderr, code := run(t, func() int {
-		return printDecode(decodePcapInput([]string{path}, &decodeRequest{}, inputRouteLocal))
+		return printDecode(decodePcapInput([]string{path}, &decodeRequest{}, command.RouteLocal))
 	})
 	if code == 0 {
 		t.Errorf("exit code 0 for a capture with no BGP in it, want non-zero")
@@ -304,7 +305,7 @@ func TestNoBGPFoundIsAnError(t *testing.T) {
 // operator.
 func TestPathAndStdinRejected(t *testing.T) {
 	_, stderr, code := run(t, func() int {
-		return printDecode(decodePcapInput([]string{"session.pcap", "-"}, &decodeRequest{}, inputRouteLocal))
+		return printDecode(decodePcapInput([]string{"session.pcap", "-"}, &decodeRequest{}, command.RouteLocal))
 	})
 	if code == 0 {
 		t.Error("exit code 0 for a path and a dash together, want non-zero")
@@ -321,7 +322,7 @@ func TestPathAndStdinRejected(t *testing.T) {
 // naming what is missing.
 func TestPcapWithNoPathRejected(t *testing.T) {
 	_, stderr, code := run(t, func() int {
-		return printDecode(decodePcapInput(nil, &decodeRequest{}, inputRouteLocal))
+		return printDecode(decodePcapInput(nil, &decodeRequest{}, command.RouteLocal))
 	})
 	if code == 0 {
 		t.Error("exit code 0 for the pcap keyword with no path, want non-zero")
@@ -341,7 +342,7 @@ func TestDecodePcapStdinMatchesPath(t *testing.T) {
 	path := writeCapture(t, file)
 
 	fromPath, _, code := run(t, func() int {
-		return printDecode(decodePcapInput([]string{path}, &decodeRequest{}, inputRouteLocal))
+		return printDecode(decodePcapInput([]string{path}, &decodeRequest{}, command.RouteLocal))
 	})
 	if code != 0 {
 		t.Fatalf("path form exited %d, want 0", code)
@@ -350,7 +351,7 @@ func TestDecodePcapStdinMatchesPath(t *testing.T) {
 	restore := cliio.SwapStreams(bytes.NewReader(file), io.Discard)
 	defer restore()
 	fromStdin, stderr, code := run(t, func() int {
-		return printDecode(decodePcapInput([]string{cliio.StdinToken}, &decodeRequest{}, inputRouteLocal))
+		return printDecode(decodePcapInput([]string{cliio.StdinToken}, &decodeRequest{}, command.RouteLocal))
 	})
 	if code != 0 {
 		t.Fatalf("stdin form exited %d, want 0. stderr: %s", code, stderr)
@@ -448,7 +449,7 @@ func TestDecodePcapReportsAGap(t *testing.T) {
 	path := writeCapture(t, file.Bytes())
 
 	stdout, stderr, code := run(t, func() int {
-		return printDecode(decodePcapInput([]string{path}, &decodeRequest{}, inputRouteLocal))
+		return printDecode(decodePcapInput([]string{path}, &decodeRequest{}, command.RouteLocal))
 	})
 	if code != 0 {
 		t.Fatalf("exit code %d, want 0: both runs still hold a whole message. stderr: %s", code, stderr)

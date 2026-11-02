@@ -1,0 +1,117 @@
+// Design: docs/architecture/api/commands.md — local-data commands, served by the daemon too
+// Related: command.go — LoadBuiltins and loadBuiltinsWithAliases, which call this
+//
+// local_bridge.go serves the local-data commands from the daemon dispatcher.
+//
+// A local-data command (command.MustRegisterLocalData) answered only in the
+// caller's own process, so MCP, REST, gRPC, SSH and the web, which reach the
+// daemon, never offered it: `show env list` answered on `ze` and nowhere a
+// remote operator could ask. Its handler already returns its whole answer as
+// a value (command.LocalAnswer), so the daemon runs the SAME handler and hands
+// that value back: one producer, two routes.
+
+package server
+
+import (
+	"encoding/json"
+	"errors"
+	"strings"
+
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+// loadLocalData registers every local-data command whose path a YANG
+// ze:command node declares, under that path, so the dispatcher serves it like
+// a builtin: authorization and accounting first, then the validator over the
+// leaves the node declares, then the handler.
+//
+// The set is derived from the two registries, never listed: the local
+// registry names the commands and their metadata, and the YANG maps say which
+// paths a node declares. A plain local command with no data form is not
+// served here, because its handler prints rather than answering a value.
+//
+// ReadOnly comes from the verb unless the registration declares the daemon
+// form does more than read (registry.Meta.NotReadOnly). A path a builtin
+// already holds is refused by RegisterWithOptions (ErrCommandHeld), as two
+// builtins on one path are, so neither owner wins in silence.
+func loadLocalData(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef) error {
+	declared := make(map[string]string)
+	for wire, paths := range wireToPaths {
+		for _, path := range paths {
+			declared[path] = wire
+		}
+	}
+	for _, entry := range command.ListLocal() {
+		wire, hasNode := declared[entry.Path]
+		if !hasNode {
+			continue
+		}
+		handler, rest := command.LookupLocalData(strings.Fields(entry.Path))
+		if handler == nil {
+			continue // A plain local command: it prints, and answers no value.
+		}
+		if len(rest) != 0 {
+			continue // A shorter data path covers it; that path is served on its own.
+		}
+		if err := d.RegisterWithOptions(entry.Path, localDataHandler(entry.Path, handler), pathToDesc[entry.Path], RegisterOptions{
+			ReadOnly:    IsReadOnlyPath(entry.Path) && !entry.Meta.NotReadOnly,
+			ArgDefs:     pathToArgDefs[entry.Path],
+			Description: pathToHelp[entry.Path],
+			Owner:       wire,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// localDataHandler is the daemon form of a local-data handler: it runs the
+// handler on the remote route (command.AnswerRemote), so a handler that reads
+// what only the operator's own process holds refuses instead, and maps the
+// answer onto the response.
+func localDataHandler(path string, handler command.LocalDataHandler) Handler {
+	return func(_ *CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
+		return localAnswerResponse(path, command.AnswerRemote(handler, args))
+	}
+}
+
+// localAnswerResponse maps a local-data answer onto a daemon response, the
+// way the local route maps it onto stdout, stderr and the exit code.
+//
+//   - The payload is the response Data. It is encoded once here; the declared
+//     shape of the path (command.RegisterShape) governs the pipes on it, as
+//     it does locally.
+//   - A non-zero code is a failed status, and the Diagnostic the local route
+//     prints on stderr is the error text, without its final newline. The
+//     payload stays beside it: `show config validation` answers the
+//     diagnostics of a config it rejects and exits 1.
+//
+// Nothing is written to the daemon's stdout or stderr. A Diagnostic beside a
+// zero code (a warning about an answer, such as the parse warnings of
+// `show config dump`) has no field in plugin.Response to travel in, so it
+// does not reach the remote caller.
+func localAnswerResponse(path string, answer command.LocalAnswer) (*plugin.Response, error) {
+	resp := &plugin.Response{Status: plugin.StatusDone}
+	if answer.Payload != nil {
+		encoded, err := json.Marshal(answer.Payload)
+		if err != nil {
+			var tb textbuf.Buffer
+			reason := tb.Str("the answer of ").Str(path).Str(" could not be encoded: ").Err(err).String()
+			return &plugin.Response{Status: plugin.StatusError, Error: reason}, errors.New(reason)
+		}
+		resp.Data = plugin.RawJSON(encoded)
+	}
+	if answer.Code == 0 {
+		return resp, nil
+	}
+	reason := strings.TrimSuffix(answer.Diagnostic, "\n")
+	if reason == "" {
+		var tb textbuf.Buffer
+		reason = tb.Str(path).Str(" failed with exit code ").Int(int64(answer.Code)).Str(" and gave no reason").String()
+	}
+	resp.Status = plugin.StatusError
+	resp.Error = reason
+	return resp, errors.New(reason)
+}

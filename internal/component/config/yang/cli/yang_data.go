@@ -51,15 +51,25 @@ func yangRefusal(err error) command.LocalAnswer {
 // writeOptionError does for the printing form.
 //
 // The page is colored when the local route's stderr is a terminal, so the
-// operator reads what the printing form shows. A route that serves the command
-// for a remote caller reads the same text.
-func optionRefusal(err error, page *helpfmt.Page) command.LocalAnswer {
+// operator reads what the printing form shows (helpColored).
+func optionRefusal(err error, page *helpfmt.Page, route command.Route) command.LocalAnswer {
 	if !errors.Is(err, flag.ErrHelp) {
 		return yangRefusal(err)
 	}
 	var help bytes.Buffer
-	page.WriteTo(&help, slogutil.UseColor(os.Stderr))
+	page.WriteTo(&help, helpColored(route))
 	return command.LocalRefusal(0, help.String())
+}
+
+// helpColored answers whether a help page is drawn with terminal colors: only
+// on the local route, and only when its stderr is a terminal. The daemon's
+// stderr says nothing about the remote caller's screen, so a page answered on
+// the remote route is plain text.
+func helpColored(route command.Route) bool {
+	if !route.CallerLocal() {
+		return false
+	}
+	return slogutil.UseColor(os.Stderr)
 }
 
 // decodeWritten runs a JSON writer and answers what it wrote, decoded.
@@ -85,7 +95,7 @@ func dataTree(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	options, err := parseTreeOptions(args)
 	if err != nil {
-		return optionRefusal(err, treeHelpPage())
+		return optionRefusal(err, treeHelpPage(), validated.Route())
 	}
 
 	root, err := buildUnifiedTree()
@@ -102,7 +112,7 @@ func dataCompletion(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	options, err := parseCompletionOptions(args)
 	if err != nil {
-		return optionRefusal(err, completionHelpPage())
+		return optionRefusal(err, completionHelpPage(), validated.Route())
 	}
 
 	root, err := buildUnifiedTree()
@@ -115,18 +125,18 @@ func dataCompletion(validated command.ValidatedArgs) command.LocalAnswer {
 
 // dataDoc answers `show yang doc`.
 func dataDoc(validated command.ValidatedArgs) command.LocalAnswer {
-	return docAnswer(validated.Tokens())
+	return docAnswer(validated.Tokens(), validated.Route())
 }
 
 // docAnswer answers `yang doc [--list] [<command>]`: the documentation text as
 // a Blob, or the refusal in Diagnostic. It writes nothing itself
 // (command.LocalDataHandler).
-func docAnswer(args []string) command.LocalAnswer {
+func docAnswer(args []string, route command.Route) command.LocalAnswer {
 	var diag textbuf.Buffer
 	fs := flag.NewFlagSet("yang doc", flag.ContinueOnError)
 	fs.SetOutput(&diag)
 	list := fs.Bool("list", false, "list all commands")
-	fs.Usage = func() { docHelpPage().WriteTo(&diag, slogutil.UseColor(os.Stderr)) }
+	fs.Usage = func() { docHelpPage().WriteTo(&diag, helpColored(route)) }
 
 	// The flag package wrote the help page, or the flag error and the page,
 	// into diag. `-h` asked for the page, so it succeeds as it always did, and

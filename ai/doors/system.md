@@ -134,10 +134,10 @@ which. Code that only works internal is broken.
   `docs/architecture/api/commands.md`). Adding a command to one interface by
   hand is the defect.
 
-  The one exception is a local-data command
-  (`command.MustRegisterLocalData`). It is answered in the caller's own
-  process, from a registry that `init()` filled. It has no daemon side, and so
-  reaches the local CLI only (`commands.md`, "Local-data commands"). gNMI and the
+  A local-data command (`command.MustRegisterLocalData`) is answered in the
+  caller's own process, from a registry that `init()` filled, and the daemon
+  dispatcher serves the same handler under its YANG path for every other
+  interface (`commands.md`, "Served by the daemon too"). gNMI and the
   metrics exporters serve the config tree and the metrics registry, not
   commands.
 - **Every message a user sees names the problem, why, and the exact fix**, on

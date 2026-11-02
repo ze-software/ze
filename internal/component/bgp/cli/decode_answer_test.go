@@ -165,22 +165,22 @@ func TestShowBGPDecodeBadFlagIsRefusedNotExited(t *testing.T) {
 // input refuses every form that reads it, naming the local command, while the
 // same words on the local route are not refused for that reason.
 func TestBGPToolsStdinFormsNeedTheLocalProcess(t *testing.T) {
-	answer := answerDecode(command.ValidatedArgs{}, []string{"-"}, inputRouteRemote)
+	answer := answerDecode(command.ValidatedArgs{}, []string{"-"}, command.RouteRemote)
 	require.Nil(t, answer.Payload)
 	require.Equal(t, 1, answer.Code)
 	require.Equal(t, "error: show bgp decode - reads standard input, which reaches only the ze process "+
 		"the operator runs; run 'ze show bgp decode -' on the host that holds the input\n", answer.Diagnostic)
 
-	answer = answerDecode(command.ValidatedArgs{}, []string{"pcap", "-"}, inputRouteRemote)
+	answer = answerDecode(command.ValidatedArgs{}, []string{"pcap", "-"}, command.RouteRemote)
 	require.Nil(t, answer.Payload)
 	require.Contains(t, answer.Diagnostic, "run 'ze show bgp decode pcap -'")
 
-	answer = answerEncode(command.ValidatedArgs{}, nil, inputRouteRemote)
+	answer = answerEncode(command.ValidatedArgs{}, nil, command.RouteRemote)
 	require.Nil(t, answer.Payload)
 	require.Equal(t, 1, answer.Code)
 	require.Contains(t, answer.Diagnostic, "error: missing route command: give the route after the command")
 
-	answer = answerDecode(command.ValidatedArgs{}, []string{keepaliveHex}, inputRouteRemote)
+	answer = answerDecode(command.ValidatedArgs{}, []string{keepaliveHex}, command.RouteRemote)
 	require.Equal(t, 0, answer.Code, "a payload on the line needs no standard input")
 }
 

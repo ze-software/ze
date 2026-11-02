@@ -91,14 +91,14 @@ func drawEncodeText(raw json.RawMessage) (string, error) {
 // dataEncode is the show bgp encode handler. It writes nothing: every word it
 // has for the operator is in the answer.
 func dataEncode(validated command.ValidatedArgs) command.LocalAnswer {
-	return answerEncode(validated, restWords(validated, leafEncodeAnnouncement), inputRouteLocal)
+	return answerEncode(validated, restWords(validated, leafEncodeAnnouncement), validated.Route())
 }
 
 // cmdEncode is the root `ze bgp encode` route: it answers through the same
 // handler body and prints the hexadecimal drawing on encodeStdout and the
 // Diagnostic on encodeStderr.
 func cmdEncode(args []string) int {
-	answer := answerEncode(command.ValidatedArgs{}, args, inputRouteLocal)
+	answer := answerEncode(command.ValidatedArgs{}, args, command.RouteLocal)
 	_, _ = io.WriteString(encodeStderr, answer.Diagnostic) //nolint:errcheck // CLI diagnostic
 	if answer.Payload == nil {
 		return answer.Code
@@ -126,7 +126,7 @@ type encodeRequest struct {
 // answerEncode answers an encode. validated carries the leaves the model bound
 // by keyword; words carries the rest of the line, offline flags included. The
 // root route passes the zero ValidatedArgs, which binds none.
-func answerEncode(validated command.ValidatedArgs, words []string, route inputRoute) command.LocalAnswer {
+func answerEncode(validated command.ValidatedArgs, words []string, route command.Route) command.LocalAnswer {
 	request, refusal := parseEncode(validated, words, route)
 	if refusal != nil {
 		return *refusal
@@ -187,7 +187,7 @@ func answerEncode(validated command.ValidatedArgs, words []string, route inputRo
 // parseEncode reads the encode the words and the bound leaves ask for. A word
 // the flag parser refuses, a help request and a missing route come back as
 // the refusal, with the text the parser wrote; nothing reaches stderr.
-func parseEncode(validated command.ValidatedArgs, words []string, route inputRoute) (encodeRequest, *command.LocalAnswer) {
+func parseEncode(validated command.ValidatedArgs, words []string, route command.Route) (encodeRequest, *command.LocalAnswer) {
 	var diag textbuf.Buffer
 	fs := flag.NewFlagSet("encode", flag.ContinueOnError)
 	fs.SetOutput(&diag)
@@ -222,7 +222,7 @@ func parseEncode(validated command.ValidatedArgs, words []string, route inputRou
 
 	// No route on the line: the local process reads it from a piped standard
 	// input, and a terminal would block forever waiting for one.
-	if !route.readsStdin() {
+	if !route.CallerLocal() {
 		refusal := command.LocalRefusal(1, "error: missing route command: give the route after the command; "+
 			"reading it from standard input needs 'ze "+pathEncode+"' on the host that holds it\n")
 		return encodeRequest{}, &refusal

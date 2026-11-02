@@ -75,12 +75,12 @@ func decodedCapability(t *testing.T, answer command.LocalAnswer, code float64) m
 func TestDecodeNamedProgramDecodesACapability(t *testing.T) {
 	program := writeLabPlugin(t)
 
-	without := answerDecode(command.ValidatedArgs{}, []string{"--open", privateCapabilityOpenHex}, inputRouteLocal)
+	without := answerDecode(command.ValidatedArgs{}, []string{"--open", privateCapabilityOpenHex}, command.RouteLocal)
 	require.Equal(t, 0, without.Code, without.Diagnostic)
 	require.Equal(t, capNameUnknown, decodedCapability(t, without, 250)["name"])
 
 	with := answerDecode(command.ValidatedArgs{},
-		[]string{"--plugin", program, "--open", privateCapabilityOpenHex}, inputRouteLocal)
+		[]string{"--plugin", program, "--open", privateCapabilityOpenHex}, command.RouteLocal)
 	require.Equal(t, 0, with.Code, with.Diagnostic)
 	capability := decodedCapability(t, with, 250)
 	require.Equal(t, "lab-private", capability["name"])
@@ -98,7 +98,7 @@ func TestDecodeNamedProgramDecodesACapability(t *testing.T) {
 // decodes under is refused, naming the plugins that do, rather than ignored.
 func TestDecodeNamedPluginRefusesAnUnknownName(t *testing.T) {
 	answer := answerDecode(command.ValidatedArgs{},
-		[]string{"--plugin", "no-such-plugin", "--open", privateCapabilityOpenHex}, inputRouteLocal)
+		[]string{"--plugin", "no-such-plugin", "--open", privateCapabilityOpenHex}, command.RouteLocal)
 	require.Equal(t, 1, answer.Code)
 	require.Nil(t, answer.Payload)
 	require.Contains(t, answer.Diagnostic, `no plugin named "no-such-plugin" decodes`)
@@ -119,7 +119,7 @@ func TestDecodeNamedPluginRefusesAnUnknownName(t *testing.T) {
 func TestDecodeNamedProgramRefusedOnARemoteRoute(t *testing.T) {
 	program := writeLabPlugin(t)
 	answer := answerDecode(command.ValidatedArgs{},
-		[]string{"--plugin", program, "--open", privateCapabilityOpenHex}, inputRouteRemote)
+		[]string{"--plugin", program, "--open", privateCapabilityOpenHex}, command.RouteRemote)
 	require.Equal(t, 1, answer.Code)
 	require.Contains(t, answer.Diagnostic, "names a program")
 	require.Contains(t, answer.Diagnostic, "ze bgp decode --plugin "+program)

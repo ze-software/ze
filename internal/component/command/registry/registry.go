@@ -122,6 +122,13 @@ var sectionTitles = map[string]string{
 // summary is short because its author wrote it short
 // (plan/spec-yang-short-and-long-command-help.md, AC-1). An empty Description
 // means nobody has written the explanation, never that the command has none.
+//
+// NotReadOnly declares that the command's daemon form does more than read,
+// whatever its verb says: `show plugin declarations config` starts each
+// plugin's `run` line. The daemon dispatcher then authorizes it in the edit
+// section rather than the run section, so the built-in read-only profile
+// refuses it before the handler runs. False leaves the verb to decide
+// (plugin/server IsReadOnlyPath).
 type Meta struct {
 	ShortHelp   string
 	Description string
@@ -129,6 +136,7 @@ type Meta struct {
 	Section     string
 	Subs        string
 	SubsFunc    func() string
+	NotReadOnly bool
 }
 
 // ResolveSubs returns the Subs string, calling SubsFunc if set.
