@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -44,6 +45,12 @@ import (
 // Row keys of the answers below. register.go declares the column order with the
 // same names, so a rename here that misses that file drops a column.
 const (
+	// flagStripPrivate and leafStripPrivate are the two spellings of the
+	// secret mask on `show config dump`: the local flag, and the flag leaf the
+	// model declares so the daemon route can be asked for it.
+	flagStripPrivate = "--strip-private"
+	leafStripPrivate = "strip-private"
+
 	keyPath     = "path"
 	keyRevision = "revision"
 	keySource   = "source"
@@ -73,12 +80,16 @@ func withRuntimeStore(configPath string, fn func(storage.Storage) command.LocalA
 // row operator is refused over it by name instead of answering something
 // plausible. The payload is the map `--json` emits, from the same
 // resolveDump call, so the two spellings cannot disagree.
+//
+// Masking the secrets SELECTS what is answered, so the model declares it as
+// the flag leaf `strip-private`, which every surface can send; the local
+// `--strip-private` spelling reads the same.
 func dataDump(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
 	stripPrivate := false
 	var configPath string
 	for _, arg := range args {
-		if arg == "--strip-private" {
+		if arg == flagStripPrivate || arg == leafStripPrivate {
 			stripPrivate = true
 			continue
 		}
@@ -109,8 +120,13 @@ func dataDump(validated command.ValidatedArgs) command.LocalAnswer {
 				"  show config running\n")
 	}
 
+	readPath, err := command.CallerPath(validated.Route(), "show config dump", args, configPath)
+	if err != nil {
+		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
+	}
+
 	var diag textbuf.Buffer
-	res, code := resolveDump(configPath, stripPrivate, &diag)
+	res, code := resolveDump(readPath, stripPrivate, &diag)
 	if code != 0 {
 		return command.LocalRefusal(code, diag.String())
 	}
@@ -178,6 +194,12 @@ func dataHistory(validated command.ValidatedArgs) command.LocalAnswer {
 			"error: history needs on-disk revision history; a config read from stdin (\"-\") has none\n")
 	}
 
+	// The store opened is the one beside the named file, so on the daemon
+	// route the file must lie where the daemon reads configuration from.
+	if _, err := command.CallerPath(validated.Route(), "show config history", args, args[0]); err != nil {
+		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
+	}
+
 	return withRuntimeStore(args[0], func(store storage.Storage) command.LocalAnswer {
 		backups, err := store.ListVersions(args[0])
 		if err != nil {
@@ -216,7 +238,11 @@ func dataValidate(validated command.ValidatedArgs) command.LocalAnswer {
 		return command.LocalRefusal(exitError, reason.String())
 	}
 
-	data, err := cliio.ReadFile(args[0])
+	readPath, err := command.CallerPath(validated.Route(), "show config validation", args, args[0])
+	if err != nil {
+		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
+	}
+	data, err := cliio.ReadFile(readPath)
 	if err != nil {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
@@ -235,7 +261,10 @@ func dataValidate(validated command.ValidatedArgs) command.LocalAnswer {
 //
 // It is ONE document holding three keyed sets rather than rows.
 func dataDiff(validated command.ValidatedArgs) command.LocalAnswer {
-	args := validated.Tokens()
+	args, err := diffCallerPaths(validated)
+	if err != nil {
+		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
+	}
 	var diag textbuf.Buffer
 	diff, code := resolveDiff(nil, args, &diag)
 	if diff == nil {
@@ -246,4 +275,38 @@ func dataDiff(validated command.ValidatedArgs) command.LocalAnswer {
 		"removed": diff.Removed,
 		"changed": diff.Changed,
 	}, Code: exitOK}
+}
+
+// diffCallerPaths answers the words of `show config diff` with every file
+// path confined to where the route may read (command.CallerPath). A leading
+// revision number names no file, and resolveDiff reads it as one; the file
+// after it still names the store opened beside it, so it is confined too.
+//
+// A call with other than two words is answered unchanged: resolveDiff refuses
+// the count with its usage line, which says more than a path refusal would.
+func diffCallerPaths(validated command.ValidatedArgs) ([]string, error) {
+	tokens := validated.Tokens()
+	if len(tokens) != 2 {
+		return tokens, nil
+	}
+	words := make([]string, len(tokens))
+	for i, word := range tokens {
+		if i == 0 && isRevisionNumber(word) {
+			words[i] = word
+			continue
+		}
+		path, err := command.CallerPath(validated.Route(), "show config diff", tokens, word)
+		if err != nil {
+			return nil, err
+		}
+		words[i] = path
+	}
+	return words, nil
+}
+
+// isRevisionNumber reports whether word is the revision resolveDiff reads as a
+// rollback point rather than a file: it uses strconv.Atoi, and so does this.
+func isRevisionNumber(word string) bool {
+	_, err := strconv.Atoi(word)
+	return err == nil
 }

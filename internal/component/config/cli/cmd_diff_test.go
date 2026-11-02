@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 )
 
@@ -159,7 +160,7 @@ func TestConfigDiffAnswersThreeKeyedSets(t *testing.T) {
 	file1 := writeTestConfig(t, testConfigBase)
 	file2 := writeTestConfig(t, testConfigChanged)
 
-	payloadAnswer := dataDiff(commandtest.Args(file1, file2))
+	payloadAnswer := command.AnswerLocal(dataDiff, commandtest.Args(file1, file2))
 	payload, code := payloadAnswer.Payload, payloadAnswer.Code
 	require.Equal(t, exitOK, code)
 	require.NotNil(t, payload)
@@ -257,7 +258,7 @@ bgp {
 func marshalDiffAnswer(t *testing.T, file1, file2 string) (string, int) {
 	t.Helper()
 
-	payloadAnswer := dataDiff(commandtest.Args(file1, file2))
+	payloadAnswer := command.AnswerLocal(dataDiff, commandtest.Args(file1, file2))
 	payload, code := payloadAnswer.Payload, payloadAnswer.Code
 	if payload == nil {
 		return "", code
@@ -406,7 +407,7 @@ func bgpPeers(first, second string) string {
 func TestConfigDiffUserOrderedReorder(t *testing.T) {
 	answer := func(t *testing.T, before, after string) string {
 		t.Helper()
-		payloadAnswer := dataDiff(commandtest.Args(writeTestConfig(t, before), writeTestConfig(t, after)))
+		payloadAnswer := command.AnswerLocal(dataDiff, commandtest.Args(writeTestConfig(t, before), writeTestConfig(t, after)))
 		payload, code := payloadAnswer.Payload, payloadAnswer.Code
 		require.Equal(t, exitOK, code)
 		require.NotNil(t, payload)

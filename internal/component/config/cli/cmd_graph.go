@@ -20,7 +20,7 @@ import (
 
 // cmdGraph is `ze config graph`: the answer of `show config graph`, printed.
 func cmdGraph(args []string) int {
-	return command.PrintLocalAnswer("show config graph", graphAnswer(args))
+	return command.PrintLocalAnswer("show config graph", graphAnswer(command.RouteLocal, args))
 }
 
 // writeGraphUsage writes the help page of `ze config graph`, colored when
@@ -40,7 +40,7 @@ func writeGraphUsage(diag *textbuf.Buffer) {
 // graphAnswer answers `show config graph`: the dependency graph as the
 // indented JSON text the command has always printed, as a Blob, or the
 // refusal in Diagnostic. It writes nothing itself (command.LocalDataHandler).
-func graphAnswer(args []string) command.LocalAnswer {
+func graphAnswer(route command.Route, args []string) command.LocalAnswer {
 	var diag textbuf.Buffer
 	fs := flag.NewFlagSet("config graph", flag.ContinueOnError)
 	fs.SetOutput(&diag)
@@ -61,7 +61,11 @@ func graphAnswer(args []string) command.LocalAnswer {
 		return command.LocalRefusal(exitError, diag.String())
 	}
 
-	data, err := cliio.ReadFile(fs.Arg(0))
+	readPath, err := command.CallerPath(route, "show config graph", args, fs.Arg(0))
+	if err != nil {
+		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
+	}
+	data, err := cliio.ReadFile(readPath)
 	if err != nil {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}

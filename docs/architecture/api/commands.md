@@ -312,6 +312,36 @@ caller-only forms the same way the remote route is. `show bgp decode` and
 `show bgp encode` refuse a standard-input form and a decoder program named by
 path unless the route is local, and a help page is drawn with colors only on
 the local route.
+
+A path argument on the daemon route names a file on the daemon's host, read
+with the daemon's identity, and the authorizer judges command text with no
+notion of a filesystem location. So every handler that reads a file its
+caller names asks `command.CallerPath` for the path to read: on the local
+route the path comes back unchanged, `-` included, and on every other route
+`-` is refused, and a named path is read only when, made absolute and with
+every symbolic link resolved, it lies inside one of the directories the daemon
+already reads configuration from. Those are the directories `show config
+list` enumerates: the search directories and the store's directory, which
+`internal/component/config/cli` registers with
+`command.RegisterCallerPathDirs`. The filesystem root never counts as one,
+since a daemon started from `/` has it as its working directory. A path
+outside them, a `..` that climbs out, a link that points out and a missing
+file are refused alike, so the refusal says nothing about files outside the
+directories, and it names the local `ze` command that reads any file. The
+commands that read through it are `show config dump`, `validation`, `diff`,
+`history` (whose store is opened beside the named file), `graph` and `fmt`,
+`show plugin declarations config` and `show bgp decode pcap`.
+`show config fmt -w` rewrites its file, so it is refused on the daemon route
+whatever the path.
+
+The dispatcher refuses a flag-shaped token before any handler runs, because a
+flag is read only by the client. When the command also has a local-data
+handler, the refusal names the local `ze` command to run instead. A flag that
+selects what is answered is declared as a YANG leaf so every surface can send
+it: `show config dump strip-private` asks for what `--strip-private` asks for.
+<!-- source: internal/component/command/caller_path.go -- CallerPath, RegisterCallerPathDirs, confinedDirs -->
+<!-- source: internal/component/config/cli/register.go -- callerPathDirs -->
+<!-- source: internal/component/plugin/server/command.go -- flagRefusal -->
 <!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, localDataHandler, localAnswerResponse -->
 <!-- source: internal/component/plugin/types.go -- Response, WarningText -->
 <!-- source: internal/component/ssh/answer.go -- writeExecWarnings -->

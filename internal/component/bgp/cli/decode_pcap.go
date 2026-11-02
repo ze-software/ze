@@ -60,8 +60,14 @@ func decodePcapInput(args []string, request *decodeRequest, route command.Route)
 	if cliio.IsStdin(args[0]) && !route.CallerLocal() {
 		return stdinRefusal(pathDecode + " " + inputKeywordPcap + " " + cliio.StdinToken)
 	}
+	// On the daemon route a capture is read only from where the daemon reads
+	// configuration (command.CallerPath).
+	readPath, err := command.CallerPath(route, pathDecode, []string{inputKeywordPcap, args[0]}, args[0])
+	if err != nil {
+		return command.LocalRefusal(1, command.LocalErrorLine(err))
+	}
 
-	source, err := cliio.OpenReader(args[0])
+	source, err := cliio.OpenReader(readPath)
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("error: open ").Str(args[0]).Str(": ").Err(err).Byte('\n')

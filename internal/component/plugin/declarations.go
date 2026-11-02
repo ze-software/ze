@@ -202,6 +202,16 @@ func dataDeclarations(validated command.ValidatedArgs) command.LocalAnswer {
 // reaches this handler is the path alone.
 func dataDeclarationsConfig(validated command.ValidatedArgs) command.LocalAnswer {
 	args := validated.Tokens()
+	// On the daemon route the file must lie where the daemon reads
+	// configuration from, and that is judged before the file is looked at, so
+	// a refusal says nothing about a file outside those directories.
+	if len(args) == 1 {
+		readPath, err := command.CallerPath(validated.Route(), "show plugin declarations config", args, args[0])
+		if err != nil {
+			return declarationRefusal(err)
+		}
+		args = []string{readPath}
+	}
 	path, err := declarationConfigPath(args)
 	if err != nil {
 		return declarationRefusal(err)

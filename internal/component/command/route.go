@@ -55,3 +55,12 @@ func (v ValidatedArgs) onRoute(route Route) ValidatedArgs {
 func AnswerRemote(handler LocalDataHandler, validated ValidatedArgs) LocalAnswer {
 	return handler(validated.onRoute(RouteRemote))
 }
+
+// AnswerLocal runs a local-data handler for the operator's own process and
+// answers its value without printing it: the handler sees RouteLocal, as it
+// does under `ze <verb>`. A caller that renders the answer itself, a test
+// among them, uses it to state the route rather than leave it unmarked, which
+// a handler reads as the daemon route.
+func AnswerLocal(handler LocalDataHandler, validated ValidatedArgs) LocalAnswer {
+	return handler(validated.onRoute(RouteLocal))
+}

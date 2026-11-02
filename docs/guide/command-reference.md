@@ -203,12 +203,20 @@ ze config cat <key>              # Print database entry
 ze config validate <file>        # Validate configuration file
 ze config show <file> [path...]  # Show the config tree at a path (one-shot)
 ze config dump <file>            # Dump parsed configuration
+ze config dump --strip-private <file>  # Same, with every secret masked
 ze config diff <f1> <f2>         # Compare two configs
 ze config diff <N> <file>        # Compare with rollback revision
 ze config fmt <file>             # Format and normalize
 ze config show --backup <artifact> <name> [path...]  # Read a config inside a backup
 ze config diff --backup <artifact> <N> <name>        # Diff inside a backup
 ```
+
+From another surface (`ze cli`, SSH, the web, MCP, REST, gRPC) the daemon runs
+`show config dump`, `validation`, `diff`, `history`, `graph` and `fmt` only on a
+file inside the configuration directories `show config list` searches, never
+on standard input (`-`), and never rewrites a file with `fmt -w`; the refusal
+names the local `ze` command to run where the file is. The secret mask is the
+keyword `strip-private` there: `show config dump strip-private <file>`.
 
 `--backup <artifact>` points `edit`, `show`, `diff`, `set` and `list` at the
 configs inside a backup artifact instead of the live store, with no daemon. A

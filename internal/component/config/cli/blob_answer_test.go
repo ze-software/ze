@@ -95,7 +95,7 @@ func TestShowConfigFmtAnswersTheFormattedConfig(t *testing.T) {
 		t.Fatalf("configFmtBytes = changed %v, err %v; the test config must need formatting", changed, err)
 	}
 
-	answer := answerSilently(t, "fmtAnswer", func() command.LocalAnswer { return fmtAnswer([]string{path}) })
+	answer := answerSilently(t, "fmtAnswer", func() command.LocalAnswer { return fmtAnswer(command.RouteLocal, []string{path}) })
 	blob, isBlob := answer.Payload.(command.Blob)
 	if !isBlob || string(blob) != want || answer.Code != exitOK || answer.Diagnostic != "" {
 		t.Errorf("fmtAnswer = %+v; want Blob of the formatted config, code 0, no diagnostic", answer)
@@ -135,7 +135,7 @@ func TestShowConfigFmtRefusalsAreReturned(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			answer := answerSilently(t, "fmtAnswer", func() command.LocalAnswer { return fmtAnswer(tc.args) })
+			answer := answerSilently(t, "fmtAnswer", func() command.LocalAnswer { return fmtAnswer(command.RouteLocal, tc.args) })
 			if answer.Payload != nil || answer.Code != tc.code || !strings.HasPrefix(answer.Diagnostic, tc.prefix) {
 				t.Errorf("answer = %+v; want no payload, code %d, diagnostic starting %q", answer, tc.code, tc.prefix)
 			}
@@ -170,7 +170,7 @@ func TestShowConfigGraphAnswersIndentedJSON(t *testing.T) {
 	}
 	want := string(indented) + "\n"
 
-	answer := answerSilently(t, "graphAnswer", func() command.LocalAnswer { return graphAnswer([]string{path}) })
+	answer := answerSilently(t, "graphAnswer", func() command.LocalAnswer { return graphAnswer(command.RouteLocal, []string{path}) })
 	blob, isBlob := answer.Payload.(command.Blob)
 	if !isBlob || string(blob) != want || answer.Code != exitOK || answer.Diagnostic != "" {
 		t.Errorf("graphAnswer = %+v; want Blob %q", answer, want)
@@ -181,7 +181,7 @@ func TestShowConfigGraphAnswersIndentedJSON(t *testing.T) {
 		t.Errorf("ze config graph: code %d stdout %q stderr %q; want 0 and the JSON", code, stdout, stderr)
 	}
 
-	refusal := answerSilently(t, "graphAnswer", func() command.LocalAnswer { return graphAnswer(nil) })
+	refusal := answerSilently(t, "graphAnswer", func() command.LocalAnswer { return graphAnswer(command.RouteLocal, nil) })
 	if refusal.Payload != nil || refusal.Code != exitError ||
 		!strings.HasPrefix(refusal.Diagnostic, "error: missing config file (use - for stdin)\n") ||
 		!strings.Contains(refusal.Diagnostic, "ze config graph <config-file>") {

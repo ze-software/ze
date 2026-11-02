@@ -5,6 +5,7 @@ module ze-config-cli-cmd {
     // These handlers inspect, compare, and format configuration files through
     // the config backend. See ai/rules/plugin-self-containment.md.
     description "The show config command tree, owned by the config CLI.";
+    revision 2026-11-02 { description "Declare strip-private on show config dump, so every surface can ask for the masked tree."; }
     revision 2026-10-24 { description "Add show config running, the configuration the daemon applied, answered by the daemon."; }
     revision 2026-10-12 { description "Rename validate config to show config validation: the first word of a command is its verb."; }
     revision 2026-10-08 { description "Declare show config graph and validate config, which the config CLI already served."; }
@@ -32,6 +33,12 @@ inheritance have been applied. It reads the file you name, so it shows what the
 daemon would load from it. To see what a running daemon applied, use
 show config running.";
                 ze:help "Show the fully resolved configuration tree of a file.";
+                leaf strip-private {
+                    type empty;
+                    description "Replace every sensitive value in the answer with a marker, so the tree
+can be shared without its secrets.";
+                    ze:help "Replace sensitive values with a marker.";
+                }
             }
 
             container running {

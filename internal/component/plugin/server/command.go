@@ -1155,7 +1155,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// here: no ArgKind is signed, and folding only emits bare filter names
 		// and values. So a flag can only be a client-side flag that leaked.
 		if flag := firstFlagToken(args); flag != "" {
-			flagErr := fmt.Errorf("unexpected flag %q: flags are interpreted by the client, not the daemon", flag)
+			flagErr := flagRefusal(matchedCmd.Name, flag, input)
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Error:  flagErr.Error(),
@@ -1242,6 +1242,19 @@ func adoptablePositional(validated command.ValidatedArgs, argErr error) (string,
 // applyExtractedSelectors and the guard in Dispatch name it from here rather
 // than spelling the literal twice.
 const selectorLeaf = "selector"
+
+// flagRefusal is the answer to a flag that reached the daemon. A command with
+// a local-data handler under the same path also runs in the operator's own
+// process, where its flags are read, so the refusal names that `ze` command;
+// any other command has no flag at all, and the refusal says only that.
+func flagRefusal(path, flag, input string) error {
+	var tb textbuf.Buffer
+	tb.Str("unexpected flag ").Quoted(flag).Str(": flags are interpreted by the client, not the daemon")
+	if handler, rest := command.LookupLocalData(strings.Fields(path)); handler != nil && len(rest) == 0 {
+		tb.Str("; run 'ze ").Str(input).Str("' on the host that holds what it reads")
+	}
+	return errors.New(tb.String())
+}
 
 // firstFlagToken returns the first flag-shaped token in args, or "" if there is
 // none. Flag-shaped means a leading dash followed by a letter ("-u", "-user",

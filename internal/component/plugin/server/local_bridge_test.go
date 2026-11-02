@@ -53,7 +53,15 @@ func TestDeclarationsConfigRefusedReadOnly(t *testing.T) {
 		t.Fatalf("%q is ReadOnly on the daemon, want not read-only (registry.Meta.NotReadOnly)", path)
 	}
 
-	dir := t.TempDir()
+	// The daemon route reads a caller-named file only inside the
+	// configuration directories (command.CallerPath), so the probe config is
+	// written in the search directory XDG_CONFIG_HOME points at.
+	home := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", home)
+	dir := filepath.Join(home, "ze")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	marker := filepath.Join(dir, "started")
 	configFile := filepath.Join(dir, "probe.conf")
 	config := "plugin {\n\texternal probe {\n\t\trun \"touch " + marker + "\";\n\t}\n}\n"

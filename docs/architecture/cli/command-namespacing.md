@@ -266,8 +266,9 @@ The rule and this check live in [`ai/rules/cli.md`](../../../ai/rules/cli.md)
 A filter is keyword grammar because of a wider model. Every token an operator
 types belongs to one of three registers. The register decides its spelling.
 The daemon states the cut in the error it returns when a flag reaches it,
-`flags are interpreted by the client, not the daemon` (`firstFlagToken`,
-`internal/component/plugin/server/command.go`).
+`flags are interpreted by the client, not the daemon`, followed by the local
+`ze` command to run when the command also has a local-data handler
+(`firstFlagToken`, `flagRefusal`, `internal/component/plugin/server/command.go`).
 
 Apply these tests in order. The first that answers yes places the token.
 

@@ -29,7 +29,7 @@ func TestShowConfigDumpMasksASecretInTheProducer(t *testing.T) {
 		{name: "strip-private", args: []string{"--strip-private", file}, placeholder: true},
 	} {
 		t.Run(mode.name, func(t *testing.T) {
-			answer := dataDump(commandtest.Args(mode.args...))
+			answer := command.AnswerLocal(dataDump, commandtest.Args(mode.args...))
 			if answer.Code != 0 || answer.Payload == nil {
 				t.Fatalf("show config dump = code %d, diagnostic %q", answer.Code, answer.Diagnostic)
 			}

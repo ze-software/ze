@@ -14,8 +14,17 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// callerPathDirs answers the directories `show config list` enumerates: the
+// search directories and the store's directory. They are the places the daemon
+// already reads configuration from, so they are the only places it reads a
+// file a caller on another surface names.
+func callerPathDirs() []string {
+	return append(configSearchDirs(), resolve.StoreDir(""))
+}
 
 // subcommands returns the sorted, comma-separated list of user-facing
 // subcommands, derived from storageHandlers and subcommandHandlers (the
@@ -33,6 +42,10 @@ func subcommands() string {
 }
 
 func init() {
+	// A daemon-route handler reads a file its caller names only inside the
+	// places this package reads configuration from (command.CallerPath).
+	command.RegisterCallerPathDirs(callerPathDirs)
+
 	registry.MustRegisterRootHandler("config", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
@@ -76,7 +89,7 @@ func init() {
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config fmt", func(validated command.ValidatedArgs) command.LocalAnswer {
-		return fmtAnswer(validated.Tokens())
+		return fmtAnswer(validated.Route(), validated.Tokens())
 	}, registry.Meta{ShortHelp: "Pretty-print the config with consistent formatting and ordering."},
 		command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config validation", dataValidate, registry.Meta{
@@ -86,7 +99,7 @@ func init() {
 		Mode: modeOffline,
 	}, command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config graph", func(validated command.ValidatedArgs) command.LocalAnswer {
-		return graphAnswer(validated.Tokens())
+		return graphAnswer(validated.Route(), validated.Tokens())
 	}, registry.Meta{
 		ShortHelp: "Show how components and peers depend on each other, as JSON.",
 		Description: "It takes a config file path, or - to read the file on stdin. Inactive blocks are " +

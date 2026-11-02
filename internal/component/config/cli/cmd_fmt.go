@@ -123,7 +123,7 @@ func setFormRefusal(source string, form config.ConfigFormat) error {
 
 // cmdFmt is `ze config fmt`: the answer of `show config fmt`, printed.
 func cmdFmt(args []string) int {
-	return command.PrintLocalAnswer("show config fmt", fmtAnswer(args))
+	return command.PrintLocalAnswer("show config fmt", fmtAnswer(command.RouteLocal, args))
 }
 
 // fmtHelpPage is the help page of `ze config fmt`.
@@ -166,7 +166,7 @@ func writeFmtUsage(diag *textbuf.Buffer) {
 // warning, the --check verdict, the --diff hunks) in Diagnostic. It writes
 // nothing itself (command.LocalDataHandler); with -w it writes the config file
 // it was given, which is what -w asks for.
-func fmtAnswer(args []string) command.LocalAnswer {
+func fmtAnswer(route command.Route, args []string) command.LocalAnswer {
 	var diag textbuf.Buffer
 	fs := flag.NewFlagSet("config fmt", flag.ContinueOnError)
 	fs.SetOutput(&diag)
@@ -192,7 +192,22 @@ func fmtAnswer(args []string) command.LocalAnswer {
 
 	configPath := fs.Arg(0)
 
-	input, err := cliio.ReadFile(configPath)
+	// `-w` rewrites the file in place. On the daemon route that file is on
+	// the daemon's host and the write would carry the daemon's identity, so
+	// only the operator's own process rewrites a file. The dispatcher refuses
+	// the flag before this handler runs; this is the handler's own answer.
+	if *write && !route.CallerLocal() {
+		var reason textbuf.Buffer
+		reason.Str("error: show config fmt -w rewrites a file, which only the ze process the operator runs does; run 'ze show config fmt -w ").
+			Str(configPath).Str("' on the host that holds the file\n")
+		return command.LocalRefusal(exitError, reason.String())
+	}
+	readPath, err := command.CallerPath(route, "show config fmt", args, configPath)
+	if err != nil {
+		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
+	}
+
+	input, err := cliio.ReadFile(readPath)
 	if err != nil {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
