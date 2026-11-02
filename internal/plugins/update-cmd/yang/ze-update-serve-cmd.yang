@@ -5,17 +5,20 @@ module ze-update-serve-cmd {
     // The handlers are in internal/plugins/update-cmd/cmd/serve_daemon.go. See the
     // plugin self-containment rule.
     description "The update serve lifecycle commands, owned by the update plugin, which registers their handlers.";
-    revision 2026-11-02 { description "Initial: the daemon form of update serve, a server with start, stop and pause."; }
+    revision 2026-11-02 { description "Initial: the daemon form of update serve, its status, and a server with start, stop and pause."; }
 
     container update {
         config false;
 
         container serve {
             config false;
+            ze:command "ze-update:update-serve";
             description "The daemon serves its running binary and a version manifest for update checks,
-until it is told to stop. A daemon runs one such server at a time. The foreground
-'ze update serve' runs the same server in the operator's own process instead.";
-            ze:help "Serve this binary and its version manifest for update checks.";
+until it is told to stop. A daemon runs one such server at a time. Through the daemon,
+'update serve' alone answers that server's status: whether it runs, the address it
+listens on and whether it is paused. The foreground 'ze update serve --listen
+<host:port>' runs the same server in the operator's own process instead.";
+            ze:help "Show the update server's status, or start, stop and pause it.";
 
             container start {
                 config false;

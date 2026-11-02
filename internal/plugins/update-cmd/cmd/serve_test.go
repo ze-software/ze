@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -412,4 +413,51 @@ func TestUpdateServeStartNeedsADaemon(t *testing.T) {
 	assert.Contains(t, resp.Error, "update serve start")
 	assert.Contains(t, resp.Error, "ze update serve --listen")
 	assert.Nil(t, updateServer.running)
+}
+
+// TestUpdateServeStatus proves `update serve` through the daemon answers the
+// status of the daemon's update server as data: not running before a start,
+// running with the bound address after it, paused after a pause, and not
+// running once stopped. Method: call the daemon handler for the exact path
+// around the owner's own start, pause and stop on the daemon's one server,
+// and read the Data each answer carries.
+func TestUpdateServeStatus(t *testing.T) {
+	status := func() updateServeStatus {
+		t.Helper()
+		resp, err := handleUpdateServe(nil, commandtest.Args())
+		require.NoError(t, err)
+		require.Equal(t, plugin.StatusDone, resp.Status)
+		st, ok := resp.Data.(updateServeStatus)
+		require.True(t, ok, "update serve must answer its status as data, got %T", resp.Data)
+		return st
+	}
+
+	require.Nil(t, updateServer.running, "the test needs the daemon's server stopped")
+	before := status()
+	assert.False(t, before.Running, "before a start no server runs")
+	assert.Empty(t, before.Listen)
+
+	daemon := testDaemon(t)
+	started, err := updateServer.start(t.Context(), "127.0.0.1:0", daemon.OnStop)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		updateServer.stop() //nolint:errcheck // the test stops it first; this only covers a failed assertion
+	})
+
+	running := status()
+	assert.True(t, running.Running, "after start the server runs")
+	assert.Equal(t, started.Listen, running.Listen, "status names the bound address")
+	assert.False(t, running.Paused)
+
+	_, err = updateServer.pause()
+	require.NoError(t, err)
+	paused := status()
+	assert.True(t, paused.Running)
+	assert.True(t, paused.Paused, "status reports the pause")
+
+	_, err = updateServer.stop()
+	require.NoError(t, err)
+	stopped := status()
+	assert.False(t, stopped.Running, "after stop no server runs")
+	assert.Empty(t, stopped.Listen)
 }

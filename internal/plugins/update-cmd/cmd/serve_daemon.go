@@ -179,6 +179,33 @@ func (o *updateServeOwner) pause() (updateServeState, error) {
 	return updateServeState{Listen: l.addr, Paused: state}, nil
 }
 
+// updateServeStatus is what `update serve` answers: whether the daemon's
+// update server runs, and when it does, its address and pause.
+type updateServeStatus struct {
+	plugin.DataMarker
+	Running bool   `json:"running"`
+	Listen  string `json:"listen,omitempty"`
+	Paused  bool   `json:"paused"`
+}
+
+// status reports the daemon's update server. Running is read from the
+// server's goroutine, so a server whose Serve ended on its own reads as not
+// running even before stop clears the slot.
+func (o *updateServeOwner) status() updateServeStatus {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	l := o.running
+	// refuse-by-default: guards updateServeOwner -- a nil running slot is the no-server state stop and a fresh daemon leave, and the answer names it as running false
+	if l == nil {
+		return updateServeStatus{}
+	}
+	if l.ended() {
+		return updateServeStatus{Listen: l.addr, Paused: l.paused.Load()}
+	}
+	return updateServeStatus{Running: true, Listen: l.addr, Paused: l.paused.Load()}
+}
+
 var errNoUpdateServer = errors.New("no update server is running: start one with 'update serve start'")
 
 // handleUpdateServeStart answers `update serve start [listen <host:port>]`.
@@ -200,6 +227,13 @@ func handleUpdateServeStart(ctx *pluginserver.CommandContext, args command.Valid
 // end the update server when the daemon stops.
 var errNoDaemonOwner = errors.New("update serve start reached no daemon, so nothing would stop the server it starts: " +
 	"run it through the daemon ('ze cli -c \"update serve start\"'), or run 'ze update serve --listen <host:port>' in the foreground")
+
+// handleUpdateServe answers `update serve`, the daemon's form of the
+// foreground `ze update serve`: the status of the server the daemon runs,
+// as data. It starts nothing: `update serve start` does.
+func handleUpdateServe(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
+	return &plugin.Response{Status: plugin.StatusDone, Data: updateServer.status()}, nil
+}
 
 // handleUpdateServeStop answers `update serve stop`.
 func handleUpdateServeStop(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {

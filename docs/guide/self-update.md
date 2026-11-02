@@ -48,12 +48,15 @@ A running daemon can serve the same endpoints itself, from any command surface
 (`ze cli`, SSH, the web, REST, gRPC, MCP):
 
 ```
+update serve                      # answers {"running": false, "paused": false}
 update serve start listen :8080   # answers {"listen": "[::]:8080", "paused": false}
 update serve pause                # toggles the pause, answers the state it left
 update serve stop                 # answers once the server has ended
 ```
 
-Without `listen`, the server listens on `:8080`. Port 0 picks a free port, and
+`update serve` alone answers the status of the daemon's server: whether it
+runs and, while it does, the address it listens on and whether it is paused.
+It starts nothing. Without `listen`, the server listens on `:8080`. Port 0 picks a free port, and
 the answer names it. A daemon runs one update server at a time: a second
 `update serve start` is refused until `update serve stop`. A signal sent to the
 daemon reaches the daemon, not its server, so `update serve pause` takes the
@@ -61,6 +64,7 @@ place of `SIGUSR1` there. The server lives no longer than the daemon: stopping
 the daemon stops its update server, and the daemon finishes stopping only once
 the server has ended.
 <!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.endWithDaemon -->
+<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.status -->
 <!-- source: internal/component/plugin/server/stop_hooks.go -- Server.OnStop -->
 
 ### Pause Mechanism

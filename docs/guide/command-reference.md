@@ -1814,6 +1814,7 @@ rollback, `.prev` no longer exists and the new version is gone from disk.
 
 ```
 ze update serve --listen :8080           # Foreground server in this process (SIGUSR1 toggles pause)
+ze cli -c "update serve"                 # The daemon's server status: running, listen address, paused
 ze update serve start listen :8080       # The daemon starts its server and answers the listen address
 ze update serve pause                    # Toggle the daemon's server pause
 ze update serve stop                     # Stop the daemon's server; answers once it has ended
