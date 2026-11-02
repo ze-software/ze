@@ -8,6 +8,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bgp/config"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_community_match"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_prefix"
+	_ "github.com/ze-software/ze/internal/component/bgp/yang"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	_ "github.com/ze-software/ze/internal/plugins/isis"
@@ -15,9 +16,9 @@ import (
 )
 
 // referencePolicy defines one instance of each case the source tells apart: a
-// prefix-list every attachment here accepts, a community-match IS-IS routes
-// cannot feed, a match both IS-IS and BGP refuse for the tag it reads, and a
-// policy route entry, which is no filter at all.
+// prefix-list and community-match with their executable match wrappers, a
+// match both IS-IS and BGP refuse for the tag it reads, and a policy route
+// entry, which is no filter at all.
 const referencePolicy = `
 policy {
 	prefix-list P {
@@ -25,6 +26,12 @@ policy {
 	}
 	community-match C {
 		entry no-export { type standard; action reject; }
+	}
+	match FROM-P {
+		prefix-list P;
+	}
+	match FROM-C {
+		community C;
 	}
 	match TAGGED {
 		tag [ 100 ];
@@ -56,11 +63,11 @@ func referenceValidator(t *testing.T) *yang.Validator {
 }
 
 // TestPolicyFilterReferenceSource proves the policy-filter source, through the
-// shipped YANG of policy, IS-IS and BGP: completion of a chain offers the union
-// of the filter instances of every type whose fields fit that chain's
-// attachment, never a policy route entry, and commit judges a value with the
-// attachment owner's own check, so a qualified or external BGP name commits
-// and an instance whose fields do not fit is refused naming the field.
+// shipped YANG of policy, IS-IS and BGP: completion offers executable instances
+// whose fields fit the attachment, and reference validation uses its owner's
+// check. Plain and qualified match names pass, as does an external name pending
+// its Stage 1 declaration; obsolete direct BGP filter names, incompatible fields
+// and policy route entries are refused individually.
 func TestPolicyFilterReferenceSource(t *testing.T) {
 	v := referenceValidator(t)
 	root := referenceRoot(t, referencePolicy+`
@@ -75,46 +82,76 @@ bgp {
 `)
 
 	isis := v.ReferenceInstances(root, []string{"isis", "filter", "import", "filters"})
-	if !slices.Equal(isis, []string{"P"}) {
-		t.Errorf("isis filter import offers %v, want [P]: C reads community and TAGGED reads tag, which IS-IS routes do not carry", isis)
+	if !slices.Equal(isis, []string{"FROM-P", "P"}) {
+		t.Errorf("isis filter import offers %v, want [FROM-P P]", isis)
 	}
 	bgp := v.ReferenceInstances(root, []string{"bgp", "peer", "peer1", "filter", "import", "filters"})
-	if !slices.Equal(bgp, []string{"C", "P"}) {
-		t.Errorf("bgp peer filter import offers %v, want [C P]: both types fit BGP, and TAGGED reads tag, which BGP routes do not carry", bgp)
+	if !slices.Equal(bgp, []string{"FROM-C", "FROM-P"}) {
+		t.Errorf("bgp peer filter import offers %v, want [FROM-C FROM-P]", bgp)
 	}
 	for _, offered := range [][]string{isis, bgp} {
-		if slices.Contains(offered, "R") {
-			t.Errorf("a policy route entry was offered as a filter: %v", offered)
+		for _, excluded := range []string{"C", "TAGGED", "R"} {
+			if slices.Contains(offered, excluded) {
+				t.Errorf("ineligible instance %q was offered as a filter: %v", excluded, offered)
+			}
 		}
 	}
 
-	committed := referenceRoot(t, referencePolicy+`
+	valid := referenceRoot(t, referencePolicy+`
 isis {
-	filter { import { filters [ C ]; final accept; } }
+	filter { import { filters [ P FROM-P ]; final accept; } }
 }
 bgp {
 	peer peer1 {
-		filter { import { filters [ prefix-list:P bgp-filter-community-match:C external-plugin:any ]; final accept; } }
-	}
-	peer peer2 {
-		filter { import { filters [ R ]; final accept; } }
+		filter { import { filters [ FROM-P FROM-C match:FROM-P match:FROM-C external-plugin:any ]; final accept; } }
 	}
 }
 `)
-	var refused []string
-	for _, ve := range v.ValidateReferences(committed) {
-		refused = append(refused, ve.Path+": "+ve.Message)
+	// An undeclared external name passes reference validation only; Stage 1
+	// must still declare the filter and its fields before the chain can run.
+	if refused := v.ValidateReferences(valid); len(refused) != 0 {
+		t.Fatalf("valid chain references were refused: %v", refused)
 	}
-	if len(refused) != 2 {
-		t.Fatalf("want exactly the IS-IS C and the BGP R refused, got %d: %v", len(refused), refused)
-	}
-	joined := strings.Join(refused, "\n")
-	for _, want := range []string{
-		`isis import filter "C" (community-match) reads community`,
-		`"R" is a policy route entry`,
+	for _, tc := range []struct {
+		name   string
+		config string
+		want   string
+	}{
+		{
+			name:   "obsolete-prefix-list",
+			config: `bgp { peer peer1 { filter { import { filters [ prefix-list:P ]; final accept; } } } }`,
+			want:   `no BGP filter serves the prefix-list type`,
+		},
+		{
+			name:   "obsolete-community-plugin",
+			config: `bgp { peer peer1 { filter { import { filters [ bgp-filter-community-match:C ]; final accept; } } } }`,
+			want:   `plugin "bgp-filter-community-match" serves no policy filter`,
+		},
+		{
+			name:   "isis-community-fields",
+			config: `isis { filter { import { filters [ C ]; final accept; } } }`,
+			want:   `isis import filter "C" (community-match) reads community`,
+		},
+		{
+			name:   "bgp-tag-field",
+			config: `bgp { peer peer1 { filter { import { filters [ TAGGED ]; final accept; } } } }`,
+			want:   `reads tag`,
+		},
+		{
+			name:   "policy-route-not-filter",
+			config: `bgp { peer peer1 { filter { import { filters [ R ]; final accept; } } } }`,
+			want:   `"R" is a policy route entry`,
+		},
 	} {
-		if !strings.Contains(joined, want) {
-			t.Errorf("refusals lack %q:\n%s", want, joined)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			candidate := referenceRoot(t, referencePolicy+tc.config)
+			refused := v.ValidateReferences(candidate)
+			if len(refused) != 1 {
+				t.Fatalf("want exactly one reference refusal, got %d: %v", len(refused), refused)
+			}
+			if !strings.Contains(refused[0].Message, tc.want) {
+				t.Errorf("refusal %q lacks %q", refused[0].Message, tc.want)
+			}
+		})
 	}
 }
