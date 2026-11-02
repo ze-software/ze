@@ -270,6 +270,13 @@ func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, bins zeTestWebBi
 		scheme string
 	)
 
+	// Only the daemon kind starts from a config, so a plugin named for another
+	// kind would never load and every assertion would run without it.
+	if len(tc.Plugins) > 0 && kind != webtesting.WBServerDaemon {
+		test.SetError(fmt.Errorf("option=plugin needs option=server:kind=daemon, the only kind that loads a config; %s starts no plugin", kind))
+		return false, test.GetError()
+	}
+
 	switch kind {
 	case webtesting.WBServerLG:
 		scheme = schemeHTTP
@@ -285,7 +292,7 @@ func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, bins zeTestWebBi
 		srv, err = zeTestStartWebServer(ctx, bins.ze, listenAddr, !tc.RequiresAuth(), tc.Auth, tc.Env)
 	case webtesting.WBServerDaemon:
 		scheme = schemeHTTPS
-		srv, err = zeTestStartDaemonWebServer(ctx, bins.ze, listenAddr, tc.Env)
+		srv, err = zeTestStartDaemonWebServer(ctx, bins.ze, listenAddr, tc.Env, tc.Plugins)
 	default:
 		panic("BUG: unknown normalized web test server")
 	}
@@ -630,10 +637,25 @@ const daemonWebConfigTemplate = `bgp {
 }
 `
 
+// daemonWebConfig is daemonWebConfigTemplate with one `plugin { internal }`
+// entry for each plugin the test named with option=plugin.
+func daemonWebConfig(plugins []string) []byte {
+	var tb textbuf.Buffer
+	if len(plugins) > 0 {
+		tb.Str("plugin {\n")
+		for _, name := range plugins {
+			tb.Str("\tinternal ").Str(name).Str(" {\n\t\tuse ").Str(name).Str("\n\t}\n")
+		}
+		tb.Str("}\n")
+	}
+	tb.Str(daemonWebConfigTemplate)
+	return []byte(tb.String())
+}
+
 // zeTestStartDaemonWebServer starts the web UI on a running daemon: `ze start
 // <config> --web <port> --insecure-web`. Unlike --web-only, the daemon owns
 // the confirmed-commit window, so a web `commit confirmed` opens one.
-func zeTestStartDaemonWebServer(ctx context.Context, zeBin, listenAddr string, envVars []webtesting.WBEnvVar) (*zeTestWebServer, error) {
+func zeTestStartDaemonWebServer(ctx context.Context, zeBin, listenAddr string, envVars []webtesting.WBEnvVar, plugins []string) (*zeTestWebServer, error) {
 	_, portStr, _ := net.SplitHostPort(listenAddr)
 	tempDir, tempErr := os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-web-daemon-test-*")
 	if tempErr != nil {
@@ -644,7 +666,7 @@ func zeTestStartDaemonWebServer(ctx context.Context, zeBin, listenAddr string, e
 		return nil, fmt.Errorf("seed web users: %w", err)
 	}
 	configPath := filepath.Join(tempDir, "web-daemon.conf")
-	if err := os.WriteFile(configPath, []byte(daemonWebConfigTemplate), 0o600); err != nil {
+	if err := os.WriteFile(configPath, daemonWebConfig(plugins), 0o600); err != nil {
 		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on write failure
 		return nil, fmt.Errorf("write daemon config: %w", err)
 	}

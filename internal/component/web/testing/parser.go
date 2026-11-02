@@ -113,7 +113,11 @@ type WBTestCase struct {
 	Auth       []WBAuthUser // from option=auth:.. (repeatable); non-empty => server needs auth
 	Server     WBServer     // from option=server:kind=web|lg|lg-no-engine|chaos|daemon; empty means web
 	Env        []WBEnvVar   // from option=env:var=..:value=.. (repeatable)
-	Comments   []string
+	// Plugins names the internal plugins the daemon kind's config loads, from
+	// option=plugin:name=.. (repeatable). Only the daemon kind reads a config,
+	// so the harness refuses the option on every other kind.
+	Plugins  []string
+	Comments []string
 }
 
 // RequiresAuth reports whether the test declared any auth user, meaning the
@@ -266,6 +270,15 @@ func parseWBOption(tc *WBTestCase, rest string, line int) error {
 			return fmt.Errorf("line %d: env option requires var=", line)
 		}
 		tc.Env = append(tc.Env, WBEnvVar{Var: kv["var"], Value: kv["value"]})
+		return nil
+	case "plugin":
+		// option=plugin:name=fakeenrich (repeatable) loads an internal plugin
+		// in the daemon kind's config, so a test can drive a command only a
+		// plugin serves.
+		if kv["name"] == "" {
+			return fmt.Errorf("line %d: plugin option requires name=", line)
+		}
+		tc.Plugins = append(tc.Plugins, kv["name"])
 		return nil
 	}
 	return fmt.Errorf("line %d: unknown option %q", line, rest)

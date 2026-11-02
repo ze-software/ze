@@ -72,7 +72,7 @@ func pipeAliasCompletion(ctx context.Context) error {
 		return err
 	}
 	screen, err := pipeAliasTabOffer(ctx, login{port: port, user: user, password: password},
-		cmdShowPipealiasCounters+" | ")
+		cmdShowPipealiasCounters+" | ", "|")
 	if err != nil {
 		return err
 	}
@@ -232,8 +232,10 @@ func (t *pipeAliasTerminal) settle(ctx context.Context, from int) (string, error
 }
 
 // pipeAliasTabOffer types text at the operational prompt, presses Tab, and
-// answers the offer the session model drew.
-func pipeAliasTabOffer(ctx context.Context, account login, text string) (string, error) {
+// answers the offer the session model drew. echo is the last word of text the
+// screen must show before Tab is pressed, chosen so it cannot match the prompt
+// or the box the hub draws.
+func pipeAliasTabOffer(ctx context.Context, account login, text, echo string) (string, error) {
 	terminal, err := pipeAliasStart(ctx, account)
 	if err != nil {
 		return "", err
@@ -261,15 +263,15 @@ func pipeAliasTabOffer(ctx context.Context, account login, text string) (string,
 	if _, err := terminal.file.WriteString(text); err != nil {
 		return "", fmt.Errorf("type the command: %w", err)
 	}
-	// The ASCII pipe character is the last thing typed and it is what has to
-	// arrive. The whole line cannot be waited for: the model redraws the prompt
-	// on every keystroke and the terminal delivers the echo in fragments
-	// separated by cursor moves, so `show pipealias counters |` is never
-	// contiguous, and the inline suggestion puts a ghost character inside it.
-	// The box the hub draws uses U+2502, not the ASCII pipe, so it cannot match.
+	// The last word typed is what has to arrive. The whole line cannot be
+	// waited for: the model redraws the prompt on every keystroke and the
+	// terminal delivers the echo in fragments separated by cursor moves, so
+	// `show pipealias counters |` is never contiguous, and the inline
+	// suggestion puts a ghost character inside it. For the pipe alias the word
+	// is the ASCII pipe: the box the hub draws uses U+2502, so it cannot match.
 	if err := terminal.readUntil(ctx, func(seen string) bool {
-		return strings.Contains(displayFillANSI.ReplaceAllString(seen[typed:], ""), "|")
-	}, "the pipe character never reached the session model"); err != nil {
+		return strings.Contains(displayFillANSI.ReplaceAllString(seen[typed:], ""), echo)
+	}, "the last typed word never reached the session model"); err != nil {
 		return "", err
 	}
 

@@ -529,3 +529,23 @@ func TestParseWBKVKeepsAColonBearingValue(t *testing.T) {
 		})
 	}
 }
+
+// TestParsePluginDirective verifies option=plugin is repeatable and ordered,
+// and that a plugin with no name is a parse error.
+//
+// VALIDATES: the daemon kind's config can load the internal plugins a test
+// names, so a command only a plugin serves is reachable from a .wb test.
+// PREVENTS: a nameless plugin entry reaching the config, where the daemon
+// would refuse to start and the test would fail far from its cause.
+func TestParsePluginDirective(t *testing.T) {
+	tc, err := ParseWBFile("option=server:kind=daemon\noption=plugin:name=fakeenrich\noption=plugin:name=fakefib\n")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(tc.Plugins) != 2 || tc.Plugins[0] != "fakeenrich" || tc.Plugins[1] != "fakefib" {
+		t.Errorf("plugins = %v, want [fakeenrich fakefib]", tc.Plugins)
+	}
+	if _, err := ParseWBFile("option=plugin:name="); err == nil {
+		t.Fatal("expected error for plugin without name=")
+	}
+}
