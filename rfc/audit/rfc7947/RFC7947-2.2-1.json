@@ -1,13 +1,21 @@
 {
-  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): \"Therefore, contrary to what is specified in Section 5 of [RFC4271], route servers SHOULD NOT by default (unless explicitly configured) update well-known BGP attributes received from route server clients before redistributing them to their other route server clients. Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients.\" be95c10053 replaced lowLiveSettings with acceptingLiveSettings for source, client and ordinary peer in TestRFC7947AllAttributesReachClient and TestRouteServerTransparencyStopsAtOrdinaryPeer (FinalAccept import and export, no refs); faf7c5c380 only renamed filterapi to routepolicy elsewhere in the file. An accepting policy rewrites no attribute, so the client's byte-identical attributes, the unknown non-transitive attribute kept from the client, and the Partial bit set on the unknown transitive toward the ordinary peer still come from the route-server transparency producer. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of the change, over all four carriers. RFC 7947 Section 2.2: \"Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients.\" Since ce79316b65 Ze's transparency for optional attributes is bgp-rs's inserted export step bgp-rs:transparency (rs/transparency.go rsInsertions on session rs-client true, evaluateRSFilter setting preserve-opaque-attributes), read by both forward rails (forward_rs.go and reactor_api_forward.go treatments bit, forward_body.go forwardWire). The reactor pair (TestRFC7947AllAttributesReachClient, TestRouteServerTransparencyStopsAtOrdinaryPeer) now gets that treatment from a test-only export member, so on its own it would stay green if bgp-rs stopped inserting or setting it; it still proves the engine half byte-exact: well-known ORIGIN, AS_PATH (no prepend), NEXT_HOP, MED and COMMUNITY unchanged toward an rs-client, the preserve branch on the RS rail, and confinement (0xF2 dropped, 0xF1 Partial for the ordinary peer). The bgp-rs half is now carried by test/plugin/bgp-rs-opaque-transparency.ci and its -forked twin (2c7013ba98): receiver A (rs-client) asserted byte-identical to the source UPDATE as exact hex, receiver B (ordinary eBGP) asserted 0xF2 dropped, 0xF1 Partial set and AS prepended, through bgp-rs in-process and forked. Their four hand-written mutants are sound and minimal at the producer: evaluateRSFilter Sets nil gave receiver A 0035 ... E0F103112233 with 0xF2 gone (positive red for the stated reason, both files); rsInsertions also matching rs-client false gave receiver B 0xF2 kept and 0xF1 without Partial (negative red, both files; B keeps the AS prepend, which is engine RSClient behaviour, so the commit's 'byte-identical' wording for B is loose but the red is the claimed leak). Positive inputs are genuinely conforming, negatives violate this requirement's client confinement, and no buffer trips another rule first. Verdict: enforced over the four carriers together.",
   "requirement_sha": "0f08a7920d99c327",
   "tests": {
-    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient": "c43d53c23c748494",
-    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRouteServerTransparencyStopsAtOrdinaryPeer": "c43d53c23c748494"
+    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient": "3f78bc4d4eee6567",
+    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRouteServerTransparencyStopsAtOrdinaryPeer": "3f78bc4d4eee6567",
+    "test/plugin/bgp-rs-opaque-transparency-forked.ci": "8f5abd0ed2e7900f",
+    "test/plugin/bgp-rs-opaque-transparency-forked.ci#2": "8f5abd0ed2e7900f",
+    "test/plugin/bgp-rs-opaque-transparency.ci": "105994bcbc33a7b3",
+    "test/plugin/bgp-rs-opaque-transparency.ci#2": "105994bcbc33a7b3"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient": "0eb9ef48f9f12458",
-    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRouteServerTransparencyStopsAtOrdinaryPeer": "0388d0f89b53ab5d"
+    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient": "4b71c044df7e103e",
+    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRouteServerTransparencyStopsAtOrdinaryPeer": "6e0a52b63addcc24",
+    "test/plugin/bgp-rs-opaque-transparency-forked.ci": "8f5abd0ed2e7900f",
+    "test/plugin/bgp-rs-opaque-transparency-forked.ci#2": "8f5abd0ed2e7900f",
+    "test/plugin/bgp-rs-opaque-transparency.ci": "105994bcbc33a7b3",
+    "test/plugin/bgp-rs-opaque-transparency.ci#2": "105994bcbc33a7b3"
   },
   "verdict": "enforced"
 }
