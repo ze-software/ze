@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 14 findings of the full lint in the plugin infrastructure, the public SDK and statestore; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
@@ -272,6 +272,39 @@ are under `tmp/session/2026-11-02-220832/scratch/`. The new lint log is
 The commands, canonical producers and observed results here are the durable
 record. No source or test was changed by this verifier; no whole-tree gate,
 compile check, functional suite or push was run.
+
+## Blocker
+
+Independent closure on 2026-11-02 reviewed the five implementation commits
+through `7620e0dfc4` and the completed evidence in `b0d8f62a88`. No product
+finding was found in that owned history. Closure cannot record a clean review
+of the current file population: a concurrent foreign edit deletes
+`internal/component/bgp/plugins/filter_community/community_filter_test.go`
+`TestCommunityIsNoEngineStep`, which asserted that neither legacy stage list
+contains the community plugin. The retained 112-test evidence includes this
+test; the working tree now has 111 community tests. No independent judgment
+of this concurrent deletion was supplied to the closure.
+
+Diagnosis: the symptom is a test deletion in a file this closure must pin.
+`internal/le/spec/review.go` `recordedHash` hashes the working-tree bytes;
+`CheckReview` compares those hashes, not the implementation commit's bytes.
+The deletion arrived before the pin was recorded while review read the owned
+history, so the initial machine CLEAN record included an unreviewed foreign
+hunk. That verdict is withdrawn and replaced by FINDINGS. The owning layer is
+the concurrent filter migration and its test proof. A [workaround] would
+silently bless that deletion or overwrite another session's work. The [source]
+resolution is for its owner to finish the migration's equivalent proof and
+independent test judgment, then resume closure against the settled content.
+No foreign hunk was changed or carried in this handback.
+
+The retained scoped results remain valid for the implementation they tested:
+four lint flavors clean, all 14 AC package directories covered, process 89/89,
+composition root 39/39 and community 112/112 at verification. Closure ran no
+new tests and repeated no successful check. The three inline lenses covered
+logic/wiring, security/edge cases, and proof/docs/style. `core-design.md`'s
+callback claim and `process-protocol.md`'s query-version contract match the
+owned producers. Closure tables, the umbrella citation and the two closure
+commits remain owed after this conflict clears.
 
 ## Historical blockers (resolved by the evidence above)
 
