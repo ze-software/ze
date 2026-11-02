@@ -169,6 +169,20 @@ modernize 1. Line numbers are the CI run's.
 | Appliance safety | Gosec annotations establish path and argv trust, preserve cache behavior, and leave secrets out of arguments (R-2). |
 | Access evidence | Four trees are lint-clean, tagged race tests use the patched GOROOT, and an FSM change has L2TP functional proof (AC-1–3). |
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Access and appliance scopes cleared | Record zero scoped lint findings and tagged race-test results through the patched GOROOT (AC-1–2). |
+| Preserved transitions and cache | Cite L2TP functional results if its FSM changes, and inspect appliance path annotations (R-1–2, AC-3). |
+
+### Security Review Checklist
+
+| Concern | What to verify |
+|---------|----------------|
+| Authentication and sessions | EAP and L2TP switch edits preserve rejection, unknown-state handling and existing session transitions. |
+| Appliance paths and secrets | Gosec annotations establish path and argv trust without exposing secrets or bypassing cache checks. |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|

@@ -160,6 +160,20 @@ goimports 2, misspell 1, godot 1, unparam 1. Line numbers are the CI run's.
 | Paired consumers | OSPF and IS-IS receive equivalent redistribution fixes, constants remain plugin-owned, and quoted RFC text stays byte-exact. |
 | Routing evidence | Six trees are lint-clean, tagged race tests pass, and annotations state reasons (AC-1–3). |
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Six plugin scopes cleared | Record zero scoped lint findings and tagged race-test results (AC-1–2). |
+| Preserved metrics coverage | Resolve unused-helper callers and cite judge evidence for assertion changes, with reasoned annotations (A-2, R-1, AC-3). |
+
+### Security Review Checklist
+
+| Concern | What to verify |
+|---------|----------------|
+| Redistribution decisions | Paired OSPF and IS-IS edits preserve route selection and source values. |
+| Lost failure evidence | Unused-helper removal does not remove metrics assertions, and comment fixes preserve byte-exact RFC quotes. |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|

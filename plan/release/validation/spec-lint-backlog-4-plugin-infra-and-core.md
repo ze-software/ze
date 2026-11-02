@@ -154,6 +154,20 @@ Line numbers are the CI run's.
 | Published contracts | The registry rewrite preserves the Stage 1 declaration and SDK exports. Registry tests restore their snapshots. |
 | Plugin and store evidence | All three trees are lint-clean, race tests pass, and ignored errors carry specific reasons (AC-1–3). |
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Plugin and statestore scopes cleared | Record zero scoped lint findings and race-test results for the three trees (AC-1–2). |
+| Preserved SDK and declaration contracts | Inspect the registry rewrite and SDK test assertions, including each ignored-error reason (AC-3). |
+
+### Security Review Checklist
+
+| Concern | What to verify |
+|---------|----------------|
+| TLS and process failures | Error checks preserve TLS, process-stop and callback assertions and distinguish expected teardown failures. |
+| Shared state | Registry tests restore snapshots, and statestore tests check the acknowledging operation without masking its error. |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|

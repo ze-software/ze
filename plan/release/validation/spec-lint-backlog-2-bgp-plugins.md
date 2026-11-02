@@ -163,6 +163,20 @@ gocritic 1, nilnil 1. Line numbers are the CI run's.
 | Plugin contracts | Constants stay within their owning plugin, filter verdicts stay intact, and RFC quotes remain byte-exact. |
 | Plugin evidence | All eight scopes are lint-clean, tagged race tests pass, and annotations state their reasons (AC-1–3). |
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Eight plugin scopes cleared | Record zero scoped lint findings and tagged race-test results (AC-1–2). |
+| Preserved role outcomes | Trace callers of the nilnil return and cite role-test results, with reasons for annotations (R-1, AC-3). |
+
+### Security Review Checklist
+
+| Concern | What to verify |
+|---------|----------------|
+| Role admission | The replacement for nilnil preserves each caller's rejection and absence handling. |
+| Filter decisions | Mechanical edits preserve filter verdicts and safe unknown handling without cross-plugin implementation imports. |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|

@@ -165,6 +165,20 @@ scoped run before it starts, because other sessions edit these files.
 | Scoped evidence | Each closed child records zero scoped lint findings and its required package tests (AC-1). |
 | Full-run evidence | Cite the CI lint run after the last child for AC-2, including any new findings under R-1. |
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Nine completed children | Cite each child's zero scoped lint result and required package-test evidence (AC-1). |
+| Full backlog cleared | Cite the CI full lint run after the last child, including the excluded locations and new findings (AC-2, A-1–2). |
+
+### Security Review Checklist
+
+| Concern | What to verify |
+|---------|----------------|
+| Hidden defects | Child reviews distinguish real errcheck, nilerr, nilnil and gosec defects from justified annotations. |
+| Unsafe suppression | No child weakens lint configuration or changes unknown-value handling merely to clear exhaustive findings. |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|

@@ -157,6 +157,20 @@ modernize 1, unused 1. Line numbers are the CI run's.
 | Policy and parity | Config words retain their values, reuse existing declarations, and hub parity tests retain every surface case. |
 | Hub evidence | Both scopes are lint-clean, package tests use their required tags, and annotations state reasons (AC-1–3). |
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Hub and policy scopes cleared | Record zero scoped lint findings and tagged package-test results (AC-1–2). |
+| Preserved tagged coverage | Trace unused-helper callers across flavors and inspect parity cases and annotation reasons (R-1, AC-3). |
+
+### Security Review Checklist
+
+| Concern | What to verify |
+|---------|----------------|
+| Command exposure | Hub test rewrites retain every surface case and SSH-absent assertion. |
+| Policy selection | Constants preserve config words and chain-source values rather than changing which policy applies. |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|

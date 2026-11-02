@@ -200,6 +200,21 @@ the reactor.
 | Error paths | Each real nilerr, errcheck or gosec defect has red-first proof (AC-4). |
 | Engine evidence | All five scopes are lint-clean and tagged race tests pass, with reasoned annotations and byte-exact RFC quotes (AC-1–3). |
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Five engine scopes cleared | Record zero scoped lint findings and the tagged race-test results from the TDD checklist (AC-1–2). |
+| Error-path repairs | Cite red-first tests for real defects and inspect reasons on each new annotation (AC-3–4). |
+
+### Security Review Checklist
+
+| Concern | What to verify |
+|---------|----------------|
+| Peer-controlled states | Exhaustive fixes preserve safe unknown handling and introduce no peer-reachable panic. |
+| Dropped errors and ownership | Nilerr and errcheck repairs retain error handling, while mechanical rewrites preserve borrowed-buffer lifetimes. |
+| Capture paths | Any gosec annotation establishes why the capture path is trusted. |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|

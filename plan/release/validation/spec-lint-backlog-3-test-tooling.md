@@ -210,6 +210,20 @@ scoped run (umbrella A-2). Line numbers are the CI run's.
 | Test and hook contracts | Fixture assertions remain intact. Hook-source changes carry hook-unit evidence and the required digest procedure (R-1). |
 | Tooling evidence | Scoped lint includes the eight excluded locations (A-2), changed-package tests use their tags, and annotations state reasons (AC-1–3). |
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Tooling scopes cleared | Record scoped lint results covering the excluded locations and tagged tests of changed packages (AC-1–2, A-2). |
+| Preserved harness behavior | Inspect annotation reasons and fixture assertions. Cite hook-unit results if hook source changes (AC-3, R-1). |
+
+### Security Review Checklist
+
+| Concern | What to verify |
+|---------|----------------|
+| Files and subprocesses | Each gosec annotation traces path or argv trust in extraction, stdpatch, setup and deployment tooling. |
+| Test errors | Runner and entrypoint error repairs expose real failures without weakening assertions or hiding cleanup failures. |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|

@@ -33,6 +33,17 @@ are the CI run's.
 | `internal/component/web/fragment.go` | 446 | exhaustive |
 | `internal/component/web/workbench_enrich.go` | 144 | exhaustive |
 
+### Refreshed findings
+
+The parent reported a fourth current issue in the ongoing scoped baseline:
+modernize requests `maps.Copy` in `internal/component/command/node.go`,
+`copyNodeForOverlay` (reported at line 346). The run has not finished, so this
+is an added finding, not a complete refreshed inventory or a passing result.
+
+| File | Producer | Linter |
+|------|----------|--------|
+| `internal/component/command/node.go` | `copyNodeForOverlay` | modernize |
+
 ## Required Reading
 
 ### Architecture Docs
@@ -49,7 +60,8 @@ are the CI run's.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/command/surface.go` - the goconst site in the surface predicate
+- [ ] `internal/component/command/surface.go` - repeated enum diagnostic strings in the `String` methods
+- [ ] `internal/component/command/node.go` - `copyNodeForOverlay`, which copies the children map
 - [ ] `internal/component/web/editor.go` - the exhaustive site
 - [ ] `.golangci.yml` - the linter settings
 
@@ -64,7 +76,9 @@ are the CI run's.
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Lint runner | `./le go lint run scope <packages>` | Lints a package scope | Applies: the evidence for this child |
-| Surface predicate | `internal/component/command/surface.go` `command.AnswerSurface` | One predicate for every surface | Does not change behavior: only its repeated literal becomes a constant |
+| Enum diagnostics | `internal/component/command/surface.go` `Surface.String`, `RegistrationKind.String` | Names enum values in diagnostic output | Reuses a constant for repeated diagnostic text, preserving the text |
+| Surface parity | `cmd/ze/hub/surface_parity_test.go` `TestEveryCommandOnEverySurface` | Compares each surface producer with command eligibility | Applies as regression evidence, not as the location of the goconst fix |
+| Overlay copy | `internal/component/command/node.go` `copyNodeForOverlay` | Copies the children map while sharing its child pointers | Modernizes the copy while preserving map ownership and child sharing |
 | Style rule table and C/O/P | `docs/contributing/ze-go-style.md` | Names the fix each linter expects | Applies |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -114,7 +128,8 @@ are the CI run's.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEveryCommandOnEverySurface` and the existing package tests | `internal/component/command`, `mcp`, `web` | AC-2 | |
+| The existing package tests | `internal/component/command`, `mcp`, `web` | AC-2 | |
+| `TestEveryCommandOnEverySurface` | `cmd/ze/hub/surface_parity_test.go` (requires `ze_ssh && ze_web`) | AC-2 | |
 
 ## Files to Modify
 - The files in the Task table.
@@ -133,7 +148,7 @@ are the CI run's.
 ## Implementation Steps
 
 1. Scoped lint; record the current list.
-2. Fix the six findings.
+2. Fix the historical and refreshed findings still present in the scoped run.
 3. Scoped lint zero; tests pass.
 
 ### Critical Review Checklist
@@ -143,6 +158,20 @@ are the CI run's.
 | Constant ownership | Each constant names one concept. Generic command code gains no owner-specific words or registry copies (R-1). |
 | Rendering and surfaces | C/O/P fixes preserve web rendering and unknown outcomes. `AnswerSurface` retains every command's offered surfaces. |
 | API evidence | Three scopes are lint-clean, tagged tests include `TestEveryCommandOnEverySurface`, and annotations state reasons (AC-1–3). |
+
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Three API scopes cleared | Record zero scoped lint findings and tagged package-test results, including the refreshed node-copy finding (AC-1–2). |
+| Surface parity retained | Run the separate hub parity test in the TDD checklist and inspect annotation reasons (AC-2–3). |
+
+### Security Review Checklist
+
+| Concern | What to verify |
+|---------|----------------|
+| Command exposure | Diagnostic-string extraction leaves command eligibility unchanged, as checked by the hub parity test. |
+| Web input and overlay ownership | Switch fixes preserve safe unknown handling. Node-copy modernization keeps a separate children map and existing child sharing. |
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
@@ -155,3 +184,5 @@ are the CI run's.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] `./le go lint run scope "<the three packages>"` zero; `./le job run label api command go test -race -tags <tags> ./internal/component/command/... ./internal/component/mcp/... ./internal/component/web/...`. Full-run evidence belongs to the umbrella's CI run.
+- [ ] Select `<tags>` as `ze_core` plus all unique first-column `ze_` tags in `feature-gates.txt`, per `docs/contributing/running-commands.md`, "A bare go test is not ./le test unit". This includes `ze_ssh` and `ze_web`.
+- [ ] Separately run `./le job run label api-parity command go test -race -tags "<tags>" ./cmd/ze/hub/ -run '^TestEveryCommandOnEverySurface$' -count=1` and record its result.

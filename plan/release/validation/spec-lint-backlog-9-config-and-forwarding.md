@@ -143,6 +143,20 @@ errcheck 1, misspell 1. Line numbers are the CI run's.
 | Kernel proof | Netlink tests execute with the required capability, in the QEMU guest when needed. A skip is not AC-2 evidence (R-1). |
 | Config evidence | Three scopes are lint-clean, config and netlink tests pass, and annotations state reasons (AC-1–3). |
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Three test scopes cleared | Record zero scoped lint findings and passing config tests, with reasoned annotations (AC-1–3). |
+| Executed netlink proof | Cite interface integration results, using the QEMU guest if host capabilities are absent. Record skips separately (AC-2, R-1). |
+
+### Security Review Checklist
+
+| Concern | What to verify |
+|---------|----------------|
+| Persistent state | Storage tests use their own store and retain error assertions. |
+| Kernel ownership | Netlink test modernization preserves assertions and cleanup ownership. Refusal-message fixes match the producer's behavior. |
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
