@@ -144,7 +144,8 @@ func serversAnswer(results []probeResult) map[string]any {
 
 // probeConfig reads the config path the operator named, extracts its TACACS+
 // servers, and probes each one. The int is an exit code, and exitOK means the
-// rows are the answer.
+// rows are the answer. The parse publishes nothing: the file's
+// `environment { }` block never changes this process's log or env settings.
 func probeConfig(args []string) ([]probeResult, int) {
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "error: config path required")
@@ -158,7 +159,7 @@ func probeConfig(args []string) ([]probeResult, int) {
 		return nil, exitIOOrParse
 	}
 
-	tree, err := zeconfig.ParseTreeWithYANG(string(data), nil)
+	tree, err := zeconfig.ParseTreeForValidation(string(data))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error: parse "+configPath+":", err)
 		return nil, exitIOOrParse

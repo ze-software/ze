@@ -17,8 +17,10 @@ import (
 )
 
 // ParseTreeForValidation parses config text without applying environment/log
-// side effects. It is for static validation paths that must inspect the same
-// tree shape as LoadConfig without mutating process state.
+// side effects. It is for every caller that only reads a config tree: static
+// validation paths, the web service re-reading the committed config, and a
+// local tool reading an operator's file. Each must inspect the same tree shape
+// as LoadConfig without mutating process state.
 func ParseTreeForValidation(input string) (*Tree, error) {
 	tree, _, err := parseTreeWithYANG(input, nil)
 	return tree, err

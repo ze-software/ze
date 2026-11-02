@@ -388,14 +388,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		}
 	}
 
-	// Parse the committed config into the live baseline tree used by compare
-	// targets. Saved drafts are a separate source, not the startup-loaded config.
-	tree := zeconfig.NewTree()
-	if configData, readErr := store.ReadFile(configPath); readErr == nil {
-		if parsed, parseErr := zeconfig.ParseTreeWithYANG(string(configData), nil); parseErr == nil {
-			tree = parsed
-		}
-	}
+	tree := committedBaselineTree(store, configPath)
 
 	// Create editor manager for config editing via web.
 	editorMgr := zeweb.NewEditorManager(store, configPath, schema, newEditorFactory(zeconfigcmd.ValidateContent), newEditSessionFactory())
@@ -705,4 +698,24 @@ func adminCommandTrees(base *command.Node, entries func() []command.CommandEntry
 		return zeweb.StaticCommandTree(base)
 	}
 	return func() *command.Node { return command.OverlayCommandPaths(base, entries()) }
+}
+
+// committedBaselineTree parses the committed config into the live baseline
+// tree the web compare targets read. Saved drafts are a separate source, not
+// the startup-loaded config. The parse publishes nothing
+// (zeconfig.ParseTreeForValidation): this is the daemon reading its own
+// config again, and the startup loader already applied the file's
+// `environment { }` block, so a second application would only override what
+// the process set since. An unreadable or unparsable file answers an empty
+// tree, which the editor then shows.
+func committedBaselineTree(store storage.Storage, configPath string) *zeconfig.Tree {
+	configData, readErr := store.ReadFile(configPath)
+	if readErr != nil {
+		return zeconfig.NewTree()
+	}
+	parsed, parseErr := zeconfig.ParseTreeForValidation(string(configData))
+	if parseErr != nil {
+		return zeconfig.NewTree()
+	}
+	return parsed
 }

@@ -173,7 +173,10 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 }
 
 // ParseTreeWithYANG parses config with optional plugin YANG schemas.
-// Returns the parsed tree for further processing by callers.
+// Returns the parsed tree for further processing by callers. It publishes the
+// file's `environment { }` block into this process's log and env layers, as
+// LoadConfig does, so a caller that only reads a config calls
+// ParseTreeForValidation (or ReadConfig) instead.
 func ParseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error) {
 	tree, _, err := parseTreeWithYANG(input, pluginYANG)
 	if err != nil {
