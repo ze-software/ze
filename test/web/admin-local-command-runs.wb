@@ -1,0 +1,29 @@
+# Test: the admin console offers and runs a local-data command through the daemon
+# VALIDATES: spec-command-surface-parity, web admin arm. `show env list` is a
+# local-data command (command.MustRegisterLocalData): `ze show env list`
+# answers it in the caller's process, and the daemon dispatcher serves the
+# same handler under its YANG path. The admin page for `show env` lists
+# `list` among its children, and executing `/admin/show/env/list` returns the
+# registered environment variables, `ze.config.dir` among them.
+# PREVENTS: the console offering a local-data command whose YANG node it
+# lists while the daemon dispatcher, which never registered the local handler
+# (plugin/server local_bridge.go loadLocalData), answers "unknown command".
+#
+# The web UI runs on a daemon (option=server:kind=daemon): under --web-only the
+# dispatcher answers every operational command with the standalone message.
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+# The child link, not the bare word: element:text matches the whole
+# accessibility snapshot, where every page carries a "list" role.
+action=open:path=/admin/show/env
+expect=html:contains=href="/admin/show/env/list/"
+action=open:path=/admin/show/env/list
+# The heading names the URL path and renders even for a path no node holds:
+# it proves the navigation landed, not that the command exists.
+expect=element:text=show env list
+action=click:text=Execute
+expect=element:text=ze.config.dir
+expect=element:not-text=unknown command
+expect=element:not-text=panic
