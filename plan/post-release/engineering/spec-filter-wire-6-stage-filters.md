@@ -563,6 +563,7 @@ Discovery (`ai/rules/repo-maintenance.md`): an agent finds the mechanism from th
 | `process-global-read-across-the-plugin-boundary.md` | 2026-11-01 | `bgp-rr` and `bgp-rs` FlowSpec revalidation reads the lookup table only bgp-rib fills in-process |
 | `process-global-read-across-the-plugin-boundary.md` | 2026-11-01 | `bgp-adj-rib-in` and `bgp-rib` validation-change bus handle filled only by `ConfigureEventBus` |
 | `process-global-read-across-the-plugin-boundary.md` | 2026-11-01 | Receive eligibility gate `ribevents.RegisterValidationLookup` registered only by an in-daemon bgp-adj-rib-in |
+| `second-logger-detaches-runtime-level.md` | 2026-11-02 | Forked BGP plugin logger named by the hyphenated plugin name ignores the dotted `ze.log.<subsystem>` key |
 | `process-global-read-across-the-plugin-boundary.md` | 2026-11-01 | Forked receive store verdicts: a forked adj-rib-in with validation enabled fails closed and advertises nothing |
 
 ## Mistake Log
