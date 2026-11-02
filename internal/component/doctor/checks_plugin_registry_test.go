@@ -151,3 +151,46 @@ func TestRunPluginRegistryChecks_Empty(t *testing.T) {
 	assert.Empty(t, diags)
 	registry.Restore(snap)
 }
+
+// TestRunPluginRegistryChecks_ParsedConfig proves a plugin can declare a
+// parsed-config doctor check, and that the doctor runs it in that phase and in
+// no other.
+//
+// VALIDATES: the plugin protocol's phase set holds parsed-config, so
+// registration accepts it, and the phase filter dispatches it.
+// PREVENTS: the plugin SDK and internal/core/diagnostic declaring two phase
+// sets, where an in-tree check could use a phase a plugin was refused.
+func TestRunPluginRegistryChecks_ParsedConfig(t *testing.T) {
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+	registry.Reset()
+
+	var phases []string
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "test-parsed-phase",
+		Description: "parsed-config phase test",
+		RunEngine:   stubEngine,
+		CLIHandler:  stubCLI,
+		DoctorChecks: []registry.DoctorCheckDef{{
+			Name:         "parsed-only-check",
+			Phase:        rpc.DoctorPhaseParsedConfig,
+			Order:        100,
+			Dependencies: []string{"config-parsed"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-parsed-phase-test"},
+			Check: func(registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
+				phases = append(phases, "ran")
+				return nil
+			},
+		}},
+	}), "a plugin must be able to declare the parsed-config phase")
+
+	ctx := doctorCheckContext{
+		Tree:     config.NewTree(),
+		Platform: &host.PlatformInfo{Type: host.PlatformDarwin},
+	}
+	_ = runPluginRegistryChecks(doctorCheckPhasePostConfig, ctx)
+	assert.Empty(t, phases, "a parsed-config check must not run in post-config")
+	_ = runPluginRegistryChecks(diagnostic.DoctorPhaseParsedConfig, ctx)
+	assert.Len(t, phases, 1, "a parsed-config check must run in parsed-config")
+}

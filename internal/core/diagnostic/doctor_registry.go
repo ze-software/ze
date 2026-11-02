@@ -13,18 +13,20 @@ import (
 	"github.com/ze-software/ze/internal/component/host"
 	zeplugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // DoctorCheckPhase determines when a doctor check runs relative to config loading.
-type DoctorCheckPhase string
+// It is the plugin protocol's phase set, declared once in pkg/plugin/rpc, so an
+// in-tree check and a plugin-declared check name the same phases and Valid
+// judges both alike.
+type DoctorCheckPhase = rpc.DoctorCheckPhase
 
 const (
-	DoctorPhasePreConfig     DoctorCheckPhase = "pre-config"
-	DoctorPhaseMissingConfig DoctorCheckPhase = "missing-config"
-	// DoctorPhaseParsedConfig checks syntax-valid trees before load validation.
-	// Checks MUST accept semantically invalid input and MUST NOT apply config.
-	DoctorPhaseParsedConfig DoctorCheckPhase = "parsed-config"
-	DoctorPhasePostConfig   DoctorCheckPhase = "post-config"
+	DoctorPhasePreConfig     = rpc.DoctorPhasePreConfig
+	DoctorPhaseMissingConfig = rpc.DoctorPhaseMissingConfig
+	DoctorPhaseParsedConfig  = rpc.DoctorPhaseParsedConfig
+	DoctorPhasePostConfig    = rpc.DoctorPhasePostConfig
 )
 
 // DoctorPlatformAny matches all platforms.
@@ -248,17 +250,6 @@ func validateDoctorCheckCodesReg(codes []string) error {
 		seen[code] = struct{}{}
 	}
 	return nil
-}
-
-// Valid reports whether the phase is a known doctor check phase.
-func (phase DoctorCheckPhase) Valid() bool {
-	switch phase {
-	case DoctorPhasePreConfig, DoctorPhaseMissingConfig, DoctorPhaseParsedConfig, DoctorPhasePostConfig:
-		return true
-	default:
-		// Registration input is open; reject phases outside the named set.
-		return false
-	}
 }
 
 func doctorCheckLessReg(a, b DoctorCheck) bool {

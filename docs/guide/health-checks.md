@@ -40,7 +40,7 @@ remediation guidance.
 |------|----------------|
 | `doctor-store-integrity` | `database/` store corruption |
 | `doctor-config-missing` | Config file resolution |
-| `doctor-config-parse` | Config syntax |
+| `doctor-config-parse` | The config file parses, and then passes the same load validation the daemon applies at startup. A syntax error or a load refusal is reported under this code, and no `post-config` check runs after it <!-- source: internal/component/doctor/doctor.go -- runChecks --> |
 | `doctor-config-reference` | Dangling policy/filter references, reported before load validation can refuse the configuration <!-- source: internal/component/bgp/config/filter_reference_doctor.go -- filterReferenceDoctorCheck --> |
 | `doctor-tls-*` | TLS cert existence, expiry, validity |
 | `doctor-plugin-missing` | Plugin binary on PATH |

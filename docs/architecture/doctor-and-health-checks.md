@@ -337,7 +337,16 @@ second, because it runs in the operator's own process rather than the daemon's.
 <!-- source: internal/component/plugin/registry/setup.go -- RecordSetup, SetupResults, HardSetupFailures -->
 <!-- source: cmd/ze/hub/startup_gate.go -- hardSetupFailure, the refusal run applies -->
 
-## Discovery beats enumeration
+## The phase decides what a check may read
+
+Every check declares the phase it runs in, and `runChecks` runs the phases in
+order: `pre-config`, `missing-config` (only when no config is found),
+`parsed-config`, `post-config`. The phase set is declared once, in
+`pkg/plugin/rpc` (`DoctorCheckPhase`), and `internal/core/diagnostic` aliases
+it, so a check registered in the tree and one a plugin declares name the same
+phases, and a plugin can declare every phase an in-tree check can use. Each
+phase runs the `diagnostic` registry and then the plugin checks
+(`runPluginRegistryChecks`), which filter on the same phase value.
 
 Doctor runs `parsed-config` checks after syntax parsing and before validated
 loading. These checks must accept invalid semantics and must not apply config.
@@ -345,8 +354,14 @@ The BGP filter-reference check uses this phase so a loader refusal cannot hide
 `doctor-config-reference`. `ReadConfig` still runs all load validation; a refusal
 remains an error and prevents every `post-config` check from running.
 <!-- source: internal/component/doctor/doctor.go -- runChecks -->
-<!-- source: internal/core/diagnostic/doctor_registry.go -- DoctorPhaseParsedConfig -->
+<!-- source: internal/component/doctor/registry.go -- runDoctorChecks -->
+<!-- source: internal/component/doctor/checks_plugin_registry.go -- runPluginRegistryChecks -->
+<!-- source: pkg/plugin/rpc/types.go -- DoctorCheckPhase, DoctorPhaseParsedConfig -->
+<!-- source: internal/core/diagnostic/doctor_registry.go -- DoctorCheckPhase -->
 <!-- source: internal/component/bgp/config/filter_reference_doctor.go -- filterReferenceDoctorCheck -->
+<!-- test: internal/component/doctor/checks_plugin_registry_test.go TestRunPluginRegistryChecks_ParsedConfig -->
+
+## Discovery beats enumeration
 
 Listener checks are derived from the YANG schema, through
 `RegisterListenerDefault` and `CollectListenersWithDefaults`. A new

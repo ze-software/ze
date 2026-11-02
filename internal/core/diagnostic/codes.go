@@ -302,8 +302,8 @@ var builtinCodes = []CodeMeta{
 	},
 	{
 		Code:        "doctor-config-parse",
-		Title:       "Config parse failure",
-		Description: "The config file was found but could not be parsed.",
+		Title:       "Config parse or load failure",
+		Description: "The config file was found but could not be parsed, or the load validation the daemon applies at startup refused it. The message names the failing line or check; no later check ran.",
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{

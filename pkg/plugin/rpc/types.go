@@ -458,7 +458,7 @@ type EnrichShowOutput struct {
 // Declared during Stage 1 registration; invoked at runtime via callback.
 type DoctorCheckDecl struct {
 	Name         string           `json:"name"`                   // Check name (kebab-case, e.g. "rpki-cache-reachable")
-	Phase        DoctorCheckPhase `json:"phase"`                  // When to run: pre-config, missing-config, post-config
+	Phase        DoctorCheckPhase `json:"phase"`                  // When to run: pre-config, missing-config, parsed-config, post-config
 	Order        int              `json:"order,omitempty"`        // Ordering within phase (0-9999)
 	Dependencies []string         `json:"dependencies,omitempty"` // Other check names that must run first
 	Platforms    []string         `json:"platforms,omitempty"`    // Platform filter (empty = "any")
@@ -466,18 +466,23 @@ type DoctorCheckDecl struct {
 }
 
 // DoctorCheckPhase determines when a doctor check runs relative to config loading.
+// This is the one declaration of the phase set: internal/core/diagnostic
+// aliases it, so a plugin and an in-tree check can name the same phases.
 type DoctorCheckPhase string
 
 const (
 	DoctorPhasePreConfig     DoctorCheckPhase = "pre-config"
 	DoctorPhaseMissingConfig DoctorCheckPhase = "missing-config"
-	DoctorPhasePostConfig    DoctorCheckPhase = "post-config"
+	// DoctorPhaseParsedConfig checks syntax-valid trees before load validation.
+	// Checks MUST accept semantically invalid input and MUST NOT apply config.
+	DoctorPhaseParsedConfig DoctorCheckPhase = "parsed-config"
+	DoctorPhasePostConfig   DoctorCheckPhase = "post-config"
 )
 
 // Valid reports whether the phase is a known doctor check phase.
 func (phase DoctorCheckPhase) Valid() bool {
 	switch phase {
-	case DoctorPhasePreConfig, DoctorPhaseMissingConfig, DoctorPhasePostConfig:
+	case DoctorPhasePreConfig, DoctorPhaseMissingConfig, DoctorPhaseParsedConfig, DoctorPhasePostConfig:
 		return true
 	default:
 		// Plugin declarations are open; reject an unknown phase without panicking.

@@ -204,10 +204,12 @@ type DoctorCheckDecl = rpc.DoctorCheckDecl
 // DoctorCheckPhase determines when a doctor check runs relative to config loading.
 type DoctorCheckPhase = rpc.DoctorCheckPhase
 
-// DoctorCheckPhase values: wire form is "pre-config", "missing-config", "post-config".
+// DoctorCheckPhase values: wire form is "pre-config", "missing-config",
+// "parsed-config", "post-config".
 const (
 	DoctorPhasePreConfig     = rpc.DoctorPhasePreConfig
 	DoctorPhaseMissingConfig = rpc.DoctorPhaseMissingConfig
+	DoctorPhaseParsedConfig  = rpc.DoctorPhaseParsedConfig
 	DoctorPhasePostConfig    = rpc.DoctorPhasePostConfig
 )
 

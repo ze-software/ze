@@ -13,7 +13,7 @@ func runPluginRegistryChecks(phase doctorCheckPhase, ctx doctorCheckContext) []d
 
 	var diags []diagnostic.Diagnostic
 	for _, check := range checks {
-		if string(check.Phase) != string(phase) {
+		if check.Phase != phase {
 			continue
 		}
 		if !pluginCheckSupportsPlatform(check.Platforms, ctx) {
