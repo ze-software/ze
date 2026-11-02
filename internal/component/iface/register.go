@@ -176,6 +176,7 @@ func init() {
 			Providers: []string{vppPlugin},
 		}},
 		InProcessConfigVerifier: verifyIfaceConfig,
+		Commands:                commandDecls(),
 		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -919,6 +920,13 @@ func runEngine(conn net.Conn) int {
 	globalTracker.Store(tracker)
 	tracker.Start()
 
+	// The rates are served from this process, the one that owns the tracker,
+	// so a daemon handler reaches them whether the plugin runs internal or
+	// external (rate_command.go).
+	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
+		return executeCommand(command, args)
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
@@ -926,6 +934,7 @@ func runEngine(conn net.Conn) int {
 		ConfigOperations: ifaceConfigOperationDecls(),
 		VerifyBudget:     2,
 		ApplyBudget:      10,
+		Commands:         commandDecls(),
 	}); err != nil {
 		log.Error("interface plugin failed", "error", err)
 		return 1

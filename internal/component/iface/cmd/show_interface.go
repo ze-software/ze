@@ -27,7 +27,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-brief", Handler: handleShowInterfaceBrief},
 		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-type", Handler: handleShowInterfaceType},
 		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-errors", Handler: handleShowInterfaceErrors},
-		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-rate", Handler: handleShowInterfaceRateCmd},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-rate", Handler: handleShowInterfaceRateCmd, PluginCommand: iface.RateCommand},
 		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-detail", Handler: handleShowInterfaceDetail},
 		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-counters", Handler: handleShowInterfaceCounters},
 		pluginserver.RPCRegistration{WireMethod: "ze-iface:show-interface-scan", Handler: handleShowInterfaceScan},
@@ -89,10 +89,10 @@ func handleShowInterfaceErrors(_ *pluginserver.CommandContext, _ command.Validat
 }
 
 // handleShowInterfaceRateCmd serves `show interface rate [<name>]`. The optional
-// name is the one remaining token.
-func handleShowInterfaceRateCmd(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return handleShowInterfaceRate(args)
+// name is the one remaining token, and the rates come from the iface plugin
+// (interface_rate.go, rateResponse).
+func handleShowInterfaceRateCmd(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	return rateResponse(ctx, validated.Tokens())
 }
 
 func handleShowInterfaceDetail(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
