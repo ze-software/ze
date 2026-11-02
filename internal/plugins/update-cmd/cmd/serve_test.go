@@ -1,19 +1,20 @@
-//go:build ze_core
-
-package main
+package cmd
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -215,4 +216,101 @@ func TestServeManifestPausedOmittedWhenFalse(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &raw))
 	_, hasPaused := raw["paused"]
 	assert.False(t, hasPaused, "paused should be omitted when false (omitempty)")
+}
+
+// updateServeFrame is the frame of the one goroutine an update server under
+// the daemon runs.
+const updateServeFrame = "(*updateServeListener).serve"
+
+// updateServeGoroutines counts the goroutines inside updateServeFrame.
+func updateServeGoroutines() int {
+	buf := make([]byte, 1<<20)
+	for {
+		n := runtime.Stack(buf, true)
+		if n < len(buf) {
+			return strings.Count(string(buf[:n]), updateServeFrame)
+		}
+		buf = make([]byte, 2*len(buf))
+	}
+}
+
+// TestUpdateServeLifecycle proves the daemon form of `update serve` (AC-16):
+// start answers the address it listens on, the server answers /version.json
+// there, pause toggles the pause that manifest reports, a second start and a
+// pause or stop with no server are refused with the command that fixes it,
+// and stop ends the listener and returns only after the server's goroutine
+// ended. Method: drive the owner the daemon handlers call, on 127.0.0.1:0,
+// with an HTTP client; read the goroutine's end from its done channel at the
+// moment stop returns, and count its frame in a full stack dump.
+func TestUpdateServeLifecycle(t *testing.T) {
+	var owner updateServeOwner
+	before := updateServeGoroutines()
+
+	started, err := owner.start(t.Context(), "127.0.0.1:0")
+	require.NoError(t, err)
+	require.NotEqual(t, "127.0.0.1:0", started.Listen, "start must answer the bound address")
+	assert.False(t, started.Paused)
+
+	fetch := func() serveManifest {
+		resp := testGet(t, "http://"+started.Listen+"/version.json")
+		defer resp.Body.Close() //nolint:errcheck // test cleanup
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		var m serveManifest
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&m))
+		return m
+	}
+	m := fetch()
+	assert.NotEmpty(t, m.Version)
+	assert.Len(t, m.SHA256, 64)
+	assert.False(t, m.Paused)
+
+	_, err = owner.start(t.Context(), "127.0.0.1:0")
+	require.Error(t, err, "a second start must be refused")
+	assert.Contains(t, err.Error(), started.Listen)
+	assert.Contains(t, err.Error(), "'update serve stop'")
+
+	paused, err := owner.pause()
+	require.NoError(t, err)
+	assert.True(t, paused.Paused)
+	assert.True(t, fetch().Paused, "pause must reach the manifest")
+	resumed, err := owner.pause()
+	require.NoError(t, err)
+	assert.False(t, resumed.Paused)
+	assert.False(t, fetch().Paused, "a second pause must resume")
+
+	running := owner.running
+	stopped, err := owner.stop()
+	require.NoError(t, err)
+	select {
+	case <-running.done:
+	default:
+		t.Fatal("stop returned while the server's goroutine was still running")
+	}
+	assert.True(t, stopped.Stopped)
+	assert.Equal(t, started.Listen, stopped.Listen)
+
+	deadline := time.Now().Add(time.Second)
+	for updateServeGoroutines() > before && time.Now().Before(deadline) {
+		runtime.Gosched()
+	}
+	assert.Equal(t, before, updateServeGoroutines(), "no server goroutine may outlive stop")
+
+	var dialer net.Dialer
+	conn, dialErr := dialer.DialContext(t.Context(), "tcp", started.Listen)
+	if dialErr == nil {
+		conn.Close() //nolint:errcheck // test cleanup
+		t.Fatal("the listener must be closed after stop")
+	}
+
+	_, err = owner.stop()
+	require.ErrorIs(t, err, errNoUpdateServer)
+	_, err = owner.pause()
+	require.ErrorIs(t, err, errNoUpdateServer)
+	assert.Contains(t, errNoUpdateServer.Error(), "'update serve start'")
+
+	restarted, err := owner.start(t.Context(), "127.0.0.1:0")
+	require.NoError(t, err, "a stopped server must leave room for a new start")
+	_, err = owner.stop()
+	require.NoError(t, err)
+	assert.NotEmpty(t, restarted.Listen)
 }

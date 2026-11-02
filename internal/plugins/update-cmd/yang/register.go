@@ -9,5 +9,6 @@ import (
 func init() {
 	configyang.RegisterModule("ze-update-api.yang", ZeUpdateAPIYANG)
 	configyang.RegisterModule("ze-update-firmware-cmd.yang", ZeUpdateFirmwareCmdYANG)
+	configyang.RegisterModule("ze-update-serve-cmd.yang", ZeUpdateServeCmdYANG)
 	configyang.RegisterModule("ze-update-show-cmd.yang", ZeUpdateShowCmdYANG)
 }

@@ -5,7 +5,7 @@ running binary atomically, and optionally restarts. It targets standalone Linux
 deployments. A gokrazy appliance has its own update mechanism.
 
 <!-- source: internal/component/config/system/selfupdate.go -- selfUpdater, download, verify, stage, restart -->
-<!-- source: cmd/ze/update_serve.go -- the standalone update server that publishes the manifest -->
+<!-- source: internal/plugins/update-cmd/cmd/serve.go -- the standalone update server that publishes the manifest -->
 <!-- source: internal/plugins/update-cmd/cmd/firmware.go -- update system firmware CLI handlers -->
 <!-- source: internal/plugins/update-cmd/cmd/show.go -- update status CLI handler -->
 

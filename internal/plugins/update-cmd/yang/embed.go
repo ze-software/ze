@@ -10,5 +10,8 @@ var ZeUpdateAPIYANG string
 //go:embed ze-update-firmware-cmd.yang
 var ZeUpdateFirmwareCmdYANG string
 
+//go:embed ze-update-serve-cmd.yang
+var ZeUpdateServeCmdYANG string
+
 //go:embed ze-update-show-cmd.yang
 var ZeUpdateShowCmdYANG string

@@ -501,17 +501,6 @@ func registerLocalCommands() {
 		Section:   registry.SectionSystem,
 		Subs:      pipeOperatorSubs(),
 	})
-	// `update` is a YANG verb, so a root handler named `update` would be
-	// unreachable behind the isYANGVerb branch in zeDispatch. RunCommand consults
-	// the local-handler registry before the YANG tree (cmdutil.go), so
-	// `update serve` lives here as a local meta -- the same mechanism `show
-	// version` uses to run a local command under a YANG verb.
-	command.MustRegisterLocalMeta("update serve", runUpdateServe, registry.Meta{
-		ShortHelp: "Serve this binary and its version manifest for update checks.",
-		Description: "The server answers a version manifest, the running binary and its SHA-256 digest. " +
-			"It is meant for build infrastructure rather than for a router in production.",
-		Mode: commandModeOffline,
-	})
 }
 
 func newZeRuntimeContext() *registry.RuntimeContext {

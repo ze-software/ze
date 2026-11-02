@@ -1794,6 +1794,26 @@ rollback, `.prev` no longer exists and the new version is gone from disk.
 
 <!-- source: internal/plugins/update-cmd/cmd/firmware.go -- firmware CLI handlers -->
 
+### update serve
+
+```
+ze update serve --listen :8080           # Foreground server in this process (SIGUSR1 toggles pause)
+ze update serve start listen :8080       # The daemon starts its server and answers the listen address
+ze update serve pause                    # Toggle the daemon's server pause
+ze update serve stop                     # Stop the daemon's server; answers once it has ended
+```
+
+Both forms serve `GET /version.json`, the running binary at `GET /<goos>/<goarch>`
+and its digest at `GET /<goos>/<goarch>/sha256`, for build infrastructure rather
+than for a router in production. The `start`, `stop` and `pause` commands act on
+the daemon's one server and reach it from every surface; a second `start` is
+refused until `stop`. A signal sent to the daemon reaches the daemon, so `pause`
+replaces `SIGUSR1` there. The `update-paused` file beside the binary pauses
+either form. See [self-update](self-update.md).
+
+<!-- source: internal/plugins/update-cmd/cmd/serve.go -- runUpdateServe -->
+<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner start, stop, pause -->
+
 ### show bgp
 
 ```

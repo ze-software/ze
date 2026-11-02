@@ -1,0 +1,58 @@
+module ze-update-serve-cmd {
+    namespace "urn:ze:update:serve:cmd";
+    prefix updateservecmd;
+    import ze-extensions { prefix ze; }
+    // The handlers are in internal/plugins/update-cmd/cmd/serve_daemon.go. See the
+    // plugin self-containment rule.
+    description "The update serve lifecycle commands, owned by the update plugin, which registers their handlers.";
+    revision 2026-11-02 { description "Initial: the daemon form of update serve, a server with start, stop and pause."; }
+
+    container update {
+        config false;
+
+        container serve {
+            config false;
+            description "The daemon serves its running binary and a version manifest for update checks,
+until it is told to stop. A daemon runs one such server at a time. The foreground
+'ze update serve' runs the same server in the operator's own process instead.";
+            ze:help "Serve this binary and its version manifest for update checks.";
+
+            container start {
+                config false;
+                ze:command "ze-update:update-serve-start";
+                description "The answer names the address the server listens on, the bound port included
+when the listen leaf asked for port 0. A second start while one server runs is refused:
+stop it first with 'update serve stop'. Meant for build infrastructure rather than for a
+router in production.";
+                ze:help "Start the update server and answer its listen address.";
+
+                leaf listen {
+                    type string {
+                        length "3..261";
+                        pattern '\S*:[0-9]{1,5}';
+                    }
+                    description "The address the server listens on, as host:port, an IPv6 host in brackets.
+An empty host listens on every address. Without it, the server listens on :8080.";
+                    ze:help "Listen on this host:port (default :8080).";
+                }
+            }
+
+            container stop {
+                config false;
+                ze:command "ze-update:update-serve-stop";
+                description "Requests in flight get five seconds to finish before their connections are
+closed. The command answers once the server has ended.";
+                ze:help "Stop the update server.";
+            }
+
+            container pause {
+                config false;
+                ze:command "ze-update:update-serve-pause";
+                description "Each call toggles the pause, and the answer says which state it left. A paused
+server still answers, and its manifest says paused, so update clients hold off. The
+update-paused file beside the binary pauses it too, whatever this state says.";
+                ze:help "Toggle the update server's pause.";
+            }
+        }
+    }
+}
