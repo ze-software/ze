@@ -12,7 +12,7 @@
 | Handoff | - |
 | Updated | 2026-11-02 |
 
-Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
+Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -103,6 +103,17 @@ behaviours are owed:
 - A peer with no local address and no `interface` resolves its source per cycle.
 - The resolved remote replaces the configured string for every reader listed above.
 - `local-address` accepts only an IP literal; anything else is refused with the fix in the message.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Interface address at apply | `internal/component/ike/engine/apply.go` `applyConfig`, `register.go` `resolveInterfaceAddr` | Resolves the interface's first IPv4 address once per apply through the iface resolver; refuses an unbindable reload, warns at startup | extends: the address worker re-runs the same resolution on each interface address event |
+| Listener rebind | `apply.go` `rebindListeners`, `testport.go` `ikeListenHost` | Stops every peer, closes and reopens the sockets when the host moves; reached only from `applyConfig` | extends: the address worker calls it; no second rebind path |
+| Interface address events | `internal/component/iface/iface.go` `AddrPayload`, `internal/core/iface/events/events.go` (`interface/addr-added`, `interface/addr-removed`); `ai/doors/forwarding.md` "Boundaries" | Published on the EventBus with name, unit, index, address, prefix length, family | extends: the engine subscribes, the way OSPF's transport does (`internal/plugins/ospf/transport/transport.go`, one bounded queue drained by one worker) |
+| Route-source lookup | `internal/component/ike/engine/mobike.go` `mobikeRouteSource` | Finds the local source toward the peer by connecting a UDP socket; runs only for an established MOBIKE SA | extends: extracted so a peer with no local address and no `interface` resolves its source per cycle |
+| Authenticated peer endpoint | `internal/component/ike/engine/create_child.go` `peerTunnelAddress`; `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` "Transport-mode NAT substitution changes the selectors, not the outer addresses" | Tunnel mode takes the outer remote from the authenticated endpoint; other readers take the configured strings | extends: the resolved pair replaces the configured strings for every other reader listed in Current Behavior |
+| Initiator reconnect backoff | `internal/component/ike/engine/fsm.go` `reconnectDelay`, `PeerSession.run` | 1 s doubling to 60 s, never gives up | does not apply: preserved as is |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -251,6 +262,8 @@ behaviours are owed:
 - `internal/component/ike/ipsec/config.go` - `local-address` literal validation
 - `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - `interface`, `local-address`, `remote-address` descriptions rewritten to the new behaviour
 - `docs/guide/ipsec.md` - dynamic WAN section; multi-homed caveat naming rfcgate-1b
+- `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - declared by `create_child.go` and `rekey.go`. "Transport-mode NAT substitution changes the selectors, not the outer addresses" says `createFirstChildSA` normally takes `LocalAddr` and `RemoteAddr` from the operator's `local-address` and `remote-address`; after this change it takes the resolved pair stored on the SA, so that sentence is rewritten
+- `docs/architecture/ike/ipsec-3-data-model.md` - declared by `config.go`. Nothing in it becomes wrong: it describes no address leaf. The `local-address` literal check is a new parse refusal, which the page may list beside the parser it names (`parseSiteToSitePeer`) without correcting any statement
 
 ## Files to Create
 - `internal/component/ike/engine/dynamic_wan.go` - the address worker
@@ -292,7 +305,7 @@ behaviours are owed:
 | 13 | Route metadata keys | No | |
 | 14 | Prometheus counters | No | |
 | 15 | Registered plugin/event changed? | Yes | IKE becomes a consumer of `interface/addr-*`: `docs/plugin-overview.md` event consumers if listed |
-| 16 | Changed source referenced by doc anchors? | Yes | derived by `./le spec citation anchors spec plan/home-cpe/spec-home-cpe-4-ike-dynamic-wan.md` |
+| 16 | Changed source referenced by doc anchors? | Yes | derived by `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-4-ike-dynamic-wan.md` |
 | 17 | Existing examples for this area? | Yes | `interface eth0` examples in `docs/guide/ipsec.md` |
 
 ## Implementation Steps
@@ -389,7 +402,7 @@ statement; the address worker's call into the MOBIKE-eligible path carries
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete
-- [ ] The targeted tests for what changed pass
+- [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/ike/engine` and `internal/component/ike/ipsec` through `./le job run label unit-pkg command go test -tags ...`, `./le test functional parse` for `ipsec-local-address-literal-only`, the functional suite that holds `ike-follows-wan-address` (`./le test functional ipsec` or `./le test functional plugin`), `./le test integration interop-ipsec` for `fqdn-remote-dynamic-local` and `fqdn-remote-real-nat`, and `./le verify changed` over the closing commits
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

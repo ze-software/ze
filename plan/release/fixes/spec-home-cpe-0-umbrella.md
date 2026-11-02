@@ -13,8 +13,8 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-`plan/home-cpe/` sits outside the plan folders that inventory tooling reads,
-by the owner's decision. The owner's own configuration and his provider's
+The home-CPE specs live in `plan/release/fixes/`, inside the plan folders
+that inventory tooling reads. The owner's own configuration and his provider's
 settings are kept out of the repository; nothing here is drawn from them
 beyond the generic capability a home CPE needs. Every value in this spec is
 invented.
@@ -86,7 +86,7 @@ everything except a translator program:
 | 21 | MSS clamp proof: `tcp-mss` and `tcp-mss-set` write the value without comparing, and the kernel skips a write that would raise it (`nft_exthdr_tcp_set_eval`: "increase can cause connection to stall"). Owed: a netns test on Ze's kernel proving a smaller MSS survives, and YANG and comment text that say clamp | validation, P2 |
 | 22 | IKE initiator refuses a responder-started reauthentication (a new IKE_SA_INIT reaches only `respond` peers) | release fix, low |
 
-Child spec files, all in `plan/home-cpe/`:
+Child spec files, all in `plan/release/fixes/`:
 
 | Child | File |
 |-------|------|
@@ -228,17 +228,187 @@ or WireGuard with Ze in the path. Ze's kernel carries PPPoE, L2TP, PPPoL2TP,
 xfrm interfaces, XFRM_MIGRATE, WireGuard and the nft NAT pieces; every
 conntrack helper is off.
 
+## Required Reading
+
+### Architecture Docs
+- [ ] `docs/architecture/testing/interop.md` - suites, scenario discovery, vacuity traps
+  → Constraint: scenarios are named, never numbered; each lab scenario is broken once at its producer and the red recorded (children 11, 18, 19)
+- [ ] `docs/architecture/iface/logical-name-resolution.md` - how a configured interface name becomes a kernel device
+  → Constraint: interface names go through the shared resolver, never straight to the kernel (`ai/doors/forwarding.md`); child 1 extends it to the `pppoe-client` name
+- [ ] `docs/architecture/l2tp/cpe-1-pppoe-client.md`, `docs/architecture/l2tp/subscriber-session-model.md` - the PPPoE client and the LAC/LNS session model
+  → Constraint: subscriber auth, pool and shaper reach a session through the `l2tp/subscriber` handler registries (`ai/doors/access-security.md`); children 12 to 17 extend those paths
+- [ ] `ai/doors/config-yang.md` Traps - `ze config validate` never calls a live `OnConfigVerify`
+  → Decision: the conversion check validates offline, then starts Ze with the file (children 10, 11)
+
+### RFC Summaries (Scope: protocol)
+- [ ] `rfc/short/rfc1661.md`, `rfc/short/rfc2661.md`, `rfc/short/rfc9915.md` - PPP, L2TP and DHCPv6 rows the children change
+  → Constraint: each child names its own RFC rows; the umbrella adds none
+
+**Key insights:**
+- Every child carries its own Current Behavior, Wiring Test and TDD plan; this umbrella holds the split, the order, the lab and the owner decisions.
+- All values in this spec set are invented (RFC 5737, RFC 3849, ULA, `example.net`).
+
+## Current Behavior (MANDATORY)
+
+**Source files read:** each child's Current Behavior section lists the producers it read; the umbrella's capability table is drawn from them. The entry points the set touches:
+- [ ] `internal/component/l2tp/pppoeclient/` - the PPPoE client (children 1, 12, 13, 17)
+- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `pppoe-client`, `bridge`, `ethernet`, `wireguard` (children 1, 8)
+- [ ] `internal/plugins/dhcpserver/` - the DHCPv4 server (child 2)
+- [ ] `internal/component/firewall/yang/ze-firewall-conf.yang` - `masquerade`, `tcp-mss-set` (children 3, 9, 21)
+- [ ] `internal/component/ike/engine/`, `internal/component/ike/dataplane/` - IKEv2 and XFRM install (children 4, 5, 6, 20, 22)
+- [ ] `internal/le/interoplab/` - the interop lab (children 11, 18, 19)
+
+**Behavior to preserve:** every accepted configuration that works today keeps working; listed per child.
+
+**Behavior to change:** listed per child; the capability table above names each change.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Interop scenario discovery | `internal/le/interoplab/discover.go` `Discover` | lists named scenario directories and refuses one with no checker | extends: children 11, 18 and 19 add scenarios and a topology suite through it |
+| LAC relay against xl2tpd | `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns` | proves the LAC relay control connection only | extends: child 19 adds the first end-to-end data-path proof |
+| PPPoE client interop | `test/interop-pppoe/scenarios/` | Ze client against accel-ppp, IPv4 only | extends: children 11, 12 and 13 add scenarios there |
+| ExaBGP migration | `internal/exabgp/migration/migrate.go` `MigrateFromExaBGP` | converts an ExaBGP configuration in code | does not apply: the VyOS conversion is done by a model following the guide (child 10), with no converter program |
+| WireGuard runtime proof spec | `plan/release/validation/spec-wireguard-runtime-proof.md` | owns the WireGuard road-warrior proof | extends: the `road-warrior` scenario is its acceptance evidence |
+| IPsec umbrella | `plan/release/validation/spec-ipsec-0-umbrella.md` | parent of the IPsec scenarios | extends: `mgmt-tunnel` is a scenario under it |
+
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+
+### Entry Point
+- A VyOS configuration, redacted, read by the model with the mapping guide (child 10).
+- The Ze configuration it produces, loaded by `ze` on the CPE.
+- Wire: PPPoE on the WAN port, L2TP between LAC and LNS, IKEv2 and WireGuard over the PPP session, DHCPv4 on the LAN bridge.
+
+### Transformation Path
+1. The model converts the VyOS configuration to Ze configuration with placeholders and a conversion record (child 10).
+2. `ze config validate`, then a Ze start with lab values substituted (child 11 `conversion`).
+3. Each child's path from config to kernel or wire, as its own Data Flow states.
+4. The lab scenarios assert the result on both ends (child 11, 19).
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| owner ↔ model | redacted text only | No |
+| config ↔ components and plugins | the config transaction, per child | No |
+| Ze ↔ kernel | netlink, nft, XFRM, PPP devices, per child | No |
+| Ze ↔ peers | PPPoE, L2TP, RADIUS, IKEv2, WireGuard, DHCPv4 in the lab | No |
+
+### Integration Points
+- Each child names its own; the lab (child 11) composes them on one converted CPE configuration.
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | Yes | per child; interface names go through the shared resolver (child 1) |
+| No unintended coupling (components stay isolated) | Yes | per child |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Existing Mechanisms table; reused specs named in the Task |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | umbrella; per child |
+| Registration over hardcoding, outbound | Yes | per child; new scenarios register with the lab |
+| Registration over hardcoding, inbound | Yes | per child |
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | The capability table covers every construct a home FTTP CPE of this kind uses | survey of a VyOS home-CPE configuration (umbrella Task) | a construct maps to nothing | child 10's conversion record lists every source line as mapped or dropped | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | A lab scenario is red because its child has not landed | red on a known clause | scenarios land with their child, in the order above |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | per child; the umbrella itself changes no code |
+| How is it reverted? | each child is its own revert |
+| Who else touches this path? | the reused specs named in the Task |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+Each child owns its wiring tests; the rows below name one per child from its spec file.
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| `pppoe-client pppoe0` config (`spec-home-cpe-1-logical-interface-name.md`) | → | named unit creation | `TestPPPoEClientUsesConfiguredDeviceName` |
+| two subnets, reservation in the second (`spec-home-cpe-2-dhcp-shared-interface-subnets.md`) | → | segment resolution | `test/dhcp/dhcpserver-shared-segment-reservation.ci` |
+| `system conntrack module ftp` (`spec-home-cpe-3-conntrack-helpers.md`) | → | helper table installed | `test/firewall/conntrack-helper-ftp-assigned.ci` |
+| interface address added (`spec-home-cpe-4-ike-dynamic-wan.md`) | → | IKE listener rebind, peer start | `TestInterfaceAddressArrivalStartsPeers` |
+| Ed25519 `pki certificate` on an IKE peer (`spec-home-cpe-5-ike-eddsa.md`) | → | EdDSA signer | `TestComputeX509AuthSignsWithEd25519UnderIdentity` |
+| two selectors and `vti bind` (`spec-home-cpe-6-ipsec-ipv6-in-ipv4-vti.md`) | → | VTI policy install | `TestDualFamilyProposalNarrowedToIPv6InstallsVTIPolicy` |
+| SSH on `0.0.0.0` and `::` (`spec-home-cpe-7-system-small-defects.md`) | → | listener conflict check | `test/parse/listener-dual-wildcard-refused.ci` |
+| `pppoe-client ... ipv6` (`spec-home-cpe-8-ipv6-cpe-chain.md`) | → | IPv6CP | `test/parse/pppoe-client-ipv6.ci` |
+| clamp-to-PMTU term (`spec-home-cpe-9-mss-clamp-to-pmtu.md`) | → | firewall apply | `test/firewall/firewall-tcp-mss-clamp-to-pmtu.ci` |
+| guide worked example (`spec-home-cpe-10-vyos-mapping-guide.md`) | → | `ze config validate` | `test/parse/vyos-guide-example.ci` |
+| converted CPE configuration (`spec-home-cpe-11-lab.md`) | → | CPE load and commit verifiers | scenario `conversion` |
+| LCP Configure-Request during CHAP (`spec-home-cpe-12-pppoe-client-lcp-renegotiation.md`) | → | renegotiation | `TestRFC1661ClientRenegotiatesLCPDuringAuth` |
+| IPCP Configure-Nak with DNS (`spec-home-cpe-13-pppoe-client-ipcp-dns.md`) | → | resolver lease | `TestPPPoEClientSetsResolverLease` |
+| realm relay config and subscriber (`spec-home-cpe-14-lac-realm-relay.md`) | → | realm match, proxy LCP | `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` |
+| `proxy-lcp renegotiate` (`spec-home-cpe-15-lns-lcp-renegotiation.md`) | → | non-proxy session branch | `TestL2TPProxyLCPRenegotiateReachesDriver` |
+| `l2tp { mru 1492 }` (`spec-home-cpe-16-lns-mru-and-auth-allow-list.md`) | → | session MRU | `TestL2TPStartSessionCarriesConfiguredMRU` |
+| `keepalive interval 2; failures 2` (`spec-home-cpe-17-pppoe-client-keepalive-config.md`) | → | keepalive loop | `TestPPPoEClientKeepaliveFromConfig` |
+| `./le test integration interop-topology two-ze-static-link` (`spec-home-cpe-18-interoplab-multi-link-topology.md`) | → | topology runner | scenario `two-ze-static-link` |
+| `./le test integration interop-topology access-up` (`spec-home-cpe-19-access-chain-scenario.md`) | → | LAC relay to LNS and RADIUS | scenario `access-up` |
+| tunnel-mode SA install (`spec-home-cpe-20-xfrm-cross-family-tunnel-state.md`) | → | XFRM state builder | `TestXFRMTunnelStateIsInstalledAFUnspec` |
+| `tcp-mss-set 1400` (`spec-home-cpe-21-mss-clamp-not-raise.md`) | → | MSS lowering | `TestTCPMSSSetClampsNeverRaises` |
+| IKE_SA_INIT from an established peer (`spec-home-cpe-22-ike-responder-reauth.md`) | → | responder supersede | `TestInitiatePeerAdoptsPeerStartedReauth` |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | every child closed | each child's ACs demonstrated in its own spec |
+| AC-2 | the lab (child 11) | every scenario of the Lab table green on the converted CPE configuration, each with a recorded red walk |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| per child | children 1 to 22, each spec's TDD Test Plan | each child's ACs | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| per child | each child's boundary table | | | |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| per child | `test/parse/`, `test/dhcp/`, `test/firewall/`, `test/l2tp/`, `test/policy/` | config acceptance, refusal and behavior per child | |
+
+### Interop Tests (Scope: protocol)
+| Scenario | Directory | Peer Daemon | What It Proves | Status |
+|----------|-----------|-------------|----------------|--------|
+| the Lab table scenarios | `test/interop-topology/scenarios/`, `test/interop-pppoe/scenarios/` (children 11, 19) | FreeRADIUS, strongSwan, wireguard-tools, dhcpcd, accel-ppp | the converted CPE works end to end | |
+
+## Files to Modify
+- per child: each child's Files to Modify names the feature code and the pages its change makes wrong
+- the doc defects listed in the Task, each with the child that touches the page
+
+## Files to Create
+- the child specs listed in the Task table
+
+## Implementation Steps
+
+1. **Phase: Wiring (MANDATORY FIRST)** -- children 12, 1, 2, 21 and 7, each wiring-first in its own spec
+2. **Phase: management tunnel** -- children 5, 4, 20 and 6
+3. **Phase: lab** -- children 18, 19 and 11, with 14 and 15 for the wholesale variant
+4. **Phase: remaining** -- child 3 after the owner's decision; then 8, 9, 13, 16, 17 and 22
+
 ## Open decisions for the owner
 
 | Decision | Options |
 |----------|---------|
-| Conntrack helpers (child 3) | Ze's kernel leaves them out against NAT slipstreaming. Build them in and assign by port, or leave them out and let FTP, SIP and PPTP through NAT break |
-| Where the children live | here under `plan/home-cpe/`, or in `release/` and `post-release/` where inventory tooling sees them |
+| Where the children live | settled: every child is in `plan/release/fixes/`, inside the folders inventory tooling reads |
 | RFC 8420 (child 5) | It is in no release profile, so no summary is written and it counts nowhere until it is listed for one |
 | Delegated prefix use (child 8) | `rfc/short/rfc9915.md` declines RFC9915-6.3-1/-2/-3; the IPv6 CPE chain needs that decline lifted |
 | Learned DNS for LAN clients (child 13) | The LAN `dns-resolver` forwards only to configured servers; whether it should also use IPCP-learned servers |
 
-Edits outside `plan/home-cpe/` that the children owe once they move to `ready`
+Edits outside the home-CPE specs that the children owe once they move to `ready`
 (held back by the owner's no-change instruction): list
 `vti-ipv6-inner-ipv4-outer` in `release/validation/spec-ipsec-0-umbrella.md`;
 add a child 22 pointer to `post-release/features/spec-ike-reauth.md`; narrow
@@ -248,3 +418,31 @@ add a child 22 pointer to `post-release/features/spec-ike-reauth.md`; narrow
 the client dropping Configure-Request, the pppoe-client name never reaching the
 kernel, and static routes not reinstalled after a reconnect; fetch
 `rfc/full/rfc8420.txt`.
+
+## Checklist
+
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-2 all demonstrated
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] The targeted tests for what changed pass, per child: each child's scoped package tests and functional suites, the lab scenarios through `./le test integration interop-topology <scenario>`, and `./le verify changed` over each child's closing commits
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs (per child)
+- [ ] Functional `.ci` tests for end-to-end behavior (per child)
+- [ ] Interop tests for protocol features (the lab, children 11 and 19)
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean
+- [ ] **Commit A** and **Commit B** per `ai/rules/planning.md`

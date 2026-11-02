@@ -12,7 +12,7 @@
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
+Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -85,6 +85,18 @@ Where any step fails at the source, the fix is in this spec.
 
 **Behavior to change:**
 - Whatever the scenario exposes between the narrowed answer and the delivered IPv6 packet. Known today: child 20's state flag.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Selector-list validation | `internal/component/ike/engine/config.go` `validateSelectorCombinations` | Refuses a list missing a same-family combination; one IPv4 and one IPv6 entry pass | does not apply: already accepts the dual-family list; this spec proves it through `ze config validate` |
+| Child SA TS proposal | `internal/component/ike/engine/rekey.go` `proposeChildTSPayloads`, `anyChildTSPayloads` | Proposes the configured list in order, or the outer family's wildcard | does not apply: proven on the wire, changed only if A-1 breaks |
+| Initiator answer check | `internal/component/ike/engine/ts_narrow.go` `recordInitiatorSelectorsIn`; `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` "Decisions" | Accepts a subset of the proposal, refuses a widening, records `sa.NegotiatedPairs` | extends only if A-2 breaks: the IPv6-only subset gets its own test |
+| VTI if_id binding | `internal/component/ike/engine/established.go` `resolveIfID` | Returns the bound xfrm interface's if_id, refuses a non-xfrm binding or if_id 0 | does not apply: reused as is |
+| Child SA policy set | `internal/component/ike/engine/child.go` `childPolicies`, `childPairPolicy` | One policy per negotiated pair and direction carrying the if_id | does not apply: already emits IPv6 policies with an IPv4 template |
+| Tunnel state AF_UNSPEC | `plan/release/fixes/spec-home-cpe-20-xfrm-cross-family-tunnel-state.md` | Child 20 sets `XFRM_STATE_AF_UNSPEC` on a selector-less tunnel state | does not apply here: child 20 owns the fix, this spec's scenario is its red-first proof |
+| strongSwan interop lab | `test/interop-ipsec/scenarios/`, `docs/architecture/testing/interop.md` | Scenarios such as `mtu-tunnel-sizing-strongswan` run Ze against strongSwan over an xfrm interface with IPv4 inner traffic | extends: adds `vti-ipv6-inner-ipv4-outer` in the same layout |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -199,6 +211,7 @@ Where any step fails at the source, the fix is in this spec.
 
 ## Files to Modify
 - `internal/component/ike/engine/ts_narrow.go`, `child.go` - only if A-1 or A-2 breaks
+- `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` - declared by `ts_narrow.go`. Nothing in it becomes wrong while `ts_narrow.go` is untouched: its decision "The initiator checks the answer, it does not trust it" already covers a subset answer. If A-2 forces a change to `recordInitiatorSelectorsIn`, that decision gains the single-family subset of a two-family proposal
 - `docs/guide/ipsec.md` - a dual-family VTI example: IPv6 inside an IPv4 tunnel, narrowed by the peer
 - `plan/release/validation/spec-ipsec-0-umbrella.md` - list the scenario (main thread edits it; named here so it is not lost)
 
@@ -241,7 +254,7 @@ Where any step fails at the source, the fix is in this spec.
 | 13 | Route metadata keys | No | |
 | 14 | Prometheus counters | No | |
 | 15 | Registered plugin/event changed? | No | |
-| 16 | Changed source referenced by doc anchors? | Yes | derived by `./le spec citation anchors spec plan/home-cpe/spec-home-cpe-6-ipsec-ipv6-in-ipv4-vti.md` |
+| 16 | Changed source referenced by doc anchors? | Yes | derived by `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-6-ipsec-ipv6-in-ipv4-vti.md` |
 | 17 | Existing examples for this area? | Yes | verify the VTI example in `docs/guide/ipsec.md` against the YANG |
 
 ## Implementation Steps
@@ -330,7 +343,7 @@ statement it touches.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete
-- [ ] The targeted tests for what changed pass
+- [ ] The targeted tests for what changed pass: the scoped package test for `internal/component/ike/engine` through `./le job run label unit-pkg command go test -tags ...`, `./le test functional parse` for `ipsec-dual-family-selectors-validate.ci`, `./le test integration interop-ipsec` for `vti-ipv6-inner-ipv4-outer`, and `./le verify changed` over the closing commits
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

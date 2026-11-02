@@ -6,13 +6,15 @@
 | Scope | config |
 | Priority | P3 |
 | Release reason | Feature: an operator migrating a CPE carries its LCP echo and redial settings; Ze fixes them at 10 s by 3 failures and a 1 to 60 s backoff. Nothing misbehaves with the defaults. |
-| RFC gaps | - (RFC 1661 Section 5.8 makes Echo-Request a tool, not a schedule; no interval is required) |
+| RFC gaps | - |
 | Depends | - (touches `keepaliveLoop`, which `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` also changes; land after 12 to avoid a merge on the same loop) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
+Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
+
+RFC gaps: none. RFC 1661 Section 5.8 makes Echo-Request a tool, not a schedule; no interval is required.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -51,6 +53,17 @@ the same.
 
 **Behavior to change:**
 - The four values come from config, per client
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec |
+|-----------|------------------------------------------|--------------------|-----------|
+| Client echo constants | `internal/component/l2tp/pppoeclient/session.go` `echoInterval`, `echoMaxFailures`, `sessionConfig` | fixed 10 s interval and 3 failures; `sessionConfig` carries no timing | replaces: the constants are removed and the values travel in `sessionConfig` |
+| Client keepalive loop | `internal/component/l2tp/pppoeclient/network_phase.go` `keepaliveLoop` | ticks at `echoInterval`, ends the session at `echoMaxFailures` unanswered echoes, resets on any Echo-Reply | extends: reads interval and failure count from the session config; the exchange is unchanged |
+| Redial backoff | `internal/component/iface/pppoe_client.go` `reconnectBaseDelay`, `reconnectMaxDelay`, `ReconnectDelay` | doubles from 1 s, clamped at 60 s | extends: base and max come from config; the doubling and clamp stay |
+| Reload comparison | `internal/component/iface/pppoe_client.go` `pppoeClientConfigChanged` | restarts the client when any listed field changes | extends: the timer leaves are excluded from the restart set and update the stored values |
+| `pppoe-client` config parse | `internal/component/iface/config.go` `pppoeClientEntry`, `parsePPPoEClientEntry`; `ze-iface-conf.yang` `list pppoe-client` | reads leaves with defaults applied at parse, as `route-priority` and `mtu` do | extends: same parse pattern for the `keepalive` and `reconnect` leaves |
+| LNS echo settings | `internal/component/l2tp/ppp/start_session.go` `EchoFailures`, `session_run.go` `defaultEchoInterval` | the server side already carries a configurable failure count and a 10 s default | does not apply: server side, kept as the model for names and defaults only |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -168,6 +181,7 @@ the same.
 - `internal/component/iface/pppoe_client.go` - config fields, backoff from config, reload comparison excludes timer leaves and updates the stored values; constants removed
 - `internal/component/l2tp/pppoeclient/session.go`, `network_phase.go`, `dialer.go` - echo values through `sessionConfig`; constants removed
 - `docs/architecture/l2tp/cpe-1-pppoe-client.md`, the interfaces guide PPPoE section, `docs/guide/configuration.md` if it lists pppoe-client leaves
+- `docs/features/interfaces.md` (the design page `internal/component/iface` declares): read, and nothing there becomes wrong; it lists no `pppoe-client` leaves and no echo or redial timing, and its Capability Table `PPPoE` row is about PPPoE as an interface type, which keepalive timers do not change
 
 ## Files to Create
 - `test/parse/pppoe-client-keepalive.ci`

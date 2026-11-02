@@ -6,13 +6,17 @@
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Release fix: an accepted configuration (two subnets on one LAN, a static reservation in the second) hands the reserved client a pool lease from the first subnet, and every listener answers for every subnet of every interface |
-| RFC gaps | RFC 2131 Section 4.1: `RFC2131-4.1-1` (accept any of the server's addresses as its identifier) and `RFC2131-4.1-2` (server identifier reachable from the client), both recorded as gaps in `rfc/short/rfc2131.md` |
+| RFC gaps | RFC2131-4.1-1, RFC2131-4.1-2 |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-02 |
 
-Parent: `plan/home-cpe/spec-home-cpe-0-umbrella.md` (child 2).
+Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 2).
+
+RFC gaps: RFC 2131 Section 4.1, `RFC2131-4.1-1` (accept any of the server's
+addresses as its identifier) and `RFC2131-4.1-2` (server identifier reachable
+from the client), both recorded as gaps in `rfc/short/rfc2131.md`.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -89,6 +93,19 @@ optional `server-identifier` leaf lets the operator name that address.
 - A listener serves only the segments its interface is addressed in.
 - Option 54 is an address the server holds on the segment, or the configured `server-identifier`.
 - A SELECTING DHCPREQUEST naming any of the server's own addresses on the segment is accepted.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Multi-handler dispatch | `internal/plugins/dhcpserver/register.go` `serveRequests`; `docs/architecture/provisioning/dhcp-server.md`, "Decisions" (one socket per listen interface, with multi-handler dispatch) | offers each packet to every subnet handler in configuration order; the first non-nil reply wins | replaces: one segment resolver and one selection step choose the handler; the first-answer loop is deleted (no-layering) |
+| Per-subnet handler and its hint match | `internal/plugins/dhcpserver/handler.go` `dhcpHandler`, `matchesSubnet`, `allocateForClient` | each handler matches by `giaddr`, `ciaddr`, Requested IP, and claims a hintless packet; reservations are looked up in its own `staticByMAC` only | extends the handler (pool, lease table, reply building stay); replaces `matchesSubnet` with the segment selection, which consults reservations across the segment first |
+| Server identifier derivation | `internal/plugins/dhcpserver/config_tx.go` `subnetServerIP`, used by `buildHandlers` | `default-router`, else the first range start, else the subnet address | replaces: option 54 comes from the device's address in the chosen subnet or the `server-identifier` leaf; `subnetServerIP` is deleted |
+| Pool and lease sharing across reloads | `internal/plugins/dhcpserver/config_tx.go` `samePlanHandler`, `sameAddressPlan`; `dhcp-server.md`, "Config reload" | a subnet with an unchanged address plan keeps its pool and lease table | extends: handlers are grouped by shared network, and the sharing rule is kept unchanged |
+| Listen-interface binding | `internal/plugins/dhcpserver/register.go` `bindListeners`, `listenInterface`, `dhcpResolveDevice`; `internal/component/iface/dispatch.go` `ResolveDevice` | resolves the logical name to its kernel device and binds one `SO_BINDTODEVICE` socket per interface | extends: the listener also records the device's IPv4 addresses, read from netlink for that same resolved device |
+| Netlink use in the plugin | `internal/plugins/dhcpserver/neighbor_linux.go` `installNeighbor`, `readNeighbor` | writes and reads neighbor entries on the receiving device | extends: the address read sits beside it, never a second netlink client |
+| Reply delivery | `internal/plugins/dhcpserver/register.go` `replyDestination`; `dhcp-server.md`, "Reply delivery follows RFC 2131 Section 4.1" | chooses relay, unicast or broadcast destination for a reply | does not apply: unchanged; the chosen subnet's handler builds the reply it delivers |
+| Listen-interface readiness check | `internal/plugins/dhcpserver/doctor.go` `checkDHCPInterfaces` | reports an unmatched or ambiguous listen-interface selector | extends: gains the AC-11 finding (device holds no address in any configured subnet) |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -232,6 +249,8 @@ optional `server-identifier` leaf lets the operator name that address.
 - `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` - `server-identifier` leaf; container description rewritten
 - `rfc/short/rfc2131.md` - `RFC2131-4.1-1`, `RFC2131-4.1-2` gap annotations replaced by tests and discrimination records
 - `internal/le/interoplab/bgp/` - check and registration for the new scenario, next to `check_dns_resolver.go`
+- `docs/architecture/provisioning/dhcp-server.md` - declared by every changed source file's `// Design:` header. "Decisions", "One socket per listen interface, with multi-handler dispatch" says the serving goroutine tries each subnet handler in order and that a bare DISCOVER "falls through to the first handler that has pool space"; the change makes that false, so the paragraph is rewritten to the segment resolution and selection order of this spec, and the page gains the `server-identifier` choice. "Config reload" stays true (sharing by address plan is kept)
+- `docs/architecture/config/transaction-protocol.md` - declared by `config_tx.go`'s `// Design:` header; nothing it says becomes wrong: it names dhcpserver only as a plugin whose running listeners may fail to rebind, which this change keeps
 
 ## Files to Create
 - `internal/plugins/dhcpserver/segment.go`, `segment_test.go` - segment resolution and selection
@@ -272,7 +291,7 @@ optional `server-identifier` leaf lets the operator name that address.
 | 13 | Route metadata keys added/changed? | No | none |
 | 14 | Prometheus counters added/changed? | No | none |
 | 15 | Registered plugin, event, command or inventory changed? | No | none |
-| 16 | Changed source files referenced by doc source anchors? | Yes | run `./le spec citation anchors spec plan/home-cpe/spec-home-cpe-2-dhcp-shared-interface-subnets.md` at implementation |
+| 16 | Changed source files referenced by doc source anchors? | Yes | run `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-2-dhcp-shared-interface-subnets.md` at implementation |
 | 17 | Existing docs show examples for this area? | Yes | `docs/guide/configuration.md` l.4079 and `docs/guide/ze-install.md` shared-network examples |
 
 ## Implementation Steps
@@ -345,3 +364,31 @@ No open journal row describes this defect (grep of `plan/journal/` for `dhcpserv
 ## RFC Documentation (Scope: protocol)
 
 Add `// RFC 2131 Section 4.1: "..."` above the server identifier choice and the SELECTING check, and `// RFC 2131 Section 4.3.1: "..."` above the selection step, quoting the sentences in Required Reading.
+
+## Checklist
+
+### Pre-Spec Verification
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] Existing Mechanisms table names every mechanism this spec extends or replaces
+- [ ] An `rfc/short/` summary exists for every RFC referenced (`rfc/short/rfc2131.md`)
+- [ ] No code snippets
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-13 all demonstrated
+- [ ] Every user story has a working path and a passing test
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] Targeted tests pass: the scoped `internal/plugins/dhcpserver` package test, `./le test unit plugins`, `./le test dhcp`, and `./le test integration` for scenario `dhcpv4-server-shared-segment-dhcpcd`; then `./le verify changed` over the closing commits
+- [ ] `./le rfc check` clean for `RFC2131-4.1-1` and `RFC2131-4.1-2`, each with its discrimination record
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for `server-identifier`
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests: `dhcpv4-server-shared-segment-dhcpcd`, red phase recorded
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean

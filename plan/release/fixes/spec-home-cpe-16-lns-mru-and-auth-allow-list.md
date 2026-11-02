@@ -6,13 +6,16 @@
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | An accepted configuration does the wrong thing: `auth-method chap-md5`, whose YANG description says "The default requires CHAP-MD5", authenticates a peer with PAP after that peer Naks CHAP, on the L2TP LNS and on the PPPoE access concentrator. A CHAP-only operator has no way to refuse the fallback. The LNS also has no MRU control, so every L2TP session requests 1500. |
-| RFC gaps | - (no new requirement row; RFC 1661 Section 6.2 and Section 3.5 and RFC 1334 Section 2 behaviour is exercised by new tests) |
+| RFC gaps | - |
 | Depends | - (interplay with `spec-home-cpe-15-lns-lcp-renegotiation.md` described under Key Design Decisions; neither blocks the other) |
 | Phase | 0/4 |
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
+Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
+
+RFC gaps, in words: no new requirement row. RFC 1661 Section 6.2 and
+Section 3.5 and RFC 1334 Section 2 behaviour is exercised by new tests.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -183,6 +186,18 @@ without the option.
 - A proxy LCP whose Last-Sent MRU (1500 when absent) exceeds the configured
   `mru` is likewise unusable, so the LNS renegotiates.
 
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Session MRU cap | `internal/component/l2tp/ppp/start_session.go` `StartSession.MaxMRU`; `internal/component/l2tp/ppp/lcp_options.go` `LCPNegPolicy`, `effectiveMaxMRU` | requested MRU and the Nak cap on the peer's MRU; zero means 1500; PPPoE sets 1492 (`pppoe/discovery.go` `PPPoEMaxMTU`) | extends: the L2TP reactor sets it from the new `mru` leaf; PPPoE unchanged |
+| Auth fallback order | `internal/component/l2tp/ppp/start_session.go` `StartSession.AuthFallbackOrder`; `internal/component/l2tp/ppp/auth.go` `defaultAuthFallbackOrder`, `initialAuthMethod`, `selectAuthFallback`, `adjustAuthOnNakOrReject` | an order no transport sets; the driver substitutes the package default for an empty list | extends: both transports set it from the allow-list; replaces the implicit package default (deleted, no-layering) |
+| Auth phase failure | `internal/component/l2tp/ppp/session_run.go` `runAuthPhase` | fails a required-auth session with no method after LCP Opened | replaces for the exhausted case: LCP closes before Opened |
+| Proxy LCP evaluation | `internal/component/l2tp/ppp/proxy.go` `EvaluateProxyLCP`; `session_run.go` proxy branch | accepts the LAC's proxied Auth-Protocol and MRU with no policy check, falls back to full LCP on parse failure | extends: a method outside the list or a Last-Sent MRU above `mru` takes the same fall-back |
+| Auth method names | `internal/component/l2tp/ppp/auth_events.go` `ParseAuthMethod`; `auth-method` YANG enumeration | the one parser and enumeration for method names | extends: the allow-list reuses both; no new name list |
+| Config extraction and hot reload | `internal/component/l2tp/config.go` `ExtractParameters`, `reactor_setters.go`, `subsystem_reload.go`; `internal/component/l2tp/pppoe/config.go`, `pppoe/subsystem_reload.go` | parse `auth-method`, `allow-no-auth` and apply them to new sessions | extends: the new leaves travel the same path |
+| Global proxy LCP policy | `plan/release/fixes/spec-home-cpe-15-lns-lcp-renegotiation.md` | adds the operator's `proxy-lcp` choice | does not apply here: this spec's per-session checks use the same fall-back, neither blocks the other |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -349,6 +364,10 @@ the old order, the MRU leaf ignored) to show it goes red.
 - `internal/component/l2tp/ppp/proxy.go` - read Last-Sent MRU
 - `docs/guide/l2tp.md`, `docs/guide/pppoe.md` - leaves, behaviour, reload table rows
 - `features/l2tpv2-bng.md`, `features/pppoe-access.md` - scope
+- `docs/architecture/l2tp/bng-5-pppoe.md` (declared by `pppoe/config.go`, `pppoe/server.go`, `pppoe/subsystem_reload.go`) - nothing becomes wrong: its reload paragraph ("A reload applies the diff live") already covers a new leaf parsed by the same `ExtractParameters`; the allow-list is documented in `docs/guide/pppoe.md`
+- `docs/research/l2tpv2-ze-integration.md` (declared by `config.go`, `reactor_kernel.go`, `ppp/manager.go`, `ppp/auth.go`, `ppp/session_run.go`) - its Section 5 schema sketch shows a `ppp-max-mtu` leaf with default 1420 that Ze never shipped; with the real `mru` leaf (no default, 1500 requested) the sketch reads as current, so it gains a note naming the shipped leaf
+- `docs/research/l2tpv2-implementation-guide.md` (declared by `ppp/proxy.go`) - nothing becomes wrong: its Section 18 describes the RFC's proxy AVPs, not Ze's policy on them
+- `internal/component/l2tp/reactor_setters.go`, `subsystem_reload.go` declare `docs/guide/l2tp.md`, already listed above
 
 ## Files to Create
 - `test/l2tp/lns-mru-auth-allow-config.ci`
@@ -391,7 +410,7 @@ the old order, the MRU leaf ignored) to show it goes red.
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | Yes | the PPP metrics section of `docs/guide/l2tp.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived with `./le spec citation anchors spec plan/home-cpe/spec-home-cpe-16-lns-mru-and-auth-allow-list.md` at implementation |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived with `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-16-lns-mru-and-auth-allow-list.md` at implementation |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `l2tp {}` example at `docs/guide/l2tp.md` l.22-34 |
 
 ## Implementation Steps
@@ -497,3 +516,30 @@ the CHAP-first ordering, RFC 1661 Section 6.1 above the MRU request.
 - [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
 - [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+
+### Goal Gates (MUST pass)
+- [ ] Every AC-N in the Acceptance Criteria table demonstrated
+- [ ] Every user story has a working path and a passing test
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/l2tp/...`, `./le test functional l2tp`, `./le test pppoe`, and `./le verify changed` over the closing commits. The full verification is Thomas's release check
+- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove plan/release/fixes/spec-home-cpe-16-lns-mru-and-auth-allow-list.md` only, in the same `./le commit create` script

@@ -6,13 +6,15 @@
 | Scope | protocol |
 | Priority | P2 |
 | Release reason | The home CPE authenticates with an Ed25519 certificate. Ze's PKI store accepts Ed25519 keys and the IPsec guide implies they sign, but IKE refuses them (`errUnsupportedKey`). RFC 8420 is listed in no release profile, so by the release timing rule this may land after the first release; the false guide sentence is corrected now. |
-| RFC gaps | RFC 8420 Sections 2 and 3 (all MUST and MUST NOT), not enrolled: no profile lists it |
+| RFC gaps | - |
 | Depends | - |
 | Phase | 0/4 |
 | Handoff | - |
 | Updated | 2026-11-02 |
 
-Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
+Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
+
+RFC gaps: RFC 8420 Sections 2 and 3 (all MUST and MUST NOT). RFC 8420 is not enrolled: no release profile lists it and it has no `rfc/short/` summary (owner decision O-1 pending), so the metadata cell, which takes only listed requirement ids or summary stems, carries `-`.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -87,6 +89,18 @@ with RFC 7427.
 - Notify announces Identity (5) alongside the SHA-2 values.
 - Ed25519 and Ed448 sign and verify under method 14 with Identity.
 - The PKI store accepts Ed448 keys and certificates.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| RFC 7427 method 14 signing | `internal/component/ike/engine/auth.go` `computeX509Auth`, `selectSignatureAlgorithm`, `signDigest`; `docs/architecture/ike/ipsec-7-ikev2-engine.md` "The method Ze signs with follows the peer's SIGNATURE_HASH_ALGORITHMS notify" | Picks an algorithm from the peer's list for RSA and ECDSA keys, hashes, signs; any other key is `errUnsupportedKey` | extends: an EdDSA branch picks Identity and signs the octets whole |
+| RFC 7427 method 14 verification | `auth.go` `verifyX509Auth`, `hashFromAlgID`, `verifySignature` | Recognises the RSA and ECDSA SHA-2 OIDs, raw or as a SEQUENCE; any other key is `errUnsupportedKey` | extends: recognises id-Ed25519 and id-Ed448 and verifies with no prehash |
+| AlgorithmIdentifier encoding | `auth.go` `algorithmIdentifierEC` | Encodes SEQUENCE { OID } with no parameters | extends: reused for the RFC 8410 identifiers, which have the same shape |
+| SIGNATURE_HASH_ALGORITHMS notify | `internal/component/ike/engine/initiator.go` `buildSignatureHashAlgosNotify`, shared by the responder | Announces SHA2-256, SHA2-384, SHA2-512 | extends: adds Identity (5) |
+| Legacy signature fallback | `internal/component/ike/engine/auth_legacy.go` `computeLegacySignatureAuth`, `legacyKeyName` | Signs with method 1, 9, 10 or 11 when the peer sent no notify; refuses an Ed25519 key with a named message | extends: `legacyKeyName` also names an Ed448 key; the refusal stays |
+| PKI key and certificate load | `internal/component/pki/config.go` `parsePrivateKey`, `verifyKeyMatchesCert` | Parses PKCS#8, SEC1 EC and PKCS#1; matches ECDSA, RSA and Ed25519 pairs | extends: Ed448 parse and match |
+| Third-party module patches | `internal/le/vendorpatch/patches/` | Ze's diffs against upstream modules, applied at build time | does not apply: this spec names no patch to a module; the Ed448 module lands as `go.mod`, `go.sum` and `vendor/` in its own commit (Files to Modify) |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -223,6 +237,7 @@ with RFC 7427.
 - `go.mod`, `go.sum`, `vendor/` - Ed448 module, in its own commit
 - `docs/guide/ipsec.md` - AC-13
 - `docs/architecture/ike/ipsec-6-ikev2-crypto.md` - signature algorithm table
+- `docs/architecture/ike/ipsec-7-ikev2-engine.md` - declared by `initiator.go`. "The method Ze signs with follows the peer's SIGNATURE_HASH_ALGORITHMS notify" says method 14 uses an algorithm from the peer's list and that a key other than RSA or ECDSA is refused; after this change Ze announces Identity and an Ed25519 or Ed448 key signs under method 14 with Identity, unhashed, so that paragraph names the EdDSA case and its `source:` anchors gain the EdDSA functions
 
 ## Files to Create
 - `internal/component/ike/engine/auth_eddsa_test.go`
@@ -265,7 +280,7 @@ with RFC 7427.
 | 13 | Route metadata keys | No | |
 | 14 | Prometheus counters | No | |
 | 15 | Registered plugin/event changed? | No | |
-| 16 | Changed source referenced by doc anchors? | Yes | derived by `./le spec citation anchors spec plan/home-cpe/spec-home-cpe-5-ike-eddsa.md` |
+| 16 | Changed source referenced by doc anchors? | Yes | derived by `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-5-ike-eddsa.md` |
 | 17 | Existing examples for this area? | Yes | the PKI example in `docs/guide/ipsec.md` (AC-13) |
 
 ## Implementation Steps
@@ -369,7 +384,7 @@ Section 3 MUST quoted in Required Reading.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete
-- [ ] The targeted tests for what changed pass
+- [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/ike/engine` and `internal/component/pki` through `./le job run label unit-pkg command go test -tags ...`, `./le test functional parse` for `pki-ed448-certificate-accepted.ci`, `./le test integration interop-ipsec` for `x509-ed25519-ze-initiator`, `x509-ed25519-ze-responder` and `x509-ed448-ze-initiator`, and `./le verify changed` over the closing commits
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

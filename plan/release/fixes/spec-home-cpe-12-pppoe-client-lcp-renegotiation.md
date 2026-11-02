@@ -6,13 +6,19 @@
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped PPPoE client misbehaves on an accepted configuration: an access network that renegotiates LCP after the LAC opened it (the wholesale L2TP shape) never gets its Configure-Request answered, so the session times out and the CPE never comes up. Blocks the home-CPE migration. |
-| RFC gaps | RFC 1661 Section 3.4 and Section 4.1 (RCR in Opened, and RCR during Authentication and Network-Layer Protocol phases); RFC 1661 Section 3.6 (discard network-layer packets while IPCP is not Opened) on the renegotiation path |
+| RFC gaps | RFC1661-4.3-1, RFC1661-3.6-2 |
 | Depends | - for the code. The third-party proof needs `spec-home-cpe-14-lac-realm-relay.md`, `spec-home-cpe-18-interoplab-multi-link-topology.md` and `spec-home-cpe-19-access-chain-scenario.md`; the Ze-LNS proof needs `spec-home-cpe-15-lns-lcp-renegotiation.md` |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
+Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
+
+RFC gaps, in words: RFC 1661 Section 3.4 and Section 4.1 (RCR in Opened, and
+RCR during the Authentication and Network-Layer Protocol phases; the summary
+files the "MUST be prepared to immediately renegotiate" sentence as
+`RFC1661-4.3-1`), and RFC 1661 Section 3.6 (discard network-layer packets while
+IPCP is not Opened, `RFC1661-3.6-2`) on the renegotiation path.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -52,7 +58,7 @@ is Opened again.
 - [ ] `rfc/short/rfc1661.md` (exists) - phase table, state table rows 9 Opened
   → Constraint: summary line "The receipt of a Configure-Request while in Network-Layer Protocol or Authentication phase returns the FSM to Link Establishment (Section 3.4)" is a derived claim; the quotes below are from `rfc/full/rfc1661.txt`
 - [ ] `rfc/full/rfc1661.txt` Section 3.4: "The receipt of the LCP Configure-Request causes a return to the Link Establishment phase from the Network-Layer Protocol phase or Authentication phase."
-- [ ] `rfc/full/rfc1661.txt` Section 4.1, Receive-Configure-Request implementation note: "These events may occur on a connection which is already in the Opened state.  The implementation MUST be prepared to immediately renegotiate the Configuration Options."
+- [ ] `rfc/full/rfc1661.txt` Section 4.3 (Events), Receive-Configure-Request implementation note (the state table it drives is Section 4.1): "These events may occur on a connection which is already in the Opened state.  The implementation MUST be prepared to immediately renegotiate the Configuration Options."
 - [ ] `rfc/full/rfc1661.txt` Section 4.1 state table, Opened column: RCR+ "tld,scr,sca/8", RCR- "tld,scr,scn/6"
 - [ ] `rfc/full/rfc1661.txt` Section 4.4, This-Layer-Down: "Typically, this action is used by the LCP to signal the Down event to a NCP, Authentication Protocol, or Link Quality Protocol"
 - [ ] `rfc/full/rfc1661.txt` Section 3.6: "Any supported network-layer protocol packets received when the corresponding NCP is not in the Opened state MUST be silently discarded."
@@ -76,6 +82,18 @@ is Opened again.
 
 **Behavior to change:**
 - A peer LCP Configure-Request received in Authentication, IPCP negotiation or the network phase restarts Link Establishment per the Opened column, then authentication and IPCP run again on the same session and unit
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Client phase functions | `internal/component/l2tp/pppoeclient/session.go` `negotiateLCP`, `runClientAuth`, `negotiateIPCP` | run LCP, authentication and IPCP once, in a straight line, at dial time | extends: the line becomes re-enterable from LCP, and each later phase hands a Configure-Request to it instead of dropping it |
+| Network-phase reader | `internal/component/l2tp/pppoeclient/network_phase.go` `keepaliveLoop`, `answerOpenedIPCP` | answers echo and Terminate on the channel, ends the session when IPCP leaves Opened | extends: an LCP Configure-Request starts the renegotiation; IPCP leaving Opened alone keeps ending the session |
+| Peer-option judgement | `internal/component/l2tp/ppp/lcp_options.go` `NegotiatePeerOptions` | decides Ack, Nak and Reject for a peer's LCP options under an `LCPNegPolicy` | extends: the renegotiation answers the pending request through it, no second judgement |
+| Local Magic-Number | `internal/component/l2tp/pppoeclient/session.go` `generateMagic` | picks the client's Magic-Number for the first negotiation | extends: called again for the renegotiation |
+| Shared /dev/ppp setup | `internal/component/l2tp/ppp/devppp_linux.go` `DevPPPSetup`; `docs/architecture/l2tp/bng-5-pppoe.md` "Patterns worth reusing" | creates channel and unit descriptors for L2TP and PPPoE | extends: a PPPIOCSNPMODE wrapper is added beside it in the same shared package |
+| Session supervision and iface apply | `internal/component/l2tp/pppoeclient/dialer.go` `superviseNetworkPhase`; `internal/component/iface/pppoe_client.go` `runSession` | runs the network phase; iface applies address, route and MTU once after `Dial` | extends: a change record on the session value lets `runSession` replace them in place |
+| LNS-side PPP FSM | `internal/component/l2tp/ppp/session_run.go` (server side), owned by `plan/release/fixes/spec-lcp-restart-counters.md` | the LNS and AC LCP state machine | does not apply: a different code path; this spec changes only the client |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -210,6 +228,7 @@ main thread.
 - `internal/component/l2tp/ppp/devppp_linux.go`, `devppp_other.go` - PPPIOCSNPMODE wrapper
 - `internal/component/iface/pppoe_client.go` - `PPPoESession` change field; `runSession` applies changes
 - `docs/architecture/l2tp/cpe-1-pppoe-client.md` - renegotiation path replaces "has no renegotiation path"
+- `docs/architecture/l2tp/bng-5-pppoe.md` (declared by `devppp_linux.go` and `devppp_other.go`) - nothing it states becomes wrong: "Shared PPP integration" still holds, since the NP mode wrapper lives in the same shared package; one sentence there names the wrapper beside `DevPPPSetup` so the page still lists the shared kernel setup in full
 - `rfc/short/rfc1661.md` - requirement rows for the client's Opened RCR handling with test links
 
 ## Files to Create

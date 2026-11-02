@@ -12,7 +12,7 @@
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
+Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -77,6 +77,16 @@ This stays a child of its own rather than moving into
 
 **Behavior to change:**
 - An `initiate` peer with an established SA accepts and adopts a reauthentication from that SA's peer address.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Responder peer match | `internal/component/ike/engine/register.go` `matchResponderPeer` | Returns a session only for a `respond` peer whose configured remote string equals the datagram source | extends: also returns an `initiate` session that holds an ESTABLISHED SA, for that SA's authenticated peer address |
+| Responder IKE_SA_INIT gate | `internal/component/ike/engine/register.go` `tryResponderSAInit`, `responderBusy` | Cookie gate, one half-open handshake per peer, parallel acceptance while a tunnel is up | extends: the same gate serves the `initiate` session; no second admission path |
+| Superseding SA adoption | `internal/component/ike/engine/established.go` `maintainSA`, the `ps.supersede` arm | After a parallel SA authenticates, relinquishes the old SA and removes only the old Child SA (make before break); `runResponder` promotes the new one | extends: generalised from `respond` sessions to `initiate` sessions; spec-ike-reauth reuses it |
+| Peer Delete of the IKE SA | `internal/component/ike/engine/delete.go` (`peerDeletedIKE`), `inbound.go` `handleInformationalOwned`; `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` "A rekey the peer refuses" | A peer Delete of the owner IKE SA ends the session with `errSADeletedByPeer`, and `PeerSession.run` reconnects | extends: a Delete of the retired SA after adoption does not reconnect, the way a Delete of the old SA after a rekey already does not |
+| Connection types | `internal/component/ike/ipsec/types.go` `ConnectionInitiate`, `ConnectionRespond` | Two types only | does not apply: no new type and no config leaf |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -191,6 +201,7 @@ This stays a child of its own rather than moving into
 - `internal/component/ike/engine/established.go`, `fsm.go`, `reconcile.go` - the initiator loop adopts a superseding SA
 - `internal/component/ike/engine/delete.go` - a delete for the retired SA does not trigger reconnect
 - `docs/guide/ipsec.md` - reauthentication by the gateway
+- `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - declared by `established.go` and `delete.go`. "A rekey the peer refuses" says a peer Delete of the IKE SA ends the session with `errSADeletedByPeer` and reconnects; after this change a Delete of an SA retired by an adopted reauthentication does not, so that paragraph names the exception
 
 ## Files to Create
 - `internal/component/ike/engine/reauth_receive_test.go`
@@ -230,7 +241,7 @@ This stays a child of its own rather than moving into
 | 13 | Route metadata keys | No | |
 | 14 | Prometheus counters | No | |
 | 15 | Registered plugin/event changed? | No | |
-| 16 | Changed source referenced by doc anchors? | Yes | derived by `./le spec citation anchors spec plan/home-cpe/spec-home-cpe-22-ike-responder-reauth.md` |
+| 16 | Changed source referenced by doc anchors? | Yes | derived by `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-22-ike-responder-reauth.md` |
 | 17 | Existing examples for this area? | No | |
 
 ## Implementation Steps
@@ -311,7 +322,7 @@ the EAP/CP refusal carries the "same party" quote.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete
-- [ ] The targeted tests for what changed pass
+- [ ] The targeted tests for what changed pass: the scoped package test for `internal/component/ike/engine` through `./le job run label unit-pkg command go test -tags ...`, `./le test functional ipsec`, `./le test integration interop-ipsec` for `responder-reauths-ze-initiator` and `responder-accepts-reinit`, and `./le verify changed` over the closing commits
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

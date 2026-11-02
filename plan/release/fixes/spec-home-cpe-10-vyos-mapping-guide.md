@@ -12,7 +12,7 @@
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: `plan/home-cpe/spec-home-cpe-0-umbrella.md` (child 10).
+Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 10).
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -46,7 +46,7 @@ The page holds:
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/home-cpe/spec-home-cpe-0-umbrella.md` "Conversion by the model", "Capabilities a home FTTP CPE needs"
+- [ ] `plan/release/fixes/spec-home-cpe-0-umbrella.md` "Conversion by the model", "Capabilities a home FTTP CPE needs"
   → Decision: the model reads the redacted VyOS configuration and writes Ze configuration with placeholders; the owner fills secrets on the router; passwords are re-entered as bcrypt.
 - [ ] `docs/guide/configuration.md` l.2546
   → Constraint: "It does not run under `ze config validate`, which reads the schema and does not run a plugin's config verifier." The guide's check therefore has a second step that starts Ze with the file.
@@ -79,6 +79,17 @@ The page holds:
 **Behavior to preserve:** every guide page; this adds one.
 
 **Behavior to change:** `docs/guide/README.md` index gains the page.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| ExaBGP configuration migration | `internal/exabgp/migration/migrate.go` `MigrateFromExaBGP`; `docs/exabgp/exabgp-migration.md` | converts an ExaBGP configuration tree to Ze configuration in code (`ze exabgp migrate`) | does not apply: the umbrella decided no converter program for VyOS; the guide is the VyOS counterpart of the ExaBGP migration page, and the README index lists it the same way |
+| Offline validation of a configuration file | `internal/component/config/cli/cmd_validate.go` `cmdValidate`, `internal/component/config/plugin_verify.go` `VerifyPluginConfigContent`; `ai/doors/config-yang.md` Traps | `ze config validate` runs the YANG checks and each registration's in-process verifier, never a live `OnConfigVerify` | extends: the guide's check step uses it first, then a Ze start so the live verifiers run too |
+| Parse functional suite | `test/parse/` (`./le test functional parse`) | `.ci` files that feed a configuration to the parser and assert acceptance or refusal | extends: `vyos-guide-example.ci` is one more file in that suite |
+| Documentation source anchors | `./le doc check all`; `ai/rules/documentation.md` | checks pages and their `<!-- source: -->` anchors | extends: every mapping row carries an anchor to its YANG file and the gate judges them |
+| Guide index | `docs/guide/README.md` task table and page table | lists every guide page, the ExaBGP migration included | extends: one row for the VyOS page |
+| Logical interface name resolution | `docs/architecture/iface/logical-name-resolution.md` | how a configured interface name becomes a kernel device | does not apply here: child 1 changes it; the guide only records the interim `ppp*` rewrite until then |
 
 ## The mapping the guide carries
 
@@ -197,7 +208,9 @@ today's tree; the child column names the spec that changes the row.
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
-N-A: documentation.
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| N-A | - | documentation: no Go changes; the worked example is proven by the functional test below | |
 
 ### Boundary Tests (numeric inputs)
 N-A: no numeric input.
@@ -309,6 +322,15 @@ None: `grep -rn -i 'vyos' plan/journal/` finds no open row.
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Every user story has a working path (N-A: docs)
 - [ ] Wiring Test table complete
+- [ ] The targeted tests for what changed pass: `./le test functional parse` for `vyos-guide-example.ci`, `./le doc check all` for the page's anchors, and `./le verify changed` over the closing commits
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs (N-A: no numeric input)
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features (N-A: docs; child 11 carries the lab proof)
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it

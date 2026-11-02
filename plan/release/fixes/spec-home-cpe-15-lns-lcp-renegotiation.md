@@ -6,13 +6,17 @@
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Adds an LNS policy RFC 2661 permits but does not require (renegotiating LCP instead of accepting the LAC's proxy LCP). It corrects a guide sentence that claims the option already exists. |
-| RFC gaps | - (Section 4.4.5 and Section 9.5 permit it; no MUST is added. The wrong "RFC 2661 Section 18" citations are corrected) |
+| RFC gaps | - |
 | Depends | `spec-home-cpe-14-lac-realm-relay.md` (a LAC that sends proxy LCP, for the scenario), `spec-home-cpe-18-interoplab-multi-link-topology.md` and `spec-home-cpe-19-access-chain-scenario.md` (lab), `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` (a Ze CPE that survives the LNS's renegotiation, for `access-wholesale` only) |
 | Phase | 0/3 |
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
+Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
+
+RFC gaps, in words: none. RFC 2661 Section 4.4.5 and Section 9.5 permit this
+policy; no MUST is added. The wrong "RFC 2661 Section 18" citations are
+corrected.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -137,6 +141,18 @@ Also owed:
 - With the new leaf set to renegotiate, the LNS ignores AVPs 26-28 and runs
   the normal LCP path from the synthetic Open.
 - The guide sentence and the "Section 18" citations.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| ICCN proxy AVP parsing | `internal/component/l2tp/session_fsm.go` `parseICCN` | stores AVPs 26 to 28 and 29 to 33 on the session | does not apply: unchanged; the data is still kept for the snapshot and logs (AC-6) |
+| Proxy LCP hand-off to PPP | `internal/component/l2tp/reactor_kernel.go` (`ppp.StartSession` built with `ProxyLCPInitialRecv`, `ProxyLCPLastSent`, `ProxyLCPLastRecv`); `internal/component/l2tp/ppp/start_session.go` | copies the three LCP slices into the session start | extends: `StartSession` also carries the operator's policy flag |
+| Proxy LCP evaluation and short-circuit | `internal/component/l2tp/ppp/proxy.go` `EvaluateProxyLCP`; `internal/component/l2tp/ppp/session_run.go` proxy branch, `afterLCPOpen` | on valid proxy data sets MRU, Auth-Protocol and both magics, goes to Opened and runs authentication | extends: the branch is gated by the flag; with `renegotiate` it is skipped |
+| Normal LCP path | `internal/component/l2tp/ppp/session_run.go` synthetic Up and Open | the path taken when `EvaluateProxyLCP` fails or no proxy data came | extends: reused as the renegotiate path, no new negotiation code |
+| Config extraction and hot reload | `internal/component/l2tp/config.go` `ExtractParameters`; `reactor_setters.go`; `subsystem_reload.go` | turns the `l2tp` tree into `Parameters` and applies reloadable values to new sessions | extends: carries `proxy-lcp` the same way |
+| Per-session forced renegotiation | `plan/release/fixes/spec-home-cpe-16-lns-mru-and-auth-allow-list.md` | forces the same path when the proxied method or MRU violates config | does not apply here: child 16 owns it; this spec adds only the global choice |
+| Proxy authentication off switch | `plan/post-release/features/spec-l2tp-proxy-authentication.md` | owns the `proxy-authentication` leaf and row RFC2661-9.5-2 | does not apply here: this spec only states how the two leaves combine |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -276,6 +292,8 @@ logs no second negotiation and the assertion goes red.
 - `docs/guide/l2tp.md` - l.338-341 rewritten; reload table row; configuration example
 - `rfc/short/rfc1661.md` - RFC1661-3.1-1 annotation citation
 - `features/l2tpv2-bng.md` - scope
+- `docs/research/l2tpv2-implementation-guide.md` (declared by `session_fsm.go` and `ppp/proxy.go`) - nothing becomes wrong: Section 18.4 already lists "Reject proxy and renegotiate LCP from scratch" as an LNS choice
+- `docs/research/l2tpv2-ze-integration.md` (declared by `config.go`, `reactor_kernel.go`, `kernel_event.go`, `ppp/start_session.go`, `ppp/session_run.go`, `ppp/session.go`) - nothing becomes wrong: it describes no proxy LCP policy, and its Section 5 schema sketch names no proxy leaf
 
 ## Files to Create
 - `test/l2tp/lns-proxy-lcp-config.ci`
@@ -315,7 +333,7 @@ logs no second negotiation and the assertion goes red.
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | Yes | metrics section of `docs/guide/l2tp.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived with `./le spec citation anchors spec plan/home-cpe/spec-home-cpe-15-lns-lcp-renegotiation.md` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived with `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-15-lns-lcp-renegotiation.md` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/l2tp.md` l.22-34 |
 
 ## Implementation Steps
@@ -410,3 +428,30 @@ files with Section 4.4.5.
 - [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
 - [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-7 all demonstrated
+- [ ] Every user story has a working path and a passing test
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/l2tp/...`, `./le test functional l2tp`, and `./le verify changed` over the closing commits. The full verification is Thomas's release check
+- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs (N-A: the leaf is an enumeration)
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove plan/release/fixes/spec-home-cpe-15-lns-lcp-renegotiation.md` only, in the same `./le commit create` script

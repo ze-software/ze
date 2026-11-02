@@ -6,13 +6,15 @@
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Feature: a dual-stack home CPE on a PPPoE WAN. Owner timing: a missing RFC feature may wait until after the first release. The rows it closes are recorded gaps of enrolled RFCs (RFC 7084 WLL-2, WLL-3, L-2, L-3, L-4; RFC 5072 on the client side). |
-| RFC gaps | RFC 5072 (IPv6CP, client side); RFC 7084 `RFC7084-4.2-9` (WLL-2), `RFC7084-4.2-10` (WLL-3), `RFC7084-4.3-5` (L-2), `RFC7084-4.3-6` (L-3), `RFC7084-4.3-7` (L-4); RFC 9915 Section 6.3 rows `RFC9915-6.3-1`, `RFC9915-6.3-2`, `RFC9915-6.3-3`, today `{feature-declined}` |
+| RFC gaps | rfc5072, RFC7084-4.2-9, RFC7084-4.2-10, RFC7084-4.3-5, RFC7084-4.3-6, RFC7084-4.3-7, RFC9915-6.3-1, RFC9915-6.3-2, RFC9915-6.3-3 |
 | Depends | Owner scope decision (below); `plan/release/validation/spec-ppp-ipv6-link-local-never-assigned.md` (link-local on `pppN`); `spec-home-cpe-1-logical-interface-name.md` (the LAN unit names the PPPoE client by its configured name) |
 | Phase | 0/5 |
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: `plan/home-cpe/spec-home-cpe-0-umbrella.md` (child 8).
+Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 8).
+
+RFC gaps, in full: RFC 5072 (IPv6CP, client side); RFC 7084 `RFC7084-4.2-9` (WLL-2), `RFC7084-4.2-10` (WLL-3), `RFC7084-4.3-5` (L-2), `RFC7084-4.3-6` (L-3), `RFC7084-4.3-7` (L-4); RFC 9915 Section 6.3 rows `RFC9915-6.3-1`, `RFC9915-6.3-2`, `RFC9915-6.3-3`, today `{feature-declined}`.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -100,6 +102,17 @@ Make Ze a dual-stack CPE on a PPPoE WAN:
 
 **Behavior to change:**
 - The client opens IPv6CP; DHCPv6 and the IPv6 sysctls apply on `pppN`; a LAN unit can take a /64 from a named delegation.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec |
+|-----------|------------------------------------------|--------------------|-----------|
+| Server-side IPv6CP codec | `internal/component/l2tp/ppp/ipv6cp.go` `parseIPv6CPOptions`, `writeIPv6CPOptions`, `generateIPv6CPInterfaceID`, `suggestIPv6CPInterfaceID` | encodes and decodes the Interface-Identifier option and draws identifiers for the LNS | extends: the codec is exported to the client within the component rather than written a second time |
+| Client NCP phase | `internal/component/l2tp/pppoeclient/session.go` `negotiateIPCP`; `network_phase.go` `keepaliveLoop` | runs LCP, authentication, then IPCP only; drops any non-IPCP unit frame | extends: IPv6CP negotiation beside IPCP, and its frames answered in the network phase |
+| Unit IPv6 config | `internal/component/iface/yang/ze-iface-conf.yang` `grouping interface-unit` (`ipv6`, `dhcpv6`, `router-advertisement`), `list pppoe-client` | IPv6 leaves on a unit; `pppoe-client` uses `interface-common` only | extends: the `ipv6` grouping is shared with `pppoe-client`, and a unit gains a delegated-prefix source |
+| DHCPv6 lease effect | `internal/plugins/iface/dhcp/dhcp_v6_linux.go` `v6Worker.effect`; `dhcp_v6_lease_linux.go` `v6KindPrefix` | installs IA_NA addresses and publishes each IA_PD prefix as a `dhcp-acquired` event that nothing consumes | extends: DHCPv6 runs on `pppN`, and a new LAN consumer subscribes to the published prefix; no Release while delegated |
+| RA unit config | `internal/component/iface/config_ra.go` `raUnitConfig`, `parseRAConfig`, `raParsePrefixes` | prefixes come from the operator's `prefix` list only; Router Lifetime fixed by config | extends: prefixes derived from the delegated prefix, and Router Lifetime 0 when the WAN has no default route |
+| RA encoder and sender | `internal/core/ndp/ra.go` `BuildRA`; `internal/plugins/iface/ra/sender_linux.go` | writes SLLA, PIO and RDNSS; no RIO; subscribes to no DHCP event | extends: a Route Information Option written into the same buffer |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -237,6 +250,9 @@ Make Ze a dual-stack CPE on a PPPoE WAN:
 - `internal/component/iface/config_ra.go`, `internal/plugins/iface/ra/sender_linux.go`, `internal/core/ndp/ra.go` - derived prefixes, RIO, Router Lifetime 0
 - `rfc/short/rfc5072.md`, `rfc/short/rfc7084.md`, `rfc/short/rfc9915.md` - rows moved from gap or declined to tested
 - `docs/guide/pppoe.md`, `docs/guide/configuration.md`
+- `docs/architecture/l2tp/cpe-1-pppoe-client.md` - wrong after this change: its opening says the client negotiates "LCP, authentication and IPCP", and its network-phase paragraph describes IPCP as the only NCP the unit reader handles; both gain IPv6CP negotiation and its Opened handling, with source anchors on the new client code
+- `docs/features/interfaces.md` - wrong after this change: the Capability Table row "Route Information option (RFC 4191)" reads `missing`, and the DHCPv6 paragraph says nothing of a delegated prefix being used on a LAN unit or of DHCPv6 on `pppN`; both are updated
+- `docs/research/l2tpv2-ze-integration.md` section 9.5 (the design page `ppp/ipv6cp.go` declares) - names the codec functions `parseIPv6CPOptions` and `suggestIPv6CPInterfaceID`; if exporting the codec renames them, the names there follow; its LNS-side behavior is unchanged
 - `features/*.md` - PPPoE client and DHCPv6 entries
 
 ## Files to Create
@@ -355,6 +371,11 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete
 - [ ] Interop red walks recorded
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output): the scoped package tests of `internal/component/l2tp/pppoeclient`, `internal/component/iface`, `internal/core/ndp`, `internal/plugins/iface/ra` and `internal/plugins/iface/dhcp` under `./le job run`, `./le test functional parse` for the two parse tests, the interop scenarios through `./le test deployment docker-pppoe-accel` and `./le test integration interop-topology pppoe-dhcpv6-pd-ze-client`, then `./le verify changed` over the closing commits
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it

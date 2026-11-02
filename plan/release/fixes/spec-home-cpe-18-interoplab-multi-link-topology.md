@@ -12,7 +12,7 @@
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: `plan/home-cpe/spec-home-cpe-0-umbrella.md` (child 18).
+Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 18).
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -92,6 +92,19 @@ declaration and stays green.
 - Links move from the BGP package to the core, open to any peer.
 - Images become registered by name in the core; suites derive their lists from it.
 - A scenario may plan several Ze peers.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec |
+|-----------|------------------------------------------|--------------------|-----------|
+| BGP-suite links between daemons | `internal/le/interoplab/bgp/prepare_links.go` `labLink`, `scenarioLinks`, `renderLinks`, `validateLink`, `writeLinkScript`; `docs/architecture/testing/interop.md` "Separate links between daemons" | declares VLAN links between members of `linkLocalOwners`, refuses bad links, and writes the `eth<N>` subinterface script, for the BGP suite only | replaces: the link type, its refusals and its script move to the `interoplab` core, open to any peer; the BGP copy is deleted, not kept beside it |
+| Entrypoint wrapper | `internal/le/interoplab/bgp/prepare.go` `wrapStart`, `linkLocalOwners` | replaces a member's entrypoint with a script that adds the eth0 link-local, the links and a prestart, then execs the original entrypoint | replaces: `wrapStart` is deleted and its work becomes `PeerConfig.Prestart` composed in the core |
+| Scenario run | `internal/le/interoplab/lab.go` `ScenarioPlan`, `Suite.Run`, `Suite.runScenario`, `CheckerLab` | one network per scenario, one `Preparer`, peers addressed by name | extends: `ScenarioPlan` gains links and may plan several Ze peers |
+| Docker network and peer | `internal/le/interoplab/docker.go` `NetworkSpec`, `Docker.CreateNetwork`, `PeerConfig`, `ImageBuild` | creates the scenario network and starts each peer from its config | extends: `PeerConfig` gains `Prestart`; image inspect reads entrypoint and command |
+| Per-suite image lists | `Suite.Images` in each suite builder (`l2tp/l2tp.go`, `radiussubscriber/radiussubscriber.go`, `pppoe/pppoe.go`, `ipsec/ipsec.go`, `internal/le/test/deployment/wireguardproof.go`) | each suite builds its own `[]ImageBuild` | replaces: images register by name in the core and suites derive their lists from that registry |
+| Scenario catalog and discovery | `internal/le/interoplab/catalog.go` `RegisterCatalog`, `discover.go` `Discover` | shared by every suite | extends: the new `topology` suite registers through it unchanged |
+| `/dev/ppp` grant | `internal/le/interoplab/pppdevice.go` `PPPDeviceArguments` | the device grant every PPP container needs | extends: reused by the `two-ze-pppoe-link` scenario |
+| Integration verbs | `internal/le/test/integration/gates.go` | the `interop*` native actions | extends: one `interop-topology` verb |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -221,6 +234,7 @@ N-A: tooling. Children 19 and 11 carry the protocol scenarios.
 - `internal/le/test/integration/gates.go` - `interop-topology` verb
 - `docs/architecture/testing/interop.md` - "Separate links between daemons" rewritten for the core; new section for the topology suite; suites table row
 - `docs/functional-tests.md` - the new suite
+- `docs/architecture/testing/qemu-integration.md` - "VPN facilities without module loading" (the design page `wireguardproof.go` declares): read, and nothing there becomes wrong; it describes the WireGuard proof's checks and module guards, not how its image list is built, so registering the image by name leaves every sentence true
 
 ## Files to Create
 - `internal/le/interoplab/link.go`, `link_test.go` - link type, validation, rendering, wrapper
@@ -350,6 +364,11 @@ None: `grep -rn 'labLink\|scenarioLinks\|one network per\|two Ze' plan/journal/`
 - [ ] The targeted tests for what changed pass; no agent runs the full verification
 - [ ] Integration and Documentation checklists answered with evidence
 - [ ] Every A-N confirmed or broken, none `unvalidated`
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output): the scoped package tests of `internal/le/interoplab` and `internal/le/interoplab/bgp` under `./le job run`, then `./le test integration interop-topology` and `./le test integration interop isis-import-policy-frr`
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it

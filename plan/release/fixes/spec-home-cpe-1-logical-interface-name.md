@@ -12,7 +12,7 @@
 | Handoff | - |
 | Updated | 2026-11-02 |
 
-Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
+Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -69,6 +69,19 @@ and across reconnects.
 **Behavior to change:**
 - The pppoe-client device carries the configured name
 - A static next-hop that names a declared pppoe-client is accepted while the device is absent, and is programmed whenever the device exists
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Shared logical-name resolver | `internal/component/iface/resolve.go` `Resolve`, `ResolveIndex`, `osDeviceFor`, `setMapping`; `docs/architecture/iface/logical-name-resolution.md` | maps a configured name to its kernel device through `os-name` and `mac match` overrides, or passes it through | extends: publishes declared dynamic names so "declared, absent" differs from unknown; no second mapping table |
+| Created kinds named after the config key | `internal/component/iface/config_apply.go` (dummy, veth, tunnel, wireguard, xfrm, bridge creation) | creates the device under its configured name, so it needs no resolver mapping | extends: the pppoe-client joins the created kinds |
+| Shared /dev/ppp setup | `internal/component/l2tp/ppp/devppp_linux.go` `DevPPPSetup` | PPPIOCNEWUNIT with -1, kernel names the unit `pppN` | replaces for the client only (named rtnetlink creation); the LNS and AC keep the unnamed path |
+| Interface-name validation | `internal/component/iface/validate.go` `ValidateIfaceName` | validates kernel interface names, used for `source-interface` today | extends: applied to the pppoe-client key |
+| Static next-hop resolvability check | `internal/plugins/static/locrib.go` `checkNextHopResolvable` | refuses a route whose interface does not resolve at commit | extends: accepts a declared, absent dynamic name |
+| Link event subscription | `internal/component/iface/resolve.go` `Subscribe`, `onLinkEvent` | delivers per-name link events and invalidates the cache | extends: the FIB path programs a waiting route when the device appears |
+| fib-kernel external change watch | `internal/plugins/fib/kernel/monitor.go` `handleExternalChange` | reasserts routes Ze owns that another writer changed | does not apply: it reacts to route events, not to a device appearing |
+| nft interface match | `internal/plugins/firewall/nft/lower_linux.go` `lowerIfaceMatch` | emits a literal or wildcard IIFNAME/OIFNAME compare of the configured name | does not apply: unchanged, it becomes correct once the device carries the configured name |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -205,6 +218,8 @@ and across reconnects.
 - `internal/plugins/fib/kernel/` - program on device appearance
 - `internal/component/iface/yang/ze-iface-conf.yang` - list and `name` descriptions; `length "1..15"` and the ifname pattern
 - Docs: `docs/guide/static-routes.md` (example now true; say the route waits for the session), `docs/architecture/l2tp/cpe-1-pppoe-client.md`, `docs/architecture/iface/logical-name-resolution.md` (pppoe-client is a created kind; declared dynamic names), `docs/architecture/static-routes.md` (absent declared name), `docs/guide/firewall.md` (name the PPPoE client by its configured name)
+- `docs/architecture/l2tp/bng-5-pppoe.md` (declared by `devppp_linux.go` and `devppp_other.go`) - "Patterns worth reusing", "Shared PPP integration ... kernel setup is shared" and the paragraph on the extracted identical ioctl sequences become wrong: the PPPoE client now creates its unit by name through rtnetlink while the LNS and AC keep PPPIOCNEWUNIT; say which transport takes which path
+- `docs/features/interfaces.md` (declared by `config.go` and `config_apply.go`) - the Capability Table row "PPPoE | missing" and "Input validation (name, VLAN, MTU)" need the pppoe-client kind, its key limit (1 to 15 octets, ifname pattern, unique across kinds) and that its device carries the configured name; the logical-name section gains the pppoe-client as a created kind
 
 ## Files to Create
 - `internal/component/l2tp/ppp/devppp_integration_linux_test.go`

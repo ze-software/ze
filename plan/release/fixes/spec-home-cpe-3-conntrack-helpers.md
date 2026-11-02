@@ -2,26 +2,29 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | config |
 | Priority | P2 |
-| Release reason | Release fix once the owner decides: `system conntrack module ftp` is accepted and does nothing on Ze's kernel (no helper built in, none assigned), so FTP, SIP, H.323, PPTP and TFTP through NAT break while the configuration says otherwise |
-| RFC gaps | - (RFC 4787 Section 7 REQ-10 bears on the default; no requirement row is changed) |
-| Depends | owner decision (below); `plan/release/delivery/spec-ze-loads-kernel-modules-on-vendor-kernels.md` (AC-22, the helper kernel row and the `nfs`/`sqlnet` removal) |
+| Release reason | Release fix: `system conntrack module ftp` is accepted and does nothing on Ze's kernel (no helper built in, none assigned), so FTP, SIP, H.323, PPTP and TFTP through NAT break while the configuration says otherwise |
+| RFC gaps | - |
+| Depends | `plan/release/delivery/spec-ze-loads-kernel-modules-on-vendor-kernels.md` (AC-22, the helper kernel row and the `nfs`/`sqlnet` removal) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-02 |
 
-Parent: `plan/home-cpe/spec-home-cpe-0-umbrella.md` (child 3).
+Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 3).
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## OWNER DECISION OPEN
+## Owner decision: Option A
+
+Decided by the owner on 2026-11-02: Option A, build the helpers in and assign
+them explicitly.
 
 Ze's kernel leaves every conntrack helper out, against NAT slipstreaming. A
 home CPE that masquerades its LAN needs at least the FTP helper for active FTP,
 and a VyOS CPE assigns ftp, h323, pptp, sip, tftp (and the user-space nfs and
-sqlnet helpers) by default. The two options:
+sqlnet helpers) by default. The two options weighed:
 
 | | Option A: build helpers in, assign explicitly | Option B: keep helpers out |
 |-|-----------------------------------------------|----------------------------|
@@ -33,17 +36,15 @@ sqlnet helpers) by default. The two options:
 | VyOS migration | maps one to one, minus `nfs` and `sqlnet` | the mapping guide drops the helper block with a reason |
 | Other specs | AC-22 of the kernel-modules spec already says "Ze's kernel builds in the helpers it still offers": consistent | AC-22 must be rewritten to "refused on Ze's kernel"; `spec-nat44-customer-napt.md` Decision on REQ-10 stays as it is |
 
-**Recommendation: Option A.** The exposure that made the helpers dangerous
+**Why Option A.** The exposure that made the helpers dangerous
 was automatic assignment on every connection, which Linux no longer does; with
 an empty default list, explicit per-helper opt-in and the kernel-modules
 spec's AC-22 already written that way, Ze ships the RFC 4787 REQ-10 default
 and lets the operator turn on the one ALG a home line needs. Under Option B the
 configuration leaf would refuse on the appliance and work on a distro kernel,
-which is a surprising split for one leaf. The recommendation changes nothing
-until the owner decides; this spec stays `design` until then.
+which is a surprising split for one leaf.
 
-The rest of this spec is written for Option A, with the Option B delta in its
-own section at the end.
+The rest of this spec is written for Option A.
 
 ## Task
 
@@ -110,6 +111,29 @@ filter chains at priority filter.
 - Helpers listed are built into Ze's kernel (Option A) and assigned through nft.
 - The YANG description and the guide stop saying "only loads".
 
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| Firewall table registry | `internal/component/firewall/registry.go` `RegisterTables`, `ApplyAll` | Each owner registers desired nft tables under an owner key; every name carries the `ze_` prefix so the backend reconciles and sweeps only what Ze owns; tables of the same name and family from several owners merge (`ai/doors/forwarding.md`, "The firewall table registry is process-local"; `docs/architecture/firewall/table-ownership-and-shutdown-flush.md`) | extends: the helper objects and the assignment chains are one more owner's tables, registered here, never a second nft client |
+| Firewall backend selection | `internal/component/firewall/backend.go` `RegisterBackend`, `LoadBackend` | nft backend for Linux, VPP backend selected by the `backend` leaf; a backend that cannot implement a node refuses it at verify (`ze:backend`) | extends: `ct helper` lowering goes into the nft backend; VPP refuses `system conntrack module` at verify through the same gate |
+| Conntrack module loading | `internal/component/config/system/conntrack_linux.go` `LoadConntrackModules`, `cmd/ze/hub/main_system.go` `applyConntrackConfig` | modprobes `nf_conntrack_<name>`, and silently does nothing where no modprobe exists (the appliance) | extends on a distro kernel (module load stays, owned by the kernel-modules spec); on Ze's kernel the helpers are built in, so the silent no-op stops mattering once assignment exists |
+| Kernel module loading on vendor kernels | `plan/release/delivery/spec-ze-loads-kernel-modules-on-vendor-kernels.md` (AC-22) | plans built-in helpers on Ze's kernel and modprobe on a vendor kernel | does not duplicate: this spec depends on it for the module half and adds the nft assignment it lacks |
+| Kernel tunables | `internal/component/sysctl` | owns every sysctl, config over plugin defaults | does not apply: helper assignment is nft state, not a sysctl (`net.netfilter.nf_conntrack_helper` auto-assignment is gone since Linux 6.0) |
+| Interface name resolution | `docs/architecture/iface/logical-name-resolution.md` | turns configured names into devices | does not apply: assignment matches by protocol and port, not by interface |
+
+RFC 4787 Section 7 REQ-10 bears on the default (helpers off unless listed); no
+requirement row changes.
+
+Design documents the code this spec touches declares, each checked for what
+the change makes wrong: `docs/architecture/core-design.md` (sections 14a and
+14b: the backend gate and the firewall backends, which gain the `ct helper`
+lowering and the VPP refusal), `docs/architecture/firewall/fw-6-firewall-vpp.md`
+(the VPP backend's list of refused features gains `system conntrack module`),
+`docs/architecture/hub-architecture.md` (names the hub's system apply step;
+the conntrack apply moves from module loading alone to module loading plus table
+registration).
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -156,7 +180,6 @@ filter chains at priority filter.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | The owner picks Option B | decision | apply the Option B delta below; the doc correction lands either way |
 | R-2 | Operator's own chain at priority below filter - 5 runs before assignment | helper not applied | document the priority; verify warns when an operator chain at prerouting has priority lower than -5 |
 | R-3 | Helpers built in enlarge the attack surface even unassigned | review | unassigned helpers process nothing; the integration test proves no expectation is created without assignment |
 
@@ -225,6 +248,9 @@ filter chains at priority filter.
 | `lan-services` (FTP step) | owned by child 11 | an FTP server (vsftpd) and client beyond Ze's masquerade | AC-6 against third-party FTP | |
 
 ## Files to Modify
+- `docs/architecture/core-design.md` - sections 14a and 14b: the nft backend lowers `ct helper`, the VPP backend refuses it at verify
+- `docs/architecture/firewall/fw-6-firewall-vpp.md` - the VPP backend's refused features gain `system conntrack module`
+- `docs/architecture/hub-architecture.md` - the system apply step registers helper tables as well as loading modules
 - `gokrazy/kernel/kernel.config`, `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` - helpers kept `=y`, comment rewritten to state the explicit-assignment model
 - `internal/component/config/system/yang/ze-system-conf.yang` - description of `module`
 - `internal/component/config/system/conntrack.go` - helper table, verify
@@ -273,7 +299,7 @@ filter chains at priority filter.
 | 13 | Route metadata keys? | No | none |
 | 14 | Prometheus counters? | No | none |
 | 15 | Registered inventory changed? | No | none |
-| 16 | Doc source anchors on changed files? | Yes | `./le spec citation anchors spec plan/home-cpe/spec-home-cpe-3-conntrack-helpers.md` |
+| 16 | Doc source anchors on changed files? | Yes | `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-3-conntrack-helpers.md` |
 | 17 | Existing examples? | Yes | `configuration.md` l.3494 and l.3567 conntrack examples |
 
 ## Implementation Steps
@@ -313,17 +339,6 @@ filter chains at priority filter.
 | A-2 refuted | DESIGN: per-family ip and ip6 tables |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
-## Option B delta
-
-If the owner keeps helpers out: kernel unchanged; verify refuses
-`system conntrack module` when the running kernel lacks the helper (always on
-Ze's kernel), with the reason and the alternatives; on a distro kernel the
-module loads (kernel-modules spec) and this spec's assignment still runs, so
-the leaf works where the kernel has the helper. AC-1..AC-4 and AC-6 move to
-"distro kernel" integration runs; the kernel-modules spec's AC-22 is rewritten
-by its owner; the mapping guide (child 10) drops the VyOS helper block with the
-reason.
-
 ## Design Insights
 
 - Building a helper in without assigning it changes nothing on a 6.0+ kernel, so "load the module" was never enough on any kernel Ze supports.
@@ -339,7 +354,7 @@ reason.
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Recommend Option A (open, owner decides) | Option B | see the decision table; REQ-10 holds through an empty default |
+| Option A, decided by the owner on 2026-11-02: helpers built in, assigned only when listed, empty default list | Option B: keep every helper out and refuse `system conntrack module` on Ze's kernel, working only on a distro kernel that ships the module | see the decision table; REQ-10 holds through an empty default, and one leaf behaves the same on the appliance and on a distro kernel |
 | One helper declaration table drives YANG, guide and lowering | per-helper switch in the lowering | principles: declare once |
 | Install through the firewall backend | a second nft client in config/system | one owner of nft state |
 | Priority filter - 5, prerouting and output | forward hook | matches the reference CPE and assigns before NAT and filter decisions |
@@ -348,3 +363,27 @@ reason.
 
 - `nfs` and `sqlnet` need user-space helpers (`nfnetlink_cthelper` and a daemon); Ze provides neither. Their refusal is the kernel-modules spec's AC-22.
 - Per-interface or per-direction restriction of assignment is not offered; a later feature if wanted.
+
+## Checklist
+
+### Pre-Spec Verification
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] Existing Mechanisms table names every mechanism this spec extends
+- [ ] No code snippets
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-N all demonstrated
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] Targeted tests pass: `./le test unit plugins`, `./le test firewall`, `./le test integration firewall`, and `./le test qemu all` scoped to the conntrack integration test on Ze's kernel; then `./le verify changed` over the closing commits
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests: the `lan-services` FTP step of child 11
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean

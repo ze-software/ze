@@ -6,13 +6,16 @@
 | Scope | plugin |
 | Priority | P2 |
 | Release reason | Release validation and documentation: the reported defect (a smaller MSS is raised) does not reach the wire on Linux, because the kernel refuses to raise it, but no test proves the clamp on the state Ze installs and the policy-routing YANG text describes an unconditional rewrite |
-| RFC gaps | - (RFC 9293 Section 3.7.1 and RFC 6691 explain why raising is harmful; Ze is a middlebox here and holds no requirement row) |
+| RFC gaps | - |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: `plan/home-cpe/spec-home-cpe-0-umbrella.md` (child 21).
+Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 21).
+
+RFC gaps: none. RFC 9293 Section 3.7.1 and RFC 6691 explain why raising is
+harmful; Ze is a middlebox here and holds no requirement row.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -85,6 +88,19 @@ row ("rewrites rather than clamps") should be corrected by its owner.
 
 **Behavior to change:**
 - Descriptions and help text only; tests added. No lowering change.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Firewall MSS action | `internal/component/firewall/model.go` `SetTCPMSS`; parsed in `internal/component/firewall/config.go` (`tcp-mss-set`) | the one action both config surfaces lower to | does not apply: unchanged; this spec proves its effect and corrects its text |
+| nft MSS lowering | `internal/plugins/firewall/nft/lower_linux.go` `lowerSetTCPMSS` | emits an `immediate` into a register and an `exthdr` TCP-option write of kind 2, offset 2, length 2, with no comparison | extends: only its comment, which gains the kernel guard it relies on; the expression is unchanged |
+| Kernel MSS guard | Linux `net/netfilter/nft_exthdr.c` `nft_exthdr_tcp_set_eval` | skips the write when the packet's MSS is already less than or equal to the value | does not apply as code: Ze relies on it, and the netns test proves it on the rule Ze installs (`ai/META-DECISIONS.md`, a requirement the OS meets on Ze's behalf still owes a test) |
+| Policy-routing MSS | `internal/plugins/policyroute/translate.go` `allocator.buildActions`; `docs/architecture/policyroute/policy-routing.md` | appends `firewall.SetTCPMSS` when `TCPMSS > 0`, before any terminal action | does not apply: unchanged; the new `.ci` drives it end to end |
+| Family check | `internal/component/firewall/validate.go` (the `SetTCPMSS` case) | refuses `tcp-mss-set` outside families ip, ip6 and inet | does not apply: preserved |
+| VPP refusal | `internal/plugins/firewall/vpp/verify.go` (the `firewall.SetTCPMSS` case); `docs/architecture/firewall/fw-6-firewall-vpp.md` | refuses the action at verify on the VPP backend | does not apply: preserved |
+| nft netns integration harness | `internal/plugins/firewall/nft/integration_linux_test.go` (named netns setup through `netns.NewNamed`) | applies tables inside a throwaway namespace on a real kernel | extends: the forwarding proof is a new test in the same file and harness, no second harness |
+| Policy MSS functional test | `test/policy/policy-tcp-mss.ci` | asserts the ruleset carries `tcp option maxseg size set 1436`, not the packet effect | extends: kept; `policy-tcp-mss-clamp.ci` adds the packet effect |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -187,6 +203,9 @@ row ("rewrites rather than clamps") should be corrected by its owner.
 - `internal/component/firewall/yang/ze-firewall-conf.yang` - `tcp-mss-set` description
 - `internal/plugins/firewall/nft/lower_linux.go` - `lowerSetTCPMSS` comment names the kernel guard it relies on
 - `docs/guide/firewall.md`, `docs/guide/policy-routing.md` - one sentence each
+- `docs/architecture/core-design.md` - declared by `lower_linux.go` (nftables expression lowering); it says nothing about the MSS action, and the expression is unchanged, so nothing becomes wrong
+- `docs/architecture/policyroute/policy-routing.md` - declared by `translate.go`; "`tcp-mss N` ... adjusts MSS" stays true and `translate.go` is unchanged, so nothing becomes wrong
+- `docs/architecture/firewall/fw-6-firewall-vpp.md` - declared by `vpp/verify.go`; the VPP refusal is preserved, so nothing becomes wrong
 
 ## Files to Create
 - `test/policy/policy-tcp-mss-clamp.ci`
@@ -226,7 +245,7 @@ row ("rewrites rather than clamps") should be corrected by its owner.
 | 13 | Route metadata keys? | No | none |
 | 14 | Prometheus counters? | No | none |
 | 15 | Registered inventory changed? | No | none |
-| 16 | Doc source anchors on changed files? | Yes | `./le spec citation anchors spec plan/home-cpe/spec-home-cpe-21-mss-clamp-not-raise.md` |
+| 16 | Doc source anchors on changed files? | Yes | `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-21-mss-clamp-not-raise.md` |
 | 17 | Existing examples? | Yes | `policy-routing.md` l.72 example value checked against RFC 6691 arithmetic |
 
 ## Implementation Steps
@@ -282,3 +301,29 @@ No journal row records this (grep of `plan/journal/` for `tcp-mss`, `TCPMSS`, `M
 
 - VPP backend: no MSS action; unchanged, refused at verify.
 - Clamp to the route MTU is child 9 (`spec-home-cpe-9-mss-clamp-to-pmtu.md`).
+
+## Checklist
+
+### Pre-Spec Verification
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] Existing Mechanisms table names every mechanism this spec relies on or extends
+- [ ] No code snippets
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-5 all demonstrated
+- [ ] Every user story has a working path and a passing test
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] Targeted tests pass: `./le test unit plugins`, `./le test integration firewall` and `./le test qemu all` scoped to `TestTCPMSSSetClampsNeverRaises` on Ze's kernel, and `./le test policy` for `policy-tcp-mss-clamp`; then `./le verify changed` over the closing commits
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests: YANG range unchanged (1-65535)
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests: the `lan-services` MSS step of child 11
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean

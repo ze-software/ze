@@ -6,13 +6,13 @@
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Validation: the lab is the evidence that a Ze router converted from a VyOS home CPE does the job end to end (umbrella goal 3), and it carries the first runtime proof of shipped features that have none (WireGuard road warrior, masquerade and MSS with Ze in the path, the LAC relay). |
-| RFC gaps | - (each scenario proves the RFC rows of the child it depends on) |
+| RFC gaps | - |
 | Depends | `spec-home-cpe-18-interoplab-multi-link-topology.md`, `spec-home-cpe-19-access-chain-scenario.md`, `spec-home-cpe-10-vyos-mapping-guide.md`; per scenario (table below): children 2, 3, 4, 5, 6, 12, 14, 15, 20, 21; `plan/release/validation/spec-wireguard-runtime-proof.md`; `plan/release/validation/spec-ipsec-0-umbrella.md`; `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` |
 | Phase | 0/8 |
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: `plan/home-cpe/spec-home-cpe-0-umbrella.md` (child 11).
+Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 11).
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -58,7 +58,7 @@ reaches it only through the PPP session.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/home-cpe/spec-home-cpe-0-umbrella.md` "Lab", "Conversion by the model"
+- [ ] `plan/release/fixes/spec-home-cpe-0-umbrella.md` "Lab", "Conversion by the model"
   → Decision: every value invented; the CPE configuration is the model's conversion with lab values.
 - [ ] `docs/architecture/testing/interop.md` "Prove a scenario discriminates", "IPsec address movement", "The IPsec NAT box", "The fifth trap" text under the vacuity table
   → Constraint: ESP proof reads each simplex SA by its own source and destination, never an SPI-keyed aggregate (`verifyESPDirections`, `internal/le/interoplab/ipsec/helpers.go`).
@@ -86,6 +86,21 @@ reaches it only through the PPP session.
 **Behavior to preserve:** every existing scenario.
 
 **Behavior to change:** none in Ze here. Each scenario's red-today clause is the dependency child's defect.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Interop scenario discovery | `internal/le/interoplab/discover.go` `Discover`; `docs/architecture/testing/interop.md` | lists scenario directories in lexical order, matches a selector by exact name, and refuses a selected directory with no registered checker | extends: each new scenario is a named directory with a registered checker, no list edited |
+| Directed ESP counters | `internal/le/interoplab/ipsec/helpers.go` `verifyESPDirections` | proves ESP bytes moved on every simplex SA the caller names, read per direction, beside a lossless ping | extends: `mgmt-tunnel` and `access-reconnect` read ESP through it rather than a second counter reader |
+| Kernel-only WireGuard proof | `internal/le/test/deployment/wireguardproof.go` `runWireGuardProof`, `checkWireGuardProof` | two nodes ping over kernel WireGuard; its header says it does not prove the configuration-commit path | does not apply as the proof: `road-warrior` proves the commit path that this proof disclaims, and reuses its `Dockerfile.wireguard` image |
+| PPPoE interop suite | `test/interop-pppoe/scenarios/` (`01-pppoe-chap-ipv4`, `pppoe-chap-rechallenge-ze-client`) | runs the Ze PPPoE client against accel-ppp, IPv4 only; no scenario renegotiates LCP | extends: `accel-ppp-renegotiation` is one more scenario in that suite |
+| PPP frame injector | `internal/le/interoplab/l2tp/avprelay/pppinject.go` `injectFrames` | injects crafted PPP frames into an L2TP data path (used by `ppp-code-reject-xl2tpd`) | fallback only: used if accel-ppp cannot be made to renegotiate (A-1) |
+| Knot and dhcpcd lab image | `test/interop/Dockerfile.knot` | one image serves `knot` (authoritative server) and `dnsclient` (kdig and dhcpcd driven over `docker exec`) | extends: the DNS node and the LAN clients run this image |
+| RFC discrimination record | `./le rfc record`; `docs/contributing/rfc-conformance-gates.md` | breaks the producer, observes the tagged test red, and stores the record | extends: each scenario's red walk carrying an `RFC requirement:` tag is recorded through it |
+
+RFC rows: this spec adds no requirement of its own. Each scenario proves the
+RFC rows of the child it depends on, so the RFC gaps cell is `-`.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -344,6 +359,15 @@ None: `grep -rn 'home-cpe\|road-warrior\|masquerade.*proof\|MSS.*Ze in the path'
 - [ ] Every user story has a working path (N-A: tooling)
 - [ ] Wiring Test table complete
 - [ ] Every A-N confirmed or broken
+- [ ] The targeted tests for what changed pass: `./le job run label unit-pkg command go test ./internal/le/interoplab/topology/` for the checkers, each scenario through `./le test integration interop-topology <scenario>` (and `./le test deployment docker-pppoe-accel` for `accel-ppp-renegotiation`) on the full-suite host, and `./le verify changed` over the closing commits
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs (or N-A when the feature takes none)
+- [ ] Functional `.ci` tests for end-to-end behavior (N-A: the lab's scenarios are interop scenarios)
+- [ ] Interop tests for protocol features (or N-A with a reason)
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it

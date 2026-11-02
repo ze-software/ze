@@ -12,7 +12,7 @@
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
+Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -93,6 +93,15 @@ installs with no selector, and the same test goes green.
 
 **Behavior to change:**
 - A tunnel-mode state installed with no selector carries `XFRM_STATE_AF_UNSPEC`.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| XFRM state builder | `internal/component/ike/dataplane/xfrm_linux.go` `xfrmStateFromParams` | Builds `netlink.XfrmState` from `SAParams`; sets `Selector` only when `p.Sel` is non-nil; refuses a mixed outer pair | extends: sets the AF_UNSPEC field for tunnel mode with nil `Sel`, leaves every other branch as it is |
+| Vendored-module patch set | `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch`, checked by `internal/le/vendorpatch/netlink_xfrm_patch_test.go` | Carries Ze's diff against the upstream netlink release, applied at build time | extends: the new `XfrmState` flag field goes into this patch, never a fork or a hand edit of `vendor/` |
+| Child SA policy set | `internal/component/ike/engine/child.go` `childPolicies`, `childPairPolicy` | One policy per negotiated pair and direction; an IPv6 pair over IPv4 endpoints already gets an IPv6 policy with an IPv4 template | does not apply: the policy side is already correct, only the state is wrong |
+| Shared XFRM seam for OSPF RFC 4552 | `internal/plugins/ospf/ipsec_install.go`, `ai/doors/access-security.md` "Where it sits" | OSPFv3 installs transport-mode states with an explicit selector through the same dataplane | does not apply: explicit-selector states get no flag (Behavior to preserve) |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -243,7 +252,7 @@ installs with no selector, and the same test goes green.
 | 13 | Route metadata keys | No | |
 | 14 | Prometheus counters | No | |
 | 15 | Registered plugin/event changed? | No | |
-| 16 | Changed source referenced by doc anchors? | Yes | derived by `./le spec citation anchors spec plan/home-cpe/spec-home-cpe-20-xfrm-cross-family-tunnel-state.md` |
+| 16 | Changed source referenced by doc anchors? | Yes | derived by `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-20-xfrm-cross-family-tunnel-state.md` |
 | 17 | Existing examples for this area? | No | |
 
 ## Implementation Steps
@@ -330,7 +339,7 @@ header."` above the flag.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass
+- [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/ike/dataplane` and `internal/le/vendorpatch` through `./le job run label unit-pkg command go test -tags ...`, `./le test integration interop-ipsec` with the child 6 scenario `vti-ipv6-inner-ipv4-outer`, and `./le verify changed` over the closing commits
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

@@ -6,13 +6,17 @@
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | A new LAC mode, the way wholesale broadband LACs work: LCP and authentication with the subscriber at the LAC, the LNS chosen by the realm of the username, proxy LCP and proxy authentication AVPs in the ICCN. It also corrects a false test claim in the L2TP guide. |
-| RFC gaps | RFC2661-4.4.5-1 to -6 (LAC half: emitted here); M-bit 0 rows for AVPs 26 to 28 to be added to `rfc/short/rfc2661.md` (forward-walk gap) |
+| RFC gaps | RFC2661-4.4.5-1, RFC2661-4.4.5-2, RFC2661-4.4.5-3, RFC2661-4.4.5-4, RFC2661-4.4.5-5, RFC2661-4.4.5-6 |
 | Depends | `plan/post-release/features/spec-l2tp-proxy-authentication.md` (AVP 29-33 writers and their rows; see Key Design Decisions for the split), `spec-home-cpe-16-lns-mru-and-auth-allow-list.md` (allow-list the LAC's own authentication obeys), `spec-home-cpe-18-interoplab-multi-link-topology.md` and `spec-home-cpe-19-access-chain-scenario.md` (lab proof) |
 | Phase | 0/5 |
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
+Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
+
+RFC gaps, in words: rows RFC2661-4.4.5-1 to -6 are the LAC half, emitted here.
+The M-bit 0 rows for AVPs 26 to 28 are still to be added to
+`rfc/short/rfc2661.md` (a forward-walk gap), so they have no id yet.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -172,6 +176,20 @@ Also owed, in the same change:
 - ICCN gains AVPs 26 to 28 (and 29 to 33 per Key Design Decisions) on such
   calls.
 - The two false test claims named in the Task.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Neutral relay call-sink | `internal/core/callsink/callsink.go` `Request`, `Sink`; `docs/architecture/l2tp/followup-l2tp-call.md` AC-3 | lets pppoe ask for a relay without importing l2tp | extends: `Request` gains realm, username, captured LCP bodies, auth data and an outcome callback; no second path |
+| Service-Name relay at PADS | `internal/component/l2tp/pppoe/server.go` `relayToL2TP`; `internal/component/l2tp/relay_sink.go` `relayTargetLocked` | exact Service-Name match, dial, incoming call, local fall-back on dial failure | extends: realm matching sits beside it; Service-Name keeps precedence and its fall-back |
+| Incoming call placement | `internal/component/l2tp/session_initiator.go` `callParams`, `placeIncomingCall`, `writeICCNBody` | places ICRQ, ICRP, ICCN; ICCN carries Message Type, Tx Connect Speed, Framing Type | extends: `callParams` carries proxy fields and `writeICCNBody` writes AVPs 26 to 33 when set |
+| Proxy Authen ID writer | `internal/component/l2tp/avp_compound.go` `writeAVPProxyAuthenID` | writes AVP 32 with the high octet 0, no non-test caller | extends: gains its first caller |
+| Hidden AVP encryption | `internal/component/l2tp/hidden.go` `HiddenEncrypt` | RFC 2661 hidden-AVP encryption | extends: used for AVP 33 on PAP (A-3) |
+| LAC channel bridge | `internal/component/l2tp/bridge_linux.go` `maybeBridgePPPoE`, `bridgeChannels` | PPPIOCBRIDGECHAN between the PPPoE and pppol2tp channels on a non-LNS session | extends: reports the outcome; bridges after local LCP instead of at PADS |
+| PPPoE auth drain and auth handler slot | `internal/component/l2tp/pppoe/drain.go` `startPPPoEAuthDrain`; `internal/component/l2tp/subscriber/handler_registry.go` `RegisterAuthHandler` | reads `EventAuthRequest` and calls the one registered auth handler | extends: the realm decision runs before the handler; no match falls through to it unchanged |
+| PPP driver auth event | `internal/component/l2tp/ppp/auth_events.go` `EventAuthRequest` | carries Method, Identifier, Username, Challenge, Response | extends: carries the LCP capture; the driver gains release and refusal calls |
+| Proxy authentication, LNS half | `plan/post-release/features/spec-l2tp-proxy-authentication.md` | owns the consumer side and row RFC2661-9.5-2 | does not apply here: that spec keeps the LNS half (Key Design Decisions) |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -352,6 +370,11 @@ child 18.
 - `docs/architecture/l2tp/followup-l2tp-call.md` - realm relay flow
 - `rfc/short/rfc2661.md` - rows 4.4.5-1 to -6 annotations; new M-bit rows for AVPs 26 to 28; row 4.4-2 annotation corrected
 - `features/l2tpv2-bng.md`, `features/pppoe-access.md` - LAC realm relay
+- `docs/architecture/l2tp/bng-5-pppoe.md` (declared by `pppoe/server.go`) - gains the realm-relay start: with realm bindings, an AC session no Service-Name relay took starts local PPP with capture. Nothing it states becomes wrong: its Service-Name text describes discovery, not relay
+- `docs/architecture/l2tp/subscriber-session-model.md` (declared by `pppoe/drain.go`) - the drain section (`startPPPoEAuthDrain`) gains the realm decision before the auth handler; a relayed session never reaches the handler, so "PPP records the request username only when the authentication handler accepts the request" needs the relayed case named (no username is recorded, the LAC hands the session off)
+- `docs/architecture/wire/l2tp.md` (declared by `avp_compound.go`) - nothing becomes wrong: its package-surface table already lists `ProxyAuthenIDValue`; the ICCN AVP layout diagram added under RFC Documentation goes in this page
+- `docs/research/l2tpv2-implementation-guide.md` (declared by `session_initiator.go`) - nothing becomes wrong: Section 18 describes AVPs 26 to 33 from the RFC, not Ze's behaviour; its "last sent / last received" wording matches this spec's Acked pair
+- `docs/research/l2tpv2-ze-integration.md` (declared by `config.go`, `ppp/start_session.go`, `ppp/session_run.go`, `ppp/manager.go`, `ppp/auth_events.go`) - nothing becomes wrong: Section 2 lists LCP and authentication as userspace work, which a realm LAC still does; Section 5's schema sketch never listed `relay`, so `relay-realm` adds no contradiction
 
 ## Files to Create
 - `test/l2tp/relay-realm-config.ci`
@@ -394,7 +417,7 @@ child 18.
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | Yes | metrics section of `docs/guide/l2tp.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived with `./le spec citation anchors spec plan/home-cpe/spec-home-cpe-14-lac-realm-relay.md` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived with `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-14-lac-realm-relay.md` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `remote`/`relay` example at `docs/guide/l2tp.md` l.60-73 |
 
 ## Implementation Steps
@@ -507,3 +530,30 @@ of the added AVPs with offsets.
 - [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
 - [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-13 all demonstrated
+- [ ] Every user story has a working path and a passing test
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] The targeted tests for what changed pass: the scoped package tests for `internal/component/l2tp/...` and `internal/core/callsink`, `./le test functional l2tp`, `./le test pppoe`, the `l2tp-wire` `.ci` above, and `./le verify changed` over the closing commits. The full verification is Thomas's release check
+- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove plan/release/fixes/spec-home-cpe-14-lac-realm-relay.md` only, in the same `./le commit create` script

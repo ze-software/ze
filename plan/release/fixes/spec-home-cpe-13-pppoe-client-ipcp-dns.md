@@ -6,13 +6,15 @@
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | A home CPE learns its resolvers from the access network; the PPPoE client never asks for them, so a router with no static `name-server` cannot resolve names once the WAN is up. The `access-up` scenario of the umbrella asserts DNS learned from IPCP. No accepted configuration misbehaves today (the options are never sent), so this is a feature (P3) even though the umbrella lists it as a release fix; the umbrella orders it last. |
-| RFC gaps | RFC 1877 Section 1.1 and Section 1.3 (client side: request Primary and Secondary DNS, take the value from a Configure-Nak); RFC 1661 Section 5.4 (drop Rejected options from the next request) on the client's IPCP |
+| RFC gaps | rfc1877, RFC1661-5.4-5 |
 | Depends | `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` (shares `negotiateIPCP`; a renegotiated IPCP re-learns DNS) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: plan/home-cpe/spec-home-cpe-0-umbrella.md
+Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
+
+RFC gaps, in full: RFC 1877 Section 1.1 and Section 1.3 (client side: request Primary and Secondary DNS, take the value from a Configure-Nak); RFC 1661 Section 5.4 (drop Rejected options from the next request) on the client's IPCP. `rfc/short/rfc1877.md` lists no requirement ids, so the cell names its stem.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -67,6 +69,17 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 
 **Behavior to change:**
 - Request carries options 3, 129, 131; Nak values adopted; Rejected DNS options dropped from the next request; learned servers recorded as a PPP lease and withdrawn when the session ends
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec |
+|-----------|------------------------------------------|--------------------|-----------|
+| IPCP option codec | `internal/component/l2tp/ppp/ipcp.go` `IPCPOptPrimaryDNS`, `IPCPOptSecondaryDNS`, `ParseIPCPOptions`, `WriteIPCPOptions` | parses and encodes IP-Address and both DNS options; the LNS side already offers DNS with it | extends: the client builds and parses its IPCP with this codec |
+| Client IPCP request and Nak parse | `internal/component/l2tp/pppoeclient/auth.go` `buildIPCPRequest`, `parseIPCPNakAddress` | a fixed 10-octet request with option 3 only; reads option 3 only from a Nak | replaces: deleted, the shared codec takes their place (no layering) |
+| Client IPCP negotiation | `internal/component/l2tp/pppoeclient/session.go` `negotiateIPCP`, `ipcpResult`, `sessionResult` | negotiates the address only; any Reject fails the session | extends: requests DNS, adopts Nak values, drops Rejected options; results carry DNS |
+| PPPoE client session apply | `internal/component/iface/pppoe_client.go` `PPPoEClient.runSession`, `PPPoESession` | applies address, MTU and default route; touches no resolver | extends: sets and withdraws a resolver lease |
+| resolv.conf writer | `internal/component/config/system/resolv.go` `Resolvers`, `Resolvers.SetLease`, `Resolvers.servers`, `resolverOrigin`, `DHCPv4ResolverSource`, `DHCPv6ResolverSource` | the only writer of resolv.conf; static servers win, else leases ordered by origin | extends: a PPP origin after DHCPv6 and a `PPPResolverSource` constructor |
+| DHCP resolver lease | `internal/plugins/iface/dhcp/resolv_linux.go` (`SetLease` with `DHCPv4ResolverSource` / `DHCPv6ResolverSource`) | sets and withdraws the DHCP lease's servers; an empty list withdraws | does not apply: unchanged, it is the pattern the PPP lease follows |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -196,6 +209,7 @@ and give the learned servers to Ze's resolv.conf writer, ranked below static
 - `test/interop-pppoe/scenarios/01-pppoe-chap-ipv4/accel-ppp.conf` and its checker
 - `docs/architecture/l2tp/cpe-1-pppoe-client.md`, `docs/features/interfaces.md` (DNS row names PPPoE)
 - `rfc/short/rfc1877.md` - client-side implementation note and test links
+- `docs/architecture/config/syntax.md` (the design page `internal/component/config/system/resolv.go` declares for resolv.conf generation): read, and nothing there becomes wrong; it covers only the `name-server` leaf-list's config syntax and says nothing about lease origins or their order, so a PPP origin leaves every sentence true
 
 ## Files to Create
 - `internal/component/l2tp/pppoeclient/rfc1877_client_dns_test.go`

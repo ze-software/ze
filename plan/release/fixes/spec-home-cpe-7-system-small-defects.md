@@ -12,7 +12,7 @@
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: `plan/home-cpe/spec-home-cpe-0-umbrella.md` (child 7).
+Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 7).
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -90,6 +90,20 @@ hostname and Ze leaves it alone, as today.
 - Validation refuses `::` with an IPv4 address on one protocol and port for dual-stack services.
 - SSH start and reload fail when any configured listener fails to bind.
 - On the appliance, the kernel hostname follows `system host`.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Listener conflict validation | `internal/component/config/listener.go` `CollectListeners`, `FindListenerConflict`, `conflicts`, `ipsConflict`; `docs/architecture/config/syntax.md`, the `ze:listener` row | collects every `ze:listener` endpoint and refuses overlapping protocol, address and port; a wildcard overlaps only its own family | extends: `ipsConflict` (through `conflicts`) learns that `::` on a dual-stack service overlaps every IPv4 address; one rule still serves every caller |
+| Per-service listener property registry | `internal/component/config/listener.go` `RegisterListenerFreebind`, `listenerFreebindFor` | a service records from its own `register.go` that it binds with `IP_FREEBIND`; each `ListenerEndpoint` carries the answer | extends: the V6ONLY fact is registered the same way and carried on the endpoint, never a service name list in `ipsConflict` |
+| Validation callers | `internal/component/config/cli/cmd_validate.go` (`ze config validate`), `internal/component/bgp/config/loader_create.go` (daemon load, `ValidateListenerConflicts`), `internal/chaos/orchestrator/conflict.go`; `test/plugin/config-validate-agrees-with-boot.ci` | offline validation and boot run the same conflict check | extends: they inherit the new rule unchanged, so validate and boot keep agreeing |
+| L2TP V6ONLY socket | `internal/component/l2tp/listener.go` (the `lc.Control` that sets `IPV6_V6ONLY`) | forces IPv6 listeners IPv6-only so `0.0.0.0` and `::` on 1701 both bind | extends: L2TP registers the fact the socket code already enforces; the socket code is unchanged |
+| SSH listener binding | `internal/component/ssh/ssh.go` `Server.Start` | binds `config.Listen` (error returned), then logs and skips each extra listener that fails | replaces: the log-and-continue path is deleted; every listener binds or none does |
+| System identity | `internal/component/config/system/system.go` `ExtractSystemConfig` | `Host` from `system host` with `$ENV` expansion, else `os.Hostname()` | extends: host name validation after expansion; the identity use is kept |
+| Hub system appliers | `cmd/ze/hub/main_system.go` `applyConsole`, `applyHostTuning`, `applyConntrack` and their `FromMap` reload twins | apply `system` config to the host at start and on reload | extends: the hostname applier joins them at the same call sites |
+| Appliance-only runtime features | `cmd/ze/setup_features_appliance.go` (`ze_appliance` build tag) | the tag reserved for on-device runtime features (`ai/doors/appliance.md`) | extends: the hostname applier is a `ze_appliance` file with a no-op sibling, so a distro build never calls `sethostname` |
+| `Sethostname` in the lab guest | `internal/appliance/dockerhost/guest_linux.go` `linuxSystem.Sethostname` | sets the hostname of the lab Docker host guest | does not apply: lab tooling, not the shipped daemon; the applier calls `unix.Sethostname` itself |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -214,6 +228,10 @@ hostname and Ze leaves it alone, as today.
 - `internal/component/config/system/system.go`, `yang/ze-system-conf.yang` - host name validation and description
 - `cmd/ze/hub/main_system.go` - call site for the hostname applier
 - `docs/guide/configuration.md`, `docs/guide/appliance.md`
+- `docs/architecture/config/syntax.md` - declared by `listener.go` and `system.go`. The `ze:listener` row says `ValidateListenerConflicts` "rejects overlapping `ip:port` pairs"; it stays true but gains the dual-stack rule (`::` on a service without V6ONLY overlaps every IPv4 address) and the V6ONLY registration. Nothing it says about `system host` becomes wrong
+- `docs/architecture/system-architecture.md` - declared by `ssh.go`; it describes the SSH subsystem, not the extra-listener bind, so nothing becomes wrong; checked at implementation against the all-or-none bind
+- `docs/architecture/hub-architecture.md` - declared by `main_system.go`; it names no system applier list (only `newResolvers`, `registerPluginDNSResolver` and the boot effects), so nothing becomes wrong; the appliance hostname applier is documented in `docs/guide/appliance.md`
+- `docs/research/l2tpv2-ze-integration.md` - declared by `l2tp/listener.go`; the socket code is unchanged and the registration lives in `register.go`, so nothing becomes wrong
 
 ## Files to Create
 - `cmd/ze/hub/main_system_appliance.go` (build tag `ze_appliance`) and a no-op sibling for other builds
@@ -254,7 +272,7 @@ hostname and Ze leaves it alone, as today.
 | 13 | Route metadata keys? | No | none |
 | 14 | Prometheus counters? | No | none |
 | 15 | Registered inventory changed? | No | none |
-| 16 | Doc source anchors on changed files? | Yes | `./le spec citation anchors spec plan/home-cpe/spec-home-cpe-7-system-small-defects.md` |
+| 16 | Doc source anchors on changed files? | Yes | `./le spec citation anchors spec plan/release/fixes/spec-home-cpe-7-system-small-defects.md` |
 | 17 | Existing examples? | Yes | grep `docs/` for listener examples with both wildcards |
 
 ## Implementation Steps
@@ -312,3 +330,30 @@ No open row records either defect (grep of `plan/journal/` for `EADDRINUSE`, `du
 ## Known Limitations
 
 - `/etc/hosts` and the domain name (`system domain`) are not written to the kernel (`setdomainname`); NIS domain has no use on a CPE.
+
+## Checklist
+
+### Pre-Spec Verification
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] Existing Mechanisms table names every mechanism this spec extends or replaces
+- [ ] `rfc/full/rfc1123.txt` fetched and quoted before the host name validator is written
+- [ ] No code snippets
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-10 all demonstrated
+- [ ] Every user story has a working path and a passing test
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] Targeted tests pass: the scoped package tests of `internal/component/config`, `internal/component/config/system`, `internal/component/ssh` and `cmd/ze/hub` (with `ze_appliance` for the applier), `./le test functional parse`, `./le test functional plugin` (`config-validate-agrees-with-boot.ci`), and `./le test functional appliance` for `appliance-hostname-from-config`; then `./le verify changed` over the closing commits
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for the `system host` length and label length
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests: N-A, no protocol behaviour changes
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean

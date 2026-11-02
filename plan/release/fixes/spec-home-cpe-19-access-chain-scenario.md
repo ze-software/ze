@@ -12,7 +12,7 @@
 | Handoff | - |
 | Updated | 2026-10-31 |
 
-Parent: `plan/home-cpe/spec-home-cpe-0-umbrella.md` (child 19).
+Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 19).
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -44,7 +44,7 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/home-cpe/spec-home-cpe-0-umbrella.md` "Lab"
+- [ ] `plan/release/fixes/spec-home-cpe-0-umbrella.md` "Lab"
   → Decision: Ze plays CPE, LAC and LNS; FreeRADIUS answers `cpe@lab.example.net` with Framed-IP-Address and a second user without one.
 - [ ] `docs/architecture/testing/interop.md` "Prove a scenario discriminates", "L2TP and PPPoE lifecycle fault scenarios", "The FreeRADIUS subscriber suite"
   → Constraint: build the red binary through the harness, never by hand-tagging `ze-interop`; quote the image ID beside each red and green result.
@@ -83,6 +83,18 @@ subscriber 203.0.113.1/32, pool 100.64.0.0/24, realm `lab.example.net`.
 **Behavior to preserve:** every existing L2TP, PPPoE and RADIUS scenario.
 
 **Behavior to change:** none in Ze. The scenarios may find defects; each is fixed under `ai/rules/completion.md`, in the child whose mechanism fits, or journaled and owned (see Owned journal rows).
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec |
+|-----------|------------------------------------------|--------------------|-----------|
+| PPPoE-to-L2TP relay selection | `internal/component/l2tp/relay_sink.go` `relaySink.Relay`, `Subsystem.relayTargetLocked` | hands a PPPoE session whose Service-Name matches a `relay` entry to the L2TP subsystem, which places an incoming call toward the bound remote | does not apply: exercised unchanged as the system under test |
+| Kernel channel bridge | `internal/component/l2tp/bridge_linux.go` `bridgeChannels`, `maybeBridgePPPoE` | bridges the PPPoE channel to the PPPoL2TP channel with PPPIOCBRIDGECHAN | does not apply: exercised unchanged; the scenarios drive the first frame across it |
+| Subscriber RADIUS accounting | `internal/component/l2tp/plugins/authradius/acct.go` `acctInterval`, `clampAcctInterval` | picks the configured or Access-Accept interim interval, floored at 60 s | does not apply: exercised unchanged by `access-accounting` |
+| FreeRADIUS subscriber suite | `internal/le/interoplab/radiussubscriber/radiussubscriber.go` `serverPeerConfig`, `checkers.go` `detailPath`; `docs/architecture/testing/interop.md` "The FreeRADIUS subscriber suite" | runs FreeRADIUS with `users`, `clients.conf`, `mods-ze-detail`, `site-default`, and reads the `ze_detail` file in its checkers | extends: the access chain reuses its image, lab files and detail reading rather than writing a second RADIUS harness |
+| Multi-link interop topology | `spec-home-cpe-18-interoplab-multi-link-topology.md` | adds links, several Ze nodes and cross-suite images to `internal/le/interoplab` | extends: this spec only adds scenarios on that topology |
+| `/dev/ppp` grant | `internal/le/interoplab/pppdevice.go` `PPPDeviceArguments` | the device grant every PPP container needs | extends: reused by the CPE, LAC and LNS containers |
+| L2TP LAC scenario | `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns/` | proves the LAC control connection against xl2tpd, with no PPPoE subscriber and no data | does not apply: kept as is; it proves no data path, which is the gap this spec closes |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -320,6 +332,11 @@ None: `grep -rn 'relay data\|LAC bridge\|l2tp-ppp' plan/journal/` finds no open 
 - [ ] Every user story has a working path (N-A: tooling)
 - [ ] Wiring Test table complete
 - [ ] Every A-N confirmed or broken
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output): `./le test integration interop-topology access-up`, `access-pool` and `access-accounting`, plus the scoped package test of `internal/le/interoplab/topology` under `./le job run`
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
