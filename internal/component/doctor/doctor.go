@@ -6,7 +6,7 @@
 // Related: checks_listener.go, checks_reach.go — check implementations
 // Related: checks_helpers.go — shared config-tree navigation helpers
 
-// Runner and output contract: config loading, the three phase calls, and the
+// Runner and output contract: config loading, the phase calls, and the
 // text/JSON drawing of the local route (answer.go reads the arguments). Check implementations live in the
 // checks_*.go siblings, grouped by concern. Every check, this component's own
 // included, arrives through runDoctorChecks: runChecks writes no check out by
@@ -73,12 +73,26 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 		return diags
 	}
 
-	result, parseErr := config.ReadConfig(string(configData), configName, nil)
+	// Parsed-tree checks MUST accept invalid semantics and apply nothing. Run
+	// them before ReadConfig, whose refusal must not hide their diagnostics.
+	parsed, parseErr := config.ParseTreeForValidation(string(configData))
 	if parseErr != nil {
 		diags = append(diags, diagnostic.Diagnostic{
 			Code:     "doctor-config-parse",
 			Severity: diagnostic.SeverityError,
 			Message:  parseErr.Error(),
+		})
+		return diags
+	}
+	baseCtx.Tree = parsed
+	diags = append(diags, runDoctorChecks(diagnostic.DoctorPhaseParsedConfig, baseCtx)...)
+
+	result, loadErr := config.ReadConfig(string(configData), configName, nil)
+	if loadErr != nil {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-config-parse",
+			Severity: diagnostic.SeverityError,
+			Message:  loadErr.Error(),
 		})
 		return diags
 	}

@@ -62,6 +62,7 @@ func TestRunChecksCallsNoDoctorOwnedCheckTwice(t *testing.T) {
 	for _, phase := range []diagnostic.DoctorCheckPhase{
 		diagnostic.DoctorPhasePreConfig,
 		diagnostic.DoctorPhaseMissingConfig,
+		diagnostic.DoctorPhaseParsedConfig,
 		diagnostic.DoctorPhasePostConfig,
 	} {
 		seen := map[string]int{}

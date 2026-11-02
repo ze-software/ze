@@ -31,11 +31,11 @@ const codeFilterReferenceUndefined = "doctor-config-reference"
 
 // filterReferenceDoctorCheck describes the check. register.go registers it.
 //
-// Order 842 keeps it where the runner used to call it: after the certificate
-// and host-key checks, before the reachability probes.
+// This check needs a parsed tree, not a successful load: the loader refuses
+// undefined references before post-config checks can report them.
 var filterReferenceDoctorCheck = diagnostic.DoctorCheck{
 	Name:         "bgp-filter-references",
-	Phase:        diagnostic.DoctorPhasePostConfig,
+	Phase:        diagnostic.DoctorPhaseParsedConfig,
 	Order:        842,
 	Component:    doctorComponentBGP,
 	Dependencies: []string{doctorDependencyConfigTree},

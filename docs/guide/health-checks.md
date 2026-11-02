@@ -41,7 +41,7 @@ remediation guidance.
 | `doctor-store-integrity` | `database/` store corruption |
 | `doctor-config-missing` | Config file resolution |
 | `doctor-config-parse` | Config syntax |
-| `doctor-config-reference` | Dangling policy/filter references |
+| `doctor-config-reference` | Dangling policy/filter references, reported before load validation can refuse the configuration <!-- source: internal/component/bgp/config/filter_reference_doctor.go -- filterReferenceDoctorCheck --> |
 | `doctor-tls-*` | TLS cert existence, expiry, validity |
 | `doctor-plugin-missing` | Plugin binary on PATH |
 | `doctor-plugin-shell-missing` | The shell an external plugin is started with. Ze runs the `run` string as `/bin/sh -c <run>`, so a host with no shell, such as a gokrazy appliance image, starts none of them <!-- source: internal/component/plugin/doctor/check_shell.go -- diagnosePluginShell --> |

@@ -32,6 +32,7 @@ func TestDoctorRegisteredCheckCodesHaveMetadata(t *testing.T) {
 	phases := []diagnostic.DoctorCheckPhase{
 		diagnostic.DoctorPhasePreConfig,
 		diagnostic.DoctorPhaseMissingConfig,
+		diagnostic.DoctorPhaseParsedConfig,
 		diagnostic.DoctorPhasePostConfig,
 	}
 	seen := 0

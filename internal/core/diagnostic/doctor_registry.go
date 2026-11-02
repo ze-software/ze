@@ -21,7 +21,10 @@ type DoctorCheckPhase string
 const (
 	DoctorPhasePreConfig     DoctorCheckPhase = "pre-config"
 	DoctorPhaseMissingConfig DoctorCheckPhase = "missing-config"
-	DoctorPhasePostConfig    DoctorCheckPhase = "post-config"
+	// DoctorPhaseParsedConfig checks syntax-valid trees before load validation.
+	// Checks MUST accept semantically invalid input and MUST NOT apply config.
+	DoctorPhaseParsedConfig DoctorCheckPhase = "parsed-config"
+	DoctorPhasePostConfig   DoctorCheckPhase = "post-config"
 )
 
 // DoctorPlatformAny matches all platforms.
@@ -250,7 +253,7 @@ func validateDoctorCheckCodesReg(codes []string) error {
 // Valid reports whether the phase is a known doctor check phase.
 func (phase DoctorCheckPhase) Valid() bool {
 	switch phase {
-	case DoctorPhasePreConfig, DoctorPhaseMissingConfig, DoctorPhasePostConfig:
+	case DoctorPhasePreConfig, DoctorPhaseMissingConfig, DoctorPhaseParsedConfig, DoctorPhasePostConfig:
 		return true
 	default:
 		// Registration input is open; reject phases outside the named set.
@@ -275,8 +278,10 @@ func doctorPhaseRank(phase DoctorCheckPhase) int {
 		return 0
 	case DoctorPhaseMissingConfig:
 		return 1
-	case DoctorPhasePostConfig:
+	case DoctorPhaseParsedConfig:
 		return 2
+	case DoctorPhasePostConfig:
+		return 3
 	default:
 		panic("BUG: invalid registered doctor phase")
 	}

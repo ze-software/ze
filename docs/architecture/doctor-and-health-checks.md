@@ -339,6 +339,15 @@ second, because it runs in the operator's own process rather than the daemon's.
 
 ## Discovery beats enumeration
 
+Doctor runs `parsed-config` checks after syntax parsing and before validated
+loading. These checks must accept invalid semantics and must not apply config.
+The BGP filter-reference check uses this phase so a loader refusal cannot hide
+`doctor-config-reference`. `ReadConfig` still runs all load validation; a refusal
+remains an error and prevents every `post-config` check from running.
+<!-- source: internal/component/doctor/doctor.go -- runChecks -->
+<!-- source: internal/core/diagnostic/doctor_registry.go -- DoctorPhaseParsedConfig -->
+<!-- source: internal/component/bgp/config/filter_reference_doctor.go -- filterReferenceDoctorCheck -->
+
 Listener checks are derived from the YANG schema, through
 `RegisterListenerDefault` and `CollectListenersWithDefaults`. A new
 `ze:listener` service is then covered by doctor with no doctor code change.
