@@ -24,7 +24,7 @@
   {
     "rid": "RFC7947-2.2.2.2-1",
     "polarity": "positive",
-    "unit": "internal/component/bgp/reactor/session_first_as_test.go::TestSessionASPAFirstASRoles",
+    "unit": "internal/component/bgp/reactor/rfc7947_session_first_as_test.go::TestSessionASPAFirstASRoles",
     "unit-sha": "ed0b2e76dabb680f",
     "claim-sha": "a289605374f0ef9d",
     "route": "mutant",
@@ -35,7 +35,7 @@
   {
     "rid": "RFC7947-2.2.2.2-1",
     "polarity": "negative",
-    "unit": "internal/component/bgp/reactor/session_first_as_test.go::TestSessionASPAFirstASRoles",
+    "unit": "internal/component/bgp/reactor/rfc7947_session_first_as_test.go::TestSessionASPAFirstASRoles",
     "unit-sha": "ed0b2e76dabb680f",
     "claim-sha": "4128fb00479fa350",
     "route": "mutant",

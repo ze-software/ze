@@ -349,7 +349,7 @@ func routeServerPeer() filterapi.PeerFilterInfo {
 // LoopIngress does not test that equality. The leftmost-AS check lives in the reactor session,
 // Session.firstASMismatch (reactor/session_validation.go), which treats a mismatching UPDATE as
 // withdrawn; Session.firstASPeer disables it for one peer when the local OPEN carries Role
-// RS-client. TestSessionASPAFirstASRoles (reactor/session_first_as_test.go) exercises that
+// RS-client. TestSessionASPAFirstASRoles (reactor/rfc7947_session_first_as_test.go) exercises that
 // check and its per-peer switch.
 func TestLoopIngressAcceptsNonAdjacentLeftmostAS(t *testing.T) {
 	body := makeUpdateBody(buildASPathAttr([]uint32{65002, 65003}, false))
