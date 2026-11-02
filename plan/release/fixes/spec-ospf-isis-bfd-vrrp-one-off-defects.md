@@ -53,6 +53,22 @@ Spot-checked on 2026-10-23: `internal/plugins/vrrp/groups.go` still sets
 - [ ] `internal/component/bfd/bfd.go` - `EnsureSession`, `bindV6`
 - [ ] `internal/plugins/vrrp/groups.go` - `IsOwner`, `ownedVIPs`
 
+## Existing Mechanisms (MANDATORY)
+
+Each row of this spec is a defect in a producer that already exists, so every
+fix extends the producer it names; none adds a parallel path. Rows from the
+routing-protocols and system-plugins doors (`ai/doors/routing-protocols.md`,
+`ai/doors/system-plugins.md`).
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| BFD client service | `internal/component/bfd/api/service.go` `Service` (`EnsureSession`, `ReleaseSession`), `docs/architecture/bfd.md` | The one in-process service BGP, OSPF and static routes subscribe to; `api.GetService` answers nil in a forked plugin | Extends: AC-1, AC-2 and AC-9 change what the service reports and refuses, never add a second client path |
+| OSPFv3 extended-LSA readers | `internal/plugins/ospf/bgpls_export.go` `bgplsArea.extendedV3`, `internal/plugins/ospf/sr_reception_v6.go` `v6PrefixSIDsFromTLV` | Walk RFC 8362 TLVs for BGP-LS export and SR reception | Extends: AC-7 and AC-8 make the existing walkers honour first-instance and LS-type applicability |
+| Durable boot count | `internal/plugins/ospf/state.go` `incrementBootCount` over the SDK state RPCs | Increments the persisted count under a 5 s deadline at startup and sequence wrap | Extends: AC-10 retries a held store lock instead of failing the engine |
+| IS-IS ISH handling | `internal/plugins/isis/circuit/ish.go` `receiveISH` | Records the ISH on a P2P circuit; the IIH waits for the next hello tick | Extends: AC-6 sends the IIH from the same handler |
+| VRRP group spec build | `internal/plugins/vrrp/groups.go` (`spec.IsOwner = ownsAny(...)`) | Decides owner status once for the whole group | Extends: AC-3 decides it per VIP in the same builder |
+| Rows already owned elsewhere | `plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md` | Owns the `ownerfilter.go` and vpp `verifyMatch` rows | Does not apply: those rows stay with that spec (Task) |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -164,13 +180,12 @@ BFD `api.Service`, BGP-LS export, the durable store (boot count).
 | `declared-format-contradicts-payload` | 2026-10-20 | `v6EInterAreaPrefixBody` has no Inter-Area-Prefix TLV |
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-17 | OSPF reload-created instance tests race in `reconcile` |
 | `field-derived-from-the-message-not-the-sender` | 2026-10-31 | IS-IS `lspTypeBlock` L1L2 IS Type in L1 LSPs |
-| `scenario-checker-waits-on-an-absent-peer` | 2026-10-31 | `ospf-multiaf-v4-frr` checker waits on an FRR the scenario never starts |
 
 ## Rows found already fixed
 
 | Class file | Date | Surface | Evidence |
 |------------|------|---------|----------|
-| none in this group at the 2026-10-23 sweep | - | - | - |
+| `scenario-checker-waits-on-an-absent-peer.md` | 2026-10-31 | `ospf-multiaf-v4-frr` checker waits on an FRR the scenario never starts | 2026-11-02: fixed by 5ce5a9e38c (a second Ze from `ze-peer.conf`, since FRR ospf6d has no IPv4-unicast AF), 1c7c181359 (checker and config), bc9f7c9bea (IPv6 lab network), b5fdf9a87f (OSPFv3 Instance ID) and 8c9423c5d0 (RFC 5838 IPv4 next hop); the row is marked fixed by bfc162dd08 |
 
 ## Checklist
 
