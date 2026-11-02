@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // rfc9234AllRoles is the widest export set an operator can write: every
@@ -106,16 +107,14 @@ func TestRFC9234OTCProceduresSurviveOperatorSettings(t *testing.T) {
 	fromProvider := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 64500}
 	fromCustomer := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 64501}
 
-	accept, modified := OTCIngressFilter(fromProvider, buildTestPayload(buildTestAttrs(0), nlri), map[string]any{})
-	require.True(t, accept, "a Provider route is accepted")
-	require.NotNil(t, modified, "ingress must add OTC to a Provider route")
-	otcASN, found, malformed := findOTC(extractAttrsFromPayload(modified))
+	stamped := otcIngressAnswer(t, fromProvider, buildTestPayload(buildTestAttrs(0), nlri))
+	require.Equal(t, sdk.FilterModify, stamped.Action, "a Provider route is accepted, and ingress must add OTC to it")
+	otcASN, found := answerOTC(t, stamped)
 	require.True(t, found)
-	require.False(t, malformed)
 	assert.Equal(t, uint32(64500), otcASN, "the ingress OTC value must be the Provider's AS")
 
-	accept, _ = OTCIngressFilter(fromCustomer, buildTestPayload(buildTestAttrs(64999), nlri), map[string]any{})
-	assert.False(t, accept, "a Customer route carrying OTC is a leak whatever the export set")
+	assert.Equal(t, sdk.FilterWithdraw, otcIngressAnswer(t, fromCustomer, buildTestPayload(buildTestAttrs(64999), nlri)).Action,
+		"a Customer route carrying OTC is a leak whatever the export set")
 
 	toProvider := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), LocalAS: 65000}
 	withOTC := buildTestPayload(buildTestAttrs(64999), nlri)

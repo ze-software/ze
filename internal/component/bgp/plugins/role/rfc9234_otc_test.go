@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // buildTestAttrs creates raw attributes with ORIGIN + optional OTC.
@@ -217,95 +218,6 @@ func TestExtractAttrsFromPayload(t *testing.T) {
 	}
 }
 
-// --- insertOTCInPayload tests ---
-
-func TestInsertOTCInPayload(t *testing.T) {
-	t.Run("inserts_otc_and_updates_attrlen", func(t *testing.T) {
-		origAttrs := buildTestAttrs(0)
-		payload := buildTestPayload(origAttrs, nil)
-		modified := insertOTCInPayload(payload, 65001)
-
-		assert.Len(t, modified, len(payload)+otcWireLen)
-		newAttrLen := binary.BigEndian.Uint16(modified[2:4])
-		assert.Equal(t, uint16(len(origAttrs)+otcWireLen), newAttrLen)
-
-		attrs := extractAttrsFromPayload(modified)
-		asn, found, _ := findOTC(attrs)
-		assert.True(t, found)
-		assert.Equal(t, uint32(65001), asn)
-	})
-
-	t.Run("preserves_nlri_section", func(t *testing.T) {
-		nlri := []byte{24, 10, 0, 0}
-		payload := buildTestPayload(buildTestAttrs(0), nlri)
-		modified := insertOTCInPayload(payload, 65001)
-		tail := modified[len(modified)-len(nlri):]
-		assert.Equal(t, nlri, tail, "NLRI must be preserved")
-	})
-
-	t.Run("preserves_withdrawn_section", func(t *testing.T) {
-		withdrawn := []byte{24, 192, 168, 0}
-		attrs := buildTestAttrs(0)
-		payload := make([]byte, 2+len(withdrawn)+2+len(attrs))
-		binary.BigEndian.PutUint16(payload[0:2], uint16(len(withdrawn)))
-		copy(payload[2:], withdrawn)
-		binary.BigEndian.PutUint16(payload[2+len(withdrawn):], uint16(len(attrs)))
-		copy(payload[4+len(withdrawn):], attrs)
-
-		modified := insertOTCInPayload(payload, 65001)
-		wLen := binary.BigEndian.Uint16(modified[0:2])
-		assert.Equal(t, uint16(len(withdrawn)), wLen)
-		assert.Equal(t, withdrawn, modified[2:2+wLen])
-	})
-
-	t.Run("round_trip", func(t *testing.T) {
-		payload := buildTestPayload(buildTestAttrs(0), nil)
-		attrs := extractAttrsFromPayload(payload)
-		_, found, _ := findOTC(attrs)
-		assert.False(t, found, "no OTC initially")
-
-		modified := insertOTCInPayload(payload, 99999)
-		attrs = extractAttrsFromPayload(modified)
-		asn, found, malformed := findOTC(attrs)
-		assert.True(t, found)
-		assert.False(t, malformed)
-		assert.Equal(t, uint32(99999), asn)
-	})
-
-	t.Run("short_payload_returns_nil", func(t *testing.T) {
-		short := []byte{0x00}
-		assert.Nil(t, insertOTCInPayload(short, 65001), "malformed payload returns nil")
-	})
-
-	t.Run("nil_payload_returns_nil", func(t *testing.T) {
-		assert.Nil(t, insertOTCInPayload(nil, 65001))
-	})
-
-	t.Run("uint16_overflow_returns_nil", func(t *testing.T) {
-		// Build payload with attrs close to uint16 max.
-		// attrLen = 65530, adding OTC (7 bytes) = 65537 > 65535.
-		largeAttrs := make([]byte, 65530)
-		largeAttrs[0] = 0x40 // ORIGIN flags
-		largeAttrs[1] = 0x01 // ORIGIN code
-		largeAttrs[2] = 0x01 // ORIGIN len
-		payload := buildTestPayload(largeAttrs, nil)
-		result := insertOTCInPayload(payload, 65001)
-		assert.Nil(t, result, "uint16 overflow should return nil")
-	})
-
-	t.Run("just_under_overflow_succeeds", func(t *testing.T) {
-		// attrLen = 65528, adding OTC (7 bytes) = 65535 = exactly uint16 max.
-		attrs := make([]byte, 65528)
-		attrs[0] = 0x40
-		attrs[1] = 0x01
-		attrs[2] = 0x01
-		payload := buildTestPayload(attrs, nil)
-		result := insertOTCInPayload(payload, 65001)
-		require.NotNil(t, result, "exactly at uint16 max should succeed")
-		assert.Len(t, result, len(payload)+otcWireLen)
-	})
-}
-
 // --- checkOTCIngress comprehensive tests ---
 
 func TestCheckOTCIngress(t *testing.T) {
@@ -419,7 +331,7 @@ func TestCheckOTCEgress(t *testing.T) {
 	}
 }
 
-// --- OTCIngressFilter wrapper tests ---
+// --- bgp-role:otc-ingress filter answer tests ---
 
 func TestOTCIngressFilter(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
@@ -440,11 +352,12 @@ func TestOTCIngressFilter(t *testing.T) {
 	t.Run("no_config_passthrough", func(t *testing.T) {
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99"), PeerAS: 65099}
 		payload := buildTestPayload(buildTestAttrs(65001), nil)
-		meta := make(map[string]any)
-		accept, modified := OTCIngressFilter(src, payload, meta)
-		assert.True(t, accept)
-		assert.Nil(t, modified)
+		out := otcIngressAnswer(t, src, payload)
+		assert.Equal(t, sdk.FilterAccept, out.Action)
+		_, stamped := answerOTC(t, out)
+		assert.False(t, stamped)
 		// No role config for 10.0.0.99 -> no src-role in meta.
+		meta := answerMeta(t, out)
 		_, hasSrcRole := meta["src-role"]
 		assert.False(t, hasSrcRole, "no role config -> no src-role in meta")
 	})
@@ -454,11 +367,12 @@ func TestOTCIngressFilter(t *testing.T) {
 			"10.0.0.50": {role: roleProvider},
 		}, nil)
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.50"), PeerAS: 65050}
-		meta := make(map[string]any)
-		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), nil), meta)
-		assert.True(t, accept)
-		assert.Nil(t, modified)
+		out := otcIngressAnswer(t, src, buildTestPayload(buildTestAttrs(0), nil))
+		assert.NotEqual(t, sdk.FilterWithdraw, out.Action)
+		_, stamped := answerOTC(t, out)
+		assert.False(t, stamped)
 		// Has role config (provider) -> meta["src-role"] should be set.
+		meta := answerMeta(t, out)
 		assert.Equal(t, "provider", meta["src-role"], "src-role should reflect our config")
 		// Restore original configs and remote roles (setFilterState clears remote roles).
 		setFilterState(map[string]*peerRoleConfig{
@@ -473,23 +387,20 @@ func TestOTCIngressFilter(t *testing.T) {
 
 	t.Run("reject_leak_from_customer", func(t *testing.T) {
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
-		accept, _ := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65001), nil), make(map[string]any))
-		assert.False(t, accept)
+		out := otcIngressAnswer(t, src, buildTestPayload(buildTestAttrs(65001), nil))
+		assert.Equal(t, sdk.FilterWithdraw, out.Action)
 	})
 
 	// The payload carries NLRI: RFC 9234 Section 5 conditions the stamp against that shape.
 	// RFC requirement: RFC9234-5-3 positive -- a route without OTC received from a Provider is stamped on ingress with the remote AS number.
 	t.Run("stamp_from_provider", func(t *testing.T) {
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002}
-		meta := make(map[string]any)
-		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2}), meta)
-		assert.True(t, accept)
-		require.NotNil(t, modified)
+		out := otcIngressAnswer(t, src, buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2}))
+		assert.Equal(t, sdk.FilterModify, out.Action)
 		// Meta set after stamping.
 		// Role config for 10.0.0.2 is "customer" -> src-role set.
-		assert.Equal(t, "customer", meta["src-role"], "src-role should reflect our config")
-		attrs := extractAttrsFromPayload(modified)
-		asn, found, _ := findOTC(attrs)
+		assert.Equal(t, "customer", answerMeta(t, out)["src-role"], "src-role should reflect our config")
+		asn, found := answerOTC(t, out)
 		assert.True(t, found)
 		assert.Equal(t, uint32(65002), asn)
 	})
@@ -497,23 +408,24 @@ func TestOTCIngressFilter(t *testing.T) {
 	// RFC requirement: RFC9234-5-2 negative -- a route with OTC from a Peer whose OTC value equals the Peer's AS number is not a leak and is accepted.
 	t.Run("accept_peer_otc_matches", func(t *testing.T) {
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65003}
-		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65003), nil), make(map[string]any))
-		assert.True(t, accept)
-		assert.Nil(t, modified)
+		out := otcIngressAnswer(t, src, buildTestPayload(buildTestAttrs(65003), nil))
+		assert.NotEqual(t, sdk.FilterWithdraw, out.Action)
+		_, stamped := answerOTC(t, out)
+		assert.False(t, stamped)
 	})
 
 	// RFC requirement: RFC9234-5-2 positive -- a route with OTC from a Peer whose OTC value differs from the Peer's AS number is a route leak and marked ineligible.
 	t.Run("reject_peer_otc_mismatch", func(t *testing.T) {
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65003}
-		accept, _ := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65099), nil), make(map[string]any))
-		assert.False(t, accept)
+		out := otcIngressAnswer(t, src, buildTestPayload(buildTestAttrs(65099), nil))
+		assert.Equal(t, sdk.FilterWithdraw, out.Action)
 	})
 
 	t.Run("reject_malformed_otc", func(t *testing.T) {
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002}
 		malformed := []byte{0x40, 0x01, 0x01, 0x00, 0xC0, 35, 3, 0x00, 0x01, 0x02}
-		accept, _ := OTCIngressFilter(src, buildTestPayload(malformed, nil), make(map[string]any))
-		assert.False(t, accept)
+		out := otcIngressAnswer(t, src, buildTestPayload(malformed, nil))
+		assert.Equal(t, sdk.FilterWithdraw, out.Action)
 	})
 }
 
@@ -863,9 +775,8 @@ func TestLooseIngressFilter_IBGPNoRole_RouteWithOTC(t *testing.T) {
 
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.100"), PeerAS: 65000}
 	payload := buildTestPayload(buildTestAttrs(65001), nil) // route has OTC
-	accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
-	assert.True(t, accept, "IBGP peer without role: route with OTC should pass")
-	assert.Nil(t, modified, "no modification expected")
+	out := otcIngressAnswer(t, src, payload)
+	assert.Equal(t, sdk.FilterAccept, out.Action, "IBGP peer without role: route with OTC should pass, with no modification")
 }
 
 // --- IBGP-to-EBGP: route tagged with OTC on IBGP arrives, egress to EBGP peer ---
@@ -1101,7 +1012,7 @@ func TestOTCEgressNoStampProvider(t *testing.T) {
 // recovers our role for the source peer from config.
 // PREVENTS: the fail-open this spec was opened for. OTCEgressFilter read
 // meta["src-role"] and treated a missing key as "no restriction", so any caller
-// that had not been through OTCIngressFilter -- RelayStoredRoute replaying the
+// that had not been through the otc-ingress filter -- RelayStoredRoute replaying the
 // Adj-RIB-In is one, and not the only possible one -- leaked a Provider-learned
 // route to a Provider. Deleting the fallback in resolveSrcRole turns this red.
 //
@@ -1230,13 +1141,10 @@ func TestOTCIngressStampsWhenPeerSentNoRoleCapability(t *testing.T) {
 	}()
 
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.60"), PeerAS: 65060}
-	meta := make(map[string]any)
+	out := otcIngressAnswer(t, src, buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2}))
+	require.Equal(t, sdk.FilterModify, out.Action, "a route without OTC from a Provider is accepted, and it must be stamped on ingress (RFC 9234 Section 5)")
 
-	accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2}), meta)
-	assert.True(t, accept, "a route without OTC from a Provider is accepted")
-	require.NotNil(t, modified, "it must be stamped on ingress (RFC 9234 Section 5)")
-
-	asn, found, _ := findOTC(extractAttrsFromPayload(modified))
+	asn, found := answerOTC(t, out)
 	assert.True(t, found, "OTC must be present after ingress stamping")
 	assert.Equal(t, uint32(65060), asn, "OTC must carry the remote peer's AS number")
 }
@@ -1438,7 +1346,7 @@ func TestOTCEgressUnicastOnly(t *testing.T) {
 	assert.Equal(t, 0, mods.Len(), "no OTC mod for non-unicast")
 }
 
-// VALIDATES: OTCIngressFilter skips OTC processing for non-unicast families.
+// VALIDATES: the otc-ingress filter skips OTC processing for non-unicast families.
 // PREVENTS: Non-unicast routes incorrectly rejected by OTC leak check.
 func TestOTCIngressUnicastOnly(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
@@ -1463,10 +1371,10 @@ func TestOTCIngressUnicastOnly(t *testing.T) {
 	multicastPayload := buildTestPayload(attrs, nil)
 
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	meta := map[string]any{}
-	accept, modified := OTCIngressFilter(src, multicastPayload, meta)
-	assert.True(t, accept, "non-unicast always accepted even with OTC from Provider")
-	assert.Nil(t, modified, "non-unicast should not modify payload")
+	out := otcIngressAnswer(t, src, multicastPayload)
+	assert.NotEqual(t, sdk.FilterWithdraw, out.Action, "non-unicast always accepted even with OTC from Provider")
+	_, stamped := answerOTC(t, out)
+	assert.False(t, stamped, "non-unicast should not modify payload")
 }
 
 // planOTCAttr drives otcAttrModHandler over a synthetic one-attribute section
@@ -1802,15 +1710,15 @@ func TestOTCEgressWireBytesCheck(t *testing.T) {
 	assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil), "no OTC to provider: allow")
 }
 
-// TestOTCIngressMalformedTreatAsWithdraw drives the ingress filter entry point
-// (OTCIngressFilter) with a malformed OTC (length 3) on an UPDATE that announces a
-// prefix, and asserts the announcement is converted to a withdrawal per RFC 9234
-// Section 5 (treat-as-withdraw, RFC 7606 Section 2): the NLRI moves to the withdrawn
-// section and the path attributes are emptied. The existing reject_malformed_otc case
-// covers a malformed OTC with no announcement (drop); this pins the announcement->withdrawal
-// rewrite that the drop case cannot exercise.
+// TestOTCIngressMalformedTreatAsWithdraw drives the bgp-role:otc-ingress filter
+// with a malformed OTC (length 3) on an UPDATE that announces a prefix, and
+// asserts the filter answers the withdraw verdict, RFC 9234 Section 5's
+// treat-as-withdraw (RFC 7606 Section 2), never a drop or an accept. The import
+// step applies that verdict as the UPDATE rewritten to the withdrawal of its
+// routes, the NLRI in the withdrawn section and no path attribute; the engine
+// test that proves the rewrite is reactor TestWithdrawVerdictReactorRails.
 //
-// RFC requirement: RFC9234-5-12 positive -- a malformed OTC on an UPDATE announcing a prefix is handled as treat-as-withdraw: the prefix moves to the withdrawn section and the path attributes are emptied.
+// RFC requirement: RFC9234-5-12 positive -- a malformed OTC on an UPDATE announcing a prefix is answered with the withdraw verdict, the treat-as-withdraw the import step applies, not a drop and not an accept.
 func TestOTCIngressMalformedTreatAsWithdraw(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleCustomer},
@@ -1829,20 +1737,11 @@ func TestOTCIngressMalformedTreatAsWithdraw(t *testing.T) {
 	payload := buildTestPayload(attrs, nlri)
 
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
-	accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
+	out := otcIngressAnswer(t, src, payload)
 
-	require.True(t, accept, "treat-as-withdraw keeps the message as a withdrawal, it is not a drop")
-	require.NotNil(t, modified, "a malformed OTC on an announced prefix must be rewritten to a withdrawal")
-
-	wdLen := binary.BigEndian.Uint16(modified[0:2])
-	require.Equal(t, uint16(len(nlri)), wdLen, "the announced NLRI must move into the withdrawn section")
-	assert.Equal(t, nlri, modified[2:2+wdLen], "withdrawn bytes must equal the original NLRI")
-
-	attrLen := binary.BigEndian.Uint16(modified[2+wdLen : 2+wdLen+2])
-	assert.Equal(t, uint16(0), attrLen, "treat-as-withdraw clears the path attributes")
-
-	_, found, _ := findOTC(extractAttrsFromPayload(modified))
-	assert.False(t, found, "the malformed OTC must not survive in the withdrawal")
+	require.Equal(t, sdk.FilterWithdraw, out.Action,
+		"treat-as-withdraw: the announced prefix is withdrawn, the message is neither dropped nor accepted")
+	assert.Empty(t, out.Sets, "a withdrawal carries no path attribute, so the answer sets none")
 }
 
 // --- AC-11: OTC is never stamped onto an UPDATE that advertises no route ---
@@ -1995,8 +1894,8 @@ func TestOTCEgressStampsMixedWithdrawAndAnnounce(t *testing.T) {
 
 // VALIDATES: AC-11 (ingress half) -- a pure withdrawal from a Provider is not
 // rewritten to carry OTC.
-// PREVENTS: OTCIngressFilter's insertOTCInPayload turning a withdraw-only
-// UPDATE into one with attrLen=7 and no NLRI before it ever reaches the RIB.
+// PREVENTS: the ingress stamp turning a withdraw-only UPDATE into one with
+// an OTC attribute and no NLRI before it ever reaches the RIB.
 //
 // RFC requirement: RFC9234-5-3 negative -- the ingress stamping rule acts on "a
 // route ... received"; a withdrawal carries none, so nothing is stamped.
@@ -2016,9 +1915,10 @@ func TestOTCIngressNoStampOnPureWithdrawal(t *testing.T) {
 	payload := buildWithdrawOnlyPayload([]byte{24, 10, 1, 1})
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
 
-	accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
-	assert.True(t, accept, "the withdrawal is accepted")
-	assert.Nil(t, modified,
+	out := otcIngressAnswer(t, src, payload)
+	assert.NotEqual(t, sdk.FilterWithdraw, out.Action, "the withdrawal is accepted")
+	_, stamped := answerOTC(t, out)
+	assert.False(t, stamped,
 		"RFC 9234 Section 5: a withdrawal carries no received route, so no OTC is added")
 }
 
@@ -2043,9 +1943,10 @@ func TestOTCIngressNoStampOnMPUnreachOnly(t *testing.T) {
 	payload := buildTestPayload(buildMPUnreachAttr(2, 1), nil)
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
 
-	accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
-	assert.True(t, accept, "the withdrawal is accepted")
-	assert.Nil(t, modified,
+	out := otcIngressAnswer(t, src, payload)
+	assert.NotEqual(t, sdk.FilterWithdraw, out.Action, "the withdrawal is accepted")
+	_, stamped := answerOTC(t, out)
+	assert.False(t, stamped,
 		"RFC 9234 Section 5: an MP_UNREACH-only UPDATE carries no received route")
 }
 
@@ -2194,11 +2095,12 @@ func TestOTCNonUnicastWithdrawalSkipsOTCProcedures(t *testing.T) {
 		payload := buildTestPayload(attrs, nil)
 
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
-		accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
-		assert.True(t, accept,
+		out := otcIngressAnswer(t, src, payload)
+		assert.NotEqual(t, sdk.FilterWithdraw, out.Action,
 			"an EVPN withdrawal carrying OTC is outside the OTC procedures and "+
 				"must not be rejected as a route leak")
-		assert.Nil(t, modified, "and it is not rewritten")
+		_, stamped := answerOTC(t, out)
+		assert.False(t, stamped, "and it is not rewritten")
 	})
 }
 
@@ -2258,9 +2160,10 @@ func TestOTCNotStampedWithoutReachableNLRI(t *testing.T) {
 		payload := buildTestPayload(buildTestAttrs(0), nil)
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
 
-		accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
-		assert.True(t, accept, "the UPDATE is still accepted")
-		assert.Nil(t, modified,
+		out := otcIngressAnswer(t, src, payload)
+		assert.NotEqual(t, sdk.FilterWithdraw, out.Action, "the UPDATE is still accepted")
+		_, stamped := answerOTC(t, out)
+		assert.False(t, stamped,
 			"RFC 9234 Section 5: no route is received, so the payload is not rewritten")
 	})
 }

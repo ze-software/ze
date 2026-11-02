@@ -27,7 +27,7 @@ func captureRoleLog(t *testing.T) *bytes.Buffer {
 // connection > remote > ip (internal/component/bgp/configjson/traverse.go:69-72).
 // extractPeerRoleConfigs used to fall back to the peer NAME as the map key when
 // no remote IP resolved, while all three runtime readers look up by ADDRESS
-// (otc.go: OTCIngressFilter and both OTCEgressFilter lookups). The config was
+// (otc.go: decideOTCIngress and both OTCEgressFilter lookups). The config was
 // therefore stored under a key nothing could ever read, and a nil cfg makes
 // every RFC 9234 Section 5 gate go permissive -- the zero-value trap of
 // ai/rules/evidence.md, where a miss is indistinguishable from

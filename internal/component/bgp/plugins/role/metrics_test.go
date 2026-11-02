@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // --- recording metrics registry (mirrors internal/plugins/redistribute/metrics_test.go,
@@ -131,7 +132,7 @@ func clearFilterState(t *testing.T) {
 // so at the default log level a peer's advertisements could be withdrawn with
 // no operator-visible signal at all. Each subtest exercises one drop reason.
 //
-// VALIDATES: every path where OTCIngressFilter/OTCEgressFilter refuses a route
+// VALIDATES: every path where the otc-ingress filter or OTCEgressFilter refuses a route
 // increments its reason-labeled counter, so the drop is observable.
 // PREVENTS: role-based route suppression being silently invisible to operators
 // (ai/rules/evidence.md: a guard must deny AND say something).
@@ -160,8 +161,7 @@ func TestRoleDropsAreCounted(t *testing.T) {
 				setFilterState(map[string]*peerRoleConfig{"10.0.0.1": {role: roleProvider}}, nil)
 				setFilterRemoteRole("10.0.0.1", "", roleCustomer)
 				src := filterapi.PeerFilterInfo{Address: srcAddr, PeerAS: 65001}
-				accept, _ := OTCIngressFilter(src, withOTC, map[string]any{})
-				return accept
+				return otcIngressAnswer(t, src, withOTC).Action != sdk.FilterWithdraw
 			},
 		},
 		{
@@ -172,8 +172,7 @@ func TestRoleDropsAreCounted(t *testing.T) {
 				setFilterState(map[string]*peerRoleConfig{"10.0.0.1": {role: roleCustomer}}, nil)
 				setFilterRemoteRole("10.0.0.1", "", roleProvider)
 				src := filterapi.PeerFilterInfo{Address: srcAddr, PeerAS: 65001}
-				accept, _ := OTCIngressFilter(src, malformed, map[string]any{})
-				return accept
+				return otcIngressAnswer(t, src, malformed).Action != sdk.FilterWithdraw
 			},
 		},
 		{
@@ -268,8 +267,7 @@ func TestRoleAcceptedRouteIsNotCounted(t *testing.T) {
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
 
 	// Ingress from a Customer without OTC: accepted, not stamped, not rejected.
-	acceptIn, _ := OTCIngressFilter(src, noOTC, map[string]any{})
-	require.True(t, acceptIn)
+	require.NotEqual(t, sdk.FilterWithdraw, otcIngressAnswer(t, src, noOTC).Action)
 
 	// Egress to a Customer: accepted and stamped.
 	var mods filterapi.ModAccumulator
@@ -356,7 +354,6 @@ func TestRoleMetricsSafeBeforeConfigure(t *testing.T) {
 	withOTC := buildTestPayload(buildTestAttrs(65001), nil)
 
 	assert.NotPanics(t, func() {
-		accept, _ := OTCIngressFilter(src, withOTC, map[string]any{})
-		assert.False(t, accept)
+		assert.Equal(t, sdk.FilterWithdraw, otcIngressAnswer(t, src, withOTC).Action)
 	})
 }

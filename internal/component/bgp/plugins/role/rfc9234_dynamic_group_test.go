@@ -1,5 +1,5 @@
 // Related: role.go -- getFilterConfig, remoteRoleLocked, setFilterState, applyValidateOpen
-// Related: otc.go -- OTCIngressFilter, the RFC 9234 Section 5 ingress gate
+// Related: otc.go -- decideOTCIngress, the RFC 9234 Section 5 ingress gate
 // RFC: rfc/short/rfc9234.md
 //
 // Spec: plan/spec-fixit-dynamic-group-peer-config.md (AC-5, AC-9).
@@ -74,7 +74,7 @@ func TestGetFilterConfigFallsBackToGroup(t *testing.T) {
 // VALIDATES: an UPDATE from a member of a listen-range group is judged by the
 // group's role -- the member is an RS-Client because the group states RS, so a
 // route already carrying OTC is a route leak.
-// PREVENTS: the defect this spec fixes: OTCIngressFilter returned early with
+// PREVENTS: the defect this spec fixes: the ingress gate returned early with
 // cfg == nil for every such member, so no ingress rule ran for any IXP route
 // server member.
 //
@@ -91,12 +91,13 @@ func TestOTCIngressGateRunsForADynamicGroupMember(t *testing.T) {
 	}
 	leaked := buildTestPayload(buildTestAttrs(65099), []byte{24, 10, 2, 2})
 
-	meta := make(map[string]any)
-	accept, _ := OTCIngressFilter(member, leaked, meta)
-	assert.False(t, accept,
+	assert.Equal(t, sdk.FilterWithdraw, otcIngressAnswer(t, member, leaked).Action,
 		"RFC 9234 Section 5: a route with OTC from an RS-Client is a route leak")
-	assert.Equal(t, roleRS, meta["src-role"], "src-role is OUR role toward the member")
-	assert.Equal(t, roleRSClient, meta["src-peer-role"],
+	// The roles the decision resolved for the member: the withdrawn route
+	// carries no metadata, so they are read from the decision itself.
+	decision := decideOTCIngress(member, leaked)
+	assert.Equal(t, roleRS, decision.srcRole, "src-role is OUR role toward the member")
+	assert.Equal(t, roleRSClient, decision.peerRole,
 		"src-peer-role is what the member IS to us, the RFC 9234 Table 2 complement of the group's role")
 
 	// Discrimination: the identical UPDATE from a peer that belongs to no group
@@ -104,8 +105,8 @@ func TestOTCIngressGateRunsForADynamicGroupMember(t *testing.T) {
 	// the whole difference between the two calls.
 	orphan := member
 	orphan.GroupName = ""
-	accept, _ = OTCIngressFilter(orphan, leaked, make(map[string]any))
-	assert.True(t, accept, "without the group there is no role config and so no gate")
+	assert.Equal(t, sdk.FilterAccept, otcIngressAnswer(t, orphan, leaked).Action,
+		"without the group there is no role config and so no gate")
 }
 
 // TestValidateOpenRolePairRunsForADynamicGroupMember is the RFC 9234 Section 4.2

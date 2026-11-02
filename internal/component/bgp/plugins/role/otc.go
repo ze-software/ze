@@ -320,127 +320,6 @@ func extractAttrsFromPayload(payload []byte) []byte {
 	return payload[attrStart : attrStart+attrLen]
 }
 
-// insertOTCInPayload creates a new UPDATE payload with OTC appended to path attributes.
-// Updates the attrLen field to account for the added OTC attribute.
-func insertOTCInPayload(payload []byte, otcASN uint32) []byte {
-	if len(payload) < 4 {
-		return nil // Malformed: signal no modification.
-	}
-	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
-	attrOffset := 2 + withdrawnLen
-	if len(payload) < attrOffset+2 {
-		return nil // Malformed: signal no modification.
-	}
-	attrLen := int(binary.BigEndian.Uint16(payload[attrOffset : attrOffset+2]))
-	attrEnd := attrOffset + 2 + attrLen
-	if len(payload) < attrEnd {
-		return nil // Malformed: signal no modification.
-	}
-
-	otc := buildOTCAttr(otcASN)
-	newAttrLen := attrLen + otcWireLen
-
-	// Guard against uint16 overflow (Extended Message UPDATEs can have large attrs).
-	// Returns nil to signal failure -- caller should accept route without modification.
-	if newAttrLen > 65535 {
-		return nil
-	}
-
-	result := make([]byte, len(payload)+otcWireLen)
-	// Copy withdrawn section (including 2-byte length).
-	copy(result, payload[:attrOffset])
-	// Write new attrLen.
-	binary.BigEndian.PutUint16(result[attrOffset:], uint16(newAttrLen)) //nolint:gosec // G115: bounded by check above
-	// Copy original attrs.
-	copy(result[attrOffset+2:], payload[attrOffset+2:attrEnd])
-	// Append OTC after attrs.
-	copy(result[attrEnd:], otc[:])
-	// Copy NLRI section.
-	copy(result[attrEnd+otcWireLen:], payload[attrEnd:])
-
-	return result
-}
-
-// payloadToWithdrawal converts an UPDATE payload to a pure withdrawal.
-// RFC 7606 Section 2: treat-as-withdraw moves announced NLRIs to the withdrawn
-// section and clears path attributes. Returns nil if the payload is malformed
-// or carries no announcements to withdraw.
-func payloadToWithdrawal(payload []byte) []byte {
-	if len(payload) < 4 {
-		return nil
-	}
-	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
-	attrOffset := 2 + withdrawnLen
-	if len(payload) < attrOffset+2 {
-		return nil
-	}
-	attrLen := int(binary.BigEndian.Uint16(payload[attrOffset : attrOffset+2]))
-	nlriStart := attrOffset + 2 + attrLen
-	if nlriStart > len(payload) {
-		return nil
-	}
-	existingWD := payload[2 : 2+withdrawnLen]
-	trailingNLRI := payload[nlriStart:]
-
-	totalWDLen := len(existingWD) + len(trailingNLRI)
-	if totalWDLen == 0 {
-		return nil
-	}
-
-	// Build: withdrawnLen(2) + withdrawn + trailingNLRI + attrLen=0(2)
-	result := make([]byte, 2+totalWDLen+2)
-	binary.BigEndian.PutUint16(result[0:2], uint16(totalWDLen)) //nolint:gosec // G115: bounded by input
-	copy(result[2:], existingWD)
-	copy(result[2+len(existingWD):], trailingNLRI)
-	binary.BigEndian.PutUint16(result[2+totalWDLen:], 0) // empty path attributes
-	return result
-}
-
-// OTCIngressFilter answers decideOTCIngress for one received UPDATE as the
-// payload it leaves: nil and false for a leak, the withdrawal for a malformed
-// OTC, the payload with OTC added for a stamp. The filter the loader inserts
-// (bgp-role:otc-ingress, otc_filter.go) answers the same decision as a
-// verdict and route-field sets instead.
-//
-// Sets meta["src-role"] to the source peer's role from our config (e.g., "provider", "customer").
-// The egress filter uses this for suppression decisions -- our configured knowledge of the
-// peer relationship, independent of whether OTC is in the wire bytes.
-// If we don't configure a role for a peer, we don't filter its routes.
-//
-// Sets meta["src-peer-role"] to what the source peer IS to us, the answer
-// resolvePeerRole gives. The two keys are NOT the same value and one is not the
-// other spelled differently: src-role is OUR role toward that peer, taken from
-// the `import` keyword alone; src-peer-role is the peer's role toward us, which
-// prefers the Role capability the peer announced and falls back to RFC 9234
-// Table 2 complement of the config. A reader that wants "is this a provider"
-// wants the second (docs/architecture/meta/role.md).
-func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
-	decision := decideOTCIngress(src, payload)
-	if decision.srcRole != "" {
-		meta["src-role"] = decision.srcRole
-	}
-	if decision.peerRole != "" {
-		meta["src-peer-role"] = decision.peerRole
-	}
-	switch decision.result {
-	case otcRejectLeak:
-		return false, nil
-	case otcTreatWithdraw:
-		if wd := payloadToWithdrawal(payload); wd != nil {
-			return true, wd
-		}
-		return false, nil
-	}
-	if decision.stampASN > 0 {
-		modified := insertOTCInPayload(payload, decision.stampASN)
-		if modified != nil {
-			return true, modified
-		}
-		logger().Warn("OTC ingress stamp failed: attribute overflow", "peer", src.Address)
-	}
-	return true, nil
-}
-
 // otcIngressDecision is what RFC 9234 Section 5 decides for one received
 // UPDATE: the verdict, the OTC value to add (0 adds none), and the two role
 // metadata values (empty writes no key).
@@ -454,8 +333,8 @@ type otcIngressDecision struct {
 // decideOTCIngress applies the RFC 9234 Section 5 ingress procedures to one
 // UPDATE received from src. It is the one decision both readers act on: the
 // bgp-role:otc-ingress filter (otc_filter.go) answers it as a verdict and
-// sets, and OTCIngressFilter answers it as a rewritten payload. It changes
-// nothing but the drop counters. Safe for concurrent use.
+// sets, the one reader. It changes nothing but the drop counters. Safe for
+// concurrent use.
 func decideOTCIngress(src filterapi.PeerFilterInfo, payload []byte) otcIngressDecision {
 	cfg, capRole := getFilterConfig(src.Address.String(), src.Name, src.GroupName)
 

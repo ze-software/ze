@@ -497,7 +497,7 @@ rather than only how many. The peer is in the log line: a peer address in a labe
 series count with the session count.
 
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
-<!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
+<!-- source: internal/component/bgp/plugins/role/otc.go -- decideOTCIngress, OTCEgressFilter -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
 
 A filter that rewrites a received route is the same case again: the route is

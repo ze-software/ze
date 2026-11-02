@@ -4,12 +4,15 @@
 package role
 
 import (
+	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -19,6 +22,62 @@ import (
 func otcForkedRoute(filter string, payload []byte, fields string) *sdk.FilterRoute {
 	route := rpc.InputFilterRoute(&rpc.FilterUpdateInput{Filter: filter, Raw: payload, Fields: []byte(fields)})
 	return &route
+}
+
+// otcIngressAnswer is the bgp-role:otc-ingress filter's answer for one UPDATE
+// received from src, through the forked transport: the fields object carries
+// src's session facts under the names otcFilterDecls declares. A route the
+// filter keeps answers accept or modify; a leak and a malformed OTC answer
+// withdraw, which the engine applies as the withdrawal of the route's
+// prefixes (reactor TestWithdrawVerdictReactorRails).
+func otcIngressAnswer(t *testing.T, src filterapi.PeerFilterInfo, payload []byte) *sdk.FilterUpdateOutput {
+	t.Helper()
+	facts := otcFieldsJSON{PeerName: src.Name, PeerGroup: src.GroupName, PeerAS: src.PeerAS, LocalAS: src.LocalAS}
+	if src.Address.IsValid() {
+		facts.PeerAddress = src.Address.String()
+	}
+	fields, err := json.Marshal(facts)
+	require.NoError(t, err)
+	out, err := evaluateRoleFilter(otcForkedRoute(otcIngressFilterName, payload, string(fields)))
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	return out
+}
+
+// answerOTC is the OTC value an answer sets on the route, and whether it sets
+// one. The engine writes the set as the OTC attribute (policychain
+// TestOwnerAttributeNumberSets), so this is the stamp the route carries on.
+func answerOTC(t *testing.T, out *sdk.FilterUpdateOutput) (uint32, bool) {
+	t.Helper()
+	for _, set := range out.Sets {
+		if set.Field != fieldOTC.String() {
+			continue
+		}
+		require.Equal(t, rpc.FilterSetActionSet, set.Action)
+		asn, err := strconv.ParseUint(string(set.Value), 10, 32)
+		require.NoError(t, err, "the otc set holds an AS number")
+		return uint32(asn), true
+	}
+	return 0, false
+}
+
+// answerMeta is the route metadata an answer writes: each text field it sets
+// (src-role, src-peer-role), unquoted, keyed by field name. A field the answer
+// does not set is absent from the map, as an unwritten key is absent from the
+// route.
+func answerMeta(t *testing.T, out *sdk.FilterUpdateOutput) map[string]any {
+	t.Helper()
+	meta := map[string]any{}
+	for _, set := range out.Sets {
+		if set.Field == fieldOTC.String() {
+			continue
+		}
+		require.Equal(t, rpc.FilterSetActionSet, set.Action)
+		text, err := strconv.Unquote(string(set.Value))
+		require.NoError(t, err, "%s holds a quoted text value", set.Field)
+		meta[set.Field] = text
+	}
+	return meta
 }
 
 // TestOTCProceduresAreRequiredRoleMembers proves the declaration half of

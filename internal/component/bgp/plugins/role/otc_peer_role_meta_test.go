@@ -9,7 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 )
 
-// TestOTCIngressPublishesPeerRole pins the meta key OTCIngressFilter
+// TestOTCIngressPublishesPeerRole pins the meta key the otc-ingress filter
 // publishes for other filters: "src-peer-role", what the source peer IS to
 // us.
 //
@@ -37,10 +37,8 @@ func TestOTCIngressPublishesPeerRole(t *testing.T) {
 	})
 
 	ingress := func(addr string, peerAS uint32) map[string]any {
-		meta := make(map[string]any)
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr(addr), PeerAS: peerAS}
-		OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), nil), meta)
-		return meta
+		return answerMeta(t, otcIngressAnswer(t, src, buildTestPayload(buildTestAttrs(0), nil)))
 	}
 
 	t.Run("config only: the complement of our configured role", func(t *testing.T) {
@@ -63,7 +61,7 @@ func TestOTCIngressPublishesPeerRole(t *testing.T) {
 	})
 
 	t.Run("published even when this plugin has no OTC work for the peer", func(t *testing.T) {
-		// No local role config, but the peer announced one. OTCIngressFilter
+		// No local role config, but the peer announced one. decideOTCIngress
 		// returns early here; the key must still be set, because what the peer
 		// IS is a different question from whether OTC applies to it.
 		setFilterState(map[string]*peerRoleConfig{"10.0.0.3": nil}, nil)
